@@ -22,6 +22,9 @@ TODO_SETUP.md
 # Claude Code local config
 .claude/
 
+# Supabase CLI temp files (project metadata, not secrets but not needed in repo)
+supabase/.temp/
+
 # Editor
 .vscode/*
 !.vscode/extensions.json

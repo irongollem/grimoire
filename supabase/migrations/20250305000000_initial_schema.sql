@@ -5,8 +5,6 @@
 
 -- ── 001: Extensions & shared trigger ────────────────────────────────────────
 
-create extension if not exists "uuid-ossp";
-
 -- Auto-update updated_at on any table
 create or replace function update_updated_at()
 returns trigger language plpgsql as $$
@@ -20,7 +18,7 @@ $$;
 -- ── 002: Campaigns ───────────────────────────────────────────────────────────
 
 create table public.campaigns (
-  id           uuid primary key default uuid_generate_v4(),
+  id           uuid primary key default gen_random_uuid(),
   user_id      uuid references auth.users(id) on delete cascade not null,
   name         text not null,
   description  text,
@@ -44,7 +42,7 @@ create trigger campaigns_updated_at
 -- ── 003: Notes ───────────────────────────────────────────────────────────────
 
 create table public.notes (
-  id          uuid primary key default uuid_generate_v4(),
+  id          uuid primary key default gen_random_uuid(),
   user_id     uuid references auth.users(id) on delete cascade not null,
   title       text not null default 'Untitled Note',
   content     text,              -- Tiptap editor JSON string
@@ -76,7 +74,7 @@ create trigger notes_updated_at
 -- ── 004: Calendar Events ─────────────────────────────────────────────────────
 
 create table public.calendar_events (
-  id           uuid primary key default uuid_generate_v4(),
+  id           uuid primary key default gen_random_uuid(),
   user_id      uuid references auth.users(id) on delete cascade not null,
   title        text not null,
   description  text,
@@ -114,7 +112,7 @@ create trigger calendar_events_updated_at
 -- ── 005: Scriptorium Documents ───────────────────────────────────────────────
 
 create table public.scriptorium_documents (
-  id           uuid primary key default uuid_generate_v4(),
+  id           uuid primary key default gen_random_uuid(),
   user_id      uuid references auth.users(id) on delete cascade not null,
   title        text not null default 'Untitled Document',
   content      text,            -- Tiptap editor JSON string
@@ -145,7 +143,7 @@ create trigger scriptorium_updated_at
 -- ── 006: NPCs ────────────────────────────────────────────────────────────────
 
 create table public.npcs (
-  id                  uuid primary key default uuid_generate_v4(),
+  id                  uuid primary key default gen_random_uuid(),
   user_id             uuid references auth.users(id) on delete cascade not null,
   name                text not null,
   race                text,
