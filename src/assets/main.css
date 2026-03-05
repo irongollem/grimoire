@@ -1,0 +1,222 @@
+@import './fonts.css';
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Tailwind v4: @theme maps CSS variables to utility classes.
+   @theme inline defers color resolution so hsl(var(--x)) works at runtime.
+───────────────────────────────────────────────────────────────────────────── */
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  /* Shadcn-compatible semantic tokens */
+  --color-background:          var(--background);
+  --color-foreground:          var(--foreground);
+  --color-card:                var(--card);
+  --color-card-foreground:     var(--card-foreground);
+  --color-popover:             var(--popover);
+  --color-popover-foreground:  var(--popover-foreground);
+  --color-primary:             var(--primary);
+  --color-primary-foreground:  var(--primary-foreground);
+  --color-secondary:           var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted:               var(--muted);
+  --color-muted-foreground:    var(--muted-foreground);
+  --color-accent:              var(--accent);
+  --color-accent-foreground:   var(--accent-foreground);
+  --color-destructive:         var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border:              var(--border);
+  --color-input:               var(--input);
+  --color-ring:                var(--ring);
+
+  /* Border radius */
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  /* Fonts */
+  --font-cinzel: 'Cinzel', Georgia, serif;
+  --font-fell:   'IM Fell English', Georgia, serif;
+  --font-sans:   'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  /* Grimoire DnD custom palette */
+  --color-parchment:      #F5E6C8;
+  --color-parchment-dark: #D4B896;
+
+  --color-gold-50:  #FDF8E8;
+  --color-gold-100: #FAF0C8;
+  --color-gold-300: #F0C74A;
+  --color-gold-400: #E8B422;
+  --color-gold-500: #C9920A;
+  --color-gold-600: #A67708;
+  --color-gold-700: #7D5A06;
+
+  --color-burgundy-900: #1A0A0E;
+  --color-burgundy-800: #2C0F18;
+  --color-burgundy-700: #3E1422;
+  --color-burgundy-600: #5C1A30;
+  --color-burgundy-500: #7A2040;
+  --color-burgundy-400: #9B3055;
+
+  --color-navy-950: #060B14;
+  --color-navy-900: #0B1525;
+  --color-navy-800: #111F38;
+  --color-navy-700: #182B4E;
+  --color-navy-600: #1F3666;
+
+  /* Scriptorium (OneDnD output) palette */
+  --color-scriptorium-teal:    #1B3A4B;
+  --color-scriptorium-teal-lt: #E8F4F8;
+  --color-scriptorium-page:    #F9F6EF;
+
+  --color-dragon-red:    #C0392B;
+  --color-elven-green:   #2E7D32;
+  --color-arcane-purple: #6A1B9A;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Grimoire dark theme CSS variables (HSL values for runtime blending)
+───────────────────────────────────────────────────────────────────────────── */
+:root {
+  --background:         hsl(222 47% 7%);
+  --foreground:         hsl(38 60% 88%);
+
+  --card:               hsl(222 40% 10%);
+  --card-foreground:    hsl(38 60% 88%);
+
+  --popover:            hsl(222 40% 10%);
+  --popover-foreground: hsl(38 60% 88%);
+
+  --primary:            hsl(42 90% 42%);
+  --primary-foreground: hsl(222 47% 7%);
+
+  --secondary:          hsl(340 50% 18%);
+  --secondary-foreground: hsl(38 60% 88%);
+
+  --muted:              hsl(222 30% 15%);
+  --muted-foreground:   hsl(38 30% 65%);
+
+  --accent:             hsl(42 90% 42%);
+  --accent-foreground:  hsl(222 47% 7%);
+
+  --destructive:        hsl(0 72% 51%);
+  --destructive-foreground: hsl(38 60% 88%);
+
+  --border:             hsl(222 30% 18%);
+  --input:              hsl(222 30% 18%);
+  --ring:               hsl(42 90% 42%);
+
+  --radius: 0.5rem;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Base styles
+───────────────────────────────────────────────────────────────────────────── */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: 'IM Fell English', serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Cinzel', serif;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Grimoire component utilities
+───────────────────────────────────────────────────────────────────────────── */
+@layer components {
+  .card-parchment {
+    background-color: #F5E6C8;
+    color: #0B1525;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+
+  .nav-link-active {
+    color: #E8B422;
+    border-left: 2px solid #C9920A;
+    background-color: #111F38;
+    padding-left: 0.75rem;
+  }
+
+  .gold-divider {
+    border-top: 1px solid rgba(201, 146, 10, 0.3);
+  }
+
+  /* ── Scriptorium rendered output (OneDnD 2024 PHB style) ── */
+  .scriptorium-page {
+    background-color: #F9F6EF;
+    color: #1a1a1a;
+    font-family: 'IM Fell English', serif;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    column-count: 2;
+    column-gap: 1.5rem;
+    padding: 2rem;
+  }
+
+  .scriptorium-page h1,
+  .scriptorium-page h2 {
+    font-family: 'Cinzel', serif;
+    background-color: #1B3A4B;
+    color: white;
+    padding: 0.4rem 0.75rem;
+    column-span: all;
+    margin-bottom: 0.75rem;
+    letter-spacing: 0.05em;
+  }
+
+  .scriptorium-page h3 {
+    font-family: 'Cinzel', serif;
+    color: #1B3A4B;
+    border-bottom: 1px solid #1B3A4B;
+    padding-bottom: 0.2rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .scriptorium-page p:first-of-type::first-letter {
+    font-size: 3rem;
+    font-family: 'Cinzel', serif;
+    float: left;
+    line-height: 0.75;
+    margin-right: 0.15rem;
+    color: #1B3A4B;
+    font-weight: 700;
+  }
+
+  .stat-block {
+    background-color: #FDF1DC;
+    border: 1px solid #8B7355;
+    border-radius: 0.25rem;
+    padding: 0.75rem;
+    break-inside: avoid;
+    margin-bottom: 1rem;
+  }
+
+  .stat-block__header {
+    background-color: #1B3A4B;
+    color: white;
+    font-family: 'Cinzel', serif;
+    padding: 0.4rem 0.6rem;
+    margin: -0.75rem -0.75rem 0.6rem;
+    border-radius: 0.25rem 0.25rem 0 0;
+    font-size: 1.1rem;
+  }
+
+  .note-box {
+    background-color: #E8F4F8;
+    border-left: 4px solid #1B3A4B;
+    padding: 0.6rem 0.75rem;
+    border-radius: 0 0.25rem 0.25rem 0;
+    break-inside: avoid;
+    margin-bottom: 1rem;
+  }
+}
