@@ -24,9 +24,10 @@ async function fetchDocument(id: string): Promise<ScriptoriumDocument> {
 }
 
 async function createDocument(doc: ScriptoriumDocInsert): Promise<ScriptoriumDocument> {
+  const { data: { user } } = await supabase.auth.getUser()
   const { data, error } = await supabase
     .from('scriptorium_documents')
-    .insert(doc)
+    .insert({ ...doc, user_id: user!.id })
     .select()
     .single()
   if (error) throw error
@@ -54,7 +55,11 @@ export function useScriptoriumDocuments() {
 }
 
 export function useScriptoriumDocument(id: string) {
-  return useQuery({ queryKey: [QUERY_KEY, id], queryFn: () => fetchDocument(id) })
+  return useQuery({
+    queryKey: [QUERY_KEY, id],
+    queryFn: () => fetchDocument(id),
+    enabled: !!id,
+  })
 }
 
 export function useCreateScriptoriumDocument() {
