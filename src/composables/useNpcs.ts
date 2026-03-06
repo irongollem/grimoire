@@ -54,7 +54,11 @@ export function useNpcs() {
 }
 
 export function useNpc(id: string) {
-  return useQuery({ queryKey: [QUERY_KEY, id], queryFn: () => fetchNpc(id) })
+  return useQuery({
+    queryKey: [QUERY_KEY, id],
+    queryFn: () => fetchNpc(id),
+    enabled: !!id,
+  })
 }
 
 export function useCreateNpc() {

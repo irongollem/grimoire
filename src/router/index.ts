@@ -86,6 +86,12 @@ const router = createRouter({
       meta: { requiresAuth: true, title: 'NPC Tracker' },
     },
     {
+      path: '/npcs/new',
+      name: 'npc-new',
+      component: () => import('@/views/npcs/NpcDetailView.vue'),
+      meta: { requiresAuth: true, title: 'New NPC' },
+    },
+    {
       path: '/npcs/:id',
       name: 'npc-detail',
       component: () => import('@/views/npcs/NpcDetailView.vue'),
