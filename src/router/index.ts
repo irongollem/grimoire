@@ -98,6 +98,34 @@ const router = createRouter({
       meta: { requiresAuth: true, title: 'NPC Sheet' },
     },
 
+    // Monsters
+    {
+      path: '/monsters',
+      name: 'monsters',
+      component: () => import('@/views/monsters/MonstersView.vue'),
+      meta: { requiresAuth: true, title: 'Bestiary' },
+    },
+    {
+      path: '/monsters/new',
+      name: 'monster-new',
+      component: () => import('@/views/monsters/MonsterDetailView.vue'),
+      meta: { requiresAuth: true, title: 'New Monster' },
+    },
+    {
+      path: '/monsters/:id',
+      name: 'monster-detail',
+      component: () => import('@/views/monsters/MonsterDetailView.vue'),
+      meta: { requiresAuth: true, title: 'Monster' },
+    },
+
+    // Party
+    {
+      path: '/party',
+      name: 'party',
+      component: () => import('@/views/party/PartyView.vue'),
+      meta: { requiresAuth: true, title: 'Party Tracker' },
+    },
+
     // 404
     {
       path: '/:pathMatch(.*)*',

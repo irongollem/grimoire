@@ -4,6 +4,8 @@ import {
   CalendarDays,
   Scroll,
   Users,
+  Skull,
+  Shield,
 } from 'lucide-vue-next'
 import type { Component } from 'vue'
 
@@ -44,5 +46,17 @@ export const NAV_ITEMS: NavItem[] = [
     to: '/npcs',
     icon: Users,
     description: 'Non-player characters',
+  },
+  {
+    label: 'Bestiary',
+    to: '/monsters',
+    icon: Skull,
+    description: 'Monster builder & compendium',
+  },
+  {
+    label: 'Party',
+    to: '/party',
+    icon: Shield,
+    description: 'Track heroes & initiative',
   },
 ]
