@@ -3,9 +3,18 @@ import { ref, computed } from 'vue'
 import { getCalendarAdapter, listCalendarAdapters } from '@/calendars/index'
 import type { CalendarAdapter } from '@/types/calendar.types'
 
+export type CalendarView = 'month' | 'timeline'
+export type TimelineZoom = 10 | 20 | 50 | 100
+
 export const useCalendarStore = defineStore('calendar', () => {
   // Which calendar system is active (per campaign, defaults to Faerûn)
   const activeCalendarId = ref<string>('faerun')
+
+  // Active view
+  const view = ref<CalendarView>('month')
+
+  // Timeline zoom: number of years shown
+  const timelineZoom = ref<TimelineZoom>(20)
 
   // Current view position
   const currentYear = ref<number>(1495)   // Dale Reckoning default
@@ -46,8 +55,18 @@ export const useCalendarStore = defineStore('calendar', () => {
     currentYear.value = year
   }
 
+  function setView(v: CalendarView) {
+    view.value = v
+  }
+
+  function setTimelineZoom(z: TimelineZoom) {
+    timelineZoom.value = z
+  }
+
   return {
     activeCalendarId,
+    view,
+    timelineZoom,
     currentYear,
     currentMonth,
     adapter,
@@ -56,5 +75,7 @@ export const useCalendarStore = defineStore('calendar', () => {
     prevMonth,
     nextMonth,
     goToYear,
+    setView,
+    setTimelineZoom,
   }
 })

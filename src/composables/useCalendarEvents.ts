@@ -1,3 +1,5 @@
+import { computed } from 'vue'
+import { type MaybeRef, unref } from 'vue'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { supabase } from '@/lib/supabase'
 import type { CalendarEvent, CalendarEventInsert, CalendarEventUpdate } from '@/types/calendar.types'
@@ -9,7 +11,21 @@ async function fetchEventsByYear(year: number): Promise<CalendarEvent[]> {
     .from('calendar_events')
     .select('*')
     .eq('harptos_year', year)
-    .order('harptos_month', { ascending: true })
+    .order('harptos_month', { ascending: true, nullsFirst: true })
+    .order('harptos_day', { ascending: true, nullsFirst: true })
+  if (error) throw error
+  return data as CalendarEvent[]
+}
+
+async function fetchEventsByRange(startYear: number, endYear: number): Promise<CalendarEvent[]> {
+  const { data, error } = await supabase
+    .from('calendar_events')
+    .select('*')
+    .gte('harptos_year', startYear)
+    .lte('harptos_year', endYear)
+    .order('harptos_year', { ascending: true })
+    .order('harptos_month', { ascending: true, nullsFirst: true })
+    .order('harptos_day', { ascending: true, nullsFirst: true })
   if (error) throw error
   return data as CalendarEvent[]
 }
@@ -40,10 +56,17 @@ async function deleteCalendarEvent(id: string): Promise<void> {
   if (error) throw error
 }
 
-export function useCalendarEvents(year: number) {
+export function useCalendarEvents(year: MaybeRef<number>) {
   return useQuery({
-    queryKey: [QUERY_KEY, year],
-    queryFn: () => fetchEventsByYear(year),
+    queryKey: computed(() => [QUERY_KEY, unref(year)]),
+    queryFn: () => fetchEventsByYear(unref(year)),
+  })
+}
+
+export function useCalendarEventsRange(startYear: MaybeRef<number>, endYear: MaybeRef<number>) {
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, 'range', unref(startYear), unref(endYear)]),
+    queryFn: () => fetchEventsByRange(unref(startYear), unref(endYear)),
   })
 }
 
@@ -51,8 +74,10 @@ export function useCreateCalendarEvent() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: createCalendarEvent,
-    onSuccess: (_data, variables) =>
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, variables.harptos_year] }),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, variables.harptos_year] })
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, 'range'] })
+    },
   })
 }
 
