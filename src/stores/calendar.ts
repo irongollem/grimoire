@@ -4,7 +4,8 @@ import { getCalendarAdapter, listCalendarAdapters } from '@/calendars/index'
 import type { CalendarAdapter } from '@/types/calendar.types'
 
 export type CalendarView = 'month' | 'timeline'
-export type TimelineZoom = 10 | 20 | 50 | 100
+// Number of years shown in timeline. Sub-year values: 1/12 ≈ 0.083 (1 month), 1 = 1 year.
+export type TimelineZoom = number
 
 export const useCalendarStore = defineStore('calendar', () => {
   // Which calendar system is active (per campaign, defaults to Faerûn)
@@ -55,6 +56,11 @@ export const useCalendarStore = defineStore('calendar', () => {
     currentYear.value = year
   }
 
+  function goToMonth(year: number, month: number) {
+    currentYear.value = year
+    currentMonth.value = month
+  }
+
   function setView(v: CalendarView) {
     view.value = v
   }
@@ -75,6 +81,7 @@ export const useCalendarStore = defineStore('calendar', () => {
     prevMonth,
     nextMonth,
     goToYear,
+    goToMonth,
     setView,
     setTimelineZoom,
   }
