@@ -31,9 +31,10 @@ async function fetchEventsByRange(startYear: number, endYear: number): Promise<C
 }
 
 async function createCalendarEvent(event: CalendarEventInsert): Promise<CalendarEvent> {
+  const { data: { user } } = await supabase.auth.getUser()
   const { data, error } = await supabase
     .from('calendar_events')
-    .insert(event)
+    .insert({ ...event, user_id: user!.id })
     .select()
     .single()
   if (error) throw error

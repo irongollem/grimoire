@@ -24,9 +24,10 @@ async function fetchNpc(id: string): Promise<Npc> {
 }
 
 async function createNpc(npc: NpcInsert): Promise<Npc> {
+  const { data: { user } } = await supabase.auth.getUser()
   const { data, error } = await supabase
     .from('npcs')
-    .insert(npc)
+    .insert({ ...npc, user_id: user!.id })
     .select()
     .single()
   if (error) throw error
