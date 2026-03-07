@@ -50,6 +50,9 @@
             Print {{ selectedSubjects.length ? `(${selectedSubjects.length})` : '' }}
           </button>
         </div>
+        <p class="duplex-hint">
+          Prints fronts then backs. For double-sided printing, flip on the long (left) edge — backs are column-reversed so they align.
+        </p>
       </div>
 
       <div class="forge-body">
@@ -381,6 +384,16 @@ function formatDate(iso: string) {
 }
 </script>
 
+<!-- Remove browser print headers/footers so the full A4 area is available for cards -->
+<style>
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+}
+</style>
+
 <style scoped>
 @reference "@/assets/main.css";
 
@@ -559,6 +572,9 @@ function formatDate(iso: string) {
 .print-layout {
   display: none;
 }
+.duplex-hint {
+  @apply font-fell text-xs text-muted-foreground italic w-full mt-0.5;
+}
 
 @media print {
   .screen-panel {
@@ -574,11 +590,17 @@ function formatDate(iso: string) {
     display: grid;
     width: 210mm;
     height: 297mm;
+    /* page-break-after only between sheets, not after the last */
     page-break-after: always;
+    overflow: visible;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  /* MTG: 3×3 grid on A4 */
+  /* Remove page break after the very last sheet to avoid a blank trailing page */
+  .print-sheet:last-child {
+    page-break-after: auto;
+  }
+  /* MTG: 3×3 grid on A4 — no browser margins needed (handled by @page in global style) */
   .mtg-sheet {
     grid-template-columns: repeat(3, 63mm);
     grid-template-rows: repeat(3, 88mm);
@@ -592,10 +614,13 @@ function formatDate(iso: string) {
     padding: 28.5mm 35mm;
     gap: 0;
   }
+  /* Cards: fill their grid cell + 1mm bleed on every edge */
   .print-card {
-    width: 100% !important;
-    height: 100% !important;
+    width: calc(100% + 2mm) !important;
+    height: calc(100% + 2mm) !important;
+    margin: -1mm !important;
     border-radius: 3mm !important;
+    overflow: hidden;
   }
   .print-card-empty {
     background: transparent;
