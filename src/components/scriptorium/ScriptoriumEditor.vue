@@ -141,6 +141,32 @@
 
             <div class="w-px h-5 bg-border mx-0.5" />
 
+            <!-- Image controls (shown when an image is selected) -->
+            <template v-if="editor.isActive('image')">
+              <span class="font-cinzel text-[9px] text-muted-foreground tracking-wider px-1 self-center">IMG</span>
+              <button v-for="size in IMAGE_SIZES" :key="size.w"
+                type="button" :title="`${size.label} (${size.w}px)`"
+                :class="tbCls(editor.getAttributes('image').width === String(size.w))"
+                @click="editor.chain().focus().updateAttributes('image', { width: String(size.w) }).run()"
+              >
+                <span class="font-cinzel text-[9px] font-bold leading-none">{{ size.label }}</span>
+              </button>
+              <div class="w-px h-5 bg-border mx-0.5" />
+              <button type="button" title="Float left" :class="tbCls(editor.getAttributes('image').dataAlign === 'left')"
+                @click="editor.chain().focus().updateAttributes('image', { dataAlign: 'left' }).run()">
+                <AlignLeft class="h-3.5 w-3.5" />
+              </button>
+              <button type="button" title="Center" :class="tbCls(editor.getAttributes('image').dataAlign === 'center')"
+                @click="editor.chain().focus().updateAttributes('image', { dataAlign: 'center' }).run()">
+                <AlignCenter class="h-3.5 w-3.5" />
+              </button>
+              <button type="button" title="Float right" :class="tbCls(editor.getAttributes('image').dataAlign === 'right' || !editor.getAttributes('image').dataAlign)"
+                @click="editor.chain().focus().updateAttributes('image', { dataAlign: 'right' }).run()">
+                <AlignRight class="h-3.5 w-3.5" />
+              </button>
+              <div class="w-px h-5 bg-border mx-0.5" />
+            </template>
+
             <!-- History -->
             <button type="button" title="Undo" :class="tbCls(false)" :disabled="!editor.can().undo()" @click="editor.chain().focus().undo().run()">
               <Undo2 class="h-3.5 w-3.5" />
@@ -210,15 +236,24 @@ import { useRouter } from 'vue-router'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
+import Image from '@tiptap/extension-image'
 import {
   Save, Strikethrough, Code, SquareCode, List, ListOrdered,
   Quote, Minus, Undo2, Redo2, FileDown, Loader2, PackagePlus,
+  AlignLeft, AlignCenter, AlignRight,
 } from 'lucide-vue-next'
 import { useCreateScriptoriumDocument, useUpdateScriptoriumDocument } from '@/composables/useScriptorium'
 import { useScriptoriumPdf } from '@/composables/useScriptoriumPdf'
 import type { ScriptoriumDocument, ScriptoriumDocType } from '@/types/scriptorium.types'
 import PdfPreviewDialog from '@/components/scriptorium/PdfPreviewDialog.vue'
 import AssetInsertPanel from '@/components/scriptorium/AssetInsertPanel.vue'
+
+const IMAGE_SIZES = [
+  { label: 'S', w: 120 },
+  { label: 'M', w: 200 },
+  { label: 'L', w: 280 },
+  { label: 'XL', w: 380 },
+] as const
 
 const DOC_TYPES: { value: ScriptoriumDocType; label: string }[] = [
   { value: 'custom', label: 'Custom' },
@@ -297,6 +332,37 @@ const editor = useEditor({
   extensions: [
     StarterKit,
     Placeholder.configure({ placeholder: 'Begin your document here…' }),
+    Image.extend({
+      addAttributes() {
+        return {
+          ...this.parent?.(),
+          // Explicit pixel width — html2canvas needs the attribute, not just CSS
+          width: {
+            default: '200',
+            parseHTML: el => el.getAttribute('width') ?? '200',
+            renderHTML: attrs => ({ width: attrs.width }),
+          },
+          // Alignment drives the inline style (float / centering)
+          dataAlign: {
+            default: 'right',
+            parseHTML: el => {
+              const s = el.getAttribute('style') ?? ''
+              if (s.includes('float:left'))  return 'left'
+              if (s.includes('margin:8px auto')) return 'center'
+              return 'right'
+            },
+            renderHTML: attrs => {
+              const parts: string[] = []
+              if (attrs.dataAlign === 'right')  parts.push('float:right;margin:0 0 10px 14px')
+              else if (attrs.dataAlign === 'left')   parts.push('float:left;margin:0 14px 10px 0')
+              else if (attrs.dataAlign === 'center') parts.push('display:block;margin:8px auto')
+              if (attrs.width) parts.push(`width:${attrs.width}px`)
+              return { style: parts.join(';') }
+            },
+          },
+        }
+      },
+    }).configure({ inline: false, allowBase64: false }),
   ],
   onCreate({ editor }) {
     updateDerived(editor.getHTML(), editor.getText())
@@ -378,6 +444,7 @@ onUnmounted(() => editor.value?.destroy())
 .phb-editor :deep(.ProseMirror hr)  { @apply border-border my-4; }
 .phb-editor :deep(.ProseMirror code) { @apply bg-muted px-1 rounded text-sm font-mono; }
 .phb-editor :deep(.ProseMirror pre) { @apply bg-muted p-3 rounded my-2 text-sm; }
+.phb-editor :deep(.ProseMirror img) { max-width: 380px; max-height: 480px; border-radius: 6px; object-fit: cover; }
 
 /* ── PHB Preview (OneDnD 2024 output style) ───────────────────── */
 /* Parchment-gray canvas between pages */

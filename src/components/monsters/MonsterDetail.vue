@@ -374,6 +374,7 @@ async function save() {
   try {
     if (props.monster) {
       await update({ id: props.monster.id, update: buildPayload() })
+      router.push('/monsters')
     } else {
       const created = await create(buildPayload())
       router.replace(`/monsters/${created.id}`)

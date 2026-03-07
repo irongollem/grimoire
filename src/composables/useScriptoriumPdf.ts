@@ -18,6 +18,7 @@ blockquote p { margin:0; } strong { font-weight:700; } em { font-style:italic; }
 code { background:#e4ddd0; padding:1px 4px; border-radius:2px; font-family:'Courier New',monospace; font-size:13px; }
 pre { background:#1B3A4B; color:#E8F4F8; padding:11px; border-radius:4px; overflow:hidden; margin:11px 0; font-size:13px; }
 pre code { background:transparent; padding:0; color:inherit; }
+img:not(.phb-border) { max-width:380px; max-height:480px; border-radius:4px; object-fit:cover; }
 `
 
 async function buildPdfBlob(pages: string[], title: string): Promise<Blob> {

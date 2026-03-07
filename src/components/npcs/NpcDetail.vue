@@ -546,6 +546,7 @@ async function save() {
   }
   if (props.npc?.id) {
     await updateNpc({ id: props.npc.id, update: payload })
+    router.push('/npcs')
   } else {
     const created = await createNpc(payload)
     router.replace(`/npcs/${created.id}`)

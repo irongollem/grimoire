@@ -62,6 +62,11 @@ const npcFormatter: AssetFormatter<Npc> = {
   format(npc: Npc): ScriptoriumImportData {
     let html = ''
 
+    // Portrait image (floated right in the document)
+    if (npc.portrait_url) {
+      html += `<img src="${npc.portrait_url}" alt="${npc.name}" width="200" style="float:right;margin:0 0 10px 14px;width:200px" />\n`
+    }
+
     // Name heading
     html += `<h1>${npc.name}</h1>\n`
 
