@@ -15,6 +15,16 @@
           Delete
         </button>
         <button
+          v-if="npc?.id"
+          type="button"
+          :disabled="isSendingToScriptorium"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-50"
+          @click="sendToScriptorium"
+        >
+          <ScrollText class="h-3.5 w-3.5" />
+          {{ isSendingToScriptorium ? 'Exporting…' : 'Send to Scriptorium' }}
+        </button>
+        <button
           type="submit"
           :disabled="isSaving"
           class="px-4 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
@@ -276,10 +286,12 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { ImagePlus } from 'lucide-vue-next'
+import { ImagePlus, ScrollText } from 'lucide-vue-next'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
 import { useCreateNpc, useUpdateNpc, useDeleteNpc } from '@/composables/useNpcs'
+import { useCreateScriptoriumDocument } from '@/composables/useScriptorium'
+import { formatNpcForScriptorium } from '@/lib/scriptoriumImport'
 import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES, getNpcTemplate } from '@/data/npcTemplates'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import TraitSection from '@/components/npcs/TraitSection.vue'
@@ -321,7 +333,23 @@ const auth = useAuthStore()
 const { mutateAsync: createNpc, isPending: isCreating } = useCreateNpc()
 const { mutateAsync: updateNpc, isPending: isUpdating } = useUpdateNpc()
 const { mutateAsync: deleteNpc } = useDeleteNpc()
+const { mutateAsync: createScriptoriumDoc } = useCreateScriptoriumDocument()
 const isSaving = computed(() => isCreating.value || isUpdating.value)
+const isSendingToScriptorium = ref(false)
+
+async function sendToScriptorium() {
+  if (!props.npc) return
+  isSendingToScriptorium.value = true
+  try {
+    const importData = formatNpcForScriptorium(props.npc)
+    const doc = await createScriptoriumDoc(importData)
+    // Link the NPC back to the new doc
+    await updateNpc({ id: props.npc.id, update: { scriptorium_doc_id: doc.id } })
+    router.push(`/scriptorium/${doc.id}`)
+  } finally {
+    isSendingToScriptorium.value = false
+  }
+}
 
 // ── Form state ────────────────────────────────────────────────────────────────
 

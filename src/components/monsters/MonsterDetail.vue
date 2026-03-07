@@ -33,6 +33,16 @@
       <button
         v-if="props.monster"
         type="button"
+        :disabled="sendingToScriptorium"
+        class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+        @click="sendToScriptorium"
+      >
+        <ScrollText class="h-3.5 w-3.5" />
+        {{ sendingToScriptorium ? 'Exporting…' : 'Send to Scriptorium' }}
+      </button>
+      <button
+        v-if="props.monster"
+        type="button"
         class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
         @click="remove"
       >
@@ -221,8 +231,10 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { Save, Trash2 } from 'lucide-vue-next'
+import { Save, Trash2, ScrollText } from 'lucide-vue-next'
 import { useCreateMonster, useUpdateMonster, useDeleteMonster } from '@/composables/useMonsters'
+import { useCreateScriptoriumDocument } from '@/composables/useScriptorium'
+import { formatMonsterForScriptorium } from '@/lib/scriptoriumImport'
 import TraitSection from '@/components/npcs/TraitSection.vue'
 import { MONSTER_TEMPLATE_CATEGORIES, getMonsterTemplate } from '@/data/monsterTemplates'
 import type { Monster, MonsterType, MonsterSize, MonsterStatBlock } from '@/types/monster.types'
@@ -324,8 +336,22 @@ function mod(score: number) { return Math.floor((score - 10) / 2) }
 const { mutateAsync: create } = useCreateMonster()
 const { mutateAsync: update } = useUpdateMonster()
 const { mutateAsync: del } = useDeleteMonster()
+const { mutateAsync: createScriptoriumDoc } = useCreateScriptoriumDocument()
 const saving = ref(false)
 const saveError = ref('')
+const sendingToScriptorium = ref(false)
+
+async function sendToScriptorium() {
+  if (!props.monster) return
+  sendingToScriptorium.value = true
+  try {
+    const importData = formatMonsterForScriptorium(props.monster)
+    const doc = await createScriptoriumDoc(importData)
+    router.push(`/scriptorium/${doc.id}`)
+  } finally {
+    sendingToScriptorium.value = false
+  }
+}
 
 function buildPayload() {
   return {
