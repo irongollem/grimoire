@@ -462,7 +462,7 @@ async function onFileSelected(e: Event) {
     const { data } = supabase.storage.from('npc-portraits').getPublicUrl(path)
     form.portrait_url = data.publicUrl
   } catch (err) {
-    console.error('Portrait upload failed:', err)
+    void err
   } finally {
     isUploading.value = false
     if (fileInput.value) fileInput.value.value = ''

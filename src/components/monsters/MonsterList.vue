@@ -141,8 +141,13 @@ const filtered = computed(() => {
   return list
 })
 
+function parseFraction(s: string): number {
+  const [a, b] = s.split('/')
+  return parseFloat(a) / parseFloat(b)
+}
+
 function crColor(cr: string): string {
-  const num = cr === '0' ? 0 : cr.includes('/') ? eval(cr) : parseFloat(cr)
+  const num = cr === '0' ? 0 : cr.includes('/') ? parseFraction(cr) : parseFloat(cr)
   if (num <= 0.5) return '#22c55e'
   if (num <= 4)   return '#eab308'
   if (num <= 9)   return '#f97316'
