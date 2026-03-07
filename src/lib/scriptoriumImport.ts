@@ -12,6 +12,8 @@
 
 import type { Npc } from '@/types/npc.types'
 import type { Monster } from '@/types/monster.types'
+import type { Spell } from '@/types/spell.types'
+import { spellLevelLabel } from '@/types/spell.types'
 import type { ScriptoriumDocType } from '@/types/scriptorium.types'
 
 // ── Output type ───────────────────────────────────────────────────────────────
@@ -226,6 +228,75 @@ const monsterFormatter: AssetFormatter<Monster> = {
   },
 }
 
+// ── Spell formatter ───────────────────────────────────────────────────────────
+
+const spellFormatter: AssetFormatter<Spell> = {
+  format(spell: Spell): ScriptoriumImportData {
+    let html = ''
+
+    // Name heading
+    html += `<h1>${spell.name}</h1>\n`
+
+    // Type line: "3rd-Level Evocation · Ritual"
+    let typeLine = `${spellLevelLabel(spell.level)} ${capitalize(spell.school)}`
+    if (spell.ritual) typeLine += ' · Ritual'
+    html += `<p><em>${typeLine}</em></p>\n`
+
+    // Stat block properties
+    const castingTime = spell.casting_time === 'Special' && spell.casting_time_custom
+      ? spell.casting_time_custom
+      : spell.casting_time
+    const range = spell.range === 'Special' && spell.range_custom
+      ? spell.range_custom
+      : spell.range
+    const duration = spell.duration === 'Special' && spell.duration_custom
+      ? spell.duration_custom
+      : spell.duration
+
+    html += `<p><strong>Casting Time</strong> ${castingTime}</p>\n`
+    html += `<p><strong>Range</strong> ${range}</p>\n`
+
+    const compStr = spell.components.join(', ')
+    const materialStr = spell.components.includes('M') && spell.material ? ` (${spell.material})` : ''
+    html += `<p><strong>Components</strong> ${compStr}${materialStr}</p>\n`
+
+    const durStr = spell.concentration ? `Concentration, ${duration}` : duration
+    html += `<p><strong>Duration</strong> ${durStr}</p>\n`
+
+    // Description
+    if (spell.description) {
+      html += `<p>${spell.description.replace(/\n/g, '</p>\n<p>')}</p>\n`
+    }
+
+    // At Higher Levels
+    if (spell.higher_levels) {
+      html += `<h2>At Higher Levels</h2>\n<p>${spell.higher_levels}</p>\n`
+    }
+
+    // Classes
+    if (spell.classes.length) {
+      html += `<p><strong>Spell Lists</strong> ${spell.classes.join(', ')}</p>\n`
+    }
+
+    const tags = uniqueTags(
+      ['spell'],
+      [spell.school],
+      spell.classes.map(c => c.toLowerCase()),
+      spell.tags,
+      spell.source ? [spell.source] : [],
+    )
+
+    return {
+      title: spell.name,
+      content: html,
+      doc_type: 'spell',
+      tags,
+      is_published: false,
+      word_count: countWords(html),
+    }
+  },
+}
+
 // ── Registry ──────────────────────────────────────────────────────────────────
 // Add new formatters here. Key = asset type identifier.
 
@@ -233,7 +304,8 @@ const monsterFormatter: AssetFormatter<Monster> = {
 const FORMATTERS: Record<string, AssetFormatter<any>> = {
   npc:     npcFormatter,
   monster: monsterFormatter,
-  // future: magicItem: magicItemFormatter,
+  spell:   spellFormatter,
+  // future: item: itemFormatter,
   // future: location: locationFormatter,
 }
 
@@ -250,4 +322,8 @@ export function formatNpcForScriptorium(npc: Npc): ScriptoriumImportData {
 
 export function formatMonsterForScriptorium(monster: Monster): ScriptoriumImportData {
   return monsterFormatter.format(monster)
+}
+
+export function formatSpellForScriptorium(spell: Spell): ScriptoriumImportData {
+  return spellFormatter.format(spell)
 }

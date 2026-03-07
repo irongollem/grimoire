@@ -44,6 +44,7 @@ Recursive location hierarchy: a region can contain towns, a town can contain bui
 > **TODO** — not trivial; needs thought on structure before building.
 
 Rough shape:
+
 - Quests have a title, summary, status (active / completed / failed / on-hold), giver NPC (FK), related locations, related NPCs, objectives (ordered list with done/todo state), rewards, notes
 - Quests can have sub-quests (recursive, like locations)
 - Quest log view: kanban or list grouped by status

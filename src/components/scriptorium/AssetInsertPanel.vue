@@ -96,11 +96,13 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { X, Users, Skull } from 'lucide-vue-next'
+import { X, Users, Skull, Sparkles } from 'lucide-vue-next'
 import type { Editor } from '@tiptap/core'
 import { useNpcs } from '@/composables/useNpcs'
 import { useMonsters } from '@/composables/useMonsters'
-import { formatNpcForScriptorium, formatMonsterForScriptorium } from '@/lib/scriptoriumImport'
+import { useSpells } from '@/composables/useSpells'
+import { formatNpcForScriptorium, formatMonsterForScriptorium, formatSpellForScriptorium } from '@/lib/scriptoriumImport'
+import { SCHOOL_COLORS, spellLevelLabel } from '@/types/spell.types'
 
 const MONSTER_TYPE_COLORS: Record<string, string> = {
   aberration: '#7c3aed', beast: '#16a34a', celestial: '#f59e0b', construct: '#6b7280',
@@ -115,10 +117,11 @@ const NPC_STATUS_COLORS: Record<string, string> = {
 const props = defineProps<{ show: boolean; editor: Editor | undefined }>()
 const emit = defineEmits<{ close: [] }>()
 
-type TabKey = 'npcs' | 'monsters'
+type TabKey = 'npcs' | 'monsters' | 'spells'
 const TABS = [
   { key: 'npcs'     as TabKey, label: 'NPCs',     icon: Users },
   { key: 'monsters' as TabKey, label: 'Monsters', icon: Skull },
+  { key: 'spells'   as TabKey, label: 'Spells',   icon: Sparkles },
 ]
 
 const activeTab = ref<TabKey>('npcs')
@@ -128,10 +131,15 @@ const search    = ref('')
 
 const { data: npcs,     isPending: npcsLoading     } = useNpcs()
 const { data: monsters, isPending: monstersLoading } = useMonsters()
+const { data: spells,   isPending: spellsLoading   } = useSpells()
 
 const tabsWithCount = computed(() => TABS.map(tab => ({
   ...tab,
-  count: tab.key === 'npcs' ? (npcs.value?.length ?? null) : (monsters.value?.length ?? null),
+  count: tab.key === 'npcs'
+    ? (npcs.value?.length ?? null)
+    : tab.key === 'monsters'
+      ? (monsters.value?.length ?? null)
+      : (spells.value?.length ?? null),
 })))
 
 // ── Unified display list ───────────────────────────────────────────────────────
@@ -149,13 +157,23 @@ const allItems = computed<ListItem[]>(() => {
       type:       'npcs' as TabKey,
     }))
   }
-  return (monsters.value ?? []).map(m => ({
-    id:         m.id,
-    name:       m.name,
-    subtitle:   `${m.size} ${m.monster_type} · CR ${m.stat_block.challenge_rating}`,
-    badge:      m.monster_type,
-    badgeColor: MONSTER_TYPE_COLORS[m.monster_type] ?? '#6b7280',
-    type:       'monsters' as TabKey,
+  if (activeTab.value === 'monsters') {
+    return (monsters.value ?? []).map(m => ({
+      id:         m.id,
+      name:       m.name,
+      subtitle:   `${m.size} ${m.monster_type} · CR ${m.stat_block.challenge_rating}`,
+      badge:      m.monster_type,
+      badgeColor: MONSTER_TYPE_COLORS[m.monster_type] ?? '#6b7280',
+      type:       'monsters' as TabKey,
+    }))
+  }
+  return (spells.value ?? []).map(s => ({
+    id:         s.id,
+    name:       s.name,
+    subtitle:   `${spellLevelLabel(s.level)} ${s.school}${s.concentration ? ' · Conc.' : ''}`,
+    badge:      s.school,
+    badgeColor: SCHOOL_COLORS[s.school] ?? '#6b7280',
+    type:       'spells' as TabKey,
   }))
 })
 
@@ -164,7 +182,11 @@ const filteredItems = computed(() => {
   return q ? allItems.value.filter(i => i.name.toLowerCase().includes(q)) : allItems.value
 })
 
-const isLoading = computed(() => activeTab.value === 'npcs' ? npcsLoading.value : monstersLoading.value)
+const isLoading = computed(() =>
+  activeTab.value === 'npcs' ? npcsLoading.value
+  : activeTab.value === 'monsters' ? monstersLoading.value
+  : spellsLoading.value
+)
 
 // ── Insert ────────────────────────────────────────────────────────────────────
 
@@ -176,10 +198,14 @@ function insertItem(item: ListItem) {
     const npc = npcs.value?.find(n => n.id === item.id)
     if (!npc) return
     html = formatNpcForScriptorium(npc).content
-  } else {
+  } else if (item.type === 'monsters') {
     const monster = monsters.value?.find(m => m.id === item.id)
     if (!monster) return
     html = formatMonsterForScriptorium(monster).content
+  } else {
+    const spell = spells.value?.find(s => s.id === item.id)
+    if (!spell) return
+    html = formatSpellForScriptorium(spell).content
   }
 
   const endPos = props.editor.state.doc.content.size

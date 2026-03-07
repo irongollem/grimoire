@@ -7,6 +7,7 @@ import {
   Skull,
   Shield,
   Layers,
+  Sparkles,
 } from "lucide-vue-next";
 import type { Component } from "vue";
 
@@ -66,6 +67,12 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/monsters",
         icon: Skull,
         description: "Monster builder & compendium",
+      },
+      {
+        label: "Spellbook",
+        to: "/spells",
+        icon: Sparkles,
+        description: "Custom spell compendium",
       },
     ],
   },

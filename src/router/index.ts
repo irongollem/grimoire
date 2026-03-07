@@ -126,6 +126,26 @@ const router = createRouter({
       meta: { requiresAuth: true, title: 'Party Tracker' },
     },
 
+    // Spells
+    {
+      path: '/spells',
+      name: 'spells',
+      component: () => import('@/views/spells/SpellsView.vue'),
+      meta: { requiresAuth: true, title: 'Spellbook' },
+    },
+    {
+      path: '/spells/new',
+      name: 'spell-new',
+      component: () => import('@/views/spells/SpellDetailView.vue'),
+      meta: { requiresAuth: true, title: 'New Spell' },
+    },
+    {
+      path: '/spells/:id',
+      name: 'spell-detail',
+      component: () => import('@/views/spells/SpellDetailView.vue'),
+      meta: { requiresAuth: true, title: 'Spell' },
+    },
+
     // Card Forge
     {
       path: '/forge',
