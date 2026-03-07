@@ -5,7 +5,9 @@
       <div class="forge-topbar">
         <div>
           <h1 class="forge-title">Card Forge</h1>
-          <p class="forge-sub">Craft printable cards for your NPCs &amp; monsters</p>
+          <p class="forge-sub">
+            Craft printable cards for your NPCs &amp; monsters
+          </p>
         </div>
 
         <div class="topbar-actions">
@@ -47,11 +49,13 @@
             :disabled="!selectedSubjects.length"
             @click="printCards"
           >
-            Print {{ selectedSubjects.length ? `(${selectedSubjects.length})` : '' }}
+            Print
+            {{ selectedSubjects.length ? `(${selectedSubjects.length})` : "" }}
           </button>
         </div>
         <p class="duplex-hint">
-          Prints fronts then backs. For double-sided printing, flip on the long (left) edge — backs are column-reversed so they align.
+          Prints fronts then backs. For double-sided printing, flip on the long
+          (left) edge — backs are column-reversed so they align.
         </p>
       </div>
 
@@ -66,7 +70,10 @@
               type="button"
               class="src-tab"
               :class="{ active: source === src.id }"
-              @click="source = src.id; selectedIds.clear()"
+              @click="
+                source = src.id;
+                selectedIds.clear();
+              "
             >
               {{ src.label }}
             </button>
@@ -84,9 +91,15 @@
 
           <!-- Select all / none -->
           <div class="selection-header">
-            <span class="selection-count">{{ filteredList.length }} entries</span>
-            <button type="button" class="sel-action" @click="selectAll">All</button>
-            <button type="button" class="sel-action" @click="clearAll">None</button>
+            <span class="selection-count"
+              >{{ filteredList.length }} entries</span
+            >
+            <button type="button" class="sel-action" @click="selectAll">
+              All
+            </button>
+            <button type="button" class="sel-action" @click="clearAll">
+              None
+            </button>
           </div>
 
           <!-- List -->
@@ -114,7 +127,9 @@
         <main class="preview-panel">
           <div v-if="!selectedSubjects.length" class="preview-empty">
             <p>Select NPCs or monsters on the left to preview cards.</p>
-            <p class="preview-hint">Selected cards will print front + back on separate A4 sheets.</p>
+            <p class="preview-hint">
+              Selected cards will print front + back on separate A4 sheets.
+            </p>
           </div>
           <div v-else class="card-preview-grid">
             <div
@@ -131,42 +146,84 @@
     </div>
 
     <!-- ── Save collection modal ─────────────────────────── -->
-    <div v-if="showSaveModal" class="modal-backdrop" @click.self="showSaveModal = false">
+    <div
+      v-if="showSaveModal"
+      class="modal-backdrop"
+      @click.self="showSaveModal = false"
+    >
       <div class="modal-box">
         <h2 class="modal-title">Save Collection</h2>
         <label class="block">
           <span class="modal-label">Collection name</span>
-          <input v-model="saveCollectionName" class="modal-input" placeholder="My Boss Monsters…" />
+          <input
+            v-model="saveCollectionName"
+            class="modal-input"
+            placeholder="My Boss Monsters…"
+          />
         </label>
         <div class="modal-actions">
-          <button type="button" class="modal-cancel" @click="showSaveModal = false">Cancel</button>
-          <button type="button" class="modal-confirm" :disabled="!saveCollectionName.trim()" @click="saveCollection">Save</button>
+          <button
+            type="button"
+            class="modal-cancel"
+            @click="showSaveModal = false"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="modal-confirm"
+            :disabled="!saveCollectionName.trim()"
+            @click="saveCollection"
+          >
+            Save
+          </button>
         </div>
       </div>
     </div>
 
     <!-- ── Load collection modal ─────────────────────────── -->
-    <div v-if="showLoadModal" class="modal-backdrop" @click.self="showLoadModal = false">
+    <div
+      v-if="showLoadModal"
+      class="modal-backdrop"
+      @click.self="showLoadModal = false"
+    >
       <div class="modal-box">
         <h2 class="modal-title">Card Library</h2>
         <div class="library-list">
-          <div
-            v-for="col in savedLibrary"
-            :key="col.id"
-            class="library-entry"
-          >
+          <div v-for="col in savedLibrary" :key="col.id" class="library-entry">
             <div class="library-info">
               <span class="library-name">{{ col.name }}</span>
-              <span class="library-meta">{{ col.items.length }} cards · {{ formatDate(col.created) }}</span>
+              <span class="library-meta"
+                >{{ col.items.length }} cards ·
+                {{ formatDate(col.created) }}</span
+              >
             </div>
             <div class="library-btns">
-              <button type="button" class="lib-load-btn" @click="loadCollection(col)">Load</button>
-              <button type="button" class="lib-del-btn" @click="deleteCollection(col.id)">×</button>
+              <button
+                type="button"
+                class="lib-load-btn"
+                @click="loadCollection(col)"
+              >
+                Load
+              </button>
+              <button
+                type="button"
+                class="lib-del-btn"
+                @click="deleteCollection(col.id)"
+              >
+                ×
+              </button>
             </div>
           </div>
         </div>
         <div class="modal-actions">
-          <button type="button" class="modal-cancel" @click="showLoadModal = false">Close</button>
+          <button
+            type="button"
+            class="modal-cancel"
+            @click="showLoadModal = false"
+          >
+            Close
+          </button>
         </div>
       </div>
     </div>
@@ -175,10 +232,17 @@
     <div class="print-layout">
       <template v-for="(chunk, pi) in printChunks" :key="pi">
         <!-- Front sheet -->
-        <div class="print-sheet" :class="cardSize === 'tarot' ? 'tarot-sheet' : 'mtg-sheet'">
+        <div
+          class="print-sheet"
+          :class="cardSize === 'tarot' ? 'tarot-sheet' : 'mtg-sheet'"
+        >
           <template v-for="(subject, ci) in chunk" :key="ci">
             <template v-if="subject">
-              <CardTarotFront v-if="cardSize === 'tarot'" :subject="subject" class="print-card" />
+              <CardTarotFront
+                v-if="cardSize === 'tarot'"
+                :subject="subject"
+                class="print-card"
+              />
               <CardFront v-else :subject="subject" class="print-card" />
             </template>
             <div v-else class="print-card print-card-empty" />
@@ -186,10 +250,17 @@
         </div>
 
         <!-- Back sheet (columns reversed per row for duplex alignment) -->
-        <div class="print-sheet" :class="cardSize === 'tarot' ? 'tarot-sheet' : 'mtg-sheet'">
+        <div
+          class="print-sheet"
+          :class="cardSize === 'tarot' ? 'tarot-sheet' : 'mtg-sheet'"
+        >
           <template v-for="(subject, ci) in backOrder(chunk)" :key="ci">
             <template v-if="subject">
-              <CardTarotBack v-if="cardSize === 'tarot'" :subject="subject" class="print-card" />
+              <CardTarotBack
+                v-if="cardSize === 'tarot'"
+                :subject="subject"
+                class="print-card"
+              />
               <CardBack v-else :subject="subject" class="print-card" />
             </template>
             <div v-else class="print-card print-card-empty" />
@@ -201,186 +272,219 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import CardFront, { type CardSubject } from '@/components/cardforge/CardFront.vue'
-import CardBack from '@/components/cardforge/CardBack.vue'
-import CardTarotFront from '@/components/cardforge/CardTarotFront.vue'
-import CardTarotBack from '@/components/cardforge/CardTarotBack.vue'
-import { useNpcs } from '@/composables/useNpcs'
-import { useMonsters } from '@/composables/useMonsters'
-import type { Npc } from '@/types/npc.types'
-import type { Monster } from '@/types/monster.types'
+import { ref, computed } from "vue";
+import CardFront, {
+  type CardSubject,
+} from "@/components/cardforge/CardFront.vue";
+import CardBack from "@/components/cardforge/CardBack.vue";
+import CardTarotFront from "@/components/cardforge/CardTarotFront.vue";
+import CardTarotBack from "@/components/cardforge/CardTarotBack.vue";
+import { useNpcs } from "@/composables/useNpcs";
+import { useMonsters } from "@/composables/useMonsters";
+import type { Npc } from "@/types/npc.types";
+import type { Monster } from "@/types/monster.types";
 
 // ── Card sizes ──────────────────────────────────────────
 const CARD_SIZES = [
-  { id: 'mtg', label: 'MTG (63×88mm)', cols: 3, perPage: 9 },
-  { id: 'tarot', label: 'Tarot (70×120mm)', cols: 2, perPage: 4 },
-] as const
-type CardSizeId = 'mtg' | 'tarot'
-const cardSize = ref<CardSizeId>('mtg')
+  { id: "mtg", label: "MTG (63×88mm)", cols: 3, perPage: 9 },
+  { id: "tarot", label: "Tarot (70×120mm)", cols: 2, perPage: 4 },
+] as const;
+type CardSizeId = "mtg" | "tarot";
+const cardSize = ref<CardSizeId>("mtg");
 
 // ── Sources ─────────────────────────────────────────────
 const SOURCES = [
-  { id: 'npcs' as const, label: 'NPCs' },
-  { id: 'monsters' as const, label: 'Monsters' },
-]
-const source = ref<'npcs' | 'monsters'>('npcs')
+  { id: "npcs" as const, label: "NPCs" },
+  { id: "monsters" as const, label: "Monsters" },
+];
+const source = ref<"npcs" | "monsters">("npcs");
 
 // ── Data ────────────────────────────────────────────────
-const { data: npcsData } = useNpcs()
-const { data: monstersData } = useMonsters()
+const { data: npcsData } = useNpcs();
+const { data: monstersData } = useMonsters();
 
 // ── Search + selection ──────────────────────────────────
-const search = ref('')
-const selectedIds = ref(new Set<string>())
+const search = ref("");
+const selectedIds = ref(new Set<string>());
 
-interface ListItem { id: string; name: string; sub: string }
+interface ListItem {
+  id: string;
+  name: string;
+  sub: string;
+}
 
 const filteredList = computed((): ListItem[] => {
-  const q = search.value.toLowerCase()
-  if (source.value === 'npcs') {
+  const q = search.value.toLowerCase();
+  if (source.value === "npcs") {
     return (npcsData.value ?? [])
-      .filter((n: Npc) =>
-        n.name.toLowerCase().includes(q) ||
-        (n.occupation ?? '').toLowerCase().includes(q) ||
-        (n.race ?? '').toLowerCase().includes(q)
+      .filter(
+        (n: Npc) =>
+          n.name.toLowerCase().includes(q) ||
+          (n.occupation ?? "").toLowerCase().includes(q) ||
+          (n.race ?? "").toLowerCase().includes(q),
       )
       .map((n: Npc) => ({
         id: n.id,
         name: n.name,
-        sub: [n.race, n.class, n.occupation].filter(Boolean).join(' · '),
-      }))
+        sub: [n.race, n.class, n.occupation].filter(Boolean).join(" · "),
+      }));
   }
   return (monstersData.value ?? [])
-    .filter((m: Monster) =>
-      m.name.toLowerCase().includes(q) ||
-      m.monster_type.includes(q) ||
-      (m.habitat ?? '').toLowerCase().includes(q)
+    .filter(
+      (m: Monster) =>
+        m.name.toLowerCase().includes(q) ||
+        m.monster_type.includes(q) ||
+        (m.habitat ?? "").toLowerCase().includes(q),
     )
     .map((m: Monster) => ({
       id: m.id,
       name: m.name,
-      sub: `${m.size} ${m.monster_type} · CR ${m.stat_block?.challenge_rating ?? '?'}`,
-    }))
-})
+      sub: `${m.size} ${m.monster_type} · CR ${m.stat_block?.challenge_rating ?? "?"}`,
+    }));
+});
 
 function toggleSelect(id: string) {
-  if (selectedIds.value.has(id)) selectedIds.value.delete(id)
-  else selectedIds.value.add(id)
+  if (selectedIds.value.has(id)) selectedIds.value.delete(id);
+  else selectedIds.value.add(id);
   // trigger reactivity
-  selectedIds.value = new Set(selectedIds.value)
+  selectedIds.value = new Set(selectedIds.value);
 }
 function selectAll() {
-  selectedIds.value = new Set(filteredList.value.map(i => i.id))
+  selectedIds.value = new Set(filteredList.value.map((i) => i.id));
 }
 function clearAll() {
-  selectedIds.value = new Set()
+  selectedIds.value = new Set();
 }
 
 // ── Build subjects ───────────────────────────────────────
 const selectedSubjects = computed((): CardSubject[] => {
-  if (source.value === 'npcs') {
+  if (source.value === "npcs") {
     return (npcsData.value ?? [])
       .filter((n: Npc) => selectedIds.value.has(n.id))
-      .map((n: Npc) => ({ kind: 'npc' as const, data: n }))
+      .map((n: Npc) => ({ kind: "npc" as const, data: n }));
   }
   return (monstersData.value ?? [])
     .filter((m: Monster) => selectedIds.value.has(m.id))
-    .map((m: Monster) => ({ kind: 'monster' as const, data: m }))
-})
+    .map((m: Monster) => ({ kind: "monster" as const, data: m }));
+});
 
 // ── Print chunks ─────────────────────────────────────────
-const perPage = computed(() => CARD_SIZES.find(s => s.id === cardSize.value)?.perPage ?? 9)
-const cols = computed(() => CARD_SIZES.find(s => s.id === cardSize.value)?.cols ?? 3)
+const perPage = computed(
+  () => CARD_SIZES.find((s) => s.id === cardSize.value)?.perPage ?? 9,
+);
+const cols = computed(
+  () => CARD_SIZES.find((s) => s.id === cardSize.value)?.cols ?? 3,
+);
 
 const printChunks = computed((): (CardSubject | null)[][] => {
-  const n = perPage.value
-  const result: (CardSubject | null)[][] = []
+  const n = perPage.value;
+  const result: (CardSubject | null)[][] = [];
   for (let i = 0; i < selectedSubjects.value.length; i += n) {
-    const chunk: (CardSubject | null)[] = selectedSubjects.value.slice(i, i + n)
-    while (chunk.length < n) chunk.push(null)
-    result.push(chunk)
+    const chunk: (CardSubject | null)[] = selectedSubjects.value.slice(
+      i,
+      i + n,
+    );
+    while (chunk.length < n) chunk.push(null);
+    result.push(chunk);
   }
-  return result
-})
+  return result;
+});
 
 // Reverse columns per row for duplex back alignment
 function backOrder(chunk: (CardSubject | null)[]): (CardSubject | null)[] {
-  const c = cols.value
+  const c = cols.value;
   return chunk.map((_, i) => {
-    const row = Math.floor(i / c)
-    const col = i % c
-    return chunk[row * c + (c - 1 - col)] ?? null
-  })
+    const row = Math.floor(i / c);
+    const col = i % c;
+    return chunk[row * c + (c - 1 - col)] ?? null;
+  });
 }
 
 // ── Print ────────────────────────────────────────────────
 function printCards() {
-  window.print()
+  // Inject @page into <head> at call-time — Safari sometimes ignores @page
+  // rules that come from component stylesheets; a <head> style is always honored.
+  const STYLE_ID = "cardforge-page-rule";
+  if (!document.getElementById(STYLE_ID)) {
+    const s = document.createElement("style");
+    s.id = STYLE_ID;
+    s.textContent = "@page { size: A4 portrait; margin: 0; }";
+    document.head.appendChild(s);
+  }
+  window.print();
 }
 
 // ── Card Library (localStorage) ──────────────────────────
 interface CardCollection {
-  id: string
-  name: string
-  created: string
-  items: Array<{ kind: 'npc' | 'monster'; id: string }>
+  id: string;
+  name: string;
+  created: string;
+  items: Array<{ kind: "npc" | "monster"; id: string }>;
 }
 
-const LIBRARY_KEY = 'cardforge_library'
+const LIBRARY_KEY = "cardforge_library";
 
 function readLibrary(): CardCollection[] {
   try {
-    return JSON.parse(localStorage.getItem(LIBRARY_KEY) ?? '[]')
+    return JSON.parse(localStorage.getItem(LIBRARY_KEY) ?? "[]");
   } catch {
-    return []
+    return [];
   }
 }
 
-const savedLibrary = ref<CardCollection[]>(readLibrary())
-const showSaveModal = ref(false)
-const showLoadModal = ref(false)
-const saveCollectionName = ref('')
+const savedLibrary = ref<CardCollection[]>(readLibrary());
+const showSaveModal = ref(false);
+const showLoadModal = ref(false);
+const saveCollectionName = ref("");
 
 function saveCollection() {
-  const items = selectedSubjects.value.map(s => ({ kind: s.kind, id: s.data.id }))
+  const items = selectedSubjects.value.map((s) => ({
+    kind: s.kind,
+    id: s.data.id,
+  }));
   const col: CardCollection = {
     id: crypto.randomUUID(),
     name: saveCollectionName.value.trim(),
     created: new Date().toISOString(),
     items,
-  }
-  const lib = readLibrary()
-  lib.unshift(col)
-  localStorage.setItem(LIBRARY_KEY, JSON.stringify(lib))
-  savedLibrary.value = lib
-  saveCollectionName.value = ''
-  showSaveModal.value = false
+  };
+  const lib = readLibrary();
+  lib.unshift(col);
+  localStorage.setItem(LIBRARY_KEY, JSON.stringify(lib));
+  savedLibrary.value = lib;
+  saveCollectionName.value = "";
+  showSaveModal.value = false;
 }
 
 function loadCollection(col: CardCollection) {
   // Group by kind and set the correct source + select those IDs
-  const npcIds = col.items.filter(i => i.kind === 'npc').map(i => i.id)
-  const monsterIds = col.items.filter(i => i.kind === 'monster').map(i => i.id)
+  const npcIds = col.items.filter((i) => i.kind === "npc").map((i) => i.id);
+  const monsterIds = col.items
+    .filter((i) => i.kind === "monster")
+    .map((i) => i.id);
   // Load whichever has more items
   if (monsterIds.length >= npcIds.length) {
-    source.value = 'monsters'
-    selectedIds.value = new Set(monsterIds)
+    source.value = "monsters";
+    selectedIds.value = new Set(monsterIds);
   } else {
-    source.value = 'npcs'
-    selectedIds.value = new Set(npcIds)
+    source.value = "npcs";
+    selectedIds.value = new Set(npcIds);
   }
-  showLoadModal.value = false
+  showLoadModal.value = false;
 }
 
 function deleteCollection(id: string) {
-  const lib = readLibrary().filter(c => c.id !== id)
-  localStorage.setItem(LIBRARY_KEY, JSON.stringify(lib))
-  savedLibrary.value = lib
+  const lib = readLibrary().filter((c) => c.id !== id);
+  localStorage.setItem(LIBRARY_KEY, JSON.stringify(lib));
+  savedLibrary.value = lib;
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 </script>
 
@@ -397,12 +501,23 @@ function formatDate(iso: string) {
   header {
     display: none !important;
   }
-  /* Remove padding/clipping from the content container */
+  /* Flatten the Vue layout chain so no flex container constrains print flow */
+  body,
+  #app,
+  body > div,
+  body > div > div,
+  body > div > div > div {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
   main {
     overflow: visible !important;
     padding: 0 !important;
     height: auto !important;
-    flex: none !important;
   }
 }
 </style>
@@ -513,7 +628,9 @@ function formatDate(iso: string) {
 }
 .preview-empty {
   @apply flex flex-col items-center justify-center h-full gap-2 text-center;
-  p { @apply font-fell text-muted-foreground text-sm; }
+  p {
+    @apply font-fell text-muted-foreground text-sm;
+  }
 }
 .preview-hint {
   @apply text-xs opacity-60;
@@ -590,6 +707,10 @@ function formatDate(iso: string) {
 }
 
 @media print {
+  .forge-root {
+    min-height: 0 !important;
+    height: auto !important;
+  }
   .screen-panel {
     display: none !important;
   }
@@ -602,20 +723,22 @@ function formatDate(iso: string) {
   .print-sheet {
     display: grid;
     width: 210mm;
-    height: 297mm;
+    /*
+     * 296.9mm = 0.1mm shorter than A4 (297mm).
+     * Each sheet leaves a 0.1mm gap at the bottom of its page.
+     * page-break-inside: avoid tells the browser: if a sheet doesn't fully
+     * fit on the current page, move it entirely to the next page.
+     * Since only 0.1mm remains after each sheet, the NEXT sheet can't fit
+     * and is bumped to the following page — no explicit break-after/before
+     * needed, which avoids Safari's blank-page bug with those properties.
+     */
+    height: 296.9mm;
+    max-height: 296.9mm;
     overflow: hidden;
+    page-break-inside: avoid;
+    break-inside: avoid;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
-    /*
-     * No page-break-after here — applying it to an element that exactly fills
-     * a page causes Chrome to emit a phantom blank page after it.
-     * Instead, use break-before on every sheet after the first (sibling combinator).
-     */
-  }
-  /* Break before every sheet except the very first */
-  .print-sheet ~ .print-sheet {
-    break-before: page;
-    page-break-before: always; /* legacy compat */
   }
   /* MTG: 3×3 grid on A4 */
   .mtg-sheet {
@@ -633,14 +756,14 @@ function formatDate(iso: string) {
   }
   /* Card sizing: 1mm bleed each side so colours fully cover cut lines */
   .mtg-sheet .print-card {
-    width: 65mm !important;   /* 63mm + 1mm bleed each side */
-    height: 90mm !important;  /* 88mm + 1mm bleed each side */
+    width: 65mm !important; /* 63mm + 1mm bleed each side */
+    height: 90mm !important; /* 88mm + 1mm bleed each side */
     margin: -1mm !important;
     border-radius: 3mm !important;
     overflow: hidden;
   }
   .tarot-sheet .print-card {
-    width: 72mm !important;   /* 70mm + 1mm bleed each side */
+    width: 72mm !important; /* 70mm + 1mm bleed each side */
     height: 122mm !important; /* 120mm + 1mm bleed each side */
     margin: -1mm !important;
     border-radius: 3mm !important;
