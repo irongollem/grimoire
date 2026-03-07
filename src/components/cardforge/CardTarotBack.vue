@@ -279,6 +279,8 @@ function cap(s: string) { return s.charAt(0).toUpperCase() + s.slice(1) }
 
 @media print {
   .card-shell {
+    display: flex;
+    flex-direction: column;
     width: 70mm;
     height: 120mm;
     border-radius: 3mm;
@@ -287,7 +289,11 @@ function cap(s: string) { return s.charAt(0).toUpperCase() + s.slice(1) }
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  .card-face { border-radius: 2mm; }
+  .card-face {
+    flex: 1;
+    height: auto;
+    border-radius: 2mm;
+  }
   .card-name { font-size: 3.2mm; }
   .back-label { font-size: 2.2mm; }
   .stat-key { font-size: 2mm; min-width: 12mm; }

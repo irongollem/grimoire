@@ -384,12 +384,25 @@ function formatDate(iso: string) {
 }
 </script>
 
-<!-- Remove browser print headers/footers so the full A4 area is available for cards -->
+<!-- Global print styles: @page must be top-level (not inside @media print) -->
 <style>
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
 @media print {
-  @page {
-    size: A4 portrait;
-    margin: 0;
+  /* Hide app shell chrome so only the card sheets print */
+  aside,
+  header {
+    display: none !important;
+  }
+  /* Remove padding/clipping from the content container */
+  main {
+    overflow: visible !important;
+    padding: 0 !important;
+    height: auto !important;
+    flex: none !important;
   }
 }
 </style>
@@ -590,17 +603,21 @@ function formatDate(iso: string) {
     display: grid;
     width: 210mm;
     height: 297mm;
-    /* page-break-after only between sheets, not after the last */
-    page-break-after: always;
-    overflow: visible;
+    overflow: hidden;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    /*
+     * No page-break-after here — applying it to an element that exactly fills
+     * a page causes Chrome to emit a phantom blank page after it.
+     * Instead, use break-before on every sheet after the first (sibling combinator).
+     */
   }
-  /* Remove page break after the very last sheet to avoid a blank trailing page */
-  .print-sheet:last-child {
-    page-break-after: auto;
+  /* Break before every sheet except the very first */
+  .print-sheet ~ .print-sheet {
+    break-before: page;
+    page-break-before: always; /* legacy compat */
   }
-  /* MTG: 3×3 grid on A4 — no browser margins needed (handled by @page in global style) */
+  /* MTG: 3×3 grid on A4 */
   .mtg-sheet {
     grid-template-columns: repeat(3, 63mm);
     grid-template-rows: repeat(3, 88mm);
@@ -614,19 +631,12 @@ function formatDate(iso: string) {
     padding: 28.5mm 35mm;
     gap: 0;
   }
-  /*
-   * Cards: explicit mm sizes (cell size + 1mm bleed each side) with -1mm margin.
-   * Must use explicit mm values — calc(100%+2mm) on a grid-stretch item does NOT
-   * give an "explicit" height, so card-face's height:100% would resolve to 0.
-   * Making card-shell a flex column lets card-face use flex:1 to fill height reliably.
-   */
+  /* Card sizing: 1mm bleed each side so colours fully cover cut lines */
   .mtg-sheet .print-card {
     width: 65mm !important;   /* 63mm + 1mm bleed each side */
     height: 90mm !important;  /* 88mm + 1mm bleed each side */
     margin: -1mm !important;
     border-radius: 3mm !important;
-    display: flex !important;
-    flex-direction: column !important;
     overflow: hidden;
   }
   .tarot-sheet .print-card {
@@ -634,15 +644,7 @@ function formatDate(iso: string) {
     height: 122mm !important; /* 120mm + 1mm bleed each side */
     margin: -1mm !important;
     border-radius: 3mm !important;
-    display: flex !important;
-    flex-direction: column !important;
     overflow: hidden;
-  }
-  /* card-face fills the flex card-shell instead of relying on height:100% */
-  .print-card :deep(.card-face) {
-    flex: 1 !important;
-    height: auto !important;
-    min-height: 0 !important;
   }
   .print-card-empty {
     background: transparent;

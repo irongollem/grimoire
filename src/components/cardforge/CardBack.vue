@@ -272,6 +272,8 @@ function capitalize(s: string) {
 /* ── Print overrides ─────────────────────────────────── */
 @media print {
   .card-shell {
+    display: flex;
+    flex-direction: column;
     width: 63mm;
     height: 88mm;
     border-radius: 3mm;
@@ -280,7 +282,11 @@ function capitalize(s: string) {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  .card-face { border-radius: 2mm; }
+  .card-face {
+    flex: 1;
+    height: auto;
+    border-radius: 2mm;
+  }
   .card-name { font-size: 2.5mm; }
   .back-label { font-size: 1.8mm; }
   .stat-key { font-size: 1.6mm; min-width: 8mm; }

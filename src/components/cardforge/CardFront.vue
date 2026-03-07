@@ -410,6 +410,8 @@ function truncate(str: string, len: number) {
 /* ── Print overrides ─────────────────────────────────── */
 @media print {
   .card-shell {
+    display: flex;
+    flex-direction: column;
     width: 63mm;
     height: 88mm;
     border-radius: 3mm;
@@ -419,6 +421,8 @@ function truncate(str: string, len: number) {
     print-color-adjust: exact;
   }
   .card-face {
+    flex: 1;
+    height: auto;
     border-radius: 2mm;
   }
   .card-name { font-size: 2.5mm; }

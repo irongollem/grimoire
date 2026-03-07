@@ -394,6 +394,8 @@ function truncate(str: string | null | undefined, len: number) {
 /* ── Print ──────────────────────────────────────────────── */
 @media print {
   .card-shell {
+    display: flex;
+    flex-direction: column;
     width: 70mm;
     height: 120mm;
     border-radius: 3mm;
@@ -402,7 +404,11 @@ function truncate(str: string | null | undefined, len: number) {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  .card-face { border-radius: 2mm; }
+  .card-face {
+    flex: 1;
+    height: auto;
+    border-radius: 2mm;
+  }
   .card-name { font-size: 3.2mm; }
   .cr-badge { font-size: 2.5mm; }
   .art-area { flex: 0 0 44mm; }
