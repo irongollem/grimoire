@@ -614,13 +614,35 @@ function formatDate(iso: string) {
     padding: 28.5mm 35mm;
     gap: 0;
   }
-  /* Cards: fill their grid cell + 1mm bleed on every edge */
-  .print-card {
-    width: calc(100% + 2mm) !important;
-    height: calc(100% + 2mm) !important;
+  /*
+   * Cards: explicit mm sizes (cell size + 1mm bleed each side) with -1mm margin.
+   * Must use explicit mm values — calc(100%+2mm) on a grid-stretch item does NOT
+   * give an "explicit" height, so card-face's height:100% would resolve to 0.
+   * Making card-shell a flex column lets card-face use flex:1 to fill height reliably.
+   */
+  .mtg-sheet .print-card {
+    width: 65mm !important;   /* 63mm + 1mm bleed each side */
+    height: 90mm !important;  /* 88mm + 1mm bleed each side */
     margin: -1mm !important;
     border-radius: 3mm !important;
+    display: flex !important;
+    flex-direction: column !important;
     overflow: hidden;
+  }
+  .tarot-sheet .print-card {
+    width: 72mm !important;   /* 70mm + 1mm bleed each side */
+    height: 122mm !important; /* 120mm + 1mm bleed each side */
+    margin: -1mm !important;
+    border-radius: 3mm !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden;
+  }
+  /* card-face fills the flex card-shell instead of relying on height:100% */
+  .print-card :deep(.card-face) {
+    flex: 1 !important;
+    height: auto !important;
+    min-height: 0 !important;
   }
   .print-card-empty {
     background: transparent;
