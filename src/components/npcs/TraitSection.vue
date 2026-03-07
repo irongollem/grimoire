@@ -5,19 +5,25 @@
     </p>
     <div v-for="(entry, i) in props.modelValue ?? []" :key="i" class="flex gap-2 mb-2 items-start">
       <div class="flex-1 space-y-1">
-        <input
-          :value="entry.name"
-          placeholder="Name"
-          class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @input="update(i, 'name', ($event.target as HTMLInputElement).value)"
-        />
-        <textarea
-          :value="entry.description"
-          placeholder="Description…"
-          rows="2"
-          class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-          @input="update(i, 'description', ($event.target as HTMLTextAreaElement).value)"
-        />
+        <label class="block">
+          <span class="sr-only">{{ label }} name</span>
+          <input
+            :value="entry.name"
+            placeholder="Name"
+            class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            @input="update(i, 'name', ($event.target as HTMLInputElement).value)"
+          />
+        </label>
+        <label class="block">
+          <span class="sr-only">{{ label }} description</span>
+          <textarea
+            :value="entry.description"
+            placeholder="Description…"
+            rows="2"
+            class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+            @input="update(i, 'description', ($event.target as HTMLTextAreaElement).value)"
+          />
+        </label>
       </div>
       <button
         type="button"

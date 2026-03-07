@@ -3,11 +3,14 @@
 
     <!-- Top bar -->
     <div class="flex flex-wrap items-center gap-2">
-      <input
-        v-model="form.name"
-        placeholder="Monster name…"
-        class="flex-1 min-w-48 bg-card border border-border rounded-md px-3 py-2 font-cinzel text-lg font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      />
+      <label class="flex-1 min-w-48">
+        <span class="sr-only">Monster name</span>
+        <input
+          v-model="form.name"
+          placeholder="Monster name…"
+          class="w-full bg-card border border-border rounded-md px-3 py-2 font-cinzel text-lg font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+      </label>
       <!-- Template picker -->
       <select
         class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -42,33 +45,33 @@
 
     <!-- Identity grid -->
     <section class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      <div>
-        <label class="field-label">Type</label>
+      <label class="block">
+        <span class="field-label">Type</span>
         <select v-model="form.monster_type" class="field-input w-full capitalize">
           <option v-for="t in MONSTER_TYPES" :key="t" :value="t" class="capitalize">{{ t }}</option>
         </select>
-      </div>
-      <div>
-        <label class="field-label">Size</label>
+      </label>
+      <label class="block">
+        <span class="field-label">Size</span>
         <select v-model="form.size" class="field-input w-full capitalize">
           <option v-for="s in SIZES" :key="s" :value="s" class="capitalize">{{ s }}</option>
         </select>
-      </div>
-      <div>
-        <label class="field-label">Alignment</label>
+      </label>
+      <label class="block">
+        <span class="field-label">Alignment</span>
         <input v-model="form.alignment" class="field-input w-full" placeholder="neutral evil" />
-      </div>
-      <div>
-        <label class="field-label">Source</label>
+      </label>
+      <label class="block">
+        <span class="field-label">Source</span>
         <input v-model="form.source" class="field-input w-full" placeholder="Monster Manual" />
-      </div>
-      <div>
-        <label class="field-label">Habitat</label>
+      </label>
+      <label class="block">
+        <span class="field-label">Habitat</span>
         <input v-model="form.habitat" class="field-input w-full" placeholder="Forest, underground…" />
-      </div>
+      </label>
       <!-- Tags -->
       <div class="col-span-2 lg:col-span-3">
-        <label class="field-label">Tags</label>
+        <p class="field-label">Tags</p>
         <div class="flex flex-wrap items-center gap-1 min-h-9 bg-muted border border-border rounded-md px-2 py-1">
           <span
             v-for="tag in form.tags"
@@ -82,6 +85,7 @@
             v-model="tagInput"
             placeholder="Add tag…"
             class="bg-transparent border-none outline-none font-fell text-xs text-muted-foreground placeholder:text-muted-foreground/60 min-w-20 flex-1"
+            aria-label="Add tag"
             @keydown.enter.prevent="addTag"
             @keydown="onTagKeydown"
           />
@@ -96,22 +100,22 @@
     <section>
       <p class="section-heading">Combat Statistics</p>
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div>
-          <label class="field-label">Challenge Rating</label>
+        <label class="block">
+          <span class="field-label">Challenge Rating</span>
           <input v-model="sb.challenge_rating" class="field-input w-full font-bold" placeholder="1/4" />
-        </div>
-        <div>
-          <label class="field-label">Armor Class</label>
+        </label>
+        <label class="block">
+          <span class="field-label">Armor Class</span>
           <input v-model.number="sb.armor_class" type="number" class="field-input w-full" />
-        </div>
-        <div>
-          <label class="field-label">Hit Points</label>
+        </label>
+        <label class="block">
+          <span class="field-label">Hit Points</span>
           <input v-model="sb.hit_points" class="field-input w-full" placeholder="22 (3d8+9)" />
-        </div>
-        <div>
-          <label class="field-label">Speed</label>
+        </label>
+        <label class="block">
+          <span class="field-label">Speed</span>
           <input v-model="sb.speed" class="field-input w-full" placeholder="30 ft." />
-        </div>
+        </label>
       </div>
     </section>
 
@@ -119,8 +123,8 @@
     <section>
       <p class="section-heading">Ability Scores</p>
       <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
-        <div v-for="stat in ABILITY_STATS" :key="stat.key" class="flex flex-col items-center gap-1">
-          <label class="field-label">{{ stat.label }}</label>
+        <label v-for="stat in ABILITY_STATS" :key="stat.key" class="flex flex-col items-center gap-1">
+          <span class="field-label">{{ stat.label }}</span>
           <input
             v-model.number="sb[stat.key]"
             type="number" min="1" max="30"
@@ -129,49 +133,49 @@
           <span class="font-cinzel text-xs font-bold" :class="mod(sb[stat.key]) >= 0 ? 'text-green-500' : 'text-destructive'">
             {{ mod(sb[stat.key]) >= 0 ? '+' : '' }}{{ mod(sb[stat.key]) }}
           </span>
-        </div>
+        </label>
       </div>
     </section>
 
     <!-- Proficiencies & traits (text fields) -->
     <section class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <div>
-        <label class="field-label">Saving Throws</label>
+      <label class="block">
+        <span class="field-label">Saving Throws</span>
         <input v-model="sb.saving_throws" class="field-input w-full" placeholder="Con +5, Wis +3" />
-      </div>
-      <div>
-        <label class="field-label">Skills</label>
+      </label>
+      <label class="block">
+        <span class="field-label">Skills</span>
         <input
           :value="skillsText"
           class="field-input w-full"
           placeholder="Perception +3, Stealth +5"
           @input="parseSkills(($event.target as HTMLInputElement).value)"
         />
-      </div>
-      <div>
-        <label class="field-label">Damage Vulnerabilities</label>
+      </label>
+      <label class="block">
+        <span class="field-label">Damage Vulnerabilities</span>
         <input v-model="sb.damage_vulnerabilities" class="field-input w-full" placeholder="bludgeoning" />
-      </div>
-      <div>
-        <label class="field-label">Damage Resistances</label>
+      </label>
+      <label class="block">
+        <span class="field-label">Damage Resistances</span>
         <input v-model="sb.damage_resistances" class="field-input w-full" placeholder="fire, cold" />
-      </div>
-      <div>
-        <label class="field-label">Damage Immunities</label>
+      </label>
+      <label class="block">
+        <span class="field-label">Damage Immunities</span>
         <input v-model="sb.damage_immunities" class="field-input w-full" placeholder="poison, psychic" />
-      </div>
-      <div>
-        <label class="field-label">Condition Immunities</label>
+      </label>
+      <label class="block">
+        <span class="field-label">Condition Immunities</span>
         <input v-model="sb.condition_immunities" class="field-input w-full" placeholder="charmed, exhaustion" />
-      </div>
-      <div>
-        <label class="field-label">Senses</label>
+      </label>
+      <label class="block">
+        <span class="field-label">Senses</span>
         <input v-model="sb.senses" class="field-input w-full" placeholder="darkvision 60 ft., passive Perception 13" />
-      </div>
-      <div>
-        <label class="field-label">Languages</label>
+      </label>
+      <label class="block">
+        <span class="field-label">Languages</span>
         <input v-model="sb.languages" class="field-input w-full" placeholder="Common, Giant" />
-      </div>
+      </label>
     </section>
 
     <div class="gold-divider" />
@@ -187,10 +191,10 @@
     <!-- Legendary -->
     <section>
       <p class="section-heading">Legendary</p>
-      <div class="flex items-center gap-3 mb-4">
-        <label class="field-label whitespace-nowrap">Legendary Resistance (uses/day)</label>
+      <label class="flex items-center gap-3 mb-4">
+        <span class="field-label whitespace-nowrap">Legendary Resistance (uses/day)</span>
         <input v-model.number="sb.legendary_resistance" type="number" min="0" max="5" class="field-input w-20" />
-      </div>
+      </label>
       <TraitSection v-model="sb.legendary_actions" label="Legendary Actions" />
     </section>
 
@@ -201,13 +205,15 @@
 
     <!-- Notes -->
     <section>
-      <label class="field-label">DM Notes</label>
-      <textarea
-        v-model="form.notes"
-        rows="3"
-        placeholder="Encounter notes, tactics, lair description…"
-        class="field-input w-full resize-y"
-      />
+      <label class="block">
+        <span class="field-label">DM Notes</span>
+        <textarea
+          v-model="form.notes"
+          rows="3"
+          placeholder="Encounter notes, tactics, lair description…"
+          class="field-input w-full resize-y"
+        />
+      </label>
     </section>
   </div>
 </template>

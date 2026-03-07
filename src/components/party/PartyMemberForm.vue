@@ -31,30 +31,30 @@
         <!-- Identity tab -->
         <template v-if="activeTab === 'identity'">
           <div class="grid grid-cols-2 gap-3">
-            <div class="col-span-2">
-              <label class="field-label">Character Name *</label>
+            <label class="col-span-2 block">
+              <span class="field-label">Character Name *</span>
               <input v-model="f.name" class="field-input w-full" placeholder="Aric Stormblade" />
-            </div>
-            <div>
-              <label class="field-label">Player Name</label>
+            </label>
+            <label class="block">
+              <span class="field-label">Player Name</span>
               <input v-model="f.player_name" class="field-input w-full" placeholder="Jeff" />
-            </div>
-            <div>
-              <label class="field-label">Race</label>
+            </label>
+            <label class="block">
+              <span class="field-label">Race</span>
               <input v-model="f.race" class="field-input w-full" placeholder="Human" />
-            </div>
-            <div>
-              <label class="field-label">Class</label>
+            </label>
+            <label class="block">
+              <span class="field-label">Class</span>
               <input v-model="f.class" class="field-input w-full" placeholder="Fighter" />
-            </div>
-            <div>
-              <label class="field-label">Subclass</label>
+            </label>
+            <label class="block">
+              <span class="field-label">Subclass</span>
               <input v-model="f.subclass" class="field-input w-full" placeholder="Battle Master" />
-            </div>
-            <div>
-              <label class="field-label">Level</label>
+            </label>
+            <label class="block">
+              <span class="field-label">Level</span>
               <input v-model.number="f.level" type="number" min="1" max="20" class="field-input w-full" />
-            </div>
+            </label>
             <div>
               <label class="field-label">Proficiency Bonus</label>
               <div class="field-input bg-muted/30 text-muted-foreground flex items-center">
@@ -62,10 +62,10 @@
               </div>
             </div>
           </div>
-          <div>
-            <label class="field-label">Notes</label>
+          <label class="block">
+            <span class="field-label">Notes</span>
             <textarea v-model="f.notes" rows="3" class="field-input w-full resize-none" placeholder="Background, personality, goals…" />
-          </div>
+          </label>
         </template>
 
         <!-- Stats tab -->
@@ -73,42 +73,42 @@
           <!-- Ability scores -->
           <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">Ability Scores</p>
           <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
-            <div v-for="stat in ABILITY_STATS" :key="stat.key" class="flex flex-col items-center gap-1">
-              <label class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</label>
+            <label v-for="stat in ABILITY_STATS" :key="stat.key" class="flex flex-col items-center gap-1">
+              <span class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</span>
               <input v-model.number="f[stat.key]" type="number" min="1" max="30" class="field-input w-full text-center px-1" />
               <span class="font-cinzel text-xs font-bold" :class="mod(f[stat.key]) >= 0 ? 'text-green-500' : 'text-destructive'">
                 {{ mod(f[stat.key]) >= 0 ? '+' : '' }}{{ mod(f[stat.key]) }}
               </span>
-            </div>
+            </label>
           </div>
 
           <!-- Combat stats -->
           <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase mt-2">Combat</p>
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <div>
-              <label class="field-label">Max HP</label>
+            <label class="block">
+              <span class="field-label">Max HP</span>
               <input v-model.number="f.max_hp" type="number" min="1" class="field-input w-full" />
-            </div>
-            <div>
-              <label class="field-label">Current HP</label>
+            </label>
+            <label class="block">
+              <span class="field-label">Current HP</span>
               <input v-model.number="f.current_hp" type="number" class="field-input w-full" />
-            </div>
-            <div>
-              <label class="field-label">Temp HP</label>
+            </label>
+            <label class="block">
+              <span class="field-label">Temp HP</span>
               <input v-model.number="f.temp_hp" type="number" min="0" class="field-input w-full" />
-            </div>
-            <div>
-              <label class="field-label">Armor Class</label>
+            </label>
+            <label class="block">
+              <span class="field-label">Armor Class</span>
               <input v-model.number="f.ac" type="number" min="1" class="field-input w-full" />
-            </div>
-            <div>
-              <label class="field-label">Speed (ft)</label>
+            </label>
+            <label class="block">
+              <span class="field-label">Speed (ft)</span>
               <input v-model.number="f.speed" type="number" min="0" step="5" class="field-input w-full" />
-            </div>
-            <div>
-              <label class="field-label">Initiative Bonus</label>
+            </label>
+            <label class="block">
+              <span class="field-label">Initiative Bonus</span>
               <input v-model.number="f.initiative_bonus" type="number" class="field-input w-full" placeholder="= DEX mod" />
-            </div>
+            </label>
           </div>
 
           <!-- Computed passives (read-only) -->

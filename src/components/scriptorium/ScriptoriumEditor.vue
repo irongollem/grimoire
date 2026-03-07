@@ -2,17 +2,23 @@
   <div class="flex flex-col gap-3">
     <!-- Metadata row -->
     <div class="flex flex-wrap gap-2 items-end">
-      <input
-        v-model="title"
-        placeholder="Document title…"
-        class="flex-1 min-w-64 bg-card border border-border rounded-md px-3 py-2 font-cinzel text-base font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      />
-      <select
-        v-model="docType"
-        class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      >
-        <option v-for="t in DOC_TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
-      </select>
+      <label class="flex-1 min-w-64">
+        <span class="sr-only">Document title</span>
+        <input
+          v-model="title"
+          placeholder="Document title…"
+          class="w-full bg-card border border-border rounded-md px-3 py-2 font-cinzel text-base font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+      </label>
+      <label>
+        <span class="sr-only">Document type</span>
+        <select
+          v-model="docType"
+          class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option v-for="t in DOC_TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
+        </select>
+      </label>
       <label class="flex items-center gap-2 cursor-pointer select-none">
         <input type="checkbox" v-model="isPublished" class="rounded" />
         <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">PUBLISHED</span>
@@ -38,13 +44,16 @@
         {{ tag }}
         <button type="button" class="hover:text-destructive transition-colors leading-none text-sm" @click="removeTag(tag)">×</button>
       </span>
-      <input
-        v-model="tagInput"
-        placeholder="Add tag…"
-        class="bg-transparent border-none outline-none font-fell text-xs text-muted-foreground placeholder:text-muted-foreground/60 min-w-20"
-        @keydown.enter.prevent="addTag"
-        @keydown="onTagKeydown"
-      />
+      <label>
+        <span class="sr-only">Add tag</span>
+        <input
+          v-model="tagInput"
+          placeholder="Add tag…"
+          class="bg-transparent border-none outline-none font-fell text-xs text-muted-foreground placeholder:text-muted-foreground/60 min-w-20"
+          @keydown.enter.prevent="addTag"
+          @keydown="onTagKeydown"
+        />
+      </label>
     </div>
 
     <p v-if="saveError" class="text-destructive font-fell text-sm">{{ saveError }}</p>
