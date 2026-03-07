@@ -6,6 +6,11 @@
     @close="closePdfPreview"
     @save="savePdf"
   />
+  <AssetInsertPanel
+    :show="showAssetPanel"
+    :editor="editor"
+    @close="showAssetPanel = false"
+  />
 
   <div class="flex flex-col gap-3">
     <!-- Metadata row -->
@@ -122,6 +127,20 @@
 
             <div class="w-px h-5 bg-border mx-0.5" />
 
+            <!-- Insert Asset -->
+            <button
+              type="button"
+              title="Insert asset as new page (NPC, Monster…)"
+              :class="tbCls(false)"
+              class="gap-1 px-2 font-cinzel text-[10px] font-semibold tracking-wider"
+              @click="showAssetPanel = true"
+            >
+              <PackagePlus class="h-3.5 w-3.5" />
+              Insert
+            </button>
+
+            <div class="w-px h-5 bg-border mx-0.5" />
+
             <!-- History -->
             <button type="button" title="Undo" :class="tbCls(false)" :disabled="!editor.can().undo()" @click="editor.chain().focus().undo().run()">
               <Undo2 class="h-3.5 w-3.5" />
@@ -193,12 +212,13 @@ import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import {
   Save, Strikethrough, Code, SquareCode, List, ListOrdered,
-  Quote, Minus, Undo2, Redo2, FileDown, Loader2,
+  Quote, Minus, Undo2, Redo2, FileDown, Loader2, PackagePlus,
 } from 'lucide-vue-next'
 import { useCreateScriptoriumDocument, useUpdateScriptoriumDocument } from '@/composables/useScriptorium'
 import { useScriptoriumPdf } from '@/composables/useScriptoriumPdf'
 import type { ScriptoriumDocument, ScriptoriumDocType } from '@/types/scriptorium.types'
 import PdfPreviewDialog from '@/components/scriptorium/PdfPreviewDialog.vue'
+import AssetInsertPanel from '@/components/scriptorium/AssetInsertPanel.vue'
 
 const DOC_TYPES: { value: ScriptoriumDocType; label: string }[] = [
   { value: 'custom', label: 'Custom' },
@@ -237,6 +257,9 @@ function tbCls(active: boolean) {
 
 const props = defineProps<{ doc: ScriptoriumDocument | null }>()
 const router = useRouter()
+
+// Panels
+const showAssetPanel = ref(false)
 
 // Metadata
 const title = ref(props.doc?.title ?? '')

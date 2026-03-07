@@ -62,6 +62,9 @@ const npcFormatter: AssetFormatter<Npc> = {
   format(npc: Npc): ScriptoriumImportData {
     let html = ''
 
+    // Name heading
+    html += `<h1>${npc.name}</h1>\n`
+
     // Subtitle line (race + class)
     const subtitle = [npc.race, npc.class].filter(Boolean).join(', ')
     if (subtitle) html += `<p><em>${subtitle}</em></p>\n`
@@ -149,6 +152,9 @@ const monsterFormatter: AssetFormatter<Monster> = {
   format(monster: Monster): ScriptoriumImportData {
     const sb = monster.stat_block
     let html = ''
+
+    // Name heading
+    html += `<h1>${monster.name}</h1>\n`
 
     // Type line
     const typeParts = [capitalize(monster.size), capitalize(monster.monster_type), monster.alignment].filter(Boolean)

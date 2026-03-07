@@ -28,13 +28,18 @@
       </div>
 
       <!-- Navigation -->
-      <nav class="flex-1 overflow-y-auto px-2 py-4 space-y-1">
-        <NavItem
-          v-for="item in NAV_ITEMS"
-          :key="item.to"
-          :item="item"
-          @navigate="ui.toggleMobileNav()"
-        />
+      <nav class="flex-1 overflow-y-auto px-2 py-4">
+        <template v-for="group in NAV_GROUPS" :key="group.label">
+          <p class="px-2 pt-4 pb-1 font-cinzel text-[10px] font-bold tracking-widest text-muted-foreground/60 uppercase first:pt-0">
+            {{ group.label }}
+          </p>
+          <NavItem
+            v-for="item in group.items"
+            :key="item.to"
+            :item="item"
+            @navigate="ui.toggleMobileNav()"
+          />
+        </template>
       </nav>
 
       <!-- User -->
@@ -66,7 +71,7 @@ import { useRouter } from 'vue-router'
 import { X, LogOut } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
-import { NAV_ITEMS } from '@/lib/nav'
+import { NAV_GROUPS } from '@/lib/nav'
 import NavItem from './NavItem.vue'
 
 const auth = useAuthStore()
