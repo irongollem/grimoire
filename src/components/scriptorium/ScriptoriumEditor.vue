@@ -1,44 +1,11 @@
 <template>
-  <!-- PDF Preview Dialog -->
-  <Teleport to="body">
-    <div
-      v-if="showPdfPreview"
-      class="fixed inset-0 z-9999 flex items-center justify-center bg-black/80 backdrop-blur-sm"
-      @click.self="closePdfPreview"
-      @keydown.esc="closePdfPreview"
-    >
-      <div class="flex flex-col w-[92vw] h-[92vh] bg-card rounded-xl border border-border overflow-hidden shadow-2xl">
-        <div class="flex items-center justify-between px-4 py-2.5 border-b border-border shrink-0 bg-card">
-          <h2 class="font-cinzel font-bold text-sm text-foreground tracking-wide truncate">
-            {{ title || 'Untitled Document' }}
-          </h2>
-          <div class="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded font-cinzel text-[10px] font-semibold tracking-wider uppercase bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
-              @click="savePdf"
-            >
-              <Printer class="h-3 w-3" />
-              Save as PDF
-            </button>
-            <button
-              type="button"
-              class="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              @click="closePdfPreview"
-            >
-              <X class="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-        <iframe
-          ref="pdfIframeRef"
-          :src="pdfBlobUrl ?? ''"
-          class="flex-1 w-full border-none"
-          title="PDF Preview"
-        />
-      </div>
-    </div>
-  </Teleport>
+  <PdfPreviewDialog
+    :show="showPdfPreview"
+    :blob-url="pdfBlobUrl"
+    :title="title"
+    @close="closePdfPreview"
+    @save="savePdf"
+  />
 
   <div class="flex flex-col gap-3">
     <!-- Metadata row -->
@@ -192,11 +159,13 @@
             <button
               type="button"
               title="Export as PDF"
-              class="inline-flex items-center gap-1 px-2 py-1 rounded font-cinzel text-[10px] font-semibold border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors tracking-wider uppercase"
+              :disabled="isGeneratingPdf"
+              class="inline-flex items-center gap-1 px-2 py-1 rounded font-cinzel text-[10px] font-semibold border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors tracking-wider uppercase disabled:opacity-50 disabled:cursor-not-allowed"
               @click="exportPdf"
             >
-              <FileDown class="h-3 w-3" />
-              PDF
+              <Loader2 v-if="isGeneratingPdf" class="h-3 w-3 animate-spin" />
+              <FileDown v-else class="h-3 w-3" />
+              {{ isGeneratingPdf ? 'Building…' : 'PDF' }}
             </button>
           </div>
         </div>
@@ -224,10 +193,12 @@ import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import {
   Save, Strikethrough, Code, SquareCode, List, ListOrdered,
-  Quote, Minus, Undo2, Redo2, FileDown, Printer, X,
+  Quote, Minus, Undo2, Redo2, FileDown, Loader2,
 } from 'lucide-vue-next'
 import { useCreateScriptoriumDocument, useUpdateScriptoriumDocument } from '@/composables/useScriptorium'
+import { useScriptoriumPdf } from '@/composables/useScriptoriumPdf'
 import type { ScriptoriumDocument, ScriptoriumDocType } from '@/types/scriptorium.types'
+import PdfPreviewDialog from '@/components/scriptorium/PdfPreviewDialog.vue'
 
 const DOC_TYPES: { value: ScriptoriumDocType; label: string }[] = [
   { value: 'custom', label: 'Custom' },
@@ -344,17 +315,6 @@ async function save() {
   }
 }
 
-// PDF preview dialog
-const showPdfPreview = ref(false)
-const pdfBlobUrl = ref<string | null>(null)
-const pdfIframeRef = ref<HTMLIFrameElement | null>(null)
-
-function closePdfPreview() {
-  showPdfPreview.value = false
-  if (pdfBlobUrl.value) { URL.revokeObjectURL(pdfBlobUrl.value); pdfBlobUrl.value = null }
-}
-function savePdf() { pdfIframeRef.value?.contentWindow?.print() }
-
 // Split rendered HTML into pages at every <hr> (Page Break)
 const pages = computed(() => {
   const html = previewHtml.value || ''
@@ -363,60 +323,8 @@ const pages = computed(() => {
   return parts.length ? parts : ['']
 })
 
-// --- PHB print styles inlined for the export window ---
-const PRINT_CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&display=swap');
-@page { size: A4 portrait; margin: 0; }
-* { box-sizing: border-box; }
-body { margin: 0; background: #888; font-family: Georgia,'Times New Roman',serif; color: #1a1a1a; }
-.phb-page {
-  position: relative; width: 210mm; height: 297mm; margin: 0 auto;
-  background: #F9F6EF; padding: 16mm 18mm 14mm;
-  overflow: hidden; page-break-after: always;
-  font-size: 10pt; line-height: 1.65;
-}
-.phb-page:last-child { page-break-after: avoid; }
-@media screen { .phb-page { margin: 1cm auto; box-shadow: 0 4px 24px rgba(0,0,0,.4); } }
-@media print  { .phb-page { margin: 0; box-shadow: none; } }
-.phb-border { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: .65; }
-.phb-title-bar {
-  font-family: 'Cinzel',Georgia,serif; font-size: 18pt; font-weight: 700;
-  color: #F9F6EF; background: #1B3A4B;
-  padding: 6pt 18pt; margin: -16mm -18mm 14pt; letter-spacing: .04em; line-height: 1.25;
-}
-h1 { font-family:'Cinzel',Georgia,serif; font-size:12pt; font-weight:700; color:#F9F6EF; background:#1B3A4B; padding:4pt 10pt; margin:12pt -4pt 8pt; letter-spacing:.03em; }
-h2 { font-family:'Cinzel',Georgia,serif; font-size:10pt; font-weight:700; color:#1B3A4B; border-bottom:1.5pt solid #1B3A4B; padding-bottom:2pt; margin:10pt 0 5pt; }
-h3 { font-family:'Cinzel',Georgia,serif; font-size:9.5pt; font-weight:600; font-style:italic; color:#1B3A4B; margin:8pt 0 3pt; }
-p { margin:0 0 5pt; }
-ul,ol { padding-left:14pt; margin:3pt 0 5pt; }
-li { margin:1.5pt 0; }
-blockquote { border-left:3pt solid #1B3A4B; background:#E8F4F8; padding:5pt 7pt; margin:7pt 0; border-radius:0 3pt 3pt 0; font-style:italic; }
-blockquote p { margin:0; }
-strong { font-weight:700; } em { font-style:italic; }
-hr { display:none; }
-code { background:#e4ddd0; padding:1pt 3pt; border-radius:2pt; font-family:'Courier New',monospace; font-size:8.5pt; }
-pre { background:#1B3A4B; color:#E8F4F8; padding:7pt; border-radius:3pt; overflow:hidden; margin:7pt 0; font-size:8.5pt; }
-pre code { background:transparent; padding:0; color:inherit; }
-`
-
-function exportPdf() {
-  const borderUrl = `${window.location.origin}/assets/scriptorium/page-border.png`
-  const pagesHtml = pages.value.map((html, i) => `
-    <div class="phb-page">
-      <img class="phb-border" src="${borderUrl}" alt="" />
-      ${i === 0 ? `<div class="phb-title-bar">${title.value || 'Untitled Document'}</div>` : ''}
-      <div>${html}</div>
-    </div>`).join('\n')
-
-  const htmlDoc = `<!DOCTYPE html><html lang="en"><head>
-    <meta charset="UTF-8"><title>${title.value || 'Untitled'}</title>
-    <style>${PRINT_CSS}</style>
-  </head><body>${pagesHtml}</body></html>`
-
-  if (pdfBlobUrl.value) URL.revokeObjectURL(pdfBlobUrl.value)
-  pdfBlobUrl.value = URL.createObjectURL(new Blob([htmlDoc], { type: 'text/html; charset=utf-8' }))
-  showPdfPreview.value = true
-}
+const { showPdfPreview, pdfBlobUrl, isGeneratingPdf, exportPdf, savePdf, closePdfPreview } =
+  useScriptoriumPdf(pages, title)
 
 onUnmounted(() => editor.value?.destroy())
 </script>
