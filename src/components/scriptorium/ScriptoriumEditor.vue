@@ -1,4 +1,45 @@
 <template>
+  <!-- PDF Preview Dialog -->
+  <Teleport to="body">
+    <div
+      v-if="showPdfPreview"
+      class="fixed inset-0 z-9999 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+      @click.self="closePdfPreview"
+      @keydown.esc="closePdfPreview"
+    >
+      <div class="flex flex-col w-[92vw] h-[92vh] bg-card rounded-xl border border-border overflow-hidden shadow-2xl">
+        <div class="flex items-center justify-between px-4 py-2.5 border-b border-border shrink-0 bg-card">
+          <h2 class="font-cinzel font-bold text-sm text-foreground tracking-wide truncate">
+            {{ title || 'Untitled Document' }}
+          </h2>
+          <div class="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded font-cinzel text-[10px] font-semibold tracking-wider uppercase bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+              @click="savePdf"
+            >
+              <Printer class="h-3 w-3" />
+              Save as PDF
+            </button>
+            <button
+              type="button"
+              class="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              @click="closePdfPreview"
+            >
+              <X class="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+        <iframe
+          ref="pdfIframeRef"
+          :src="pdfBlobUrl ?? ''"
+          class="flex-1 w-full border-none"
+          title="PDF Preview"
+        />
+      </div>
+    </div>
+  </Teleport>
+
   <div class="flex flex-col gap-3">
     <!-- Metadata row -->
     <div class="flex flex-wrap gap-2 items-end">
@@ -108,7 +149,7 @@
             <button type="button" title="Code block" :class="tbCls(editor.isActive('codeBlock'))" @click="editor.chain().focus().toggleCodeBlock().run()">
               <SquareCode class="h-3.5 w-3.5" />
             </button>
-            <button type="button" title="Divider" :class="tbCls(false)" @click="editor.chain().focus().setHorizontalRule().run()">
+            <button type="button" title="Page Break (inserts new page)" :class="tbCls(false)" @click="editor.chain().focus().setHorizontalRule().run()">
               <Minus class="h-3.5 w-3.5" />
             </button>
 
@@ -141,18 +182,34 @@
           <p class="font-cinzel text-xs font-semibold text-muted-foreground uppercase tracking-widest">
             Preview — OneDnD 2024
           </p>
-          <span
-            class="px-1.5 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider uppercase"
-            :style="{ backgroundColor: typeColor(docType) + '22', color: typeColor(docType) }"
-          >
-            {{ DOC_TYPE_LABELS[docType] }}
-          </span>
+          <div class="flex items-center gap-2">
+            <span
+              class="px-1.5 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider uppercase"
+              :style="{ backgroundColor: typeColor(docType) + '22', color: typeColor(docType) }"
+            >
+              {{ DOC_TYPE_LABELS[docType] }}
+            </span>
+            <button
+              type="button"
+              title="Export as PDF"
+              class="inline-flex items-center gap-1 px-2 py-1 rounded font-cinzel text-[10px] font-semibold border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors tracking-wider uppercase"
+              @click="exportPdf"
+            >
+              <FileDown class="h-3 w-3" />
+              PDF
+            </button>
+          </div>
         </div>
         <div class="flex-1 overflow-auto phb-bg">
-          <div class="phb-preview">
-            <div class="phb-title-bar">{{ title || 'Untitled Document' }}</div>
-            <div class="phb-body" v-html="previewHtml" />
+          <div
+            v-for="(pageHtml, pageIndex) in pages"
+            :key="pageIndex"
+            class="phb-page"
+          >
+            <div v-if="pageIndex === 0" class="phb-title-bar">{{ title || 'Untitled Document' }}</div>
+            <div class="phb-body" v-html="pageHtml" />
           </div>
+          <p class="phb-hint">── use the Page Break button (—) to start a new page ──</p>
         </div>
       </div>
     </div>
@@ -160,14 +217,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onUnmounted } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import {
   Save, Strikethrough, Code, SquareCode, List, ListOrdered,
-  Quote, Minus, Undo2, Redo2,
+  Quote, Minus, Undo2, Redo2, FileDown, Printer, X,
 } from 'lucide-vue-next'
 import { useCreateScriptoriumDocument, useUpdateScriptoriumDocument } from '@/composables/useScriptorium'
 import type { ScriptoriumDocument, ScriptoriumDocType } from '@/types/scriptorium.types'
@@ -287,6 +344,80 @@ async function save() {
   }
 }
 
+// PDF preview dialog
+const showPdfPreview = ref(false)
+const pdfBlobUrl = ref<string | null>(null)
+const pdfIframeRef = ref<HTMLIFrameElement | null>(null)
+
+function closePdfPreview() {
+  showPdfPreview.value = false
+  if (pdfBlobUrl.value) { URL.revokeObjectURL(pdfBlobUrl.value); pdfBlobUrl.value = null }
+}
+function savePdf() { pdfIframeRef.value?.contentWindow?.print() }
+
+// Split rendered HTML into pages at every <hr> (Page Break)
+const pages = computed(() => {
+  const html = previewHtml.value || ''
+  const parts = html.split(/<hr\s*\/?\s*>/gi)
+  while (parts.length > 1 && !parts[parts.length - 1].trim()) parts.pop()
+  return parts.length ? parts : ['']
+})
+
+// --- PHB print styles inlined for the export window ---
+const PRINT_CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&display=swap');
+@page { size: A4 portrait; margin: 0; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #888; font-family: Georgia,'Times New Roman',serif; color: #1a1a1a; }
+.phb-page {
+  position: relative; width: 210mm; height: 297mm; margin: 0 auto;
+  background: #F9F6EF; padding: 16mm 18mm 14mm;
+  overflow: hidden; page-break-after: always;
+  font-size: 10pt; line-height: 1.65;
+}
+.phb-page:last-child { page-break-after: avoid; }
+@media screen { .phb-page { margin: 1cm auto; box-shadow: 0 4px 24px rgba(0,0,0,.4); } }
+@media print  { .phb-page { margin: 0; box-shadow: none; } }
+.phb-border { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: .65; }
+.phb-title-bar {
+  font-family: 'Cinzel',Georgia,serif; font-size: 18pt; font-weight: 700;
+  color: #F9F6EF; background: #1B3A4B;
+  padding: 6pt 18pt; margin: -16mm -18mm 14pt; letter-spacing: .04em; line-height: 1.25;
+}
+h1 { font-family:'Cinzel',Georgia,serif; font-size:12pt; font-weight:700; color:#F9F6EF; background:#1B3A4B; padding:4pt 10pt; margin:12pt -4pt 8pt; letter-spacing:.03em; }
+h2 { font-family:'Cinzel',Georgia,serif; font-size:10pt; font-weight:700; color:#1B3A4B; border-bottom:1.5pt solid #1B3A4B; padding-bottom:2pt; margin:10pt 0 5pt; }
+h3 { font-family:'Cinzel',Georgia,serif; font-size:9.5pt; font-weight:600; font-style:italic; color:#1B3A4B; margin:8pt 0 3pt; }
+p { margin:0 0 5pt; }
+ul,ol { padding-left:14pt; margin:3pt 0 5pt; }
+li { margin:1.5pt 0; }
+blockquote { border-left:3pt solid #1B3A4B; background:#E8F4F8; padding:5pt 7pt; margin:7pt 0; border-radius:0 3pt 3pt 0; font-style:italic; }
+blockquote p { margin:0; }
+strong { font-weight:700; } em { font-style:italic; }
+hr { display:none; }
+code { background:#e4ddd0; padding:1pt 3pt; border-radius:2pt; font-family:'Courier New',monospace; font-size:8.5pt; }
+pre { background:#1B3A4B; color:#E8F4F8; padding:7pt; border-radius:3pt; overflow:hidden; margin:7pt 0; font-size:8.5pt; }
+pre code { background:transparent; padding:0; color:inherit; }
+`
+
+function exportPdf() {
+  const borderUrl = `${window.location.origin}/assets/scriptorium/page-border.png`
+  const pagesHtml = pages.value.map((html, i) => `
+    <div class="phb-page">
+      <img class="phb-border" src="${borderUrl}" alt="" />
+      ${i === 0 ? `<div class="phb-title-bar">${title.value || 'Untitled Document'}</div>` : ''}
+      <div>${html}</div>
+    </div>`).join('\n')
+
+  const htmlDoc = `<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8"><title>${title.value || 'Untitled'}</title>
+    <style>${PRINT_CSS}</style>
+  </head><body>${pagesHtml}</body></html>`
+
+  if (pdfBlobUrl.value) URL.revokeObjectURL(pdfBlobUrl.value)
+  pdfBlobUrl.value = URL.createObjectURL(new Blob([htmlDoc], { type: 'text/html; charset=utf-8' }))
+  showPdfPreview.value = true
+}
+
 onUnmounted(() => editor.value?.destroy())
 </script>
 
@@ -318,16 +449,41 @@ onUnmounted(() => editor.value?.destroy())
 .phb-editor :deep(.ProseMirror pre) { @apply bg-muted p-3 rounded my-2 text-sm; }
 
 /* ── PHB Preview (OneDnD 2024 output style) ───────────────────── */
-.phb-bg { background: #F9F6EF; }
+/* Parchment-gray canvas between pages */
+.phb-bg {
+  background: #a09a90;
+  padding: 1.5rem 1rem 3rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
 
-.phb-preview {
+/* Each A4 page card */
+.phb-page {
+  position: relative;
+  width: 100%;
   max-width: 680px;
-  margin: 0 auto;
-  padding: 0 2rem 2rem;
+  min-height: 961px; /* 680px × (297/210) = A4 aspect ratio */
+  background: #F9F6EF;
+  padding: 2.5rem 2.5rem 2rem;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
   font-family: Georgia, 'Times New Roman', serif;
   color: #1a1a1a;
   line-height: 1.65;
   font-size: 0.9375rem;
+  overflow: visible;
+}
+
+/* Border image overlay on each page */
+.phb-page::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url('/assets/scriptorium/page-border.png');
+  background-size: 100% 100%;
+  pointer-events: none;
+  opacity: 0.65;
 }
 
 .phb-title-bar {
@@ -336,10 +492,19 @@ onUnmounted(() => editor.value?.destroy())
   font-weight: 700;
   color: #F9F6EF;
   background: #1B3A4B;
-  padding: 0.6rem 2rem;
-  margin: 0 -2rem 1.75rem;
+  padding: 0.6rem 2.5rem;
+  margin: -2.5rem -2.5rem 1.75rem;
   letter-spacing: 0.04em;
   line-height: 1.25;
+}
+
+.phb-hint {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
+  letter-spacing: 0.06em;
+  padding: 0.5rem 0;
 }
 
 .phb-body :deep(h1) {
@@ -385,11 +550,8 @@ onUnmounted(() => editor.value?.destroy())
 .phb-body :deep(blockquote p) { margin: 0; }
 .phb-body :deep(strong) { font-weight: 700; }
 .phb-body :deep(em) { font-style: italic; }
-.phb-body :deep(hr) {
-  border: none;
-  border-top: 2px solid #1B3A4B;
-  margin: 1.25rem 0;
-}
+/* <hr> = page break separator — hidden in preview, pages split on it */
+.phb-body :deep(hr) { display: none; }
 .phb-body :deep(code) {
   background: #e4ddd0;
   padding: 0.1em 0.35em;
