@@ -6,6 +6,7 @@ import {
   Users,
   Skull,
   Shield,
+  Layers,
 } from 'lucide-vue-next'
 import type { Component } from 'vue'
 
@@ -58,5 +59,11 @@ export const NAV_ITEMS: NavItem[] = [
     to: '/party',
     icon: Shield,
     description: 'Track heroes & initiative',
+  },
+  {
+    label: 'Card Forge',
+    to: '/forge',
+    icon: Layers,
+    description: 'Print NPC & monster cards',
   },
 ]

@@ -126,6 +126,14 @@ const router = createRouter({
       meta: { requiresAuth: true, title: 'Party Tracker' },
     },
 
+    // Card Forge
+    {
+      path: '/forge',
+      name: 'forge',
+      component: () => import('@/views/cardforge/CardForgeView.vue'),
+      meta: { requiresAuth: true, title: 'Card Forge' },
+    },
+
     // 404
     {
       path: '/:pathMatch(.*)*',
