@@ -149,30 +149,32 @@
           </label>
         </div>
 
-        <!-- Magic item properties (shown for non-mundane) -->
+        <!-- Attunement (shown for non-mundane) -->
         <div
           v-if="isMagic"
-          class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3"
+          class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-2"
         >
           <h3 class="font-cinzel text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
             Magic Properties
           </h3>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" v-model="requiresAttunement" class="rounded" />
+            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">REQUIRES ATTUNEMENT</span>
+          </label>
+          <input
+            v-if="requiresAttunement"
+            v-model="attunementRequirements"
+            placeholder="by whom? (optional, e.g. by a spellcaster)"
+            class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        </div>
 
-          <!-- Attunement -->
-          <div class="flex flex-col gap-2">
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" v-model="requiresAttunement" class="rounded" />
-              <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">REQUIRES ATTUNEMENT</span>
-            </label>
-            <input
-              v-if="requiresAttunement"
-              v-model="attunementRequirements"
-              placeholder="by whom? (optional, e.g. by a spellcaster)"
-              class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-          </div>
-
-          <!-- Charges -->
+        <!-- Charges (independent of spells — any item can have charges) -->
+        <div class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3">
+          <h3 class="font-cinzel text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
+            Charges
+            <span class="normal-case font-fell font-normal text-muted-foreground/60"> — optional</span>
+          </h3>
           <div class="grid grid-cols-2 gap-3">
             <label class="flex flex-col gap-1">
               <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Max Charges</span>
@@ -193,34 +195,37 @@
               />
             </label>
           </div>
+        </div>
 
-          <!-- Spell references -->
-          <div class="flex flex-col gap-2">
-            <div class="flex items-center justify-between">
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Spells (from your Spellbook)</span>
-              <span class="font-fell text-[10px] text-muted-foreground italic">{{ selectedSpells.length }} linked</span>
-            </div>
-            <input
-              v-model="spellSearch"
-              placeholder="Search spells…"
-              class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-            <div class="max-h-40 overflow-y-auto flex flex-col gap-1 rounded border border-border/50 bg-muted/30 p-2">
-              <p v-if="!filteredSpells.length" class="font-fell text-xs text-muted-foreground italic px-1">
-                {{ spellsLoading ? 'Loading spells…' : 'No spells found. Add spells in the Spellbook.' }}
-              </p>
-              <label
-                v-for="spell in filteredSpells"
-                :key="spell.id"
-                class="flex items-center gap-2 cursor-pointer py-0.5 px-1 rounded hover:bg-muted"
-              >
-                <input type="checkbox" :value="spell.id" v-model="spellIds" class="rounded shrink-0" />
-                <span class="font-fell text-xs text-foreground">{{ spell.name }}</span>
-                <span class="font-cinzel text-[10px] text-muted-foreground ml-auto shrink-0">
-                  {{ spell.level === 0 ? 'Cantrip' : `L${spell.level}` }} · {{ spell.school }}
-                </span>
-              </label>
-            </div>
+        <!-- Spell references (optional, links to Spellbook entries) -->
+        <div class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <h3 class="font-cinzel text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
+              Linked Spells
+              <span class="normal-case font-fell font-normal text-muted-foreground/60"> — optional</span>
+            </h3>
+            <span v-if="selectedSpells.length" class="font-fell text-[10px] text-muted-foreground italic">{{ selectedSpells.length }} linked</span>
+          </div>
+          <input
+            v-model="spellSearch"
+            placeholder="Search your Spellbook…"
+            class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+          <div class="max-h-40 overflow-y-auto flex flex-col gap-1 rounded border border-border/50 bg-muted/30 p-2">
+            <p v-if="!filteredSpells.length" class="font-fell text-xs text-muted-foreground italic px-1">
+              {{ spellsLoading ? 'Loading spells…' : 'No spells found. Add spells in the Spellbook.' }}
+            </p>
+            <label
+              v-for="spell in filteredSpells"
+              :key="spell.id"
+              class="flex items-center gap-2 cursor-pointer py-0.5 px-1 rounded hover:bg-muted"
+            >
+              <input type="checkbox" :value="spell.id" v-model="spellIds" class="rounded shrink-0" />
+              <span class="font-fell text-xs text-foreground">{{ spell.name }}</span>
+              <span class="font-cinzel text-[10px] text-muted-foreground ml-auto shrink-0">
+                {{ spell.level === 0 ? 'Cantrip' : `L${spell.level}` }} · {{ spell.school }}
+              </span>
+            </label>
           </div>
         </div>
 
@@ -454,9 +459,9 @@ function buildPayload() {
     damage_rolls: isWeapon.value && damageRolls.value.length ? damageRolls.value : null,
     armor_class: isArmor.value ? armorClass.value.trim() || null : null,
     properties: isWeapon.value ? properties.value : [],
-    charges: isMagic.value ? charges.value : null,
-    recharge: isMagic.value ? recharge.value.trim() || null : null,
-    spell_ids: isMagic.value ? spellIds.value : [],
+    charges: charges.value ?? null,
+    recharge: recharge.value.trim() || null,
+    spell_ids: spellIds.value,
     description: description.value,
     source: source.value.trim() || null,
     tags: tags.value,
