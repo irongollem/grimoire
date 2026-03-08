@@ -45,6 +45,7 @@ export interface Monster {
   tags: string[]
   stat_block: MonsterStatBlock
   notes: string | null
+  image_url: string | null   // optional art for card printing
   created_at: string
   updated_at: string
 }

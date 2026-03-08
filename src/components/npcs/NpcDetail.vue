@@ -287,8 +287,7 @@
 import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ImagePlus, ScrollText } from 'lucide-vue-next'
-import { supabase } from '@/lib/supabase'
-import { useAuthStore } from '@/stores/auth'
+import { useImageUpload } from '@/composables/useImageUpload'
 import { useCreateNpc, useUpdateNpc, useDeleteNpc } from '@/composables/useNpcs'
 import { useCreateScriptoriumDocument } from '@/composables/useScriptorium'
 import { formatNpcForScriptorium } from '@/lib/scriptoriumImport'
@@ -329,7 +328,6 @@ const props = defineProps<{ npc?: Npc | null }>()
 // ── Store + mutations ─────────────────────────────────────────────────────────
 
 const router = useRouter()
-const auth = useAuthStore()
 const { mutateAsync: createNpc, isPending: isCreating } = useCreateNpc()
 const { mutateAsync: updateNpc, isPending: isUpdating } = useUpdateNpc()
 const { mutateAsync: deleteNpc } = useDeleteNpc()
@@ -474,27 +472,16 @@ function removeTag(tag: string) {
 // ── Portrait upload ───────────────────────────────────────────────────────────
 
 const fileInput = ref<HTMLInputElement | null>(null)
-const isUploading = ref(false)
+const { isUploading, upload: uploadPortrait } = useImageUpload('npc-portraits')
 
 function triggerPortraitUpload() { fileInput.value?.click() }
 
 async function onFileSelected(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
-  if (!file || !auth.user) return
-  isUploading.value = true
-  try {
-    const ext = file.name.split('.').pop() ?? 'jpg'
-    const path = `${auth.user.id}/${crypto.randomUUID()}.${ext}`
-    const { error } = await supabase.storage.from('npc-portraits').upload(path, file)
-    if (error) throw error
-    const { data } = supabase.storage.from('npc-portraits').getPublicUrl(path)
-    form.portrait_url = data.publicUrl
-  } catch (err) {
-    void err
-  } finally {
-    isUploading.value = false
-    if (fileInput.value) fileInput.value.value = ''
-  }
+  if (!file) return
+  const url = await uploadPortrait(file)
+  if (url) form.portrait_url = url
+  if (fileInput.value) fileInput.value.value = ''
 }
 
 // ── Save / Delete ─────────────────────────────────────────────────────────────

@@ -186,7 +186,7 @@
           />
         </div>
 
-        <!-- Source + image URL -->
+        <!-- Source + art upload -->
         <div class="grid grid-cols-2 gap-3">
           <label class="flex flex-col gap-1">
             <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Source</span>
@@ -196,14 +196,28 @@
               class="bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </label>
-          <label class="flex flex-col gap-1">
-            <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Art URL <span class="normal-case font-fell font-normal">(card printing)</span></span>
-            <input
-              v-model="imageUrl"
-              placeholder="https://… (optional, used on printed cards)"
-              class="bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-          </label>
+          <div class="flex flex-col gap-1">
+            <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Art <span class="normal-case font-fell font-normal">(card printing)</span></span>
+            <!-- Upload widget -->
+            <div
+              class="relative h-20 rounded-md border border-border bg-muted cursor-pointer group overflow-hidden"
+              @click="artFileInput?.click()"
+            >
+              <img v-if="imageUrl" :src="imageUrl" alt="Spell art" class="w-full h-full object-cover" />
+              <div v-else class="w-full h-full flex flex-col items-center justify-center gap-1 text-muted-foreground">
+                <ImagePlus class="h-5 w-5" />
+                <span class="font-fell text-xs italic">Upload art</span>
+              </div>
+              <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <span class="font-fell text-white text-xs italic">{{ imageUrl ? 'Change' : 'Upload' }}</span>
+              </div>
+              <div v-if="isUploadingArt" class="absolute inset-0 bg-black/60 flex items-center justify-center">
+                <span class="font-cinzel text-[10px] text-white animate-pulse">Uploading…</span>
+              </div>
+            </div>
+            <input ref="artFileInput" type="file" accept="image/*" class="hidden" @change="onArtSelected" />
+            <button v-if="imageUrl" type="button" class="font-cinzel text-[10px] text-destructive hover:underline text-left" @click.stop="imageUrl = ''">Remove art</button>
+          </div>
         </div>
 
         <!-- Tags -->
@@ -402,7 +416,8 @@
 <script setup lang="ts">
 import { ref, computed, reactive, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Save, Trash2, ScrollText, Lightbulb, ChevronDown } from 'lucide-vue-next'
+import { Save, Trash2, ScrollText, Lightbulb, ChevronDown, ImagePlus } from 'lucide-vue-next'
+import { useImageUpload } from '@/composables/useImageUpload'
 import {
   SPELL_SCHOOLS, SPELL_CLASSES, SPELL_COMPONENTS,
   CASTING_TIME_OPTIONS, DURATION_OPTIONS, RANGE_OPTIONS,
@@ -495,6 +510,18 @@ function applyAdvisorLevel() {
 // Sync concentration checkbox → advisor
 watch(concentration, val => { adv.requiresConcentration = val })
 watch(ritual, val => { adv.isRitual = val })
+
+// ── Art upload ────────────────────────────────────────────────────────────────
+const artFileInput = ref<HTMLInputElement | null>(null)
+const { isUploading: isUploadingArt, upload: uploadArt } = useImageUpload('asset-images')
+
+async function onArtSelected(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  const url = await uploadArt(file)
+  if (url) imageUrl.value = url
+  if (artFileInput.value) artFileInput.value.value = ''
+}
 
 // ── Save / Delete ─────────────────────────────────────────────────────────────
 const { mutateAsync: create } = useCreateSpell()

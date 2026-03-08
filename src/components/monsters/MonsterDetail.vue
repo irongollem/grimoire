@@ -213,6 +213,40 @@
       <TraitSection v-model="sb.lair_actions" label="Lair Actions" />
     </section>
 
+    <!-- Art image -->
+    <section>
+      <p class="field-label">Art Image</p>
+      <div class="flex items-start gap-3">
+        <div
+          class="relative flex items-center justify-center w-32 h-32 rounded-md border-2 border-dashed border-border bg-muted cursor-pointer hover:border-primary/50 transition-colors overflow-hidden shrink-0"
+          @click="artFileInput?.click()"
+        >
+          <img v-if="form.image_url" :src="form.image_url" alt="Art" class="absolute inset-0 w-full h-full object-cover" />
+          <div v-else class="flex flex-col items-center gap-1 text-muted-foreground">
+            <ImagePlus class="h-6 w-6" />
+            <span class="font-cinzel text-[10px] tracking-wider">{{ isUploadingArt ? 'Uploading…' : 'Add art' }}</span>
+          </div>
+        </div>
+        <div v-if="form.image_url" class="flex flex-col gap-2">
+          <button
+            type="button"
+            class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs font-semibold text-foreground hover:bg-muted transition-colors"
+            @click="artFileInput?.click()"
+          >
+            Replace
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-1.5 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
+            @click="form.image_url = ''"
+          >
+            Remove
+          </button>
+        </div>
+      </div>
+      <input ref="artFileInput" type="file" accept="image/*" class="hidden" @change="onArtSelected" />
+    </section>
+
     <!-- Notes -->
     <section>
       <label class="block">
@@ -231,7 +265,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { Save, Trash2, ScrollText } from 'lucide-vue-next'
+import { Save, Trash2, ScrollText, ImagePlus } from 'lucide-vue-next'
+import { useImageUpload } from '@/composables/useImageUpload'
 import { useCreateMonster, useUpdateMonster, useDeleteMonster } from '@/composables/useMonsters'
 import { useCreateScriptoriumDocument } from '@/composables/useScriptorium'
 import { formatMonsterForScriptorium } from '@/lib/scriptoriumImport'
@@ -266,6 +301,7 @@ const form = reactive({
   source: props.monster?.source ?? '',
   tags: props.monster?.tags ? [...props.monster.tags] : [],
   notes: props.monster?.notes ?? '',
+  image_url: props.monster?.image_url ?? '',
 })
 
 function defaultSb(): MonsterStatBlock {
@@ -332,6 +368,17 @@ function applyTemplate(event: Event) {
 // Ability modifier
 function mod(score: number) { return Math.floor((score - 10) / 2) }
 
+// Art upload
+const artFileInput = ref<HTMLInputElement | null>(null)
+const { isUploading: isUploadingArt, upload: uploadArt } = useImageUpload('asset-images')
+async function onArtSelected(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  const url = await uploadArt(file)
+  if (url) form.image_url = url
+  if (artFileInput.value) artFileInput.value.value = ''
+}
+
 // Save
 const { mutateAsync: create } = useCreateMonster()
 const { mutateAsync: update } = useUpdateMonster()
@@ -363,6 +410,7 @@ function buildPayload() {
     source: form.source || null,
     tags: form.tags,
     notes: form.notes || null,
+    image_url: form.image_url || null,
     stat_block: { ...sb },
   }
 }
