@@ -12,12 +12,12 @@
 </template>
 
 <script setup lang="ts">
-import type { Component } from 'vue'
+import type { Component } from "vue";
 
 defineProps<{
-  label: string
-  value: string | number
-  icon: Component
-  to: string
-}>()
+  label: string;
+  value: string | number;
+  icon: Component;
+  to: string;
+}>();
 </script>

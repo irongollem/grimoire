@@ -1,6 +1,9 @@
 <template>
   <div>
-    <PageHeader title="NPC Tracker" description="The denizens of your realm — allies, enemies, and unknowns">
+    <PageHeader
+      title="NPC Tracker"
+      description="The denizens of your realm — allies, enemies, and unknowns"
+    >
       <template #actions>
         <div class="flex gap-2">
           <button
@@ -27,11 +30,11 @@
 </template>
 
 <script setup lang="ts">
-import { Plus, Wand2 } from 'lucide-vue-next'
-import PageHeader from '@/components/common/PageHeader.vue'
-import NpcList from '@/components/npcs/NpcList.vue'
-import NpcGeneratorPanel from '@/components/npcs/NpcGeneratorPanel.vue'
-import { useUiStore } from '@/stores/ui'
+import { Plus, Wand2 } from "lucide-vue-next";
+import PageHeader from "@/components/common/PageHeader.vue";
+import NpcList from "@/components/npcs/NpcList.vue";
+import NpcGeneratorPanel from "@/components/npcs/NpcGeneratorPanel.vue";
+import { useUiStore } from "@/stores/ui";
 
-const ui = useUiStore()
+const ui = useUiStore();
 </script>

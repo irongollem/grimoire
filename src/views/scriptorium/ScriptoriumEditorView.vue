@@ -14,18 +14,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
-import { useScriptoriumDocument } from '@/composables/useScriptorium'
-import PageHeader from '@/components/common/PageHeader.vue'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
-import ScriptoriumEditor from '@/components/scriptorium/ScriptoriumEditor.vue'
+import { computed } from "vue";
+import { useRoute } from "vue-router";
+import { useScriptoriumDocument } from "@/composables/useScriptorium";
+import PageHeader from "@/components/common/PageHeader.vue";
+import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import ScriptoriumEditor from "@/components/scriptorium/ScriptoriumEditor.vue";
 
-const route = useRoute()
-const isNew = computed(() => route.name === 'scriptorium-new')
-const id = computed(() => isNew.value ? '' : (route.params.id as string))
+const route = useRoute();
+const isNew = computed(() => route.name === "scriptorium-new");
+const id = computed(() => (isNew.value ? "" : (route.params.id as string)));
 
-const { data: doc, isLoading: docLoading } = useScriptoriumDocument(id.value)
+const { data: doc, isLoading: docLoading } = useScriptoriumDocument(id.value);
 
-const isLoading = computed(() => !isNew.value && docLoading.value)
+const isLoading = computed(() => !isNew.value && docLoading.value);
 </script>

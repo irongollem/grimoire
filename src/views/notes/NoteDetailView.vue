@@ -9,11 +9,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
-import PageHeader from '@/components/common/PageHeader.vue'
-import NoteEditor from '@/components/notes/NoteEditor.vue'
+import { computed } from "vue";
+import { useRoute } from "vue-router";
+import PageHeader from "@/components/common/PageHeader.vue";
+import NoteEditor from "@/components/notes/NoteEditor.vue";
 
-const route = useRoute()
-const isNew = computed(() => route.name === 'note-new')
+const route = useRoute();
+const isNew = computed(() => route.name === "note-new");
 </script>

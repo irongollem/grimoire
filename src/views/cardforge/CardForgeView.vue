@@ -5,9 +5,7 @@
       <div class="forge-topbar">
         <div>
           <h1 class="forge-title">Card Forge</h1>
-          <p class="forge-sub">
-            Craft printable cards for your NPCs &amp; monsters
-          </p>
+          <p class="forge-sub">Craft printable cards for your NPCs &amp; monsters</p>
         </div>
 
         <div class="topbar-actions">
@@ -54,8 +52,8 @@
           </button>
         </div>
         <p class="duplex-hint">
-          Prints fronts then backs. For double-sided printing, flip on the long
-          (left) edge — backs are column-reversed so they align.
+          Prints fronts then backs. For double-sided printing, flip on the long (left) edge — backs
+          are column-reversed so they align.
         </p>
       </div>
 
@@ -82,33 +80,19 @@
           <!-- Search -->
           <label class="block">
             <span class="sr-only">Search</span>
-            <input
-              v-model="search"
-              placeholder="Search…"
-              class="search-input"
-            />
+            <input v-model="search" placeholder="Search…" class="search-input" />
           </label>
 
           <!-- Select all / none -->
           <div class="selection-header">
-            <span class="selection-count"
-              >{{ filteredList.length }} entries</span
-            >
-            <button type="button" class="sel-action" @click="selectAll">
-              All
-            </button>
-            <button type="button" class="sel-action" @click="clearAll">
-              None
-            </button>
+            <span class="selection-count">{{ filteredList.length }} entries</span>
+            <button type="button" class="sel-action" @click="selectAll">All</button>
+            <button type="button" class="sel-action" @click="clearAll">None</button>
           </div>
 
           <!-- List -->
           <div class="entity-list">
-            <label
-              v-for="item in filteredList"
-              :key="item.id"
-              class="entity-row"
-            >
+            <label v-for="item in filteredList" :key="item.id" class="entity-row">
               <input
                 type="checkbox"
                 :checked="selectedIds.has(item.id)"
@@ -146,29 +130,15 @@
     </div>
 
     <!-- ── Save collection modal ─────────────────────────── -->
-    <div
-      v-if="showSaveModal"
-      class="modal-backdrop"
-      @click.self="showSaveModal = false"
-    >
+    <div v-if="showSaveModal" class="modal-backdrop" @click.self="showSaveModal = false">
       <div class="modal-box">
         <h2 class="modal-title">Save Collection</h2>
         <label class="block">
           <span class="modal-label">Collection name</span>
-          <input
-            v-model="saveCollectionName"
-            class="modal-input"
-            placeholder="My Boss Monsters…"
-          />
+          <input v-model="saveCollectionName" class="modal-input" placeholder="My Boss Monsters…" />
         </label>
         <div class="modal-actions">
-          <button
-            type="button"
-            class="modal-cancel"
-            @click="showSaveModal = false"
-          >
-            Cancel
-          </button>
+          <button type="button" class="modal-cancel" @click="showSaveModal = false">Cancel</button>
           <button
             type="button"
             class="modal-confirm"
@@ -182,11 +152,7 @@
     </div>
 
     <!-- ── Load collection modal ─────────────────────────── -->
-    <div
-      v-if="showLoadModal"
-      class="modal-backdrop"
-      @click.self="showLoadModal = false"
-    >
+    <div v-if="showLoadModal" class="modal-backdrop" @click.self="showLoadModal = false">
       <div class="modal-box">
         <h2 class="modal-title">Card Library</h2>
         <div class="library-list">
@@ -194,36 +160,17 @@
             <div class="library-info">
               <span class="library-name">{{ col.name }}</span>
               <span class="library-meta"
-                >{{ col.items.length }} cards ·
-                {{ formatDate(col.created) }}</span
+                >{{ col.items.length }} cards · {{ formatDate(col.created) }}</span
               >
             </div>
             <div class="library-btns">
-              <button
-                type="button"
-                class="lib-load-btn"
-                @click="loadCollection(col)"
-              >
-                Load
-              </button>
-              <button
-                type="button"
-                class="lib-del-btn"
-                @click="deleteCollection(col.id)"
-              >
-                ×
-              </button>
+              <button type="button" class="lib-load-btn" @click="loadCollection(col)">Load</button>
+              <button type="button" class="lib-del-btn" @click="deleteCollection(col.id)">×</button>
             </div>
           </div>
         </div>
         <div class="modal-actions">
-          <button
-            type="button"
-            class="modal-cancel"
-            @click="showLoadModal = false"
-          >
-            Close
-          </button>
+          <button type="button" class="modal-cancel" @click="showLoadModal = false">Close</button>
         </div>
       </div>
     </div>
@@ -232,17 +179,10 @@
     <div class="print-layout">
       <template v-for="(chunk, pi) in printChunks" :key="pi">
         <!-- Front sheet -->
-        <div
-          class="print-sheet"
-          :class="cardSize === 'tarot' ? 'tarot-sheet' : 'mtg-sheet'"
-        >
+        <div class="print-sheet" :class="cardSize === 'tarot' ? 'tarot-sheet' : 'mtg-sheet'">
           <template v-for="(subject, ci) in chunk" :key="ci">
             <template v-if="subject">
-              <CardTarotFront
-                v-if="cardSize === 'tarot'"
-                :subject="subject"
-                class="print-card"
-              />
+              <CardTarotFront v-if="cardSize === 'tarot'" :subject="subject" class="print-card" />
               <CardFront v-else :subject="subject" class="print-card" />
             </template>
             <div v-else class="print-card print-card-empty" />
@@ -250,17 +190,10 @@
         </div>
 
         <!-- Back sheet (columns reversed per row for duplex alignment) -->
-        <div
-          class="print-sheet"
-          :class="cardSize === 'tarot' ? 'tarot-sheet' : 'mtg-sheet'"
-        >
+        <div class="print-sheet" :class="cardSize === 'tarot' ? 'tarot-sheet' : 'mtg-sheet'">
           <template v-for="(subject, ci) in backOrder(chunk)" :key="ci">
             <template v-if="subject">
-              <CardTarotBack
-                v-if="cardSize === 'tarot'"
-                :subject="subject"
-                class="print-card"
-              />
+              <CardTarotBack v-if="cardSize === 'tarot'" :subject="subject" class="print-card" />
               <CardBack v-else :subject="subject" class="print-card" />
             </template>
             <div v-else class="print-card print-card-empty" />
@@ -273,9 +206,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import CardFront, {
-  type CardSubject,
-} from "@/components/cardforge/CardFront.vue";
+import CardFront, { type CardSubject } from "@/components/cardforge/CardFront.vue";
 import CardBack from "@/components/cardforge/CardBack.vue";
 import CardTarotFront from "@/components/cardforge/CardTarotFront.vue";
 import CardTarotBack from "@/components/cardforge/CardTarotBack.vue";
@@ -369,21 +300,14 @@ const selectedSubjects = computed((): CardSubject[] => {
 });
 
 // ── Print chunks ─────────────────────────────────────────
-const perPage = computed(
-  () => CARD_SIZES.find((s) => s.id === cardSize.value)?.perPage ?? 9,
-);
-const cols = computed(
-  () => CARD_SIZES.find((s) => s.id === cardSize.value)?.cols ?? 3,
-);
+const perPage = computed(() => CARD_SIZES.find((s) => s.id === cardSize.value)?.perPage ?? 9);
+const cols = computed(() => CARD_SIZES.find((s) => s.id === cardSize.value)?.cols ?? 3);
 
 const printChunks = computed((): (CardSubject | null)[][] => {
   const n = perPage.value;
   const result: (CardSubject | null)[][] = [];
   for (let i = 0; i < selectedSubjects.value.length; i += n) {
-    const chunk: (CardSubject | null)[] = selectedSubjects.value.slice(
-      i,
-      i + n,
-    );
+    const chunk: (CardSubject | null)[] = selectedSubjects.value.slice(i, i + n);
     while (chunk.length < n) chunk.push(null);
     result.push(chunk);
   }
@@ -459,9 +383,7 @@ function saveCollection() {
 function loadCollection(col: CardCollection) {
   // Group by kind and set the correct source + select those IDs
   const npcIds = col.items.filter((i) => i.kind === "npc").map((i) => i.id);
-  const monsterIds = col.items
-    .filter((i) => i.kind === "monster")
-    .map((i) => i.id);
+  const monsterIds = col.items.filter((i) => i.kind === "monster").map((i) => i.id);
   // Load whichever has more items
   if (monsterIds.length >= npcIds.length) {
     source.value = "monsters";

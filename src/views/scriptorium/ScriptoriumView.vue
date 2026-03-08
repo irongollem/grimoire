@@ -1,6 +1,9 @@
 <template>
   <div>
-    <PageHeader title="Scriptorium" description="Craft spell scrolls, stat blocks, and campaign documents">
+    <PageHeader
+      title="Scriptorium"
+      description="Craft spell scrolls, stat blocks, and campaign documents"
+    >
       <template #actions>
         <RouterLink
           to="/scriptorium/new"
@@ -17,7 +20,7 @@
 </template>
 
 <script setup lang="ts">
-import { Plus } from 'lucide-vue-next'
-import PageHeader from '@/components/common/PageHeader.vue'
-import ScriptoriumDocumentList from '@/components/scriptorium/ScriptoriumDocumentList.vue'
+import { Plus } from "lucide-vue-next";
+import PageHeader from "@/components/common/PageHeader.vue";
+import ScriptoriumDocumentList from "@/components/scriptorium/ScriptoriumDocumentList.vue";
 </script>

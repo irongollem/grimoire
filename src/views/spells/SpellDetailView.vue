@@ -9,16 +9,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
-import { useSpell } from '@/composables/useSpells'
-import SpellDetail from '@/components/spells/SpellDetail.vue'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import { computed } from "vue";
+import { useRoute } from "vue-router";
+import { useSpell } from "@/composables/useSpells";
+import SpellDetail from "@/components/spells/SpellDetail.vue";
+import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 
-const route = useRoute()
-const id = computed(() => route.params.id as string | undefined)
+const route = useRoute();
+const id = computed(() => route.params.id as string | undefined);
 
-const isNew = computed(() => !id.value || id.value === 'new')
+const isNew = computed(() => !id.value || id.value === "new");
 
-const { data: spell, isLoading, error } = useSpell(isNew.value ? '' : (id.value ?? ''))
+const { data: spell, isLoading, error } = useSpell(isNew.value ? "" : (id.value ?? ""));
 </script>

@@ -9,6 +9,6 @@
 </template>
 
 <script setup lang="ts">
-import PageHeader from '@/components/common/PageHeader.vue'
-import PartyTracker from '@/components/party/PartyTracker.vue'
+import PageHeader from "@/components/common/PageHeader.vue";
+import PartyTracker from "@/components/party/PartyTracker.vue";
 </script>

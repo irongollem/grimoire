@@ -543,8 +543,12 @@ async function save() {
 async function confirmDelete() {
   if (!props.npc?.id) return
   if (!window.confirm(`Delete ${props.npc.name}? This cannot be undone.`)) return
-  await deleteNpc(props.npc.id)
-  router.push('/npcs')
+  try {
+    await deleteNpc(props.npc.id)
+    router.push('/npcs')
+  } catch {
+    alert('Failed to delete NPC. Please try again.')
+  }
 }
 </script>
 

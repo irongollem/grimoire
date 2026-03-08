@@ -33,11 +33,7 @@
 
     <template v-else>
       <!-- Three tendays -->
-      <div
-        v-for="tenday in 3"
-        :key="tenday"
-        class="mb-4"
-      >
+      <div v-for="tenday in 3" :key="tenday" class="mb-4">
         <p class="font-cinzel text-xs font-semibold tracking-widest text-muted-foreground mb-2">
           {{ TENDAY_NAMES[tenday - 1] }}
         </p>
@@ -127,7 +123,8 @@
 
       <div v-else-if="!isLoading" class="mt-6">
         <p class="font-fell text-sm text-muted-foreground italic text-center">
-          No events recorded for {{ currentMonth.name }}, {{ calendar.currentYear }} {{ calendar.adapter.epochName }}.
+          No events recorded for {{ currentMonth.name }}, {{ calendar.currentYear }}
+          {{ calendar.adapter.epochName }}.
         </p>
       </div>
     </template>
@@ -135,61 +132,62 @@
 </template>
 
 <script setup lang="ts">
-import { computed, toRef } from 'vue'
-import { useCalendarStore } from '@/stores/calendar'
-import { useCalendarEvents } from '@/composables/useCalendarEvents'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
-import type { CalendarEvent } from '@/types/calendar.types'
+import { computed, toRef } from "vue";
+import { useCalendarStore } from "@/stores/calendar";
+import { useCalendarEvents } from "@/composables/useCalendarEvents";
+import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import type { CalendarEvent } from "@/types/calendar.types";
 
-const TENDAY_NAMES = ['First Tenday', 'Second Tenday', 'Third Tenday']
+const TENDAY_NAMES = ["First Tenday", "Second Tenday", "Third Tenday"];
 
 const emit = defineEmits<{
-  'edit-event': [event: CalendarEvent]
-}>()
+  "edit-event": [event: CalendarEvent];
+}>();
 
-const calendar = useCalendarStore()
-const yearRef = toRef(calendar, 'currentYear')
-const { data: events, isLoading } = useCalendarEvents(yearRef)
+const calendar = useCalendarStore();
+const yearRef = toRef(calendar, "currentYear");
+const { data: events, isLoading } = useCalendarEvents(yearRef);
 
-const currentMonth = computed(() =>
-  calendar.adapter.months.find(m => m.num === calendar.currentMonth)
-  ?? calendar.adapter.months[0]
-)
+const currentMonth = computed(
+  () =>
+    calendar.adapter.months.find((m) => m.num === calendar.currentMonth) ??
+    calendar.adapter.months[0],
+);
 
 // Festival days that fall right after the current month
 const festivalsAfterCurrentMonth = computed(() =>
-  calendar.adapter.intercalaryDays.filter(d => {
-    if (d.afterMonth !== calendar.currentMonth) return false
-    if (d.isLeapOnly && !calendar.adapter.isLeapYear(calendar.currentYear)) return false
-    return true
-  })
-)
+  calendar.adapter.intercalaryDays.filter((d) => {
+    if (d.afterMonth !== calendar.currentMonth) return false;
+    if (d.isLeapOnly && !calendar.adapter.isLeapYear(calendar.currentYear)) return false;
+    return true;
+  }),
+);
 
 // Events for the current month (non-festival)
 const monthEvents = computed(() =>
-  (events.value ?? []).filter(e => e.harptos_month === calendar.currentMonth)
-)
+  (events.value ?? []).filter((e) => e.harptos_month === calendar.currentMonth),
+);
 
 function eventsForDay(day: number): CalendarEvent[] {
   return (events.value ?? []).filter(
-    e => e.harptos_month === calendar.currentMonth && e.harptos_day === day
-  )
+    (e) => e.harptos_month === calendar.currentMonth && e.harptos_day === day,
+  );
 }
 
 function hasEvents(day: number): boolean {
-  return eventsForDay(day).length > 0
+  return eventsForDay(day).length > 0;
 }
 
 function eventsForFestival(festivalName: string): CalendarEvent[] {
-  return (events.value ?? []).filter(e => e.festival_day === festivalName)
+  return (events.value ?? []).filter((e) => e.festival_day === festivalName);
 }
 
 function formatEventDate(event: CalendarEvent): string {
-  if (event.festival_day) return event.festival_day
+  if (event.festival_day) return event.festival_day;
   if (event.harptos_day) {
-    const tenday = Math.ceil(event.harptos_day / 10)
-    return `Day ${event.harptos_day} (Tenday ${tenday})`
+    const tenday = Math.ceil(event.harptos_day / 10);
+    return `Day ${event.harptos_day} (Tenday ${tenday})`;
   }
-  return ''
+  return "";
 }
 </script>

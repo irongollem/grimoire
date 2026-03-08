@@ -30,25 +30,25 @@ export type SpellClass = (typeof SPELL_CLASSES)[number];
 export const SPELL_COMPONENTS = ["V", "S", "M"] as const;
 
 // Re-exported from shared foundation so existing imports keep working
-export { DAMAGE_TYPES, type DamageType } from './damage.types';
+export { DAMAGE_TYPES, type DamageType } from "./damage.types";
 
 export const AOE_SHAPES = ["sphere", "cone", "line", "cylinder", "cube", "emanation"] as const;
 export type AoeShape = (typeof AOE_SHAPES)[number];
 
 export const ATTACK_TYPES = [
   { value: "ranged_spell", label: "Ranged Spell Attack" },
-  { value: "melee_spell",  label: "Melee Spell Attack" },
-  { value: "save",         label: "Saving Throw" },
-  { value: "automatic",    label: "Automatic (no roll)" },
-  { value: "none",         label: "None / Utility" },
+  { value: "melee_spell", label: "Melee Spell Attack" },
+  { value: "save", label: "Saving Throw" },
+  { value: "automatic", label: "Automatic (no roll)" },
+  { value: "none", label: "None / Utility" },
 ] as const;
 
 export const SAVE_ATTRIBUTES = ["STR", "DEX", "CON", "INT", "WIS", "CHA"] as const;
 
 export const SAVE_EFFECTS = [
-  { value: "half",     label: "Half damage on save" },
-  { value: "negates",  label: "No effect on save" },
-  { value: "special",  label: "Special" },
+  { value: "half", label: "Half damage on save" },
+  { value: "negates", label: "No effect on save" },
+  { value: "special", label: "Special" },
 ] as const;
 export type SpellComponent = (typeof SPELL_COMPONENTS)[number];
 
@@ -132,28 +132,25 @@ export interface Spell {
   concentration: boolean;
   ritual: boolean;
   // Mechanics (stored for display, filtering, and advisor pre-fill)
-  attack_type: string | null;       // ranged_spell | melee_spell | save | automatic | none
-  save_attribute: string | null;    // STR | DEX | CON | INT | WIS | CHA
-  save_effect: string | null;       // half | negates | special
-  damage_rolls: import('@/lib/dice').DamageRoll[] | null;  // e.g. [{dice:"8d6",type:"fire"}]
-  healing_dice: string | null;      // e.g. "1d8"
-  aoe_shape: string | null;         // sphere | cone | line | cylinder | cube | emanation
-  aoe_size: string | null;          // e.g. "20 ft. radius"
+  attack_type: string | null; // ranged_spell | melee_spell | save | automatic | none
+  save_attribute: string | null; // STR | DEX | CON | INT | WIS | CHA
+  save_effect: string | null; // half | negates | special
+  damage_rolls: import("@/lib/dice").DamageRoll[] | null; // e.g. [{dice:"8d6",type:"fire"}]
+  healing_dice: string | null; // e.g. "1d8"
+  aoe_shape: string | null; // sphere | cone | line | cylinder | cube | emanation
+  aoe_size: string | null; // e.g. "20 ft. radius"
   condition_inflicted: string | null; // e.g. "blinded", "stunned"
   description: string;
   higher_levels: string | null;
   classes: string[];
   tags: string[];
   source: string | null;
-  image_url: string | null;  // optional art for card printing
+  image_url: string | null; // optional art for card printing
   created_at: string;
   updated_at: string;
 }
 
-export type SpellInsert = Omit<
-  Spell,
-  "id" | "user_id" | "created_at" | "updated_at"
->;
+export type SpellInsert = Omit<Spell, "id" | "user_id" | "created_at" | "updated_at">;
 export type SpellUpdate = Partial<SpellInsert>;
 
 // Convenience helpers

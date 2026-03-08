@@ -1,7 +1,7 @@
-import { ref, onUnmounted } from 'vue'
-import type { ComputedRef, Ref } from 'vue'
-import jsPDF from 'jspdf'
-import html2canvas from 'html2canvas'
+import { ref, onUnmounted } from "vue";
+import type { ComputedRef, Ref } from "vue";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 // Pixel-unit styles for html2canvas rendering (A4 @ 96dpi = 794×1123px)
 const RENDER_CSS = `
@@ -19,99 +19,113 @@ code { background:#e4ddd0; padding:1px 4px; border-radius:2px; font-family:'Cour
 pre { background:#1B3A4B; color:#E8F4F8; padding:11px; border-radius:4px; overflow:hidden; margin:11px 0; font-size:13px; }
 pre code { background:transparent; padding:0; color:inherit; }
 img:not(.phb-border) { max-width:380px; max-height:480px; border-radius:4px; object-fit:cover; }
-`
+`;
 
 async function buildPdfBlob(pages: string[], title: string): Promise<Blob> {
-  const holder = document.createElement('div')
-  holder.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:794px;'
-  const styleEl = document.createElement('style')
-  styleEl.textContent = RENDER_CSS
-  holder.appendChild(styleEl)
+  const holder = document.createElement("div");
+  holder.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:794px;";
+  const styleEl = document.createElement("style");
+  styleEl.textContent = RENDER_CSS;
+  holder.appendChild(styleEl);
 
-  const pageEls: HTMLElement[] = []
+  const pageEls: HTMLElement[] = [];
   for (let i = 0; i < pages.length; i++) {
-    const page = document.createElement('div')
-    page.className = 'phb-page'
+    const page = document.createElement("div");
+    page.className = "phb-page";
 
-    const border = document.createElement('img')
-    border.className = 'phb-border'
-    border.src = '/assets/scriptorium/page-border.png'
-    border.alt = ''
-    page.appendChild(border)
+    const border = document.createElement("img");
+    border.className = "phb-border";
+    border.src = "/assets/scriptorium/page-border.png";
+    border.alt = "";
+    page.appendChild(border);
 
     if (i === 0) {
-      const bar = document.createElement('div')
-      bar.className = 'phb-title-bar'
-      bar.textContent = title || 'Untitled Document'
-      page.appendChild(bar)
+      const bar = document.createElement("div");
+      bar.className = "phb-title-bar";
+      bar.textContent = title || "Untitled Document";
+      page.appendChild(bar);
     }
 
-    const body = document.createElement('div')
-    body.innerHTML = pages[i]
-    page.appendChild(body)
+    const body = document.createElement("div");
+    body.innerHTML = pages[i];
+    page.appendChild(body);
 
-    holder.appendChild(page)
-    pageEls.push(page)
+    holder.appendChild(page);
+    pageEls.push(page);
   }
 
-  document.body.appendChild(holder)
-  await document.fonts.ready
+  document.body.appendChild(holder);
+  await document.fonts.ready;
   await Promise.all(
-    Array.from(holder.querySelectorAll<HTMLImageElement>('img')).map(img =>
-      img.complete ? Promise.resolve() : new Promise<void>(r => { img.onload = () => r(); img.onerror = () => r() })
-    )
-  )
+    Array.from(holder.querySelectorAll<HTMLImageElement>("img")).map((img) =>
+      img.complete
+        ? Promise.resolve()
+        : new Promise<void>((r) => {
+            img.onload = () => r();
+            img.onerror = () => r();
+          }),
+    ),
+  );
 
-  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-  pdf.setProperties({ title: title || 'Untitled Document' })
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  pdf.setProperties({ title: title || "Untitled Document" });
   for (let i = 0; i < pageEls.length; i++) {
-    const canvas = await html2canvas(pageEls[i], { scale: 2, useCORS: true, logging: false, width: 794, height: 1123 })
-    if (i > 0) pdf.addPage()
-    pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 210, 297)
+    const canvas = await html2canvas(pageEls[i], {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      width: 794,
+      height: 1123,
+    });
+    if (i > 0) pdf.addPage();
+    pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, 210, 297);
   }
 
-  document.body.removeChild(holder)
-  return pdf.output('blob') as Blob
+  document.body.removeChild(holder);
+  return pdf.output("blob") as Blob;
 }
 
 export function useScriptoriumPdf(pages: ComputedRef<string[]>, title: Ref<string>) {
-  const showPdfPreview = ref(false)
-  const pdfBlobUrl = ref<string | null>(null)
-  const isGeneratingPdf = ref(false)
+  const showPdfPreview = ref(false);
+  const pdfBlobUrl = ref<string | null>(null);
+  const isGeneratingPdf = ref(false);
 
   function closePdfPreview() {
-    showPdfPreview.value = false
-    if (pdfBlobUrl.value) { URL.revokeObjectURL(pdfBlobUrl.value); pdfBlobUrl.value = null }
+    showPdfPreview.value = false;
+    if (pdfBlobUrl.value) {
+      URL.revokeObjectURL(pdfBlobUrl.value);
+      pdfBlobUrl.value = null;
+    }
   }
 
   function savePdf() {
-    if (!pdfBlobUrl.value) return
-    const a = document.createElement('a')
-    a.href = pdfBlobUrl.value
-    a.download = `${title.value || 'Untitled'}.pdf`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
+    if (!pdfBlobUrl.value) return;
+    const a = document.createElement("a");
+    a.href = pdfBlobUrl.value;
+    a.download = `${title.value || "Untitled"}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   }
 
   async function exportPdf() {
-    isGeneratingPdf.value = true
+    isGeneratingPdf.value = true;
     try {
-      const blob = await buildPdfBlob(pages.value, title.value)
-      const fileName = `${title.value || 'Untitled'}.pdf`
+      const blob = await buildPdfBlob(pages.value, title.value);
+      const fileName = `${title.value || "Untitled"}.pdf`;
       // Use File instead of Blob — Chrome's PDF viewer uses the File name as the suggested download filename
-      const file = new File([blob], fileName, { type: 'application/pdf' })
-      if (pdfBlobUrl.value) URL.revokeObjectURL(pdfBlobUrl.value)
-      pdfBlobUrl.value = URL.createObjectURL(file)
-      showPdfPreview.value = true
+      const file = new File([blob], fileName, { type: "application/pdf" });
+      if (pdfBlobUrl.value) URL.revokeObjectURL(pdfBlobUrl.value);
+      pdfBlobUrl.value = URL.createObjectURL(file);
+      showPdfPreview.value = true;
     } finally {
-      isGeneratingPdf.value = false
+      isGeneratingPdf.value = false;
     }
   }
 
   onUnmounted(() => {
-    if (pdfBlobUrl.value) URL.revokeObjectURL(pdfBlobUrl.value)
-  })
+    if (pdfBlobUrl.value) URL.revokeObjectURL(pdfBlobUrl.value);
+  });
 
-  return { showPdfPreview, pdfBlobUrl, isGeneratingPdf, exportPdf, savePdf, closePdfPreview }
+  return { showPdfPreview, pdfBlobUrl, isGeneratingPdf, exportPdf, savePdf, closePdfPreview };
 }

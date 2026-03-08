@@ -1,5 +1,7 @@
 <template>
-  <header class="md:hidden flex items-center gap-3 px-4 py-3 border-b border-border bg-card sticky top-0 z-30">
+  <header
+    class="md:hidden flex items-center gap-3 px-4 py-3 border-b border-border bg-card sticky top-0 z-30"
+  >
     <button
       class="text-muted-foreground hover:text-foreground transition-colors"
       aria-label="Open navigation"
@@ -15,13 +17,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
-import { Menu } from 'lucide-vue-next'
-import { useUiStore } from '@/stores/ui'
+import { computed } from "vue";
+import { useRoute } from "vue-router";
+import { Menu } from "lucide-vue-next";
+import { useUiStore } from "@/stores/ui";
 
-const route = useRoute()
-const ui = useUiStore()
+const route = useRoute();
+const ui = useUiStore();
 
-const pageTitle = computed(() => (route.meta.title as string | undefined) ?? 'Grimoire')
+const pageTitle = computed(() => (route.meta.title as string | undefined) ?? "Grimoire");
 </script>

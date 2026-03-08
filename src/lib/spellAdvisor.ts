@@ -155,9 +155,7 @@ export function adviseLevelRange(inputs: AdvisorInputs): AdvisorResult {
       extreme: "Extreme control (dominated, paralysed, power word)",
     };
     score = intensityScores[inputs.effectIntensity];
-    factors.push(
-      `${intensityLabels[inputs.effectIntensity]} → base level ${score}`,
-    );
+    factors.push(`${intensityLabels[inputs.effectIntensity]} → base level ${score}`);
   } else if (inputs.effectType === "buff") {
     const intensityScores: Record<EffectIntensity, number> = {
       weak: 0,
@@ -172,9 +170,7 @@ export function adviseLevelRange(inputs: AdvisorInputs): AdvisorResult {
       extreme: "Extreme buff (extra action, immunity, resurrection)",
     };
     score = intensityScores[inputs.effectIntensity];
-    factors.push(
-      `${intensityLabels[inputs.effectIntensity]} → base level ${score}`,
-    );
+    factors.push(`${intensityLabels[inputs.effectIntensity]} → base level ${score}`);
   } else {
     const intensityScores: Record<EffectIntensity, number> = {
       weak: 0,
@@ -189,9 +185,7 @@ export function adviseLevelRange(inputs: AdvisorInputs): AdvisorResult {
       extreme: "World-altering utility (Wish, Gate)",
     };
     score = intensityScores[inputs.effectIntensity];
-    factors.push(
-      `${intensityLabels[inputs.effectIntensity]} → base level ${score}`,
-    );
+    factors.push(`${intensityLabels[inputs.effectIntensity]} → base level ${score}`);
   }
 
   // ── AoE adjustment ────────────────────────────────────────────────────────
@@ -233,9 +227,7 @@ export function adviseLevelRange(inputs: AdvisorInputs): AdvisorResult {
     // Already handled by concentration flag above
   } else if (inputs.durationTier === "conc_10min") {
     score += 0.5;
-    factors.push(
-      "Concentration up to 10 min — longer battlefield control +½ level",
-    );
+    factors.push("Concentration up to 10 min — longer battlefield control +½ level");
   } else if (inputs.durationTier === "conc_1hour") {
     score += 1;
     factors.push("Concentration up to 1 hour — exploration utility +1 level");
@@ -415,10 +407,7 @@ export const REFERENCE_SPELLS: Record<
 // ── School design tips ────────────────────────────────────────────────────────
 // General design principles used by D&D writers per school.
 // These are qualitative — shown in the advisor to guide the homebrew author.
-export const SCHOOL_DESIGN_TIPS: Record<
-  string,
-  { title: string; tips: string[] }
-> = {
+export const SCHOOL_DESIGN_TIPS: Record<string, { title: string; tips: string[] }> = {
   abjuration: {
     title: "Abjuration",
     tips: [

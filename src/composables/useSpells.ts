@@ -1,58 +1,56 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
-import { supabase } from '@/lib/supabase'
-import type { Spell, SpellInsert, SpellUpdate } from '@/types/spell.types'
+import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
+import { supabase } from "@/lib/supabase";
+import type { Spell, SpellInsert, SpellUpdate } from "@/types/spell.types";
 
-const QUERY_KEY = 'spells'
+const QUERY_KEY = "spells";
 
 async function fetchSpells(): Promise<Spell[]> {
   const { data, error } = await supabase
-    .from('spells')
-    .select('*')
-    .order('level', { ascending: true })
-    .order('name', { ascending: true })
-  if (error) throw error
-  return data as Spell[]
+    .from("spells")
+    .select("*")
+    .order("level", { ascending: true })
+    .order("name", { ascending: true });
+  if (error) throw error;
+  return data as Spell[];
 }
 
 async function fetchSpell(id: string): Promise<Spell> {
-  const { data, error } = await supabase
-    .from('spells')
-    .select('*')
-    .eq('id', id)
-    .single()
-  if (error) throw error
-  return data as Spell
+  const { data, error } = await supabase.from("spells").select("*").eq("id", id).single();
+  if (error) throw error;
+  return data as Spell;
 }
 
 async function createSpell(spell: SpellInsert): Promise<Spell> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const { data, error } = await supabase
-    .from('spells')
+    .from("spells")
     .insert({ ...spell, user_id: user!.id })
     .select()
-    .single()
-  if (error) throw error
-  return data as Spell
+    .single();
+  if (error) throw error;
+  return data as Spell;
 }
 
 async function updateSpell(id: string, update: SpellUpdate): Promise<Spell> {
   const { data, error } = await supabase
-    .from('spells')
+    .from("spells")
     .update(update)
-    .eq('id', id)
+    .eq("id", id)
     .select()
-    .single()
-  if (error) throw error
-  return data as Spell
+    .single();
+  if (error) throw error;
+  return data as Spell;
 }
 
 async function deleteSpell(id: string): Promise<void> {
-  const { error } = await supabase.from('spells').delete().eq('id', id)
-  if (error) throw error
+  const { error } = await supabase.from("spells").delete().eq("id", id);
+  if (error) throw error;
 }
 
 export function useSpells() {
-  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchSpells })
+  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchSpells });
 }
 
 export function useSpell(id: string) {
@@ -60,33 +58,32 @@ export function useSpell(id: string) {
     queryKey: [QUERY_KEY, id],
     queryFn: () => fetchSpell(id),
     enabled: !!id,
-  })
+  });
 }
 
 export function useCreateSpell() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createSpell,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
-  })
+  });
 }
 
 export function useUpdateSpell() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, update }: { id: string; update: SpellUpdate }) =>
-      updateSpell(id, update),
+    mutationFn: ({ id, update }: { id: string; update: SpellUpdate }) => updateSpell(id, update),
     onSuccess: (_data, { id }) => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] })
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });
     },
-  })
+  });
 }
 
 export function useDeleteSpell() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteSpell,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
-  })
+  });
 }

@@ -1,9 +1,7 @@
 <template>
   <div>
     <h2 class="font-cinzel text-xl font-semibold text-foreground mb-1">Begin your journey</h2>
-    <p class="font-fell text-muted-foreground italic text-sm mb-6">
-      Create your Grimoire account
-    </p>
+    <p class="font-fell text-muted-foreground italic text-sm mb-6">Create your Grimoire account</p>
 
     <form class="space-y-4" @submit.prevent="handleSubmit">
       <div class="space-y-1.5">
@@ -45,7 +43,7 @@
         :disabled="auth.loading"
         class="w-full rounded-md bg-primary px-4 py-2.5 font-cinzel text-sm font-semibold text-primary-foreground tracking-wider transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {{ auth.loading ? 'Creating your tome…' : 'Create Your Tome' }}
+        {{ auth.loading ? "Creating your tome…" : "Create Your Tome" }}
       </button>
     </form>
 
@@ -59,26 +57,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useAuthStore } from '@/stores/auth'
+import { ref } from "vue";
+import { useAuthStore } from "@/stores/auth";
 
-const auth = useAuthStore()
+const auth = useAuthStore();
 
-const email = ref('')
-const password = ref('')
-const errorMessage = ref('')
-const successMessage = ref('')
+const email = ref("");
+const password = ref("");
+const errorMessage = ref("");
+const successMessage = ref("");
 
 async function handleSubmit() {
-  errorMessage.value = ''
-  successMessage.value = ''
+  errorMessage.value = "";
+  successMessage.value = "";
   try {
-    await auth.signUp(email.value, password.value)
-    successMessage.value = 'Check your email to confirm your account, then sign in.'
-    email.value = ''
-    password.value = ''
+    await auth.signUp(email.value, password.value);
+    successMessage.value = "Check your email to confirm your account, then sign in.";
+    email.value = "";
+    password.value = "";
   } catch (err) {
-    errorMessage.value = err instanceof Error ? err.message : 'Sign up failed. Please try again.'
+    errorMessage.value = err instanceof Error ? err.message : "Sign up failed. Please try again.";
   }
 }
 </script>

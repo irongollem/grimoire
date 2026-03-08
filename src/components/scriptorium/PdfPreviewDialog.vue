@@ -6,13 +6,19 @@
       @click.self="$emit('close')"
       @keydown.esc="$emit('close')"
     >
-      <div class="flex flex-col w-[92vw] h-[92vh] bg-card rounded-xl border border-border overflow-hidden shadow-2xl">
-        <div class="flex items-center justify-between px-4 py-2.5 border-b border-border shrink-0 bg-card">
+      <div
+        class="flex flex-col w-[92vw] h-[92vh] bg-card rounded-xl border border-border overflow-hidden shadow-2xl"
+      >
+        <div
+          class="flex items-center justify-between px-4 py-2.5 border-b border-border shrink-0 bg-card"
+        >
           <div class="flex items-center gap-3 min-w-0">
             <h2 class="font-cinzel font-bold text-sm text-foreground tracking-wide truncate">
-              {{ title || 'Untitled Document' }}
+              {{ title || "Untitled Document" }}
             </h2>
-            <span class="font-fell text-xs text-muted-foreground italic shrink-0">Use the button below to save — not the viewer's toolbar</span>
+            <span class="font-fell text-xs text-muted-foreground italic shrink-0"
+              >Use the button below to save — not the viewer's toolbar</span
+            >
           </div>
           <div class="flex items-center gap-2 shrink-0">
             <button
@@ -21,7 +27,7 @@
               @click="$emit('save')"
             >
               <Printer class="h-3 w-3" />
-              Save as "{{ title || 'Untitled' }}.pdf"
+              Save as "{{ title || "Untitled" }}.pdf"
             </button>
             <button
               type="button"
@@ -32,19 +38,15 @@
             </button>
           </div>
         </div>
-        <embed
-          :src="blobUrl ?? ''"
-          type="application/pdf"
-          class="flex-1 w-full"
-        />
+        <embed :src="blobUrl ?? ''" type="application/pdf" class="flex-1 w-full" />
       </div>
     </div>
   </Teleport>
 </template>
 
 <script setup lang="ts">
-import { Printer, X } from 'lucide-vue-next'
+import { Printer, X } from "lucide-vue-next";
 
-defineProps<{ show: boolean; blobUrl: string | null; title: string }>()
-defineEmits<{ close: []; save: [] }>()
+defineProps<{ show: boolean; blobUrl: string | null; title: string }>();
+defineEmits<{ close: []; save: [] }>();
 </script>

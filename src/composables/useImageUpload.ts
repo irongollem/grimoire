@@ -1,6 +1,6 @@
-import { ref } from 'vue'
-import { supabase } from '@/lib/supabase'
-import { useAuthStore } from '@/stores/auth'
+import { ref } from "vue";
+import { supabase } from "@/lib/supabase";
+import { useAuthStore } from "@/stores/auth";
 
 /**
  * Reusable image upload composable.
@@ -12,25 +12,25 @@ import { useAuthStore } from '@/stores/auth'
  * The file is stored at: {bucket}/{user_id}/{uuid}.{ext}
  */
 export function useImageUpload(bucket: string) {
-  const auth       = useAuthStore()
-  const isUploading = ref(false)
+  const auth = useAuthStore();
+  const isUploading = ref(false);
 
   async function upload(file: File): Promise<string | null> {
-    if (!auth.user) return null
-    isUploading.value = true
+    if (!auth.user) return null;
+    isUploading.value = true;
     try {
-      const ext  = file.name.split('.').pop() ?? 'jpg'
-      const path = `${auth.user.id}/${crypto.randomUUID()}.${ext}`
-      const { error } = await supabase.storage.from(bucket).upload(path, file)
-      if (error) throw error
-      const { data } = supabase.storage.from(bucket).getPublicUrl(path)
-      return data.publicUrl
+      const ext = file.name.split(".").pop() ?? "jpg";
+      const path = `${auth.user.id}/${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from(bucket).upload(path, file);
+      if (error) throw error;
+      const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+      return data.publicUrl;
     } catch {
-      return null
+      return null;
     } finally {
-      isUploading.value = false
+      isUploading.value = false;
     }
   }
 
-  return { isUploading, upload }
+  return { isUploading, upload };
 }

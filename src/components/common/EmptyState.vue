@@ -19,10 +19,10 @@
 </template>
 
 <script setup lang="ts">
-import { Scroll } from 'lucide-vue-next'
+import { Scroll } from "lucide-vue-next";
 
 defineProps<{
-  title: string
-  description: string
-}>()
+  title: string;
+  description: string;
+}>();
 </script>

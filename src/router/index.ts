@@ -1,179 +1,179 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { createRouter, createWebHistory } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     // ── Auth (no sidebar layout) ──────────────────────────────────────────
     {
-      path: '/login',
-      name: 'login',
-      component: () => import('@/views/auth/LoginView.vue'),
-      meta: { layout: 'auth', requiresGuest: true },
+      path: "/login",
+      name: "login",
+      component: () => import("@/views/auth/LoginView.vue"),
+      meta: { layout: "auth", requiresGuest: true },
     },
     {
-      path: '/signup',
-      name: 'signup',
-      component: () => import('@/views/auth/SignupView.vue'),
-      meta: { layout: 'auth', requiresGuest: true },
+      path: "/signup",
+      name: "signup",
+      component: () => import("@/views/auth/SignupView.vue"),
+      meta: { layout: "auth", requiresGuest: true },
     },
 
     // ── App ───────────────────────────────────────────────────────────────
     {
-      path: '/',
-      redirect: '/dashboard',
+      path: "/",
+      redirect: "/dashboard",
     },
     {
-      path: '/dashboard',
-      name: 'dashboard',
-      component: () => import('@/views/DashboardView.vue'),
-      meta: { requiresAuth: true, title: 'Campaign Dashboard' },
+      path: "/dashboard",
+      name: "dashboard",
+      component: () => import("@/views/DashboardView.vue"),
+      meta: { requiresAuth: true, title: "Campaign Dashboard" },
     },
 
     // Notes
     {
-      path: '/notes',
-      name: 'notes',
-      component: () => import('@/views/notes/NotesView.vue'),
-      meta: { requiresAuth: true, title: 'Campaign Notes' },
+      path: "/notes",
+      name: "notes",
+      component: () => import("@/views/notes/NotesView.vue"),
+      meta: { requiresAuth: true, title: "Campaign Notes" },
     },
     {
-      path: '/notes/new',
-      name: 'note-new',
-      component: () => import('@/views/notes/NoteDetailView.vue'),
-      meta: { requiresAuth: true, title: 'New Note' },
+      path: "/notes/new",
+      name: "note-new",
+      component: () => import("@/views/notes/NoteDetailView.vue"),
+      meta: { requiresAuth: true, title: "New Note" },
     },
     {
-      path: '/notes/:id',
-      name: 'note-detail',
-      component: () => import('@/views/notes/NoteDetailView.vue'),
-      meta: { requiresAuth: true, title: 'Note' },
+      path: "/notes/:id",
+      name: "note-detail",
+      component: () => import("@/views/notes/NoteDetailView.vue"),
+      meta: { requiresAuth: true, title: "Note" },
     },
 
     // Calendar
     {
-      path: '/calendar',
-      name: 'calendar',
-      component: () => import('@/views/calendar/CalendarView.vue'),
-      meta: { requiresAuth: true, title: 'Faerûn Calendar' },
+      path: "/calendar",
+      name: "calendar",
+      component: () => import("@/views/calendar/CalendarView.vue"),
+      meta: { requiresAuth: true, title: "Faerûn Calendar" },
     },
 
     // Scriptorium
     {
-      path: '/scriptorium',
-      name: 'scriptorium',
-      component: () => import('@/views/scriptorium/ScriptoriumView.vue'),
-      meta: { requiresAuth: true, title: 'Scriptorium' },
+      path: "/scriptorium",
+      name: "scriptorium",
+      component: () => import("@/views/scriptorium/ScriptoriumView.vue"),
+      meta: { requiresAuth: true, title: "Scriptorium" },
     },
     {
-      path: '/scriptorium/new',
-      name: 'scriptorium-new',
-      component: () => import('@/views/scriptorium/ScriptoriumEditorView.vue'),
-      meta: { requiresAuth: true, title: 'New Document' },
+      path: "/scriptorium/new",
+      name: "scriptorium-new",
+      component: () => import("@/views/scriptorium/ScriptoriumEditorView.vue"),
+      meta: { requiresAuth: true, title: "New Document" },
     },
     {
-      path: '/scriptorium/:id',
-      name: 'scriptorium-editor',
-      component: () => import('@/views/scriptorium/ScriptoriumEditorView.vue'),
-      meta: { requiresAuth: true, title: 'Edit Document' },
+      path: "/scriptorium/:id",
+      name: "scriptorium-editor",
+      component: () => import("@/views/scriptorium/ScriptoriumEditorView.vue"),
+      meta: { requiresAuth: true, title: "Edit Document" },
     },
 
     // NPCs
     {
-      path: '/npcs',
-      name: 'npcs',
-      component: () => import('@/views/npcs/NpcsView.vue'),
-      meta: { requiresAuth: true, title: 'NPC Tracker' },
+      path: "/npcs",
+      name: "npcs",
+      component: () => import("@/views/npcs/NpcsView.vue"),
+      meta: { requiresAuth: true, title: "NPC Tracker" },
     },
     {
-      path: '/npcs/new',
-      name: 'npc-new',
-      component: () => import('@/views/npcs/NpcDetailView.vue'),
-      meta: { requiresAuth: true, title: 'New NPC' },
+      path: "/npcs/new",
+      name: "npc-new",
+      component: () => import("@/views/npcs/NpcDetailView.vue"),
+      meta: { requiresAuth: true, title: "New NPC" },
     },
     {
-      path: '/npcs/:id',
-      name: 'npc-detail',
-      component: () => import('@/views/npcs/NpcDetailView.vue'),
-      meta: { requiresAuth: true, title: 'NPC Sheet' },
+      path: "/npcs/:id",
+      name: "npc-detail",
+      component: () => import("@/views/npcs/NpcDetailView.vue"),
+      meta: { requiresAuth: true, title: "NPC Sheet" },
     },
 
     // Monsters
     {
-      path: '/monsters',
-      name: 'monsters',
-      component: () => import('@/views/monsters/MonstersView.vue'),
-      meta: { requiresAuth: true, title: 'Bestiary' },
+      path: "/monsters",
+      name: "monsters",
+      component: () => import("@/views/monsters/MonstersView.vue"),
+      meta: { requiresAuth: true, title: "Bestiary" },
     },
     {
-      path: '/monsters/new',
-      name: 'monster-new',
-      component: () => import('@/views/monsters/MonsterDetailView.vue'),
-      meta: { requiresAuth: true, title: 'New Monster' },
+      path: "/monsters/new",
+      name: "monster-new",
+      component: () => import("@/views/monsters/MonsterDetailView.vue"),
+      meta: { requiresAuth: true, title: "New Monster" },
     },
     {
-      path: '/monsters/:id',
-      name: 'monster-detail',
-      component: () => import('@/views/monsters/MonsterDetailView.vue'),
-      meta: { requiresAuth: true, title: 'Monster' },
+      path: "/monsters/:id",
+      name: "monster-detail",
+      component: () => import("@/views/monsters/MonsterDetailView.vue"),
+      meta: { requiresAuth: true, title: "Monster" },
     },
 
     // Party
     {
-      path: '/party',
-      name: 'party',
-      component: () => import('@/views/party/PartyView.vue'),
-      meta: { requiresAuth: true, title: 'Party Tracker' },
+      path: "/party",
+      name: "party",
+      component: () => import("@/views/party/PartyView.vue"),
+      meta: { requiresAuth: true, title: "Party Tracker" },
     },
 
     // Spells
     {
-      path: '/spells',
-      name: 'spells',
-      component: () => import('@/views/spells/SpellsView.vue'),
-      meta: { requiresAuth: true, title: 'Spellbook' },
+      path: "/spells",
+      name: "spells",
+      component: () => import("@/views/spells/SpellsView.vue"),
+      meta: { requiresAuth: true, title: "Spellbook" },
     },
     {
-      path: '/spells/new',
-      name: 'spell-new',
-      component: () => import('@/views/spells/SpellDetailView.vue'),
-      meta: { requiresAuth: true, title: 'New Spell' },
+      path: "/spells/new",
+      name: "spell-new",
+      component: () => import("@/views/spells/SpellDetailView.vue"),
+      meta: { requiresAuth: true, title: "New Spell" },
     },
     {
-      path: '/spells/:id',
-      name: 'spell-detail',
-      component: () => import('@/views/spells/SpellDetailView.vue'),
-      meta: { requiresAuth: true, title: 'Spell' },
+      path: "/spells/:id",
+      name: "spell-detail",
+      component: () => import("@/views/spells/SpellDetailView.vue"),
+      meta: { requiresAuth: true, title: "Spell" },
     },
 
     // Card Forge
     {
-      path: '/forge',
-      name: 'forge',
-      component: () => import('@/views/cardforge/CardForgeView.vue'),
-      meta: { requiresAuth: true, title: 'Card Forge' },
+      path: "/forge",
+      name: "forge",
+      component: () => import("@/views/cardforge/CardForgeView.vue"),
+      meta: { requiresAuth: true, title: "Card Forge" },
     },
 
     // 404
     {
-      path: '/:pathMatch(.*)*',
-      name: 'not-found',
-      component: () => import('@/views/NotFoundView.vue'),
+      path: "/:pathMatch(.*)*",
+      name: "not-found",
+      component: () => import("@/views/NotFoundView.vue"),
     },
   ],
-})
+});
 
 // Auth navigation guard
 router.beforeEach(async (to) => {
-  const auth = useAuthStore()
-  await auth.initialize()
+  const auth = useAuthStore();
+  await auth.initialize();
 
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
-    return { name: 'login', query: { redirect: to.fullPath } }
+    return { name: "login", query: { redirect: to.fullPath } };
   }
   if (to.meta.requiresGuest && auth.isAuthenticated) {
-    return { name: 'dashboard' }
+    return { name: "dashboard" };
   }
-})
+});
 
-export default router
+export default router;

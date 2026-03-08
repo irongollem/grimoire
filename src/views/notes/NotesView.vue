@@ -17,7 +17,7 @@
 </template>
 
 <script setup lang="ts">
-import { Plus } from 'lucide-vue-next'
-import PageHeader from '@/components/common/PageHeader.vue'
-import NotesList from '@/components/notes/NotesList.vue'
+import { Plus } from "lucide-vue-next";
+import PageHeader from "@/components/common/PageHeader.vue";
+import NotesList from "@/components/notes/NotesList.vue";
 </script>

@@ -45,7 +45,7 @@
           <span class="ab-label">{{ s.label }}</span>
           <span class="ab-score">{{ s.value }}</span>
           <span class="ab-mod" :class="s.mod >= 0 ? 'pos' : 'neg'">
-            {{ s.mod >= 0 ? '+' : '' }}{{ s.mod }}
+            {{ s.mod >= 0 ? "+" : "" }}{{ s.mod }}
           </span>
         </div>
       </div>
@@ -60,134 +60,139 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import type { Npc } from '@/types/npc.types'
-import type { Monster } from '@/types/monster.types'
+import { computed } from "vue";
+import type { Npc } from "@/types/npc.types";
+import type { Monster } from "@/types/monster.types";
 
-export type CardSubject = { kind: 'npc'; data: Npc } | { kind: 'monster'; data: Monster }
+export type CardSubject = { kind: "npc"; data: Npc } | { kind: "monster"; data: Monster };
 
-const props = defineProps<{ subject: CardSubject }>()
+const props = defineProps<{ subject: CardSubject }>();
 
 const MONSTER_COLORS: Record<string, string> = {
-  aberration: '#3D1A5C',
-  beast: '#1A3D1A',
-  celestial: '#1A2A5C',
-  construct: '#3D3328',
-  dragon: '#6B1C1C',
-  elemental: '#5C3A1A',
-  fey: '#1A3D3A',
-  fiend: '#4A1414',
-  giant: '#3D2B1A',
-  humanoid: '#1C2A4A',
-  monstrosity: '#3A3D1A',
-  ooze: '#1A3D2C',
-  plant: '#1A3D1A',
-  undead: '#252535',
-}
+  aberration: "#3D1A5C",
+  beast: "#1A3D1A",
+  celestial: "#1A2A5C",
+  construct: "#3D3328",
+  dragon: "#6B1C1C",
+  elemental: "#5C3A1A",
+  fey: "#1A3D3A",
+  fiend: "#4A1414",
+  giant: "#3D2B1A",
+  humanoid: "#1C2A4A",
+  monstrosity: "#3A3D1A",
+  ooze: "#1A3D2C",
+  plant: "#1A3D1A",
+  undead: "#252535",
+};
 
 const NPC_COLORS: Record<string, string> = {
-  ally: '#1C2A4A',
-  enemy: '#4A1414',
-  neutral: '#333344',
-  unknown: '#252535',
-}
+  ally: "#1C2A4A",
+  enemy: "#4A1414",
+  neutral: "#333344",
+  unknown: "#252535",
+};
 
 const MONSTER_GLYPHS: Record<string, string> = {
-  aberration: '⊗',
-  beast: '~',
-  celestial: '✦',
-  construct: '#',
-  dragon: 'D',
-  elemental: '*',
-  fey: '+',
-  fiend: 'X',
-  giant: 'G',
-  humanoid: '/',
-  monstrosity: 'M',
-  ooze: 'O',
-  plant: '&',
-  undead: 'U',
-}
+  aberration: "⊗",
+  beast: "~",
+  celestial: "✦",
+  construct: "#",
+  dragon: "D",
+  elemental: "*",
+  fey: "+",
+  fiend: "X",
+  giant: "G",
+  humanoid: "/",
+  monstrosity: "M",
+  ooze: "O",
+  plant: "&",
+  undead: "U",
+};
 
 const frameColor = computed(() => {
-  if (props.subject.kind === 'monster') {
-    return MONSTER_COLORS[props.subject.data.monster_type] ?? '#1C2A4A'
+  if (props.subject.kind === "monster") {
+    return MONSTER_COLORS[props.subject.data.monster_type] ?? "#1C2A4A";
   }
-  return NPC_COLORS[props.subject.data.relationship] ?? '#333344'
-})
+  return NPC_COLORS[props.subject.data.relationship] ?? "#333344";
+});
 
 const typeGlyph = computed(() => {
-  if (props.subject.kind === 'monster') {
-    return MONSTER_GLYPHS[props.subject.data.monster_type] ?? '?'
+  if (props.subject.kind === "monster") {
+    return MONSTER_GLYPHS[props.subject.data.monster_type] ?? "?";
   }
-  return props.subject.data.name.charAt(0).toUpperCase()
-})
+  return props.subject.data.name.charAt(0).toUpperCase();
+});
 
 const placeholderLabel = computed(() => {
-  if (props.subject.kind === 'monster') return props.subject.data.monster_type
-  return props.subject.data.occupation ?? 'NPC'
-})
+  if (props.subject.kind === "monster") return props.subject.data.monster_type;
+  return props.subject.data.occupation ?? "NPC";
+});
 
 const portrait = computed(() =>
-  props.subject.kind === 'npc' ? props.subject.data.portrait_url : null
-)
+  props.subject.kind === "npc" ? props.subject.data.portrait_url : null,
+);
 
-const name = computed(() => props.subject.data.name)
+const name = computed(() => props.subject.data.name);
 
 const cr = computed(() => {
-  const sb = props.subject.data.stat_block
-  return sb?.challenge_rating ?? null
-})
+  const sb = props.subject.data.stat_block;
+  return sb?.challenge_rating ?? null;
+});
 
 const typeLine = computed(() => {
-  if (props.subject.kind === 'monster') {
-    const m = props.subject.data
-    return `${m.size} ${m.monster_type} • ${m.alignment}`
+  if (props.subject.kind === "monster") {
+    const m = props.subject.data;
+    return `${m.size} ${m.monster_type} • ${m.alignment}`;
   }
-  const n = props.subject.data
-  const parts = [n.race, n.class].filter(Boolean).join(' ')
-  const rel = n.relationship !== 'unknown' ? n.relationship : ''
-  return [parts, rel].filter(Boolean).join(' • ')
-})
+  const n = props.subject.data;
+  const parts = [n.race, n.class].filter(Boolean).join(" ");
+  const rel = n.relationship !== "unknown" ? n.relationship : "";
+  return [parts, rel].filter(Boolean).join(" • ");
+});
 
 const kindLabel = computed(() => {
-  if (props.subject.kind === 'monster') {
-    return props.subject.data.monster_type
+  if (props.subject.kind === "monster") {
+    return props.subject.data.monster_type;
   }
-  return props.subject.data.relationship
-})
+  return props.subject.data.relationship;
+});
 
 const hp = computed(() => {
-  const sb = props.subject.data.stat_block
-  if (!sb) return '—'
-  return sb.hit_points.split(' ')[0] ?? '—'
-})
+  const sb = props.subject.data.stat_block;
+  if (!sb) return "—";
+  return sb.hit_points.split(" ")[0] ?? "—";
+});
 
-const ac = computed(() => props.subject.data.stat_block?.armor_class ?? '—')
+const ac = computed(() => props.subject.data.stat_block?.armor_class ?? "—");
 
 const speed = computed(() => {
-  const spd = props.subject.data.stat_block?.speed ?? '—'
-  return spd.replace(' ft.', '\'')
-})
+  const spd = props.subject.data.stat_block?.speed ?? "—";
+  return spd.replace(" ft.", "'");
+});
 
-const ABILITY_KEYS = ['str', 'dex', 'con', 'int', 'wis', 'cha'] as const
+const ABILITY_KEYS = ["str", "dex", "con", "int", "wis", "cha"] as const;
 const ABILITY_LABELS: Record<string, string> = {
-  str: 'STR', dex: 'DEX', con: 'CON', int: 'INT', wis: 'WIS', cha: 'CHA',
-}
+  str: "STR",
+  dex: "DEX",
+  con: "CON",
+  int: "INT",
+  wis: "WIS",
+  cha: "CHA",
+};
 
 const abilityStats = computed(() => {
-  const sb = props.subject.data.stat_block as Record<string, number> | null
-  return ABILITY_KEYS.map(key => {
-    const value = sb?.[key] ?? 10
-    const mod = Math.floor((value - 10) / 2)
-    return { key, label: ABILITY_LABELS[key], value, mod }
-  })
-})
+  const sb = props.subject.data.stat_block as Record<string, number> | null;
+  return ABILITY_KEYS.map((key) => {
+    const value = sb?.[key] ?? 10;
+    const mod = Math.floor((value - 10) / 2);
+    return { key, label: ABILITY_LABELS[key], value, mod };
+  });
+});
 
-const displayTags = computed(() => (props.subject.data.tags ?? []).slice(0, 2))
+const displayTags = computed(() => (props.subject.data.tags ?? []).slice(0, 2));
 
 function truncate(str: string, len: number) {
-  return str.length > len ? str.slice(0, len - 1) + '…' : str
+  return str.length > len ? str.slice(0, len - 1) + "…" : str;
 }
 </script>
 
@@ -196,9 +201,11 @@ function truncate(str: string, len: number) {
   width: 200px;
   height: 280px;
   border-radius: 10px;
-  background: var(--fc, #1C2A4A);
+  background: var(--fc, #1c2a4a);
   padding: 4px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.08);
+  box-shadow:
+    0 6px 24px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
   flex-shrink: 0;
 }
 
@@ -206,17 +213,17 @@ function truncate(str: string, len: number) {
   width: 100%;
   height: 100%;
   border-radius: 7px;
-  background: #F5F0E6;
+  background: #f5f0e6;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  font-family: 'IM Fell English', serif;
+  font-family: "IM Fell English", serif;
 }
 
 /* Title bar */
 .card-header {
-  background: var(--fc, #1C2A4A);
-  color: #E8D89A;
+  background: var(--fc, #1c2a4a);
+  color: #e8d89a;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -225,7 +232,7 @@ function truncate(str: string, len: number) {
   gap: 4px;
 }
 .card-name {
-  font-family: 'Cinzel', serif;
+  font-family: "Cinzel", serif;
   font-size: 7.5px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -235,7 +242,7 @@ function truncate(str: string, len: number) {
   flex: 1;
 }
 .cr-badge {
-  font-family: 'Cinzel', serif;
+  font-family: "Cinzel", serif;
   font-size: 6px;
   font-weight: 700;
   background: rgba(255, 255, 255, 0.18);
@@ -261,7 +268,11 @@ function truncate(str: string, len: number) {
 .art-placeholder {
   width: 100%;
   height: 100%;
-  background: linear-gradient(160deg, color-mix(in srgb, var(--fc) 80%, #000) 0%, color-mix(in srgb, var(--fc) 40%, #000) 100%);
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--fc) 80%, #000) 0%,
+    color-mix(in srgb, var(--fc) 40%, #000) 100%
+  );
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -269,7 +280,7 @@ function truncate(str: string, len: number) {
   gap: 4px;
 }
 .placeholder-glyph {
-  font-family: 'Cinzel', serif;
+  font-family: "Cinzel", serif;
   font-size: 32px;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.15);
@@ -278,7 +289,7 @@ function truncate(str: string, len: number) {
 }
 .placeholder-label {
   font-size: 6px;
-  font-family: 'Cinzel', serif;
+  font-family: "Cinzel", serif;
   color: rgba(255, 255, 255, 0.3);
   text-transform: uppercase;
   letter-spacing: 0.15em;
@@ -286,7 +297,7 @@ function truncate(str: string, len: number) {
 
 /* Type line */
 .type-line-row {
-  background: color-mix(in srgb, var(--fc) 15%, #F5F0E6);
+  background: color-mix(in srgb, var(--fc) 15%, #f5f0e6);
   border-top: 1px solid color-mix(in srgb, var(--fc) 30%, transparent);
   border-bottom: 1px solid color-mix(in srgb, var(--fc) 30%, transparent);
   padding: 2px 6px;
@@ -307,7 +318,7 @@ function truncate(str: string, len: number) {
 .stats-strip {
   display: flex;
   align-items: stretch;
-  border-bottom: 1px solid rgba(0,0,0,0.12);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
   flex-shrink: 0;
 }
 .stat-cell {
@@ -319,7 +330,7 @@ function truncate(str: string, len: number) {
   gap: 1px;
 }
 .stat-label {
-  font-family: 'Cinzel', serif;
+  font-family: "Cinzel", serif;
   font-size: 5px;
   font-weight: 700;
   text-transform: uppercase;
@@ -327,14 +338,14 @@ function truncate(str: string, len: number) {
   letter-spacing: 0.05em;
 }
 .stat-value {
-  font-family: 'Cinzel', serif;
+  font-family: "Cinzel", serif;
   font-size: 8px;
   font-weight: 700;
   color: #1a1410;
 }
 .stat-divider {
   width: 1px;
-  background: rgba(0,0,0,0.12);
+  background: rgba(0, 0, 0, 0.12);
   margin: 3px 0;
 }
 
@@ -345,7 +356,7 @@ function truncate(str: string, len: number) {
   padding: 3px 4px;
   gap: 1px;
   flex-shrink: 0;
-  border-bottom: 1px solid rgba(0,0,0,0.12);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
 }
 .ability-cell {
   display: flex;
@@ -354,25 +365,29 @@ function truncate(str: string, len: number) {
   gap: 0;
 }
 .ab-label {
-  font-family: 'Cinzel', serif;
+  font-family: "Cinzel", serif;
   font-size: 5px;
   font-weight: 700;
   color: #7a6a50;
   letter-spacing: 0;
 }
 .ab-score {
-  font-family: 'Cinzel', serif;
+  font-family: "Cinzel", serif;
   font-size: 7.5px;
   font-weight: 700;
   color: #1a1410;
 }
 .ab-mod {
-  font-family: 'Cinzel', serif;
+  font-family: "Cinzel", serif;
   font-size: 5.5px;
   font-weight: 700;
 }
-.ab-mod.pos { color: #1a5c1a; }
-.ab-mod.neg { color: #8b1a1a; }
+.ab-mod.pos {
+  color: #1a5c1a;
+}
+.ab-mod.neg {
+  color: #8b1a1a;
+}
 
 /* Footer */
 .card-footer {
@@ -385,7 +400,7 @@ function truncate(str: string, len: number) {
   align-content: center;
 }
 .ctag {
-  font-family: 'Cinzel', serif;
+  font-family: "Cinzel", serif;
   font-size: 5px;
   font-weight: 600;
   background: color-mix(in srgb, var(--fc) 15%, transparent);
@@ -398,7 +413,7 @@ function truncate(str: string, len: number) {
 }
 .footer-kind {
   margin-left: auto;
-  font-family: 'Cinzel', serif;
+  font-family: "Cinzel", serif;
   font-size: 5px;
   font-weight: 600;
   color: #9a8a70;
@@ -425,18 +440,44 @@ function truncate(str: string, len: number) {
     height: auto;
     border-radius: 2mm;
   }
-  .card-name { font-size: 2.5mm; }
-  .cr-badge { font-size: 2mm; }
-  .art-area { flex: 0 0 28mm; }
-  .placeholder-glyph { font-size: 10mm; }
-  .placeholder-label { font-size: 2mm; }
-  .type-line { font-size: 1.8mm; }
-  .stat-label { font-size: 1.6mm; }
-  .stat-value { font-size: 2.5mm; }
-  .ab-label { font-size: 1.6mm; }
-  .ab-score { font-size: 2.4mm; }
-  .ab-mod { font-size: 1.8mm; }
-  .ctag { font-size: 1.6mm; }
-  .footer-kind { font-size: 1.6mm; }
+  .card-name {
+    font-size: 2.5mm;
+  }
+  .cr-badge {
+    font-size: 2mm;
+  }
+  .art-area {
+    flex: 0 0 28mm;
+  }
+  .placeholder-glyph {
+    font-size: 10mm;
+  }
+  .placeholder-label {
+    font-size: 2mm;
+  }
+  .type-line {
+    font-size: 1.8mm;
+  }
+  .stat-label {
+    font-size: 1.6mm;
+  }
+  .stat-value {
+    font-size: 2.5mm;
+  }
+  .ab-label {
+    font-size: 1.6mm;
+  }
+  .ab-score {
+    font-size: 2.4mm;
+  }
+  .ab-mod {
+    font-size: 1.8mm;
+  }
+  .ctag {
+    font-size: 1.6mm;
+  }
+  .footer-kind {
+    font-size: 1.6mm;
+  }
 }
 </style>

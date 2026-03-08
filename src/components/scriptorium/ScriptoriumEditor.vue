@@ -6,11 +6,7 @@
     @close="closePdfPreview"
     @save="savePdf"
   />
-  <AssetInsertPanel
-    :show="showAssetPanel"
-    :editor="editor"
-    @close="showAssetPanel = false"
-  />
+  <AssetInsertPanel :show="showAssetPanel" :editor="editor" @close="showAssetPanel = false" />
 
   <div class="flex flex-col gap-3">
     <!-- Metadata row -->
@@ -34,7 +30,9 @@
       </label>
       <label class="flex items-center gap-2 cursor-pointer select-none">
         <input type="checkbox" v-model="isPublished" class="rounded" />
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">PUBLISHED</span>
+        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+          >PUBLISHED</span
+        >
       </label>
       <button
         type="button"
@@ -43,7 +41,7 @@
         @click="save"
       >
         <Save class="h-3.5 w-3.5" />
-        {{ isSaving ? 'Saving…' : (props.doc ? 'Save' : 'Create') }}
+        {{ isSaving ? "Saving…" : props.doc ? "Save" : "Create" }}
       </button>
     </div>
 
@@ -55,7 +53,13 @@
         class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-muted font-cinzel text-[11px] text-muted-foreground tracking-wider"
       >
         {{ tag }}
-        <button type="button" class="hover:text-destructive transition-colors leading-none text-sm" @click="removeTag(tag)">×</button>
+        <button
+          type="button"
+          class="hover:text-destructive transition-colors leading-none text-sm"
+          @click="removeTag(tag)"
+        >
+          ×
+        </button>
       </span>
       <label>
         <span class="sr-only">Add tag</span>
@@ -73,55 +77,116 @@
 
     <!-- Editor / Preview split -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-3" style="min-height: 620px">
-
       <!-- Editor pane -->
       <div class="flex flex-col rounded-lg border border-border bg-card overflow-hidden">
         <!-- Toolbar -->
-        <div class="flex flex-wrap items-center gap-0.5 p-1.5 border-b border-border bg-muted/30 shrink-0">
+        <div
+          class="flex flex-wrap items-center gap-0.5 p-1.5 border-b border-border bg-muted/30 shrink-0"
+        >
           <template v-if="editor">
             <!-- Inline -->
-            <button type="button" title="Bold" :class="tbCls(editor.isActive('bold'))" @click="editor.chain().focus().toggleBold().run()">
+            <button
+              type="button"
+              title="Bold"
+              :class="tbCls(editor.isActive('bold'))"
+              @click="editor.chain().focus().toggleBold().run()"
+            >
               <strong class="text-[11px] leading-none">B</strong>
             </button>
-            <button type="button" title="Italic" :class="tbCls(editor.isActive('italic'))" @click="editor.chain().focus().toggleItalic().run()">
+            <button
+              type="button"
+              title="Italic"
+              :class="tbCls(editor.isActive('italic'))"
+              @click="editor.chain().focus().toggleItalic().run()"
+            >
               <em class="text-[11px] leading-none">I</em>
             </button>
-            <button type="button" title="Strikethrough" :class="tbCls(editor.isActive('strike'))" @click="editor.chain().focus().toggleStrike().run()">
+            <button
+              type="button"
+              title="Strikethrough"
+              :class="tbCls(editor.isActive('strike'))"
+              @click="editor.chain().focus().toggleStrike().run()"
+            >
               <Strikethrough class="h-3.5 w-3.5" />
             </button>
-            <button type="button" title="Inline code" :class="tbCls(editor.isActive('code'))" @click="editor.chain().focus().toggleCode().run()">
+            <button
+              type="button"
+              title="Inline code"
+              :class="tbCls(editor.isActive('code'))"
+              @click="editor.chain().focus().toggleCode().run()"
+            >
               <Code class="h-3.5 w-3.5" />
             </button>
 
             <div class="w-px h-5 bg-border mx-0.5" />
 
             <!-- Headings -->
-            <button type="button" title="Heading 1" :class="tbCls(editor.isActive('heading', { level: 1 }))" @click="editor.chain().focus().toggleHeading({ level: 1 }).run()">
+            <button
+              type="button"
+              title="Heading 1"
+              :class="tbCls(editor.isActive('heading', { level: 1 }))"
+              @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
+            >
               <span class="text-[10px] font-cinzel font-bold leading-none">H1</span>
             </button>
-            <button type="button" title="Heading 2" :class="tbCls(editor.isActive('heading', { level: 2 }))" @click="editor.chain().focus().toggleHeading({ level: 2 }).run()">
+            <button
+              type="button"
+              title="Heading 2"
+              :class="tbCls(editor.isActive('heading', { level: 2 }))"
+              @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
+            >
               <span class="text-[10px] font-cinzel font-bold leading-none">H2</span>
             </button>
-            <button type="button" title="Heading 3" :class="tbCls(editor.isActive('heading', { level: 3 }))" @click="editor.chain().focus().toggleHeading({ level: 3 }).run()">
+            <button
+              type="button"
+              title="Heading 3"
+              :class="tbCls(editor.isActive('heading', { level: 3 }))"
+              @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
+            >
               <span class="text-[10px] font-cinzel font-bold leading-none">H3</span>
             </button>
 
             <div class="w-px h-5 bg-border mx-0.5" />
 
             <!-- Blocks -->
-            <button type="button" title="Bullet list" :class="tbCls(editor.isActive('bulletList'))" @click="editor.chain().focus().toggleBulletList().run()">
+            <button
+              type="button"
+              title="Bullet list"
+              :class="tbCls(editor.isActive('bulletList'))"
+              @click="editor.chain().focus().toggleBulletList().run()"
+            >
               <List class="h-3.5 w-3.5" />
             </button>
-            <button type="button" title="Ordered list" :class="tbCls(editor.isActive('orderedList'))" @click="editor.chain().focus().toggleOrderedList().run()">
+            <button
+              type="button"
+              title="Ordered list"
+              :class="tbCls(editor.isActive('orderedList'))"
+              @click="editor.chain().focus().toggleOrderedList().run()"
+            >
               <ListOrdered class="h-3.5 w-3.5" />
             </button>
-            <button type="button" title="Blockquote / callout" :class="tbCls(editor.isActive('blockquote'))" @click="editor.chain().focus().toggleBlockquote().run()">
+            <button
+              type="button"
+              title="Blockquote / callout"
+              :class="tbCls(editor.isActive('blockquote'))"
+              @click="editor.chain().focus().toggleBlockquote().run()"
+            >
               <Quote class="h-3.5 w-3.5" />
             </button>
-            <button type="button" title="Code block" :class="tbCls(editor.isActive('codeBlock'))" @click="editor.chain().focus().toggleCodeBlock().run()">
+            <button
+              type="button"
+              title="Code block"
+              :class="tbCls(editor.isActive('codeBlock'))"
+              @click="editor.chain().focus().toggleCodeBlock().run()"
+            >
               <SquareCode class="h-3.5 w-3.5" />
             </button>
-            <button type="button" title="Page Break (inserts new page)" :class="tbCls(false)" @click="editor.chain().focus().setHorizontalRule().run()">
+            <button
+              type="button"
+              title="Page Break (inserts new page)"
+              :class="tbCls(false)"
+              @click="editor.chain().focus().setHorizontalRule().run()"
+            >
               <Minus class="h-3.5 w-3.5" />
             </button>
 
@@ -143,35 +208,82 @@
 
             <!-- Image controls (shown when an image is selected) -->
             <template v-if="editor.isActive('image')">
-              <span class="font-cinzel text-[9px] text-muted-foreground tracking-wider px-1 self-center">IMG</span>
-              <button v-for="size in IMAGE_SIZES" :key="size.w"
-                type="button" :title="`${size.label} (${size.w}px)`"
+              <span
+                class="font-cinzel text-[9px] text-muted-foreground tracking-wider px-1 self-center"
+                >IMG</span
+              >
+              <button
+                v-for="size in IMAGE_SIZES"
+                :key="size.w"
+                type="button"
+                :title="`${size.label} (${size.w}px)`"
                 :class="tbCls(editor.getAttributes('image').width === String(size.w))"
-                @click="editor.chain().focus().updateAttributes('image', { width: String(size.w) }).run()"
+                @click="
+                  editor
+                    .chain()
+                    .focus()
+                    .updateAttributes('image', { width: String(size.w) })
+                    .run()
+                "
               >
                 <span class="font-cinzel text-[9px] font-bold leading-none">{{ size.label }}</span>
               </button>
               <div class="w-px h-5 bg-border mx-0.5" />
-              <button type="button" title="Float left" :class="tbCls(editor.getAttributes('image').dataAlign === 'left')"
-                @click="editor.chain().focus().updateAttributes('image', { dataAlign: 'left' }).run()">
+              <button
+                type="button"
+                title="Float left"
+                :class="tbCls(editor.getAttributes('image').dataAlign === 'left')"
+                @click="
+                  editor.chain().focus().updateAttributes('image', { dataAlign: 'left' }).run()
+                "
+              >
                 <AlignLeft class="h-3.5 w-3.5" />
               </button>
-              <button type="button" title="Center" :class="tbCls(editor.getAttributes('image').dataAlign === 'center')"
-                @click="editor.chain().focus().updateAttributes('image', { dataAlign: 'center' }).run()">
+              <button
+                type="button"
+                title="Center"
+                :class="tbCls(editor.getAttributes('image').dataAlign === 'center')"
+                @click="
+                  editor.chain().focus().updateAttributes('image', { dataAlign: 'center' }).run()
+                "
+              >
                 <AlignCenter class="h-3.5 w-3.5" />
               </button>
-              <button type="button" title="Float right" :class="tbCls(editor.getAttributes('image').dataAlign === 'right' || !editor.getAttributes('image').dataAlign)"
-                @click="editor.chain().focus().updateAttributes('image', { dataAlign: 'right' }).run()">
+              <button
+                type="button"
+                title="Float right"
+                :class="
+                  tbCls(
+                    editor.getAttributes('image').dataAlign === 'right' ||
+                      !editor.getAttributes('image').dataAlign,
+                  )
+                "
+                @click="
+                  editor.chain().focus().updateAttributes('image', { dataAlign: 'right' }).run()
+                "
+              >
                 <AlignRight class="h-3.5 w-3.5" />
               </button>
               <div class="w-px h-5 bg-border mx-0.5" />
             </template>
 
             <!-- History -->
-            <button type="button" title="Undo" :class="tbCls(false)" :disabled="!editor.can().undo()" @click="editor.chain().focus().undo().run()">
+            <button
+              type="button"
+              title="Undo"
+              :class="tbCls(false)"
+              :disabled="!editor.can().undo()"
+              @click="editor.chain().focus().undo().run()"
+            >
               <Undo2 class="h-3.5 w-3.5" />
             </button>
-            <button type="button" title="Redo" :class="tbCls(false)" :disabled="!editor.can().redo()" @click="editor.chain().focus().redo().run()">
+            <button
+              type="button"
+              title="Redo"
+              :class="tbCls(false)"
+              :disabled="!editor.can().redo()"
+              @click="editor.chain().focus().redo().run()"
+            >
               <Redo2 class="h-3.5 w-3.5" />
             </button>
           </template>
@@ -184,14 +296,20 @@
 
         <!-- Word count footer -->
         <div class="px-4 py-1.5 border-t border-border bg-muted/20 flex justify-end shrink-0">
-          <span class="font-fell text-[11px] text-muted-foreground italic">{{ wordCount }} words</span>
+          <span class="font-fell text-[11px] text-muted-foreground italic"
+            >{{ wordCount }} words</span
+          >
         </div>
       </div>
 
       <!-- Preview pane -->
       <div class="flex flex-col rounded-lg border border-border overflow-hidden">
-        <div class="flex items-center justify-between px-4 py-2 border-b border-border bg-card shrink-0">
-          <p class="font-cinzel text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+        <div
+          class="flex items-center justify-between px-4 py-2 border-b border-border bg-card shrink-0"
+        >
+          <p
+            class="font-cinzel text-xs font-semibold text-muted-foreground uppercase tracking-widest"
+          >
             Preview — OneDnD 2024
           </p>
           <div class="flex items-center gap-2">
@@ -210,17 +328,15 @@
             >
               <Loader2 v-if="isGeneratingPdf" class="h-3 w-3 animate-spin" />
               <FileDown v-else class="h-3 w-3" />
-              {{ isGeneratingPdf ? 'Building…' : 'PDF' }}
+              {{ isGeneratingPdf ? "Building…" : "PDF" }}
             </button>
           </div>
         </div>
         <div class="flex-1 overflow-auto phb-bg">
-          <div
-            v-for="(pageHtml, pageIndex) in pages"
-            :key="pageIndex"
-            class="phb-page"
-          >
-            <div v-if="pageIndex === 0" class="phb-title-bar">{{ title || 'Untitled Document' }}</div>
+          <div v-for="(pageHtml, pageIndex) in pages" :key="pageIndex" class="phb-page">
+            <div v-if="pageIndex === 0" class="phb-title-bar">
+              {{ title || "Untitled Document" }}
+            </div>
             <div class="phb-body" v-html="pageHtml" />
           </div>
           <p class="phb-hint">── use the Page Break button (—) to start a new page ──</p>
@@ -231,157 +347,196 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useEditor, EditorContent } from '@tiptap/vue-3'
-import StarterKit from '@tiptap/starter-kit'
-import Placeholder from '@tiptap/extension-placeholder'
-import Image from '@tiptap/extension-image'
+import { ref, computed, onUnmounted } from "vue";
+import { useRouter } from "vue-router";
+import { useEditor, EditorContent } from "@tiptap/vue-3";
+import StarterKit from "@tiptap/starter-kit";
+import Placeholder from "@tiptap/extension-placeholder";
+import Image from "@tiptap/extension-image";
 import {
-  Save, Strikethrough, Code, SquareCode, List, ListOrdered,
-  Quote, Minus, Undo2, Redo2, FileDown, Loader2, PackagePlus,
-  AlignLeft, AlignCenter, AlignRight,
-} from 'lucide-vue-next'
-import { useCreateScriptoriumDocument, useUpdateScriptoriumDocument } from '@/composables/useScriptorium'
-import { useScriptoriumPdf } from '@/composables/useScriptoriumPdf'
-import type { ScriptoriumDocument, ScriptoriumDocType } from '@/types/scriptorium.types'
-import PdfPreviewDialog from '@/components/scriptorium/PdfPreviewDialog.vue'
-import AssetInsertPanel from '@/components/scriptorium/AssetInsertPanel.vue'
+  Save,
+  Strikethrough,
+  Code,
+  SquareCode,
+  List,
+  ListOrdered,
+  Quote,
+  Minus,
+  Undo2,
+  Redo2,
+  FileDown,
+  Loader2,
+  PackagePlus,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+} from "lucide-vue-next";
+import {
+  useCreateScriptoriumDocument,
+  useUpdateScriptoriumDocument,
+} from "@/composables/useScriptorium";
+import { useScriptoriumPdf } from "@/composables/useScriptoriumPdf";
+import type { ScriptoriumDocument, ScriptoriumDocType } from "@/types/scriptorium.types";
+import PdfPreviewDialog from "@/components/scriptorium/PdfPreviewDialog.vue";
+import AssetInsertPanel from "@/components/scriptorium/AssetInsertPanel.vue";
 
 const IMAGE_SIZES = [
-  { label: 'S', w: 120 },
-  { label: 'M', w: 200 },
-  { label: 'L', w: 280 },
-  { label: 'XL', w: 380 },
-] as const
+  { label: "S", w: 120 },
+  { label: "M", w: 200 },
+  { label: "L", w: 280 },
+  { label: "XL", w: 380 },
+] as const;
 
 const DOC_TYPES: { value: ScriptoriumDocType; label: string }[] = [
-  { value: 'custom', label: 'Custom' },
-  { value: 'spell', label: 'Spell' },
-  { value: 'monster', label: 'Monster' },
-  { value: 'item', label: 'Item' },
-  { value: 'class', label: 'Class' },
-  { value: 'subclass', label: 'Subclass' },
-  { value: 'race', label: 'Race/Species' },
-  { value: 'background', label: 'Background' },
-  { value: 'adventure', label: 'Adventure' },
-  { value: 'npc-sheet', label: 'NPC Sheet' },
-]
+  { value: "custom", label: "Custom" },
+  { value: "spell", label: "Spell" },
+  { value: "monster", label: "Monster" },
+  { value: "item", label: "Item" },
+  { value: "class", label: "Class" },
+  { value: "subclass", label: "Subclass" },
+  { value: "race", label: "Race/Species" },
+  { value: "background", label: "Background" },
+  { value: "adventure", label: "Adventure" },
+  { value: "npc-sheet", label: "NPC Sheet" },
+];
 
 const DOC_TYPE_LABELS: Record<ScriptoriumDocType, string> = {
-  custom: 'Custom', spell: 'Spell', monster: 'Monster', item: 'Item',
-  class: 'Class', subclass: 'Subclass', race: 'Race', background: 'Background',
-  adventure: 'Adventure', 'npc-sheet': 'NPC Sheet',
-}
+  custom: "Custom",
+  spell: "Spell",
+  monster: "Monster",
+  item: "Item",
+  class: "Class",
+  subclass: "Subclass",
+  race: "Race",
+  background: "Background",
+  adventure: "Adventure",
+  "npc-sheet": "NPC Sheet",
+};
 
 const DOC_TYPE_COLORS: Record<ScriptoriumDocType, string> = {
-  custom: '#6b7280', spell: '#7c3aed', monster: '#dc2626', item: '#d97706',
-  class: '#2563eb', subclass: '#0891b2', race: '#059669', background: '#9333ea',
-  adventure: '#c2410c', 'npc-sheet': '#0f766e',
-}
+  custom: "#6b7280",
+  spell: "#7c3aed",
+  monster: "#dc2626",
+  item: "#d97706",
+  class: "#2563eb",
+  subclass: "#0891b2",
+  race: "#059669",
+  background: "#9333ea",
+  adventure: "#c2410c",
+  "npc-sheet": "#0f766e",
+};
 
-function typeColor(t: ScriptoriumDocType) { return DOC_TYPE_COLORS[t] ?? '#6b7280' }
+function typeColor(t: ScriptoriumDocType) {
+  return DOC_TYPE_COLORS[t] ?? "#6b7280";
+}
 function tbCls(active: boolean) {
   return [
-    'p-1 rounded min-w-[26px] h-[26px] flex items-center justify-center transition-colors disabled:opacity-40',
+    "p-1 rounded min-w-[26px] h-[26px] flex items-center justify-center transition-colors disabled:opacity-40",
     active
-      ? 'bg-primary/20 text-primary'
-      : 'text-muted-foreground hover:text-foreground hover:bg-muted',
-  ].join(' ')
+      ? "bg-primary/20 text-primary"
+      : "text-muted-foreground hover:text-foreground hover:bg-muted",
+  ].join(" ");
 }
 
-const props = defineProps<{ doc: ScriptoriumDocument | null }>()
-const router = useRouter()
+const props = defineProps<{ doc: ScriptoriumDocument | null }>();
+const router = useRouter();
 
 // Panels
-const showAssetPanel = ref(false)
+const showAssetPanel = ref(false);
 
 // Metadata
-const title = ref(props.doc?.title ?? '')
-const docType = ref<ScriptoriumDocType>(props.doc?.doc_type ?? 'custom')
-const isPublished = ref(props.doc?.is_published ?? false)
-const tags = ref<string[]>(props.doc?.tags ?? [])
-const tagInput = ref('')
+const title = ref(props.doc?.title ?? "");
+const docType = ref<ScriptoriumDocType>(props.doc?.doc_type ?? "custom");
+const isPublished = ref(props.doc?.is_published ?? false);
+const tags = ref<string[]>(props.doc?.tags ?? []);
+const tagInput = ref("");
 
 function addTag() {
-  const val = tagInput.value.replace(/,\s*$/, '').trim()
-  if (val && !tags.value.includes(val)) tags.value.push(val)
-  tagInput.value = ''
+  const val = tagInput.value.replace(/,\s*$/, "").trim();
+  if (val && !tags.value.includes(val)) tags.value.push(val);
+  tagInput.value = "";
 }
 function onTagKeydown(e: KeyboardEvent) {
-  if (e.key === ',') { e.preventDefault(); addTag() }
+  if (e.key === ",") {
+    e.preventDefault();
+    addTag();
+  }
 }
 function removeTag(tag: string) {
-  tags.value = tags.value.filter(t => t !== tag)
+  tags.value = tags.value.filter((t) => t !== tag);
 }
 
 // Editor
-const previewHtml = ref('')
-const wordCount = ref(0)
+const previewHtml = ref("");
+const wordCount = ref(0);
 
 function updateDerived(html: string, text: string) {
-  previewHtml.value = html
-  wordCount.value = text.trim() ? text.trim().split(/\s+/).length : 0
+  previewHtml.value = html;
+  wordCount.value = text.trim() ? text.trim().split(/\s+/).length : 0;
 }
 
 const editor = useEditor({
   content: (() => {
-    if (!props.doc?.content) return ''
-    try { return JSON.parse(props.doc.content) } catch { return props.doc.content }
+    if (!props.doc?.content) return "";
+    try {
+      return JSON.parse(props.doc.content);
+    } catch {
+      return props.doc.content;
+    }
   })(),
   extensions: [
     StarterKit,
-    Placeholder.configure({ placeholder: 'Begin your document here…' }),
+    Placeholder.configure({ placeholder: "Begin your document here…" }),
     Image.extend({
       addAttributes() {
         return {
           ...this.parent?.(),
           // Explicit pixel width — html2canvas needs the attribute, not just CSS
           width: {
-            default: '200',
-            parseHTML: el => el.getAttribute('width') ?? '200',
-            renderHTML: attrs => ({ width: attrs.width }),
+            default: "200",
+            parseHTML: (el) => el.getAttribute("width") ?? "200",
+            renderHTML: (attrs) => ({ width: attrs.width }),
           },
           // Alignment drives the inline style (float / centering)
           dataAlign: {
-            default: 'right',
-            parseHTML: el => {
-              const s = el.getAttribute('style') ?? ''
-              if (s.includes('float:left'))  return 'left'
-              if (s.includes('margin:8px auto')) return 'center'
-              return 'right'
+            default: "right",
+            parseHTML: (el) => {
+              const s = el.getAttribute("style") ?? "";
+              if (s.includes("float:left")) return "left";
+              if (s.includes("margin:8px auto")) return "center";
+              return "right";
             },
-            renderHTML: attrs => {
-              const parts: string[] = []
-              if (attrs.dataAlign === 'right')  parts.push('float:right;margin:0 0 10px 14px')
-              else if (attrs.dataAlign === 'left')   parts.push('float:left;margin:0 14px 10px 0')
-              else if (attrs.dataAlign === 'center') parts.push('display:block;margin:8px auto')
-              if (attrs.width) parts.push(`width:${attrs.width}px`)
-              return { style: parts.join(';') }
+            renderHTML: (attrs) => {
+              const parts: string[] = [];
+              if (attrs.dataAlign === "right") parts.push("float:right;margin:0 0 10px 14px");
+              else if (attrs.dataAlign === "left") parts.push("float:left;margin:0 14px 10px 0");
+              else if (attrs.dataAlign === "center") parts.push("display:block;margin:8px auto");
+              if (attrs.width) parts.push(`width:${attrs.width}px`);
+              return { style: parts.join(";") };
             },
           },
-        }
+        };
       },
     }).configure({ inline: false, allowBase64: false }),
   ],
   onCreate({ editor }) {
-    updateDerived(editor.getHTML(), editor.getText())
+    updateDerived(editor.getHTML(), editor.getText());
   },
   onUpdate({ editor }) {
-    updateDerived(editor.getHTML(), editor.getText())
+    updateDerived(editor.getHTML(), editor.getText());
   },
-})
+});
 
 // Save
-const { mutateAsync: create } = useCreateScriptoriumDocument()
-const { mutateAsync: update } = useUpdateScriptoriumDocument()
-const isSaving = ref(false)
-const saveError = ref('')
+const { mutateAsync: create } = useCreateScriptoriumDocument();
+const { mutateAsync: update } = useUpdateScriptoriumDocument();
+const isSaving = ref(false);
+const saveError = ref("");
 
 async function save() {
-  if (!title.value.trim()) return
-  isSaving.value = true
-  saveError.value = ''
+  if (!title.value.trim()) return;
+  isSaving.value = true;
+  saveError.value = "";
   try {
     const payload = {
       title: title.value.trim(),
@@ -390,32 +545,32 @@ async function save() {
       tags: tags.value,
       is_published: isPublished.value,
       word_count: wordCount.value,
-    }
+    };
     if (props.doc) {
-      await update({ id: props.doc.id, update: payload })
+      await update({ id: props.doc.id, update: payload });
     } else {
-      const created = await create(payload)
-      router.replace(`/scriptorium/${created.id}`)
+      const created = await create(payload);
+      router.replace(`/scriptorium/${created.id}`);
     }
   } catch (e: unknown) {
-    saveError.value = e instanceof Error ? e.message : 'Failed to save'
+    saveError.value = e instanceof Error ? e.message : "Failed to save";
   } finally {
-    isSaving.value = false
+    isSaving.value = false;
   }
 }
 
 // Split rendered HTML into pages at every <hr> (Page Break)
 const pages = computed(() => {
-  const html = previewHtml.value || ''
-  const parts = html.split(/<hr\s*\/?\s*>/gi)
-  while (parts.length > 1 && !parts[parts.length - 1].trim()) parts.pop()
-  return parts.length ? parts : ['']
-})
+  const html = previewHtml.value || "";
+  const parts = html.split(/<hr\s*\/?\s*>/gi);
+  while (parts.length > 1 && !parts[parts.length - 1].trim()) parts.pop();
+  return parts.length ? parts : [""];
+});
 
 const { showPdfPreview, pdfBlobUrl, isGeneratingPdf, exportPdf, savePdf, closePdfPreview } =
-  useScriptoriumPdf(pages, title)
+  useScriptoriumPdf(pages, title);
 
-onUnmounted(() => editor.value?.destroy())
+onUnmounted(() => editor.value?.destroy());
 </script>
 
 <style scoped>
@@ -435,16 +590,37 @@ onUnmounted(() => editor.value?.destroy())
   pointer-events: none;
   height: 0;
 }
-.phb-editor :deep(.ProseMirror h1) { @apply font-cinzel text-2xl font-bold mt-4 mb-2; }
-.phb-editor :deep(.ProseMirror h2) { @apply font-cinzel text-xl font-bold mt-3 mb-1.5; }
-.phb-editor :deep(.ProseMirror h3) { @apply font-cinzel text-base font-semibold mt-2 mb-1; }
+.phb-editor :deep(.ProseMirror h1) {
+  @apply font-cinzel text-2xl font-bold mt-4 mb-2;
+}
+.phb-editor :deep(.ProseMirror h2) {
+  @apply font-cinzel text-xl font-bold mt-3 mb-1.5;
+}
+.phb-editor :deep(.ProseMirror h3) {
+  @apply font-cinzel text-base font-semibold mt-2 mb-1;
+}
 .phb-editor :deep(.ProseMirror ul),
-.phb-editor :deep(.ProseMirror ol) { @apply pl-6 my-2; }
-.phb-editor :deep(.ProseMirror blockquote) { @apply border-l-4 border-primary pl-3 text-muted-foreground italic my-2; }
-.phb-editor :deep(.ProseMirror hr)  { @apply border-border my-4; }
-.phb-editor :deep(.ProseMirror code) { @apply bg-muted px-1 rounded text-sm font-mono; }
-.phb-editor :deep(.ProseMirror pre) { @apply bg-muted p-3 rounded my-2 text-sm; }
-.phb-editor :deep(.ProseMirror img) { max-width: 380px; max-height: 480px; border-radius: 6px; object-fit: cover; }
+.phb-editor :deep(.ProseMirror ol) {
+  @apply pl-6 my-2;
+}
+.phb-editor :deep(.ProseMirror blockquote) {
+  @apply border-l-4 border-primary pl-3 text-muted-foreground italic my-2;
+}
+.phb-editor :deep(.ProseMirror hr) {
+  @apply border-border my-4;
+}
+.phb-editor :deep(.ProseMirror code) {
+  @apply bg-muted px-1 rounded text-sm font-mono;
+}
+.phb-editor :deep(.ProseMirror pre) {
+  @apply bg-muted p-3 rounded my-2 text-sm;
+}
+.phb-editor :deep(.ProseMirror img) {
+  max-width: 380px;
+  max-height: 480px;
+  border-radius: 6px;
+  object-fit: cover;
+}
 
 /* ── PHB Preview (OneDnD 2024 output style) ───────────────────── */
 /* Parchment-gray canvas between pages */
@@ -463,10 +639,10 @@ onUnmounted(() => editor.value?.destroy())
   width: 100%;
   max-width: 680px;
   min-height: 961px; /* 680px × (297/210) = A4 aspect ratio */
-  background: #F9F6EF;
+  background: #f9f6ef;
   padding: 2.5rem 2.5rem 2rem;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: Georgia, "Times New Roman", serif;
   color: #1a1a1a;
   line-height: 1.65;
   font-size: 0.9375rem;
@@ -475,21 +651,21 @@ onUnmounted(() => editor.value?.destroy())
 
 /* Border image overlay on each page */
 .phb-page::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
-  background-image: url('/assets/scriptorium/page-border.png');
+  background-image: url("/assets/scriptorium/page-border.png");
   background-size: 100% 100%;
   pointer-events: none;
   opacity: 0.65;
 }
 
 .phb-title-bar {
-  font-family: 'Cinzel', Georgia, serif;
+  font-family: "Cinzel", Georgia, serif;
   font-size: 1.6rem;
   font-weight: 700;
-  color: #F9F6EF;
-  background: #1B3A4B;
+  color: #f9f6ef;
+  background: #1b3a4b;
   padding: 0.6rem 2.5rem;
   margin: -2.5rem -2.5rem 1.75rem;
   letter-spacing: 0.04em;
@@ -497,7 +673,7 @@ onUnmounted(() => editor.value?.destroy())
 }
 
 .phb-hint {
-  font-family: 'Cinzel', Georgia, serif;
+  font-family: "Cinzel", Georgia, serif;
   font-size: 0.65rem;
   color: rgba(255, 255, 255, 0.4);
   text-align: center;
@@ -506,65 +682,84 @@ onUnmounted(() => editor.value?.destroy())
 }
 
 .phb-body :deep(h1) {
-  font-family: 'Cinzel', Georgia, serif;
+  font-family: "Cinzel", Georgia, serif;
   font-size: 1.25rem;
   font-weight: 700;
-  color: #F9F6EF;
-  background: #1B3A4B;
+  color: #f9f6ef;
+  background: #1b3a4b;
   padding: 0.35rem 1rem;
   margin: 1.5rem -1rem 1rem;
   letter-spacing: 0.03em;
 }
 .phb-body :deep(h2) {
-  font-family: 'Cinzel', Georgia, serif;
+  font-family: "Cinzel", Georgia, serif;
   font-size: 1.05rem;
   font-weight: 700;
-  color: #1B3A4B;
-  border-bottom: 2px solid #1B3A4B;
+  color: #1b3a4b;
+  border-bottom: 2px solid #1b3a4b;
   padding-bottom: 0.2rem;
   margin: 1.25rem 0 0.6rem;
   letter-spacing: 0.02em;
 }
 .phb-body :deep(h3) {
-  font-family: 'Cinzel', Georgia, serif;
+  font-family: "Cinzel", Georgia, serif;
   font-size: 0.9375rem;
   font-weight: 600;
   font-style: italic;
-  color: #1B3A4B;
+  color: #1b3a4b;
   margin: 1rem 0 0.35rem;
 }
-.phb-body :deep(p)  { margin: 0 0 0.6rem; }
+.phb-body :deep(p) {
+  margin: 0 0 0.6rem;
+}
 .phb-body :deep(ul),
-.phb-body :deep(ol) { padding-left: 1.25rem; margin: 0.375rem 0 0.6rem; }
-.phb-body :deep(li) { margin: 0.2rem 0; }
+.phb-body :deep(ol) {
+  padding-left: 1.25rem;
+  margin: 0.375rem 0 0.6rem;
+}
+.phb-body :deep(li) {
+  margin: 0.2rem 0;
+}
 .phb-body :deep(blockquote) {
-  border-left: 4px solid #1B3A4B;
-  background: #E8F4F8;
+  border-left: 4px solid #1b3a4b;
+  background: #e8f4f8;
   padding: 0.6rem 0.875rem;
   margin: 0.875rem 0;
   border-radius: 0 4px 4px 0;
   font-style: italic;
 }
-.phb-body :deep(blockquote p) { margin: 0; }
-.phb-body :deep(strong) { font-weight: 700; }
-.phb-body :deep(em) { font-style: italic; }
+.phb-body :deep(blockquote p) {
+  margin: 0;
+}
+.phb-body :deep(strong) {
+  font-weight: 700;
+}
+.phb-body :deep(em) {
+  font-style: italic;
+}
 /* <hr> = page break separator — hidden in preview, pages split on it */
-.phb-body :deep(hr) { display: none; }
+.phb-body :deep(hr) {
+  display: none;
+}
 .phb-body :deep(code) {
   background: #e4ddd0;
   padding: 0.1em 0.35em;
   border-radius: 2px;
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   font-size: 0.875em;
 }
 .phb-body :deep(pre) {
-  background: #1B3A4B;
-  color: #E8F4F8;
+  background: #1b3a4b;
+  color: #e8f4f8;
   padding: 0.875rem;
   border-radius: 4px;
   overflow-x: auto;
   margin: 0.875rem 0;
   font-size: 0.875em;
 }
-.phb-body :deep(pre code) { background: transparent; padding: 0; color: inherit; }
+.phb-body :deep(pre code) {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
 </style>

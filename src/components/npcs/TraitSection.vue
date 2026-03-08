@@ -45,26 +45,26 @@
 
 <script setup lang="ts">
 const props = defineProps<{
-  modelValue: Array<{ name: string; description: string }> | undefined
-  label: string
-}>()
+  modelValue: Array<{ name: string; description: string }> | undefined;
+  label: string;
+}>();
 
 const emit = defineEmits<{
-  'update:modelValue': [value: Array<{ name: string; description: string }>]
-}>()
+  "update:modelValue": [value: Array<{ name: string; description: string }>];
+}>();
 
 function add() {
-  emit('update:modelValue', [...(props.modelValue ?? []), { name: '', description: '' }])
+  emit("update:modelValue", [...(props.modelValue ?? []), { name: "", description: "" }]);
 }
 
 function remove(i: number) {
-  const arr = [...(props.modelValue ?? [])]
-  arr.splice(i, 1)
-  emit('update:modelValue', arr)
+  const arr = [...(props.modelValue ?? [])];
+  arr.splice(i, 1);
+  emit("update:modelValue", arr);
 }
 
-function update(i: number, key: 'name' | 'description', value: string) {
-  const arr = (props.modelValue ?? []).map((e, idx) => idx === i ? { ...e, [key]: value } : e)
-  emit('update:modelValue', arr)
+function update(i: number, key: "name" | "description", value: string) {
+  const arr = (props.modelValue ?? []).map((e, idx) => (idx === i ? { ...e, [key]: value } : e));
+  emit("update:modelValue", arr);
 }
 </script>

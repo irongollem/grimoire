@@ -3,7 +3,7 @@
  * Used by spellAdvisor, monsters, equipment — anything that parses dice expressions.
  */
 
-import { DAMAGE_TYPES } from '@/types/damage.types'
+import { DAMAGE_TYPES } from "@/types/damage.types";
 
 /**
  * Parses a dice expression into its average value.
@@ -16,33 +16,33 @@ import { DAMAGE_TYPES } from '@/types/damage.types'
  * Damage type words (fire, cold, etc.) are stripped before parsing.
  */
 export function parseDiceAvg(expr: string): number {
-  if (!expr.trim()) return 0
+  if (!expr.trim()) return 0;
 
-  let cleaned = expr.toLowerCase()
+  let cleaned = expr.toLowerCase();
   for (const word of DAMAGE_TYPES) {
-    cleaned = cleaned.replace(new RegExp(`\\b${word}\\b`, 'g'), '')
+    cleaned = cleaned.replace(new RegExp(`\\b${word}\\b`, "g"), "");
   }
 
-  const terms = cleaned.replace(/\s+/g, '').split('+').filter(Boolean)
+  const terms = cleaned.replace(/\s+/g, "").split("+").filter(Boolean);
 
-  let total = 0
+  let total = 0;
   for (const term of terms) {
-    const diceMatch = term.match(/^(\d+)d(\d+)$/)
+    const diceMatch = term.match(/^(\d+)d(\d+)$/);
     if (diceMatch) {
-      const count = parseInt(diceMatch[1])
-      const sides = parseInt(diceMatch[2])
-      total += count * (sides + 1) / 2
+      const count = parseInt(diceMatch[1]);
+      const sides = parseInt(diceMatch[2]);
+      total += (count * (sides + 1)) / 2;
     } else {
-      const flat = parseFloat(term)
-      if (!isNaN(flat)) total += flat
+      const flat = parseFloat(term);
+      if (!isNaN(flat)) total += flat;
     }
   }
-  return total
+  return total;
 }
 
 export interface DamageRoll {
-  dice: string   // e.g. "2d6", "1d8+4", "5"
-  type: string   // e.g. "fire", "" for untyped
+  dice: string; // e.g. "2d6", "1d8+4", "5"
+  type: string; // e.g. "fire", "" for untyped
 }
 
 /**
@@ -50,22 +50,23 @@ export interface DamageRoll {
  * structured rolls: [{dice:"2d6", type:"fire"}, {dice:"1d6", type:"slashing"}, {dice:"5", type:""}]
  */
 export function parseDamageExpression(expr: string): DamageRoll[] {
-  if (!expr.trim()) return []
+  if (!expr.trim()) return [];
   return expr
-    .split('+')
-    .map(s => s.trim())
+    .split("+")
+    .map((s) => s.trim())
     .filter(Boolean)
-    .map(term => {
-      const lower = term.toLowerCase()
-      const type = (DAMAGE_TYPES as readonly string[]).find(t =>
-        new RegExp(`\\b${t}\\b`).test(lower)
-      ) ?? ''
+    .map((term) => {
+      const lower = term.toLowerCase();
+      const type =
+        (DAMAGE_TYPES as readonly string[]).find((t) => new RegExp(`\\b${t}\\b`).test(lower)) ?? "";
       // Extract dice or flat number, strip type label
       const cleaned = DAMAGE_TYPES.reduce(
-        (s, t) => s.replace(new RegExp(`\\b${t}\\b`, 'gi'), ''),
-        term
-      ).replace(/\s+/g, '').trim()
-      return { dice: cleaned, type }
+        (s, t) => s.replace(new RegExp(`\\b${t}\\b`, "gi"), ""),
+        term,
+      )
+        .replace(/\s+/g, "")
+        .trim();
+      return { dice: cleaned, type };
     })
-    .filter(r => r.dice.length > 0)
+    .filter((r) => r.dice.length > 0);
 }

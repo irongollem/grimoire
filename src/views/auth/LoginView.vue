@@ -41,7 +41,7 @@
         :disabled="auth.loading"
         class="w-full rounded-md bg-primary px-4 py-2.5 font-cinzel text-sm font-semibold text-primary-foreground tracking-wider transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {{ auth.loading ? 'Entering the realm…' : 'Enter the Realm' }}
+        {{ auth.loading ? "Entering the realm…" : "Enter the Realm" }}
       </button>
     </form>
 
@@ -55,26 +55,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { ref } from "vue";
+import { useRouter, useRoute } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
 
-const auth = useAuthStore()
-const router = useRouter()
-const route = useRoute()
+const auth = useAuthStore();
+const router = useRouter();
+const route = useRoute();
 
-const email = ref('')
-const password = ref('')
-const errorMessage = ref('')
+const email = ref("");
+const password = ref("");
+const errorMessage = ref("");
 
 async function handleSubmit() {
-  errorMessage.value = ''
+  errorMessage.value = "";
   try {
-    await auth.signIn(email.value, password.value)
-    const redirect = (route.query.redirect as string) || '/dashboard'
-    router.push(redirect)
+    await auth.signIn(email.value, password.value);
+    const redirect = (route.query.redirect as string) || "/dashboard";
+    router.push(redirect);
   } catch (err) {
-    errorMessage.value = err instanceof Error ? err.message : 'Sign in failed. Check your credentials.'
+    errorMessage.value =
+      err instanceof Error ? err.message : "Sign in failed. Check your credentials.";
   }
 }
 </script>

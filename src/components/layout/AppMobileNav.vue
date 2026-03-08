@@ -16,13 +16,8 @@
     >
       <!-- Header -->
       <div class="flex items-center justify-between px-4 py-5 border-b border-border">
-        <h1 class="font-cinzel text-xl font-bold text-gold-500 tracking-widest">
-          Grimoire
-        </h1>
-        <button
-          class="text-muted-foreground hover:text-foreground"
-          @click="ui.toggleMobileNav()"
-        >
+        <h1 class="font-cinzel text-xl font-bold text-gold-500 tracking-widest">Grimoire</h1>
+        <button class="text-muted-foreground hover:text-foreground" @click="ui.toggleMobileNav()">
           <X class="h-5 w-5" />
         </button>
       </div>
@@ -30,7 +25,9 @@
       <!-- Navigation -->
       <nav class="flex-1 overflow-y-auto px-2 py-4">
         <template v-for="group in NAV_GROUPS" :key="group.label">
-          <p class="px-2 pt-4 pb-1 font-cinzel text-[10px] font-bold tracking-widest text-muted-foreground/60 uppercase first:pt-0">
+          <p
+            class="px-2 pt-4 pb-1 font-cinzel text-[10px] font-bold tracking-widest text-muted-foreground/60 uppercase first:pt-0"
+          >
             {{ group.label }}
           </p>
           <NavItem
@@ -66,36 +63,44 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { X, LogOut } from 'lucide-vue-next'
-import { useAuthStore } from '@/stores/auth'
-import { useUiStore } from '@/stores/ui'
-import { NAV_GROUPS } from '@/lib/nav'
-import NavItem from './NavItem.vue'
+import { computed } from "vue";
+import { useRouter } from "vue-router";
+import { X, LogOut } from "lucide-vue-next";
+import { useAuthStore } from "@/stores/auth";
+import { useUiStore } from "@/stores/ui";
+import { NAV_GROUPS } from "@/lib/nav";
+import NavItem from "./NavItem.vue";
 
-const auth = useAuthStore()
-const ui = useUiStore()
-const router = useRouter()
+const auth = useAuthStore();
+const ui = useUiStore();
+const router = useRouter();
 
-const userEmail = computed(() => auth.userEmail ?? '')
-const userInitial = computed(() => userEmail.value.charAt(0).toUpperCase() || '?')
+const userEmail = computed(() => auth.userEmail ?? "");
+const userInitial = computed(() => userEmail.value.charAt(0).toUpperCase() || "?");
 
 async function handleSignOut() {
-  ui.toggleMobileNav()
-  await auth.signOut()
-  router.push({ name: 'login' })
+  ui.toggleMobileNav();
+  await auth.signOut();
+  router.push({ name: "login" });
 }
 </script>
 
 <style scoped>
 .fade-enter-active,
-.fade-leave-active { transition: opacity 0.2s ease; }
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
 .fade-enter-from,
-.fade-leave-to   { opacity: 0; }
+.fade-leave-to {
+  opacity: 0;
+}
 
 .slide-enter-active,
-.slide-leave-active { transition: transform 0.25s ease; }
+.slide-leave-active {
+  transition: transform 0.25s ease;
+}
 .slide-enter-from,
-.slide-leave-to   { transform: translateX(-100%); }
+.slide-leave-to {
+  transform: translateX(-100%);
+}
 </style>

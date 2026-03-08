@@ -1,6 +1,5 @@
 <template>
   <div class="flex flex-col gap-5">
-
     <!-- Top bar -->
     <div class="flex flex-wrap items-center gap-2">
       <label class="flex-1 min-w-48">
@@ -28,7 +27,7 @@
         @click="save"
       >
         <Save class="h-3.5 w-3.5" />
-        {{ saving ? 'Saving…' : (props.monster ? 'Save' : 'Create') }}
+        {{ saving ? "Saving…" : props.monster ? "Save" : "Create" }}
       </button>
       <button
         v-if="props.monster"
@@ -38,7 +37,7 @@
         @click="sendToScriptorium"
       >
         <ScrollText class="h-3.5 w-3.5" />
-        {{ sendingToScriptorium ? 'Exporting…' : 'Send to Scriptorium' }}
+        {{ sendingToScriptorium ? "Exporting…" : "Send to Scriptorium" }}
       </button>
       <button
         v-if="props.monster"
@@ -77,19 +76,31 @@
       </label>
       <label class="block">
         <span class="field-label">Habitat</span>
-        <input v-model="form.habitat" class="field-input w-full" placeholder="Forest, underground…" />
+        <input
+          v-model="form.habitat"
+          class="field-input w-full"
+          placeholder="Forest, underground…"
+        />
       </label>
       <!-- Tags -->
       <div class="col-span-2 lg:col-span-3">
         <p class="field-label">Tags</p>
-        <div class="flex flex-wrap items-center gap-1 min-h-9 bg-muted border border-border rounded-md px-2 py-1">
+        <div
+          class="flex flex-wrap items-center gap-1 min-h-9 bg-muted border border-border rounded-md px-2 py-1"
+        >
           <span
             v-for="tag in form.tags"
             :key="tag"
             class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-card font-cinzel text-[11px] text-muted-foreground tracking-wider"
           >
             {{ tag }}
-            <button type="button" class="hover:text-destructive transition-colors leading-none text-sm" @click="removeTag(tag)">×</button>
+            <button
+              type="button"
+              class="hover:text-destructive transition-colors leading-none text-sm"
+              @click="removeTag(tag)"
+            >
+              ×
+            </button>
           </span>
           <input
             v-model="tagInput"
@@ -112,7 +123,11 @@
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <label class="block">
           <span class="field-label">Challenge Rating</span>
-          <input v-model="sb.challenge_rating" class="field-input w-full font-bold" placeholder="1/4" />
+          <input
+            v-model="sb.challenge_rating"
+            class="field-input w-full font-bold"
+            placeholder="1/4"
+          />
         </label>
         <label class="block">
           <span class="field-label">Armor Class</span>
@@ -133,15 +148,24 @@
     <section>
       <p class="section-heading">Ability Scores</p>
       <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
-        <label v-for="stat in ABILITY_STATS" :key="stat.key" class="flex flex-col items-center gap-1">
+        <label
+          v-for="stat in ABILITY_STATS"
+          :key="stat.key"
+          class="flex flex-col items-center gap-1"
+        >
           <span class="field-label">{{ stat.label }}</span>
           <input
             v-model.number="sb[stat.key]"
-            type="number" min="1" max="30"
+            type="number"
+            min="1"
+            max="30"
             class="field-input w-full text-center"
           />
-          <span class="font-cinzel text-xs font-bold" :class="mod(sb[stat.key]) >= 0 ? 'text-green-500' : 'text-destructive'">
-            {{ mod(sb[stat.key]) >= 0 ? '+' : '' }}{{ mod(sb[stat.key]) }}
+          <span
+            class="font-cinzel text-xs font-bold"
+            :class="mod(sb[stat.key]) >= 0 ? 'text-green-500' : 'text-destructive'"
+          >
+            {{ mod(sb[stat.key]) >= 0 ? "+" : "" }}{{ mod(sb[stat.key]) }}
           </span>
         </label>
       </div>
@@ -164,23 +188,43 @@
       </label>
       <label class="block">
         <span class="field-label">Damage Vulnerabilities</span>
-        <input v-model="sb.damage_vulnerabilities" class="field-input w-full" placeholder="bludgeoning" />
+        <input
+          v-model="sb.damage_vulnerabilities"
+          class="field-input w-full"
+          placeholder="bludgeoning"
+        />
       </label>
       <label class="block">
         <span class="field-label">Damage Resistances</span>
-        <input v-model="sb.damage_resistances" class="field-input w-full" placeholder="fire, cold" />
+        <input
+          v-model="sb.damage_resistances"
+          class="field-input w-full"
+          placeholder="fire, cold"
+        />
       </label>
       <label class="block">
         <span class="field-label">Damage Immunities</span>
-        <input v-model="sb.damage_immunities" class="field-input w-full" placeholder="poison, psychic" />
+        <input
+          v-model="sb.damage_immunities"
+          class="field-input w-full"
+          placeholder="poison, psychic"
+        />
       </label>
       <label class="block">
         <span class="field-label">Condition Immunities</span>
-        <input v-model="sb.condition_immunities" class="field-input w-full" placeholder="charmed, exhaustion" />
+        <input
+          v-model="sb.condition_immunities"
+          class="field-input w-full"
+          placeholder="charmed, exhaustion"
+        />
       </label>
       <label class="block">
         <span class="field-label">Senses</span>
-        <input v-model="sb.senses" class="field-input w-full" placeholder="darkvision 60 ft., passive Perception 13" />
+        <input
+          v-model="sb.senses"
+          class="field-input w-full"
+          placeholder="darkvision 60 ft., passive Perception 13"
+        />
       </label>
       <label class="block">
         <span class="field-label">Languages</span>
@@ -203,7 +247,13 @@
       <p class="section-heading">Legendary</p>
       <label class="flex items-center gap-3 mb-4">
         <span class="field-label whitespace-nowrap">Legendary Resistance (uses/day)</span>
-        <input v-model.number="sb.legendary_resistance" type="number" min="0" max="5" class="field-input w-20" />
+        <input
+          v-model.number="sb.legendary_resistance"
+          type="number"
+          min="0"
+          max="5"
+          class="field-input w-20"
+        />
       </label>
       <TraitSection v-model="sb.legendary_actions" label="Legendary Actions" />
     </section>
@@ -221,10 +271,17 @@
           class="relative flex items-center justify-center w-32 h-32 rounded-md border-2 border-dashed border-border bg-muted cursor-pointer hover:border-primary/50 transition-colors overflow-hidden shrink-0"
           @click="artFileInput?.click()"
         >
-          <img v-if="form.image_url" :src="form.image_url" alt="Art" class="absolute inset-0 w-full h-full object-cover" />
+          <img
+            v-if="form.image_url"
+            :src="form.image_url"
+            alt="Art"
+            class="absolute inset-0 w-full h-full object-cover"
+          />
           <div v-else class="flex flex-col items-center gap-1 text-muted-foreground">
             <ImagePlus class="h-6 w-6" />
-            <span class="font-cinzel text-[10px] tracking-wider">{{ isUploadingArt ? 'Uploading…' : 'Add art' }}</span>
+            <span class="font-cinzel text-[10px] tracking-wider">{{
+              isUploadingArt ? "Uploading…" : "Add art"
+            }}</span>
           </div>
         </div>
         <div v-if="form.image_url" class="flex flex-col gap-2">
@@ -244,7 +301,13 @@
           </button>
         </div>
       </div>
-      <input ref="artFileInput" type="file" accept="image/*" class="hidden" @change="onArtSelected" />
+      <input
+        ref="artFileInput"
+        type="file"
+        accept="image/*"
+        class="hidden"
+        @change="onArtSelected"
+      />
     </section>
 
     <!-- Notes -->
@@ -263,140 +326,172 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { Save, Trash2, ScrollText, ImagePlus } from 'lucide-vue-next'
-import { useImageUpload } from '@/composables/useImageUpload'
-import { useCreateMonster, useUpdateMonster, useDeleteMonster } from '@/composables/useMonsters'
-import { useCreateScriptoriumDocument } from '@/composables/useScriptorium'
-import { formatMonsterForScriptorium } from '@/lib/scriptoriumImport'
-import TraitSection from '@/components/npcs/TraitSection.vue'
-import { MONSTER_TEMPLATE_CATEGORIES, getMonsterTemplate } from '@/data/monsterTemplates'
-import type { Monster, MonsterType, MonsterSize, MonsterStatBlock } from '@/types/monster.types'
+import { ref, reactive, computed } from "vue";
+import { useRouter } from "vue-router";
+import { Save, Trash2, ScrollText, ImagePlus } from "lucide-vue-next";
+import { useImageUpload } from "@/composables/useImageUpload";
+import { useCreateMonster, useUpdateMonster, useDeleteMonster } from "@/composables/useMonsters";
+import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
+import { formatMonsterForScriptorium } from "@/lib/scriptoriumImport";
+import TraitSection from "@/components/npcs/TraitSection.vue";
+import { MONSTER_TEMPLATE_CATEGORIES, getMonsterTemplate } from "@/data/monsterTemplates";
+import type { Monster, MonsterType, MonsterSize, MonsterStatBlock } from "@/types/monster.types";
 
 const MONSTER_TYPES: MonsterType[] = [
-  'aberration', 'beast', 'celestial', 'construct', 'dragon',
-  'elemental', 'fey', 'fiend', 'giant', 'humanoid',
-  'monstrosity', 'ooze', 'plant', 'undead',
-]
-const SIZES: MonsterSize[] = ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan']
+  "aberration",
+  "beast",
+  "celestial",
+  "construct",
+  "dragon",
+  "elemental",
+  "fey",
+  "fiend",
+  "giant",
+  "humanoid",
+  "monstrosity",
+  "ooze",
+  "plant",
+  "undead",
+];
+const SIZES: MonsterSize[] = ["tiny", "small", "medium", "large", "huge", "gargantuan"];
 const ABILITY_STATS = [
-  { key: 'str' as const, label: 'STR' },
-  { key: 'dex' as const, label: 'DEX' },
-  { key: 'con' as const, label: 'CON' },
-  { key: 'int' as const, label: 'INT' },
-  { key: 'wis' as const, label: 'WIS' },
-  { key: 'cha' as const, label: 'CHA' },
-]
+  { key: "str" as const, label: "STR" },
+  { key: "dex" as const, label: "DEX" },
+  { key: "con" as const, label: "CON" },
+  { key: "int" as const, label: "INT" },
+  { key: "wis" as const, label: "WIS" },
+  { key: "cha" as const, label: "CHA" },
+];
 
-const props = defineProps<{ monster: Monster | null }>()
-const router = useRouter()
+const props = defineProps<{ monster: Monster | null }>();
+const router = useRouter();
 
 const form = reactive({
-  name: props.monster?.name ?? '',
-  monster_type: (props.monster?.monster_type ?? 'humanoid') as MonsterType,
-  size: (props.monster?.size ?? 'medium') as MonsterSize,
-  alignment: props.monster?.alignment ?? 'unaligned',
-  habitat: props.monster?.habitat ?? '',
-  source: props.monster?.source ?? '',
+  name: props.monster?.name ?? "",
+  monster_type: (props.monster?.monster_type ?? "humanoid") as MonsterType,
+  size: (props.monster?.size ?? "medium") as MonsterSize,
+  alignment: props.monster?.alignment ?? "unaligned",
+  habitat: props.monster?.habitat ?? "",
+  source: props.monster?.source ?? "",
   tags: props.monster?.tags ? [...props.monster.tags] : [],
-  notes: props.monster?.notes ?? '',
-  image_url: props.monster?.image_url ?? '',
-})
+  notes: props.monster?.notes ?? "",
+  image_url: props.monster?.image_url ?? "",
+});
 
 function defaultSb(): MonsterStatBlock {
   return {
-    armor_class: 10, hit_points: '10 (2d8+1)', speed: '30 ft.',
-    str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10,
-    challenge_rating: '1/4',
-    saving_throws: '', skills: {},
-    damage_vulnerabilities: '', damage_resistances: '',
-    damage_immunities: '', condition_immunities: '',
-    senses: '', languages: '',
-    special_abilities: [], actions: [], bonus_actions: [], reactions: [],
-    legendary_resistance: 0, legendary_actions: [], lair_actions: [],
-  }
+    armor_class: 10,
+    hit_points: "10 (2d8+1)",
+    speed: "30 ft.",
+    str: 10,
+    dex: 10,
+    con: 10,
+    int: 10,
+    wis: 10,
+    cha: 10,
+    challenge_rating: "1/4",
+    saving_throws: "",
+    skills: {},
+    damage_vulnerabilities: "",
+    damage_resistances: "",
+    damage_immunities: "",
+    condition_immunities: "",
+    senses: "",
+    languages: "",
+    special_abilities: [],
+    actions: [],
+    bonus_actions: [],
+    reactions: [],
+    legendary_resistance: 0,
+    legendary_actions: [],
+    lair_actions: [],
+  };
 }
 
 const sb = reactive<MonsterStatBlock>(
-  props.monster?.stat_block
-    ? { ...defaultSb(), ...props.monster.stat_block }
-    : defaultSb()
-)
+  props.monster?.stat_block ? { ...defaultSb(), ...props.monster.stat_block } : defaultSb(),
+);
 
 // Tags
-const tagInput = ref('')
+const tagInput = ref("");
 function addTag() {
-  const val = tagInput.value.replace(/,\s*$/, '').trim()
-  if (val && !form.tags.includes(val)) form.tags.push(val)
-  tagInput.value = ''
+  const val = tagInput.value.replace(/,\s*$/, "").trim();
+  if (val && !form.tags.includes(val)) form.tags.push(val);
+  tagInput.value = "";
 }
 function onTagKeydown(e: KeyboardEvent) {
-  if (e.key === ',') { e.preventDefault(); addTag() }
+  if (e.key === ",") {
+    e.preventDefault();
+    addTag();
+  }
 }
 function removeTag(tag: string) {
-  form.tags = form.tags.filter(t => t !== tag)
+  form.tags = form.tags.filter((t) => t !== tag);
 }
 
 // Skills string <-> Record conversion
 const skillsText = computed(() =>
-  Object.entries(sb.skills ?? {}).map(([k, v]) => `${k} ${v}`).join(', ')
-)
+  Object.entries(sb.skills ?? {})
+    .map(([k, v]) => `${k} ${v}`)
+    .join(", "),
+);
 function parseSkills(text: string) {
-  const rec: Record<string, string> = {}
-  text.split(',').forEach(part => {
-    const m = part.trim().match(/^(.+?)\s+([+-]\d+)$/)
-    if (m) rec[m[1].toLowerCase().trim()] = m[2]
-  })
-  sb.skills = rec
+  const rec: Record<string, string> = {};
+  text.split(",").forEach((part) => {
+    const m = part.trim().match(/^(.+?)\s+([+-]\d+)$/);
+    if (m) rec[m[1].toLowerCase().trim()] = m[2];
+  });
+  sb.skills = rec;
 }
 
 // Template picker
 function applyTemplate(event: Event) {
-  const id = (event.target as HTMLSelectElement).value
-  if (!id) return
-  const tmpl = getMonsterTemplate(id)
-  if (!tmpl) return
-  form.name = tmpl.name
-  form.monster_type = tmpl.monster_type
-  form.size = tmpl.size
-  form.alignment = tmpl.alignment
-  Object.assign(sb, defaultSb(), tmpl.stat_block)
-  ;(event.target as HTMLSelectElement).value = ''
+  const id = (event.target as HTMLSelectElement).value;
+  if (!id) return;
+  const tmpl = getMonsterTemplate(id);
+  if (!tmpl) return;
+  form.name = tmpl.name;
+  form.monster_type = tmpl.monster_type;
+  form.size = tmpl.size;
+  form.alignment = tmpl.alignment;
+  Object.assign(sb, defaultSb(), tmpl.stat_block);
+  (event.target as HTMLSelectElement).value = "";
 }
 
 // Ability modifier
-function mod(score: number) { return Math.floor((score - 10) / 2) }
+function mod(score: number) {
+  return Math.floor((score - 10) / 2);
+}
 
 // Art upload
-const artFileInput = ref<HTMLInputElement | null>(null)
-const { isUploading: isUploadingArt, upload: uploadArt } = useImageUpload('asset-images')
+const artFileInput = ref<HTMLInputElement | null>(null);
+const { isUploading: isUploadingArt, upload: uploadArt } = useImageUpload("asset-images");
 async function onArtSelected(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0]
-  if (!file) return
-  const url = await uploadArt(file)
-  if (url) form.image_url = url
-  if (artFileInput.value) artFileInput.value.value = ''
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  const url = await uploadArt(file);
+  if (url) form.image_url = url;
+  if (artFileInput.value) artFileInput.value.value = "";
 }
 
 // Save
-const { mutateAsync: create } = useCreateMonster()
-const { mutateAsync: update } = useUpdateMonster()
-const { mutateAsync: del } = useDeleteMonster()
-const { mutateAsync: createScriptoriumDoc } = useCreateScriptoriumDocument()
-const saving = ref(false)
-const saveError = ref('')
-const sendingToScriptorium = ref(false)
+const { mutateAsync: create } = useCreateMonster();
+const { mutateAsync: update } = useUpdateMonster();
+const { mutateAsync: del } = useDeleteMonster();
+const { mutateAsync: createScriptoriumDoc } = useCreateScriptoriumDocument();
+const saving = ref(false);
+const saveError = ref("");
+const sendingToScriptorium = ref(false);
 
 async function sendToScriptorium() {
-  if (!props.monster) return
-  sendingToScriptorium.value = true
+  if (!props.monster) return;
+  sendingToScriptorium.value = true;
   try {
-    const importData = formatMonsterForScriptorium(props.monster)
-    const doc = await createScriptoriumDoc(importData)
-    router.push(`/scriptorium/${doc.id}`)
+    const importData = formatMonsterForScriptorium(props.monster);
+    const doc = await createScriptoriumDoc(importData);
+    router.push(`/scriptorium/${doc.id}`);
   } finally {
-    sendingToScriptorium.value = false
+    sendingToScriptorium.value = false;
   }
 }
 
@@ -412,33 +507,33 @@ function buildPayload() {
     notes: form.notes || null,
     image_url: form.image_url || null,
     stat_block: { ...sb },
-  }
+  };
 }
 
 async function save() {
-  if (!form.name.trim()) return
-  saving.value = true
-  saveError.value = ''
+  if (!form.name.trim()) return;
+  saving.value = true;
+  saveError.value = "";
   try {
     if (props.monster) {
-      await update({ id: props.monster.id, update: buildPayload() })
-      router.push('/monsters')
+      await update({ id: props.monster.id, update: buildPayload() });
+      router.push("/monsters");
     } else {
-      const created = await create(buildPayload())
-      router.replace(`/monsters/${created.id}`)
+      const created = await create(buildPayload());
+      router.replace(`/monsters/${created.id}`);
     }
   } catch (e: unknown) {
-    saveError.value = e instanceof Error ? e.message : 'Failed to save'
+    saveError.value = e instanceof Error ? e.message : "Failed to save";
   } finally {
-    saving.value = false
+    saving.value = false;
   }
 }
 
 async function remove() {
-  if (!props.monster) return
-  if (!confirm(`Delete ${props.monster.name}? This cannot be undone.`)) return
-  await del(props.monster.id)
-  router.push('/monsters')
+  if (!props.monster) return;
+  if (!confirm(`Delete ${props.monster.name}? This cannot be undone.`)) return;
+  await del(props.monster.id);
+  router.push("/monsters");
 }
 </script>
 

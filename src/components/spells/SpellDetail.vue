@@ -11,10 +11,16 @@
         <div class="absolute inset-0 bg-black/70" @click="skipAdvisorModal" />
 
         <!-- Card -->
-        <div class="relative z-10 w-full max-w-lg rounded-xl border border-primary/40 bg-card shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+        <div
+          class="relative z-10 w-full max-w-lg rounded-xl border border-primary/40 bg-card shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
+        >
           <!-- Header -->
-          <div class="flex items-center justify-between gap-3 px-6 pt-6 pb-4 border-b border-border shrink-0">
-            <h2 class="font-cinzel text-sm font-bold tracking-wider text-foreground flex items-center gap-2">
+          <div
+            class="flex items-center justify-between gap-3 px-6 pt-6 pb-4 border-b border-border shrink-0"
+          >
+            <h2
+              class="font-cinzel text-sm font-bold tracking-wider text-foreground flex items-center gap-2"
+            >
               <Lightbulb class="h-4 w-4 text-primary" />
               Spell Level Advisor
             </h2>
@@ -29,22 +35,39 @@
 
           <div class="overflow-y-auto px-6 py-4 flex flex-col gap-4">
             <p class="font-fell text-sm text-muted-foreground italic">
-              Answer a few questions to pre-fill your spell's mechanics and suggest a balanced level.
+              Answer a few questions to pre-fill your spell's mechanics and suggest a balanced
+              level.
             </p>
 
             <!-- 1. School → immediately shows design notes -->
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">School of Magic</span>
-              <select v-model="school" class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring capitalize">
-                <option v-for="s in SPELL_SCHOOLS" :key="s" :value="s" class="capitalize">{{ s }}</option>
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+                >School of Magic</span
+              >
+              <select
+                v-model="school"
+                class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring capitalize"
+              >
+                <option v-for="s in SPELL_SCHOOLS" :key="s" :value="s" class="capitalize">
+                  {{ s }}
+                </option>
               </select>
             </label>
 
             <!-- 2. School design notes (reactive to school above) -->
-            <div v-if="schoolTip" class="rounded-md border border-border bg-muted/40 p-3 flex flex-col gap-2">
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">{{ schoolTip.title }} design notes</span>
+            <div
+              v-if="schoolTip"
+              class="rounded-md border border-border bg-muted/40 p-3 flex flex-col gap-2"
+            >
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+                >{{ schoolTip.title }} design notes</span
+              >
               <ul class="space-y-1">
-                <li v-for="(tip, i) in schoolTip.tips" :key="i" class="font-fell text-xs text-muted-foreground flex gap-1.5">
+                <li
+                  v-for="(tip, i) in schoolTip.tips"
+                  :key="i"
+                  class="font-fell text-xs text-muted-foreground flex gap-1.5"
+                >
                   <span class="text-primary/60 shrink-0">·</span>{{ tip }}
                 </li>
               </ul>
@@ -52,8 +75,13 @@
 
             <!-- 3. Effect type -->
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Main Effect</span>
-              <select v-model="adv.effectType" class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+                >Main Effect</span
+              >
+              <select
+                v-model="adv.effectType"
+                class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              >
                 <option value="damage">Damage</option>
                 <option value="healing">Healing / Restoration</option>
                 <option value="control">Control (restrain, slow, etc.)</option>
@@ -63,24 +91,46 @@
             </label>
 
             <!-- 4. Intensity (control / buff / utility only) -->
-            <label v-if="adv.effectType !== 'damage' && adv.effectType !== 'healing'" class="flex flex-col gap-1">
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Effect Intensity</span>
-              <select v-model="adv.effectIntensity" class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+            <label
+              v-if="adv.effectType !== 'damage' && adv.effectType !== 'healing'"
+              class="flex flex-col gap-1"
+            >
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+                >Effect Intensity</span
+              >
+              <select
+                v-model="adv.effectIntensity"
+                class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              >
                 <template v-if="adv.effectType === 'control'">
                   <option value="weak">Weak — disadvantage, minor debuff (e.g. Bane)</option>
-                  <option value="moderate">Moderate — restrained, frightened, slow (e.g. Hold Person)</option>
-                  <option value="major">Major — stunned, incapacitated, banished (e.g. Hold Monster)</option>
-                  <option value="extreme">Extreme — dominated, paralysed, power word (e.g. Dominate Person)</option>
+                  <option value="moderate">
+                    Moderate — restrained, frightened, slow (e.g. Hold Person)
+                  </option>
+                  <option value="major">
+                    Major — stunned, incapacitated, banished (e.g. Hold Monster)
+                  </option>
+                  <option value="extreme">
+                    Extreme — dominated, paralysed, power word (e.g. Dominate Person)
+                  </option>
                 </template>
                 <template v-else-if="adv.effectType === 'buff'">
                   <option value="weak">Weak — minor bonus, +d4 (e.g. Guidance)</option>
-                  <option value="moderate">Moderate — advantage, resistance (e.g. Bless, Shield)</option>
-                  <option value="major">Major — extra attack, flight, haste (e.g. Haste, Fly)</option>
+                  <option value="moderate">
+                    Moderate — advantage, resistance (e.g. Bless, Shield)
+                  </option>
+                  <option value="major">
+                    Major — extra attack, flight, haste (e.g. Haste, Fly)
+                  </option>
                   <option value="extreme">Extreme — extra action, immunity, resurrection</option>
                 </template>
                 <template v-else>
-                  <option value="weak">Minor — convenience, limited info (e.g. Prestidigitation)</option>
-                  <option value="moderate">Moderate — solves a problem category (e.g. Darkvision)</option>
+                  <option value="weak">
+                    Minor — convenience, limited info (e.g. Prestidigitation)
+                  </option>
+                  <option value="moderate">
+                    Moderate — solves a problem category (e.g. Darkvision)
+                  </option>
                   <option value="major">Major — teleportation, legend lore (e.g. Teleport)</option>
                   <option value="extreme">World-altering — Wish, Gate level</option>
                 </template>
@@ -88,9 +138,12 @@
             </label>
 
             <!-- 5. Damage / healing dice -->
-            <label v-if="adv.effectType === 'damage' || adv.effectType === 'healing'" class="flex flex-col gap-1">
+            <label
+              v-if="adv.effectType === 'damage' || adv.effectType === 'healing'"
+              class="flex flex-col gap-1"
+            >
               <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">
-                {{ adv.effectType === 'damage' ? 'Damage Dice' : 'Healing Dice' }}
+                {{ adv.effectType === "damage" ? "Damage Dice" : "Healing Dice" }}
               </span>
               <DiceInput
                 v-model="adv.damageDice"
@@ -104,8 +157,13 @@
 
             <!-- 6. AoE -->
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Area of Effect</span>
-              <select v-model="adv.aoeType" class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+                >Area of Effect</span
+              >
+              <select
+                v-model="adv.aoeType"
+                class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              >
                 <option value="single">Single target</option>
                 <option value="small">Small (≤15 ft cone / ≤30 ft line)</option>
                 <option value="medium">Medium (20 ft radius / 60 ft line)</option>
@@ -115,8 +173,13 @@
 
             <!-- 7. Save type -->
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Targeting / Save</span>
-              <select v-model="adv.saveType" class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+                >Targeting / Save</span
+              >
+              <select
+                v-model="adv.saveType"
+                class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              >
                 <option value="save_for_half">Saving throw — half on save</option>
                 <option value="save_negates">Saving throw — negates on save</option>
                 <option value="attack_roll">Attack roll (can miss)</option>
@@ -126,8 +189,13 @@
 
             <!-- 8. Duration -->
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Duration Tier</span>
-              <select v-model="adv.durationTier" class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+                >Duration Tier</span
+              >
+              <select
+                v-model="adv.durationTier"
+                class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              >
                 <option value="instantaneous">Instantaneous</option>
                 <option value="conc_1min">Concentration, ≤1 minute</option>
                 <option value="conc_10min">Concentration, ≤10 minutes</option>
@@ -145,7 +213,9 @@
               </label>
               <label class="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" v-model="adv.hasSecondaryEffect" class="rounded" />
-                <span class="font-fell text-sm text-foreground">Secondary condition / rider effect</span>
+                <span class="font-fell text-sm text-foreground"
+                  >Secondary condition / rider effect</span
+                >
               </label>
               <label class="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" v-model="adv.isRitual" class="rounded" />
@@ -159,24 +229,50 @@
                 Suggested: Level {{ advResult.suggestedMin }}–{{ advResult.suggestedMax }}
               </p>
               <ul class="space-y-0.5">
-                <li v-for="(f, i) in advResult.factors" :key="i" class="font-fell text-xs text-muted-foreground flex gap-1.5">
+                <li
+                  v-for="(f, i) in advResult.factors"
+                  :key="i"
+                  class="font-fell text-xs text-muted-foreground flex gap-1.5"
+                >
                   <span class="text-primary shrink-0">·</span>{{ f }}
                 </li>
               </ul>
               <!-- Reference spells for non-damage types -->
-              <template v-if="adv.effectType !== 'damage' && adv.effectType !== 'healing' && refSpells">
+              <template
+                v-if="adv.effectType !== 'damage' && adv.effectType !== 'healing' && refSpells"
+              >
                 <div class="border-t border-primary/20 pt-2 flex flex-col gap-1">
-                  <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Reference spells at this level</span>
-                  <p v-if="refSpells.control && adv.effectType === 'control'" class="font-fell text-xs text-muted-foreground">Control: {{ refSpells.control }}</p>
-                  <p v-if="refSpells.buff     && adv.effectType === 'buff'"    class="font-fell text-xs text-muted-foreground">Buff: {{ refSpells.buff }}</p>
-                  <p v-if="refSpells.utility  && adv.effectType === 'utility'" class="font-fell text-xs text-muted-foreground">Utility: {{ refSpells.utility }}</p>
+                  <span
+                    class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+                    >Reference spells at this level</span
+                  >
+                  <p
+                    v-if="refSpells.control && adv.effectType === 'control'"
+                    class="font-fell text-xs text-muted-foreground"
+                  >
+                    Control: {{ refSpells.control }}
+                  </p>
+                  <p
+                    v-if="refSpells.buff && adv.effectType === 'buff'"
+                    class="font-fell text-xs text-muted-foreground"
+                  >
+                    Buff: {{ refSpells.buff }}
+                  </p>
+                  <p
+                    v-if="refSpells.utility && adv.effectType === 'utility'"
+                    class="font-fell text-xs text-muted-foreground"
+                  >
+                    Utility: {{ refSpells.utility }}
+                  </p>
                 </div>
               </template>
             </div>
           </div>
 
           <!-- Footer actions -->
-          <div class="flex items-center justify-between gap-3 px-6 py-4 border-t border-border shrink-0">
+          <div
+            class="flex items-center justify-between gap-3 px-6 py-4 border-t border-border shrink-0"
+          >
             <button
               type="button"
               class="font-cinzel text-xs text-muted-foreground hover:text-foreground tracking-wider transition-colors"
@@ -189,7 +285,11 @@
               class="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
               @click="applyAdvisorFromModal"
             >
-              Apply to Spell (Level {{ advResult.suggestedMin + Math.floor((advResult.suggestedMax - advResult.suggestedMin) / 2) }}) →
+              Apply to Spell (Level
+              {{
+                advResult.suggestedMin +
+                Math.floor((advResult.suggestedMax - advResult.suggestedMin) / 2)
+              }}) →
             </button>
           </div>
         </div>
@@ -200,7 +300,10 @@
   <div class="flex flex-col gap-6">
     <!-- ── Header actions ─────────────────────────────────────────────────── -->
     <div class="flex items-center justify-between gap-3 flex-wrap">
-      <RouterLink to="/spells" class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors tracking-wider">
+      <RouterLink
+        to="/spells"
+        class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors tracking-wider"
+      >
         ← Spellbook
       </RouterLink>
       <div class="flex items-center gap-2">
@@ -212,7 +315,7 @@
           @click="sendToScriptorium"
         >
           <ScrollText class="h-3.5 w-3.5" />
-          {{ isSendingToScriptorium ? 'Sending…' : 'Send to Scriptorium' }}
+          {{ isSendingToScriptorium ? "Sending…" : "Send to Scriptorium" }}
         </button>
         <button
           v-if="spell"
@@ -231,7 +334,7 @@
           @click="save"
         >
           <Save class="h-3.5 w-3.5" />
-          {{ isSaving ? 'Saving…' : (spell ? 'Save' : 'Create') }}
+          {{ isSaving ? "Saving…" : spell ? "Save" : "Create" }}
         </button>
       </div>
     </div>
@@ -241,7 +344,6 @@
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
       <!-- ── Left: Core spell fields ────────────────────────────────────── -->
       <div class="xl:col-span-2 flex flex-col gap-4">
-
         <!-- Name -->
         <label>
           <span class="sr-only">Spell name</span>
@@ -255,7 +357,9 @@
         <!-- Level + School row -->
         <div class="grid grid-cols-2 gap-3">
           <label class="flex flex-col gap-1">
-            <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Level</span>
+            <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase"
+              >Level</span
+            >
             <select
               v-model.number="level"
               class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -265,12 +369,16 @@
             </select>
           </label>
           <label class="flex flex-col gap-1">
-            <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">School</span>
+            <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase"
+              >School</span
+            >
             <select
               v-model="school"
               class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring capitalize"
             >
-              <option v-for="s in SPELL_SCHOOLS" :key="s" :value="s" class="capitalize">{{ s }}</option>
+              <option v-for="s in SPELL_SCHOOLS" :key="s" :value="s" class="capitalize">
+                {{ s }}
+              </option>
             </select>
           </label>
         </div>
@@ -278,12 +386,16 @@
         <!-- Casting Time + Range -->
         <div class="grid grid-cols-2 gap-3">
           <div class="flex flex-col gap-1">
-            <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Casting Time</span>
+            <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase"
+              >Casting Time</span
+            >
             <select
               v-model="castingTime"
               class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             >
-              <option v-for="o in CASTING_TIME_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+              <option v-for="o in CASTING_TIME_OPTIONS" :key="o.value" :value="o.value">
+                {{ o.label }}
+              </option>
             </select>
             <input
               v-if="castingTime === 'Special'"
@@ -299,12 +411,16 @@
             />
           </div>
           <div class="flex flex-col gap-1">
-            <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Range</span>
+            <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase"
+              >Range</span
+            >
             <select
               v-model="range"
               class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             >
-              <option v-for="o in RANGE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+              <option v-for="o in RANGE_OPTIONS" :key="o.value" :value="o.value">
+                {{ o.label }}
+              </option>
             </select>
             <input
               v-if="range === 'Special'"
@@ -318,13 +434,17 @@
         <!-- Duration + flags -->
         <div class="grid grid-cols-2 gap-3">
           <div class="flex flex-col gap-1">
-            <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Duration</span>
+            <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase"
+              >Duration</span
+            >
             <select
               v-model="duration"
               class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               @change="onDurationChange"
             >
-              <option v-for="o in DURATION_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+              <option v-for="o in DURATION_OPTIONS" :key="o.value" :value="o.value">
+                {{ o.label }}
+              </option>
             </select>
             <input
               v-if="duration === 'Special'"
@@ -336,20 +456,30 @@
           <div class="flex flex-col gap-3 justify-end pb-1">
             <label class="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" v-model="concentration" class="rounded" />
-              <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">CONCENTRATION</span>
+              <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+                >CONCENTRATION</span
+              >
             </label>
             <label class="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" v-model="ritual" class="rounded" />
-              <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">RITUAL</span>
+              <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+                >RITUAL</span
+              >
             </label>
           </div>
         </div>
 
         <!-- Components -->
         <div class="flex flex-col gap-2">
-          <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Components</span>
+          <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase"
+            >Components</span
+          >
           <div class="flex items-center gap-4">
-            <label v-for="c in SPELL_COMPONENTS" :key="c" class="flex items-center gap-1.5 cursor-pointer">
+            <label
+              v-for="c in SPELL_COMPONENTS"
+              :key="c"
+              class="flex items-center gap-1.5 cursor-pointer"
+            >
               <input type="checkbox" :value="c" v-model="components" class="rounded" />
               <span class="font-cinzel text-sm font-semibold text-foreground">{{ c }}</span>
             </label>
@@ -364,25 +494,35 @@
 
         <!-- Mechanics -->
         <div class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3">
-          <h3 class="font-cinzel text-[11px] font-bold tracking-wider text-muted-foreground uppercase">Mechanics</h3>
+          <h3
+            class="font-cinzel text-[11px] font-bold tracking-wider text-muted-foreground uppercase"
+          >
+            Mechanics
+          </h3>
 
           <!-- Attack / targeting type -->
           <div class="grid grid-cols-2 gap-3">
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Attack / Targeting</span>
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+                >Attack / Targeting</span
+              >
               <select
                 v-model="attackType"
                 class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="">— none selected —</option>
-                <option v-for="o in ATTACK_TYPES" :key="o.value" :value="o.value">{{ o.label }}</option>
+                <option v-for="o in ATTACK_TYPES" :key="o.value" :value="o.value">
+                  {{ o.label }}
+                </option>
               </select>
             </label>
 
             <!-- Save attribute + effect (only for saving throw) -->
             <template v-if="attackType === 'save'">
               <label class="flex flex-col gap-1">
-                <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Save Attribute</span>
+                <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+                  >Save Attribute</span
+                >
                 <select
                   v-model="saveAttribute"
                   class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -392,13 +532,17 @@
                 </select>
               </label>
               <label class="flex flex-col gap-1 col-span-2">
-                <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Effect on Successful Save</span>
+                <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+                  >Effect on Successful Save</span
+                >
                 <select
                   v-model="saveEffect"
                   class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 >
                   <option value="">—</option>
-                  <option v-for="o in SAVE_EFFECTS" :key="o.value" :value="o.value">{{ o.label }}</option>
+                  <option v-for="o in SAVE_EFFECTS" :key="o.value" :value="o.value">
+                    {{ o.label }}
+                  </option>
                 </select>
               </label>
             </template>
@@ -406,13 +550,18 @@
 
           <!-- Damage rolls -->
           <div class="flex flex-col gap-1">
-            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Damage</span>
-            <DamageRollsInput v-model="damageRolls" />
+            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+              >Damage</span
+            >
+            <DamageRollsInput v-model="damageRolls" :school="school" />
           </div>
 
           <!-- Healing -->
           <label class="flex flex-col gap-1">
-            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Healing Dice <span class="normal-case font-fell font-normal">(if applicable)</span></span>
+            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+              >Healing Dice
+              <span class="normal-case font-fell font-normal">(if applicable)</span></span
+            >
             <input
               v-model="healingDice"
               placeholder="e.g. 1d8, 2d6+mod"
@@ -423,17 +572,23 @@
           <!-- AoE -->
           <div class="grid grid-cols-2 gap-3">
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">AoE Shape</span>
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+                >AoE Shape</span
+              >
               <select
                 v-model="aoeShape"
                 class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring capitalize"
               >
                 <option value="">—</option>
-                <option v-for="s in AOE_SHAPES" :key="s" :value="s" class="capitalize">{{ s }}</option>
+                <option v-for="s in AOE_SHAPES" :key="s" :value="s" class="capitalize">
+                  {{ s }}
+                </option>
               </select>
             </label>
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">AoE Size</span>
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+                >AoE Size</span
+              >
               <input
                 v-model="aoeSize"
                 placeholder="e.g. 20-foot radius"
@@ -444,7 +599,10 @@
 
           <!-- Condition inflicted -->
           <label class="flex flex-col gap-1">
-            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Condition Inflicted <span class="normal-case font-fell font-normal">(optional)</span></span>
+            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+              >Condition Inflicted
+              <span class="normal-case font-fell font-normal">(optional)</span></span
+            >
             <input
               v-model="conditionInflicted"
               placeholder="e.g. blinded, stunned, frightened…"
@@ -455,7 +613,9 @@
 
         <!-- Description -->
         <div class="flex flex-col gap-1">
-          <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Description</span>
+          <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase"
+            >Description</span
+          >
           <textarea
             v-model="description"
             rows="8"
@@ -466,7 +626,12 @@
 
         <!-- At Higher Levels -->
         <div class="flex flex-col gap-1">
-          <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">At Higher Levels <span class="normal-case font-fell font-normal text-muted-foreground">(optional)</span></span>
+          <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase"
+            >At Higher Levels
+            <span class="normal-case font-fell font-normal text-muted-foreground"
+              >(optional)</span
+            ></span
+          >
           <textarea
             v-model="higherLevels"
             rows="2"
@@ -478,7 +643,9 @@
         <!-- Source + art upload -->
         <div class="grid grid-cols-2 gap-3">
           <label class="flex flex-col gap-1">
-            <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Source</span>
+            <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase"
+              >Source</span
+            >
             <input
               v-model="source"
               placeholder="e.g. Homebrew, PHB, XGtE…"
@@ -486,40 +653,80 @@
             />
           </label>
           <div class="flex flex-col gap-1">
-            <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Art <span class="normal-case font-fell font-normal">(card printing)</span></span>
+            <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase"
+              >Art <span class="normal-case font-fell font-normal">(card printing)</span></span
+            >
             <!-- Upload widget -->
             <div
               class="relative h-20 rounded-md border border-border bg-muted cursor-pointer group overflow-hidden"
               @click="artFileInput?.click()"
             >
-              <img v-if="imageUrl" :src="imageUrl" alt="Spell art" class="w-full h-full object-cover" />
-              <div v-else class="w-full h-full flex flex-col items-center justify-center gap-1 text-muted-foreground">
+              <img
+                v-if="imageUrl"
+                :src="imageUrl"
+                alt="Spell art"
+                class="w-full h-full object-cover"
+              />
+              <div
+                v-else
+                class="w-full h-full flex flex-col items-center justify-center gap-1 text-muted-foreground"
+              >
                 <ImagePlus class="h-5 w-5" />
                 <span class="font-fell text-xs italic">Upload art</span>
               </div>
-              <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <span class="font-fell text-white text-xs italic">{{ imageUrl ? 'Change' : 'Upload' }}</span>
+              <div
+                class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+              >
+                <span class="font-fell text-white text-xs italic">{{
+                  imageUrl ? "Change" : "Upload"
+                }}</span>
               </div>
-              <div v-if="isUploadingArt" class="absolute inset-0 bg-black/60 flex items-center justify-center">
+              <div
+                v-if="isUploadingArt"
+                class="absolute inset-0 bg-black/60 flex items-center justify-center"
+              >
                 <span class="font-cinzel text-[10px] text-white animate-pulse">Uploading…</span>
               </div>
             </div>
-            <input ref="artFileInput" type="file" accept="image/*" class="hidden" @change="onArtSelected" />
-            <button v-if="imageUrl" type="button" class="font-cinzel text-[10px] text-destructive hover:underline text-left" @click.stop="imageUrl = ''">Remove art</button>
+            <input
+              ref="artFileInput"
+              type="file"
+              accept="image/*"
+              class="hidden"
+              @change="onArtSelected"
+            />
+            <button
+              v-if="imageUrl"
+              type="button"
+              class="font-cinzel text-[10px] text-destructive hover:underline text-left"
+              @click.stop="imageUrl = ''"
+            >
+              Remove art
+            </button>
           </div>
         </div>
 
         <!-- Tags -->
         <div class="flex flex-col gap-1">
-          <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Tags</span>
-          <div class="flex items-center gap-1.5 flex-wrap min-h-8 bg-card border border-border rounded-md px-2 py-1">
+          <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase"
+            >Tags</span
+          >
+          <div
+            class="flex items-center gap-1.5 flex-wrap min-h-8 bg-card border border-border rounded-md px-2 py-1"
+          >
             <span
               v-for="tag in tags"
               :key="tag"
               class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-muted font-cinzel text-[11px] text-muted-foreground tracking-wider"
             >
               {{ tag }}
-              <button type="button" class="hover:text-destructive transition-colors leading-none text-sm" @click="removeTag(tag)">×</button>
+              <button
+                type="button"
+                class="hover:text-destructive transition-colors leading-none text-sm"
+                @click="removeTag(tag)"
+              >
+                ×
+              </button>
             </span>
             <input
               v-model="tagInput"
@@ -534,13 +741,22 @@
 
       <!-- ── Right: Classes + Advisor ────────────────────────────────────── -->
       <div class="flex flex-col gap-4">
-
         <!-- Class list -->
         <div class="rounded-lg border border-border bg-card p-4">
-          <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase mb-3">Spell Lists</h3>
-          <p class="font-fell text-xs text-muted-foreground italic mb-3">Which classes have access to this spell?</p>
+          <h3
+            class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase mb-3"
+          >
+            Spell Lists
+          </h3>
+          <p class="font-fell text-xs text-muted-foreground italic mb-3">
+            Which classes have access to this spell?
+          </p>
           <div class="flex flex-col gap-2">
-            <label v-for="cls in SPELL_CLASSES" :key="cls" class="flex items-center gap-2 cursor-pointer">
+            <label
+              v-for="cls in SPELL_CLASSES"
+              :key="cls"
+              class="flex items-center gap-2 cursor-pointer"
+            >
               <input type="checkbox" :value="cls" v-model="classes" class="rounded" />
               <span class="font-fell text-sm text-foreground">{{ cls }}</span>
             </label>
@@ -552,7 +768,9 @@
           class="rounded-lg border bg-card p-4 transition-shadow duration-700"
           :class="[
             advisorOpen ? 'border-primary/50' : 'border-border',
-            advisorPanelHighlighted ? 'ring-2 ring-primary/60 ring-offset-1 ring-offset-background' : ''
+            advisorPanelHighlighted
+              ? 'ring-2 ring-primary/60 ring-offset-1 ring-offset-background'
+              : '',
           ]"
         >
           <div class="flex items-center justify-between gap-2">
@@ -562,10 +780,15 @@
               @click="advisorOpen = !advisorOpen"
             >
               <Lightbulb class="h-3.5 w-3.5 text-primary shrink-0" />
-              <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">
+              <h3
+                class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase"
+              >
                 Spell Level Advisor
               </h3>
-              <ChevronDown class="h-3.5 w-3.5 text-muted-foreground transition-transform ml-auto" :class="advisorOpen ? 'rotate-180' : ''" />
+              <ChevronDown
+                class="h-3.5 w-3.5 text-muted-foreground transition-transform ml-auto"
+                :class="advisorOpen ? 'rotate-180' : ''"
+              />
             </button>
             <button
               v-if="advisorOpen"
@@ -577,14 +800,23 @@
             </button>
           </div>
           <p class="font-fell text-xs text-muted-foreground italic mt-1 mb-3">
-            {{ isNew ? 'Answer a few questions to pre-fill mechanics and suggest a level.' : 'Estimate a balanced level based on 2024 DMG guidelines.' }}
+            {{
+              isNew
+                ? "Answer a few questions to pre-fill mechanics and suggest a level."
+                : "Estimate a balanced level based on 2024 DMG guidelines."
+            }}
           </p>
 
           <div v-if="advisorOpen" class="flex flex-col gap-3">
             <!-- Effect type -->
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Main Effect</span>
-              <select v-model="adv.effectType" class="bg-muted border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+                >Main Effect</span
+              >
+              <select
+                v-model="adv.effectType"
+                class="bg-muted border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              >
                 <option value="damage">Damage</option>
                 <option value="healing">Healing / Restoration</option>
                 <option value="control">Control (restrain, slow, etc.)</option>
@@ -594,9 +826,17 @@
             </label>
 
             <!-- Intensity (control / buff / utility only) -->
-            <label v-if="adv.effectType !== 'damage' && adv.effectType !== 'healing'" class="flex flex-col gap-1">
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Effect Intensity</span>
-              <select v-model="adv.effectIntensity" class="bg-muted border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+            <label
+              v-if="adv.effectType !== 'damage' && adv.effectType !== 'healing'"
+              class="flex flex-col gap-1"
+            >
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+                >Effect Intensity</span
+              >
+              <select
+                v-model="adv.effectIntensity"
+                class="bg-muted border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              >
                 <template v-if="adv.effectType === 'control'">
                   <option value="weak">Weak — disadvantage, minor debuff</option>
                   <option value="moderate">Moderate — restrained, frightened, slow</option>
@@ -619,9 +859,12 @@
             </label>
 
             <!-- Damage / healing dice -->
-            <label v-if="adv.effectType === 'damage' || adv.effectType === 'healing'" class="flex flex-col gap-1">
+            <label
+              v-if="adv.effectType === 'damage' || adv.effectType === 'healing'"
+              class="flex flex-col gap-1"
+            >
               <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">
-                {{ adv.effectType === 'damage' ? 'Damage Dice' : 'Healing Dice' }}
+                {{ adv.effectType === "damage" ? "Damage Dice" : "Healing Dice" }}
               </span>
               <DiceInput
                 v-model="adv.damageDice"
@@ -635,8 +878,13 @@
 
             <!-- AoE -->
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Area of Effect</span>
-              <select v-model="adv.aoeType" class="bg-muted border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+                >Area of Effect</span
+              >
+              <select
+                v-model="adv.aoeType"
+                class="bg-muted border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              >
                 <option value="single">Single target</option>
                 <option value="small">Small (≤15 ft cone / ≤30 ft line)</option>
                 <option value="medium">Medium (20 ft radius / 60 ft line)</option>
@@ -646,8 +894,13 @@
 
             <!-- Save type -->
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Targeting / Save</span>
-              <select v-model="adv.saveType" class="bg-muted border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+                >Targeting / Save</span
+              >
+              <select
+                v-model="adv.saveType"
+                class="bg-muted border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              >
                 <option value="save_for_half">Saving throw — half on save</option>
                 <option value="save_negates">Saving throw — negates on save</option>
                 <option value="attack_roll">Attack roll (can miss)</option>
@@ -657,8 +910,13 @@
 
             <!-- Duration -->
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Duration Tier</span>
-              <select v-model="adv.durationTier" class="bg-muted border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+                >Duration Tier</span
+              >
+              <select
+                v-model="adv.durationTier"
+                class="bg-muted border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              >
                 <option value="instantaneous">Instantaneous</option>
                 <option value="conc_1min">Concentration, ≤1 minute</option>
                 <option value="conc_10min">Concentration, ≤10 minutes</option>
@@ -676,7 +934,9 @@
               </label>
               <label class="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" v-model="adv.hasSecondaryEffect" class="rounded" />
-                <span class="font-fell text-sm text-foreground">Secondary condition / rider effect</span>
+                <span class="font-fell text-sm text-foreground"
+                  >Secondary condition / rider effect</span
+                >
               </label>
               <label class="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" v-model="adv.isRitual" class="rounded" />
@@ -685,22 +945,49 @@
             </div>
 
             <!-- Result -->
-            <div v-if="advResult" class="rounded-md bg-primary/10 border border-primary/30 p-3 flex flex-col gap-2">
+            <div
+              v-if="advResult"
+              class="rounded-md bg-primary/10 border border-primary/30 p-3 flex flex-col gap-2"
+            >
               <p class="font-cinzel text-sm font-bold text-primary">
                 Suggested: Level {{ advResult.suggestedMin }}–{{ advResult.suggestedMax }}
               </p>
               <ul class="space-y-0.5">
-                <li v-for="(f, i) in advResult.factors" :key="i" class="font-fell text-xs text-muted-foreground flex gap-1.5">
+                <li
+                  v-for="(f, i) in advResult.factors"
+                  :key="i"
+                  class="font-fell text-xs text-muted-foreground flex gap-1.5"
+                >
                   <span class="text-primary shrink-0">·</span>{{ f }}
                 </li>
               </ul>
               <!-- Reference spells -->
-              <template v-if="adv.effectType !== 'damage' && adv.effectType !== 'healing' && refSpells">
+              <template
+                v-if="adv.effectType !== 'damage' && adv.effectType !== 'healing' && refSpells"
+              >
                 <div class="border-t border-primary/20 pt-2 flex flex-col gap-0.5">
-                  <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Reference spells at this level</span>
-                  <p v-if="refSpells.control && adv.effectType === 'control'" class="font-fell text-xs text-muted-foreground">{{ refSpells.control }}</p>
-                  <p v-if="refSpells.buff     && adv.effectType === 'buff'"   class="font-fell text-xs text-muted-foreground">{{ refSpells.buff }}</p>
-                  <p v-if="refSpells.utility  && adv.effectType === 'utility'" class="font-fell text-xs text-muted-foreground">{{ refSpells.utility }}</p>
+                  <span
+                    class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+                    >Reference spells at this level</span
+                  >
+                  <p
+                    v-if="refSpells.control && adv.effectType === 'control'"
+                    class="font-fell text-xs text-muted-foreground"
+                  >
+                    {{ refSpells.control }}
+                  </p>
+                  <p
+                    v-if="refSpells.buff && adv.effectType === 'buff'"
+                    class="font-fell text-xs text-muted-foreground"
+                  >
+                    {{ refSpells.buff }}
+                  </p>
+                  <p
+                    v-if="refSpells.utility && adv.effectType === 'utility'"
+                    class="font-fell text-xs text-muted-foreground"
+                  >
+                    {{ refSpells.utility }}
+                  </p>
                 </div>
               </template>
               <button
@@ -708,18 +995,33 @@
                 class="mt-1 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-[11px] font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
                 @click="applyAdvisor"
               >
-                Apply to Spell (Level {{ advResult.suggestedMin + Math.floor((advResult.suggestedMax - advResult.suggestedMin) / 2) }}) →
+                Apply to Spell (Level
+                {{
+                  advResult.suggestedMin +
+                  Math.floor((advResult.suggestedMax - advResult.suggestedMin) / 2)
+                }}) →
               </button>
             </div>
 
             <!-- School design tips -->
-            <div v-if="schoolTip" class="rounded-md border border-border bg-muted/40 p-3 flex flex-col gap-2">
+            <div
+              v-if="schoolTip"
+              class="rounded-md border border-border bg-muted/40 p-3 flex flex-col gap-2"
+            >
               <div class="flex items-baseline justify-between gap-2">
-                <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">{{ schoolTip.title }} design notes</span>
-                <span class="font-fell text-[10px] text-muted-foreground/60 italic shrink-0">from School field ↑</span>
+                <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+                  >{{ schoolTip.title }} design notes</span
+                >
+                <span class="font-fell text-[10px] text-muted-foreground/60 italic shrink-0"
+                  >from School field ↑</span
+                >
               </div>
               <ul class="space-y-1">
-                <li v-for="(tip, i) in schoolTip.tips" :key="i" class="font-fell text-xs text-muted-foreground flex gap-1.5">
+                <li
+                  v-for="(tip, i) in schoolTip.tips"
+                  :key="i"
+                  class="font-fell text-xs text-muted-foreground flex gap-1.5"
+                >
                   <span class="text-primary/60 shrink-0">·</span>{{ tip }}
                 </li>
               </ul>
@@ -731,7 +1033,7 @@
               class="font-cinzel text-[10px] text-muted-foreground tracking-wider hover:text-foreground transition-colors text-left"
               @click="showTable = !showTable"
             >
-              {{ showTable ? '▲ Hide' : '▼ Show' }} damage benchmark table
+              {{ showTable ? "▲ Hide" : "▼ Show" }} damage benchmark table
             </button>
             <div v-if="showTable" class="overflow-x-auto">
               <table class="w-full text-[10px] font-fell">
@@ -744,8 +1046,14 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="row in DAMAGE_BENCHMARKS" :key="row.level" class="border-b border-border/30">
-                    <td class="py-0.5 pr-2 font-cinzel font-bold text-foreground">{{ row.label }}</td>
+                  <tr
+                    v-for="row in DAMAGE_BENCHMARKS"
+                    :key="row.level"
+                    class="border-b border-border/30"
+                  >
+                    <td class="py-0.5 pr-2 font-cinzel font-bold text-foreground">
+                      {{ row.label }}
+                    </td>
                     <td class="py-0.5 pr-2 text-muted-foreground">{{ row.singleTarget }}</td>
                     <td class="py-0.5 pr-2 text-muted-foreground">{{ row.aoeSmall }}</td>
                     <td class="py-0.5 text-muted-foreground">{{ row.aoeLarge }}</td>
@@ -755,233 +1063,269 @@
             </div>
           </div>
         </div>
-
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { Save, Trash2, ScrollText, Lightbulb, ChevronDown, ImagePlus } from 'lucide-vue-next'
-import { useImageUpload } from '@/composables/useImageUpload'
-import DiceInput from '@/components/common/DiceInput.vue'
-import DamageRollsInput from '@/components/common/DamageRollsInput.vue'
+import { ref, computed, reactive, watch } from "vue";
+import { useRouter } from "vue-router";
+import { Save, Trash2, ScrollText, Lightbulb, ChevronDown, ImagePlus } from "lucide-vue-next";
+import { useImageUpload } from "@/composables/useImageUpload";
+import DiceInput from "@/components/common/DiceInput.vue";
+import DamageRollsInput from "@/components/common/DamageRollsInput.vue";
 import {
-  SPELL_SCHOOLS, SPELL_CLASSES, SPELL_COMPONENTS,
-  CASTING_TIME_OPTIONS, DURATION_OPTIONS, RANGE_OPTIONS,
-  AOE_SHAPES, ATTACK_TYPES, SAVE_ATTRIBUTES, SAVE_EFFECTS,
-} from '@/types/spell.types'
-import type { Spell, SpellSchool } from '@/types/spell.types'
-import { useCreateSpell, useUpdateSpell, useDeleteSpell } from '@/composables/useSpells'
-import { useCreateScriptoriumDocument } from '@/composables/useScriptorium'
-import { formatSpellForScriptorium } from '@/lib/scriptoriumImport'
+  SPELL_SCHOOLS,
+  SPELL_CLASSES,
+  SPELL_COMPONENTS,
+  CASTING_TIME_OPTIONS,
+  DURATION_OPTIONS,
+  RANGE_OPTIONS,
+  AOE_SHAPES,
+  ATTACK_TYPES,
+  SAVE_ATTRIBUTES,
+  SAVE_EFFECTS,
+} from "@/types/spell.types";
+import type { Spell, SpellSchool } from "@/types/spell.types";
+import { useCreateSpell, useUpdateSpell, useDeleteSpell } from "@/composables/useSpells";
+import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
+import { formatSpellForScriptorium } from "@/lib/scriptoriumImport";
 import {
-  adviseLevelRange, parseDiceAvg, DAMAGE_BENCHMARKS, REFERENCE_SPELLS, SCHOOL_DESIGN_TIPS,
-  type EffectType, type EffectIntensity, type AoeType, type SaveType, type DurationTier,
-} from '@/lib/spellAdvisor'
-import { parseDamageExpression, type DamageRoll } from '@/lib/dice'
+  adviseLevelRange,
+  parseDiceAvg,
+  DAMAGE_BENCHMARKS,
+  REFERENCE_SPELLS,
+  SCHOOL_DESIGN_TIPS,
+  type EffectType,
+  type EffectIntensity,
+  type AoeType,
+  type SaveType,
+  type DurationTier,
+} from "@/lib/spellAdvisor";
+import { parseDamageExpression, type DamageRoll } from "@/lib/dice";
 
-const props = defineProps<{ spell: Spell | null }>()
-const router = useRouter()
+const props = defineProps<{ spell: Spell | null }>();
+const router = useRouter();
 
 // ── Core fields ───────────────────────────────────────────────────────────────
-const name             = ref(props.spell?.name ?? '')
-const level            = ref(props.spell?.level ?? 1)
-const school           = ref<SpellSchool>(props.spell?.school ?? 'evocation')
-const castingTime      = ref(props.spell?.casting_time ?? 'Action')
-const castingTimeCustom = ref(props.spell?.casting_time_custom ?? '')
-const range            = ref(props.spell?.range ?? '60 ft.')
-const rangeCustom      = ref(props.spell?.range_custom ?? '')
-const duration         = ref(props.spell?.duration ?? 'Instantaneous')
-const durationCustom   = ref(props.spell?.duration_custom ?? '')
-const concentration    = ref(props.spell?.concentration ?? false)
-const ritual           = ref(props.spell?.ritual ?? false)
-const components       = ref<string[]>(props.spell?.components ?? [])
-const material         = ref(props.spell?.material ?? '')
-const description      = ref(props.spell?.description ?? '')
-const higherLevels     = ref(props.spell?.higher_levels ?? '')
-const classes          = ref<string[]>(props.spell?.classes ?? [])
-const source           = ref(props.spell?.source ?? '')
-const imageUrl         = ref(props.spell?.image_url ?? '')
-const tags             = ref<string[]>(props.spell?.tags ?? [])
+const name = ref(props.spell?.name ?? "");
+const level = ref(props.spell?.level ?? 1);
+const school = ref<SpellSchool>(props.spell?.school ?? "evocation");
+const castingTime = ref(props.spell?.casting_time ?? "Action");
+const castingTimeCustom = ref(props.spell?.casting_time_custom ?? "");
+const range = ref(props.spell?.range ?? "60 ft.");
+const rangeCustom = ref(props.spell?.range_custom ?? "");
+const duration = ref(props.spell?.duration ?? "Instantaneous");
+const durationCustom = ref(props.spell?.duration_custom ?? "");
+const concentration = ref(props.spell?.concentration ?? false);
+const ritual = ref(props.spell?.ritual ?? false);
+const components = ref<string[]>(props.spell?.components ?? []);
+const material = ref(props.spell?.material ?? "");
+const description = ref(props.spell?.description ?? "");
+const higherLevels = ref(props.spell?.higher_levels ?? "");
+const classes = ref<string[]>(props.spell?.classes ?? []);
+const source = ref(props.spell?.source ?? "");
+const imageUrl = ref(props.spell?.image_url ?? "");
+const tags = ref<string[]>(props.spell?.tags ?? []);
 
 // ── Mechanics ─────────────────────────────────────────────────────────────────
-const attackType          = ref(props.spell?.attack_type ?? '')
-const saveAttribute       = ref(props.spell?.save_attribute ?? '')
-const saveEffect          = ref(props.spell?.save_effect ?? '')
-const damageRolls         = ref<DamageRoll[]>(props.spell?.damage_rolls ?? [])
-const healingDice         = ref(props.spell?.healing_dice ?? '')
-const aoeShape            = ref(props.spell?.aoe_shape ?? '')
-const aoeSize             = ref(props.spell?.aoe_size ?? '')
-const conditionInflicted  = ref(props.spell?.condition_inflicted ?? '')
-const tagInput         = ref('')
+const attackType = ref(props.spell?.attack_type ?? "");
+const saveAttribute = ref(props.spell?.save_attribute ?? "");
+const saveEffect = ref(props.spell?.save_effect ?? "");
+const damageRolls = ref<DamageRoll[]>(props.spell?.damage_rolls ?? []);
+const healingDice = ref(props.spell?.healing_dice ?? "");
+const aoeShape = ref(props.spell?.aoe_shape ?? "");
+const aoeSize = ref(props.spell?.aoe_size ?? "");
+const conditionInflicted = ref(props.spell?.condition_inflicted ?? "");
+const tagInput = ref("");
 
 function levelSuffix(n: number): string {
-  if (n === 1) return 'st'
-  if (n === 2) return 'nd'
-  if (n === 3) return 'rd'
-  return 'th'
+  if (n === 1) return "st";
+  if (n === 2) return "nd";
+  if (n === 3) return "rd";
+  return "th";
 }
 
 // Auto-set concentration when a concentration duration is selected
 function onDurationChange() {
-  if (duration.value.startsWith('Concentration')) concentration.value = true
+  if (duration.value.startsWith("Concentration")) concentration.value = true;
 }
 
 // Tags
 function addTag() {
-  const val = tagInput.value.replace(/,\s*$/, '').trim()
-  if (val && !tags.value.includes(val)) tags.value.push(val)
-  tagInput.value = ''
+  const val = tagInput.value.replace(/,\s*$/, "").trim();
+  if (val && !tags.value.includes(val)) tags.value.push(val);
+  tagInput.value = "";
 }
 function onTagKey(e: KeyboardEvent) {
-  if (e.key === ',') { e.preventDefault(); addTag() }
+  if (e.key === ",") {
+    e.preventDefault();
+    addTag();
+  }
 }
 function removeTag(tag: string) {
-  tags.value = tags.value.filter(t => t !== tag)
+  tags.value = tags.value.filter((t) => t !== tag);
 }
 
 // ── Advisor state ─────────────────────────────────────────────────────────────
-const isNew                  = !props.spell
-const advisorModalOpen       = ref(isNew)   // modal wizard for new spells
-const advisorOpen            = ref(false)   // sidebar panel (collapsed by default)
-const advisorPanelHighlighted = ref(false)
-const showTable              = ref(false)
+const isNew = !props.spell;
+const advisorModalOpen = ref(isNew); // modal wizard for new spells
+const advisorOpen = ref(false); // sidebar panel (collapsed by default)
+const advisorPanelHighlighted = ref(false);
+const showTable = ref(false);
 
 const adv = reactive({
-  effectType:           'damage' as EffectType,
-  effectIntensity:      'moderate' as EffectIntensity,
-  damageDice:           '',
-  aoeType:              'single' as AoeType,
-  saveType:             'save_for_half' as SaveType,
-  durationTier:         'instantaneous' as DurationTier,
+  effectType: "damage" as EffectType,
+  effectIntensity: "moderate" as EffectIntensity,
+  damageDice: "",
+  aoeType: "single" as AoeType,
+  saveType: "save_for_half" as SaveType,
+  durationTier: "instantaneous" as DurationTier,
   requiresConcentration: false,
-  hasSecondaryEffect:   false,
-  isRitual:             false,
-})
+  hasSecondaryEffect: false,
+  isRitual: false,
+});
 
-const schoolTip = computed(() => SCHOOL_DESIGN_TIPS[school.value] ?? null)
-const refSpells  = computed(() => {
-  const level = advResult.value.suggestedMin + Math.floor((advResult.value.suggestedMax - advResult.value.suggestedMin) / 2)
-  return REFERENCE_SPELLS[Math.max(0, Math.min(9, level))] ?? null
-})
+const schoolTip = computed(() => SCHOOL_DESIGN_TIPS[school.value] ?? null);
+const refSpells = computed(() => {
+  const level =
+    advResult.value.suggestedMin +
+    Math.floor((advResult.value.suggestedMax - advResult.value.suggestedMin) / 2);
+  return REFERENCE_SPELLS[Math.max(0, Math.min(9, level))] ?? null;
+});
 
-const advResult = computed(() => adviseLevelRange(adv))
+const advResult = computed(() => adviseLevelRange(adv));
 
 function applyAdvisor() {
-  if (!advResult.value) return
+  if (!advResult.value) return;
 
   // Level
-  const mid = advResult.value.suggestedMin + Math.floor((advResult.value.suggestedMax - advResult.value.suggestedMin) / 2)
-  level.value = Math.max(0, Math.min(9, mid))
+  const mid =
+    advResult.value.suggestedMin +
+    Math.floor((advResult.value.suggestedMax - advResult.value.suggestedMin) / 2);
+  level.value = Math.max(0, Math.min(9, mid));
 
   // Dice → mechanics fields
-  if (adv.effectType === 'damage') {
-    if (adv.damageDice) damageRolls.value = parseDamageExpression(adv.damageDice)
-    healingDice.value = ''
-  } else if (adv.effectType === 'healing') {
-    healingDice.value = adv.damageDice
-    damageRolls.value = []
+  if (adv.effectType === "damage") {
+    if (adv.damageDice) damageRolls.value = parseDamageExpression(adv.damageDice);
+    healingDice.value = "";
+  } else if (adv.effectType === "healing") {
+    healingDice.value = adv.damageDice;
+    damageRolls.value = [];
   } else {
-    damageRolls.value = []
-    healingDice.value = ''
+    damageRolls.value = [];
+    healingDice.value = "";
   }
 
   // AoE → shape + size hint
-  if (adv.aoeType === 'single') {
-    aoeShape.value = ''
-    aoeSize.value  = ''
-  } else if (adv.aoeType === 'small') {
-    if (!aoeShape.value) aoeShape.value = 'cone'
-  } else if (adv.aoeType === 'medium') {
-    if (!aoeShape.value) aoeShape.value = 'sphere'
-    if (!aoeSize.value)  aoeSize.value  = '20-foot radius'
-  } else if (adv.aoeType === 'large') {
-    if (!aoeShape.value) aoeShape.value = 'sphere'
-    if (!aoeSize.value)  aoeSize.value  = '30-foot radius'
+  if (adv.aoeType === "single") {
+    aoeShape.value = "";
+    aoeSize.value = "";
+  } else if (adv.aoeType === "small") {
+    if (!aoeShape.value) aoeShape.value = "cone";
+  } else if (adv.aoeType === "medium") {
+    if (!aoeShape.value) aoeShape.value = "sphere";
+    if (!aoeSize.value) aoeSize.value = "20-foot radius";
+  } else if (adv.aoeType === "large") {
+    if (!aoeShape.value) aoeShape.value = "sphere";
+    if (!aoeSize.value) aoeSize.value = "30-foot radius";
   }
 
   // Save/attack type
-  if (adv.saveType === 'automatic') {
-    attackType.value    = 'automatic'
-    saveAttribute.value = ''
-    saveEffect.value    = ''
-  } else if (adv.saveType === 'attack_roll') {
-    attackType.value    = 'ranged_spell'
-    saveAttribute.value = ''
-    saveEffect.value    = ''
-  } else if (adv.saveType === 'save_negates') {
-    attackType.value = 'save'
-    saveEffect.value = 'negates'
-  } else if (adv.saveType === 'save_for_half') {
-    attackType.value = 'save'
-    saveEffect.value = 'half'
+  if (adv.saveType === "automatic") {
+    attackType.value = "automatic";
+    saveAttribute.value = "";
+    saveEffect.value = "";
+  } else if (adv.saveType === "attack_roll") {
+    attackType.value = "ranged_spell";
+    saveAttribute.value = "";
+    saveEffect.value = "";
+  } else if (adv.saveType === "save_negates") {
+    attackType.value = "save";
+    saveEffect.value = "negates";
+  } else if (adv.saveType === "save_for_half") {
+    attackType.value = "save";
+    saveEffect.value = "half";
   }
 
   // Concentration + ritual
-  concentration.value = adv.requiresConcentration
-  ritual.value        = adv.isRitual
+  concentration.value = adv.requiresConcentration;
+  ritual.value = adv.isRitual;
 }
 
 function skipAdvisorModal() {
-  advisorModalOpen.value = false
+  advisorModalOpen.value = false;
 }
 
 function applyAdvisorFromModal() {
-  applyAdvisor()
-  advisorModalOpen.value = false
+  applyAdvisor();
+  advisorModalOpen.value = false;
   // Briefly highlight the sidebar panel so the user knows where the advisor went
   setTimeout(() => {
-    advisorPanelHighlighted.value = true
-    setTimeout(() => { advisorPanelHighlighted.value = false }, 1200)
-  }, 250)
+    advisorPanelHighlighted.value = true;
+    setTimeout(() => {
+      advisorPanelHighlighted.value = false;
+    }, 1200);
+  }, 250);
 }
 
 // Sync concentration checkbox → advisor
-watch(concentration, val => { adv.requiresConcentration = val })
-watch(ritual, val => { adv.isRitual = val })
+watch(concentration, (val) => {
+  adv.requiresConcentration = val;
+});
+watch(ritual, (val) => {
+  adv.isRitual = val;
+});
 
 // Pre-fill advisor from mechanics fields when it opens
-watch(advisorOpen, open => {
-  if (!open) return
+watch(advisorOpen, (open) => {
+  if (!open) return;
   if (damageRolls.value.length) {
-    adv.effectType = 'damage'
-    adv.damageDice = damageRolls.value.map(r => r.type ? `${r.dice} ${r.type}` : r.dice).join(' + ')
+    adv.effectType = "damage";
+    adv.damageDice = damageRolls.value
+      .map((r) => (r.type ? `${r.dice} ${r.type}` : r.dice))
+      .join(" + ");
   }
-  if (healingDice.value) { adv.effectType = 'healing'; adv.damageDice = healingDice.value }
+  if (healingDice.value) {
+    adv.effectType = "healing";
+    adv.damageDice = healingDice.value;
+  }
   if (aoeShape.value) {
-    adv.aoeType = aoeSize.value && parseInt(aoeSize.value) >= 30 ? 'large'
-                : aoeSize.value && parseInt(aoeSize.value) >= 15 ? 'medium'
-                : 'small'
+    adv.aoeType =
+      aoeSize.value && parseInt(aoeSize.value) >= 30
+        ? "large"
+        : aoeSize.value && parseInt(aoeSize.value) >= 15
+          ? "medium"
+          : "small";
   }
-  if (attackType.value === 'automatic') adv.saveType = 'automatic'
-  else if (attackType.value === 'ranged_spell' || attackType.value === 'melee_spell') adv.saveType = 'attack_roll'
-  else if (attackType.value === 'save') {
-    adv.saveType = saveEffect.value === 'negates' ? 'save_negates' : 'save_for_half'
+  if (attackType.value === "automatic") adv.saveType = "automatic";
+  else if (attackType.value === "ranged_spell" || attackType.value === "melee_spell")
+    adv.saveType = "attack_roll";
+  else if (attackType.value === "save") {
+    adv.saveType = saveEffect.value === "negates" ? "save_negates" : "save_for_half";
   }
-})
+});
 
 // ── Art upload ────────────────────────────────────────────────────────────────
-const artFileInput = ref<HTMLInputElement | null>(null)
-const { isUploading: isUploadingArt, upload: uploadArt } = useImageUpload('asset-images')
+const artFileInput = ref<HTMLInputElement | null>(null);
+const { isUploading: isUploadingArt, upload: uploadArt } = useImageUpload("asset-images");
 
 async function onArtSelected(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0]
-  if (!file) return
-  const url = await uploadArt(file)
-  if (url) imageUrl.value = url
-  if (artFileInput.value) artFileInput.value.value = ''
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  const url = await uploadArt(file);
+  if (url) imageUrl.value = url;
+  if (artFileInput.value) artFileInput.value.value = "";
 }
 
 // ── Save / Delete ─────────────────────────────────────────────────────────────
-const { mutateAsync: create } = useCreateSpell()
-const { mutateAsync: update } = useUpdateSpell()
-const { mutateAsync: deleteSpell } = useDeleteSpell()
-const isSaving   = ref(false)
-const isDeleting = ref(false)
-const saveError  = ref('')
+const { mutateAsync: create } = useCreateSpell();
+const { mutateAsync: update } = useUpdateSpell();
+const { mutateAsync: deleteSpell } = useDeleteSpell();
+const isSaving = ref(false);
+const isDeleting = ref(false);
+const saveError = ref("");
 
 function buildPayload() {
   return {
@@ -989,15 +1333,18 @@ function buildPayload() {
     level: level.value,
     school: school.value,
     casting_time: castingTime.value,
-    casting_time_custom: castingTime.value === 'Special' || castingTime.value === 'Reaction' ? (castingTimeCustom.value || null) : null,
+    casting_time_custom:
+      castingTime.value === "Special" || castingTime.value === "Reaction"
+        ? castingTimeCustom.value || null
+        : null,
     range: range.value,
-    range_custom: range.value === 'Special' ? (rangeCustom.value || null) : null,
+    range_custom: range.value === "Special" ? rangeCustom.value || null : null,
     duration: duration.value,
-    duration_custom: duration.value === 'Special' ? (durationCustom.value || null) : null,
+    duration_custom: duration.value === "Special" ? durationCustom.value || null : null,
     concentration: concentration.value,
     ritual: ritual.value,
     components: components.value,
-    material: components.value.includes('M') ? (material.value || null) : null,
+    material: components.value.includes("M") ? material.value || null : null,
     description: description.value,
     higher_levels: higherLevels.value || null,
     classes: classes.value,
@@ -1005,69 +1352,73 @@ function buildPayload() {
     source: source.value || null,
     image_url: imageUrl.value || null,
     attack_type: attackType.value || null,
-    save_attribute: attackType.value === 'save' ? (saveAttribute.value || null) : null,
-    save_effect: attackType.value === 'save' ? (saveEffect.value || null) : null,
+    save_attribute: attackType.value === "save" ? saveAttribute.value || null : null,
+    save_effect: attackType.value === "save" ? saveEffect.value || null : null,
     damage_rolls: damageRolls.value.length ? damageRolls.value : null,
     healing_dice: healingDice.value || null,
     aoe_shape: aoeShape.value || null,
     aoe_size: aoeSize.value || null,
     condition_inflicted: conditionInflicted.value || null,
-  }
+  };
 }
 
 async function save() {
-  if (!name.value.trim()) return
-  isSaving.value = true
-  saveError.value = ''
+  if (!name.value.trim()) return;
+  isSaving.value = true;
+  saveError.value = "";
   try {
     if (props.spell) {
-      await update({ id: props.spell.id, update: buildPayload() })
-      router.push('/spells')
+      await update({ id: props.spell.id, update: buildPayload() });
+      router.push("/spells");
     } else {
-      const created = await create(buildPayload())
-      router.replace(`/spells/${created.id}`)
+      const created = await create(buildPayload());
+      router.replace(`/spells/${created.id}`);
     }
   } catch (e: unknown) {
-    saveError.value = e instanceof Error ? e.message : 'Failed to save'
+    saveError.value = e instanceof Error ? e.message : "Failed to save";
   } finally {
-    isSaving.value = false
+    isSaving.value = false;
   }
 }
 
 async function confirmDelete() {
-  if (!props.spell || !confirm(`Delete "${props.spell.name}"? This cannot be undone.`)) return
-  isDeleting.value = true
+  if (!props.spell || !confirm(`Delete "${props.spell.name}"? This cannot be undone.`)) return;
+  isDeleting.value = true;
   try {
-    await deleteSpell(props.spell.id)
-    router.push('/spells')
+    await deleteSpell(props.spell.id);
+    router.push("/spells");
   } finally {
-    isDeleting.value = false
+    isDeleting.value = false;
   }
 }
 
 // ── Send to Scriptorium ───────────────────────────────────────────────────────
-const { mutateAsync: createDoc } = useCreateScriptoriumDocument()
-const isSendingToScriptorium = ref(false)
+const { mutateAsync: createDoc } = useCreateScriptoriumDocument();
+const isSendingToScriptorium = ref(false);
 
 async function sendToScriptorium() {
-  if (!props.spell) return
-  isSendingToScriptorium.value = true
+  if (!props.spell) return;
+  isSendingToScriptorium.value = true;
   try {
-    const data = formatSpellForScriptorium(props.spell)
-    const doc = await createDoc(data)
-    router.push(`/scriptorium/${doc.id}`)
+    const data = formatSpellForScriptorium(props.spell);
+    const doc = await createDoc(data);
+    router.push(`/scriptorium/${doc.id}`);
   } finally {
-    isSendingToScriptorium.value = false
+    isSendingToScriptorium.value = false;
   }
 }
 </script>
 
 <style>
 .advisor-modal-enter-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
 .advisor-modal-leave-active {
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
 }
 .advisor-modal-enter-from,
 .advisor-modal-leave-to {
