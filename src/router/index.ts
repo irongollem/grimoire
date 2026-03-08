@@ -146,6 +146,26 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Spell" },
     },
 
+    // Vault (Items)
+    {
+      path: "/vault",
+      name: "vault",
+      component: () => import("@/views/items/ItemsView.vue"),
+      meta: { requiresAuth: true, title: "Vault" },
+    },
+    {
+      path: "/vault/new",
+      name: "item-new",
+      component: () => import("@/views/items/ItemDetailView.vue"),
+      meta: { requiresAuth: true, title: "New Item" },
+    },
+    {
+      path: "/vault/:id",
+      name: "item-detail",
+      component: () => import("@/views/items/ItemDetailView.vue"),
+      meta: { requiresAuth: true, title: "Item" },
+    },
+
     // Card Forge
     {
       path: "/forge",

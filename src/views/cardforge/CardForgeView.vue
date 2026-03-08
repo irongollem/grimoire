@@ -5,7 +5,7 @@
       <div class="forge-topbar">
         <div>
           <h1 class="forge-title">Card Forge</h1>
-          <p class="forge-sub">Craft printable cards for your NPCs &amp; monsters</p>
+          <p class="forge-sub">Craft printable cards for your NPCs, monsters, items &amp; spells</p>
         </div>
 
         <div class="topbar-actions">
@@ -33,7 +33,7 @@
             Load Collection
           </button>
           <button
-            v-if="selectedIds.size"
+            v-if="selectedSubjects.length"
             type="button"
             class="lib-btn"
             @click="showSaveModal = true"
@@ -68,12 +68,12 @@
               type="button"
               class="src-tab"
               :class="{ active: source === src.id }"
-              @click="
-                source = src.id;
-                selectedIds.clear();
-              "
+              @click="source = src.id"
             >
               {{ src.label }}
+              <span v-if="selectedIds[src.id].size" class="tab-count">{{
+                selectedIds[src.id].size
+              }}</span>
             </button>
           </div>
 
@@ -95,7 +95,7 @@
             <label v-for="item in filteredList" :key="item.id" class="entity-row">
               <input
                 type="checkbox"
-                :checked="selectedIds.has(item.id)"
+                :checked="selectedIds[source].has(item.id)"
                 @change="toggleSelect(item.id)"
               />
               <div class="entity-info">
@@ -110,7 +110,7 @@
         <!-- Right: Preview -->
         <main class="preview-panel">
           <div v-if="!selectedSubjects.length" class="preview-empty">
-            <p>Select NPCs or monsters on the left to preview cards.</p>
+            <p>Select NPCs, monsters, items, or spells on the left to preview cards.</p>
             <p class="preview-hint">
               Selected cards will print front + back on separate A4 sheets.
             </p>
@@ -205,15 +205,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import CardFront, { type CardSubject } from "@/components/cardforge/CardFront.vue";
+import { ref, computed, shallowRef } from "vue";
+import CardFront from "@/components/cardforge/CardFront.vue";
 import CardBack from "@/components/cardforge/CardBack.vue";
 import CardTarotFront from "@/components/cardforge/CardTarotFront.vue";
 import CardTarotBack from "@/components/cardforge/CardTarotBack.vue";
+import type { CardSubject } from "@/types/card.types";
 import { useNpcs } from "@/composables/useNpcs";
 import { useMonsters } from "@/composables/useMonsters";
+import { useItems } from "@/composables/useItems";
+import { useSpells } from "@/composables/useSpells";
 import type { Npc } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";
+import type { Item } from "@/types/item.types";
+import { ITEM_TYPE_LABELS, ITEM_RARITY_LABELS } from "@/types/item.types";
+import type { Spell } from "@/types/spell.types";
+import { spellLevelLabel } from "@/types/spell.types";
 
 // ── Card sizes ──────────────────────────────────────────
 const CARD_SIZES = [
@@ -227,16 +234,28 @@ const cardSize = ref<CardSizeId>("mtg");
 const SOURCES = [
   { id: "npcs" as const, label: "NPCs" },
   { id: "monsters" as const, label: "Monsters" },
+  { id: "items" as const, label: "Items" },
+  { id: "spells" as const, label: "Spells" },
 ];
-const source = ref<"npcs" | "monsters">("npcs");
+type SourceId = "npcs" | "monsters" | "items" | "spells";
+const source = ref<SourceId>("npcs");
 
 // ── Data ────────────────────────────────────────────────
 const { data: npcsData } = useNpcs();
 const { data: monstersData } = useMonsters();
+const { data: itemsData } = useItems();
+const { data: spellsData } = useSpells();
 
 // ── Search + selection ──────────────────────────────────
 const search = ref("");
-const selectedIds = ref(new Set<string>());
+
+// shallowRef keeps the Sets as plain Sets (deep ref mangles Set types)
+const selectedIds = shallowRef<Record<SourceId, Set<string>>>({
+  npcs: new Set(),
+  monsters: new Set(),
+  items: new Set(),
+  spells: new Set(),
+});
 
 interface ListItem {
   id: string;
@@ -260,43 +279,84 @@ const filteredList = computed((): ListItem[] => {
         sub: [n.race, n.class, n.occupation].filter(Boolean).join(" · "),
       }));
   }
-  return (monstersData.value ?? [])
+  if (source.value === "monsters") {
+    return (monstersData.value ?? [])
+      .filter(
+        (m: Monster) =>
+          m.name.toLowerCase().includes(q) ||
+          m.monster_type.includes(q) ||
+          (m.habitat ?? "").toLowerCase().includes(q),
+      )
+      .map((m: Monster) => ({
+        id: m.id,
+        name: m.name,
+        sub: `${m.size} ${m.monster_type} · CR ${m.stat_block?.challenge_rating ?? "?"}`,
+      }));
+  }
+  if (source.value === "items") {
+    return (itemsData.value ?? [])
+      .filter(
+        (i: Item) =>
+          i.name.toLowerCase().includes(q) ||
+          (i.item_type ?? "").toLowerCase().includes(q) ||
+          i.rarity.includes(q),
+      )
+      .map((i: Item) => ({
+        id: i.id,
+        name: i.name,
+        sub: [ITEM_RARITY_LABELS[i.rarity], ITEM_TYPE_LABELS[i.item_type], i.subtype]
+          .filter(Boolean)
+          .join(" · "),
+      }));
+  }
+  // spells
+  return (spellsData.value ?? [])
     .filter(
-      (m: Monster) =>
-        m.name.toLowerCase().includes(q) ||
-        m.monster_type.includes(q) ||
-        (m.habitat ?? "").toLowerCase().includes(q),
+      (s: Spell) =>
+        s.name.toLowerCase().includes(q) ||
+        s.school.includes(q) ||
+        (s.classes ?? []).some((c: string) => c.toLowerCase().includes(q)),
     )
-    .map((m: Monster) => ({
-      id: m.id,
-      name: m.name,
-      sub: `${m.size} ${m.monster_type} · CR ${m.stat_block?.challenge_rating ?? "?"}`,
+    .map((s: Spell) => ({
+      id: s.id,
+      name: s.name,
+      sub: `${spellLevelLabel(s.level)} · ${s.school}`,
     }));
 });
 
 function toggleSelect(id: string) {
-  if (selectedIds.value.has(id)) selectedIds.value.delete(id);
-  else selectedIds.value.add(id);
-  // trigger reactivity
-  selectedIds.value = new Set(selectedIds.value);
+  const src = source.value;
+  const next = new Set(selectedIds.value[src]);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  selectedIds.value = { ...selectedIds.value, [src]: next };
 }
 function selectAll() {
-  selectedIds.value = new Set(filteredList.value.map((i) => i.id));
+  const src = source.value;
+  const next = new Set([...selectedIds.value[src], ...filteredList.value.map((i) => i.id)]);
+  selectedIds.value = { ...selectedIds.value, [src]: next };
 }
 function clearAll() {
-  selectedIds.value = new Set();
+  selectedIds.value = { ...selectedIds.value, [source.value]: new Set() };
 }
 
-// ── Build subjects ───────────────────────────────────────
+// ── Build subjects — aggregates ALL sources ───────────────
 const selectedSubjects = computed((): CardSubject[] => {
-  if (source.value === "npcs") {
-    return (npcsData.value ?? [])
-      .filter((n: Npc) => selectedIds.value.has(n.id))
-      .map((n: Npc) => ({ kind: "npc" as const, data: n }));
-  }
-  return (monstersData.value ?? [])
-    .filter((m: Monster) => selectedIds.value.has(m.id))
-    .map((m: Monster) => ({ kind: "monster" as const, data: m }));
+  const ids = selectedIds.value;
+  return [
+    ...(npcsData.value ?? [])
+      .filter((n: Npc) => ids.npcs.has(n.id))
+      .map((n: Npc) => ({ kind: "npc" as const, data: n })),
+    ...(monstersData.value ?? [])
+      .filter((m: Monster) => ids.monsters.has(m.id))
+      .map((m: Monster) => ({ kind: "monster" as const, data: m })),
+    ...(itemsData.value ?? [])
+      .filter((i: Item) => ids.items.has(i.id))
+      .map((i: Item) => ({ kind: "item" as const, data: i })),
+    ...(spellsData.value ?? [])
+      .filter((s: Spell) => ids.spells.has(s.id))
+      .map((s: Spell) => ({ kind: "spell" as const, data: s })),
+  ];
 });
 
 // ── Print chunks ─────────────────────────────────────────
@@ -343,7 +403,7 @@ interface CardCollection {
   id: string;
   name: string;
   created: string;
-  items: Array<{ kind: "npc" | "monster"; id: string }>;
+  items: Array<{ kind: "npc" | "monster" | "item" | "spell"; id: string }>;
 }
 
 const LIBRARY_KEY = "cardforge_library";
@@ -381,17 +441,25 @@ function saveCollection() {
 }
 
 function loadCollection(col: CardCollection) {
-  // Group by kind and set the correct source + select those IDs
   const npcIds = col.items.filter((i) => i.kind === "npc").map((i) => i.id);
   const monsterIds = col.items.filter((i) => i.kind === "monster").map((i) => i.id);
-  // Load whichever has more items
-  if (monsterIds.length >= npcIds.length) {
-    source.value = "monsters";
-    selectedIds.value = new Set(monsterIds);
-  } else {
-    source.value = "npcs";
-    selectedIds.value = new Set(npcIds);
-  }
+  const itemIds = col.items.filter((i) => i.kind === "item").map((i) => i.id);
+  const spellIds = col.items.filter((i) => i.kind === "spell").map((i) => i.id);
+
+  selectedIds.value = {
+    npcs: new Set(npcIds),
+    monsters: new Set(monsterIds),
+    items: new Set(itemIds),
+    spells: new Set(spellIds),
+  };
+  // Switch to the tab with the most loaded cards
+  const counts: Record<SourceId, number> = {
+    npcs: npcIds.length,
+    monsters: monsterIds.length,
+    items: itemIds.length,
+    spells: spellIds.length,
+  };
+  source.value = (Object.entries(counts).sort(([, a], [, b]) => b - a)[0][0] as SourceId) ?? "npcs";
   showLoadModal.value = false;
 }
 
@@ -506,6 +574,9 @@ function formatDate(iso: string) {
 }
 .src-tab.active {
   @apply bg-primary/20 text-primary;
+}
+.tab-count {
+  @apply ml-1 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground font-cinzel text-[9px] font-bold w-4 h-4;
 }
 
 .search-input {

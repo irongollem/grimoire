@@ -14,6 +14,8 @@ import type { Npc } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";
 import type { Spell } from "@/types/spell.types";
 import { spellLevelLabel } from "@/types/spell.types";
+import type { Item } from "@/types/item.types";
+import { ITEM_TYPE_LABELS, ITEM_RARITY_LABELS } from "@/types/item.types";
 import type { ScriptoriumDocType } from "@/types/scriptorium.types";
 
 // ── Output type ───────────────────────────────────────────────────────────────
@@ -332,6 +334,81 @@ const spellFormatter: AssetFormatter<Spell> = {
   },
 };
 
+// ── Item formatter ────────────────────────────────────────────────────────────
+
+const itemFormatter: AssetFormatter<{ item: Item; spells: Spell[] }> = {
+  format({ item, spells }): ScriptoriumImportData {
+    let html = "";
+
+    if (item.image_url) {
+      html += `<img src="${item.image_url}" alt="${item.name}" width="200" style="float:right;margin:0 0 10px 14px;width:200px" />\n`;
+    }
+
+    html += `<h1>${item.name}</h1>\n`;
+
+    // Type line
+    const rarity = ITEM_RARITY_LABELS[item.rarity];
+    const type = ITEM_TYPE_LABELS[item.item_type];
+    const typeLine = [rarity !== "Mundane" ? rarity : null, type, item.subtype]
+      .filter(Boolean)
+      .join(" · ");
+    html += `<p><em>${typeLine}</em></p>\n`;
+
+    // Physical stats
+    const physRows = [
+      item.cost && `<strong>Cost</strong> ${item.cost}`,
+      item.weight && `<strong>Weight</strong> ${item.weight}`,
+      item.damage_rolls?.length &&
+        `<strong>Damage</strong> ${item.damage_rolls.map((r) => (r.type ? `${r.dice} ${r.type}` : r.dice)).join(" + ")}`,
+      item.armor_class && `<strong>Armor Class</strong> ${item.armor_class}`,
+      item.properties.length && `<strong>Properties</strong> ${item.properties.join(", ")}`,
+    ].filter(Boolean) as string[];
+
+    if (physRows.length) {
+      physRows.forEach((row) => {
+        html += `<p>${row}</p>\n`;
+      });
+    }
+
+    // Magic properties
+    if (item.rarity !== "mundane") {
+      if (item.requires_attunement) {
+        const req = item.attunement_requirements ? ` (${item.attunement_requirements})` : "";
+        html += `<p><strong>Attunement</strong> Required${req}</p>\n`;
+      }
+      if (item.charges) {
+        html += `<p><strong>Charges</strong> ${item.charges}${item.recharge ? ` · ${item.recharge}` : ""}</p>\n`;
+      }
+      if (spells.length) {
+        html += `<p><strong>Spells</strong> ${spells.map((s) => `${s.name} (${spellLevelLabel(s.level)})`).join(", ")}</p>\n`;
+      }
+    }
+
+    // Description
+    if (item.description) {
+      html += `<h2>Description</h2>\n`;
+      item.description.split("\n\n").forEach((para) => {
+        if (para.trim()) html += `<p>${para.trim()}</p>\n`;
+      });
+    }
+
+    const tags = uniqueTags(
+      ["item", item.item_type, item.rarity !== "mundane" ? "magic-item" : null],
+      item.tags,
+      item.source ? [item.source] : [],
+    );
+
+    return {
+      title: item.name,
+      content: html,
+      doc_type: "item",
+      tags,
+      is_published: false,
+      word_count: countWords(html),
+    };
+  },
+};
+
 // ── Registry ──────────────────────────────────────────────────────────────────
 // Add new formatters here. Key = asset type identifier.
 
@@ -340,8 +417,7 @@ const FORMATTERS: Record<string, AssetFormatter<any>> = {
   npc: npcFormatter,
   monster: monsterFormatter,
   spell: spellFormatter,
-  // future: item: itemFormatter,
-  // future: location: locationFormatter,
+  item: itemFormatter,
 };
 
 // Generic dispatch (for dynamic/plugin use cases)
@@ -361,4 +437,8 @@ export function formatMonsterForScriptorium(monster: Monster): ScriptoriumImport
 
 export function formatSpellForScriptorium(spell: Spell): ScriptoriumImportData {
   return spellFormatter.format(spell);
+}
+
+export function formatItemForScriptorium(item: Item, spells: Spell[] = []): ScriptoriumImportData {
+  return itemFormatter.format({ item, spells });
 }

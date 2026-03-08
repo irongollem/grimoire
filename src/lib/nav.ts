@@ -8,6 +8,7 @@ import {
   Shield,
   Layers,
   Sparkles,
+  Package,
 } from "lucide-vue-next";
 import type { Component } from "vue";
 
@@ -73,6 +74,12 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/spells",
         icon: Sparkles,
         description: "Custom spell compendium",
+      },
+      {
+        label: "Item Vault",
+        to: "/vault",
+        icon: Package,
+        description: "Equipment & magic items",
       },
     ],
   },

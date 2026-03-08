@@ -1,0 +1,515 @@
+<template>
+  <div class="flex flex-col gap-6">
+    <!-- Header actions -->
+    <div class="flex items-center justify-between gap-3 flex-wrap">
+      <RouterLink
+        to="/vault"
+        class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors tracking-wider"
+      >
+        ← Vault
+      </RouterLink>
+      <div class="flex items-center gap-2">
+        <button
+          v-if="item"
+          type="button"
+          :disabled="isSendingToScriptorium"
+          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors disabled:opacity-50"
+          @click="sendToScriptorium"
+        >
+          <ScrollText class="h-3.5 w-3.5" />
+          {{ isSendingToScriptorium ? "Sending…" : "Send to Scriptorium" }}
+        </button>
+        <button
+          v-if="item"
+          type="button"
+          :disabled="isDeleting"
+          class="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors disabled:opacity-50"
+          @click="confirmDelete"
+        >
+          <Trash2 class="h-3.5 w-3.5" />
+          {{ isDeleting ? "Deleting…" : "Delete" }}
+        </button>
+        <button
+          type="button"
+          :disabled="isSaving || !name.trim()"
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+          @click="save"
+        >
+          <Save class="h-3.5 w-3.5" />
+          {{ isSaving ? "Saving…" : item ? "Save" : "Create" }}
+        </button>
+      </div>
+    </div>
+
+    <p v-if="saveError" class="text-destructive font-fell text-sm">{{ saveError }}</p>
+
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <!-- Left: Main form -->
+      <div class="xl:col-span-2 flex flex-col gap-4">
+        <!-- Name -->
+        <input
+          v-model="name"
+          placeholder="Item name…"
+          class="w-full bg-card border border-border rounded-md px-3 py-2 font-cinzel text-lg font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+
+        <!-- Type + Subtype + Rarity -->
+        <div class="grid grid-cols-3 gap-3">
+          <label class="flex flex-col gap-1">
+            <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Type</span>
+            <select
+              v-model="itemType"
+              class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option v-for="t in ITEM_TYPES" :key="t" :value="t">{{ ITEM_TYPE_LABELS[t] }}</option>
+            </select>
+          </label>
+          <label class="flex flex-col gap-1">
+            <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Subtype</span>
+            <input
+              v-model="subtype"
+              placeholder="e.g. longsword, chain mail…"
+              class="bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </label>
+          <label class="flex flex-col gap-1">
+            <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Rarity</span>
+            <select
+              v-model="rarity"
+              class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              :style="{ borderColor: rarityColor + '66' }"
+            >
+              <option v-for="r in ITEM_RARITIES" :key="r" :value="r">{{ ITEM_RARITY_LABELS[r] }}</option>
+            </select>
+          </label>
+        </div>
+
+        <!-- Physical: Weight + Cost -->
+        <div class="grid grid-cols-2 gap-3">
+          <label class="flex flex-col gap-1">
+            <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Weight</span>
+            <input
+              v-model="weight"
+              placeholder="e.g. 3 lb."
+              class="bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </label>
+          <label class="flex flex-col gap-1">
+            <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Cost</span>
+            <input
+              v-model="cost"
+              placeholder="e.g. 50 gp"
+              class="bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </label>
+        </div>
+
+        <!-- Weapon stats (damage + properties) -->
+        <div
+          v-if="isWeapon"
+          class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3"
+        >
+          <h3 class="font-cinzel text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
+            Weapon
+          </h3>
+          <div class="flex flex-col gap-1">
+            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Damage</span>
+            <DamageRollsInput v-model="damageRolls" />
+          </div>
+          <div class="flex flex-col gap-2">
+            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Properties</span>
+            <div class="flex flex-wrap gap-x-4 gap-y-2">
+              <label
+                v-for="p in WEAPON_PROPERTIES"
+                :key="p"
+                class="flex items-center gap-1.5 cursor-pointer"
+              >
+                <input type="checkbox" :value="p" v-model="properties" class="rounded" />
+                <span class="font-fell text-sm text-foreground capitalize">{{ p }}</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Armor stats -->
+        <div
+          v-if="isArmor"
+          class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3"
+        >
+          <h3 class="font-cinzel text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
+            Defense
+          </h3>
+          <label class="flex flex-col gap-1">
+            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Armor Class</span>
+            <input
+              v-model="armorClass"
+              placeholder="e.g. 13 + DEX modifier (max 2)"
+              class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </label>
+        </div>
+
+        <!-- Magic item properties (shown for non-mundane) -->
+        <div
+          v-if="isMagic"
+          class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3"
+        >
+          <h3 class="font-cinzel text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
+            Magic Properties
+          </h3>
+
+          <!-- Attunement -->
+          <div class="flex flex-col gap-2">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" v-model="requiresAttunement" class="rounded" />
+              <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">REQUIRES ATTUNEMENT</span>
+            </label>
+            <input
+              v-if="requiresAttunement"
+              v-model="attunementRequirements"
+              placeholder="by whom? (optional, e.g. by a spellcaster)"
+              class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+
+          <!-- Charges -->
+          <div class="grid grid-cols-2 gap-3">
+            <label class="flex flex-col gap-1">
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Max Charges</span>
+              <input
+                v-model.number="charges"
+                type="number"
+                min="0"
+                placeholder="e.g. 10"
+                class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </label>
+            <label class="flex flex-col gap-1">
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Recharge</span>
+              <input
+                v-model="recharge"
+                placeholder="e.g. 1d6+4 charges at dawn"
+                class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </label>
+          </div>
+
+          <!-- Spell references -->
+          <div class="flex flex-col gap-2">
+            <div class="flex items-center justify-between">
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Spells (from your Spellbook)</span>
+              <span class="font-fell text-[10px] text-muted-foreground italic">{{ selectedSpells.length }} linked</span>
+            </div>
+            <input
+              v-model="spellSearch"
+              placeholder="Search spells…"
+              class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+            <div class="max-h-40 overflow-y-auto flex flex-col gap-1 rounded border border-border/50 bg-muted/30 p-2">
+              <p v-if="!filteredSpells.length" class="font-fell text-xs text-muted-foreground italic px-1">
+                {{ spellsLoading ? 'Loading spells…' : 'No spells found. Add spells in the Spellbook.' }}
+              </p>
+              <label
+                v-for="spell in filteredSpells"
+                :key="spell.id"
+                class="flex items-center gap-2 cursor-pointer py-0.5 px-1 rounded hover:bg-muted"
+              >
+                <input type="checkbox" :value="spell.id" v-model="spellIds" class="rounded shrink-0" />
+                <span class="font-fell text-xs text-foreground">{{ spell.name }}</span>
+                <span class="font-cinzel text-[10px] text-muted-foreground ml-auto shrink-0">
+                  {{ spell.level === 0 ? 'Cantrip' : `L${spell.level}` }} · {{ spell.school }}
+                </span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Description -->
+        <div class="flex flex-col gap-1">
+          <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Description</span>
+          <textarea
+            v-model="description"
+            rows="8"
+            placeholder="Describe this item's properties, lore, and any special effects…"
+            class="bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+          />
+        </div>
+
+        <!-- Source -->
+        <label class="flex flex-col gap-1">
+          <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Source</span>
+          <input
+            v-model="source"
+            placeholder="e.g. Homebrew, DMG, XGtE…"
+            class="bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        </label>
+      </div>
+
+      <!-- Right: Art + Tags -->
+      <div class="flex flex-col gap-4">
+        <!-- Art upload -->
+        <div class="rounded-lg border border-border bg-card p-4 flex flex-col gap-3">
+          <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">
+            Art <span class="normal-case font-fell font-normal">(card printing)</span>
+          </h3>
+          <div
+            class="relative rounded-md border border-border bg-muted cursor-pointer group overflow-hidden"
+            style="aspect-ratio: 3/2;"
+            @click="artFileInput?.click()"
+          >
+            <img
+              v-if="imageUrl"
+              :src="imageUrl"
+              alt="Item art"
+              class="w-full h-full object-cover"
+            />
+            <div
+              v-else
+              class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground"
+            >
+              <ImagePlus class="h-6 w-6" />
+              <span class="font-fell text-xs italic">Upload art</span>
+            </div>
+            <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <span class="font-fell text-white text-xs italic">{{ imageUrl ? "Change" : "Upload" }}</span>
+            </div>
+            <div v-if="isUploadingArt" class="absolute inset-0 bg-black/60 flex items-center justify-center">
+              <span class="font-cinzel text-[10px] text-white animate-pulse">Uploading…</span>
+            </div>
+          </div>
+          <input ref="artFileInput" type="file" accept="image/*" class="hidden" @change="onArtSelected" />
+          <button
+            v-if="imageUrl"
+            type="button"
+            class="font-cinzel text-[10px] text-destructive hover:underline text-left"
+            @click.stop="imageUrl = ''"
+          >
+            Remove art
+          </button>
+        </div>
+
+        <!-- Tags -->
+        <div class="rounded-lg border border-border bg-card p-4 flex flex-col gap-3">
+          <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">Tags</h3>
+          <div class="flex items-center gap-1.5 flex-wrap min-h-8 bg-muted border border-border rounded-md px-2 py-1">
+            <span
+              v-for="tag in tags"
+              :key="tag"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-card font-cinzel text-[11px] text-muted-foreground tracking-wider"
+            >
+              {{ tag }}
+              <button type="button" class="hover:text-destructive transition-colors leading-none text-sm" @click="removeTag(tag)">×</button>
+            </span>
+            <input
+              v-model="tagInput"
+              placeholder="Add tag…"
+              class="bg-transparent border-none outline-none font-fell text-xs text-muted-foreground placeholder:text-muted-foreground/60 min-w-20 flex-1"
+              @keydown.enter.prevent="addTag"
+              @keydown="onTagKey"
+            />
+          </div>
+        </div>
+
+        <!-- Linked spells summary (when magic + spells selected) -->
+        <div v-if="selectedSpells.length" class="rounded-lg border border-border bg-card p-4 flex flex-col gap-2">
+          <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">Linked Spells</h3>
+          <div class="flex flex-col gap-1">
+            <div v-for="spell in selectedSpells" :key="spell.id" class="flex items-center justify-between gap-2">
+              <span class="font-fell text-xs text-foreground">{{ spell.name }}</span>
+              <span class="font-cinzel text-[10px] text-muted-foreground">{{ spell.level === 0 ? 'Cantrip' : `L${spell.level}` }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from "vue";
+import { useRouter } from "vue-router";
+import { Save, Trash2, ScrollText, ImagePlus } from "lucide-vue-next";
+import { useImageUpload } from "@/composables/useImageUpload";
+import { useCreateItem, useUpdateItem, useDeleteItem } from "@/composables/useItems";
+import { useSpells } from "@/composables/useSpells";
+import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
+import { formatItemForScriptorium } from "@/lib/scriptoriumImport";
+import DamageRollsInput from "@/components/common/DamageRollsInput.vue";
+import {
+  ITEM_TYPES,
+  ITEM_TYPE_LABELS,
+  ITEM_RARITIES,
+  ITEM_RARITY_LABELS,
+  WEAPON_PROPERTIES,
+  RARITY_COLORS,
+  isWeaponType,
+  isArmorType,
+} from "@/types/item.types";
+import type { Item, ItemType, ItemRarity } from "@/types/item.types";
+import type { DamageRoll } from "@/lib/dice";
+
+const props = defineProps<{ item: Item | null }>();
+const router = useRouter();
+
+// ── Core fields ───────────────────────────────────────────────────────────────
+const name = ref(props.item?.name ?? "");
+const itemType = ref<ItemType>(props.item?.item_type ?? "gear");
+const subtype = ref(props.item?.subtype ?? "");
+const rarity = ref<ItemRarity>(props.item?.rarity ?? "mundane");
+const weight = ref(props.item?.weight ?? "");
+const cost = ref(props.item?.cost ?? "");
+const description = ref(props.item?.description ?? "");
+const source = ref(props.item?.source ?? "");
+const imageUrl = ref(props.item?.image_url ?? "");
+const tags = ref<string[]>(props.item?.tags ?? []);
+const tagInput = ref("");
+
+// ── Weapon fields ─────────────────────────────────────────────────────────────
+const damageRolls = ref<DamageRoll[]>(props.item?.damage_rolls ?? []);
+const properties = ref<string[]>(props.item?.properties ?? []);
+
+// ── Armor fields ──────────────────────────────────────────────────────────────
+const armorClass = ref(props.item?.armor_class ?? "");
+
+// ── Magic fields ──────────────────────────────────────────────────────────────
+const requiresAttunement = ref(props.item?.requires_attunement ?? false);
+const attunementRequirements = ref(props.item?.attunement_requirements ?? "");
+const charges = ref<number | null>(props.item?.charges ?? null);
+const recharge = ref(props.item?.recharge ?? "");
+const spellIds = ref<string[]>(props.item?.spell_ids ?? []);
+
+// ── Spell picker ──────────────────────────────────────────────────────────────
+const { data: allSpells, isLoading: spellsLoading } = useSpells();
+const spellSearch = ref("");
+
+const filteredSpells = computed(() => {
+  const q = spellSearch.value.toLowerCase();
+  return (allSpells.value ?? []).filter(
+    (s) =>
+      !q ||
+      s.name.toLowerCase().includes(q) ||
+      s.school.toLowerCase().includes(q),
+  );
+});
+
+const selectedSpells = computed(
+  () => (allSpells.value ?? []).filter((s) => spellIds.value.includes(s.id)),
+);
+
+// ── Derived ───────────────────────────────────────────────────────────────────
+const isWeapon = computed(() => isWeaponType(itemType.value));
+const isArmor = computed(() => isArmorType(itemType.value));
+const isMagic = computed(() => rarity.value !== "mundane");
+const rarityColor = computed(() => RARITY_COLORS[rarity.value] ?? "#888888");
+
+// ── Tags ──────────────────────────────────────────────────────────────────────
+function addTag() {
+  const val = tagInput.value.replace(/,\s*$/, "").trim();
+  if (val && !tags.value.includes(val)) tags.value.push(val);
+  tagInput.value = "";
+}
+function onTagKey(e: KeyboardEvent) {
+  if (e.key === ",") {
+    e.preventDefault();
+    addTag();
+  }
+}
+function removeTag(tag: string) {
+  tags.value = tags.value.filter((t) => t !== tag);
+}
+
+// ── Art upload ────────────────────────────────────────────────────────────────
+const artFileInput = ref<HTMLInputElement | null>(null);
+const { isUploading: isUploadingArt, upload: uploadArt } = useImageUpload("asset-images");
+
+async function onArtSelected(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  const url = await uploadArt(file);
+  if (url) imageUrl.value = url;
+  if (artFileInput.value) artFileInput.value.value = "";
+}
+
+// ── Save / Delete ─────────────────────────────────────────────────────────────
+const { mutateAsync: createItem } = useCreateItem();
+const { mutateAsync: updateItem } = useUpdateItem();
+const { mutateAsync: deleteItem } = useDeleteItem();
+const isSaving = ref(false);
+const isDeleting = ref(false);
+const saveError = ref("");
+
+function buildPayload() {
+  return {
+    name: name.value.trim(),
+    item_type: itemType.value,
+    subtype: subtype.value.trim() || null,
+    rarity: rarity.value,
+    requires_attunement: requiresAttunement.value,
+    attunement_requirements: requiresAttunement.value
+      ? attunementRequirements.value.trim() || null
+      : null,
+    weight: weight.value.trim() || null,
+    cost: cost.value.trim() || null,
+    damage_rolls: isWeapon.value && damageRolls.value.length ? damageRolls.value : null,
+    armor_class: isArmor.value ? armorClass.value.trim() || null : null,
+    properties: isWeapon.value ? properties.value : [],
+    charges: isMagic.value ? charges.value : null,
+    recharge: isMagic.value ? recharge.value.trim() || null : null,
+    spell_ids: isMagic.value ? spellIds.value : [],
+    description: description.value,
+    source: source.value.trim() || null,
+    tags: tags.value,
+    image_url: imageUrl.value || null,
+  };
+}
+
+async function save() {
+  if (!name.value.trim()) return;
+  isSaving.value = true;
+  saveError.value = "";
+  try {
+    if (props.item) {
+      await updateItem({ id: props.item.id, update: buildPayload() });
+      router.push("/vault");
+    } else {
+      const created = await createItem(buildPayload());
+      router.replace(`/vault/${created.id}`);
+    }
+  } catch (e: unknown) {
+    saveError.value = e instanceof Error ? e.message : "Failed to save";
+  } finally {
+    isSaving.value = false;
+  }
+}
+
+async function confirmDelete() {
+  if (!props.item?.id) return;
+  if (!window.confirm(`Delete "${props.item.name}"? This cannot be undone.`)) return;
+  isDeleting.value = true;
+  try {
+    await deleteItem(props.item.id);
+    router.push("/vault");
+  } catch {
+    alert("Failed to delete item. Please try again.");
+  } finally {
+    isDeleting.value = false;
+  }
+}
+
+// ── Scriptorium ───────────────────────────────────────────────────────────────
+const { mutateAsync: createDoc } = useCreateScriptoriumDocument();
+const isSendingToScriptorium = ref(false);
+
+async function sendToScriptorium() {
+  if (!props.item) return;
+  isSendingToScriptorium.value = true;
+  try {
+    const data = formatItemForScriptorium(props.item, selectedSpells.value);
+    const doc = await createDoc(data);
+    router.push(`/scriptorium/${doc.id}`);
+  } finally {
+    isSendingToScriptorium.value = false;
+  }
+}
+</script>
