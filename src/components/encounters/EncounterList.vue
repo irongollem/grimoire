@@ -1,0 +1,162 @@
+<template>
+  <div>
+    <!-- Header bar -->
+    <div class="flex items-center gap-2 mb-5">
+      <div class="relative flex-1 min-w-48">
+        <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <input
+          v-model="search"
+          type="text"
+          placeholder="Search encounters…"
+          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+      </div>
+      <RouterLink
+        to="/encounters/new"
+        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity shrink-0"
+      >
+        <Plus class="h-3.5 w-3.5" />
+        New Encounter
+      </RouterLink>
+    </div>
+
+    <div v-if="isLoading" class="flex justify-center py-16">
+      <LoadingSpinner />
+    </div>
+
+    <EmptyState
+      v-else-if="!filtered.length && !search"
+      title="No encounters yet"
+      description="Build encounters to plan combat — monsters, factions, difficulty analysis, and live tracking."
+    >
+      <template #action>
+        <RouterLink
+          to="/encounters/new"
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-sm font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+        >
+          Build your first encounter
+        </RouterLink>
+      </template>
+    </EmptyState>
+
+    <p
+      v-else-if="!filtered.length"
+      class="text-center font-fell text-sm text-muted-foreground italic py-12"
+    >
+      No encounters match your search.
+    </p>
+
+    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <RouterLink
+        v-for="encounter in filtered"
+        :key="encounter.id"
+        :to="`/encounters/${encounter.id}`"
+        class="group flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
+      >
+        <!-- Difficulty colour bar -->
+        <div
+          class="h-1.5 w-full shrink-0"
+          :style="{ backgroundColor: encounterDifficultyColor(encounter) }"
+        />
+
+        <div class="p-4 flex flex-col gap-3 flex-1">
+          <!-- Name -->
+          <div class="flex items-start justify-between gap-2">
+            <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight flex-1 line-clamp-1">
+              {{ encounter.name }}
+            </h3>
+            <span
+              class="shrink-0 px-2 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider text-white"
+              :style="{ backgroundColor: encounterDifficultyColor(encounter) }"
+            >
+              {{ encounterDifficultyLabel(encounter) }}
+            </span>
+          </div>
+
+          <!-- Description -->
+          <p v-if="encounter.description" class="font-fell text-xs text-muted-foreground italic line-clamp-2">
+            {{ encounter.description }}
+          </p>
+
+          <!-- Stats row -->
+          <div class="flex gap-4 mt-auto font-cinzel text-[11px] text-muted-foreground">
+            <span class="flex items-center gap-1">
+              <Skull class="h-3 w-3" />
+              {{ totalMonsterCount(encounter) }} monster{{ totalMonsterCount(encounter) !== 1 ? 's' : '' }}
+            </span>
+            <span class="flex items-center gap-1">
+              <Users class="h-3 w-3" />
+              {{ encounter.party_member_ids.length }} player{{ encounter.party_member_ids.length !== 1 ? 's' : '' }}
+            </span>
+          </div>
+        </div>
+      </RouterLink>
+    </div>
+
+    <p v-if="filtered.length" class="mt-4 font-fell text-xs text-muted-foreground italic text-right">
+      {{ filtered.length }} of {{ encounters?.length ?? 0 }} encounters
+    </p>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from "vue";
+import { Search, Plus, Skull, Users } from "lucide-vue-next";
+import { useEncounters } from "@/composables/useEncounters";
+import { DIFFICULTY_COLORS, calculateDifficulty, crToXp } from "@/types/encounter.types";
+import type { Encounter } from "@/types/encounter.types";
+import { useMonsters } from "@/composables/useMonsters";
+import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import EmptyState from "@/components/common/EmptyState.vue";
+
+const search = ref("");
+
+const { data: encounters, isLoading } = useEncounters();
+const { data: monsters } = useMonsters();
+
+const filtered = computed(() => {
+  let list = encounters.value ?? [];
+  if (search.value.trim()) {
+    const q = search.value.toLowerCase();
+    list = list.filter((e) => e.name.toLowerCase().includes(q));
+  }
+  return list;
+});
+
+function totalMonsterCount(encounter: Encounter): number {
+  return encounter.combatants.reduce((s, c) => s + c.count, 0);
+}
+
+function encounterDifficultyLabel(encounter: Encounter): string {
+  if (!encounter.combatants.length) return "Trivial";
+  const monsterMap = new Map((monsters.value ?? []).map((m) => [m.id, m]));
+
+  // Only enemy-faction combatants count
+  const enemyFactionIds = new Set(
+    encounter.factions
+      .filter((f) => f.hostile_to.includes("players"))
+      .map((f) => f.id),
+  );
+  // Also include "enemy" by default
+  enemyFactionIds.add("enemy");
+
+  const enemyEntries = encounter.combatants
+    .filter((c) => enemyFactionIds.has(c.faction_id))
+    .map((c) => ({
+      cr: monsterMap.get(c.monster_id)?.stat_block.challenge_rating ?? null,
+      count: c.count,
+    }))
+    .filter((e) => crToXp(e.cr) > 0);
+
+  if (!enemyEntries.length) return "Trivial";
+
+  // No party info in the list — just show based on raw XP
+  const result = calculateDifficulty(enemyEntries, Array(Math.max(encounter.party_member_ids.length, 1)).fill(3));
+  return result.label;
+}
+
+function encounterDifficultyColor(encounter: Encounter): string {
+  const label = encounterDifficultyLabel(encounter);
+  return DIFFICULTY_COLORS[label as keyof typeof DIFFICULTY_COLORS] ?? "#6B7280";
+}
+</script>

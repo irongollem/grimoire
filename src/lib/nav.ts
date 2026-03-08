@@ -9,6 +9,7 @@ import {
   Layers,
   Sparkles,
   Package,
+  Swords,
 } from "lucide-vue-next";
 import type { Component } from "vue";
 
@@ -45,6 +46,12 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/calendar",
         icon: CalendarDays,
         description: "Faerûn timeline",
+      },
+      {
+        label: "Encounters",
+        to: "/encounters",
+        icon: Swords,
+        description: "Build & run combat",
       },
     ],
   },

@@ -166,6 +166,32 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Item" },
     },
 
+    // Encounters
+    {
+      path: "/encounters",
+      name: "encounters",
+      component: () => import("@/views/encounters/EncountersView.vue"),
+      meta: { requiresAuth: true, title: "Encounters" },
+    },
+    {
+      path: "/encounters/new",
+      name: "encounter-new",
+      component: () => import("@/views/encounters/EncounterDetailView.vue"),
+      meta: { requiresAuth: true, title: "New Encounter" },
+    },
+    {
+      path: "/encounters/:id",
+      name: "encounter-detail",
+      component: () => import("@/views/encounters/EncounterDetailView.vue"),
+      meta: { requiresAuth: true, title: "Encounter Builder" },
+    },
+    {
+      path: "/encounters/:id/run",
+      name: "encounter-run",
+      component: () => import("@/views/encounters/EncounterRunView.vue"),
+      meta: { requiresAuth: true, title: "Combat Tracker" },
+    },
+
     // Card Forge
     {
       path: "/forge",
