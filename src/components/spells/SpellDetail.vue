@@ -32,7 +32,25 @@
               Answer a few questions to pre-fill your spell's mechanics and suggest a balanced level.
             </p>
 
-            <!-- Effect type -->
+            <!-- 1. School → immediately shows design notes -->
+            <label class="flex flex-col gap-1">
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">School of Magic</span>
+              <select v-model="school" class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring capitalize">
+                <option v-for="s in SPELL_SCHOOLS" :key="s" :value="s" class="capitalize">{{ s }}</option>
+              </select>
+            </label>
+
+            <!-- 2. School design notes (reactive to school above) -->
+            <div v-if="schoolTip" class="rounded-md border border-border bg-muted/40 p-3 flex flex-col gap-2">
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">{{ schoolTip.title }} design notes</span>
+              <ul class="space-y-1">
+                <li v-for="(tip, i) in schoolTip.tips" :key="i" class="font-fell text-xs text-muted-foreground flex gap-1.5">
+                  <span class="text-primary/60 shrink-0">·</span>{{ tip }}
+                </li>
+              </ul>
+            </div>
+
+            <!-- 3. Effect type -->
             <label class="flex flex-col gap-1">
               <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Main Effect</span>
               <select v-model="adv.effectType" class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
@@ -44,7 +62,32 @@
               </select>
             </label>
 
-            <!-- Damage / healing dice -->
+            <!-- 4. Intensity (control / buff / utility only) -->
+            <label v-if="adv.effectType !== 'damage' && adv.effectType !== 'healing'" class="flex flex-col gap-1">
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Effect Intensity</span>
+              <select v-model="adv.effectIntensity" class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+                <template v-if="adv.effectType === 'control'">
+                  <option value="weak">Weak — disadvantage, minor debuff (e.g. Bane)</option>
+                  <option value="moderate">Moderate — restrained, frightened, slow (e.g. Hold Person)</option>
+                  <option value="major">Major — stunned, incapacitated, banished (e.g. Hold Monster)</option>
+                  <option value="extreme">Extreme — dominated, paralysed, power word (e.g. Dominate Person)</option>
+                </template>
+                <template v-else-if="adv.effectType === 'buff'">
+                  <option value="weak">Weak — minor bonus, +d4 (e.g. Guidance)</option>
+                  <option value="moderate">Moderate — advantage, resistance (e.g. Bless, Shield)</option>
+                  <option value="major">Major — extra attack, flight, haste (e.g. Haste, Fly)</option>
+                  <option value="extreme">Extreme — extra action, immunity, resurrection</option>
+                </template>
+                <template v-else>
+                  <option value="weak">Minor — convenience, limited info (e.g. Prestidigitation)</option>
+                  <option value="moderate">Moderate — solves a problem category (e.g. Darkvision)</option>
+                  <option value="major">Major — teleportation, legend lore (e.g. Teleport)</option>
+                  <option value="extreme">World-altering — Wish, Gate level</option>
+                </template>
+              </select>
+            </label>
+
+            <!-- 5. Damage / healing dice -->
             <label v-if="adv.effectType === 'damage' || adv.effectType === 'healing'" class="flex flex-col gap-1">
               <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">
                 {{ adv.effectType === 'damage' ? 'Damage Dice' : 'Healing Dice' }}
@@ -59,7 +102,7 @@
               </span>
             </label>
 
-            <!-- AoE -->
+            <!-- 6. AoE -->
             <label class="flex flex-col gap-1">
               <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Area of Effect</span>
               <select v-model="adv.aoeType" class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
@@ -70,7 +113,7 @@
               </select>
             </label>
 
-            <!-- Save type -->
+            <!-- 7. Save type -->
             <label class="flex flex-col gap-1">
               <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Targeting / Save</span>
               <select v-model="adv.saveType" class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
@@ -81,7 +124,7 @@
               </select>
             </label>
 
-            <!-- Duration -->
+            <!-- 8. Duration -->
             <label class="flex flex-col gap-1">
               <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Duration Tier</span>
               <select v-model="adv.durationTier" class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
@@ -94,7 +137,7 @@
               </select>
             </label>
 
-            <!-- Checkboxes -->
+            <!-- 9. Flags -->
             <div class="flex flex-col gap-2">
               <label class="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" v-model="adv.requiresConcentration" class="rounded" />
@@ -110,20 +153,25 @@
               </label>
             </div>
 
-            <!-- Result -->
-            <div class="rounded-md bg-primary/10 border border-primary/30 p-4">
-              <p class="font-cinzel text-sm font-bold text-primary mb-2">
+            <!-- 10. Result -->
+            <div class="rounded-md bg-primary/10 border border-primary/30 p-4 flex flex-col gap-3">
+              <p class="font-cinzel text-sm font-bold text-primary">
                 Suggested: Level {{ advResult.suggestedMin }}–{{ advResult.suggestedMax }}
               </p>
               <ul class="space-y-0.5">
-                <li
-                  v-for="(f, i) in advResult.factors"
-                  :key="i"
-                  class="font-fell text-xs text-muted-foreground flex gap-1.5"
-                >
+                <li v-for="(f, i) in advResult.factors" :key="i" class="font-fell text-xs text-muted-foreground flex gap-1.5">
                   <span class="text-primary shrink-0">·</span>{{ f }}
                 </li>
               </ul>
+              <!-- Reference spells for non-damage types -->
+              <template v-if="adv.effectType !== 'damage' && adv.effectType !== 'healing' && refSpells">
+                <div class="border-t border-primary/20 pt-2 flex flex-col gap-1">
+                  <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Reference spells at this level</span>
+                  <p v-if="refSpells.control && adv.effectType === 'control'" class="font-fell text-xs text-muted-foreground">Control: {{ refSpells.control }}</p>
+                  <p v-if="refSpells.buff     && adv.effectType === 'buff'"    class="font-fell text-xs text-muted-foreground">Buff: {{ refSpells.buff }}</p>
+                  <p v-if="refSpells.utility  && adv.effectType === 'utility'" class="font-fell text-xs text-muted-foreground">Utility: {{ refSpells.utility }}</p>
+                </div>
+              </template>
             </div>
           </div>
 
@@ -545,6 +593,31 @@
               </select>
             </label>
 
+            <!-- Intensity (control / buff / utility only) -->
+            <label v-if="adv.effectType !== 'damage' && adv.effectType !== 'healing'" class="flex flex-col gap-1">
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Effect Intensity</span>
+              <select v-model="adv.effectIntensity" class="bg-muted border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+                <template v-if="adv.effectType === 'control'">
+                  <option value="weak">Weak — disadvantage, minor debuff</option>
+                  <option value="moderate">Moderate — restrained, frightened, slow</option>
+                  <option value="major">Major — stunned, incapacitated, banished</option>
+                  <option value="extreme">Extreme — dominated, paralysed, power word</option>
+                </template>
+                <template v-else-if="adv.effectType === 'buff'">
+                  <option value="weak">Weak — minor bonus, +d4</option>
+                  <option value="moderate">Moderate — advantage, resistance</option>
+                  <option value="major">Major — extra attack, flight, haste</option>
+                  <option value="extreme">Extreme — extra action, immunity</option>
+                </template>
+                <template v-else>
+                  <option value="weak">Minor — convenience, limited info</option>
+                  <option value="moderate">Moderate — solves a problem category</option>
+                  <option value="major">Major — teleportation, legend lore</option>
+                  <option value="extreme">World-altering — Wish, Gate level</option>
+                </template>
+              </select>
+            </label>
+
             <!-- Damage / healing dice -->
             <label v-if="adv.effectType === 'damage' || adv.effectType === 'healing'" class="flex flex-col gap-1">
               <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">
@@ -612,26 +685,44 @@
             </div>
 
             <!-- Result -->
-            <div v-if="advResult" class="rounded-md bg-primary/10 border border-primary/30 p-3">
-              <p class="font-cinzel text-sm font-bold text-primary mb-2">
+            <div v-if="advResult" class="rounded-md bg-primary/10 border border-primary/30 p-3 flex flex-col gap-2">
+              <p class="font-cinzel text-sm font-bold text-primary">
                 Suggested: Level {{ advResult.suggestedMin }}–{{ advResult.suggestedMax }}
               </p>
               <ul class="space-y-0.5">
-                <li
-                  v-for="(f, i) in advResult.factors"
-                  :key="i"
-                  class="font-fell text-xs text-muted-foreground flex gap-1.5"
-                >
+                <li v-for="(f, i) in advResult.factors" :key="i" class="font-fell text-xs text-muted-foreground flex gap-1.5">
                   <span class="text-primary shrink-0">·</span>{{ f }}
                 </li>
               </ul>
+              <!-- Reference spells -->
+              <template v-if="adv.effectType !== 'damage' && adv.effectType !== 'healing' && refSpells">
+                <div class="border-t border-primary/20 pt-2 flex flex-col gap-0.5">
+                  <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Reference spells at this level</span>
+                  <p v-if="refSpells.control && adv.effectType === 'control'" class="font-fell text-xs text-muted-foreground">{{ refSpells.control }}</p>
+                  <p v-if="refSpells.buff     && adv.effectType === 'buff'"   class="font-fell text-xs text-muted-foreground">{{ refSpells.buff }}</p>
+                  <p v-if="refSpells.utility  && adv.effectType === 'utility'" class="font-fell text-xs text-muted-foreground">{{ refSpells.utility }}</p>
+                </div>
+              </template>
               <button
                 type="button"
-                class="mt-3 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-[11px] font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+                class="mt-1 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-[11px] font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
                 @click="applyAdvisor"
               >
                 Apply to Spell (Level {{ advResult.suggestedMin + Math.floor((advResult.suggestedMax - advResult.suggestedMin) / 2) }}) →
               </button>
+            </div>
+
+            <!-- School design tips -->
+            <div v-if="schoolTip" class="rounded-md border border-border bg-muted/40 p-3 flex flex-col gap-2">
+              <div class="flex items-baseline justify-between gap-2">
+                <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">{{ schoolTip.title }} design notes</span>
+                <span class="font-fell text-[10px] text-muted-foreground/60 italic shrink-0">from School field ↑</span>
+              </div>
+              <ul class="space-y-1">
+                <li v-for="(tip, i) in schoolTip.tips" :key="i" class="font-fell text-xs text-muted-foreground flex gap-1.5">
+                  <span class="text-primary/60 shrink-0">·</span>{{ tip }}
+                </li>
+              </ul>
             </div>
 
             <!-- Reference table toggle -->
@@ -687,8 +778,8 @@ import { useCreateSpell, useUpdateSpell, useDeleteSpell } from '@/composables/us
 import { useCreateScriptoriumDocument } from '@/composables/useScriptorium'
 import { formatSpellForScriptorium } from '@/lib/scriptoriumImport'
 import {
-  adviseLevelRange, parseDiceAvg, DAMAGE_BENCHMARKS,
-  type EffectType, type AoeType, type SaveType, type DurationTier,
+  adviseLevelRange, parseDiceAvg, DAMAGE_BENCHMARKS, REFERENCE_SPELLS, SCHOOL_DESIGN_TIPS,
+  type EffectType, type EffectIntensity, type AoeType, type SaveType, type DurationTier,
 } from '@/lib/spellAdvisor'
 import { parseDamageExpression, type DamageRoll } from '@/lib/dice'
 
@@ -760,14 +851,21 @@ const advisorPanelHighlighted = ref(false)
 const showTable              = ref(false)
 
 const adv = reactive({
-  effectType:          'damage' as EffectType,
-  damageDice:          '',
-  aoeType:             'single' as AoeType,
-  saveType:            'save_for_half' as SaveType,
-  durationTier:        'instantaneous' as DurationTier,
+  effectType:           'damage' as EffectType,
+  effectIntensity:      'moderate' as EffectIntensity,
+  damageDice:           '',
+  aoeType:              'single' as AoeType,
+  saveType:             'save_for_half' as SaveType,
+  durationTier:         'instantaneous' as DurationTier,
   requiresConcentration: false,
-  hasSecondaryEffect:  false,
-  isRitual:            false,
+  hasSecondaryEffect:   false,
+  isRitual:             false,
+})
+
+const schoolTip = computed(() => SCHOOL_DESIGN_TIPS[school.value] ?? null)
+const refSpells  = computed(() => {
+  const level = advResult.value.suggestedMin + Math.floor((advResult.value.suggestedMax - advResult.value.suggestedMin) / 2)
+  return REFERENCE_SPELLS[Math.max(0, Math.min(9, level))] ?? null
 })
 
 const advResult = computed(() => adviseLevelRange(adv))
