@@ -50,19 +50,8 @@ export interface AdvisorResult {
 }
 
 // ── Dice parser ───────────────────────────────────────────────────────────────
-
-/**
- * Parses a dice expression like "3d6", "2d8+4", "10d6+40" → average value.
- */
-export function parseDiceAvg(expr: string): number {
-  if (!expr.trim()) return 0
-  const match = expr.trim().match(/^(\d+)d(\d+)(?:[+](\d+))?$/)
-  if (!match) return parseFloat(expr) || 0
-  const count = parseInt(match[1])
-  const sides = parseInt(match[2])
-  const bonus = match[3] ? parseInt(match[3]) : 0
-  return count * (sides + 1) / 2 + bonus
-}
+export { parseDiceAvg } from './dice'
+import { parseDiceAvg } from './dice'
 
 // ── Damage → base level mapping ───────────────────────────────────────────────
 // Based on the 2024 DMG "Typical Damage by Level" for single-target attack/save spells.
