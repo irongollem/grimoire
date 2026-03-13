@@ -9,8 +9,9 @@
           {{ description }}
         </p>
       </div>
-      <div v-if="$slots.actions" class="shrink-0">
+      <div class="flex items-center gap-2 shrink-0">
         <slot name="actions" />
+        <DiceRoller />
       </div>
     </div>
     <div class="gold-divider mt-4" />
@@ -18,6 +19,8 @@
 </template>
 
 <script setup lang="ts">
+import DiceRoller from "@/components/common/DiceRoller.vue";
+
 defineProps<{
   title: string;
   description?: string;

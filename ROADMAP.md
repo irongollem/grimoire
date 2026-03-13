@@ -98,6 +98,8 @@ Rough shape:
 - [ ] **Dashboard stat cards** — live counts per entity type (currently placeholder)
 - [ ] **Full-text search** — cross-entity search across NPCs, monsters, notes, spells, items, locations
 - [ ] **Export / import** — JSON export of entire campaign data; import to restore or share
+- [ ] **Collaboration features** — invite other users to view/edit the campaign, with role-based permissions (DM vs player) and setup the skeleton for VTT type tooling
+- [ ] \*\*
 
 ### Bugs and Issues
 
@@ -113,3 +115,4 @@ Rough shape:
 - [ ] in party view the values are abbrieviated too much like PP instead of passive perception, also i'd like to see other valuable passives like knowledge skills
 - [ ] bestiary should be preloaded with the free available monsters from the 5e SRD, so users have something to start with and can customize from there (add a custom only filter to see just user created monsters)
 - [ ] in spells, affected targets is only an area of effect of 1 or a template, but many spells have more complex targeting (e.g. "one creature you can see within range" or "up to three creatures in range")
+- [ ] 400 error when uploading a portrait for a party member, and the image doesn't save (error"Bucket not found")

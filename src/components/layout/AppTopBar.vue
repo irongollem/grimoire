@@ -13,6 +13,8 @@
     <h1 class="font-cinzel text-lg font-semibold text-gold-500 tracking-wider flex-1">
       {{ pageTitle }}
     </h1>
+
+    <DiceRoller />
   </header>
 </template>
 
@@ -21,6 +23,7 @@ import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { Menu } from "lucide-vue-next";
 import { useUiStore } from "@/stores/ui";
+import DiceRoller from "@/components/common/DiceRoller.vue";
 
 const route = useRoute();
 const ui = useUiStore();

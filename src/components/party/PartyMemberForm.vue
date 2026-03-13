@@ -501,7 +501,6 @@ const f = reactive<
   death_save_failures: props.member?.death_save_failures ?? 0,
   notes: props.member?.notes ?? "",
   sort_order: props.member?.sort_order ?? 0,
-  portrait_url: props.member?.portrait_url ?? "",
 });
 
 function mod(score: number) {
@@ -600,7 +599,7 @@ const { mutateAsync: update } = useUpdatePartyMember();
 const { mutateAsync: del } = useDeletePartyMember();
 
 async function save() {
-  const payload: PartyMemberInsert = {
+  const payload = {
     ...f,
     name: f.name.trim(),
     player_name: f.player_name || null,
