@@ -341,9 +341,43 @@
 
     <p v-if="saveError" class="text-destructive font-fell text-sm">{{ saveError }}</p>
 
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-      <!-- ── Left: Core spell fields ────────────────────────────────────── -->
-      <div class="xl:col-span-2 flex flex-col gap-4">
+    <div class="grid grid-cols-1 xl:grid-cols-[220px_1fr_260px] gap-6">
+      <!-- ── Portrait + Source ─────────────────────────────────────────── -->
+      <div class="flex flex-col gap-4">
+        <div
+          class="relative aspect-3/4 rounded-lg border border-border overflow-hidden bg-muted cursor-pointer group"
+          @click="artFileInput?.click()"
+        >
+          <img v-if="imageUrl" :src="imageUrl" alt="Spell art" class="w-full h-full object-cover" />
+          <div v-else class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground">
+            <ImagePlus class="h-10 w-10" />
+            <span class="font-fell text-sm italic">{{ isUploadingArt ? 'Uploading…' : 'Upload art' }}</span>
+          </div>
+          <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <span class="font-fell text-white text-sm italic">{{ imageUrl ? 'Change' : 'Upload' }}</span>
+          </div>
+        </div>
+        <input ref="artFileInput" type="file" accept="image/*" class="hidden" @change="onArtSelected" />
+        <button
+          v-if="imageUrl"
+          type="button"
+          class="font-cinzel text-[10px] text-destructive hover:underline text-left"
+          @click.stop="imageUrl = ''"
+        >
+          Remove art
+        </button>
+        <label class="flex flex-col gap-1">
+          <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Source</span>
+          <input
+            v-model="source"
+            placeholder="e.g. Homebrew, PHB, XGtE…"
+            class="bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        </label>
+      </div>
+
+      <!-- ── Core spell fields ──────────────────────────────────────────── -->
+      <div class="flex flex-col gap-4">
         <!-- Name -->
         <label>
           <span class="sr-only">Spell name</span>
@@ -640,71 +674,6 @@
           />
         </div>
 
-        <!-- Source + art upload -->
-        <div class="grid grid-cols-2 gap-3">
-          <label class="flex flex-col gap-1">
-            <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase"
-              >Source</span
-            >
-            <input
-              v-model="source"
-              placeholder="e.g. Homebrew, PHB, XGtE…"
-              class="bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-          </label>
-          <div class="flex flex-col gap-1">
-            <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase"
-              >Art <span class="normal-case font-fell font-normal">(card printing)</span></span
-            >
-            <!-- Upload widget -->
-            <div
-              class="relative h-20 rounded-md border border-border bg-muted cursor-pointer group overflow-hidden"
-              @click="artFileInput?.click()"
-            >
-              <img
-                v-if="imageUrl"
-                :src="imageUrl"
-                alt="Spell art"
-                class="w-full h-full object-cover"
-              />
-              <div
-                v-else
-                class="w-full h-full flex flex-col items-center justify-center gap-1 text-muted-foreground"
-              >
-                <ImagePlus class="h-5 w-5" />
-                <span class="font-fell text-xs italic">Upload art</span>
-              </div>
-              <div
-                class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-              >
-                <span class="font-fell text-white text-xs italic">{{
-                  imageUrl ? "Change" : "Upload"
-                }}</span>
-              </div>
-              <div
-                v-if="isUploadingArt"
-                class="absolute inset-0 bg-black/60 flex items-center justify-center"
-              >
-                <span class="font-cinzel text-[10px] text-white animate-pulse">Uploading…</span>
-              </div>
-            </div>
-            <input
-              ref="artFileInput"
-              type="file"
-              accept="image/*"
-              class="hidden"
-              @change="onArtSelected"
-            />
-            <button
-              v-if="imageUrl"
-              type="button"
-              class="font-cinzel text-[10px] text-destructive hover:underline text-left"
-              @click.stop="imageUrl = ''"
-            >
-              Remove art
-            </button>
-          </div>
-        </div>
 
         <!-- Tags -->
         <div class="flex flex-col gap-1">

@@ -6,7 +6,9 @@
       class="relative z-10 h-full w-full max-w-xl bg-background border-l border-border shadow-2xl flex flex-col overflow-hidden"
     >
       <!-- Header -->
-      <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+      <div
+        class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0"
+      >
         <h2 class="font-cinzel text-base font-bold text-foreground">
           {{ props.member ? `Edit ${props.member.name}` : "Add Hero" }}
         </h2>
@@ -41,26 +43,94 @@
       <div class="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
         <!-- Identity tab -->
         <template v-if="activeTab === 'identity'">
+          <!-- Portrait + name -->
+          <div class="flex gap-4">
+            <div
+              class="relative aspect-3/4 w-28 shrink-0 rounded-lg border border-border overflow-hidden bg-muted cursor-pointer group"
+              @click="portraitFileInput?.click()"
+            >
+              <img
+                v-if="portraitUrl"
+                :src="portraitUrl"
+                alt="Portrait"
+                class="w-full h-full object-cover"
+              />
+              <div
+                v-else
+                class="w-full h-full flex flex-col items-center justify-center gap-1 text-muted-foreground"
+              >
+                <ImagePlus class="h-7 w-7" />
+                <span class="font-fell text-xs italic text-center px-1">{{
+                  isUploadingPortrait ? "Uploading…" : "Upload"
+                }}</span>
+              </div>
+              <div
+                class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+              >
+                <span class="font-fell text-white text-xs italic">{{
+                  portraitUrl ? "Change" : "Upload"
+                }}</span>
+              </div>
+            </div>
+            <input
+              ref="portraitFileInput"
+              type="file"
+              accept="image/*"
+              class="hidden"
+              @change="onPortraitSelected"
+            />
+            <div class="flex-1 flex flex-col gap-2">
+              <label class="block">
+                <span class="field-label">Character Name *</span>
+                <input
+                  v-model="f.name"
+                  class="field-input w-full"
+                  placeholder="Aric Stormblade"
+                />
+              </label>
+              <label class="block">
+                <span class="field-label">Player Name</span>
+                <input
+                  v-model="f.player_name"
+                  class="field-input w-full"
+                  placeholder="Jeff"
+                />
+              </label>
+              <button
+                v-if="portraitUrl"
+                type="button"
+                class="font-cinzel text-[10px] text-destructive hover:underline text-left"
+                @click="portraitUrl = ''"
+              >
+                Remove portrait
+              </button>
+            </div>
+          </div>
+
           <div class="grid grid-cols-2 gap-3">
-            <label class="col-span-2 block">
-              <span class="field-label">Character Name *</span>
-              <input v-model="f.name" class="field-input w-full" placeholder="Aric Stormblade" />
-            </label>
-            <label class="block">
-              <span class="field-label">Player Name</span>
-              <input v-model="f.player_name" class="field-input w-full" placeholder="Jeff" />
-            </label>
             <label class="block">
               <span class="field-label">Race</span>
-              <input v-model="f.race" class="field-input w-full" placeholder="Human" />
+              <input
+                v-model="f.race"
+                class="field-input w-full"
+                placeholder="Human"
+              />
             </label>
             <label class="block">
               <span class="field-label">Class</span>
-              <input v-model="f.class" class="field-input w-full" placeholder="Fighter" />
+              <input
+                v-model="f.class"
+                class="field-input w-full"
+                placeholder="Fighter"
+              />
             </label>
             <label class="block">
               <span class="field-label">Subclass</span>
-              <input v-model="f.subclass" class="field-input w-full" placeholder="Battle Master" />
+              <input
+                v-model="f.subclass"
+                class="field-input w-full"
+                placeholder="Battle Master"
+              />
             </label>
             <label class="block">
               <span class="field-label">Level</span>
@@ -74,7 +144,9 @@
             </label>
             <div>
               <label class="field-label">Proficiency Bonus</label>
-              <div class="field-input bg-muted/30 text-muted-foreground flex items-center">
+              <div
+                class="field-input bg-muted/30 text-muted-foreground flex items-center"
+              >
                 +{{ profBonus }}
                 <span class="ml-2 text-[11px]">(from level {{ f.level }})</span>
               </div>
@@ -118,7 +190,9 @@
               />
               <span
                 class="font-cinzel text-xs font-bold"
-                :class="mod(f[stat.key]) >= 0 ? 'text-green-500' : 'text-destructive'"
+                :class="
+                  mod(f[stat.key]) >= 0 ? 'text-green-500' : 'text-destructive'
+                "
               >
                 {{ mod(f[stat.key]) >= 0 ? "+" : "" }}{{ mod(f[stat.key]) }}
               </span>
@@ -134,19 +208,38 @@
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <label class="block">
               <span class="field-label">Max HP</span>
-              <input v-model.number="f.max_hp" type="number" min="1" class="field-input w-full" />
+              <input
+                v-model.number="f.max_hp"
+                type="number"
+                min="1"
+                class="field-input w-full"
+              />
             </label>
             <label class="block">
               <span class="field-label">Current HP</span>
-              <input v-model.number="f.current_hp" type="number" class="field-input w-full" />
+              <input
+                v-model.number="f.current_hp"
+                type="number"
+                class="field-input w-full"
+              />
             </label>
             <label class="block">
               <span class="field-label">Temp HP</span>
-              <input v-model.number="f.temp_hp" type="number" min="0" class="field-input w-full" />
+              <input
+                v-model.number="f.temp_hp"
+                type="number"
+                min="0"
+                class="field-input w-full"
+              />
             </label>
             <label class="block">
               <span class="field-label">Armor Class</span>
-              <input v-model.number="f.ac" type="number" min="1" class="field-input w-full" />
+              <input
+                v-model.number="f.ac"
+                type="number"
+                min="1"
+                class="field-input w-full"
+              />
             </label>
             <label class="block">
               <span class="field-label">Speed (ft)</span>
@@ -174,7 +267,9 @@
             class="rounded-lg bg-muted/30 border border-border p-3 grid grid-cols-3 gap-2 text-center"
           >
             <div>
-              <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
+              <p
+                class="font-cinzel text-[10px] text-muted-foreground tracking-wider"
+              >
                 PASSIVE PERC.
               </p>
               <p class="font-cinzel text-base font-bold text-foreground">
@@ -182,7 +277,9 @@
               </p>
             </div>
             <div>
-              <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
+              <p
+                class="font-cinzel text-[10px] text-muted-foreground tracking-wider"
+              >
                 PASSIVE INS.
               </p>
               <p class="font-cinzel text-base font-bold text-foreground">
@@ -190,7 +287,9 @@
               </p>
             </div>
             <div>
-              <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
+              <p
+                class="font-cinzel text-[10px] text-muted-foreground tracking-wider"
+              >
                 PASSIVE INV.
               </p>
               <p class="font-cinzel text-base font-bold text-foreground">
@@ -220,7 +319,9 @@
                 class="rounded"
                 @change="toggleSave(save.key)"
               />
-              <span class="font-cinzel text-xs text-foreground">{{ save.label }}</span>
+              <span class="font-cinzel text-xs text-foreground">{{
+                save.label
+              }}</span>
               <span class="font-cinzel text-[10px] text-muted-foreground">
                 {{ saveBonus(save.key) }}
               </span>
@@ -234,7 +335,11 @@
             Skills
           </p>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-            <div v-for="skill in SKILLS" :key="skill.key" class="flex items-center gap-2">
+            <div
+              v-for="skill in SKILLS"
+              :key="skill.key"
+              class="flex items-center gap-2"
+            >
               <div
                 class="flex rounded overflow-hidden border border-border text-[10px] font-cinzel font-semibold shrink-0"
               >
@@ -253,8 +358,12 @@
                   {{ level.label }}
                 </button>
               </div>
-              <span class="font-fell text-xs text-foreground flex-1">{{ skill.label }}</span>
-              <span class="font-cinzel text-[10px] text-muted-foreground shrink-0">
+              <span class="font-fell text-xs text-foreground flex-1">{{
+                skill.label
+              }}</span>
+              <span
+                class="font-cinzel text-[10px] text-muted-foreground shrink-0"
+              >
                 {{ skillBonus(skill.key, skill.ability) }}
               </span>
             </div>
@@ -298,13 +407,20 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
+import { ImagePlus } from "lucide-vue-next";
 import {
   useCreatePartyMember,
   useUpdatePartyMember,
   useDeletePartyMember,
 } from "@/composables/useParty";
+import { useImageUpload } from "@/composables/useImageUpload";
 import { SKILLS } from "@/types/party.types";
-import type { PartyMember, PartyMemberInsert, SkillProfLevel, SaveKey } from "@/types/party.types";
+import type {
+  PartyMember,
+  PartyMemberInsert,
+  SkillProfLevel,
+  SaveKey,
+} from "@/types/party.types";
 
 const TABS = [
   { id: "identity", label: "Identity" },
@@ -339,7 +455,22 @@ const emit = defineEmits<{ close: [] }>();
 
 const activeTab = ref<"identity" | "stats" | "profs">("identity");
 
-const f = reactive<Omit<PartyMemberInsert, "sort_order"> & { sort_order: number }>({
+// Portrait upload
+const portraitUrl = ref(props.member?.portrait_url ?? "");
+const portraitFileInput = ref<HTMLInputElement | null>(null);
+const { isUploading: isUploadingPortrait, upload: uploadPortrait } =
+  useImageUpload("portraits");
+async function onPortraitSelected(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  const url = await uploadPortrait(file);
+  if (url) portraitUrl.value = url;
+  if (portraitFileInput.value) portraitFileInput.value.value = "";
+}
+
+const f = reactive<
+  Omit<PartyMemberInsert, "sort_order" | "portrait_url"> & { sort_order: number }
+>({
   name: props.member?.name ?? "",
   player_name: props.member?.player_name ?? "",
   class: props.member?.class ?? "",
@@ -361,13 +492,16 @@ const f = reactive<Omit<PartyMemberInsert, "sort_order"> & { sort_order: number 
   cha: props.member?.cha ?? 10,
   proficiency_bonus: props.member?.proficiency_bonus ?? 2,
   skill_proficiencies: { ...props.member?.skill_proficiencies },
-  saving_throw_proficiencies: [...(props.member?.saving_throw_proficiencies ?? [])],
+  saving_throw_proficiencies: [
+    ...(props.member?.saving_throw_proficiencies ?? []),
+  ],
   conditions: [...(props.member?.conditions ?? [])],
   inspiration: props.member?.inspiration ?? false,
   death_save_successes: props.member?.death_save_successes ?? 0,
   death_save_failures: props.member?.death_save_failures ?? 0,
   notes: props.member?.notes ?? "",
   sort_order: props.member?.sort_order ?? 0,
+  portrait_url: props.member?.portrait_url ?? "",
 });
 
 function mod(score: number) {
@@ -386,10 +520,16 @@ const profBonus = computed(() => {
 function skillProf(key: keyof typeof f.skill_proficiencies) {
   return f.skill_proficiencies[key] ?? "none";
 }
-function setSkillProf(key: keyof typeof f.skill_proficiencies, val: SkillProfLevel) {
+function setSkillProf(
+  key: keyof typeof f.skill_proficiencies,
+  val: SkillProfLevel,
+) {
   f.skill_proficiencies[key] = val;
 }
-function skillBonus(key: keyof typeof f.skill_proficiencies, ability: SaveKey): string {
+function skillBonus(
+  key: keyof typeof f.skill_proficiencies,
+  ability: SaveKey,
+): string {
   const base = mod(f[ability]);
   const prof = skillProf(key);
   const bonus =
@@ -407,7 +547,9 @@ function toggleSave(key: SaveKey) {
 }
 function saveBonus(key: SaveKey): string {
   const base = mod(f[key]);
-  const bonus = f.saving_throw_proficiencies.includes(key) ? base + profBonus.value : base;
+  const bonus = f.saving_throw_proficiencies.includes(key)
+    ? base + profBonus.value
+    : base;
   return (bonus >= 0 ? "+" : "") + bonus;
 }
 
@@ -418,7 +560,11 @@ const passivePerception = computed(() => {
   return (
     10 +
     base +
-    (prof === "proficient" ? profBonus.value : prof === "expertise" ? profBonus.value * 2 : 0)
+    (prof === "proficient"
+      ? profBonus.value
+      : prof === "expertise"
+        ? profBonus.value * 2
+        : 0)
   );
 });
 const passiveInsight = computed(() => {
@@ -427,7 +573,11 @@ const passiveInsight = computed(() => {
   return (
     10 +
     base +
-    (prof === "proficient" ? profBonus.value : prof === "expertise" ? profBonus.value * 2 : 0)
+    (prof === "proficient"
+      ? profBonus.value
+      : prof === "expertise"
+        ? profBonus.value * 2
+        : 0)
   );
 });
 const passiveInvestigation = computed(() => {
@@ -436,7 +586,11 @@ const passiveInvestigation = computed(() => {
   return (
     10 +
     base +
-    (prof === "proficient" ? profBonus.value : prof === "expertise" ? profBonus.value * 2 : 0)
+    (prof === "proficient"
+      ? profBonus.value
+      : prof === "expertise"
+        ? profBonus.value * 2
+        : 0)
   );
 });
 
@@ -454,6 +608,7 @@ async function save() {
     subclass: f.subclass || null,
     race: f.race || null,
     notes: f.notes || null,
+    portrait_url: portraitUrl.value || null,
     proficiency_bonus: profBonus.value,
   };
   if (props.member) {

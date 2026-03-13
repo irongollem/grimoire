@@ -43,9 +43,69 @@
 
     <p v-if="saveError" class="text-destructive font-fell text-sm">{{ saveError }}</p>
 
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-      <!-- Left: Main form -->
-      <div class="xl:col-span-2 flex flex-col gap-4">
+    <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
+      <!-- Left: Portrait + Tags -->
+      <div class="flex flex-col gap-4">
+        <!-- Portrait -->
+        <div
+          class="relative aspect-3/4 rounded-lg border border-border overflow-hidden bg-muted cursor-pointer group"
+          @click="artFileInput?.click()"
+        >
+          <img v-if="imageUrl" :src="imageUrl" alt="Item art" class="w-full h-full object-cover" />
+          <div v-else class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground">
+            <ImagePlus class="h-10 w-10" />
+            <span class="font-fell text-sm italic">{{ isUploadingArt ? 'Uploading…' : 'Upload art' }}</span>
+          </div>
+          <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <span class="font-fell text-white text-sm italic">{{ imageUrl ? 'Change' : 'Upload' }}</span>
+          </div>
+        </div>
+        <input ref="artFileInput" type="file" accept="image/*" class="hidden" @change="onArtSelected" />
+        <button
+          v-if="imageUrl"
+          type="button"
+          class="font-cinzel text-[10px] text-destructive hover:underline text-left"
+          @click.stop="imageUrl = ''"
+        >
+          Remove art
+        </button>
+
+        <!-- Tags -->
+        <div class="rounded-lg border border-border bg-card p-4 flex flex-col gap-3">
+          <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">Tags</h3>
+          <div class="flex items-center gap-1.5 flex-wrap min-h-8 bg-muted border border-border rounded-md px-2 py-1">
+            <span
+              v-for="tag in tags"
+              :key="tag"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-card font-cinzel text-[11px] text-muted-foreground tracking-wider"
+            >
+              {{ tag }}
+              <button type="button" class="hover:text-destructive transition-colors leading-none text-sm" @click="removeTag(tag)">×</button>
+            </span>
+            <input
+              v-model="tagInput"
+              placeholder="Add tag…"
+              class="bg-transparent border-none outline-none font-fell text-xs text-muted-foreground placeholder:text-muted-foreground/60 min-w-20 flex-1"
+              @keydown.enter.prevent="addTag"
+              @keydown="onTagKey"
+            />
+          </div>
+        </div>
+
+        <!-- Linked spells summary (when spells selected) -->
+        <div v-if="selectedSpells.length" class="rounded-lg border border-border bg-card p-4 flex flex-col gap-2">
+          <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">Linked Spells</h3>
+          <div class="flex flex-col gap-1">
+            <div v-for="spell in selectedSpells" :key="spell.id" class="flex items-center justify-between gap-2">
+              <span class="font-fell text-xs text-foreground">{{ spell.name }}</span>
+              <span class="font-cinzel text-[10px] text-muted-foreground">{{ spell.level === 0 ? 'Cantrip' : `L${spell.level}` }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Main form -->
+      <div class="flex flex-col gap-4">
         <!-- Name -->
         <input
           v-model="name"
@@ -251,82 +311,6 @@
         </label>
       </div>
 
-      <!-- Right: Art + Tags -->
-      <div class="flex flex-col gap-4">
-        <!-- Art upload -->
-        <div class="rounded-lg border border-border bg-card p-4 flex flex-col gap-3">
-          <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">
-            Art <span class="normal-case font-fell font-normal">(card printing)</span>
-          </h3>
-          <div
-            class="relative rounded-md border border-border bg-muted cursor-pointer group overflow-hidden"
-            style="aspect-ratio: 3/2;"
-            @click="artFileInput?.click()"
-          >
-            <img
-              v-if="imageUrl"
-              :src="imageUrl"
-              alt="Item art"
-              class="w-full h-full object-cover"
-            />
-            <div
-              v-else
-              class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground"
-            >
-              <ImagePlus class="h-6 w-6" />
-              <span class="font-fell text-xs italic">Upload art</span>
-            </div>
-            <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <span class="font-fell text-white text-xs italic">{{ imageUrl ? "Change" : "Upload" }}</span>
-            </div>
-            <div v-if="isUploadingArt" class="absolute inset-0 bg-black/60 flex items-center justify-center">
-              <span class="font-cinzel text-[10px] text-white animate-pulse">Uploading…</span>
-            </div>
-          </div>
-          <input ref="artFileInput" type="file" accept="image/*" class="hidden" @change="onArtSelected" />
-          <button
-            v-if="imageUrl"
-            type="button"
-            class="font-cinzel text-[10px] text-destructive hover:underline text-left"
-            @click.stop="imageUrl = ''"
-          >
-            Remove art
-          </button>
-        </div>
-
-        <!-- Tags -->
-        <div class="rounded-lg border border-border bg-card p-4 flex flex-col gap-3">
-          <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">Tags</h3>
-          <div class="flex items-center gap-1.5 flex-wrap min-h-8 bg-muted border border-border rounded-md px-2 py-1">
-            <span
-              v-for="tag in tags"
-              :key="tag"
-              class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-card font-cinzel text-[11px] text-muted-foreground tracking-wider"
-            >
-              {{ tag }}
-              <button type="button" class="hover:text-destructive transition-colors leading-none text-sm" @click="removeTag(tag)">×</button>
-            </span>
-            <input
-              v-model="tagInput"
-              placeholder="Add tag…"
-              class="bg-transparent border-none outline-none font-fell text-xs text-muted-foreground placeholder:text-muted-foreground/60 min-w-20 flex-1"
-              @keydown.enter.prevent="addTag"
-              @keydown="onTagKey"
-            />
-          </div>
-        </div>
-
-        <!-- Linked spells summary (when magic + spells selected) -->
-        <div v-if="selectedSpells.length" class="rounded-lg border border-border bg-card p-4 flex flex-col gap-2">
-          <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">Linked Spells</h3>
-          <div class="flex flex-col gap-1">
-            <div v-for="spell in selectedSpells" :key="spell.id" class="flex items-center justify-between gap-2">
-              <span class="font-fell text-xs text-foreground">{{ spell.name }}</span>
-              <span class="font-cinzel text-[10px] text-muted-foreground">{{ spell.level === 0 ? 'Cantrip' : `L${spell.level}` }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </template>

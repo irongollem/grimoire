@@ -52,276 +52,262 @@
 
     <p v-if="saveError" class="text-destructive font-fell text-sm">{{ saveError }}</p>
 
-    <!-- Identity grid -->
-    <section class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      <label class="block">
-        <span class="field-label">Type</span>
-        <select v-model="form.monster_type" class="field-input w-full capitalize">
-          <option v-for="t in MONSTER_TYPES" :key="t" :value="t" class="capitalize">{{ t }}</option>
-        </select>
-      </label>
-      <label class="block">
-        <span class="field-label">Size</span>
-        <select v-model="form.size" class="field-input w-full capitalize">
-          <option v-for="s in SIZES" :key="s" :value="s" class="capitalize">{{ s }}</option>
-        </select>
-      </label>
-      <label class="block">
-        <span class="field-label">Alignment</span>
-        <input v-model="form.alignment" class="field-input w-full" placeholder="neutral evil" />
-      </label>
-      <label class="block">
-        <span class="field-label">Source</span>
-        <input v-model="form.source" class="field-input w-full" placeholder="Monster Manual" />
-      </label>
-      <label class="block">
-        <span class="field-label">Habitat</span>
-        <input
-          v-model="form.habitat"
-          class="field-input w-full"
-          placeholder="Forest, underground…"
-        />
-      </label>
-      <!-- Tags -->
-      <div class="col-span-2 lg:col-span-3">
-        <p class="field-label">Tags</p>
+    <!-- Two-column body: portrait sidebar + stat block content -->
+    <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
+      <!-- Left: Portrait + Tags -->
+      <div class="space-y-4">
         <div
-          class="flex flex-wrap items-center gap-1 min-h-9 bg-muted border border-border rounded-md px-2 py-1"
-        >
-          <span
-            v-for="tag in form.tags"
-            :key="tag"
-            class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-card font-cinzel text-[11px] text-muted-foreground tracking-wider"
-          >
-            {{ tag }}
-            <button
-              type="button"
-              class="hover:text-destructive transition-colors leading-none text-sm"
-              @click="removeTag(tag)"
-            >
-              ×
-            </button>
-          </span>
-          <input
-            v-model="tagInput"
-            placeholder="Add tag…"
-            class="bg-transparent border-none outline-none font-fell text-xs text-muted-foreground placeholder:text-muted-foreground/60 min-w-20 flex-1"
-            aria-label="Add tag"
-            @keydown.enter.prevent="addTag"
-            @keydown="onTagKeydown"
-          />
-        </div>
-      </div>
-    </section>
-
-    <!-- Divider -->
-    <div class="gold-divider" />
-
-    <!-- Combat stats -->
-    <section>
-      <p class="section-heading">Combat Statistics</p>
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <label class="block">
-          <span class="field-label">Challenge Rating</span>
-          <input
-            v-model="sb.challenge_rating"
-            class="field-input w-full font-bold"
-            placeholder="1/4"
-          />
-        </label>
-        <label class="block">
-          <span class="field-label">Armor Class</span>
-          <input v-model.number="sb.armor_class" type="number" class="field-input w-full" />
-        </label>
-        <label class="block">
-          <span class="field-label">Hit Points</span>
-          <input v-model="sb.hit_points" class="field-input w-full" placeholder="22 (3d8+9)" />
-        </label>
-        <label class="block">
-          <span class="field-label">Speed</span>
-          <input v-model="sb.speed" class="field-input w-full" placeholder="30 ft." />
-        </label>
-      </div>
-    </section>
-
-    <!-- Ability scores -->
-    <section>
-      <p class="section-heading">Ability Scores</p>
-      <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
-        <label
-          v-for="stat in ABILITY_STATS"
-          :key="stat.key"
-          class="flex flex-col items-center gap-1"
-        >
-          <span class="field-label">{{ stat.label }}</span>
-          <input
-            v-model.number="sb[stat.key]"
-            type="number"
-            min="1"
-            max="30"
-            class="field-input w-full text-center"
-          />
-          <span
-            class="font-cinzel text-xs font-bold"
-            :class="mod(sb[stat.key]) >= 0 ? 'text-green-500' : 'text-destructive'"
-          >
-            {{ mod(sb[stat.key]) >= 0 ? "+" : "" }}{{ mod(sb[stat.key]) }}
-          </span>
-        </label>
-      </div>
-    </section>
-
-    <!-- Proficiencies & traits (text fields) -->
-    <section class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <label class="block">
-        <span class="field-label">Saving Throws</span>
-        <input v-model="sb.saving_throws" class="field-input w-full" placeholder="Con +5, Wis +3" />
-      </label>
-      <label class="block">
-        <span class="field-label">Skills</span>
-        <input
-          :value="skillsText"
-          class="field-input w-full"
-          placeholder="Perception +3, Stealth +5"
-          @input="parseSkills(($event.target as HTMLInputElement).value)"
-        />
-      </label>
-      <label class="block">
-        <span class="field-label">Damage Vulnerabilities</span>
-        <input
-          v-model="sb.damage_vulnerabilities"
-          class="field-input w-full"
-          placeholder="bludgeoning"
-        />
-      </label>
-      <label class="block">
-        <span class="field-label">Damage Resistances</span>
-        <input
-          v-model="sb.damage_resistances"
-          class="field-input w-full"
-          placeholder="fire, cold"
-        />
-      </label>
-      <label class="block">
-        <span class="field-label">Damage Immunities</span>
-        <input
-          v-model="sb.damage_immunities"
-          class="field-input w-full"
-          placeholder="poison, psychic"
-        />
-      </label>
-      <label class="block">
-        <span class="field-label">Condition Immunities</span>
-        <input
-          v-model="sb.condition_immunities"
-          class="field-input w-full"
-          placeholder="charmed, exhaustion"
-        />
-      </label>
-      <label class="block">
-        <span class="field-label">Senses</span>
-        <input
-          v-model="sb.senses"
-          class="field-input w-full"
-          placeholder="darkvision 60 ft., passive Perception 13"
-        />
-      </label>
-      <label class="block">
-        <span class="field-label">Languages</span>
-        <input v-model="sb.languages" class="field-input w-full" placeholder="Common, Giant" />
-      </label>
-    </section>
-
-    <div class="gold-divider" />
-
-    <!-- Trait sections -->
-    <section class="flex flex-col gap-4">
-      <TraitSection v-model="sb.special_abilities" label="Special Abilities" />
-      <TraitSection v-model="sb.actions" label="Actions" />
-      <TraitSection v-model="sb.bonus_actions" label="Bonus Actions" />
-      <TraitSection v-model="sb.reactions" label="Reactions" />
-    </section>
-
-    <!-- Legendary -->
-    <section>
-      <p class="section-heading">Legendary</p>
-      <label class="flex items-center gap-3 mb-4">
-        <span class="field-label whitespace-nowrap">Legendary Resistance (uses/day)</span>
-        <input
-          v-model.number="sb.legendary_resistance"
-          type="number"
-          min="0"
-          max="5"
-          class="field-input w-20"
-        />
-      </label>
-      <TraitSection v-model="sb.legendary_actions" label="Legendary Actions" />
-    </section>
-
-    <!-- Lair -->
-    <section>
-      <TraitSection v-model="sb.lair_actions" label="Lair Actions" />
-    </section>
-
-    <!-- Art image -->
-    <section>
-      <p class="field-label">Art Image</p>
-      <div class="flex items-start gap-3">
-        <div
-          class="relative flex items-center justify-center w-32 h-32 rounded-md border-2 border-dashed border-border bg-muted cursor-pointer hover:border-primary/50 transition-colors overflow-hidden shrink-0"
+          class="relative aspect-[3/4] rounded-lg border border-border overflow-hidden bg-muted cursor-pointer group"
           @click="artFileInput?.click()"
         >
-          <img
-            v-if="form.image_url"
-            :src="form.image_url"
-            alt="Art"
-            class="absolute inset-0 w-full h-full object-cover"
-          />
-          <div v-else class="flex flex-col items-center gap-1 text-muted-foreground">
-            <ImagePlus class="h-6 w-6" />
-            <span class="font-cinzel text-[10px] tracking-wider">{{
-              isUploadingArt ? "Uploading…" : "Add art"
-            }}</span>
+          <img v-if="form.image_url" :src="form.image_url" alt="Portrait" class="w-full h-full object-cover" />
+          <div v-else class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground">
+            <ImagePlus class="h-10 w-10" />
+            <span class="font-fell text-sm italic">{{ isUploadingArt ? 'Uploading…' : 'Upload portrait' }}</span>
+          </div>
+          <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <span class="font-fell text-white text-sm italic">{{ form.image_url ? 'Change portrait' : 'Upload portrait' }}</span>
           </div>
         </div>
-        <div v-if="form.image_url" class="flex flex-col gap-2">
-          <button
-            type="button"
-            class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs font-semibold text-foreground hover:bg-muted transition-colors"
-            @click="artFileInput?.click()"
+        <input ref="artFileInput" type="file" accept="image/*" class="hidden" @change="onArtSelected" />
+        <button
+          v-if="form.image_url"
+          type="button"
+          class="font-cinzel text-[10px] text-destructive hover:underline"
+          @click="form.image_url = ''"
+        >
+          Remove portrait
+        </button>
+
+        <!-- Tags -->
+        <div>
+          <p class="field-label">Tags</p>
+          <div
+            class="flex flex-wrap items-center gap-1 min-h-9 bg-muted border border-border rounded-md px-2 py-1"
           >
-            Replace
-          </button>
-          <button
-            type="button"
-            class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-1.5 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
-            @click="form.image_url = ''"
-          >
-            Remove
-          </button>
+            <span
+              v-for="tag in form.tags"
+              :key="tag"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-card font-cinzel text-[11px] text-muted-foreground tracking-wider"
+            >
+              {{ tag }}
+              <button
+                type="button"
+                class="hover:text-destructive transition-colors leading-none text-sm"
+                @click="removeTag(tag)"
+              >
+                ×
+              </button>
+            </span>
+            <input
+              v-model="tagInput"
+              placeholder="Add tag…"
+              class="bg-transparent border-none outline-none font-fell text-xs text-muted-foreground placeholder:text-muted-foreground/60 min-w-20 flex-1"
+              aria-label="Add tag"
+              @keydown.enter.prevent="addTag"
+              @keydown="onTagKeydown"
+            />
+          </div>
         </div>
       </div>
-      <input
-        ref="artFileInput"
-        type="file"
-        accept="image/*"
-        class="hidden"
-        @change="onArtSelected"
-      />
-    </section>
 
-    <!-- Notes -->
-    <section>
-      <label class="block">
-        <span class="field-label">DM Notes</span>
-        <textarea
-          v-model="form.notes"
-          rows="3"
-          placeholder="Encounter notes, tactics, lair description…"
-          class="field-input w-full resize-y"
-        />
-      </label>
-    </section>
+      <!-- Right: Identity + stat block -->
+      <div class="flex flex-col gap-5">
+        <!-- Identity grid -->
+        <section class="grid grid-cols-2 lg:grid-cols-3 gap-3">
+          <label class="block">
+            <span class="field-label">Type</span>
+            <select v-model="form.monster_type" class="field-input w-full capitalize">
+              <option v-for="t in MONSTER_TYPES" :key="t" :value="t" class="capitalize">{{ t }}</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="field-label">Size</span>
+            <select v-model="form.size" class="field-input w-full capitalize">
+              <option v-for="s in SIZES" :key="s" :value="s" class="capitalize">{{ s }}</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="field-label">Alignment</span>
+            <input v-model="form.alignment" class="field-input w-full" placeholder="neutral evil" />
+          </label>
+          <label class="block">
+            <span class="field-label">Source</span>
+            <input v-model="form.source" class="field-input w-full" placeholder="Monster Manual" />
+          </label>
+          <label class="block">
+            <span class="field-label">Habitat</span>
+            <input
+              v-model="form.habitat"
+              class="field-input w-full"
+              placeholder="Forest, underground…"
+            />
+          </label>
+        </section>
+
+        <!-- Divider -->
+        <div class="gold-divider" />
+
+        <!-- Combat stats -->
+        <section>
+          <p class="section-heading">Combat Statistics</p>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <label class="block">
+              <span class="field-label">Challenge Rating</span>
+              <input
+                v-model="sb.challenge_rating"
+                class="field-input w-full font-bold"
+                placeholder="1/4"
+              />
+            </label>
+            <label class="block">
+              <span class="field-label">Armor Class</span>
+              <input v-model.number="sb.armor_class" type="number" class="field-input w-full" />
+            </label>
+            <label class="block">
+              <span class="field-label">Hit Points</span>
+              <input v-model="sb.hit_points" class="field-input w-full" placeholder="22 (3d8+9)" />
+            </label>
+            <label class="block">
+              <span class="field-label">Speed</span>
+              <input v-model="sb.speed" class="field-input w-full" placeholder="30 ft." />
+            </label>
+          </div>
+        </section>
+
+        <!-- Ability scores -->
+        <section>
+          <p class="section-heading">Ability Scores</p>
+          <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
+            <label
+              v-for="stat in ABILITY_STATS"
+              :key="stat.key"
+              class="flex flex-col items-center gap-1"
+            >
+              <span class="field-label">{{ stat.label }}</span>
+              <input
+                v-model.number="sb[stat.key]"
+                type="number"
+                min="1"
+                max="30"
+                class="field-input w-full text-center"
+              />
+              <span
+                class="font-cinzel text-xs font-bold"
+                :class="mod(sb[stat.key]) >= 0 ? 'text-green-500' : 'text-destructive'"
+              >
+                {{ mod(sb[stat.key]) >= 0 ? "+" : "" }}{{ mod(sb[stat.key]) }}
+              </span>
+            </label>
+          </div>
+        </section>
+
+        <!-- Proficiencies & traits (text fields) -->
+        <section class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label class="block">
+            <span class="field-label">Saving Throws</span>
+            <input v-model="sb.saving_throws" class="field-input w-full" placeholder="Con +5, Wis +3" />
+          </label>
+          <label class="block">
+            <span class="field-label">Skills</span>
+            <input
+              :value="skillsText"
+              class="field-input w-full"
+              placeholder="Perception +3, Stealth +5"
+              @input="parseSkills(($event.target as HTMLInputElement).value)"
+            />
+          </label>
+          <label class="block">
+            <span class="field-label">Damage Vulnerabilities</span>
+            <input
+              v-model="sb.damage_vulnerabilities"
+              class="field-input w-full"
+              placeholder="bludgeoning"
+            />
+          </label>
+          <label class="block">
+            <span class="field-label">Damage Resistances</span>
+            <input
+              v-model="sb.damage_resistances"
+              class="field-input w-full"
+              placeholder="fire, cold"
+            />
+          </label>
+          <label class="block">
+            <span class="field-label">Damage Immunities</span>
+            <input
+              v-model="sb.damage_immunities"
+              class="field-input w-full"
+              placeholder="poison, psychic"
+            />
+          </label>
+          <label class="block">
+            <span class="field-label">Condition Immunities</span>
+            <input
+              v-model="sb.condition_immunities"
+              class="field-input w-full"
+              placeholder="charmed, exhaustion"
+            />
+          </label>
+          <label class="block">
+            <span class="field-label">Senses</span>
+            <input
+              v-model="sb.senses"
+              class="field-input w-full"
+              placeholder="darkvision 60 ft., passive Perception 13"
+            />
+          </label>
+          <label class="block">
+            <span class="field-label">Languages</span>
+            <input v-model="sb.languages" class="field-input w-full" placeholder="Common, Giant" />
+          </label>
+        </section>
+
+        <div class="gold-divider" />
+
+        <!-- Trait sections -->
+        <section class="flex flex-col gap-4">
+          <TraitSection v-model="sb.special_abilities" label="Special Abilities" />
+          <TraitSection v-model="sb.actions" label="Actions" />
+          <TraitSection v-model="sb.bonus_actions" label="Bonus Actions" />
+          <TraitSection v-model="sb.reactions" label="Reactions" />
+        </section>
+
+        <!-- Legendary -->
+        <section>
+          <p class="section-heading">Legendary</p>
+          <label class="flex items-center gap-3 mb-4">
+            <span class="field-label whitespace-nowrap">Legendary Resistance (uses/day)</span>
+            <input
+              v-model.number="sb.legendary_resistance"
+              type="number"
+              min="0"
+              max="5"
+              class="field-input w-20"
+            />
+          </label>
+          <TraitSection v-model="sb.legendary_actions" label="Legendary Actions" />
+        </section>
+
+        <!-- Lair -->
+        <section>
+          <TraitSection v-model="sb.lair_actions" label="Lair Actions" />
+        </section>
+
+        <!-- Notes -->
+        <section>
+          <label class="block">
+            <span class="field-label">DM Notes</span>
+            <textarea
+              v-model="form.notes"
+              rows="3"
+              placeholder="Encounter notes, tactics, lair description…"
+              class="field-input w-full resize-y"
+            />
+          </label>
+        </section>
+      </div>
+    </div>
   </div>
 </template>
 

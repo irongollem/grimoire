@@ -98,3 +98,18 @@ Rough shape:
 - [ ] **Dashboard stat cards** — live counts per entity type (currently placeholder)
 - [ ] **Full-text search** — cross-entity search across NPCs, monsters, notes, spells, items, locations
 - [ ] **Export / import** — JSON export of entire campaign data; import to restore or share
+
+### Bugs and Issues
+
+- [ ]you cannot delete a scriptorium entry
+- [ ] clicking a day in the calendar doesn't do anything yet
+- [ ] adding a multi day event only shows it on the first day
+- [ ] The dashboard is dummy and doesn't work yet
+- [ ] cant manually set initiative
+- [ ] under party, clicking the condition button opens the dropdown inside a overflow:hidden container, causing it to be cut off
+- [ ] Calendar only scrolls per month making navigtion slow, especially for long campaigns
+- [ ] I want to set today's date in the calendar as the default for new events, quests, and encounters, but currently it defaults to 1495 every time again
+- [ ] in party view keys and values and units are without spacing( e.x. speed30ft)
+- [ ] in party view the values are abbrieviated too much like PP instead of passive perception, also i'd like to see other valuable passives like knowledge skills
+- [ ] bestiary should be preloaded with the free available monsters from the 5e SRD, so users have something to start with and can customize from there (add a custom only filter to see just user created monsters)
+- [ ] in spells, affected targets is only an area of effect of 1 or a template, but many spells have more complex targeting (e.g. "one creature you can see within range" or "up to three creatures in range")

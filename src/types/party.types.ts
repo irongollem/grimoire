@@ -72,6 +72,7 @@ export interface PartyMember {
   inspiration: boolean;
   death_save_successes: number;
   death_save_failures: number;
+  portrait_url: string | null;
   notes: string | null;
   sort_order: number;
   created_at: string;
