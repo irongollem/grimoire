@@ -43,6 +43,16 @@
         <Save class="h-3.5 w-3.5" />
         {{ isSaving ? "Saving…" : props.doc ? "Save" : "Create" }}
       </button>
+      <button
+        v-if="props.doc"
+        type="button"
+        :disabled="isDeleting"
+        class="inline-flex items-center gap-1.5 rounded-md border border-destructive/50 px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+        @click="destroy"
+      >
+        <Trash2 class="h-3.5 w-3.5" />
+        {{ isDeleting ? "Deleting…" : "Delete" }}
+      </button>
     </div>
 
     <!-- Tags row -->
@@ -370,10 +380,12 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  Trash2,
 } from "lucide-vue-next";
 import {
   useCreateScriptoriumDocument,
   useUpdateScriptoriumDocument,
+  useDeleteScriptoriumDocument,
 } from "@/composables/useScriptorium";
 import { useScriptoriumPdf } from "@/composables/useScriptoriumPdf";
 import type { ScriptoriumDocument, ScriptoriumDocType } from "@/types/scriptorium.types";
@@ -530,8 +542,23 @@ const editor = useEditor({
 // Save
 const { mutateAsync: create } = useCreateScriptoriumDocument();
 const { mutateAsync: update } = useUpdateScriptoriumDocument();
+const { mutateAsync: deleteDoc } = useDeleteScriptoriumDocument();
 const isSaving = ref(false);
+const isDeleting = ref(false);
 const saveError = ref("");
+
+async function destroy() {
+  if (!props.doc) return;
+  if (!confirm(`Delete "${props.doc.title}"? This cannot be undone.`)) return;
+  isDeleting.value = true;
+  try {
+    await deleteDoc(props.doc.id);
+    router.replace("/scriptorium");
+  } catch (e: unknown) {
+    saveError.value = e instanceof Error ? e.message : "Failed to delete";
+    isDeleting.value = false;
+  }
+}
 
 async function save() {
   if (!title.value.trim()) return;

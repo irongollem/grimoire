@@ -29,7 +29,9 @@
     </div>
 
     <!-- Loading / Empty -->
-    <div v-if="isLoading" class="flex justify-center py-16"><LoadingSpinner /></div>
+    <div v-if="isLoading" class="flex justify-center py-16">
+      <LoadingSpinner />
+    </div>
 
     <EmptyState
       v-else-if="!party?.length"
@@ -53,42 +55,68 @@
         v-for="member in sortedMembers"
         :key="member.id"
         class="rounded-lg border bg-card transition-colors"
-        :class="member.current_hp <= 0 ? 'border-destructive/50' : 'border-border'"
+        :class="
+          member.current_hp <= 0 ? 'border-destructive/50' : 'border-border'
+        "
       >
         <div class="flex flex-col md:flex-row">
           <!-- Left: identity + initiative -->
           <div
             class="flex items-start justify-between gap-3 p-4 md:w-56 md:flex-col md:justify-start md:border-r md:border-border shrink-0"
           >
-            <div class="flex-1">
-              <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight">
-                {{ member.name }}
-              </h3>
-              <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
-                {{
-                  [member.race, member.class, member.level ? `Lv${member.level}` : ""]
-                    .filter(Boolean)
-                    .join(" · ")
-                }}
-              </p>
-              <p
-                v-if="member.player_name"
-                class="font-fell text-[11px] text-muted-foreground mt-0.5"
-              >
-                {{ member.player_name }}
-              </p>
+            <div class="flex-1 flex items-start gap-2.5">
+              <img
+                v-if="member.portrait_url"
+                :src="member.portrait_url"
+                :alt="member.name"
+                class="w-16 h-16 rounded object-cover shrink-0 border border-border"
+              />
+              <div>
+                <h3
+                  class="font-cinzel text-sm font-bold text-foreground leading-tight"
+                >
+                  {{ member.name }}
+                </h3>
+                <p
+                  class="font-fell text-xs text-muted-foreground italic mt-0.5"
+                >
+                  {{
+                    [
+                      member.race,
+                      member.class,
+                      member.level ? `Lv${member.level}` : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")
+                  }}
+                </p>
+                <p
+                  v-if="member.player_name"
+                  class="font-fell text-[11px] text-muted-foreground mt-0.5"
+                >
+                  {{ member.player_name }}
+                </p>
+              </div>
             </div>
 
             <!-- Initiative -->
             <div class="flex flex-col items-center gap-1">
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">INIT</span>
+              <span
+                class="font-cinzel text-[10px] text-muted-foreground tracking-wider"
+                >INIT</span
+              >
               <div class="flex items-center gap-1">
                 <input
                   type="number"
                   :value="member.current_initiative ?? ''"
                   placeholder="–"
                   class="w-10 bg-transparent border-b border-border font-cinzel text-lg font-bold text-center text-primary focus:outline-none focus:border-primary placeholder:text-muted-foreground"
-                  @change="setInitiative(member, ($event.target as HTMLInputElement).value)"
+                  @change="
+                    setInitiative(
+                      member,
+                      ($event.target as HTMLInputElement).value,
+                    )
+                  "
                 />
                 <button
                   type="button"
@@ -100,7 +128,8 @@
                 </button>
               </div>
               <span class="font-cinzel text-[10px] text-muted-foreground">
-                {{ member.initiative_bonus >= 0 ? "+" : "" }}{{ member.initiative_bonus }} bonus
+                {{ member.initiative_bonus >= 0 ? "+" : ""
+                }}{{ member.initiative_bonus }} bonus
               </span>
             </div>
           </div>
@@ -119,8 +148,12 @@
                     :class="hpColor(member.current_hp, member.max_hp)"
                     >{{ member.current_hp }}</span
                   >
-                  <span class="text-muted-foreground font-normal"> / {{ member.max_hp }}</span>
-                  <span v-if="member.temp_hp > 0" class="ml-1 text-blue-400 font-bold"
+                  <span class="text-muted-foreground font-normal">
+                    / {{ member.max_hp }}</span
+                  >
+                  <span
+                    v-if="member.temp_hp > 0"
+                    class="ml-1 text-blue-400 font-bold"
                     >+{{ member.temp_hp }} tmp</span
                   >
                 </span>
@@ -177,48 +210,74 @@
             </div>
 
             <!-- Key stats grid -->
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-0.5 font-cinzel text-xs">
+            <div
+              class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-0.5 font-cinzel text-xs"
+            >
               <span class="flex items-baseline justify-between gap-1 min-w-0">
                 <span class="text-muted-foreground truncate">AC</span>
-                <span class="font-bold text-foreground shrink-0">{{ member.ac }}</span>
+                <span class="font-bold text-foreground shrink-0">{{
+                  member.ac
+                }}</span>
               </span>
               <span class="flex items-baseline justify-between gap-1 min-w-0">
                 <span class="text-muted-foreground truncate">Speed</span>
-                <span class="font-bold text-foreground shrink-0">{{ member.speed }} ft</span>
+                <span class="font-bold text-foreground shrink-0"
+                  >{{ member.speed }} ft</span
+                >
               </span>
               <span class="flex items-baseline justify-between gap-1 min-w-0">
                 <span class="text-muted-foreground truncate">Perception</span>
-                <span class="font-bold text-foreground shrink-0">{{ passivePerception(member) }}</span>
+                <span class="font-bold text-foreground shrink-0">{{
+                  passivePerception(member)
+                }}</span>
               </span>
               <span class="flex items-baseline justify-between gap-1 min-w-0">
                 <span class="text-muted-foreground truncate">Insight</span>
-                <span class="font-bold text-foreground shrink-0">{{ passiveInsight(member) }}</span>
+                <span class="font-bold text-foreground shrink-0">{{
+                  passiveInsight(member)
+                }}</span>
               </span>
               <span class="flex items-baseline justify-between gap-1 min-w-0">
-                <span class="text-muted-foreground truncate">Investigation</span>
-                <span class="font-bold text-foreground shrink-0">{{ passiveInvestigation(member) }}</span>
+                <span class="text-muted-foreground truncate"
+                  >Investigation</span
+                >
+                <span class="font-bold text-foreground shrink-0">{{
+                  passiveInvestigation(member)
+                }}</span>
               </span>
               <span class="flex items-baseline justify-between gap-1 min-w-0">
                 <span class="text-muted-foreground truncate">Arcana</span>
-                <span class="font-bold text-foreground shrink-0">{{ passiveArcana(member) }}</span>
+                <span class="font-bold text-foreground shrink-0">{{
+                  passiveArcana(member)
+                }}</span>
               </span>
               <span class="flex items-baseline justify-between gap-1 min-w-0">
                 <span class="text-muted-foreground truncate">History</span>
-                <span class="font-bold text-foreground shrink-0">{{ passiveHistory(member) }}</span>
+                <span class="font-bold text-foreground shrink-0">{{
+                  passiveHistory(member)
+                }}</span>
               </span>
               <span class="flex items-baseline justify-between gap-1 min-w-0">
                 <span class="text-muted-foreground truncate">Nature</span>
-                <span class="font-bold text-foreground shrink-0">{{ passiveNature(member) }}</span>
+                <span class="font-bold text-foreground shrink-0">{{
+                  passiveNature(member)
+                }}</span>
               </span>
               <span class="flex items-baseline justify-between gap-1 min-w-0">
                 <span class="text-muted-foreground truncate">Religion</span>
-                <span class="font-bold text-foreground shrink-0">{{ passiveReligion(member) }}</span>
+                <span class="font-bold text-foreground shrink-0">{{
+                  passiveReligion(member)
+                }}</span>
               </span>
             </div>
 
             <!-- Saving throw proficiencies -->
-            <div v-if="member.saving_throw_proficiencies.length" class="flex flex-wrap gap-1">
-              <span class="font-cinzel text-[10px] text-muted-foreground mr-1 self-center"
+            <div
+              v-if="member.saving_throw_proficiencies.length"
+              class="flex flex-wrap gap-1"
+            >
+              <span
+                class="font-cinzel text-[10px] text-muted-foreground mr-1 self-center"
                 >SAVES:</span
               >
               <span
@@ -283,7 +342,8 @@
               v-if="member.current_hp <= 0"
               class="flex items-center gap-3 p-2 rounded bg-destructive/10 border border-destructive/20"
             >
-              <span class="font-cinzel text-[10px] font-bold text-destructive tracking-wider"
+              <span
+                class="font-cinzel text-[10px] font-bold text-destructive tracking-wider"
                 >DEATH SAVES</span
               >
               <div class="flex items-center gap-1">
@@ -354,7 +414,11 @@
     </div>
 
     <!-- Member form modal -->
-    <PartyMemberForm v-if="formOpen" :member="editingMember" @close="formOpen = false" />
+    <PartyMemberForm
+      v-if="formOpen"
+      :member="editingMember"
+      @close="formOpen = false"
+    />
   </div>
 </template>
 
@@ -366,7 +430,11 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import PartyMemberForm from "./PartyMemberForm.vue";
 import { CONDITIONS } from "@/types/party.types";
-import type { PartyMember, SkillProficiencies, SkillProfLevel } from "@/types/party.types";
+import type {
+  PartyMember,
+  SkillProficiencies,
+  SkillProfLevel,
+} from "@/types/party.types";
 
 const { data: party, isLoading } = useParty();
 const { mutateAsync: updateMember } = useUpdatePartyMember();
@@ -374,9 +442,12 @@ const { mutateAsync: updateMember } = useUpdatePartyMember();
 // Initiative
 const sortedMembers = computed(() => {
   const members = party.value ?? [];
-  const allHaveInit = members.length > 0 && members.every((m) => m.current_initiative !== null);
+  const allHaveInit =
+    members.length > 0 && members.every((m) => m.current_initiative !== null);
   if (allHaveInit) {
-    return [...members].sort((a, b) => (b.current_initiative ?? 0) - (a.current_initiative ?? 0));
+    return [...members].sort(
+      (a, b) => (b.current_initiative ?? 0) - (a.current_initiative ?? 0),
+    );
   }
   return [...members].sort((a, b) => a.sort_order - b.sort_order);
 });
@@ -425,7 +496,10 @@ async function dealDamage(member: PartyMember) {
   } else {
     hp = Math.max(-member.max_hp, hp - amount);
   }
-  await updateMember({ id: member.id, update: { current_hp: hp, temp_hp: temp } });
+  await updateMember({
+    id: member.id,
+    update: { current_hp: hp, temp_hp: temp },
+  });
   hpInputs[member.id] = 0;
 }
 
@@ -456,7 +530,10 @@ function availableConditions(member: PartyMember) {
 }
 async function addCondition(member: PartyMember, condition: string) {
   conditionOpen[member.id] = false;
-  await updateMember({ id: member.id, update: { conditions: [...member.conditions, condition] } });
+  await updateMember({
+    id: member.id,
+    update: { conditions: [...member.conditions, condition] },
+  });
 }
 async function removeCondition(member: PartyMember, condition: string) {
   await updateMember({
@@ -467,16 +544,24 @@ async function removeCondition(member: PartyMember, condition: string) {
 
 // Inspiration
 async function toggleInspiration(member: PartyMember) {
-  await updateMember({ id: member.id, update: { inspiration: !member.inspiration } });
+  await updateMember({
+    id: member.id,
+    update: { inspiration: !member.inspiration },
+  });
 }
 
 // Death saves
-async function toggleDeathSave(member: PartyMember, type: "success" | "failure") {
+async function toggleDeathSave(
+  member: PartyMember,
+  type: "success" | "failure",
+) {
   if (type === "success") {
-    const n = member.death_save_successes >= 3 ? 0 : member.death_save_successes + 1;
+    const n =
+      member.death_save_successes >= 3 ? 0 : member.death_save_successes + 1;
     await updateMember({ id: member.id, update: { death_save_successes: n } });
   } else {
-    const n = member.death_save_failures >= 3 ? 0 : member.death_save_failures + 1;
+    const n =
+      member.death_save_failures >= 3 ? 0 : member.death_save_failures + 1;
     await updateMember({ id: member.id, update: { death_save_failures: n } });
   }
 }
@@ -485,31 +570,67 @@ async function toggleDeathSave(member: PartyMember, type: "success" | "failure")
 function mod(score: number) {
   return Math.floor((score - 10) / 2);
 }
-function profAdd(profs: SkillProficiencies, key: keyof SkillProficiencies, profBonus: number) {
+function profAdd(
+  profs: SkillProficiencies,
+  key: keyof SkillProficiencies,
+  profBonus: number,
+) {
   const level: SkillProfLevel = profs[key] ?? "none";
-  return level === "proficient" ? profBonus : level === "expertise" ? profBonus * 2 : 0;
+  return level === "proficient"
+    ? profBonus
+    : level === "expertise"
+      ? profBonus * 2
+      : 0;
 }
 
 function passivePerception(m: PartyMember) {
-  return 10 + mod(m.wis) + profAdd(m.skill_proficiencies, "perception", m.proficiency_bonus);
+  return (
+    10 +
+    mod(m.wis) +
+    profAdd(m.skill_proficiencies, "perception", m.proficiency_bonus)
+  );
 }
 function passiveInsight(m: PartyMember) {
-  return 10 + mod(m.wis) + profAdd(m.skill_proficiencies, "insight", m.proficiency_bonus);
+  return (
+    10 +
+    mod(m.wis) +
+    profAdd(m.skill_proficiencies, "insight", m.proficiency_bonus)
+  );
 }
 function passiveInvestigation(m: PartyMember) {
-  return 10 + mod(m.int) + profAdd(m.skill_proficiencies, "investigation", m.proficiency_bonus);
+  return (
+    10 +
+    mod(m.int) +
+    profAdd(m.skill_proficiencies, "investigation", m.proficiency_bonus)
+  );
 }
 function passiveArcana(m: PartyMember) {
-  return 10 + mod(m.int) + profAdd(m.skill_proficiencies, "arcana", m.proficiency_bonus);
+  return (
+    10 +
+    mod(m.int) +
+    profAdd(m.skill_proficiencies, "arcana", m.proficiency_bonus)
+  );
 }
 function passiveHistory(m: PartyMember) {
-  return 10 + mod(m.int) + profAdd(m.skill_proficiencies, "history", m.proficiency_bonus);
+  return (
+    10 +
+    mod(m.int) +
+    profAdd(m.skill_proficiencies, "history", m.proficiency_bonus)
+  );
 }
 function passiveNature(m: PartyMember) {
-  return 10 + mod(m.int) + profAdd(m.skill_proficiencies, "nature", m.proficiency_bonus);
+  return (
+    10 +
+    mod(m.int) +
+    profAdd(m.skill_proficiencies, "nature", m.proficiency_bonus)
+  );
 }
 function passiveReligion(m: PartyMember) {
-  return 10 + mod(m.int) + profAdd(m.skill_proficiencies, "religion", m.proficiency_bonus);
+  return (
+    10 +
+    mod(m.int) +
+    profAdd(m.skill_proficiencies, "religion", m.proficiency_bonus)
+  );
 }
 
 // HP colour helpers

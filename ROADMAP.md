@@ -116,6 +116,7 @@ Rough shape:
 - [ ] bestiary should be preloaded with the free available monsters stored centrally (uneditable by non admin users) from the 5e SRD, so users have something to start with and can customize from there (add a custom only filter to see just user created monsters)
 - [ ] in spells, affected targets is only an area of effect of 1 or a template, but many spells have more complex targeting (e.g. "one creature you can see within range" or "up to three creatures in range")
 - [x] 400 error when uploading a portrait for a party member, and the image doesn't save (error"Bucket not found")
-- [ ] Inconsistent UI, no delete button INSIDE scriptorum file
-- [ ] Styling, remove up/down arrows from number inputs
-- [ ] Upgrade, in party overview show the avatar if there is one
+- [x] Inconsistent UI, no delete button INSIDE scriptorum file
+- [x] Styling, remove up/down arrows from number inputs
+- [x] Upgrade, in party overview show the avatar if there is one
+- [ ] In the Encounters list view, theres two "new encounter" buttons right below each other. To stick with the pattern of other create new resource items, perhaps remove the one besides the search input
