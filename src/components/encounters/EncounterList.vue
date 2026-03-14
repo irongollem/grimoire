@@ -98,14 +98,14 @@ import { Search, Skull, Users } from "lucide-vue-next";
 import { useEncounters } from "@/composables/useEncounters";
 import { DIFFICULTY_COLORS, calculateDifficulty, crToXp } from "@/types/encounter.types";
 import type { Encounter } from "@/types/encounter.types";
-import { useMonsters } from "@/composables/useMonsters";
+import { useAllMonsters } from "@/composables/useMonsters";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 
 const search = ref("");
 
 const { data: encounters, isLoading } = useEncounters();
-const { data: monsters } = useMonsters();
+const { data: monsters } = useAllMonsters();
 
 const filtered = computed(() => {
   let list = encounters.value ?? [];

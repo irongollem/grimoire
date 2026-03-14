@@ -11,7 +11,7 @@
 import { computed, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useEncounter } from "@/composables/useEncounters";
-import { useMonsters } from "@/composables/useMonsters";
+import { useAllMonsters } from "@/composables/useMonsters";
 import { useParty } from "@/composables/useParty";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
@@ -25,7 +25,7 @@ const route = useRoute();
 const id = computed(() => route.params.id as string);
 
 const { data: encounter } = useEncounter(id);
-const { data: monsters } = useMonsters();
+const { data: monsters } = useAllMonsters();
 const { data: party } = useParty();
 const store = useEncounterRunStore();
 

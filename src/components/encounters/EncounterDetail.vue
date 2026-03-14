@@ -406,7 +406,7 @@
 import { ref, computed, reactive, watch } from "vue";
 import { useRouter } from "vue-router";
 import { ChevronLeft, Plus, X, Search, Play, Minus } from "lucide-vue-next";
-import { useMonsters } from "@/composables/useMonsters";
+import { useAllMonsters } from "@/composables/useMonsters";
 import { useParty } from "@/composables/useParty";
 import { useCreateEncounter, useUpdateEncounter, useDeleteEncounter } from "@/composables/useEncounters";
 import {
@@ -424,7 +424,7 @@ const props = defineProps<{
 }>();
 
 const router = useRouter();
-const { data: monsters } = useMonsters();
+const { data: monsters } = useAllMonsters();
 const { data: party, isLoading: partyLoading } = useParty();
 const createEncounter = useCreateEncounter();
 const updateEncounterMutation = useUpdateEncounter();

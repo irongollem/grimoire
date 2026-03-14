@@ -346,7 +346,7 @@
 import { ref, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useEncounterRunStore } from "@/stores/encounterRun";
-import { useMonsters } from "@/composables/useMonsters";
+import { useAllMonsters } from "@/composables/useMonsters";
 import { useParty } from "@/composables/useParty";
 import { CONDITIONS, SKILLS } from "@/types/party.types";
 import type { SaveKey } from "@/types/party.types";
@@ -358,7 +358,7 @@ const router = useRouter();
 const route = useRoute();
 const encounterId = computed(() => route.params.id as string);
 
-const { data: monsters } = useMonsters();
+const { data: monsters } = useAllMonsters();
 const { data: party } = useParty();
 
 const addingCondFor = ref<string | null>(null);

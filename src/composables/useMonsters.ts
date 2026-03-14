@@ -1,6 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
+import { computed } from "vue";
 import { supabase } from "@/lib/supabase";
+import { SRD_MONSTERS, getSrdMonster } from "@/data/srdMonsters";
 import type { Monster, MonsterInsert, MonsterUpdate } from "@/types/monster.types";
+
+export { getSrdMonster };
 
 const QUERY_KEY = "monsters";
 
@@ -52,6 +56,16 @@ export function useMonsters() {
   return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchMonsters });
 }
 
+/** Returns SRD monsters merged with the user's custom monsters, sorted by name. */
+export function useAllMonsters() {
+  const query = useMonsters();
+  const data = computed<Monster[]>(() => {
+    const custom = query.data.value ?? [];
+    return [...SRD_MONSTERS, ...custom].sort((a, b) => a.name.localeCompare(b.name));
+  });
+  return { data, isLoading: query.isLoading };
+}
+
 export function useMonster(id: string) {
   return useQuery({
     queryKey: [QUERY_KEY, id],
@@ -84,6 +98,18 @@ export function useDeleteMonster() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteMonster,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}
+
+/** Clone an SRD monster into the user's own collection. Returns the new Monster. */
+export function useCloneSrdMonster() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (srdMonster: Monster): Promise<Monster> => {
+      const { name, monster_type, size, alignment, habitat, source, tags, stat_block, notes, image_url, card_art_url } = srdMonster;
+      return createMonster({ name, monster_type, size, alignment, habitat, source: `${source ?? "SRD 5.1"} (customized)`, tags, stat_block, notes, image_url, card_art_url });
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }

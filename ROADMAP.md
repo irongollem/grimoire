@@ -91,6 +91,7 @@ Rough shape:
 
 - [ ] **Party companions** — allow adding companion characters (familiars, sidekicks, hired NPCs) to the party tracker, with their own HP/conditions but a simpler stat display than a full PC slot
 - [ ] **Monster import from external sources** — import tool to pull monster stat blocks from D&D Beyond (or Open5e API as a free alternative) directly into the Bestiary, mapping fields to our `Monster` type
+- [ ] **Open5e API — spells & items** — use the same fetch-and-bundle approach (`scripts/fetch-srd-monsters.mjs` as template) to pre-populate the Spells and Items modules with SRD content (spells endpoint: `/v1/spells/?document__slug=wotc-srd`, items: `/v1/magicitems/`). Open5e is scrape/bundle only — no runtime API dependency.
 - [ ] **Scriptorium two-column layout** — CSS `columns: 2` toggle for PHB-style two-column pages
 - [ ] **Scriptorium table support** — Tiptap table extension for stat comparison tables
 - [ ] **Calendar integration** — pin quests, encounters, and location events to Faerûn calendar dates
@@ -113,7 +114,7 @@ Rough shape:
 - [x] Calendar position (year/month) now persists to localStorage across sessions
 - [x] in party view keys and values and units are without spacing( e.x. speed30ft)
 - [x] in party view the values are abbrieviated too much like PP instead of passive perception, also i'd like to see other valuable passives like knowledge skills
-- [ ] bestiary should be preloaded with the free available monsters stored centrally (uneditable by non admin users) from the 5e SRD, so users have something to start with and can customize from there (add a custom only filter to see just user created monsters)
+- [x] bestiary should be preloaded with the free available monsters stored centrally (uneditable by non admin users) from the 5e SRD, so users have something to start with and can customize from there (add a custom only filter to see just user created monsters)
 - [x] in spells, affected targets is only an area of effect of 1 or a template, but many spells have more complex targeting (e.g. "one creature you can see within range" or "up to three creatures in range")
 - [x] 400 error when uploading a portrait for a party member, and the image doesn't save (error"Bucket not found")
 - [x] Inconsistent UI, no delete button INSIDE scriptorum file

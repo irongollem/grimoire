@@ -14,6 +14,26 @@
         />
       </div>
 
+      <!-- Source filter -->
+      <div
+        class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider"
+      >
+        <button
+          v-for="s in SOURCE_OPTIONS"
+          :key="s.value"
+          class="px-2.5 py-1.5 transition-colors"
+          :class="
+            sourceFilter === s.value
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-card text-muted-foreground hover:text-foreground'
+          "
+          @click="sourceFilter = s.value"
+        >
+          {{ s.label }}
+        </button>
+      </div>
+
+      <!-- Type filter -->
       <div
         class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider"
       >
@@ -38,9 +58,9 @@
     </div>
 
     <EmptyState
-      v-else-if="!filtered.length && !search && typeFilter === 'all'"
-      title="No monsters yet"
-      description="Build your bestiary — from lowly goblins to fearsome dragons."
+      v-else-if="!filtered.length && !search && typeFilter === 'all' && sourceFilter === 'custom'"
+      title="No custom monsters yet"
+      description="Customize an SRD monster or build your own from scratch."
     >
       <template #action>
         <RouterLink
@@ -90,21 +110,29 @@
         </div>
 
         <div class="p-3 flex flex-col gap-2 flex-1">
-          <!-- Name + CR -->
+          <!-- Name + SRD badge + CR -->
           <div class="flex items-start justify-between gap-2">
             <h3
               class="font-cinzel text-sm font-bold text-foreground leading-tight flex-1 line-clamp-1"
             >
               {{ monster.name }}
             </h3>
-            <span
-              class="shrink-0 min-w-8 text-center px-1.5 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider text-white"
-              :style="{
-                backgroundColor: crColor(monster.stat_block.challenge_rating),
-              }"
-            >
-              CR {{ monster.stat_block.challenge_rating }}
-            </span>
+            <div class="flex items-center gap-1 shrink-0">
+              <span
+                v-if="monster.is_srd"
+                class="px-1 py-0.5 rounded font-cinzel text-[9px] font-bold tracking-wider bg-muted text-muted-foreground border border-border"
+              >
+                SRD
+              </span>
+              <span
+                class="min-w-8 text-center px-1.5 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider text-white"
+                :style="{
+                  backgroundColor: crColor(monster.stat_block.challenge_rating),
+                }"
+              >
+                CR {{ monster.stat_block.challenge_rating }}
+              </span>
+            </div>
           </div>
 
           <!-- Type + Size -->
@@ -142,7 +170,7 @@
       v-if="filtered.length"
       class="mt-4 font-fell text-xs text-muted-foreground italic text-right"
     >
-      {{ filtered.length }} of {{ monsters?.length ?? 0 }} monsters
+      {{ filtered.length }} of {{ allMonsters?.length ?? 0 }} monsters
     </p>
   </div>
 </template>
@@ -150,9 +178,15 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { Search } from "lucide-vue-next";
-import { useMonsters } from "@/composables/useMonsters";
+import { useAllMonsters } from "@/composables/useMonsters";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+
+const SOURCE_OPTIONS = [
+  { value: "all", label: "All" },
+  { value: "srd", label: "SRD" },
+  { value: "custom", label: "Custom" },
+];
 
 const TYPE_OPTIONS = [
   { value: "all", label: "All" },
@@ -167,11 +201,14 @@ const TYPE_OPTIONS = [
 
 const search = ref("");
 const typeFilter = ref("all");
+const sourceFilter = ref("all");
 
-const { data: monsters, isLoading } = useMonsters();
+const { data: allMonsters, isLoading } = useAllMonsters();
 
 const filtered = computed(() => {
-  let list = monsters.value ?? [];
+  let list = allMonsters.value ?? [];
+  if (sourceFilter.value === "srd") list = list.filter((m) => m.is_srd);
+  if (sourceFilter.value === "custom") list = list.filter((m) => !m.is_srd);
   if (search.value.trim()) {
     const q = search.value.toLowerCase();
     list = list.filter(
