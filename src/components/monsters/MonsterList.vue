@@ -59,7 +59,10 @@
       No monsters match your filters.
     </p>
 
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+    <div
+      v-else
+      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
+    >
       <RouterLink
         v-for="monster in filtered"
         :key="monster.id"
@@ -69,12 +72,21 @@
         <!-- CR colour bar -->
         <div
           class="h-1.5 w-full shrink-0"
-          :style="{ backgroundColor: crColor(monster.stat_block.challenge_rating) }"
+          :style="{
+            backgroundColor: crColor(monster.stat_block.challenge_rating),
+          }"
         />
 
         <!-- Portrait thumbnail -->
-        <div v-if="monster.image_url" class="relative w-full aspect-video overflow-hidden bg-muted shrink-0">
-          <img :src="monster.image_url" :alt="monster.name" class="w-full h-full object-cover object-top" />
+        <div
+          v-if="monster.image_url"
+          class="relative w-full aspect-video overflow-hidden bg-muted shrink-0"
+        >
+          <img
+            :src="monster.image_url"
+            :alt="monster.name"
+            class="w-full h-full object-cover object-top"
+          />
         </div>
 
         <div class="p-3 flex flex-col gap-2 flex-1">
@@ -86,8 +98,10 @@
               {{ monster.name }}
             </h3>
             <span
-              class="shrink-0 min-w-[2rem] text-center px-1.5 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider text-white"
-              :style="{ backgroundColor: crColor(monster.stat_block.challenge_rating) }"
+              class="shrink-0 min-w-8 text-center px-1.5 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider text-white"
+              :style="{
+                backgroundColor: crColor(monster.stat_block.challenge_rating),
+              }"
             >
               CR {{ monster.stat_block.challenge_rating }}
             </span>
@@ -168,7 +182,8 @@ const filtered = computed(() => {
         m.tags.some((t) => t.toLowerCase().includes(q)),
     );
   }
-  if (typeFilter.value !== "all") list = list.filter((m) => m.monster_type === typeFilter.value);
+  if (typeFilter.value !== "all")
+    list = list.filter((m) => m.monster_type === typeFilter.value);
   return list;
 });
 
@@ -178,7 +193,8 @@ function parseFraction(s: string): number {
 }
 
 function crColor(cr: string): string {
-  const num = cr === "0" ? 0 : cr.includes("/") ? parseFraction(cr) : parseFloat(cr);
+  const num =
+    cr === "0" ? 0 : cr.includes("/") ? parseFraction(cr) : parseFloat(cr);
   if (num <= 0.5) return "#22c55e";
   if (num <= 4) return "#eab308";
   if (num <= 9) return "#f97316";

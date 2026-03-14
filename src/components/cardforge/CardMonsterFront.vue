@@ -3,13 +3,20 @@
     <div class="card-face">
       <!-- Title bar -->
       <div class="card-header">
-        <span class="card-name" :title="data.name">{{ truncateCard(data.name, 20) }}</span>
+        <span class="card-name" :title="data.name">{{
+          truncateCard(data.name, 20)
+        }}</span>
         <span v-if="badge" class="cr-badge">{{ badge }}</span>
       </div>
 
       <!-- Art area -->
       <div class="art-area">
-        <img v-if="data.card_art_url ?? data.image_url" :src="(data.card_art_url ?? data.image_url)!" alt="" class="art-img" />
+        <img
+          v-if="data.card_art_url ?? data.image_url"
+          :src="(data.card_art_url ?? data.image_url)!"
+          alt=""
+          class="art-img"
+        />
         <div v-else class="art-placeholder">
           <span class="placeholder-glyph">{{ typeGlyph }}</span>
           <span class="placeholder-label">{{ data.monster_type }}</span>
@@ -52,7 +59,9 @@
 
       <!-- Footer -->
       <div class="card-footer">
-        <span v-for="tag in displayTags" :key="tag" class="ctag">{{ tag }}</span>
+        <span v-for="tag in displayTags" :key="tag" class="ctag">{{
+          tag
+        }}</span>
         <span class="footer-kind">{{ data.monster_type }}</span>
       </div>
     </div>
@@ -62,22 +71,37 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Monster } from "@/types/monster.types";
-import { MONSTER_COLORS, MONSTER_GLYPHS, ABILITY_KEYS, ABILITY_LABELS, truncateCard } from "@/types/card.types";
+import {
+  MONSTER_COLORS,
+  MONSTER_GLYPHS,
+  ABILITY_KEYS,
+  ABILITY_LABELS,
+  truncateCard,
+} from "@/types/card.types";
 
 const props = defineProps<{ data: Monster }>();
 
-const frameColor = computed(() => MONSTER_COLORS[props.data.monster_type] ?? "#1C2A4A");
+const frameColor = computed(
+  () => MONSTER_COLORS[props.data.monster_type] ?? "#1C2A4A",
+);
 const badge = computed(() => {
   const cr = props.data.stat_block?.challenge_rating;
   return cr != null ? `CR ${cr}` : null;
 });
-const typeGlyph = computed(() => MONSTER_GLYPHS[props.data.monster_type] ?? "?");
-const typeLine = computed(
-  () => `${props.data.size} ${props.data.monster_type} • ${props.data.alignment}`,
+const typeGlyph = computed(
+  () => MONSTER_GLYPHS[props.data.monster_type] ?? "?",
 );
-const hp = computed(() => props.data.stat_block?.hit_points.split(" ")[0] ?? "—");
+const typeLine = computed(
+  () =>
+    `${props.data.size} ${props.data.monster_type} • ${props.data.alignment}`,
+);
+const hp = computed(
+  () => props.data.stat_block?.hit_points.split(" ")[0] ?? "—",
+);
 const ac = computed(() => props.data.stat_block?.armor_class ?? "—");
-const speed = computed(() => (props.data.stat_block?.speed ?? "—").replace(" ft.", "'"));
+const speed = computed(() =>
+  (props.data.stat_block?.speed ?? "—").replace(" ft.", "'"),
+);
 const abilityStats = computed(() => {
   const sb = props.data.stat_block as unknown as Record<string, number> | null;
   return ABILITY_KEYS.map((key) => {

@@ -60,6 +60,7 @@ export interface Monster {
   card_art_url: string | null; // landscape art for MTG Card Forge
   created_at: string;
   updated_at: string;
+  is_srd?: boolean;            // true for read-only SRD reference monsters
 }
 
 export type MonsterInsert = Omit<Monster, "id" | "user_id" | "created_at" | "updated_at">;

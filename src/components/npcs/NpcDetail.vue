@@ -295,6 +295,7 @@ import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES, getNpcTemplate } from '@/data/n
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import TraitSection from '@/components/npcs/TraitSection.vue'
 import type { Npc, NpcInsert, NpcStatus, NpcRelationship, StatBlock } from '@/types/npc.types'
+import { useCampaignStore } from '@/stores/campaign'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -332,6 +333,7 @@ const { mutateAsync: createNpc, isPending: isCreating } = useCreateNpc()
 const { mutateAsync: updateNpc, isPending: isUpdating } = useUpdateNpc()
 const { mutateAsync: deleteNpc } = useDeleteNpc()
 const { mutateAsync: createScriptoriumDoc } = useCreateScriptoriumDocument()
+const campaign = useCampaignStore()
 const isSaving = computed(() => isCreating.value || isUpdating.value)
 const isSendingToScriptorium = ref(false)
 
@@ -371,6 +373,8 @@ const form = reactive<NpcInsert>({
   tags: [...(props.npc?.tags ?? [])],
   stat_block: props.npc?.stat_block ?? null,
   scriptorium_doc_id: props.npc?.scriptorium_doc_id ?? null,
+  campaign_id: campaign.activeCampaignId,
+  card_art_url: props.npc?.card_art_url ?? null,
 })
 
 // ── Stat block ────────────────────────────────────────────────────────────────

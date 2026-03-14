@@ -108,22 +108,53 @@
           </div>
           <!-- Card Art (landscape, for MTG Card Forge) -->
           <div class="flex flex-col gap-1">
-            <span class="field-label">Card Art <span class="font-fell normal-case font-normal italic text-muted-foreground">(landscape, for card printing)</span></span>
+            <span class="field-label"
+              >Card Art
+              <span
+                class="font-fell normal-case font-normal italic text-muted-foreground"
+                >(landscape, for card printing)</span
+              ></span
+            >
             <div
               class="relative aspect-video rounded-lg border border-border overflow-hidden bg-muted cursor-pointer group"
               @click="cardArtFileInput?.click()"
             >
-              <img v-if="cardArtUrl" :src="cardArtUrl" alt="Card Art" class="w-full h-full object-cover" />
-              <div v-else class="w-full h-full flex flex-col items-center justify-center gap-1 text-muted-foreground">
+              <img
+                v-if="cardArtUrl"
+                :src="cardArtUrl"
+                alt="Card Art"
+                class="w-full h-full object-cover"
+              />
+              <div
+                v-else
+                class="w-full h-full flex flex-col items-center justify-center gap-1 text-muted-foreground"
+              >
                 <ImagePlus class="h-6 w-6" />
-                <span class="font-fell text-xs italic">{{ isUploadingCardArt ? 'Uploading…' : 'Upload card art' }}</span>
+                <span class="font-fell text-xs italic">{{
+                  isUploadingCardArt ? "Uploading…" : "Upload card art"
+                }}</span>
               </div>
-              <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <span class="font-fell text-white text-xs italic">{{ cardArtUrl ? 'Change' : 'Upload' }}</span>
+              <div
+                class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+              >
+                <span class="font-fell text-white text-xs italic">{{
+                  cardArtUrl ? "Change" : "Upload"
+                }}</span>
               </div>
             </div>
-            <input ref="cardArtFileInput" type="file" accept="image/*" class="hidden" @change="onCardArtSelected" />
-            <button v-if="cardArtUrl" type="button" class="font-cinzel text-[10px] text-destructive hover:underline text-left" @click="cardArtUrl = ''">
+            <input
+              ref="cardArtFileInput"
+              type="file"
+              accept="image/*"
+              class="hidden"
+              @change="onCardArtSelected"
+            />
+            <button
+              v-if="cardArtUrl"
+              type="button"
+              class="font-cinzel text-[10px] text-destructive hover:underline text-left"
+              @click="cardArtUrl = ''"
+            >
               Remove card art
             </button>
           </div>
@@ -503,8 +534,11 @@ async function onCardArtSelected(e: Event) {
 }
 
 const f = reactive<
-  Omit<PartyMemberInsert, "sort_order" | "portrait_url" | "card_art_url"> & { sort_order: number }
+  Omit<PartyMemberInsert, "sort_order" | "portrait_url" | "card_art_url"> & {
+    sort_order: number;
+  }
 >({
+  campaign_id: props.member?.campaign_id ?? null,
   name: props.member?.name ?? "",
   player_name: props.member?.player_name ?? "",
   class: props.member?.class ?? "",

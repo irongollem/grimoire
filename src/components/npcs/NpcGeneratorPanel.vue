@@ -13,8 +13,12 @@
       class="fixed right-0 top-0 bottom-0 w-full max-w-md bg-card border-l border-border z-50 flex flex-col"
     >
       <!-- Header -->
-      <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-        <h2 class="font-cinzel text-base font-semibold text-foreground">NPC Generator</h2>
+      <div
+        class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0"
+      >
+        <h2 class="font-cinzel text-base font-semibold text-foreground">
+          NPC Generator
+        </h2>
         <button
           class="text-muted-foreground hover:text-foreground"
           @click="ui.npcGeneratorOpen = false"
@@ -31,7 +35,8 @@
             class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5"
           >
             CONCEPT
-            <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1"
+            <span
+              class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1"
               >(AI will use this)</span
             >
           </label>
@@ -47,12 +52,16 @@
 
         <!-- Quick options -->
         <div class="space-y-3">
-          <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">
+          <p
+            class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+          >
             QUICK OPTIONS
           </p>
 
           <div>
-            <label class="block font-fell text-xs text-muted-foreground mb-1">Name</label>
+            <label class="block font-fell text-xs text-muted-foreground mb-1"
+              >Name</label
+            >
             <input
               v-model="quickForm.name"
               placeholder="Leave blank to auto-generate"
@@ -62,7 +71,9 @@
 
           <div class="grid grid-cols-2 gap-2">
             <div>
-              <label class="block font-fell text-xs text-muted-foreground mb-1">Race</label>
+              <label class="block font-fell text-xs text-muted-foreground mb-1"
+                >Race</label
+              >
               <select
                 v-model="quickForm.race"
                 class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -72,30 +83,40 @@
               </select>
             </div>
             <div>
-              <label class="block font-fell text-xs text-muted-foreground mb-1">Class / Role</label>
+              <label class="block font-fell text-xs text-muted-foreground mb-1"
+                >Class / Role</label
+              >
               <select
                 v-model="quickForm.class"
                 class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="">Any</option>
-                <option v-for="c in CLASSES" :key="c" :value="c">{{ c }}</option>
+                <option v-for="c in CLASSES" :key="c" :value="c">
+                  {{ c }}
+                </option>
               </select>
             </div>
           </div>
 
           <div class="grid grid-cols-2 gap-2">
             <div>
-              <label class="block font-fell text-xs text-muted-foreground mb-1">Alignment</label>
+              <label class="block font-fell text-xs text-muted-foreground mb-1"
+                >Alignment</label
+              >
               <select
                 v-model="quickForm.alignment"
                 class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="">Any</option>
-                <option v-for="a in ALIGNMENTS" :key="a" :value="a">{{ a }}</option>
+                <option v-for="a in ALIGNMENTS" :key="a" :value="a">
+                  {{ a }}
+                </option>
               </select>
             </div>
             <div>
-              <label class="block font-fell text-xs text-muted-foreground mb-1">Relationship</label>
+              <label class="block font-fell text-xs text-muted-foreground mb-1"
+                >Relationship</label
+              >
               <select
                 v-model="quickForm.relationship"
                 class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -117,8 +138,16 @@
               class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option value="">None</option>
-              <optgroup v-for="cat in templateCategories" :key="cat" :label="cat">
-                <option v-for="t in templatesByCategory(cat)" :key="t.id" :value="t.id">
+              <optgroup
+                v-for="cat in templateCategories"
+                :key="cat"
+                :label="cat"
+              >
+                <option
+                  v-for="t in templatesByCategory(cat)"
+                  :key="t.id"
+                  :value="t.id"
+                >
                   {{ t.name }} (CR {{ t.stat_block.challenge_rating }})
                 </option>
               </optgroup>
@@ -132,14 +161,17 @@
             ✦ AI Generation — Coming Soon
           </p>
           <p class="font-fell text-xs text-muted-foreground italic">
-            Will use Claude Haiku or GPT-4o mini to generate name, personality, backstory, and
-            secrets from your concept above. The quick options will act as constraints.
+            Will use Claude Haiku or GPT-4o mini to generate name, personality,
+            backstory, and secrets from your concept above. The quick options
+            will act as constraints.
           </p>
         </div>
       </div>
 
       <!-- Footer -->
-      <div class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0">
+      <div
+        class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0"
+      >
         <button
           type="button"
           disabled
@@ -166,8 +198,13 @@ import { useRouter } from "vue-router";
 import { X } from "lucide-vue-next";
 import { useUiStore } from "@/stores/ui";
 import { useCreateNpc } from "@/composables/useNpcs";
-import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES, getNpcTemplate } from "@/data/npcTemplates";
+import {
+  NPC_TEMPLATES,
+  NPC_TEMPLATE_CATEGORIES,
+  getNpcTemplate,
+} from "@/data/npcTemplates";
 import type { NpcInsert, NpcRelationship } from "@/types/npc.types";
+import { useCampaignStore } from "@/stores/campaign";
 
 const RACES = [
   "Human",
@@ -253,6 +290,7 @@ function randomName(): string {
 const ui = useUiStore();
 const router = useRouter();
 const { mutateAsync: createNpc, isPending: isCreating } = useCreateNpc();
+const campaign = useCampaignStore();
 
 const concept = ref("");
 const quickForm = reactive({
@@ -270,11 +308,14 @@ function templatesByCategory(cat: string) {
 }
 
 async function quickCreate() {
-  const tpl = quickForm.templateId ? getNpcTemplate(quickForm.templateId) : null;
+  const tpl = quickForm.templateId
+    ? getNpcTemplate(quickForm.templateId)
+    : null;
   const name = quickForm.name.trim() || randomName();
 
   const payload: NpcInsert = {
     name,
+    campaign_id: campaign.activeCampaignId,
     race: quickForm.race || null,
     class: quickForm.class || null,
     alignment: quickForm.alignment || null,
@@ -290,6 +331,7 @@ async function quickCreate() {
     status: "alive",
     relationship: quickForm.relationship,
     portrait_url: null,
+    card_art_url: null,
     tags: [],
     stat_block: tpl?.stat_block ?? null,
     scriptorium_doc_id: null,

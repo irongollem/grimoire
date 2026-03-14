@@ -16,8 +16,14 @@
         @change="applyTemplate($event)"
       >
         <option value="">Load template…</option>
-        <optgroup v-for="cat in MONSTER_TEMPLATE_CATEGORIES" :key="cat.label" :label="cat.label">
-          <option v-for="t in cat.templates" :key="t.id" :value="t.id">{{ t.name }}</option>
+        <optgroup
+          v-for="cat in MONSTER_TEMPLATE_CATEGORIES"
+          :key="cat.label"
+          :label="cat.label"
+        >
+          <option v-for="t in cat.templates" :key="t.id" :value="t.id">
+            {{ t.name }}
+          </option>
         </optgroup>
       </select>
       <button
@@ -50,26 +56,48 @@
       </button>
     </div>
 
-    <p v-if="saveError" class="text-destructive font-fell text-sm">{{ saveError }}</p>
+    <p v-if="saveError" class="text-destructive font-fell text-sm">
+      {{ saveError }}
+    </p>
 
     <!-- Two-column body: portrait sidebar + stat block content -->
     <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
       <!-- Left: Portrait + Tags -->
       <div class="space-y-4">
         <div
-          class="relative aspect-[3/4] rounded-lg border border-border overflow-hidden bg-muted cursor-pointer group"
+          class="relative aspect-3/4 rounded-lg border border-border overflow-hidden bg-muted cursor-pointer group"
           @click="artFileInput?.click()"
         >
-          <img v-if="form.image_url" :src="form.image_url" alt="Portrait" class="w-full h-full object-cover" />
-          <div v-else class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground">
+          <img
+            v-if="form.image_url"
+            :src="form.image_url"
+            alt="Portrait"
+            class="w-full h-full object-cover"
+          />
+          <div
+            v-else
+            class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground"
+          >
             <ImagePlus class="h-10 w-10" />
-            <span class="font-fell text-sm italic">{{ isUploadingArt ? 'Uploading…' : 'Upload portrait' }}</span>
+            <span class="font-fell text-sm italic">{{
+              isUploadingArt ? "Uploading…" : "Upload portrait"
+            }}</span>
           </div>
-          <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-            <span class="font-fell text-white text-sm italic">{{ form.image_url ? 'Change portrait' : 'Upload portrait' }}</span>
+          <div
+            class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+          >
+            <span class="font-fell text-white text-sm italic">{{
+              form.image_url ? "Change portrait" : "Upload portrait"
+            }}</span>
           </div>
         </div>
-        <input ref="artFileInput" type="file" accept="image/*" class="hidden" @change="onArtSelected" />
+        <input
+          ref="artFileInput"
+          type="file"
+          accept="image/*"
+          class="hidden"
+          @change="onArtSelected"
+        />
         <button
           v-if="form.image_url"
           type="button"
@@ -80,21 +108,45 @@
         </button>
 
         <!-- Card Art (landscape, for MTG Card Forge) -->
-        <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mt-2">CARD ART</p>
+        <p
+          class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mt-2"
+        >
+          CARD ART
+        </p>
         <div
           class="relative aspect-video rounded-lg border border-border overflow-hidden bg-muted cursor-pointer group"
           @click="cardArtFileInput?.click()"
         >
-          <img v-if="form.card_art_url" :src="form.card_art_url" alt="Card Art" class="w-full h-full object-cover" />
-          <div v-else class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground">
+          <img
+            v-if="form.card_art_url"
+            :src="form.card_art_url"
+            alt="Card Art"
+            class="w-full h-full object-cover"
+          />
+          <div
+            v-else
+            class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground"
+          >
             <ImagePlus class="h-8 w-8" />
-            <span class="font-fell text-xs italic">{{ isUploadingCardArt ? 'Uploading…' : 'Upload card art (landscape)' }}</span>
+            <span class="font-fell text-xs italic">{{
+              isUploadingCardArt ? "Uploading…" : "Upload card art (landscape)"
+            }}</span>
           </div>
-          <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-            <span class="font-fell text-white text-xs italic">{{ form.card_art_url ? 'Change card art' : 'Upload card art' }}</span>
+          <div
+            class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+          >
+            <span class="font-fell text-white text-xs italic">{{
+              form.card_art_url ? "Change card art" : "Upload card art"
+            }}</span>
           </div>
         </div>
-        <input ref="cardArtFileInput" type="file" accept="image/*" class="hidden" @change="onCardArtSelected" />
+        <input
+          ref="cardArtFileInput"
+          type="file"
+          accept="image/*"
+          class="hidden"
+          @change="onCardArtSelected"
+        />
         <button
           v-if="form.card_art_url"
           type="button"
@@ -142,23 +194,43 @@
         <section class="grid grid-cols-2 lg:grid-cols-3 gap-3">
           <label class="block">
             <span class="field-label">Type</span>
-            <select v-model="form.monster_type" class="field-input w-full capitalize">
-              <option v-for="t in MONSTER_TYPES" :key="t" :value="t" class="capitalize">{{ t }}</option>
+            <select
+              v-model="form.monster_type"
+              class="field-input w-full capitalize"
+            >
+              <option
+                v-for="t in MONSTER_TYPES"
+                :key="t"
+                :value="t"
+                class="capitalize"
+              >
+                {{ t }}
+              </option>
             </select>
           </label>
           <label class="block">
             <span class="field-label">Size</span>
             <select v-model="form.size" class="field-input w-full capitalize">
-              <option v-for="s in SIZES" :key="s" :value="s" class="capitalize">{{ s }}</option>
+              <option v-for="s in SIZES" :key="s" :value="s" class="capitalize">
+                {{ s }}
+              </option>
             </select>
           </label>
           <label class="block">
             <span class="field-label">Alignment</span>
-            <input v-model="form.alignment" class="field-input w-full" placeholder="neutral evil" />
+            <input
+              v-model="form.alignment"
+              class="field-input w-full"
+              placeholder="neutral evil"
+            />
           </label>
           <label class="block">
             <span class="field-label">Source</span>
-            <input v-model="form.source" class="field-input w-full" placeholder="Monster Manual" />
+            <input
+              v-model="form.source"
+              class="field-input w-full"
+              placeholder="Monster Manual"
+            />
           </label>
           <label class="block">
             <span class="field-label">Habitat</span>
@@ -187,15 +259,27 @@
             </label>
             <label class="block">
               <span class="field-label">Armor Class</span>
-              <input v-model.number="sb.armor_class" type="number" class="field-input w-full" />
+              <input
+                v-model.number="sb.armor_class"
+                type="number"
+                class="field-input w-full"
+              />
             </label>
             <label class="block">
               <span class="field-label">Hit Points</span>
-              <input v-model="sb.hit_points" class="field-input w-full" placeholder="22 (3d8+9)" />
+              <input
+                v-model="sb.hit_points"
+                class="field-input w-full"
+                placeholder="22 (3d8+9)"
+              />
             </label>
             <label class="block">
               <span class="field-label">Speed</span>
-              <input v-model="sb.speed" class="field-input w-full" placeholder="30 ft." />
+              <input
+                v-model="sb.speed"
+                class="field-input w-full"
+                placeholder="30 ft."
+              />
             </label>
           </div>
         </section>
@@ -219,7 +303,9 @@
               />
               <span
                 class="font-cinzel text-xs font-bold"
-                :class="mod(sb[stat.key]) >= 0 ? 'text-green-500' : 'text-destructive'"
+                :class="
+                  mod(sb[stat.key]) >= 0 ? 'text-green-500' : 'text-destructive'
+                "
               >
                 {{ mod(sb[stat.key]) >= 0 ? "+" : "" }}{{ mod(sb[stat.key]) }}
               </span>
@@ -231,7 +317,11 @@
         <section class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label class="block">
             <span class="field-label">Saving Throws</span>
-            <input v-model="sb.saving_throws" class="field-input w-full" placeholder="Con +5, Wis +3" />
+            <input
+              v-model="sb.saving_throws"
+              class="field-input w-full"
+              placeholder="Con +5, Wis +3"
+            />
           </label>
           <label class="block">
             <span class="field-label">Skills</span>
@@ -284,7 +374,11 @@
           </label>
           <label class="block">
             <span class="field-label">Languages</span>
-            <input v-model="sb.languages" class="field-input w-full" placeholder="Common, Giant" />
+            <input
+              v-model="sb.languages"
+              class="field-input w-full"
+              placeholder="Common, Giant"
+            />
           </label>
         </section>
 
@@ -292,7 +386,10 @@
 
         <!-- Trait sections -->
         <section class="flex flex-col gap-4">
-          <TraitSection v-model="sb.special_abilities" label="Special Abilities" />
+          <TraitSection
+            v-model="sb.special_abilities"
+            label="Special Abilities"
+          />
           <TraitSection v-model="sb.actions" label="Actions" />
           <TraitSection v-model="sb.bonus_actions" label="Bonus Actions" />
           <TraitSection v-model="sb.reactions" label="Reactions" />
@@ -302,7 +399,9 @@
         <section>
           <p class="section-heading">Legendary</p>
           <label class="flex items-center gap-3 mb-4">
-            <span class="field-label whitespace-nowrap">Legendary Resistance (uses/day)</span>
+            <span class="field-label whitespace-nowrap"
+              >Legendary Resistance (uses/day)</span
+            >
             <input
               v-model.number="sb.legendary_resistance"
               type="number"
@@ -311,7 +410,10 @@
               class="field-input w-20"
             />
           </label>
-          <TraitSection v-model="sb.legendary_actions" label="Legendary Actions" />
+          <TraitSection
+            v-model="sb.legendary_actions"
+            label="Legendary Actions"
+          />
         </section>
 
         <!-- Lair -->
@@ -341,12 +443,24 @@ import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
 import { Save, Trash2, ScrollText, ImagePlus } from "lucide-vue-next";
 import { useImageUpload } from "@/composables/useImageUpload";
-import { useCreateMonster, useUpdateMonster, useDeleteMonster } from "@/composables/useMonsters";
+import {
+  useCreateMonster,
+  useUpdateMonster,
+  useDeleteMonster,
+} from "@/composables/useMonsters";
 import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
 import { formatMonsterForScriptorium } from "@/lib/scriptoriumImport";
 import TraitSection from "@/components/npcs/TraitSection.vue";
-import { MONSTER_TEMPLATE_CATEGORIES, getMonsterTemplate } from "@/data/monsterTemplates";
-import type { Monster, MonsterType, MonsterSize, MonsterStatBlock } from "@/types/monster.types";
+import {
+  MONSTER_TEMPLATE_CATEGORIES,
+  getMonsterTemplate,
+} from "@/data/monsterTemplates";
+import type {
+  Monster,
+  MonsterType,
+  MonsterSize,
+  MonsterStatBlock,
+} from "@/types/monster.types";
 
 const MONSTER_TYPES: MonsterType[] = [
   "aberration",
@@ -364,7 +478,14 @@ const MONSTER_TYPES: MonsterType[] = [
   "plant",
   "undead",
 ];
-const SIZES: MonsterSize[] = ["tiny", "small", "medium", "large", "huge", "gargantuan"];
+const SIZES: MonsterSize[] = [
+  "tiny",
+  "small",
+  "medium",
+  "large",
+  "huge",
+  "gargantuan",
+];
 const ABILITY_STATS = [
   { key: "str" as const, label: "STR" },
   { key: "dex" as const, label: "DEX" },
@@ -421,7 +542,9 @@ function defaultSb(): MonsterStatBlock {
 }
 
 const sb = reactive<MonsterStatBlock>(
-  props.monster?.stat_block ? { ...defaultSb(), ...props.monster.stat_block } : defaultSb(),
+  props.monster?.stat_block
+    ? { ...defaultSb(), ...props.monster.stat_block }
+    : defaultSb(),
 );
 
 // Tags
@@ -478,8 +601,10 @@ function mod(score: number) {
 // Image uploads
 const artFileInput = ref<HTMLInputElement | null>(null);
 const cardArtFileInput = ref<HTMLInputElement | null>(null);
-const { isUploading: isUploadingArt, upload: uploadArt } = useImageUpload("asset-images");
-const { isUploading: isUploadingCardArt, upload: uploadCardArt } = useImageUpload("asset-images");
+const { isUploading: isUploadingArt, upload: uploadArt } =
+  useImageUpload("asset-images");
+const { isUploading: isUploadingCardArt, upload: uploadCardArt } =
+  useImageUpload("asset-images");
 async function onArtSelected(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (!file) return;

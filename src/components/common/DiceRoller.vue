@@ -16,8 +16,17 @@
       <div v-if="isOpen" class="dice-panel" @click.stop>
         <!-- Header -->
         <div class="dice-panel-header">
-          <span class="font-cinzel text-xs font-bold tracking-wider text-foreground">Dice Roller</span>
-          <button type="button" class="text-muted-foreground hover:text-foreground text-lg leading-none" @click="isOpen = false">×</button>
+          <span
+            class="font-cinzel text-xs font-bold tracking-wider text-foreground"
+            >Dice Roller</span
+          >
+          <button
+            type="button"
+            class="text-muted-foreground hover:text-foreground text-lg leading-none"
+            @click="isOpen = false"
+          >
+            ×
+          </button>
         </div>
 
         <!-- Dice grid -->
@@ -33,25 +42,44 @@
               <span class="die-label">d{{ d.sides }}</span>
             </button>
             <div class="die-count-row">
-              <button type="button" class="count-btn" @click="decrement(d.sides)">−</button>
+              <button
+                type="button"
+                class="count-btn"
+                @click="decrement(d.sides)"
+              >
+                −
+              </button>
               <span class="count-val">{{ counts[d.sides] }}</span>
-              <button type="button" class="count-btn" @click="increment(d.sides)">+</button>
+              <button
+                type="button"
+                class="count-btn"
+                @click="increment(d.sides)"
+              >
+                +
+              </button>
             </div>
           </div>
         </div>
 
         <!-- Modifier -->
         <div class="modifier-row">
-          <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">MODIFIER</span>
+          <span
+            class="font-cinzel text-[10px] text-muted-foreground tracking-wider"
+            >MODIFIER</span
+          >
           <div class="modifier-input-wrap">
-            <button type="button" class="count-btn" @click="modifier--">−</button>
+            <button type="button" class="count-btn" @click="modifier--">
+              −
+            </button>
             <input
               v-model.number="modifier"
               type="number"
               class="modifier-input"
               @click.stop
             />
-            <button type="button" class="count-btn" @click="modifier++">+</button>
+            <button type="button" class="count-btn" @click="modifier++">
+              +
+            </button>
           </div>
         </div>
 
@@ -62,29 +90,48 @@
             :key="m.value"
             type="button"
             class="adv-btn"
-            :class="{ 'adv-active': mode === m.value, [m.cls]: mode === m.value }"
+            :class="{
+              'adv-active': mode === m.value,
+              [m.cls]: mode === m.value,
+            }"
             @click="mode = m.value"
-          >{{ m.label }}</button>
+          >
+            {{ m.label }}
+          </button>
         </div>
 
         <!-- Roll button -->
-        <button type="button" class="roll-btn" :disabled="totalDice === 0" @click="roll">
+        <button
+          type="button"
+          class="roll-btn"
+          :disabled="totalDice === 0"
+          @click="roll"
+        >
           Roll {{ rollLabel }}
         </button>
 
         <!-- Result -->
         <Transition name="result-fade">
           <div v-if="result" class="result-panel">
-            <div class="result-total" :class="resultClass">{{ result.total }}</div>
-            <div class="result-label font-cinzel text-[10px] text-muted-foreground tracking-wider text-center">
+            <div class="result-total" :class="resultClass">
+              {{ result.total }}
+            </div>
+            <div
+              class="result-label font-cinzel text-[10px] text-muted-foreground tracking-wider text-center"
+            >
               {{ result.label }}
             </div>
             <div class="result-breakdown">
-              <span v-for="(r, i) in result.breakdown" :key="i" class="result-die" :class="{ 'result-die-dropped': r.dropped }">
+              <span
+                v-for="(r, i) in result.breakdown"
+                :key="i"
+                class="result-die"
+                :class="{ 'result-die-dropped': r.dropped }"
+              >
                 {{ r.val }}
               </span>
               <span v-if="result.modifier !== 0" class="result-mod">
-                {{ result.modifier > 0 ? '+' : '' }}{{ result.modifier }}
+                {{ result.modifier > 0 ? "+" : "" }}{{ result.modifier }}
               </span>
             </div>
           </div>
@@ -96,7 +143,7 @@
     </Transition>
 
     <!-- Backdrop -->
-    <div v-if="isOpen" class="fixed inset-0 z-[39]" @click="isOpen = false" />
+    <div v-if="isOpen" class="fixed inset-0 z-39" @click="isOpen = false" />
   </div>
 </template>
 
@@ -108,27 +155,38 @@ type DieSize = 4 | 6 | 8 | 10 | 12 | 20 | 100;
 type RollMode = "normal" | "advantage" | "disadvantage";
 
 const DICE: { sides: DieSize; icon: string }[] = [
-  { sides: 4,   icon: "▲" },
-  { sides: 6,   icon: "⬡" },
-  { sides: 8,   icon: "◆" },
-  { sides: 10,  icon: "◈" },
-  { sides: 12,  icon: "⬟" },
-  { sides: 20,  icon: "⬠" },
+  { sides: 4, icon: "▲" },
+  { sides: 6, icon: "⬡" },
+  { sides: 8, icon: "◆" },
+  { sides: 10, icon: "◈" },
+  { sides: 12, icon: "⬟" },
+  { sides: 20, icon: "⬠" },
   { sides: 100, icon: "⊕" },
 ];
 
 const MODES: { value: RollMode; label: string; cls: string }[] = [
   { value: "disadvantage", label: "DIS", cls: "adv-dis" },
-  { value: "normal",       label: "Normal", cls: "adv-normal" },
-  { value: "advantage",    label: "ADV", cls: "adv-adv" },
+  { value: "normal", label: "Normal", cls: "adv-normal" },
+  { value: "advantage", label: "ADV", cls: "adv-adv" },
 ];
 
 const isOpen = ref(false);
-const counts = reactive<Record<DieSize, number>>({ 4: 0, 6: 0, 8: 0, 10: 0, 12: 0, 20: 1, 100: 0 });
+const counts = reactive<Record<DieSize, number>>({
+  4: 0,
+  6: 0,
+  8: 0,
+  10: 0,
+  12: 0,
+  20: 1,
+  100: 0,
+});
 const modifier = ref(0);
 const mode = ref<RollMode>("normal");
 
-interface DieResult { val: number; dropped: boolean }
+interface DieResult {
+  val: number;
+  dropped: boolean;
+}
 interface RollResult {
   total: number;
   label: string;
@@ -139,14 +197,17 @@ interface RollResult {
 }
 const result = ref<RollResult | null>(null);
 
-const totalDice = computed(() => Object.values(counts).reduce((s, c) => s + c, 0));
+const totalDice = computed(() =>
+  Object.values(counts).reduce((s, c) => s + c, 0),
+);
 
 const rollLabel = computed(() => {
   const parts: string[] = [];
   for (const d of DICE) {
     if (counts[d.sides] > 0) parts.push(`${counts[d.sides]}d${d.sides}`);
   }
-  if (modifier.value !== 0) parts.push(modifier.value > 0 ? `+${modifier.value}` : `${modifier.value}`);
+  if (modifier.value !== 0)
+    parts.push(modifier.value > 0 ? `+${modifier.value}` : `${modifier.value}`);
   return parts.join(" + ") || "—";
 });
 
@@ -160,8 +221,12 @@ const resultClass = computed(() => {
 function toggleDie(sides: DieSize) {
   counts[sides] = counts[sides] > 0 ? 0 : 1;
 }
-function increment(sides: DieSize) { counts[sides] = Math.min(counts[sides] + 1, 9); }
-function decrement(sides: DieSize) { counts[sides] = Math.max(counts[sides] - 1, 0); }
+function increment(sides: DieSize) {
+  counts[sides] = Math.min(counts[sides] + 1, 9);
+}
+function decrement(sides: DieSize) {
+  counts[sides] = Math.max(counts[sides] - 1, 0);
+}
 
 function rollDie(sides: number): number {
   return Math.floor(Math.random() * sides) + 1;
@@ -181,8 +246,10 @@ function roll() {
         // Advantage / disadvantage: roll twice, keep one
         const r1 = rollDie(20);
         const r2 = rollDie(20);
-        const keep = mode.value === "advantage" ? Math.max(r1, r2) : Math.min(r1, r2);
-        const drop = mode.value === "advantage" ? Math.min(r1, r2) : Math.max(r1, r2);
+        const keep =
+          mode.value === "advantage" ? Math.max(r1, r2) : Math.min(r1, r2);
+        const drop =
+          mode.value === "advantage" ? Math.min(r1, r2) : Math.max(r1, r2);
         breakdown.push({ val: keep, dropped: false });
         breakdown.push({ val: drop, dropped: true });
         sum += keep;
@@ -199,10 +266,18 @@ function roll() {
   }
 
   const total = sum + modifier.value;
-  const modeLabel = counts[20] > 0 && mode.value !== "normal"
-    ? ` (${mode.value === "advantage" ? "Adv" : "Dis"})`
-    : "";
-  result.value = { total, label: rollLabel.value + modeLabel, modifier: modifier.value, breakdown, isCrit, isFumble };
+  const modeLabel =
+    counts[20] > 0 && mode.value !== "normal"
+      ? ` (${mode.value === "advantage" ? "Adv" : "Dis"})`
+      : "";
+  result.value = {
+    total,
+    label: rollLabel.value + modeLabel,
+    modifier: modifier.value,
+    breakdown,
+    isCrit,
+    isFumble,
+  };
 }
 
 function clearAll() {
@@ -280,10 +355,18 @@ function clearAll() {
 .adv-btn {
   @apply flex-1 py-1.5 font-cinzel text-[10px] font-bold tracking-wider text-muted-foreground hover:text-foreground transition-colors;
 }
-.adv-active { @apply text-foreground; }
-.adv-dis.adv-active  { @apply bg-destructive/20 text-destructive; }
-.adv-normal.adv-active { @apply bg-muted text-foreground; }
-.adv-adv.adv-active  { @apply bg-green-500/20 text-green-600 dark:text-green-400; }
+.adv-active {
+  @apply text-foreground;
+}
+.adv-dis.adv-active {
+  @apply bg-destructive/20 text-destructive;
+}
+.adv-normal.adv-active {
+  @apply bg-muted text-foreground;
+}
+.adv-adv.adv-active {
+  @apply bg-green-500/20 text-green-600 dark:text-green-400;
+}
 
 .roll-btn {
   @apply w-full py-2 font-cinzel text-xs font-bold tracking-wider bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity disabled:opacity-40;
@@ -295,8 +378,12 @@ function clearAll() {
 .result-total {
   @apply font-cinzel text-3xl font-bold text-foreground;
 }
-.result-crit   { @apply text-amber-500; }
-.result-fumble { @apply text-destructive; }
+.result-crit {
+  @apply text-amber-500;
+}
+.result-fumble {
+  @apply text-destructive;
+}
 .result-breakdown {
   @apply flex flex-wrap items-center justify-center gap-1 mt-0.5;
 }
@@ -317,7 +404,9 @@ function clearAll() {
 /* Transitions */
 .dice-panel-enter-active,
 .dice-panel-leave-active {
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
 }
 .dice-panel-enter-from,
 .dice-panel-leave-to {
