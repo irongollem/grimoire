@@ -79,6 +79,31 @@
           Remove portrait
         </button>
 
+        <!-- Card Art (landscape, for MTG Card Forge) -->
+        <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mt-2">CARD ART</p>
+        <div
+          class="relative aspect-video rounded-lg border border-border overflow-hidden bg-muted cursor-pointer group"
+          @click="cardArtFileInput?.click()"
+        >
+          <img v-if="form.card_art_url" :src="form.card_art_url" alt="Card Art" class="w-full h-full object-cover" />
+          <div v-else class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground">
+            <ImagePlus class="h-8 w-8" />
+            <span class="font-fell text-xs italic">{{ isUploadingCardArt ? 'Uploading…' : 'Upload card art (landscape)' }}</span>
+          </div>
+          <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <span class="font-fell text-white text-xs italic">{{ form.card_art_url ? 'Change card art' : 'Upload card art' }}</span>
+          </div>
+        </div>
+        <input ref="cardArtFileInput" type="file" accept="image/*" class="hidden" @change="onCardArtSelected" />
+        <button
+          v-if="form.card_art_url"
+          type="button"
+          class="font-cinzel text-[10px] text-destructive hover:underline"
+          @click="form.card_art_url = ''"
+        >
+          Remove card art
+        </button>
+
         <!-- Tags -->
         <div>
           <p class="field-label">Tags</p>
@@ -362,6 +387,7 @@ const form = reactive({
   tags: props.monster?.tags ? [...props.monster.tags] : [],
   notes: props.monster?.notes ?? "",
   image_url: props.monster?.image_url ?? "",
+  card_art_url: props.monster?.card_art_url ?? "",
 });
 
 function defaultSb(): MonsterStatBlock {
@@ -449,15 +475,24 @@ function mod(score: number) {
   return Math.floor((score - 10) / 2);
 }
 
-// Art upload
+// Image uploads
 const artFileInput = ref<HTMLInputElement | null>(null);
+const cardArtFileInput = ref<HTMLInputElement | null>(null);
 const { isUploading: isUploadingArt, upload: uploadArt } = useImageUpload("asset-images");
+const { isUploading: isUploadingCardArt, upload: uploadCardArt } = useImageUpload("asset-images");
 async function onArtSelected(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (!file) return;
   const url = await uploadArt(file);
   if (url) form.image_url = url;
   if (artFileInput.value) artFileInput.value.value = "";
+}
+async function onCardArtSelected(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  const url = await uploadCardArt(file);
+  if (url) form.card_art_url = url;
+  if (cardArtFileInput.value) cardArtFileInput.value.value = "";
 }
 
 // Save
@@ -492,6 +527,7 @@ function buildPayload() {
     tags: form.tags,
     notes: form.notes || null,
     image_url: form.image_url || null,
+    card_art_url: form.card_art_url || null,
     stat_block: { ...sb },
   };
 }

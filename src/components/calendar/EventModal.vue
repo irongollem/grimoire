@@ -279,6 +279,7 @@ const PRESET_COLORS = [
 const props = defineProps<{
   modelValue: boolean;
   editEvent?: CalendarEvent | null;
+  initialDay?: number | null;
 }>();
 
 const emit = defineEmits<{
@@ -302,7 +303,7 @@ function defaultForm(): CalendarEventInsert {
     color: PRESET_COLORS[0],
     harptos_year: calendar.currentYear,
     harptos_month: calendar.currentMonth,
-    harptos_day: 1,
+    harptos_day: props.initialDay ?? 1,
     festival_day: null,
     is_multi_day: false,
     end_year: null,

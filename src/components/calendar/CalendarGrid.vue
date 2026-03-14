@@ -1,29 +1,58 @@
 <template>
   <div>
     <!-- Month navigation -->
-    <div class="flex items-center justify-between mb-6">
-      <button
-        class="rounded-md border border-border px-3 py-1.5 font-fell text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-        @click="calendar.prevMonth()"
-      >
-        ← Previous
-      </button>
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-1">
+        <button
+          title="Previous year"
+          class="rounded-md border border-border px-2 py-1.5 font-fell text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          @click="calendar.goToYear(calendar.currentYear - 1)"
+        >
+          ◀◀
+        </button>
+        <button
+          class="rounded-md border border-border px-3 py-1.5 font-fell text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          @click="calendar.prevMonth()"
+        >
+          ← Previous
+        </button>
+      </div>
 
       <div class="text-center">
         <p class="font-cinzel text-xl font-semibold text-foreground">
           {{ currentMonth.name }}
         </p>
-        <p class="font-fell text-sm text-muted-foreground italic">
-          {{ currentMonth.alias }} · {{ calendar.currentYear }} {{ calendar.adapter.epochName }}
-        </p>
+        <div class="flex items-center justify-center gap-1 mt-0.5">
+          <p class="font-fell text-sm text-muted-foreground italic">
+            {{ currentMonth.alias }} ·
+          </p>
+          <input
+            :value="calendar.currentYear"
+            type="number"
+            class="w-20 bg-transparent border-b border-border text-center font-fell text-sm text-muted-foreground italic focus:outline-none focus:border-primary"
+            @change="onYearInput"
+          />
+          <p class="font-fell text-sm text-muted-foreground italic">
+            {{ calendar.adapter.epochName }}
+          </p>
+        </div>
       </div>
 
-      <button
-        class="rounded-md border border-border px-3 py-1.5 font-fell text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-        @click="calendar.nextMonth()"
-      >
-        Next →
-      </button>
+      <div class="flex items-center gap-1">
+        <button
+          class="rounded-md border border-border px-3 py-1.5 font-fell text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          @click="calendar.nextMonth()"
+        >
+          Next →
+        </button>
+        <button
+          title="Next year"
+          class="rounded-md border border-border px-2 py-1.5 font-fell text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          @click="calendar.goToYear(calendar.currentYear + 1)"
+        >
+          ▶▶
+        </button>
+      </div>
     </div>
 
     <!-- Loading -->
@@ -42,8 +71,9 @@
             v-for="dayOffset in 10"
             :key="dayOffset"
             :data-day="(tenday - 1) * 10 + dayOffset"
-            class="relative rounded-md border border-border bg-card min-h-14 p-1.5 flex flex-col hover:border-primary/50 transition-colors cursor-default"
+            class="relative rounded-md border border-border bg-card min-h-14 p-1.5 flex flex-col hover:border-primary/50 transition-colors cursor-pointer"
             :class="{ 'ring-1 ring-primary/40': hasEvents((tenday - 1) * 10 + dayOffset) }"
+            @click="emit('create-event', (tenday - 1) * 10 + dayOffset)"
           >
             <span class="font-cinzel text-xs font-semibold text-muted-foreground leading-none">
               {{ (tenday - 1) * 10 + dayOffset }}
@@ -142,6 +172,7 @@ const TENDAY_NAMES = ["First Tenday", "Second Tenday", "Third Tenday"];
 
 const emit = defineEmits<{
   "edit-event": [event: CalendarEvent];
+  "create-event": [day: number];
 }>();
 
 const calendar = useCalendarStore();
@@ -163,19 +194,45 @@ const festivalsAfterCurrentMonth = computed(() =>
   }),
 );
 
-// Events for the current month (non-festival)
-const monthEvents = computed(() =>
-  (events.value ?? []).filter((e) => e.harptos_month === calendar.currentMonth),
-);
+// Check if a regular (non-festival) event covers a given month/day.
+// For multi-day events uses month*100+day comparison which works for Harptos sequential months.
+function dayIsInEvent(event: CalendarEvent, month: number, day: number): boolean {
+  if (event.festival_day) return false;
+  const startMonth = event.harptos_month;
+  const startDay = event.harptos_day;
+  if (startMonth == null || startDay == null) return false;
+  if (!event.is_multi_day || event.end_day == null) {
+    return startMonth === month && startDay === day;
+  }
+  const endMonth = event.end_month ?? startMonth;
+  const endDay = event.end_day;
+  const pos = month * 100 + day;
+  return pos >= startMonth * 100 + startDay && pos <= endMonth * 100 + endDay;
+}
+
+// Events for the current month (non-festival) — includes multi-day events that span into this month
+const monthEvents = computed(() => {
+  const month = calendar.currentMonth;
+  return (events.value ?? []).filter((e) => {
+    if (e.festival_day) return false;
+    if (!e.is_multi_day || e.end_day == null) return e.harptos_month === month;
+    const startMonth = e.harptos_month ?? 0;
+    const endMonth = e.end_month ?? startMonth;
+    return startMonth <= month && month <= endMonth;
+  });
+});
 
 function eventsForDay(day: number): CalendarEvent[] {
-  return (events.value ?? []).filter(
-    (e) => e.harptos_month === calendar.currentMonth && e.harptos_day === day,
-  );
+  return (events.value ?? []).filter((e) => dayIsInEvent(e, calendar.currentMonth, day));
 }
 
 function hasEvents(day: number): boolean {
   return eventsForDay(day).length > 0;
+}
+
+function onYearInput(e: Event) {
+  const val = parseInt((e.target as HTMLInputElement).value, 10);
+  if (!isNaN(val) && val > 0) calendar.goToYear(val);
 }
 
 function eventsForFestival(festivalName: string): CalendarEvent[] {

@@ -52,7 +52,7 @@
       <div
         v-for="member in sortedMembers"
         :key="member.id"
-        class="rounded-lg border bg-card overflow-hidden transition-colors"
+        class="rounded-lg border bg-card transition-colors"
         :class="member.current_hp <= 0 ? 'border-destructive/50' : 'border-border'"
       >
         <div class="flex flex-col md:flex-row">
@@ -83,14 +83,13 @@
             <div class="flex flex-col items-center gap-1">
               <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">INIT</span>
               <div class="flex items-center gap-1">
-                <span
-                  class="font-cinzel text-lg font-bold leading-none"
-                  :class="
-                    member.current_initiative !== null ? 'text-primary' : 'text-muted-foreground'
-                  "
-                >
-                  {{ member.current_initiative !== null ? member.current_initiative : "–" }}
-                </span>
+                <input
+                  type="number"
+                  :value="member.current_initiative ?? ''"
+                  placeholder="–"
+                  class="w-10 bg-transparent border-b border-border font-cinzel text-lg font-bold text-center text-primary focus:outline-none focus:border-primary placeholder:text-muted-foreground"
+                  @change="setInitiative(member, ($event.target as HTMLInputElement).value)"
+                />
                 <button
                   type="button"
                   class="text-muted-foreground hover:text-primary transition-colors"
@@ -177,30 +176,44 @@
               </div>
             </div>
 
-            <!-- Key stats row -->
-            <div class="flex flex-wrap gap-x-4 gap-y-1 font-cinzel text-xs">
-              <span
-                ><span class="text-muted-foreground">AC</span>
-                <span class="font-bold text-foreground">{{ member.ac }}</span></span
-              >
-              <span
-                ><span class="text-muted-foreground">Speed</span>
-                <span class="font-bold text-foreground">{{ member.speed }}ft</span></span
-              >
-              <span
-                ><span class="text-muted-foreground">PP</span>
-                <span class="font-bold text-foreground">{{ passivePerception(member) }}</span></span
-              >
-              <span
-                ><span class="text-muted-foreground">PI</span>
-                <span class="font-bold text-foreground">{{ passiveInsight(member) }}</span></span
-              >
-              <span
-                ><span class="text-muted-foreground">PInv</span>
-                <span class="font-bold text-foreground">{{
-                  passiveInvestigation(member)
-                }}</span></span
-              >
+            <!-- Key stats grid -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-0.5 font-cinzel text-xs">
+              <span class="flex items-baseline justify-between gap-1 min-w-0">
+                <span class="text-muted-foreground truncate">AC</span>
+                <span class="font-bold text-foreground shrink-0">{{ member.ac }}</span>
+              </span>
+              <span class="flex items-baseline justify-between gap-1 min-w-0">
+                <span class="text-muted-foreground truncate">Speed</span>
+                <span class="font-bold text-foreground shrink-0">{{ member.speed }} ft</span>
+              </span>
+              <span class="flex items-baseline justify-between gap-1 min-w-0">
+                <span class="text-muted-foreground truncate">Perception</span>
+                <span class="font-bold text-foreground shrink-0">{{ passivePerception(member) }}</span>
+              </span>
+              <span class="flex items-baseline justify-between gap-1 min-w-0">
+                <span class="text-muted-foreground truncate">Insight</span>
+                <span class="font-bold text-foreground shrink-0">{{ passiveInsight(member) }}</span>
+              </span>
+              <span class="flex items-baseline justify-between gap-1 min-w-0">
+                <span class="text-muted-foreground truncate">Investigation</span>
+                <span class="font-bold text-foreground shrink-0">{{ passiveInvestigation(member) }}</span>
+              </span>
+              <span class="flex items-baseline justify-between gap-1 min-w-0">
+                <span class="text-muted-foreground truncate">Arcana</span>
+                <span class="font-bold text-foreground shrink-0">{{ passiveArcana(member) }}</span>
+              </span>
+              <span class="flex items-baseline justify-between gap-1 min-w-0">
+                <span class="text-muted-foreground truncate">History</span>
+                <span class="font-bold text-foreground shrink-0">{{ passiveHistory(member) }}</span>
+              </span>
+              <span class="flex items-baseline justify-between gap-1 min-w-0">
+                <span class="text-muted-foreground truncate">Nature</span>
+                <span class="font-bold text-foreground shrink-0">{{ passiveNature(member) }}</span>
+              </span>
+              <span class="flex items-baseline justify-between gap-1 min-w-0">
+                <span class="text-muted-foreground truncate">Religion</span>
+                <span class="font-bold text-foreground shrink-0">{{ passiveReligion(member) }}</span>
+              </span>
             </div>
 
             <!-- Saving throw proficiencies -->
@@ -371,6 +384,11 @@ async function rollInitiative(member: PartyMember) {
   const roll = d20() + member.initiative_bonus;
   await updateMember({ id: member.id, update: { current_initiative: roll } });
 }
+async function setInitiative(member: PartyMember, value: string) {
+  const parsed = value === "" ? null : parseInt(value, 10);
+  if (parsed !== null && isNaN(parsed)) return;
+  await updateMember({ id: member.id, update: { current_initiative: parsed } });
+}
 async function rollAllInitiative() {
   for (const member of party.value ?? []) {
     await rollInitiative(member);
@@ -475,6 +493,18 @@ function passiveInsight(m: PartyMember) {
 }
 function passiveInvestigation(m: PartyMember) {
   return 10 + mod(m.int) + profAdd(m.skill_proficiencies, "investigation", m.proficiency_bonus);
+}
+function passiveArcana(m: PartyMember) {
+  return 10 + mod(m.int) + profAdd(m.skill_proficiencies, "arcana", m.proficiency_bonus);
+}
+function passiveHistory(m: PartyMember) {
+  return 10 + mod(m.int) + profAdd(m.skill_proficiencies, "history", m.proficiency_bonus);
+}
+function passiveNature(m: PartyMember) {
+  return 10 + mod(m.int) + profAdd(m.skill_proficiencies, "nature", m.proficiency_bonus);
+}
+function passiveReligion(m: PartyMember) {
+  return 10 + mod(m.int) + profAdd(m.skill_proficiencies, "religion", m.proficiency_bonus);
 }
 
 // HP colour helpers

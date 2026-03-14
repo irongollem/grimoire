@@ -41,7 +41,8 @@ export interface Npc {
   notes: string | null;
   status: NpcStatus;
   relationship: NpcRelationship;
-  portrait_url: string | null;
+  portrait_url: string | null;  // tall profile image
+  card_art_url: string | null;  // landscape art for MTG Card Forge
   tags: string[];
   stat_block: StatBlock | null;
   scriptorium_doc_id: string | null; // links to a ScriptoriumDocument (e.g. stat block sheet)

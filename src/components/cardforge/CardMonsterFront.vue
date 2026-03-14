@@ -9,7 +9,8 @@
 
       <!-- Art area -->
       <div class="art-area">
-        <div class="art-placeholder">
+        <img v-if="data.card_art_url ?? data.image_url" :src="(data.card_art_url ?? data.image_url)!" alt="" class="art-img" />
+        <div v-else class="art-placeholder">
           <span class="placeholder-glyph">{{ typeGlyph }}</span>
           <span class="placeholder-label">{{ data.monster_type }}</span>
         </div>
@@ -148,6 +149,13 @@ const displayTags = computed(() => (props.data.tags ?? []).slice(0, 2));
   flex: 0 0 90px;
   overflow: hidden;
   position: relative;
+}
+.art-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
 }
 .art-placeholder {
   width: 100%;

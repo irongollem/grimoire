@@ -47,12 +47,23 @@
             'is-selected': combatant.instance_id === selectedId,
           }"
           :style="{ '--faction-color': factionColor(combatant.faction_id) }"
+          @click="toggleDetail(combatant.instance_id)"
         >
-          <!-- Faction strip -->
-          <div class="faction-strip" />
+          <!-- Avatar -->
+          <div class="avatar-cell" @click.stop>
+            <img
+              v-if="combatantPortrait(combatant)"
+              :src="combatantPortrait(combatant)!"
+              :alt="combatant.name"
+              class="avatar-img"
+            />
+            <div v-else class="avatar-initials" :style="{ backgroundColor: factionColor(combatant.faction_id) + '44', color: factionColor(combatant.faction_id) }">
+              {{ combatantInitials(combatant) }}
+            </div>
+          </div>
 
           <!-- Initiative -->
-          <div class="init-cell">
+          <div class="init-cell" @click.stop>
             <input
               type="number"
               :value="combatant.initiative ?? ''"
@@ -62,15 +73,15 @@
             />
           </div>
 
-          <!-- Name + type badge — click to open stat block -->
-          <div class="name-cell" @click="toggleDetail(combatant.instance_id)">
+          <!-- Name + type badge -->
+          <div class="name-cell">
             <span class="combatant-name">{{ combatant.name }}</span>
             <span class="type-badge" :class="combatant.type">{{ combatant.type === 'player' ? 'PC' : 'NPC' }}</span>
             <span v-if="combatant.hp === 0 && combatant.type === 'monster'" class="dead-badge">☠</span>
           </div>
 
           <!-- HP -->
-          <div class="hp-cell">
+          <div class="hp-cell" @click.stop>
             <button class="hp-btn" @click="store.adjustHp(combatant.instance_id, -1)">−</button>
             <input
               type="number"
@@ -82,13 +93,6 @@
             />
             <span class="hp-max">/ {{ combatant.max_hp }}</span>
             <button class="hp-btn" @click="store.adjustHp(combatant.instance_id, 1)">+</button>
-            <!-- HP bar -->
-            <div class="hp-bar-bg">
-              <div
-                class="hp-bar-fill"
-                :style="{ width: hpPct(combatant) + '%', backgroundColor: hpColor(combatant) }"
-              />
-            </div>
           </div>
 
           <!-- AC -->
@@ -97,7 +101,7 @@
           </div>
 
           <!-- Conditions -->
-          <div class="conditions-cell">
+          <div class="conditions-cell" @click.stop>
             <span
               v-for="cond in combatant.conditions"
               :key="cond"
@@ -569,19 +573,24 @@ function factionColor(factionId: string): string {
   return store.factions.find((f) => f.id === factionId)?.color ?? "#3D3D3D";
 }
 
-function hpPct(c: RunCombatant): number {
-  return c.max_hp > 0 ? Math.round((c.hp / c.max_hp) * 100) : 0;
-}
 
-function hpColor(c: RunCombatant): string {
-  const pct = hpPct(c);
-  if (pct > 60) return "#16A34A";
-  if (pct > 30) return "#CA8A04";
-  return "#DC2626";
-}
 
 function availableConditions(c: RunCombatant): string[] {
   return CONDITIONS.filter((cond) => !c.conditions.includes(cond));
+}
+
+function combatantPortrait(c: RunCombatant): string | null {
+  if (c.type === "player" && c.party_member_id) {
+    return party.value?.find((m) => m.id === c.party_member_id)?.portrait_url ?? null;
+  }
+  if (c.type === "monster" && c.monster_id) {
+    return monsters.value?.find((m) => m.id === c.monster_id)?.image_url ?? null;
+  }
+  return null;
+}
+
+function combatantInitials(c: RunCombatant): string {
+  return c.name.split(" ").slice(0, 2).map((w) => w[0] ?? "").join("").toUpperCase();
 }
 
 function handleEndCombat() {
@@ -649,16 +658,34 @@ function handleEndCombat() {
 
 .combatant-header {
   display: grid;
-  grid-template-columns: 1rem 3.5rem 1fr 9rem 3rem 1fr;
+  grid-template-columns: 2.5rem 3.5rem 1fr 10rem 3rem 1fr;
   gap: 0.5rem;
-  @apply px-4 py-1.5 font-cinzel text-[10px] tracking-wider text-muted-foreground border-b border-border bg-muted/30 items-center;
+  @apply pl-1 pr-3 py-1.5 font-cinzel text-[10px] tracking-wider text-muted-foreground border-b border-border bg-muted/30 items-center;
+}
+
+/* INIT = col 2, HP = col 4, AC = col 5 */
+.combatant-header span:nth-child(2),
+.combatant-header span:nth-child(4),
+.combatant-header span:nth-child(5) {
+  @apply text-center;
 }
 
 .combatant-row {
   display: grid;
-  grid-template-columns: 1rem 3.5rem 1fr 9rem 3rem 1fr;
+  grid-template-columns: 2.5rem 3.5rem 1fr 10rem 3rem 1fr;
   gap: 0.5rem;
-  @apply px-2 py-2 border-b border-border/50 items-center relative transition-colors hover:bg-muted/20;
+  @apply pl-1 pr-3 py-0 border-b border-border/50 items-stretch relative transition-colors hover:bg-muted/20 cursor-pointer;
+}
+
+.combatant-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background-color: var(--faction-color);
 }
 
 .combatant-row.is-active {
@@ -673,9 +700,34 @@ function handleEndCombat() {
   @apply bg-muted/40;
 }
 
-.faction-strip {
-  @apply absolute left-0 top-0 bottom-0 w-1 rounded-r;
-  background-color: var(--faction-color);
+.avatar-cell {
+  align-self: stretch;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3rem;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+}
+
+.avatar-initials {
+  @apply w-full h-full flex items-center justify-center font-cinzel text-[11px] font-bold;
+}
+
+/* re-center all non-avatar cells */
+.init-cell,
+.name-cell,
+.hp-cell,
+.ac-cell,
+.conditions-cell {
+  @apply self-center;
 }
 
 .init-cell {
@@ -711,7 +763,7 @@ function handleEndCombat() {
 }
 
 .hp-cell {
-  @apply flex items-center gap-1 relative;
+  @apply flex items-center justify-center gap-1 relative;
 }
 
 .hp-btn {

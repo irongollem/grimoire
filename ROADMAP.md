@@ -103,16 +103,19 @@ Rough shape:
 
 ### Bugs and Issues
 
-- [ ]you cannot delete a scriptorium entry
+- [x]you cannot delete a scriptorium entry
 - [ ] clicking a day in the calendar doesn't do anything yet
 - [ ] adding a multi day event only shows it on the first day
 - [ ] The dashboard is dummy and doesn't work yet
-- [ ] cant manually set initiative
-- [ ] under party, clicking the condition button opens the dropdown inside a overflow:hidden container, causing it to be cut off
+- [x] cant manually set initiative
+- [x] under party, clicking the condition button opens the dropdown inside a overflow:hidden container, causing it to be cut off
 - [ ] Calendar only scrolls per month making navigtion slow, especially for long campaigns
 - [ ] I want to set today's date in the calendar as the default for new events, quests, and encounters, but currently it defaults to 1495 every time again
-- [ ] in party view keys and values and units are without spacing( e.x. speed30ft)
-- [ ] in party view the values are abbrieviated too much like PP instead of passive perception, also i'd like to see other valuable passives like knowledge skills
-- [ ] bestiary should be preloaded with the free available monsters from the 5e SRD, so users have something to start with and can customize from there (add a custom only filter to see just user created monsters)
+- [x] in party view keys and values and units are without spacing( e.x. speed30ft)
+- [x] in party view the values are abbrieviated too much like PP instead of passive perception, also i'd like to see other valuable passives like knowledge skills
+- [ ] bestiary should be preloaded with the free available monsters stored centrally (uneditable by non admin users) from the 5e SRD, so users have something to start with and can customize from there (add a custom only filter to see just user created monsters)
 - [ ] in spells, affected targets is only an area of effect of 1 or a template, but many spells have more complex targeting (e.g. "one creature you can see within range" or "up to three creatures in range")
-- [ ] 400 error when uploading a portrait for a party member, and the image doesn't save (error"Bucket not found")
+- [x] 400 error when uploading a portrait for a party member, and the image doesn't save (error"Bucket not found")
+- [ ] Inconsistent UI, no delete button INSIDE scriptorum file
+- [ ] Styling, remove up/down arrows from number inputs
+- [ ] Upgrade, in party overview show the avatar if there is one

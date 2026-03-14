@@ -49,13 +49,13 @@
     </PageHeader>
 
     <!-- Month grid view -->
-    <CalendarGrid v-if="view === 'month'" @edit-event="openEditModal" />
+    <CalendarGrid v-if="view === 'month'" @edit-event="openEditModal" @create-event="openCreateModalForDay" />
 
     <!-- Timeline view -->
     <CalendarTimeline v-else @edit-event="openEditModal" />
 
     <!-- Event modal -->
-    <EventModal v-model="modalOpen" :edit-event="editingEvent" @update:model-value="onModalClose" />
+    <EventModal v-model="modalOpen" :edit-event="editingEvent" :initial-day="initialDay" @update:model-value="onModalClose" />
   </div>
 </template>
 
@@ -79,9 +79,17 @@ const monthTitle = computed(() => {
 
 const modalOpen = ref(false);
 const editingEvent = ref<CalendarEvent | null>(null);
+const initialDay = ref<number | null>(null);
 
 function openCreateModal() {
   editingEvent.value = null;
+  initialDay.value = null;
+  modalOpen.value = true;
+}
+
+function openCreateModalForDay(day: number) {
+  editingEvent.value = null;
+  initialDay.value = day;
   modalOpen.value = true;
 }
 
@@ -91,6 +99,9 @@ function openEditModal(event: CalendarEvent) {
 }
 
 function onModalClose(open: boolean) {
-  if (!open) editingEvent.value = null;
+  if (!open) {
+    editingEvent.value = null;
+    initialDay.value = null;
+  }
 }
 </script>

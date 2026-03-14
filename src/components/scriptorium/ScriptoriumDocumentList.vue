@@ -58,11 +58,14 @@
     </p>
 
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-      <RouterLink
+      <div
         v-for="doc in filtered"
         :key="doc.id"
+        class="relative group"
+      >
+      <RouterLink
         :to="`/scriptorium/${doc.id}`"
-        class="group flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
+        class="flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
       >
         <!-- Type colour bar -->
         <div class="h-1 w-full shrink-0" :style="{ backgroundColor: typeColor(doc.doc_type) }" />
@@ -122,6 +125,15 @@
           </div>
         </div>
       </RouterLink>
+      <button
+        type="button"
+        class="absolute top-2 right-2 w-6 h-6 rounded flex items-center justify-center bg-card/80 border border-border text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-all"
+        title="Delete document"
+        @click.prevent="confirmDelete(doc.id, doc.title)"
+      >
+        <Trash2 class="h-3 w-3" />
+      </button>
+      </div>
     </div>
 
     <p
@@ -135,8 +147,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Search, Globe } from "lucide-vue-next";
-import { useScriptoriumDocuments } from "@/composables/useScriptorium";
+import { Search, Globe, Trash2 } from "lucide-vue-next";
+import { useScriptoriumDocuments, useDeleteScriptoriumDocument } from "@/composables/useScriptorium";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import type { ScriptoriumDocType } from "@/types/scriptorium.types";
@@ -183,6 +195,12 @@ const search = ref("");
 const typeFilter = ref("all");
 
 const { data: docs, isLoading } = useScriptoriumDocuments();
+const { mutateAsync: deleteDoc } = useDeleteScriptoriumDocument();
+
+async function confirmDelete(id: string, title: string) {
+  if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+  await deleteDoc(id);
+}
 
 const filtered = computed(() => {
   let list = docs.value ?? [];
