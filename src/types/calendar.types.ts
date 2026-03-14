@@ -55,6 +55,14 @@ export interface CalendarAdapter {
   defaultYear: number;
   months: CalendarMonth[];
   intercalaryDays: IntercalaryDay[];
+  /** Days per "row" in the calendar grid — 10 for Harptos tendays, 7 for week-based calendars */
+  weekSize: number;
+  /** Optional labels for each column (e.g. Mon/Tue/… for Gregorian). Omit for tenday calendars. */
+  dayLabels?: string[];
+  /** Optional custom row labels (e.g. "First Tenday"). Defaults to "Week 1", "Week 2", … */
+  weekRowNames?: string[];
+  /** For Gregorian-style grids: returns how many empty cells to show before day 1 (0-based weekday). */
+  weekdayOffset?: (year: number, monthNum: number) => number;
   isLeapYear: (year: number) => boolean;
   formatDate: (
     year: number,

@@ -9,19 +9,22 @@ export type TimelineZoom = number;
 
 const POSITION_KEY = "grimoire_calendar_position";
 
-function loadPosition(): { year: number; month: number } {
+function loadPosition(): { year: number; month: number; calendarId: string } {
   try {
     const saved = localStorage.getItem(POSITION_KEY);
     if (saved) return JSON.parse(saved);
   } catch {
     // ignore
   }
-  return { year: 1495, month: 1 };
+  return { year: 1495, month: 1, calendarId: "faerun" };
 }
 
 export const useCalendarStore = defineStore("calendar", () => {
+  // Load persisted position once at store init
+  const savedPos = loadPosition();
+
   // Which calendar system is active (per campaign, defaults to Faerûn)
-  const activeCalendarId = ref<string>("faerun");
+  const activeCalendarId = ref<string>(savedPos.calendarId);
 
   // Active view
   const view = ref<CalendarView>("month");
@@ -30,12 +33,11 @@ export const useCalendarStore = defineStore("calendar", () => {
   const timelineZoom = ref<TimelineZoom>(20);
 
   // Current view position — persisted to localStorage
-  const savedPos = loadPosition();
   const currentYear = ref<number>(savedPos.year);
   const currentMonth = ref<number>(savedPos.month);
 
-  watch([currentYear, currentMonth], ([year, month]) => {
-    localStorage.setItem(POSITION_KEY, JSON.stringify({ year, month }));
+  watch([activeCalendarId, currentYear, currentMonth], ([calendarId, year, month]) => {
+    localStorage.setItem(POSITION_KEY, JSON.stringify({ calendarId, year, month }));
   });
 
   const adapter = computed<CalendarAdapter>(() => getCalendarAdapter(activeCalendarId.value));

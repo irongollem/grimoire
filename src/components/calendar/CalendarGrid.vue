@@ -23,7 +23,7 @@
           {{ currentMonth.name }}
         </p>
         <div class="flex items-center justify-center gap-1 mt-0.5">
-          <p class="font-fell text-sm text-muted-foreground italic">
+          <p v-if="currentMonth.alias" class="font-fell text-sm text-muted-foreground italic">
             {{ currentMonth.alias }} ·
           </p>
           <input
@@ -61,27 +61,49 @@
     </div>
 
     <template v-else>
-      <!-- Three tendays -->
-      <div v-for="tenday in 3" :key="tenday" class="mb-4">
+      <!-- Optional day-of-week column headers (Gregorian, Greyhawk, etc.) -->
+      <div
+        v-if="calendar.adapter.dayLabels"
+        :class="gridColsClass"
+        class="grid gap-1 mb-1 px-0"
+      >
+        <div
+          v-for="label in calendar.adapter.dayLabels"
+          :key="label"
+          class="text-center font-cinzel text-xs font-semibold tracking-wider text-muted-foreground py-1"
+        >
+          {{ label.slice(0, 3) }}
+        </div>
+      </div>
+
+      <!-- Week rows -->
+      <div v-for="(row, rowIdx) in gridRows" :key="rowIdx" class="mb-4">
         <p class="font-cinzel text-xs font-semibold tracking-widest text-muted-foreground mb-2">
-          {{ TENDAY_NAMES[tenday - 1] }}
+          {{ weekRowLabel(rowIdx) }}
         </p>
-        <div class="grid grid-cols-10 gap-1">
+        <div :class="gridColsClass" class="grid gap-1">
           <div
-            v-for="dayOffset in 10"
-            :key="dayOffset"
-            :data-day="(tenday - 1) * 10 + dayOffset"
-            class="relative rounded-md border border-border bg-card min-h-14 p-1.5 flex flex-col hover:border-primary/50 transition-colors cursor-pointer"
-            :class="{ 'ring-1 ring-primary/40': hasEvents((tenday - 1) * 10 + dayOffset) }"
-            @click="emit('create-event', (tenday - 1) * 10 + dayOffset)"
+            v-for="(day, colIdx) in row"
+            :key="colIdx"
+            class="relative rounded-md border min-h-14 p-1.5 flex flex-col transition-colors"
+            :class="[
+              day !== null
+                ? 'border-border bg-card hover:border-primary/50 cursor-pointer'
+                : 'border-transparent bg-transparent',
+              day !== null && hasEvents(day) ? 'ring-1 ring-primary/40' : '',
+            ]"
+            @click="day !== null && emit('create-event', day)"
           >
-            <span class="font-cinzel text-xs font-semibold text-muted-foreground leading-none">
-              {{ (tenday - 1) * 10 + dayOffset }}
+            <span
+              v-if="day !== null"
+              class="font-cinzel text-xs font-semibold text-muted-foreground leading-none"
+            >
+              {{ day }}
             </span>
             <!-- Event dots -->
-            <div class="flex flex-wrap gap-0.5 mt-auto pt-1">
+            <div v-if="day !== null" class="flex flex-wrap gap-0.5 mt-auto pt-1">
               <span
-                v-for="event in eventsForDay((tenday - 1) * 10 + dayOffset)"
+                v-for="event in eventsForDay(day)"
                 :key="event.id"
                 :title="event.title"
                 :style="{ backgroundColor: event.color }"
@@ -168,8 +190,6 @@ import { useCalendarEvents } from "@/composables/useCalendarEvents";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import type { CalendarEvent } from "@/types/calendar.types";
 
-const TENDAY_NAMES = ["First Tenday", "Second Tenday", "Third Tenday"];
-
 const emit = defineEmits<{
   "edit-event": [event: CalendarEvent];
   "create-event": [day: number];
@@ -185,6 +205,43 @@ const currentMonth = computed(
     calendar.adapter.months[0],
 );
 
+// Dynamic Tailwind grid class based on week size
+const gridColsClass = computed(() =>
+  calendar.adapter.weekSize === 7 ? "grid-cols-7" : "grid-cols-10",
+);
+
+// Build grid rows: each row is an array of day numbers (or null for empty offset cells).
+// Handles Gregorian-style weekday offsets and variable month lengths.
+const gridRows = computed(() => {
+  const weekSize = calendar.adapter.weekSize;
+  const monthDays = currentMonth.value.days;
+  // For Gregorian, February has 29 days in leap years
+  const actualDays =
+    calendar.currentMonth === 2 && calendar.adapter.isLeapYear(calendar.currentYear)
+      ? 29
+      : monthDays;
+  const offset = calendar.adapter.weekdayOffset?.(calendar.currentYear, calendar.currentMonth) ?? 0;
+  const totalCells = Math.ceil((offset + actualDays) / weekSize) * weekSize;
+
+  const rows: (number | null)[][] = [];
+  for (let i = 0; i < totalCells; i += weekSize) {
+    const row: (number | null)[] = [];
+    for (let j = 0; j < weekSize; j++) {
+      const cellIdx = i + j;
+      const day = cellIdx - offset + 1;
+      row.push(day >= 1 && day <= actualDays ? day : null);
+    }
+    rows.push(row);
+  }
+  return rows;
+});
+
+function weekRowLabel(rowIdx: number): string {
+  const names = calendar.adapter.weekRowNames;
+  if (names && names[rowIdx]) return names[rowIdx];
+  return `Week ${rowIdx + 1}`;
+}
+
 // Festival days that fall right after the current month
 const festivalsAfterCurrentMonth = computed(() =>
   calendar.adapter.intercalaryDays.filter((d) => {
@@ -195,7 +252,6 @@ const festivalsAfterCurrentMonth = computed(() =>
 );
 
 // Check if a regular (non-festival) event covers a given month/day.
-// For multi-day events uses month*100+day comparison which works for Harptos sequential months.
 function dayIsInEvent(event: CalendarEvent, month: number, day: number): boolean {
   if (event.festival_day) return false;
   const startMonth = event.harptos_month;
@@ -210,7 +266,7 @@ function dayIsInEvent(event: CalendarEvent, month: number, day: number): boolean
   return pos >= startMonth * 100 + startDay && pos <= endMonth * 100 + endDay;
 }
 
-// Events for the current month (non-festival) — includes multi-day events that span into this month
+// Events for the current month — includes multi-day events that span into this month
 const monthEvents = computed(() => {
   const month = calendar.currentMonth;
   return (events.value ?? []).filter((e) => {
@@ -230,11 +286,6 @@ function hasEvents(day: number): boolean {
   return eventsForDay(day).length > 0;
 }
 
-function onYearInput(e: Event) {
-  const val = parseInt((e.target as HTMLInputElement).value, 10);
-  if (!isNaN(val) && val > 0) calendar.goToYear(val);
-}
-
 function eventsForFestival(festivalName: string): CalendarEvent[] {
   return (events.value ?? []).filter((e) => e.festival_day === festivalName);
 }
@@ -242,9 +293,16 @@ function eventsForFestival(festivalName: string): CalendarEvent[] {
 function formatEventDate(event: CalendarEvent): string {
   if (event.festival_day) return event.festival_day;
   if (event.harptos_day) {
-    const tenday = Math.ceil(event.harptos_day / 10);
-    return `Day ${event.harptos_day} (Tenday ${tenday})`;
+    const weekSize = calendar.adapter.weekSize;
+    const week = Math.ceil(event.harptos_day / weekSize);
+    const label = calendar.adapter.weekRowNames?.[week - 1] ?? `Week ${week}`;
+    return `Day ${event.harptos_day} (${label})`;
   }
   return "";
+}
+
+function onYearInput(e: Event) {
+  const val = parseInt((e.target as HTMLInputElement).value, 10);
+  if (!isNaN(val) && val > 0) calendar.goToYear(val);
 }
 </script>

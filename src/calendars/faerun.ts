@@ -57,6 +57,8 @@ export const faerunAdapter: CalendarAdapter = {
   defaultYear: 1495,
   months: MONTHS,
   intercalaryDays: INTERCALARY_DAYS,
+  weekSize: 10,
+  weekRowNames: ["First Tenday", "Second Tenday", "Third Tenday"],
 
   isLeapYear: (year: number) => year % 4 === 0,
 
