@@ -114,7 +114,7 @@ Rough shape:
 - [x] in party view keys and values and units are without spacing( e.x. speed30ft)
 - [x] in party view the values are abbrieviated too much like PP instead of passive perception, also i'd like to see other valuable passives like knowledge skills
 - [ ] bestiary should be preloaded with the free available monsters stored centrally (uneditable by non admin users) from the 5e SRD, so users have something to start with and can customize from there (add a custom only filter to see just user created monsters)
-- [ ] in spells, affected targets is only an area of effect of 1 or a template, but many spells have more complex targeting (e.g. "one creature you can see within range" or "up to three creatures in range")
+- [x] in spells, affected targets is only an area of effect of 1 or a template, but many spells have more complex targeting (e.g. "one creature you can see within range" or "up to three creatures in range")
 - [x] 400 error when uploading a portrait for a party member, and the image doesn't save (error"Bucket not found")
 - [x] Inconsistent UI, no delete button INSIDE scriptorum file
 - [x] Styling, remove up/down arrows from number inputs

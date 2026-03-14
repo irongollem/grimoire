@@ -155,19 +155,23 @@
               </span>
             </label>
 
-            <!-- 6. AoE -->
+            <!-- 6. Targeting -->
             <label class="flex flex-col gap-1">
               <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
-                >Area of Effect</span
+                >Targeting</span
               >
               <select
-                v-model="adv.aoeType"
+                v-model="adv.targetingMode"
                 class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
+                <option value="self">Self only</option>
                 <option value="single">Single target</option>
-                <option value="small">Small (≤15 ft cone / ≤30 ft line)</option>
-                <option value="medium">Medium (20 ft radius / 60 ft line)</option>
-                <option value="large">Large (30+ ft radius, many targets)</option>
+                <option value="multi_2">Up to 2 creatures</option>
+                <option value="multi_3">Up to 3 creatures</option>
+                <option value="multi_4_5">Up to 4–5 creatures</option>
+                <option value="aoe_small">Small AoE (≤15 ft cone / ≤30 ft line)</option>
+                <option value="aoe_medium">Medium AoE (20 ft radius / 60 ft line)</option>
+                <option value="aoe_large">Large AoE (30+ ft radius)</option>
               </select>
             </label>
 
@@ -603,11 +607,25 @@
             />
           </label>
 
-          <!-- AoE -->
+          <!-- Target description -->
+          <label class="flex flex-col gap-1">
+            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+              >Target Description
+              <span class="normal-case font-fell font-normal">(what does it hit?)</span></span
+            >
+            <input
+              v-model="targetDescription"
+              placeholder="e.g. one creature you can see within range, up to three willing creatures…"
+              class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </label>
+
+          <!-- AoE (only needed for area spells) -->
           <div class="grid grid-cols-2 gap-3">
             <label class="flex flex-col gap-1">
               <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
-                >AoE Shape</span
+                >AoE Shape
+                <span class="normal-case font-fell font-normal">(if applicable)</span></span
               >
               <select
                 v-model="aoeShape"
@@ -669,7 +687,7 @@
           <textarea
             v-model="higherLevels"
             rows="2"
-            placeholder="When cast using a higher-level spell slot…"
+            placeholder="e.g. When cast using a 3rd-level slot or higher, the damage increases by 1d6 for each slot level above 2nd. Or: you can target one additional creature for each slot level above 1st…"
             class="bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
           />
         </div>
@@ -845,19 +863,23 @@
               </span>
             </label>
 
-            <!-- AoE -->
+            <!-- Targeting -->
             <label class="flex flex-col gap-1">
               <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
-                >Area of Effect</span
+                >Targeting</span
               >
               <select
-                v-model="adv.aoeType"
+                v-model="adv.targetingMode"
                 class="bg-muted border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
+                <option value="self">Self only</option>
                 <option value="single">Single target</option>
-                <option value="small">Small (≤15 ft cone / ≤30 ft line)</option>
-                <option value="medium">Medium (20 ft radius / 60 ft line)</option>
-                <option value="large">Large (30+ ft radius, many targets)</option>
+                <option value="multi_2">Up to 2 creatures</option>
+                <option value="multi_3">Up to 3 creatures</option>
+                <option value="multi_4_5">Up to 4–5 creatures</option>
+                <option value="aoe_small">Small AoE (≤15 ft cone / ≤30 ft line)</option>
+                <option value="aoe_medium">Medium AoE (20 ft radius / 60 ft line)</option>
+                <option value="aoe_large">Large AoE (30+ ft radius)</option>
               </select>
             </label>
 
@@ -1068,7 +1090,7 @@ import {
   SCHOOL_DESIGN_TIPS,
   type EffectType,
   type EffectIntensity,
-  type AoeType,
+  type TargetingMode,
   type SaveType,
   type DurationTier,
 } from "@/lib/spellAdvisor";
@@ -1104,6 +1126,7 @@ const saveAttribute = ref(props.spell?.save_attribute ?? "");
 const saveEffect = ref(props.spell?.save_effect ?? "");
 const damageRolls = ref<DamageRoll[]>(props.spell?.damage_rolls ?? []);
 const healingDice = ref(props.spell?.healing_dice ?? "");
+const targetDescription = ref(props.spell?.target_description ?? "");
 const aoeShape = ref(props.spell?.aoe_shape ?? "");
 const aoeSize = ref(props.spell?.aoe_size ?? "");
 const conditionInflicted = ref(props.spell?.condition_inflicted ?? "");
@@ -1148,7 +1171,7 @@ const adv = reactive({
   effectType: "damage" as EffectType,
   effectIntensity: "moderate" as EffectIntensity,
   damageDice: "",
-  aoeType: "single" as AoeType,
+  targetingMode: "single" as TargetingMode,
   saveType: "save_for_half" as SaveType,
   durationTier: "instantaneous" as DurationTier,
   requiresConcentration: false,
@@ -1187,18 +1210,19 @@ function applyAdvisor() {
     healingDice.value = "";
   }
 
-  // AoE → shape + size hint
-  if (adv.aoeType === "single") {
-    aoeShape.value = "";
-    aoeSize.value = "";
-  } else if (adv.aoeType === "small") {
+  // Targeting → AoE shape + size hints (only for AoE modes)
+  if (adv.targetingMode === "aoe_small") {
     if (!aoeShape.value) aoeShape.value = "cone";
-  } else if (adv.aoeType === "medium") {
+  } else if (adv.targetingMode === "aoe_medium") {
     if (!aoeShape.value) aoeShape.value = "sphere";
     if (!aoeSize.value) aoeSize.value = "20-foot radius";
-  } else if (adv.aoeType === "large") {
+  } else if (adv.targetingMode === "aoe_large") {
     if (!aoeShape.value) aoeShape.value = "sphere";
     if (!aoeSize.value) aoeSize.value = "30-foot radius";
+  } else {
+    // Non-AoE targeting — clear AoE fields
+    aoeShape.value = "";
+    aoeSize.value = "";
   }
 
   // Save/attack type
@@ -1261,12 +1285,12 @@ watch(advisorOpen, (open) => {
     adv.damageDice = healingDice.value;
   }
   if (aoeShape.value) {
-    adv.aoeType =
+    adv.targetingMode =
       aoeSize.value && parseInt(aoeSize.value) >= 30
-        ? "large"
+        ? "aoe_large"
         : aoeSize.value && parseInt(aoeSize.value) >= 15
-          ? "medium"
-          : "small";
+          ? "aoe_medium"
+          : "aoe_small";
   }
   if (attackType.value === "automatic") adv.saveType = "automatic";
   else if (attackType.value === "ranged_spell" || attackType.value === "melee_spell")
@@ -1325,6 +1349,7 @@ function buildPayload() {
     save_effect: attackType.value === "save" ? saveEffect.value || null : null,
     damage_rolls: damageRolls.value.length ? damageRolls.value : null,
     healing_dice: healingDice.value || null,
+    target_description: targetDescription.value || null,
     aoe_shape: aoeShape.value || null,
     aoe_size: aoeSize.value || null,
     condition_inflicted: conditionInflicted.value || null,

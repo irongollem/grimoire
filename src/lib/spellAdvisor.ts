@@ -35,11 +35,18 @@ export type EffectType = "damage" | "healing" | "control" | "buff" | "utility";
  */
 export type EffectIntensity = "weak" | "moderate" | "major" | "extreme";
 
-export type AoeType =
-  | "single" // one creature
-  | "small" // cone ≤15 ft, line ≤30 ft, 5-10 ft radius
-  | "medium" // 20 ft radius, 60 ft line
-  | "large"; // 30+ ft radius, affects many targets
+/** @deprecated Use TargetingMode instead */
+export type AoeType = "single" | "small" | "medium" | "large";
+
+export type TargetingMode =
+  | "self"       // self only (no targeting roll)
+  | "single"     // one creature / object
+  | "multi_2"    // up to 2 creatures
+  | "multi_3"    // up to 3 creatures
+  | "multi_4_5"  // up to 4–5 creatures
+  | "aoe_small"  // cone ≤15 ft, line ≤30 ft, 5–10 ft radius
+  | "aoe_medium" // 20 ft radius / 60 ft line
+  | "aoe_large"; // 30+ ft radius, affects many targets
 
 export type SaveType =
   | "automatic" // no save, no attack — always works (e.g. Magic Missile)
@@ -59,7 +66,7 @@ export interface AdvisorInputs {
   effectType: EffectType;
   effectIntensity: EffectIntensity; // for control / buff / utility — how powerful is the core effect?
   damageDice: string; // e.g. "3d6", "8d8+20" — for damage/healing spells
-  aoeType: AoeType;
+  targetingMode: TargetingMode;
   saveType: SaveType;
   durationTier: DurationTier;
   hasSecondaryEffect: boolean; // knockback, condition, rider effect
@@ -188,20 +195,42 @@ export function adviseLevelRange(inputs: AdvisorInputs): AdvisorResult {
     factors.push(`${intensityLabels[inputs.effectIntensity]} → base level ${score}`);
   }
 
-  // ── AoE adjustment ────────────────────────────────────────────────────────
-  // AoE spells are more powerful at the same damage level because they hit multiple targets.
-  // A 30-ft radius Fireball dealing 8d6 is a *3rd-level* spell — same avg as a 4th-level
-  // single-target spell. We reduce score to account for the AoE being a balancing factor
-  // (requires positioning, friendly fire, etc.) but still add a bonus.
-  if (inputs.aoeType === "small") {
-    score += 0.5;
-    factors.push("Small AoE (cone/line ≤15 ft) +½ level");
-  } else if (inputs.aoeType === "medium") {
-    score += 1;
-    factors.push("Medium AoE (20 ft radius / 60 ft line) +1 level");
-  } else if (inputs.aoeType === "large") {
-    score += 2;
-    factors.push("Large AoE (30 ft+ radius, many targets) +2 levels");
+  // ── Targeting adjustment ──────────────────────────────────────────────────
+  // Multi-target and AoE spells are more powerful because they scale with enemy density.
+  // AoE also requires positioning and risks friendly fire, so it's slightly discounted
+  // vs. pure multi-target at the same count.
+  switch (inputs.targetingMode) {
+    case "self":
+      score -= 0.5;
+      factors.push("Self-only — no targeting required -½ level");
+      break;
+    case "single":
+      // baseline, no adjustment
+      break;
+    case "multi_2":
+      score += 0.5;
+      factors.push("Up to 2 targets +½ level");
+      break;
+    case "multi_3":
+      score += 1;
+      factors.push("Up to 3 targets +1 level");
+      break;
+    case "multi_4_5":
+      score += 1.5;
+      factors.push("Up to 4–5 targets +1½ levels");
+      break;
+    case "aoe_small":
+      score += 0.5;
+      factors.push("Small AoE (cone/line ≤15 ft) +½ level");
+      break;
+    case "aoe_medium":
+      score += 1;
+      factors.push("Medium AoE (20 ft radius / 60 ft line) +1 level");
+      break;
+    case "aoe_large":
+      score += 2;
+      factors.push("Large AoE (30 ft+ radius, many targets) +2 levels");
+      break;
   }
 
   // ── Save / reliability adjustment ────────────────────────────────────────

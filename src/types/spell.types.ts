@@ -137,6 +137,7 @@ export interface Spell {
   save_effect: string | null; // half | negates | special
   damage_rolls: import("@/lib/dice").DamageRoll[] | null; // e.g. [{dice:"8d6",type:"fire"}]
   healing_dice: string | null; // e.g. "1d8"
+  target_description: string | null; // e.g. "one creature you can see within range", "up to three creatures"
   aoe_shape: string | null; // sphere | cone | line | cylinder | cube | emanation
   aoe_size: string | null; // e.g. "20 ft. radius"
   condition_inflicted: string | null; // e.g. "blinded", "stunned"
