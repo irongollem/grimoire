@@ -119,4 +119,4 @@ Rough shape:
 - [x] Inconsistent UI, no delete button INSIDE scriptorum file
 - [x] Styling, remove up/down arrows from number inputs
 - [x] Upgrade, in party overview show the avatar if there is one
-- [ ] In the Encounters list view, theres two "new encounter" buttons right below each other. To stick with the pattern of other create new resource items, perhaps remove the one besides the search input
+- [x] In the Encounters list view, theres two "new encounter" buttons right below each other. To stick with the pattern of other create new resource items, perhaps remove the one besides the search input

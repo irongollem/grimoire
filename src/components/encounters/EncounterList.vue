@@ -11,13 +11,6 @@
           class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
-      <RouterLink
-        to="/encounters/new"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity shrink-0"
-      >
-        <Plus class="h-3.5 w-3.5" />
-        New Encounter
-      </RouterLink>
     </div>
 
     <div v-if="isLoading" class="flex justify-center py-16">
@@ -101,7 +94,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Search, Plus, Skull, Users } from "lucide-vue-next";
+import { Search, Skull, Users } from "lucide-vue-next";
 import { useEncounters } from "@/composables/useEncounters";
 import { DIFFICULTY_COLORS, calculateDifficulty, crToXp } from "@/types/encounter.types";
 import type { Encounter } from "@/types/encounter.types";
