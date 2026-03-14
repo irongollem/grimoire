@@ -10,6 +10,9 @@
       </RouterLink>
     </div>
 
+    <!-- Campaign switcher -->
+    <CampaignSwitcher />
+
     <!-- Navigation -->
     <nav class="flex-1 overflow-y-auto px-2 py-4">
       <template v-for="group in NAV_GROUPS" :key="group.label">
@@ -53,6 +56,7 @@ import { LogOut } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
 import { NAV_GROUPS } from "@/lib/nav";
 import NavItem from "./NavItem.vue";
+import CampaignSwitcher from "./CampaignSwitcher.vue";
 
 const auth = useAuthStore();
 const router = useRouter();

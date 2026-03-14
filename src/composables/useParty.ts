@@ -1,13 +1,16 @@
+import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
+import { useCampaignStore } from "@/stores/campaign";
 import type { PartyMember, PartyMemberInsert, PartyMemberUpdate } from "@/types/party.types";
 
 const QUERY_KEY = "party";
 
-async function fetchParty(): Promise<PartyMember[]> {
+async function fetchParty(campaignId: string): Promise<PartyMember[]> {
   const { data, error } = await supabase
     .from("party_members")
     .select("*")
+    .eq("campaign_id", campaignId)
     .order("sort_order", { ascending: true });
   if (error) throw error;
   return data as PartyMember[];
@@ -43,13 +46,21 @@ async function deletePartyMember(id: string): Promise<void> {
 }
 
 export function useParty() {
-  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchParty });
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, campaignId.value]),
+    queryFn: () => fetchParty(campaignId.value!),
+    enabled: () => !!campaignId.value,
+  });
 }
 
 export function useCreatePartyMember() {
   const queryClient = useQueryClient();
+  const campaign = useCampaignStore();
   return useMutation({
-    mutationFn: createPartyMember,
+    mutationFn: (member: Omit<PartyMemberInsert, "campaign_id">) =>
+      createPartyMember({ ...member, campaign_id: campaign.activeCampaignId! }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }

@@ -18,6 +18,8 @@ export interface NavItem {
   to: string;
   icon: Component;
   description: string;
+  /** If true, item is dimmed and non-navigable when no campaign is active */
+  requiresCampaign?: boolean;
 }
 
 export interface NavGroup {
@@ -40,36 +42,41 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/notes",
         icon: BookOpen,
         description: "Session notes & lore",
+        requiresCampaign: true,
       },
       {
         label: "Calendar",
         to: "/calendar",
         icon: CalendarDays,
         description: "Faerûn timeline",
+        requiresCampaign: true,
       },
-      {
-        label: "Encounters",
-        to: "/encounters",
-        icon: Swords,
-        description: "Build & run combat",
-      },
-    ],
-  },
-  {
-    label: "Assets",
-    items: [
       {
         label: "Party",
         to: "/party",
         icon: Shield,
         description: "Track heroes & initiative",
+        requiresCampaign: true,
       },
       {
         label: "NPCs",
         to: "/npcs",
         icon: Users,
         description: "Non-player characters",
+        requiresCampaign: true,
       },
+      {
+        label: "Encounters",
+        to: "/encounters",
+        icon: Swords,
+        description: "Build & run combat",
+        requiresCampaign: true,
+      },
+    ],
+  },
+  {
+    label: "Assets",
+    items: [
       {
         label: "Bestiary",
         to: "/monsters",

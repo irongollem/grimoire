@@ -10,6 +10,7 @@ export type CalendarEventType = "campaign" | "world" | "session" | "festival" | 
 export interface CalendarEvent {
   id: string;
   user_id: string;
+  campaign_id: string | null;
   title: string;
   description: string | null;
   event_type: CalendarEventType;

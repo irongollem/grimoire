@@ -258,7 +258,12 @@
                 </button>
                 <div
                   v-if="conditionOpen[member.id]"
-                  class="absolute left-0 top-full mt-1 z-10 w-48 rounded-lg border border-border bg-card shadow-lg p-1"
+                  class="fixed inset-0 z-10"
+                  @click="conditionOpen[member.id] = false"
+                />
+                <div
+                  v-if="conditionOpen[member.id]"
+                  class="absolute left-0 top-full mt-1 z-20 w-48 rounded-lg border border-border bg-card shadow-lg p-1"
                 >
                   <button
                     v-for="cond in availableConditions(member)"

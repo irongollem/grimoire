@@ -25,6 +25,7 @@ export interface CombatantDef {
 export interface Encounter {
   id: string;
   user_id: string;
+  campaign_id: string | null;
   name: string;
   description: string | null;
   party_member_ids: string[];

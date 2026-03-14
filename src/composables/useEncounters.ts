@@ -1,15 +1,18 @@
+import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
+import { useCampaignStore } from "@/stores/campaign";
 import type { Encounter, EncounterInsert, EncounterUpdate } from "@/types/encounter.types";
 import type { Ref } from "vue";
 import { isRef } from "vue";
 
 const QUERY_KEY = "encounters";
 
-async function fetchEncounters(): Promise<Encounter[]> {
+async function fetchEncounters(campaignId: string): Promise<Encounter[]> {
   const { data, error } = await supabase
     .from("encounters")
     .select("*")
+    .eq("campaign_id", campaignId)
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data as Encounter[];
@@ -51,7 +54,13 @@ async function deleteEncounter(id: string): Promise<void> {
 }
 
 export function useEncounters() {
-  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchEncounters });
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, campaignId.value]),
+    queryFn: () => fetchEncounters(campaignId.value!),
+    enabled: () => !!campaignId.value,
+  });
 }
 
 export function useEncounter(id: string | Ref<string>) {
@@ -65,8 +74,10 @@ export function useEncounter(id: string | Ref<string>) {
 
 export function useCreateEncounter() {
   const queryClient = useQueryClient();
+  const campaign = useCampaignStore();
   return useMutation({
-    mutationFn: createEncounter,
+    mutationFn: (encounter: Omit<EncounterInsert, "campaign_id">) =>
+      createEncounter({ ...encounter, campaign_id: campaign.activeCampaignId! }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }

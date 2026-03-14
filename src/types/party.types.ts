@@ -46,6 +46,7 @@ export const SKILLS: Array<{ key: keyof SkillProficiencies; label: string; abili
 export interface PartyMember {
   id: string;
   user_id: string;
+  campaign_id: string | null;
   name: string;
   player_name: string | null;
   class: string | null;

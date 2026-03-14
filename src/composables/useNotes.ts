@@ -1,13 +1,16 @@
+import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
+import { useCampaignStore } from "@/stores/campaign";
 import type { Note, NoteInsert, NoteUpdate } from "@/types/notes.types";
 
 const QUERY_KEY = "notes";
 
-async function fetchNotes(): Promise<Note[]> {
+async function fetchNotes(campaignId: string): Promise<Note[]> {
   const { data, error } = await supabase
     .from("notes")
     .select("*")
+    .eq("campaign_id", campaignId)
     .order("updated_at", { ascending: false });
   if (error) throw error;
   return data as Note[];
@@ -42,7 +45,13 @@ async function deleteNote(id: string): Promise<void> {
 }
 
 export function useNotes() {
-  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchNotes });
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, campaignId.value]),
+    queryFn: () => fetchNotes(campaignId.value!),
+    enabled: () => !!campaignId.value,
+  });
 }
 
 export function useNote(id: string) {
@@ -51,8 +60,10 @@ export function useNote(id: string) {
 
 export function useCreateNote() {
   const queryClient = useQueryClient();
+  const campaign = useCampaignStore();
   return useMutation({
-    mutationFn: createNote,
+    mutationFn: (note: Omit<NoteInsert, "campaign_id">) =>
+      createNote({ ...note, campaign_id: campaign.activeCampaignId! }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }

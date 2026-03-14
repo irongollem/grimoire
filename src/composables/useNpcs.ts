@@ -1,13 +1,16 @@
+import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
+import { useCampaignStore } from "@/stores/campaign";
 import type { Npc, NpcInsert, NpcUpdate } from "@/types/npc.types";
 
 const QUERY_KEY = "npcs";
 
-async function fetchNpcs(): Promise<Npc[]> {
+async function fetchNpcs(campaignId: string): Promise<Npc[]> {
   const { data, error } = await supabase
     .from("npcs")
     .select("*")
+    .eq("campaign_id", campaignId)
     .order("name", { ascending: true });
   if (error) throw error;
   return data as Npc[];
@@ -44,7 +47,13 @@ async function deleteNpc(id: string): Promise<void> {
 }
 
 export function useNpcs() {
-  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchNpcs });
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, campaignId.value]),
+    queryFn: () => fetchNpcs(campaignId.value!),
+    enabled: () => !!campaignId.value,
+  });
 }
 
 export function useNpc(id: string) {
@@ -57,8 +66,10 @@ export function useNpc(id: string) {
 
 export function useCreateNpc() {
   const queryClient = useQueryClient();
+  const campaign = useCampaignStore();
   return useMutation({
-    mutationFn: createNpc,
+    mutationFn: (npc: Omit<NpcInsert, "campaign_id">) =>
+      createNpc({ ...npc, campaign_id: campaign.activeCampaignId! }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }

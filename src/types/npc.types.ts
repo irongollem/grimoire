@@ -26,6 +26,7 @@ export interface StatBlock {
 export interface Npc {
   id: string;
   user_id: string;
+  campaign_id: string | null;
   name: string;
   race: string | null;
   class: string | null;

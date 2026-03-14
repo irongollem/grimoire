@@ -12,7 +12,10 @@ const POSITION_KEY = "grimoire_calendar_position";
 function loadPosition(): { year: number; month: number; calendarId: string } {
   try {
     const saved = localStorage.getItem(POSITION_KEY);
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return { year: parsed.year ?? 1495, month: parsed.month ?? 1, calendarId: parsed.calendarId ?? "faerun" };
+    }
   } catch {
     // ignore
   }
@@ -86,6 +89,14 @@ export const useCalendarStore = defineStore("calendar", () => {
     timelineZoom.value = z;
   }
 
+  /** Called by the campaign store when switching campaigns. Syncs calendar system + year. */
+  function loadFromCampaign(calendarId: string, year: number) {
+    const cal = getCalendarAdapter(calendarId);
+    activeCalendarId.value = cal.id;
+    currentYear.value = year;
+    currentMonth.value = 1;
+  }
+
   return {
     activeCalendarId,
     view,
@@ -101,5 +112,6 @@ export const useCalendarStore = defineStore("calendar", () => {
     goToMonth,
     setView,
     setTimelineZoom,
+    loadFromCampaign,
   };
 });

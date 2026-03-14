@@ -3,6 +3,7 @@ export type NoteCategory = "general" | "session" | "lore" | "location" | "quest"
 export interface Note {
   id: string;
   user_id: string;
+  campaign_id: string | null;
   title: string;
   content: string | null; // Tiptap JSON string
   category: NoteCategory;

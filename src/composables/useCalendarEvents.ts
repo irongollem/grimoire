@@ -2,6 +2,7 @@ import { computed } from "vue";
 import { type MaybeRef, unref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
+import { useCampaignStore } from "@/stores/campaign";
 import type {
   CalendarEvent,
   CalendarEventInsert,
@@ -10,10 +11,11 @@ import type {
 
 const QUERY_KEY = "calendar-events";
 
-async function fetchEventsByYear(year: number): Promise<CalendarEvent[]> {
+async function fetchEventsByYear(year: number, campaignId: string): Promise<CalendarEvent[]> {
   const { data, error } = await supabase
     .from("calendar_events")
     .select("*")
+    .eq("campaign_id", campaignId)
     .eq("harptos_year", year)
     .order("harptos_month", { ascending: true, nullsFirst: true })
     .order("harptos_day", { ascending: true, nullsFirst: true });
@@ -21,10 +23,15 @@ async function fetchEventsByYear(year: number): Promise<CalendarEvent[]> {
   return data as CalendarEvent[];
 }
 
-async function fetchEventsByRange(startYear: number, endYear: number): Promise<CalendarEvent[]> {
+async function fetchEventsByRange(
+  startYear: number,
+  endYear: number,
+  campaignId: string,
+): Promise<CalendarEvent[]> {
   const { data, error } = await supabase
     .from("calendar_events")
     .select("*")
+    .eq("campaign_id", campaignId)
     .gte("harptos_year", startYear)
     .lte("harptos_year", endYear)
     .order("harptos_year", { ascending: true })
@@ -67,25 +74,33 @@ async function deleteCalendarEvent(id: string): Promise<void> {
 }
 
 export function useCalendarEvents(year: MaybeRef<number>) {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, unref(year)]),
-    queryFn: () => fetchEventsByYear(unref(year)),
+    queryKey: computed(() => [QUERY_KEY, campaignId.value, unref(year)]),
+    queryFn: () => fetchEventsByYear(unref(year), campaignId.value!),
+    enabled: () => !!campaignId.value,
   });
 }
 
 export function useCalendarEventsRange(startYear: MaybeRef<number>, endYear: MaybeRef<number>) {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "range", unref(startYear), unref(endYear)]),
-    queryFn: () => fetchEventsByRange(unref(startYear), unref(endYear)),
+    queryKey: computed(() => [QUERY_KEY, "range", campaignId.value, unref(startYear), unref(endYear)]),
+    queryFn: () => fetchEventsByRange(unref(startYear), unref(endYear), campaignId.value!),
+    enabled: () => !!campaignId.value,
   });
 }
 
 export function useCreateCalendarEvent() {
   const queryClient = useQueryClient();
+  const campaign = useCampaignStore();
   return useMutation({
-    mutationFn: createCalendarEvent,
+    mutationFn: (event: CalendarEventInsert) =>
+      createCalendarEvent({ ...event, campaign_id: campaign.activeCampaignId! }),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, variables.harptos_year] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, campaign.activeCampaignId, variables.harptos_year] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, "range"] });
     },
   });
