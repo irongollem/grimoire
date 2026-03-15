@@ -12,3 +12,34 @@ export interface Campaign {
 
 export type CampaignInsert = Omit<Campaign, "id" | "user_id" | "created_at" | "updated_at">;
 export type CampaignUpdate = Partial<CampaignInsert>;
+
+export type CampaignRole = "dm" | "player";
+
+export interface CampaignMember {
+  id: string;
+  campaign_id: string;
+  user_id: string;
+  role: CampaignRole;
+  party_member_id: string | null;
+  display_name: string | null;
+  joined_at: string;
+  updated_at: string;
+}
+
+export type CampaignMemberUpdate = Pick<CampaignMember, "display_name" | "party_member_id">;
+
+export interface CampaignInvite {
+  id: string;
+  campaign_id: string;
+  token: string;
+  role: CampaignRole;
+  created_by: string;
+  label: string | null;
+  expires_at: string | null;
+  max_uses: number | null;
+  use_count: number;
+  created_at: string;
+}
+
+export type CampaignInviteInsert = Pick<CampaignInvite, "campaign_id" | "role"> &
+  Partial<Pick<CampaignInvite, "label" | "expires_at" | "max_uses">>;

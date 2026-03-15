@@ -18,6 +18,22 @@ const router = createRouter({
       meta: { layout: "auth", requiresGuest: true },
     },
 
+    // ── Invite join (auth layout, accessible before login) ────────────────
+    {
+      path: "/join/:token",
+      name: "join-campaign",
+      component: () => import("@/views/auth/JoinCampaignView.vue"),
+      meta: { layout: "auth" },
+    },
+
+    // ── Player portal ─────────────────────────────────────────────────────
+    {
+      path: "/play",
+      name: "play",
+      component: () => import("@/views/play/PlayerPortalView.vue"),
+      meta: { requiresAuth: true, requiresPlayer: true, title: "Your Adventure" },
+    },
+
     // ── App ───────────────────────────────────────────────────────────────
     {
       path: "/",
@@ -249,7 +265,7 @@ const router = createRouter({
   ],
 });
 
-// Auth navigation guard
+// Auth + role navigation guard
 router.beforeEach(async (to) => {
   const auth = useAuthStore();
   await auth.initialize();
@@ -258,6 +274,16 @@ router.beforeEach(async (to) => {
     return { name: "login", query: { redirect: to.fullPath } };
   }
   if (to.meta.requiresGuest && auth.isAuthenticated) {
+    return { name: "dashboard" };
+  }
+
+  // Players are redirected away from DM routes to the player portal
+  if (auth.isAuthenticated && auth.isPlayer && !to.meta.requiresPlayer && to.name !== "join-campaign") {
+    return { name: "play" };
+  }
+
+  // Players can't manually navigate to /play if they're actually a DM
+  if (to.meta.requiresPlayer && auth.isDM) {
     return { name: "dashboard" };
   }
 });
