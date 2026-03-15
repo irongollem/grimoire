@@ -1,0 +1,180 @@
+<template>
+  <!-- Trigger button in sidebar -->
+  <button
+    class="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-navy-800 transition-colors font-cinzel tracking-wide"
+    @click="open = true"
+  >
+    <ShieldCheck class="h-3.5 w-3.5 shrink-0" />
+    Admin
+  </button>
+
+  <!-- Panel -->
+  <Teleport to="body">
+    <div
+      v-if="open"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+      @click.self="open = false"
+    >
+      <div class="bg-card border border-border rounded-lg w-full max-w-xl shadow-xl">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-border">
+          <h2 class="font-cinzel text-base font-bold text-foreground">Grimoire Admin</h2>
+          <button
+            class="text-muted-foreground hover:text-foreground transition-colors text-xl leading-none"
+            @click="open = false"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div class="px-5 py-4 space-y-5 max-h-[70vh] overflow-y-auto">
+          <!-- Generate new invite -->
+          <div class="space-y-3">
+            <h3 class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              New "Try Me" Link
+            </h3>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <input
+                v-model="newLabel"
+                type="text"
+                placeholder="Label (e.g. For John)"
+                class="sm:col-span-2 rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <input
+                v-model.number="newMaxUses"
+                type="number"
+                min="1"
+                placeholder="Uses (default 1)"
+                class="rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div class="flex items-center gap-2">
+              <input
+                v-model="newExpiry"
+                type="datetime-local"
+                class="flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <button
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50"
+                :disabled="createInvite.isPending.value"
+                @click="handleCreate"
+              >
+                <Plus class="h-3.5 w-3.5" />
+                Generate
+              </button>
+            </div>
+          </div>
+
+          <!-- Existing invites -->
+          <div class="space-y-2">
+            <h3 class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              Active Links
+            </h3>
+
+            <div v-if="invitesQuery.isPending.value" class="text-center py-4">
+              <div class="h-5 w-5 rounded-full border-2 border-primary border-t-transparent animate-spin mx-auto" />
+            </div>
+
+            <div
+              v-for="invite in invites"
+              :key="invite.id"
+              class="rounded-md border border-border bg-muted/30 p-3 space-y-2"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <p v-if="invite.label" class="font-cinzel text-xs font-semibold text-foreground">
+                    {{ invite.label }}
+                  </p>
+                  <p class="font-fell text-xs text-muted-foreground italic">
+                    {{ invite.use_count }}{{ invite.max_uses ? `/${invite.max_uses}` : '' }} uses
+                    <span v-if="invite.expires_at"> · expires {{ formatDate(invite.expires_at) }}</span>
+                    <span v-if="isExpired(invite)" class="text-destructive"> · expired</span>
+                  </p>
+                </div>
+                <button
+                  class="shrink-0 p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  :disabled="deleteInvite.isPending.value"
+                  @click="deleteInvite.mutate(invite.id)"
+                >
+                  <Trash2 class="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <div class="flex items-center gap-2 rounded bg-background px-2 py-1.5">
+                <code class="flex-1 text-[11px] text-muted-foreground truncate font-mono">
+                  {{ signupUrl(invite.token) }}
+                </code>
+                <button
+                  class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded text-xs font-cinzel tracking-wide transition-colors"
+                  :class="copiedId === invite.id
+                    ? 'bg-elven-green/20 text-elven-green'
+                    : 'border border-border text-foreground hover:bg-muted'"
+                  @click="copy(invite)"
+                >
+                  <Check v-if="copiedId === invite.id" class="h-3 w-3" />
+                  <Copy v-else class="h-3 w-3" />
+                  {{ copiedId === invite.id ? 'Copied!' : 'Copy' }}
+                </button>
+              </div>
+            </div>
+
+            <p v-if="!invitesQuery.isPending.value && invites.length === 0" class="font-fell text-xs text-muted-foreground italic">
+              No active invite links.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from "vue";
+import { ShieldCheck, Plus, Trash2, Copy, Check } from "lucide-vue-next";
+import { useAppInvites, useCreateAppInvite, useDeleteAppInvite } from "@/composables/useAppInvites";
+import type { AppInvite } from "@/composables/useAppInvites";
+
+const open = ref(false);
+const invitesQuery = useAppInvites();
+const createInvite = useCreateAppInvite();
+const deleteInvite = useDeleteAppInvite();
+
+const invites = computed(() => invitesQuery.data.value ?? []);
+
+const newLabel = ref("");
+const newExpiry = ref("");
+const newMaxUses = ref<number | null>(1);
+const copiedId = ref<string | null>(null);
+
+function signupUrl(token: string) {
+  return `${window.location.origin}/signup?token=${token}`;
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, {
+    day: "numeric", month: "short", year: "numeric",
+  });
+}
+
+function isExpired(invite: AppInvite) {
+  return !!invite.expires_at && new Date(invite.expires_at) < new Date();
+}
+
+function handleCreate() {
+  const payload: Parameters<typeof createInvite.mutate>[0] = {};
+  if (newLabel.value.trim()) payload.label = newLabel.value.trim();
+  if (newExpiry.value) payload.expires_at = new Date(newExpiry.value).toISOString();
+  payload.max_uses = newMaxUses.value ?? 1;
+  createInvite.mutate(payload, {
+    onSuccess: () => {
+      newLabel.value = "";
+      newExpiry.value = "";
+      newMaxUses.value = 1;
+    },
+  });
+}
+
+async function copy(invite: AppInvite) {
+  await navigator.clipboard.writeText(signupUrl(invite.token));
+  copiedId.value = invite.id;
+  setTimeout(() => { copiedId.value = null; }, 2000);
+}
+</script>

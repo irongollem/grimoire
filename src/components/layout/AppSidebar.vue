@@ -29,7 +29,8 @@
     <div class="gold-divider mx-3" />
 
     <!-- User section -->
-    <div class="px-3 py-4">
+    <div class="px-3 py-4 space-y-1">
+      <AppInvitePanel v-if="auth.isAppAdmin" />
       <div class="flex items-center gap-2 px-2 py-2 rounded-md text-sm text-muted-foreground">
         <div class="h-7 w-7 rounded-full bg-secondary flex items-center justify-center shrink-0">
           <span class="font-cinzel text-xs text-foreground font-semibold">
@@ -46,6 +47,7 @@
         </button>
       </div>
     </div>
+
   </aside>
 </template>
 
@@ -57,6 +59,7 @@ import { useAuthStore } from "@/stores/auth";
 import { NAV_GROUPS } from "@/lib/nav";
 import NavItem from "./NavItem.vue";
 import CampaignSwitcher from "./CampaignSwitcher.vue";
+import AppInvitePanel from "@/components/admin/AppInvitePanel.vue";
 
 const auth = useAuthStore();
 const router = useRouter();

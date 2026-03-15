@@ -46,7 +46,11 @@
     </form>
 
     <p class="mt-6 text-center font-fell text-sm text-muted-foreground italic">
-      New accounts require a campaign invite link.
+      New accounts require an invite link —
+      players via their DM, DMs via
+      <a href="mailto:jeffrey@crocode.nl" class="text-gold-400 hover:text-gold-300 underline not-italic">
+        jeffrey@crocode.nl
+      </a>.
     </p>
   </div>
 </template>
