@@ -70,6 +70,7 @@ export interface PartyMember {
   skill_proficiencies: SkillProficiencies;
   saving_throw_proficiencies: SaveKey[];
   conditions: string[];
+  curses: string[];       // curse names, e.g. ["Mummy Rot", "Bestow Curse"]
   inspiration: boolean;
   death_save_successes: number;
   death_save_failures: number;

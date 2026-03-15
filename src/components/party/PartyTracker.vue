@@ -289,8 +289,9 @@
               </span>
             </div>
 
-            <!-- Conditions -->
+            <!-- Conditions + Curses -->
             <div class="flex flex-wrap items-center gap-1.5">
+              <!-- Regular conditions -->
               <span
                 v-for="cond in member.conditions"
                 :key="cond"
@@ -306,12 +307,47 @@
                 </button>
               </span>
 
-              <!-- Add condition -->
+              <!-- Curse badges -->
+              <span
+                v-for="curse in member.curses"
+                :key="curse"
+                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-500/10 border border-violet-500/30 font-cinzel text-[10px] font-semibold text-violet-400"
+              >
+                Cursed: {{ curse }}
+                <button
+                  type="button"
+                  class="hover:text-violet-400/60 transition-colors"
+                  @click="removeCurse(member, curse)"
+                >
+                  ×
+                </button>
+              </span>
+
+              <!-- Inline curse name input -->
+              <template v-if="curseInputOpen[member.id]">
+                <input
+                  :ref="(el) => { if (el) curseInputRefs[member.id] = el as HTMLInputElement }"
+                  v-model="curseInputText[member.id]"
+                  placeholder="Curse name…"
+                  class="px-2 py-0.5 rounded-full border border-violet-500/50 bg-violet-500/10 font-cinzel text-[10px] text-violet-400 placeholder:text-violet-400/40 focus:outline-none w-32"
+                  @keydown.enter.prevent="addCurse(member)"
+                  @keydown.escape="curseInputOpen[member.id] = false"
+                />
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full border border-violet-500/50 font-cinzel text-[10px] text-violet-400 hover:bg-violet-500/20 transition-colors"
+                  @click="addCurse(member)"
+                >
+                  Add
+                </button>
+              </template>
+
+              <!-- Add condition dropdown -->
               <div class="relative">
                 <button
                   type="button"
                   class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full border border-dashed border-muted-foreground/40 font-cinzel text-[10px] text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors"
-                  @click="conditionOpen[member.id] = !conditionOpen[member.id]"
+                  @click="toggleConditionDropdown(member, $event)"
                 >
                   <Plus class="h-2.5 w-2.5" /> Condition
                 </button>
@@ -322,7 +358,8 @@
                 />
                 <div
                   v-if="conditionOpen[member.id]"
-                  class="absolute left-0 top-full mt-1 z-20 w-48 rounded-lg border border-border bg-card shadow-lg p-1"
+                  class="absolute left-0 z-20 w-48 rounded-lg border border-border bg-card shadow-lg p-1"
+                  :class="conditionOpenUp[member.id] ? 'bottom-full mb-1' : 'top-full mt-1'"
                 >
                   <button
                     v-for="cond in availableConditions(member)"
@@ -333,6 +370,15 @@
                   >
                     {{ cond }}
                   </button>
+                  <div class="border-t border-border mt-1 pt-1">
+                    <button
+                      type="button"
+                      class="w-full text-left px-2 py-1 rounded font-cinzel text-[11px] text-violet-400 hover:bg-muted transition-colors"
+                      @click="openCurseInput(member)"
+                    >
+                      Cursed…
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -423,7 +469,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from "vue";
+import { ref, computed, reactive, nextTick } from "vue";
 import { Plus, Dices, RotateCcw, Pencil, Sparkles } from "lucide-vue-next";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -523,7 +569,17 @@ async function addTemp(member: PartyMember) {
 }
 
 // Conditions
-const conditionOpen = reactive<Record<string, boolean>>({});
+const conditionOpen   = reactive<Record<string, boolean>>({});
+const conditionOpenUp = reactive<Record<string, boolean>>({});
+
+function toggleConditionDropdown(member: PartyMember, event: MouseEvent) {
+  const btn = event.currentTarget as HTMLElement;
+  const rect = btn.getBoundingClientRect();
+  // Estimate dropdown height: ~22px per condition + 32px for Cursed section
+  const estimated = (availableConditions(member).length * 26) + 40;
+  conditionOpenUp[member.id] = rect.bottom + estimated > window.innerHeight;
+  conditionOpen[member.id] = !conditionOpen[member.id];
+}
 
 function availableConditions(member: PartyMember) {
   return CONDITIONS.filter((c) => !member.conditions.includes(c));
@@ -540,6 +596,38 @@ async function removeCondition(member: PartyMember, condition: string) {
     id: member.id,
     update: { conditions: member.conditions.filter((c) => c !== condition) },
   });
+}
+
+// Curses
+const curseInputOpen = reactive<Record<string, boolean>>({});
+const curseInputText = reactive<Record<string, string>>({});
+const curseInputRefs = reactive<Record<string, HTMLInputElement>>({});
+
+function openCurseInput(member: PartyMember) {
+  conditionOpen[member.id] = false;
+  curseInputText[member.id] = "";
+  curseInputOpen[member.id] = true;
+  nextTick(() => curseInputRefs[member.id]?.focus());
+}
+
+async function addCurse(member: PartyMember) {
+  const name = (curseInputText[member.id] ?? "").trim();
+  if (!name) { curseInputOpen[member.id] = false; return; }
+  const curses = [...(member.curses ?? []), name];
+  const conditions = member.conditions.includes("Cursed")
+    ? member.conditions
+    : [...member.conditions, "Cursed"];
+  await updateMember({ id: member.id, update: { curses, conditions } });
+  curseInputOpen[member.id] = false;
+  curseInputText[member.id] = "";
+}
+
+async function removeCurse(member: PartyMember, curse: string) {
+  const curses = (member.curses ?? []).filter((c) => c !== curse);
+  const conditions = curses.length
+    ? member.conditions
+    : member.conditions.filter((c) => c !== "Cursed");
+  await updateMember({ id: member.id, update: { curses, conditions } });
 }
 
 // Inspiration
