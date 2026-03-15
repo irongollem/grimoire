@@ -30,8 +30,32 @@ const router = createRouter({
     {
       path: "/play",
       name: "play",
-      component: () => import("@/views/play/PlayerPortalView.vue"),
-      meta: { requiresAuth: true, requiresPlayer: true, title: "Your Adventure" },
+      component: () => import("@/views/play/PlayerCharacterView.vue"),
+      meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Your Character" },
+    },
+    {
+      path: "/play/party",
+      name: "play-party",
+      component: () => import("@/views/play/PlayerPartyView.vue"),
+      meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Party" },
+    },
+    {
+      path: "/play/quests",
+      name: "play-quests",
+      component: () => import("@/views/play/PlayerQuestsView.vue"),
+      meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Quest Log" },
+    },
+    {
+      path: "/play/notes",
+      name: "play-notes",
+      component: () => import("@/views/play/PlayerNotesView.vue"),
+      meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Notes" },
+    },
+    {
+      path: "/play/inventory",
+      name: "play-inventory",
+      component: () => import("@/views/play/PlayerInventoryView.vue"),
+      meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Party Inventory" },
     },
 
     // ── App ───────────────────────────────────────────────────────────────

@@ -42,6 +42,17 @@
         <Pin class="h-3.5 w-3.5" />
       </button>
 
+      <!-- Player visibility toggle -->
+      <button
+        type="button"
+        :title="isPlayerVisible ? 'Visible to players — click to hide' : 'Hidden from players — click to share'"
+        class="p-2 rounded-md border border-border transition-colors"
+        :class="isPlayerVisible ? 'bg-elven-green/15 text-elven-green border-elven-green/30' : 'bg-card text-muted-foreground hover:text-foreground'"
+        @click="isPlayerVisible = !isPlayerVisible"
+      >
+        <Eye class="h-3.5 w-3.5" />
+      </button>
+
       <button
         type="button"
         :disabled="saving || !title.trim()"
@@ -157,7 +168,7 @@ import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import {
-  Save, Trash2, Pin, Strikethrough, List, ListOrdered,
+  Save, Trash2, Pin, Eye, Strikethrough, List, ListOrdered,
   Quote, Minus, Undo2, Redo2,
 } from "lucide-vue-next";
 import { useCreateNote, useUpdateNote, useDeleteNote } from "@/composables/useNotes";
@@ -178,7 +189,8 @@ const router = useRouter();
 const title      = ref(props.note?.title ?? "");
 const category   = ref<NoteCategory>(props.note?.category ?? "general");
 const sessionNum = ref<number | null>(props.note?.session_num ?? null);
-const isPinned   = ref(props.note?.is_pinned ?? false);
+const isPinned         = ref(props.note?.is_pinned ?? false);
+const isPlayerVisible  = ref(props.note?.is_player_visible ?? false);
 const tags       = ref<string[]>(props.note?.tags ? [...props.note.tags] : []);
 const tagInput   = ref("");
 const saving     = ref(false);
@@ -227,7 +239,8 @@ function buildPayload() {
     title:       title.value.trim() || "Untitled Note",
     category:    category.value,
     session_num: category.value === "session" ? (sessionNum.value ?? null) : null,
-    is_pinned:   isPinned.value,
+    is_pinned:          isPinned.value,
+    is_player_visible:  isPlayerVisible.value,
     tags:        tags.value,
     content:     JSON.stringify(editor.value?.getJSON() ?? {}),
     campaign_id: null as string | null,

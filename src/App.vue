@@ -9,8 +9,13 @@ import { computed } from "vue";
 import { useRoute } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AuthLayout from "@/layouts/AuthLayout.vue";
+import PlayerLayout from "@/layouts/PlayerLayout.vue";
 
 const route = useRoute();
 
-const layout = computed(() => (route.meta.layout === "auth" ? AuthLayout : DefaultLayout));
+const layout = computed(() => {
+  if (route.meta.layout === "auth") return AuthLayout;
+  if (route.meta.layout === "player") return PlayerLayout;
+  return DefaultLayout;
+});
 </script>

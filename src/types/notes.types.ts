@@ -10,6 +10,7 @@ export interface Note {
   tags: string[];
   session_num: number | null;
   is_pinned: boolean;
+  is_player_visible: boolean;
   created_at: string;
   updated_at: string;
 }

@@ -29,6 +29,7 @@ export interface Quest {
   rewards: string | null;
   tags: string[];
   notes: string | null; // Tiptap JSON
+  is_player_visible: boolean;
   started_at: string | null;
   resolved_at: string | null;
   created_at: string;

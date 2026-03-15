@@ -21,6 +21,17 @@
         </option>
       </select>
 
+      <!-- Player visibility toggle -->
+      <button
+        type="button"
+        :title="isPlayerVisible ? 'Visible to players — click to hide' : 'Hidden from players — click to share'"
+        class="p-2 rounded-md border border-border transition-colors"
+        :class="isPlayerVisible ? 'bg-elven-green/15 text-elven-green border-elven-green/30' : 'bg-card text-muted-foreground hover:text-foreground'"
+        @click="isPlayerVisible = !isPlayerVisible"
+      >
+        <Eye class="h-3.5 w-3.5" />
+      </button>
+
       <button
         type="button"
         :disabled="saving || !title.trim()"
@@ -399,7 +410,7 @@ import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import {
-  Save, Trash2, Plus, List, ListOrdered, Quote, Undo2, Redo2,
+  Save, Trash2, Plus, Eye, List, ListOrdered, Quote, Undo2, Redo2,
   Check, X, ChevronRight, Package, Swords,
 } from "lucide-vue-next";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
@@ -490,8 +501,9 @@ const parentQuestId = ref(props.quest?.parent_quest_id ?? props.parentId ?? "");
 const rewards       = ref(props.quest?.rewards ?? "");
 const tags          = ref<string[]>(props.quest?.tags ? [...props.quest.tags] : []);
 const tagInput      = ref("");
-const saving        = ref(false);
-const saveError     = ref("");
+const isPlayerVisible = ref(props.quest?.is_player_visible ?? false);
+const saving          = ref(false);
+const saveError       = ref("");
 
 const newObjective      = ref("");
 const selectedItemId    = ref("");
@@ -542,8 +554,9 @@ function buildPayload() {
     parent_quest_id: parentQuestId.value || null,
     rewards:         rewards.value.trim() || null,
     tags:            tags.value,
-    notes:           JSON.stringify(editor.value?.getJSON() ?? {}),
-    started_at:      props.quest?.started_at ?? null,
+    notes:              JSON.stringify(editor.value?.getJSON() ?? {}),
+    is_player_visible:  isPlayerVisible.value,
+    started_at:         props.quest?.started_at ?? null,
     resolved_at:     props.quest?.resolved_at ?? null,
   };
 }
