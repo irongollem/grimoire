@@ -41,16 +41,17 @@ Recursive location hierarchy: a region can contain towns, a town can contain bui
 
 ## Quests
 
-- [ ] `quests` table — id, user_id, campaign_id, parent_quest_id (nullable, for sub-quests), title, summary, status (active / completed / failed / on-hold), giver_npc_id (FK nullable), location_id (FK nullable), rewards (text), tags[], notes (Tiptap JSON), started_at (calendar date fields), resolved_at (calendar date fields) + RLS
-- [ ] `quest_objectives` table — id, quest_id, description, is_done, sort_order
-- [ ] `quest_refs` join table — quest_id, ref_type (npc / location / monster / item), ref_id — polymorphic references to related entities
+- [x] `quests` table — id, user_id, campaign_id, parent_quest_id (nullable, for sub-quests), title, summary, status (active / completed / failed / on-hold), giver_npc_id (FK nullable), location_id (FK nullable), rewards (text), tags[], notes (Tiptap JSON), started_at (calendar date fields), resolved_at (calendar date fields) + RLS
+- [x] `quest_objectives` table — id, quest_id, description, is_done, sort_order
+- [x] `quest_refs` join table — quest_id, ref_type (npc / location / monster / item), ref_id — polymorphic references to related entities
 - [ ] `quest_triggers` table — id, quest_id, trigger_type (quest_complete / objective_done), offset_days (int), action_type (create_calendar_event), action_payload (JSONB) — e.g. "5 days after this quest completes, create a calendar event"
-- [ ] `useQuests` composable — CRUD, fetch by status, fetch sub-quests
-- [ ] QuestsView — kanban board grouped by status (active / on-hold / completed / failed), or list toggle
-- [ ] QuestDetail — objectives checklist, related entities panel (linked NPCs / locations / monsters / items), sub-quest list, trigger builder
+- [x] `useQuests` composable — CRUD, fetch by status, fetch sub-quests
+- [x] QuestsView — kanban board grouped by status (active / on-hold / completed / failed), or list toggle
+- [x] QuestDetail — objectives checklist, sub-quest list, giver NPC + location linking, Tiptap notes
+- [ ] Related entities panel (linked NPCs / locations / monsters / items via quest_refs)
 - [ ] Trigger engine — when a quest status changes or objective is checked off, evaluate pending triggers and auto-create calendar events at the computed calendar date
 - [ ] Scriptorium formatter for quests
-- [ ] Add Quests to nav (Campaign section) and Scriptorium asset insert panel
+- [x] Add Quests to nav (Campaign section)
 
 ---
 

@@ -192,6 +192,26 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Combat Tracker" },
     },
 
+    // Quests
+    {
+      path: "/quests",
+      name: "quests",
+      component: () => import("@/views/quests/QuestsView.vue"),
+      meta: { requiresAuth: true, title: "Quest Log" },
+    },
+    {
+      path: "/quests/new",
+      name: "quest-new",
+      component: () => import("@/views/quests/QuestDetailView.vue"),
+      meta: { requiresAuth: true, title: "New Quest" },
+    },
+    {
+      path: "/quests/:id",
+      name: "quest-detail",
+      component: () => import("@/views/quests/QuestDetailView.vue"),
+      meta: { requiresAuth: true, title: "Quest" },
+    },
+
     // Locations
     {
       path: "/locations",

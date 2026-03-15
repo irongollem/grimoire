@@ -11,6 +11,7 @@ import {
   Package,
   Swords,
   MapPin,
+  ScrollText,
 } from "lucide-vue-next";
 import type { Component } from "vue";
 
@@ -71,6 +72,13 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/encounters",
         icon: Swords,
         description: "Build & run combat",
+        requiresCampaign: true,
+      },
+      {
+        label: "Quests",
+        to: "/quests",
+        icon: ScrollText,
+        description: "Quest log & objectives",
         requiresCampaign: true,
       },
       {
