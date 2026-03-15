@@ -9,7 +9,8 @@
 -- ── Admin helper ──────────────────────────────────────────────────────────────
 
 create or replace function public.is_app_admin()
-returns boolean language sql security definer stable as $$
+returns boolean language sql security definer stable
+set search_path = public as $$
   select exists (
     select 1 from auth.users
     where id = auth.uid()
@@ -48,7 +49,8 @@ create policy "app_invites_admin_write" on public.app_invites
 -- Called client-side after successful signup to atomically mark token as used.
 
 create or replace function public.consume_app_invite(p_token uuid)
-returns boolean language plpgsql security definer as $$
+returns boolean language plpgsql security definer
+set search_path = public as $$
 declare
   v_invite public.app_invites;
 begin

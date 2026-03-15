@@ -34,7 +34,8 @@ create trigger campaign_members_updated_at
 
 -- Is the current user a member (any role) of the given campaign?
 create or replace function public.is_campaign_member(cid uuid)
-returns boolean language sql security definer stable as $$
+returns boolean language sql security definer stable
+set search_path = public as $$
   select exists (
     select 1 from public.campaign_members
     where campaign_id = cid and user_id = auth.uid()
@@ -43,7 +44,8 @@ $$;
 
 -- Is the current user the DM of the given campaign?
 create or replace function public.is_campaign_dm(cid uuid)
-returns boolean language sql security definer stable as $$
+returns boolean language sql security definer stable
+set search_path = public as $$
   select exists (
     select 1 from public.campaign_members
     where campaign_id = cid and user_id = auth.uid() and role = 'dm'
@@ -71,7 +73,8 @@ create policy "campaign_members_update_own" on public.campaign_members
 -- ── 4. Auto-create DM membership when a campaign is created ──────────────────
 
 create or replace function public.create_dm_membership()
-returns trigger language plpgsql security definer as $$
+returns trigger language plpgsql security definer
+set search_path = public as $$
 begin
   insert into public.campaign_members (campaign_id, user_id, role)
   values (new.id, new.user_id, 'dm')
@@ -121,7 +124,8 @@ create policy "campaign_invites_read_by_token" on public.campaign_invites
 -- Returns the campaign_id so the client can redirect to the right campaign.
 
 create or replace function public.join_campaign_via_invite(p_token uuid)
-returns uuid language plpgsql security definer as $$
+returns uuid language plpgsql security definer
+set search_path = public as $$
 declare
   v_invite  public.campaign_invites;
 begin
