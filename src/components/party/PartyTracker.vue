@@ -18,14 +18,24 @@
         <RotateCcw class="h-3.5 w-3.5" />
         Clear Initiative
       </button>
-      <button
-        type="button"
-        class="ml-auto inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
-        @click="openForm(null)"
-      >
-        <Plus class="h-3.5 w-3.5" />
-        Add Hero
-      </button>
+      <div class="ml-auto flex items-center gap-2">
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+          @click="openCompanionForm(null)"
+        >
+          <PawPrint class="h-3.5 w-3.5" />
+          Add Companion
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+          @click="openForm(null)"
+        >
+          <Plus class="h-3.5 w-3.5" />
+          Add Hero
+        </button>
+      </div>
     </div>
 
     <!-- Loading / Empty -->
@@ -456,6 +466,64 @@
             </button>
           </div>
         </div>
+
+        <!-- Companions for this member -->
+        <div v-if="companionsFor(member.id).length" class="border-t border-border bg-muted/10 px-4 py-3 flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <span class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider uppercase">Companions</span>
+            <button
+              type="button"
+              class="font-cinzel text-[10px] text-primary hover:opacity-80 transition-opacity"
+              @click="openCompanionForm(null, member.id)"
+            >
+              + Add
+            </button>
+          </div>
+          <CompanionCard
+            v-for="comp in companionsFor(member.id)"
+            :key="comp.id"
+            :companion="comp"
+            :source-name="companionSourceName(comp)"
+            :source-link="companionSourceLink(comp)"
+            @edit="openCompanionForm($event)"
+            @delete="deleteCompanion($event)"
+          />
+        </div>
+        <div v-else class="border-t border-border bg-muted/10 px-4 py-2 flex items-center justify-between">
+          <span class="font-fell text-xs text-muted-foreground italic">No companions</span>
+          <button
+            type="button"
+            class="font-cinzel text-[10px] text-muted-foreground hover:text-primary transition-colors"
+            @click="openCompanionForm(null, member.id)"
+          >
+            + Add Companion
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Unowned companions section -->
+    <div v-if="unownedCompanions.length" class="mt-4 rounded-lg border border-border bg-card overflow-hidden">
+      <div class="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/20">
+        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Unassigned Companions</span>
+        <button
+          type="button"
+          class="font-cinzel text-[10px] text-primary hover:opacity-80 transition-opacity"
+          @click="openCompanionForm(null)"
+        >
+          + Add
+        </button>
+      </div>
+      <div class="p-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <CompanionCard
+          v-for="comp in unownedCompanions"
+          :key="comp.id"
+          :companion="comp"
+          :source-name="companionSourceName(comp)"
+          :source-link="companionSourceLink(comp)"
+          @edit="openCompanionForm($event)"
+          @delete="deleteCompanion($event)"
+        />
       </div>
     </div>
 
@@ -465,17 +533,32 @@
       :member="editingMember"
       @close="formOpen = false"
     />
+
+    <!-- Companion form modal -->
+    <CompanionForm
+      v-if="companionFormOpen"
+      :companion="editingCompanion ?? undefined"
+      :party-members="party ?? []"
+      @saved="companionFormOpen = false"
+      @cancel="companionFormOpen = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, reactive, nextTick } from "vue";
-import { Plus, Dices, RotateCcw, Pencil, Sparkles } from "lucide-vue-next";
+import { Plus, Dices, RotateCcw, Pencil, Sparkles, PawPrint } from "lucide-vue-next";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
+import { useCompanions, useDeleteCompanion } from "@/composables/useCompanions";
+import { useAllMonsters } from "@/composables/useMonsters";
+import { useNpcs } from "@/composables/useNpcs";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import PartyMemberForm from "./PartyMemberForm.vue";
+import CompanionCard from "./CompanionCard.vue";
+import CompanionForm from "./CompanionForm.vue";
 import { CONDITIONS } from "@/types/party.types";
+import type { Companion } from "@/types/companion.types";
 import type {
   PartyMember,
   SkillProficiencies,
@@ -512,14 +595,14 @@ async function setInitiative(member: PartyMember, value: string) {
   await updateMember({ id: member.id, update: { current_initiative: parsed } });
 }
 async function rollAllInitiative() {
-  for (const member of party.value ?? []) {
-    await rollInitiative(member);
-  }
+  await Promise.all((party.value ?? []).map((member) => rollInitiative(member)));
 }
 async function clearInitiative() {
-  for (const member of party.value ?? []) {
-    await updateMember({ id: member.id, update: { current_initiative: null } });
-  }
+  await Promise.all(
+    (party.value ?? []).map((member) =>
+      updateMember({ id: member.id, update: { current_initiative: null } }),
+    ),
+  );
 }
 
 // HP tracking
@@ -744,5 +827,50 @@ const editingMember = ref<PartyMember | null>(null);
 function openForm(member: PartyMember | null) {
   editingMember.value = member;
   formOpen.value = true;
+}
+
+// Companions
+const { data: companions }       = useCompanions();
+const { data: allMonsters }      = useAllMonsters();
+const { data: allNpcs }          = useNpcs();
+const { mutateAsync: deleteComp } = useDeleteCompanion();
+
+const companionFormOpen    = ref(false);
+const editingCompanion     = ref<Companion | null>(null);
+const companionOwnerPreset = ref<string | null>(null);
+
+function companionsFor(memberId: string): Companion[] {
+  return (companions.value ?? []).filter((c) => c.owner_party_member_id === memberId);
+}
+
+const unownedCompanions = computed(() =>
+  (companions.value ?? []).filter((c) => !c.owner_party_member_id),
+);
+
+function companionSourceName(c: Companion): string {
+  if (c.source_type === "monster" && c.source_monster_id) {
+    return (allMonsters.value ?? []).find((m) => m.id === c.source_monster_id)?.name ?? "";
+  }
+  if (c.source_type === "npc" && c.source_npc_id) {
+    return (allNpcs.value ?? []).find((n) => n.id === c.source_npc_id)?.name ?? "";
+  }
+  return "";
+}
+
+function companionSourceLink(c: Companion): string {
+  if (c.source_type === "monster" && c.source_monster_id) return `/bestiary/${c.source_monster_id}`;
+  if (c.source_type === "npc" && c.source_npc_id) return `/npcs/${c.source_npc_id}`;
+  return "";
+}
+
+function openCompanionForm(companion: Companion | null, ownerMemberId?: string) {
+  editingCompanion.value     = companion;
+  companionOwnerPreset.value = ownerMemberId ?? null;
+  companionFormOpen.value    = true;
+}
+
+async function deleteCompanion(companion: Companion) {
+  if (!confirm(`Remove "${companion.name || "this companion"}"?`)) return;
+  await deleteComp(companion.id);
 }
 </script>

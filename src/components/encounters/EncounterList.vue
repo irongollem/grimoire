@@ -136,7 +136,7 @@ function encounterDifficultyLabel(encounter: Encounter): string {
   const enemyEntries = encounter.combatants
     .filter((c) => enemyFactionIds.has(c.faction_id))
     .map((c) => ({
-      cr: monsterMap.get(c.monster_id)?.stat_block.challenge_rating ?? null,
+      cr: (c.monster_id ? monsterMap.get(c.monster_id)?.stat_block.challenge_rating : null) ?? null,
       count: c.count,
     }))
     .filter((e) => crToXp(e.cr) > 0);

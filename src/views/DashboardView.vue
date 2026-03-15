@@ -4,20 +4,14 @@
 
     <!-- Stat cards -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <RouterLink
+      <StatCard
         v-for="stat in stats"
         :key="stat.label"
+        :label="stat.label"
+        :value="stat.value"
+        :icon="stat.icon"
         :to="stat.to"
-        class="flex flex-col gap-2 rounded-lg border border-border bg-card px-4 py-3 hover:border-primary/50 transition-colors"
-      >
-        <div class="flex items-center justify-between">
-          <span class="font-fell text-xs text-muted-foreground">{{ stat.label }}</span>
-          <component :is="stat.icon" class="h-3.5 w-3.5 text-gold-600" />
-        </div>
-        <span class="font-cinzel text-2xl font-bold text-foreground">
-          {{ stat.value ?? "—" }}
-        </span>
-      </RouterLink>
+      />
     </div>
 
     <!-- Main row: Active Quests + Party -->
@@ -261,6 +255,8 @@ import {
 } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import StatCard from "@/components/common/StatCard.vue";
+import { extractTiptapText } from "@/lib/utils";
 import { useAllQuests } from "@/composables/useQuests";
 import { useParty } from "@/composables/useParty";
 import { useNotes } from "@/composables/useNotes";
@@ -298,10 +294,10 @@ const dashboardNotes = computed(() => {
 // ── Stat cards ─────────────────────────────────────────────────────────────────
 
 const stats = computed(() => [
-  { label: "Active Quests", value: activeQuests.value.length || null, icon: ScrollText, to: "/quests" },
-  { label: "NPCs",          value: npcs.value?.length ?? null,        icon: Users,      to: "/npcs" },
-  { label: "Encounters",    value: encounters.value?.length ?? null,  icon: Swords,     to: "/encounters" },
-  { label: "Locations",     value: locations.value?.length ?? null,   icon: MapPin,     to: "/locations" },
+  { label: "Active Quests", value: activeQuests.value.length || "—", icon: ScrollText, to: "/quests" },
+  { label: "NPCs",          value: npcs.value?.length ?? "—",        icon: Users,      to: "/npcs" },
+  { label: "Encounters",    value: encounters.value?.length ?? "—",  icon: Swords,     to: "/encounters" },
+  { label: "Locations",     value: locations.value?.length ?? "—",   icon: MapPin,     to: "/locations" },
 ]);
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -348,18 +344,6 @@ function passiveInsight(member: PartyMember): number {
 }
 
 function notePreview(note: Note): string {
-  if (!note.content) return "";
-  try {
-    const doc = JSON.parse(note.content);
-    const texts: string[] = [];
-    function walk(node: { text?: string; content?: unknown[] }) {
-      if (node.text) texts.push(node.text);
-      node.content?.forEach((c) => walk(c as typeof node));
-    }
-    walk(doc);
-    return texts.join(" ").slice(0, 120);
-  } catch {
-    return "";
-  }
+  return extractTiptapText(note.content, 120);
 }
 </script>

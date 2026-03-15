@@ -109,23 +109,98 @@
                 Lv {{ member.level }}
               </span>
             </label>
+
+            <!-- Companions -->
+            <template v-if="companions?.length">
+              <div class="mt-1 mb-0.5 flex items-center gap-2">
+                <div class="h-px flex-1 bg-border" />
+                <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase shrink-0">Companions</span>
+                <div class="h-px flex-1 bg-border" />
+              </div>
+              <label
+                v-for="comp in companions"
+                :key="comp.id"
+                class="flex items-center gap-3 rounded-md border border-border p-3 cursor-pointer hover:border-primary/40 transition-colors"
+                :class="form.companion_ids.includes(comp.id) ? 'border-primary/50 bg-primary/5' : ''"
+              >
+                <input
+                  type="checkbox"
+                  :checked="form.companion_ids.includes(comp.id)"
+                  class="accent-primary"
+                  @change="toggleCompanion(comp.id)"
+                />
+                <div class="flex-1 min-w-0">
+                  <span class="font-cinzel text-sm font-semibold text-foreground">{{ comp.name }}</span>
+                  <span class="ml-2 font-fell text-xs text-muted-foreground italic capitalize">
+                    {{ comp.companion_type.replace('_', ' ') }}
+                  </span>
+                </div>
+                <span class="font-cinzel text-[10px] text-muted-foreground shrink-0">
+                  {{ comp.current_hp }}/{{ comp.max_hp }} HP
+                </span>
+              </label>
+            </template>
           </div>
         </div>
 
-        <!-- Combatants (monsters) -->
+        <!-- Combatants -->
         <div class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4">
           <div class="flex items-center justify-between">
             <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase">
               Combatants
             </h2>
-            <button
-              type="button"
-              class="inline-flex items-center gap-1 font-cinzel text-xs text-primary hover:opacity-80 transition-opacity"
-              @click="showMonsterSearch = !showMonsterSearch"
-            >
-              <Plus class="h-3.5 w-3.5" />
-              Add Monster
-            </button>
+            <div class="flex items-center gap-3">
+              <button
+                type="button"
+                class="inline-flex items-center gap-1 font-cinzel text-xs text-primary hover:opacity-80 transition-opacity"
+                @click="showNpcSearch = !showNpcSearch; showMonsterSearch = false"
+              >
+                <Plus class="h-3.5 w-3.5" />
+                Add NPC
+              </button>
+              <button
+                type="button"
+                class="inline-flex items-center gap-1 font-cinzel text-xs text-primary hover:opacity-80 transition-opacity"
+                @click="showMonsterSearch = !showMonsterSearch; showNpcSearch = false"
+              >
+                <Plus class="h-3.5 w-3.5" />
+                Add Monster
+              </button>
+            </div>
+          </div>
+
+          <!-- NPC search panel -->
+          <div v-if="showNpcSearch" class="rounded-md border border-border bg-muted p-3 flex flex-col gap-2">
+            <div class="relative">
+              <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <input
+                v-model="npcSearch"
+                type="text"
+                placeholder="Search NPCs…"
+                autofocus
+                class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
+            <div v-if="filteredNpcs.length" class="max-h-48 overflow-y-auto flex flex-col gap-1">
+              <button
+                v-for="npc in filteredNpcs"
+                :key="npc.id"
+                type="button"
+                class="flex items-center justify-between px-3 py-2 rounded-md hover:bg-card transition-colors text-left"
+                @click="addNpcToCombatants(npc)"
+              >
+                <span class="font-fell text-sm text-foreground">{{ npc.name }}</span>
+                <span class="font-cinzel text-[10px] text-muted-foreground">
+                  CR {{ npc.stat_block?.challenge_rating ?? '—' }}
+                </span>
+              </button>
+            </div>
+            <p v-else-if="npcSearch" class="font-fell text-xs text-muted-foreground italic text-center py-2">
+              No NPCs match.
+            </p>
+            <p v-else class="font-fell text-xs text-muted-foreground italic text-center py-2">
+              Only NPCs with stat blocks are listed.
+            </p>
           </div>
 
           <!-- Monster search panel -->
@@ -166,7 +241,7 @@
               :key="entry.id"
               class="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/50 p-3"
             >
-              <!-- Monster info -->
+              <!-- Combatant info -->
               <div class="flex-1 min-w-0 flex items-center gap-2">
                 <div
                   class="shrink-0 w-1.5 h-8 rounded-full"
@@ -174,10 +249,10 @@
                 />
                 <div class="flex-1 min-w-0">
                   <span class="font-cinzel text-sm font-semibold text-foreground line-clamp-1">
-                    {{ monsterName(entry.monster_id) }}
+                    {{ combatantLabel(entry) }}
                   </span>
                   <span class="ml-2 font-cinzel text-[10px] text-muted-foreground">
-                    CR {{ monsterCr(entry.monster_id) }} · {{ crXp(entry.monster_id) * entry.count }} XP
+                    {{ combatantCrLine(entry) }}
                   </span>
                 </div>
               </div>
@@ -231,7 +306,7 @@
           </div>
 
           <p v-else class="font-fell text-sm text-muted-foreground italic text-center py-4">
-            No monsters added yet. Click "Add Monster" to start building.
+            No combatants added yet.
           </p>
         </div>
       </div>
@@ -408,6 +483,8 @@ import { useRouter } from "vue-router";
 import { ChevronLeft, Plus, X, Search, Play, Minus } from "lucide-vue-next";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useParty } from "@/composables/useParty";
+import { useCompanions } from "@/composables/useCompanions";
+import { useNpcs } from "@/composables/useNpcs";
 import { useCreateEncounter, useUpdateEncounter, useDeleteEncounter } from "@/composables/useEncounters";
 import {
   DEFAULT_FACTIONS,
@@ -417,6 +494,7 @@ import {
 } from "@/types/encounter.types";
 import type { Encounter, CombatantDef } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
+import type { Npc } from "@/types/npc.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 
 const props = defineProps<{
@@ -426,6 +504,8 @@ const props = defineProps<{
 const router = useRouter();
 const { data: monsters } = useAllMonsters();
 const { data: party, isLoading: partyLoading } = useParty();
+const { data: companions } = useCompanions();
+const { data: npcs } = useNpcs();
 const createEncounter = useCreateEncounter();
 const updateEncounterMutation = useUpdateEncounter();
 const deleteEncounter = useDeleteEncounter();
@@ -435,6 +515,7 @@ const form = reactive({
   name: props.encounter?.name ?? "New Encounter",
   description: props.encounter?.description ?? "",
   party_member_ids: [...(props.encounter?.party_member_ids ?? [])],
+  companion_ids: [...(props.encounter?.companion_ids ?? [])],
   combatants: [...(props.encounter?.combatants ?? [])] as CombatantDef[],
   factions: props.encounter?.factions?.length
     ? [...props.encounter.factions]
@@ -448,6 +529,7 @@ watch(
     form.name = enc.name;
     form.description = enc.description ?? "";
     form.party_member_ids = [...enc.party_member_ids];
+    form.companion_ids = [...(enc.companion_ids ?? [])];
     form.combatants = [...enc.combatants];
     form.factions = enc.factions?.length ? [...enc.factions] : [...DEFAULT_FACTIONS];
   },
@@ -468,12 +550,37 @@ function addMonsterToCombatants(monster: Monster) {
   form.combatants.push({
     id: crypto.randomUUID(),
     monster_id: monster.id,
+    npc_id: null,
     count: 1,
     faction_id: "enemy",
     custom_name: null,
   });
   monsterSearch.value = "";
   showMonsterSearch.value = false;
+}
+
+// NPC search
+const showNpcSearch = ref(false);
+const npcSearch = ref("");
+
+const filteredNpcs = computed(() => {
+  const q = npcSearch.value.toLowerCase().trim();
+  const all = (npcs.value ?? []).filter((n) => n.stat_block);
+  if (!q) return all.slice(0, 10);
+  return all.filter((n) => n.name.toLowerCase().includes(q)).slice(0, 10);
+});
+
+function addNpcToCombatants(npc: Npc) {
+  form.combatants.push({
+    id: crypto.randomUUID(),
+    monster_id: null,
+    npc_id: npc.id,
+    count: 1,
+    faction_id: "ally",
+    custom_name: null,
+  });
+  npcSearch.value = "";
+  showNpcSearch.value = false;
 }
 
 function removeCombatant(id: string) {
@@ -484,16 +591,53 @@ function removeCombatant(id: string) {
 // Monster lookup helpers
 const monsterMap = computed(() => new Map((monsters.value ?? []).map((m) => [m.id, m])));
 
-function monsterName(monsterId: string): string {
+function monsterName(monsterId: string | null): string {
+  if (!monsterId) return "Unknown";
   return monsterMap.value.get(monsterId)?.name ?? "Unknown";
 }
 
-function monsterCr(monsterId: string): string {
+function monsterCr(monsterId: string | null): string {
+  if (!monsterId) return "0";
   return monsterMap.value.get(monsterId)?.stat_block.challenge_rating ?? "0";
 }
 
-function crXp(monsterId: string): number {
+function crXp(monsterId: string | null): number {
+  if (!monsterId) return 0;
   return crToXp(monsterMap.value.get(monsterId)?.stat_block.challenge_rating);
+}
+
+// NPC lookup helpers
+const npcMap = computed(() => new Map((npcs.value ?? []).map((n) => [n.id, n])));
+
+function npcName(npcId: string | null): string {
+  if (!npcId) return "Unknown";
+  return npcMap.value.get(npcId)?.name ?? "Unknown";
+}
+
+function npcCr(npcId: string | null): string {
+  if (!npcId) return "0";
+  return npcMap.value.get(npcId)?.stat_block?.challenge_rating ?? "0";
+}
+
+function npcCrXp(npcId: string | null): number {
+  if (!npcId) return 0;
+  return crToXp(npcMap.value.get(npcId)?.stat_block?.challenge_rating);
+}
+
+function combatantLabel(entry: CombatantDef): string {
+  if (entry.npc_id) return entry.custom_name || npcName(entry.npc_id);
+  return entry.custom_name || monsterName(entry.monster_id);
+}
+
+function combatantCrLine(entry: CombatantDef): string {
+  if (entry.npc_id) {
+    const cr = npcCr(entry.npc_id);
+    const xp = npcCrXp(entry.npc_id) * entry.count;
+    return `CR ${cr} · ${xp} XP`;
+  }
+  const cr = monsterCr(entry.monster_id);
+  const xp = crXp(entry.monster_id) * entry.count;
+  return `CR ${cr} · ${xp} XP`;
 }
 
 // Party member selection
@@ -501,6 +645,12 @@ function togglePartyMember(memberId: string) {
   const idx = form.party_member_ids.indexOf(memberId);
   if (idx >= 0) form.party_member_ids.splice(idx, 1);
   else form.party_member_ids.push(memberId);
+}
+
+function toggleCompanion(companionId: string) {
+  const idx = form.companion_ids.indexOf(companionId);
+  if (idx >= 0) form.companion_ids.splice(idx, 1);
+  else form.companion_ids.push(companionId);
 }
 
 // Factions
@@ -557,10 +707,10 @@ const enemyEntries = computed(() =>
     .filter((c) => enemyFactionIds.value.has(c.faction_id))
     .map((c) => ({
       id: c.id,
-      name: c.custom_name || monsterName(c.monster_id),
-      cr: monsterCr(c.monster_id),
+      name: combatantLabel(c),
+      cr: c.npc_id ? npcCr(c.npc_id) : monsterCr(c.monster_id),
       count: c.count,
-      xpEach: crXp(c.monster_id),
+      xpEach: c.npc_id ? npcCrXp(c.npc_id) : crXp(c.monster_id),
     })),
 );
 
@@ -570,10 +720,19 @@ const partyLevels = computed(() => {
     .map((id) => members.find((m) => m.id === id)?.level ?? 1);
 });
 
+// Allied combatants (non-enemy factions) + selected companions count toward party size per DMG
+const allyCount = computed(() => {
+  const allyCombatants = form.combatants
+    .filter((c) => c.faction_id === "ally")
+    .reduce((s, c) => s + c.count, 0);
+  return allyCombatants + form.companion_ids.length;
+});
+
 const difficulty = computed(() =>
   calculateDifficulty(
     enemyEntries.value.map((e) => ({ cr: e.cr, count: e.count })),
     partyLevels.value.length ? partyLevels.value : [3],
+    allyCount.value,
   ),
 );
 
@@ -601,6 +760,7 @@ async function buildPayload() {
     name: form.name || "New Encounter",
     description: form.description || null,
     party_member_ids: form.party_member_ids,
+    companion_ids: form.companion_ids,
     combatants: form.combatants,
     factions: form.factions,
   };

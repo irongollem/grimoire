@@ -13,6 +13,7 @@ import { useRoute } from "vue-router";
 import { useEncounter } from "@/composables/useEncounters";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useParty } from "@/composables/useParty";
+import { useCompanions } from "@/composables/useCompanions";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import type { RunCombatant, Encounter } from "@/types/encounter.types";
@@ -27,16 +28,17 @@ const id = computed(() => route.params.id as string);
 const { data: encounter } = useEncounter(id);
 const { data: monsters } = useAllMonsters();
 const { data: party } = useParty();
+const { data: companions } = useCompanions();
 const store = useEncounterRunStore();
 
 const isReady = computed(
-  () => !!encounter.value && !!monsters.value && !!party.value,
+  () => !!encounter.value && !!monsters.value && !!party.value && !!companions.value,
 );
 
 watch(
-  [encounter, monsters, party],
-  ([enc, mons, par]) => {
-    if (!enc || !mons || !par) return;
+  [encounter, monsters, party, companions],
+  ([enc, mons, par, comps]) => {
+    if (!enc || !mons || !par || !comps) return;
     if (store.encounterId === enc.id && store.started) return;
     initStore(enc, mons, par);
   },
@@ -71,6 +73,25 @@ function initStore(enc: Encounter, mons: Monster[], par: PartyMember[]) {
       },
       party_member_id: member.id,
       dex_mod: Math.floor(((member.dex ?? 10) - 10) / 2),
+    });
+  }
+
+  // Companions
+  for (const compId of enc.companion_ids ?? []) {
+    const comp = (companions.value ?? []).find((c) => c.id === compId);
+    if (!comp) continue;
+    combatants.push({
+      instance_id: `c-${comp.id}`,
+      type: "player",
+      name: comp.name,
+      faction_id: "players",
+      initiative: null,
+      hp: comp.current_hp,
+      max_hp: comp.max_hp,
+      ac: String(comp.ac),
+      conditions: [...comp.conditions],
+      death_saves: { successes: 0, failures: 0 },
+      dex_mod: 0,
     });
   }
 

@@ -442,9 +442,9 @@ const parentCandidates = computed(() =>
 
 const questId = computed(() => props.quest?.id ?? "");
 
-const { data: subQuests }  = props.quest ? useSubQuests(questId) : { data: ref([]) };
-const { data: objectives } = props.quest ? useQuestObjectives(questId) : { data: ref([]) };
-const { data: questRefs }  = props.quest ? useQuestRefs(questId) : { data: ref([]) };
+const { data: subQuests }  = useSubQuests(questId);
+const { data: objectives } = useQuestObjectives(questId);
+const { data: questRefs }  = useQuestRefs(questId);
 
 const doneCount = computed(() => (objectives.value ?? []).filter((o) => o.is_done).length);
 
@@ -538,7 +538,6 @@ function buildPayload() {
     notes:           JSON.stringify(editor.value?.getJSON() ?? {}),
     started_at:      props.quest?.started_at ?? null,
     resolved_at:     props.quest?.resolved_at ?? null,
-    campaign_id:     null as string | null,
   };
 }
 

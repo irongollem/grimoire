@@ -13,11 +13,13 @@ export const DEFAULT_FACTIONS: FactionDef[] = [
   { id: "neutral", name: "Neutral",  color: "#3D3D3D", hostile_to: [] },
 ];
 
-// A blueprint monster entry in the encounter (stored in DB)
+// A blueprint combatant entry in the encounter (stored in DB as JSONB)
+// Either monster_id or npc_id is set, not both.
 export interface CombatantDef {
-  id: string;         // local UUID for this slot
-  monster_id: string;
-  count: number;      // how many of this monster
+  id: string;           // local UUID for this slot
+  monster_id: string | null;
+  npc_id: string | null;
+  count: number;        // how many of this combatant
   faction_id: string;
   custom_name: string | null;
 }
@@ -29,6 +31,7 @@ export interface Encounter {
   name: string;
   description: string | null;
   party_member_ids: string[];
+  companion_ids: string[];
   combatants: CombatantDef[];
   factions: FactionDef[];
   created_at: string;
@@ -127,16 +130,18 @@ export interface DifficultyResult {
 export function calculateDifficulty(
   enemyEntries: { cr: string | null | undefined; count: number }[],
   partyLevels: number[],
+  allyCount = 0,
 ): DifficultyResult {
   // Sum raw XP of all enemy monsters
   const enemyCount = enemyEntries.reduce((s, e) => s + e.count, 0);
   const rawXp = enemyEntries.reduce((s, e) => s + crToXp(e.cr) * e.count, 0);
   const multiplier = monsterMultiplier(enemyCount);
 
-  // Adjust multiplier by party size
+  // Adjust multiplier by effective party size (DMG: allied NPCs count toward party size)
+  const effectivePartySize = partyLevels.length + allyCount;
   let adjustedMultiplier = multiplier;
-  if (partyLevels.length < 3) adjustedMultiplier = nextMultiplierTier(multiplier, +1);
-  else if (partyLevels.length > 5) adjustedMultiplier = nextMultiplierTier(multiplier, -1);
+  if (effectivePartySize < 3) adjustedMultiplier = nextMultiplierTier(multiplier, +1);
+  else if (effectivePartySize > 5) adjustedMultiplier = nextMultiplierTier(multiplier, -1);
 
   const adjustedXp = Math.round(rawXp * adjustedMultiplier);
 
