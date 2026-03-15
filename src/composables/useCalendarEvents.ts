@@ -7,6 +7,7 @@ import type {
   CalendarEvent,
   CalendarEventInsert,
   CalendarEventUpdate,
+  LinkedEntityType,
 } from "@/types/calendar.types";
 
 const QUERY_KEY = "calendar-events";
@@ -93,6 +94,35 @@ export function useCalendarEventsRange(startYear: MaybeRef<number>, endYear: May
   });
 }
 
+export function useEntityCalendarEvents(
+  entityType: MaybeRef<LinkedEntityType>,
+  entityId: MaybeRef<string | null>,
+) {
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, "entity", unref(entityType), unref(entityId)]),
+    queryFn: async () => {
+      const id = unref(entityId);
+      const type = unref(entityType);
+      const col =
+        type === "quest"
+          ? "linked_quest_id"
+          : type === "encounter"
+            ? "linked_encounter_id"
+            : "linked_location_id";
+      const { data, error } = await supabase
+        .from("calendar_events")
+        .select("*")
+        .eq(col, id!)
+        .order("harptos_year", { ascending: true })
+        .order("harptos_month", { ascending: true, nullsFirst: true })
+        .order("harptos_day", { ascending: true, nullsFirst: true });
+      if (error) throw error;
+      return data as CalendarEvent[];
+    },
+    enabled: () => !!unref(entityId),
+  });
+}
+
 export function useCreateCalendarEvent() {
   const queryClient = useQueryClient();
   const campaign = useCampaignStore();
@@ -102,6 +132,7 @@ export function useCreateCalendarEvent() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, campaign.activeCampaignId, variables.harptos_year] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, "range"] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, "entity"] });
     },
   });
 }

@@ -288,6 +288,21 @@
             />
           </div>
 
+          <!-- Entity link (read-only when editing a pinned event) -->
+          <div v-if="entityRoute" class="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-2">
+            <component :is="entityIconComponent" class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <span class="font-fell text-sm text-muted-foreground flex-1 capitalize">
+              Pinned {{ editEvent?.event_type }}
+            </span>
+            <RouterLink
+              :to="entityRoute"
+              class="font-cinzel text-xs text-primary hover:opacity-80 transition-opacity"
+              @click="close"
+            >
+              Open →
+            </RouterLink>
+          </div>
+
           <!-- Actions -->
           <div class="flex justify-end gap-2 pt-1">
             <button
@@ -319,11 +334,14 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from "vue";
+import { RouterLink } from "vue-router";
+import { Scroll, Swords, MapPin } from "lucide-vue-next";
 import { useCalendarStore } from "@/stores/calendar";
 import {
   useCreateCalendarEvent,
   useUpdateCalendarEvent,
 } from "@/composables/useCalendarEvents";
+import { linkedEntityType, linkedEntityId } from "@/types/calendar.types";
 import type {
   CalendarEvent,
   CalendarEventInsert,
@@ -378,6 +396,9 @@ function defaultForm(): CalendarEventInsert {
     end_year: null,
     end_month: null,
     end_day: null,
+    linked_quest_id: null,
+    linked_encounter_id: null,
+    linked_location_id: null,
   };
 }
 
@@ -410,6 +431,9 @@ watch(
           end_year: props.editEvent.end_year,
           end_month: props.editEvent.end_month,
           end_day: props.editEvent.end_day,
+          linked_quest_id: props.editEvent.linked_quest_id,
+          linked_encounter_id: props.editEvent.linked_encounter_id,
+          linked_location_id: props.editEvent.linked_location_id,
         };
         dateType.value = props.editEvent.festival_day ? "festival" : "regular";
       } else {
@@ -449,6 +473,29 @@ watch(
     }
   },
 );
+
+const ENTITY_ROUTES: Record<string, string> = {
+  quest: "/quests",
+  encounter: "/encounters",
+  location: "/locations",
+};
+
+const entityRoute = computed(() => {
+  if (!props.editEvent) return null;
+  const type = linkedEntityType(props.editEvent);
+  const id = linkedEntityId(props.editEvent);
+  if (!type || !id) return null;
+  return `${ENTITY_ROUTES[type]}/${id}`;
+});
+
+const entityIconComponent = computed(() => {
+  if (!props.editEvent) return null;
+  const type = linkedEntityType(props.editEvent);
+  if (type === "quest") return Scroll;
+  if (type === "encounter") return Swords;
+  if (type === "location") return MapPin;
+  return null;
+});
 
 function close() {
   emit("update:modelValue", false);

@@ -20,7 +20,7 @@ Features built and planned. Check off items as they ship.
 - [x] Locations — recursive hierarchy (continent → region → city → building → room), Tiptap description, sub-location list, Scriptorium formatter
 - [x] Item Vault — full CRUD with 15 item types, 7 rarities, weapon damage dice, charges, attunement, image upload, card printing (MTG + Tarot)
 - [x] Spellbook — full CRUD with school/level/class filters, Spell Level Advisor modal, attack mechanics, AOE, conditions, card printing
-- [x] Encounters — builder (combatants, factions, XP difficulty calculator) + live combat runner (initiative, HP, conditions, death saves)
+- [x] Encounters — builder (combatants + NPC combatants, factions, XP difficulty calculator with ally offset) + live combat runner (initiative, HP, conditions, death saves)
 - [x] Quests — kanban + list view, objectives checklist, sub-quests, giver NPC / location linking, linked item & encounter rewards, Tiptap notes
 - [x] Campaign Dashboard — live stat cards, active quests, party at a glance (HP bars, passive scores, conditions/curses), pinned + recent notes
 
@@ -34,15 +34,13 @@ Features built and planned. Check off items as they ship.
 
 ## Companions
 
-Familiars, animal companions, mounts, and allied NPCs that travel with the party. Backed by existing monster/NPC records so stat blocks are already there — companions just track live state.
-
-- [ ] `companions` table — id, user_id, campaign_id, name, companion_type (enum: familiar / animal_companion / mount / ally / sidekick), source_type (monster / npc / custom), source_monster_id (FK nullable), source_npc_id (FK nullable), owner_party_member_id (FK to party_members, nullable — who the companion belongs to), max_hp, current_hp, ac, speed, conditions[], notes, sort_order + RLS
-- [ ] `useCompanions` composable — CRUD, fetch all for campaign, fetch by owner
-- [ ] Companion cards in Party Tracker — shown below their owner (or ungrouped if no owner); simpler card than a PC: name, type badge, HP bar + damage/heal controls, AC, conditions, link to source monster/NPC sheet
-- [ ] Add companion from monster — pick from Bestiary, copies name/HP/AC/speed as defaults, owner optional
-- [ ] Add companion from NPC — pick from NPC list, same defaulting behaviour
-- [ ] Custom companion — enter stats manually (no source record required)
-- [ ] Companions included in Encounter Runner initiative — can be added to an encounter alongside party members
+- [x] `companions` table — id, user_id, campaign_id, name, companion_type (enum: familiar / animal_companion / mount / ally / sidekick), source_type (monster / npc / custom), source_monster_id (FK nullable), source_npc_id (FK nullable), owner_party_member_id (FK to party_members, nullable — who the companion belongs to), max_hp, current_hp, ac, speed, conditions[], notes, sort_order + RLS
+- [x] `useCompanions` composable — CRUD, fetch all for campaign, fetch by owner
+- [x] Companion cards in Party Tracker — shown below their owner (or ungrouped if no owner); simpler card than a PC: name, type badge, HP bar + damage/heal controls, AC, conditions, link to source monster/NPC sheet
+- [x] Add companion from monster — pick from Bestiary, copies name/HP/AC/speed as defaults, owner optional
+- [x] Add companion from NPC — pick from NPC list, same defaulting behaviour
+- [x] Custom companion — enter stats manually (no source record required)
+- [x] Companions included in Encounter Runner initiative — can be added to an encounter alongside party members
 
 ---
 
@@ -75,11 +73,12 @@ Familiars, animal companions, mounts, and allied NPCs that travel with the party
 - [ ] **Open5e API — spells & items** — use the same fetch-and-bundle approach (`scripts/fetch-srd-monsters.mjs` as template) to pre-populate the Spells and Items modules with SRD content (spells endpoint: `/v1/spells/?document__slug=wotc-srd`, items: `/v1/magicitems/`). Open5e is scrape/bundle only — no runtime API dependency.
 - [ ] **Scriptorium two-column layout** — CSS `columns: 2` toggle for PHB-style two-column pages
 - [ ] **Scriptorium table support** — Tiptap table extension for stat comparison tables
-- [ ] **Calendar integration** — pin quests, encounters, and location events to Faerûn calendar dates
+- [x] **Calendar integration** — pin quests, encounters, and location events to calendar dates
 - [ ] **Campaign settings page** — set active calendar, current year, campaign name, and default location
 - [ ] **Full-text search** — cross-entity search across NPCs, monsters, notes, spells, items, locations, quests
 - [ ] **Export / import** — JSON export of entire campaign data; import to restore or share
 - [ ] **Collaboration features** — invite other users to view/edit the campaign, with role-based permissions (DM vs player) and setup the skeleton for VTT type tooling
+- [ ] **Setting bundles** — pre-populate locations and calendar events for supported settings (matching the active calendar adapter), so running a campaign is plug-and-play with rich lore content. Major setting events (e.g. the Spellplague, the Sundering) would ship as pre-made calendar events with lore descriptions.
 
 ---
 

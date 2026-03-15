@@ -152,15 +152,22 @@
           EVENTS THIS MONTH
         </p>
         <div class="space-y-1.5">
-          <div
+          <component
+            :is="entityLink(event) ? RouterLink : 'div'"
             v-for="event in monthEvents"
             :key="event.id"
+            :to="entityLink(event) ?? undefined"
             class="flex items-center gap-2 rounded-md bg-card border border-border px-3 py-2 group cursor-pointer hover:border-primary/40 transition-colors"
-            @click="emit('edit-event', event)"
+            @click="!entityLink(event) && emit('edit-event', event)"
           >
             <span
               :style="{ backgroundColor: event.color }"
               class="w-2.5 h-2.5 rounded-full shrink-0"
+            />
+            <component
+              :is="entityIcon(event)"
+              v-if="entityIcon(event)"
+              class="h-3.5 w-3.5 text-muted-foreground shrink-0"
             />
             <span class="font-fell text-sm text-foreground flex-1">{{ event.title }}</span>
             <span class="font-fell text-xs text-muted-foreground italic">
@@ -169,7 +176,7 @@
             <span class="font-cinzel text-xs text-muted-foreground/40 uppercase tracking-wider">
               {{ event.event_type }}
             </span>
-          </div>
+          </component>
         </div>
       </div>
 
@@ -185,8 +192,11 @@
 
 <script setup lang="ts">
 import { computed, toRef } from "vue";
+import { RouterLink } from "vue-router";
+import { Scroll, Swords, MapPin } from "lucide-vue-next";
 import { useCalendarStore } from "@/stores/calendar";
 import { useCalendarEvents } from "@/composables/useCalendarEvents";
+import { linkedEntityType, linkedEntityId } from "@/types/calendar.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import type { CalendarEvent } from "@/types/calendar.types";
 
@@ -304,5 +314,26 @@ function formatEventDate(event: CalendarEvent): string {
 function onYearInput(e: Event) {
   const val = parseInt((e.target as HTMLInputElement).value, 10);
   if (!isNaN(val) && val > 0) calendar.goToYear(val);
+}
+
+const ENTITY_ROUTES: Record<string, string> = {
+  quest: "/quests",
+  encounter: "/encounters",
+  location: "/locations",
+};
+
+function entityLink(event: CalendarEvent): string | null {
+  const type = linkedEntityType(event);
+  const id = linkedEntityId(event);
+  if (!type || !id) return null;
+  return `${ENTITY_ROUTES[type]}/${id}`;
+}
+
+function entityIcon(event: CalendarEvent) {
+  const type = linkedEntityType(event);
+  if (type === "quest") return Scroll;
+  if (type === "encounter") return Swords;
+  if (type === "location") return MapPin;
+  return null;
 }
 </script>

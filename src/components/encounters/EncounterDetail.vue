@@ -313,6 +313,12 @@
 
       <!-- Right column -->
       <div class="flex flex-col gap-6">
+        <!-- Calendar Pins -->
+        <EntityCalendarSection
+          entity-type="encounter"
+          :entity-id="props.encounter?.id ?? null"
+          :entity-name="form.name || 'Untitled Encounter'"
+        />
         <!-- Difficulty Analysis -->
         <div class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4">
           <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase">
@@ -513,6 +519,7 @@ import type { Encounter, CombatantDef } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import type { Npc } from "@/types/npc.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
 
 const props = defineProps<{
   encounter: Encounter | null;

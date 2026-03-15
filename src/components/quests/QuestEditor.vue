@@ -381,6 +381,12 @@
             </RouterLink>
           </div>
         </div>
+        <!-- Calendar Pins -->
+        <EntityCalendarSection
+          entity-type="quest"
+          :entity-id="props.quest?.id ?? null"
+          :entity-name="title || 'Untitled Quest'"
+        />
       </div>
     </div>
   </div>
@@ -396,6 +402,7 @@ import {
   Save, Trash2, Plus, List, ListOrdered, Quote, Undo2, Redo2,
   Check, X, ChevronRight, Package, Swords,
 } from "lucide-vue-next";
+import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
 import {
   useCreateQuest,
   useUpdateQuest,

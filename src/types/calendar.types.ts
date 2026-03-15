@@ -15,7 +15,10 @@ export type CalendarEventType =
   | "boss_fight"
   | "discovery"
   | "npc_death"
-  | "travel";
+  | "travel"
+  | "quest"
+  | "encounter"
+  | "location";
 
 export interface CalendarEvent {
   id: string;
@@ -33,8 +36,25 @@ export interface CalendarEvent {
   end_month: number | null;
   end_day: number | null;
   color: string;
+  linked_quest_id: string | null;
+  linked_encounter_id: string | null;
+  linked_location_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export type LinkedEntityType = "quest" | "encounter" | "location";
+
+/** Returns which entity type is linked, or null if it's a plain calendar event */
+export function linkedEntityType(event: CalendarEvent): LinkedEntityType | null {
+  if (event.linked_quest_id) return "quest";
+  if (event.linked_encounter_id) return "encounter";
+  if (event.linked_location_id) return "location";
+  return null;
+}
+
+export function linkedEntityId(event: CalendarEvent): string | null {
+  return event.linked_quest_id ?? event.linked_encounter_id ?? event.linked_location_id ?? null;
 }
 
 export type CalendarEventInsert = Omit<

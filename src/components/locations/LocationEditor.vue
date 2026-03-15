@@ -171,6 +171,13 @@
         </RouterLink>
       </div>
     </template>
+
+    <!-- Calendar Pins -->
+    <EntityCalendarSection
+      entity-type="location"
+      :entity-id="props.location?.id ?? null"
+      :entity-name="name || 'Untitled Location'"
+    />
   </div>
 </template>
 
@@ -183,6 +190,7 @@ import Placeholder from "@tiptap/extension-placeholder";
 import {
   Save, Trash2, Plus, List, ListOrdered, Quote, Undo2, Redo2, MapPin, ChevronRight,
 } from "lucide-vue-next";
+import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
 import {
   useLocations,
   useLocation,
