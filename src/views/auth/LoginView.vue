@@ -45,11 +45,8 @@
       </button>
     </form>
 
-    <p class="mt-6 text-center font-fell text-sm text-muted-foreground">
-      No account yet?
-      <RouterLink to="/signup" class="text-gold-400 hover:text-gold-300 underline">
-        Begin your journey
-      </RouterLink>
+    <p class="mt-6 text-center font-fell text-sm text-muted-foreground italic">
+      New accounts require a campaign invite link.
     </p>
   </div>
 </template>

@@ -13,9 +13,7 @@ const router = createRouter({
     },
     {
       path: "/signup",
-      name: "signup",
-      component: () => import("@/views/auth/SignupView.vue"),
-      meta: { layout: "auth", requiresGuest: true },
+      redirect: "/login",
     },
 
     // ── Invite join (auth layout, accessible before login) ────────────────
