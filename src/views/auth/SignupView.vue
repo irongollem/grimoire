@@ -4,11 +4,7 @@
     <template v-if="tokenState === 'missing'">
       <h2 class="font-cinzel text-xl font-semibold text-foreground mb-1">Invite Required</h2>
       <p class="font-fell text-muted-foreground italic text-sm">
-        Grimoire is currently invite-only. Ask for a link at
-        <a href="mailto:jeffrey@crocode.nl" class="text-gold-400 hover:text-gold-300 underline">
-          jeffrey@crocode.nl
-        </a>
-        or sign in if you already have an account.
+        Grimoire is currently invite-only. Sign in if you already have an account, or ask your DM for an invite link.
       </p>
       <RouterLink
         to="/login"
@@ -29,11 +25,7 @@
     <template v-else-if="tokenState === 'invalid'">
       <h2 class="font-cinzel text-xl font-semibold text-destructive mb-1">Link Invalid</h2>
       <p class="font-fell text-muted-foreground italic text-sm">
-        This invite link has expired or already been used. Contact
-        <a href="mailto:jeffrey@crocode.nl" class="text-gold-400 hover:text-gold-300 underline">
-          jeffrey@crocode.nl
-        </a>
-        for a new one.
+        This invite link has expired or already been used. Ask your DM for a new one.
       </p>
     </template>
 
