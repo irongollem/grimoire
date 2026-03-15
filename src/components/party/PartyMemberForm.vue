@@ -569,6 +569,7 @@ const f = reactive<
   death_save_failures: props.member?.death_save_failures ?? 0,
   notes: props.member?.notes ?? "",
   sort_order: props.member?.sort_order ?? 0,
+  curses: [...(props.member?.curses ?? [])],
 });
 
 function mod(score: number) {

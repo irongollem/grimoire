@@ -39,7 +39,7 @@
       <div class="space-y-4">
         <!-- Portrait -->
         <div
-          class="relative aspect-[3/4] rounded-lg border border-border overflow-hidden bg-muted cursor-pointer group"
+          class="relative aspect-3/4 rounded-lg border border-border overflow-hidden bg-muted cursor-pointer group"
           @click="triggerPortraitUpload"
         >
           <img v-if="form.portrait_url" :src="form.portrait_url" alt="Portrait" class="w-full h-full object-cover" />
