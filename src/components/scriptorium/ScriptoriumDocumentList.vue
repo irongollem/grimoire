@@ -163,6 +163,7 @@ const TYPE_OPTIONS = [
   { value: "background", label: "Background" },
   { value: "adventure", label: "Adventure" },
   { value: "npc-sheet", label: "NPC Sheet" },
+  { value: "location", label: "Location" },
 ];
 
 const DOC_TYPE_LABELS: Record<ScriptoriumDocType, string> = {
@@ -176,6 +177,7 @@ const DOC_TYPE_LABELS: Record<ScriptoriumDocType, string> = {
   background: "Background",
   adventure: "Adventure",
   "npc-sheet": "NPC Sheet",
+  location: "Location",
 };
 
 const DOC_TYPE_COLORS: Record<ScriptoriumDocType, string> = {
@@ -189,6 +191,7 @@ const DOC_TYPE_COLORS: Record<ScriptoriumDocType, string> = {
   background: "#9333ea",
   adventure: "#c2410c",
   "npc-sheet": "#0f766e",
+  location: "#0369a1",
 };
 
 const search = ref("");

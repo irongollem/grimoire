@@ -8,7 +8,8 @@ export type ScriptoriumDocType =
   | "race"
   | "background"
   | "adventure"
-  | "npc-sheet"; // generated NPC character sheet / stat block
+  | "npc-sheet" // generated NPC character sheet / stat block
+  | "location";
 
 export interface ScriptoriumDocument {
   id: string;

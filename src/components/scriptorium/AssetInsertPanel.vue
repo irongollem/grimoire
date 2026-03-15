@@ -123,17 +123,20 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { X, Users, Skull, Sparkles } from "lucide-vue-next";
+import { X, Users, Skull, Sparkles, MapPin } from "lucide-vue-next";
 import type { Editor } from "@tiptap/core";
 import { useNpcs } from "@/composables/useNpcs";
 import { useMonsters } from "@/composables/useMonsters";
 import { useSpells } from "@/composables/useSpells";
+import { useAllLocations } from "@/composables/useLocations";
 import {
   formatNpcForScriptorium,
   formatMonsterForScriptorium,
   formatSpellForScriptorium,
+  formatLocationForScriptorium,
 } from "@/lib/scriptoriumImport";
 import { SCHOOL_COLORS, spellLevelLabel } from "@/types/spell.types";
+import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
 
 const MONSTER_TYPE_COLORS: Record<string, string> = {
   aberration: "#7c3aed",
@@ -161,11 +164,12 @@ const NPC_STATUS_COLORS: Record<string, string> = {
 const props = defineProps<{ show: boolean; editor: Editor | undefined }>();
 const emit = defineEmits<{ close: [] }>();
 
-type TabKey = "npcs" | "monsters" | "spells";
+type TabKey = "npcs" | "monsters" | "spells" | "locations";
 const TABS = [
   { key: "npcs" as TabKey, label: "NPCs", icon: Users },
   { key: "monsters" as TabKey, label: "Monsters", icon: Skull },
   { key: "spells" as TabKey, label: "Spells", icon: Sparkles },
+  { key: "locations" as TabKey, label: "Locations", icon: MapPin },
 ];
 
 const activeTab = ref<TabKey>("npcs");
@@ -176,6 +180,7 @@ const search = ref("");
 const { data: npcs, isPending: npcsLoading } = useNpcs();
 const { data: monsters, isPending: monstersLoading } = useMonsters();
 const { data: spells, isPending: spellsLoading } = useSpells();
+const { data: locations, isPending: locationsLoading } = useAllLocations();
 
 const tabsWithCount = computed(() =>
   TABS.map((tab) => ({
@@ -185,7 +190,9 @@ const tabsWithCount = computed(() =>
         ? (npcs.value?.length ?? null)
         : tab.key === "monsters"
           ? (monsters.value?.length ?? null)
-          : (spells.value?.length ?? null),
+          : tab.key === "spells"
+            ? (spells.value?.length ?? null)
+            : (locations.value?.length ?? null),
   })),
 );
 
@@ -221,13 +228,23 @@ const allItems = computed<ListItem[]>(() => {
       type: "monsters" as TabKey,
     }));
   }
-  return (spells.value ?? []).map((s) => ({
-    id: s.id,
-    name: s.name,
-    subtitle: `${spellLevelLabel(s.level)} ${s.school}${s.concentration ? " · Conc." : ""}`,
-    badge: s.school,
-    badgeColor: SCHOOL_COLORS[s.school] ?? "#6b7280",
-    type: "spells" as TabKey,
+  if (activeTab.value === "spells") {
+    return (spells.value ?? []).map((s) => ({
+      id: s.id,
+      name: s.name,
+      subtitle: `${spellLevelLabel(s.level)} ${s.school}${s.concentration ? " · Conc." : ""}`,
+      badge: s.school,
+      badgeColor: SCHOOL_COLORS[s.school] ?? "#6b7280",
+      type: "spells" as TabKey,
+    }));
+  }
+  return (locations.value ?? []).map((l) => ({
+    id: l.id,
+    name: l.name,
+    subtitle: LOCATION_TYPE_LABELS[l.location_type],
+    badge: l.location_type,
+    badgeColor: LOCATION_TYPE_COLORS[l.location_type] ?? "#6b7280",
+    type: "locations" as TabKey,
   }));
 });
 
@@ -236,13 +253,12 @@ const filteredItems = computed(() => {
   return q ? allItems.value.filter((i) => i.name.toLowerCase().includes(q)) : allItems.value;
 });
 
-const isLoading = computed(() =>
-  activeTab.value === "npcs"
-    ? npcsLoading.value
-    : activeTab.value === "monsters"
-      ? monstersLoading.value
-      : spellsLoading.value,
-);
+const isLoading = computed(() => {
+  if (activeTab.value === "npcs") return npcsLoading.value;
+  if (activeTab.value === "monsters") return monstersLoading.value;
+  if (activeTab.value === "spells") return spellsLoading.value;
+  return locationsLoading.value;
+});
 
 // ── Insert ────────────────────────────────────────────────────────────────────
 
@@ -258,10 +274,14 @@ function insertItem(item: ListItem) {
     const monster = monsters.value?.find((m) => m.id === item.id);
     if (!monster) return;
     html = formatMonsterForScriptorium(monster).content;
-  } else {
+  } else if (item.type === "spells") {
     const spell = spells.value?.find((s) => s.id === item.id);
     if (!spell) return;
     html = formatSpellForScriptorium(spell).content;
+  } else {
+    const loc = locations.value?.find((l) => l.id === item.id);
+    if (!loc) return;
+    html = formatLocationForScriptorium(loc).content;
   }
 
   const endPos = props.editor.state.doc.content.size;

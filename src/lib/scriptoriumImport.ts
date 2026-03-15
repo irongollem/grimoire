@@ -16,6 +16,8 @@ import type { Spell } from "@/types/spell.types";
 import { spellLevelLabel } from "@/types/spell.types";
 import type { Item } from "@/types/item.types";
 import { ITEM_TYPE_LABELS, ITEM_RARITY_LABELS } from "@/types/item.types";
+import type { Location } from "@/types/location.types";
+import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { ScriptoriumDocType } from "@/types/scriptorium.types";
 
 // ── Output type ───────────────────────────────────────────────────────────────
@@ -409,6 +411,66 @@ const itemFormatter: AssetFormatter<{ item: Item; spells: Spell[] }> = {
   },
 };
 
+// ── Location formatter ────────────────────────────────────────────────────────
+
+/** Convert Tiptap JSON to basic HTML for Scriptorium rendering. */
+function tiptapJsonToHtml(jsonStr: string | null): string {
+  if (!jsonStr) return "";
+  try {
+    const doc = JSON.parse(jsonStr);
+    function nodeToHtml(node: { type?: string; text?: string; marks?: { type: string }[]; content?: unknown[]; attrs?: Record<string, unknown> }): string {
+      if (node.type === "text") {
+        let t = (node.text ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        if (node.marks) {
+          for (const m of node.marks) {
+            if (m.type === "bold") t = `<strong>${t}</strong>`;
+            if (m.type === "italic") t = `<em>${t}</em>`;
+          }
+        }
+        return t;
+      }
+      const inner = (node.content ?? []).map((c) => nodeToHtml(c as typeof node)).join("");
+      switch (node.type) {
+        case "paragraph":   return inner ? `<p>${inner}</p>\n` : "";
+        case "heading":     return `<h${node.attrs?.level ?? 2}>${inner}</h${node.attrs?.level ?? 2}>\n`;
+        case "bulletList":  return `<ul>${inner}</ul>\n`;
+        case "orderedList": return `<ol>${inner}</ol>\n`;
+        case "listItem":    return `<li>${inner}</li>`;
+        case "blockquote":  return `<blockquote>${inner}</blockquote>\n`;
+        case "hardBreak":   return "<br />";
+        default:            return inner;
+      }
+    }
+    return (doc.content ?? []).map((n: unknown) => nodeToHtml(n as Parameters<typeof nodeToHtml>[0])).join("");
+  } catch {
+    return "";
+  }
+}
+
+const locationFormatter: AssetFormatter<Location> = {
+  format(loc: Location): ScriptoriumImportData {
+    let html = `<h1>${loc.name}</h1>\n`;
+    html += `<p><em>${LOCATION_TYPE_LABELS[loc.location_type]}</em></p>\n`;
+    if (loc.description) {
+      const body = tiptapJsonToHtml(loc.description);
+      if (body) html += body;
+    }
+    if (loc.notes) {
+      html += `<h2>Notes</h2>\n<p>${loc.notes.replace(/\n/g, " ")}</p>\n`;
+    }
+
+    const tags = uniqueTags(["location", loc.location_type], loc.tags);
+    return {
+      title: loc.name,
+      content: html,
+      doc_type: "location",
+      tags,
+      is_published: false,
+      word_count: countWords(html),
+    };
+  },
+};
+
 // ── Registry ──────────────────────────────────────────────────────────────────
 // Add new formatters here. Key = asset type identifier.
 
@@ -418,6 +480,7 @@ const FORMATTERS: Record<string, AssetFormatter<any>> = {
   monster: monsterFormatter,
   spell: spellFormatter,
   item: itemFormatter,
+  location: locationFormatter,
 };
 
 // Generic dispatch (for dynamic/plugin use cases)
@@ -441,4 +504,8 @@ export function formatSpellForScriptorium(spell: Spell): ScriptoriumImportData {
 
 export function formatItemForScriptorium(item: Item, spells: Spell[] = []): ScriptoriumImportData {
   return itemFormatter.format({ item, spells });
+}
+
+export function formatLocationForScriptorium(location: Location): ScriptoriumImportData {
+  return locationFormatter.format(location);
 }

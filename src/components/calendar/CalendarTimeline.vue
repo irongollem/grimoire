@@ -148,18 +148,67 @@
           </span>
         </div>
 
-        <!-- Events -->
-        <template v-for="pe in positionedEvents" :key="pe.event.id">
+        <!-- Session strip separator -->
+        <div
+          class="absolute left-0 right-0 border-t border-dashed"
+          style="border-color: rgba(255,255,255,0.08);"
+          :style="{ top: SESSION_STRIP_Y - 22 + 'px' }"
+        />
+        <span
+          class="absolute font-cinzel font-bold tracking-widest text-muted-foreground uppercase"
+          style="font-size: 9px; left: 4px;"
+          :style="{ top: SESSION_STRIP_Y - 18 + 'px' }"
+        >Chronicle</span>
+
+        <!-- Session events — every session is a bar in the dedicated strip -->
+        <template v-for="pe in positionedSessionEvents" :key="pe.event.id">
+          <!-- Bar: spans full days if multi-day, minimum 8px for single-day -->
+          <div
+            :style="{
+              left: pe.x + 'px',
+              width: Math.max(8, (pe.endX ?? pe.x) - pe.x) + 'px',
+              top: (SESSION_STRIP_Y - SESSION_STRIP_HEIGHT / 2) + 'px',
+              height: SESSION_STRIP_HEIGHT + 'px',
+              backgroundColor: pe.event.color + '55',
+              borderColor: pe.event.color,
+            }"
+            class="absolute border rounded cursor-pointer hover:brightness-125 transition-all z-10 overflow-hidden flex items-center justify-center"
+            :title="pe.event.title"
+            @click="emit('edit-event', pe.event)"
+          >
+            <!-- Label inside bar if wide enough, hidden otherwise (shows via title tooltip) -->
+            <span
+              v-if="Math.max(8, (pe.endX ?? pe.x) - pe.x) >= 36"
+              class="font-fell text-[10px] font-semibold whitespace-nowrap px-1 leading-none pointer-events-none truncate"
+              :style="{ color: pe.event.color }"
+            >
+              {{ pe.event.title }}
+            </span>
+          </div>
+          <!-- Label above the bar for narrow sessions -->
+          <div
+            v-if="Math.max(8, (pe.endX ?? pe.x) - pe.x) < 36"
+            :style="{
+              left: pe.x + 'px',
+              top: SESSION_STRIP_Y - SESSION_STRIP_HEIGHT / 2 - 14 + 'px',
+              color: pe.event.color,
+            }"
+            class="absolute font-fell text-[10px] font-semibold pointer-events-none whitespace-nowrap"
+            style="transform: translateX(-50%)"
+          >
+            {{ pe.event.title }}
+          </div>
+        </template>
+
+        <!-- Regular events (non-session) -->
+        <template v-for="pe in positionedRegularEvents" :key="pe.event.id">
           <!-- Multi-day bar -->
           <div
             v-if="pe.event.is_multi_day && pe.endX !== null && pe.endX > pe.x"
             :style="{
               left: pe.x + 'px',
               width: pe.endX - pe.x + 'px',
-              top:
-                (pe.above
-                  ? axisY - pe.lane * LANE_HEIGHT - 10
-                  : axisY + pe.lane * LANE_HEIGHT - 2) + 'px',
+              top: (pe.above ? axisY - pe.lane * LANE_HEIGHT - 10 : axisY + pe.lane * LANE_HEIGHT - 2) + 'px',
               backgroundColor: pe.event.color + '33',
               borderColor: pe.event.color,
             }"
@@ -167,7 +216,6 @@
             :title="pe.event.title"
             @click="emit('edit-event', pe.event)"
           />
-
           <!-- Vertical stem -->
           <div
             :style="{
@@ -178,20 +226,20 @@
             }"
             class="absolute w-px"
           />
-
-          <!-- Dot on axis -->
+          <!-- Icon dot on axis -->
           <div
             :style="{
               left: pe.x + 'px',
               top: axisY + 'px',
               backgroundColor: pe.event.color,
             }"
-            class="absolute w-3 h-3 rounded-full border-2 border-card cursor-pointer hover:scale-125 transition-transform z-20"
+            class="absolute w-5 h-5 rounded-full flex items-center justify-center border-2 border-card cursor-pointer hover:scale-125 transition-transform z-20"
             style="transform: translate(-50%, -50%)"
             :title="pe.event.title"
             @click="emit('edit-event', pe.event)"
-          />
-
+          >
+            <component :is="EVENT_ICONS[pe.event.event_type] ?? Star" class="w-2.5 h-2.5 text-white" />
+          </div>
           <!-- Label -->
           <div
             :style="{
@@ -211,7 +259,7 @@
 
         <!-- Empty state -->
         <div
-          v-if="!positionedEvents.length"
+          v-if="!positionedRegularEvents.length && !positionedSessionEvents.length"
           class="absolute inset-0 flex items-center justify-center pointer-events-none"
         >
           <p class="font-fell text-sm text-muted-foreground italic">
@@ -222,10 +270,10 @@
     </div>
 
     <p
-      v-if="positionedEvents.length"
+      v-if="positionedRegularEvents.length + positionedSessionEvents.length"
       class="mt-2 font-fell text-xs text-muted-foreground italic text-right"
     >
-      {{ positionedEvents.length }} event{{ positionedEvents.length === 1 ? "" : "s" }} · click any
+      {{ positionedRegularEvents.length + positionedSessionEvents.length }} event{{ positionedRegularEvents.length + positionedSessionEvents.length === 1 ? "" : "s" }} · click any
       to edit
     </p>
   </div>
@@ -233,14 +281,31 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import type { Component } from "vue";
 import { useCalendarStore } from "@/stores/calendar";
 import { useCalendarEventsRange } from "@/composables/useCalendarEvents";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import type { CalendarEvent } from "@/types/calendar.types";
+import { Star, Swords, Globe2, Sparkles, Clock, Skull, Flame, Eye, Ghost, Map } from "lucide-vue-next";
 
 const AXIS_PADDING = 60; // px padding left + right
 const LANE_HEIGHT = 30; // px between stacked event lanes
-const CONTAINER_HEIGHT = 340;
+const CONTAINER_HEIGHT = 420;
+const SESSION_STRIP_Y = 360;
+const SESSION_STRIP_HEIGHT = 22;
+
+const EVENT_ICONS: Record<string, Component> = {
+  campaign: Star,
+  session: Swords,
+  world: Globe2,
+  festival: Sparkles,
+  deadline: Clock,
+  player_death: Skull,
+  boss_fight: Flame,
+  discovery: Eye,
+  npc_death: Ghost,
+  travel: Map,
+};
 
 const ZOOM_PRESETS = [
   { value: 1 / 12, label: "1mo" },
@@ -300,7 +365,7 @@ const timelineWidth = computed(() =>
 );
 
 const containerHeight = CONTAINER_HEIGHT;
-const axisY = Math.floor(CONTAINER_HEIGHT / 2);
+const axisY = 170;
 
 // Convert a fractional year to an x pixel position
 function fractionalYearToX(frac: number): number {
@@ -406,9 +471,16 @@ interface PositionedEvent {
   lane: number;
 }
 
-const positionedEvents = computed((): PositionedEvent[] => {
+interface PositionedSessionEvent {
+  event: CalendarEvent;
+  x: number;
+  endX: number | null;
+}
+
+const positionedRegularEvents = computed((): PositionedEvent[] => {
   const list = (events.value ?? [])
     .filter((e) => {
+      if (e.event_type === "session") return false;
       const frac = eventToFrac(e);
       return frac >= startFrac.value - 0.01 && frac <= endFrac.value + 0.01;
     })
@@ -446,6 +518,22 @@ const positionedEvents = computed((): PositionedEvent[] => {
 
     return { event, x, endX, above, lane };
   });
+});
+
+const positionedSessionEvents = computed((): PositionedSessionEvent[] => {
+  return (events.value ?? [])
+    .filter((e) => {
+      if (e.event_type !== "session") return false;
+      const frac = eventToFrac(e);
+      return frac >= startFrac.value - 0.01 && frac <= endFrac.value + 0.01;
+    })
+    .sort((a, b) => eventToFrac(a) - eventToFrac(b))
+    .map((event) => {
+      const x = fractionalYearToX(eventToFrac(event));
+      const ef = endFracForEvent(event);
+      const endX = ef !== null ? fractionalYearToX(ef) : null;
+      return { event, x, endX };
+    });
 });
 
 // ── Navigation ──────────────────────────────────────────────────────────────

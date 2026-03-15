@@ -192,6 +192,26 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Combat Tracker" },
     },
 
+    // Locations
+    {
+      path: "/locations",
+      name: "locations",
+      component: () => import("@/views/locations/LocationsView.vue"),
+      meta: { requiresAuth: true, title: "Locations" },
+    },
+    {
+      path: "/locations/new",
+      name: "location-new",
+      component: () => import("@/views/locations/LocationDetailView.vue"),
+      meta: { requiresAuth: true, title: "New Location" },
+    },
+    {
+      path: "/locations/:id",
+      name: "location-detail",
+      component: () => import("@/views/locations/LocationDetailView.vue"),
+      meta: { requiresAuth: true, title: "Location" },
+    },
+
     // Card Forge
     {
       path: "/forge",

@@ -5,7 +5,17 @@ export interface HarptosDate {
   festival_day: string | null;
 }
 
-export type CalendarEventType = "campaign" | "world" | "session" | "festival" | "deadline";
+export type CalendarEventType =
+  | "campaign"
+  | "world"
+  | "session"
+  | "festival"
+  | "deadline"
+  | "player_death"
+  | "boss_fight"
+  | "discovery"
+  | "npc_death"
+  | "travel";
 
 export interface CalendarEvent {
   id: string;

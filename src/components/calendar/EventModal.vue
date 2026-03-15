@@ -54,11 +54,16 @@
                 v-model="form.event_type"
                 class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
-                <option value="campaign">Campaign</option>
+                <option value="campaign">Campaign Event</option>
                 <option value="session">Session</option>
                 <option value="world">World Event</option>
                 <option value="festival">Festival</option>
                 <option value="deadline">Deadline</option>
+                <option value="player_death">💀 Player Death</option>
+                <option value="boss_fight">⚔ Boss Fight</option>
+                <option value="discovery">🔍 Discovery</option>
+                <option value="npc_death">🗡 NPC Death</option>
+                <option value="travel">🗺 Travel</option>
               </select>
             </div>
             <div>
@@ -426,6 +431,24 @@ watch(dateType, (type) => {
     form.value.harptos_day = 1;
   }
 });
+
+const EVENT_TYPE_COLORS: Record<string, string> = {
+  player_death: "#dc2626",
+  boss_fight: "#7c3aed",
+  discovery: "#059669",
+  npc_death: "#6b7280",
+  travel: "#2563eb",
+  session: "#C9920A",
+};
+
+watch(
+  () => form.value.event_type,
+  (newType) => {
+    if (form.value.color === PRESET_COLORS[0] && newType in EVENT_TYPE_COLORS) {
+      form.value.color = EVENT_TYPE_COLORS[newType];
+    }
+  },
+);
 
 function close() {
   emit("update:modelValue", false);

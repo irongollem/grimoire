@@ -10,6 +10,7 @@ import {
   Sparkles,
   Package,
   Swords,
+  MapPin,
 } from "lucide-vue-next";
 import type { Component } from "vue";
 
@@ -70,6 +71,13 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/encounters",
         icon: Swords,
         description: "Build & run combat",
+        requiresCampaign: true,
+      },
+      {
+        label: "Locations",
+        to: "/locations",
+        icon: MapPin,
+        description: "Realms, cities & dungeons",
         requiresCampaign: true,
       },
     ],
