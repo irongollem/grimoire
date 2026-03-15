@@ -40,6 +40,30 @@
       </div>
     </header>
 
+    <!-- Broadcast toast stack -->
+    <Transition name="toast">
+      <div
+        v-if="latestMessage"
+        class="fixed top-16 right-4 z-50 w-full max-w-sm"
+      >
+        <div class="rounded-lg border border-primary/30 bg-card shadow-gold-glow px-4 py-3 flex items-start gap-3">
+          <Megaphone class="h-4 w-4 text-primary shrink-0 mt-0.5" />
+          <div class="flex-1 min-w-0">
+            <p class="font-cinzel text-xs font-semibold text-primary tracking-wider">DM Announcement</p>
+            <p class="font-fell text-sm text-foreground mt-0.5">{{ latestMessage.text }}</p>
+          </div>
+          <button
+            class="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            @click="dismiss(latestMessage.id)"
+          >
+            <X class="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+    </Transition>
+
+    <CampaignChat />
+
     <!-- Content -->
     <main class="flex-1 overflow-y-auto">
       <div class="max-w-4xl mx-auto px-4 py-6">
@@ -52,15 +76,25 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRouter } from "vue-router";
-import { LogOut, Shield, ScrollText, BookOpen, Package, User } from "lucide-vue-next";
+import { LogOut, Shield, ScrollText, BookOpen, Package, User, Megaphone, X } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useParty } from "@/composables/useParty";
+import { useCampaignPresence } from "@/composables/useCampaignPresence";
+import { useCampaignBroadcast } from "@/composables/useCampaignBroadcast";
+import CampaignChat from "@/components/chat/CampaignChat.vue";
 
 const auth = useAuthStore();
 const campaign = useCampaignStore();
 const router = useRouter();
 const { data: partyMembers } = useParty();
+
+// Join presence channel so DM can see player is online
+useCampaignPresence();
+
+// Subscribe to DM broadcasts
+const { messages, dismiss } = useCampaignBroadcast();
+const latestMessage = computed(() => messages.value[0] ?? null);
 
 const campaignName = computed(() => campaign.activeCampaign?.name ?? "Campaign");
 
@@ -82,3 +116,15 @@ async function handleSignOut() {
   router.push({ name: "login" });
 }
 </script>
+
+<style scoped>
+.toast-enter-active,
+.toast-leave-active {
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+.toast-enter-from,
+.toast-leave-to {
+  transform: translateY(-8px);
+  opacity: 0;
+}
+</style>

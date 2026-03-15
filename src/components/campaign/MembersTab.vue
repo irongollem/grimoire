@@ -14,13 +14,21 @@
       >
         <!-- Avatar + identity -->
         <div class="flex items-center gap-3 flex-1 min-w-0">
-          <div
-            class="h-9 w-9 rounded-full flex items-center justify-center shrink-0 font-cinzel font-bold text-sm"
-            :class="member.role === 'dm'
-              ? 'bg-gold-500/20 text-gold-400'
-              : 'bg-primary/20 text-primary'"
-          >
-            {{ (member.display_name || member.user_id).slice(0, 2).toUpperCase() }}
+          <div class="relative shrink-0">
+            <div
+              class="h-9 w-9 rounded-full flex items-center justify-center font-cinzel font-bold text-sm"
+              :class="member.role === 'dm'
+                ? 'bg-gold-500/20 text-gold-400'
+                : 'bg-primary/20 text-primary'"
+            >
+              {{ (member.display_name || member.user_id).slice(0, 2).toUpperCase() }}
+            </div>
+            <!-- Online indicator -->
+            <span
+              class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card"
+              :class="isOnline(member.user_id) ? 'bg-elven-green' : 'bg-muted-foreground/30'"
+              :title="isOnline(member.user_id) ? 'Online' : 'Offline'"
+            />
           </div>
           <div class="min-w-0">
             <p class="font-cinzel text-sm font-semibold text-foreground truncate">
@@ -133,12 +141,14 @@ import {
   useRemoveCampaignMember,
 } from "@/composables/useCampaignMembers";
 import { useParty } from "@/composables/useParty";
+import { useCampaignPresence } from "@/composables/useCampaignPresence";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import type { CampaignMember } from "@/types/campaign.types";
 
 defineEmits<{ (e: "switch-tab", tab: string): void }>();
 
 const membersQuery = useCampaignMembers();
+const { isOnline } = useCampaignPresence();
 const partyQuery = useParty();
 const updateMember = useUpdateCampaignMember();
 const removeMember = useRemoveCampaignMember();

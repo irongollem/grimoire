@@ -10,6 +10,8 @@
         <slot />
       </main>
     </div>
+
+    <CampaignChat />
   </div>
 </template>
 
@@ -17,4 +19,8 @@
 import AppSidebar from "@/components/layout/AppSidebar.vue";
 import AppTopBar from "@/components/layout/AppTopBar.vue";
 import AppMobileNav from "@/components/layout/AppMobileNav.vue";
+import CampaignChat from "@/components/chat/CampaignChat.vue";
+import { useCampaignPresence } from "@/composables/useCampaignPresence";
+
+useCampaignPresence();
 </script>

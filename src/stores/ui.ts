@@ -33,6 +33,13 @@ export const useUiStore = defineStore("ui", () => {
     mobileNavOpen.value = !mobileNavOpen.value;
   }
 
+  // Chat panel
+  const chatOpen = ref(false);
+
+  function toggleChat() {
+    chatOpen.value = !chatOpen.value;
+  }
+
   function resetNotesFilters() {
     notesFilterCategory.value = "all";
     notesFilterTags.value = [];
@@ -72,5 +79,7 @@ export const useUiStore = defineStore("ui", () => {
     // Layout
     mobileNavOpen,
     toggleMobileNav,
+    chatOpen,
+    toggleChat,
   };
 });

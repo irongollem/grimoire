@@ -1,6 +1,7 @@
 /**
  * Shared dice utilities.
  * Used by spellAdvisor, monsters, equipment — anything that parses dice expressions.
+ * Also exports rollDice() used by DiceRoller and CampaignChat.
  */
 
 import { DAMAGE_TYPES } from "@/types/damage.types";
@@ -39,6 +40,80 @@ export function parseDiceAvg(expr: string): number {
   }
   return total;
 }
+
+// ── Live roller types + helpers (used by DiceRoller and CampaignChat) ─────────
+
+export type DieSize = 4 | 6 | 8 | 10 | 12 | 20 | 100;
+export type RollMode = "normal" | "advantage" | "disadvantage";
+
+export interface DieResult { val: number; dropped: boolean }
+export interface RollResult {
+  total: number;
+  label: string;
+  modifier: number;
+  breakdown: DieResult[];
+  isCrit: boolean;
+  isFumble: boolean;
+}
+
+export const ALL_DICE: DieSize[] = [4, 6, 8, 10, 12, 20, 100];
+
+export function rollDie(sides: number): number {
+  return Math.floor(Math.random() * sides) + 1;
+}
+
+export function rollDice(
+  counts: Partial<Record<DieSize, number>>,
+  modifier: number,
+  mode: RollMode,
+): RollResult {
+  const breakdown: DieResult[] = [];
+  let sum = 0;
+  let isCrit = false;
+  let isFumble = false;
+  const labelParts: string[] = [];
+
+  for (const sides of ALL_DICE) {
+    const n = counts[sides] ?? 0;
+    if (n === 0) continue;
+    labelParts.push(`${n}d${sides}`);
+    for (let i = 0; i < n; i++) {
+      if (sides === 20 && n === 1 && mode !== "normal") {
+        const r1 = rollDie(20);
+        const r2 = rollDie(20);
+        const keep = mode === "advantage" ? Math.max(r1, r2) : Math.min(r1, r2);
+        const drop = mode === "advantage" ? Math.min(r1, r2) : Math.max(r1, r2);
+        breakdown.push({ val: keep, dropped: false });
+        breakdown.push({ val: drop, dropped: true });
+        sum += keep;
+        if (keep === 20) isCrit = true;
+        if (keep === 1) isFumble = true;
+      } else {
+        const r = rollDie(sides);
+        breakdown.push({ val: r, dropped: false });
+        sum += r;
+        if (sides === 20 && r === 20) isCrit = true;
+        if (sides === 20 && r === 1) isFumble = true;
+      }
+    }
+  }
+
+  if (modifier !== 0) labelParts.push(modifier > 0 ? `+${modifier}` : `${modifier}`);
+  const modeLabel = (counts[20] ?? 0) > 0 && mode !== "normal"
+    ? ` (${mode === "advantage" ? "Adv" : "Dis"})`
+    : "";
+
+  return {
+    total: sum + modifier,
+    label: labelParts.join("+") + modeLabel,
+    modifier,
+    breakdown,
+    isCrit,
+    isFumble,
+  };
+}
+
+// ── Damage expression helpers ──────────────────────────────────────────────────
 
 export interface DamageRoll {
   dice: string; // e.g. "2d6", "1d8+4", "5"

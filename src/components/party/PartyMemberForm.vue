@@ -89,12 +89,23 @@
                 />
               </label>
               <label class="block">
-                <span class="field-label">Player Name</span>
-                <input
-                  v-model="f.player_name"
+                <span class="field-label">Player</span>
+                <select
+                  v-model="selectedCampaignMemberId"
                   class="field-input w-full"
-                  placeholder="Jeff"
-                />
+                >
+                  <option value="">— Unassigned —</option>
+                  <option
+                    v-for="p in players"
+                    :key="p.id"
+                    :value="p.id"
+                  >
+                    {{ p.display_name || p.user_id.slice(0, 8) }}
+                  </option>
+                </select>
+                <p v-if="!players.length" class="font-fell text-xs text-muted-foreground/60 italic mt-1">
+                  No players have joined yet — share an invite link first.
+                </p>
               </label>
               <button
                 v-if="portraitUrl"
@@ -465,6 +476,10 @@ import {
   useUpdatePartyMember,
   useDeletePartyMember,
 } from "@/composables/useParty";
+import {
+  useCampaignMembers,
+  useUpdateCampaignMember,
+} from "@/composables/useCampaignMembers";
 import { useImageUpload } from "@/composables/useImageUpload";
 import { SKILLS } from "@/types/party.types";
 import type {
@@ -662,16 +677,33 @@ const passiveInvestigation = computed(() => {
   );
 });
 
+// Campaign members (for player assignment dropdown)
+const { data: campaignMembers } = useCampaignMembers();
+const { mutateAsync: updateCampaignMember } = useUpdateCampaignMember();
+
+const players = computed(() =>
+  (campaignMembers.value ?? []).filter((m) => m.role === "player"),
+);
+
+// Which campaign member is currently assigned to this party member
+const selectedCampaignMemberId = ref<string>(
+  (campaignMembers.value ?? []).find(
+    (m) => props.member && m.party_member_id === props.member.id,
+  )?.id ?? "",
+);
+
 // CRUD
 const { mutateAsync: create } = useCreatePartyMember();
 const { mutateAsync: update } = useUpdatePartyMember();
 const { mutateAsync: del } = useDeletePartyMember();
 
 async function save() {
+  // Derive player_name from selected campaign member
+  const selectedPlayer = players.value.find((m) => m.id === selectedCampaignMemberId.value);
   const payload = {
     ...f,
     name: f.name.trim(),
-    player_name: f.player_name || null,
+    player_name: selectedPlayer?.display_name ?? (f.player_name || null),
     class: f.class || null,
     subclass: f.subclass || null,
     race: f.race || null,
@@ -680,11 +712,32 @@ async function save() {
     card_art_url: cardArtUrl.value || null,
     proficiency_bonus: profBonus.value,
   };
+
+  let partyMemberId = props.member?.id;
   if (props.member) {
     await update({ id: props.member.id, update: payload });
   } else {
-    await create(payload);
+    const created = await create(payload);
+    partyMemberId = created.id;
   }
+
+  // Sync campaign_members assignment
+  if (partyMemberId) {
+    // Un-assign any player currently pointing at this party member (except the selected one)
+    for (const m of players.value) {
+      if (m.party_member_id === partyMemberId && m.id !== selectedCampaignMemberId.value) {
+        await updateCampaignMember({ id: m.id, update: { party_member_id: null } });
+      }
+    }
+    // Assign selected player
+    if (selectedCampaignMemberId.value) {
+      await updateCampaignMember({
+        id: selectedCampaignMemberId.value,
+        update: { party_member_id: partyMemberId },
+      });
+    }
+  }
+
   emit("close");
 }
 
