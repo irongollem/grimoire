@@ -121,8 +121,12 @@ export const DIFFICULTY_COLORS: Record<DifficultyLabel, string> = {
 export interface DifficultyResult {
   rawXp: number;
   adjustedXp: number;
+  allyAdjustedXp: number;
+  netXp: number;
   multiplier: number;
+  allyMultiplier: number;
   enemyCount: number;
+  allyCount: number;
   partyThresholds: { easy: number; medium: number; hard: number; deadly: number };
   label: DifficultyLabel;
 }
@@ -130,20 +134,28 @@ export interface DifficultyResult {
 export function calculateDifficulty(
   enemyEntries: { cr: string | null | undefined; count: number }[],
   partyLevels: number[],
-  allyCount = 0,
+  allyEntries: { cr: string | null | undefined; count: number }[] = [],
 ): DifficultyResult {
-  // Sum raw XP of all enemy monsters
+  // Enemy side
   const enemyCount = enemyEntries.reduce((s, e) => s + e.count, 0);
   const rawXp = enemyEntries.reduce((s, e) => s + crToXp(e.cr) * e.count, 0);
   const multiplier = monsterMultiplier(enemyCount);
 
-  // Adjust multiplier by effective party size (DMG: allied NPCs count toward party size)
-  const effectivePartySize = partyLevels.length + allyCount;
+  // Adjust enemy multiplier by party size
   let adjustedMultiplier = multiplier;
-  if (effectivePartySize < 3) adjustedMultiplier = nextMultiplierTier(multiplier, +1);
-  else if (effectivePartySize > 5) adjustedMultiplier = nextMultiplierTier(multiplier, -1);
+  if (partyLevels.length < 3) adjustedMultiplier = nextMultiplierTier(multiplier, +1);
+  else if (partyLevels.length > 5) adjustedMultiplier = nextMultiplierTier(multiplier, -1);
 
   const adjustedXp = Math.round(rawXp * adjustedMultiplier);
+
+  // Ally side — apply same count multiplier to reflect action economy value
+  const allyCount = allyEntries.reduce((s, e) => s + e.count, 0);
+  const allyRawXp = allyEntries.reduce((s, e) => s + crToXp(e.cr) * e.count, 0);
+  const allyMultiplier = monsterMultiplier(allyCount);
+  const allyAdjustedXp = Math.round(allyRawXp * allyMultiplier);
+
+  // Net XP is what we compare against thresholds
+  const netXp = Math.max(0, adjustedXp - allyAdjustedXp);
 
   // Party thresholds = sum of each member's threshold for their level
   const partyThresholds = { easy: 0, medium: 0, hard: 0, deadly: 0 };
@@ -156,15 +168,19 @@ export function calculateDifficulty(
   }
 
   let label: DifficultyLabel;
-  if (adjustedXp === 0)                            label = "Trivial";
-  else if (adjustedXp < partyThresholds.easy)      label = "Trivial";
-  else if (adjustedXp < partyThresholds.medium)    label = "Easy";
-  else if (adjustedXp < partyThresholds.hard)      label = "Medium";
-  else if (adjustedXp < partyThresholds.deadly)    label = "Hard";
-  else if (adjustedXp < partyThresholds.deadly * 2) label = "Deadly";
-  else                                              label = "Legendary";
+  if (netXp === 0)                               label = "Trivial";
+  else if (netXp < partyThresholds.easy)         label = "Trivial";
+  else if (netXp < partyThresholds.medium)       label = "Easy";
+  else if (netXp < partyThresholds.hard)         label = "Medium";
+  else if (netXp < partyThresholds.deadly)       label = "Hard";
+  else if (netXp < partyThresholds.deadly * 2)   label = "Deadly";
+  else                                            label = "Legendary";
 
-  return { rawXp, adjustedXp, multiplier: adjustedMultiplier, enemyCount, partyThresholds, label };
+  return {
+    rawXp, adjustedXp, allyAdjustedXp, netXp,
+    multiplier: adjustedMultiplier, allyMultiplier,
+    enemyCount, allyCount, partyThresholds, label,
+  };
 }
 
 function nextMultiplierTier(m: number, dir: 1 | -1): number {

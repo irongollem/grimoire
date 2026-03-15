@@ -332,15 +332,32 @@
           <!-- XP breakdown -->
           <div class="flex flex-col gap-1.5 font-cinzel text-xs">
             <div class="flex justify-between">
-              <span class="text-muted-foreground">Raw XP</span>
+              <span class="text-muted-foreground">Enemy XP</span>
               <span class="font-bold text-foreground">{{ difficulty.rawXp.toLocaleString() }}</span>
             </div>
             <div class="flex justify-between">
               <span class="text-muted-foreground">Multiplier</span>
               <span class="font-bold text-foreground">× {{ difficulty.multiplier }}</span>
             </div>
-            <div class="flex justify-between border-t border-border pt-1.5 mt-0.5">
+            <div class="flex justify-between">
               <span class="text-muted-foreground">Adjusted XP</span>
+              <span class="font-bold text-foreground">{{ difficulty.adjustedXp.toLocaleString() }}</span>
+            </div>
+            <template v-if="difficulty.allyAdjustedXp > 0">
+              <div class="flex justify-between">
+                <span class="text-muted-foreground">
+                  Ally offset
+                  <span class="text-[10px]">(× {{ difficulty.allyMultiplier }})</span>
+                </span>
+                <span class="font-bold text-green-500">− {{ difficulty.allyAdjustedXp.toLocaleString() }}</span>
+              </div>
+              <div class="flex justify-between border-t border-border pt-1.5 mt-0.5">
+                <span class="text-muted-foreground">Net XP</span>
+                <span class="font-bold text-primary">{{ difficulty.netXp.toLocaleString() }}</span>
+              </div>
+            </template>
+            <div v-else class="flex justify-between border-t border-border pt-1.5 mt-0.5">
+              <span class="text-muted-foreground">Net XP</span>
               <span class="font-bold text-primary">{{ difficulty.adjustedXp.toLocaleString() }}</span>
             </div>
           </div>
@@ -361,7 +378,7 @@
                 />
                 <!-- XP marker -->
                 <div
-                  v-if="difficulty.adjustedXp > 0 && markerPct(tier) > 0 && markerPct(tier) <= 100"
+                  v-if="difficulty.netXp > 0 && markerPct(tier) > 0 && markerPct(tier) <= 100"
                   class="absolute top-0 h-full w-0.5 bg-white/80"
                   :style="{ left: `${markerPct(tier)}%` }"
                 />
@@ -720,19 +737,49 @@ const partyLevels = computed(() => {
     .map((id) => members.find((m) => m.id === id)?.level ?? 1);
 });
 
-// Allied combatants (non-enemy factions) + selected companions count toward party size per DMG
-const allyCount = computed(() => {
-  const allyCombatants = form.combatants
-    .filter((c) => c.faction_id === "ally")
-    .reduce((s, c) => s + c.count, 0);
-  return allyCombatants + form.companion_ids.length;
+// Any faction hostile to at least one enemy faction is fighting on the party's side
+const allyFactionIds = computed(() => {
+  const ids = new Set<string>();
+  for (const faction of form.factions) {
+    if (faction.id === "players") continue; // already counted via partyLevels
+    if (faction.hostile_to.some((id) => enemyFactionIds.value.has(id))) {
+      ids.add(faction.id);
+    }
+  }
+  return ids;
+});
+
+// Ally entries for difficulty — combatants on the party's side + selected companions (with CR lookup)
+const allyEntries = computed(() => {
+  const entries: { cr: string | null | undefined; count: number }[] = [];
+
+  // Combatants in ally factions (monsters or NPCs)
+  for (const c of form.combatants.filter((c) => allyFactionIds.value.has(c.faction_id))) {
+    const cr = c.npc_id ? npcCr(c.npc_id) : monsterCr(c.monster_id);
+    entries.push({ cr, count: c.count });
+  }
+
+  // Selected companions — look up their source CR
+  for (const compId of form.companion_ids) {
+    const comp = (companions.value ?? []).find((c) => c.id === compId);
+    if (!comp) continue;
+    let cr: string | null = null;
+    if (comp.source_monster_id) {
+      cr = monsterMap.value.get(comp.source_monster_id)?.stat_block.challenge_rating ?? null;
+    } else if (comp.source_npc_id) {
+      cr = npcMap.value.get(comp.source_npc_id)?.stat_block?.challenge_rating ?? null;
+    }
+    entries.push({ cr, count: 1 });
+  }
+
+  return entries;
 });
 
 const difficulty = computed(() =>
   calculateDifficulty(
     enemyEntries.value.map((e) => ({ cr: e.cr, count: e.count })),
     partyLevels.value.length ? partyLevels.value : [3],
-    allyCount.value,
+    allyEntries.value,
   ),
 );
 
@@ -749,7 +796,7 @@ const thresholdTiers = computed(() => {
 
 function markerPct(_tier: { value: number }): number {
   const max = difficulty.value.partyThresholds.deadly * 1.5 || 1;
-  return Math.min(100, (difficulty.value.adjustedXp / max) * 100);
+  return Math.min(100, (difficulty.value.netXp / max) * 100);
 }
 
 // Save / Delete / Run
