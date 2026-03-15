@@ -78,7 +78,7 @@ Features built and planned. Check off items as they ship.
 - [ ] **Full-text search** — cross-entity search across NPCs, monsters, notes, spells, items, locations, quests
 - [ ] **Export / import** — JSON export of entire campaign data; import to restore or share
 - [ ] **Collaboration features** — invite other users to view/edit the campaign, with role-based permissions (DM vs player) and setup the skeleton for VTT type tooling
-- [ ] **Setting bundles** — pre-populate locations and calendar events for supported settings (matching the active calendar adapter), so running a campaign is plug-and-play with rich lore content. Major setting events (e.g. the Spellplague, the Sundering) would ship as pre-made calendar events with lore descriptions.
+- [x] **Setting bundles** — pre-populate calendar events for supported settings (matching the active calendar adapter). Faerûn bundle ships 30 major events (Time of Troubles, Spellplague, Sundering, 5e adventures). Importable via "Setting Events" button in the calendar view. Adding new bundles requires only a new file in `src/data/bundles/` and an entry in the registry.
 
 ---
 
