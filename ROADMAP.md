@@ -30,25 +30,27 @@ Features built and planned. Check off items as they ship.
 
 Recursive location hierarchy: a region can contain towns, a town can contain buildings, a building can contain rooms, etc. Depth is unlimited.
 
-- [ ] `locations` table — id, user_id, parent_id (self-referencing FK, nullable = root), name, location_type (enum: continent, region, country, city, town, village, district, building, room, dungeon, wilderness, other), description (rich text / Tiptap JSON), notes, tags[], image_url, updated_at + RLS
-- [ ] `useLocations` composable — list roots, list children of a given parent, CRUD
-- [ ] LocationsView — breadcrumb-style tree nav (click into a location to see its children)
-- [ ] LocationDetail — description editor, child list, "Add sublocation" button, "Send to Scriptorium"
-- [ ] Scriptorum formatter for locations
-- [ ] Add Locations to nav (Campaign section) and to the Scriptorium asset insert panel
+- [x] `locations` table — id, user_id, parent_id (self-referencing FK, nullable = root), name, location_type (enum: continent, region, country, city, town, village, district, building, room, dungeon, wilderness, other), description (rich text / Tiptap JSON), notes, tags[], image_url, updated_at + RLS
+- [x] `useLocations` composable — list roots, list children of a given parent, CRUD
+- [x] LocationsView — flat list of all locations with search + type filter, parent breadcrumb on cards
+- [x] LocationDetail — description editor (Tiptap), child list, "Add sublocation" button, breadcrumb trail, "Send to Scriptorium"
+- [x] Scriptorium formatter for locations
+- [x] Add Locations to nav (Campaign section) and to the Scriptorium asset insert panel
 
 ---
 
 ## Quests
 
-> **TODO** — not trivial; needs thought on structure before building.
-
-Rough shape:
-
-- Quests have a title, summary, status (active / completed / failed / on-hold), giver NPC (FK), related locations, related NPCs, objectives (ordered list with done/todo state), rewards, notes
-- Quests can have sub-quests (recursive, like locations)
-- Quest log view: kanban or list grouped by status
-- Timeline integration: quests can be pinned to a calendar date (started / resolved)
+- [ ] `quests` table — id, user_id, campaign_id, parent_quest_id (nullable, for sub-quests), title, summary, status (active / completed / failed / on-hold), giver_npc_id (FK nullable), location_id (FK nullable), rewards (text), tags[], notes (Tiptap JSON), started_at (calendar date fields), resolved_at (calendar date fields) + RLS
+- [ ] `quest_objectives` table — id, quest_id, description, is_done, sort_order
+- [ ] `quest_refs` join table — quest_id, ref_type (npc / location / monster / item), ref_id — polymorphic references to related entities
+- [ ] `quest_triggers` table — id, quest_id, trigger_type (quest_complete / objective_done), offset_days (int), action_type (create_calendar_event), action_payload (JSONB) — e.g. "5 days after this quest completes, create a calendar event"
+- [ ] `useQuests` composable — CRUD, fetch by status, fetch sub-quests
+- [ ] QuestsView — kanban board grouped by status (active / on-hold / completed / failed), or list toggle
+- [ ] QuestDetail — objectives checklist, related entities panel (linked NPCs / locations / monsters / items), sub-quest list, trigger builder
+- [ ] Trigger engine — when a quest status changes or objective is checked off, evaluate pending triggers and auto-create calendar events at the computed calendar date
+- [ ] Scriptorium formatter for quests
+- [ ] Add Quests to nav (Campaign section) and Scriptorium asset insert panel
 
 ---
 

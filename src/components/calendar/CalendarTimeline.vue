@@ -64,9 +64,9 @@
     </div>
 
     <!-- Timeline canvas -->
-    <div v-else class="overflow-x-auto rounded-lg border border-border bg-card">
+    <div v-else ref="canvasWrapper" class="rounded-lg border border-border bg-card overflow-hidden">
       <div
-        :style="{ width: timelineWidth + 'px', minWidth: '100%', height: containerHeight + 'px' }"
+        :style="{ width: '100%', height: containerHeight + 'px' }"
         class="relative"
       >
         <!-- Axis line -->
@@ -115,22 +115,20 @@
         </template>
 
         <template v-else>
-          <!-- Day ticks (1-month zoom) -->
-          <div
-            v-for="tick in dayTicks"
-            :key="tick.day"
-            :style="{ left: fractionalYearToX(tick.frac) + 'px', top: axisY + 'px' }"
-            class="absolute"
-            style="transform: translate(-50%, -50%)"
-          >
-            <div class="bg-border mx-auto" :class="tick.day % 10 === 1 ? 'w-px h-6' : 'w-px h-3'" />
+          <!-- Day ticks — bar and label are separate so tick height doesn't shift the label -->
+          <template v-for="tick in dayTicks" :key="tick.day">
+            <div
+              class="absolute bg-border"
+              :class="tick.day % calendar.adapter.weekSize === 0 ? 'w-px h-6' : 'w-px h-3'"
+              :style="{ left: fractionalYearToX(tick.frac) + 'px', top: axisY + 'px', transform: 'translate(-50%, -50%)' }"
+            />
             <span
               class="absolute font-cinzel font-semibold text-muted-foreground whitespace-nowrap text-[10px]"
-              style="top: 16px; left: 50%; transform: translateX(-50%)"
+              :style="{ left: fractionalYearToX(tick.frac) + 'px', top: (axisY + 8) + 'px', transform: 'translateX(-50%)' }"
             >
-              {{ tick.day % 5 === 0 || tick.day === 1 ? tick.label : "" }}
+              {{ isWeekZoom || tick.day % 5 === 0 || tick.day === 1 ? tick.label : "" }}
             </span>
-          </div>
+          </template>
         </template>
 
         <!-- Current year/month marker -->
@@ -276,11 +274,36 @@
       {{ positionedRegularEvents.length + positionedSessionEvents.length }} event{{ positionedRegularEvents.length + positionedSessionEvents.length === 1 ? "" : "s" }} · click any
       to edit
     </p>
+
+    <!-- Events in view list -->
+    <div v-if="visibleEvents.length" class="mt-6">
+      <p class="font-cinzel text-xs font-semibold tracking-widest text-muted-foreground mb-3">
+        EVENTS IN VIEW
+      </p>
+      <div class="space-y-1.5">
+        <div
+          v-for="event in visibleEvents"
+          :key="event.id"
+          class="flex items-center gap-2 rounded-md bg-card border border-border px-3 py-2 cursor-pointer hover:border-primary/40 transition-colors"
+          @click="emit('edit-event', event)"
+        >
+          <span :style="{ backgroundColor: event.color }" class="w-2.5 h-2.5 rounded-full shrink-0" />
+          <span class="font-fell text-sm text-foreground flex-1">{{ event.title }}</span>
+          <span class="font-fell text-xs text-muted-foreground italic">{{ formatEventDate(event) }}</span>
+          <span class="font-cinzel text-xs text-muted-foreground/40 uppercase tracking-wider">{{ event.event_type }}</span>
+        </div>
+      </div>
+    </div>
+    <div v-else-if="!isLoading" class="mt-6">
+      <p class="font-fell text-sm text-muted-foreground italic text-center">
+        No events in this period.
+      </p>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch, nextTick, onUnmounted } from "vue";
 import type { Component } from "vue";
 import { useCalendarStore } from "@/stores/calendar";
 import { useCalendarEventsRange } from "@/composables/useCalendarEvents";
@@ -290,8 +313,8 @@ import { Star, Swords, Globe2, Sparkles, Clock, Skull, Flame, Eye, Ghost, Map } 
 
 const AXIS_PADDING = 60; // px padding left + right
 const LANE_HEIGHT = 30; // px between stacked event lanes
-const CONTAINER_HEIGHT = 420;
-const SESSION_STRIP_Y = 360;
+const CONTAINER_HEIGHT = 330;
+const SESSION_STRIP_Y = 280;
 const SESSION_STRIP_HEIGHT = 22;
 
 const EVENT_ICONS: Record<string, Component> = {
@@ -307,14 +330,15 @@ const EVENT_ICONS: Record<string, Component> = {
   travel: Map,
 };
 
-const ZOOM_PRESETS = [
+const ZOOM_PRESETS = computed(() => [
+  { value: calendar.adapter.weekSize / 365, label: "1wk" },
   { value: 1 / 12, label: "1mo" },
   { value: 1, label: "1yr" },
   { value: 10, label: "10yr" },
   { value: 20, label: "20yr" },
   { value: 50, label: "50yr" },
   { value: 100, label: "100yr" },
-];
+]);
 
 const emit = defineEmits<{
   "edit-event": [event: CalendarEvent];
@@ -323,17 +347,44 @@ const emit = defineEmits<{
 const calendar = useCalendarStore();
 const jumpYear = ref<number>(calendar.currentYear);
 
+// Measure container so the timeline always fills available width.
+// Uses watch() instead of onMounted() so it fires when the v-else div appears (after loading).
+const canvasWrapper = ref<HTMLElement | null>(null);
+const containerWidth = ref(900);
+let resizeObserver: ResizeObserver | null = null;
+watch(canvasWrapper, async (el) => {
+  resizeObserver?.disconnect();
+  if (el) {
+    await nextTick(); // wait for layout to settle before measuring
+    containerWidth.value = el.offsetWidth;
+    resizeObserver = new ResizeObserver((entries) => {
+      containerWidth.value = entries[0].contentRect.width;
+    });
+    resizeObserver.observe(el);
+  }
+}, { immediate: true });
+onUnmounted(() => resizeObserver?.disconnect());
+
 const zoomYears = computed(() => calendar.timelineZoom);
+
+// Track which tenday (1-indexed) we're centred on for week-zoom navigation
+const currentTenday = ref(1);
+const tendaysPerMonth = computed(() => Math.floor(30 / calendar.adapter.weekSize));
+const isWeekZoom = computed(() => zoomYears.value <= calendar.adapter.weekSize / 365 * 1.5);
 
 // Zoom mode determines which tick type to render
 const zoomMode = computed((): "days" | "months" | "years" => {
-  if (zoomYears.value <= 1 / 11) return "days";
+  if (zoomYears.value <= 1 / 6) return "days"; // covers both 1wk and 1mo
   if (zoomYears.value <= 1.5) return "months";
   return "years";
 });
 
-// Center the view on current month when zoomed in finely
+// Center the view on current position
 const centerFrac = computed(() => {
+  if (isWeekZoom.value) {
+    const dayOfYear = (calendar.currentMonth - 1) * 30 + (currentTenday.value - 0.5) * calendar.adapter.weekSize;
+    return calendar.currentYear + dayOfYear / 365;
+  }
   if (zoomMode.value === "days") {
     return calendar.currentYear + (calendar.currentMonth - 0.5) / 12;
   }
@@ -350,18 +401,9 @@ const endFrac = computed(() => centerFrac.value + zoomYears.value / 2);
 const queryStart = computed(() => Math.floor(startFrac.value));
 const queryEnd = computed(() => Math.ceil(endFrac.value));
 
-// Pixels per year — scales so the timeline is a useful width for each zoom
-const pixelsPerYear = computed(() => {
-  if (zoomYears.value <= 1 / 11) return 8400; // 1 month: ~700px
-  if (zoomYears.value <= 1.5) return 840; // 1 year: ~840px
-  if (zoomYears.value <= 15) return 100; // 10 years
-  if (zoomYears.value <= 30) return 60; // 20 years
-  if (zoomYears.value <= 75) return 24; // 50 years
-  return 12; // 100 years
-});
-
-const timelineWidth = computed(() =>
-  Math.round(zoomYears.value * pixelsPerYear.value + AXIS_PADDING * 2),
+// Pixels per year — fills the measured container width exactly
+const pixelsPerYear = computed(() =>
+  (containerWidth.value - AXIS_PADDING * 2) / zoomYears.value,
 );
 
 const containerHeight = CONTAINER_HEIGHT;
@@ -431,15 +473,24 @@ const monthTicks = computed(() => {
   return ticks;
 });
 
-// Day ticks for 1-month zoom
+// Day ticks — for 1-month zoom shows full month; for 1-week zoom only the current tenday
 const dayTicks = computed(() => {
   const ticks: { day: number; frac: number; label: string }[] = [];
   const y = calendar.currentYear;
   const m = calendar.currentMonth;
+  const weekSize = calendar.adapter.weekSize;
   const monthName = calendar.adapter.months.find((mo) => mo.num === m)?.name ?? "";
-  for (let d = 1; d <= 30; d++) {
+
+  let dStart = 1;
+  let dEnd = 30;
+  if (isWeekZoom.value) {
+    dStart = (currentTenday.value - 1) * weekSize + 1;
+    dEnd = currentTenday.value * weekSize;
+  }
+
+  for (let d = dStart; d <= dEnd; d++) {
     const frac = y + ((m - 1) * 30 + d) / 365;
-    ticks.push({ day: d, frac, label: d === 1 ? `${d} ${monthName}` : `${d}` });
+    ticks.push({ day: d, frac, label: d === dStart ? `${d} ${monthName}` : `${d}` });
   }
   return ticks;
 });
@@ -451,12 +502,13 @@ const currentMarkerX = computed(() =>
 // Human-readable range label for the nav bar
 const rangeLabel = computed(() => {
   const ep = calendar.adapter.epochName;
+  const weekFrac = calendar.adapter.weekSize / 365;
   if (zoomMode.value === "days") {
     const m = calendar.adapter.months.find((mo) => mo.num === calendar.currentMonth);
+    if (zoomYears.value <= weekFrac * 1.5) {
+      return `${m?.name ?? ""} – Tenday ${currentTenday.value}, ${calendar.currentYear} ${ep}`;
+    }
     return `${m?.name ?? ""} ${calendar.currentYear} ${ep}`;
-  }
-  if (zoomMode.value === "months") {
-    return `${Math.round(startFrac.value)} – ${Math.round(endFrac.value)} ${ep}`;
   }
   return `${Math.round(startFrac.value)} – ${Math.round(endFrac.value)} ${ep}`;
 });
@@ -536,30 +588,73 @@ const positionedSessionEvents = computed((): PositionedSessionEvent[] => {
     });
 });
 
+// ── Events list ─────────────────────────────────────────────────────────────
+
+const visibleEvents = computed(() =>
+  (events.value ?? [])
+    .filter((e) => {
+      const frac = eventToFrac(e);
+      return frac >= startFrac.value - 0.01 && frac <= endFrac.value + 0.01;
+    })
+    .sort((a, b) => eventToFrac(a) - eventToFrac(b)),
+);
+
+function formatEventDate(event: CalendarEvent): string {
+  if (event.festival_day) return event.festival_day;
+  const m = event.harptos_month
+    ? calendar.adapter.months.find((mo) => mo.num === event.harptos_month)
+    : null;
+  const monthName = m?.name ?? "";
+  if (event.harptos_day && monthName) {
+    const week = Math.ceil(event.harptos_day / calendar.adapter.weekSize);
+    const label = calendar.adapter.weekRowNames?.[week - 1] ?? `Tenday ${week}`;
+    return `${monthName} ${event.harptos_day} (${label}), ${event.harptos_year}`;
+  }
+  if (monthName) return `${monthName} ${event.harptos_year}`;
+  return `${event.harptos_year}`;
+}
+
 // ── Navigation ──────────────────────────────────────────────────────────────
 
 function shiftBack() {
-  if (zoomMode.value === "days") {
+  if (isWeekZoom.value) {
+    if (currentTenday.value > 1) {
+      currentTenday.value--;
+    } else {
+      calendar.prevMonth();
+      currentTenday.value = tendaysPerMonth.value;
+    }
+  } else if (zoomMode.value === "days") {
     calendar.prevMonth();
+    currentTenday.value = 1;
   } else if (zoomMode.value === "months") {
     calendar.goToYear(calendar.currentYear - 1);
   } else {
-    calendar.goToYear(Math.round(calendar.currentYear - zoomYears.value / 2));
+    calendar.goToYear(calendar.currentYear - Math.round(zoomYears.value));
   }
 }
 
 function shiftForward() {
-  if (zoomMode.value === "days") {
+  if (isWeekZoom.value) {
+    if (currentTenday.value < tendaysPerMonth.value) {
+      currentTenday.value++;
+    } else {
+      calendar.nextMonth();
+      currentTenday.value = 1;
+    }
+  } else if (zoomMode.value === "days") {
     calendar.nextMonth();
+    currentTenday.value = 1;
   } else if (zoomMode.value === "months") {
     calendar.goToYear(calendar.currentYear + 1);
   } else {
-    calendar.goToYear(Math.round(calendar.currentYear + zoomYears.value / 2));
+    calendar.goToYear(calendar.currentYear + Math.round(zoomYears.value));
   }
 }
 
 function setZoom(z: number) {
   calendar.setTimelineZoom(z);
+  currentTenday.value = 1; // reset tenday position when changing zoom
 }
 
 function jumpToYear() {
