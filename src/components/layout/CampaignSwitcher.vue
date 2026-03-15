@@ -35,8 +35,8 @@
           <div
             v-for="c in campaigns"
             :key="c.id"
-            class="group flex items-center gap-2 px-3 py-2 hover:bg-accent transition-colors"
-            :class="c.id === activeCampaign?.id ? 'bg-accent/50' : ''"
+            class="group flex items-center gap-2 px-3 py-2 hover:bg-navy-800 transition-colors"
+            :class="c.id === activeCampaign?.id ? 'bg-navy-800' : ''"
           >
             <!-- Campaign select area -->
             <button class="flex items-center gap-2 flex-1 min-w-0 text-left" @click="select(c)">
@@ -113,7 +113,10 @@
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       @click.self="closeModal"
     >
-      <div class="bg-card border border-border rounded-lg w-full max-w-md shadow-xl">
+      <div
+        class="bg-card border border-border rounded-lg w-full shadow-xl transition-all"
+        :class="editing && activeModalTab !== 'details' ? 'max-w-xl' : 'max-w-md'"
+      >
         <div class="flex items-center justify-between px-5 py-4 border-b border-border">
           <h2 class="font-cinzel text-lg font-bold text-foreground">
             {{ editing ? "Edit Campaign" : "New Campaign" }}
@@ -126,7 +129,33 @@
           </button>
         </div>
 
-        <form class="px-5 py-4 space-y-4" @submit.prevent="submitForm">
+        <!-- Tabs — only shown when editing an existing campaign -->
+        <div v-if="editing" class="flex gap-1 px-5 pt-4 pb-0">
+          <button
+            v-for="tab in modalTabs"
+            :key="tab.id"
+            class="px-3 py-1.5 rounded text-xs font-cinzel tracking-wide transition-colors"
+            :class="activeModalTab === tab.id
+              ? 'bg-muted text-foreground'
+              : 'text-muted-foreground hover:text-foreground'"
+            @click="activeModalTab = tab.id"
+          >
+            {{ tab.label }}
+          </button>
+        </div>
+
+        <!-- Members tab -->
+        <div v-if="editing && activeModalTab === 'members'" class="px-5 py-4 max-h-[60vh] overflow-y-auto">
+          <MembersTab @switch-tab="activeModalTab = $event as ModalTab" />
+        </div>
+
+        <!-- Invites tab -->
+        <div v-else-if="editing && activeModalTab === 'invites'" class="px-5 py-4 max-h-[60vh] overflow-y-auto">
+          <InvitesTab />
+        </div>
+
+        <!-- Details tab (default, and only content when creating) -->
+        <form v-else class="px-5 py-4 space-y-4" @submit.prevent="submitForm">
           <div>
             <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">
               NAME
@@ -264,6 +293,18 @@ import {
 import { useCampaignStore } from "@/stores/campaign";
 import { listCalendarAdapters, getCalendarAdapter } from "@/calendars/index";
 import type { Campaign } from "@/types/campaign.types";
+import MembersTab from "@/components/campaign/MembersTab.vue";
+import InvitesTab from "@/components/campaign/InvitesTab.vue";
+
+type ModalTab = "details" | "members" | "invites";
+
+const modalTabs: { id: ModalTab; label: string }[] = [
+  { id: "details", label: "Details" },
+  { id: "members", label: "Members" },
+  { id: "invites", label: "Invite Links" },
+];
+
+const activeModalTab = ref<ModalTab>("details");
 
 const campaignStore = useCampaignStore();
 const { data: campaignList } = useCampaigns();
@@ -343,6 +384,7 @@ function startEdit(campaign: Campaign) {
 function closeModal() {
   showModal.value = false;
   editing.value = null;
+  activeModalTab.value = "details";
 }
 
 function onCalendarChange() {

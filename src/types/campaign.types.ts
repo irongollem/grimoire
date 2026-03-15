@@ -26,7 +26,7 @@ export interface CampaignMember {
   updated_at: string;
 }
 
-export type CampaignMemberUpdate = Pick<CampaignMember, "display_name" | "party_member_id">;
+export type CampaignMemberUpdate = Partial<Pick<CampaignMember, "display_name" | "party_member_id">>;
 
 export interface CampaignInvite {
   id: string;
@@ -41,5 +41,5 @@ export interface CampaignInvite {
   created_at: string;
 }
 
-export type CampaignInviteInsert = Pick<CampaignInvite, "campaign_id" | "role"> &
-  Partial<Pick<CampaignInvite, "label" | "expires_at" | "max_uses">>;
+export type CampaignInviteInsert = Pick<CampaignInvite, "campaign_id"> &
+  Partial<Pick<CampaignInvite, "role" | "label" | "expires_at" | "max_uses">>;
