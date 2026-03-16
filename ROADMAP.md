@@ -63,6 +63,10 @@ Features built and planned. Check off items as they ship.
 ## Items & Magic Items (remaining)
 
 - [x] Party inventory — shared `party_inventory` table; DM and players can add/remove items, adjust quantity, mark carried-by; shown in Party Tracker and player character sheet inventory tab
+- [x] **Player character sheet** — inventory split into "My Items" (carried by that player) and "Party Stash" (uncarried); equip toggle on My Items; equipped vault-linked weapons show a clickable Attack + Damage roller on the Character tab (ability mod auto-selected: DEX for ranged/finesse when DEX > STR, STR otherwise); all rolls post to campaign chat
+- [x] **Loot drops in chat** — items can be dropped directly into the campaign chat as a loot card. Anyone in the campaign can then **Claim** (→ their My Items) or **To Stash** (→ Party Stash); once claimed the card updates for everyone in real-time. How to drop loot:
+  - **DM / Party Tracker**: click the ↑ arrow on any existing inventory row, or use "Drop in Chat" in the Add Item form instead of "Add"
+  - **Player / My Items**: click the ↑ arrow on any item in the My Items tab of their character sheet — removes it from their inventory and drops it to chat
 - [ ] Scriptorium formatter for items (stat block style: name, type line, rarity, attunement, description)
 
 ---
@@ -90,7 +94,7 @@ Features built and planned. Check off items as they ship.
 - [x] **items** load all free accessible items from the Open5e API to create a pre-populated item vault, similar to the monster import described above. This would give users a rich starting point of SRD items to use and customize without needing to input everything manually
 - [ ] **Locations** - similar to items and monsters, faerun (and possibly the other settings) are well stocked with famous locations like baldurs gate, waterdeep, candlekeep, etc. A one-click import of these iconic locations, complete with descriptions and lore from the setting, would give DMs a rich library of places to set their adventures without needing to create everything from scratch. This could be implemented similarly to the monster and item imports, fetching data from a bundled JSON file with location details and populating the database accordingly.
 - [x] **QUESTS** - `is_player_visible` toggle per quest; DM shares individual quests to the player portal; players see only shared quests in their quest log view.
-- [ ] **ITEMS/REWARDS** - allow an _item_ to be dropped in chat, with 2 buttons, claim, and in party inventory (with the tradecard card in the chat) so that someone can pick it up and it does to their inventory. If someone claims it, it disappears from the chat and appears in their inventory, and if they drop it, it disappears from their inventory and reappears in the chat. This would make item management during sessions much smoother, allowing DMs to easily distribute loot and players to manage their inventory without needing to manually update everything.
+- [x] **ITEMS/REWARDS** — loot drop cards in campaign chat (see Items & Magic Items section above for detail)
 
 ---
 

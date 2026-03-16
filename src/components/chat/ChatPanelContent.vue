@@ -37,9 +37,54 @@
             <Trash2 class="h-3.5 w-3.5" />
           </button>
 
+          <!-- Item drop message -->
+          <div
+            v-if="msg.type === 'item_drop'"
+            class="max-w-[90%] rounded-lg border overflow-hidden"
+            :class="(msg.metadata as ItemDropMetadata)?.claimed_by_user_id
+              ? 'border-border bg-muted/40'
+              : 'border-amber-500/30 bg-amber-500/5'"
+          >
+            <div class="px-3 py-2 border-b border-border/50 flex items-center gap-2">
+              <Gift class="h-3.5 w-3.5 text-amber-400 shrink-0" />
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
+                {{ msg.user_id === myUserId ? 'You' : msg.sender_name }} dropped loot
+              </span>
+            </div>
+            <div class="px-3 py-2.5">
+              <div class="flex items-baseline gap-2 mb-1">
+                <span class="font-fell text-sm font-semibold text-foreground">
+                  {{ (msg.metadata as ItemDropMetadata)?.quantity > 1 ? `${(msg.metadata as ItemDropMetadata).quantity}× ` : '' }}{{ (msg.metadata as ItemDropMetadata)?.item_name }}
+                </span>
+                <span v-if="(msg.metadata as ItemDropMetadata)?.item_rarity" class="font-cinzel text-[10px] text-muted-foreground capitalize tracking-wide">
+                  {{ (msg.metadata as ItemDropMetadata)?.item_rarity }}
+                </span>
+              </div>
+              <!-- Claimed state -->
+              <div v-if="(msg.metadata as ItemDropMetadata)?.claimed_by_user_id" class="font-fell text-xs text-muted-foreground italic">
+                Claimed by {{ (msg.metadata as ItemDropMetadata)?.claimed_by_name }}
+                <span v-if="!(msg.metadata as ItemDropMetadata)?.claimed_party_member_id"> (party stash)</span>
+              </div>
+              <!-- Claim buttons (only if unclaimed and not the sender) -->
+              <div v-else class="flex gap-1.5 mt-2">
+                <button
+                  type="button"
+                  class="px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/40 font-cinzel text-[10px] text-amber-400 hover:bg-amber-500/30 transition-colors tracking-wider"
+                  @click="$emit('claim', { messageId: msg.id, intoStash: false })"
+                >Claim</button>
+                <button
+                  type="button"
+                  class="px-2.5 py-1 rounded border border-border font-cinzel text-[10px] text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors tracking-wider"
+                  @click="$emit('claim', { messageId: msg.id, intoStash: true })"
+                >To Stash</button>
+              </div>
+              <p class="font-fell text-[10px] text-muted-foreground/50 mt-1.5">{{ timeLabel(msg.created_at) }}</p>
+            </div>
+          </div>
+
           <!-- Roll message -->
           <div
-            v-if="msg.type === 'roll'"
+            v-else-if="msg.type === 'roll'"
             class="max-w-[90%] rounded-lg px-3 py-2"
             :class="msg.user_id === myUserId
               ? 'bg-primary/15 border border-primary/20'
@@ -49,15 +94,15 @@
             <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-1.5">
               <span class="font-semibold text-primary">{{ msg.user_id === myUserId ? 'You' : msg.sender_name }}</span>
               <span v-if="msg.recipient_user_id" class="text-amber-400"> whispers</span>
-              {{ ' ' }}rolled {{ msg.metadata?.label }}
+              {{ ' ' }}rolled {{ asRoll(msg.metadata).label }}
             </p>
             <!-- Horizontal layout: total left, breakdown right -->
             <div class="flex items-center gap-3">
               <!-- Big total -->
               <div class="shrink-0 flex flex-col items-center justify-center w-14 h-14 rounded-lg border"
-                :class="msg.metadata?.isCrit
+                :class="asRoll(msg.metadata).isCrit
                   ? 'border-amber-400/50 bg-amber-400/10'
-                  : msg.metadata?.isFumble
+                  : asRoll(msg.metadata).isFumble
                     ? 'border-destructive/50 bg-destructive/10'
                     : msg.user_id === myUserId
                       ? 'border-primary/30 bg-primary/10'
@@ -65,22 +110,22 @@
               >
                 <span
                   class="font-cinzel text-2xl font-bold leading-none"
-                  :class="msg.metadata?.isCrit ? 'text-amber-400' : msg.metadata?.isFumble ? 'text-destructive' : 'text-foreground'"
-                >{{ msg.metadata?.total ?? '?' }}</span>
-                <span v-if="msg.metadata?.isCrit" class="font-cinzel text-[8px] text-amber-400 tracking-widest mt-0.5">CRIT</span>
-                <span v-else-if="msg.metadata?.isFumble" class="font-cinzel text-[8px] text-destructive tracking-widest mt-0.5">FAIL</span>
+                  :class="asRoll(msg.metadata).isCrit ? 'text-amber-400' : asRoll(msg.metadata).isFumble ? 'text-destructive' : 'text-foreground'"
+                >{{ asRoll(msg.metadata).total ?? '?' }}</span>
+                <span v-if="asRoll(msg.metadata).isCrit" class="font-cinzel text-[8px] text-amber-400 tracking-widest mt-0.5">CRIT</span>
+                <span v-else-if="asRoll(msg.metadata).isFumble" class="font-cinzel text-[8px] text-destructive tracking-widest mt-0.5">FAIL</span>
               </div>
               <!-- Breakdown + meta -->
               <div class="flex-1 min-w-0">
-                <div v-if="msg.metadata?.breakdown?.length" class="flex flex-wrap gap-1 mb-1">
+                <div v-if="asRoll(msg.metadata).breakdown?.length" class="flex flex-wrap gap-1 mb-1">
                   <span
-                    v-for="(d, i) in msg.metadata.breakdown"
+                    v-for="(d, i) in asRoll(msg.metadata).breakdown"
                     :key="i"
                     class="font-cinzel text-[10px] px-1.5 py-0.5 rounded"
                     :class="d.dropped ? 'line-through text-muted-foreground/30 bg-muted/30' : 'bg-muted text-foreground'"
                   >{{ d.val }}</span>
-                  <span v-if="msg.metadata.modifier !== 0" class="font-cinzel text-[10px] text-primary px-1">
-                    {{ msg.metadata.modifier > 0 ? `+${msg.metadata.modifier}` : msg.metadata.modifier }}
+                  <span v-if="asRoll(msg.metadata).modifier !== 0" class="font-cinzel text-[10px] text-primary px-1">
+                    {{ asRoll(msg.metadata).modifier > 0 ? `+${asRoll(msg.metadata).modifier}` : asRoll(msg.metadata).modifier }}
                   </span>
                 </div>
                 <p class="font-fell text-[10px] text-muted-foreground/50">{{ timeLabel(msg.created_at) }}</p>
@@ -223,10 +268,14 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, nextTick } from "vue";
-import { MessageCircle, X, Send, Dices, Trash2 } from "lucide-vue-next";
+import { MessageCircle, X, Send, Dices, Trash2, Gift } from "lucide-vue-next";
 import { rollDice, ALL_DICE } from "@/lib/dice";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import type { CampaignMessage } from "@/types/chat.types";
+import type { CampaignMessage, ItemDropMetadata, RollMetadata } from "@/types/chat.types";
+
+function asRoll(m: CampaignMessage["metadata"]): RollMetadata {
+  return m as RollMetadata;
+}
 import type { CampaignMember } from "@/types/campaign.types";
 import type { DieSize, RollMode, RollResult } from "@/lib/dice";
 import { useAuthStore } from "@/stores/auth";
@@ -243,6 +292,7 @@ const emit = defineEmits<{
   send: [payload: { text: string; recipientUserId: string | null }];
   sendRoll: [payload: { result: RollResult; recipientUserId: string | null }];
   delete: [id: string];
+  claim: [payload: { messageId: string; intoStash: boolean }];
 }>();
 
 const auth = useAuthStore();

@@ -1,4 +1,4 @@
-export type MessageType = "chat" | "roll" | "system";
+export type MessageType = "chat" | "roll" | "system" | "item_drop";
 
 export interface RollMetadata {
   label: string;
@@ -9,6 +9,16 @@ export interface RollMetadata {
   isFumble: boolean;
 }
 
+export interface ItemDropMetadata {
+  item_id: string | null;
+  item_name: string;
+  item_rarity: string | null;
+  quantity: number;
+  claimed_by_user_id: string | null;
+  claimed_by_name: string | null;
+  claimed_party_member_id: string | null; // null = party stash
+}
+
 export interface CampaignMessage {
   id: string;
   campaign_id: string;
@@ -17,7 +27,7 @@ export interface CampaignMessage {
   sender_name: string | null;
   message: string;
   type: MessageType;
-  metadata: RollMetadata | null;
+  metadata: RollMetadata | ItemDropMetadata | null;
   created_at: string;
 }
 

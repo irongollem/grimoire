@@ -13,6 +13,7 @@
         @send="handleSend"
         @send-roll="handleRoll"
         @delete="deleteMessage"
+        @claim="handleClaim"
         @close="ui.chatOpen = false"
       />
     </aside>
@@ -58,6 +59,7 @@
         @send="handleSend"
         @send-roll="handleRoll"
         @delete="deleteMessage"
+        @claim="handleClaim"
         @close="ui.chatOpen = false"
       />
     </div>
@@ -71,14 +73,17 @@ import { useUiStore } from "@/stores/ui";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import { useAuthStore } from "@/stores/auth";
+import { useAddInventoryItem } from "@/composables/usePartyInventory";
 import ChatPanelContent from "./ChatPanelContent.vue";
 import type { RollResult } from "@/lib/dice";
+import type { ItemDropMetadata } from "@/types/chat.types";
 
 const ui = useUiStore();
 const auth = useAuthStore();
-const { messages, loading, sendMessage, sendRoll, deleteMessage, myUserId } =
+const { messages, loading, sendMessage, sendRoll, claimItemDrop, deleteMessage, myUserId } =
   useCampaignMessages();
 const { data: members } = useCampaignMembers();
+const { mutateAsync: addInventoryItem } = useAddInventoryItem();
 
 const unread = ref(0);
 
@@ -95,6 +100,27 @@ watch(
     if (open) unread.value = 0;
   },
 );
+
+async function handleClaim({ messageId, intoStash }: { messageId: string; intoStash: boolean }) {
+  const msg = messages.value.find(m => m.id === messageId);
+  if (!msg || msg.type !== 'item_drop') return;
+  const meta = msg.metadata as ItemDropMetadata;
+  if (meta.claimed_by_user_id) return;
+
+  const partyMemberId = intoStash ? null : (auth.linkedPartyMemberId ?? null);
+  const claimerName = auth.membership?.display_name ?? auth.userEmail ?? 'Someone';
+
+  await claimItemDrop(messageId, claimerName, partyMemberId);
+  await addInventoryItem({
+    name: meta.item_name,
+    quantity: meta.quantity,
+    item_id: meta.item_id,
+    carried_by: partyMemberId,
+    is_attuned: false,
+    is_equipped: false,
+    notes: null,
+  });
+}
 
 async function handleSend({
   text,

@@ -596,6 +596,15 @@
             title="Toggle attunement"
             @click="toggleAttuned(item)"
           >ATT</button>
+          <!-- Drop to chat -->
+          <button
+            type="button"
+            class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 rounded flex items-center justify-center text-muted-foreground/40 hover:text-amber-400 hover:bg-amber-400/10"
+            title="Drop to chat"
+            @click="dropInventoryItemToChat(item)"
+          >
+            <ArrowUpFromLine class="h-3.5 w-3.5" />
+          </button>
           <!-- Delete -->
           <button
             type="button"
@@ -683,6 +692,12 @@
         />
         <div class="flex gap-1.5 ml-auto">
           <button type="button" class="px-3 py-1.5 rounded border border-border font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors" @click="addItemOpen = false">Cancel</button>
+          <button
+            type="button"
+            :disabled="!newItem.selectedItemId && !newItem.name.trim()"
+            class="px-3 py-1.5 rounded border border-amber-500/40 bg-amber-500/10 text-amber-400 font-cinzel text-xs font-semibold hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+            @click="dropNewItemToChat"
+          >Drop in Chat</button>
           <button type="submit" :disabled="addingItem" class="px-3 py-1.5 rounded bg-primary text-primary-foreground font-cinzel text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">Add</button>
         </div>
       </form>
@@ -709,7 +724,7 @@
 <script setup lang="ts">
 import { ref, computed, reactive, nextTick } from "vue";
 import { useRouter } from "vue-router";
-import { Plus, Dices, RotateCcw, Pencil, Sparkles, PawPrint, Backpack, Trash2, ExternalLink } from "lucide-vue-next";
+import { Plus, Dices, RotateCcw, Pencil, Sparkles, PawPrint, Backpack, Trash2, ExternalLink, ArrowUpFromLine } from "lucide-vue-next";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import { usePartyInventory, useAddInventoryItem, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
 import { useItems } from "@/composables/useItems";
@@ -720,6 +735,7 @@ import { useAllMonsters } from "@/composables/useMonsters";
 import { useNpcs } from "@/composables/useNpcs";
 import { useCampaignStore } from "@/stores/campaign";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
+import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import PartyMemberForm from "./PartyMemberForm.vue";
@@ -1046,6 +1062,7 @@ const router = useRouter();
 
 // Inventory
 const campaign = useCampaignStore();
+const { sendItemDrop } = useCampaignMessages();
 const { data: inventory } = usePartyInventory();
 const { mutateAsync: addInventoryItem, isPending: addingItem } = useAddInventoryItem();
 const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
@@ -1134,6 +1151,22 @@ async function toggleAttuned(item: { id: string; is_attuned: boolean }) {
 
 async function removeItem(id: string) {
   await removeInventoryItem(id);
+}
+
+async function dropInventoryItemToChat(item: { id: string; name: string; quantity: number; item_id: string | null }) {
+  const linked = item.item_id ? catalogItemMap.value.get(item.item_id) : undefined;
+  await sendItemDrop(item.name, item.item_id, item.quantity, linked?.rarity ?? null);
+  await removeInventoryItem(item.id);
+}
+
+async function dropNewItemToChat() {
+  const name = newItem.name.trim();
+  if (!name) return;
+  const linked = newItem.selectedItemId ? catalogItemMap.value.get(newItem.selectedItemId) : undefined;
+  await sendItemDrop(name, newItem.selectedItemId || null, newItem.quantity, linked?.rarity ?? null);
+  addItemOpen.value = false;
+  showItemDropdown.value = false;
+  newItem.name = ''; newItem.quantity = 1; newItem.carried_by = ''; newItem.notes = ''; newItem.selectedItemId = '';
 }
 </script>
 

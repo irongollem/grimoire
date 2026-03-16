@@ -363,7 +363,8 @@
                     <th class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider text-left px-4 py-2">Item</th>
                     <th class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider text-center px-3 py-2">Qty</th>
                     <th class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider text-center px-3 py-2 hidden sm:table-cell">Equip</th>
-                    <th class="px-3 py-2 w-8" />
+                    <th class="px-1 py-2 w-8" />
+                    <th class="px-1 py-2 w-8" />
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-border">
@@ -400,7 +401,16 @@
                         {{ inv.is_equipped ? 'Equipped' : 'Equip' }}
                       </button>
                     </td>
-                    <td class="px-3 py-3">
+                    <td class="px-1 py-3">
+                      <button
+                        class="h-6 w-6 flex items-center justify-center rounded text-muted-foreground/50 hover:text-amber-400 hover:bg-amber-400/10 transition-colors"
+                        title="Drop to chat"
+                        @click="dropItemToChat(inv)"
+                      >
+                        <ArrowUpFromLine class="h-3.5 w-3.5" />
+                      </button>
+                    </td>
+                    <td class="px-1 py-3">
                       <button
                         class="h-6 w-6 flex items-center justify-center rounded text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors"
                         @click="removeItem(inv.id)"
@@ -562,7 +572,7 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive } from "vue";
-import { Star, ChevronRight, Plus, Minus, Trash2, Sword, Zap } from "lucide-vue-next";
+import { Star, ChevronRight, Plus, Minus, Trash2, Sword, Zap, ArrowUpFromLine } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import { usePartyInventory, useAddInventoryItem, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
@@ -584,7 +594,14 @@ const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
 const { mutateAsync: addInventoryItem } = useAddInventoryItem();
 const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
 const { mutateAsync: removeInventoryItem } = useRemoveInventoryItem();
-const { sendRoll } = useCampaignMessages();
+const { sendRoll, sendItemDrop } = useCampaignMessages();
+
+async function dropItemToChat(inv: PartyInventoryItem) {
+  if (!confirm(`Drop "${inv.name}" to chat? It will be removed from your inventory.`)) return;
+  const linkedItem = inv.item_id ? (allItems.value?.find(it => it.id === inv.item_id) ?? null) : null;
+  await sendItemDrop(inv.name, inv.item_id, inv.quantity, linkedItem?.rarity ?? null);
+  await removeInventoryItem(inv.id);
+}
 
 const TABS = [
   { id: "character", label: "Character" },
