@@ -7,9 +7,10 @@ export interface PartyInventoryItem {
   quantity: number;
   carried_by: string | null; // party_member id
   is_attuned: boolean;
+  is_equipped: boolean;
   notes: string | null;
   updated_at: string;
 }
 
 export type PartyInventoryInsert = Omit<PartyInventoryItem, "id" | "user_id" | "updated_at">;
-export type PartyInventoryUpdate = Partial<Pick<PartyInventoryItem, "quantity" | "carried_by" | "is_attuned" | "notes" | "name">>;
+export type PartyInventoryUpdate = Partial<Pick<PartyInventoryItem, "quantity" | "carried_by" | "is_attuned" | "is_equipped" | "notes" | "name">>;

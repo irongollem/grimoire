@@ -432,6 +432,8 @@ import { useNpcs } from "@/composables/useNpcs";
 import { useAllLocations } from "@/composables/useLocations";
 import { useItems } from "@/composables/useItems";
 import { useEncounters } from "@/composables/useEncounters";
+import { useCampaignStore } from "@/stores/campaign";
+import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
 import {
   QUEST_STATUSES,
   QUEST_STATUS_LABELS,
@@ -543,6 +545,7 @@ function tbCls(active: boolean) {
 const { mutateAsync: create } = useCreateQuest();
 const { mutateAsync: update } = useUpdateQuest();
 const { mutateAsync: del }    = useDeleteQuest();
+const campaign = useCampaignStore();
 
 function buildPayload() {
   return {
@@ -565,11 +568,16 @@ async function save() {
   if (!title.value.trim()) return;
   saving.value = true;
   saveError.value = "";
+  const justShared = isPlayerVisible.value && !props.quest?.is_player_visible;
   try {
     if (props.quest) {
       await update({ id: props.quest.id, update: buildPayload() });
+      if (justShared && campaign.activeCampaignId)
+        void sendCampaignAnnouncement(campaign.activeCampaignId, `📋 Quest shared: "${title.value.trim()}"`);
     } else {
       const created = await create(buildPayload());
+      if (isPlayerVisible.value && campaign.activeCampaignId)
+        void sendCampaignAnnouncement(campaign.activeCampaignId, `📋 Quest shared: "${created.title}"`);
       router.push(`/quests/${created.id}`);
     }
   } catch (e: unknown) {

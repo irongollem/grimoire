@@ -23,6 +23,13 @@ Features built and planned. Check off items as they ship.
 - [x] Encounters — builder (combatants + NPC combatants, factions, XP difficulty calculator with ally offset) + live combat runner (initiative, HP, conditions, death saves)
 - [x] Quests — kanban + list view, objectives checklist, sub-quests, giver NPC / location linking, linked item & encounter rewards, Tiptap notes
 - [x] Campaign Dashboard — live stat cards, active quests, party at a glance (HP bars, passive scores, conditions/curses), pinned + recent notes
+- [x] **Collaboration — Phase 1**: campaign_members + campaign_invites tables, DM auto-membership trigger, invite link flow (/join/:token), role-based router guard, Campaign Settings UI (members tab, invites tab with generate/copy/revoke)
+- [x] **Collaboration — Phase 2**: Player portal (/play/\* routes + PlayerLayout), presence indicators (online dots on dashboard party cards + campaign switcher pip count), notes/quest `is_player_visible` flags + DM eye-icon toggles, party inventory for players (read), campaign broadcast system (DM announcements → player toast), campaign chat + dice roll log (floating panel, realtime via Supabase)
+- [x] **Collaboration — Phase 3**: `encounter_state` table, live encounter sync (DM "Go Live" button writes state to DB; Supabase Realtime pushes to players), PlayerEncounterView (initiative order, HP labels, active combatant highlight), live encounter indicators (sidebar badge next to logo, dashboard banner, list card badge, detail page contextual Resume / Restart / Stop buttons), encounter state persists across navigation/refresh
+- [x] **Collaboration — Phase 4**: Full interactive D&D Beyond-style player character sheet (clickable ability/save/skill rolls → roll toast + campaign chat, HP ±buttons, death save pips, condition toggles, inspiration — all player-editable and written to DB); inventory tab on character sheet (add/remove items, quantity, carried-by); RLS policy for player-owned party member updates; broadcast notifications when DM shares a note, quest, or adds an inventory item
+- [x] Named curses in encounter runner — separate from flat conditions, free-text input, syncs back to party on end combat
+- [x] End-combat sync — HP, conditions, curses, and death saves written back to `party_members` when DM ends combat
+- [x] Atlas (renamed from Locations, Globe icon)
 
 ---
 
@@ -55,7 +62,7 @@ Features built and planned. Check off items as they ship.
 
 ## Items & Magic Items (remaining)
 
-- [ ] Party inventory — assign items to party members (join table `party_member_items`); show on party card
+- [x] Party inventory — shared `party_inventory` table; DM and players can add/remove items, adjust quantity, mark carried-by; shown in Party Tracker and player character sheet inventory tab
 - [ ] Scriptorium formatter for items (stat block style: name, type line, rarity, attunement, description)
 
 ---
@@ -77,11 +84,13 @@ Features built and planned. Check off items as they ship.
 - [ ] **Campaign settings page** — set active calendar, current year, campaign name, and default location
 - [ ] **Full-text search** — cross-entity search across NPCs, monsters, notes, spells, items, locations, quests
 - [ ] **Export / import** — JSON export of entire campaign data; import to restore or share
-- [ ] **Collaboration features** — invite other users to view/edit the campaign, with role-based permissions (DM vs player) and setup the skeleton for VTT type tooling
+- [x] **Collaboration features** — invite other users to view/edit the campaign, with role-based permissions (DM vs player) and setup the skeleton for VTT type tooling
 - [x] **Setting bundles** — pre-populate calendar events for supported settings (matching the active calendar adapter). Faerûn bundle ships 30 major events (Time of Troubles, Spellplague, Sundering, 5e adventures). Importable via "Setting Events" button in the calendar view. Adding new bundles requires only a new file in `src/data/bundles/` and an entry in the registry.
 - [ ] **Publish token maker** - create visual tokens for use in virtual tabletops, with configurable fields (name, HP, AC, portrait) and export as image or JSON for upload to VTTs that support it (e.g. Roll20 API tokens) integrating with existing items, monsters, and NPCs in the database for easy token creation from existing records
 - [x] **items** load all free accessible items from the Open5e API to create a pre-populated item vault, similar to the monster import described above. This would give users a rich starting point of SRD items to use and customize without needing to input everything manually
 - [ ] **Locations** - similar to items and monsters, faerun (and possibly the other settings) are well stocked with famous locations like baldurs gate, waterdeep, candlekeep, etc. A one-click import of these iconic locations, complete with descriptions and lore from the setting, would give DMs a rich library of places to set their adventures without needing to create everything from scratch. This could be implemented similarly to the monster and item imports, fetching data from a bundled JSON file with location details and populating the database accordingly.
+- [x] **QUESTS** - `is_player_visible` toggle per quest; DM shares individual quests to the player portal; players see only shared quests in their quest log view.
+- [ ] **ITEMS/REWARDS** - allow an _item_ to be dropped in chat, with 2 buttons, claim, and in party inventory (with the tradecard card in the chat) so that someone can pick it up and it does to their inventory. If someone claims it, it disappears from the chat and appears in their inventory, and if they drop it, it disappears from their inventory and reappears in the chat. This would make item management during sessions much smoother, allowing DMs to easily distribute loot and players to manage their inventory without needing to manually update everything.
 
 ---
 

@@ -63,7 +63,6 @@ const router = createRouter({
       component: () => import("@/views/play/PlayerEncounterView.vue"),
       meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Live Encounter" },
     },
-
     // ── App ───────────────────────────────────────────────────────────────
     {
       path: "/",
@@ -170,6 +169,12 @@ const router = createRouter({
       name: "party",
       component: () => import("@/views/party/PartyView.vue"),
       meta: { requiresAuth: true, title: "Party Tracker" },
+    },
+    {
+      path: "/party/:id",
+      name: "party-member",
+      component: () => import("@/views/party/PartyMemberView.vue"),
+      meta: { requiresAuth: true, title: "Character Sheet" },
     },
 
     // Spells

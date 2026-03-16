@@ -173,6 +173,8 @@ import {
 } from "lucide-vue-next";
 import { useCreateNote, useUpdateNote, useDeleteNote } from "@/composables/useNotes";
 import type { Note, NoteCategory } from "@/types/notes.types";
+import { useCampaignStore } from "@/stores/campaign";
+import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
 
 const CATEGORIES: { value: NoteCategory; label: string }[] = [
   { value: "general",  label: "General" },
@@ -233,6 +235,7 @@ function tbCls(active: boolean) {
 const { mutateAsync: create } = useCreateNote();
 const { mutateAsync: update } = useUpdateNote();
 const { mutateAsync: del }    = useDeleteNote();
+const campaign = useCampaignStore();
 
 function buildPayload() {
   return {
@@ -251,12 +254,17 @@ async function save() {
   if (!title.value.trim() && !editor.value?.getText().trim()) return;
   saving.value = true;
   saveError.value = "";
+  const justShared = isPlayerVisible.value && !props.note?.is_player_visible;
   try {
     if (props.note) {
       await update({ id: props.note.id, update: buildPayload() });
+      if (justShared && campaign.activeCampaignId)
+        void sendCampaignAnnouncement(campaign.activeCampaignId, `📜 Note shared: "${title.value.trim()}"`);
       router.push("/notes");
     } else {
       const created = await create(buildPayload());
+      if (isPlayerVisible.value && campaign.activeCampaignId)
+        void sendCampaignAnnouncement(campaign.activeCampaignId, `📜 Note shared: "${created.title}"`);
       router.replace(`/notes/${created.id}`);
     }
   } catch (e: unknown) {

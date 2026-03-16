@@ -82,11 +82,12 @@
                 class="w-16 h-16 rounded object-cover shrink-0 border border-border"
               />
               <div>
-                <h3
-                  class="font-cinzel text-sm font-bold text-foreground leading-tight"
+                <RouterLink
+                  :to="`/party/${member.id}`"
+                  class="font-cinzel text-sm font-bold text-foreground leading-tight hover:text-primary transition-colors"
                 >
                   {{ member.name }}
-                </h3>
+                </RouterLink>
                 <p
                   class="font-fell text-xs text-muted-foreground italic mt-0.5"
                 >
@@ -717,6 +718,8 @@ import { ITEM_TYPE_LABELS, RARITY_COLORS } from "@/types/item.types";
 import { useCompanions, useDeleteCompanion } from "@/composables/useCompanions";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useNpcs } from "@/composables/useNpcs";
+import { useCampaignStore } from "@/stores/campaign";
+import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import PartyMemberForm from "./PartyMemberForm.vue";
@@ -1042,6 +1045,7 @@ async function deleteCompanion(companion: Companion) {
 const router = useRouter();
 
 // Inventory
+const campaign = useCampaignStore();
 const { data: inventory } = usePartyInventory();
 const { mutateAsync: addInventoryItem, isPending: addingItem } = useAddInventoryItem();
 const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
@@ -1107,7 +1111,10 @@ async function submitAddItem() {
     notes: newItem.notes.trim() || null,
     is_attuned: newItem.isAttuned,
     item_id: newItem.selectedItemId,
+    is_equipped: false,
   });
+  if (campaign.activeCampaignId)
+    void sendCampaignAnnouncement(campaign.activeCampaignId, `🎒 Item added to inventory: "${name}"`);
   addItemOpen.value = false;
   showItemDropdown.value = false;
 }
