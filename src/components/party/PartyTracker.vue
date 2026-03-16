@@ -528,7 +528,7 @@
     </div>
 
     <!-- Party Inventory -->
-    <div class="mt-6 rounded-lg border border-border bg-card overflow-hidden">
+    <div class="mt-6 rounded-lg border border-border bg-card">
       <div class="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20">
         <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase flex items-center gap-1.5">
           <Backpack class="h-3.5 w-3.5" /> Party Inventory
@@ -615,7 +615,7 @@
         <div class="relative flex-1 min-w-32">
           <input
             v-model="newItem.name"
-            placeholder="Item name"
+            placeholder="Search vault or enter custom name…"
             required
             autocomplete="off"
             class="w-full bg-background border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
@@ -626,8 +626,8 @@
           />
           <!-- Dropdown suggestions -->
           <div
-            v-if="showItemDropdown && filteredCatalogItems.length"
-            class="absolute left-0 top-full mt-0.5 z-20 w-full rounded-md border border-border bg-card shadow-lg overflow-hidden"
+            v-if="showItemDropdown && (catalogItems?.length ?? 0) > 0"
+            class="absolute left-0 bottom-full mb-0.5 z-20 w-full rounded-md border border-border bg-card shadow-lg overflow-hidden max-h-48 overflow-y-auto"
           >
             <button
               v-for="(item, idx) in filteredCatalogItems"
@@ -643,6 +643,16 @@
               <span class="truncate">{{ item.name }}</span>
               <span class="font-cinzel text-[10px] text-muted-foreground shrink-0 capitalize">{{ item.rarity }}</span>
             </button>
+            <div v-if="newItem.name.trim()" class="border-t border-border">
+              <button
+                type="button"
+                class="w-full text-left px-3 py-1.5 font-fell text-sm text-primary hover:bg-muted transition-colors flex items-center gap-2"
+                @click="router.push({ path: '/vault/new', query: { name: newItem.name.trim(), redirect: '/party' } })"
+              >
+                <ExternalLink class="h-3.5 w-3.5 shrink-0" />
+                Create "{{ newItem.name.trim() }}" in Vault
+              </button>
+            </div>
           </div>
           <!-- Backdrop to close dropdown -->
           <div
@@ -697,7 +707,8 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, nextTick } from "vue";
-import { Plus, Dices, RotateCcw, Pencil, Sparkles, PawPrint, Backpack, Trash2 } from "lucide-vue-next";
+import { useRouter } from "vue-router";
+import { Plus, Dices, RotateCcw, Pencil, Sparkles, PawPrint, Backpack, Trash2, ExternalLink } from "lucide-vue-next";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import { usePartyInventory, useAddInventoryItem, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
 import { useItems } from "@/composables/useItems";
@@ -1028,6 +1039,8 @@ async function deleteCompanion(companion: Companion) {
   await deleteComp(companion.id);
 }
 
+const router = useRouter();
+
 // Inventory
 const { data: inventory } = usePartyInventory();
 const { mutateAsync: addInventoryItem, isPending: addingItem } = useAddInventoryItem();
@@ -1051,15 +1064,14 @@ const dropdownItemRefs = reactive<Record<number, HTMLButtonElement>>({});
 
 const filteredCatalogItems = computed((): Item[] => {
   const q = newItem.name.trim().toLowerCase();
-  if (!q) return [];
-  return (catalogItems.value ?? [])
-    .filter((item) => item.name.toLowerCase().includes(q))
-    .slice(0, 8);
+  const all = catalogItems.value ?? [];
+  if (!q) return all.slice(0, 8);
+  return all.filter((item) => item.name.toLowerCase().includes(q)).slice(0, 8);
 });
 
 function onItemSearchInput() {
   newItem.selectedItemId = "";
-  showItemDropdown.value = newItem.name.trim().length > 0;
+  showItemDropdown.value = true;
 }
 
 function selectCatalogItem(item: Item) {
@@ -1082,14 +1094,19 @@ function openAddItem() {
 }
 
 async function submitAddItem() {
-  if (!newItem.name.trim()) return;
+  const name = newItem.name.trim();
+  if (!name) return;
+  if (!newItem.selectedItemId) {
+    router.push({ path: "/vault/new", query: { name, redirect: "/party" } });
+    return;
+  }
   await addInventoryItem({
-    name: newItem.name.trim(),
+    name,
     quantity: newItem.quantity,
     carried_by: newItem.carried_by || null,
     notes: newItem.notes.trim() || null,
     is_attuned: newItem.isAttuned,
-    item_id: newItem.selectedItemId || null,
+    item_id: newItem.selectedItemId,
   });
   addItemOpen.value = false;
   showItemDropdown.value = false;

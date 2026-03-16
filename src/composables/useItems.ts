@@ -13,10 +13,10 @@ async function fetchItems(): Promise<Item[]> {
   return data as Item[];
 }
 
-async function fetchItem(id: string): Promise<Item> {
-  const { data, error } = await supabase.from("items").select("*").eq("id", id).single();
+async function fetchItem(id: string): Promise<Item | null> {
+  const { data, error } = await supabase.from("items").select("*").eq("id", id).maybeSingle();
   if (error) throw error;
-  return data as Item;
+  return data as Item | null;
 }
 
 async function createItem(item: ItemInsert): Promise<Item> {
@@ -83,7 +83,10 @@ export function useDeleteItem() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteItem,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onSuccess: (_data, id) => {
+      queryClient.removeQueries({ queryKey: [QUERY_KEY, id] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+    },
   });
 }
 

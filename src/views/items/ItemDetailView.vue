@@ -9,7 +9,7 @@
       <LoadingSpinner />
     </div>
 
-    <ItemDetail v-else :item="isNewItem ? null : (item ?? null)" />
+    <ItemDetail v-else :item="isNewItem ? null : (item ?? null)" :prefill-name="isNewItem ? (route.query.name as string | undefined) : undefined" />
   </div>
 </template>
 

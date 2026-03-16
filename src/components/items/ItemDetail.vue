@@ -317,7 +317,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { Save, Trash2, ScrollText, ImagePlus } from "lucide-vue-next";
 import { useImageUpload } from "@/composables/useImageUpload";
 import { useCreateItem, useUpdateItem, useDeleteItem } from "@/composables/useItems";
@@ -338,11 +338,12 @@ import {
 import type { Item, ItemType, ItemRarity } from "@/types/item.types";
 import type { DamageRoll } from "@/lib/dice";
 
-const props = defineProps<{ item: Item | null }>();
+const props = defineProps<{ item: Item | null; prefillName?: string }>();
 const router = useRouter();
+const route = useRoute();
 
 // ── Core fields ───────────────────────────────────────────────────────────────
-const name = ref(props.item?.name ?? "");
+const name = ref(props.item?.name ?? props.prefillName ?? "");
 const itemType = ref<ItemType>(props.item?.item_type ?? "gear");
 const subtype = ref(props.item?.subtype ?? "");
 const rarity = ref<ItemRarity>(props.item?.rarity ?? "mundane");
@@ -462,8 +463,9 @@ async function save() {
       await updateItem({ id: props.item.id, update: buildPayload() });
       router.push("/vault");
     } else {
-      const created = await createItem(buildPayload());
-      router.replace(`/vault/${created.id}`);
+      await createItem(buildPayload());
+      const redirect = route.query.redirect as string | undefined;
+      router.replace(redirect ?? "/vault");
     }
   } catch (e: unknown) {
     saveError.value = e instanceof Error ? e.message : "Failed to save";
