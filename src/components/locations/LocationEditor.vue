@@ -57,6 +57,44 @@
       </button>
     </div>
 
+    <!-- Parent location picker -->
+    <div class="flex items-center gap-2">
+      <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider shrink-0 w-16">Parent</label>
+      <div class="relative flex-1 min-w-0">
+        <input
+          v-model="parentSearch"
+          :placeholder="parentLocation ? parentLocation.name : '— None (top-level) —'"
+          class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring pr-8"
+          @focus="parentOpen = true"
+          @blur="onParentBlur"
+        />
+        <button
+          v-if="selectedParentId"
+          type="button"
+          class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors text-base leading-none"
+          @mousedown.prevent="clearParent"
+        >×</button>
+        <ul
+          v-if="parentOpen && filteredParentOptions.length"
+          class="absolute z-50 top-full left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-md border border-border bg-card shadow-lg"
+        >
+          <li
+            v-for="loc in filteredParentOptions"
+            :key="loc.id"
+            class="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-muted/60 font-fell text-sm"
+            @mousedown.prevent="selectParent(loc)"
+          >
+            <span
+              class="inline-block h-2 w-2 rounded-full shrink-0"
+              :style="{ backgroundColor: LOCATION_TYPE_COLORS[loc.location_type] }"
+            />
+            <span class="flex-1 truncate">{{ loc.name }}</span>
+            <span class="text-xs text-muted-foreground shrink-0 font-cinzel">{{ LOCATION_TYPE_LABELS[loc.location_type] }}</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
     <!-- Tags -->
     <div class="flex flex-wrap items-center gap-1 min-h-8 bg-muted/50 border border-border rounded-md px-2 py-1">
       <span
@@ -193,7 +231,7 @@ import {
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
 import {
   useLocations,
-  useLocation,
+  useAllLocations,
   useCreateLocation,
   useUpdateLocation,
   useDeleteLocation,
@@ -210,11 +248,44 @@ const props = defineProps<{
 const router = useRouter();
 const isNew = computed(() => !props.location);
 
-// ── Fetch parent for breadcrumb ────────────────────────────────────────────────
-const parentIdToLoad = props.location?.parent_id ?? props.parentId ?? null;
-const { data: parentLocation } = parentIdToLoad
-  ? useLocation(parentIdToLoad)
-  : { data: ref(null) };
+// ── All locations (for parent picker) ─────────────────────────────────────────
+const { data: allLocations } = useAllLocations();
+
+// ── Parent picker state ────────────────────────────────────────────────────────
+const selectedParentId = ref<string | null>(
+  props.location?.parent_id ?? props.parentId ?? null,
+);
+const parentSearch = ref("");
+const parentOpen   = ref(false);
+
+const parentLocation = computed(() =>
+  selectedParentId.value
+    ? (allLocations.value?.find((l) => l.id === selectedParentId.value) ?? null)
+    : null,
+);
+
+const filteredParentOptions = computed(() => {
+  const all = allLocations.value ?? [];
+  const search = parentSearch.value.toLowerCase();
+  return all
+    .filter((l) => l.id !== props.location?.id)
+    .filter((l) => !search || l.name.toLowerCase().includes(search));
+});
+
+function selectParent(loc: Location) {
+  selectedParentId.value = loc.id;
+  parentSearch.value     = "";
+  parentOpen.value       = false;
+}
+
+function clearParent() {
+  selectedParentId.value = null;
+  parentSearch.value     = "";
+}
+
+function onParentBlur() {
+  setTimeout(() => { parentOpen.value = false; parentSearch.value = ""; }, 150);
+}
 
 // ── Fetch children (only when editing existing) ────────────────────────────────
 const { data: children, isLoading: childrenLoading } = props.location
@@ -271,7 +342,7 @@ function buildPayload() {
     description:   JSON.stringify(editor.value?.getJSON() ?? {}),
     notes:         null,
     tags:          tags.value,
-    parent_id:     props.location?.parent_id ?? props.parentId ?? null,
+    parent_id:     selectedParentId.value,
     image_url:     props.location?.image_url ?? null,
     campaign_id:   null as string | null,
   };
@@ -284,7 +355,7 @@ async function save() {
   try {
     if (props.location) {
       await update({ id: props.location.id, update: buildPayload() });
-      router.push(parentIdToLoad ? `/locations/${parentIdToLoad}` : "/locations");
+      router.push(selectedParentId.value ? `/locations/${selectedParentId.value}` : "/locations");
     } else {
       const created = await create(buildPayload());
       router.push(`/locations/${created.id}`);

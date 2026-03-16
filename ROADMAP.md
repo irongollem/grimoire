@@ -30,6 +30,8 @@ Features built and planned. Check off items as they ship.
 - [x] Named curses in encounter runner — separate from flat conditions, free-text input, syncs back to party on end combat
 - [x] End-combat sync — HP, conditions, curses, and death saves written back to `party_members` when DM ends combat
 - [x] Atlas (renamed from Locations, Globe icon)
+- [x] Atlas — "Populate Setting" button seeds iconic locations from the active campaign's setting (Faerûn: ~70 locations across worlds, planes, continents, regions, countries, cities, towns, dungeons, wilderness; Greyhawk/Eberron/Dragonlance: ~15–20 each). Deduplicates by name. Planar locations exported separately as `PLANAR_LOCATIONS` for future use.
+- [x] Atlas — `world` and `plane` added to `LocationType` (DB enum extended via migration). `world` = planet/world (Toril, Oerth, Krynn, Eberron); `plane` = dimension/realm (Nine Hells, Feywild, Shadowfell, Astral Plane, etc.).
 
 ---
 
@@ -68,6 +70,8 @@ Features built and planned. Check off items as they ship.
   - **DM / Party Tracker**: click the ↑ arrow on any existing inventory row, or use "Drop in Chat" in the Add Item form instead of "Add"
   - **Player / My Items**: click the ↑ arrow on any item in the My Items tab of their character sheet — removes it from their inventory and drops it to chat
 - [ ] Scriptorium formatter for items (stat block style: name, type line, rarity, attunement, description)
+- [ ] Show details on hover over an item in the chat before claiming (tooltip with item description, or expand the card in place to show details)
+- [ ] Only show claim button enabled if a player actually has an inventory (so a PC claimed that has inventory). The DM can't claim nor can any player that joined but didnt claim a PC yet
 
 ---
 
@@ -92,7 +96,12 @@ Features built and planned. Check off items as they ship.
 - [x] **Setting bundles** — pre-populate calendar events for supported settings (matching the active calendar adapter). Faerûn bundle ships 30 major events (Time of Troubles, Spellplague, Sundering, 5e adventures). Importable via "Setting Events" button in the calendar view. Adding new bundles requires only a new file in `src/data/bundles/` and an entry in the registry.
 - [ ] **Publish token maker** - create visual tokens for use in virtual tabletops, with configurable fields (name, HP, AC, portrait) and export as image or JSON for upload to VTTs that support it (e.g. Roll20 API tokens) integrating with existing items, monsters, and NPCs in the database for easy token creation from existing records
 - [x] **items** load all free accessible items from the Open5e API to create a pre-populated item vault, similar to the monster import described above. This would give users a rich starting point of SRD items to use and customize without needing to input everything manually
-- [ ] **Locations** - similar to items and monsters, faerun (and possibly the other settings) are well stocked with famous locations like baldurs gate, waterdeep, candlekeep, etc. A one-click import of these iconic locations, complete with descriptions and lore from the setting, would give DMs a rich library of places to set their adventures without needing to create everything from scratch. This could be implemented similarly to the monster and item imports, fetching data from a bundled JSON file with location details and populating the database accordingly.
+- [x] **Locations** — "Populate Setting" button now implemented (see Done section above).
+- [ ] **Atlas — Time-bound locations** — add optional `era_start` / `era_end` year fields to the `locations` table. Atlas list view can then grey-out or hide locations that don't exist in the current campaign year (e.g. Elturel pre/post 1492 DR, floating Netherese cities pre −339 DR, Istar post Cataclysm). Populate seed data already notes time-sensitive entries with `[Time-sensitive: ...]` in the notes field as a temporary measure.
+- [ ] **Atlas — Planar locations populate** — `PLANAR_LOCATIONS` array (21 entries: inner planes, upper/lower outer planes, transitive planes, Sigil) exported from `settingLocations.ts`. Add a second "Populate Planes" button to the Atlas, or include planes in the main populate (opt-in checkbox). Planes are setting-agnostic so they apply to any campaign.
+- [ ] **Atlas — Nesting / hierarchy on populate** — currently all seeded locations are inserted flat (no `parent_id`). Future: insert in topological order (world → plane → continent → region → country → city → town) and link `parent_id` so the Atlas tree renders the full hierarchy automatically. Requires a two-pass insert or a dependency-aware seed runner.
+- [ ] **World Bundles — unified per-setting bundle** — unify all per-setting seed data into a single `WorldBundle` interface (calendar events + locations + key NPCs + starting items) so that `src/data/bundles/faerun.ts` becomes a single file per world. This would also make user-uploaded world bundles possible — one JSON file = an entire setting scaffold. Design the `WorldBundle` schema and migrate existing `SETTING_BUNDLES` (calendar events) and `SETTING_LOCATIONS` into it as the first step.
+- [ ] **World Bundles — user-uploadable** — allow DMs to upload a world bundle JSON file to populate a new campaign with a custom setting (custom calendar, locations, factions, NPCs). Validate the schema client-side and show a diff of what will be imported before confirming. A long-term community-sharing feature.
 - [x] **QUESTS** - `is_player_visible` toggle per quest; DM shares individual quests to the player portal; players see only shared quests in their quest log view.
 - [x] **ITEMS/REWARDS** — loot drop cards in campaign chat (see Items & Magic Items section above for detail)
 

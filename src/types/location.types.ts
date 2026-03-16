@@ -1,4 +1,6 @@
 export type LocationType =
+  | "world"
+  | "plane"
   | "continent"
   | "region"
   | "country"
@@ -13,6 +15,8 @@ export type LocationType =
   | "other";
 
 export const LOCATION_TYPE_LABELS: Record<LocationType, string> = {
+  world:      "World",
+  plane:      "Plane",
   continent:  "Continent",
   region:     "Region",
   country:    "Country",
@@ -28,6 +32,8 @@ export const LOCATION_TYPE_LABELS: Record<LocationType, string> = {
 };
 
 export const LOCATION_TYPE_COLORS: Record<LocationType, string> = {
+  world:      "#0f172a",
+  plane:      "#4c1d95",
   continent:  "#1d4ed8",
   region:     "#0369a1",
   country:    "#0891b2",

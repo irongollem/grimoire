@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Location, LocationInsert, LocationUpdate } from "@/types/location.types";
+import { SETTING_LOCATIONS } from "@/data/settingLocations";
 
 const QUERY_KEY = "locations";
 
@@ -129,6 +130,100 @@ export function useDeleteLocation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteLocation,
+    onSuccess: (_data, id) => {
+      // Remove the specific location query first so the still-mounted detail
+      // view doesn't trigger a refetch (which would return 406 and retry-loop).
+      queryClient.removeQueries({ queryKey: [QUERY_KEY, id] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+    },
+  });
+}
+
+/** Bulk-insert preset locations for the active campaign's setting. Returns inserted count.
+ *  Two-pass: inserts all new locations first, then resolves parent_id links by name. */
+export function usePopulateLocations() {
+  const queryClient = useQueryClient();
+  const campaign = useCampaignStore();
+  return useMutation({
+    mutationFn: async (): Promise<number> => {
+      const campaignId = campaign.activeCampaignId;
+      if (!campaignId) throw new Error("No active campaign");
+
+      const { data: campaignRow, error: campaignError } = await supabase
+        .from("campaigns")
+        .select("calendar_id")
+        .eq("id", campaignId)
+        .single();
+      if (campaignError) throw campaignError;
+
+      const calendarId: string = campaignRow?.calendar_id ?? "faerun";
+      const presets = SETTING_LOCATIONS[calendarId] ?? SETTING_LOCATIONS["faerun"] ?? [];
+      if (!presets.length) return 0;
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      // Fetch existing locations (id + name) for dedup and parent resolution
+      const { data: existing, error: fetchError } = await supabase
+        .from("locations")
+        .select("id, name")
+        .eq("campaign_id", campaignId);
+      if (fetchError) throw fetchError;
+
+      const existingNameToId = new Map(
+        (existing ?? []).map((l: { id: string; name: string }) => [l.name.toLowerCase(), l.id]),
+      );
+
+      // Pass 1 — insert all new locations (parent_id null for now)
+      const toInsert = presets
+        .filter((p) => !existingNameToId.has(p.name.toLowerCase()))
+        .map(({ parent: _parent, ...p }) => ({
+          ...p,
+          campaign_id: campaignId,
+          user_id: user!.id,
+          parent_id: null as string | null,
+          description: null,
+          image_url: null,
+        }));
+
+      if (!toInsert.length) return 0;
+
+      const { data: inserted, error: insertError } = await supabase
+        .from("locations")
+        .insert(toInsert)
+        .select("id, name");
+      if (insertError) throw insertError;
+
+      // Pass 2 — resolve parent_id links by name
+      // Build full name→id map: existing rows + just-inserted rows
+      const nameToId = new Map(existingNameToId);
+      for (const loc of inserted ?? []) {
+        nameToId.set(loc.name.toLowerCase(), loc.id);
+      }
+
+      // Only patch parent_id for newly inserted rows that declare a parent
+      const insertedNameToId = new Map(
+        (inserted ?? []).map((l: { id: string; name: string }) => [l.name.toLowerCase(), l.id]),
+      );
+      const parentUpdates = presets
+        .filter((p) => p.parent && insertedNameToId.has(p.name.toLowerCase()))
+        .map((p) => ({
+          id: insertedNameToId.get(p.name.toLowerCase())!,
+          parent_id: nameToId.get(p.parent!.toLowerCase()),
+        }))
+        .filter((u): u is { id: string; parent_id: string } => !!(u.id && u.parent_id));
+
+      if (parentUpdates.length) {
+        await Promise.all(
+          parentUpdates.map((u) =>
+            supabase.from("locations").update({ parent_id: u.parent_id }).eq("id", u.id),
+          ),
+        );
+      }
+
+      return (inserted ?? []).length;
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }
