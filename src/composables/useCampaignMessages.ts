@@ -28,17 +28,28 @@ export function useCampaignMessages() {
   }
 
   function subscribe(campaignId: string) {
-    if (realtimeChannel) {
-      supabase.removeChannel(realtimeChannel);
-    }
+    if (realtimeChannel) supabase.removeChannel(realtimeChannel);
     realtimeChannel = supabase
       .channel(`campaign-messages:${campaignId}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "campaign_messages", filter: `campaign_id=eq.${campaignId}` },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "campaign_messages",
+          filter: `campaign_id=eq.${campaignId}`,
+        },
         (payload) => {
-          messages.value.push(payload.new as CampaignMessage);
-          if (messages.value.length > LIMIT) messages.value.shift();
+          const msg = payload.new as CampaignMessage;
+          // RLS already filters, but double-check private messages on client
+          if (
+            msg.recipient_user_id === null ||
+            msg.user_id === auth.user?.id ||
+            msg.recipient_user_id === auth.user?.id
+          ) {
+            messages.value.push(msg);
+            if (messages.value.length > LIMIT) messages.value.shift();
+          }
         },
       )
       .subscribe();
@@ -48,10 +59,7 @@ export function useCampaignMessages() {
     () => campaign.activeCampaignId,
     async (id) => {
       messages.value = [];
-      if (id) {
-        await fetchMessages(id);
-        subscribe(id);
-      }
+      if (id) { await fetchMessages(id); subscribe(id); }
     },
     { immediate: true },
   );
@@ -61,14 +69,14 @@ export function useCampaignMessages() {
     if (realtimeChannel) supabase.removeChannel(realtimeChannel);
   });
 
-  async function sendMessage(text: string) {
+  async function sendMessage(text: string, recipientUserId: string | null = null) {
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id || !text.trim()) return;
-    const senderName = auth.membership?.display_name ?? auth.userEmail ?? "Unknown";
     const msg: CampaignMessageInsert = {
       campaign_id: cid,
       user_id: auth.user.id,
-      sender_name: senderName,
+      recipient_user_id: recipientUserId,
+      sender_name: auth.membership?.display_name ?? auth.userEmail ?? "Unknown",
       message: text.trim(),
       type: "chat",
       metadata: null,
@@ -76,14 +84,14 @@ export function useCampaignMessages() {
     await supabase.from("campaign_messages").insert(msg);
   }
 
-  async function sendRoll(result: RollResult) {
+  async function sendRoll(result: RollResult, recipientUserId: string | null = null) {
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id) return;
-    const senderName = auth.membership?.display_name ?? auth.userEmail ?? "Unknown";
     const msg: CampaignMessageInsert = {
       campaign_id: cid,
       user_id: auth.user.id,
-      sender_name: senderName,
+      recipient_user_id: recipientUserId,
+      sender_name: auth.membership?.display_name ?? auth.userEmail ?? "Unknown",
       message: `rolled ${result.label} = ${result.total}`,
       type: "roll",
       metadata: result,
@@ -91,7 +99,12 @@ export function useCampaignMessages() {
     await supabase.from("campaign_messages").insert(msg);
   }
 
+  async function deleteMessage(id: string) {
+    await supabase.from("campaign_messages").delete().eq("id", id);
+    messages.value = messages.value.filter((m) => m.id !== id);
+  }
+
   const myUserId = computed(() => auth.user?.id);
 
-  return { messages, loading, sendMessage, sendRoll, myUserId };
+  return { messages, loading, sendMessage, sendRoll, deleteMessage, myUserId };
 }
