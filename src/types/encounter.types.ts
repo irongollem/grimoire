@@ -52,6 +52,7 @@ export interface RunCombatant {
   max_hp: number;
   ac: string;
   conditions: string[];
+  curses: string[];
   death_saves: { successes: number; failures: number };
   // back-references
   monster_id?: string;
@@ -187,4 +188,18 @@ function nextMultiplierTier(m: number, dir: 1 | -1): number {
   const TIERS = [1, 1.5, 2, 2.5, 3, 4];
   const idx = TIERS.indexOf(m);
   return TIERS[Math.min(Math.max(idx + dir, 0), TIERS.length - 1)] ?? m;
+}
+
+// Live encounter state persisted for real-time player sync
+export interface EncounterState {
+  id: string;
+  encounter_id: string;
+  campaign_id: string;
+  user_id: string;
+  is_running: boolean;
+  current_round: number;
+  active_combatant_index: number;
+  combatants_live: RunCombatant[];
+  started_at: string | null;
+  updated_at: string;
 }

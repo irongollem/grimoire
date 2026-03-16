@@ -18,6 +18,16 @@
           ⚄ Roll Initiative
         </button>
         <DiceRoller />
+        <button
+          v-if="campaign.activeCampaignId"
+          class="go-live-btn"
+          :class="isLive ? 'live-active' : ''"
+          :disabled="goingLive"
+          @click="handleGoLive"
+        >
+          <Radio class="h-3.5 w-3.5" />
+          {{ goingLive ? 'Starting…' : isLive ? '● Live' : 'Go Live' }}
+        </button>
         <button @click="handleEndCombat" class="end-btn">End Combat</button>
       </div>
     </div>
@@ -325,6 +335,34 @@
                 <em>{{ playerSkillBonus(sk.key, sk.ability) >= 0 ? '+' : '' }}{{ playerSkillBonus(sk.key, sk.ability) }}</em>
               </button>
             </div>
+            <!-- Curses -->
+            <div class="detail-divider" />
+            <p class="detail-section-label">Curses</p>
+            <div class="flex flex-wrap gap-1 mb-1">
+              <span
+                v-for="curse in selectedCombatant.curses"
+                :key="curse"
+                class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-violet-500/15 border border-violet-500/30 font-cinzel text-[9px] text-violet-400 cursor-pointer hover:bg-destructive/20 hover:text-destructive transition-colors"
+                title="Click to remove"
+                @click="store.removeCurse(selectedCombatant.instance_id, curse)"
+              >{{ curse }} ×</span>
+              <span v-if="!selectedCombatant.curses.length" class="font-fell text-xs text-muted-foreground italic">None</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <input
+                v-model="curseInput"
+                placeholder="Add curse…"
+                class="flex-1 bg-transparent border-b border-border px-1 py-0.5 font-fell text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
+                @keydown.enter.prevent="store.addCurse(selectedCombatant.instance_id, curseInput); curseInput = ''"
+              />
+              <button
+                type="button"
+                :disabled="!curseInput.trim()"
+                class="text-muted-foreground hover:text-violet-400 transition-colors disabled:opacity-40 shrink-0"
+                @click="store.addCurse(selectedCombatant.instance_id, curseInput); curseInput = ''"
+              >+</button>
+            </div>
+
             <template v-if="selectedMember.notes">
               <div class="detail-divider" />
               <p class="detail-notes">{{ selectedMember.notes }}</p>
@@ -343,8 +381,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
+import { Radio } from "lucide-vue-next";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useParty } from "@/composables/useParty";
@@ -352,17 +391,49 @@ import { CONDITIONS, SKILLS } from "@/types/party.types";
 import type { SaveKey } from "@/types/party.types";
 import type { RunCombatant } from "@/types/encounter.types";
 import DiceRoller from "@/components/common/DiceRoller.vue";
+import { useEncounterLive } from "@/composables/useEncounterLive";
+import { useCampaignStore } from "@/stores/campaign";
+import { useUpdatePartyMember } from "@/composables/useParty";
 
 const store = useEncounterRunStore();
 const router = useRouter();
 const route = useRoute();
 const encounterId = computed(() => route.params.id as string);
+const campaign = useCampaignStore();
+const { isLive, goLive, schedulePush, endLive } = useEncounterLive(encounterId.value);
+const goingLive = ref(false);
+
+async function handleGoLive() {
+  if (isLive.value) {
+    await endLive();
+    return;
+  }
+  goingLive.value = true;
+  try {
+    await goLive({ round: store.round, activeIndex: store.activeIndex, combatants: store.combatants });
+  } finally {
+    goingLive.value = false;
+  }
+}
+
+watch(
+  [() => store.round, () => store.activeIndex, () => store.combatants],
+  () => {
+    if (isLive.value) {
+      schedulePush({ round: store.round, activeIndex: store.activeIndex, combatants: store.combatants });
+    }
+  },
+  { deep: true },
+);
 
 const { data: monsters } = useAllMonsters();
 const { data: party } = useParty();
 
+const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
+
 const addingCondFor = ref<string | null>(null);
 const selectedId = ref<string | null>(null);
+const curseInput = ref("");
 
 // ── Roll check state ──────────────────────────────────────────────────────────
 
@@ -593,11 +664,27 @@ function combatantInitials(c: RunCombatant): string {
   return c.name.split(" ").slice(0, 2).map((w) => w[0] ?? "").join("").toUpperCase();
 }
 
-function handleEndCombat() {
-  if (confirm("End combat and return to encounter builder?")) {
-    store.reset();
-    router.push(`/encounters/${encounterId.value}`);
-  }
+async function handleEndCombat() {
+  if (!confirm("End combat? Party HP, conditions, and curses will be updated.")) return;
+  await endLive();
+  // Sync player combatants back to party_members
+  const playerCombatants = store.combatants.filter((c) => c.type === "player" && c.party_member_id);
+  await Promise.all(
+    playerCombatants.map((c) =>
+      updatePartyMember({
+        id: c.party_member_id!,
+        update: {
+          current_hp: c.hp,
+          conditions: c.conditions,
+          curses: c.curses,
+          death_save_successes: c.death_saves.successes,
+          death_save_failures: c.death_saves.failures,
+        },
+      }),
+    ),
+  );
+  store.reset();
+  router.push(`/encounters/${encounterId.value}`);
 }
 </script>
 
@@ -646,6 +733,13 @@ function handleEndCombat() {
 
 .end-btn {
   @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-destructive/40 text-destructive font-cinzel text-xs font-semibold hover:bg-destructive/10 transition-colors;
+}
+
+.go-live-btn {
+  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-muted-foreground font-cinzel text-xs font-semibold hover:border-primary hover:text-primary transition-colors disabled:opacity-50;
+}
+.live-active {
+  @apply border-green-500/50 text-green-500 bg-green-500/10 hover:border-green-500 hover:text-green-400;
 }
 
 .runner-body-wrap {

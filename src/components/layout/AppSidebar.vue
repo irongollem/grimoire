@@ -4,10 +4,21 @@
   >
     <!-- Logo -->
     <div class="px-4 py-5 border-b border-border">
-      <RouterLink to="/dashboard" class="block">
-        <h1 class="font-cinzel text-xl font-bold text-gold-500 tracking-widest">Grimoire</h1>
-        <p class="font-fell text-xs text-muted-foreground italic mt-0.5">Campaign Companion</p>
-      </RouterLink>
+      <div class="flex items-center justify-between gap-2">
+        <RouterLink to="/dashboard" class="block min-w-0">
+          <h1 class="font-cinzel text-xl font-bold text-gold-500 tracking-widest">Grimoire</h1>
+          <p class="font-fell text-xs text-muted-foreground italic mt-0.5">Campaign Companion</p>
+        </RouterLink>
+        <RouterLink
+          v-if="anyRunning && firstRunning"
+          :to="`/encounters/${firstRunning.encounter_id}/run`"
+          class="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-500/15 border border-green-500/30 hover:bg-green-500/25 transition-colors"
+          title="Encounter in progress"
+        >
+          <span class="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+          <span class="font-cinzel text-[9px] text-green-400 tracking-wider">Live</span>
+        </RouterLink>
+      </div>
     </div>
 
     <!-- Campaign switcher -->
@@ -57,12 +68,14 @@ import { useRouter } from "vue-router";
 import { LogOut } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
 import { NAV_GROUPS } from "@/lib/nav";
+import { useRunningEncounters } from "@/composables/useEncounterLive";
 import NavItem from "./NavItem.vue";
 import CampaignSwitcher from "./CampaignSwitcher.vue";
 import AppInvitePanel from "@/components/admin/AppInvitePanel.vue";
 
 const auth = useAuthStore();
 const router = useRouter();
+const { anyRunning, firstRunning } = useRunningEncounters();
 
 const userEmail = computed(() => auth.userEmail ?? "");
 const userInitial = computed(() => userEmail.value.charAt(0).toUpperCase() || "?");

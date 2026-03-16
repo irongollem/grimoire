@@ -96,6 +96,18 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     else c.conditions.push(condition);
   }
 
+  function addCurse(instanceId: string, curse: string) {
+    const c = combatants.value.find((x) => x.instance_id === instanceId);
+    if (!c || !curse.trim() || c.curses.includes(curse.trim())) return;
+    c.curses.push(curse.trim());
+  }
+
+  function removeCurse(instanceId: string, curse: string) {
+    const c = combatants.value.find((x) => x.instance_id === instanceId);
+    if (!c) return;
+    c.curses = c.curses.filter((cu) => cu !== curse);
+  }
+
   function reset() {
     encounterId.value = null;
     encounterName.value = "";
@@ -104,6 +116,23 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     combatants.value = [];
     factions.value = [];
     started.value = false;
+  }
+
+  function hydrateFromLive(state: {
+    encounter_id: string;
+    encounter_name: string;
+    factions: FactionDef[];
+    current_round: number;
+    active_combatant_index: number;
+    combatants_live: RunCombatant[];
+  }) {
+    encounterId.value = state.encounter_id;
+    encounterName.value = state.encounter_name;
+    factions.value = state.factions;
+    combatants.value = state.combatants_live;
+    round.value = state.current_round;
+    activeIndex.value = state.active_combatant_index;
+    started.value = true;
   }
 
   return {
@@ -124,6 +153,9 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     adjustHp,
     setHp,
     toggleCondition,
+    addCurse,
+    removeCurse,
     reset,
+    hydrateFromLive,
   };
 });

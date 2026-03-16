@@ -11,6 +11,11 @@
       </RouterLink>
 
       <div class="ml-auto flex items-center gap-2">
+        <!-- In-progress badge -->
+        <span v-if="thisIsLive" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-green-500/15 border border-green-500/30 font-cinzel text-xs font-semibold text-green-500 tracking-wider animate-pulse">
+          ● In Progress
+        </span>
+
         <button
           v-if="props.encounter"
           type="button"
@@ -30,7 +35,38 @@
           <span v-if="isSaving">Saving…</span>
           <span v-else>Save</span>
         </button>
+
+        <!-- This encounter is live: Resume / Restart / Stop -->
+        <template v-if="thisIsLive">
+          <button
+            type="button"
+            class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-foreground hover:border-primary/50 transition-colors"
+            @click="handleRestart"
+          >
+            <RotateCcw class="h-3.5 w-3.5" />
+            Restart
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
+            @click="handleStop"
+          >
+            <Square class="h-3.5 w-3.5" />
+            Stop
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+            @click="handleRunEncounter"
+          >
+            <Play class="h-3.5 w-3.5" />
+            Resume
+          </button>
+        </template>
+
+        <!-- No encounter running or another is running -->
         <button
+          v-else
           type="button"
           class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
           :disabled="isSaving"
@@ -503,12 +539,14 @@
 <script setup lang="ts">
 import { ref, computed, reactive, watch } from "vue";
 import { useRouter } from "vue-router";
-import { ChevronLeft, Plus, X, Search, Play, Minus } from "lucide-vue-next";
+import { ChevronLeft, Plus, X, Search, Play, Minus, RotateCcw, Square } from "lucide-vue-next";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useParty } from "@/composables/useParty";
 import { useCompanions } from "@/composables/useCompanions";
 import { useNpcs } from "@/composables/useNpcs";
 import { useCreateEncounter, useUpdateEncounter, useDeleteEncounter } from "@/composables/useEncounters";
+import { useRunningEncounters, useEncounterLive } from "@/composables/useEncounterLive";
+import { supabase } from "@/lib/supabase";
 import {
   DEFAULT_FACTIONS,
   DIFFICULTY_COLORS,
@@ -533,6 +571,16 @@ const { data: npcs } = useNpcs();
 const createEncounter = useCreateEncounter();
 const updateEncounterMutation = useUpdateEncounter();
 const deleteEncounter = useDeleteEncounter();
+
+const { runningStates, isEncounterRunning, firstRunning } = useRunningEncounters();
+const { endLive } = useEncounterLive(props.encounter?.id ?? "");
+
+const thisIsLive = computed(() => !!props.encounter && isEncounterRunning(props.encounter.id));
+const otherIsLive = computed(() => firstRunning.value !== null && !thisIsLive.value);
+const otherName = computed(() => {
+  if (!otherIsLive.value || !firstRunning.value) return "";
+  return runningStates.value.find(() => true) ? (firstRunning.value!.encounter_id) : "another encounter";
+});
 
 // Form state
 const form = reactive({
@@ -833,8 +881,25 @@ async function handleSave(): Promise<string | null> {
 }
 
 async function handleRunEncounter() {
+  if (otherIsLive.value && firstRunning.value) {
+    if (!confirm(`"${otherName.value}" is currently active. Stop it and run this one?`)) return;
+    await supabase.from("encounter_state")
+      .update({ is_running: false })
+      .eq("encounter_id", firstRunning.value.encounter_id);
+  }
   const id = await handleSave();
   if (id) router.push(`/encounters/${id}/run`);
+}
+
+async function handleStop() {
+  if (!confirm("Stop this encounter? Party stats will NOT be updated.")) return;
+  await endLive();
+}
+
+async function handleRestart() {
+  if (!confirm("Restart this encounter from scratch?")) return;
+  await endLive();
+  router.push(`/encounters/${props.encounter!.id}/run`);
 }
 
 async function handleDelete() {

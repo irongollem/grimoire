@@ -15,6 +15,7 @@ import { useAllMonsters } from "@/composables/useMonsters";
 import { useParty } from "@/composables/useParty";
 import { useCompanions } from "@/composables/useCompanions";
 import { useEncounterRunStore } from "@/stores/encounterRun";
+import { useEncounterLive } from "@/composables/useEncounterLive";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import type { RunCombatant, Encounter } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
@@ -30,6 +31,7 @@ const { data: monsters } = useAllMonsters();
 const { data: party } = useParty();
 const { data: companions } = useCompanions();
 const store = useEncounterRunStore();
+const { liveState } = useEncounterLive(id.value);
 
 const isReady = computed(
   () => !!encounter.value && !!monsters.value && !!party.value && !!companions.value,
@@ -40,6 +42,21 @@ watch(
   ([enc, mons, par, comps]) => {
     if (!enc || !mons || !par || !comps) return;
     if (store.encounterId === enc.id && store.started) return;
+
+    // If live state exists in DB, hydrate from it (handles page refresh / navigate-away-and-back)
+    const live = liveState.value;
+    if (live?.encounter_id === enc.id && live?.is_running) {
+      store.hydrateFromLive({
+        encounter_id: enc.id,
+        encounter_name: enc.name,
+        factions: enc.factions.length ? enc.factions : [...DEFAULT_FACTIONS],
+        current_round: live.current_round,
+        active_combatant_index: live.active_combatant_index,
+        combatants_live: live.combatants_live,
+      });
+      return;
+    }
+
     initStore(enc, mons, par);
   },
   { immediate: true },
@@ -67,6 +84,7 @@ function initStore(enc: Encounter, mons: Monster[], par: PartyMember[]) {
       max_hp: member.max_hp,
       ac: String(member.ac),
       conditions: [...(member.conditions ?? [])],
+      curses: [...(member.curses ?? [])],
       death_saves: {
         successes: member.death_save_successes ?? 0,
         failures: member.death_save_failures ?? 0,
@@ -90,6 +108,7 @@ function initStore(enc: Encounter, mons: Monster[], par: PartyMember[]) {
       max_hp: comp.max_hp,
       ac: String(comp.ac),
       conditions: [...comp.conditions],
+      curses: [],
       death_saves: { successes: 0, failures: 0 },
       dex_mod: 0,
     });
@@ -119,6 +138,7 @@ function initStore(enc: Encounter, mons: Monster[], par: PartyMember[]) {
         max_hp: maxHp,
         ac,
         conditions: [],
+        curses: [],
         death_saves: { successes: 0, failures: 0 },
         monster_id: monster.id,
         dex_mod: dexMod,

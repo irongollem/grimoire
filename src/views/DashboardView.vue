@@ -14,6 +14,18 @@
       />
     </div>
 
+    <!-- Live encounter banner -->
+    <RouterLink
+      v-if="anyRunning && firstRunning"
+      :to="`/encounters/${firstRunning.encounter_id}/run`"
+      class="flex items-center gap-3 rounded-lg border border-green-500/40 bg-green-500/10 px-4 py-3 hover:bg-green-500/15 transition-colors"
+    >
+      <Radio class="h-4 w-4 text-green-400 animate-pulse shrink-0" />
+      <span class="font-cinzel text-sm font-semibold text-green-400 tracking-wide">Encounter in progress</span>
+      <span class="font-fell text-xs text-green-300/70 italic flex-1">Round {{ firstRunning.current_round }}</span>
+      <span class="font-cinzel text-[10px] text-green-400 tracking-wider">Resume →</span>
+    </RouterLink>
+
     <!-- Main row: Active Quests + Party -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <!-- Active Quests (2/3) -->
@@ -257,8 +269,9 @@
 import { computed } from "vue";
 import {
   BookOpen, Shield, Users, Swords, MapPin, ScrollText,
-  ChevronRight, Pin, Eye, Brain,
+  ChevronRight, Pin, Eye, Brain, Radio,
 } from "lucide-vue-next";
+import { useRunningEncounters } from "@/composables/useEncounterLive";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import StatCard from "@/components/common/StatCard.vue";
@@ -362,4 +375,6 @@ function partyMemberOnline(partyMemberId: string): boolean {
   if (!member) return false;
   return isOnline(member.user_id);
 }
+
+const { anyRunning, firstRunning } = useRunningEncounters();
 </script>

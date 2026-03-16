@@ -1,7 +1,7 @@
 <template>
   <div>
     <PageHeader
-      title="Locations"
+      title="Atlas"
       description="Continents, cities, dungeons, and every place in between"
     >
       <template #actions>

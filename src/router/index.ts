@@ -57,6 +57,12 @@ const router = createRouter({
       component: () => import("@/views/play/PlayerInventoryView.vue"),
       meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Party Inventory" },
     },
+    {
+      path: "/play/encounter",
+      name: "player-encounter",
+      component: () => import("@/views/play/PlayerEncounterView.vue"),
+      meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Live Encounter" },
+    },
 
     // ── App ───────────────────────────────────────────────────────────────
     {
@@ -252,12 +258,12 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Quest" },
     },
 
-    // Locations
+    // Atlas (Locations)
     {
       path: "/locations",
       name: "locations",
       component: () => import("@/views/locations/LocationsView.vue"),
-      meta: { requiresAuth: true, title: "Locations" },
+      meta: { requiresAuth: true, title: "Atlas" },
     },
     {
       path: "/locations/new",

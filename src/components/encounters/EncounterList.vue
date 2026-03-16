@@ -59,6 +59,14 @@
               {{ encounter.name }}
             </h3>
             <span
+              v-if="isEncounterRunning(encounter.id)"
+              class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider text-green-400 bg-green-500/15 border border-green-500/30"
+            >
+              <span class="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+              Live
+            </span>
+            <span
+              v-else
               class="shrink-0 px-2 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider text-white"
               :style="{ backgroundColor: encounterDifficultyColor(encounter) }"
             >
@@ -96,6 +104,7 @@
 import { ref, computed } from "vue";
 import { Search, Skull, Users } from "lucide-vue-next";
 import { useEncounters } from "@/composables/useEncounters";
+import { useRunningEncounters } from "@/composables/useEncounterLive";
 import { DIFFICULTY_COLORS, calculateDifficulty, crToXp } from "@/types/encounter.types";
 import type { Encounter } from "@/types/encounter.types";
 import { useAllMonsters } from "@/composables/useMonsters";
@@ -106,6 +115,7 @@ const search = ref("");
 
 const { data: encounters, isLoading } = useEncounters();
 const { data: monsters } = useAllMonsters();
+const { isEncounterRunning } = useRunningEncounters();
 
 const filtered = computed(() => {
   let list = encounters.value ?? [];

@@ -1,0 +1,133 @@
+<template>
+  <div class="space-y-4">
+    <h2 class="font-cinzel text-xl font-bold text-foreground">Live Encounter</h2>
+
+    <div v-if="!liveState" class="text-center py-16 space-y-3">
+      <Swords class="h-10 w-10 text-muted-foreground/30 mx-auto" />
+      <p class="font-cinzel text-sm text-muted-foreground">No encounter in progress.</p>
+      <p class="font-fell text-xs text-muted-foreground italic">Your DM will start a live encounter when combat begins.</p>
+    </div>
+
+    <template v-else>
+      <!-- Round + active turn header -->
+      <div class="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+        <div class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">ROUND</div>
+        <div class="font-cinzel text-2xl font-bold text-primary">{{ liveState.current_round }}</div>
+        <div v-if="activeCombatant" class="ml-4 flex items-center gap-2">
+          <span class="font-cinzel text-xs text-muted-foreground tracking-wider">ACTIVE:</span>
+          <span class="font-cinzel text-sm font-bold text-foreground">{{ activeCombatant.name }}</span>
+        </div>
+      </div>
+
+      <!-- Combatant list -->
+      <div class="rounded-lg border border-border bg-card overflow-hidden">
+        <div
+          v-for="(combatant, idx) in sortedCombatants"
+          :key="combatant.instance_id"
+          class="flex items-center gap-3 px-4 py-3 border-b border-border last:border-0 transition-colors"
+          :class="idx === liveState.active_combatant_index ? 'bg-primary/8 ring-1 ring-inset ring-primary/20' : 'hover:bg-muted/20'"
+        >
+          <!-- Active indicator -->
+          <div class="shrink-0 w-1.5">
+            <div v-if="idx === liveState.active_combatant_index" class="h-4 w-1.5 rounded-full bg-primary" />
+          </div>
+
+          <!-- Initiative -->
+          <div class="shrink-0 w-8 text-center">
+            <span class="font-cinzel text-sm font-bold" :class="idx === liveState.active_combatant_index ? 'text-primary' : 'text-muted-foreground'">
+              {{ combatant.initiative ?? '—' }}
+            </span>
+          </div>
+
+          <!-- Name + type badge -->
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="font-cinzel text-sm font-semibold text-foreground truncate">{{ combatant.name }}</span>
+              <span
+                class="font-cinzel text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wider"
+                :class="combatant.type === 'player' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'"
+              >
+                {{ combatant.type === 'player' ? 'PC' : 'NPC' }}
+              </span>
+              <span
+                v-for="cond in combatant.conditions"
+                :key="cond"
+                class="font-cinzel text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 tracking-wider"
+              >{{ cond }}</span>
+            </div>
+            <!-- HP bar -->
+            <div class="mt-1.5 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                class="h-full rounded-full transition-all duration-300"
+                :class="hpBarColor(combatant)"
+                :style="{ width: `${Math.max(0, Math.min(100, (combatant.hp / combatant.max_hp) * 100))}%` }"
+              />
+            </div>
+          </div>
+
+          <!-- HP: exact for players, hidden for monsters -->
+          <div class="shrink-0 text-right">
+            <template v-if="combatant.type === 'player'">
+              <span class="font-cinzel text-sm font-bold" :class="hpColor(combatant)">{{ combatant.hp }}</span>
+              <span class="font-fell text-xs text-muted-foreground">/{{ combatant.max_hp }}</span>
+            </template>
+            <template v-else>
+              <span class="font-fell text-xs text-muted-foreground italic">{{ hpLabel(combatant) }}</span>
+            </template>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed } from "vue";
+import { Swords } from "lucide-vue-next";
+import { useCampaignStore } from "@/stores/campaign";
+import { usePlayerEncounterLive } from "@/composables/useEncounterLive";
+import type { RunCombatant } from "@/types/encounter.types";
+
+const campaign = useCampaignStore();
+const { liveState } = usePlayerEncounterLive(campaign.activeCampaignId ?? "");
+
+const sortedCombatants = computed(() => {
+  if (!liveState.value) return [];
+  return [...liveState.value.combatants_live].sort((a, b) => {
+    const ia = a.initiative ?? -999;
+    const ib = b.initiative ?? -999;
+    if (ib !== ia) return ib - ia;
+    if (a.type !== b.type) return a.type === "player" ? -1 : 1;
+    return b.dex_mod - a.dex_mod;
+  });
+});
+
+const activeCombatant = computed(() =>
+  sortedCombatants.value[liveState.value?.active_combatant_index ?? 0] ?? null,
+);
+
+function hpColor(c: RunCombatant) {
+  const pct = c.hp / c.max_hp;
+  if (pct <= 0) return "text-muted-foreground";
+  if (pct <= 0.25) return "text-red-500";
+  if (pct <= 0.5) return "text-amber-500";
+  return "text-green-500";
+}
+
+function hpBarColor(c: RunCombatant) {
+  const pct = c.hp / c.max_hp;
+  if (pct <= 0) return "bg-muted-foreground/30";
+  if (pct <= 0.25) return "bg-red-500";
+  if (pct <= 0.5) return "bg-amber-500";
+  return "bg-green-500";
+}
+
+function hpLabel(c: RunCombatant): string {
+  const pct = c.hp / c.max_hp;
+  if (pct <= 0) return "Dead";
+  if (pct <= 0.25) return "Bloodied";
+  if (pct <= 0.5) return "Wounded";
+  if (pct <= 0.75) return "Hurt";
+  return "Healthy";
+}
+</script>
