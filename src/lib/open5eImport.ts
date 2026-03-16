@@ -1,0 +1,197 @@
+import type { ItemInsert, ItemType, ItemRarity, WeaponProperty } from "@/types/item.types";
+import { WEAPON_PROPERTIES } from "@/types/item.types";
+
+// ── open5e v1 API shapes ───────────────────────────────────────────────────────
+
+interface Open5eWeapon {
+  slug: string;
+  name: string;
+  category: string;          // e.g. "Martial Melee Weapons"
+  cost: string;              // e.g. "25 gp" (already formatted)
+  damage_dice: string;       // e.g. "1d8"
+  damage_type: string;       // e.g. "slashing"
+  weight: string;            // e.g. "8 lb." (already formatted)
+  properties: string[];      // e.g. ["two-handed", "heavy"]
+  document__slug: string;
+}
+
+interface Open5eArmor {
+  slug: string;
+  name: string;
+  category: string;          // e.g. "Medium Armor", "Shields"
+  base_ac: number;
+  plus_dex_mod: boolean;
+  plus_max: number | null;
+  ac_string: string;         // e.g. "14 + Dex modifier (max 2)" (already formatted)
+  strength_requirement: number | null;
+  cost: string;
+  weight: string;
+  stealth_disadvantage: boolean;
+  document__slug: string;
+}
+
+interface Open5eMagicItem {
+  slug: string;
+  name: string;
+  type: string;              // e.g. "Wondrous Item", "Armor (plate)"
+  rarity: string;            // e.g. "rare", "very rare"
+  requires_attunement: string; // "" or "requires attunement by..."
+  desc: string;
+  document__slug: string;
+}
+
+interface Open5eListResponse<T> {
+  count: number;
+  next: string | null;
+  results: T[];
+}
+
+// ── Pagination fetch ──────────────────────────────────────────────────────────
+
+async function fetchAll<T>(baseUrl: string): Promise<T[]> {
+  const results: T[] = [];
+  let url: string | null = `${baseUrl}?limit=500&format=json`;
+  while (url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`open5e fetch failed: ${res.status} ${url}`);
+    const json: Open5eListResponse<T> = await res.json();
+    results.push(...json.results);
+    url = json.next;
+  }
+  return results;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function armorItemType(category: string): ItemType {
+  const c = category.toLowerCase();
+  if (c.includes("shield")) return "shield";
+  return "armor";
+}
+
+function magicItemType(type: string): ItemType {
+  const t = type.toLowerCase();
+  if (t.startsWith("armor")) return "armor";
+  if (t.startsWith("weapon")) return "weapon";
+  if (t === "wondrous item") return "wondrous_item";
+  if (t === "ring") return "ring";
+  if (t === "rod") return "rod";
+  if (t === "staff") return "staff";
+  if (t === "wand") return "wand";
+  if (t === "potion") return "potion";
+  if (t === "scroll") return "scroll";
+  return "wondrous_item";
+}
+
+function mapRarity(raw: string): ItemRarity {
+  const r = raw.toLowerCase().trim();
+  if (r === "very rare") return "very_rare";
+  const valid: ItemRarity[] = ["mundane", "common", "uncommon", "rare", "very_rare", "legendary", "artifact"];
+  return valid.includes(r as ItemRarity) ? (r as ItemRarity) : "common";
+}
+
+function filterProperties(props: string[] | null | undefined): WeaponProperty[] {
+  if (!props) return [];
+  const valid = new Set<string>(WEAPON_PROPERTIES);
+  return props
+    .map((p) => p.toLowerCase().split(" ")[0]) // "two-handed" → keep, "double-headed (1d4)" → "double-headed"
+    .filter((n) => valid.has(n)) as WeaponProperty[];
+}
+
+// ── Mappers ───────────────────────────────────────────────────────────────────
+
+function mapWeapon(item: Open5eWeapon): ItemInsert {
+  return {
+    name: item.name,
+    item_type: "weapon",
+    subtype: item.category,
+    rarity: "mundane",
+    requires_attunement: false,
+    attunement_requirements: null,
+    weight: item.weight || null,
+    cost: item.cost || null,
+    damage_rolls: item.damage_dice
+      ? [{ dice: item.damage_dice, type: item.damage_type }]
+      : null,
+    armor_class: null,
+    properties: filterProperties(item.properties),
+    charges: null,
+    recharge: null,
+    spell_ids: [],
+    description: "",
+    source: "srd",
+    tags: [],
+    image_url: null,
+  };
+}
+
+function mapArmor(item: Open5eArmor): ItemInsert {
+  return {
+    name: item.name,
+    item_type: armorItemType(item.category),
+    subtype: item.category,
+    rarity: "mundane",
+    requires_attunement: false,
+    attunement_requirements: null,
+    weight: item.weight || null,
+    cost: item.cost || null,
+    damage_rolls: null,
+    armor_class: item.ac_string || null,
+    properties: [],
+    charges: null,
+    recharge: null,
+    spell_ids: [],
+    description: "",
+    source: "srd",
+    tags: [],
+    image_url: null,
+  };
+}
+
+function mapMagicItem(item: Open5eMagicItem): ItemInsert {
+  const attunementStr = item.requires_attunement?.trim() ?? "";
+  return {
+    name: item.name,
+    item_type: magicItemType(item.type),
+    subtype: item.type,
+    rarity: mapRarity(item.rarity),
+    requires_attunement: attunementStr.length > 0,
+    attunement_requirements: attunementStr.length > 0 ? attunementStr : null,
+    weight: null,
+    cost: null,
+    damage_rolls: null,
+    armor_class: null,
+    properties: [],
+    charges: null,
+    recharge: null,
+    spell_ids: [],
+    description: item.desc,
+    source: "srd",
+    tags: [],
+    image_url: null,
+  };
+}
+
+// ── Public API ────────────────────────────────────────────────────────────────
+
+export async function fetchSrdItems(): Promise<ItemInsert[]> {
+  const [weapons, armor, magic] = await Promise.all([
+    fetchAll<Open5eWeapon>("https://api.open5e.com/v1/weapons/"),
+    fetchAll<Open5eArmor>("https://api.open5e.com/v1/armor/"),
+    fetchAll<Open5eMagicItem>("https://api.open5e.com/v1/magicitems/"),
+  ]);
+
+  const mapped: ItemInsert[] = [
+    ...weapons.map(mapWeapon),
+    ...armor.map(mapArmor),
+    ...magic.map(mapMagicItem),
+  ];
+
+  // Deduplicate by name (keep first occurrence)
+  const seen = new Set<string>();
+  return mapped.filter((item) => {
+    if (seen.has(item.name)) return false;
+    seen.add(item.name);
+    return true;
+  });
+}

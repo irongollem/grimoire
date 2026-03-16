@@ -527,6 +527,156 @@
       </div>
     </div>
 
+    <!-- Party Inventory -->
+    <div class="mt-6 rounded-lg border border-border bg-card overflow-hidden">
+      <div class="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20">
+        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase flex items-center gap-1.5">
+          <Backpack class="h-3.5 w-3.5" /> Party Inventory
+        </span>
+        <button
+          type="button"
+          class="font-cinzel text-[10px] text-primary hover:opacity-80 transition-opacity"
+          @click="openAddItem"
+        >+ Add Item</button>
+      </div>
+
+      <!-- Item list -->
+      <div v-if="inventory?.length" class="divide-y divide-border">
+        <div
+          v-for="item in inventory"
+          :key="item.id"
+          class="flex items-center gap-3 px-4 py-2.5 group"
+        >
+          <!-- Name + notes -->
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <!-- Rarity dot for linked catalog items -->
+              <span
+                v-if="item.item_id && catalogItemMap.get(item.item_id)"
+                class="shrink-0 w-2 h-2 rounded-full"
+                :style="{ backgroundColor: RARITY_COLORS[catalogItemMap.get(item.item_id)!.rarity] }"
+                :title="catalogItemMap.get(item.item_id)!.rarity"
+              />
+              <RouterLink
+                v-if="item.item_id"
+                :to="`/vault/${item.item_id}`"
+                class="font-fell text-sm text-foreground leading-tight truncate hover:text-primary transition-colors"
+              >{{ item.name }}</RouterLink>
+              <p v-else class="font-fell text-sm text-foreground leading-tight truncate">{{ item.name }}</p>
+              <span
+                v-if="item.item_id && catalogItemMap.get(item.item_id)"
+                class="hidden sm:inline font-cinzel text-[9px] text-muted-foreground/60 shrink-0"
+              >{{ ITEM_TYPE_LABELS[catalogItemMap.get(item.item_id)!.item_type] }}</span>
+            </div>
+            <p v-if="item.notes" class="font-fell text-xs text-muted-foreground italic truncate">{{ item.notes }}</p>
+          </div>
+          <!-- Qty -->
+          <div class="flex items-center gap-1 shrink-0">
+            <button type="button" class="count-btn-sm" @click="changeQty(item, -1)">−</button>
+            <span class="font-cinzel text-xs font-bold text-foreground w-5 text-center">{{ item.quantity }}</span>
+            <button type="button" class="count-btn-sm" @click="changeQty(item, 1)">+</button>
+          </div>
+          <!-- Carried by -->
+          <select
+            :value="item.carried_by ?? ''"
+            class="hidden sm:block bg-muted/40 border border-border rounded px-2 py-0.5 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shrink-0 max-w-28"
+            @change="updateCarrier(item, ($event.target as HTMLSelectElement).value)"
+          >
+            <option value="">— party</option>
+            <option v-for="m in party" :key="m.id" :value="m.id">{{ m.name }}</option>
+          </select>
+          <!-- Attuned -->
+          <button
+            type="button"
+            class="shrink-0 font-cinzel text-[10px] px-1.5 py-0.5 rounded border transition-colors"
+            :class="item.is_attuned
+              ? 'border-amber-400/50 bg-amber-400/10 text-amber-400'
+              : 'border-border text-muted-foreground/40 hover:text-muted-foreground'"
+            title="Toggle attunement"
+            @click="toggleAttuned(item)"
+          >ATT</button>
+          <!-- Delete -->
+          <button
+            type="button"
+            class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive"
+            @click="removeItem(item.id)"
+          >
+            <Trash2 class="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+      <div v-else-if="!addItemOpen" class="px-4 py-6 text-center">
+        <p class="font-fell text-xs text-muted-foreground italic">No items yet. Add loot, equipment, or quest items.</p>
+      </div>
+
+      <!-- Inline add row -->
+      <form v-if="addItemOpen" class="flex flex-wrap gap-2 px-4 py-3 border-t border-border bg-muted/10" @submit.prevent="submitAddItem">
+        <!-- Item name combobox -->
+        <div class="relative flex-1 min-w-32">
+          <input
+            v-model="newItem.name"
+            placeholder="Item name"
+            required
+            autocomplete="off"
+            class="w-full bg-background border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
+            @input="onItemSearchInput"
+            @focus="onItemSearchInput"
+            @keydown.escape="showItemDropdown = false"
+            @keydown.down.prevent="focusDropdownItem(0)"
+          />
+          <!-- Dropdown suggestions -->
+          <div
+            v-if="showItemDropdown && filteredCatalogItems.length"
+            class="absolute left-0 top-full mt-0.5 z-20 w-full rounded-md border border-border bg-card shadow-lg overflow-hidden"
+          >
+            <button
+              v-for="(item, idx) in filteredCatalogItems"
+              :key="item.id"
+              :ref="(el) => { if (el) dropdownItemRefs[idx] = el as HTMLButtonElement }"
+              type="button"
+              class="w-full text-left px-3 py-1.5 font-fell text-sm text-foreground hover:bg-muted transition-colors flex items-baseline gap-2"
+              @click="selectCatalogItem(item)"
+              @keydown.down.prevent="focusDropdownItem(idx + 1)"
+              @keydown.up.prevent="idx === 0 ? undefined : focusDropdownItem(idx - 1)"
+              @keydown.escape="showItemDropdown = false"
+            >
+              <span class="truncate">{{ item.name }}</span>
+              <span class="font-cinzel text-[10px] text-muted-foreground shrink-0 capitalize">{{ item.rarity }}</span>
+            </button>
+          </div>
+          <!-- Backdrop to close dropdown -->
+          <div
+            v-if="showItemDropdown"
+            class="fixed inset-0 z-10"
+            @click="showItemDropdown = false"
+          />
+        </div>
+        <input
+          v-model.number="newItem.quantity"
+          type="number"
+          min="1"
+          placeholder="Qty"
+          class="w-14 bg-background border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+        <select
+          v-model="newItem.carried_by"
+          class="bg-background border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option value="">— party</option>
+          <option v-for="m in party" :key="m.id" :value="m.id">{{ m.name }}</option>
+        </select>
+        <input
+          v-model="newItem.notes"
+          placeholder="Notes (optional)"
+          class="flex-1 min-w-32 bg-background border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+        <div class="flex gap-1.5 ml-auto">
+          <button type="button" class="px-3 py-1.5 rounded border border-border font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors" @click="addItemOpen = false">Cancel</button>
+          <button type="submit" :disabled="addingItem" class="px-3 py-1.5 rounded bg-primary text-primary-foreground font-cinzel text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">Add</button>
+        </div>
+      </form>
+    </div>
+
     <!-- Member form modal -->
     <PartyMemberForm
       v-if="formOpen"
@@ -547,8 +697,12 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, nextTick } from "vue";
-import { Plus, Dices, RotateCcw, Pencil, Sparkles, PawPrint } from "lucide-vue-next";
+import { Plus, Dices, RotateCcw, Pencil, Sparkles, PawPrint, Backpack, Trash2 } from "lucide-vue-next";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
+import { usePartyInventory, useAddInventoryItem, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
+import { useItems } from "@/composables/useItems";
+import type { Item } from "@/types/item.types";
+import { ITEM_TYPE_LABELS, RARITY_COLORS } from "@/types/item.types";
 import { useCompanions, useDeleteCompanion } from "@/composables/useCompanions";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useNpcs } from "@/composables/useNpcs";
@@ -873,4 +1027,95 @@ async function deleteCompanion(companion: Companion) {
   if (!confirm(`Remove "${companion.name || "this companion"}"?`)) return;
   await deleteComp(companion.id);
 }
+
+// Inventory
+const { data: inventory } = usePartyInventory();
+const { mutateAsync: addInventoryItem, isPending: addingItem } = useAddInventoryItem();
+const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
+const { mutateAsync: removeInventoryItem } = useRemoveInventoryItem();
+
+// Item catalog (for combobox + linked item lookup)
+const { data: catalogItems } = useItems();
+const catalogItemMap = computed(() => {
+  const map = new Map<string, Item>();
+  for (const item of catalogItems.value ?? []) map.set(item.id, item);
+  return map;
+});
+
+const addItemOpen = ref(false);
+const newItem = reactive({ name: "", quantity: 1, carried_by: "", notes: "", selectedItemId: "", isAttuned: false });
+
+// Combobox state
+const showItemDropdown = ref(false);
+const dropdownItemRefs = reactive<Record<number, HTMLButtonElement>>({});
+
+const filteredCatalogItems = computed((): Item[] => {
+  const q = newItem.name.trim().toLowerCase();
+  if (!q) return [];
+  return (catalogItems.value ?? [])
+    .filter((item) => item.name.toLowerCase().includes(q))
+    .slice(0, 8);
+});
+
+function onItemSearchInput() {
+  newItem.selectedItemId = "";
+  showItemDropdown.value = newItem.name.trim().length > 0;
+}
+
+function selectCatalogItem(item: Item) {
+  newItem.name = item.name;
+  newItem.selectedItemId = item.id;
+  newItem.isAttuned = item.requires_attunement;
+  showItemDropdown.value = false;
+}
+
+function focusDropdownItem(idx: number) {
+  const el = dropdownItemRefs[idx];
+  if (el) el.focus();
+}
+
+function openAddItem() {
+  newItem.name = ""; newItem.quantity = 1; newItem.carried_by = ""; newItem.notes = "";
+  newItem.selectedItemId = ""; newItem.isAttuned = false;
+  showItemDropdown.value = false;
+  addItemOpen.value = true;
+}
+
+async function submitAddItem() {
+  if (!newItem.name.trim()) return;
+  await addInventoryItem({
+    name: newItem.name.trim(),
+    quantity: newItem.quantity,
+    carried_by: newItem.carried_by || null,
+    notes: newItem.notes.trim() || null,
+    is_attuned: newItem.isAttuned,
+    item_id: newItem.selectedItemId || null,
+  });
+  addItemOpen.value = false;
+  showItemDropdown.value = false;
+}
+
+async function changeQty(item: { id: string; quantity: number }, delta: number) {
+  const q = Math.max(1, item.quantity + delta);
+  await updateInventoryItem({ id: item.id, update: { quantity: q } });
+}
+
+async function updateCarrier(item: { id: string }, value: string) {
+  await updateInventoryItem({ id: item.id, update: { carried_by: value || null } });
+}
+
+async function toggleAttuned(item: { id: string; is_attuned: boolean }) {
+  await updateInventoryItem({ id: item.id, update: { is_attuned: !item.is_attuned } });
+}
+
+async function removeItem(id: string) {
+  await removeInventoryItem(id);
+}
 </script>
+
+<style scoped>
+@reference "@/assets/main.css";
+.count-btn-sm {
+  @apply w-5 h-5 rounded bg-muted border border-border font-cinzel text-xs flex items-center justify-center hover:bg-card transition-colors leading-none;
+}
+</style>
