@@ -13,8 +13,12 @@
           <p class="font-cinzel text-xs font-bold text-foreground truncate leading-tight">
             {{ activeCampaign?.name ?? "Select Campaign" }}
           </p>
-          <p class="font-fell text-[10px] text-muted-foreground italic truncate leading-tight">
+          <p class="font-fell text-[10px] text-muted-foreground italic truncate leading-tight flex items-center gap-1.5">
             {{ activeCampaign?.setting ?? "No campaign active" }}
+            <span v-if="onlineCount > 0" class="inline-flex items-center gap-0.5 not-italic">
+              <span class="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
+              <span class="font-cinzel text-[9px] text-green-500 tracking-wider">{{ onlineCount }}</span>
+            </span>
           </p>
         </div>
         <ChevronDown
@@ -283,6 +287,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { BookOpen, ChevronDown, Download, Pencil, Plus, Trash2 } from "lucide-vue-next";
+import { useCampaignPresence } from "@/composables/useCampaignPresence";
+import { useAuthStore } from "@/stores/auth";
 import {
   useCampaigns,
   useCreateCampaign,
@@ -307,6 +313,13 @@ const modalTabs: { id: ModalTab; label: string }[] = [
 const activeModalTab = ref<ModalTab>("details");
 
 const campaignStore = useCampaignStore();
+const { onlineUsers } = useCampaignPresence();
+const auth = useAuthStore();
+// Count distinct users online (excluding yourself)
+const onlineCount = computed(() => {
+  const others = onlineUsers.value.filter((u) => u.user_id !== auth.user?.id);
+  return new Set(others.map((u) => u.user_id)).size;
+});
 const { data: campaignList } = useCampaigns();
 const { mutateAsync: createCampaign, isPending: isCreating } = useCreateCampaign();
 const { mutateAsync: updateCampaign, isPending: isUpdating } = useUpdateCampaign();

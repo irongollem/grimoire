@@ -95,16 +95,22 @@
           <div v-for="member in party" :key="member.id" class="px-4 py-3 flex flex-col gap-2">
             <!-- Name row -->
             <div class="flex items-center gap-2">
-              <div class="h-8 w-8 rounded-full shrink-0 overflow-hidden bg-secondary flex items-center justify-center">
-                <img
-                  v-if="member.portrait_url"
-                  :src="member.portrait_url"
-                  :alt="member.name"
-                  class="h-full w-full object-cover"
+              <div class="relative h-8 w-8 shrink-0">
+                <div class="h-8 w-8 rounded-full overflow-hidden bg-secondary flex items-center justify-center">
+                  <img
+                    v-if="member.portrait_url"
+                    :src="member.portrait_url"
+                    :alt="member.name"
+                    class="h-full w-full object-cover"
+                  />
+                  <span v-else class="font-cinzel text-xs font-bold text-foreground">
+                    {{ member.name.charAt(0).toUpperCase() }}
+                  </span>
+                </div>
+                <span
+                  class="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-card"
+                  :class="partyMemberOnline(member.id) ? 'bg-green-500' : 'bg-muted-foreground/30'"
                 />
-                <span v-else class="font-cinzel text-xs font-bold text-foreground">
-                  {{ member.name.charAt(0).toUpperCase() }}
-                </span>
               </div>
               <div class="min-w-0 flex-1">
                 <p class="font-cinzel text-sm font-semibold text-foreground truncate leading-tight">
@@ -263,6 +269,8 @@ import { useNotes } from "@/composables/useNotes";
 import { useNpcs } from "@/composables/useNpcs";
 import { useAllLocations } from "@/composables/useLocations";
 import { useEncounters } from "@/composables/useEncounters";
+import { useCampaignMembers } from "@/composables/useCampaignMembers";
+import { useCampaignPresence } from "@/composables/useCampaignPresence";
 import type { Note } from "@/types/notes.types";
 import type { Quest } from "@/types/quest.types";
 import type { PartyMember } from "@/types/party.types";
@@ -273,6 +281,8 @@ const { data: notes,      isLoading: notesLoading }  = useNotes();
 const { data: npcs }      = useNpcs();
 const { data: locations } = useAllLocations();
 const { data: encounters } = useEncounters();
+const { data: campaignMembers } = useCampaignMembers();
+const { isOnline } = useCampaignPresence();
 
 // ── Derived ────────────────────────────────────────────────────────────────────
 
@@ -345,5 +355,11 @@ function passiveInsight(member: PartyMember): number {
 
 function notePreview(note: Note): string {
   return extractTiptapText(note.content, 120);
+}
+
+function partyMemberOnline(partyMemberId: string): boolean {
+  const member = (campaignMembers.value ?? []).find((m) => m.party_member_id === partyMemberId);
+  if (!member) return false;
+  return isOnline(member.user_id);
 }
 </script>
