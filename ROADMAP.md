@@ -32,6 +32,8 @@ Features built and planned. Check off items as they ship.
 - [x] Atlas (renamed from Locations, Globe icon)
 - [x] Atlas — "Populate Setting" button seeds iconic locations from the active campaign's setting (Faerûn: ~70 locations across worlds, planes, continents, regions, countries, cities, towns, dungeons, wilderness; Greyhawk/Eberron/Dragonlance: ~15–20 each). Deduplicates by name. Planar locations exported separately as `PLANAR_LOCATIONS` for future use.
 - [x] Atlas — `world` and `plane` added to `LocationType` (DB enum extended via migration). `world` = planet/world (Toril, Oerth, Krynn, Eberron); `plane` = dimension/realm (Nine Hells, Feywild, Shadowfell, Astral Plane, etc.).
+- [x] Atlas — Parent picker in location editor: searchable combobox to assign or change a location's parent from any existing campaign location. Breadcrumb updates live; saves with the form. Clearing sets the location back to top-level.
+- [x] Atlas — Delete hang fix: `useDeleteLocation` now calls `queryClient.removeQueries` for the specific location key before invalidating lists, preventing the 406 retry loop that occurred while the detail view was still mounted mid-navigation.
 
 ---
 
@@ -55,10 +57,14 @@ Features built and planned. Check off items as they ship.
 
 ## Quests (remaining)
 
-- [ ] `quest_triggers` table — quest_id, trigger_type (quest_complete / objective_done), offset_days, action_type (create_calendar_event), action_payload JSONB — "5 days after this quest completes, create a calendar event"
-- [ ] Trigger engine — evaluate pending triggers on quest status / objective changes, auto-create calendar events
-- [ ] Related entities panel — link arbitrary NPCs / locations / monsters to a quest via quest_refs (beyond the already-wired items + encounters)
-- [ ] Scriptorium formatter for quests
+**What's already built:** full CRUD, objectives checklist, sub-quest hierarchy, kanban + list dual-view, player visibility toggle, player quest log + detail view, NPC giver + primary location linking, item + encounter + NPC + location + monster refs (all five ref types in editor UI), calendar integration, Tiptap notes, tags, timeline date fields (started_at / resolved_at), Scriptorium formatter + "Send to Scriptorium" button.
+
+- [x] **Related entities panel** — NPC, location, and monster ref panels added to QuestEditor alongside items and encounters.
+- [x] **Player quest detail view** — `/play/quests/:id` shows objectives checklist (read-only), summary, giver NPC, primary location, linked items/encounters/NPCs/locations/creatures, rewards. Guard: only visible for `is_player_visible` quests.
+- [x] **Quest timeline UI** — `started_at` / `resolved_at` date pickers in QuestEditor metadata grid; displayed in player detail view.
+- [x] **Scriptorium formatter for quests** — "Send to Scriptorium" button in QuestEditor top bar; generates title, status, meta block, objectives list, notes body.
+- [x] **Player quest notes** — `quest_player_notes` table (one row per player per quest). Each player writes their own note on the quest detail page; Private toggle (lock icon) = only you see it, Shared toggle (eye icon) = visible to all campaign members including DM. "Party Notes" section shows all shared notes from other players. Autosaves on textarea blur.
+- [ ] **Quest triggers** — `quest_triggers` table: quest_id, trigger_type (quest_complete / objective_done), offset_days, action_type (create_calendar_event / send_broadcast), action_payload JSONB. Example: "5 days after this quest completes, create a calendar event". Requires a trigger-evaluation step on quest/objective status changes.
 
 ---
 
@@ -99,7 +105,7 @@ Features built and planned. Check off items as they ship.
 - [x] **Locations** — "Populate Setting" button now implemented (see Done section above).
 - [ ] **Atlas — Time-bound locations** — add optional `era_start` / `era_end` year fields to the `locations` table. Atlas list view can then grey-out or hide locations that don't exist in the current campaign year (e.g. Elturel pre/post 1492 DR, floating Netherese cities pre −339 DR, Istar post Cataclysm). Populate seed data already notes time-sensitive entries with `[Time-sensitive: ...]` in the notes field as a temporary measure.
 - [ ] **Atlas — Planar locations populate** — `PLANAR_LOCATIONS` array (21 entries: inner planes, upper/lower outer planes, transitive planes, Sigil) exported from `settingLocations.ts`. Add a second "Populate Planes" button to the Atlas, or include planes in the main populate (opt-in checkbox). Planes are setting-agnostic so they apply to any campaign.
-- [ ] **Atlas — Nesting / hierarchy on populate** — currently all seeded locations are inserted flat (no `parent_id`). Future: insert in topological order (world → plane → continent → region → country → city → town) and link `parent_id` so the Atlas tree renders the full hierarchy automatically. Requires a two-pass insert or a dependency-aware seed runner.
+- [x] **Atlas — Nesting / hierarchy on populate** — currently all seeded locations are inserted flat (no `parent_id`). Future: insert in topological order (world → plane → continent → region → country → city → town) and link `parent_id` so the Atlas tree renders the full hierarchy automatically. Requires a two-pass insert or a dependency-aware seed runner.
 - [ ] **World Bundles — unified per-setting bundle** — unify all per-setting seed data into a single `WorldBundle` interface (calendar events + locations + key NPCs + starting items) so that `src/data/bundles/faerun.ts` becomes a single file per world. This would also make user-uploaded world bundles possible — one JSON file = an entire setting scaffold. Design the `WorldBundle` schema and migrate existing `SETTING_BUNDLES` (calendar events) and `SETTING_LOCATIONS` into it as the first step.
 - [ ] **World Bundles — user-uploadable** — allow DMs to upload a world bundle JSON file to populate a new campaign with a custom setting (custom calendar, locations, factions, NPCs). Validate the schema client-side and show a diff of what will be imported before confirming. A long-term community-sharing feature.
 - [x] **QUESTS** - `is_player_visible` toggle per quest; DM shares individual quests to the player portal; players see only shared quests in their quest log view.

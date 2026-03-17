@@ -45,6 +45,17 @@
       <button
         v-if="!isNew"
         type="button"
+        :disabled="sendingToScriptorium"
+        class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors disabled:opacity-50"
+        @click="sendToScriptorium"
+      >
+        <BookOpen class="h-3.5 w-3.5" />
+        {{ sendingToScriptorium ? "Sending…" : "Scriptorium" }}
+      </button>
+
+      <button
+        v-if="!isNew"
+        type="button"
         class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
         @click="remove"
       >
@@ -112,6 +123,24 @@
               v-model="rewards"
               placeholder="Gold, XP, reputation…"
               class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Started</label>
+            <input
+              v-model="startedAt"
+              type="date"
+              class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Resolved</label>
+            <input
+              v-model="resolvedAt"
+              type="date"
+              class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
         </div>
@@ -358,6 +387,174 @@
           </div>
         </div>
 
+        <!-- Key NPCs -->
+        <div class="rounded-lg border border-border bg-card overflow-hidden">
+          <div class="px-3 py-2 border-b border-border bg-muted/20">
+            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
+              Key NPCs
+              <span v-if="linkedNpcRefs.length" class="font-fell font-normal">({{ linkedNpcRefs.length }})</span>
+            </span>
+          </div>
+          <div class="p-2 flex flex-col gap-1">
+            <div
+              v-for="ref in linkedNpcRefs"
+              :key="ref.id"
+              class="flex items-center gap-2 group rounded px-2 py-1.5 hover:bg-muted/40 transition-colors"
+            >
+              <User class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <RouterLink
+                :to="`/npcs/${ref.ref_id}`"
+                class="font-fell text-sm text-foreground flex-1 truncate hover:text-primary transition-colors"
+              >
+                {{ npcRefName(ref.ref_id) }}
+              </RouterLink>
+              <button
+                v-if="!isNew"
+                type="button"
+                class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
+                @click="removeRef(ref)"
+              >
+                <X class="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <div v-if="!isNew && availableNpcs.length" class="flex items-center gap-2 pt-1">
+              <select
+                v-model="selectedNpcRefId"
+                class="flex-1 bg-transparent border-b border-border px-1 py-1 font-fell text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+              >
+                <option value="">Link an NPC…</option>
+                <option v-for="npc in availableNpcs" :key="npc.id" :value="npc.id">{{ npc.name }}</option>
+              </select>
+              <button
+                type="button"
+                :disabled="!selectedNpcRefId"
+                class="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
+                @click="addNpcRef"
+              >
+                <Plus class="h-4 w-4" />
+              </button>
+            </div>
+            <p v-else-if="isNew" class="font-fell text-xs text-muted-foreground italic px-2 py-1">
+              Save the quest first, then link NPCs.
+            </p>
+            <p v-else-if="!availableNpcs.length && !linkedNpcRefs.length" class="font-fell text-xs text-muted-foreground italic px-2 py-1">
+              No NPCs yet.
+            </p>
+          </div>
+        </div>
+
+        <!-- Key Locations -->
+        <div class="rounded-lg border border-border bg-card overflow-hidden">
+          <div class="px-3 py-2 border-b border-border bg-muted/20">
+            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
+              Key Locations
+              <span v-if="linkedLocationRefs.length" class="font-fell font-normal">({{ linkedLocationRefs.length }})</span>
+            </span>
+          </div>
+          <div class="p-2 flex flex-col gap-1">
+            <div
+              v-for="ref in linkedLocationRefs"
+              :key="ref.id"
+              class="flex items-center gap-2 group rounded px-2 py-1.5 hover:bg-muted/40 transition-colors"
+            >
+              <MapPin class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <RouterLink
+                :to="`/atlas/${ref.ref_id}`"
+                class="font-fell text-sm text-foreground flex-1 truncate hover:text-primary transition-colors"
+              >
+                {{ locationRefName(ref.ref_id) }}
+              </RouterLink>
+              <button
+                v-if="!isNew"
+                type="button"
+                class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
+                @click="removeRef(ref)"
+              >
+                <X class="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <div v-if="!isNew && availableLocations.length" class="flex items-center gap-2 pt-1">
+              <select
+                v-model="selectedLocationRefId"
+                class="flex-1 bg-transparent border-b border-border px-1 py-1 font-fell text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+              >
+                <option value="">Link a location…</option>
+                <option v-for="loc in availableLocations" :key="loc.id" :value="loc.id">{{ loc.name }}</option>
+              </select>
+              <button
+                type="button"
+                :disabled="!selectedLocationRefId"
+                class="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
+                @click="addLocationRef"
+              >
+                <Plus class="h-4 w-4" />
+              </button>
+            </div>
+            <p v-else-if="isNew" class="font-fell text-xs text-muted-foreground italic px-2 py-1">
+              Save the quest first, then link locations.
+            </p>
+            <p v-else-if="!availableLocations.length && !linkedLocationRefs.length" class="font-fell text-xs text-muted-foreground italic px-2 py-1">
+              No locations yet.
+            </p>
+          </div>
+        </div>
+
+        <!-- Creatures -->
+        <div class="rounded-lg border border-border bg-card overflow-hidden">
+          <div class="px-3 py-2 border-b border-border bg-muted/20">
+            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
+              Creatures
+              <span v-if="linkedMonsterRefs.length" class="font-fell font-normal">({{ linkedMonsterRefs.length }})</span>
+            </span>
+          </div>
+          <div class="p-2 flex flex-col gap-1">
+            <div
+              v-for="ref in linkedMonsterRefs"
+              :key="ref.id"
+              class="flex items-center gap-2 group rounded px-2 py-1.5 hover:bg-muted/40 transition-colors"
+            >
+              <Skull class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <RouterLink
+                :to="`/bestiary/${ref.ref_id}`"
+                class="font-fell text-sm text-foreground flex-1 truncate hover:text-primary transition-colors"
+              >
+                {{ monsterRefName(ref.ref_id) }}
+              </RouterLink>
+              <button
+                v-if="!isNew"
+                type="button"
+                class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
+                @click="removeRef(ref)"
+              >
+                <X class="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <div v-if="!isNew && availableMonsters.length" class="flex items-center gap-2 pt-1">
+              <select
+                v-model="selectedMonsterRefId"
+                class="flex-1 bg-transparent border-b border-border px-1 py-1 font-fell text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+              >
+                <option value="">Link a creature…</option>
+                <option v-for="m in availableMonsters" :key="m.id" :value="m.id">{{ m.name }}</option>
+              </select>
+              <button
+                type="button"
+                :disabled="!selectedMonsterRefId"
+                class="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
+                @click="addMonsterRef"
+              >
+                <Plus class="h-4 w-4" />
+              </button>
+            </div>
+            <p v-else-if="isNew" class="font-fell text-xs text-muted-foreground italic px-2 py-1">
+              Save the quest first, then link creatures.
+            </p>
+            <p v-else-if="!availableMonsters.length && !linkedMonsterRefs.length" class="font-fell text-xs text-muted-foreground italic px-2 py-1">
+              No monsters in the bestiary yet.
+            </p>
+          </div>
+        </div>
+
         <!-- Sub-quests -->
         <div v-if="!isNew" class="rounded-lg border border-border bg-card overflow-hidden">
           <div class="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/20">
@@ -411,7 +608,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import {
   Save, Trash2, Plus, Eye, List, ListOrdered, Quote, Undo2, Redo2,
-  Check, X, ChevronRight, Package, Swords,
+  Check, X, ChevronRight, Package, Swords, BookOpen, User, MapPin, Skull,
 } from "lucide-vue-next";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
 import {
@@ -430,8 +627,11 @@ import {
 } from "@/composables/useQuests";
 import { useNpcs } from "@/composables/useNpcs";
 import { useAllLocations } from "@/composables/useLocations";
+import { useMonsters } from "@/composables/useMonsters";
 import { useItems } from "@/composables/useItems";
 import { useEncounters } from "@/composables/useEncounters";
+import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
+import { formatQuestForScriptorium } from "@/lib/scriptoriumImport";
 import { useCampaignStore } from "@/stores/campaign";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
 import {
@@ -450,10 +650,11 @@ const router = useRouter();
 const isNew = computed(() => !props.quest);
 
 // ── External data ──────────────────────────────────────────────────────────────
-const { data: npcs }      = useNpcs();
-const { data: locations } = useAllLocations();
-const { data: allQuests } = useAllQuests();
-const { data: allItems }  = useItems();
+const { data: npcs }        = useNpcs();
+const { data: locations }   = useAllLocations();
+const { data: allMonsters } = useMonsters();
+const { data: allQuests }   = useAllQuests();
+const { data: allItems }    = useItems();
 const { data: allEncounters } = useEncounters();
 
 const parentCandidates = computed(() =>
@@ -475,9 +676,21 @@ const rewardItems = computed(() =>
 const linkedEncounters = computed(() =>
   (questRefs.value ?? []).filter((r) => r.ref_type === "encounter"),
 );
+const linkedNpcRefs = computed(() =>
+  (questRefs.value ?? []).filter((r) => r.ref_type === "npc"),
+);
+const linkedLocationRefs = computed(() =>
+  (questRefs.value ?? []).filter((r) => r.ref_type === "location"),
+);
+const linkedMonsterRefs = computed(() =>
+  (questRefs.value ?? []).filter((r) => r.ref_type === "monster"),
+);
 
-const linkedItemIds = computed(() => new Set(rewardItems.value.map((r) => r.ref_id)));
+const linkedItemIds      = computed(() => new Set(rewardItems.value.map((r) => r.ref_id)));
 const linkedEncounterIds = computed(() => new Set(linkedEncounters.value.map((r) => r.ref_id)));
+const linkedNpcIds       = computed(() => new Set(linkedNpcRefs.value.map((r) => r.ref_id)));
+const linkedLocationIds  = computed(() => new Set(linkedLocationRefs.value.map((r) => r.ref_id)));
+const linkedMonsterIds   = computed(() => new Set(linkedMonsterRefs.value.map((r) => r.ref_id)));
 
 const availableItems = computed(() =>
   (allItems.value ?? []).filter((i) => !linkedItemIds.value.has(i.id)),
@@ -485,12 +698,30 @@ const availableItems = computed(() =>
 const availableEncounters = computed(() =>
   (allEncounters.value ?? []).filter((e) => !linkedEncounterIds.value.has(e.id)),
 );
+const availableNpcs = computed(() =>
+  (npcs.value ?? []).filter((n) => !linkedNpcIds.value.has(n.id)),
+);
+const availableLocations = computed(() =>
+  (locations.value ?? []).filter((l) => !linkedLocationIds.value.has(l.id)),
+);
+const availableMonsters = computed(() =>
+  (allMonsters.value ?? []).filter((m) => !linkedMonsterIds.value.has(m.id)),
+);
 
 function itemName(id: string): string {
   return (allItems.value ?? []).find((i) => i.id === id)?.name ?? id;
 }
 function encounterName(id: string): string {
   return (allEncounters.value ?? []).find((e) => e.id === id)?.name ?? id;
+}
+function npcRefName(id: string): string {
+  return (npcs.value ?? []).find((n) => n.id === id)?.name ?? id;
+}
+function locationRefName(id: string): string {
+  return (locations.value ?? []).find((l) => l.id === id)?.name ?? id;
+}
+function monsterRefName(id: string): string {
+  return (allMonsters.value ?? []).find((m) => m.id === id)?.name ?? id;
 }
 
 // ── Form state ─────────────────────────────────────────────────────────────────
@@ -507,9 +738,15 @@ const isPlayerVisible = ref(props.quest?.is_player_visible ?? false);
 const saving          = ref(false);
 const saveError       = ref("");
 
-const newObjective      = ref("");
-const selectedItemId    = ref("");
+const newObjective        = ref("");
+const selectedItemId      = ref("");
 const selectedEncounterId = ref("");
+const selectedNpcRefId    = ref("");
+const selectedLocationRefId = ref("");
+const selectedMonsterRefId  = ref("");
+const startedAt   = ref(props.quest?.started_at?.slice(0, 10) ?? "");
+const resolvedAt  = ref(props.quest?.resolved_at?.slice(0, 10) ?? "");
+const sendingToScriptorium = ref(false);
 
 function addTag() {
   const val = tagInput.value.replace(/,\s*$/, "").trim();
@@ -559,8 +796,8 @@ function buildPayload() {
     tags:            tags.value,
     notes:              JSON.stringify(editor.value?.getJSON() ?? {}),
     is_player_visible:  isPlayerVisible.value,
-    started_at:         props.quest?.started_at ?? null,
-    resolved_at:     props.quest?.resolved_at ?? null,
+    started_at:         startedAt.value || null,
+    resolved_at:        resolvedAt.value || null,
   };
 }
 
@@ -592,6 +829,23 @@ async function remove() {
   if (!confirm(`Delete "${props.quest.title || "this quest"}"?`)) return;
   await del(props.quest.id);
   router.push("/quests");
+}
+
+// ── Scriptorium ────────────────────────────────────────────────────────────────
+const { mutateAsync: createScriptoriumDoc } = useCreateScriptoriumDocument();
+
+async function sendToScriptorium() {
+  if (!props.quest) return;
+  sendingToScriptorium.value = true;
+  try {
+    const giverName = (npcs.value ?? []).find((n) => n.id === props.quest!.giver_npc_id)?.name ?? null;
+    const locName   = (locations.value ?? []).find((l) => l.id === props.quest!.location_id)?.name ?? null;
+    const importData = formatQuestForScriptorium(props.quest, objectives.value ?? [], giverName, locName);
+    const doc = await createScriptoriumDoc(importData);
+    router.push(`/scriptorium/${doc.id}`);
+  } finally {
+    sendingToScriptorium.value = false;
+  }
 }
 
 // ── Objectives ─────────────────────────────────────────────────────────────────
@@ -634,6 +888,24 @@ async function addEncounterRef() {
   if (!selectedEncounterId.value || !props.quest) return;
   await createRef({ quest_id: props.quest.id, ref_type: "encounter", ref_id: selectedEncounterId.value });
   selectedEncounterId.value = "";
+}
+
+async function addNpcRef() {
+  if (!selectedNpcRefId.value || !props.quest) return;
+  await createRef({ quest_id: props.quest.id, ref_type: "npc", ref_id: selectedNpcRefId.value });
+  selectedNpcRefId.value = "";
+}
+
+async function addLocationRef() {
+  if (!selectedLocationRefId.value || !props.quest) return;
+  await createRef({ quest_id: props.quest.id, ref_type: "location", ref_id: selectedLocationRefId.value });
+  selectedLocationRefId.value = "";
+}
+
+async function addMonsterRef() {
+  if (!selectedMonsterRefId.value || !props.quest) return;
+  await createRef({ quest_id: props.quest.id, ref_type: "monster", ref_id: selectedMonsterRefId.value });
+  selectedMonsterRefId.value = "";
 }
 
 async function removeRef(ref: QuestRef) {

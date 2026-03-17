@@ -68,3 +68,16 @@ export interface QuestRef {
 }
 
 export type QuestRefInsert = Omit<QuestRef, "id">;
+
+export interface QuestPlayerNote {
+  id: string;
+  user_id: string;
+  quest_id: string;
+  campaign_id: string;
+  content: string;
+  is_private: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type QuestPlayerNoteUpsert = Pick<QuestPlayerNote, "quest_id" | "campaign_id" | "content" | "is_private">;

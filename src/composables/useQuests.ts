@@ -13,6 +13,8 @@ import type {
   QuestRef,
   QuestRefInsert,
   QuestStatus,
+  QuestPlayerNote,
+  QuestPlayerNoteUpsert,
 } from "@/types/quest.types";
 
 const QUESTS_KEY     = "quests";
@@ -146,6 +148,25 @@ export function useQuests(status?: QuestStatus) {
   });
 }
 
+export function usePlayerVisibleQuests() {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  return useQuery({
+    queryKey: computed(() => [QUESTS_KEY, campaignId.value, "player-visible"]),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("quests")
+        .select("*")
+        .eq("campaign_id", campaignId.value!)
+        .eq("is_player_visible", true)
+        .order("updated_at", { ascending: false });
+      if (error) throw error;
+      return data as Quest[];
+    },
+    enabled: () => !!campaignId.value,
+  });
+}
+
 export function useAllQuests() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
@@ -268,5 +289,88 @@ export function useDeleteQuestRef() {
     mutationFn: ({ id }: { id: string; questId: string }) => deleteRef(id),
     onSuccess: (_data, { questId }) =>
       queryClient.invalidateQueries({ queryKey: [REFS_KEY, questId] }),
+  });
+}
+
+// ── Quest Player Notes ─────────────────────────────────────────────────────────
+
+const PLAYER_NOTES_KEY = "quest_player_notes";
+
+async function fetchMyQuestNote(questId: string): Promise<QuestPlayerNote | null> {
+  const { data, error } = await supabase
+    .from("quest_player_notes")
+    .select("*")
+    .eq("quest_id", questId)
+    .maybeSingle();
+  if (error) throw error;
+  return data as QuestPlayerNote | null;
+}
+
+async function fetchSharedQuestNotes(questId: string): Promise<QuestPlayerNote[]> {
+  const { data, error } = await supabase
+    .from("quest_player_notes")
+    .select("*")
+    .eq("quest_id", questId)
+    .eq("is_private", false)
+    .order("updated_at", { ascending: false });
+  if (error) throw error;
+  return data as QuestPlayerNote[];
+}
+
+async function upsertQuestPlayerNote(note: QuestPlayerNoteUpsert): Promise<QuestPlayerNote> {
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data, error } = await supabase
+    .from("quest_player_notes")
+    .upsert({ ...note, user_id: user!.id }, { onConflict: "quest_id,user_id" })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as QuestPlayerNote;
+}
+
+async function deleteQuestPlayerNote(id: string): Promise<void> {
+  const { error } = await supabase.from("quest_player_notes").delete().eq("id", id);
+  if (error) throw error;
+}
+
+/** Fetch the current user's own note for a quest (null if they haven't written one). */
+export function useMyQuestNote(questId: string | Ref<string>) {
+  const idRef = isRef(questId) ? questId : ref(questId);
+  return useQuery({
+    queryKey: computed(() => [PLAYER_NOTES_KEY, "mine", idRef.value]),
+    queryFn: () => fetchMyQuestNote(idRef.value),
+    enabled: () => !!idRef.value,
+  });
+}
+
+/** Fetch all shared (non-private) notes for a quest from all campaign members. */
+export function useSharedQuestNotes(questId: string | Ref<string>) {
+  const idRef = isRef(questId) ? questId : ref(questId);
+  return useQuery({
+    queryKey: computed(() => [PLAYER_NOTES_KEY, "shared", idRef.value]),
+    queryFn: () => fetchSharedQuestNotes(idRef.value),
+    enabled: () => !!idRef.value,
+  });
+}
+
+export function useUpsertQuestPlayerNote() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: upsertQuestPlayerNote,
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: [PLAYER_NOTES_KEY, "mine", vars.quest_id] });
+      queryClient.invalidateQueries({ queryKey: [PLAYER_NOTES_KEY, "shared", vars.quest_id] });
+    },
+  });
+}
+
+export function useDeleteQuestPlayerNote() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, questId: _questId }: { id: string; questId: string }) => deleteQuestPlayerNote(id),
+    onSuccess: (_data, { questId }) => {
+      queryClient.invalidateQueries({ queryKey: [PLAYER_NOTES_KEY, "mine", questId] });
+      queryClient.invalidateQueries({ queryKey: [PLAYER_NOTES_KEY, "shared", questId] });
+    },
   });
 }

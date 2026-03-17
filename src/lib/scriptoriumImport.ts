@@ -18,6 +18,8 @@ import type { Item } from "@/types/item.types";
 import { ITEM_TYPE_LABELS, ITEM_RARITY_LABELS } from "@/types/item.types";
 import type { Location } from "@/types/location.types";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
+import type { Quest, QuestObjective } from "@/types/quest.types";
+import { QUEST_STATUS_LABELS } from "@/types/quest.types";
 import type { ScriptoriumDocType } from "@/types/scriptorium.types";
 
 // ── Output type ───────────────────────────────────────────────────────────────
@@ -471,6 +473,67 @@ const locationFormatter: AssetFormatter<Location> = {
   },
 };
 
+// ── Quest formatter ───────────────────────────────────────────────────────────
+
+const questFormatter: AssetFormatter<{
+  quest: Quest;
+  objectives: QuestObjective[];
+  giverName?: string | null;
+  locationName?: string | null;
+}> = {
+  format({ quest, objectives, giverName, locationName }): ScriptoriumImportData {
+    let html = `<h1>${quest.title}</h1>\n`;
+
+    // Status + type line
+    html += `<p><em>${QUEST_STATUS_LABELS[quest.status]}</em></p>\n`;
+
+    // Meta block
+    const metaRows = [
+      giverName && `<strong>Quest Giver</strong> ${giverName}`,
+      locationName && `<strong>Location</strong> ${locationName}`,
+      quest.started_at && `<strong>Started</strong> ${quest.started_at.slice(0, 10)}`,
+      quest.resolved_at && `<strong>Resolved</strong> ${quest.resolved_at.slice(0, 10)}`,
+      quest.rewards && `<strong>Rewards</strong> ${quest.rewards}`,
+    ].filter(Boolean) as string[];
+
+    if (metaRows.length) {
+      metaRows.forEach((row) => { html += `<p>${row}</p>\n`; });
+    }
+
+    // Summary
+    if (quest.summary) {
+      html += `<h2>Summary</h2>\n<p>${quest.summary}</p>\n`;
+    }
+
+    // Objectives
+    if (objectives.length) {
+      html += `<h2>Objectives</h2>\n<ul>\n`;
+      objectives.forEach((obj) => {
+        const done = obj.is_done ? " ✓" : "";
+        html += `<li>${obj.description}${done}</li>\n`;
+      });
+      html += `</ul>\n`;
+    }
+
+    // Notes (Tiptap JSON)
+    if (quest.notes) {
+      const notesHtml = tiptapJsonToHtml(quest.notes);
+      if (notesHtml) {
+        html += `<h2>Notes</h2>\n${notesHtml}`;
+      }
+    }
+
+    return {
+      title: quest.title,
+      content: html,
+      doc_type: "quest",
+      tags: uniqueTags(["quest", quest.status], quest.tags),
+      is_published: false,
+      word_count: countWords(html),
+    };
+  },
+};
+
 // ── Registry ──────────────────────────────────────────────────────────────────
 // Add new formatters here. Key = asset type identifier.
 
@@ -481,6 +544,7 @@ const FORMATTERS: Record<string, AssetFormatter<any>> = {
   spell: spellFormatter,
   item: itemFormatter,
   location: locationFormatter,
+  quest: questFormatter,
 };
 
 // Generic dispatch (for dynamic/plugin use cases)
@@ -508,4 +572,13 @@ export function formatItemForScriptorium(item: Item, spells: Spell[] = []): Scri
 
 export function formatLocationForScriptorium(location: Location): ScriptoriumImportData {
   return locationFormatter.format(location);
+}
+
+export function formatQuestForScriptorium(
+  quest: Quest,
+  objectives: QuestObjective[] = [],
+  giverName?: string | null,
+  locationName?: string | null,
+): ScriptoriumImportData {
+  return questFormatter.format({ quest, objectives, giverName, locationName });
 }

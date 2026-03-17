@@ -46,6 +46,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Quest Log" },
     },
     {
+      path: "/play/quests/:id",
+      name: "play-quest-detail",
+      component: () => import("@/views/play/PlayerQuestDetailView.vue"),
+      meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Quest" },
+    },
+    {
       path: "/play/notes",
       name: "play-notes",
       component: () => import("@/views/play/PlayerNotesView.vue"),
