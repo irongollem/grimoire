@@ -99,7 +99,7 @@ import {
   ITEM_TYPE_LABELS,
   ITEM_RARITIES,
   ITEM_RARITY_LABELS,
-  RARITY_COLORS,
+  RARITY_BADGE_COLORS,
 } from "@/types/item.types";
 import type { ItemRarity } from "@/types/item.types";
 import EmptyState from "@/components/common/EmptyState.vue";
@@ -128,6 +128,6 @@ const filtered = computed(() => {
 });
 
 function rarityColor(rarity: ItemRarity): string {
-  return RARITY_COLORS[rarity] ?? "#888888";
+  return RARITY_BADGE_COLORS[rarity] ?? "#9ca3af";
 }
 </script>

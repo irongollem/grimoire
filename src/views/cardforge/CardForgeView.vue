@@ -488,7 +488,8 @@ function formatDate(iso: string) {
 @media print {
   /* Hide app shell chrome so only the card sheets print */
   aside,
-  header {
+  header,
+  .chat-no-print {
     display: none !important;
   }
   /* Flatten the Vue layout chain so no flex container constrains print flow */

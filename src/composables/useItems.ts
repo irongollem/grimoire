@@ -5,12 +5,21 @@ import type { Item, ItemInsert, ItemUpdate } from "@/types/item.types";
 const QUERY_KEY = "items";
 
 async function fetchItems(): Promise<Item[]> {
-  const { data, error } = await supabase
-    .from("items")
-    .select("*")
-    .order("name", { ascending: true });
-  if (error) throw error;
-  return data as Item[];
+  const all: Item[] = [];
+  const PAGE = 1000;
+  let offset = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("items")
+      .select("*")
+      .order("name", { ascending: true })
+      .range(offset, offset + PAGE - 1);
+    if (error) throw error;
+    all.push(...(data as Item[]));
+    if ((data ?? []).length < PAGE) break;
+    offset += PAGE;
+  }
+  return all;
 }
 
 async function fetchItem(id: string): Promise<Item | null> {
@@ -98,12 +107,22 @@ export function useImportSrdItems() {
       const { MUNDANE_GEAR } = await import("@/data/mundaneGear");
       const [apiItems] = await Promise.all([fetchSrdItems()]);
       const items = [...apiItems, ...MUNDANE_GEAR];
-      // Check which names already exist with source='srd'
-      const { data: existing } = await supabase
-        .from("items")
-        .select("name")
-        .eq("source", "srd");
-      const existingNames = new Set((existing ?? []).map((r: { name: string }) => r.name));
+
+      // Check which names already exist — query only the names we're about to
+      // insert (in chunks of 200) to avoid the default 1000-row Supabase limit
+      // that would otherwise silently miss items and cause duplicates on re-import.
+      const allNames = items.map((i) => i.name);
+      const existingNames = new Set<string>();
+      const NAME_CHUNK = 200;
+      for (let i = 0; i < allNames.length; i += NAME_CHUNK) {
+        const { data } = await supabase
+          .from("items")
+          .select("name")
+          .eq("source", "srd")
+          .in("name", allNames.slice(i, i + NAME_CHUNK));
+        (data ?? []).forEach((r: { name: string }) => existingNames.add(r.name));
+      }
+
       const toInsert = items.filter((i) => !existingNames.has(i.name));
       if (toInsert.length === 0) return 0;
       const {

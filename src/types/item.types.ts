@@ -69,6 +69,17 @@ export const RARITY_COLORS: Record<ItemRarity, string> = {
   artifact: "#6B1C1C",
 };
 
+/** Vivid badge colours for UI display */
+export const RARITY_BADGE_COLORS: Record<ItemRarity, string> = {
+  mundane:   "#9ca3af",
+  common:    "#d1d5db",
+  uncommon:  "#4ade80",
+  rare:      "#60a5fa",
+  very_rare: "#c084fc",
+  legendary: "#fb923c",
+  artifact:  "#f87171",
+};
+
 export const WEAPON_PROPERTIES = [
   "ammunition",
   "finesse",

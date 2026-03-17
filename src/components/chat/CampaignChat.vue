@@ -24,7 +24,7 @@
     <button
       v-if="!ui.chatOpen"
       type="button"
-      class="fixed right-0 bottom-1/16 -translate-y-1/2 z-40 flex flex-col items-center gap-1.5 px-2 py-3 rounded-l-xl border border-r-0 border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors shadow-lg"
+      class="chat-no-print fixed right-0 bottom-1/16 -translate-y-1/2 z-40 flex flex-col items-center gap-1.5 px-2 py-3 rounded-l-xl border border-r-0 border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors shadow-lg"
       title="Open chat"
       @click="ui.toggleChat()"
     >
@@ -41,14 +41,14 @@
   <Transition name="fade">
     <div
       v-if="ui.chatOpen"
-      class="fixed inset-0 z-40 bg-black/40 md:hidden"
+      class="chat-no-print fixed inset-0 z-40 bg-black/40 md:hidden"
       @click="ui.chatOpen = false"
     />
   </Transition>
   <Transition name="slide-up">
     <div
       v-if="ui.chatOpen"
-      class="fixed bottom-0 inset-x-0 z-50 flex flex-col bg-card border-t border-border rounded-t-2xl md:hidden"
+      class="chat-no-print fixed bottom-0 inset-x-0 z-50 flex flex-col bg-card border-t border-border rounded-t-2xl md:hidden"
       style="height: 65vh"
     >
       <ChatPanelContent

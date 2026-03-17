@@ -425,7 +425,7 @@ async function drawToken(canvas: HTMLCanvasElement, entity: TokenEntity, version
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
-  const S  = CANVAS_SIZE;
+  const S  = canvas.width;
   const cx = S / 2;
   const cy = S / 2;
   const R  = S / 2;
@@ -478,36 +478,64 @@ async function drawToken(canvas: HTMLCanvasElement, entity: TokenEntity, version
 
   ctx.restore();
 
-  // ── 6. Name label ───────────────────────────────────────────────────────────
+  // ── 6. Name label (arc text along bottom of circle) ────────────────────────
   if (settings.value.showName) {
-    const bandH = S * 0.21;
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(cx, cy, ir, 0, Math.PI * 2);
-    ctx.clip();
-
-    const labelGrad = ctx.createLinearGradient(0, S - bandH, 0, S);
-    labelGrad.addColorStop(0,   "rgba(0,0,0,0)");
-    labelGrad.addColorStop(0.4, "rgba(0,0,0,0.65)");
-    labelGrad.addColorStop(1,   "rgba(0,0,0,0.88)");
-    ctx.fillStyle = labelGrad;
-    ctx.fillRect(0, S - bandH, S, bandH);
-
     const fontSize = Math.round(S * 0.083);
-    ctx.font         = `bold ${fontSize}px Georgia, serif`;
-    ctx.textAlign    = "center";
-    ctx.textBaseline = "middle";
-    ctx.shadowColor  = "rgba(0,0,0,0.9)";
-    ctx.shadowBlur   = 6;
-    ctx.fillStyle    = "#ffffff";
+    ctx.font = `bold ${fontSize}px Georgia, serif`;
 
+    // Truncate label to fit within ~148° of arc
     let label = entity.name;
-    const maxW = ir * 1.72;
+    const arcR = ir - fontSize * 0.55;
+    const maxW = arcR * Math.PI * 1.4;
     while (ctx.measureText(label).width > maxW && label.length > 1) {
       label = label.slice(0, -1);
     }
     if (label !== entity.name) label += "…";
-    ctx.fillText(label, cx, S - bandH * 0.36);
+
+    const chars   = label.split("");
+    const cWidths = chars.map((c) => ctx.measureText(c).width);
+    const totalW  = cWidths.reduce((a, b) => a + b, 0);
+    const totalA  = totalW / arcR;   // total angular span in radians
+
+    // Curved gradient band — arc wedge shape, not a rectangle
+    const bandH  = fontSize * 1.9;
+    const pad    = 0.15;
+    const bStart = Math.PI / 2 - totalA / 2 - pad;
+    const bEnd   = Math.PI / 2 + totalA / 2 + pad;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, ir,         bStart, bEnd);
+    ctx.arc(cx, cy, ir - bandH, bEnd, bStart, true);
+    ctx.closePath();
+    const bandGrad = ctx.createRadialGradient(cx, cy, ir - bandH, cx, cy, ir);
+    bandGrad.addColorStop(0,    "rgba(0,0,0,0)");
+    bandGrad.addColorStop(0.22, "rgba(0,0,0,0.72)");
+    bandGrad.addColorStop(1,    "rgba(0,0,0,0.92)");
+    ctx.fillStyle = bandGrad;
+    ctx.fill();
+    ctx.restore();
+
+    // Arc text — each character rotated to sit tangent to the circle
+    // Iterate from higher angle (visual left) to lower (visual right) so text reads L→R
+    ctx.save();
+    ctx.font         = `bold ${fontSize}px Georgia, serif`;
+    ctx.textAlign    = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle    = "#ffffff";
+    ctx.shadowColor  = "rgba(0,0,0,0.95)";
+    ctx.shadowBlur   = 8;
+
+    let angle = Math.PI / 2 + totalA / 2;
+    for (let i = 0; i < chars.length; i++) {
+      const ca = angle - cWidths[i] / arcR / 2;
+      ctx.save();
+      ctx.translate(cx + arcR * Math.cos(ca), cy + arcR * Math.sin(ca));
+      ctx.rotate(ca - Math.PI / 2);
+      ctx.fillText(chars[i], 0, 0);
+      ctx.restore();
+      angle -= cWidths[i] / arcR;
+    }
     ctx.restore();
   }
 }

@@ -9,12 +9,21 @@ export { getSrdMonster };
 const QUERY_KEY = "monsters";
 
 async function fetchMonsters(): Promise<Monster[]> {
-  const { data, error } = await supabase
-    .from("monsters")
-    .select("*")
-    .order("name", { ascending: true });
-  if (error) throw error;
-  return data as Monster[];
+  const all: Monster[] = [];
+  const PAGE = 1000;
+  let offset = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("monsters")
+      .select("*")
+      .order("name", { ascending: true })
+      .range(offset, offset + PAGE - 1);
+    if (error) throw error;
+    all.push(...(data as Monster[]));
+    if ((data ?? []).length < PAGE) break;
+    offset += PAGE;
+  }
+  return all;
 }
 
 async function fetchMonster(id: string): Promise<Monster> {

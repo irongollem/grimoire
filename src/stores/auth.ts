@@ -30,28 +30,35 @@ export const useAuthStore = defineStore("auth", () => {
     membership.value = data ?? null;
   }
 
+  let initPromise: Promise<void> | null = null;
+
   async function initialize() {
     if (initialized.value) return;
+    if (initPromise) return initPromise;
 
-    const { data } = await supabase.auth.getSession();
-    session.value = data.session;
-    user.value = data.session?.user ?? null;
+    initPromise = (async () => {
+      const { data } = await supabase.auth.getSession();
+      session.value = data.session;
+      user.value = data.session?.user ?? null;
 
-    if (user.value) {
-      await loadMembership(user.value.id);
-    }
-
-    initialized.value = true;
-
-    supabase.auth.onAuthStateChange(async (_event, newSession) => {
-      session.value = newSession;
-      user.value = newSession?.user ?? null;
       if (user.value) {
         await loadMembership(user.value.id);
-      } else {
-        membership.value = null;
       }
-    });
+
+      initialized.value = true;
+
+      supabase.auth.onAuthStateChange(async (_event, newSession) => {
+        session.value = newSession;
+        user.value = newSession?.user ?? null;
+        if (user.value) {
+          await loadMembership(user.value.id);
+        } else {
+          membership.value = null;
+        }
+      });
+    })();
+
+    return initPromise;
   }
 
   async function signIn(email: string, password: string) {

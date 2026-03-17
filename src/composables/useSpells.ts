@@ -5,13 +5,22 @@ import type { Spell, SpellInsert, SpellUpdate } from "@/types/spell.types";
 const QUERY_KEY = "spells";
 
 async function fetchSpells(): Promise<Spell[]> {
-  const { data, error } = await supabase
-    .from("spells")
-    .select("*")
-    .order("level", { ascending: true })
-    .order("name", { ascending: true });
-  if (error) throw error;
-  return data as Spell[];
+  const all: Spell[] = [];
+  const PAGE = 1000;
+  let offset = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("spells")
+      .select("*")
+      .order("level", { ascending: true })
+      .order("name", { ascending: true })
+      .range(offset, offset + PAGE - 1);
+    if (error) throw error;
+    all.push(...(data as Spell[]));
+    if ((data ?? []).length < PAGE) break;
+    offset += PAGE;
+  }
+  return all;
 }
 
 async function fetchSpell(id: string): Promise<Spell> {
