@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-background flex flex-col">
+  <div class="h-screen bg-background flex flex-col overflow-hidden">
     <!-- Top bar -->
     <header class="h-14 border-b border-border bg-card flex items-center px-4 gap-4 shrink-0">
       <div class="flex items-center gap-2 shrink-0">
@@ -124,10 +124,10 @@ const characterName = computed(() => {
 const navItems = [
   { to: "/play",            label: "Character", icon: User },
   { to: "/play/party",      label: "Party",     icon: Shield },
+  { to: "/play/inventory",  label: "Inventory", icon: Package },
   { to: "/play/quests",     label: "Quests",    icon: ScrollText },
   { to: "/play/journal",    label: "Journal",   icon: PenLine },
   { to: "/play/notes",      label: "DM Notes",  icon: BookOpen },
-  { to: "/play/inventory",  label: "Inventory", icon: Package },
   { to: "/play/encounter",  label: "Encounter", icon: Swords },
 ];
 
