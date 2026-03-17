@@ -64,6 +64,7 @@ Features built and planned. Check off items as they ship.
 - [x] **Quest timeline UI** — `started_at` / `resolved_at` date pickers in QuestEditor metadata grid; displayed in player detail view.
 - [x] **Scriptorium formatter for quests** — "Send to Scriptorium" button in QuestEditor top bar; generates title, status, meta block, objectives list, notes body.
 - [x] **Player quest notes** — `quest_player_notes` table (one row per player per quest). Each player writes their own note on the quest detail page; Private toggle (lock icon) = only you see it, Shared toggle (eye icon) = visible to all campaign members including DM. "Party Notes" section shows all shared notes from other players. Autosaves on textarea blur.
+- [x] **Adventure Journal** — `player_journal_entries` table. Personal per-player journal at `/play/journal` with 6 categories (Adventure Log, Clue, Discovery, Session Log, Character, Rumor), each with a distinct color accent. Optional "Context" field links an entry to any game entity (quest/NPC/location/item/monster/encounter). Private/Shared toggle per entry. "Party Journal" tab shows shared entries from all players. Inline expand-to-edit on entries. Nav renamed: "Notes" → "DM Notes", new "Journal" tab added.
 - [ ] **Quest triggers** — `quest_triggers` table: quest_id, trigger_type (quest_complete / objective_done), offset_days, action_type (create_calendar_event / send_broadcast), action_payload JSONB. Example: "5 days after this quest completes, create a calendar event". Requires a trigger-evaluation step on quest/objective status changes.
 
 ---
@@ -110,6 +111,7 @@ Features built and planned. Check off items as they ship.
 - [ ] **World Bundles — user-uploadable** — allow DMs to upload a world bundle JSON file to populate a new campaign with a custom setting (custom calendar, locations, factions, NPCs). Validate the schema client-side and show a diff of what will be imported before confirming. A long-term community-sharing feature.
 - [x] **QUESTS** - `is_player_visible` toggle per quest; DM shares individual quests to the player portal; players see only shared quests in their quest log view.
 - [x] **ITEMS/REWARDS** — loot drop cards in campaign chat (see Items & Magic Items section above for detail)
+- [ ] **Crafting system** — allow players to craft their own items using gear proficiencies, crafting tools etc
 
 ---
 

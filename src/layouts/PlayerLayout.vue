@@ -76,7 +76,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRouter } from "vue-router";
-import { LogOut, Shield, ScrollText, BookOpen, Package, User, Megaphone, X, Swords } from "lucide-vue-next";
+import { LogOut, Shield, ScrollText, BookOpen, Package, User, Megaphone, X, Swords, PenLine } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useParty } from "@/composables/useParty";
@@ -107,7 +107,8 @@ const navItems = [
   { to: "/play",            label: "Character", icon: User },
   { to: "/play/party",      label: "Party",     icon: Shield },
   { to: "/play/quests",     label: "Quests",    icon: ScrollText },
-  { to: "/play/notes",      label: "Notes",     icon: BookOpen },
+  { to: "/play/journal",    label: "Journal",   icon: PenLine },
+  { to: "/play/notes",      label: "DM Notes",  icon: BookOpen },
   { to: "/play/inventory",  label: "Inventory", icon: Package },
   { to: "/play/encounter",  label: "Encounter", icon: Swords },
 ];
