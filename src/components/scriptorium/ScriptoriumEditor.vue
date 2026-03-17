@@ -425,6 +425,7 @@ const DOC_TYPE_LABELS: Record<ScriptoriumDocType, string> = {
   adventure: "Adventure",
   "npc-sheet": "NPC Sheet",
   location: "Location",
+  quest: "Quest",
 };
 
 const DOC_TYPE_COLORS: Record<ScriptoriumDocType, string> = {
@@ -439,6 +440,7 @@ const DOC_TYPE_COLORS: Record<ScriptoriumDocType, string> = {
   adventure: "#c2410c",
   "npc-sheet": "#0f766e",
   location: "#0369a1",
+  quest: "#b45309",
 };
 
 function typeColor(t: ScriptoriumDocType) {

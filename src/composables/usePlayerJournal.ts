@@ -1,5 +1,4 @@
-import { computed, isRef, ref } from "vue";
-import type { Ref } from "vue";
+import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";

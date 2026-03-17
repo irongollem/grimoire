@@ -12,6 +12,7 @@ import {
   Swords,
   Globe,
   ScrollText,
+  CircleUser,
 } from "lucide-vue-next";
 import type { Component } from "vue";
 
@@ -127,6 +128,12 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/forge",
         icon: Layers,
         description: "Print NPC & monster cards",
+      },
+      {
+        label: "Token Forge",
+        to: "/tokens",
+        icon: CircleUser,
+        description: "Create VTT tokens",
       },
     ],
   },

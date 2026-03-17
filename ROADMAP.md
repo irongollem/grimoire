@@ -1,136 +1,227 @@
 # Grimoire — Feature Roadmap
 
-Features built and planned. Check off items as they ship.
-
----
-
-## Done
-
-- [x] Notes tracker (Tiptap editor, categories, tags, pinning)
-- [x] Faerûn Calendar / timeline (Calendar of Harptos, adapter pattern for future settings)
-- [x] Scriptorium — Homebrewery-style editor, OneDnD 2024 PHB preview + PDF export
-- [x] NPC tracker with full stat blocks, portrait upload, TraitSection editor
-- [x] Bestiary (monster builder with 12 SRD template presets + full SRD bundle)
-- [x] Party Tracker (initiative, HP, conditions, curses, death saves, passive skills)
-- [x] Card Forge — MTG (63×88mm) and Tarot (70×120mm) print-ready cards with duplex alignment
-- [x] Scriptorium import engine — convert NPCs / monsters to Scriptorium documents ("Send to Scriptorium")
-- [x] Scriptorium asset insert panel — browse and inject NPCs / monsters / locations as new pages inside the editor
-- [x] Image controls in Scriptorium editor (size presets S/M/L/XL, float left / center / right)
-- [x] Nav restructured into three sections: Campaign, Assets, Publish
-- [x] Locations — recursive hierarchy (continent → region → city → building → room), Tiptap description, sub-location list, Scriptorium formatter
-- [x] Item Vault — full CRUD with 15 item types, 7 rarities, weapon damage dice, charges, attunement, image upload, card printing (MTG + Tarot)
-- [x] Spellbook — full CRUD with school/level/class filters, Spell Level Advisor modal, attack mechanics, AOE, conditions, card printing
-- [x] Encounters — builder (combatants + NPC combatants, factions, XP difficulty calculator with ally offset) + live combat runner (initiative, HP, conditions, death saves)
-- [x] Quests — kanban + list view, objectives checklist, sub-quests, giver NPC / location linking, linked item & encounter rewards, Tiptap notes
-- [x] Campaign Dashboard — live stat cards, active quests, party at a glance (HP bars, passive scores, conditions/curses), pinned + recent notes
-- [x] **Collaboration — Phase 1**: campaign_members + campaign_invites tables, DM auto-membership trigger, invite link flow (/join/:token), role-based router guard, Campaign Settings UI (members tab, invites tab with generate/copy/revoke)
-- [x] **Collaboration — Phase 2**: Player portal (/play/\* routes + PlayerLayout), presence indicators (online dots on dashboard party cards + campaign switcher pip count), notes/quest `is_player_visible` flags + DM eye-icon toggles, party inventory for players (read), campaign broadcast system (DM announcements → player toast), campaign chat + dice roll log (floating panel, realtime via Supabase)
-- [x] **Collaboration — Phase 3**: `encounter_state` table, live encounter sync (DM "Go Live" button writes state to DB; Supabase Realtime pushes to players), PlayerEncounterView (initiative order, HP labels, active combatant highlight), live encounter indicators (sidebar badge next to logo, dashboard banner, list card badge, detail page contextual Resume / Restart / Stop buttons), encounter state persists across navigation/refresh
-- [x] **Collaboration — Phase 4**: Full interactive D&D Beyond-style player character sheet (clickable ability/save/skill rolls → roll toast + campaign chat, HP ±buttons, death save pips, condition toggles, inspiration — all player-editable and written to DB); inventory tab on character sheet (add/remove items, quantity, carried-by); RLS policy for player-owned party member updates; broadcast notifications when DM shares a note, quest, or adds an inventory item
-- [x] Named curses in encounter runner — separate from flat conditions, free-text input, syncs back to party on end combat
-- [x] End-combat sync — HP, conditions, curses, and death saves written back to `party_members` when DM ends combat
-- [x] Atlas (renamed from Locations, Globe icon)
-- [x] Atlas — "Populate Setting" button seeds iconic locations from the active campaign's setting (Faerûn: ~70 locations across worlds, planes, continents, regions, countries, cities, towns, dungeons, wilderness; Greyhawk/Eberron/Dragonlance: ~15–20 each). Deduplicates by name. Planar locations exported separately as `PLANAR_LOCATIONS` for future use.
-- [x] Atlas — `world` and `plane` added to `LocationType` (DB enum extended via migration). `world` = planet/world (Toril, Oerth, Krynn, Eberron); `plane` = dimension/realm (Nine Hells, Feywild, Shadowfell, Astral Plane, etc.).
-- [x] Atlas — Parent picker in location editor: searchable combobox to assign or change a location's parent from any existing campaign location. Breadcrumb updates live; saves with the form. Clearing sets the location back to top-level.
-- [x] Atlas — Delete hang fix: `useDeleteLocation` now calls `queryClient.removeQueries` for the specific location key before invalidating lists, preventing the 406 retry loop that occurred while the detail view was still mounted mid-navigation.
-
----
-
 ## In Progress / Next Up
 
 - [ ] Scriptorium visual assets (page border PNG, chapter art) — see `ASSETS_PROMPT_LIST.md`
 
 ---
 
-## Companions
+## Core Features (Complete)
 
-- [x] `companions` table — id, user_id, campaign_id, name, companion_type (enum: familiar / animal_companion / mount / ally / sidekick), source_type (monster / npc / custom), source_monster_id (FK nullable), source_npc_id (FK nullable), owner_party_member_id (FK to party_members, nullable — who the companion belongs to), max_hp, current_hp, ac, speed, conditions[], notes, sort_order + RLS
-- [x] `useCompanions` composable — CRUD, fetch all for campaign, fetch by owner
-- [x] Companion cards in Party Tracker — shown below their owner (or ungrouped if no owner); simpler card than a PC: name, type badge, HP bar + damage/heal controls, AC, conditions, link to source monster/NPC sheet
-- [x] Add companion from monster — pick from Bestiary, copies name/HP/AC/speed as defaults, owner optional
-- [x] Add companion from NPC — pick from NPC list, same defaulting behaviour
-- [x] Custom companion — enter stats manually (no source record required)
-- [x] Companions included in Encounter Runner initiative — can be added to an encounter alongside party members
+### Campaign Management
+
+- [x] Campaign Dashboard — live stat cards, active quests, party at a glance (HP bars, passive scores, conditions/curses), pinned + recent notes
+- [x] DM Notes tracker (Tiptap editor, categories, tags, pinning)
+- [x] Faerûn Calendar / timeline (Calendar of Harptos, adapter pattern for future settings)
+
+### Content Creation & Homebrew
+
+- [x] Scriptorium — Homebrewery-style editor, OneDnD 2024 PHB preview + PDF export
+- [x] Scriptorium import engine — convert NPCs / monsters to Scriptorium documents
+- [x] Scriptorium asset insert panel — browse and inject NPCs / monsters / locations as new pages
+- [x] Image controls in Scriptorium editor (size presets S/M/L/XL, float left / center / right)
+
+### Game Entities
+
+- [x] NPC tracker with full stat blocks, portrait upload, TraitSection editor
+- [x] Bestiary — monster builder with 12 SRD template presets + full SRD bundle
+- [x] Item Vault — full CRUD with 15 item types, 7 rarities, weapon damage dice, charges, attunement, image upload, card printing
+- [x] Spellbook — full CRUD with school/level/class filters, Spell Level Advisor, attack mechanics, AOE, conditions, card printing
+- [x] Atlas (Locations) — recursive hierarchy (world → plane → continent → region → city → town → building → room), Tiptap description, Scriptorium formatter
+- [x] Atlas — "Populate Setting" button seeds iconic locations from the active campaign's setting (Faerûn: ~70 locations, Greyhawk/Eberron/Dragonlance: ~15–20 each)
+- [x] Atlas — Parent picker in location editor with live breadcrumb updates
+
+### Encounters & Combat
+
+- [x] Encounters — builder (combatants + NPC combatants, factions, XP difficulty calculator with ally offset)
+- [x] Encounter Runner — live combat with initiative, HP, conditions, death saves
+- [x] Named curses in encounter runner (separate from flat conditions, syncs back to party on end combat)
+- [x] End-combat sync — HP, conditions, curses, and death saves written back to party_members
+
+### Quests & Adventures
+
+- [x] Quests — full CRUD with kanban + list view, objectives checklist, sub-quests
+- [x] Quest giver/location linking with item & encounter reward references
+- [x] Player quest visibility (DM shares individual quests to player portal)
+- [x] Player quest notes table with private/shared toggles per entry
+- [x] Adventure Journal — player personal journal with 6 categories, context linking, private/shared entries
+- [x] Scriptorium formatter for quests (title, status, objectives, notes)
+
+### Party & Character Management
+
+- [x] Party Tracker (initiative, HP, conditions, curses, death saves, passive skills)
+- [x] Companions system (familiar/animal_companion/mount/ally/sidekick with source linking)
+- [x] Companion cards in Party Tracker (HP, AC, conditions, source links)
+- [x] Companions in Encounter Runner initiative
+- [x] Party inventory — shared table with DM + player item management
+- [x] Player character sheet — interactive D&D Beyond-style sheet with ability/save/skill rolls → campaign chat
+- [x] Character sheet inventory (My Items / Party Stash split, equip toggle, attack/damage rolls)
+- [x] Loot drops in chat — items droppable as cards with Claim / To Stash actions (real-time sync)
+
+### Printing & Export
+
+- [x] Card Forge — MTG (63×88mm) and Tarot (70×120mm) print-ready cards with duplex alignment
+- [x] Card Library — localStorage save/load named collections across all card types
+
+### Collaboration & Multi-Player
+
+- [x] **Phase 1**: campaign_members + campaign_invites tables, DM auto-membership, invite link flow (/join/:token), role-based router guard, Campaign Settings UI
+- [x] **Phase 2**: Player portal (/play/\* routes), presence indicators (online dots), notes/quest visibility flags, party inventory (players read), campaign broadcast system, campaign chat + dice roll log (Supabase Realtime)
+- [x] **Phase 3**: encounter_state table, live encounter sync (DM "Go Live" button), PlayerEncounterView (initiative, HP, active combatant), live encounter indicators, state persists across navigation
+- [x] **Phase 4**: Interactive player character sheet (ability/save/skill rolls in campaign chat, HP ±buttons, death save pips, condition toggles), inventory management (My Items, Party Stash, equipped weapons), RLS for player-owned updates, broadcast notifications
 
 ---
 
-## Quests (remaining)
+## Planned (Backlog)
 
-**What's already built:** full CRUD, objectives checklist, sub-quest hierarchy, kanban + list dual-view, player visibility toggle, player quest log + detail view, NPC giver + primary location linking, item + encounter + NPC + location + monster refs (all five ref types in editor UI), calendar integration, Tiptap notes, tags, timeline date fields (started_at / resolved_at), Scriptorium formatter + "Send to Scriptorium" button.
+### Quests
 
-- [x] **Related entities panel** — NPC, location, and monster ref panels added to QuestEditor alongside items and encounters.
-- [x] **Player quest detail view** — `/play/quests/:id` shows objectives checklist (read-only), summary, giver NPC, primary location, linked items/encounters/NPCs/locations/creatures, rewards. Guard: only visible for `is_player_visible` quests.
-- [x] **Quest timeline UI** — `started_at` / `resolved_at` date pickers in QuestEditor metadata grid; displayed in player detail view.
-- [x] **Scriptorium formatter for quests** — "Send to Scriptorium" button in QuestEditor top bar; generates title, status, meta block, objectives list, notes body.
-- [x] **Player quest notes** — `quest_player_notes` table (one row per player per quest). Each player writes their own note on the quest detail page; Private toggle (lock icon) = only you see it, Shared toggle (eye icon) = visible to all campaign members including DM. "Party Notes" section shows all shared notes from other players. Autosaves on textarea blur.
-- [x] **Adventure Journal** — `player_journal_entries` table. Personal per-player journal at `/play/journal` with 6 categories (Adventure Log, Clue, Discovery, Session Log, Character, Rumor), each with a distinct color accent. Optional "Context" field links an entry to any game entity (quest/NPC/location/item/monster/encounter). Private/Shared toggle per entry. "Party Journal" tab shows shared entries from all players. Inline expand-to-edit on entries. Nav renamed: "Notes" → "DM Notes", new "Journal" tab added.
-- [ ] **Quest triggers** — `quest_triggers` table: quest_id, trigger_type (quest_complete / objective_done), offset_days, action_type (create_calendar_event / send_broadcast), action_payload JSONB. Example: "5 days after this quest completes, create a calendar event". Requires a trigger-evaluation step on quest/objective status changes.
+- [ ] **Quest triggers** — `quest_triggers` table: quest_id, trigger_type (quest_complete / objective_done), offset_days, action_type (create_calendar_event / send_broadcast), action_payload JSONB. Example: "5 days after this quest completes, create a calendar event"
 
----
+### Items & Magic Items
 
-## Items & Magic Items (remaining)
-
-- [x] Party inventory — shared `party_inventory` table; DM and players can add/remove items, adjust quantity, mark carried-by; shown in Party Tracker and player character sheet inventory tab
-- [x] **Player character sheet** — inventory split into "My Items" (carried by that player) and "Party Stash" (uncarried); equip toggle on My Items; equipped vault-linked weapons show a clickable Attack + Damage roller on the Character tab (ability mod auto-selected: DEX for ranged/finesse when DEX > STR, STR otherwise); all rolls post to campaign chat
-- [x] **Loot drops in chat** — items can be dropped directly into the campaign chat as a loot card. Anyone in the campaign can then **Claim** (→ their My Items) or **To Stash** (→ Party Stash); once claimed the card updates for everyone in real-time. How to drop loot:
-  - **DM / Party Tracker**: click the ↑ arrow on any existing inventory row, or use "Drop in Chat" in the Add Item form instead of "Add"
-  - **Player / My Items**: click the ↑ arrow on any item in the My Items tab of their character sheet — removes it from their inventory and drops it to chat
 - [ ] Scriptorium formatter for items (stat block style: name, type line, rarity, attunement, description)
-- [ ] Show details on hover over an item in the chat before claiming (tooltip with item description, or expand the card in place to show details)
-- [ ] Only show claim button enabled if a player actually has an inventory (so a PC claimed that has inventory). The DM can't claim nor can any player that joined but didnt claim a PC yet
+- [ ] Show item details tooltip/expand in chat before claiming
+- [ ] Restrict claim button to players who have an inventory (claimed a PC)
 
----
-
-## Spells (remaining)
+### Spells
 
 - [ ] Scriptorium formatter for spells (classic spell card block)
-- [ ] Spell list on NPC / monster stat block — link to spell entries in the Spellbook
+- [ ] Spell list on NPC / monster stat blocks with Spellbook links
 
----
+### Atlas / Locations
 
-## Ideas & Future Considerations
+- [ ] **Time-bound locations** — add optional `era_start` / `era_end` year fields; grey-out or hide locations not in current campaign year
+- [ ] **Planar locations populate** — second "Populate Planes" button or opt-in checkbox in main populate (21 entries: inner/outer/transitive planes, Sigil)
 
-- [ ] **Monster import from external sources** — import tool to pull monster stat blocks from D&D Beyond (or Open5e API as a free alternative) directly into the Bestiary, mapping fields to our `Monster` type
-- [ ] **Open5e API — spells & items** — use the same fetch-and-bundle approach (`scripts/fetch-srd-monsters.mjs` as template) to pre-populate the Spells and Items modules with SRD content (spells endpoint: `/v1/spells/?document__slug=wotc-srd`, items: `/v1/magicitems/`). Open5e is scrape/bundle only — no runtime API dependency.
-- [ ] **Scriptorium two-column layout** — CSS `columns: 2` toggle for PHB-style two-column pages
-- [ ] **Scriptorium table support** — Tiptap table extension for stat comparison tables
-- [x] **Calendar integration** — pin quests, encounters, and location events to calendar dates
-- [ ] **Campaign settings page** — set active calendar, current year, campaign name, and default location
+### Scriptorium
+
+- [ ] **Two-column layout** — CSS `columns: 2` toggle for PHB-style two-column pages
+- [ ] **Table support** — Tiptap table extension for stat comparison tables
+- [ ] **Visual assets** — page border PNG, chapter art (see `ASSETS_PROMPT_LIST.md`)
+
+### Search & Export
+
 - [ ] **Full-text search** — cross-entity search across NPCs, monsters, notes, spells, items, locations, quests
-- [ ] **Export / import** — JSON export of entire campaign data; import to restore or share
-- [x] **Collaboration features** — invite other users to view/edit the campaign, with role-based permissions (DM vs player) and setup the skeleton for VTT type tooling
-- [x] **Setting bundles** — pre-populate calendar events for supported settings (matching the active calendar adapter). Faerûn bundle ships 30 major events (Time of Troubles, Spellplague, Sundering, 5e adventures). Importable via "Setting Events" button in the calendar view. Adding new bundles requires only a new file in `src/data/bundles/` and an entry in the registry.
-- [ ] **Publish token maker** - create visual tokens for use in virtual tabletops, with configurable fields (name, HP, AC, portrait) and export as image or JSON for upload to VTTs that support it (e.g. Roll20 API tokens) integrating with existing items, monsters, and NPCs in the database for easy token creation from existing records
-- [x] **items** load all free accessible items from the Open5e API to create a pre-populated item vault, similar to the monster import described above. This would give users a rich starting point of SRD items to use and customize without needing to input everything manually
-- [x] **Locations** — "Populate Setting" button now implemented (see Done section above).
-- [ ] **Atlas — Time-bound locations** — add optional `era_start` / `era_end` year fields to the `locations` table. Atlas list view can then grey-out or hide locations that don't exist in the current campaign year (e.g. Elturel pre/post 1492 DR, floating Netherese cities pre −339 DR, Istar post Cataclysm). Populate seed data already notes time-sensitive entries with `[Time-sensitive: ...]` in the notes field as a temporary measure.
-- [ ] **Atlas — Planar locations populate** — `PLANAR_LOCATIONS` array (21 entries: inner planes, upper/lower outer planes, transitive planes, Sigil) exported from `settingLocations.ts`. Add a second "Populate Planes" button to the Atlas, or include planes in the main populate (opt-in checkbox). Planes are setting-agnostic so they apply to any campaign.
-- [x] **Atlas — Nesting / hierarchy on populate** — currently all seeded locations are inserted flat (no `parent_id`). Future: insert in topological order (world → plane → continent → region → country → city → town) and link `parent_id` so the Atlas tree renders the full hierarchy automatically. Requires a two-pass insert or a dependency-aware seed runner.
-- [ ] **World Bundles — unified per-setting bundle** — unify all per-setting seed data into a single `WorldBundle` interface (calendar events + locations + key NPCs + starting items) so that `src/data/bundles/faerun.ts` becomes a single file per world. This would also make user-uploaded world bundles possible — one JSON file = an entire setting scaffold. Design the `WorldBundle` schema and migrate existing `SETTING_BUNDLES` (calendar events) and `SETTING_LOCATIONS` into it as the first step.
-- [ ] **World Bundles — user-uploadable** — allow DMs to upload a world bundle JSON file to populate a new campaign with a custom setting (custom calendar, locations, factions, NPCs). Validate the schema client-side and show a diff of what will be imported before confirming. A long-term community-sharing feature.
-- [x] **QUESTS** - `is_player_visible` toggle per quest; DM shares individual quests to the player portal; players see only shared quests in their quest log view.
-- [x] **ITEMS/REWARDS** — loot drop cards in campaign chat (see Items & Magic Items section above for detail)
-- [ ] **Crafting system** — allow players to craft their own items using gear proficiencies, crafting tools etc
+- [ ] **Campaign export/import** — JSON export of entire campaign data; import to restore or share
+
+### World Bundles & Community
+
+- [ ] **Unified world bundles** — `WorldBundle` interface combining calendar events + locations + key NPCs + starting items per setting
+- [ ] **User-uploadable bundles** — allow DMs to upload world bundle JSON for custom settings with client-side validation and import preview
+
+### Tokens & VTT Integration
+
+- [x] **Token Forge** — circular VTT token generator at `/tokens`. Source tabs: Party / NPCs / Monsters / Custom. Ring colour presets (Party/Ally/Enemy/Neutral/Boss/Nature) + custom colour picker. Ring width (Thin/Medium/Thick/Heavy). Optional name label with gradient band. Export sizes 280px (Roll20 1×1) and 512px (HD/Large). PNG download + clipboard copy. Entities without art get an initial-letter placeholder on a gradient background. Fetch-as-blob image loading sidesteps CORS.
+
+### Misc
+
+- [ ] **Monster import from external sources** — import tool to pull stat blocks from D&D Beyond or Open5e API directly into Bestiary
+- [ ] **Campaign settings page** — set active calendar, current year, campaign name, default location
+- [ ] **Crafting system** — allow players to craft items using gear proficiencies, crafting tools
 
 ---
 
-### Bugs and Issues
+## AI Features
 
-- [x] You cannot delete a Scriptorium entry
-- [x] Clicking a day in the calendar doesn't do anything yet
-- [x] Adding a multi-day event only shows it on the first day
-- [x] Dashboard was dummy / placeholder — now live with real data
-- [x] Can't manually set initiative
-- [x] Under party, clicking the condition button opens the dropdown inside an overflow:hidden container, causing it to be cut off — fixed with viewport-aware flip logic
-- [x] Calendar only scrolls per month making navigation slow — added ◀◀/▶▶ year-skip buttons and direct year input
-- [x] Calendar position (year/month) now persists to localStorage across sessions
-- [x] In party view keys and values and units are without spacing (e.g. speed30ft)
-- [x] In party view the values are abbreviated too much; expanded to full passive skill names + added knowledge passives
-- [x] Bestiary should be preloaded with SRD monsters (uneditable), users can add custom on top
-- [x] In spells, affected targets is only an area of effect of 1 or a template — now supports free-form targeting description
-- [x] 400 error when uploading a portrait for a party member (bucket not found)
-- [x] No delete button inside Scriptorium file
-- [x] Styling: remove up/down arrows from number inputs
-- [x] In party overview show the avatar if there is one
-- [x] In the Encounters list view, two "New Encounter" buttons stacked — removed the redundant one
+AI features are gated behind a Pro tier and proxied through Supabase Edge Functions — API keys never reach the client. Usage is tracked per-user for cost control and quota enforcement.
+
+### Implementation Strategy
+
+**Architecture:**
+
+- All AI calls go through `supabase/functions/ai-*` Edge Functions (Deno). The client calls `supabase.functions.invoke('ai-generate-monster', { body: { prompt } })`.
+- Edge Functions hold the API keys (Anthropic, OpenAI) as Supabase secrets — never in the frontend bundle.
+- `ai_usage_log` table: `(id, user_id, campaign_id, feature, model, tokens_used, cost_cents, created_at)`. Insert a row after every successful AI call.
+- Monthly quota enforced at Edge Function entry: query `ai_usage_log` for current month sum; reject with 429 if exceeded.
+- BYOK (Bring Your Own Key): Pro users can store their own Anthropic/OpenAI key in an encrypted `user_settings` column. Edge Functions check for a user key first and use it (bypassing quota) if present.
+
+**Text generation — Claude API (claude-haiku-4-5 for speed/cost, sonnet for quality):**
+
+- [ ] **Monster generation** — DM types a concept ("ancient shadow dragon corrupted by the Far Realm") → Edge Function calls Claude with a structured prompt → returns a full `StatBlock` JSON matching the existing `Monster` type → auto-populates the Bestiary editor for review/save. Uses `claude-haiku-4-5` for cost efficiency.
+- [ ] **NPC generation** — concept prompt → NPC with name, race, occupation, personality, backstory, appearance, secret. Populates the NPC editor. Option to also generate a stat block.
+- [ ] **Quest hook generation** — setting + party level + optional theme → 3–5 quest hooks with title, summary, giver, potential objectives. One click creates a draft quest.
+- [ ] **Description writer** — "Enhance" button in Tiptap editors (notes, location descriptions, NPC backstory): select text → rewrite in vivid D&D prose. Uses in-editor selection as context.
+- [ ] **Item generation** — flavour prompt → magic item with name, type, rarity, description, mechanical properties (charges, attunement, damage).
+- [ ] **Spell generation** — concept prompt → spell with all fields (school, level, components, casting time, range, duration, description, at higher levels).
+
+**Image generation — dedicated image API:**
+
+- [ ] **Portrait generation** — describe an NPC/monster → generate portrait art. Upload directly to the entity's `portrait_url` / `image_url` in Supabase Storage. Recommended API: **Replicate** (Stable Diffusion XL or FLUX) — cheaper than DALL-E 3, good quality, no content-policy issues for fantasy monsters. DALL-E 3 as fallback for higher-quality single shots.
+- [ ] **Token art generation** — generate a tight circular portrait optimised for VTT tokens. Feeds directly into Token Forge. Prompt auto-augmented with "facing forward, dramatic lighting, fantasy portrait style, circular crop".
+- [ ] **Scene/location art** — generate a wide establishing shot for a location (for Scriptorium or session notes header image).
+
+**Cost estimates (approximate):**
+
+| Feature | Model | Est. cost/call |
+| --- | --- | --- |
+| Monster/NPC generation | claude-haiku-4-5 | ~$0.003 |
+| Description enhancement | claude-haiku-4-5 | ~$0.001 |
+| Portrait generation | FLUX Schnell (Replicate) | ~$0.003 |
+| Token art | FLUX Schnell | ~$0.003 |
+| Scene art | FLUX Dev | ~$0.025 |
+
+**Free tier quota:** 10 AI calls/month. **Pro quota:** 200 calls/month included; additional packs purchasable.
+
+---
+
+## Monetization
+
+Grimoire is currently a free, open-source DM toolkit. As the feature set matures (especially AI and collaboration), a sustainable monetization model is needed.
+
+### Recommended Model: Open-Core Freemium
+
+Keep the core DM tooling free forever (open source). Gate AI features, advanced collaboration, and higher limits behind a **Pro** subscription.
+
+**Free tier (always free):**
+
+- 1 active campaign
+- All core DM tools (notes, calendar, bestiary, spellbook, item vault, encounters, quests, atlas, card forge, token forge)
+- Up to 100 entities per type (NPCs, monsters, items, spells)
+- Player portal (all collaboration features)
+- 10 AI calls/month
+- Scriptorium with PDF export (watermark-free)
+
+**Pro tier (~$7/month or ~$60/year):**
+
+- Unlimited campaigns
+- Unlimited entities
+- 200 AI calls/month included
+- BYOK (Bring Your Own Key) — use your own Anthropic/OpenAI key, bypass quota
+- Early access to new features
+- Priority support
+
+**AI Add-on (usage-based, available to all tiers):**
+
+- Purchase packs of 100 AI calls for ~$2 (pro-rated cost + margin)
+- Enables casual free users to access AI without full Pro commitment
+
+### Payment Stack
+
+| Tool                        | Role                                                   | Why                                                                                                              |
+| --------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| **Stripe**                  | Payments, subscriptions, invoicing                     | Industry standard; excellent webhook support; Stripe Billing handles trials, upgrades, downgrades, cancellations |
+| **Stripe Customer Portal**  | Self-serve subscription management                     | No custom billing UI needed                                                                                      |
+| **Polar.sh**                | Optional: open-source sponsorship + one-time purchases | Developer-friendly; good for OSS projects; can run alongside Stripe                                              |
+| **Supabase Edge Functions** | Stripe webhook handler                                 | `stripe-webhook` Edge Function updates a `subscriptions` table on Supabase                                       |
+
+**Implementation steps:**
+
+1. Add `subscription_tier` (`free` | `pro`) and `stripe_customer_id` to the `profiles` / `auth.users` metadata table.
+2. Stripe webhook Edge Function: listen for `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted` → update `subscription_tier`.
+3. Gate Pro features client-side (UX) AND server-side (Edge Function `check_quota` RLS/middleware).
+4. Add `/settings/billing` page: current plan, upgrade/downgrade button (Stripe Customer Portal link), AI usage this month.
+5. Free tier enforcement: enforced at Supabase Edge Function level for AI calls; campaign/entity limits enforced at DB level via a check constraint or application logic.
+
+### Pricing Rationale
+
+- $7/month is below the "impulse buy" threshold for hobbyist DMs; comparable to D&D Beyond Master Tier.
+- Annual plan at $60 (~29% discount) improves cash flow and reduces churn.
+- AI Add-on lets free users try AI without commitment, converting some to Pro.
+
+---
+
+## Ideas & Distant Future
+
+- [ ] **Open5e spells & items API** — pre-populate Spells and Items modules with SRD content (no runtime API dependency, scrape/bundle only)
+- [ ] **Custom calendars** — expand adapter pattern for additional campaign settings beyond Faerûn

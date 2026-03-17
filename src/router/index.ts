@@ -302,6 +302,13 @@ const router = createRouter({
       component: () => import("@/views/cardforge/CardForgeView.vue"),
       meta: { requiresAuth: true, title: "Card Forge" },
     },
+    // Token Forge
+    {
+      path: "/tokens",
+      name: "tokens",
+      component: () => import("@/views/tokenforge/TokenForgeView.vue"),
+      meta: { requiresAuth: true, title: "Token Forge" },
+    },
 
     // 404
     {
