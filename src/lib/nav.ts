@@ -130,10 +130,10 @@ export const NAV_GROUPS: NavGroup[] = [
         description: "Print NPC & monster cards",
       },
       {
-        label: "Token Forge",
+        label: "The Mint",
         to: "/tokens",
         icon: CircleUser,
-        description: "Create VTT tokens",
+        description: "Create VTT tokens & coins",
       },
     ],
   },

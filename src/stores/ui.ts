@@ -40,6 +40,20 @@ export const useUiStore = defineStore("ui", () => {
     chatOpen.value = !chatOpen.value;
   }
 
+  // DM preview mode — lets DM browse the player portal without a second account
+  const dmPreviewMode = ref(false);
+  const dmPreviewPartyMemberId = ref<string | null>(null);
+
+  function enterDmPreview(partyMemberId?: string) {
+    dmPreviewPartyMemberId.value = partyMemberId ?? null;
+    dmPreviewMode.value = true;
+  }
+
+  function exitDmPreview() {
+    dmPreviewMode.value = false;
+    dmPreviewPartyMemberId.value = null;
+  }
+
   function resetNotesFilters() {
     notesFilterCategory.value = "all";
     notesFilterTags.value = [];
@@ -81,5 +95,11 @@ export const useUiStore = defineStore("ui", () => {
     toggleMobileNav,
     chatOpen,
     toggleChat,
+
+    // DM preview
+    dmPreviewMode,
+    dmPreviewPartyMemberId,
+    enterDmPreview,
+    exitDmPreview,
   };
 });

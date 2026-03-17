@@ -40,6 +40,21 @@
       </div>
     </header>
 
+    <!-- DM preview banner -->
+    <div
+      v-if="ui.dmPreviewMode"
+      class="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2 flex items-center gap-3 shrink-0"
+    >
+      <Eye class="h-3.5 w-3.5 text-amber-400 shrink-0" />
+      <span class="font-cinzel text-xs text-amber-400 tracking-wider flex-1">DM Preview — you are viewing the player portal</span>
+      <button
+        class="font-cinzel text-[10px] tracking-wider text-amber-400 hover:text-amber-300 border border-amber-500/40 hover:border-amber-400/60 px-2 py-0.5 rounded transition-colors"
+        @click="exitPreview"
+      >
+        Exit Preview
+      </button>
+    </div>
+
     <!-- Broadcast toast stack -->
     <Transition name="toast">
       <div
@@ -62,22 +77,24 @@
       </div>
     </Transition>
 
-    <CampaignChat />
-
-    <!-- Content -->
-    <main class="flex-1 overflow-y-auto">
-      <div class="max-w-4xl mx-auto px-4 py-6">
-        <RouterView />
-      </div>
-    </main>
+    <!-- Content + chat side panel -->
+    <div class="flex-1 flex overflow-hidden">
+      <main class="flex-1 overflow-y-auto">
+        <div class="max-w-4xl mx-auto px-4 py-6">
+          <RouterView />
+        </div>
+      </main>
+      <CampaignChat />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRouter } from "vue-router";
-import { LogOut, Shield, ScrollText, BookOpen, Package, User, Megaphone, X, Swords, PenLine } from "lucide-vue-next";
+import { LogOut, Shield, ScrollText, BookOpen, Package, User, Megaphone, X, Swords, PenLine, Eye } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
+import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useParty } from "@/composables/useParty";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
@@ -85,6 +102,7 @@ import { useCampaignBroadcast } from "@/composables/useCampaignBroadcast";
 import CampaignChat from "@/components/chat/CampaignChat.vue";
 
 const auth = useAuthStore();
+const ui = useUiStore();
 const campaign = useCampaignStore();
 const router = useRouter();
 const { data: partyMembers } = useParty();
@@ -112,6 +130,11 @@ const navItems = [
   { to: "/play/inventory",  label: "Inventory", icon: Package },
   { to: "/play/encounter",  label: "Encounter", icon: Swords },
 ];
+
+function exitPreview() {
+  ui.exitDmPreview();
+  router.push({ name: "dashboard" });
+}
 
 async function handleSignOut() {
   await auth.signOut();

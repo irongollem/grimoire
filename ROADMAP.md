@@ -112,7 +112,9 @@
 
 ### Tokens & VTT Integration
 
-- [x] **Token Forge** — circular VTT token generator at `/tokens`. Source tabs: Party / NPCs / Monsters / Custom. Ring colour presets (Party/Ally/Enemy/Neutral/Boss/Nature) + custom colour picker. Ring width (Thin/Medium/Thick/Heavy). Optional name label with gradient band. Export sizes 280px (Roll20 1×1) and 512px (HD/Large). PNG download + clipboard copy. Entities without art get an initial-letter placeholder on a gradient background. Fetch-as-blob image loading sidesteps CORS.
+- [x] **The Mint** (formerly Token Forge) — circular VTT token generator at `/tokens`. Source tabs: Party / NPCs / Monsters / Custom. Ring colour presets + custom picker. Ring width options. Optional curved arc name label. Export 280px / 512px PNG + clipboard copy. Entities without art get an initial-letter placeholder.
+- [x] **Token print sheet** — multi-select tokens into a print queue, choose physical size (25mm / 32mm / 50mm), back style (Mystery ? / Mirror front), prints duplex-aligned front + back A4 sheets with column-reversed backs.
+- [x] **Coin designer** — SVG coin designer tab in The Mint. Metal selector (Copper/Silver/Electrum/Gold/Platinum) with auto-denomination (CP/SP/EP/GP/PP). Emblem picker (Crown/Cross/Fleur/Star/Anchor/Moon/Diamond/Omega/Knight). Centre value + denomination label. Curved rim inscription via SVG textPath. Live preview. Duplex-aligned A4 print sheet (Small 24mm ×70 / Standard 30mm ×48 / Large 38mm ×35 per sheet).
 
 ### Misc
 
@@ -153,13 +155,13 @@ AI features are gated behind a Pro tier and proxied through Supabase Edge Functi
 
 **Cost estimates (approximate):**
 
-| Feature | Model | Est. cost/call |
-| --- | --- | --- |
-| Monster/NPC generation | claude-haiku-4-5 | ~$0.003 |
-| Description enhancement | claude-haiku-4-5 | ~$0.001 |
-| Portrait generation | FLUX Schnell (Replicate) | ~$0.003 |
-| Token art | FLUX Schnell | ~$0.003 |
-| Scene art | FLUX Dev | ~$0.025 |
+| Feature                 | Model                    | Est. cost/call |
+| ----------------------- | ------------------------ | -------------- |
+| Monster/NPC generation  | claude-haiku-4-5         | ~$0.003        |
+| Description enhancement | claude-haiku-4-5         | ~$0.001        |
+| Portrait generation     | FLUX Schnell (Replicate) | ~$0.003        |
+| Token art               | FLUX Schnell             | ~$0.003        |
+| Scene art               | FLUX Dev                 | ~$0.025        |
 
 **Free tier quota:** 10 AI calls/month. **Pro quota:** 200 calls/month included; additional packs purchasable.
 
@@ -225,3 +227,4 @@ Keep the core DM tooling free forever (open source). Gate AI features, advanced 
 
 - [ ] **Open5e spells & items API** — pre-populate Spells and Items modules with SRD content (no runtime API dependency, scrape/bundle only)
 - [ ] **Custom calendars** — expand adapter pattern for additional campaign settings beyond Faerûn
+- [ ] **SRD imagery** if I (admin) add an image to an SRD monster/NPC/item/spell, make it available to all campaigns as a default option in the image picker, heck wouldnt it be a better idea to have the SRD content in a separate "SRD" section of the DB thats readonly to all players and DM's. That way everyone doesnt need to "import" SRD but can just "enable SRD content" in their campaign settings and have it available everywhere by default

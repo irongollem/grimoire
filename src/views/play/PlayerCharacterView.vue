@@ -1,8 +1,23 @@
 <template>
   <div class="space-y-5 pb-8">
+    <!-- DM preview: party member picker -->
+    <div v-if="ui.dmPreviewMode" class="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 flex items-center gap-3">
+      <span class="font-cinzel text-xs text-amber-400 shrink-0">Viewing as:</span>
+      <select
+        :value="ui.dmPreviewPartyMemberId ?? ''"
+        class="flex-1 bg-background border border-border rounded px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-amber-500/50"
+        @change="ui.dmPreviewPartyMemberId = ($event.target as HTMLSelectElement).value || null"
+      >
+        <option value="">— pick a character —</option>
+        <option v-for="m in partyMembers" :key="m.id" :value="m.id">{{ m.name }}</option>
+      </select>
+    </div>
+
     <div v-if="!member" class="text-center py-16 space-y-3">
       <p class="font-cinzel text-lg text-muted-foreground">No character linked</p>
-      <p class="font-fell text-sm text-muted-foreground italic">Ask your DM to link your account to a party member.</p>
+      <p class="font-fell text-sm text-muted-foreground italic">
+        {{ ui.dmPreviewMode ? 'Select a character above to preview their sheet.' : 'Ask your DM to link your account to a party member.' }}
+      </p>
     </div>
 
     <template v-else>
@@ -574,6 +589,7 @@
 import { ref, computed, reactive } from "vue";
 import { Star, ChevronRight, Plus, Minus, Trash2, Sword, Zap, ArrowUpFromLine } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
+import { useUiStore } from "@/stores/ui";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import { usePartyInventory, useAddInventoryItem, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
 import { useItems } from "@/composables/useItems";
@@ -587,6 +603,8 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 const props = defineProps<{ memberId?: string }>();
 
 const auth = useAuthStore();
+const ui = useUiStore();
+
 const { data: partyMembers } = useParty();
 const { data: inventory, isLoading: inventoryLoading } = usePartyInventory();
 const { data: allItems } = useItems();
@@ -609,7 +627,7 @@ const TABS = [
 ];
 const activeTab = ref<"character" | "inventory">("character");
 
-const resolvedMemberId = computed(() => props.memberId ?? auth.linkedPartyMemberId);
+const resolvedMemberId = computed(() => props.memberId ?? (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId));
 const member = computed<PartyMember | null>(() => {
   if (!resolvedMemberId.value || !partyMembers.value) return null;
   return partyMembers.value.find((m) => m.id === resolvedMemberId.value) ?? null;

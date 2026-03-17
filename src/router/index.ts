@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
+import { useUiStore } from "@/stores/ui";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -302,12 +303,12 @@ const router = createRouter({
       component: () => import("@/views/cardforge/CardForgeView.vue"),
       meta: { requiresAuth: true, title: "Card Forge" },
     },
-    // Token Forge
+    // The Mint
     {
       path: "/tokens",
       name: "tokens",
       component: () => import("@/views/tokenforge/TokenForgeView.vue"),
-      meta: { requiresAuth: true, title: "Token Forge" },
+      meta: { requiresAuth: true, title: "The Mint" },
     },
 
     // 404
@@ -337,7 +338,9 @@ router.beforeEach(async (to) => {
   }
 
   // Players can't manually navigate to /play if they're actually a DM
-  if (to.meta.requiresPlayer && auth.isDM) {
+  // Exception: DM preview mode lets the DM browse the player portal
+  const ui = useUiStore();
+  if (to.meta.requiresPlayer && auth.isDM && !ui.dmPreviewMode) {
     return { name: "dashboard" };
   }
 });
