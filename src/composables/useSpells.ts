@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Spell, SpellInsert, SpellUpdate } from "@/types/spell.types";
 
 const QUERY_KEY = "spells";
@@ -30,9 +30,7 @@ async function fetchSpell(id: string): Promise<Spell> {
 }
 
 async function createSpell(spell: SpellInsert): Promise<Spell> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const { data, error } = await supabase
     .from("spells")
     .insert({ ...spell, user_id: user!.id })

@@ -1,7 +1,7 @@
 import { computed, isRef, ref } from "vue";
 import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Location, LocationInsert, LocationUpdate } from "@/types/location.types";
 import { SETTING_LOCATIONS } from "@/data/settingLocations";
@@ -43,9 +43,7 @@ async function fetchLocation(id: string): Promise<Location> {
 }
 
 async function createLocation(loc: LocationInsert): Promise<Location> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const { data, error } = await supabase
     .from("locations")
     .insert({ ...loc, user_id: user!.id })
@@ -160,9 +158,7 @@ export function usePopulateLocations() {
       const presets = SETTING_LOCATIONS[calendarId] ?? SETTING_LOCATIONS["faerun"] ?? [];
       if (!presets.length) return 0;
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
 
       // Fetch existing locations (id + name) for dedup and parent resolution
       const { data: existing, error: fetchError } = await supabase

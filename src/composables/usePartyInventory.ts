@@ -1,6 +1,6 @@
 import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type { PartyInventoryItem, PartyInventoryInsert, PartyInventoryUpdate } from "@/types/inventory.types";
 
@@ -17,7 +17,7 @@ async function fetchInventory(campaignId: string): Promise<PartyInventoryItem[]>
 }
 
 async function addItem(item: PartyInventoryInsert): Promise<PartyInventoryItem> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const { data, error } = await supabase
     .from("party_inventory")
     .insert({ ...item, user_id: user!.id })

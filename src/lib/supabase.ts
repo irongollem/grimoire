@@ -16,3 +16,13 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
   },
 });
+
+/**
+ * Returns the current user from the cached session — no network request,
+ * no navigator.locks acquisition. Safe to call from mutation functions.
+ * (getUser() validates with the server on every call, causing lock contention.)
+ */
+export async function getCurrentUser() {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.user ?? null;
+}

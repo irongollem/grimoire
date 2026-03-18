@@ -284,6 +284,7 @@
 </template>
 
 <script setup lang="ts">
+import { useConfirm } from "@/composables/useConfirm";
 import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ImagePlus, ScrollText } from 'lucide-vue-next'
@@ -297,6 +298,7 @@ import TraitSection from '@/components/npcs/TraitSection.vue'
 import type { Npc, NpcInsert, NpcStatus, NpcRelationship, StatBlock } from '@/types/npc.types'
 import { useCampaignStore } from '@/stores/campaign'
 
+const { confirm, notify } = useConfirm();
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const STATUS_OPTIONS: { value: NpcStatus; label: string; color: string }[] = [
@@ -546,12 +548,12 @@ async function save() {
 
 async function confirmDelete() {
   if (!props.npc?.id) return
-  if (!window.confirm(`Delete ${props.npc.name}? This cannot be undone.`)) return
+  if (!await confirm(`Delete ${props.npc.name}? This cannot be undone.`)) return
   try {
     await deleteNpc(props.npc.id)
     router.push('/npcs')
   } catch {
-    alert('Failed to delete NPC. Please try again.')
+    notify('Failed to delete NPC. Please try again.')
   }
 }
 </script>

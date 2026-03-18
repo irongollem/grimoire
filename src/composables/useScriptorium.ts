@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, getCurrentUser } from "@/lib/supabase";
 import type {
   ScriptoriumDocument,
   ScriptoriumDocInsert,
@@ -28,9 +28,7 @@ async function fetchDocument(id: string): Promise<ScriptoriumDocument> {
 }
 
 async function createDocument(doc: ScriptoriumDocInsert): Promise<ScriptoriumDocument> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const { data, error } = await supabase
     .from("scriptorium_documents")
     .insert({ ...doc, user_id: user!.id })

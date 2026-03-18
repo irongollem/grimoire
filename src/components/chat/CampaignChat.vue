@@ -3,7 +3,7 @@
   <Transition name="side-panel">
     <aside
       v-if="ui.chatOpen"
-      class="hidden md:flex flex-col w-80 shrink-0 border-l border-border bg-card h-screen sticky top-0"
+      class="hidden md:flex flex-col w-80 shrink-0 border-l border-border bg-card h-full sticky top-0"
     >
       <ChatPanelContent
         :messages="messages"
@@ -14,6 +14,7 @@
         @send-roll="handleRoll"
         @delete="deleteMessage"
         @claim="handleClaim"
+        @claim-currency="handleClaimCurrency"
         @close="ui.chatOpen = false"
       />
     </aside>
@@ -60,6 +61,7 @@
         @send-roll="handleRoll"
         @delete="deleteMessage"
         @claim="handleClaim"
+        @claim-currency="handleClaimCurrency"
         @close="ui.chatOpen = false"
       />
     </div>
@@ -74,16 +76,19 @@ import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import { useAuthStore } from "@/stores/auth";
 import { useAddInventoryItem } from "@/composables/usePartyInventory";
+import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import ChatPanelContent from "./ChatPanelContent.vue";
 import type { RollResult } from "@/lib/dice";
-import type { ItemDropMetadata } from "@/types/chat.types";
+import type { ItemDropMetadata, CurrencyDropMetadata } from "@/types/chat.types";
 
 const ui = useUiStore();
 const auth = useAuthStore();
-const { messages, loading, sendMessage, sendRoll, claimItemDrop, deleteMessage, myUserId } =
+const { messages, loading, sendMessage, sendRoll, claimItemDrop, claimCurrencyDrop, deleteMessage, myUserId } =
   useCampaignMessages();
 const { data: members } = useCampaignMembers();
-const { mutateAsync: addInventoryItem } = useAddInventoryItem();
+const { data: party }   = useParty();
+const { mutateAsync: addInventoryItem }   = useAddInventoryItem();
+const { mutateAsync: updatePartyMember }  = useUpdatePartyMember();
 
 const unread = ref(0);
 
@@ -116,10 +121,43 @@ async function handleClaim({ messageId, intoStash }: { messageId: string; intoSt
     quantity: meta.quantity,
     item_id: meta.item_id,
     carried_by: partyMemberId,
+    location: 'backpack',
+    slot: null,
+    is_container: false,
+    container_id: null,
     is_attuned: false,
     is_equipped: false,
     notes: null,
   });
+}
+
+async function handleClaimCurrency({ messageId }: { messageId: string }) {
+  const msg = messages.value.find(m => m.id === messageId);
+  if (!msg || msg.type !== 'currency_drop') return;
+  const meta = msg.metadata as CurrencyDropMetadata;
+  if (meta.claimed_by_user_id) return;
+
+  const partyMemberId = auth.linkedPartyMemberId ?? null;
+  const claimerName = auth.membership?.display_name ?? auth.userEmail ?? 'Someone';
+
+  await claimCurrencyDrop(messageId, claimerName, partyMemberId);
+
+  // Add coins to the party member's purse if they have one linked
+  if (partyMemberId) {
+    const member = (party.value ?? []).find(m => m.id === partyMemberId);
+    if (member) {
+      await updatePartyMember({
+        id: partyMemberId,
+        update: {
+          pp: member.pp + meta.pp,
+          gp: member.gp + meta.gp,
+          ep: member.ep + meta.ep,
+          sp: member.sp + meta.sp,
+          cp: member.cp + meta.cp,
+        },
+      });
+    }
+  }
 }
 
 async function handleSend({

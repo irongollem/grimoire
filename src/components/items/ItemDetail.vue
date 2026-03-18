@@ -316,6 +316,8 @@
 </template>
 
 <script setup lang="ts">
+import { useConfirm } from "@/composables/useConfirm";
+const { confirm, notify } = useConfirm();
 import { ref, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { Save, Trash2, ScrollText, ImagePlus } from "lucide-vue-next";
@@ -476,13 +478,13 @@ async function save() {
 
 async function confirmDelete() {
   if (!props.item?.id) return;
-  if (!window.confirm(`Delete "${props.item.name}"? This cannot be undone.`)) return;
+  if (!await confirm(`Delete "${props.item.name}"? This cannot be undone.`)) return;
   isDeleting.value = true;
   try {
     await deleteItem(props.item.id);
     router.push("/vault");
   } catch {
-    alert("Failed to delete item. Please try again.");
+    notify("Failed to delete item. Please try again.");
   } finally {
     isDeleting.value = false;
   }

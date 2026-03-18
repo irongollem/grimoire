@@ -1,6 +1,6 @@
 import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Encounter, EncounterInsert, EncounterUpdate } from "@/types/encounter.types";
 import type { Ref } from "vue";
@@ -25,9 +25,7 @@ async function fetchEncounter(id: string): Promise<Encounter> {
 }
 
 async function createEncounter(encounter: EncounterInsert): Promise<Encounter> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const { data, error } = await supabase
     .from("encounters")
     .insert({ ...encounter, user_id: user!.id })

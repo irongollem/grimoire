@@ -1,5 +1,5 @@
 import { ref, computed, onUnmounted } from "vue";
-import { supabase } from "@/lib/supabase";
+import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type { EncounterState, RunCombatant } from "@/types/encounter.types";
 
@@ -70,9 +70,7 @@ export function useEncounterLive(encounterId: string) {
     combatants: RunCombatant[];
   }) {
     if (!campaign.activeCampaignId) return;
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     const payload = {
       encounter_id: encounterId,
       campaign_id: campaign.activeCampaignId,

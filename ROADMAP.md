@@ -57,6 +57,9 @@
 - [x] Player character sheet — interactive D&D Beyond-style sheet with ability/save/skill rolls → campaign chat
 - [x] Character sheet inventory (My Items / Party Stash split, equip toggle, attack/damage rolls)
 - [x] Loot drops in chat — items droppable as cards with Claim / To Stash actions (real-time sync)
+- [x] Currency drops in chat — DM drops PP/GP/EP/SP/CP from quest rewards; players claim to purse (real-time sync)
+- [x] Coin purse on party members — pp/gp/ep/sp/cp fields, incremented on currency claim
+- [x] Paper doll inventory view in player portal — equipped slots, belt, backpack, containers, stored, party stash
 
 ### Printing & Export
 
@@ -69,6 +72,12 @@
 - [x] **Phase 2**: Player portal (/play/\* routes), presence indicators (online dots), notes/quest visibility flags, party inventory (players read), campaign broadcast system, campaign chat + dice roll log (Supabase Realtime)
 - [x] **Phase 3**: encounter_state table, live encounter sync (DM "Go Live" button), PlayerEncounterView (initiative, HP, active combatant), live encounter indicators, state persists across navigation
 - [x] **Phase 4**: Interactive player character sheet (ability/save/skill rolls in campaign chat, HP ±buttons, death save pips, condition toggles), inventory management (My Items, Party Stash, equipped weapons), RLS for player-owned updates, broadcast notifications
+- [x] **Stability**: Replaced `getUser()` (navigator.locks + network) with `getSession()` across all mutations — eliminated multi-tab save failures and lock contention
+- [x] **Realtime fix**: Added `REPLICA IDENTITY FULL` to `campaign_messages` — silently-dropped Realtime events with RLS now deliver correctly
+- [x] **Themed dialogs**: Replaced all browser `confirm()`/`alert()` calls with a styled `ConfirmDialog` component (`useConfirm` singleton)
+- [x] **Theme system**: Campaign-level theme picker (Grimoire dark / Tome light) stored in DB, applied to all players on campaign switch. Canonical vars in `src/lib/themes.ts`
+- [x] **Quest improvements**: Currency reward fields (PP/GP/EP/SP/CP) on quests with drop-to-chat; per-ref player visibility toggle (Eye/EyeOff); removed broken Gregorian date inputs
+- [x] **Edit Campaign modal**: "Calendar" dropdown renamed to "Setting"; game world text field renamed "World"; theme picker added inline to Details tab
 
 ---
 
@@ -119,7 +128,7 @@
 ### Misc
 
 - [ ] **Monster import from external sources** — import tool to pull stat blocks from D&D Beyond or Open5e API directly into Bestiary
-- [ ] **Campaign settings page** — set active calendar, current year, campaign name, default location
+- [x] **Campaign settings page** — Edit Campaign modal + `/campaign/settings` (Members, Invite Links, World Settings tabs)
 - [ ] **Crafting system** — allow players to craft items using gear proficiencies, crafting tools
 
 ---

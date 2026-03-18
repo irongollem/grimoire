@@ -1,6 +1,6 @@
 import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type {
   CampaignMember,
@@ -80,9 +80,7 @@ async function fetchInvites(campaignId: string): Promise<CampaignInvite[]> {
 }
 
 async function createInvite(invite: CampaignInviteInsert): Promise<CampaignInvite> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const { data, error } = await supabase
     .from("campaign_invites")
     .insert({ ...invite, created_by: user!.id })

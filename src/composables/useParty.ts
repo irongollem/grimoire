@@ -1,6 +1,6 @@
 import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type { PartyMember, PartyMemberInsert, PartyMemberUpdate } from "@/types/party.types";
 
@@ -17,9 +17,7 @@ async function fetchParty(campaignId: string): Promise<PartyMember[]> {
 }
 
 async function createPartyMember(member: PartyMemberInsert): Promise<PartyMember> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const { data, error } = await supabase
     .from("party_members")
     .insert({ ...member, user_id: user!.id })

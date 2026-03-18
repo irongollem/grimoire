@@ -220,6 +220,8 @@
 </template>
 
 <script setup lang="ts">
+import { useConfirm } from "@/composables/useConfirm";
+const { confirm } = useConfirm();
 import { ref, computed, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
@@ -369,7 +371,7 @@ async function save() {
 
 async function remove() {
   if (!props.location) return;
-  if (!confirm(`Delete "${props.location.name}"? Sub-locations will also be deleted.`)) return;
+  if (!await confirm(`Delete "${props.location.name}"? Sub-locations will also be deleted.`)) return;
   const parentId = props.location.parent_id;
   await del(props.location.id);
   router.push(parentId ? `/locations/${parentId}` : "/locations");

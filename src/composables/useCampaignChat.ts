@@ -1,6 +1,6 @@
 import { computed, onUnmounted } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type { CampaignMessage as StoredMessage } from "@/types/chat.types";
 
@@ -87,9 +87,7 @@ export function useCampaignChat() {
       senderName: string;
       metadata?: Record<string, unknown> | null;
     }) => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       const { error } = await supabase.from("campaign_messages").insert({
         campaign_id: campaignId.value!,
         user_id: user!.id,

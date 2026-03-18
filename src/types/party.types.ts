@@ -78,6 +78,12 @@ export interface PartyMember {
   card_art_url: string | null;  // landscape art for MTG Card Forge
   notes: string | null;
   sort_order: number;
+  // Currency
+  cp: number;
+  sp: number;
+  ep: number;
+  gp: number;
+  pp: number;
   created_at: string;
   updated_at: string;
 }

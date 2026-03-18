@@ -20,8 +20,9 @@
       </button>
     </div>
 
-    <MembersTab v-if="activeTab === 'members'" @switch-tab="activeTab = $event as typeof activeTab" />
-    <InvitesTab v-else-if="activeTab === 'invites'" />
+    <MembersTab  v-if="activeTab === 'members'"  @switch-tab="activeTab = $event as typeof activeTab" />
+    <InvitesTab  v-else-if="activeTab === 'invites'" />
+    <WorldTab    v-else-if="activeTab === 'world'" />
   </div>
 </template>
 
@@ -30,10 +31,12 @@ import { ref } from "vue";
 import PageHeader from "@/components/common/PageHeader.vue";
 import MembersTab from "@/components/campaign/MembersTab.vue";
 import InvitesTab from "@/components/campaign/InvitesTab.vue";
+import WorldTab from "@/components/campaign/WorldTab.vue";
 
 const tabs = [
   { id: "members", label: "Members" },
   { id: "invites", label: "Invite Links" },
+  { id: "world",   label: "World Settings" },
 ] as const;
 
 const activeTab = ref<(typeof tabs)[number]["id"]>("members");

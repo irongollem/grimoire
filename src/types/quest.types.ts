@@ -27,6 +27,11 @@ export interface Quest {
   giver_npc_id: string | null;
   location_id: string | null;
   rewards: string | null;
+  reward_pp: number;
+  reward_gp: number;
+  reward_ep: number;
+  reward_sp: number;
+  reward_cp: number;
   tags: string[];
   notes: string | null; // Tiptap JSON
   is_player_visible: boolean;
@@ -65,9 +70,10 @@ export interface QuestRef {
   quest_id: string;
   ref_type: QuestRefType;
   ref_id: string;
+  is_player_visible: boolean;
 }
 
-export type QuestRefInsert = Omit<QuestRef, "id">;
+export type QuestRefInsert = Omit<QuestRef, "id" | "is_player_visible"> & { is_player_visible?: boolean };
 
 export interface QuestPlayerNote {
   id: string;

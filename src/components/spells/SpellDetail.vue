@@ -1060,6 +1060,8 @@
 </template>
 
 <script setup lang="ts">
+import { useConfirm } from "@/composables/useConfirm";
+const { confirm } = useConfirm();
 import { ref, computed, reactive, watch } from "vue";
 import { useRouter } from "vue-router";
 import { Save, Trash2, ScrollText, Lightbulb, ChevronDown, ImagePlus } from "lucide-vue-next";

@@ -357,6 +357,8 @@
 </template>
 
 <script setup lang="ts">
+import { useConfirm } from "@/composables/useConfirm";
+const { confirm } = useConfirm();
 import { ref, computed, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
@@ -554,7 +556,7 @@ const saveError = ref("");
 
 async function destroy() {
   if (!props.doc) return;
-  if (!confirm(`Delete "${props.doc.title}"? This cannot be undone.`)) return;
+  if (!await confirm(`Delete "${props.doc.title}"? This cannot be undone.`)) return;
   isDeleting.value = true;
   try {
     await deleteDoc(props.doc.id);

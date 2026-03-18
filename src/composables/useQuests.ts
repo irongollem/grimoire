@@ -1,7 +1,7 @@
 import { computed, isRef, ref } from "vue";
 import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type {
   Quest,
@@ -54,7 +54,7 @@ async function fetchQuest(id: string): Promise<Quest> {
 }
 
 async function createQuest(quest: QuestInsert): Promise<Quest> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const { data, error } = await supabase
     .from("quests")
     .insert({ ...quest, user_id: user!.id })
@@ -127,6 +127,12 @@ async function fetchRefs(questId: string): Promise<QuestRef[]> {
 
 async function createRef(ref: QuestRefInsert): Promise<QuestRef> {
   const { data, error } = await supabase.from("quest_refs").insert(ref).select().single();
+  if (error) throw error;
+  return data as QuestRef;
+}
+
+async function updateRef(id: string, update: { is_player_visible: boolean }): Promise<QuestRef> {
+  const { data, error } = await supabase.from("quest_refs").update(update).eq("id", id).select().single();
   if (error) throw error;
   return data as QuestRef;
 }
@@ -283,6 +289,16 @@ export function useCreateQuestRef() {
   });
 }
 
+export function useUpdateQuestRef() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, update }: { id: string; questId: string; update: { is_player_visible: boolean } }) =>
+      updateRef(id, update),
+    onSuccess: (_data, { questId }) =>
+      queryClient.invalidateQueries({ queryKey: [REFS_KEY, questId] }),
+  });
+}
+
 export function useDeleteQuestRef() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -318,7 +334,7 @@ async function fetchSharedQuestNotes(questId: string): Promise<QuestPlayerNote[]
 }
 
 async function upsertQuestPlayerNote(note: QuestPlayerNoteUpsert): Promise<QuestPlayerNote> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const { data, error } = await supabase
     .from("quest_player_notes")
     .upsert({ ...note, user_id: user!.id }, { onConflict: "quest_id,user_id" })

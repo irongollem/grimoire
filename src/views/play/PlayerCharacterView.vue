@@ -621,7 +621,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Star, ChevronRight, Sword, Zap } from "lucide-vue-next";
+import { Plus, Minus, Star, ChevronRight, Sword, Zap } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";

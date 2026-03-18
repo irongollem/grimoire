@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { computed } from "vue";
-import { supabase } from "@/lib/supabase";
+import { supabase, getCurrentUser } from "@/lib/supabase";
 import { SRD_MONSTERS, getSrdMonster } from "@/data/srdMonsters";
 import type { Monster, MonsterInsert, MonsterUpdate } from "@/types/monster.types";
 
@@ -33,9 +33,7 @@ async function fetchMonster(id: string): Promise<Monster> {
 }
 
 async function createMonster(monster: MonsterInsert): Promise<Monster> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const { data, error } = await supabase
     .from("monsters")
     .insert({ ...monster, user_id: user!.id })

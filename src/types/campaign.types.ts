@@ -6,6 +6,7 @@ export interface Campaign {
   setting: string;
   current_year: number;
   calendar_id: string; // references CalendarAdapter.id, defaults to 'faerun'
+  theme: string;       // references GrimoireTheme.id, defaults to 'grimoire'
   created_at: string;
   updated_at: string;
 }

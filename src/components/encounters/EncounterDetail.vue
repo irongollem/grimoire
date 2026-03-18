@@ -537,6 +537,8 @@
 </template>
 
 <script setup lang="ts">
+import { useConfirm } from "@/composables/useConfirm";
+const { confirm } = useConfirm();
 import { ref, computed, reactive, watch } from "vue";
 import { useRouter } from "vue-router";
 import { ChevronLeft, Plus, X, Search, Play, Minus, RotateCcw, Square } from "lucide-vue-next";
@@ -882,7 +884,7 @@ async function handleSave(): Promise<string | null> {
 
 async function handleRunEncounter() {
   if (otherIsLive.value && firstRunning.value) {
-    if (!confirm(`"${otherName.value}" is currently active. Stop it and run this one?`)) return;
+    if (!await confirm(`"${otherName.value}" is currently active. Stop it and run this one?`)) return;
     await supabase.from("encounter_state")
       .update({ is_running: false })
       .eq("encounter_id", firstRunning.value.encounter_id);
@@ -892,19 +894,19 @@ async function handleRunEncounter() {
 }
 
 async function handleStop() {
-  if (!confirm("Stop this encounter? Party stats will NOT be updated.")) return;
+  if (!await confirm("Stop this encounter? Party stats will NOT be updated.")) return;
   await endLive();
 }
 
 async function handleRestart() {
-  if (!confirm("Restart this encounter from scratch?")) return;
+  if (!await confirm("Restart this encounter from scratch?")) return;
   await endLive();
   router.push(`/encounters/${props.encounter!.id}/run`);
 }
 
 async function handleDelete() {
   if (!props.encounter) return;
-  if (!confirm(`Delete encounter "${props.encounter.name}"? This cannot be undone.`)) return;
+  if (!await confirm(`Delete encounter "${props.encounter.name}"? This cannot be undone.`)) return;
   await deleteEncounter.mutateAsync(props.encounter.id);
   router.push("/encounters");
 }

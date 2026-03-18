@@ -175,7 +175,7 @@
 
           <div>
             <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">
-              SETTING
+              WORLD
             </label>
             <input
               v-model="form.setting"
@@ -188,7 +188,7 @@
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">
-                CALENDAR
+                SETTING
               </label>
               <select
                 v-model="form.calendar_id"
@@ -210,6 +210,32 @@
                 min="1"
                 class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">
+              THEME
+            </label>
+            <div class="flex flex-col gap-1.5">
+              <button
+                v-for="theme in themes"
+                :key="theme.id"
+                type="button"
+                class="flex items-center gap-3 rounded-md border px-3 py-2 transition-colors text-left"
+                :class="form.theme === theme.id
+                  ? 'border-primary bg-primary/10'
+                  : 'border-border hover:border-border/80 hover:bg-muted/40'"
+                @click="form.theme = theme.id"
+              >
+                <div class="shrink-0 flex gap-1">
+                  <span class="block h-4 w-4 rounded-full border border-black/10" :style="{ background: theme.vars['--background'] }" />
+                  <span class="block h-4 w-4 rounded-full border border-black/10" :style="{ background: theme.vars['--primary'] }" />
+                  <span class="block h-4 w-4 rounded-full border border-black/10" :style="{ background: theme.vars['--card'] }" />
+                </div>
+                <span class="flex-1 font-cinzel text-xs font-semibold text-foreground tracking-wide">{{ theme.label }}</span>
+                <Check v-if="form.theme === theme.id" class="h-3.5 w-3.5 text-primary shrink-0" />
+              </button>
             </div>
           </div>
 
@@ -286,8 +312,9 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { BookOpen, ChevronDown, Download, Pencil, Plus, Trash2 } from "lucide-vue-next";
+import { BookOpen, ChevronDown, Check, Download, Pencil, Plus, Trash2 } from "lucide-vue-next";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
+import { useTheme } from "@/composables/useTheme";
 import { useAuthStore } from "@/stores/auth";
 import {
   useCampaigns,
@@ -312,6 +339,7 @@ const modalTabs: { id: ModalTab; label: string }[] = [
 
 const activeModalTab = ref<ModalTab>("details");
 
+const { themes, setTheme } = useTheme();
 const campaignStore = useCampaignStore();
 const { onlineUsers } = useCampaignPresence();
 const auth = useAuthStore();
@@ -346,6 +374,7 @@ const form = ref({
   setting: "",
   calendar_id: defaultCalendar?.id ?? "faerun",
   current_year: defaultCalendar?.defaultYear ?? 1495,
+  theme: "grimoire",
 });
 
 const showModal = ref(false);
@@ -377,6 +406,7 @@ function startCreate() {
     setting: "",
     calendar_id: defaultCalendar?.id ?? "faerun",
     current_year: defaultCalendar?.defaultYear ?? 1495,
+    theme: "grimoire",
   };
   showModal.value = true;
   open.value = false;
@@ -389,6 +419,7 @@ function startEdit(campaign: Campaign) {
     setting: campaign.setting,
     calendar_id: campaign.calendar_id,
     current_year: campaign.current_year,
+    theme: campaign.theme ?? "grimoire",
   };
   showModal.value = true;
   open.value = false;
@@ -416,11 +447,14 @@ async function submitForm() {
         setting: form.value.setting || "Custom Setting",
         calendar_id: form.value.calendar_id,
         current_year: form.value.current_year,
+        theme: form.value.theme,
       },
     });
-    // If editing the active campaign, re-sync store
+    // If editing the active campaign, re-sync store (also applies theme)
     if (campaignStore.activeCampaignId === updated.id) {
       campaignStore.switchToCampaign(updated);
+    } else {
+      setTheme(form.value.theme);
     }
   } else {
     const created = await createCampaign({
@@ -428,6 +462,7 @@ async function submitForm() {
       setting: form.value.setting || "Custom Setting",
       calendar_id: form.value.calendar_id,
       current_year: form.value.current_year,
+      theme: form.value.theme,
       description: null,
     });
     if (isFirstCampaign.value && claimExisting.value) {

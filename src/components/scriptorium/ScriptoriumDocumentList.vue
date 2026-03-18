@@ -146,6 +146,8 @@
 </template>
 
 <script setup lang="ts">
+import { useConfirm } from "@/composables/useConfirm";
+const { confirm } = useConfirm();
 import { ref, computed } from "vue";
 import { Search, Globe, Trash2 } from "lucide-vue-next";
 import { useScriptoriumDocuments, useDeleteScriptoriumDocument } from "@/composables/useScriptorium";
@@ -203,7 +205,7 @@ const { data: docs, isLoading } = useScriptoriumDocuments();
 const { mutateAsync: deleteDoc } = useDeleteScriptoriumDocument();
 
 async function confirmDelete(id: string, title: string) {
-  if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+  if (!await confirm(`Delete "${title}"? This cannot be undone.`)) return;
   await deleteDoc(id);
 }
 

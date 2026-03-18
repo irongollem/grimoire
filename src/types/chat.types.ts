@@ -1,4 +1,4 @@
-export type MessageType = "chat" | "roll" | "system" | "item_drop";
+export type MessageType = "chat" | "roll" | "system" | "item_drop" | "currency_drop";
 
 export interface RollMetadata {
   label: string;
@@ -19,6 +19,17 @@ export interface ItemDropMetadata {
   claimed_party_member_id: string | null; // null = party stash
 }
 
+export interface CurrencyDropMetadata {
+  pp: number;
+  gp: number;
+  ep: number;
+  sp: number;
+  cp: number;
+  claimed_by_user_id: string | null;
+  claimed_by_name: string | null;
+  claimed_party_member_id: string | null;
+}
+
 export interface CampaignMessage {
   id: string;
   campaign_id: string;
@@ -27,7 +38,7 @@ export interface CampaignMessage {
   sender_name: string | null;
   message: string;
   type: MessageType;
-  metadata: RollMetadata | ItemDropMetadata | null;
+  metadata: RollMetadata | ItemDropMetadata | CurrencyDropMetadata | null;
   created_at: string;
 }
 

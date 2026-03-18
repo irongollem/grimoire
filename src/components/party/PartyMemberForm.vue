@@ -469,6 +469,8 @@
 </template>
 
 <script setup lang="ts">
+import { useConfirm } from "@/composables/useConfirm";
+const { confirm } = useConfirm();
 import { ref, reactive, computed } from "vue";
 import { ImagePlus } from "lucide-vue-next";
 import {
@@ -585,6 +587,11 @@ const f = reactive<
   notes: props.member?.notes ?? "",
   sort_order: props.member?.sort_order ?? 0,
   curses: [...(props.member?.curses ?? [])],
+  pp: props.member?.pp ?? 0,
+  gp: props.member?.gp ?? 0,
+  ep: props.member?.ep ?? 0,
+  sp: props.member?.sp ?? 0,
+  cp: props.member?.cp ?? 0,
 });
 
 function mod(score: number) {
@@ -743,7 +750,7 @@ async function save() {
 
 async function remove() {
   if (!props.member) return;
-  if (!confirm(`Remove ${props.member.name} from the party?`)) return;
+  if (!await confirm(`Remove ${props.member.name} from the party?`)) return;
   await del(props.member.id);
   emit("close");
 }

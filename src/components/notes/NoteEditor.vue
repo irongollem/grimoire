@@ -162,6 +162,8 @@
 </template>
 
 <script setup lang="ts">
+import { useConfirm } from "@/composables/useConfirm";
+const { confirm } = useConfirm();
 import { ref, computed, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
@@ -276,7 +278,7 @@ async function save() {
 
 async function remove() {
   if (!props.note) return;
-  if (!confirm(`Delete "${props.note.title}"? This cannot be undone.`)) return;
+  if (!await confirm(`Delete "${props.note.title}"? This cannot be undone.`)) return;
   await del(props.note.id);
   router.push("/notes");
 }

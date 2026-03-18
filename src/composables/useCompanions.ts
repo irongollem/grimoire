@@ -1,6 +1,6 @@
 import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Companion, CompanionInsert, CompanionUpdate } from "@/types/companion.types";
 
@@ -17,7 +17,7 @@ async function fetchCompanions(campaignId: string): Promise<Companion[]> {
 }
 
 async function createCompanion(companion: CompanionInsert): Promise<Companion> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const { data, error } = await supabase
     .from("companions")
     .insert({ ...companion, user_id: user!.id })

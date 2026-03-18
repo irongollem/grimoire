@@ -1,6 +1,6 @@
 import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -59,7 +59,7 @@ async function fetchMyEntries(campaignId: string): Promise<PlayerJournalEntry[]>
 }
 
 async function fetchSharedEntries(campaignId: string): Promise<PlayerJournalEntry[]> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const { data, error } = await supabase
     .from("player_journal_entries")
     .select("*")
@@ -72,7 +72,7 @@ async function fetchSharedEntries(campaignId: string): Promise<PlayerJournalEntr
 }
 
 async function createEntry(entry: PlayerJournalEntryInsert): Promise<PlayerJournalEntry> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const { data, error } = await supabase
     .from("player_journal_entries")
     .insert({ ...entry, user_id: user!.id })

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Item, ItemInsert, ItemUpdate } from "@/types/item.types";
 
 const QUERY_KEY = "items";
@@ -29,9 +29,7 @@ async function fetchItem(id: string): Promise<Item | null> {
 }
 
 async function createItem(item: ItemInsert): Promise<Item> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const { data, error } = await supabase
     .from("items")
     .insert({ ...item, user_id: user!.id })
@@ -125,9 +123,7 @@ export function useImportSrdItems() {
 
       const toInsert = items.filter((i) => !existingNames.has(i.name));
       if (toInsert.length === 0) return 0;
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       const withUser = toInsert.map((i) => ({ ...i, user_id: user!.id }));
       // Batch insert in groups of 100 to avoid request size limits
       const BATCH = 100;

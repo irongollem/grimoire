@@ -41,14 +41,6 @@
           <MapPin class="h-3.5 w-3.5 shrink-0" />
           {{ primaryLocationName }}
         </span>
-        <span v-if="quest.started_at" class="flex items-center gap-1.5">
-          <Calendar class="h-3.5 w-3.5 shrink-0" />
-          Started {{ quest.started_at.slice(0, 10) }}
-        </span>
-        <span v-if="quest.resolved_at" class="flex items-center gap-1.5">
-          <CheckCircle class="h-3.5 w-3.5 shrink-0" />
-          Resolved {{ quest.resolved_at.slice(0, 10) }}
-        </span>
       </div>
 
       <!-- Summary -->
@@ -83,12 +75,18 @@
       </div>
 
       <!-- Rewards -->
-      <div v-if="quest.rewards || rewardItems.length" class="rounded-lg border border-border bg-card overflow-hidden">
-        <div class="px-3 py-2 border-b border-border bg-muted/20">
+      <div v-if="quest.rewards || rewardItems.length || hasCurrencyReward" class="rounded-lg border border-border bg-card overflow-hidden">
+        <div class="px-3 py-2 border-b border-border bg-muted/20 flex items-center justify-between">
           <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Rewards</span>
         </div>
         <div class="p-3 flex flex-col gap-2">
           <p v-if="quest.rewards" class="font-fell text-sm text-foreground">{{ quest.rewards }}</p>
+          <!-- Currency reward -->
+          <div v-if="hasCurrencyReward" class="flex flex-wrap items-center gap-3">
+            <span v-for="coin in visibleCoins" :key="coin.label" class="flex items-center gap-1 font-fell text-sm font-semibold" :style="{ color: coin.color }">
+              {{ coin.amount }} {{ coin.label }}
+            </span>
+          </div>
           <div
             v-for="ref in rewardItems"
             :key="ref.id"
@@ -215,10 +213,12 @@
 </template>
 
 <script setup lang="ts">
+import { useConfirm } from "@/composables/useConfirm";
+const { confirm } = useConfirm();
 import { computed, ref, watch } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import {
-  ChevronLeft, ScrollText, User, MapPin, Calendar, CheckCircle,
+  ChevronLeft, ScrollText, User, MapPin,
   Check, Package, Swords, Skull, Lock, Eye,
 } from "lucide-vue-next";
 import {
@@ -251,12 +251,26 @@ const { data: allEncounters } = useEncounters();
 const giverName           = computed(() => (npcs.value ?? []).find((n) => n.id === quest.value?.giver_npc_id)?.name ?? null);
 const primaryLocationName = computed(() => (locations.value ?? []).find((l) => l.id === quest.value?.location_id)?.name ?? null);
 
-// Refs grouped by type
-const rewardItems        = computed(() => (questRefs.value ?? []).filter((r) => r.ref_type === "item"));
-const linkedNpcRefs      = computed(() => (questRefs.value ?? []).filter((r) => r.ref_type === "npc"));
-const linkedLocationRefs = computed(() => (questRefs.value ?? []).filter((r) => r.ref_type === "location"));
-const linkedMonsterRefs  = computed(() => (questRefs.value ?? []).filter((r) => r.ref_type === "monster"));
-const linkedEncounterRefs = computed(() => (questRefs.value ?? []).filter((r) => r.ref_type === "encounter"));
+// Refs grouped by type — only show player-visible ones
+const visibleRefs        = computed(() => (questRefs.value ?? []).filter((r) => r.is_player_visible));
+const rewardItems        = computed(() => visibleRefs.value.filter((r) => r.ref_type === "item"));
+const linkedNpcRefs      = computed(() => visibleRefs.value.filter((r) => r.ref_type === "npc"));
+const linkedLocationRefs = computed(() => visibleRefs.value.filter((r) => r.ref_type === "location"));
+const linkedMonsterRefs  = computed(() => visibleRefs.value.filter((r) => r.ref_type === "monster"));
+const linkedEncounterRefs = computed(() => visibleRefs.value.filter((r) => r.ref_type === "encounter"));
+
+// Currency reward
+const hasCurrencyReward = computed(() =>
+  (quest.value?.reward_pp ?? 0) + (quest.value?.reward_gp ?? 0) + (quest.value?.reward_ep ?? 0) +
+  (quest.value?.reward_sp ?? 0) + (quest.value?.reward_cp ?? 0) > 0,
+);
+const visibleCoins = computed(() => [
+  { label: "PP", amount: quest.value?.reward_pp ?? 0, color: "#a855f7" },
+  { label: "GP", amount: quest.value?.reward_gp ?? 0, color: "#f59e0b" },
+  { label: "EP", amount: quest.value?.reward_ep ?? 0, color: "#60a5fa" },
+  { label: "SP", amount: quest.value?.reward_sp ?? 0, color: "#9ca3af" },
+  { label: "CP", amount: quest.value?.reward_cp ?? 0, color: "#b45309" },
+].filter((c) => c.amount > 0));
 
 const doneCount = computed(() => (objectives.value ?? []).filter((o) => o.is_done).length);
 
@@ -306,7 +320,7 @@ async function togglePrivacy() {
 
 async function clearNote() {
   if (!myNote.value) return;
-  if (!confirm("Delete your note for this quest?")) return;
+  if (!await confirm("Delete your note for this quest?")) return;
   await deleteNote({ id: myNote.value.id, questId: questId.value });
   noteContent.value = "";
   noteSaved.value   = true;

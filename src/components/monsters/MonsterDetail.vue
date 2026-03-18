@@ -131,7 +131,9 @@
           </button>
 
           <!-- Card Art (landscape, for MTG Card Forge) -->
-          <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mt-2">
+          <p
+            class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mt-2"
+          >
             CARD ART
           </p>
           <div
@@ -151,7 +153,9 @@
             >
               <ImagePlus class="h-8 w-8" />
               <span class="font-fell text-xs italic">{{
-                isUploadingCardArt ? "Uploading…" : "Upload card art (landscape)"
+                isUploadingCardArt
+                  ? "Uploading…"
+                  : "Upload card art (landscape)"
               }}</span>
             </div>
             <div
@@ -219,7 +223,10 @@
           <section class="grid grid-cols-2 lg:grid-cols-3 gap-3">
             <label class="block">
               <span class="field-label">Type</span>
-              <select v-model="form.monster_type" class="field-input w-full capitalize">
+              <select
+                v-model="form.monster_type"
+                class="field-input w-full capitalize"
+              >
                 <option
                   v-for="t in MONSTER_TYPES"
                   :key="t"
@@ -330,7 +337,11 @@
                 />
                 <span
                   class="font-cinzel text-xs font-bold"
-                  :class="mod(sb[stat.key]) >= 0 ? 'text-green-500' : 'text-destructive'"
+                  :class="
+                    mod(sb[stat.key]) >= 0
+                      ? 'text-green-500'
+                      : 'text-destructive'
+                  "
                 >
                   {{ mod(sb[stat.key]) >= 0 ? "+" : "" }}{{ mod(sb[stat.key]) }}
                 </span>
@@ -465,6 +476,8 @@
 </template>
 
 <script setup lang="ts">
+import { useConfirm } from "@/composables/useConfirm";
+const { confirm } = useConfirm();
 import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
 import { Save, Trash2, ScrollText, ImagePlus, Copy } from "lucide-vue-next";
@@ -720,7 +733,8 @@ async function save() {
 
 async function remove() {
   if (!props.monster) return;
-  if (!confirm(`Delete ${props.monster.name}? This cannot be undone.`)) return;
+  if (!(await confirm(`Delete ${props.monster.name}? This cannot be undone.`)))
+    return;
   await del(props.monster.id);
   router.push("/monsters");
 }

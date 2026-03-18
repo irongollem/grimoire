@@ -1,7 +1,7 @@
 import { computed } from "vue";
 import { type MaybeRef, unref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type {
   CalendarEvent,
@@ -43,9 +43,7 @@ async function fetchEventsByRange(
 }
 
 async function createCalendarEvent(event: CalendarEventInsert): Promise<CalendarEvent> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const { data, error } = await supabase
     .from("calendar_events")
     .insert({ ...event, user_id: user!.id })

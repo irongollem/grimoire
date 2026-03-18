@@ -722,6 +722,8 @@
 </template>
 
 <script setup lang="ts">
+import { useConfirm } from "@/composables/useConfirm";
+const { confirm } = useConfirm();
 import { ref, computed, reactive, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import { Plus, Dices, RotateCcw, Pencil, Sparkles, PawPrint, Backpack, Trash2, ExternalLink, ArrowUpFromLine } from "lucide-vue-next";
@@ -1054,7 +1056,7 @@ function openCompanionForm(companion: Companion | null, ownerMemberId?: string) 
 }
 
 async function deleteCompanion(companion: Companion) {
-  if (!confirm(`Remove "${companion.name || "this companion"}"?`)) return;
+  if (!await confirm(`Remove "${companion.name || "this companion"}"?`)) return;
   await deleteComp(companion.id);
 }
 
@@ -1129,6 +1131,10 @@ async function submitAddItem() {
     is_attuned: newItem.isAttuned,
     item_id: newItem.selectedItemId,
     is_equipped: false,
+    location: 'backpack',
+    slot: null,
+    is_container: false,
+    container_id: null,
   });
   if (campaign.activeCampaignId)
     void sendCampaignAnnouncement(campaign.activeCampaignId, `🎒 Item added to inventory: "${name}"`);

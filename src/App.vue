@@ -2,6 +2,7 @@
   <component :is="layout">
     <RouterView />
   </component>
+  <ConfirmDialog />
 </template>
 
 <script setup lang="ts">
@@ -10,6 +11,10 @@ import { useRoute } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AuthLayout from "@/layouts/AuthLayout.vue";
 import PlayerLayout from "@/layouts/PlayerLayout.vue";
+import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
+import { useTheme } from "@/composables/useTheme";
+
+useTheme().initTheme();
 
 const route = useRoute();
 

@@ -121,28 +121,38 @@
             <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Reward Notes</label>
             <input
               v-model="rewards"
-              placeholder="Gold, XP, reputation…"
+              placeholder="XP, reputation, favours…"
               class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
 
-          <div class="flex flex-col gap-1.5">
-            <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Started</label>
-            <input
-              v-model="startedAt"
-              type="date"
-              class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            />
+          <!-- Currency reward -->
+          <div class="flex flex-col gap-1.5 sm:col-span-2">
+            <div class="flex items-center justify-between">
+              <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Reward Currency</label>
+              <button
+                v-if="!isNew && (rewardPp || rewardGp || rewardEp || rewardSp || rewardCp)"
+                type="button"
+                class="inline-flex items-center gap-1 font-cinzel text-[10px] font-semibold text-amber-400 hover:opacity-80 transition-opacity tracking-wider"
+                @click="dropCurrencyToChat"
+              >
+                <Coins class="h-3 w-3" />
+                Drop to Chat
+              </button>
+            </div>
+            <div class="grid grid-cols-5 gap-2">
+              <div v-for="coin in COIN_TYPES" :key="coin.key" class="flex flex-col gap-0.5">
+                <label class="font-cinzel text-[9px] font-semibold tracking-wider text-center" :style="{ color: coin.color }">{{ coin.label }}</label>
+                <input
+                  v-model.number="coin.model.value"
+                  type="number"
+                  min="0"
+                  class="w-full text-center bg-card border border-border rounded px-1 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+            </div>
           </div>
 
-          <div class="flex flex-col gap-1.5">
-            <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Resolved</label>
-            <input
-              v-model="resolvedAt"
-              type="date"
-              class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-          </div>
         </div>
 
         <!-- Tags -->
@@ -295,6 +305,17 @@
               <button
                 v-if="!isNew"
                 type="button"
+                :title="ref.is_player_visible ? 'Visible to players' : 'Hidden from players'"
+                class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                :class="ref.is_player_visible ? 'text-elven-green' : 'text-muted-foreground/40'"
+                @click="toggleRefVisibility(ref)"
+              >
+                <Eye v-if="ref.is_player_visible" class="h-3.5 w-3.5" />
+                <EyeOff v-else class="h-3.5 w-3.5" />
+              </button>
+              <button
+                v-if="!isNew"
+                type="button"
                 class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
                 @click="removeRef(ref)"
               >
@@ -350,6 +371,17 @@
               >
                 {{ encounterName(ref.ref_id) }}
               </RouterLink>
+              <button
+                v-if="!isNew"
+                type="button"
+                :title="ref.is_player_visible ? 'Visible to players' : 'Hidden from players'"
+                class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                :class="ref.is_player_visible ? 'text-elven-green' : 'text-muted-foreground/40'"
+                @click="toggleRefVisibility(ref)"
+              >
+                <Eye v-if="ref.is_player_visible" class="h-3.5 w-3.5" />
+                <EyeOff v-else class="h-3.5 w-3.5" />
+              </button>
               <button
                 v-if="!isNew"
                 type="button"
@@ -411,6 +443,17 @@
               <button
                 v-if="!isNew"
                 type="button"
+                :title="ref.is_player_visible ? 'Visible to players' : 'Hidden from players'"
+                class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                :class="ref.is_player_visible ? 'text-elven-green' : 'text-muted-foreground/40'"
+                @click="toggleRefVisibility(ref)"
+              >
+                <Eye v-if="ref.is_player_visible" class="h-3.5 w-3.5" />
+                <EyeOff v-else class="h-3.5 w-3.5" />
+              </button>
+              <button
+                v-if="!isNew"
+                type="button"
                 class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
                 @click="removeRef(ref)"
               >
@@ -467,6 +510,17 @@
               <button
                 v-if="!isNew"
                 type="button"
+                :title="ref.is_player_visible ? 'Visible to players' : 'Hidden from players'"
+                class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                :class="ref.is_player_visible ? 'text-elven-green' : 'text-muted-foreground/40'"
+                @click="toggleRefVisibility(ref)"
+              >
+                <Eye v-if="ref.is_player_visible" class="h-3.5 w-3.5" />
+                <EyeOff v-else class="h-3.5 w-3.5" />
+              </button>
+              <button
+                v-if="!isNew"
+                type="button"
                 class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
                 @click="removeRef(ref)"
               >
@@ -520,6 +574,17 @@
               >
                 {{ monsterRefName(ref.ref_id) }}
               </RouterLink>
+              <button
+                v-if="!isNew"
+                type="button"
+                :title="ref.is_player_visible ? 'Visible to players' : 'Hidden from players'"
+                class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                :class="ref.is_player_visible ? 'text-elven-green' : 'text-muted-foreground/40'"
+                @click="toggleRefVisibility(ref)"
+              >
+                <Eye v-if="ref.is_player_visible" class="h-3.5 w-3.5" />
+                <EyeOff v-else class="h-3.5 w-3.5" />
+              </button>
               <button
                 v-if="!isNew"
                 type="button"
@@ -601,14 +666,16 @@
 </template>
 
 <script setup lang="ts">
+import { useConfirm } from "@/composables/useConfirm";
+const { confirm } = useConfirm();
 import { ref, computed, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import {
-  Save, Trash2, Plus, Eye, List, ListOrdered, Quote, Undo2, Redo2,
-  Check, X, ChevronRight, Package, Swords, BookOpen, User, MapPin, Skull,
+  Save, Trash2, Plus, Eye, EyeOff, List, ListOrdered, Quote, Undo2, Redo2,
+  Check, X, ChevronRight, Package, Swords, BookOpen, User, MapPin, Skull, Coins,
 } from "lucide-vue-next";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
 import {
@@ -622,9 +689,11 @@ import {
   useDeleteObjective,
   useQuestRefs,
   useCreateQuestRef,
+  useUpdateQuestRef,
   useDeleteQuestRef,
   useAllQuests,
 } from "@/composables/useQuests";
+import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useNpcs } from "@/composables/useNpcs";
 import { useAllLocations } from "@/composables/useLocations";
 import { useMonsters } from "@/composables/useMonsters";
@@ -744,8 +813,11 @@ const selectedEncounterId = ref("");
 const selectedNpcRefId    = ref("");
 const selectedLocationRefId = ref("");
 const selectedMonsterRefId  = ref("");
-const startedAt   = ref(props.quest?.started_at?.slice(0, 10) ?? "");
-const resolvedAt  = ref(props.quest?.resolved_at?.slice(0, 10) ?? "");
+const rewardPp = ref(props.quest?.reward_pp ?? 0);
+const rewardGp = ref(props.quest?.reward_gp ?? 0);
+const rewardEp = ref(props.quest?.reward_ep ?? 0);
+const rewardSp = ref(props.quest?.reward_sp ?? 0);
+const rewardCp = ref(props.quest?.reward_cp ?? 0);
 const sendingToScriptorium = ref(false);
 
 function addTag() {
@@ -793,11 +865,16 @@ function buildPayload() {
     location_id:     locationId.value || null,
     parent_quest_id: parentQuestId.value || null,
     rewards:         rewards.value.trim() || null,
+    reward_pp:       rewardPp.value,
+    reward_gp:       rewardGp.value,
+    reward_ep:       rewardEp.value,
+    reward_sp:       rewardSp.value,
+    reward_cp:       rewardCp.value,
     tags:            tags.value,
-    notes:              JSON.stringify(editor.value?.getJSON() ?? {}),
-    is_player_visible:  isPlayerVisible.value,
-    started_at:         startedAt.value || null,
-    resolved_at:        resolvedAt.value || null,
+    notes:           JSON.stringify(editor.value?.getJSON() ?? {}),
+    is_player_visible: isPlayerVisible.value,
+    started_at:      props.quest?.started_at ?? null,
+    resolved_at:     props.quest?.resolved_at ?? null,
   };
 }
 
@@ -826,7 +903,7 @@ async function save() {
 
 async function remove() {
   if (!props.quest) return;
-  if (!confirm(`Delete "${props.quest.title || "this quest"}"?`)) return;
+  if (!await confirm(`Delete "${props.quest.title || "this quest"}"?`)) return;
   await del(props.quest.id);
   router.push("/quests");
 }
@@ -875,8 +952,27 @@ async function removeObjective(obj: QuestObjective) {
 }
 
 // ── Quest refs ─────────────────────────────────────────────────────────────────
-const { mutateAsync: createRef } = useCreateQuestRef();
-const { mutateAsync: deleteRef } = useDeleteQuestRef();
+const { mutateAsync: createRef }        = useCreateQuestRef();
+const { mutateAsync: updateQuestRef }   = useUpdateQuestRef();
+const { mutateAsync: deleteRef }        = useDeleteQuestRef();
+const { sendCurrencyDrop }              = useCampaignMessages();
+
+async function toggleRefVisibility(ref: QuestRef) {
+  if (!props.quest) return;
+  await updateQuestRef({ id: ref.id, questId: props.quest.id, update: { is_player_visible: !ref.is_player_visible } });
+}
+
+async function dropCurrencyToChat() {
+  await sendCurrencyDrop(rewardPp.value, rewardGp.value, rewardEp.value, rewardSp.value, rewardCp.value);
+}
+
+const COIN_TYPES = [
+  { key: "pp", label: "PP", color: "#a855f7", model: rewardPp },
+  { key: "gp", label: "GP", color: "#f59e0b", model: rewardGp },
+  { key: "ep", label: "EP", color: "#60a5fa", model: rewardEp },
+  { key: "sp", label: "SP", color: "#9ca3af", model: rewardSp },
+  { key: "cp", label: "CP", color: "#b45309", model: rewardCp },
+];
 
 async function addItemRef() {
   if (!selectedItemId.value || !props.quest) return;

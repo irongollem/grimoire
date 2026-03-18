@@ -381,6 +381,8 @@
 </template>
 
 <script setup lang="ts">
+import { useConfirm } from "@/composables/useConfirm";
+const { confirm } = useConfirm();
 import { ref, computed, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { Radio } from "lucide-vue-next";
@@ -665,7 +667,7 @@ function combatantInitials(c: RunCombatant): string {
 }
 
 async function handleEndCombat() {
-  if (!confirm("End combat? Party HP, conditions, and curses will be updated.")) return;
+  if (!await confirm("End combat? Party HP, conditions, and curses will be updated.")) return;
   await endLive();
   // Sync player combatants back to party_members
   const playerCombatants = store.combatants.filter((c) => c.type === "player" && c.party_member_id);

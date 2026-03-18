@@ -82,6 +82,41 @@
             </div>
           </div>
 
+          <!-- Currency drop message -->
+          <div
+            v-else-if="msg.type === 'currency_drop'"
+            class="max-w-[90%] rounded-lg border overflow-hidden"
+            :class="(msg.metadata as CurrencyDropMetadata)?.claimed_by_user_id
+              ? 'border-border bg-muted/40'
+              : 'border-amber-500/30 bg-amber-500/5'"
+          >
+            <div class="px-3 py-2 border-b border-border/50 flex items-center gap-2">
+              <Coins class="h-3.5 w-3.5 text-amber-400 shrink-0" />
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
+                {{ msg.user_id === myUserId ? 'You' : msg.sender_name }} dropped currency
+              </span>
+            </div>
+            <div class="px-3 py-2.5">
+              <div class="flex flex-wrap gap-2 mb-1">
+                <span v-if="(msg.metadata as CurrencyDropMetadata)?.pp" class="font-fell text-sm font-semibold" style="color: #a855f7">{{ (msg.metadata as CurrencyDropMetadata).pp }} PP</span>
+                <span v-if="(msg.metadata as CurrencyDropMetadata)?.gp" class="font-fell text-sm font-semibold" style="color: #f59e0b">{{ (msg.metadata as CurrencyDropMetadata).gp }} GP</span>
+                <span v-if="(msg.metadata as CurrencyDropMetadata)?.ep" class="font-fell text-sm font-semibold" style="color: #60a5fa">{{ (msg.metadata as CurrencyDropMetadata).ep }} EP</span>
+                <span v-if="(msg.metadata as CurrencyDropMetadata)?.sp" class="font-fell text-sm font-semibold" style="color: #9ca3af">{{ (msg.metadata as CurrencyDropMetadata).sp }} SP</span>
+                <span v-if="(msg.metadata as CurrencyDropMetadata)?.cp" class="font-fell text-sm font-semibold" style="color: #b45309">{{ (msg.metadata as CurrencyDropMetadata).cp }} CP</span>
+              </div>
+              <div v-if="(msg.metadata as CurrencyDropMetadata)?.claimed_by_user_id" class="font-fell text-xs text-muted-foreground italic">
+                Added to purse by {{ (msg.metadata as CurrencyDropMetadata)?.claimed_by_name }}
+              </div>
+              <button
+                v-else-if="msg.user_id !== myUserId"
+                type="button"
+                class="mt-2 px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/40 font-cinzel text-[10px] text-amber-400 hover:bg-amber-500/30 transition-colors tracking-wider"
+                @click="$emit('claim-currency', { messageId: msg.id })"
+              >Add to Purse</button>
+              <p class="font-fell text-[10px] text-muted-foreground/50 mt-1.5">{{ timeLabel(msg.created_at) }}</p>
+            </div>
+          </div>
+
           <!-- Roll message -->
           <div
             v-else-if="msg.type === 'roll'"
@@ -268,10 +303,10 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, nextTick } from "vue";
-import { MessageCircle, X, Send, Dices, Trash2, Gift } from "lucide-vue-next";
+import { MessageCircle, X, Send, Dices, Trash2, Gift, Coins } from "lucide-vue-next";
 import { rollDice, ALL_DICE } from "@/lib/dice";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import type { CampaignMessage, ItemDropMetadata, RollMetadata } from "@/types/chat.types";
+import type { CampaignMessage, ItemDropMetadata, CurrencyDropMetadata, RollMetadata } from "@/types/chat.types";
 
 function asRoll(m: CampaignMessage["metadata"]): RollMetadata {
   return m as RollMetadata;
@@ -293,6 +328,7 @@ const emit = defineEmits<{
   sendRoll: [payload: { result: RollResult; recipientUserId: string | null }];
   delete: [id: string];
   claim: [payload: { messageId: string; intoStash: boolean }];
+  'claim-currency': [payload: { messageId: string }];
 }>();
 
 const auth = useAuthStore();

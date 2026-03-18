@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { ref, watch } from "vue";
 import type { Campaign } from "@/types/campaign.types";
+import { useTheme } from "@/composables/useTheme";
 
 const STORAGE_KEY = "grimoire_active_campaign";
 
@@ -17,8 +18,10 @@ export const useCampaignStore = defineStore("campaign", () => {
     activeCampaignId.value = campaign.id;
     activeCampaign.value = campaign;
 
+    // Apply the campaign's chosen theme for all users
+    useTheme().setTheme(campaign.theme ?? "grimoire");
+
     // Sync calendar system and current in-game year from campaign
-    // Lazy import to avoid circular dependency
     import("@/stores/calendar").then(({ useCalendarStore }) => {
       const calendarStore = useCalendarStore();
       calendarStore.loadFromCampaign(campaign.calendar_id, campaign.current_year);

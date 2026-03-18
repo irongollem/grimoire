@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Campaign, CampaignInsert, CampaignUpdate } from "@/types/campaign.types";
 
 // All campaign-scoped tables whose orphaned rows (campaign_id IS NULL) can be claimed
@@ -23,9 +23,7 @@ async function fetchCampaigns(): Promise<Campaign[]> {
 }
 
 async function createCampaign(campaign: CampaignInsert): Promise<Campaign> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const { data, error } = await supabase
     .from("campaigns")
     .insert({ ...campaign, user_id: user!.id })
@@ -53,9 +51,7 @@ async function deleteCampaign(id: string): Promise<void> {
 
 /** Assigns all orphaned rows (campaign_id IS NULL) owned by the current user to the given campaign. */
 async function claimOrphanedData(campaignId: string): Promise<void> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const userId = user!.id;
 
   await Promise.all(

@@ -76,7 +76,9 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Grimoire dark theme CSS variables (HSL values for runtime blending)
+   Default theme fallback — prevents flash on first load before JS applies the
+   active theme. Canonical values live in src/lib/themes.ts (the "grimoire" entry).
+   Do NOT edit colors here; edit themes.ts instead.
 ───────────────────────────────────────────────────────────────────────────── */
 :root {
   --background: hsl(222 47% 7%);

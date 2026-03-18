@@ -1,6 +1,6 @@
 import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Npc, NpcInsert, NpcUpdate } from "@/types/npc.types";
 
@@ -23,9 +23,7 @@ async function fetchNpc(id: string): Promise<Npc> {
 }
 
 async function createNpc(npc: NpcInsert): Promise<Npc> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const { data, error } = await supabase
     .from("npcs")
     .insert({ ...npc, user_id: user!.id })

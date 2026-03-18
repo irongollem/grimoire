@@ -319,6 +319,8 @@
 </template>
 
 <script setup lang="ts">
+import { useConfirm } from "@/composables/useConfirm";
+const { confirm } = useConfirm();
 import { ref, computed, nextTick } from "vue";
 import {
   Plus, Save, Loader2, Lock, Eye, ChevronDown, BookOpen,
@@ -516,7 +518,7 @@ async function togglePrivacy(entry: PlayerJournalEntry) {
 }
 
 async function removeEntry(id: string) {
-  if (!confirm("Delete this journal entry?")) return;
+  if (!await confirm("Delete this journal entry?")) return;
   if (expanded.value === id) expanded.value = null;
   await del(id);
 }
