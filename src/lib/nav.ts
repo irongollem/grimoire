@@ -13,6 +13,7 @@ import {
   Globe,
   ScrollText,
   CircleUser,
+  Hammer,
 } from "lucide-vue-next";
 import type { Component } from "vue";
 
@@ -87,6 +88,13 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/locations",
         icon: Globe,
         description: "Realms, cities & dungeons",
+        requiresCampaign: true,
+      },
+      {
+        label: "Crafting",
+        to: "/crafting",
+        icon: Hammer,
+        description: "Recipes & player crafting",
         requiresCampaign: true,
       },
     ],

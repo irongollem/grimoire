@@ -125,6 +125,7 @@ async function handleClaim({ messageId, intoStash }: { messageId: string; intoSt
     slot: null,
     is_container: false,
     container_id: null,
+    is_ruined: false,
     is_attuned: false,
     is_equipped: false,
     notes: null,

@@ -1,0 +1,313 @@
+<template>
+  <Teleport to="body">
+    <div
+      v-if="open"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+      @click.self="!result && $emit('close')"
+    >
+      <div class="bg-card border border-border rounded-lg w-full max-w-md shadow-xl">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div>
+            <h2 class="font-cinzel text-base font-bold text-foreground">{{ recipe.name }}</h2>
+            <p class="font-fell text-xs text-muted-foreground italic">
+              {{ discipline.label }} · DC {{ recipe.dc }} ·
+              <span class="capitalize">{{ discipline.ability }} check</span>
+              <span v-if="profBonus > 0"> + proficiency</span>
+            </p>
+          </div>
+          <button
+            v-if="!attempting"
+            class="text-muted-foreground hover:text-foreground text-xl leading-none"
+            @click="$emit('close')"
+          >✕</button>
+        </div>
+
+        <div class="px-5 py-4 flex flex-col gap-4">
+
+          <!-- Ingredient slots -->
+          <div>
+            <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">INGREDIENTS</p>
+            <div class="flex flex-col gap-1.5">
+              <div
+                v-for="(ing, idx) in ingredientSlots"
+                :key="idx"
+                class="flex items-center gap-2 rounded-md border px-3 py-2"
+                :class="ing.matched ? 'border-elven-green/40 bg-elven-green/5' : 'border-destructive/40 bg-destructive/5'"
+              >
+                <component :is="ing.matched ? CheckCircle : XCircle" class="h-4 w-4 shrink-0" :class="ing.matched ? 'text-elven-green' : 'text-destructive'" />
+                <div class="flex-1 min-w-0">
+                  <p class="font-cinzel text-xs font-semibold text-foreground truncate">{{ ing.itemName }}</p>
+                  <p class="font-fell text-[10px] text-muted-foreground">Need {{ ing.needed }}×<span v-if="ing.matched"> · Have {{ ing.available }}×</span></p>
+                </div>
+                <span v-if="idx === 0" class="font-cinzel text-[9px] text-primary tracking-wider shrink-0">PRIMARY</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Disadvantage notice -->
+          <div
+            v-if="!hasTools"
+            class="flex items-start gap-2 rounded-md border border-gold-500/40 bg-gold-500/10 px-3 py-2.5"
+          >
+            <AlertTriangle class="h-4 w-4 text-gold-400 shrink-0 mt-0.5" />
+            <p class="font-fell text-xs text-gold-400">
+              You don't have <span class="font-semibold">{{ discipline.tool }}</span> in your inventory.
+              This roll is made at <span class="font-semibold">disadvantage</span> (roll twice, take lower).
+            </p>
+          </div>
+
+          <!-- Conditional modifiers -->
+          <div v-if="modifiers.length > 0">
+            <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">AVAILABLE MODIFIERS</p>
+            <div class="flex flex-col gap-1.5">
+              <label
+                v-for="(mod, idx) in modifiers"
+                :key="idx"
+                class="flex items-center gap-2.5 rounded-md border border-border px-3 py-2 cursor-pointer hover:bg-muted/40 transition-colors"
+                :class="selectedModifiers.has(idx) ? 'border-primary/40 bg-primary/5' : ''"
+              >
+                <input
+                  type="checkbox"
+                  class="accent-primary"
+                  :checked="selectedModifiers.has(idx)"
+                  @change="toggleModifier(idx)"
+                />
+                <span class="flex-1 font-fell text-sm text-foreground">{{ mod.description }}</span>
+                <span class="font-cinzel text-xs text-primary font-semibold shrink-0">+{{ mod.bonus }}</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Roll result -->
+          <div v-if="result" class="rounded-lg border px-4 py-3 text-center"
+            :class="{
+              'border-elven-green/40 bg-elven-green/10': result.outcome === 'success',
+              'border-border bg-muted/30': result.outcome === 'fail',
+              'border-destructive/40 bg-destructive/10': result.outcome === 'ruin',
+            }"
+          >
+            <div class="flex items-center justify-center gap-3 mb-1">
+              <span class="font-cinzel text-4xl font-black" :class="{
+                'text-elven-green': result.outcome === 'success',
+                'text-muted-foreground': result.outcome === 'fail',
+                'text-destructive': result.outcome === 'ruin',
+              }">{{ result.total }}</span>
+              <div class="text-left">
+                <p class="font-fell text-xs text-muted-foreground">
+                  d20: {{ result.roll }}
+                  <span v-if="result.hasDisadvantage && result.roll2 !== undefined"> (rolled {{ Math.max(result.roll, result.roll2) }}, took {{ result.roll }})</span>
+                </p>
+                <p class="font-fell text-xs text-muted-foreground">vs DC {{ recipe.dc }}</p>
+              </div>
+            </div>
+            <p class="font-cinzel text-sm font-bold tracking-wide"
+              :class="{
+                'text-elven-green': result.outcome === 'success',
+                'text-muted-foreground': result.outcome === 'fail',
+                'text-destructive': result.outcome === 'ruin',
+              }"
+            >
+              {{ outcomeLabel }}
+            </p>
+            <p class="font-fell text-xs text-muted-foreground italic mt-1">{{ outcomeDetail }}</p>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 px-5 py-4 border-t border-border">
+          <button
+            v-if="!result"
+            class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
+            @click="$emit('close')"
+          >
+            Cancel
+          </button>
+          <button
+            v-if="!result"
+            :disabled="!canAttempt || attempting"
+            class="inline-flex items-center gap-1.5 px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+            @click="attempt"
+          >
+            <Dices class="h-3.5 w-3.5" />
+            {{ attempting ? "Rolling…" : "Attempt Craft" }}
+          </button>
+          <button
+            v-if="result"
+            class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
+            @click="$emit('done', result)"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from "vue";
+import { AlertTriangle, CheckCircle, Dices, XCircle } from "lucide-vue-next";
+import { getDiscipline } from "@/lib/crafting-disciplines";
+import { useAttemptCraft } from "@/composables/useCrafting";
+import { useCampaignMessages } from "@/composables/useCampaignMessages";
+
+import type { CraftingRecipe, CraftingModifier, CraftingAttemptResult } from "@/types/crafting.types";
+import type { PartyInventoryItem } from "@/types/inventory.types";
+import type { Item } from "@/types/item.types";
+import type { PartyMember } from "@/types/party.types";
+
+const props = defineProps<{
+  open: boolean;
+  recipe: CraftingRecipe;
+  /** Required ingredients from the recipe definition */
+  requiredIngredients: { item_id: string; quantity: number }[];
+  modifiers: CraftingModifier[];
+  /** Player's full inventory (carried items) */
+  inventory: PartyInventoryItem[];
+  /** All items from vault (for name lookup) */
+  allItems: Item[];
+  member: PartyMember;
+  /** Whether the player has the required tool in their inventory */
+  hasTools: boolean;
+}>();
+
+defineEmits<{
+  close: [];
+  done: [result: CraftingAttemptResult];
+}>();
+
+const { mutateAsync: attemptCraft } = useAttemptCraft();
+const { sendMessage } = useCampaignMessages();
+
+const result = ref<CraftingAttemptResult | null>(null);
+const attempting = ref(false);
+const selectedModifiers = ref<Set<number>>(new Set());
+
+const discipline = computed(() => getDiscipline(props.recipe.discipline));
+
+// Ability modifier from character sheet
+const abilityMod = computed(() => {
+  const score = props.member[discipline.value.ability];
+  return Math.floor((score - 10) / 2);
+});
+
+const profBonus = computed(() => props.member.proficiency_bonus);
+
+// Match each required ingredient to inventory items
+const ingredientSlots = computed(() =>
+  props.requiredIngredients.map((req) => {
+    const itemName = props.allItems.find((i) => i.id === req.item_id)?.name ?? "Unknown item";
+    const available = props.inventory
+      .filter((inv) => inv.item_id === req.item_id && !inv.is_ruined)
+      .reduce((sum, inv) => sum + inv.quantity, 0);
+    return {
+      item_id: req.item_id,
+      itemName,
+      needed: req.quantity,
+      available,
+      matched: available >= req.quantity,
+    };
+  }),
+);
+
+const canAttempt = computed(() =>
+  ingredientSlots.value.every((s) => s.matched) && !attempting.value,
+);
+
+function toggleModifier(idx: number) {
+  if (selectedModifiers.value.has(idx)) {
+    selectedModifiers.value.delete(idx);
+  } else {
+    selectedModifiers.value.add(idx);
+  }
+  selectedModifiers.value = new Set(selectedModifiers.value);
+}
+
+const modifierBonuses = computed(() =>
+  [...selectedModifiers.value].map((idx) => props.modifiers[idx].bonus),
+);
+
+// Resolve which inventory item IDs to consume
+function resolveInventoryIds(): { ids: string[]; primaryId: string; primaryItem: PartyInventoryItem } {
+  const ids: string[] = [];
+  let primaryId = "";
+  let primaryItem: PartyInventoryItem | null = null;
+
+  for (const req of props.requiredIngredients) {
+    let remaining = req.quantity;
+    const matchingItems = props.inventory
+      .filter((inv) => inv.item_id === req.item_id && !inv.is_ruined)
+      .sort((a, b) => b.quantity - a.quantity);
+
+    for (const inv of matchingItems) {
+      if (remaining <= 0) break;
+      ids.push(inv.id);
+      if (!primaryId) {
+        primaryId = inv.id;
+        primaryItem = inv;
+      }
+      remaining -= inv.quantity;
+    }
+  }
+
+  return { ids, primaryId, primaryItem: primaryItem! };
+}
+
+const outcomeLabel = computed(() => {
+  if (!result.value) return "";
+  if (result.value.outcome === "success") return "Success!";
+  if (result.value.outcome === "ruin") return "Critical Failure — Item Ruined";
+  return "Failure";
+});
+
+const outcomeDetail = computed(() => {
+  if (!result.value) return "";
+  const outputName = props.allItems.find((i) => i.id === props.recipe.output_item_id)?.name ?? "item";
+  if (result.value.outcome === "success") return `${outputName} has been crafted and added to your backpack.`;
+  if (result.value.outcome === "ruin") return "The primary ingredient was ruined and returned to your inventory. Other ingredients were consumed.";
+  return "The attempt failed. All ingredients were consumed.";
+});
+
+async function attempt() {
+  if (!canAttempt.value) return;
+  attempting.value = true;
+
+  const { ids, primaryId, primaryItem } = resolveInventoryIds();
+  const primaryItemDef = props.allItems.find((i) => i.id === primaryItem?.item_id);
+
+  try {
+    const res = await attemptCraft({
+      recipe: props.recipe,
+      ingredientInventoryIds: ids,
+      primaryIngredientInventoryId: primaryId,
+      primaryInventoryItem: {
+        item_id: primaryItem.item_id ?? "",
+        name: primaryItem.name || primaryItemDef?.name || "Item",
+        carried_by: primaryItem.carried_by,
+        campaign_id: primaryItem.campaign_id,
+      },
+      modifierBonuses: modifierBonuses.value,
+      abilityMod: abilityMod.value,
+      profBonus: profBonus.value,
+      hasTools: props.hasTools,
+      partyMemberId: props.member.id,
+    });
+
+    result.value = res;
+
+    // Post to chat
+    const outputName = props.allItems.find((i) => i.id === props.recipe.output_item_id)?.name ?? "item";
+    const modSum = modifierBonuses.value.reduce((a, b) => a + b, 0);
+    let msg = `🔨 **${props.member.name}** attempted to craft **${props.recipe.name}** (DC ${props.recipe.dc})`;
+    msg += `\nRoll: ${res.roll}${res.hasDisadvantage && res.roll2 !== undefined ? ` (disadvantage: also rolled ${Math.max(res.roll, res.roll2)})` : ""} + ${abilityMod.value} (${discipline.value.ability.toUpperCase()}) + ${profBonus.value} (prof)`;
+    if (modSum > 0) msg += ` + ${modSum} (modifiers)`;
+    msg += ` = **${res.total}** vs DC ${props.recipe.dc}`;
+    if (res.outcome === "success") msg += `\n✅ **Success!** ${outputName} crafted.`;
+    else if (res.outcome === "ruin") msg += `\n💀 **Critical failure!** Primary ingredient ruined.`;
+    else msg += `\n❌ **Failed.** Ingredients consumed.`;
+
+    sendMessage(msg);
+  } finally {
+    attempting.value = false;
+  }
+}
+</script>

@@ -13,3 +13,38 @@
 - [x] I can only link 1 encounter (and probably same for the other links) to a quest — already supported via quest_refs table (multiple per type)
 - [x] money as quest reward is now only a string — added PP/GP/EP/SP/CP currency fields with Drop to Chat + Add to Purse claim flow
 - [x] Saving data often fails silently, and chat pushes land in a different window than the one that triggered them — root cause: `navigator.locks` contention across multiple open tabs. Every mutation called `supabase.auth.getUser()` which acquires the lock and makes a network round-trip; when another tab held the lock (e.g. during token refresh) this blocked for up to 5s, causing saves to appear to do nothing. Fixed by replacing all `getUser()` calls with `getSession()` (reads cached token from localStorage, no lock, no network). Also fixed: `campaign_messages` lacked `REPLICA IDENTITY FULL`, so Supabase Realtime couldn't evaluate RLS on WAL events and silently dropped them; added realtime reconnect + visibilitychange re-fetch as belt-and-suspenders.
+- [ ] Players cant claim unclaimed party members themselves
+- [ ] Players cant build characters themselves
+- [ ] players can rename themselves (so i see email or id)
+- [ ] players that claimed a character still show their name instead of the char name when chatting etc.
+- [ ] the math aint mathing, str 14 gives +3 not +2, dex 17 gives +5 not +3, etc
+- [ ] whispers not arriving, only after refresh
+- [ ] claiming of items not always working
+- [ ] all chat only appearing after refresh at players
+- [ ] live encounters arent live, they only update the players on a refresh
+- [ ] refreshing a live encounter resets it
+- [ ] The remote database's migration history does not match local files in supabase/migrations directory, MCP migrations arent stored locally it seems
+- [ ] in encounters the custom name on a monster gets reset/removed as soon as you click somewhere else
+- [ ] (css)themes dont propagate to the players as intended
+- [ ] quest kanban board doesnt allow dragging cards around
+- [ ] DM should be able to delete ALL messages in the chat, not just their own
+- [ ] a DM should be able to delete all messages in the chat at once
+- [ ] public notes on a quest or so done by party members to share with each other are not seen by me
+- [ ] currency drops in chat dont have a claim button so they cant be claimed like items
+- [ ] when adding an npc to an encounter, it defaults to ally even though ally/neutral/enemy is a field set on the NPC prior
+- [ ] saving an NPC sometimes does nothing, nothing on the network tab, no error, just hangs
+- [ ] NPC locations are string fields, even though we have actual locations, by linking that proper we can also view all NPC's associated with a location when viewing that location, and also filter NPC's by location in the NPC list
+- [ ] when saving succeeds on an NPC, sometimes it goes back to list, but sometimes it doesnt.
+- [ ] adding creatures to the quest only shows custom creatures, none of the SRD ones, but perhaps we shouldnt even see these here as they are part of encounters most of the time
+- [ ] saving in general often seems to hang before even going to a network call. after a refresh it always works, no errors are logged
+- [ ] when an encounter is part of a quest, that quest isn't shown on the encounter
+- [ ] when an encounter is finished, it should be marked as such so we can filter against it
+- [ ] deleting an encounter doesn't make you go back to the list
+- [ ] link encounters and locations so that adding an encounter, also ads the location to the quest and also looking at either shows the other.
+- [ ] Monster alignment is a stringfield so should be a dropdown with an enum
+- [ ] by default quest things should be hidden until shown instead of shown unless hidden
+- [ ] adding items to quests work, but adding them to encounters is probably better
+- [ ] creating a new monster keeps the create window open. Clicking the create button twice or more, creates two or more entities with the same data
+- [ ] A player cant delete an SRD monster from their campaign or hide them, making them a nuisance in the encounter builder where they have the exact same name as the custom monsters, so perhaps keep the data for the "from template", but otherwise remove them on a customize
+- in the whisper I only see "player" so I have no idea who's who
+- in the settings to assign a character to a player I only see ids so I have no idea which character or player is which

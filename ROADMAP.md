@@ -87,6 +87,15 @@
 
 - [ ] **Quest triggers** — `quest_triggers` table: quest_id, trigger_type (quest_complete / objective_done), offset_days, action_type (create_calendar_event / send_broadcast), action_payload JSONB. Example: "5 days after this quest completes, create a calendar event"
 
+### NPCs & Monsters
+
+- [ ] **Share NPC's** - a DM can mark an NPC as "shared" making its available as an entity, but every field (name, art, description etc.) is only shared when that specific field is shared. So for example when they are tracking someone unknown we share the entity so they can leave notes on it, but until they see him no art, until they hear more, no description etc.
+
+### Encounters
+
+- [ ] in an encounter track you see too much of the allies and enemies in regards to health. For allies perhaps maintain the bar, but not the exact HP numbers, and for enemies just show 4(5) stages: full health (100-90%), injured (89-50%), bloodied (49-15%), critical (14-1%), dead (0%)
+- [ ] monsters start hidden in the encounter until revealed by the DM, then they show up in the initiative tracker as seen by the players, perhaps also split this in "revealed", "hidden" and 'unseen', so that when they hear and know theres one but not what, they see a tracker but no art or monster name
+
 ### Items & Magic Items
 
 - [ ] Scriptorium formatter for items (stat block style: name, type line, rarity, attunement, description)

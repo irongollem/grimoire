@@ -71,6 +71,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Party Inventory" },
     },
     {
+      path: "/play/crafting",
+      name: "play-crafting",
+      component: () => import("@/views/play/PlayerCraftingView.vue"),
+      meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Crafting" },
+    },
+    {
       path: "/play/encounter",
       name: "player-encounter",
       component: () => import("@/views/play/PlayerEncounterView.vue"),
@@ -274,6 +280,26 @@ const router = createRouter({
       name: "quest-detail",
       component: () => import("@/views/quests/QuestDetailView.vue"),
       meta: { requiresAuth: true, title: "Quest" },
+    },
+
+    // Crafting
+    {
+      path: "/crafting",
+      name: "crafting",
+      component: () => import("@/views/crafting/CraftingView.vue"),
+      meta: { requiresAuth: true, title: "Crafting" },
+    },
+    {
+      path: "/crafting/new",
+      name: "crafting-new",
+      component: () => import("@/views/crafting/CraftingRecipeView.vue"),
+      meta: { requiresAuth: true, title: "New Recipe" },
+    },
+    {
+      path: "/crafting/:id",
+      name: "crafting-detail",
+      component: () => import("@/views/crafting/CraftingRecipeView.vue"),
+      meta: { requiresAuth: true, title: "Recipe" },
     },
 
     // Atlas (Locations)

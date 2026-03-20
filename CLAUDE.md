@@ -28,3 +28,9 @@ create policy "<table>_delete" on <table> for delete using (auth.uid() = user_id
 ```
 
 Migration files live in `supabase/migrations/` with timestamp prefix `YYYYMMDDNNNNNN_name.sql`.
+
+## Roadmap & Bug Tracking
+
+- Roadmap is in `ROADMAP.md` — use checkboxes to track progress on features, organized by phase
+- Bugs are tracked in `BUGS.md` — add new bugs as they arise, check off when resolved
+- After completing a feature make sure the roadmap is updated and any relevant bugs are marked as resolved

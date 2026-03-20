@@ -464,7 +464,7 @@ async function addContainer() {
     carried_by: resolvedMemberId.value ?? null,
     location: 'backpack', slot: null,
     is_container: true, container_id: null,
-    is_attuned: false, is_equipped: false, notes: null,
+    is_attuned: false, is_equipped: false, notes: null, is_ruined: false,
   });
 }
 
@@ -474,7 +474,7 @@ async function addToLocation(location: PartyInventoryItem['location'], container
     carried_by: resolvedMemberId.value ?? null,
     location, slot: null,
     is_container: false, container_id: containerId,
-    is_attuned: false, is_equipped: false, notes: null,
+    is_attuned: false, is_equipped: false, notes: null, is_ruined: false,
   });
 }
 
@@ -504,7 +504,7 @@ async function addItem() {
     carried_by: resolvedMemberId.value ?? null,
     location: 'backpack', slot: null,
     is_container: false, container_id: null,
-    is_attuned: false, is_equipped: false, notes: null,
+    is_attuned: false, is_equipped: false, notes: null, is_ruined: false,
   });
   newItemName.value = ""; newItemSelectedId.value = ""; newItemQty.value = 1; showDropdown.value = false;
 }

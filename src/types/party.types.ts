@@ -84,6 +84,9 @@ export interface PartyMember {
   ep: number;
   gp: number;
   pp: number;
+  // Proficiencies & languages
+  tool_proficiencies: string[];
+  languages: string[];
   created_at: string;
   updated_at: string;
 }

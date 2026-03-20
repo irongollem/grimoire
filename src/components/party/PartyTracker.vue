@@ -1135,6 +1135,7 @@ async function submitAddItem() {
     slot: null,
     is_container: false,
     container_id: null,
+    is_ruined: false,
   });
   if (campaign.activeCampaignId)
     void sendCampaignAnnouncement(campaign.activeCampaignId, `🎒 Item added to inventory: "${name}"`);
