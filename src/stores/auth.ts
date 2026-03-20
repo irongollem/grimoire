@@ -28,6 +28,19 @@ export const useAuthStore = defineStore("auth", () => {
       .limit(1)
       .maybeSingle();
     membership.value = data ?? null;
+
+    // Backfill display_name with the user's email on first login so the DM
+    // sees a recognisable name instead of "(unnamed player)" or a raw UUID.
+    if (data && !data.display_name) {
+      const email = user.value?.email ?? session.value?.user?.email;
+      if (email) {
+        await supabase
+          .from("campaign_members")
+          .update({ display_name: email })
+          .eq("id", data.id);
+        membership.value = { ...data, display_name: email };
+      }
+    }
   }
 
   let initPromise: Promise<void> | null = null;

@@ -92,7 +92,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRouter } from "vue-router";
-import { LogOut, Shield, ScrollText, BookOpen, Package, User, Megaphone, X, Swords, PenLine, Eye } from "lucide-vue-next";
+import { LogOut, Shield, ScrollText, BookOpen, Package, User, Megaphone, X, Swords, PenLine, Eye, Settings } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
@@ -129,6 +129,7 @@ const navItems = [
   { to: "/play/journal",    label: "Journal",   icon: PenLine },
   { to: "/play/notes",      label: "DM Notes",  icon: BookOpen },
   { to: "/play/encounter",  label: "Encounter", icon: Swords },
+  { to: "/play/settings",   label: "Settings",  icon: Settings },
 ];
 
 function exitPreview() {
