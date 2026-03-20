@@ -90,12 +90,13 @@ function ensureWatcher() {
     { immediate: true },
   );
 
-  // When the tab becomes visible again, re-fetch to catch any messages
-  // that arrived while the WS was idle in the background.
+  // When the tab becomes visible again, re-subscribe and re-fetch to recover
+  // from any WebSocket that silently dropped while the tab was in the background.
   if (typeof document !== "undefined") {
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible" && subscribedCampaignId) {
-        fetchMessages(subscribedCampaignId);
+        const cid = subscribedCampaignId;
+        fetchMessages(cid).then(() => { if (subscribedCampaignId === cid) subscribe(cid); });
       }
     });
   }

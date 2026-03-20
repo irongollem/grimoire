@@ -176,10 +176,19 @@ export function usePlayerEncounterLive(campaignId: string) {
       .subscribe();
   }
 
+  // On tab focus: re-fetch to catch any state changes missed while the
+  // WebSocket was idle. The global supabase.realtime.connect() handler
+  // (in supabase.ts) will have already reconnected the channel itself.
+  function onVisibility() {
+    if (document.visibilityState === "visible") void fetchRunning();
+  }
+
   fetchRunning();
   subscribe();
+  document.addEventListener("visibilitychange", onVisibility);
 
   onUnmounted(() => {
+    document.removeEventListener("visibilitychange", onVisibility);
     if (playerChannel) {
       supabase.removeChannel(playerChannel);
       playerChannel = null;
