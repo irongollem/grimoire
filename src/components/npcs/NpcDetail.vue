@@ -377,6 +377,7 @@ const PLAYER_FIELDS = [
   { key: 'race',         label: 'Race' },
   { key: 'occupation',   label: 'Occupation' },
   { key: 'relationship', label: 'Relationship (ally/enemy…)' },
+  { key: 'location',     label: 'Location' },
 ]
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -418,7 +419,6 @@ const form = reactive<NpcInsert>({
   alignment: props.npc?.alignment ?? null,
   age: props.npc?.age ?? null,
   occupation: props.npc?.occupation ?? null,
-  location: props.npc?.location ?? null,
   location_id: props.npc?.location_id ?? null,
   affiliation: props.npc?.affiliation ?? null,
   appearance: props.npc?.appearance ?? null,
@@ -594,7 +594,6 @@ async function save() {
     alignment: form.alignment || null,
     age: form.age || null,
     occupation: form.occupation || null,
-    location: form.location || null,
     location_id: form.location_id || null,
     affiliation: form.affiliation || null,
     appearance: form.appearance || null,

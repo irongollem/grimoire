@@ -33,7 +33,6 @@ export interface Npc {
   alignment: string | null;
   age: string | null;
   occupation: string | null;
-  location: string | null;
   location_id: string | null;
   affiliation: string | null;
   appearance: string | null;

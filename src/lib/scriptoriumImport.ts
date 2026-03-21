@@ -90,7 +90,7 @@ const npcFormatter: AssetFormatter<Npc> = {
       npc.alignment && `<strong>Alignment</strong> ${npc.alignment}`,
       npc.age && `<strong>Age</strong> ${npc.age}`,
       npc.occupation && `<strong>Occupation</strong> ${npc.occupation}`,
-      npc.location && `<strong>Location</strong> ${npc.location}`,
+      npc.location_id && `<strong>Location</strong> ${npc.location_id}`,
       npc.affiliation && `<strong>Affiliation</strong> ${npc.affiliation}`,
     ].filter(Boolean) as string[];
 

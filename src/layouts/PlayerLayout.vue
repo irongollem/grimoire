@@ -80,7 +80,7 @@
     <!-- Content + chat side panel -->
     <div class="flex-1 min-h-0 flex overflow-hidden">
       <main class="flex-1 overflow-y-auto">
-        <div class="max-w-4xl mx-auto px-4 py-6">
+        <div class="px-4 py-6">
           <RouterView />
         </div>
       </main>
@@ -92,7 +92,7 @@
 <script setup lang="ts">
 import { computed, watch } from "vue";
 import { useRouter } from "vue-router";
-import { LogOut, Shield, ScrollText, BookOpen, Package, User, Users, Megaphone, X, Swords, PenLine, Eye, Settings } from "lucide-vue-next";
+import { LogOut, Shield, ScrollText, BookOpen, Package, User, Megaphone, X, Swords, PenLine, Eye, Settings } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
@@ -138,12 +138,11 @@ const characterName = computed(() => {
 
 const navItems = [
   { to: "/play",            label: "Character", icon: User },
-  { to: "/play/party",      label: "Party",     icon: Shield },
+  { to: "/play/party",      label: "People",    icon: Shield },
   { to: "/play/inventory",  label: "Inventory", icon: Package },
   { to: "/play/quests",     label: "Quests",    icon: ScrollText },
   { to: "/play/journal",    label: "Journal",   icon: PenLine },
   { to: "/play/notes",      label: "DM Notes",  icon: BookOpen },
-  { to: "/play/npcs",       label: "People",    icon: Users },
   { to: "/play/encounter",  label: "Encounter", icon: Swords },
   { to: "/play/settings",   label: "Settings",  icon: Settings },
 ];

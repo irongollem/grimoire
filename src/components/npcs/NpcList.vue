@@ -146,8 +146,8 @@
             {{ npc.occupation }}
           </p>
 
-          <p v-if="npc.location_id || npc.location" class="font-fell text-xs text-muted-foreground truncate">
-            📍 {{ npc.location_id ? locationName(npc.location_id) : npc.location }}
+          <p v-if="npc.location_id" class="font-fell text-xs text-muted-foreground truncate">
+            📍 {{ locationName(npc.location_id) }}
           </p>
 
           <div v-if="npc.tags.length" class="flex flex-wrap gap-1 mt-auto pt-1">
