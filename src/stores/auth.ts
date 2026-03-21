@@ -29,16 +29,19 @@ export const useAuthStore = defineStore("auth", () => {
       .maybeSingle();
     membership.value = data ?? null;
 
-    // Backfill display_name with the user's email on first login so the DM
-    // sees a recognisable name instead of "(unnamed player)" or a raw UUID.
+    // Backfill display_name on first login: prefer the username stored in
+    // auth metadata (set at signup), fall back to email only as a last resort.
     if (data && !data.display_name) {
-      const email = user.value?.email ?? session.value?.user?.email;
-      if (email) {
+      const u = user.value ?? session.value?.user;
+      const fallback =
+        (u?.user_metadata?.display_name as string | undefined)?.trim() ||
+        u?.email;
+      if (fallback) {
         await supabase
           .from("campaign_members")
-          .update({ display_name: email })
+          .update({ display_name: fallback })
           .eq("id", data.id);
-        membership.value = { ...data, display_name: email };
+        membership.value = { ...data, display_name: fallback };
       }
     }
   }
@@ -79,6 +82,7 @@ export const useAuthStore = defineStore("auth", () => {
       } catch (err) {
         // Clear initPromise so callers can retry (e.g. after an AbortError from
         // navigator.locks contention during HMR or multi-tab lock stealing).
+        console.error("[auth] initialize() failed, will retry on next navigation:", err);
         initPromise = null;
         throw err;
       }
@@ -97,10 +101,14 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  async function signUp(email: string, password: string) {
+  async function signUp(email: string, password: string, displayName?: string) {
     loading.value = true;
     try {
-      const { error } = await supabase.auth.signUp({ email, password });
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: displayName ? { data: { display_name: displayName } } : undefined,
+      });
       if (error) throw error;
     } finally {
       loading.value = false;

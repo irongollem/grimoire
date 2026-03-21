@@ -37,6 +37,25 @@ const queryClient = new QueryClient({
   },
 });
 
+// Log all query/mutation errors to the console so failures are never silent.
+// AbortErrors from auth lock recovery are excluded (expected, handled via retry).
+queryClient.getQueryCache().subscribe((event) => {
+  if (event.type === "updated" && event.action.type === "error") {
+    const err = event.action.error;
+    if (!isAbortError(err)) {
+      console.error(`[query] ${String(event.query.queryKey)} failed:`, err);
+    }
+  }
+});
+queryClient.getMutationCache().subscribe((event) => {
+  if (event.type === "updated" && event.mutation?.state.status === "error") {
+    const err = event.mutation.state.error;
+    if (err && !isAbortError(err)) {
+      console.error("[mutation] failed:", err);
+    }
+  }
+});
+
 const app = createApp(App);
 
 app.use(createPinia());

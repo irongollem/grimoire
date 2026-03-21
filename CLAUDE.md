@@ -29,6 +29,27 @@ create policy "<table>_delete" on <table> for delete using (auth.uid() = user_id
 
 Migration files live in `supabase/migrations/` with timestamp prefix `YYYYMMDDNNNNNN_name.sql`.
 
+**CRITICAL — migration workflow (prevents timestamp mismatch):**
+
+NEVER use `mcp__supabase__apply_migration` for schema changes. It auto-generates its own timestamp that will never match the local file's timestamp, causing `supabase db push` to diverge every time.
+
+Always follow this exact workflow:
+
+1. Write the SQL to `supabase/migrations/YYYYMMDDNNNNNN_name.sql` using the Write tool
+2. Apply it to the remote DB via Bash: `supabase db push`
+
+This ensures a single timestamp (the filename) is used for both local tracking and remote history.
+
+## Post-Mutation Navigation
+
+After any create, save, or delete operation, always navigate back to the list view — this confirms the action succeeded.
+
+- **Create** → `router.push('/resource-list')`
+- **Save (edit)** → `router.push('/resource-list')`
+- **Delete** → `router.push('/resource-list')`
+
+Never stay on the detail/editor page or navigate to the newly created resource's detail page. The list view is the success feedback. In the case of nested resources (e.g. locations), navigate to the parent resource's detail page instead unless its the top of the hierarchy.
+
 ## Roadmap & Bug Tracking
 
 - Roadmap is in `ROADMAP.md` — use checkboxes to track progress on features, organized by phase

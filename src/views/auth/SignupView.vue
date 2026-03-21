@@ -36,6 +36,19 @@
 
       <form class="space-y-4" @submit.prevent="handleSubmit">
         <div class="space-y-1.5">
+          <label class="font-fell text-sm text-foreground" for="display-name">Username</label>
+          <input
+            id="display-name"
+            v-model="displayName"
+            type="text"
+            autocomplete="username"
+            required
+            class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            placeholder="Shadowmere"
+          />
+        </div>
+
+        <div class="space-y-1.5">
           <label class="font-fell text-sm text-foreground" for="email">Email</label>
           <input
             id="email"
@@ -98,6 +111,7 @@ const route = useRoute();
 const token = route.query.token as string | undefined;
 const tokenState = ref<TokenState>(token ? "validating" : "missing");
 
+const displayName = ref("");
 const email = ref("");
 const password = ref("");
 const errorMessage = ref("");
@@ -127,7 +141,7 @@ async function handleSubmit() {
   errorMessage.value = "";
   successMessage.value = "";
   try {
-    await auth.signUp(email.value, password.value);
+    await auth.signUp(email.value, password.value, displayName.value.trim() || undefined);
     // Consume the invite token after successful signup
     await supabase.rpc("consume_app_invite", { p_token: token });
     successMessage.value = "Check your email to confirm your account, then sign in.";

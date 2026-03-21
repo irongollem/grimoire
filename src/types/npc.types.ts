@@ -48,6 +48,9 @@ export interface Npc {
   tags: string[];
   stat_block: StatBlock | null;
   scriptorium_doc_id: string | null; // links to a ScriptoriumDocument (e.g. stat block sheet)
+  shared_with_players: boolean;
+  player_visible_fields: string[];  // subset of: portrait | name | status | race | occupation | relationship
+  party_notes: string | null;
   created_at: string;
   updated_at: string;
 }

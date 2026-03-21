@@ -83,6 +83,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Live Encounter" },
     },
     {
+      path: "/play/npcs",
+      name: "play-npcs",
+      component: () => import("@/views/play/PlayerNpcsView.vue"),
+      meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "People" },
+    },
+    {
       path: "/play/settings",
       name: "play-settings",
       component: () => import("@/views/play/PlayerSettingsView.vue"),

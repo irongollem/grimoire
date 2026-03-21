@@ -86,6 +86,43 @@
           </div>
         </div>
 
+        <!-- Player sharing -->
+        <div class="border border-border rounded-lg p-3 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">SHARE WITH PLAYERS</p>
+            <button
+              type="button"
+              class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
+              :class="form.shared_with_players ? 'bg-primary' : 'bg-muted border border-border'"
+              @click="form.shared_with_players = !form.shared_with_players"
+            >
+              <span
+                class="inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform"
+                :class="form.shared_with_players ? 'translate-x-4' : 'translate-x-0.5'"
+              />
+            </button>
+          </div>
+
+          <template v-if="form.shared_with_players">
+            <p class="font-fell text-[11px] text-muted-foreground italic">Reveal fields to players:</p>
+            <div class="space-y-1">
+              <label
+                v-for="f in PLAYER_FIELDS"
+                :key="f.key"
+                class="flex items-center gap-2 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  class="rounded border-border accent-primary"
+                  :checked="form.player_visible_fields.includes(f.key)"
+                  @change="toggleVisibleField(f.key)"
+                />
+                <span class="font-fell text-xs text-foreground">{{ f.label }}</span>
+              </label>
+            </div>
+          </template>
+        </div>
+
         <!-- Tags -->
         <div>
           <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">TAGS</p>
@@ -180,8 +217,12 @@
               <textarea v-model="form.secret" rows="2" placeholder="Hidden motivations, true identity, dark secret…" class="field-input resize-none" />
             </div>
             <div>
-              <label class="field-label">Notes</label>
+              <label class="field-label">DM Notes</label>
               <textarea v-model="form.notes" rows="2" placeholder="Session notes, loose threads…" class="field-input resize-none" />
+            </div>
+            <div v-if="form.shared_with_players">
+              <label class="field-label">Party Notes <span class="font-fell font-normal normal-case text-muted-foreground">(visible to all players)</span></label>
+              <textarea v-model="form.party_notes" rows="2" placeholder="What the party knows about this NPC…" class="field-input resize-none" />
             </div>
           </div>
         </section>
@@ -329,6 +370,14 @@ const ABILITIES = [
   { key: 'con', label: 'CON' }, { key: 'int', label: 'INT' },
   { key: 'wis', label: 'WIS' }, { key: 'cha', label: 'CHA' },
 ]
+const PLAYER_FIELDS = [
+  { key: 'portrait',     label: 'Portrait' },
+  { key: 'name',         label: 'Name' },
+  { key: 'status',       label: 'Alive / Dead status' },
+  { key: 'race',         label: 'Race' },
+  { key: 'occupation',   label: 'Occupation' },
+  { key: 'relationship', label: 'Relationship (ally/enemy…)' },
+]
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -385,7 +434,16 @@ const form = reactive<NpcInsert>({
   scriptorium_doc_id: props.npc?.scriptorium_doc_id ?? null,
   campaign_id: campaign.activeCampaignId,
   card_art_url: props.npc?.card_art_url ?? null,
+  shared_with_players: props.npc?.shared_with_players ?? false,
+  player_visible_fields: [...(props.npc?.player_visible_fields ?? [])],
+  party_notes: props.npc?.party_notes ?? null,
 })
+
+function toggleVisibleField(key: string) {
+  const idx = form.player_visible_fields.indexOf(key)
+  if (idx === -1) form.player_visible_fields.push(key)
+  else form.player_visible_fields.splice(idx, 1)
+}
 
 // ── Stat block ────────────────────────────────────────────────────────────────
 
@@ -549,11 +607,10 @@ async function save() {
   try {
     if (props.npc?.id) {
       await updateNpc({ id: props.npc.id, update: payload })
-      router.push('/npcs')
     } else {
-      const created = await createNpc(payload)
-      router.replace(`/npcs/${created.id}`)
+      await createNpc(payload)
     }
+    router.push('/npcs')
   } catch {
     notify('Failed to save NPC. Please try again.')
   }

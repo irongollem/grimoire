@@ -25,6 +25,19 @@
       </div>
 
       <form class="space-y-4" @submit.prevent="handleAuth">
+        <div v-if="activeTab === 'signup'" class="space-y-1.5">
+          <label class="font-fell text-sm text-foreground" for="join-display-name">Username</label>
+          <input
+            id="join-display-name"
+            v-model="displayName"
+            type="text"
+            autocomplete="username"
+            required
+            class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            placeholder="Shadowmere"
+          />
+        </div>
+
         <div class="space-y-1.5">
           <label class="font-fell text-sm text-foreground" for="join-email">Email</label>
           <input
@@ -106,6 +119,7 @@ const router = useRouter();
 
 const token = route.params.token as string;
 const activeTab = ref<"signup" | "login">("signup");
+const displayName = ref("");
 const email = ref("");
 const password = ref("");
 const errorMessage = ref("");
@@ -134,7 +148,7 @@ async function handleAuth() {
   authMessage.value = "";
   try {
     if (activeTab.value === "signup") {
-      await auth.signUp(email.value, password.value);
+      await auth.signUp(email.value, password.value, displayName.value.trim() || undefined);
       authMessage.value = "Check your email to confirm, then sign in to join.";
     } else {
       await auth.signIn(email.value, password.value);

@@ -29,9 +29,7 @@ const id = computed(() => (isNew.value ? "" : (route.params.id as string)));
 
 const { data: recipe } = useCraftingRecipe(id.value);
 
-function onSaved(savedId: string) {
-  if (isNew.value) {
-    router.replace(`/crafting/${savedId}`);
-  }
+function onSaved(_savedId: string) {
+  router.push("/crafting");
 }
 </script>

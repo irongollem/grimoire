@@ -110,3 +110,71 @@ export function useDeleteNpc() {
     },
   });
 }
+
+// ── Player portal: shared NPCs ────────────────────────────────────────────────
+
+export function useSharedNpcs() {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, "shared", campaignId.value]),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("npcs")
+        .select("*")
+        .eq("campaign_id", campaignId.value!)
+        .eq("shared_with_players", true)
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return data as Npc[];
+    },
+    enabled: () => !!campaignId.value,
+  });
+}
+
+// ── Player personal notes on an NPC ──────────────────────────────────────────
+
+const NOTES_KEY = "npc_player_notes";
+
+export function useNpcPlayerNotes(npcId: string) {
+  return useQuery({
+    queryKey: [NOTES_KEY, npcId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("npc_player_notes")
+        .select("notes")
+        .eq("npc_id", npcId)
+        .maybeSingle();
+      return data?.notes ?? "";
+    },
+    enabled: !!npcId,
+  });
+}
+
+export function useUpsertNpcPlayerNotes(npcId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (notes: string) => {
+      const user = await getCurrentUser();
+      const { error } = await supabase
+        .from("npc_player_notes")
+        .upsert({ npc_id: npcId, user_id: user!.id, notes }, { onConflict: "npc_id,user_id" });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [NOTES_KEY, npcId] }),
+  });
+}
+
+export function useUpdateNpcPartyNotes() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ npcId, notes }: { npcId: string; notes: string }) => {
+      const { error } = await supabase.rpc("update_npc_party_notes", { p_npc_id: npcId, p_notes: notes });
+      if (error) throw error;
+    },
+    onSuccess: (_data, { npcId }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, "shared"] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, npcId] });
+    },
+  });
+}
