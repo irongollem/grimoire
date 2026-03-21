@@ -162,6 +162,10 @@
               </span>
             </div>
             <div class="px-3 py-2.5">
+              <p
+                v-if="(msg.metadata as CurrencyDropMetadata)?.label"
+                class="font-cinzel text-xs font-semibold text-foreground mb-1"
+              >{{ (msg.metadata as CurrencyDropMetadata).label }}</p>
               <div class="flex flex-wrap gap-2 mb-1">
                 <span
                   v-if="(msg.metadata as CurrencyDropMetadata)?.pp"

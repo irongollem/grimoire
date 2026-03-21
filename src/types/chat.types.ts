@@ -20,6 +20,7 @@ export interface ItemDropMetadata {
 }
 
 export interface CurrencyDropMetadata {
+  label: string | null;
   pp: number;
   gp: number;
   ep: number;

@@ -113,6 +113,16 @@ watch(
   },
 );
 
+function resolveClaimerName(): string {
+  if (auth.linkedPartyMemberId) {
+    const character = (party.value ?? []).find(p => p.id === auth.linkedPartyMemberId);
+    if (character?.name) return character.name;
+  }
+  const dn = auth.membership?.display_name ?? auth.userEmail;
+  if (dn) return dn.includes('@') ? dn.split('@')[0] : dn;
+  return 'Someone';
+}
+
 async function handleClaim({ messageId, intoStash }: { messageId: string; intoStash: boolean }) {
   const msg = messages.value.find(m => m.id === messageId);
   if (!msg || msg.type !== 'item_drop') return;
@@ -120,7 +130,7 @@ async function handleClaim({ messageId, intoStash }: { messageId: string; intoSt
   if (meta.claimed_by_user_id) return;
 
   const partyMemberId = intoStash ? null : (auth.linkedPartyMemberId ?? null);
-  const claimerName = auth.membership?.display_name ?? auth.userEmail ?? 'Someone';
+  const claimerName = resolveClaimerName();
 
   try {
     await claimItemDrop(messageId, claimerName, partyMemberId);
@@ -150,7 +160,7 @@ async function handleClaimCurrency({ messageId }: { messageId: string }) {
   if (meta.claimed_by_user_id) return;
 
   const partyMemberId = auth.linkedPartyMemberId ?? null;
-  const claimerName = auth.membership?.display_name ?? auth.userEmail ?? 'Someone';
+  const claimerName = resolveClaimerName();
 
   await claimCurrencyDrop(messageId, claimerName, partyMemberId);
 

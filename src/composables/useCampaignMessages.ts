@@ -23,6 +23,9 @@ const MAX_RECONNECT = 5;
 
 async function fetchMessages(campaignId: string) {
   loading.value = true;
+  // Safety net: if navigator.locks contention (e.g. iOS resume + auth refresh)
+  // causes getSession() to hang, clear the spinner after 8s instead of forever.
+  const bail = setTimeout(() => { loading.value = false; }, 8_000);
   try {
     const { data, error } = await supabase
       .from("campaign_messages")
@@ -34,6 +37,7 @@ async function fetchMessages(campaignId: string) {
   } catch {
     // AbortError (auth lock steal) or network error — just leave current messages
   } finally {
+    clearTimeout(bail);
     loading.value = false;
   }
 }
@@ -50,8 +54,12 @@ function subscribe(campaignId: string) {
       (payload) => {
         const auth = useAuthStore();
         const msg = payload.new as CampaignMessage;
-        // Skip messages already optimistically added
-        if (messages.value.find(m => m.id === msg.id)) return;
+        // Replace optimistic entry with the confirmed DB version (which has full JSONB)
+        const existingIdx = messages.value.findIndex(m => m.id === msg.id);
+        if (existingIdx >= 0) {
+          messages.value[existingIdx] = msg;
+          return;
+        }
         if (
           msg.recipient_user_id === null ||
           msg.user_id === auth.user?.id ||
@@ -123,11 +131,13 @@ function ensureWatcher() {
   if (typeof document !== "undefined") {
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible" && subscribedCampaignId) {
+        // Delay long enough for Supabase's internal auth token refresh to
+        // complete and release its navigator.locks lock before we call
+        // supabase.from() ourselves. 800ms was too tight on iOS after a long
+        // app suspension — 2s gives the auth round-trip time to settle.
         setTimeout(() => {
           if (!subscribedCampaignId) return;
           if (reconnectAttempts >= MAX_RECONNECT) {
-            // Channel is dead — reset counter and resubscribe from scratch.
-            console.info("[chat] woke up after giving up, resubscribing…");
             reconnectAttempts = 0;
             fetchMessages(subscribedCampaignId).then(() => {
               if (subscribedCampaignId) subscribe(subscribedCampaignId);
@@ -135,7 +145,7 @@ function ensureWatcher() {
           } else {
             fetchMessages(subscribedCampaignId);
           }
-        }, 800);
+        }, 2_000);
       }
     });
   }
@@ -210,7 +220,7 @@ export function useCampaignMessages() {
     if (data) _optimisticPush(data as CampaignMessage);
   }
 
-  async function sendCurrencyDrop(pp: number, gp: number, ep: number, sp: number, cp: number) {
+  async function sendCurrencyDrop(pp: number, gp: number, ep: number, sp: number, cp: number, label?: string) {
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id) return;
     const parts: string[] = [];
@@ -221,6 +231,7 @@ export function useCampaignMessages() {
     if (cp) parts.push(`${cp} CP`);
     if (!parts.length) return;
     const metadata: CurrencyDropMetadata = {
+      label: label || null,
       pp, gp, ep, sp, cp,
       claimed_by_user_id: null, claimed_by_name: null, claimed_party_member_id: null,
     };
@@ -229,7 +240,7 @@ export function useCampaignMessages() {
       user_id: auth.user.id,
       recipient_user_id: null,
       sender_name: getSenderName(),
-      message: `dropped currency: ${parts.join(", ")}`,
+      message: label ? `dropped ${label}: ${parts.join(", ")}` : `dropped currency: ${parts.join(", ")}`,
       type: "currency_drop",
       metadata,
     };

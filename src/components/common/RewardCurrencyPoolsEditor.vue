@@ -108,6 +108,6 @@ function updatePool(id: string, key: string, value: string | number) {
 }
 
 async function drop(pool: RewardCurrencyPool) {
-  await sendCurrencyDrop(pool.pp, pool.gp, pool.ep, pool.sp, pool.cp);
+  await sendCurrencyDrop(pool.pp, pool.gp, pool.ep, pool.sp, pool.cp, pool.label || undefined);
 }
 </script>
