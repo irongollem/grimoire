@@ -11,6 +11,17 @@
           class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
+      <button
+        type="button"
+        class="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md border font-cinzel text-xs tracking-wider transition-colors"
+        :class="hideFinished
+          ? 'border-primary/40 bg-primary/10 text-primary'
+          : 'border-border text-muted-foreground hover:text-foreground'"
+        @click="hideFinished = !hideFinished"
+      >
+        <CheckCheck class="h-3.5 w-3.5" />
+        {{ hideFinished ? 'Active only' : 'All' }}
+      </button>
     </div>
 
     <div v-if="isLoading" class="flex justify-center py-16">
@@ -59,7 +70,14 @@
               {{ encounter.name }}
             </h3>
             <span
-              v-if="isEncounterRunning(encounter.id)"
+              v-if="encounter.is_finished"
+              class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider text-muted-foreground bg-muted/60 border border-border"
+            >
+              <CheckCheck class="h-3 w-3" />
+              Done
+            </span>
+            <span
+              v-else-if="isEncounterRunning(encounter.id)"
               class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider text-green-400 bg-green-500/15 border border-green-500/30"
             >
               <span class="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
@@ -102,7 +120,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Search, Skull, Users } from "lucide-vue-next";
+import { Search, Skull, Users, CheckCheck } from "lucide-vue-next";
 import { useEncounters } from "@/composables/useEncounters";
 import { useRunningEncounters } from "@/composables/useEncounterLive";
 import { DIFFICULTY_COLORS, calculateDifficulty, crToXp } from "@/types/encounter.types";
@@ -112,6 +130,7 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 
 const search = ref("");
+const hideFinished = ref(true);
 
 const { data: encounters, isLoading } = useEncounters();
 const { data: monsters } = useAllMonsters();
@@ -119,6 +138,7 @@ const { isEncounterRunning } = useRunningEncounters();
 
 const filtered = computed(() => {
   let list = encounters.value ?? [];
+  if (hideFinished.value) list = list.filter((e) => !e.is_finished);
   if (search.value.trim()) {
     const q = search.value.toLowerCase();
     list = list.filter((e) => e.name.toLowerCase().includes(q));

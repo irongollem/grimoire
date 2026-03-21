@@ -12,9 +12,28 @@
 
       <div class="ml-auto flex items-center gap-2">
         <!-- In-progress badge -->
-        <span v-if="thisIsLive" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-green-500/15 border border-green-500/30 font-cinzel text-xs font-semibold text-green-500 tracking-wider animate-pulse">
+        <span
+          v-if="thisIsLive"
+          class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-green-500/15 border border-green-500/30 font-cinzel text-xs font-semibold text-green-500 tracking-wider animate-pulse"
+        >
           ● In Progress
         </span>
+
+        <!-- Mark finished / reopen -->
+        <button
+          v-if="props.encounter"
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 font-cinzel text-xs font-semibold transition-colors"
+          :class="
+            props.encounter.is_finished
+              ? 'border-border text-muted-foreground hover:text-foreground'
+              : 'border-primary/40 text-primary hover:bg-primary/10'
+          "
+          @click="toggleFinished"
+        >
+          <CheckCheck class="h-3.5 w-3.5" />
+          {{ props.encounter.is_finished ? "Reopen" : "Mark Done" }}
+        </button>
 
         <button
           v-if="props.encounter"
@@ -83,11 +102,19 @@
       <!-- Left column (col-span-2) -->
       <div class="xl:col-span-2 flex flex-col gap-6">
         <!-- Name + Description -->
-        <div class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4">
-          <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase">Details</h2>
+        <div
+          class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4"
+        >
+          <h2
+            class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase"
+          >
+            Details
+          </h2>
           <div class="flex flex-col gap-3">
             <div>
-              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">
+              <label
+                class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1"
+              >
                 ENCOUNTER NAME
               </label>
               <input
@@ -98,7 +125,9 @@
               />
             </div>
             <div>
-              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">
+              <label
+                class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1"
+              >
                 DESCRIPTION
               </label>
               <textarea
@@ -108,18 +137,41 @@
                 class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
               />
             </div>
+            <div>
+              <label
+                class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1"
+              >
+                LOCATION
+              </label>
+              <select
+                v-model="form.location_id"
+                class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option :value="null">— none —</option>
+                <option v-for="loc in allLocations ?? []" :key="loc.id" :value="loc.id">
+                  {{ loc.name }}
+                </option>
+              </select>
+            </div>
           </div>
         </div>
 
         <!-- Party Members -->
-        <div class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4">
-          <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase">
+        <div
+          class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4"
+        >
+          <h2
+            class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase"
+          >
             Party Members
           </h2>
           <div v-if="partyLoading" class="flex justify-center py-4">
             <LoadingSpinner />
           </div>
-          <p v-else-if="!party?.length" class="font-fell text-sm text-muted-foreground italic">
+          <p
+            v-else-if="!party?.length"
+            class="font-fell text-sm text-muted-foreground italic"
+          >
             No party members found. Add heroes in the Party Tracker first.
           </p>
           <div v-else class="flex flex-col gap-2">
@@ -127,7 +179,11 @@
               v-for="member in party"
               :key="member.id"
               class="flex items-center gap-3 rounded-md border border-border p-3 cursor-pointer hover:border-primary/40 transition-colors"
-              :class="form.party_member_ids.includes(member.id) ? 'border-primary/50 bg-primary/5' : ''"
+              :class="
+                form.party_member_ids.includes(member.id)
+                  ? 'border-primary/50 bg-primary/5'
+                  : ''
+              "
             >
               <input
                 type="checkbox"
@@ -136,12 +192,27 @@
                 @change="togglePartyMember(member.id)"
               />
               <div class="flex-1 min-w-0">
-                <span class="font-cinzel text-sm font-semibold text-foreground">{{ member.name }}</span>
-                <span class="ml-2 font-fell text-xs text-muted-foreground italic">
-                  {{ [member.race, member.class, member.level ? `Lv${member.level}` : ''].filter(Boolean).join(' · ') }}
+                <span
+                  class="font-cinzel text-sm font-semibold text-foreground"
+                  >{{ member.name }}</span
+                >
+                <span
+                  class="ml-2 font-fell text-xs text-muted-foreground italic"
+                >
+                  {{
+                    [
+                      member.race,
+                      member.class,
+                      member.level ? `Lv${member.level}` : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")
+                  }}
                 </span>
               </div>
-              <span class="font-cinzel text-[10px] text-muted-foreground shrink-0">
+              <span
+                class="font-cinzel text-[10px] text-muted-foreground shrink-0"
+              >
                 Lv {{ member.level }}
               </span>
             </label>
@@ -150,14 +221,21 @@
             <template v-if="companions?.length">
               <div class="mt-1 mb-0.5 flex items-center gap-2">
                 <div class="h-px flex-1 bg-border" />
-                <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase shrink-0">Companions</span>
+                <span
+                  class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase shrink-0"
+                  >Companions</span
+                >
                 <div class="h-px flex-1 bg-border" />
               </div>
               <label
                 v-for="comp in companions"
                 :key="comp.id"
                 class="flex items-center gap-3 rounded-md border border-border p-3 cursor-pointer hover:border-primary/40 transition-colors"
-                :class="form.companion_ids.includes(comp.id) ? 'border-primary/50 bg-primary/5' : ''"
+                :class="
+                  form.companion_ids.includes(comp.id)
+                    ? 'border-primary/50 bg-primary/5'
+                    : ''
+                "
               >
                 <input
                   type="checkbox"
@@ -166,12 +244,19 @@
                   @change="toggleCompanion(comp.id)"
                 />
                 <div class="flex-1 min-w-0">
-                  <span class="font-cinzel text-sm font-semibold text-foreground">{{ comp.name }}</span>
-                  <span class="ml-2 font-fell text-xs text-muted-foreground italic capitalize">
-                    {{ comp.companion_type.replace('_', ' ') }}
+                  <span
+                    class="font-cinzel text-sm font-semibold text-foreground"
+                    >{{ comp.name }}</span
+                  >
+                  <span
+                    class="ml-2 font-fell text-xs text-muted-foreground italic capitalize"
+                  >
+                    {{ comp.companion_type.replace("_", " ") }}
                   </span>
                 </div>
-                <span class="font-cinzel text-[10px] text-muted-foreground shrink-0">
+                <span
+                  class="font-cinzel text-[10px] text-muted-foreground shrink-0"
+                >
                   {{ comp.current_hp }}/{{ comp.max_hp }} HP
                 </span>
               </label>
@@ -180,16 +265,23 @@
         </div>
 
         <!-- Combatants -->
-        <div class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4">
+        <div
+          class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4"
+        >
           <div class="flex items-center justify-between">
-            <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase">
+            <h2
+              class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase"
+            >
               Combatants
             </h2>
             <div class="flex items-center gap-3">
               <button
                 type="button"
                 class="inline-flex items-center gap-1 font-cinzel text-xs text-primary hover:opacity-80 transition-opacity"
-                @click="showNpcSearch = !showNpcSearch; showMonsterSearch = false"
+                @click="
+                  showNpcSearch = !showNpcSearch;
+                  showMonsterSearch = false;
+                "
               >
                 <Plus class="h-3.5 w-3.5" />
                 Add NPC
@@ -197,7 +289,10 @@
               <button
                 type="button"
                 class="inline-flex items-center gap-1 font-cinzel text-xs text-primary hover:opacity-80 transition-opacity"
-                @click="showMonsterSearch = !showMonsterSearch; showNpcSearch = false"
+                @click="
+                  showMonsterSearch = !showMonsterSearch;
+                  showNpcSearch = false;
+                "
               >
                 <Plus class="h-3.5 w-3.5" />
                 Add Monster
@@ -206,9 +301,14 @@
           </div>
 
           <!-- NPC search panel -->
-          <div v-if="showNpcSearch" class="rounded-md border border-border bg-muted p-3 flex flex-col gap-2">
+          <div
+            v-if="showNpcSearch"
+            class="rounded-md border border-border bg-muted p-3 flex flex-col gap-2"
+          >
             <div class="relative">
-              <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Search
+                class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"
+              />
               <input
                 v-model="npcSearch"
                 type="text"
@@ -217,7 +317,10 @@
                 class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
-            <div v-if="filteredNpcs.length" class="max-h-48 overflow-y-auto flex flex-col gap-1">
+            <div
+              v-if="filteredNpcs.length"
+              class="max-h-48 overflow-y-auto flex flex-col gap-1"
+            >
               <button
                 v-for="npc in filteredNpcs"
                 :key="npc.id"
@@ -225,24 +328,37 @@
                 class="flex items-center justify-between px-3 py-2 rounded-md hover:bg-card transition-colors text-left"
                 @click="addNpcToCombatants(npc)"
               >
-                <span class="font-fell text-sm text-foreground">{{ npc.name }}</span>
+                <span class="font-fell text-sm text-foreground">{{
+                  npc.name
+                }}</span>
                 <span class="font-cinzel text-[10px] text-muted-foreground">
-                  CR {{ npc.stat_block?.challenge_rating ?? '—' }}
+                  CR {{ npc.stat_block?.challenge_rating ?? "—" }}
                 </span>
               </button>
             </div>
-            <p v-else-if="npcSearch" class="font-fell text-xs text-muted-foreground italic text-center py-2">
+            <p
+              v-else-if="npcSearch"
+              class="font-fell text-xs text-muted-foreground italic text-center py-2"
+            >
               No NPCs match.
             </p>
-            <p v-else class="font-fell text-xs text-muted-foreground italic text-center py-2">
+            <p
+              v-else
+              class="font-fell text-xs text-muted-foreground italic text-center py-2"
+            >
               Only NPCs with stat blocks are listed.
             </p>
           </div>
 
           <!-- Monster search panel -->
-          <div v-if="showMonsterSearch" class="rounded-md border border-border bg-muted p-3 flex flex-col gap-2">
+          <div
+            v-if="showMonsterSearch"
+            class="rounded-md border border-border bg-muted p-3 flex flex-col gap-2"
+          >
             <div class="relative">
-              <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Search
+                class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"
+              />
               <input
                 v-model="monsterSearch"
                 type="text"
@@ -251,21 +367,39 @@
                 class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
-            <div v-if="filteredMonsters.length" class="max-h-48 overflow-y-auto flex flex-col gap-1">
-              <button
+            <div
+              v-if="filteredMonsters.length"
+              class="max-h-48 overflow-y-auto flex flex-col gap-1"
+            >
+              <div
                 v-for="monster in filteredMonsters"
                 :key="monster.id"
-                type="button"
-                class="flex items-center justify-between px-3 py-2 rounded-md hover:bg-card transition-colors text-left"
-                @click="addMonsterToCombatants(monster)"
+                class="flex items-center gap-1 group rounded-md hover:bg-card transition-colors"
               >
-                <span class="font-fell text-sm text-foreground">{{ monster.name }}</span>
-                <span class="font-cinzel text-[10px] text-muted-foreground">
-                  CR {{ monster.stat_block.challenge_rating }}
-                </span>
-              </button>
+                <button
+                  type="button"
+                  class="flex-1 flex items-center justify-between px-3 py-2 text-left"
+                  @click="addMonsterToCombatants(monster)"
+                >
+                  <span class="font-fell text-sm text-foreground">{{ monster.name }}</span>
+                  <span class="font-cinzel text-[10px] text-muted-foreground">
+                    CR {{ monster.stat_block.challenge_rating }}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  :title="excludedMonsterIds.has(monster.id) ? 'Show in search' : 'Hide from search'"
+                  class="opacity-0 group-hover:opacity-100 transition-opacity px-2 py-2 text-muted-foreground hover:text-destructive shrink-0"
+                  @click.stop="toggleHideMonster(monster.id)"
+                >
+                  <X class="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
-            <p v-else-if="monsterSearch" class="font-fell text-xs text-muted-foreground italic text-center py-2">
+            <p
+              v-else-if="monsterSearch"
+              class="font-fell text-xs text-muted-foreground italic text-center py-2"
+            >
               No monsters match.
             </p>
           </div>
@@ -284,10 +418,14 @@
                   :style="{ backgroundColor: factionColor(entry.faction_id) }"
                 />
                 <div class="flex-1 min-w-0">
-                  <span class="font-cinzel text-sm font-semibold text-foreground line-clamp-1">
+                  <span
+                    class="font-cinzel text-sm font-semibold text-foreground line-clamp-1"
+                  >
                     {{ combatantLabel(entry) }}
                   </span>
-                  <span class="ml-2 font-cinzel text-[10px] text-muted-foreground">
+                  <span
+                    class="ml-2 font-cinzel text-[10px] text-muted-foreground"
+                  >
                     {{ combatantCrLine(entry) }}
                   </span>
                 </div>
@@ -310,7 +448,10 @@
                 >
                   <Minus class="h-3 w-3" />
                 </button>
-                <span class="font-cinzel text-sm font-bold text-foreground w-6 text-center">{{ entry.count }}</span>
+                <span
+                  class="font-cinzel text-sm font-bold text-foreground w-6 text-center"
+                  >{{ entry.count }}</span
+                >
                 <button
                   type="button"
                   class="w-6 h-6 rounded bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
@@ -325,7 +466,11 @@
                 v-model="entry.faction_id"
                 class="bg-card border border-border rounded px-2 py-1 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
-                <option v-for="faction in allFactions" :key="faction.id" :value="faction.id">
+                <option
+                  v-for="faction in allFactions"
+                  :key="faction.id"
+                  :value="faction.id"
+                >
                   {{ faction.name }}
                 </option>
               </select>
@@ -341,7 +486,10 @@
             </div>
           </div>
 
-          <p v-else class="font-fell text-sm text-muted-foreground italic text-center py-4">
+          <p
+            v-else
+            class="font-fell text-sm text-muted-foreground italic text-center py-4"
+          >
             No combatants added yet.
           </p>
         </div>
@@ -349,6 +497,107 @@
 
       <!-- Right column -->
       <div class="flex flex-col gap-6">
+        <!-- Linked Quests (back-reference) -->
+        <div
+          v-if="linkedQuests?.length"
+          class="rounded-lg border border-border bg-card overflow-hidden"
+        >
+          <div class="px-3 py-2 border-b border-border bg-muted/20">
+            <span
+              class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+            >
+              Part of Quest
+              <span class="font-fell font-normal"
+                >({{ linkedQuests.length }})</span
+              >
+            </span>
+          </div>
+          <div class="p-2 flex flex-col gap-1">
+            <RouterLink
+              v-for="q in linkedQuests"
+              :key="q.id"
+              :to="`/quests/${q.id}`"
+              class="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-muted/40 transition-colors group"
+            >
+              <ScrollText class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span
+                class="font-fell text-sm text-foreground flex-1 truncate group-hover:text-primary transition-colors"
+              >
+                {{ q.title || "Untitled Quest" }}
+              </span>
+            </RouterLink>
+          </div>
+        </div>
+
+        <!-- Loot Items -->
+        <div class="rounded-lg border border-border bg-card overflow-hidden">
+          <div class="px-3 py-2 border-b border-border bg-muted/20">
+            <span
+              class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+            >
+              Loot
+              <span
+                v-if="linkedItemObjects.length"
+                class="font-fell font-normal"
+                >({{ linkedItemObjects.length }})</span
+              >
+            </span>
+          </div>
+          <div class="p-2 flex flex-col gap-1">
+            <div
+              v-for="item in linkedItemObjects"
+              :key="item.id"
+              class="flex items-center gap-2 group rounded px-2 py-1.5 hover:bg-muted/40 transition-colors"
+            >
+              <Package class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <RouterLink
+                :to="`/vault/${item.id}`"
+                class="font-fell text-sm text-foreground flex-1 truncate hover:text-primary transition-colors"
+                >{{ item.name }}</RouterLink
+              >
+              <button
+                type="button"
+                class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
+                @click="removeItem(item.id)"
+              >
+                <X class="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <p
+              v-if="!linkedItemObjects.length"
+              class="font-fell text-xs text-muted-foreground italic px-2 py-1"
+            >
+              No loot linked yet.
+            </p>
+            <div
+              v-if="availableItems.length"
+              class="flex items-center gap-2 pt-1"
+            >
+              <select
+                v-model="selectedItemId"
+                class="flex-1 bg-transparent border-b border-border px-1 py-1 font-fell text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+              >
+                <option value="">Add loot item…</option>
+                <option
+                  v-for="item in availableItems"
+                  :key="item.id"
+                  :value="item.id"
+                >
+                  {{ item.name }}
+                </option>
+              </select>
+              <button
+                type="button"
+                :disabled="!selectedItemId"
+                class="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
+                @click="addItem"
+              >
+                <Plus class="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Calendar Pins -->
         <EntityCalendarSection
           entity-type="encounter"
@@ -356,8 +605,12 @@
           :entity-name="form.name || 'Untitled Encounter'"
         />
         <!-- Difficulty Analysis -->
-        <div class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4">
-          <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase">
+        <div
+          class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4"
+        >
+          <h2
+            class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase"
+          >
             Difficulty Analysis
           </h2>
 
@@ -375,84 +628,137 @@
           <div class="flex flex-col gap-1.5 font-cinzel text-xs">
             <div class="flex justify-between">
               <span class="text-muted-foreground">Enemy XP</span>
-              <span class="font-bold text-foreground">{{ difficulty.rawXp.toLocaleString() }}</span>
+              <span class="font-bold text-foreground">{{
+                difficulty.rawXp.toLocaleString()
+              }}</span>
             </div>
             <div class="flex justify-between">
               <span class="text-muted-foreground">Multiplier</span>
-              <span class="font-bold text-foreground">× {{ difficulty.multiplier }}</span>
+              <span class="font-bold text-foreground"
+                >× {{ difficulty.multiplier }}</span
+              >
             </div>
             <div class="flex justify-between">
               <span class="text-muted-foreground">Adjusted XP</span>
-              <span class="font-bold text-foreground">{{ difficulty.adjustedXp.toLocaleString() }}</span>
+              <span class="font-bold text-foreground">{{
+                difficulty.adjustedXp.toLocaleString()
+              }}</span>
             </div>
             <template v-if="difficulty.allyAdjustedXp > 0">
               <div class="flex justify-between">
                 <span class="text-muted-foreground">
                   Ally offset
-                  <span class="text-[10px]">(× {{ difficulty.allyMultiplier }})</span>
+                  <span class="text-[10px]"
+                    >(× {{ difficulty.allyMultiplier }})</span
+                  >
                 </span>
-                <span class="font-bold text-green-500">− {{ difficulty.allyAdjustedXp.toLocaleString() }}</span>
+                <span class="font-bold text-green-500"
+                  >− {{ difficulty.allyAdjustedXp.toLocaleString() }}</span
+                >
               </div>
-              <div class="flex justify-between border-t border-border pt-1.5 mt-0.5">
+              <div
+                class="flex justify-between border-t border-border pt-1.5 mt-0.5"
+              >
                 <span class="text-muted-foreground">Net XP</span>
-                <span class="font-bold text-primary">{{ difficulty.netXp.toLocaleString() }}</span>
+                <span class="font-bold text-primary">{{
+                  difficulty.netXp.toLocaleString()
+                }}</span>
               </div>
             </template>
-            <div v-else class="flex justify-between border-t border-border pt-1.5 mt-0.5">
+            <div
+              v-else
+              class="flex justify-between border-t border-border pt-1.5 mt-0.5"
+            >
               <span class="text-muted-foreground">Net XP</span>
-              <span class="font-bold text-primary">{{ difficulty.adjustedXp.toLocaleString() }}</span>
+              <span class="font-bold text-primary">{{
+                difficulty.adjustedXp.toLocaleString()
+              }}</span>
             </div>
           </div>
 
           <!-- Threshold bars -->
-          <div v-if="difficulty.partyThresholds.deadly > 0" class="flex flex-col gap-2">
-            <div class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-1">PARTY THRESHOLDS</div>
+          <div
+            v-if="difficulty.partyThresholds.deadly > 0"
+            class="flex flex-col gap-2"
+          >
+            <div
+              class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-1"
+            >
+              PARTY THRESHOLDS
+            </div>
             <div
               v-for="tier in thresholdTiers"
               :key="tier.label"
               class="flex items-center gap-2"
             >
-              <span class="font-cinzel text-[10px] w-14 shrink-0" :style="{ color: tier.color }">{{ tier.label }}</span>
-              <div class="flex-1 h-2 rounded-full bg-muted overflow-hidden relative">
+              <span
+                class="font-cinzel text-[10px] w-14 shrink-0"
+                :style="{ color: tier.color }"
+                >{{ tier.label }}</span
+              >
+              <div
+                class="flex-1 h-2 rounded-full bg-muted overflow-hidden relative"
+              >
                 <div
                   class="h-full rounded-full transition-all duration-300"
-                  :style="{ width: `${tier.pct}%`, backgroundColor: tier.color }"
+                  :style="{
+                    width: `${tier.pct}%`,
+                    backgroundColor: tier.color,
+                  }"
                 />
                 <!-- XP marker -->
                 <div
-                  v-if="difficulty.netXp > 0 && markerPct(tier) > 0 && markerPct(tier) <= 100"
+                  v-if="
+                    difficulty.netXp > 0 &&
+                    markerPct(tier) > 0 &&
+                    markerPct(tier) <= 100
+                  "
                   class="absolute top-0 h-full w-0.5 bg-white/80"
                   :style="{ left: `${markerPct(tier)}%` }"
                 />
               </div>
-              <span class="font-cinzel text-[10px] text-muted-foreground w-12 text-right shrink-0">
+              <span
+                class="font-cinzel text-[10px] text-muted-foreground w-12 text-right shrink-0"
+              >
                 {{ tier.value.toLocaleString() }}
               </span>
             </div>
           </div>
 
           <!-- Enemy breakdown -->
-          <div v-if="enemyEntries.length" class="flex flex-col gap-1 border-t border-border pt-3">
-            <div class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-1">ENEMY BREAKDOWN</div>
+          <div
+            v-if="enemyEntries.length"
+            class="flex flex-col gap-1 border-t border-border pt-3"
+          >
+            <div
+              class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-1"
+            >
+              ENEMY BREAKDOWN
+            </div>
             <div
               v-for="entry in enemyEntries"
               :key="entry.id"
               class="flex items-center justify-between font-cinzel text-[11px]"
             >
               <span class="text-foreground line-clamp-1 flex-1">
-                {{ entry.name }}{{ entry.count > 1 ? ` ×${entry.count}` : '' }}
+                {{ entry.name }}{{ entry.count > 1 ? ` ×${entry.count}` : "" }}
               </span>
               <span class="text-muted-foreground shrink-0 ml-2">
-                CR {{ entry.cr }} · {{ (entry.xpEach * entry.count).toLocaleString() }} XP
+                CR {{ entry.cr }} ·
+                {{ (entry.xpEach * entry.count).toLocaleString() }} XP
               </span>
             </div>
           </div>
         </div>
 
         <!-- Factions -->
-        <div class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4">
+        <div
+          class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4"
+        >
           <div class="flex items-center justify-between">
-            <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase">
+            <h2
+              class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase"
+            >
               Factions
             </h2>
             <button
@@ -483,7 +789,13 @@
                     type="color"
                     :value="faction.color"
                     class="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                    @input="(e) => updateFactionColor(faction.id, (e.target as HTMLInputElement).value)"
+                    @input="
+                      (e) =>
+                        updateFactionColor(
+                          faction.id,
+                          (e.target as HTMLInputElement).value,
+                        )
+                    "
                   />
                 </div>
 
@@ -494,7 +806,10 @@
                   type="text"
                   class="flex-1 bg-muted border border-border rounded px-2 py-0.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 />
-                <span v-else class="flex-1 font-cinzel text-sm font-semibold text-foreground">
+                <span
+                  v-else
+                  class="flex-1 font-cinzel text-sm font-semibold text-foreground"
+                >
                   {{ faction.name }}
                 </span>
 
@@ -511,20 +826,30 @@
 
               <!-- Hostile to chips -->
               <div class="flex flex-wrap gap-1">
-                <span class="font-cinzel text-[10px] text-muted-foreground self-center mr-1">Hostile to:</span>
+                <span
+                  class="font-cinzel text-[10px] text-muted-foreground self-center mr-1"
+                  >Hostile to:</span
+                >
                 <button
-                  v-for="other in allFactions.filter(f => f.id !== faction.id)"
+                  v-for="other in allFactions.filter(
+                    (f) => f.id !== faction.id,
+                  )"
                   :key="other.id"
                   type="button"
                   class="px-2 py-0.5 rounded-full font-cinzel text-[10px] font-semibold border transition-colors"
-                  :class="faction.hostile_to.includes(other.id)
-                    ? 'bg-destructive/20 border-destructive/50 text-destructive'
-                    : 'bg-muted border-border text-muted-foreground hover:border-primary/40'"
+                  :class="
+                    faction.hostile_to.includes(other.id)
+                      ? 'bg-destructive/20 border-destructive/50 text-destructive'
+                      : 'bg-muted border-border text-muted-foreground hover:border-primary/40'
+                  "
                   @click="toggleFactionHostility(faction.id, other.id)"
                 >
                   {{ other.name }}
                 </button>
-                <span v-if="faction.hostile_to.length === 0" class="font-fell text-[11px] text-muted-foreground italic">
+                <span
+                  v-if="faction.hostile_to.length === 0"
+                  class="font-fell text-[11px] text-muted-foreground italic"
+                >
                   None
                 </span>
               </div>
@@ -541,13 +866,37 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, reactive, watch } from "vue";
 import { useRouter } from "vue-router";
-import { ChevronLeft, Plus, X, Search, Play, Minus, RotateCcw, Square } from "lucide-vue-next";
+import {
+  ChevronLeft,
+  Plus,
+  X,
+  Search,
+  Play,
+  Minus,
+  RotateCcw,
+  Square,
+  CheckCheck,
+  Package,
+  ScrollText,
+} from "lucide-vue-next";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useParty } from "@/composables/useParty";
 import { useCompanions } from "@/composables/useCompanions";
 import { useNpcs } from "@/composables/useNpcs";
-import { useCreateEncounter, useUpdateEncounter, useDeleteEncounter } from "@/composables/useEncounters";
-import { useRunningEncounters, useEncounterLive } from "@/composables/useEncounterLive";
+import { useItems } from "@/composables/useItems";
+import { useAllLocations } from "@/composables/useLocations";
+import {
+  useCreateEncounter,
+  useUpdateEncounter,
+  useDeleteEncounter,
+} from "@/composables/useEncounters";
+import {
+  useRunningEncounters,
+  useEncounterLive,
+} from "@/composables/useEncounterLive";
+import { useQuestsForEncounter } from "@/composables/useQuests";
+import { useUpdateCampaign } from "@/composables/useCampaigns";
+import { useCampaignStore } from "@/stores/campaign";
 import { supabase } from "@/lib/supabase";
 import {
   DEFAULT_FACTIONS,
@@ -566,46 +915,87 @@ const props = defineProps<{
 }>();
 
 const router = useRouter();
+const campaign = useCampaignStore();
 const { data: monsters } = useAllMonsters();
 const { data: party, isLoading: partyLoading } = useParty();
 const { data: companions } = useCompanions();
 const { data: npcs } = useNpcs();
+const { data: allItems } = useItems();
+const { data: allLocations } = useAllLocations();
+const { data: linkedQuests } = useQuestsForEncounter(
+  computed(() => props.encounter?.id ?? ""),
+);
+const { mutateAsync: updateCampaign } = useUpdateCampaign();
+
+const excludedMonsterIds = computed(
+  () => new Set(campaign.activeCampaign?.excluded_monster_ids ?? []),
+);
+
+async function toggleHideMonster(monsterId: string) {
+  const cid = campaign.activeCampaignId;
+  if (!cid || !campaign.activeCampaign) return;
+  const current = campaign.activeCampaign.excluded_monster_ids ?? [];
+  const next = current.includes(monsterId)
+    ? current.filter((id) => id !== monsterId)
+    : [...current, monsterId];
+  await updateCampaign({ id: cid, update: { excluded_monster_ids: next } });
+  campaign.activeCampaign = {
+    ...campaign.activeCampaign,
+    excluded_monster_ids: next,
+  };
+}
 const createEncounter = useCreateEncounter();
 const updateEncounterMutation = useUpdateEncounter();
 const deleteEncounter = useDeleteEncounter();
 
-const { runningStates, isEncounterRunning, firstRunning } = useRunningEncounters();
+const { runningStates, isEncounterRunning, firstRunning } =
+  useRunningEncounters();
 const { endLive } = useEncounterLive(props.encounter?.id ?? "");
 
-const thisIsLive = computed(() => !!props.encounter && isEncounterRunning(props.encounter.id));
-const otherIsLive = computed(() => firstRunning.value !== null && !thisIsLive.value);
+const thisIsLive = computed(
+  () => !!props.encounter && isEncounterRunning(props.encounter.id),
+);
+const otherIsLive = computed(
+  () => firstRunning.value !== null && !thisIsLive.value,
+);
 const otherName = computed(() => {
   if (!otherIsLive.value || !firstRunning.value) return "";
-  return runningStates.value.find(() => true) ? (firstRunning.value!.encounter_id) : "another encounter";
+  return runningStates.value.find(() => true)
+    ? firstRunning.value!.encounter_id
+    : "another encounter";
 });
 
 // Form state
 const form = reactive({
   name: props.encounter?.name ?? "New Encounter",
   description: props.encounter?.description ?? "",
+  location_id: props.encounter?.location_id ?? null as string | null,
   party_member_ids: [...(props.encounter?.party_member_ids ?? [])],
   companion_ids: [...(props.encounter?.companion_ids ?? [])],
   combatants: [...(props.encounter?.combatants ?? [])] as CombatantDef[],
   factions: props.encounter?.factions?.length
     ? [...props.encounter.factions]
     : [...DEFAULT_FACTIONS],
+  item_ids: [...(props.encounter?.item_ids ?? [])],
 });
 
+// Only reset form when navigating to a different encounter, not on every refetch.
+// This prevents custom names and other unsaved edits from being wiped on query refetch.
 watch(
-  () => props.encounter,
-  (enc) => {
-    if (!enc) return;
+  () => props.encounter?.id,
+  (id) => {
+    const enc = props.encounter;
+    if (!enc || !id) return;
     form.name = enc.name;
     form.description = enc.description ?? "";
     form.party_member_ids = [...enc.party_member_ids];
     form.companion_ids = [...(enc.companion_ids ?? [])];
     form.combatants = [...enc.combatants];
-    form.factions = enc.factions?.length ? [...enc.factions] : [...DEFAULT_FACTIONS];
+    form.factions = enc.factions?.length
+      ? [...enc.factions]
+      : [...DEFAULT_FACTIONS];
+    form.item_ids = [...(enc.item_ids ?? [])];
+    form.location_id = enc.location_id ?? null;
   },
 );
 
@@ -615,7 +1005,9 @@ const monsterSearch = ref("");
 
 const filteredMonsters = computed(() => {
   const q = monsterSearch.value.toLowerCase().trim();
-  const all = monsters.value ?? [];
+  const all = (monsters.value ?? []).filter(
+    (m) => !excludedMonsterIds.value.has(m.id),
+  );
   if (!q) return all.slice(0, 10);
   return all.filter((m) => m.name.toLowerCase().includes(q)).slice(0, 10);
 });
@@ -645,12 +1037,15 @@ const filteredNpcs = computed(() => {
 });
 
 function addNpcToCombatants(npc: Npc) {
+  const factionId =
+    (npc.relationship === "unknown" ? "neutral" : npc.relationship) ??
+    "neutral";
   form.combatants.push({
     id: crypto.randomUUID(),
     monster_id: null,
     npc_id: npc.id,
     count: 1,
-    faction_id: "ally",
+    faction_id: factionId,
     custom_name: null,
   });
   npcSearch.value = "";
@@ -663,7 +1058,9 @@ function removeCombatant(id: string) {
 }
 
 // Monster lookup helpers
-const monsterMap = computed(() => new Map((monsters.value ?? []).map((m) => [m.id, m])));
+const monsterMap = computed(
+  () => new Map((monsters.value ?? []).map((m) => [m.id, m])),
+);
 
 function monsterName(monsterId: string | null): string {
   if (!monsterId) return "Unknown";
@@ -681,7 +1078,9 @@ function crXp(monsterId: string | null): number {
 }
 
 // NPC lookup helpers
-const npcMap = computed(() => new Map((npcs.value ?? []).map((n) => [n.id, n])));
+const npcMap = computed(
+  () => new Map((npcs.value ?? []).map((n) => [n.id, n])),
+);
 
 function npcName(npcId: string | null): string {
   if (!npcId) return "Unknown";
@@ -790,8 +1189,9 @@ const enemyEntries = computed(() =>
 
 const partyLevels = computed(() => {
   const members = party.value ?? [];
-  return form.party_member_ids
-    .map((id) => members.find((m) => m.id === id)?.level ?? 1);
+  return form.party_member_ids.map(
+    (id) => members.find((m) => m.id === id)?.level ?? 1,
+  );
 });
 
 // Any faction hostile to at least one enemy faction is fighting on the party's side
@@ -811,7 +1211,9 @@ const allyEntries = computed(() => {
   const entries: { cr: string | null | undefined; count: number }[] = [];
 
   // Combatants in ally factions (monsters or NPCs)
-  for (const c of form.combatants.filter((c) => allyFactionIds.value.has(c.faction_id))) {
+  for (const c of form.combatants.filter((c) =>
+    allyFactionIds.value.has(c.faction_id),
+  )) {
     const cr = c.npc_id ? npcCr(c.npc_id) : monsterCr(c.monster_id);
     entries.push({ cr, count: c.count });
   }
@@ -822,9 +1224,13 @@ const allyEntries = computed(() => {
     if (!comp) continue;
     let cr: string | null = null;
     if (comp.source_monster_id) {
-      cr = monsterMap.value.get(comp.source_monster_id)?.stat_block.challenge_rating ?? null;
+      cr =
+        monsterMap.value.get(comp.source_monster_id)?.stat_block
+          .challenge_rating ?? null;
     } else if (comp.source_npc_id) {
-      cr = npcMap.value.get(comp.source_npc_id)?.stat_block?.challenge_rating ?? null;
+      cr =
+        npcMap.value.get(comp.source_npc_id)?.stat_block?.challenge_rating ??
+        null;
     }
     entries.push({ cr, count: 1 });
   }
@@ -844,10 +1250,30 @@ const thresholdTiers = computed(() => {
   const t = difficulty.value.partyThresholds;
   const max = t.deadly * 1.5 || 1;
   return [
-    { label: "Easy",   value: t.easy,   color: "#16A34A", pct: Math.min(100, (t.easy   / max) * 100) },
-    { label: "Medium", value: t.medium, color: "#CA8A04", pct: Math.min(100, (t.medium / max) * 100) },
-    { label: "Hard",   value: t.hard,   color: "#EA580C", pct: Math.min(100, (t.hard   / max) * 100) },
-    { label: "Deadly", value: t.deadly, color: "#DC2626", pct: Math.min(100, (t.deadly / max) * 100) },
+    {
+      label: "Easy",
+      value: t.easy,
+      color: "#16A34A",
+      pct: Math.min(100, (t.easy / max) * 100),
+    },
+    {
+      label: "Medium",
+      value: t.medium,
+      color: "#CA8A04",
+      pct: Math.min(100, (t.medium / max) * 100),
+    },
+    {
+      label: "Hard",
+      value: t.hard,
+      color: "#EA580C",
+      pct: Math.min(100, (t.hard / max) * 100),
+    },
+    {
+      label: "Deadly",
+      value: t.deadly,
+      color: "#DC2626",
+      pct: Math.min(100, (t.deadly / max) * 100),
+    },
   ];
 });
 
@@ -857,23 +1283,52 @@ function markerPct(_tier: { value: number }): number {
 }
 
 // Save / Delete / Run
-const isSaving = computed(() => createEncounter.isPending.value || updateEncounterMutation.isPending.value);
+const isSaving = computed(
+  () =>
+    createEncounter.isPending.value || updateEncounterMutation.isPending.value,
+);
+
+const linkedItemIds = computed(() => new Set(form.item_ids));
+const linkedItemObjects = computed(() =>
+  (allItems.value ?? []).filter((i) => linkedItemIds.value.has(i.id)),
+);
+const availableItems = computed(() =>
+  (allItems.value ?? []).filter((i) => !linkedItemIds.value.has(i.id)),
+);
+const selectedItemId = ref("");
+
+function addItem() {
+  if (!selectedItemId.value || form.item_ids.includes(selectedItemId.value))
+    return;
+  form.item_ids.push(selectedItemId.value);
+  selectedItemId.value = "";
+}
+
+function removeItem(id: string) {
+  form.item_ids = form.item_ids.filter((i) => i !== id);
+}
 
 async function buildPayload() {
   return {
     name: form.name || "New Encounter",
     description: form.description || null,
+    location_id: form.location_id || null,
     party_member_ids: form.party_member_ids,
     companion_ids: form.companion_ids,
     combatants: form.combatants,
     factions: form.factions,
+    item_ids: form.item_ids,
+    is_finished: props.encounter?.is_finished ?? false,
   };
 }
 
 async function handleSave(): Promise<string | null> {
   const payload = await buildPayload();
   if (props.encounter) {
-    await updateEncounterMutation.mutateAsync({ id: props.encounter.id, update: payload });
+    await updateEncounterMutation.mutateAsync({
+      id: props.encounter.id,
+      update: payload,
+    });
     return props.encounter.id;
   } else {
     const created = await createEncounter.mutateAsync(payload);
@@ -884,8 +1339,14 @@ async function handleSave(): Promise<string | null> {
 
 async function handleRunEncounter() {
   if (otherIsLive.value && firstRunning.value) {
-    if (!await confirm(`"${otherName.value}" is currently active. Stop it and run this one?`)) return;
-    await supabase.from("encounter_state")
+    if (
+      !(await confirm(
+        `"${otherName.value}" is currently active. Stop it and run this one?`,
+      ))
+    )
+      return;
+    await supabase
+      .from("encounter_state")
       .update({ is_running: false })
       .eq("encounter_id", firstRunning.value.encounter_id);
   }
@@ -894,20 +1355,38 @@ async function handleRunEncounter() {
 }
 
 async function handleStop() {
-  if (!await confirm("Stop this encounter? Party stats will NOT be updated.")) return;
+  if (!(await confirm("Stop this encounter? Party stats will NOT be updated.")))
+    return;
   await endLive();
 }
 
 async function handleRestart() {
-  if (!await confirm("Restart this encounter from scratch?")) return;
+  if (!(await confirm("Restart this encounter from scratch?"))) return;
   await endLive();
   router.push(`/encounters/${props.encounter!.id}/run`);
 }
 
+async function toggleFinished() {
+  if (!props.encounter) return;
+  await updateEncounterMutation.mutateAsync({
+    id: props.encounter.id,
+    update: { is_finished: !props.encounter.is_finished },
+  });
+}
+
 async function handleDelete() {
   if (!props.encounter) return;
-  if (!await confirm(`Delete encounter "${props.encounter.name}"? This cannot be undone.`)) return;
-  await deleteEncounter.mutateAsync(props.encounter.id);
+  if (
+    !(await confirm(
+      `Delete encounter "${props.encounter.name}"? This cannot be undone.`,
+    ))
+  )
+    return;
+  try {
+    await deleteEncounter.mutateAsync(props.encounter.id);
+  } catch (e) {
+    console.error("Failed to delete encounter:", e);
+  }
   router.push("/encounters");
 }
 </script>

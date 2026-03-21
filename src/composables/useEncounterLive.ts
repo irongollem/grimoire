@@ -55,6 +55,7 @@ export function useRunningEncounters() {
 
 // ── Shared live state (module-level so player + DM composable share it) ───────
 const liveState = ref<EncounterState | null>(null);
+const liveStateLoaded = ref(false);
 let playerChannel: ReturnType<typeof supabase.channel> | null = null;
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -129,6 +130,7 @@ export function useEncounterLive(encounterId: string) {
       .eq("encounter_id", encounterId)
       .maybeSingle();
     if (data) liveState.value = data as EncounterState;
+    liveStateLoaded.value = true;
   }
 
   loadState();
@@ -137,7 +139,7 @@ export function useEncounterLive(encounterId: string) {
     if (pushTimer) clearTimeout(pushTimer);
   });
 
-  return { isLive, liveState, goLive, schedulePush, endLive };
+  return { isLive, liveState, liveStateLoaded, goLive, schedulePush, endLive };
 }
 
 // ── Player composable ──────────────────────────────────────────────────────────

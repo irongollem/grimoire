@@ -53,36 +53,41 @@
           v-for="col in kanbanColumns"
           :key="col.status"
           class="flex flex-col gap-2"
+          @dragover.prevent="dragOverCol = col.status"
+          @dragleave="onColDragLeave(col.status, $event)"
+          @drop.prevent="onDrop(col.status)"
         >
           <!-- Column header -->
-          <div class="flex items-center gap-2 px-1 pb-1 border-b-2" :style="{ borderColor: col.color }">
-            <span
-              class="h-2 w-2 rounded-full shrink-0"
-              :style="{ backgroundColor: col.color }"
-            />
-            <span class="font-cinzel text-xs font-bold tracking-wider text-foreground">
-              {{ col.label }}
-            </span>
+          <div
+            class="flex items-center gap-2 px-1 pb-1 border-b-2 transition-colors"
+            :style="{ borderColor: col.color }"
+          >
+            <span class="h-2 w-2 rounded-full shrink-0" :style="{ backgroundColor: col.color }" />
+            <span class="font-cinzel text-xs font-bold tracking-wider text-foreground">{{ col.label }}</span>
             <span class="ml-auto font-fell text-xs text-muted-foreground">{{ col.quests.length }}</span>
           </div>
 
-          <!-- Quest cards -->
-          <div class="flex flex-col gap-2 min-h-12">
+          <!-- Drop zone -->
+          <div
+            class="flex flex-col gap-2 min-h-16 rounded-md transition-colors"
+            :class="dragOverCol === col.status && dragQuestId ? 'bg-primary/5 ring-1 ring-primary/30' : ''"
+          >
             <p v-if="!col.quests.length" class="font-fell text-xs text-muted-foreground italic text-center py-6">
               None
             </p>
 
-            <RouterLink
+            <div
               v-for="quest in col.quests"
               :key="quest.id"
-              :to="`/quests/${quest.id}`"
-              class="group flex flex-col gap-2 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors p-3 overflow-hidden"
+              draggable="true"
+              class="group relative flex flex-col gap-2 rounded-lg border border-border bg-card p-3 overflow-hidden cursor-grab active:cursor-grabbing transition-opacity"
+              :class="dragQuestId === quest.id ? 'opacity-40' : 'hover:border-primary/50'"
+              @dragstart="onDragStart(quest.id)"
+              @dragend="onDragEnd"
+              @click="router.push(`/quests/${quest.id}`)"
             >
               <!-- Status bar -->
-              <div
-                class="absolute top-0 left-0 right-0 h-0.5"
-                :style="{ backgroundColor: col.color }"
-              />
+              <div class="absolute top-0 left-0 right-0 h-0.5" :style="{ backgroundColor: col.color }" />
               <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight line-clamp-2">
                 {{ quest.title || "Untitled Quest" }}
               </h3>
@@ -94,14 +99,12 @@
                   v-for="tag in quest.tags.slice(0, 2)"
                   :key="tag"
                   class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider"
-                >
-                  {{ tag }}
-                </span>
+                >{{ tag }}</span>
               </div>
               <span class="font-fell text-[10px] text-muted-foreground italic ml-auto">
                 {{ timeAgo(quest.updated_at) }}
               </span>
-            </RouterLink>
+            </div>
           </div>
         </div>
       </div>
@@ -156,9 +159,7 @@
                   v-for="tag in quest.tags.slice(0, 2)"
                   :key="tag"
                   class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider"
-                >
-                  {{ tag }}
-                </span>
+                >{{ tag }}</span>
               </div>
               <span class="font-fell text-[10px] text-muted-foreground italic shrink-0 ml-auto">
                 {{ timeAgo(quest.updated_at) }}
@@ -177,8 +178,9 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { useRouter } from "vue-router";
 import { Search, Columns2, LayoutList, ScrollText } from "lucide-vue-next";
-import { useAllQuests } from "@/composables/useQuests";
+import { useAllQuests, useUpdateQuest } from "@/composables/useQuests";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import { timeAgo } from "@/lib/utils";
@@ -186,12 +188,15 @@ import {
   QUEST_STATUSES,
   QUEST_STATUS_LABELS,
   QUEST_STATUS_COLORS,
+  type QuestStatus,
 } from "@/types/quest.types";
 
+const router = useRouter();
 const search = ref("");
 const isKanban = ref(true);
 
 const { data: allQuests, isLoading } = useAllQuests();
+const { mutateAsync: updateQuest } = useUpdateQuest();
 
 const filtered = computed(() => {
   let list = [...(allQuests.value ?? [])];
@@ -215,4 +220,36 @@ const kanbanColumns = computed(() =>
   })),
 );
 
+// ── Drag & drop ───────────────────────────────────────────────────────────────
+const dragQuestId = ref<string | null>(null);
+const dragOverCol = ref<QuestStatus | null>(null);
+
+function onDragStart(id: string) {
+  dragQuestId.value = id;
+}
+
+function onDragEnd() {
+  dragQuestId.value = null;
+  dragOverCol.value = null;
+}
+
+function onColDragLeave(status: QuestStatus, e: DragEvent) {
+  // Only clear if leaving the column entirely (not entering a child element)
+  const related = e.relatedTarget as HTMLElement | null;
+  if (!e.currentTarget || !(e.currentTarget as HTMLElement).contains(related)) {
+    if (dragOverCol.value === status) dragOverCol.value = null;
+  }
+}
+
+async function onDrop(targetStatus: QuestStatus) {
+  const id = dragQuestId.value;
+  dragQuestId.value = null;
+  dragOverCol.value = null;
+  if (!id) return;
+
+  const quest = allQuests.value?.find((q) => q.id === id);
+  if (!quest || quest.status === targetStatus) return;
+
+  await updateQuest({ id, update: { status: targetStatus } });
+}
 </script>

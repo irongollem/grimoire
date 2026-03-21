@@ -210,6 +210,54 @@
       </div>
     </template>
 
+    <!-- NPCs at this location -->
+    <template v-if="!isNew && locationNpcs?.length">
+      <div class="flex items-center justify-between mt-2">
+        <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
+          NPCs Here
+          <span class="font-fell font-normal text-muted-foreground">({{ locationNpcs.length }})</span>
+        </h2>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <RouterLink
+          v-for="npc in locationNpcs"
+          :key="npc.id"
+          :to="`/npcs/${npc.id}`"
+          class="group flex items-center gap-3 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors p-3 overflow-hidden"
+        >
+          <div class="flex-1 min-w-0">
+            <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ npc.name }}</p>
+            <p v-if="npc.occupation || npc.race" class="font-fell text-xs text-muted-foreground italic truncate">
+              {{ [npc.race, npc.occupation].filter(Boolean).join(" · ") }}
+            </p>
+          </div>
+          <ChevronRight class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+        </RouterLink>
+      </div>
+    </template>
+
+    <!-- Encounters at this location -->
+    <template v-if="!isNew && locationEncounters?.length">
+      <div class="flex items-center justify-between mt-2">
+        <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
+          Encounters Here
+          <span class="font-fell font-normal text-muted-foreground">({{ locationEncounters.length }})</span>
+        </h2>
+      </div>
+      <div class="flex flex-col gap-2">
+        <RouterLink
+          v-for="enc in locationEncounters"
+          :key="enc.id"
+          :to="`/encounters/${enc.id}`"
+          class="group flex items-center gap-3 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors px-4 py-3"
+        >
+          <span class="flex-1 font-cinzel text-sm font-semibold text-foreground truncate">{{ enc.name }}</span>
+          <span v-if="enc.is_finished" class="font-cinzel text-[10px] text-muted-foreground tracking-wider">Done</span>
+          <ChevronRight class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+        </RouterLink>
+      </div>
+    </template>
+
     <!-- Calendar Pins -->
     <EntityCalendarSection
       entity-type="location"
@@ -230,6 +278,8 @@ import Placeholder from "@tiptap/extension-placeholder";
 import {
   Save, Trash2, Plus, List, ListOrdered, Quote, Undo2, Redo2, MapPin, ChevronRight,
 } from "lucide-vue-next";
+import { useNpcsByLocation } from "@/composables/useNpcs";
+import { useEncountersByLocation } from "@/composables/useEncounters";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
 import {
   useLocations,
@@ -293,6 +343,14 @@ function onParentBlur() {
 const { data: children, isLoading: childrenLoading } = props.location
   ? useLocations(props.location.id)
   : { data: ref([]), isLoading: ref(false) };
+
+// ── NPCs + Encounters at this location ─────────────────────────────────────────
+const { data: locationNpcs } = props.location
+  ? useNpcsByLocation(props.location.id)
+  : { data: ref([]) };
+const { data: locationEncounters } = props.location
+  ? useEncountersByLocation(props.location.id)
+  : { data: ref([]) };
 
 // ── Form state ─────────────────────────────────────────────────────────────────
 const name         = ref(props.location?.name ?? "");

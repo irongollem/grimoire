@@ -1,5 +1,5 @@
 <template>
-  <div class="h-screen bg-background flex flex-col overflow-hidden">
+  <div class="h-dvh bg-background flex flex-col overflow-hidden">
     <!-- Top bar -->
     <header class="h-14 border-b border-border bg-card flex items-center px-4 gap-4 shrink-0">
       <div class="flex items-center gap-2 shrink-0">
@@ -78,24 +78,25 @@
     </Transition>
 
     <!-- Content + chat side panel -->
-    <div class="flex-1 flex overflow-hidden">
+    <div class="flex-1 min-h-0 flex overflow-hidden">
       <main class="flex-1 overflow-y-auto">
         <div class="max-w-4xl mx-auto px-4 py-6">
           <RouterView />
         </div>
       </main>
-      <CampaignChat />
+      <CampaignChat :contained="true" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { LogOut, Shield, ScrollText, BookOpen, Package, User, Megaphone, X, Swords, PenLine, Eye, Settings } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
+import { useCampaignById } from "@/composables/useCampaigns";
 import { useParty } from "@/composables/useParty";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
 import { useCampaignBroadcast } from "@/composables/useCampaignBroadcast";
@@ -104,6 +105,20 @@ import CampaignChat from "@/components/chat/CampaignChat.vue";
 const auth = useAuthStore();
 const ui = useUiStore();
 const campaign = useCampaignStore();
+
+// Bootstrap: set activeCampaignId from membership (needed for new players without localStorage entry)
+// and load the campaign object so switchToCampaign can apply the DM's theme.
+const membershipCampaignId = computed(() => auth.membership?.campaign_id ?? null);
+watch(membershipCampaignId, (id) => {
+  if (id && !campaign.activeCampaignId) campaign.activeCampaignId = id;
+}, { immediate: true });
+
+const { data: campaignData } = useCampaignById(() => campaign.activeCampaignId);
+watch(campaignData, (c) => {
+  if (c && (!campaign.activeCampaign || campaign.activeCampaign.theme !== c.theme)) {
+    campaign.switchToCampaign(c);
+  }
+}, { immediate: true });
 const router = useRouter();
 const { data: partyMembers } = useParty();
 

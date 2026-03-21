@@ -308,6 +308,29 @@ export function useDeleteQuestRef() {
   });
 }
 
+// ── Reverse lookup: quests that link to a given encounter ─────────────────────
+
+const ENCOUNTER_QUESTS_KEY = "encounter_quests";
+
+async function fetchQuestsForEncounter(encounterId: string): Promise<{ id: string; title: string }[]> {
+  const { data, error } = await supabase
+    .from("quest_refs")
+    .select("quest:quests(id, title)")
+    .eq("ref_type", "encounter")
+    .eq("ref_id", encounterId);
+  if (error) throw error;
+  return (data ?? []).map((row: { quest: { id: string; title: string }[] | null }) => row.quest?.[0] ?? null).filter(Boolean) as { id: string; title: string }[];
+}
+
+export function useQuestsForEncounter(encounterId: string | Ref<string>) {
+  const idRef = isRef(encounterId) ? encounterId : ref(encounterId);
+  return useQuery({
+    queryKey: computed(() => [ENCOUNTER_QUESTS_KEY, idRef.value]),
+    queryFn: () => fetchQuestsForEncounter(idRef.value),
+    enabled: () => !!idRef.value,
+  });
+}
+
 // ── Quest Player Notes ─────────────────────────────────────────────────────────
 
 const PLAYER_NOTES_KEY = "quest_player_notes";

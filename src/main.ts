@@ -8,9 +8,31 @@ import "./assets/main.css";
 
 // networkMode: 'always' prevents TanStack Query from pausing mutations/queries
 // when the browser briefly reports "offline" on tab focus after sleep/switch.
+//
+// AbortError handling: Supabase uses navigator.locks for auth token management.
+// When two tabs are open, one tab can steal the lock, which throws an AbortError
+// on any in-flight DB request in the other tab. Supabase auto-recovers in ~500ms.
+// TanStack Query does NOT retry AbortErrors by default (it treats them as cancelled).
+// We override that here so AbortErrors are retried with a delay, giving the auth
+// lock time to recover before we try again. This fixes infinite spinners on every
+// page that uses TanStack Query for data fetching.
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { networkMode: "always" },
+    queries: {
+      networkMode: "always",
+      retry: (failureCount, error) => {
+        if (isAbortError(error)) return failureCount < 2; // 2 retries for lock recovery
+        return failureCount < 3;
+      },
+      retryDelay: (attemptIndex, error) => {
+        if (isAbortError(error)) return 600 * (attemptIndex + 1); // 600ms, 1200ms
+        return Math.min(1000 * 2 ** attemptIndex, 30_000);
+      },
+    },
     mutations: { networkMode: "always" },
   },
 });

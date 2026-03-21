@@ -7,11 +7,12 @@ export interface Campaign {
   current_year: number;
   calendar_id: string; // references CalendarAdapter.id, defaults to 'faerun'
   theme: string;       // references GrimoireTheme.id, defaults to 'grimoire'
+  excluded_monster_ids: string[];
   created_at: string;
   updated_at: string;
 }
 
-export type CampaignInsert = Omit<Campaign, "id" | "user_id" | "created_at" | "updated_at">;
+export type CampaignInsert = Omit<Campaign, "id" | "user_id" | "created_at" | "updated_at" | "excluded_monster_ids"> & { excluded_monster_ids?: string[] };
 export type CampaignUpdate = Partial<CampaignInsert>;
 
 export type CampaignRole = "dm" | "player";

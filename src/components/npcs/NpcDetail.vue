@@ -144,7 +144,12 @@
             </div>
             <div>
               <label class="field-label">Location</label>
-              <input v-model="form.location" placeholder="City, region, or lair…" class="field-input" />
+              <select v-model="form.location_id" class="field-input">
+                <option :value="null">— none —</option>
+                <option v-for="loc in allLocations ?? []" :key="loc.id" :value="loc.id">
+                  {{ loc.name }}
+                </option>
+              </select>
             </div>
             <div class="sm:col-span-2">
               <label class="field-label">Affiliation</label>
@@ -290,6 +295,7 @@ import { useRouter } from 'vue-router'
 import { ImagePlus, ScrollText } from 'lucide-vue-next'
 import { useImageUpload } from '@/composables/useImageUpload'
 import { useCreateNpc, useUpdateNpc, useDeleteNpc } from '@/composables/useNpcs'
+import { useAllLocations } from '@/composables/useLocations'
 import { useCreateScriptoriumDocument } from '@/composables/useScriptorium'
 import { formatNpcForScriptorium } from '@/lib/scriptoriumImport'
 import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES, getNpcTemplate } from '@/data/npcTemplates'
@@ -331,6 +337,7 @@ const props = defineProps<{ npc?: Npc | null }>()
 // ── Store + mutations ─────────────────────────────────────────────────────────
 
 const router = useRouter()
+const { data: allLocations } = useAllLocations()
 const { mutateAsync: createNpc, isPending: isCreating } = useCreateNpc()
 const { mutateAsync: updateNpc, isPending: isUpdating } = useUpdateNpc()
 const { mutateAsync: deleteNpc } = useDeleteNpc()
@@ -363,6 +370,7 @@ const form = reactive<NpcInsert>({
   age: props.npc?.age ?? null,
   occupation: props.npc?.occupation ?? null,
   location: props.npc?.location ?? null,
+  location_id: props.npc?.location_id ?? null,
   affiliation: props.npc?.affiliation ?? null,
   appearance: props.npc?.appearance ?? null,
   personality: props.npc?.personality ?? null,
@@ -529,6 +537,7 @@ async function save() {
     age: form.age || null,
     occupation: form.occupation || null,
     location: form.location || null,
+    location_id: form.location_id || null,
     affiliation: form.affiliation || null,
     appearance: form.appearance || null,
     personality: form.personality || null,
@@ -537,12 +546,16 @@ async function save() {
     notes: form.notes || null,
     stat_block: buildStatBlock(),
   }
-  if (props.npc?.id) {
-    await updateNpc({ id: props.npc.id, update: payload })
-    router.push('/npcs')
-  } else {
-    const created = await createNpc(payload)
-    router.replace(`/npcs/${created.id}`)
+  try {
+    if (props.npc?.id) {
+      await updateNpc({ id: props.npc.id, update: payload })
+      router.push('/npcs')
+    } else {
+      const created = await createNpc(payload)
+      router.replace(`/npcs/${created.id}`)
+    }
+  } catch {
+    notify('Failed to save NPC. Please try again.')
   }
 }
 

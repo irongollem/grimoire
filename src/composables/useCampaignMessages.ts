@@ -2,6 +2,7 @@ import { ref, computed, watch } from "vue";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
+import { useParty } from "@/composables/useParty";
 import type { CampaignMessage, CampaignMessageInsert, ItemDropMetadata, CurrencyDropMetadata } from "@/types/chat.types";
 import type { RollResult } from "@/lib/dice";
 
@@ -16,22 +17,31 @@ const messages = ref<CampaignMessage[]>([]);
 const loading  = ref(false);
 let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
 let subscribedCampaignId: string | null = null;
+let generation = 0; // incremented each subscribe(); callbacks ignore stale gens
+let reconnectAttempts = 0;
+const MAX_RECONNECT = 5;
 
 async function fetchMessages(campaignId: string) {
   loading.value = true;
-  const { data, error } = await supabase
-    .from("campaign_messages")
-    .select("*")
-    .eq("campaign_id", campaignId)
-    .order("created_at", { ascending: true })
-    .limit(LIMIT);
-  if (!error) messages.value = (data ?? []) as CampaignMessage[];
-  loading.value = false;
+  try {
+    const { data, error } = await supabase
+      .from("campaign_messages")
+      .select("*")
+      .eq("campaign_id", campaignId)
+      .order("created_at", { ascending: true })
+      .limit(LIMIT);
+    if (!error) messages.value = (data ?? []) as CampaignMessage[];
+  } catch {
+    // AbortError (auth lock steal) or network error — just leave current messages
+  } finally {
+    loading.value = false;
+  }
 }
 
 function subscribe(campaignId: string) {
   if (realtimeChannel) supabase.removeChannel(realtimeChannel);
   subscribedCampaignId = campaignId;
+  const myGen = ++generation;
   realtimeChannel = supabase
     .channel(`campaign-messages:${campaignId}`)
     .on(
@@ -62,14 +72,29 @@ function subscribe(campaignId: string) {
       },
     )
     .subscribe((status, err) => {
-      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-        // Re-subscribe after a short delay so missed messages are caught on reconnect
-        console.warn("[chat] realtime channel lost, reconnecting…", status, err);
+      // CLOSED fires whenever we call removeChannel() ourselves — ignore it.
+      // Only reconnect on genuine transport errors for the current generation.
+      if (myGen !== generation) return;
+      if (status === "SUBSCRIBED") {
+        reconnectAttempts = 0;
+        return;
+      }
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        if (reconnectAttempts >= MAX_RECONNECT) {
+          console.warn("[chat] max reconnect attempts reached, giving up until next navigation");
+          return;
+        }
+        reconnectAttempts++;
+        // Exponential backoff: 2s, 4s, 8s … capped at 30s
+        const delay = Math.min(2000 * Math.pow(2, reconnectAttempts - 1), 30_000);
+        console.warn(`[chat] channel error, reconnecting in ${delay}ms (attempt ${reconnectAttempts})…`, status, err);
         setTimeout(() => {
-          if (subscribedCampaignId) {
-            fetchMessages(subscribedCampaignId).then(() => subscribe(subscribedCampaignId!));
+          if (subscribedCampaignId && myGen === generation) {
+            fetchMessages(subscribedCampaignId).then(() => {
+              if (subscribedCampaignId && myGen === generation) subscribe(subscribedCampaignId);
+            });
           }
-        }, 2000);
+        }, delay);
       }
     });
 }
@@ -85,18 +110,22 @@ function ensureWatcher() {
     async (id) => {
       messages.value = [];
       subscribedCampaignId = null;
+      reconnectAttempts = 0;
       if (id) { await fetchMessages(id); subscribe(id); }
     },
     { immediate: true },
   );
 
-  // When the tab becomes visible again, re-subscribe and re-fetch to recover
-  // from any WebSocket that silently dropped while the tab was in the background.
+  // When the tab becomes visible again, re-fetch to catch any messages missed
+  // while the tab was hidden. Delay slightly so Supabase's auth lock recovery
+  // (which steals the navigator.locks lock and fires AbortError) finishes first.
+  // Don't call subscribe() here — the WebSocket reconnects automatically.
   if (typeof document !== "undefined") {
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible" && subscribedCampaignId) {
-        const cid = subscribedCampaignId;
-        fetchMessages(cid).then(() => { if (subscribedCampaignId === cid) subscribe(cid); });
+        setTimeout(() => {
+          if (subscribedCampaignId) fetchMessages(subscribedCampaignId);
+        }, 800);
       }
     });
   }
@@ -108,6 +137,16 @@ export function useCampaignMessages() {
 
   const campaign = useCampaignStore();
   const auth = useAuthStore();
+  const { data: partyMembers } = useParty();
+
+  // Prefer character name when the user has a linked party member
+  function getSenderName() {
+    if (auth.linkedPartyMemberId && partyMembers.value) {
+      const character = partyMembers.value.find(m => m.id === auth.linkedPartyMemberId);
+      if (character?.name) return character.name;
+    }
+    return auth.membership?.display_name ?? auth.userEmail ?? "Unknown";
+  }
 
   async function sendMessage(text: string, recipientUserId: string | null = null) {
     const cid = campaign.activeCampaignId;
@@ -116,7 +155,7 @@ export function useCampaignMessages() {
       campaign_id: cid,
       user_id: auth.user.id,
       recipient_user_id: recipientUserId,
-      sender_name: auth.membership?.display_name ?? auth.userEmail ?? "Unknown",
+      sender_name: getSenderName(),
       message: text.trim(),
       type: "chat",
       metadata: null,
@@ -132,7 +171,7 @@ export function useCampaignMessages() {
       campaign_id: cid,
       user_id: auth.user.id,
       recipient_user_id: recipientUserId,
-      sender_name: auth.membership?.display_name ?? auth.userEmail ?? "Unknown",
+      sender_name: getSenderName(),
       message: `rolled ${result.label} = ${result.total}`,
       type: "roll",
       metadata: result,
@@ -152,7 +191,7 @@ export function useCampaignMessages() {
       campaign_id: cid,
       user_id: auth.user.id,
       recipient_user_id: null,
-      sender_name: auth.membership?.display_name ?? auth.userEmail ?? "Unknown",
+      sender_name: getSenderName(),
       message: `dropped ${quantity > 1 ? `${quantity}x ` : ""}${itemName}`,
       type: "item_drop",
       metadata,
@@ -179,7 +218,7 @@ export function useCampaignMessages() {
       campaign_id: cid,
       user_id: auth.user.id,
       recipient_user_id: null,
-      sender_name: auth.membership?.display_name ?? auth.userEmail ?? "Unknown",
+      sender_name: getSenderName(),
       message: `dropped currency: ${parts.join(", ")}`,
       type: "currency_drop",
       metadata,
@@ -200,10 +239,9 @@ export function useCampaignMessages() {
       claimed_party_member_id: partyMemberId,
     };
     const { error } = await supabase.from("campaign_messages").update({ metadata: newMeta }).eq("id", messageId);
-    if (!error) {
-      const idx = messages.value.findIndex(m => m.id === messageId);
-      if (idx >= 0) messages.value[idx] = { ...messages.value[idx], metadata: newMeta };
-    }
+    if (error) throw error;
+    const idx = messages.value.findIndex(m => m.id === messageId);
+    if (idx >= 0) messages.value[idx] = { ...messages.value[idx], metadata: newMeta };
   }
 
   async function claimItemDrop(messageId: string, claimerName: string, partyMemberId: string | null) {
@@ -218,15 +256,21 @@ export function useCampaignMessages() {
       claimed_party_member_id: partyMemberId,
     };
     const { error } = await supabase.from("campaign_messages").update({ metadata: newMeta }).eq("id", messageId);
-    if (!error) {
-      const idx = messages.value.findIndex(m => m.id === messageId);
-      if (idx >= 0) messages.value[idx] = { ...messages.value[idx], metadata: newMeta };
-    }
+    if (error) throw error;
+    const idx = messages.value.findIndex(m => m.id === messageId);
+    if (idx >= 0) messages.value[idx] = { ...messages.value[idx], metadata: newMeta };
   }
 
   async function deleteMessage(id: string) {
     await supabase.from("campaign_messages").delete().eq("id", id);
     messages.value = messages.value.filter(m => m.id !== id);
+  }
+
+  async function deleteAllMessages() {
+    const cid = campaign.activeCampaignId;
+    if (!cid) return;
+    await supabase.from("campaign_messages").delete().eq("campaign_id", cid);
+    messages.value = [];
   }
 
   function _optimisticPush(msg: CampaignMessage) {
@@ -237,5 +281,5 @@ export function useCampaignMessages() {
 
   const myUserId = computed(() => auth.user?.id);
 
-  return { messages, loading, sendMessage, sendRoll, sendItemDrop, claimItemDrop, sendCurrencyDrop, claimCurrencyDrop, deleteMessage, myUserId };
+  return { messages, loading, sendMessage, sendRoll, sendItemDrop, claimItemDrop, sendCurrencyDrop, claimCurrencyDrop, deleteMessage, deleteAllMessages, myUserId };
 }

@@ -3,7 +3,8 @@
   <Transition name="side-panel">
     <aside
       v-if="ui.chatOpen"
-      class="hidden md:flex flex-col w-80 shrink-0 border-l border-border bg-card h-full sticky top-0"
+      class="hidden md:flex flex-col w-80 shrink-0 border-l border-border bg-card"
+      :class="props.contained ? 'h-full min-h-0' : 'sticky top-0 h-dvh'"
     >
       <ChatPanelContent
         :messages="messages"
@@ -13,6 +14,7 @@
         @send="handleSend"
         @send-roll="handleRoll"
         @delete="deleteMessage"
+        @delete-all="handleDeleteAll"
         @claim="handleClaim"
         @claim-currency="handleClaimCurrency"
         @close="ui.chatOpen = false"
@@ -60,6 +62,7 @@
         @send="handleSend"
         @send-roll="handleRoll"
         @delete="deleteMessage"
+        @delete-all="handleDeleteAll"
         @claim="handleClaim"
         @claim-currency="handleClaimCurrency"
         @close="ui.chatOpen = false"
@@ -81,9 +84,11 @@ import ChatPanelContent from "./ChatPanelContent.vue";
 import type { RollResult } from "@/lib/dice";
 import type { ItemDropMetadata, CurrencyDropMetadata } from "@/types/chat.types";
 
+const props = withDefaults(defineProps<{ contained?: boolean }>(), { contained: false });
+
 const ui = useUiStore();
 const auth = useAuthStore();
-const { messages, loading, sendMessage, sendRoll, claimItemDrop, claimCurrencyDrop, deleteMessage, myUserId } =
+const { messages, loading, sendMessage, sendRoll, claimItemDrop, claimCurrencyDrop, deleteMessage, deleteAllMessages, myUserId } =
   useCampaignMessages();
 const { data: members } = useCampaignMembers();
 const { data: party }   = useParty();
@@ -115,7 +120,11 @@ async function handleClaim({ messageId, intoStash }: { messageId: string; intoSt
   const partyMemberId = intoStash ? null : (auth.linkedPartyMemberId ?? null);
   const claimerName = auth.membership?.display_name ?? auth.userEmail ?? 'Someone';
 
-  await claimItemDrop(messageId, claimerName, partyMemberId);
+  try {
+    await claimItemDrop(messageId, claimerName, partyMemberId);
+  } catch {
+    return; // claim failed (already claimed by someone else or RLS); don't add to inventory
+  }
   await addInventoryItem({
     name: meta.item_name,
     quantity: meta.quantity,
@@ -178,6 +187,11 @@ async function handleRoll({
   recipientUserId: string | null;
 }) {
   await sendRoll(result, recipientUserId);
+}
+
+async function handleDeleteAll() {
+  if (!confirm("Delete all messages in this chat? This cannot be undone.")) return;
+  await deleteAllMessages();
 }
 </script>
 

@@ -49,6 +49,16 @@
           {{ r.label }}
         </button>
       </div>
+
+      <select
+        v-model="locationFilter"
+        class="bg-card border border-border rounded-md px-2.5 py-1.5 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      >
+        <option value="">All locations</option>
+        <option v-for="loc in allLocations ?? []" :key="loc.id" :value="loc.id">
+          {{ loc.name }}
+        </option>
+      </select>
     </div>
 
     <div v-if="isLoading" class="flex justify-center py-16">
@@ -56,7 +66,7 @@
     </div>
 
     <EmptyState
-      v-else-if="!filtered.length && !search && statusFilter === 'all' && relFilter === 'all'"
+      v-else-if="!filtered.length && !search && statusFilter === 'all' && relFilter === 'all' && !locationFilter"
       title="No NPCs yet"
       description="Populate your realm with merchants, villains, sages, and more."
     >
@@ -136,8 +146,8 @@
             {{ npc.occupation }}
           </p>
 
-          <p v-if="npc.location" class="font-fell text-xs text-muted-foreground truncate">
-            📍 {{ npc.location }}
+          <p v-if="npc.location_id || npc.location" class="font-fell text-xs text-muted-foreground truncate">
+            📍 {{ npc.location_id ? locationName(npc.location_id) : npc.location }}
           </p>
 
           <div v-if="npc.tags.length" class="flex flex-wrap gap-1 mt-auto pt-1">
@@ -172,6 +182,7 @@
 import { ref, computed } from "vue";
 import { Search } from "lucide-vue-next";
 import { useNpcs } from "@/composables/useNpcs";
+import { useAllLocations } from "@/composables/useLocations";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import type { NpcRelationship, NpcStatus } from "@/types/npc.types";
@@ -194,8 +205,20 @@ const REL_OPTIONS = [
 const search = ref("");
 const statusFilter = ref("all");
 const relFilter = ref("all");
+const locationFilter = ref("");
 
 const { data: npcs, isLoading } = useNpcs();
+const { data: allLocations } = useAllLocations();
+
+const locationMap = computed(() => {
+  const m = new Map<string, string>();
+  for (const loc of allLocations.value ?? []) m.set(loc.id, loc.name);
+  return m;
+});
+
+function locationName(id: string) {
+  return locationMap.value.get(id) ?? "Unknown";
+}
 
 const filtered = computed(() => {
   let list = npcs.value ?? [];
@@ -207,11 +230,13 @@ const filtered = computed(() => {
         n.race?.toLowerCase().includes(q) ||
         n.occupation?.toLowerCase().includes(q) ||
         n.location?.toLowerCase().includes(q) ||
+        (n.location_id ? locationMap.value.get(n.location_id)?.toLowerCase().includes(q) : false) ||
         n.tags.some((t) => t.toLowerCase().includes(q)),
     );
   }
   if (statusFilter.value !== "all") list = list.filter((n) => n.status === statusFilter.value);
   if (relFilter.value !== "all") list = list.filter((n) => n.relationship === relFilter.value);
+  if (locationFilter.value) list = list.filter((n) => n.location_id === locationFilter.value);
   return list;
 });
 

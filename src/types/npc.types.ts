@@ -34,6 +34,7 @@ export interface Npc {
   age: string | null;
   occupation: string | null;
   location: string | null;
+  location_id: string | null;
   affiliation: string | null;
   appearance: string | null;
   personality: string | null;
@@ -51,5 +52,5 @@ export interface Npc {
   updated_at: string;
 }
 
-export type NpcInsert = Omit<Npc, "id" | "user_id" | "created_at" | "updated_at">;
+export type NpcInsert = Omit<Npc, "id" | "user_id" | "created_at" | "updated_at" | "location_id"> & { location_id?: string | null };
 export type NpcUpdate = Partial<NpcInsert>;

@@ -1,4 +1,4 @@
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
@@ -58,6 +58,23 @@ export function useEncounters() {
     queryKey: computed(() => [QUERY_KEY, campaignId.value]),
     queryFn: () => fetchEncounters(campaignId.value!),
     enabled: () => !!campaignId.value,
+  });
+}
+
+export function useEncountersByLocation(locationId: string | Ref<string>) {
+  const idRef = isRef(locationId) ? locationId : ref(locationId);
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, "by-location", idRef.value]),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("encounters")
+        .select("id, name, is_finished")
+        .eq("location_id", idRef.value)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as { id: string; name: string; is_finished: boolean }[];
+    },
+    enabled: () => !!idRef.value,
   });
 }
 

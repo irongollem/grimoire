@@ -10,21 +10,6 @@
     >
       <template #actions>
         <div class="flex items-center gap-2">
-          <!-- Calendar system selector -->
-          <select
-            :value="calendar.activeCalendarId"
-            class="rounded-md border border-border bg-card px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            @change="onCalendarChange"
-          >
-            <option
-              v-for="cal in calendar.availableCalendars"
-              :key="cal.id"
-              :value="cal.id"
-            >
-              {{ cal.name }}
-            </option>
-          </select>
-
           <!-- View toggle -->
           <div class="flex rounded-md border border-border overflow-hidden">
             <button
@@ -131,10 +116,6 @@ function openCreateModalForDay(day: number) {
 function openEditModal(event: CalendarEvent) {
   editingEvent.value = event;
   modalOpen.value = true;
-}
-
-function onCalendarChange(e: Event) {
-  calendar.setCalendar((e.target as HTMLSelectElement).value);
 }
 
 function onModalClose(open: boolean) {

@@ -1,3 +1,4 @@
+import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Campaign, CampaignInsert, CampaignUpdate } from "@/types/campaign.types";
@@ -67,6 +68,25 @@ async function claimOrphanedData(campaignId: string): Promise<void> {
 
 export function useCampaigns() {
   return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchCampaigns });
+}
+
+/** Fetch a single campaign by ID — usable by players after campaigns_member_select RLS is in place */
+async function fetchCampaignById(id: string): Promise<Campaign> {
+  const { data, error } = await supabase
+    .from("campaigns")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (error) throw error;
+  return data as Campaign;
+}
+
+export function useCampaignById(id: () => string | null) {
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, id()]),
+    queryFn: () => fetchCampaignById(id()!),
+    enabled: () => !!id(),
+  });
 }
 
 export function useCreateCampaign() {

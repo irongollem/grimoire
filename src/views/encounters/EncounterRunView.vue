@@ -31,16 +31,21 @@ const { data: monsters } = useAllMonsters();
 const { data: party } = useParty();
 const { data: companions } = useCompanions();
 const store = useEncounterRunStore();
-const { liveState } = useEncounterLive(id.value);
+const { liveState, liveStateLoaded } = useEncounterLive(id.value);
 
 const isReady = computed(
   () => !!encounter.value && !!monsters.value && !!party.value && !!companions.value,
 );
 
 watch(
-  [encounter, monsters, party, companions],
+  // Include liveState + liveStateLoaded so the watch re-fires once the DB
+  // fetch completes. Without this, liveState is null on page refresh and
+  // initStore() would fire before we know whether a live state exists.
+  [encounter, monsters, party, companions, liveState, liveStateLoaded],
   ([enc, mons, par, comps]) => {
     if (!enc || !mons || !par || !comps) return;
+    // Wait for the DB check to complete before deciding what to do
+    if (!liveStateLoaded.value) return;
     if (store.encounterId === enc.id && store.started) return;
 
     // If live state exists in DB, hydrate from it (handles page refresh / navigate-away-and-back)

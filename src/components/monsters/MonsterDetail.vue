@@ -252,11 +252,9 @@
             </label>
             <label class="block">
               <span class="field-label">Alignment</span>
-              <input
-                v-model="form.alignment"
-                class="field-input w-full"
-                placeholder="neutral evil"
-              />
+              <select v-model="form.alignment" class="field-input w-full">
+                <option v-for="a in ALIGNMENTS" :key="a" :value="a.toLowerCase()">{{ a }}</option>
+              </select>
             </label>
             <label class="block">
               <span class="field-label">Source</span>
@@ -502,6 +500,11 @@ import type {
   MonsterStatBlock,
 } from "@/types/monster.types";
 
+const ALIGNMENTS = [
+  "Lawful Good", "Neutral Good", "Chaotic Good",
+  "Lawful Neutral", "True Neutral", "Chaotic Neutral",
+  "Lawful Evil", "Neutral Evil", "Chaotic Evil", "Unaligned",
+];
 const MONSTER_TYPES: MonsterType[] = [
   "aberration",
   "beast",
@@ -719,11 +722,10 @@ async function save() {
   try {
     if (props.monster) {
       await update({ id: props.monster.id, update: buildPayload() });
-      router.push("/monsters");
     } else {
-      const created = await create(buildPayload());
-      router.replace(`/monsters/${created.id}`);
+      await create(buildPayload());
     }
+    router.push("/monsters");
   } catch (e: unknown) {
     saveError.value = e instanceof Error ? e.message : "Failed to save";
   } finally {

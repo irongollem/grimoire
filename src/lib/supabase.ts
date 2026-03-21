@@ -17,16 +17,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-// When the tab becomes visible after being hidden, the browser may have paused
-// or dropped the WebSocket. Force-reconnect so all realtime subscriptions
-// (presence, postgres_changes, broadcast) resume immediately.
-if (typeof document !== "undefined") {
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") {
-      supabase.realtime.connect();
-    }
-  });
-}
+// NOTE: Do NOT call supabase.realtime.connect() here on visibilitychange.
+// It closes all active channels which fires CLOSED on their subscribe callbacks,
+// which then schedule a new subscribe() → removeChannel() → CLOSED → loop.
 
 /**
  * Returns the current user from the cached session — no network request,

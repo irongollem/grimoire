@@ -1,4 +1,5 @@
-import { computed } from "vue";
+import { computed, isRef, ref } from "vue";
+import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
@@ -51,6 +52,23 @@ export function useNpcs() {
     queryKey: computed(() => [QUERY_KEY, campaignId.value]),
     queryFn: () => fetchNpcs(campaignId.value!),
     enabled: () => !!campaignId.value,
+  });
+}
+
+export function useNpcsByLocation(locationId: string | Ref<string>) {
+  const idRef = isRef(locationId) ? locationId : ref(locationId);
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, "by-location", idRef.value]),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("npcs")
+        .select("*")
+        .eq("location_id", idRef.value)
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return data as import("@/types/npc.types").Npc[];
+    },
+    enabled: () => !!idRef.value,
   });
 }
 

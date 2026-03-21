@@ -6,9 +6,20 @@
         <MessageCircle class="h-4 w-4 text-primary" />
         <span class="font-cinzel text-xs font-semibold text-foreground tracking-wider">Campaign Chat</span>
       </div>
-      <button class="text-muted-foreground hover:text-foreground transition-colors" @click="$emit('close')">
-        <X class="h-4 w-4" />
-      </button>
+      <div class="flex items-center gap-1">
+        <button
+          v-if="auth.isDM && messages.length > 0"
+          type="button"
+          class="text-muted-foreground/50 hover:text-destructive transition-colors p-1 rounded"
+          title="Clear all messages"
+          @click="$emit('delete-all')"
+        >
+          <Trash2 class="h-3.5 w-3.5" />
+        </button>
+        <button class="text-muted-foreground hover:text-foreground transition-colors p-1" @click="$emit('close')">
+          <X class="h-4 w-4" />
+        </button>
+      </div>
     </div>
 
     <!-- Message list -->
@@ -26,9 +37,9 @@
           class="group flex gap-1"
           :class="msg.user_id === myUserId ? 'flex-row-reverse' : 'flex-row'"
         >
-          <!-- Delete button (own messages only) -->
+          <!-- Delete button (own messages; DM can delete any) -->
           <button
-            v-if="msg.user_id === myUserId"
+            v-if="msg.user_id === myUserId || auth.isDM"
             type="button"
             class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 self-start p-1.5 rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive"
             title="Delete message"
@@ -327,6 +338,7 @@ const emit = defineEmits<{
   send: [payload: { text: string; recipientUserId: string | null }];
   sendRoll: [payload: { result: RollResult; recipientUserId: string | null }];
   delete: [id: string];
+  'delete-all': [];
   claim: [payload: { messageId: string; intoStash: boolean }];
   'claim-currency': [payload: { messageId: string }];
 }>();

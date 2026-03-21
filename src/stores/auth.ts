@@ -44,31 +44,44 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   let initPromise: Promise<void> | null = null;
+  let authListener: { unsubscribe: () => void } | null = null;
 
   async function initialize() {
     if (initialized.value) return;
     if (initPromise) return initPromise;
 
     initPromise = (async () => {
-      const { data } = await supabase.auth.getSession();
-      session.value = data.session;
-      user.value = data.session?.user ?? null;
+      try {
+        const { data } = await supabase.auth.getSession();
+        session.value = data.session;
+        user.value = data.session?.user ?? null;
 
-      if (user.value) {
-        await loadMembership(user.value.id);
-      }
-
-      initialized.value = true;
-
-      supabase.auth.onAuthStateChange(async (_event, newSession) => {
-        session.value = newSession;
-        user.value = newSession?.user ?? null;
         if (user.value) {
           await loadMembership(user.value.id);
-        } else {
-          membership.value = null;
         }
-      });
+
+        initialized.value = true;
+
+        // Unsubscribe any previous listener before registering a new one.
+        // Without this, every HMR hot-reload stacks up another listener and
+        // causes concurrent getSession() calls that fight over navigator.locks.
+        authListener?.unsubscribe();
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+          session.value = newSession;
+          user.value = newSession?.user ?? null;
+          if (user.value) {
+            await loadMembership(user.value.id);
+          } else {
+            membership.value = null;
+          }
+        });
+        authListener = subscription;
+      } catch (err) {
+        // Clear initPromise so callers can retry (e.g. after an AbortError from
+        // navigator.locks contention during HMR or multi-tab lock stealing).
+        initPromise = null;
+        throw err;
+      }
     })();
 
     return initPromise;

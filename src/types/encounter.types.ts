@@ -34,6 +34,9 @@ export interface Encounter {
   companion_ids: string[];
   combatants: CombatantDef[];
   factions: FactionDef[];
+  item_ids: string[];
+  location_id: string | null;
+  is_finished: boolean;
   created_at: string;
   updated_at: string;
 }

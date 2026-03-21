@@ -654,6 +654,24 @@
             </RouterLink>
           </div>
         </div>
+        <!-- Party Notes (shared by players) -->
+        <div v-if="!isNew && sharedNotes?.length" class="rounded-lg border border-border bg-card overflow-hidden">
+          <div class="px-3 py-2 border-b border-border bg-muted/20">
+            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
+              Party Notes
+              <span class="font-fell font-normal">({{ sharedNotes.length }})</span>
+            </span>
+          </div>
+          <div class="divide-y divide-border">
+            <div v-for="note in sharedNotes" :key="note.id" class="px-3 py-2.5">
+              <p class="font-fell text-sm text-foreground whitespace-pre-wrap leading-relaxed">{{ note.content }}</p>
+              <p class="font-cinzel text-[10px] text-muted-foreground/50 tracking-wider mt-1">
+                {{ note.updated_at.slice(0, 10) }}
+              </p>
+            </div>
+          </div>
+        </div>
+
         <!-- Calendar Pins -->
         <EntityCalendarSection
           entity-type="quest"
@@ -692,6 +710,7 @@ import {
   useUpdateQuestRef,
   useDeleteQuestRef,
   useAllQuests,
+  useSharedQuestNotes,
 } from "@/composables/useQuests";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useNpcs } from "@/composables/useNpcs";
@@ -732,9 +751,10 @@ const parentCandidates = computed(() =>
 
 const questId = computed(() => props.quest?.id ?? "");
 
-const { data: subQuests }  = useSubQuests(questId);
-const { data: objectives } = useQuestObjectives(questId);
-const { data: questRefs }  = useQuestRefs(questId);
+const { data: subQuests }    = useSubQuests(questId);
+const { data: objectives }   = useQuestObjectives(questId);
+const { data: questRefs }    = useQuestRefs(questId);
+const { data: sharedNotes }  = useSharedQuestNotes(questId);
 
 const doneCount = computed(() => (objectives.value ?? []).filter((o) => o.is_done).length);
 
