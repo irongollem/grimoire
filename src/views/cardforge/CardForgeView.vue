@@ -5,7 +5,9 @@
       <div class="forge-topbar">
         <div>
           <h1 class="forge-title">Card Forge</h1>
-          <p class="forge-sub">Craft printable cards for your NPCs, monsters, items &amp; spells</p>
+          <p class="forge-sub">
+            Craft printable cards for your NPCs, monsters, items &amp; spells
+          </p>
         </div>
 
         <div class="topbar-actions">
@@ -52,8 +54,8 @@
           </button>
         </div>
         <p class="duplex-hint">
-          Prints fronts then backs. For double-sided printing, flip on the long (left) edge — backs
-          are column-reversed so they align.
+          Prints fronts then backs. For double-sided printing, flip on the long
+          (left) edge — backs are column-reversed so they align.
         </p>
       </div>
 
@@ -80,19 +82,33 @@
           <!-- Search -->
           <label class="block">
             <span class="sr-only">Search</span>
-            <input v-model="search" placeholder="Search…" class="search-input" />
+            <input
+              v-model="search"
+              placeholder="Search…"
+              class="search-input"
+            />
           </label>
 
           <!-- Select all / none -->
           <div class="selection-header">
-            <span class="selection-count">{{ filteredList.length }} entries</span>
-            <button type="button" class="sel-action" @click="selectAll">All</button>
-            <button type="button" class="sel-action" @click="clearAll">None</button>
+            <span class="selection-count"
+              >{{ filteredList.length }} entries</span
+            >
+            <button type="button" class="sel-action" @click="selectAll">
+              All
+            </button>
+            <button type="button" class="sel-action" @click="clearAll">
+              None
+            </button>
           </div>
 
           <!-- List -->
           <div class="entity-list">
-            <label v-for="item in filteredList" :key="item.id" class="entity-row">
+            <label
+              v-for="item in filteredList"
+              :key="item.id"
+              class="entity-row"
+            >
               <input
                 type="checkbox"
                 :checked="selectedIds[source].has(item.id)"
@@ -110,7 +126,10 @@
         <!-- Right: Preview -->
         <main class="preview-panel">
           <div v-if="!selectedSubjects.length" class="preview-empty">
-            <p>Select NPCs, monsters, items, or spells on the left to preview cards.</p>
+            <p>
+              Select NPCs, monsters, items, or spells on the left to preview
+              cards.
+            </p>
             <p class="preview-hint">
               Selected cards will print front + back on separate A4 sheets.
             </p>
@@ -130,15 +149,29 @@
     </div>
 
     <!-- ── Save collection modal ─────────────────────────── -->
-    <div v-if="showSaveModal" class="modal-backdrop" @click.self="showSaveModal = false">
+    <div
+      v-if="showSaveModal"
+      class="modal-backdrop"
+      @click.self="showSaveModal = false"
+    >
       <div class="modal-box">
         <h2 class="modal-title">Save Collection</h2>
         <label class="block">
           <span class="modal-label">Collection name</span>
-          <input v-model="saveCollectionName" class="modal-input" placeholder="My Boss Monsters…" />
+          <input
+            v-model="saveCollectionName"
+            class="modal-input"
+            placeholder="My Boss Monsters…"
+          />
         </label>
         <div class="modal-actions">
-          <button type="button" class="modal-cancel" @click="showSaveModal = false">Cancel</button>
+          <button
+            type="button"
+            class="modal-cancel"
+            @click="showSaveModal = false"
+          >
+            Cancel
+          </button>
           <button
             type="button"
             class="modal-confirm"
@@ -152,7 +185,11 @@
     </div>
 
     <!-- ── Load collection modal ─────────────────────────── -->
-    <div v-if="showLoadModal" class="modal-backdrop" @click.self="showLoadModal = false">
+    <div
+      v-if="showLoadModal"
+      class="modal-backdrop"
+      @click.self="showLoadModal = false"
+    >
       <div class="modal-box">
         <h2 class="modal-title">Card Library</h2>
         <div class="library-list">
@@ -160,17 +197,36 @@
             <div class="library-info">
               <span class="library-name">{{ col.name }}</span>
               <span class="library-meta"
-                >{{ col.items.length }} cards · {{ formatDate(col.created) }}</span
+                >{{ col.items.length }} cards ·
+                {{ formatDate(col.created) }}</span
               >
             </div>
             <div class="library-btns">
-              <button type="button" class="lib-load-btn" @click="loadCollection(col)">Load</button>
-              <button type="button" class="lib-del-btn" @click="deleteCollection(col.id)">×</button>
+              <button
+                type="button"
+                class="lib-load-btn"
+                @click="loadCollection(col)"
+              >
+                Load
+              </button>
+              <button
+                type="button"
+                class="lib-del-btn"
+                @click="deleteCollection(col.id)"
+              >
+                ×
+              </button>
             </div>
           </div>
         </div>
         <div class="modal-actions">
-          <button type="button" class="modal-cancel" @click="showLoadModal = false">Close</button>
+          <button
+            type="button"
+            class="modal-cancel"
+            @click="showLoadModal = false"
+          >
+            Close
+          </button>
         </div>
       </div>
     </div>
@@ -179,10 +235,17 @@
     <div class="print-layout">
       <template v-for="(chunk, pi) in printChunks" :key="pi">
         <!-- Front sheet -->
-        <div class="print-sheet" :class="cardSize === 'tarot' ? 'tarot-sheet' : 'mtg-sheet'">
+        <div
+          class="print-sheet"
+          :class="cardSize === 'tarot' ? 'tarot-sheet' : 'mtg-sheet'"
+        >
           <template v-for="(subject, ci) in chunk" :key="ci">
             <template v-if="subject">
-              <CardTarotFront v-if="cardSize === 'tarot'" :subject="subject" class="print-card" />
+              <CardTarotFront
+                v-if="cardSize === 'tarot'"
+                :subject="subject"
+                class="print-card"
+              />
               <CardFront v-else :subject="subject" class="print-card" />
             </template>
             <div v-else class="print-card print-card-empty" />
@@ -190,10 +253,17 @@
         </div>
 
         <!-- Back sheet (columns reversed per row for duplex alignment) -->
-        <div class="print-sheet" :class="cardSize === 'tarot' ? 'tarot-sheet' : 'mtg-sheet'">
+        <div
+          class="print-sheet"
+          :class="cardSize === 'tarot' ? 'tarot-sheet' : 'mtg-sheet'"
+        >
           <template v-for="(subject, ci) in backOrder(chunk)" :key="ci">
             <template v-if="subject">
-              <CardTarotBack v-if="cardSize === 'tarot'" :subject="subject" class="print-card" />
+              <CardTarotBack
+                v-if="cardSize === 'tarot'"
+                :subject="subject"
+                class="print-card"
+              />
               <CardBack v-else :subject="subject" class="print-card" />
             </template>
             <div v-else class="print-card print-card-empty" />
@@ -304,7 +374,11 @@ const filteredList = computed((): ListItem[] => {
       .map((i: Item) => ({
         id: i.id,
         name: i.name,
-        sub: [ITEM_RARITY_LABELS[i.rarity], ITEM_TYPE_LABELS[i.item_type], i.subtype]
+        sub: [
+          ITEM_RARITY_LABELS[i.rarity],
+          ITEM_TYPE_LABELS[i.item_type],
+          i.subtype,
+        ]
           .filter(Boolean)
           .join(" · "),
       }));
@@ -333,7 +407,10 @@ function toggleSelect(id: string) {
 }
 function selectAll() {
   const src = source.value;
-  const next = new Set([...selectedIds.value[src], ...filteredList.value.map((i) => i.id)]);
+  const next = new Set([
+    ...selectedIds.value[src],
+    ...filteredList.value.map((i) => i.id),
+  ]);
   selectedIds.value = { ...selectedIds.value, [src]: next };
 }
 function clearAll() {
@@ -360,14 +437,21 @@ const selectedSubjects = computed((): CardSubject[] => {
 });
 
 // ── Print chunks ─────────────────────────────────────────
-const perPage = computed(() => CARD_SIZES.find((s) => s.id === cardSize.value)?.perPage ?? 9);
-const cols = computed(() => CARD_SIZES.find((s) => s.id === cardSize.value)?.cols ?? 3);
+const perPage = computed(
+  () => CARD_SIZES.find((s) => s.id === cardSize.value)?.perPage ?? 9,
+);
+const cols = computed(
+  () => CARD_SIZES.find((s) => s.id === cardSize.value)?.cols ?? 3,
+);
 
 const printChunks = computed((): (CardSubject | null)[][] => {
   const n = perPage.value;
   const result: (CardSubject | null)[][] = [];
   for (let i = 0; i < selectedSubjects.value.length; i += n) {
-    const chunk: (CardSubject | null)[] = selectedSubjects.value.slice(i, i + n);
+    const chunk: (CardSubject | null)[] = selectedSubjects.value.slice(
+      i,
+      i + n,
+    );
     while (chunk.length < n) chunk.push(null);
     result.push(chunk);
   }
@@ -442,7 +526,9 @@ function saveCollection() {
 
 function loadCollection(col: CardCollection) {
   const npcIds = col.items.filter((i) => i.kind === "npc").map((i) => i.id);
-  const monsterIds = col.items.filter((i) => i.kind === "monster").map((i) => i.id);
+  const monsterIds = col.items
+    .filter((i) => i.kind === "monster")
+    .map((i) => i.id);
   const itemIds = col.items.filter((i) => i.kind === "item").map((i) => i.id);
   const spellIds = col.items.filter((i) => i.kind === "spell").map((i) => i.id);
 
@@ -459,7 +545,9 @@ function loadCollection(col: CardCollection) {
     items: itemIds.length,
     spells: spellIds.length,
   };
-  source.value = (Object.entries(counts).sort(([, a], [, b]) => b - a)[0][0] as SourceId) ?? "npcs";
+  source.value =
+    (Object.entries(counts).sort(([, a], [, b]) => b - a)[0][0] as SourceId) ??
+    "npcs";
   showLoadModal.value = false;
 }
 
@@ -527,7 +615,7 @@ function formatDate(iso: string) {
 
 /* Topbar */
 .forge-topbar {
-  @apply flex items-start justify-between gap-4 flex-wrap flex-shrink-0;
+  @apply flex items-start justify-between gap-4 flex-wrap shrink-0;
 }
 .forge-title {
   @apply font-cinzel text-2xl font-bold text-foreground;
@@ -565,10 +653,10 @@ function formatDate(iso: string) {
 
 /* Source panel */
 .source-panel {
-  @apply w-64 flex-shrink-0 flex flex-col gap-2 min-h-0;
+  @apply w-64 shrink-0 flex flex-col gap-2 min-h-0;
 }
 .source-tabs {
-  @apply flex rounded-md overflow-hidden border border-border flex-shrink-0;
+  @apply flex rounded-md overflow-hidden border border-border shrink-0;
 }
 .src-tab {
   @apply flex-1 font-cinzel text-xs font-semibold py-1.5 text-muted-foreground bg-card transition-colors;
@@ -585,7 +673,7 @@ function formatDate(iso: string) {
 }
 
 .selection-header {
-  @apply flex items-center gap-2 flex-shrink-0;
+  @apply flex items-center gap-2 shrink-0;
 }
 .selection-count {
   @apply font-cinzel text-xs text-muted-foreground flex-1;
@@ -601,7 +689,7 @@ function formatDate(iso: string) {
   @apply flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-muted/60 transition-colors;
 }
 .entity-row input[type="checkbox"] {
-  @apply accent-primary flex-shrink-0;
+  @apply accent-primary shrink-0;
 }
 .entity-info {
   @apply flex flex-col min-w-0;
