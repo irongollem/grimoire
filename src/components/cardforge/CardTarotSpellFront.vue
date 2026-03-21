@@ -9,7 +9,7 @@
 
       <!-- Art area -->
       <div class="art-area">
-        <img v-if="data.image_url" :src="data.image_url" alt="" class="art-img" />
+        <FocalImage v-if="data.image_url" :src="data.image_url" format="portrait" />
         <div v-else class="art-placeholder">
           <span class="placeholder-glyph">{{ data.school.charAt(0).toUpperCase() }}</span>
           <span class="placeholder-label">{{ data.school }}</span>
@@ -61,6 +61,7 @@ import { computed } from "vue";
 import type { Spell } from "@/types/spell.types";
 import { SCHOOL_COLORS, spellLevelLabel } from "@/types/spell.types";
 import { truncateCard } from "@/types/card.types";
+import FocalImage from "@/components/common/FocalImage.vue";
 
 const props = defineProps<{ data: Spell }>();
 
@@ -151,12 +152,6 @@ const displayTags = computed(() => props.data.classes.slice(0, 3));
 .art-area {
   flex: 0 0 140px;
   overflow: hidden;
-}
-.art-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top center;
 }
 .art-placeholder {
   width: 100%;

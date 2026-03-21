@@ -9,7 +9,7 @@
 
       <!-- Art area -->
       <div class="art-area">
-        <img v-if="portrait" :src="portrait" alt="" class="art-img" />
+        <FocalImage v-if="portrait" :src="portrait" format="landscape" :focal-point="data.portrait_focal_point" />
         <div v-else class="art-placeholder">
           <span class="placeholder-glyph">{{ typeGlyph }}</span>
           <span class="placeholder-label">{{ placeholderLabel }}</span>
@@ -63,6 +63,7 @@
 import { computed } from "vue";
 import type { Npc } from "@/types/npc.types";
 import { NPC_COLORS, ABILITY_KEYS, ABILITY_LABELS, truncateCard } from "@/types/card.types";
+import FocalImage from "@/components/common/FocalImage.vue";
 
 const props = defineProps<{ data: Npc }>();
 
@@ -156,12 +157,6 @@ const kindLabel = computed(() => props.data.relationship);
   flex: 0 0 90px;
   overflow: hidden;
   position: relative;
-}
-.art-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top center;
 }
 .art-placeholder {
   width: 100%;

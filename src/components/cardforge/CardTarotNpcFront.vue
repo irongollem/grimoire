@@ -9,7 +9,7 @@
 
       <!-- Art area -->
       <div class="art-area">
-        <img v-if="data.portrait_url" :src="data.portrait_url" alt="" class="art-img" />
+        <FocalImage v-if="data.portrait_url" :src="data.portrait_url" format="portrait" :focal-point="data.portrait_focal_point" />
         <div v-else class="art-placeholder">
           <span class="placeholder-glyph">{{ data.name.slice(0, 2).toUpperCase() }}</span>
           <span class="placeholder-label">{{ data.occupation ?? "NPC" }}</span>
@@ -69,6 +69,7 @@
 import { computed } from "vue";
 import type { Npc } from "@/types/npc.types";
 import { NPC_COLORS, ABILITY_KEYS, ABILITY_LABELS, truncateCard } from "@/types/card.types";
+import FocalImage from "@/components/common/FocalImage.vue";
 
 const props = defineProps<{ data: Npc }>();
 
@@ -159,12 +160,6 @@ const displayTags = computed(() => (props.data.tags ?? []).slice(0, 3));
 .art-area {
   flex: 0 0 140px;
   overflow: hidden;
-}
-.art-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top center;
 }
 .art-placeholder {
   width: 100%;

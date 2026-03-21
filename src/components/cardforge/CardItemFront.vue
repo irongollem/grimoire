@@ -9,7 +9,7 @@
 
       <!-- Art area -->
       <div class="art-area">
-        <img v-if="data.image_url" :src="data.image_url" alt="" class="art-img" />
+        <FocalImage v-if="data.image_url" :src="data.image_url" format="landscape" />
         <div v-else class="art-placeholder">
           <span class="placeholder-glyph">{{ typeGlyph }}</span>
           <span class="placeholder-label">{{ placeholderLabel }}</span>
@@ -59,6 +59,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Item } from "@/types/item.types";
+import FocalImage from "@/components/common/FocalImage.vue";
 import { ITEM_TYPE_LABELS, ITEM_RARITY_LABELS, RARITY_COLORS } from "@/types/item.types";
 import { truncateCard } from "@/types/card.types";
 import { parseDiceAvg } from "@/lib/dice";
@@ -159,12 +160,6 @@ const displayTags = computed(() =>
   flex: 0 0 90px;
   overflow: hidden;
   position: relative;
-}
-.art-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top center;
 }
 .art-placeholder {
   width: 100%;

@@ -75,12 +75,14 @@
             class="flex items-start justify-between gap-3 p-4 md:w-56 md:flex-col md:justify-start md:border-r md:border-border shrink-0"
           >
             <div class="flex-1 flex items-start gap-2.5">
-              <img
-                v-if="member.portrait_url"
-                :src="member.portrait_url"
-                :alt="member.name"
-                class="w-16 h-16 rounded object-cover shrink-0 border border-border"
-              />
+              <div class="w-16 h-16 rounded-full overflow-hidden shrink-0 border border-border bg-muted">
+                <FocalImage
+                  v-if="member.portrait_url"
+                  :src="member.portrait_url"
+                  :alt="member.name"
+                  format="token"
+                />
+              </div>
               <div>
                 <RouterLink
                   :to="`/party/${member.id}`"
@@ -739,6 +741,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import FocalImage from "@/components/common/FocalImage.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import PartyMemberForm from "./PartyMemberForm.vue";
 import CompanionCard from "./CompanionCard.vue";

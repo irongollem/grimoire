@@ -85,7 +85,7 @@
               class="h-9 w-9 rounded-full shrink-0 overflow-hidden border border-border flex items-center justify-center text-xs font-cinzel font-bold"
               :style="{ background: `linear-gradient(135deg, ${e.bgGradient[0]}, ${e.bgGradient[1]})` }"
             >
-              <img v-if="e.imageUrl" :src="e.imageUrl" class="h-full w-full object-cover" />
+              <FocalImage v-if="e.imageUrl" :src="e.imageUrl" format="token" />
               <span v-else class="text-white/60">{{ e.name.charAt(0).toUpperCase() }}</span>
             </div>
             <div class="flex-1 min-w-0">
@@ -317,7 +317,7 @@
               class="h-6 w-6 rounded-full shrink-0 overflow-hidden border border-border flex items-center justify-center text-[9px] font-cinzel font-bold"
               :style="{ background: `linear-gradient(135deg, ${qe.entity.bgGradient[0]}, ${qe.entity.bgGradient[1]})` }"
             >
-              <img v-if="qe.entity.imageUrl" :src="qe.entity.imageUrl" class="h-full w-full object-cover" />
+              <FocalImage v-if="qe.entity.imageUrl" :src="qe.entity.imageUrl" format="token" />
               <span v-else class="text-white/60">{{ qe.entity.name.charAt(0) }}</span>
             </div>
             <span class="font-cinzel text-[11px] text-foreground">{{ qe.entity.name }}</span>
@@ -506,6 +506,7 @@
 import { ref, computed, watch, nextTick, onUnmounted } from "vue";
 import { Download, Copy, Info, CircleUser, Upload } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
+import FocalImage from "@/components/common/FocalImage.vue";
 import { useParty } from "@/composables/useParty";
 import { useNpcs } from "@/composables/useNpcs";
 import { useMonsters } from "@/composables/useMonsters";

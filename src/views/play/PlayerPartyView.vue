@@ -20,11 +20,12 @@
           @click="openMember(m)"
         >
           <div class="relative aspect-3/4 bg-muted overflow-hidden shrink-0 group">
-            <img
+            <FocalImage
               v-if="m.portrait_url"
               :src="m.portrait_url"
               :alt="m.name"
-              class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
+              format="portrait"
+              class="group-hover:scale-105 transition-transform duration-300"
             />
             <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
               <UserIcon class="h-10 w-10" />
@@ -86,11 +87,13 @@
           @click="openNpc(npc)"
         >
           <div class="relative aspect-3/4 bg-muted overflow-hidden shrink-0 group">
-            <img
+            <FocalImage
               v-if="npc.player_visible_fields.includes('portrait') && npc.portrait_url"
               :src="npc.portrait_url"
               :alt="npc.player_visible_fields.includes('name') ? npc.name : '???'"
-              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              format="portrait"
+              :focal-point="npc.portrait_focal_point"
+              class="group-hover:scale-105 transition-transform duration-300"
             />
             <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
               <UserIcon class="h-10 w-10" />
@@ -129,8 +132,8 @@
       <div v-if="selectedMember" class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" @click.self="closeMember">
         <div class="bg-card rounded-xl border border-border w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
           <div class="relative shrink-0">
-            <div v-if="selectedMember.portrait_url" class="w-full max-h-72 overflow-hidden">
-              <img :src="selectedMember.portrait_url" :alt="selectedMember.name" class="w-full h-full object-cover object-top" />
+            <div v-if="selectedMember.portrait_url" class="w-full h-72 overflow-hidden">
+              <FocalImage :src="selectedMember.portrait_url" :alt="selectedMember.name" format="portrait" />
             </div>
             <button class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors" @click="closeMember">
               <XIcon class="h-4 w-4" />
@@ -187,10 +190,13 @@
       <div v-if="selectedNpc" class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" @click.self="closeNpc">
         <div class="bg-card rounded-xl border border-border w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
           <div class="relative shrink-0">
-            <div v-if="selectedNpc.player_visible_fields.includes('portrait') && selectedNpc.portrait_url" class="w-full max-h-72 overflow-hidden">
-              <img :src="selectedNpc.portrait_url"
+            <div v-if="selectedNpc.player_visible_fields.includes('portrait') && selectedNpc.portrait_url" class="w-full h-72 overflow-hidden">
+              <FocalImage
+                :src="selectedNpc.portrait_url"
                 :alt="selectedNpc.player_visible_fields.includes('name') ? selectedNpc.name : '???'"
-                class="w-full h-full object-cover object-top" />
+                format="portrait"
+                :focal-point="selectedNpc.portrait_focal_point"
+              />
             </div>
             <button class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors" @click="closeNpc">
               <XIcon class="h-4 w-4" />
@@ -247,6 +253,7 @@ import { useSharedNpcs } from "@/composables/useNpcs";
 import { useAllLocations } from "@/composables/useLocations";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import type { PartyMember } from "@/types/party.types";
 import type { Npc, NpcRelationship, NpcStatus } from "@/types/npc.types";

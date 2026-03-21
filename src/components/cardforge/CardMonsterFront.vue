@@ -11,11 +11,10 @@
 
       <!-- Art area -->
       <div class="art-area">
-        <img
+        <FocalImage
           v-if="data.card_art_url ?? data.image_url"
           :src="(data.card_art_url ?? data.image_url)!"
-          alt=""
-          class="art-img"
+          format="landscape"
         />
         <div v-else class="art-placeholder">
           <span class="placeholder-glyph">{{ typeGlyph }}</span>
@@ -71,6 +70,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Monster } from "@/types/monster.types";
+import FocalImage from "@/components/common/FocalImage.vue";
 import {
   MONSTER_COLORS,
   MONSTER_GLYPHS,
@@ -173,13 +173,6 @@ const displayTags = computed(() => (props.data.tags ?? []).slice(0, 2));
   flex: 0 0 90px;
   overflow: hidden;
   position: relative;
-}
-.art-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center top;
-  display: block;
 }
 .art-placeholder {
   width: 100%;

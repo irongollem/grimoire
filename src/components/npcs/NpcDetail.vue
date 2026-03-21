@@ -42,7 +42,7 @@
           class="relative aspect-3/4 rounded-lg border border-border overflow-hidden bg-muted cursor-pointer group"
           @click="triggerPortraitUpload"
         >
-          <img v-if="form.portrait_url" :src="form.portrait_url" alt="Portrait" class="w-full h-full object-cover" />
+          <FocalImage v-if="form.portrait_url" :src="form.portrait_url" format="portrait" :focal-point="form.portrait_focal_point ?? null" />
           <div v-else class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground">
             <ImagePlus class="h-10 w-10" />
             <span class="font-fell text-sm italic">Upload portrait</span>
@@ -57,6 +57,14 @@
           </div>
         </div>
         <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileSelected" />
+
+        <!-- Focal point picker — only shown when a portrait exists -->
+        <FocalPointPicker
+          v-if="form.portrait_url"
+          :src="form.portrait_url"
+          :model-value="form.portrait_focal_point ?? null"
+          @update:model-value="form.portrait_focal_point = $event"
+        />
 
         <!-- Status -->
         <div>
@@ -343,6 +351,7 @@ import { formatNpcForScriptorium } from '@/lib/scriptoriumImport'
 import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES, getNpcTemplate } from '@/data/npcTemplates'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import TraitSection from '@/components/npcs/TraitSection.vue'
+import FocalPointPicker from '@/components/common/FocalPointPicker.vue'
 import type { Npc, NpcInsert, NpcStatus, NpcRelationship, StatBlock } from '@/types/npc.types'
 import { useCampaignStore } from '@/stores/campaign'
 
@@ -435,6 +444,7 @@ const form = reactive<NpcInsert>({
   scriptorium_doc_id: props.npc?.scriptorium_doc_id ?? null,
   campaign_id: campaign.activeCampaignId,
   card_art_url: props.npc?.card_art_url ?? null,
+  portrait_focal_point: props.npc?.portrait_focal_point ?? null,
   shared_with_players: props.npc?.shared_with_players ?? false,
   player_visible_fields: [...(props.npc?.player_visible_fields ?? [])],
   party_notes: props.npc?.party_notes ?? null,

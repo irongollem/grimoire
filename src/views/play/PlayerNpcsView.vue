@@ -23,11 +23,13 @@
       >
         <!-- Portrait -->
         <div class="relative aspect-3/4 bg-muted overflow-hidden shrink-0 group">
-          <img
+          <FocalImage
             v-if="npc.player_visible_fields.includes('portrait') && npc.portrait_url"
             :src="npc.portrait_url"
             :alt="npc.player_visible_fields.includes('name') ? npc.name : '???'"
-            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            format="portrait"
+            :focal-point="npc.portrait_focal_point"
+            class="group-hover:scale-105 transition-transform duration-300"
           />
           <div
             v-else
@@ -82,12 +84,13 @@
           <div class="relative shrink-0">
             <div
               v-if="selected.player_visible_fields.includes('portrait') && selected.portrait_url"
-              class="w-full max-h-72 overflow-hidden"
+              class="w-full h-72 overflow-hidden"
             >
-              <img
+              <FocalImage
                 :src="selected.portrait_url"
                 :alt="selected.player_visible_fields.includes('name') ? selected.name : '???'"
-                class="w-full h-full object-cover object-top"
+                format="portrait"
+                :focal-point="selected.portrait_focal_point"
               />
             </div>
             <button
@@ -160,6 +163,7 @@ import { UserIcon, XIcon } from "lucide-vue-next";
 import { useSharedNpcs } from "@/composables/useNpcs";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import type { Npc, NpcRelationship, NpcStatus } from "@/types/npc.types";
 

@@ -94,13 +94,15 @@
         :to="`/npcs/${npc.id}`"
         class="group flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
       >
-        <!-- Portrait -->
+        <!-- Thumbnail (landscape) -->
         <div class="relative h-36 bg-muted overflow-hidden shrink-0">
-          <img
+          <FocalImage
             v-if="npc.portrait_url"
             :src="npc.portrait_url"
             :alt="npc.name"
-            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            format="landscape"
+            :focal-point="npc.portrait_focal_point"
+            class="group-hover:scale-105 transition-transform duration-300"
           />
           <div
             v-else
@@ -185,6 +187,7 @@ import { useNpcs } from "@/composables/useNpcs";
 import { useAllLocations } from "@/composables/useLocations";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import FocalImage from "@/components/common/FocalImage.vue";
 import type { NpcRelationship, NpcStatus } from "@/types/npc.types";
 
 const STATUS_OPTIONS = [

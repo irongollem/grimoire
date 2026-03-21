@@ -9,7 +9,8 @@
 
       <!-- Art area -->
       <div class="art-area">
-        <div class="art-placeholder">
+        <FocalImage v-if="data.image_url" :src="data.image_url" format="portrait" />
+        <div v-else class="art-placeholder">
           <span class="placeholder-glyph">{{ typeGlyph }}</span>
           <span class="placeholder-label">{{ data.monster_type }}</span>
         </div>
@@ -67,6 +68,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Monster } from "@/types/monster.types";
+import FocalImage from "@/components/common/FocalImage.vue";
 import {
   MONSTER_COLORS,
   MONSTER_GLYPHS_LONG,

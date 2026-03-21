@@ -9,7 +9,7 @@
 
       <!-- Art area -->
       <div class="art-area">
-        <img v-if="data.image_url" :src="data.image_url" alt="" class="art-img" />
+        <FocalImage v-if="data.image_url" :src="data.image_url" format="portrait" />
         <div v-else class="art-placeholder">
           <span class="placeholder-glyph">{{ typeGlyph }}</span>
           <span class="placeholder-label">{{ placeholderLabel }}</span>
@@ -62,6 +62,7 @@ import type { Item } from "@/types/item.types";
 import { ITEM_TYPE_LABELS, ITEM_RARITY_LABELS, RARITY_COLORS } from "@/types/item.types";
 import { truncateCard } from "@/types/card.types";
 import { parseDiceAvg } from "@/lib/dice";
+import FocalImage from "@/components/common/FocalImage.vue";
 
 const props = defineProps<{ data: Item }>();
 
@@ -158,12 +159,6 @@ const displayTags = computed(() =>
 .art-area {
   flex: 0 0 140px;
   overflow: hidden;
-}
-.art-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top center;
 }
 .art-placeholder {
   width: 100%;

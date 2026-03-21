@@ -44,6 +44,7 @@ export interface Npc {
   relationship: NpcRelationship;
   portrait_url: string | null; // tall profile image
   card_art_url: string | null; // landscape art for MTG Card Forge
+  portrait_focal_point?: { x: number; y: number } | null; // manual override for FocalImage (0–100 percentages)
   tags: string[];
   stat_block: StatBlock | null;
   scriptorium_doc_id: string | null; // links to a ScriptoriumDocument (e.g. stat block sheet)
