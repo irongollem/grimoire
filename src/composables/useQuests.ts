@@ -54,7 +54,7 @@ async function fetchQuest(id: string): Promise<Quest> {
 }
 
 async function createQuest(quest: QuestInsert): Promise<Quest> {
-  const user = await getCurrentUser();
+  const user = getCurrentUser();
   const { data, error } = await supabase
     .from("quests")
     .insert({ ...quest, user_id: user!.id })
@@ -357,7 +357,7 @@ async function fetchSharedQuestNotes(questId: string): Promise<QuestPlayerNote[]
 }
 
 async function upsertQuestPlayerNote(note: QuestPlayerNoteUpsert): Promise<QuestPlayerNote> {
-  const user = await getCurrentUser();
+  const user = getCurrentUser();
   const { data, error } = await supabase
     .from("quest_player_notes")
     .upsert({ ...note, user_id: user!.id }, { onConflict: "quest_id,user_id" })

@@ -80,7 +80,7 @@ async function fetchInvites(campaignId: string): Promise<CampaignInvite[]> {
 }
 
 async function createInvite(invite: CampaignInviteInsert): Promise<CampaignInvite> {
-  const user = await getCurrentUser();
+  const user = getCurrentUser();
   const { data, error } = await supabase
     .from("campaign_invites")
     .insert({ ...invite, created_by: user!.id })

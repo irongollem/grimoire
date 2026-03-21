@@ -24,7 +24,7 @@ async function fetchNpc(id: string): Promise<Npc> {
 }
 
 async function createNpc(npc: NpcInsert): Promise<Npc> {
-  const user = await getCurrentUser();
+  const user = getCurrentUser();
   const { data, error } = await supabase
     .from("npcs")
     .insert({ ...npc, user_id: user!.id })
@@ -155,7 +155,7 @@ export function useUpsertNpcPlayerNotes(npcId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (notes: string) => {
-      const user = await getCurrentUser();
+      const user = getCurrentUser();
       const { error } = await supabase
         .from("npc_player_notes")
         .upsert({ npc_id: npcId, user_id: user!.id, notes }, { onConflict: "npc_id,user_id" });

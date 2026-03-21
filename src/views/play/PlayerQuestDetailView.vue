@@ -47,14 +47,14 @@
       <p v-if="quest.summary" class="font-fell text-foreground leading-relaxed">{{ quest.summary }}</p>
 
       <!-- Objectives -->
-      <div v-if="objectives?.length" class="rounded-lg border border-border bg-card overflow-hidden">
+      <div v-if="visibleObjectives.length" class="rounded-lg border border-border bg-card overflow-hidden">
         <div class="px-3 py-2 border-b border-border bg-muted/20 flex items-center justify-between">
           <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Objectives</span>
-          <span class="font-fell text-xs text-muted-foreground">{{ doneCount }}/{{ objectives.length }}</span>
+          <span class="font-fell text-xs text-muted-foreground">{{ doneCount }}/{{ visibleObjectives.length }}</span>
         </div>
         <div class="p-2 flex flex-col gap-1">
           <div
-            v-for="obj in objectives"
+            v-for="obj in visibleObjectives"
             :key="obj.id"
             class="flex items-start gap-2.5 px-2 py-1.5"
           >
@@ -272,7 +272,8 @@ const visibleCoins = computed(() => [
   { label: "CP", amount: quest.value?.reward_cp ?? 0, color: "#b45309" },
 ].filter((c) => c.amount > 0));
 
-const doneCount = computed(() => (objectives.value ?? []).filter((o) => o.is_done).length);
+const visibleObjectives = computed(() => (objectives.value ?? []).filter((o) => o.is_player_visible));
+const doneCount = computed(() => visibleObjectives.value.filter((o) => o.is_done).length);
 
 // ── Player notes ───────────────────────────────────────────────────────────────
 const campaign = useCampaignStore();

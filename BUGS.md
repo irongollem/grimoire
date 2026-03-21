@@ -1,5 +1,7 @@
 # Bugs
 
+## Done
+
 - [x] hitting print on cardforge when the chat is open instead sends the chat overlay to the printview
 - [x] in tokenforge when clicking download, the downloaded image is only the top left half of the token
 - [x] SRD item import creating duplicates on re-run (Supabase 1000-row cap causing dedup check to miss items beyond row 1000)
@@ -50,3 +52,11 @@
 - [x] A dm cant delete an SRD monster from their campaign or hide them, making them a nuisance in the encounter builder where they have the exact same name as the custom monsters — excluded_monster_ids uuid[] added to campaigns; hide button per monster in encounter builder search results; hidden monsters filtered from filteredMonsters
 - [x] de chat moet niet hover zijn van 100vh - eventuele balken in scrollen van binnen — PlayerLayout uses h-dvh + min-h-0; chat aside uses min-h-0 instead of h-full sticky
 - [x] you enabled calendar picker on the calendar itself, but choosing a calendar type is quite inpactful and should only be available on the campaign settingsblock where it was before
+
+- [x] infinite spinner / no network requests after idle — `onAuthStateChange` callback called `loadMembership()` (→ `supabase.from()` → `getSession()`) while supabase-js still held the exclusive `navigator.locks` lock for the auth state notification. Fix: make the callback synchronous, defer `loadMembership` via `setTimeout(fn, 0)` so it runs after the lock is released.
+- [x] entity combobox (reward items, locations, NPCs, etc.) dropdown not appearing when typing — dropdown was `position: absolute` inside a card container with `overflow: hidden` + `border-radius`, which clips absolutely-positioned descendants in modern browsers. Fix: teleport dropdown to `<body>` with `position: fixed`, recalculate coordinates from `getBoundingClientRect()` on open and on scroll (capture phase); also flips upward when near the bottom of the viewport.
+- [x] saving a quest on edit doesnt return me to the quest list
+
+## Regressing bugs
+
+only manually check these off after rigorous testing of the relevant flows, to avoid marking as done when the underlying issue is still present

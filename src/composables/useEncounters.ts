@@ -25,7 +25,7 @@ async function fetchEncounter(id: string): Promise<Encounter> {
 }
 
 async function createEncounter(encounter: EncounterInsert): Promise<Encounter> {
-  const user = await getCurrentUser();
+  const user = getCurrentUser();
   const { data, error } = await supabase
     .from("encounters")
     .insert({ ...encounter, user_id: user!.id })

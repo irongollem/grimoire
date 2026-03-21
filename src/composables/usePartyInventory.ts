@@ -17,7 +17,7 @@ async function fetchInventory(campaignId: string): Promise<PartyInventoryItem[]>
 }
 
 async function addItem(item: PartyInventoryInsert): Promise<PartyInventoryItem> {
-  const user = await getCurrentUser();
+  const user = getCurrentUser();
   const { data, error } = await supabase
     .from("party_inventory")
     .insert({ ...item, user_id: user!.id })

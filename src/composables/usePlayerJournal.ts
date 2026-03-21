@@ -59,7 +59,7 @@ async function fetchMyEntries(campaignId: string): Promise<PlayerJournalEntry[]>
 }
 
 async function fetchSharedEntries(campaignId: string): Promise<PlayerJournalEntry[]> {
-  const user = await getCurrentUser();
+  const user = getCurrentUser();
   const { data, error } = await supabase
     .from("player_journal_entries")
     .select("*")
@@ -72,7 +72,7 @@ async function fetchSharedEntries(campaignId: string): Promise<PlayerJournalEntr
 }
 
 async function createEntry(entry: PlayerJournalEntryInsert): Promise<PlayerJournalEntry> {
-  const user = await getCurrentUser();
+  const user = getCurrentUser();
   const { data, error } = await supabase
     .from("player_journal_entries")
     .insert({ ...entry, user_id: user!.id })

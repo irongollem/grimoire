@@ -30,7 +30,7 @@ async function fetchSpell(id: string): Promise<Spell> {
 }
 
 async function createSpell(spell: SpellInsert): Promise<Spell> {
-  const user = await getCurrentUser();
+  const user = getCurrentUser();
   const { data, error } = await supabase
     .from("spells")
     .insert({ ...spell, user_id: user!.id })
@@ -57,7 +57,7 @@ async function deleteSpell(id: string): Promise<void> {
 }
 
 export function useSpells() {
-  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchSpells });
+  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchSpells, staleTime: Infinity });
 }
 
 export function useSpell(id: string) {

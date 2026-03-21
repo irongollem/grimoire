@@ -24,6 +24,15 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       networkMode: "always",
+      // Disable TQ's built-in focus refetch — we handle this manually in App.vue
+      // after confirming the session is warm (prevents queries queuing behind the
+      // navigator.locks auth refresh and spinning forever with no network activity).
+      refetchOnWindowFocus: false,
+      // 60s global stale time: cached data is shown instantly on re-mount and a
+      // background refetch only fires if the data is older than 60 seconds.
+      // Individual queries can override this (e.g. staleTime: Infinity for SRD
+      // reference data, or staleTime: 0 for anything that must always be live).
+      staleTime: 60_000,
       retry: (failureCount, error) => {
         if (isAbortError(error)) return failureCount < 2; // 2 retries for lock recovery
         return failureCount < 3;

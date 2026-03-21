@@ -28,7 +28,7 @@ async function fetchDocument(id: string): Promise<ScriptoriumDocument> {
 }
 
 async function createDocument(doc: ScriptoriumDocInsert): Promise<ScriptoriumDocument> {
-  const user = await getCurrentUser();
+  const user = getCurrentUser();
   const { data, error } = await supabase
     .from("scriptorium_documents")
     .insert({ ...doc, user_id: user!.id })

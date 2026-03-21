@@ -71,7 +71,7 @@ export function useEncounterLive(encounterId: string) {
     combatants: RunCombatant[];
   }) {
     if (!campaign.activeCampaignId) return;
-    const user = await getCurrentUser();
+    const user = getCurrentUser();
     const payload = {
       encounter_id: encounterId,
       campaign_id: campaign.activeCampaignId,

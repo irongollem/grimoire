@@ -569,23 +569,8 @@
             >
               No loot linked yet.
             </p>
-            <div
-              v-if="availableItems.length"
-              class="flex items-center gap-2 pt-1"
-            >
-              <select
-                v-model="selectedItemId"
-                class="flex-1 bg-transparent border-b border-border px-1 py-1 font-fell text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
-              >
-                <option value="">Add loot item…</option>
-                <option
-                  v-for="item in availableItems"
-                  :key="item.id"
-                  :value="item.id"
-                >
-                  {{ item.name }}
-                </option>
-              </select>
+            <div v-if="availableItems.length" class="flex items-center gap-2 pt-1">
+              <EntityCombobox v-model="selectedItemId" :options="availableItems" placeholder="Add loot item…" />
               <button
                 type="button"
                 :disabled="!selectedItemId"
@@ -597,6 +582,9 @@
             </div>
           </div>
         </div>
+
+        <!-- Loot pools -->
+        <RewardCurrencyPoolsEditor v-model="form.reward_currency_pools" />
 
         <!-- Calendar Pins -->
         <EntityCalendarSection
@@ -908,6 +896,8 @@ import type { Encounter, CombatantDef } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import type { Npc } from "@/types/npc.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import RewardCurrencyPoolsEditor from "@/components/common/RewardCurrencyPoolsEditor.vue";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
 
 const props = defineProps<{
@@ -977,6 +967,7 @@ const form = reactive({
     ? [...props.encounter.factions]
     : [...DEFAULT_FACTIONS],
   item_ids: [...(props.encounter?.item_ids ?? [])],
+  reward_currency_pools: [...(props.encounter?.reward_currency_pools ?? [])] as import("@/types/quest.types").RewardCurrencyPool[],
 });
 
 // Only reset form when navigating to a different encounter, not on every refetch.
@@ -995,6 +986,7 @@ watch(
       ? [...enc.factions]
       : [...DEFAULT_FACTIONS];
     form.item_ids = [...(enc.item_ids ?? [])];
+    form.reward_currency_pools = [...(enc.reward_currency_pools ?? [])];
     form.location_id = enc.location_id ?? null;
   },
 );
@@ -1318,6 +1310,7 @@ async function buildPayload() {
     combatants: form.combatants,
     factions: form.factions,
     item_ids: form.item_ids,
+    reward_currency_pools: form.reward_currency_pools,
     is_finished: props.encounter?.is_finished ?? false,
   };
 }

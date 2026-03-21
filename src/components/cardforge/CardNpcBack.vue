@@ -33,7 +33,7 @@
       <!-- Flavor footer -->
       <div class="flavor-footer">
         <p v-if="flavorText" class="flavor-text">{{ truncateCard(flavorText, 100) }}</p>
-        <span v-if="data.location" class="location-line">{{ data.location }}</span>
+        <span v-if="data.affiliation" class="location-line">{{ data.affiliation }}</span>
       </div>
     </div>
   </div>

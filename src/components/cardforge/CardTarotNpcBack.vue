@@ -91,11 +91,11 @@ interface FlavorSection { heading?: string; text: string; location?: string | nu
 
 const flavorSection = computed((): FlavorSection | null => {
   const text = props.data.personality ?? props.data.backstory;
-  if (!text && !props.data.location) return null;
+  if (!text && !props.data.affiliation) return null;
   return {
     heading: props.data.personality ? "Personality" : "Backstory",
     text: text ?? "",
-    location: props.data.location ?? props.data.affiliation,
+    location: props.data.affiliation,
   };
 });
 </script>

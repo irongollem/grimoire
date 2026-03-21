@@ -116,15 +116,25 @@ function ensureWatcher() {
     { immediate: true },
   );
 
-  // When the tab becomes visible again, re-fetch to catch any messages missed
-  // while the tab was hidden. Delay slightly so Supabase's auth lock recovery
-  // (which steals the navigator.locks lock and fires AbortError) finishes first.
-  // Don't call subscribe() here — the WebSocket reconnects automatically.
+  // When the tab becomes visible again after sleeping/backgrounding:
+  // - If the channel gave up (max attempts reached), reset and fully reconnect.
+  // - Otherwise just backfill missed messages. Always delay slightly so Supabase's
+  //   auth token refresh (which holds navigator.locks) finishes before we hit the DB.
   if (typeof document !== "undefined") {
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible" && subscribedCampaignId) {
         setTimeout(() => {
-          if (subscribedCampaignId) fetchMessages(subscribedCampaignId);
+          if (!subscribedCampaignId) return;
+          if (reconnectAttempts >= MAX_RECONNECT) {
+            // Channel is dead — reset counter and resubscribe from scratch.
+            console.info("[chat] woke up after giving up, resubscribing…");
+            reconnectAttempts = 0;
+            fetchMessages(subscribedCampaignId).then(() => {
+              if (subscribedCampaignId) subscribe(subscribedCampaignId);
+            });
+          } else {
+            fetchMessages(subscribedCampaignId);
+          }
         }, 800);
       }
     });

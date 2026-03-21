@@ -229,7 +229,6 @@ const filtered = computed(() => {
         n.name.toLowerCase().includes(q) ||
         n.race?.toLowerCase().includes(q) ||
         n.occupation?.toLowerCase().includes(q) ||
-        n.location?.toLowerCase().includes(q) ||
         (n.location_id ? locationMap.value.get(n.location_id)?.toLowerCase().includes(q) : false) ||
         n.tags.some((t) => t.toLowerCase().includes(q)),
     );

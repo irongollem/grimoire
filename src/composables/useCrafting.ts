@@ -72,7 +72,7 @@ async function fetchGrants(recipeId: string): Promise<CraftingRecipeGrant[]> {
 // ── Mutation helpers ─────────────────────────────────────────────────────────
 
 async function createRecipe(recipe: CraftingRecipeInsert): Promise<CraftingRecipe> {
-  const user = await getCurrentUser();
+  const user = getCurrentUser();
   const { data, error } = await supabase
     .from("crafting_recipes")
     .insert({ ...recipe, user_id: user!.id })

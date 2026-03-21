@@ -60,39 +60,20 @@
     <!-- Parent location picker -->
     <div class="flex items-center gap-2">
       <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider shrink-0 w-16">Parent</label>
-      <div class="relative flex-1 min-w-0">
-        <input
-          v-model="parentSearch"
-          :placeholder="parentLocation ? parentLocation.name : '— None (top-level) —'"
-          class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring pr-8"
-          @focus="parentOpen = true"
-          @blur="onParentBlur"
-        />
-        <button
-          v-if="selectedParentId"
-          type="button"
-          class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors text-base leading-none"
-          @mousedown.prevent="clearParent"
-        >×</button>
-        <ul
-          v-if="parentOpen && filteredParentOptions.length"
-          class="absolute z-50 top-full left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-md border border-border bg-card shadow-lg"
-        >
-          <li
-            v-for="loc in filteredParentOptions"
-            :key="loc.id"
-            class="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-muted/60 font-fell text-sm"
-            @mousedown.prevent="selectParent(loc)"
-          >
-            <span
-              class="inline-block h-2 w-2 rounded-full shrink-0"
-              :style="{ backgroundColor: LOCATION_TYPE_COLORS[loc.location_type] }"
-            />
-            <span class="flex-1 truncate">{{ loc.name }}</span>
-            <span class="text-xs text-muted-foreground shrink-0 font-cinzel">{{ LOCATION_TYPE_LABELS[loc.location_type] }}</span>
-          </li>
-        </ul>
-      </div>
+      <EntityCombobox
+        v-model="parentIdStr"
+        :options="parentOptions"
+        placeholder="— None (top-level) —"
+      >
+        <template #option="{ opt }">
+          <span
+            class="inline-block h-2 w-2 rounded-full shrink-0"
+            :style="{ backgroundColor: LOCATION_TYPE_COLORS[opt.location_type] }"
+          />
+          <span class="flex-1 truncate">{{ opt.name }}</span>
+          <span class="text-xs text-muted-foreground shrink-0 font-cinzel">{{ LOCATION_TYPE_LABELS[opt.location_type] }}</span>
+        </template>
+      </EntityCombobox>
     </div>
 
     <!-- Tags -->
@@ -278,6 +259,7 @@ import Placeholder from "@tiptap/extension-placeholder";
 import {
   Save, Trash2, Plus, List, ListOrdered, Quote, Undo2, Redo2, MapPin, ChevronRight,
 } from "lucide-vue-next";
+import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useNpcsByLocation } from "@/composables/useNpcs";
 import { useEncountersByLocation } from "@/composables/useEncounters";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
@@ -307,8 +289,6 @@ const { data: allLocations } = useAllLocations();
 const selectedParentId = ref<string | null>(
   props.location?.parent_id ?? props.parentId ?? null,
 );
-const parentSearch = ref("");
-const parentOpen   = ref(false);
 
 const parentLocation = computed(() =>
   selectedParentId.value
@@ -316,28 +296,15 @@ const parentLocation = computed(() =>
     : null,
 );
 
-const filteredParentOptions = computed(() => {
-  const all = allLocations.value ?? [];
-  const search = parentSearch.value.toLowerCase();
-  return all
-    .filter((l) => l.id !== props.location?.id)
-    .filter((l) => !search || l.name.toLowerCase().includes(search));
+// EntityCombobox uses "" for "none"; selectedParentId uses null
+const parentIdStr = computed({
+  get: () => selectedParentId.value ?? "",
+  set: (v: string) => { selectedParentId.value = v || null; },
 });
 
-function selectParent(loc: Location) {
-  selectedParentId.value = loc.id;
-  parentSearch.value     = "";
-  parentOpen.value       = false;
-}
-
-function clearParent() {
-  selectedParentId.value = null;
-  parentSearch.value     = "";
-}
-
-function onParentBlur() {
-  setTimeout(() => { parentOpen.value = false; parentSearch.value = ""; }, 150);
-}
+const parentOptions = computed(() =>
+  (allLocations.value ?? []).filter((l) => l.id !== props.location?.id),
+);
 
 // ── Fetch children (only when editing existing) ────────────────────────────────
 const { data: children, isLoading: childrenLoading } = props.location

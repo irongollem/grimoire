@@ -42,17 +42,20 @@ export interface Npc {
   notes: string | null;
   status: NpcStatus;
   relationship: NpcRelationship;
-  portrait_url: string | null;  // tall profile image
-  card_art_url: string | null;  // landscape art for MTG Card Forge
+  portrait_url: string | null; // tall profile image
+  card_art_url: string | null; // landscape art for MTG Card Forge
   tags: string[];
   stat_block: StatBlock | null;
   scriptorium_doc_id: string | null; // links to a ScriptoriumDocument (e.g. stat block sheet)
   shared_with_players: boolean;
-  player_visible_fields: string[];  // subset of: portrait | name | status | race | occupation | relationship
+  player_visible_fields: string[]; // subset of: portrait | name | status | race | occupation | relationship
   party_notes: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export type NpcInsert = Omit<Npc, "id" | "user_id" | "created_at" | "updated_at" | "location_id"> & { location_id?: string | null };
+export type NpcInsert = Omit<
+  Npc,
+  "id" | "user_id" | "created_at" | "updated_at" | "location_id"
+> & { location_id?: string | null };
 export type NpcUpdate = Partial<NpcInsert>;

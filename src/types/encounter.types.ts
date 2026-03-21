@@ -1,3 +1,6 @@
+import type { RewardCurrencyPool } from "@/types/quest.types";
+export type { RewardCurrencyPool };
+
 // Faction definition — who fights whom
 export interface FactionDef {
   id: string;       // "players" | "enemy" | "ally" | "neutral" | custom UUID
@@ -35,6 +38,7 @@ export interface Encounter {
   combatants: CombatantDef[];
   factions: FactionDef[];
   item_ids: string[];
+  reward_currency_pools: RewardCurrencyPool[];
   location_id: string | null;
   is_finished: boolean;
   created_at: string;

@@ -6,15 +6,68 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onMounted, onUnmounted } from "vue";
 import { useRoute } from "vue-router";
+import { useQueryClient } from "@tanstack/vue-query";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AuthLayout from "@/layouts/AuthLayout.vue";
 import PlayerLayout from "@/layouts/PlayerLayout.vue";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
 import { useTheme } from "@/composables/useTheme";
+import { supabase } from "@/lib/supabase";
 
 useTheme().initTheme();
+
+// refetchOnWindowFocus is disabled globally (main.ts) to prevent TanStack Query
+// from independently queuing DB calls behind the navigator.locks auth refresh on
+// tab wake — which caused infinite spinners with no network activity.
+//
+// Instead we manually invalidate queries here, after confirming the session is
+// warm. For long absences we race the warm-up against a timeout: if the auth lock
+// is stuck (network down / hanging refresh), we reload the page rather than let
+// the user sit on a frozen screen.
+const queryClient = useQueryClient();
+let lastHidden = Date.now();
+
+async function onVisibilityChange() {
+  if (document.visibilityState === "hidden") {
+    lastHidden = Date.now();
+    return;
+  }
+
+  const awayMs = Date.now() - lastHidden;
+  console.info(`[App] tab visible after ${Math.round(awayMs / 1000)}s`);
+
+  if (awayMs < 60_000) {
+    // Short absence — staleTime (60s) handles freshness, no forced invalidation.
+    // Calling invalidateQueries() here would burst N concurrent Supabase calls,
+    // all serializing through navigator.locks, blocking any subsequent navigation.
+    console.info("[App] short absence (<60s), skipping invalidation — staleTime handles it");
+    return;
+  }
+
+  // Long absence — the JWT may have expired. Warm the session first so that
+  // every query fires with a valid token instead of queuing behind the lock.
+  console.info("[App] long absence, warming session before invalidating queries…");
+  const t0 = Date.now();
+  const TIMEOUT_MS = 8_000;
+  const timedOut = await Promise.race([
+    supabase.auth.getSession().then(() => false),
+    new Promise<true>((resolve) => setTimeout(() => resolve(true), TIMEOUT_MS)),
+  ]);
+
+  if (timedOut) {
+    console.warn("[App] session refresh timed out on visibility change, reloading…");
+    window.location.reload();
+    return;
+  }
+
+  console.info(`[App] session warm (${Date.now() - t0}ms), invalidating queries`);
+  queryClient.invalidateQueries();
+}
+
+onMounted(() => document.addEventListener("visibilitychange", onVisibilityChange));
+onUnmounted(() => document.removeEventListener("visibilitychange", onVisibilityChange));
 
 const route = useRoute();
 

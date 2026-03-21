@@ -29,7 +29,7 @@ async function fetchItem(id: string): Promise<Item | null> {
 }
 
 async function createItem(item: ItemInsert): Promise<Item> {
-  const user = await getCurrentUser();
+  const user = getCurrentUser();
   const { data, error } = await supabase
     .from("items")
     .insert({ ...item, user_id: user!.id })
@@ -56,7 +56,7 @@ async function deleteItem(id: string): Promise<void> {
 }
 
 export function useItems() {
-  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchItems });
+  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchItems, staleTime: Infinity });
 }
 
 export function useItem(id: string) {
@@ -123,7 +123,7 @@ export function useImportSrdItems() {
 
       const toInsert = items.filter((i) => !existingNames.has(i.name));
       if (toInsert.length === 0) return 0;
-      const user = await getCurrentUser();
+      const user = getCurrentUser();
       const withUser = toInsert.map((i) => ({ ...i, user_id: user!.id }));
       // Batch insert in groups of 100 to avoid request size limits
       const BATCH = 100;

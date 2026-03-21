@@ -43,7 +43,7 @@ async function fetchLocation(id: string): Promise<Location> {
 }
 
 async function createLocation(loc: LocationInsert): Promise<Location> {
-  const user = await getCurrentUser();
+  const user = getCurrentUser();
   const { data, error } = await supabase
     .from("locations")
     .insert({ ...loc, user_id: user!.id })
@@ -158,7 +158,7 @@ export function usePopulateLocations() {
       const presets = SETTING_LOCATIONS[calendarId] ?? SETTING_LOCATIONS["faerun"] ?? [];
       if (!presets.length) return 0;
 
-      const user = await getCurrentUser();
+      const user = getCurrentUser();
 
       // Fetch existing locations (id + name) for dedup and parent resolution
       const { data: existing, error: fetchError } = await supabase

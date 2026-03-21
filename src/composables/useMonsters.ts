@@ -33,7 +33,7 @@ async function fetchMonster(id: string): Promise<Monster> {
 }
 
 async function createMonster(monster: MonsterInsert): Promise<Monster> {
-  const user = await getCurrentUser();
+  const user = getCurrentUser();
   const { data, error } = await supabase
     .from("monsters")
     .insert({ ...monster, user_id: user!.id })
@@ -60,7 +60,7 @@ async function deleteMonster(id: string): Promise<void> {
 }
 
 export function useMonsters() {
-  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchMonsters });
+  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchMonsters, staleTime: Infinity });
 }
 
 /** Returns SRD monsters merged with the user's custom monsters, sorted by name. */

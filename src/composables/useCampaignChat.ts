@@ -85,13 +85,14 @@ export function useCampaignChat() {
       type: "roll" | "chat";
       message: string;
       senderName: string;
+      recipientUserId?: string | null;
       metadata?: Record<string, unknown> | null;
     }) => {
-      const user = await getCurrentUser();
+      const user = getCurrentUser();
       const { error } = await supabase.from("campaign_messages").insert({
         campaign_id: campaignId.value!,
         user_id: user!.id,
-        recipient_user_id: null,
+        recipient_user_id: msg.recipientUserId ?? null,
         sender_name: msg.senderName,
         message: msg.message,
         type: msg.type,
@@ -124,11 +125,12 @@ export function useCampaignChat() {
     });
   }
 
-  async function postChat(text: string, characterName: string) {
+  async function postChat(text: string, characterName: string, recipientUserId: string | null = null) {
     await sendMessage({
       type: "chat",
       message: text,
       senderName: characterName,
+      recipientUserId,
       metadata: null,
     });
   }

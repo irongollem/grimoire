@@ -321,7 +321,6 @@ async function quickCreate() {
     alignment: quickForm.alignment || null,
     age: null,
     occupation: null,
-    location: null,
     affiliation: null,
     appearance: null,
     personality: null,
@@ -335,6 +334,9 @@ async function quickCreate() {
     tags: [],
     stat_block: tpl?.stat_block ?? null,
     scriptorium_doc_id: null,
+    shared_with_players: false,
+    player_visible_fields: [],
+    party_notes: null,
   };
 
   const created = await createNpc(payload);

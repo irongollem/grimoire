@@ -43,7 +43,7 @@ async function fetchEventsByRange(
 }
 
 async function createCalendarEvent(event: CalendarEventInsert): Promise<CalendarEvent> {
-  const user = await getCurrentUser();
+  const user = getCurrentUser();
   const { data, error } = await supabase
     .from("calendar_events")
     .insert({ ...event, user_id: user!.id })

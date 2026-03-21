@@ -24,7 +24,7 @@ async function fetchCampaigns(): Promise<Campaign[]> {
 }
 
 async function createCampaign(campaign: CampaignInsert): Promise<Campaign> {
-  const user = await getCurrentUser();
+  const user = getCurrentUser();
   const { data, error } = await supabase
     .from("campaigns")
     .insert({ ...campaign, user_id: user!.id })
@@ -52,7 +52,7 @@ async function deleteCampaign(id: string): Promise<void> {
 
 /** Assigns all orphaned rows (campaign_id IS NULL) owned by the current user to the given campaign. */
 async function claimOrphanedData(campaignId: string): Promise<void> {
-  const user = await getCurrentUser();
+  const user = getCurrentUser();
   const userId = user!.id;
 
   await Promise.all(

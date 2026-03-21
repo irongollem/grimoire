@@ -35,6 +35,7 @@ export interface Quest {
   tags: string[];
   notes: string | null; // Tiptap JSON
   is_player_visible: boolean;
+  reward_currency_pools: RewardCurrencyPool[];
   started_at: string | null;
   resolved_at: string | null;
   created_at: string;
@@ -49,11 +50,22 @@ export interface QuestObjective {
   quest_id: string;
   description: string;
   is_done: boolean;
+  is_player_visible: boolean;
   sort_order: number;
 }
 
 export type QuestObjectiveInsert = Omit<QuestObjective, "id">;
 export type QuestObjectiveUpdate = Partial<Omit<QuestObjective, "id" | "quest_id">>;
+
+export interface RewardCurrencyPool {
+  id: string;
+  label: string;
+  pp: number;
+  gp: number;
+  ep: number;
+  sp: number;
+  cp: number;
+}
 
 export type QuestRefType = "npc" | "location" | "monster" | "item" | "encounter";
 

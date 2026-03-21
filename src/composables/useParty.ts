@@ -17,7 +17,7 @@ async function fetchParty(campaignId: string): Promise<PartyMember[]> {
 }
 
 async function createPartyMember(member: PartyMemberInsert): Promise<PartyMember> {
-  const user = await getCurrentUser();
+  const user = getCurrentUser();
   const { data, error } = await supabase
     .from("party_members")
     .insert({ ...member, user_id: user!.id })

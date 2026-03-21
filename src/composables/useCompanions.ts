@@ -17,7 +17,7 @@ async function fetchCompanions(campaignId: string): Promise<Companion[]> {
 }
 
 async function createCompanion(companion: CompanionInsert): Promise<Companion> {
-  const user = await getCurrentUser();
+  const user = getCurrentUser();
   const { data, error } = await supabase
     .from("companions")
     .insert({ ...companion, user_id: user!.id })
