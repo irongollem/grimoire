@@ -665,14 +665,11 @@
 
         <!-- Description -->
         <div class="flex flex-col gap-1">
-          <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase"
-            >Description</span
-          >
-          <textarea
+          <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Description</span>
+          <RichTextEditor
             v-model="description"
-            rows="8"
             placeholder="Describe the spell's effects…"
-            class="bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+            min-height="200px"
           />
         </div>
 
@@ -1068,6 +1065,7 @@ import { Save, Trash2, ScrollText, Lightbulb, ChevronDown, ImagePlus } from "luc
 import { useImageUpload } from "@/composables/useImageUpload";
 import DiceInput from "@/components/common/DiceInput.vue";
 import DamageRollsInput from "@/components/common/DamageRollsInput.vue";
+import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import {
   SPELL_SCHOOLS,
   SPELL_CLASSES,

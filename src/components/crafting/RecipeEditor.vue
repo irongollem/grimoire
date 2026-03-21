@@ -93,11 +93,10 @@
     <!-- Description -->
     <div>
       <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">DESCRIPTION</label>
-      <textarea
+      <RichTextEditor
         v-model="form.description"
-        rows="3"
         placeholder="How is this item crafted? Any special requirements or lore…"
-        class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+        min-height="140px"
       />
     </div>
 
@@ -256,6 +255,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { Eye, Package, Plus, Save, Search, Trash2, UserPlus, X } from "lucide-vue-next";
+import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting-disciplines";
 import { useItems } from "@/composables/useItems";
 import { useParty } from "@/composables/useParty";

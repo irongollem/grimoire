@@ -292,11 +292,10 @@
         <!-- Description -->
         <div class="flex flex-col gap-1">
           <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Description</span>
-          <textarea
+          <RichTextEditor
             v-model="description"
-            rows="8"
             placeholder="Describe this item's properties, lore, and any special effects…"
-            class="bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+            min-height="200px"
           />
         </div>
 
@@ -327,6 +326,7 @@ import { useSpells } from "@/composables/useSpells";
 import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
 import { formatItemForScriptorium } from "@/lib/scriptoriumImport";
 import DamageRollsInput from "@/components/common/DamageRollsInput.vue";
+import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import {
   ITEM_TYPES,
   ITEM_TYPE_LABELS,

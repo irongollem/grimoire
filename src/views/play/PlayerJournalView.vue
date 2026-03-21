@@ -39,13 +39,7 @@
         </div>
 
         <!-- Content -->
-        <textarea
-          ref="newTextarea"
-          v-model="formContent"
-          placeholder="Write your entry…"
-          rows="5"
-          class="w-full bg-muted/30 border border-border rounded-md px-3 py-2.5 font-fell text-sm text-foreground placeholder:text-muted-foreground/60 leading-relaxed resize-none focus:outline-none focus:ring-1 focus:ring-ring"
-        />
+        <RichTextEditor v-model="formContent" placeholder="Write your entry…" min-height="140px" />
 
         <!-- Context link row -->
         <div class="flex flex-wrap items-center gap-2">
@@ -94,7 +88,7 @@
             >Cancel</button>
             <button
               type="button"
-              :disabled="!formContent.trim() || saving"
+              :disabled="isRteEmpty(formContent) || saving"
               class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 disabled:opacity-50 transition-opacity"
               @click="submitNew"
             >
@@ -226,7 +220,7 @@
           <!-- View mode (party journal or not editing) -->
           <template v-if="activeTab === 'party' || editingId !== entry.id">
             <div class="px-4 py-4">
-              <p class="font-fell text-sm text-foreground whitespace-pre-wrap leading-relaxed">{{ entry.content }}</p>
+              <p class="font-fell text-sm text-foreground whitespace-pre-wrap leading-relaxed">{{ plainText(entry.content) }}</p>
               <div v-if="entry.tags?.length" class="flex flex-wrap gap-1 mt-3">
                 <span
                   v-for="tag in entry.tags"
@@ -275,11 +269,7 @@
                 class="flex-1 min-w-32 bg-transparent border-b border-border px-1 py-1 font-cinzel text-sm font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
               />
             </div>
-            <textarea
-              v-model="editForm.content"
-              rows="6"
-              class="w-full bg-muted/30 border border-border rounded-md px-3 py-2.5 font-fell text-sm text-foreground leading-relaxed resize-none focus:outline-none focus:ring-1 focus:ring-ring"
-            />
+            <RichTextEditor v-model="editForm.content" min-height="160px" />
             <div class="flex items-center justify-between gap-2">
               <button
                 type="button"
@@ -301,7 +291,7 @@
                 >Cancel</button>
                 <button
                   type="button"
-                  :disabled="!editForm.content.trim() || saving"
+                  :disabled="isRteEmpty(editForm.content) || saving"
                   class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 disabled:opacity-50"
                   @click="submitEdit"
                 >
@@ -321,7 +311,7 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, computed, nextTick } from "vue";
+import { ref, computed } from "vue";
 import {
   Plus, Save, Loader2, Lock, Eye, ChevronDown, BookOpen,
   Search, Star, CalendarDays, Feather, MessageCircle, ScrollText,
@@ -340,6 +330,7 @@ import { useItems } from "@/composables/useItems";
 import { useMonsters } from "@/composables/useMonsters";
 import { useEncounters } from "@/composables/useEncounters";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import RichTextEditor from "@/components/common/RichTextEditor.vue";
 
 // ── Data ───────────────────────────────────────────────────────────────────────
 const { data: myEntries,     isLoading: loadingMine }   = useMyJournalEntries();
@@ -408,7 +399,6 @@ function toggleExpand(id: string) {
 
 // ── New entry form ────────────────────────────────────────────────────────────
 const showForm   = ref(false);
-const newTextarea = ref<HTMLTextAreaElement | null>(null);
 
 const formCategory   = ref<JournalCategory>("adventure");
 const formTitle      = ref("");
@@ -420,7 +410,6 @@ const saving         = ref(false);
 
 function openNew() {
   showForm.value = true;
-  nextTick(() => newTextarea.value?.focus());
 }
 
 function cancelForm() {
@@ -453,12 +442,12 @@ function resolveRefLabel(): string | null {
 }
 
 async function submitNew() {
-  if (!formContent.value.trim()) return;
+  if (isRteEmpty(formContent.value)) return;
   saving.value = true;
   try {
     await create({
       title:      formTitle.value.trim() || null,
-      content:    formContent.value.trim(),
+      content:    formContent.value,
       category:   formCategory.value,
       tags:       [],
       is_private: formIsPrivate.value,
@@ -495,14 +484,14 @@ function cancelEdit() {
 }
 
 async function submitEdit() {
-  if (!editingId.value || !editForm.value.content.trim()) return;
+  if (!editingId.value || isRteEmpty(editForm.value.content)) return;
   saving.value = true;
   try {
     await update({
       id: editingId.value,
       update: {
         title:      editForm.value.title?.trim() || null,
-        content:    editForm.value.content.trim(),
+        content:    editForm.value.content,
         category:   editForm.value.category,
         is_private: editForm.value.is_private,
       },
@@ -524,8 +513,29 @@ async function removeEntry(id: string) {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+type TiptapNode = { type?: string; text?: string; content?: TiptapNode[] };
+
+function extractNodeText(node: TiptapNode): string {
+  if (node.type === "text") return node.text ?? "";
+  if (node.content) return node.content.map(extractNodeText).join(node.type === "paragraph" ? "\n" : "");
+  return "";
+}
+
+function plainText(content: string): string {
+  try {
+    return extractNodeText(JSON.parse(content) as TiptapNode).trim();
+  } catch {
+    return content;
+  }
+}
+
+function isRteEmpty(val: string): boolean {
+  return !val || plainText(val).length === 0;
+}
+
 function contentPreview(content: string): string {
-  return content.replace(/\n/g, " ").slice(0, 80) + (content.length > 80 ? "…" : "");
+  const text = plainText(content).replace(/\n/g, " ");
+  return text.slice(0, 80) + (text.length > 80 ? "…" : "");
 }
 
 function formatDate(iso: string): string {

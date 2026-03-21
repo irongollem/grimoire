@@ -33,7 +33,8 @@ export interface Quest {
   reward_sp: number;
   reward_cp: number;
   tags: string[];
-  notes: string | null; // Tiptap JSON
+  description: string | null; // Tiptap JSON — full narrative
+  notes: string | null; // Tiptap JSON — DM session notes
   is_player_visible: boolean;
   reward_currency_pools: RewardCurrencyPool[];
   started_at: string | null;

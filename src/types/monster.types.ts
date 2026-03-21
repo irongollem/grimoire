@@ -55,6 +55,7 @@ export interface Monster {
   source: string | null;
   tags: string[];
   stat_block: MonsterStatBlock;
+  description?: string | null;
   notes: string | null;
   image_url: string | null;    // portrait / profile image (tall)
   card_art_url: string | null; // landscape art for MTG Card Forge

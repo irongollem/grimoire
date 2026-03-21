@@ -74,7 +74,7 @@ const router = createRouter({
       path: "/play/crafting",
       name: "play-crafting",
       component: () => import("@/views/play/PlayerCraftingView.vue"),
-      meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Crafting" },
+      meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Workshop" },
     },
     {
       path: "/play/encounter",
@@ -294,12 +294,12 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Quest" },
     },
 
-    // Crafting
+    // Workshop (Crafting)
     {
       path: "/crafting",
       name: "crafting",
       component: () => import("@/views/crafting/CraftingView.vue"),
-      meta: { requiresAuth: true, title: "Crafting" },
+      meta: { requiresAuth: true, title: "Workshop" },
     },
     {
       path: "/crafting/new",

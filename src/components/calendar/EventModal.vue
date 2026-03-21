@@ -271,20 +271,14 @@
 
           <!-- Description -->
           <div>
-            <label
-              class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1"
-            >
+            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">
               DESCRIPTION
-              <span
-                class="text-muted-foreground font-fell normal-case tracking-normal"
-                >(optional)</span
-              >
+              <span class="text-muted-foreground font-fell normal-case tracking-normal">(optional)</span>
             </label>
-            <textarea
+            <RichTextEditor
               v-model="form.description"
-              rows="3"
               placeholder="What happened…"
-              class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+              min-height="120px"
             />
           </div>
 
@@ -336,6 +330,7 @@
 import { ref, watch, computed } from "vue";
 import { RouterLink } from "vue-router";
 import { Scroll, Swords, MapPin } from "lucide-vue-next";
+import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import { useCalendarStore } from "@/stores/calendar";
 import {
   useCreateCalendarEvent,

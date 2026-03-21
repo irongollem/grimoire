@@ -126,13 +126,13 @@
 
     <!-- ── Party member lightbox ───────────────────────────────────────────── -->
     <Transition name="fade">
-      <div v-if="selectedMember" class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" @click.self="selectedMember = null">
+      <div v-if="selectedMember" class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" @click.self="closeMember">
         <div class="bg-card rounded-xl border border-border w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
           <div class="relative shrink-0">
             <div v-if="selectedMember.portrait_url" class="w-full max-h-72 overflow-hidden">
               <img :src="selectedMember.portrait_url" :alt="selectedMember.name" class="w-full h-full object-cover object-top" />
             </div>
-            <button class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors" @click="selectedMember = null">
+            <button class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors" @click="closeMember">
               <XIcon class="h-4 w-4" />
             </button>
             <span v-if="selectedMember.id === auth.linkedPartyMemberId"
@@ -175,9 +175,7 @@
               <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">
                 MY NOTES <span class="font-fell font-normal normal-case text-muted-foreground/60">(private)</span>
               </p>
-              <textarea v-model="memberNotesEdit" rows="3" placeholder="Your thoughts on this party member…"
-                class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-                @blur="saveMemberNotes" />
+              <RichTextEditor v-model="memberNotesEdit" placeholder="Your thoughts on this party member…" min-height="100px" />
             </div>
           </div>
         </div>
@@ -186,7 +184,7 @@
 
     <!-- ── NPC lightbox ────────────────────────────────────────────────────── -->
     <Transition name="fade">
-      <div v-if="selectedNpc" class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" @click.self="selectedNpc = null">
+      <div v-if="selectedNpc" class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" @click.self="closeNpc">
         <div class="bg-card rounded-xl border border-border w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
           <div class="relative shrink-0">
             <div v-if="selectedNpc.player_visible_fields.includes('portrait') && selectedNpc.portrait_url" class="w-full max-h-72 overflow-hidden">
@@ -194,7 +192,7 @@
                 :alt="selectedNpc.player_visible_fields.includes('name') ? selectedNpc.name : '???'"
                 class="w-full h-full object-cover object-top" />
             </div>
-            <button class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors" @click="selectedNpc = null">
+            <button class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors" @click="closeNpc">
               <XIcon class="h-4 w-4" />
             </button>
           </div>
@@ -224,17 +222,13 @@
             </div>
             <div>
               <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">PARTY NOTES</p>
-              <textarea v-model="npcPartyNotesEdit" rows="3" placeholder="What the party knows…"
-                class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-                @blur="saveNpcPartyNotes" />
+              <RichTextEditor v-model="npcPartyNotesEdit" placeholder="What the party knows…" min-height="100px" />
             </div>
             <div>
               <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">
                 MY NOTES <span class="font-fell font-normal normal-case text-muted-foreground/60">(private)</span>
               </p>
-              <textarea v-model="npcPersonalNotesEdit" rows="3" placeholder="Your personal observations…"
-                class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-                @blur="saveNpcPersonalNotes" />
+              <RichTextEditor v-model="npcPersonalNotesEdit" placeholder="Your personal observations…" min-height="100px" />
             </div>
           </div>
         </div>
@@ -253,6 +247,7 @@ import { useSharedNpcs } from "@/composables/useNpcs";
 import { useAllLocations } from "@/composables/useLocations";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import type { PartyMember } from "@/types/party.types";
 import type { Npc, NpcRelationship, NpcStatus } from "@/types/npc.types";
 
@@ -300,6 +295,11 @@ async function saveMemberNotes() {
   );
 }
 
+async function closeMember() {
+  await saveMemberNotes();
+  selectedMember.value = null;
+}
+
 // ── NPC lightbox ─────────────────────────────────────────────────────────────
 const selectedNpc = ref<Npc | null>(null);
 const npcPartyNotesEdit = ref("");
@@ -324,6 +324,11 @@ async function saveNpcPersonalNotes() {
     { npc_id: selectedNpc.value.id, user_id: user!.id, notes: npcPersonalNotesEdit.value },
     { onConflict: "npc_id,user_id" },
   );
+}
+
+async function closeNpc() {
+  await Promise.all([saveNpcPartyNotes(), saveNpcPersonalNotes()]);
+  selectedNpc.value = null;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

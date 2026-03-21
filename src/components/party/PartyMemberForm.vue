@@ -215,15 +215,14 @@
               </div>
             </div>
           </div>
-          <label class="block">
+          <div>
             <span class="field-label">Notes</span>
-            <textarea
+            <RichTextEditor
               v-model="f.notes"
-              rows="3"
-              class="field-input w-full resize-none"
               placeholder="Background, personality, goals…"
+              min-height="120px"
             />
-          </label>
+          </div>
         </template>
 
         <!-- Stats tab -->
@@ -519,6 +518,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, reactive, computed } from "vue";
 import { ImagePlus } from "lucide-vue-next";
+import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import {
   useCreatePartyMember,
   useUpdatePartyMember,

@@ -169,13 +169,7 @@
           </button>
         </div>
         <div class="p-3">
-          <textarea
-            v-model="noteContent"
-            placeholder="Jot down your thoughts, clues, suspicions…"
-            rows="4"
-            class="w-full bg-transparent border-none outline-none resize-none font-fell text-sm text-foreground placeholder:text-muted-foreground/60 leading-relaxed"
-            @blur="saveNote"
-          />
+          <RichTextEditor v-model="noteContent" placeholder="Jot down your thoughts, clues, suspicions…" min-height="120px" />
           <div class="flex items-center justify-between mt-1">
             <span v-if="noteSaved" class="font-cinzel text-[10px] text-muted-foreground/60 tracking-wider">Saved</span>
             <span v-else class="font-cinzel text-[10px] text-muted-foreground/40 tracking-wider">Unsaved</span>
@@ -221,6 +215,7 @@ import {
   ChevronLeft, ScrollText, User, MapPin,
   Check, Package, Swords, Skull, Lock, Eye,
 } from "lucide-vue-next";
+import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import {
   useQuest, useQuestObjectives, useQuestRefs,
   useMyQuestNote, useSharedQuestNotes, useUpsertQuestPlayerNote, useDeleteQuestPlayerNote,
@@ -299,12 +294,17 @@ watch(myNote, (note) => {
   }
 }, { immediate: true });
 
-// Mark unsaved on content change
-watch(noteContent, () => { noteSaved.value = false; });
+// Mark unsaved and debounce-save on content change
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+watch(noteContent, () => {
+  noteSaved.value = false;
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveNote(), 1500);
+});
 
 async function saveNote() {
   if (!quest.value || !campaign.activeCampaignId) return;
-  if (!noteContent.value.trim() && !myNote.value) return; // nothing to save
+  if (!noteContent.value && !myNote.value) return; // nothing to save
   await upsertNote({
     quest_id:    questId.value,
     campaign_id: campaign.activeCampaignId,

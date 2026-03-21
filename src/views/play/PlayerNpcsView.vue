@@ -75,7 +75,7 @@
       <div
         v-if="selected"
         class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
-        @click.self="selected = null"
+        @click.self="closeNpc"
       >
         <div class="bg-card rounded-xl border border-border w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
           <!-- Portrait blown up -->
@@ -92,7 +92,7 @@
             </div>
             <button
               class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors"
-              @click="selected = null"
+              @click="closeNpc"
             >
               <XIcon class="h-4 w-4" />
             </button>
@@ -137,13 +137,7 @@
             <!-- Party notes -->
             <div>
               <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">PARTY NOTES</p>
-              <textarea
-                v-model="partyNotesEdit"
-                rows="3"
-                placeholder="What the party knows…"
-                class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-                @blur="savePartyNotes"
-              />
+              <RichTextEditor v-model="partyNotesEdit" placeholder="What the party knows…" min-height="100px" />
             </div>
 
             <!-- Personal notes -->
@@ -151,13 +145,7 @@
               <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">
                 MY NOTES <span class="font-fell font-normal normal-case text-muted-foreground/60">(private)</span>
               </p>
-              <textarea
-                v-model="personalNotesEdit"
-                rows="3"
-                placeholder="Your personal observations…"
-                class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-                @blur="savePersonalNotes"
-              />
+              <RichTextEditor v-model="personalNotesEdit" placeholder="Your personal observations…" min-height="100px" />
             </div>
           </div>
         </div>
@@ -172,6 +160,7 @@ import { UserIcon, XIcon } from "lucide-vue-next";
 import { useSharedNpcs } from "@/composables/useNpcs";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import type { Npc, NpcRelationship, NpcStatus } from "@/types/npc.types";
 
 const { data: npcs, isLoading } = useSharedNpcs();
@@ -208,6 +197,11 @@ async function savePersonalNotes() {
     { npc_id: selected.value.id, user_id: user!.id, notes: personalNotesEdit.value },
     { onConflict: "npc_id,user_id" },
   );
+}
+
+async function closeNpc() {
+  await Promise.all([savePartyNotes(), savePersonalNotes()]);
+  selected.value = null;
 }
 
 const REL_COLORS: Record<NpcRelationship, string> = {

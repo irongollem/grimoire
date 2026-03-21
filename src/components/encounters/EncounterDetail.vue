@@ -125,16 +125,13 @@
               />
             </div>
             <div>
-              <label
-                class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1"
-              >
+              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">
                 DESCRIPTION
               </label>
-              <textarea
+              <RichTextEditor
                 v-model="form.description"
-                rows="2"
                 placeholder="Scene-setting notes, terrain, objectives…"
-                class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+                min-height="120px"
               />
             </div>
             <div>
@@ -896,6 +893,7 @@ import type { Encounter, CombatantDef } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import type { Npc } from "@/types/npc.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import RewardCurrencyPoolsEditor from "@/components/common/RewardCurrencyPoolsEditor.vue";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";

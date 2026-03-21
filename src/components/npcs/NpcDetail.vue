@@ -202,27 +202,27 @@
           <div class="space-y-3">
             <div>
               <label class="field-label">Appearance</label>
-              <textarea v-model="form.appearance" rows="2" placeholder="Physical description, clothing, distinguishing features…" class="field-input resize-none" />
+              <RichTextEditor v-model="form.appearance" placeholder="Physical description, clothing, distinguishing features…" min-height="100px" />
             </div>
             <div>
               <label class="field-label">Personality</label>
-              <textarea v-model="form.personality" rows="2" placeholder="Traits, mannerisms, ideals, bonds, flaws…" class="field-input resize-none" />
+              <RichTextEditor v-model="form.personality" placeholder="Traits, mannerisms, ideals, bonds, flaws…" min-height="100px" />
             </div>
             <div>
               <label class="field-label">Backstory</label>
-              <textarea v-model="form.backstory" rows="3" placeholder="History, origin, formative events…" class="field-input resize-none" />
+              <RichTextEditor v-model="form.backstory" placeholder="History, origin, formative events…" min-height="140px" />
             </div>
             <div class="border border-burgundy-700/50 rounded-md p-3 bg-burgundy-900/20">
               <label class="field-label">🔐 DM Secret</label>
-              <textarea v-model="form.secret" rows="2" placeholder="Hidden motivations, true identity, dark secret…" class="field-input resize-none" />
+              <RichTextEditor v-model="form.secret" placeholder="Hidden motivations, true identity, dark secret…" min-height="100px" />
             </div>
             <div>
               <label class="field-label">DM Notes</label>
-              <textarea v-model="form.notes" rows="2" placeholder="Session notes, loose threads…" class="field-input resize-none" />
+              <RichTextEditor v-model="form.notes" placeholder="Session notes, loose threads…" min-height="100px" />
             </div>
             <div v-if="form.shared_with_players">
               <label class="field-label">Party Notes <span class="font-fell font-normal normal-case text-muted-foreground">(visible to all players)</span></label>
-              <textarea v-model="form.party_notes" rows="2" placeholder="What the party knows about this NPC…" class="field-input resize-none" />
+              <RichTextEditor v-model="form.party_notes" placeholder="What the party knows about this NPC…" min-height="100px" />
             </div>
           </div>
         </section>
@@ -332,6 +332,7 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 import { ref, reactive, computed } from 'vue'
+import RichTextEditor from '@/components/common/RichTextEditor.vue'
 import { useRouter } from 'vue-router'
 import { ImagePlus, ScrollText } from 'lucide-vue-next'
 import { useImageUpload } from '@/composables/useImageUpload'

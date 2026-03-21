@@ -91,7 +91,7 @@ export const NAV_GROUPS: NavGroup[] = [
         requiresCampaign: true,
       },
       {
-        label: "Crafting",
+        label: "Workshop",
         to: "/crafting",
         icon: Hammer,
         description: "Recipes & player crafting",

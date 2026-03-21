@@ -455,17 +455,24 @@
             <TraitSection v-model="sb.lair_actions" label="Lair Actions" />
           </section>
 
+          <!-- Description -->
+          <section>
+            <span class="field-label block mb-1">Description</span>
+            <RichTextEditor
+              v-model="form.description"
+              placeholder="Lore, habitat, behaviour, and flavour text…"
+              min-height="160px"
+            />
+          </section>
+
           <!-- Notes -->
           <section>
-            <label class="block">
-              <span class="field-label">DM Notes</span>
-              <textarea
-                v-model="form.notes"
-                rows="3"
-                placeholder="Encounter notes, tactics, lair description…"
-                class="field-input w-full resize-y"
-              />
-            </label>
+            <span class="field-label block mb-1">DM Notes</span>
+            <RichTextEditor
+              v-model="form.notes"
+              placeholder="Encounter notes, tactics, lair description…"
+              min-height="120px"
+            />
           </section>
         </div>
       </div>
@@ -479,6 +486,7 @@ const { confirm } = useConfirm();
 import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
 import { Save, Trash2, ScrollText, ImagePlus, Copy } from "lucide-vue-next";
+import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import { useImageUpload } from "@/composables/useImageUpload";
 import {
   useCreateMonster,
@@ -551,6 +559,7 @@ const form = reactive({
   habitat: props.monster?.habitat ?? "",
   source: props.monster?.source ?? "",
   tags: props.monster?.tags ? [...props.monster.tags] : [],
+  description: props.monster?.description ?? "",
   notes: props.monster?.notes ?? "",
   image_url: props.monster?.image_url ?? "",
   card_art_url: props.monster?.card_art_url ?? "",
@@ -708,6 +717,7 @@ function buildPayload() {
     habitat: form.habitat || null,
     source: form.source || null,
     tags: form.tags,
+    description: form.description || null,
     notes: form.notes || null,
     image_url: form.image_url || null,
     card_art_url: form.card_art_url || null,

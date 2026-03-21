@@ -1,7 +1,7 @@
 <template>
   <div>
     <PageHeader
-      title="Crafting"
+      title="Workshop"
       description="Create recipes and share them with your players"
     />
 
