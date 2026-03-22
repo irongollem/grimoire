@@ -72,11 +72,12 @@ export function useNpcsByLocation(locationId: string | Ref<string>) {
   });
 }
 
-export function useNpc(id: string) {
+export function useNpc(id: string | Ref<string>) {
+  const idRef = isRef(id) ? id : ref(id);
   return useQuery({
-    queryKey: [QUERY_KEY, id],
-    queryFn: () => fetchNpc(id),
-    enabled: !!id,
+    queryKey: computed(() => [QUERY_KEY, idRef.value]),
+    queryFn: () => fetchNpc(idRef.value),
+    enabled: () => !!idRef.value,
   });
 }
 

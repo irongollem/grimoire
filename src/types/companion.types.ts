@@ -1,3 +1,5 @@
+import type { MonsterStatBlock } from "@/types/monster.types";
+
 export type CompanionType = "familiar" | "animal_companion" | "mount" | "ally" | "sidekick";
 export type CompanionSourceType = "monster" | "npc" | "custom";
 
@@ -45,6 +47,7 @@ export interface Companion {
   sort_order: number;
   portrait_url: string | null;
   portrait_focal_point?: { x: number; y: number } | null;
+  stat_block: MonsterStatBlock | null;
   created_at: string;
   updated_at: string;
 }

@@ -1,6 +1,33 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+// ── Stat block helpers ─────────────────────────────────────────────────────────
+
+export const STAT_BLOCK_ABILITIES = [
+  { key: "str", label: "STR" }, { key: "dex", label: "DEX" },
+  { key: "con", label: "CON" }, { key: "int", label: "INT" },
+  { key: "wis", label: "WIS" }, { key: "cha", label: "CHA" },
+] as const;
+
+export function abilityModifier(score: number): string {
+  const mod = Math.floor((score - 10) / 2);
+  return mod >= 0 ? `+${mod}` : `${mod}`;
+}
+
+export function skillsToString(skills?: Record<string, string>): string {
+  if (!skills) return "";
+  return Object.entries(skills).map(([k, v]) => `${k.replace(/_/g, " ")} ${v}`).join(", ");
+}
+
+export function skillsToRecord(s: string): Record<string, string> {
+  const rec: Record<string, string> = {};
+  s.split(",").forEach(entry => {
+    const match = entry.trim().match(/^(.+?)\s+([+-]\d+)$/);
+    if (match) rec[match[1].trim().replace(/ /g, "_")] = match[2];
+  });
+  return rec;
+}
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }

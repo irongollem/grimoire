@@ -9,7 +9,7 @@
       <LoadingSpinner />
     </div>
 
-    <NpcDetail v-else :npc="isNewNpc ? null : (npc ?? null)" />
+    <NpcDetail v-else :key="id" :npc="isNewNpc ? null : (npc ?? null)" />
   </div>
 </template>
 
@@ -25,7 +25,7 @@ const route = useRoute();
 const isNewNpc = computed(() => route.name === "npc-new");
 
 const id = computed(() => (isNewNpc.value ? "" : (route.params.id as string)));
-const { data: npc, isLoading: npcLoading } = useNpc(id.value);
+const { data: npc, isLoading: npcLoading } = useNpc(id);
 
 const isLoading = computed(() => !isNewNpc.value && npcLoading.value);
 

@@ -131,6 +131,36 @@
           </template>
         </div>
 
+        <!-- Monster link -->
+        <div class="border border-border rounded-lg p-3 space-y-2">
+          <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">MONSTER LINK</p>
+          <EntityCombobox
+            :model-value="form.linked_monster_id ?? ''"
+            :options="allMonsters ?? []"
+            placeholder="Search monsters…"
+            @update:model-value="onMonsterLinked($event || null)"
+          />
+          <p v-if="form.linked_monster_id" class="font-fell text-[11px] text-muted-foreground italic">
+            Monster data was imported. Edit fields above to override.
+          </p>
+          <button
+            v-if="npc?.id && !form.linked_monster_id"
+            type="button"
+            :disabled="isPromoting"
+            class="w-full py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-50"
+            @click="promoteToMonster"
+          >
+            {{ isPromoting ? 'Promoting…' : 'Promote to Monster' }}
+          </button>
+          <RouterLink
+            v-if="form.linked_monster_id"
+            :to="`/monsters/${form.linked_monster_id}`"
+            class="block text-center py-1 font-fell text-xs text-primary hover:underline"
+          >
+            View in Bestiary →
+          </RouterLink>
+        </div>
+
         <!-- Tags -->
         <div>
           <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">TAGS</p>
@@ -332,6 +362,9 @@
             <TraitSection v-model="statBlock.legendary_actions" label="Legendary Actions" />
           </div>
         </section>
+
+        <!-- Relationships -->
+        <NpcRelationsSection v-if="npc?.id" :npc-id="npc.id" />
       </div>
     </div>
   </form>
@@ -346,14 +379,19 @@ import { ImagePlus, ScrollText } from 'lucide-vue-next'
 import { useImageUpload } from '@/composables/useImageUpload'
 import { useCreateNpc, useUpdateNpc, useDeleteNpc } from '@/composables/useNpcs'
 import { useAllLocations } from '@/composables/useLocations'
+import { useAllMonsters, useCreateMonster } from '@/composables/useMonsters'
 import { useCreateScriptoriumDocument } from '@/composables/useScriptorium'
 import { formatNpcForScriptorium } from '@/lib/scriptoriumImport'
 import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES, getNpcTemplate } from '@/data/npcTemplates'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import TraitSection from '@/components/npcs/TraitSection.vue'
+import NpcRelationsSection from '@/components/npcs/NpcRelationsSection.vue'
 import FocalPointPicker from '@/components/common/FocalPointPicker.vue'
 import type { Npc, NpcInsert, NpcStatus, NpcRelationship, StatBlock } from '@/types/npc.types'
 import { useCampaignStore } from '@/stores/campaign'
+import FocalImage from '@/components/common/FocalImage.vue'
+import EntityCombobox from '@/components/common/EntityCombobox.vue'
+import { STAT_BLOCK_ABILITIES, abilityModifier, skillsToString, skillsToRecord } from '@/lib/utils'
 
 const { confirm, notify } = useConfirm();
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -375,11 +413,7 @@ const ALIGNMENTS = [
   'Lawful Neutral','True Neutral','Chaotic Neutral',
   'Lawful Evil','Neutral Evil','Chaotic Evil','Unaligned',
 ]
-const ABILITIES = [
-  { key: 'str', label: 'STR' }, { key: 'dex', label: 'DEX' },
-  { key: 'con', label: 'CON' }, { key: 'int', label: 'INT' },
-  { key: 'wis', label: 'WIS' }, { key: 'cha', label: 'CHA' },
-]
+const ABILITIES = STAT_BLOCK_ABILITIES
 const PLAYER_FIELDS = [
   { key: 'portrait',     label: 'Portrait' },
   { key: 'name',         label: 'Name' },
@@ -398,9 +432,12 @@ const props = defineProps<{ npc?: Npc | null }>()
 
 const router = useRouter()
 const { data: allLocations } = useAllLocations()
+const { data: allMonsters } = useAllMonsters()
 const { mutateAsync: createNpc, isPending: isCreating } = useCreateNpc()
 const { mutateAsync: updateNpc, isPending: isUpdating } = useUpdateNpc()
 const { mutateAsync: deleteNpc } = useDeleteNpc()
+const { mutateAsync: createMonster } = useCreateMonster()
+const isPromoting = ref(false)
 const { mutateAsync: createScriptoriumDoc } = useCreateScriptoriumDocument()
 const campaign = useCampaignStore()
 const isSaving = computed(() => isCreating.value || isUpdating.value)
@@ -418,6 +455,83 @@ async function sendToScriptorium() {
   } finally {
     isSendingToScriptorium.value = false
   }
+}
+
+async function promoteToMonster() {
+  if (!props.npc) return
+  isPromoting.value = true
+  try {
+    const sb = props.npc.stat_block
+    const monster = await createMonster({
+      name: props.npc.name,
+      monster_type: 'humanoid',
+      size: 'medium',
+      alignment: props.npc.alignment ?? 'unaligned',
+      habitat: null,
+      source: null,
+      tags: [...props.npc.tags],
+      image_url: props.npc.portrait_url,
+      card_art_url: props.npc.card_art_url,
+      portrait_focal_point: props.npc.portrait_focal_point ?? null,
+      description: null,
+      notes: props.npc.notes,
+      stat_block: sb ? { ...sb } : {
+        armor_class: 10,
+        hit_points: '4 (1d8)',
+        speed: '30 ft.',
+        str: 10, dex: 10, con: 10,
+        int: 10, wis: 10, cha: 10,
+        challenge_rating: '0',
+      },
+    })
+    form.linked_monster_id = monster.id
+    await updateNpc({ id: props.npc.id, update: { linked_monster_id: monster.id } })
+    router.push(`/monsters/${monster.id}`)
+  } finally {
+    isPromoting.value = false
+  }
+}
+
+function onMonsterLinked(monsterId: string | null) {
+  form.linked_monster_id = monsterId
+  if (!monsterId) return
+  const m = (allMonsters.value ?? []).find(x => x.id === monsterId)
+  if (!m) return
+
+  // Populate identity fields if blank
+  if (!form.name)        form.name = m.name
+  if (!form.alignment)   form.alignment = m.alignment ?? null
+  if (!form.tags.length) form.tags = [...m.tags]
+
+  // Portrait — only fill if none set
+  if (!form.portrait_url && m.image_url) {
+    form.portrait_url = m.image_url
+    form.portrait_focal_point = m.portrait_focal_point ?? null
+  }
+  if (!form.card_art_url && m.card_art_url) {
+    form.card_art_url = m.card_art_url
+  }
+
+  // Stat block — import monster stat block and enable it
+  const msb = m.stat_block
+  hasStatBlock.value = true
+  Object.assign(statBlock, {
+    armor_class:        msb.armor_class,
+    hit_points:         msb.hit_points,
+    speed:              msb.speed,
+    str: msb.str, dex: msb.dex, con: msb.con,
+    int: msb.int, wis: msb.wis, cha: msb.cha,
+    challenge_rating:   msb.challenge_rating,
+    skills:             skillsToString(msb.skills),
+    senses:             msb.senses ?? '',
+    languages:          msb.languages ?? '',
+    damage_resistances: msb.damage_resistances ?? '',
+    damage_immunities:  msb.damage_immunities ?? '',
+    condition_immunities: msb.condition_immunities ?? '',
+    special_abilities:  msb.special_abilities ? [...msb.special_abilities] : [],
+    actions:            msb.actions ? [...msb.actions] : [],
+    legendary_actions:  msb.legendary_actions ? [...msb.legendary_actions] : [],
+  })
 }
 
 // ── Form state ────────────────────────────────────────────────────────────────
@@ -441,6 +555,7 @@ const form = reactive<NpcInsert>({
   portrait_url: props.npc?.portrait_url ?? null,
   tags: [...(props.npc?.tags ?? [])],
   stat_block: props.npc?.stat_block ?? null,
+  linked_monster_id: props.npc?.linked_monster_id ?? null,
   scriptorium_doc_id: props.npc?.scriptorium_doc_id ?? null,
   campaign_id: campaign.activeCampaignId,
   card_art_url: props.npc?.card_art_url ?? null,
@@ -477,11 +592,6 @@ interface FlatStatBlock {
   legendary_actions: StatBlock['legendary_actions']
 }
 
-function skillsToString(skills?: Record<string, string>): string {
-  if (!skills) return ''
-  return Object.entries(skills).map(([k, v]) => `${k.replace(/_/g, ' ')} ${v}`).join(', ')
-}
-
 const statBlock = reactive<FlatStatBlock>({
   armor_class: props.npc?.stat_block?.armor_class ?? 10,
   hit_points: props.npc?.stat_block?.hit_points ?? '4 (1d8)',
@@ -504,10 +614,7 @@ const statBlock = reactive<FlatStatBlock>({
   legendary_actions: props.npc?.stat_block?.legendary_actions ? [...props.npc.stat_block.legendary_actions] : [],
 })
 
-function modifier(score: number): string {
-  const mod = Math.floor((score - 10) / 2)
-  return mod >= 0 ? `+${mod}` : `${mod}`
-}
+const modifier = abilityModifier
 
 // ── Templates ─────────────────────────────────────────────────────────────────
 
@@ -571,13 +678,7 @@ async function onFileSelected(e: Event) {
 
 function buildStatBlock(): StatBlock | null {
   if (!hasStatBlock.value) return null
-  const skillsRecord: Record<string, string> = {}
-  if (statBlock.skills) {
-    statBlock.skills.split(',').forEach(entry => {
-      const match = entry.trim().match(/^(.+?)\s+([+-]\d+)$/)
-      if (match) skillsRecord[match[1].trim().replace(/ /g, '_')] = match[2]
-    })
-  }
+  const skillsRecord = skillsToRecord(statBlock.skills)
   return {
     armor_class: statBlock.armor_class,
     hit_points: statBlock.hit_points,

@@ -111,9 +111,10 @@
 
 ### NPCs & Companions
 
-- [ ] **NPC relationship map** — visual graph of NPC relationships (family, allies, enemies) with hover details; auto-generated from `relationship` field + manual overrides
-- [ ] **Monstrous NPCs** — allow /promoting an NPC to/from a monster; auto-populate portrait from monster art
-- [ ] **Companion stat block** — optional simplified stat block for companions, link them to their bestiary counterpart for quick reference during play
+- [x] **Companion stat block** — optional full stat block on companions; auto-populated when picking a monster source; ability scores, actions, reactions stored in `stat_block` JSONB
+- [x] **Monstrous NPCs** — `linked_monster_id` FK on NPCs; dropdown to link to existing monster; "Promote to Monster" button creates a Bestiary entry from NPC data and links back
+- [x] **NPC relationship data** — `npc_relationships` table; NPC editor "Relationships" section with add/remove; type badges (Family, Ally, Rival, Enemy, Mentor, etc.); bidirectional display
+- [ ] **NPC relationship map** — visual graph of NPC relationships (family, allies, enemies) with hover details; data already stored in `npc_relationships` table
 
 ### Items & Magic Items
 

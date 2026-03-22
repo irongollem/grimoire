@@ -30,27 +30,23 @@
       <!-- Monster source picker -->
       <div v-if="sourceType === 'monster'" class="flex flex-col gap-1.5">
         <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Monster</label>
-        <select
-          v-model="selectedMonsterId"
-          class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @change="onMonsterSelected"
-        >
-          <option value="">— Select monster —</option>
-          <option v-for="m in monsters" :key="m.id" :value="m.id">{{ m.name }}</option>
-        </select>
+        <EntityCombobox
+          :model-value="selectedMonsterId"
+          :options="monsters ?? []"
+          placeholder="Search monsters…"
+          @update:model-value="selectedMonsterId = $event; onMonsterSelected()"
+        />
       </div>
 
       <!-- NPC source picker -->
       <div v-if="sourceType === 'npc'" class="flex flex-col gap-1.5">
         <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">NPC</label>
-        <select
-          v-model="selectedNpcId"
-          class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @change="onNpcSelected"
-        >
-          <option value="">— Select NPC —</option>
-          <option v-for="n in npcs" :key="n.id" :value="n.id">{{ n.name }}</option>
-        </select>
+        <EntityCombobox
+          :model-value="selectedNpcId"
+          :options="npcs ?? []"
+          placeholder="Search NPCs…"
+          @update:model-value="selectedNpcId = $event; onNpcSelected()"
+        />
       </div>
 
       <!-- Portrait upload -->
@@ -145,6 +141,84 @@
         </div>
       </div>
 
+      <!-- Stat block toggle -->
+      <div class="border-t border-border pt-3">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input v-model="hasStatBlock" type="checkbox" class="w-4 h-4 rounded border-border accent-primary" />
+          <span class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">INCLUDE STAT BLOCK</span>
+        </label>
+      </div>
+
+      <template v-if="hasStatBlock">
+        <!-- Load from bestiary -->
+        <div class="flex flex-col gap-1">
+          <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Load from bestiary</label>
+          <EntityCombobox
+            model-value=""
+            :options="monsters ?? []"
+            placeholder="Search monsters…"
+            @update:model-value="onLoadFromBestiary($event)"
+          />
+        </div>
+
+        <!-- Core combat stats -->
+        <div class="grid grid-cols-3 gap-2">
+          <div class="flex flex-col gap-1">
+            <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">CR</label>
+            <input v-model="sb.challenge_rating" placeholder="1/4" class="sb-input" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">HP</label>
+            <input v-model="sb.hit_points" placeholder="11 (2d8+2)" class="sb-input" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Speed</label>
+            <input v-model="sb.speed" placeholder="30 ft." class="sb-input" />
+          </div>
+        </div>
+
+        <!-- Ability scores -->
+        <div>
+          <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground mb-1.5">ABILITY SCORES</p>
+          <div class="grid grid-cols-6 gap-1">
+            <div v-for="ab in ABILITIES" :key="ab.key" class="text-center">
+              <p class="font-cinzel text-[9px] font-bold tracking-wider text-muted-foreground mb-0.5">{{ ab.label }}</p>
+              <input
+                v-model.number="(sb as Record<string, unknown>)[ab.key]"
+                type="number" min="1" max="30"
+                class="sb-input text-center px-0.5 text-xs"
+              />
+              <p class="font-fell text-[10px] text-muted-foreground mt-0.5">{{ modifier((sb as Record<string, unknown>)[ab.key] as number) }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Extras -->
+        <div class="grid grid-cols-2 gap-2">
+          <div class="flex flex-col gap-1">
+            <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Skills</label>
+            <input v-model="sb.skills" placeholder="Perception +3" class="sb-input" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Senses</label>
+            <input v-model="sb.senses" placeholder="Darkvision 60 ft." class="sb-input" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Languages</label>
+            <input v-model="sb.languages" placeholder="Common" class="sb-input" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Damage Resistances</label>
+            <input v-model="sb.damage_resistances" class="sb-input" />
+          </div>
+        </div>
+
+        <!-- Special abilities -->
+        <TraitSection v-model="sb.special_abilities" label="Special Abilities" />
+        <TraitSection v-model="sb.actions" label="Actions" />
+        <TraitSection v-model="sb.reactions" label="Reactions" />
+      </template>
+
       <!-- Error -->
       <p v-if="saveError" class="text-destructive font-fell text-sm">{{ saveError }}</p>
 
@@ -171,7 +245,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, reactive } from "vue";
 import { X, ImagePlus } from "lucide-vue-next";
 import { useCreateCompanion, useUpdateCompanion } from "@/composables/useCompanions";
 import { useAllMonsters } from "@/composables/useMonsters";
@@ -182,10 +256,17 @@ import {
   COMPANION_TYPE_LABELS,
 } from "@/types/companion.types";
 import type { Companion, CompanionType, CompanionSourceType } from "@/types/companion.types";
+import type { MonsterStatBlock } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import FocalPointPicker from "@/components/common/FocalPointPicker.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import TraitSection from "@/components/npcs/TraitSection.vue";
+import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import { STAT_BLOCK_ABILITIES, abilityModifier, skillsToString, skillsToRecord } from "@/lib/utils";
+
+const ABILITIES = STAT_BLOCK_ABILITIES;
+const modifier = abilityModifier;
 
 const SOURCE_TABS: Array<{ value: CompanionSourceType; label: string }> = [
   { value: "monster", label: "From Monster" },
@@ -229,6 +310,72 @@ const saving            = ref(false);
 const saveError         = ref("");
 const fileInput         = ref<HTMLInputElement | null>(null);
 
+// Stat block
+const hasStatBlock = ref(!!props.companion?.stat_block);
+const sb = reactive({
+  challenge_rating: props.companion?.stat_block?.challenge_rating ?? "0",
+  hit_points:       props.companion?.stat_block?.hit_points ?? "4 (1d8)",
+  speed:            props.companion?.stat_block?.speed ?? "30 ft.",
+  str: props.companion?.stat_block?.str ?? 10,
+  dex: props.companion?.stat_block?.dex ?? 10,
+  con: props.companion?.stat_block?.con ?? 10,
+  int: props.companion?.stat_block?.int ?? 10,
+  wis: props.companion?.stat_block?.wis ?? 10,
+  cha: props.companion?.stat_block?.cha ?? 10,
+  skills:             skillsToString(props.companion?.stat_block?.skills),
+  senses:             props.companion?.stat_block?.senses ?? "",
+  languages:          props.companion?.stat_block?.languages ?? "",
+  damage_resistances: props.companion?.stat_block?.damage_resistances ?? "",
+  special_abilities:  props.companion?.stat_block?.special_abilities ? [...props.companion.stat_block.special_abilities] : [] as Array<{ name: string; description: string }>,
+  actions:            props.companion?.stat_block?.actions ? [...props.companion.stat_block.actions] : [] as Array<{ name: string; description: string }>,
+  reactions:          props.companion?.stat_block?.reactions ? [...props.companion.stat_block.reactions] : [] as Array<{ name: string; description: string }>,
+});
+
+function onLoadFromBestiary(monsterId: string) {
+  if (!monsterId) return;
+  const m = (monsters.value ?? []).find(x => x.id === monsterId);
+  if (!m) return;
+  applyStatBlockFromMonster(m.stat_block);
+}
+
+function applyStatBlockFromMonster(statBlock: MonsterStatBlock) {
+  hasStatBlock.value = true;
+  Object.assign(sb, {
+    challenge_rating:   statBlock.challenge_rating,
+    hit_points:         statBlock.hit_points,
+    speed:              statBlock.speed,
+    str: statBlock.str, dex: statBlock.dex, con: statBlock.con,
+    int: statBlock.int, wis: statBlock.wis, cha: statBlock.cha,
+    skills:             skillsToString(statBlock.skills),
+    senses:             statBlock.senses ?? "",
+    languages:          statBlock.languages ?? "",
+    damage_resistances: statBlock.damage_resistances ?? "",
+    special_abilities:  statBlock.special_abilities ? [...statBlock.special_abilities] : [],
+    actions:            statBlock.actions ? [...statBlock.actions] : [],
+    reactions:          statBlock.reactions ? [...statBlock.reactions] : [],
+  });
+}
+
+function buildStatBlock(): MonsterStatBlock | null {
+  if (!hasStatBlock.value) return null;
+  const skillsRecord = skillsToRecord(sb.skills);
+  return {
+    armor_class:        ac.value,
+    hit_points:         sb.hit_points,
+    speed:              sb.speed,
+    str: sb.str, dex: sb.dex, con: sb.con,
+    int: sb.int, wis: sb.wis, cha: sb.cha,
+    challenge_rating:   sb.challenge_rating,
+    ...(Object.keys(skillsRecord).length ? { skills: skillsRecord } : {}),
+    ...(sb.senses             ? { senses: sb.senses } : {}),
+    ...(sb.languages          ? { languages: sb.languages } : {}),
+    ...(sb.damage_resistances ? { damage_resistances: sb.damage_resistances } : {}),
+    ...(sb.special_abilities?.length ? { special_abilities: sb.special_abilities } : {}),
+    ...(sb.actions?.length    ? { actions: sb.actions } : {}),
+    ...(sb.reactions?.length  ? { reactions: sb.reactions } : {}),
+  };
+}
+
 function parseHpNum(hpStr: string): number {
   return parseInt(hpStr, 10) || 1;
 }
@@ -244,6 +391,7 @@ function onMonsterSelected() {
   currentHp.value = maxHp.value;
   ac.value        = m.stat_block.armor_class;
   speed.value     = parseSpeedNum(m.stat_block.speed);
+  applyStatBlockFromMonster(m.stat_block);
   // Auto-fill portrait from monster image if none set yet
   if (!portraitUrl.value && m.image_url) portraitUrl.value = m.image_url;
 }
@@ -297,6 +445,7 @@ async function save() {
       sort_order:            props.companion?.sort_order ?? 0,
       portrait_url:          portraitUrl.value,
       portrait_focal_point:  focalPoint.value,
+      stat_block:            buildStatBlock(),
     };
 
     if (isEdit && props.companion) {
@@ -315,3 +464,10 @@ async function save() {
   }
 }
 </script>
+
+<style scoped>
+@reference "@/assets/main.css";
+.sb-input {
+  @apply w-full bg-card border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
+}
+</style>
