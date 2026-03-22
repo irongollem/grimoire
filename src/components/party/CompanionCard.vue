@@ -2,6 +2,17 @@
   <div class="flex flex-col gap-2 rounded-lg border border-border bg-card/60 px-3 py-2.5">
     <!-- Header row -->
     <div class="flex items-center gap-2">
+      <!-- Token avatar -->
+      <div class="shrink-0 w-8 h-8 rounded-full overflow-hidden border border-border bg-muted">
+        <FocalImage
+          v-if="companion.portrait_url"
+          :src="companion.portrait_url"
+          format="token"
+          :focal-point="companion.portrait_focal_point ?? null"
+        />
+        <div v-else class="w-full h-full rounded-full" :style="{ backgroundColor: COMPANION_TYPE_COLORS[companion.companion_type] + '33' }" />
+      </div>
+
       <!-- Type indicator -->
       <span
         class="shrink-0 h-2 w-2 rounded-full"
@@ -151,6 +162,7 @@ import {
   COMPANION_TYPE_COLORS,
 } from "@/types/companion.types";
 import type { Companion } from "@/types/companion.types";
+import FocalImage from "@/components/common/FocalImage.vue";
 
 const props = defineProps<{
   companion: Companion;

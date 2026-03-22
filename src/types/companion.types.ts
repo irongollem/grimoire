@@ -41,7 +41,10 @@ export interface Companion {
   speed: number;
   conditions: string[];
   notes: string | null;
+  party_notes?: string | null;
   sort_order: number;
+  portrait_url: string | null;
+  portrait_focal_point?: { x: number; y: number } | null;
   created_at: string;
   updated_at: string;
 }
