@@ -93,6 +93,64 @@ export function useAllLocations() {
   });
 }
 
+/**
+ * Composable providing:
+ * - `locationOptions` — tree-sorted flat list with `depth` for indented combobox display
+ * - `getDescendantIds(rootId)` — returns a Set of the root + all descendant location ids
+ *
+ * Reuse wherever locations need hierarchical filtering (NPCs, quests, encounters, etc.)
+ */
+export function useLocationTree() {
+  const { data: allLocations } = useAllLocations();
+
+  const childrenMap = computed<Map<string, string[]>>(() => {
+    const m = new Map<string, string[]>();
+    for (const loc of allLocations.value ?? []) {
+      if (loc.parent_id) {
+        const arr = m.get(loc.parent_id) ?? [];
+        arr.push(loc.id);
+        m.set(loc.parent_id, arr);
+      }
+    }
+    return m;
+  });
+
+  /** Tree-sorted options with depth, ready for EntityCombobox. */
+  const locationOptions = computed<Array<Location & { depth: number }>>(() => {
+    const locs = allLocations.value ?? [];
+    const result: Array<Location & { depth: number }> = [];
+
+    function visit(loc: Location, depth: number) {
+      result.push({ ...loc, depth });
+      locs
+        .filter((l) => l.parent_id === loc.id)
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .forEach((child) => visit(child, depth + 1));
+    }
+
+    locs
+      .filter((l) => !l.parent_id)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .forEach((root) => visit(root, 0));
+
+    return result;
+  });
+
+  /** BFS — returns the given id plus all descendant ids. */
+  function getDescendantIds(rootId: string): Set<string> {
+    const result = new Set<string>();
+    const queue = [rootId];
+    while (queue.length) {
+      const id = queue.shift()!;
+      result.add(id);
+      for (const childId of childrenMap.value.get(id) ?? []) queue.push(childId);
+    }
+    return result;
+  }
+
+  return { locationOptions, getDescendantIds };
+}
+
 export function useLocation(id: string | Ref<string>) {
   const idRef = isRef(id) ? id : ref(id);
   return useQuery({

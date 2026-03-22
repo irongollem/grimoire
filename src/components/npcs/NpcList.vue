@@ -50,15 +50,17 @@
         </button>
       </div>
 
-      <select
-        v-model="locationFilter"
-        class="bg-card border border-border rounded-md px-2.5 py-1.5 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      <EntityCombobox
+        :model-value="locationFilter"
+        :options="locationOptions"
+        placeholder="All locations"
+        class="min-w-44 max-w-56"
+        @update:model-value="locationFilter = $event"
       >
-        <option value="">All locations</option>
-        <option v-for="loc in allLocations ?? []" :key="loc.id" :value="loc.id">
-          {{ loc.name }}
-        </option>
-      </select>
+        <template #option="{ opt }">
+          <span :style="{ paddingLeft: `${(opt as any).depth * 12}px` }">{{ opt.name }}</span>
+        </template>
+      </EntityCombobox>
     </div>
 
     <div v-if="isLoading" class="flex justify-center py-16">
@@ -184,10 +186,11 @@
 import { ref, computed } from "vue";
 import { Search } from "lucide-vue-next";
 import { useNpcs } from "@/composables/useNpcs";
-import { useAllLocations } from "@/composables/useLocations";
+import { useAllLocations, useLocationTree } from "@/composables/useLocations";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import type { NpcRelationship, NpcStatus } from "@/types/npc.types";
 
 const STATUS_OPTIONS = [
@@ -212,6 +215,7 @@ const locationFilter = ref("");
 
 const { data: npcs, isLoading } = useNpcs();
 const { data: allLocations } = useAllLocations();
+const { locationOptions, getDescendantIds } = useLocationTree();
 
 const locationMap = computed(() => {
   const m = new Map<string, string>();
@@ -238,7 +242,10 @@ const filtered = computed(() => {
   }
   if (statusFilter.value !== "all") list = list.filter((n) => n.status === statusFilter.value);
   if (relFilter.value !== "all") list = list.filter((n) => n.relationship === relFilter.value);
-  if (locationFilter.value) list = list.filter((n) => n.location_id === locationFilter.value);
+  if (locationFilter.value) {
+    const locationIds = getDescendantIds(locationFilter.value);
+    list = list.filter((n) => n.location_id && locationIds.has(n.location_id));
+  }
   return list;
 });
 
