@@ -82,8 +82,7 @@ export function useLocations(parentId: string | null = null) {
   });
 }
 
-/** All locations in the campaign (flat list, for insert panel / search).
- *  staleTime: 0 — always refetch on mount so newly created locations appear immediately. */
+/** All locations in the campaign (flat list, for insert panel / search). */
 export function useAllLocations() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
@@ -91,7 +90,6 @@ export function useAllLocations() {
     queryKey: computed(() => [QUERY_KEY, campaignId.value, "all"]),
     queryFn: () => fetchAllLocations(campaignId.value!),
     enabled: () => !!campaignId.value,
-    staleTime: 0,
   });
 }
 

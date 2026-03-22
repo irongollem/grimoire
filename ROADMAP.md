@@ -148,8 +148,8 @@
 
 ### Rules reliquary
 
-- [ ] **Rules reference section** — searchable, taggable database of rules entries (monsters, conditions, actions, etc.) with Scriptorium export; DM can quickly pull up a stat block or condition description during play without leaving the app
-- [ ] **Custom rules entries** — DM can create custom rules entries with title, description, optional category (e.g. Combat, Exploration, Social), and Scriptorium export; useful for houserules, setting-specific mechanics, or quick reference guides
+- [x] **Rules reference section** — three-tab Reliquary at `/rules`: DM Screen (hardcoded tables), Compendium (317 SRD rules from Open5e v2, tree-browsable + searchable), Custom Rules (CRUD with Tiptap + category + tags)
+- [x] **Custom rules entries** — per-user CRUD with Tiptap editor, category dropdown, comma-separated tags, search; `sync-srd-rules` Edge Function upserts shared `srd_rules` table weekly
 
 ### Scriptorium
 

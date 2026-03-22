@@ -105,7 +105,7 @@ const saving = ref(false);
 const form = ref({
   title: "",
   category: "" as string,
-  content: null as object | null,
+  content: null as string | null,  // RichTextEditor serializes Tiptap JSON as string
 });
 const tagsInput = ref("");
 
@@ -114,7 +114,7 @@ watch(rule, (r) => {
   if (!r) return;
   form.value.title    = r.title;
   form.value.category = r.category ?? "";
-  form.value.content  = r.content ?? null;
+  form.value.content  = r.content ? JSON.stringify(r.content) : null;
   tagsInput.value     = r.tags.join(", ");
 }, { immediate: true });
 
@@ -128,7 +128,7 @@ async function handleSave() {
     const payload = {
       title:    form.value.title,
       category: form.value.category || null,
-      content:  form.value.content,
+      content:  form.value.content ? JSON.parse(form.value.content) : null,
       tags,
     };
     if (isNew.value) {

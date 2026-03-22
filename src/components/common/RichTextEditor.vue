@@ -13,6 +13,9 @@
           <em class="text-[11px] leading-none">I</em>
         </button>
         <div class="w-px h-5 bg-border mx-0.5" />
+        <button type="button" title="Heading 1" :class="tbCls(editor.isActive('heading', { level: 1 }))" @click="editor.chain().focus().toggleHeading({ level: 1 }).run()">
+          <span class="text-[10px] font-cinzel font-bold leading-none">H1</span>
+        </button>
         <button type="button" title="Heading 2" :class="tbCls(editor.isActive('heading', { level: 2 }))" @click="editor.chain().focus().toggleHeading({ level: 2 }).run()">
           <span class="text-[10px] font-cinzel font-bold leading-none">H2</span>
         </button>
@@ -30,6 +33,36 @@
           <Quote class="h-3.5 w-3.5" />
         </button>
         <div class="w-px h-5 bg-border mx-0.5" />
+        <!-- Table controls -->
+        <button
+          type="button"
+          title="Insert table"
+          :class="tbCls(editor.isActive('table'))"
+          @click="editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()"
+        >
+          <TableIcon class="h-3.5 w-3.5" />
+        </button>
+        <template v-if="editor.isActive('table')">
+          <button type="button" title="Add column after" :class="tbCls(false)" @click="editor.chain().focus().addColumnAfter().run()">
+            <BetweenVerticalEnd class="h-3.5 w-3.5" />
+          </button>
+          <button type="button" title="Add row after" :class="tbCls(false)" @click="editor.chain().focus().addRowAfter().run()">
+            <BetweenHorizontalEnd class="h-3.5 w-3.5" />
+          </button>
+          <button type="button" title="Delete column" :class="tbCls(false)" @click="editor.chain().focus().deleteColumn().run()">
+            <span class="text-[9px] font-cinzel font-bold leading-none text-destructive">−C</span>
+          </button>
+          <button type="button" title="Delete row" :class="tbCls(false)" @click="editor.chain().focus().deleteRow().run()">
+            <span class="text-[9px] font-cinzel font-bold leading-none text-destructive">−R</span>
+          </button>
+          <button type="button" title="Delete table" :class="tbCls(false)" @click="editor.chain().focus().deleteTable().run()">
+            <Trash2 class="h-3.5 w-3.5 text-destructive" />
+          </button>
+        </template>
+        <button type="button" title="Upload image" :class="tbCls(false)" :disabled="uploadingImage" @click="insertImage">
+          <ImageIcon class="h-3.5 w-3.5" :class="uploadingImage ? 'animate-pulse' : ''" />
+        </button>
+        <div class="w-px h-5 bg-border mx-0.5" />
         <button type="button" title="Undo" :class="tbCls(false)" :disabled="!editor.can().undo()" @click="editor.chain().focus().undo().run()">
           <Undo2 class="h-3.5 w-3.5" />
         </button>
@@ -43,15 +76,24 @@
     <div class="flex-1 overflow-auto p-3">
       <EditorContent :editor="editor" class="rte-content h-full" />
     </div>
+
+    <!-- Hidden file input for image upload -->
+    <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileSelected" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { watch, onUnmounted } from "vue";
+import { ref, watch, onUnmounted } from "vue";
+import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
-import { List, ListOrdered, Quote, Undo2, Redo2 } from "lucide-vue-next";
+import { Table } from "@tiptap/extension-table";
+import TableRow from "@tiptap/extension-table-row";
+import TableCell from "@tiptap/extension-table-cell";
+import TableHeader from "@tiptap/extension-table-header";
+import Image from "@tiptap/extension-image";
+import { List, ListOrdered, Quote, Undo2, Redo2, Table as TableIcon, BetweenVerticalEnd, BetweenHorizontalEnd, Trash2, ImageIcon } from "lucide-vue-next";
 
 const props = defineProps<{
   modelValue: string | null;
@@ -78,6 +120,11 @@ const editor = useEditor({
   extensions: [
     StarterKit,
     Placeholder.configure({ placeholder: props.placeholder ?? "Write something…" }),
+    Table.configure({ resizable: false }),
+    TableRow,
+    TableHeader,
+    TableCell,
+    Image,
   ],
   onUpdate() {
     emit("update:modelValue", JSON.stringify(editor.value?.getJSON() ?? {}));
@@ -100,6 +147,34 @@ watch(
 
 onUnmounted(() => editor.value?.destroy());
 
+const fileInput = ref<HTMLInputElement | null>(null);
+const uploadingImage = ref(false);
+
+function insertImage() {
+  fileInput.value?.click();
+}
+
+async function onFileSelected(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (!file || !editor.value) return;
+  (e.target as HTMLInputElement).value = "";
+
+  uploadingImage.value = true;
+  try {
+    const user = getCurrentUser();
+    const ext = file.name.split(".").pop() ?? "png";
+    const path = `${user!.id}/rte-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("asset-images").upload(path, file);
+    if (error) throw error;
+    const { data } = supabase.storage.from("asset-images").getPublicUrl(path);
+    editor.value.chain().focus().setImage({ src: data.publicUrl }).run();
+  } catch (err) {
+    console.error("Image upload failed:", err);
+  } finally {
+    uploadingImage.value = false;
+  }
+}
+
 function tbCls(active: boolean) {
   return [
     "p-1 rounded min-w-[26px] h-[26px] flex items-center justify-center transition-colors disabled:opacity-40",
@@ -119,6 +194,9 @@ function tbCls(active: boolean) {
 .rte-content :deep(.ProseMirror p) {
   @apply mb-3 leading-relaxed last:mb-0;
 }
+.rte-content :deep(.ProseMirror h1) {
+  @apply font-cinzel text-2xl font-bold mb-3 mt-5 first:mt-0;
+}
 .rte-content :deep(.ProseMirror h2) {
   @apply font-cinzel text-xl font-bold mb-2 mt-4 first:mt-0;
 }
@@ -137,5 +215,31 @@ function tbCls(active: boolean) {
 .rte-content :deep(.ProseMirror p.is-editor-empty:first-child::before) {
   content: attr(data-placeholder);
   @apply text-muted-foreground/50 italic pointer-events-none float-left h-0;
+}
+
+/* Table styles */
+.rte-content :deep(.ProseMirror table) {
+  @apply w-full border-collapse my-3 text-sm;
+}
+.rte-content :deep(.ProseMirror th),
+.rte-content :deep(.ProseMirror td) {
+  @apply border border-border px-3 py-1.5 text-left align-top;
+}
+.rte-content :deep(.ProseMirror th) {
+  @apply font-cinzel text-xs font-semibold tracking-wider bg-muted/50 text-foreground;
+}
+.rte-content :deep(.ProseMirror td) {
+  @apply font-fell text-foreground;
+}
+.rte-content :deep(.ProseMirror .selectedCell) {
+  @apply bg-primary/10;
+}
+
+/* Image styles */
+.rte-content :deep(.ProseMirror img) {
+  @apply max-w-full rounded-md my-2;
+}
+.rte-content :deep(.ProseMirror img.ProseMirror-selectednode) {
+  @apply ring-2 ring-primary;
 }
 </style>
