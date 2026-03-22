@@ -1,6 +1,7 @@
 import { ref, computed } from "vue";
 import { defineStore } from "pinia";
-import type { RunCombatant, FactionDef } from "@/types/encounter.types";
+import type { RunCombatant, FactionDef, RevealState, EncounterEvent, EventTrigger, SpawnDef } from "@/types/encounter.types";
+import type { Monster } from "@/types/monster.types";
 
 export const useEncounterRunStore = defineStore("encounterRun", () => {
   const encounterId = ref<string | null>(null);
@@ -10,6 +11,10 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   const combatants = ref<RunCombatant[]>([]);
   const factions = ref<FactionDef[]>([]);
   const started = ref(false); // true = initiative locked + sorted
+  const events = ref<EncounterEvent[]>([]);
+  const eventsFired = ref<string[]>([]);
+  const availableMonsters = ref<Monster[]>([]);
+  const pendingBroadcasts = ref<string[]>([]);
 
   // Sorted by initiative desc, dex_mod desc (tiebreaker: players first)
   const sortedCombatants = computed(() =>
@@ -59,6 +64,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
 
     if (nextInAlive === 0) round.value++;
     activeIndex.value = nextIndexInSorted;
+    checkEvents();
   }
 
   function prevTurn() {
@@ -80,12 +86,14 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c) return;
     c.hp = Math.min(c.max_hp, Math.max(0, c.hp + delta));
+    checkEvents();
   }
 
   function setHp(instanceId: string, value: number) {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c) return;
     c.hp = Math.min(c.max_hp, Math.max(0, value));
+    checkEvents();
   }
 
   function toggleCondition(instanceId: string, condition: string) {
@@ -108,6 +116,99 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     c.curses = c.curses.filter((cu) => cu !== curse);
   }
 
+  function setRevealState(instanceId: string, state: RevealState) {
+    const c = combatants.value.find((x) => x.instance_id === instanceId);
+    if (c) c.reveal_state = state;
+  }
+
+  function cycleRevealState(instanceId: string) {
+    const c = combatants.value.find((x) => x.instance_id === instanceId);
+    if (!c) return;
+    const order: RevealState[] = ["hidden", "unseen", "revealed"];
+    const idx = order.indexOf(c.reveal_state ?? "hidden");
+    c.reveal_state = order[(idx + 1) % order.length];
+  }
+
+  function shouldTrigger(trigger: EventTrigger): boolean {
+    if (trigger.type === "round_start") return round.value >= trigger.round;
+    if (trigger.type === "combatant_hp_pct") {
+      return combatants.value
+        .filter((c) => c.def_id === trigger.combatant_def_id)
+        .some((c) => c.max_hp > 0 && (c.hp / c.max_hp) * 100 <= trigger.pct);
+    }
+    if (trigger.type === "combatant_dies") {
+      return combatants.value
+        .filter((c) => c.def_id === trigger.combatant_def_id)
+        .some((c) => c.hp <= 0);
+    }
+    return false;
+  }
+
+  function spawnFromDef(spawn: SpawnDef) {
+    const monster = availableMonsters.value.find((m) => m.id === spawn.monster_id);
+    if (!monster) return;
+    const sb = monster.stat_block;
+    const maxHp = parseInt(String(sb?.hit_points ?? "1").split(" ")[0], 10) || 1;
+    const dex = Number(sb?.dex ?? 10);
+    const dexMod = Math.floor((dex - 10) / 2);
+    const ac = String(sb?.armor_class ?? 10);
+    const spawnKey = `spawn-${spawn.monster_id}-${Date.now()}`;
+    for (let i = 0; i < spawn.count; i++) {
+      const displayName =
+        spawn.count > 1 ? `${spawn.custom_name || monster.name} ${i + 1}` : spawn.custom_name || monster.name;
+      combatants.value.push({
+        instance_id: `${spawnKey}-${i}`,
+        type: "monster",
+        name: displayName,
+        faction_id: spawn.faction_id,
+        initiative: started.value ? Math.floor(Math.random() * 20) + 1 + dexMod : null,
+        hp: maxHp,
+        max_hp: maxHp,
+        ac,
+        conditions: [],
+        curses: [],
+        death_saves: { successes: 0, failures: 0 },
+        monster_id: monster.id,
+        dex_mod: dexMod,
+        reveal_state: "hidden",
+        portrait_url: monster.image_url ?? null,
+        portrait_focal_point: monster.portrait_focal_point ?? null,
+      });
+    }
+  }
+
+  function executeEvent(event: EncounterEvent) {
+    if (!eventsFired.value.includes(event.id)) eventsFired.value.push(event.id);
+    for (const action of event.actions) {
+      if (action.type === "spawn_combatants") {
+        for (const spawn of action.spawns) spawnFromDef(spawn);
+      } else if (action.type === "broadcast_message") {
+        pendingBroadcasts.value.push(action.message);
+      }
+    }
+  }
+
+  function fireEvent(eventId: string) {
+    const event = events.value.find((e) => e.id === eventId);
+    if (!event) return;
+    executeEvent(event);
+  }
+
+  function checkEvents() {
+    if (!started.value) return;
+    for (const event of events.value) {
+      if (event.fire_once && eventsFired.value.includes(event.id)) continue;
+      if (event.trigger.type !== "manual" && shouldTrigger(event.trigger)) {
+        executeEvent(event);
+      }
+    }
+  }
+
+  function clearPendingBroadcast(message: string) {
+    const idx = pendingBroadcasts.value.indexOf(message);
+    if (idx >= 0) pendingBroadcasts.value.splice(idx, 1);
+  }
+
   function reset() {
     encounterId.value = null;
     encounterName.value = "";
@@ -116,6 +217,10 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     combatants.value = [];
     factions.value = [];
     started.value = false;
+    events.value = [];
+    eventsFired.value = [];
+    availableMonsters.value = [];
+    pendingBroadcasts.value = [];
   }
 
   function hydrateFromLive(state: {
@@ -125,6 +230,8 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     current_round: number;
     active_combatant_index: number;
     combatants_live: RunCombatant[];
+    events?: EncounterEvent[];
+    events_fired?: string[];
   }) {
     encounterId.value = state.encounter_id;
     encounterName.value = state.encounter_name;
@@ -133,6 +240,8 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     round.value = state.current_round;
     activeIndex.value = state.active_combatant_index;
     started.value = true;
+    if (state.events) events.value = state.events;
+    if (state.events_fired) eventsFired.value = state.events_fired;
   }
 
   return {
@@ -143,6 +252,10 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     combatants,
     factions,
     started,
+    events,
+    eventsFired,
+    availableMonsters,
+    pendingBroadcasts,
     sortedCombatants,
     activeCombatant,
     rollInitiative,
@@ -155,6 +268,11 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     toggleCondition,
     addCurse,
     removeCurse,
+    setRevealState,
+    cycleRevealState,
+    fireEvent,
+    checkEvents,
+    clearPendingBroadcast,
     reset,
     hydrateFromLive,
   };

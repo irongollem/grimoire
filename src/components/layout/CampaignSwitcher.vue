@@ -239,6 +239,30 @@
             </div>
           </div>
 
+          <div>
+            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">
+              HEALTH VISIBILITY
+            </label>
+            <div class="flex flex-col gap-1.5">
+              <button
+                v-for="opt in HEALTH_VIS_OPTIONS"
+                :key="opt.value"
+                type="button"
+                class="flex items-center gap-3 rounded-md border px-3 py-2 transition-colors text-left"
+                :class="form.health_visibility === opt.value
+                  ? 'border-primary bg-primary/10'
+                  : 'border-border hover:border-border/80 hover:bg-muted/40'"
+                @click="form.health_visibility = opt.value"
+              >
+                <div class="flex-1 min-w-0">
+                  <span class="font-cinzel text-xs font-semibold text-foreground tracking-wide">{{ opt.label }}</span>
+                  <p class="font-fell text-xs text-muted-foreground mt-0.5">{{ opt.desc }}</p>
+                </div>
+                <Check v-if="form.health_visibility === opt.value" class="h-3.5 w-3.5 text-primary shrink-0" />
+              </button>
+            </div>
+          </div>
+
           <!-- Claim existing data — only shown when creating the first campaign -->
           <div v-if="isFirstCampaign && !editing" class="rounded-md border border-border bg-muted/50 px-3 py-2.5">
             <label class="flex items-start gap-2.5 cursor-pointer">
@@ -375,7 +399,14 @@ const form = ref({
   calendar_id: defaultCalendar?.id ?? "faerun",
   current_year: defaultCalendar?.defaultYear ?? 1495,
   theme: "grimoire",
+  health_visibility: "strategic" as "strategic" | "immersive" | "unknown",
 });
+
+const HEALTH_VIS_OPTIONS = [
+  { value: "strategic" as const, label: "Strategic", desc: "HP bars + labels for all. Exact numbers for PCs only." },
+  { value: "immersive" as const, label: "Immersive", desc: "PCs show bar only (no numbers). Monsters show status words only." },
+  { value: "unknown" as const,   label: "Unknown",   desc: "No health info shown for non-PCs." },
+];
 
 const showModal = ref(false);
 
@@ -407,6 +438,7 @@ function startCreate() {
     calendar_id: defaultCalendar?.id ?? "faerun",
     current_year: defaultCalendar?.defaultYear ?? 1495,
     theme: "grimoire",
+    health_visibility: "strategic",
   };
   showModal.value = true;
   open.value = false;
@@ -420,6 +452,7 @@ function startEdit(campaign: Campaign) {
     calendar_id: campaign.calendar_id,
     current_year: campaign.current_year,
     theme: campaign.theme ?? "grimoire",
+    health_visibility: (campaign.health_visibility as "strategic" | "immersive" | "unknown") ?? "strategic",
   };
   showModal.value = true;
   open.value = false;
@@ -448,6 +481,7 @@ async function submitForm() {
         calendar_id: form.value.calendar_id,
         current_year: form.value.current_year,
         theme: form.value.theme,
+        health_visibility: form.value.health_visibility,
       },
     });
     // If editing the active campaign, re-sync store (also applies theme)
@@ -463,6 +497,7 @@ async function submitForm() {
       calendar_id: form.value.calendar_id,
       current_year: form.value.current_year,
       theme: form.value.theme,
+      health_visibility: form.value.health_visibility,
       description: null,
     });
     if (isFirstCampaign.value && claimExisting.value) {

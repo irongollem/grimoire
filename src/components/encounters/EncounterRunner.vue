@@ -59,16 +59,34 @@
           :style="{ '--faction-color': factionColor(combatant.faction_id) }"
           @click="toggleDetail(combatant.instance_id)"
         >
-          <!-- Avatar -->
+          <!-- Avatar + reveal toggle (monsters only) -->
           <div class="avatar-cell" @click.stop>
-            <img
-              v-if="combatantPortrait(combatant)"
-              :src="combatantPortrait(combatant)!"
-              :alt="combatant.name"
-              class="avatar-img"
-            />
-            <div v-else class="avatar-initials" :style="{ backgroundColor: factionColor(combatant.faction_id) + '44', color: factionColor(combatant.faction_id) }">
-              {{ combatantInitials(combatant) }}
+            <div
+              class="avatar-inner"
+              :class="store.started && combatant.instance_id === store.activeCombatant?.instance_id ? 'avatar-active' : ''"
+            >
+              <FocalImage
+                v-if="combatant.portrait_url"
+                :src="combatant.portrait_url"
+                :alt="combatant.name"
+                :focal-point="combatant.portrait_focal_point ?? null"
+                format="square"
+              />
+              <div v-else class="avatar-initials" :style="{ backgroundColor: factionColor(combatant.faction_id) + '44', color: factionColor(combatant.faction_id) }">
+                {{ combatantInitials(combatant) }}
+              </div>
+              <button
+                v-if="combatant.type === 'monster'"
+                type="button"
+                class="reveal-btn"
+                :class="revealBtnClass(combatant.reveal_state)"
+                :title="revealBtnTitle(combatant.reveal_state)"
+                @click.stop="store.cycleRevealState(combatant.instance_id)"
+              >
+                <EyeOff v-if="combatant.reveal_state === 'hidden'" class="h-2.5 w-2.5" />
+                <Eye v-else-if="combatant.reveal_state === 'unseen'" class="h-2.5 w-2.5" />
+                <Eye v-else class="h-2.5 w-2.5" />
+              </button>
             </div>
           </div>
 
@@ -138,6 +156,36 @@
         <p v-if="!store.sortedCombatants.length" class="empty-runner">
           No combatants. Go back to the builder to add monsters and party members.
         </p>
+      </div>
+
+      <!-- Events panel (shown if any events exist) -->
+      <div v-if="store.events.length" class="events-panel">
+        <div class="events-header">
+          <span class="events-title">EVENTS</span>
+        </div>
+        <div class="events-list">
+          <div
+            v-for="event in store.events"
+            :key="event.id"
+            class="event-row"
+            :class="store.eventsFired.includes(event.id) ? 'event-fired' : 'event-pending'"
+          >
+            <div class="event-info">
+              <span class="event-name">{{ event.name }}</span>
+              <span class="event-trigger">{{ triggerLabel(event.trigger) }}</span>
+            </div>
+            <div class="event-badges">
+              <span v-if="store.eventsFired.includes(event.id)" class="badge-fired">Fired</span>
+              <span v-else class="badge-pending">Pending</span>
+            </div>
+            <button
+              v-if="!store.eventsFired.includes(event.id) || !event.fire_once"
+              class="fire-btn"
+              :title="event.trigger.type === 'manual' ? 'Fire this event' : 'Force fire'"
+              @click="store.fireEvent(event.id)"
+            >▶</button>
+          </div>
+        </div>
       </div>
 
       <!-- Stat block detail panel -->
@@ -385,7 +433,10 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { Radio } from "lucide-vue-next";
+import { Radio, Eye, EyeOff } from "lucide-vue-next";
+import { supabase } from "@/lib/supabase";
+import FocalImage from "@/components/common/FocalImage.vue";
+import type { RevealState } from "@/types/encounter.types";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useParty } from "@/composables/useParty";
@@ -419,13 +470,34 @@ async function handleGoLive() {
 }
 
 watch(
-  [() => store.round, () => store.activeIndex, () => store.combatants],
+  [() => store.round, () => store.activeIndex, () => store.combatants, () => store.eventsFired],
   () => {
     if (isLive.value) {
-      schedulePush({ round: store.round, activeIndex: store.activeIndex, combatants: store.combatants });
+      schedulePush({ round: store.round, activeIndex: store.activeIndex, combatants: store.combatants, eventsFired: store.eventsFired });
     }
   },
   { deep: true },
+);
+
+watch(
+  () => store.pendingBroadcasts.length,
+  async () => {
+    if (!store.pendingBroadcasts.length || !campaign.activeCampaignId) return;
+    const messages = [...store.pendingBroadcasts];
+    for (const msg of messages) {
+      store.clearPendingBroadcast(msg);
+      try {
+        await supabase.from("campaign_messages").insert({
+          campaign_id: campaign.activeCampaignId,
+          sender_name: "⚔ Encounter",
+          content: msg,
+          message_type: "system",
+        });
+      } catch (e) {
+        console.error("Failed to send event broadcast:", e);
+      }
+    }
+  },
 );
 
 const { data: monsters } = useAllMonsters();
@@ -652,18 +724,30 @@ function availableConditions(c: RunCombatant): string[] {
   return CONDITIONS.filter((cond) => !c.conditions.includes(cond));
 }
 
-function combatantPortrait(c: RunCombatant): string | null {
-  if (c.type === "player" && c.party_member_id) {
-    return party.value?.find((m) => m.id === c.party_member_id)?.portrait_url ?? null;
-  }
-  if (c.type === "monster" && c.monster_id) {
-    return monsters.value?.find((m) => m.id === c.monster_id)?.image_url ?? null;
-  }
-  return null;
-}
 
 function combatantInitials(c: RunCombatant): string {
   return c.name.split(" ").slice(0, 2).map((w) => w[0] ?? "").join("").toUpperCase();
+}
+
+// ── Reveal state helpers ──────────────────────────────────────────────────────
+
+function revealBtnClass(state: RevealState | undefined) {
+  if (state === "revealed") return "reveal-revealed";
+  if (state === "unseen")   return "reveal-unseen";
+  return "reveal-hidden";
+}
+
+function revealBtnTitle(state: RevealState | undefined) {
+  if (state === "revealed") return "Revealed — click to hide";
+  if (state === "unseen")   return "Unseen — click to reveal";
+  return "Hidden — click to show slot";
+}
+
+function triggerLabel(trigger: import("@/types/encounter.types").EventTrigger): string {
+  if (trigger.type === "round_start") return `Round ${trigger.round} start`;
+  if (trigger.type === "combatant_hp_pct") return `HP ≤ ${trigger.pct}%`;
+  if (trigger.type === "combatant_dies") return "On death";
+  return "Manual";
 }
 
 async function handleEndCombat() {
@@ -756,7 +840,7 @@ async function handleEndCombat() {
   display: grid;
   grid-template-columns: 2.5rem 3.5rem 1fr 10rem 3rem 1fr;
   gap: 0.5rem;
-  @apply pl-1 pr-3 py-1.5 font-cinzel text-[10px] tracking-wider text-muted-foreground border-b border-border bg-muted/30 items-center;
+  @apply pr-3 py-1.5 font-cinzel text-[10px] tracking-wider text-muted-foreground border-b border-border bg-muted/30 items-center;
 }
 
 /* INIT = col 2, HP = col 4, AC = col 5 */
@@ -770,7 +854,7 @@ async function handleEndCombat() {
   display: grid;
   grid-template-columns: 2.5rem 3.5rem 1fr 10rem 3rem 1fr;
   gap: 0.5rem;
-  @apply pl-1 pr-3 py-0 border-b border-border/50 items-stretch relative transition-colors hover:bg-muted/20 cursor-pointer;
+  @apply pr-3 py-0 border-b border-border/50 items-stretch relative transition-colors hover:bg-muted/20 cursor-pointer;
 }
 
 .combatant-row::before {
@@ -797,25 +881,37 @@ async function handleEndCombat() {
 }
 
 .avatar-cell {
-  align-self: stretch;
+  align-self: center;
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
   overflow: hidden;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 3rem;
 }
 
-.avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center top;
-  display: block;
+.avatar-inner {
+  position: relative;
+  width: 2.5rem;
+  height: 2.5rem;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.avatar-active {
+  box-shadow: inset 0 0 0 2px #C9A84C;
 }
 
 .avatar-initials {
   @apply w-full h-full flex items-center justify-center font-cinzel text-[11px] font-bold;
 }
+
+/* Reveal state overlay button on avatar */
+.reveal-btn {
+  @apply absolute bottom-0 right-0 flex items-center justify-center w-4 h-4 rounded-tl text-[10px] transition-colors;
+}
+.reveal-hidden  { @apply bg-muted/80 text-muted-foreground hover:bg-amber-500/80 hover:text-white; }
+.reveal-unseen  { @apply bg-amber-500/80 text-white hover:bg-green-500/80; }
+.reveal-revealed { @apply bg-green-500/80 text-white hover:bg-muted/80 hover:text-muted-foreground; }
 
 /* re-center all non-avatar cells */
 .init-cell,
@@ -1093,5 +1189,96 @@ async function handleEndCombat() {
 .roll-fade-leave-to {
   opacity: 0;
   transform: translateY(-4px);
+}
+
+/* ── Events panel ─────────────────────────────────────────────────────────── */
+
+.events-panel {
+  width: 200px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid theme(colors.border / 100%);
+  overflow: hidden;
+}
+.events-header {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid theme(colors.border / 100%);
+  background: theme(colors.muted / 20%);
+}
+.events-title {
+  font-family: var(--font-cinzel, serif);
+  font-size: 10px;
+  font-weight: 700;
+  color: theme(colors.muted-foreground / 100%);
+  letter-spacing: 0.1em;
+}
+.events-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.event-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid theme(colors.border / 60%);
+}
+.event-row:last-child { border-bottom: none; }
+.event-fired { opacity: 0.5; }
+.event-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.event-name {
+  font-family: var(--font-cinzel, serif);
+  font-size: 10px;
+  font-weight: 600;
+  color: theme(colors.foreground / 100%);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.event-trigger {
+  font-family: var(--font-fell, serif);
+  font-size: 10px;
+  color: theme(colors.muted-foreground / 100%);
+}
+.event-badges { display: flex; }
+.badge-fired {
+  font-family: var(--font-cinzel, serif);
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(22, 163, 74, 0.15);
+  color: #16a34a;
+}
+.badge-pending {
+  font-family: var(--font-cinzel, serif);
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(202, 138, 4, 0.15);
+  color: #ca8a04;
+}
+.fire-btn {
+  font-size: 10px;
+  padding: 2px 5px;
+  border-radius: 3px;
+  border: 1px solid theme(colors.border / 100%);
+  background: transparent;
+  color: theme(colors.muted-foreground / 100%);
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.fire-btn:hover {
+  border-color: theme(colors.primary / 50%);
+  color: theme(colors.primary / 100%);
 }
 </style>

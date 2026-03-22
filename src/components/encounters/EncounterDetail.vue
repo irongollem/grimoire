@@ -125,7 +125,9 @@
               />
             </div>
             <div>
-              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">
+              <label
+                class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1"
+              >
                 DESCRIPTION
               </label>
               <RichTextEditor
@@ -145,7 +147,11 @@
                 class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option :value="null">— none —</option>
-                <option v-for="loc in allLocations ?? []" :key="loc.id" :value="loc.id">
+                <option
+                  v-for="loc in allLocations ?? []"
+                  :key="loc.id"
+                  :value="loc.id"
+                >
                   {{ loc.name }}
                 </option>
               </select>
@@ -262,234 +268,14 @@
         </div>
 
         <!-- Combatants -->
-        <div
-          class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4"
-        >
-          <div class="flex items-center justify-between">
-            <h2
-              class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase"
-            >
-              Combatants
-            </h2>
-            <div class="flex items-center gap-3">
-              <button
-                type="button"
-                class="inline-flex items-center gap-1 font-cinzel text-xs text-primary hover:opacity-80 transition-opacity"
-                @click="
-                  showNpcSearch = !showNpcSearch;
-                  showMonsterSearch = false;
-                "
-              >
-                <Plus class="h-3.5 w-3.5" />
-                Add NPC
-              </button>
-              <button
-                type="button"
-                class="inline-flex items-center gap-1 font-cinzel text-xs text-primary hover:opacity-80 transition-opacity"
-                @click="
-                  showMonsterSearch = !showMonsterSearch;
-                  showNpcSearch = false;
-                "
-              >
-                <Plus class="h-3.5 w-3.5" />
-                Add Monster
-              </button>
-            </div>
-          </div>
-
-          <!-- NPC search panel -->
-          <div
-            v-if="showNpcSearch"
-            class="rounded-md border border-border bg-muted p-3 flex flex-col gap-2"
-          >
-            <div class="relative">
-              <Search
-                class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"
-              />
-              <input
-                v-model="npcSearch"
-                type="text"
-                placeholder="Search NPCs…"
-                autofocus
-                class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-            </div>
-            <div
-              v-if="filteredNpcs.length"
-              class="max-h-48 overflow-y-auto flex flex-col gap-1"
-            >
-              <button
-                v-for="npc in filteredNpcs"
-                :key="npc.id"
-                type="button"
-                class="flex items-center justify-between px-3 py-2 rounded-md hover:bg-card transition-colors text-left"
-                @click="addNpcToCombatants(npc)"
-              >
-                <span class="font-fell text-sm text-foreground">{{
-                  npc.name
-                }}</span>
-                <span class="font-cinzel text-[10px] text-muted-foreground">
-                  CR {{ npc.stat_block?.challenge_rating ?? "—" }}
-                </span>
-              </button>
-            </div>
-            <p
-              v-else-if="npcSearch"
-              class="font-fell text-xs text-muted-foreground italic text-center py-2"
-            >
-              No NPCs match.
-            </p>
-            <p
-              v-else
-              class="font-fell text-xs text-muted-foreground italic text-center py-2"
-            >
-              Only NPCs with stat blocks are listed.
-            </p>
-          </div>
-
-          <!-- Monster search panel -->
-          <div
-            v-if="showMonsterSearch"
-            class="rounded-md border border-border bg-muted p-3 flex flex-col gap-2"
-          >
-            <div class="relative">
-              <Search
-                class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"
-              />
-              <input
-                v-model="monsterSearch"
-                type="text"
-                placeholder="Search monsters…"
-                autofocus
-                class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-            </div>
-            <div
-              v-if="filteredMonsters.length"
-              class="max-h-48 overflow-y-auto flex flex-col gap-1"
-            >
-              <div
-                v-for="monster in filteredMonsters"
-                :key="monster.id"
-                class="flex items-center gap-1 group rounded-md hover:bg-card transition-colors"
-              >
-                <button
-                  type="button"
-                  class="flex-1 flex items-center justify-between px-3 py-2 text-left"
-                  @click="addMonsterToCombatants(monster)"
-                >
-                  <span class="font-fell text-sm text-foreground">{{ monster.name }}</span>
-                  <span class="font-cinzel text-[10px] text-muted-foreground">
-                    CR {{ monster.stat_block.challenge_rating }}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  :title="excludedMonsterIds.has(monster.id) ? 'Show in search' : 'Hide from search'"
-                  class="opacity-0 group-hover:opacity-100 transition-opacity px-2 py-2 text-muted-foreground hover:text-destructive shrink-0"
-                  @click.stop="toggleHideMonster(monster.id)"
-                >
-                  <X class="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-            <p
-              v-else-if="monsterSearch"
-              class="font-fell text-xs text-muted-foreground italic text-center py-2"
-            >
-              No monsters match.
-            </p>
-          </div>
-
-          <!-- Combatant entries -->
-          <div v-if="form.combatants.length" class="flex flex-col gap-2">
-            <div
-              v-for="entry in form.combatants"
-              :key="entry.id"
-              class="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/50 p-3"
-            >
-              <!-- Combatant info -->
-              <div class="flex-1 min-w-0 flex items-center gap-2">
-                <div
-                  class="shrink-0 w-1.5 h-8 rounded-full"
-                  :style="{ backgroundColor: factionColor(entry.faction_id) }"
-                />
-                <div class="flex-1 min-w-0">
-                  <span
-                    class="font-cinzel text-sm font-semibold text-foreground line-clamp-1"
-                  >
-                    {{ combatantLabel(entry) }}
-                  </span>
-                  <span
-                    class="ml-2 font-cinzel text-[10px] text-muted-foreground"
-                  >
-                    {{ combatantCrLine(entry) }}
-                  </span>
-                </div>
-              </div>
-
-              <!-- Custom name -->
-              <input
-                v-model="entry.custom_name"
-                type="text"
-                placeholder="Custom name (optional)"
-                class="w-36 bg-card border border-border rounded px-2 py-1 font-fell text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-
-              <!-- Count -->
-              <div class="flex items-center gap-1">
-                <button
-                  type="button"
-                  class="w-6 h-6 rounded bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                  @click="entry.count = Math.max(1, entry.count - 1)"
-                >
-                  <Minus class="h-3 w-3" />
-                </button>
-                <span
-                  class="font-cinzel text-sm font-bold text-foreground w-6 text-center"
-                  >{{ entry.count }}</span
-                >
-                <button
-                  type="button"
-                  class="w-6 h-6 rounded bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                  @click="entry.count = Math.min(20, entry.count + 1)"
-                >
-                  <Plus class="h-3 w-3" />
-                </button>
-              </div>
-
-              <!-- Faction selector -->
-              <select
-                v-model="entry.faction_id"
-                class="bg-card border border-border rounded px-2 py-1 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option
-                  v-for="faction in allFactions"
-                  :key="faction.id"
-                  :value="faction.id"
-                >
-                  {{ faction.name }}
-                </option>
-              </select>
-
-              <!-- Remove -->
-              <button
-                type="button"
-                class="text-muted-foreground hover:text-destructive transition-colors"
-                @click="removeCombatant(entry.id)"
-              >
-                <X class="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-
-          <p
-            v-else
-            class="font-fell text-sm text-muted-foreground italic text-center py-4"
-          >
-            No combatants added yet.
-          </p>
-        </div>
+        <EncounterCombatants
+          v-model:combatants="form.combatants"
+          :factions="form.factions"
+          :monsters="monsters ?? []"
+          :npcs="npcs ?? []"
+          :excluded-monster-ids="excludedMonsterIds"
+          @hide-monster="toggleHideMonster"
+        />
       </div>
 
       <!-- Right column -->
@@ -525,63 +311,30 @@
             </RouterLink>
           </div>
         </div>
+        <!-- Difficulty Analysis -->
+        <EncounterDifficulty
+          :difficulty="difficulty"
+          :threshold-tiers="thresholdTiers"
+          :enemy-entries="enemyEntries"
+        />
 
-        <!-- Loot Items -->
-        <div class="rounded-lg border border-border bg-card overflow-hidden">
-          <div class="px-3 py-2 border-b border-border bg-muted/20">
-            <span
-              class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
-            >
-              Loot
-              <span
-                v-if="linkedItemObjects.length"
-                class="font-fell font-normal"
-                >({{ linkedItemObjects.length }})</span
-              >
-            </span>
-          </div>
-          <div class="p-2 flex flex-col gap-1">
-            <div
-              v-for="item in linkedItemObjects"
-              :key="item.id"
-              class="flex items-center gap-2 group rounded px-2 py-1.5 hover:bg-muted/40 transition-colors"
-            >
-              <Package class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <RouterLink
-                :to="`/vault/${item.id}`"
-                class="font-fell text-sm text-foreground flex-1 truncate hover:text-primary transition-colors"
-                >{{ item.name }}</RouterLink
-              >
-              <button
-                type="button"
-                class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
-                @click="removeItem(item.id)"
-              >
-                <X class="h-3.5 w-3.5" />
-              </button>
-            </div>
-            <p
-              v-if="!linkedItemObjects.length"
-              class="font-fell text-xs text-muted-foreground italic px-2 py-1"
-            >
-              No loot linked yet.
-            </p>
-            <div v-if="availableItems.length" class="flex items-center gap-2 pt-1">
-              <EntityCombobox v-model="selectedItemId" :options="availableItems" placeholder="Add loot item…" />
-              <button
-                type="button"
-                :disabled="!selectedItemId"
-                class="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
-                @click="addItem"
-              >
-                <Plus class="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        </div>
+        <!-- Events -->
+        <EncounterEvents
+          v-model:events="form.events"
+          :combatants="form.combatants"
+          :monsters="monsters ?? []"
+          :factions="form.factions"
+        />
 
-        <!-- Loot pools -->
-        <RewardCurrencyPoolsEditor v-model="form.reward_currency_pools" />
+        <!-- Loot -->
+        <EncounterLoot
+          :item-ids="form.item_ids"
+          :all-items="allItems ?? []"
+          :currency-pools="form.reward_currency_pools"
+          @update:item-ids="form.item_ids = $event"
+          @update:currency-pools="form.reward_currency_pools = $event"
+          @drop-pool="sendCurrencyDrop($event.pp, $event.gp, $event.ep, $event.sp, $event.cp, $event.label || undefined)"
+        />
 
         <!-- Calendar Pins -->
         <EntityCalendarSection
@@ -589,258 +342,9 @@
           :entity-id="props.encounter?.id ?? null"
           :entity-name="form.name || 'Untitled Encounter'"
         />
-        <!-- Difficulty Analysis -->
-        <div
-          class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4"
-        >
-          <h2
-            class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase"
-          >
-            Difficulty Analysis
-          </h2>
-
-          <!-- Difficulty badge -->
-          <div class="flex items-center justify-center py-3">
-            <span
-              class="px-6 py-2 rounded-lg font-cinzel text-xl font-bold text-white shadow"
-              :style="{ backgroundColor: DIFFICULTY_COLORS[difficulty.label] }"
-            >
-              {{ difficulty.label }}
-            </span>
-          </div>
-
-          <!-- XP breakdown -->
-          <div class="flex flex-col gap-1.5 font-cinzel text-xs">
-            <div class="flex justify-between">
-              <span class="text-muted-foreground">Enemy XP</span>
-              <span class="font-bold text-foreground">{{
-                difficulty.rawXp.toLocaleString()
-              }}</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-muted-foreground">Multiplier</span>
-              <span class="font-bold text-foreground"
-                >× {{ difficulty.multiplier }}</span
-              >
-            </div>
-            <div class="flex justify-between">
-              <span class="text-muted-foreground">Adjusted XP</span>
-              <span class="font-bold text-foreground">{{
-                difficulty.adjustedXp.toLocaleString()
-              }}</span>
-            </div>
-            <template v-if="difficulty.allyAdjustedXp > 0">
-              <div class="flex justify-between">
-                <span class="text-muted-foreground">
-                  Ally offset
-                  <span class="text-[10px]"
-                    >(× {{ difficulty.allyMultiplier }})</span
-                  >
-                </span>
-                <span class="font-bold text-green-500"
-                  >− {{ difficulty.allyAdjustedXp.toLocaleString() }}</span
-                >
-              </div>
-              <div
-                class="flex justify-between border-t border-border pt-1.5 mt-0.5"
-              >
-                <span class="text-muted-foreground">Net XP</span>
-                <span class="font-bold text-primary">{{
-                  difficulty.netXp.toLocaleString()
-                }}</span>
-              </div>
-            </template>
-            <div
-              v-else
-              class="flex justify-between border-t border-border pt-1.5 mt-0.5"
-            >
-              <span class="text-muted-foreground">Net XP</span>
-              <span class="font-bold text-primary">{{
-                difficulty.adjustedXp.toLocaleString()
-              }}</span>
-            </div>
-          </div>
-
-          <!-- Threshold bars -->
-          <div
-            v-if="difficulty.partyThresholds.deadly > 0"
-            class="flex flex-col gap-2"
-          >
-            <div
-              class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-1"
-            >
-              PARTY THRESHOLDS
-            </div>
-            <div
-              v-for="tier in thresholdTiers"
-              :key="tier.label"
-              class="flex items-center gap-2"
-            >
-              <span
-                class="font-cinzel text-[10px] w-14 shrink-0"
-                :style="{ color: tier.color }"
-                >{{ tier.label }}</span
-              >
-              <div
-                class="flex-1 h-2 rounded-full bg-muted overflow-hidden relative"
-              >
-                <div
-                  class="h-full rounded-full transition-all duration-300"
-                  :style="{
-                    width: `${tier.pct}%`,
-                    backgroundColor: tier.color,
-                  }"
-                />
-                <!-- XP marker -->
-                <div
-                  v-if="
-                    difficulty.netXp > 0 &&
-                    markerPct(tier) > 0 &&
-                    markerPct(tier) <= 100
-                  "
-                  class="absolute top-0 h-full w-0.5 bg-white/80"
-                  :style="{ left: `${markerPct(tier)}%` }"
-                />
-              </div>
-              <span
-                class="font-cinzel text-[10px] text-muted-foreground w-12 text-right shrink-0"
-              >
-                {{ tier.value.toLocaleString() }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Enemy breakdown -->
-          <div
-            v-if="enemyEntries.length"
-            class="flex flex-col gap-1 border-t border-border pt-3"
-          >
-            <div
-              class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-1"
-            >
-              ENEMY BREAKDOWN
-            </div>
-            <div
-              v-for="entry in enemyEntries"
-              :key="entry.id"
-              class="flex items-center justify-between font-cinzel text-[11px]"
-            >
-              <span class="text-foreground line-clamp-1 flex-1">
-                {{ entry.name }}{{ entry.count > 1 ? ` ×${entry.count}` : "" }}
-              </span>
-              <span class="text-muted-foreground shrink-0 ml-2">
-                CR {{ entry.cr }} ·
-                {{ (entry.xpEach * entry.count).toLocaleString() }} XP
-              </span>
-            </div>
-          </div>
-        </div>
 
         <!-- Factions -->
-        <div
-          class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4"
-        >
-          <div class="flex items-center justify-between">
-            <h2
-              class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase"
-            >
-              Factions
-            </h2>
-            <button
-              type="button"
-              class="inline-flex items-center gap-1 font-cinzel text-xs text-primary hover:opacity-80 transition-opacity"
-              @click="addCustomFaction"
-            >
-              <Plus class="h-3.5 w-3.5" />
-              Add Custom
-            </button>
-          </div>
-
-          <div class="flex flex-col gap-2">
-            <div
-              v-for="faction in allFactions"
-              :key="faction.id"
-              class="flex flex-col gap-2 rounded-md border border-border p-3"
-            >
-              <div class="flex items-center gap-2">
-                <!-- Color swatch / picker -->
-                <div
-                  class="w-4 h-4 rounded-full shrink-0 border border-border/50 cursor-pointer overflow-hidden relative"
-                  :style="{ backgroundColor: faction.color }"
-                  :title="faction.color"
-                >
-                  <input
-                    v-if="isCustomFaction(faction.id)"
-                    type="color"
-                    :value="faction.color"
-                    class="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                    @input="
-                      (e) =>
-                        updateFactionColor(
-                          faction.id,
-                          (e.target as HTMLInputElement).value,
-                        )
-                    "
-                  />
-                </div>
-
-                <!-- Name -->
-                <input
-                  v-if="isCustomFaction(faction.id)"
-                  v-model="faction.name"
-                  type="text"
-                  class="flex-1 bg-muted border border-border rounded px-2 py-0.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                />
-                <span
-                  v-else
-                  class="flex-1 font-cinzel text-sm font-semibold text-foreground"
-                >
-                  {{ faction.name }}
-                </span>
-
-                <!-- Remove custom -->
-                <button
-                  v-if="isCustomFaction(faction.id)"
-                  type="button"
-                  class="text-muted-foreground hover:text-destructive transition-colors"
-                  @click="removeCustomFaction(faction.id)"
-                >
-                  <X class="h-3.5 w-3.5" />
-                </button>
-              </div>
-
-              <!-- Hostile to chips -->
-              <div class="flex flex-wrap gap-1">
-                <span
-                  class="font-cinzel text-[10px] text-muted-foreground self-center mr-1"
-                  >Hostile to:</span
-                >
-                <button
-                  v-for="other in allFactions.filter(
-                    (f) => f.id !== faction.id,
-                  )"
-                  :key="other.id"
-                  type="button"
-                  class="px-2 py-0.5 rounded-full font-cinzel text-[10px] font-semibold border transition-colors"
-                  :class="
-                    faction.hostile_to.includes(other.id)
-                      ? 'bg-destructive/20 border-destructive/50 text-destructive'
-                      : 'bg-muted border-border text-muted-foreground hover:border-primary/40'
-                  "
-                  @click="toggleFactionHostility(faction.id, other.id)"
-                >
-                  {{ other.name }}
-                </button>
-                <span
-                  v-if="faction.hostile_to.length === 0"
-                  class="font-fell text-[11px] text-muted-foreground italic"
-                >
-                  None
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <EncounterFactions v-model:factions="form.factions" />
       </div>
     </div>
   </div>
@@ -849,19 +353,15 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, computed, reactive, watch } from "vue";
+import { computed, reactive, watch } from "vue";
 import { useRouter } from "vue-router";
 import {
   ChevronLeft,
-  Plus,
   X,
-  Search,
   Play,
-  Minus,
   RotateCcw,
   Square,
   CheckCheck,
-  Package,
   ScrollText,
 } from "lucide-vue-next";
 import { useAllMonsters } from "@/composables/useMonsters";
@@ -882,21 +382,26 @@ import {
 import { useQuestsForEncounter } from "@/composables/useQuests";
 import { useUpdateCampaign } from "@/composables/useCampaigns";
 import { useCampaignStore } from "@/stores/campaign";
+import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { supabase } from "@/lib/supabase";
 import {
   DEFAULT_FACTIONS,
-  DIFFICULTY_COLORS,
   calculateDifficulty,
   crToXp,
 } from "@/types/encounter.types";
-import type { Encounter, CombatantDef } from "@/types/encounter.types";
-import type { Monster } from "@/types/monster.types";
-import type { Npc } from "@/types/npc.types";
+import type {
+  Encounter,
+  CombatantDef,
+  EncounterEvent,
+} from "@/types/encounter.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import RewardCurrencyPoolsEditor from "@/components/common/RewardCurrencyPoolsEditor.vue";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
+import EncounterCombatants from "@/components/encounters/EncounterCombatants.vue";
+import EncounterDifficulty from "@/components/encounters/EncounterDifficulty.vue";
+import EncounterEvents from "@/components/encounters/EncounterEvents.vue";
+import EncounterFactions from "@/components/encounters/EncounterFactions.vue";
+import EncounterLoot from "@/components/encounters/EncounterLoot.vue";
 
 const props = defineProps<{
   encounter: Encounter | null;
@@ -909,6 +414,7 @@ const { data: party, isLoading: partyLoading } = useParty();
 const { data: companions } = useCompanions();
 const { data: npcs } = useNpcs();
 const { data: allItems } = useItems();
+const { sendCurrencyDrop } = useCampaignMessages();
 const { data: allLocations } = useAllLocations();
 const { data: linkedQuests } = useQuestsForEncounter(
   computed(() => props.encounter?.id ?? ""),
@@ -932,6 +438,7 @@ async function toggleHideMonster(monsterId: string) {
     excluded_monster_ids: next,
   };
 }
+
 const createEncounter = useCreateEncounter();
 const updateEncounterMutation = useUpdateEncounter();
 const deleteEncounter = useDeleteEncounter();
@@ -957,7 +464,7 @@ const otherName = computed(() => {
 const form = reactive({
   name: props.encounter?.name ?? "New Encounter",
   description: props.encounter?.description ?? "",
-  location_id: props.encounter?.location_id ?? null as string | null,
+  location_id: props.encounter?.location_id ?? (null as string | null),
   party_member_ids: [...(props.encounter?.party_member_ids ?? [])],
   companion_ids: [...(props.encounter?.companion_ids ?? [])],
   combatants: [...(props.encounter?.combatants ?? [])] as CombatantDef[],
@@ -965,11 +472,13 @@ const form = reactive({
     ? [...props.encounter.factions]
     : [...DEFAULT_FACTIONS],
   item_ids: [...(props.encounter?.item_ids ?? [])],
-  reward_currency_pools: [...(props.encounter?.reward_currency_pools ?? [])] as import("@/types/quest.types").RewardCurrencyPool[],
+  reward_currency_pools: [
+    ...(props.encounter?.reward_currency_pools ?? []),
+  ] as import("@/types/quest.types").RewardCurrencyPool[],
+  events: [...(props.encounter?.events ?? [])] as EncounterEvent[],
 });
 
-// Only reset form when navigating to a different encounter, not on every refetch.
-// This prevents custom names and other unsaved edits from being wiped on query refetch.
+// Only reset form when navigating to a different encounter
 watch(
   () => props.encounter?.id,
   (id) => {
@@ -986,122 +495,9 @@ watch(
     form.item_ids = [...(enc.item_ids ?? [])];
     form.reward_currency_pools = [...(enc.reward_currency_pools ?? [])];
     form.location_id = enc.location_id ?? null;
+    form.events = [...(enc.events ?? [])];
   },
 );
-
-// Monster search
-const showMonsterSearch = ref(false);
-const monsterSearch = ref("");
-
-const filteredMonsters = computed(() => {
-  const q = monsterSearch.value.toLowerCase().trim();
-  const all = (monsters.value ?? []).filter(
-    (m) => !excludedMonsterIds.value.has(m.id),
-  );
-  if (!q) return all.slice(0, 10);
-  return all.filter((m) => m.name.toLowerCase().includes(q)).slice(0, 10);
-});
-
-function addMonsterToCombatants(monster: Monster) {
-  form.combatants.push({
-    id: crypto.randomUUID(),
-    monster_id: monster.id,
-    npc_id: null,
-    count: 1,
-    faction_id: "enemy",
-    custom_name: null,
-  });
-  monsterSearch.value = "";
-  showMonsterSearch.value = false;
-}
-
-// NPC search
-const showNpcSearch = ref(false);
-const npcSearch = ref("");
-
-const filteredNpcs = computed(() => {
-  const q = npcSearch.value.toLowerCase().trim();
-  const all = (npcs.value ?? []).filter((n) => n.stat_block);
-  if (!q) return all.slice(0, 10);
-  return all.filter((n) => n.name.toLowerCase().includes(q)).slice(0, 10);
-});
-
-function addNpcToCombatants(npc: Npc) {
-  const factionId =
-    (npc.relationship === "unknown" ? "neutral" : npc.relationship) ??
-    "neutral";
-  form.combatants.push({
-    id: crypto.randomUUID(),
-    monster_id: null,
-    npc_id: npc.id,
-    count: 1,
-    faction_id: factionId,
-    custom_name: null,
-  });
-  npcSearch.value = "";
-  showNpcSearch.value = false;
-}
-
-function removeCombatant(id: string) {
-  const idx = form.combatants.findIndex((c) => c.id === id);
-  if (idx >= 0) form.combatants.splice(idx, 1);
-}
-
-// Monster lookup helpers
-const monsterMap = computed(
-  () => new Map((monsters.value ?? []).map((m) => [m.id, m])),
-);
-
-function monsterName(monsterId: string | null): string {
-  if (!monsterId) return "Unknown";
-  return monsterMap.value.get(monsterId)?.name ?? "Unknown";
-}
-
-function monsterCr(monsterId: string | null): string {
-  if (!monsterId) return "0";
-  return monsterMap.value.get(monsterId)?.stat_block.challenge_rating ?? "0";
-}
-
-function crXp(monsterId: string | null): number {
-  if (!monsterId) return 0;
-  return crToXp(monsterMap.value.get(monsterId)?.stat_block.challenge_rating);
-}
-
-// NPC lookup helpers
-const npcMap = computed(
-  () => new Map((npcs.value ?? []).map((n) => [n.id, n])),
-);
-
-function npcName(npcId: string | null): string {
-  if (!npcId) return "Unknown";
-  return npcMap.value.get(npcId)?.name ?? "Unknown";
-}
-
-function npcCr(npcId: string | null): string {
-  if (!npcId) return "0";
-  return npcMap.value.get(npcId)?.stat_block?.challenge_rating ?? "0";
-}
-
-function npcCrXp(npcId: string | null): number {
-  if (!npcId) return 0;
-  return crToXp(npcMap.value.get(npcId)?.stat_block?.challenge_rating);
-}
-
-function combatantLabel(entry: CombatantDef): string {
-  if (entry.npc_id) return entry.custom_name || npcName(entry.npc_id);
-  return entry.custom_name || monsterName(entry.monster_id);
-}
-
-function combatantCrLine(entry: CombatantDef): string {
-  if (entry.npc_id) {
-    const cr = npcCr(entry.npc_id);
-    const xp = npcCrXp(entry.npc_id) * entry.count;
-    return `CR ${cr} · ${xp} XP`;
-  }
-  const cr = monsterCr(entry.monster_id);
-  const xp = crXp(entry.monster_id) * entry.count;
-  return `CR ${cr} · ${xp} XP`;
-}
 
 // Party member selection
 function togglePartyMember(memberId: string) {
@@ -1116,44 +512,39 @@ function toggleCompanion(companionId: string) {
   else form.companion_ids.push(companionId);
 }
 
-// Factions
-const DEFAULT_FACTION_IDS = new Set(DEFAULT_FACTIONS.map((f) => f.id));
+// Monster / NPC lookup helpers (needed for difficulty computeds)
+const monsterMap = computed(
+  () => new Map((monsters.value ?? []).map((m) => [m.id, m])),
+);
+const npcMap = computed(
+  () => new Map((npcs.value ?? []).map((n) => [n.id, n])),
+);
 
-const allFactions = computed(() => form.factions);
-
-function isCustomFaction(id: string): boolean {
-  return !DEFAULT_FACTION_IDS.has(id);
+function monsterCr(monsterId: string | null): string {
+  if (!monsterId) return "0";
+  return monsterMap.value.get(monsterId)?.stat_block.challenge_rating ?? "0";
 }
-
-function factionColor(factionId: string): string {
-  return form.factions.find((f) => f.id === factionId)?.color ?? "#3D3D3D";
+function crXp(monsterId: string | null): number {
+  if (!monsterId) return 0;
+  return crToXp(monsterMap.value.get(monsterId)?.stat_block.challenge_rating);
 }
-
-function addCustomFaction() {
-  form.factions.push({
-    id: crypto.randomUUID(),
-    name: "Custom Faction",
-    color: "#4A3A1A",
-    hostile_to: [],
-  });
+function npcCr(npcId: string | null): string {
+  if (!npcId) return "0";
+  return npcMap.value.get(npcId)?.stat_block?.challenge_rating ?? "0";
 }
-
-function removeCustomFaction(id: string) {
-  const idx = form.factions.findIndex((f) => f.id === id);
-  if (idx >= 0) form.factions.splice(idx, 1);
+function npcCrXp(npcId: string | null): number {
+  if (!npcId) return 0;
+  return crToXp(npcMap.value.get(npcId)?.stat_block?.challenge_rating);
 }
-
-function toggleFactionHostility(factionId: string, targetId: string) {
-  const faction = form.factions.find((f) => f.id === factionId);
-  if (!faction) return;
-  const idx = faction.hostile_to.indexOf(targetId);
-  if (idx >= 0) faction.hostile_to.splice(idx, 1);
-  else faction.hostile_to.push(targetId);
-}
-
-function updateFactionColor(factionId: string, color: string) {
-  const faction = form.factions.find((f) => f.id === factionId);
-  if (faction) faction.color = color;
+function combatantLabel(entry: CombatantDef): string {
+  if (entry.npc_id)
+    return (
+      entry.custom_name || (npcMap.value.get(entry.npc_id)?.name ?? "Unknown")
+    );
+  return (
+    entry.custom_name ||
+    (monsterMap.value.get(entry.monster_id ?? "")?.name ?? "Unknown")
+  );
 }
 
 // Difficulty calculation
@@ -1184,11 +575,10 @@ const partyLevels = computed(() => {
   );
 });
 
-// Any faction hostile to at least one enemy faction is fighting on the party's side
 const allyFactionIds = computed(() => {
   const ids = new Set<string>();
   for (const faction of form.factions) {
-    if (faction.id === "players") continue; // already counted via partyLevels
+    if (faction.id === "players") continue;
     if (faction.hostile_to.some((id) => enemyFactionIds.value.has(id))) {
       ids.add(faction.id);
     }
@@ -1196,19 +586,14 @@ const allyFactionIds = computed(() => {
   return ids;
 });
 
-// Ally entries for difficulty — combatants on the party's side + selected companions (with CR lookup)
 const allyEntries = computed(() => {
   const entries: { cr: string | null | undefined; count: number }[] = [];
-
-  // Combatants in ally factions (monsters or NPCs)
   for (const c of form.combatants.filter((c) =>
     allyFactionIds.value.has(c.faction_id),
   )) {
     const cr = c.npc_id ? npcCr(c.npc_id) : monsterCr(c.monster_id);
     entries.push({ cr, count: c.count });
   }
-
-  // Selected companions — look up their source CR
   for (const compId of form.companion_ids) {
     const comp = (companions.value ?? []).find((c) => c.id === compId);
     if (!comp) continue;
@@ -1224,7 +609,6 @@ const allyEntries = computed(() => {
     }
     entries.push({ cr, count: 1 });
   }
-
   return entries;
 });
 
@@ -1267,37 +651,13 @@ const thresholdTiers = computed(() => {
   ];
 });
 
-function markerPct(_tier: { value: number }): number {
-  const max = difficulty.value.partyThresholds.deadly * 1.5 || 1;
-  return Math.min(100, (difficulty.value.netXp / max) * 100);
-}
-
-// Save / Delete / Run
+// Loot
 const isSaving = computed(
   () =>
     createEncounter.isPending.value || updateEncounterMutation.isPending.value,
 );
 
-const linkedItemIds = computed(() => new Set(form.item_ids));
-const linkedItemObjects = computed(() =>
-  (allItems.value ?? []).filter((i) => linkedItemIds.value.has(i.id)),
-);
-const availableItems = computed(() =>
-  (allItems.value ?? []).filter((i) => !linkedItemIds.value.has(i.id)),
-);
-const selectedItemId = ref("");
-
-function addItem() {
-  if (!selectedItemId.value || form.item_ids.includes(selectedItemId.value))
-    return;
-  form.item_ids.push(selectedItemId.value);
-  selectedItemId.value = "";
-}
-
-function removeItem(id: string) {
-  form.item_ids = form.item_ids.filter((i) => i !== id);
-}
-
+// Save / Delete / Run
 async function buildPayload() {
   return {
     name: form.name || "New Encounter",
@@ -1310,6 +670,7 @@ async function buildPayload() {
     item_ids: form.item_ids,
     reward_currency_pools: form.reward_currency_pools,
     is_finished: props.encounter?.is_finished ?? false,
+    events: form.events,
   };
 }
 
@@ -1373,11 +734,12 @@ async function handleDelete() {
     ))
   )
     return;
+  const id = props.encounter.id;
+  router.push("/encounters");
   try {
-    await deleteEncounter.mutateAsync(props.encounter.id);
+    await deleteEncounter.mutateAsync(id);
   } catch (e) {
     console.error("Failed to delete encounter:", e);
   }
-  router.push("/encounters");
 }
 </script>

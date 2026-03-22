@@ -61,6 +61,13 @@
 - [x] Coin purse on party members — pp/gp/ep/sp/cp fields, incremented on currency claim
 - [x] Paper doll inventory view in player portal — equipped slots, belt, backpack, containers, stored, party stash
 
+### Images & Artwork
+
+- [x] Smart image cropping — `FocalImage` component with smartcrop.js content-aware analysis + localStorage cache; three canonical formats: `portrait` (2:3), `landscape` (9:4), `token` (1:1 circle)
+- [x] Manual focal point override — `FocalPointPicker` component; click-to-set stored per entity in DB (`portrait_focal_point` on NPCs, monsters, companions)
+- [x] Companion portraits — upload, focal point, auto-fill from linked monster/NPC source; token avatar in DM companion card
+- [x] Standardised image displays — NpcList, MonsterList, CardForge (all 8 card types), PartyTracker, TokenForge, and player portal all use FocalImage with the correct format
+
 ### Printing & Export
 
 - [x] Card Forge — MTG (63×88mm) and Tarot (70×120mm) print-ready cards with duplex alignment
@@ -78,6 +85,8 @@
 - [x] **Theme system**: Campaign-level theme picker (Grimoire dark / Tome light) stored in DB, applied to all players on campaign switch. Canonical vars in `src/lib/themes.ts`
 - [x] **Quest improvements**: Currency reward fields (PP/GP/EP/SP/CP) on quests with drop-to-chat; per-ref player visibility toggle (Eye/EyeOff); removed broken Gregorian date inputs
 - [x] **Edit Campaign modal**: "Calendar" dropdown renamed to "Setting"; game world text field renamed "World"; theme picker added inline to Details tab
+- [x] **NPC sharing**: DM marks NPC as shared; per-field visibility controls (portrait / name / status / race / occupation / relationship); party notes (shared) + personal player notes (private) on shared NPCs
+- [x] **Companion player portal**: Companions shown alongside party members in player portal; party notes (shared via RPC) + personal notes (private) per companion
 
 ---
 
@@ -87,20 +96,30 @@
 
 - [ ] **Quest triggers** — `quest_triggers` table: quest_id, trigger_type (quest_complete / objective_done), offset_days, action_type (create_calendar_event / send_broadcast), action_payload JSONB. Example: "5 days after this quest completes, create a calendar event"
 
-### NPCs & Monsters
+### Dungeon craft
 
-- [ ] **Share NPC's** - a DM can mark an NPC as "shared" making its available as an entity, but every field (name, art, description etc.) is only shared when that specific field is shared. So for example when they are tracking someone unknown we share the entity so they can leave notes on it, but until they see him no art, until they hear more, no description etc.
+- [ ] Add a section with tools to help build dungeons
+- [ ] traproom - create traps with images, triggers, CR helper (generator?)
+- [ ] puzzle room - create puzzles with images, hints, solutions
+- [ ] secret door - create hidden passages with images, triggers, discovery methods
 
 ### Encounters
 
-- [ ] in an encounter track you see too much of the allies and enemies in regards to health. For allies perhaps maintain the bar, but not the exact HP numbers, and for enemies just show 4(5) stages: full health (100-90%), injured (89-50%), bloodied (49-15%), critical (14-1%), dead (0%)
-- [ ] monsters start hidden in the encounter until revealed by the DM, then they show up in the initiative tracker as seen by the players, perhaps also split this in "revealed", "hidden" and 'unseen', so that when they hear and know theres one but not what, they see a tracker but no art or monster name
+- [x] **Health info visibility** — campaign-level setting (strategic/immersive/unknown); strategic: PCs exact HP + bar, non-PCs bar + label; immersive: PCs exact, others label only; unknown: PCs exact, others nothing
+- [x] **Monster reveal system** — monsters start hidden; DM cycles hidden→unseen→revealed per monster; unseen shows mystery slot to players; revealed shows full info; hidden completely absent from player view
+- [x] **Encounter Events** - timed bombs, reinforcements, dynamic changes based on triggers (e.g. "when Goblin King hits 50% HP, spawn 3 Goblin minions") all need initiative positions, tracking, and triggers.
+
+### NPCs & Companions
+
+- [ ] **NPC relationship map** — visual graph of NPC relationships (family, allies, enemies) with hover details; auto-generated from `relationship` field + manual overrides
+- [ ] **Monstrous NPCs** — allow /promoting an NPC to/from a monster; auto-populate portrait from monster art
+- [ ] **Companion stat block** — optional simplified stat block for companions, link them to their bestiary counterpart for quick reference during play
 
 ### Items & Magic Items
 
-- [ ] Scriptorium formatter for items (stat block style: name, type line, rarity, attunement, description)
+- [ ] Restrict claim button to players who have a linked party member
 - [ ] Show item details tooltip/expand in chat before claiming
-- [ ] Restrict claim button to players who have an inventory (claimed a PC)
+- [ ] Scriptorium formatter for items (stat block style: name, type line, rarity, attunement, description)
 
 ### Spells
 
@@ -109,8 +128,17 @@
 
 ### Atlas / Locations
 
-- [ ] **Time-bound locations** — add optional `era_start` / `era_end` year fields; grey-out or hide locations not in current campaign year
 - [ ] **Planar locations populate** — second "Populate Planes" button or opt-in checkbox in main populate (21 entries: inner/outer/transitive planes, Sigil)
+- [ ] **Time-bound locations** — add optional `era_start` / `era_end` year fields; grey-out or hide locations not in current campaign year
+- [ ] **Who's here?** - dynamic "Who's Here?" section on location pages showing NPCs/monsters currently at that location (based on `current_location_id` in their DB record, updated via RPC when DM moves them), should include child locations visitors (e.g. if NPC is in Easthaven, also show them in the Icewind Dale page)
+- [ ] **Location relationships** — add `related_location_ids` array field; show linked locations in a "Related Locations" section with breadcrumbs (e.g. Waterdeep → Castle Waterdeep → Undermountain) (now only the direct parent child path is shown)
+- [ ] **Map upload & pinning** — upload a map image for the location; add pins with coordinates + description; pins show on the page and in the Scriptorium formatter.
+- [ ] **share locations with players** — similar to shared NPCs: DM marks location as shared, player notes + visibility toggles, appears in player portal. Each map pin also has a share toggle to show/hide it from players (e.g. DM can share the city map but keep the Undermountain map hidden until they want to reveal it)
+
+### Rules reliquary
+
+- [ ] **Rules reference section** — searchable, taggable database of rules entries (monsters, conditions, actions, etc.) with Scriptorium export; DM can quickly pull up a stat block or condition description during play without leaving the app
+- [ ] **Custom rules entries** — DM can create custom rules entries with title, description, optional category (e.g. Combat, Exploration, Social), and Scriptorium export; useful for houserules, setting-specific mechanics, or quick reference guides
 
 ### Scriptorium
 
@@ -120,8 +148,8 @@
 
 ### Search & Export
 
-- [ ] **Full-text search** — cross-entity search across NPCs, monsters, notes, spells, items, locations, quests
 - [ ] **Campaign export/import** — JSON export of entire campaign data; import to restore or share
+- [ ] **Full-text search** — cross-entity search across NPCs, monsters, notes, spells, items, locations, quests
 
 ### World Bundles & Community
 
@@ -158,17 +186,17 @@ AI features are gated behind a Pro tier and proxied through Supabase Edge Functi
 
 **Text generation — Claude API (claude-haiku-4-5 for speed/cost, sonnet for quality):**
 
-- [ ] **Monster generation** — DM types a concept ("ancient shadow dragon corrupted by the Far Realm") → Edge Function calls Claude with a structured prompt → returns a full `StatBlock` JSON matching the existing `Monster` type → auto-populates the Bestiary editor for review/save. Uses `claude-haiku-4-5` for cost efficiency.
-- [ ] **NPC generation** — concept prompt → NPC with name, race, occupation, personality, backstory, appearance, secret. Populates the NPC editor. Option to also generate a stat block.
+- [ ] **Description writer** — "Enhance" button in Tiptap editors (notes, location descriptions, NPC backstory): select text → rewrite in vivid D&D prose. Uses in-editor selection as context. _(simplest — no structured output, easiest entry point for the AI infrastructure)_
 - [ ] **Quest hook generation** — setting + party level + optional theme → 3–5 quest hooks with title, summary, giver, potential objectives. One click creates a draft quest.
-- [ ] **Description writer** — "Enhance" button in Tiptap editors (notes, location descriptions, NPC backstory): select text → rewrite in vivid D&D prose. Uses in-editor selection as context.
+- [ ] **NPC generation** — concept prompt → NPC with name, race, occupation, personality, backstory, appearance, secret. Populates the NPC editor. Option to also generate a stat block.
 - [ ] **Item generation** — flavour prompt → magic item with name, type, rarity, description, mechanical properties (charges, attunement, damage).
 - [ ] **Spell generation** — concept prompt → spell with all fields (school, level, components, casting time, range, duration, description, at higher levels).
+- [ ] **Monster generation** — DM types a concept ("ancient shadow dragon corrupted by the Far Realm") → Edge Function calls Claude with a structured prompt → returns a full `StatBlock` JSON matching the existing `Monster` type → auto-populates the Bestiary editor for review/save. Uses `claude-haiku-4-5` for cost efficiency.
 
 **Image generation — dedicated image API:**
 
 - [ ] **Portrait generation** — describe an NPC/monster → generate portrait art. Upload directly to the entity's `portrait_url` / `image_url` in Supabase Storage. Recommended API: **Replicate** (Stable Diffusion XL or FLUX) — cheaper than DALL-E 3, good quality, no content-policy issues for fantasy monsters. DALL-E 3 as fallback for higher-quality single shots.
-- [ ] **Token art generation** — generate a tight circular portrait optimised for VTT tokens. Feeds directly into Token Forge. Prompt auto-augmented with "facing forward, dramatic lighting, fantasy portrait style, circular crop".
+- [ ] **Token art generation** — generate a tight circular portrait optimised for VTT tokens. Feeds directly into Token Forge. Prompt auto-augmented with "facing forward, dramatic lighting, fantasy portrait style, circular crop". _(straightforward once portrait generation is wired up)_
 - [ ] **Scene/location art** — generate a wide establishing shot for a location (for Scriptorium or session notes header image).
 
 **Cost estimates (approximate):**

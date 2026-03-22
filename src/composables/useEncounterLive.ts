@@ -80,6 +80,7 @@ export function useEncounterLive(encounterId: string) {
       current_round: state.round,
       active_combatant_index: state.activeIndex,
       combatants_live: state.combatants,
+      events_fired: [],
       started_at: new Date().toISOString(),
     };
     const { data, error } = await supabase
@@ -91,12 +92,12 @@ export function useEncounterLive(encounterId: string) {
     liveState.value = data as EncounterState;
   }
 
-  function schedulePush(state: { round: number; activeIndex: number; combatants: RunCombatant[] }) {
+  function schedulePush(state: { round: number; activeIndex: number; combatants: RunCombatant[]; eventsFired: string[] }) {
     if (pushTimer) clearTimeout(pushTimer);
     pushTimer = setTimeout(() => void pushState(state), 300);
   }
 
-  async function pushState(state: { round: number; activeIndex: number; combatants: RunCombatant[] }) {
+  async function pushState(state: { round: number; activeIndex: number; combatants: RunCombatant[]; eventsFired: string[] }) {
     if (!liveState.value) return;
     const { data, error } = await supabase
       .from("encounter_state")
@@ -104,6 +105,7 @@ export function useEncounterLive(encounterId: string) {
         current_round: state.round,
         active_combatant_index: state.activeIndex,
         combatants_live: state.combatants,
+        events_fired: state.eventsFired,
       })
       .eq("encounter_id", encounterId)
       .select()

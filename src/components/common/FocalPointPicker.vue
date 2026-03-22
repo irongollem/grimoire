@@ -1,8 +1,12 @@
 <template>
   <div class="space-y-2">
-    <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">
+    <p
+      class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+    >
       FOCAL POINT
-      <span class="font-fell font-normal normal-case text-muted-foreground/60 ml-1">
+      <span
+        class="font-fell font-normal normal-case text-muted-foreground/60 ml-1"
+      >
         — click image to set
       </span>
     </p>
@@ -12,7 +16,12 @@
       class="relative rounded overflow-hidden cursor-crosshair select-none"
       @click="onPick"
     >
-      <img :src="src" alt="" class="w-full h-auto block pointer-events-none" draggable="false" />
+      <img
+        :src="src"
+        alt=""
+        class="w-full h-auto block pointer-events-none"
+        draggable="false"
+      />
 
       <!-- Crosshair dot at current focal point -->
       <div
@@ -21,9 +30,11 @@
         :style="{ left: modelValue.x + '%', top: modelValue.y + '%' }"
       >
         <!-- Outer ring -->
-        <div class="absolute inset-0 rounded-full border-2 border-white opacity-90 shadow-[0_0_0_1px_rgba(0,0,0,0.6)]" />
+        <div
+          class="absolute inset-0 rounded-full border-2 border-white opacity-90 shadow-[0_0_0_1px_rgba(0,0,0,0.6)]"
+        />
         <!-- Centre dot -->
-        <div class="absolute inset-[5px] rounded-full bg-white opacity-90" />
+        <div class="absolute inset-1.25 rounded-full bg-white opacity-90" />
       </div>
 
       <!-- Placeholder hint when not yet set -->
@@ -31,7 +42,9 @@
         v-else
         class="absolute inset-0 flex items-center justify-center bg-black/20"
       >
-        <span class="font-fell text-xs text-white/70 italic">Click to set focus</span>
+        <span class="font-fell text-xs text-white/70 italic"
+          >Click to set focus</span
+        >
       </div>
     </div>
 

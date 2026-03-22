@@ -58,7 +58,10 @@ watch(
         current_round: live.current_round,
         active_combatant_index: live.active_combatant_index,
         combatants_live: live.combatants_live,
+        events: enc.events ?? [],
+        events_fired: live.events_fired ?? [],
       });
+      store.availableMonsters = mons;
       return;
     }
 
@@ -96,6 +99,8 @@ function initStore(enc: Encounter, mons: Monster[], par: PartyMember[]) {
       },
       party_member_id: member.id,
       dex_mod: Math.floor(((member.dex ?? 10) - 10) / 2),
+      portrait_url: member.portrait_url ?? null,
+      portrait_focal_point: null, // party members don't store focal_point yet
     });
   }
 
@@ -116,6 +121,8 @@ function initStore(enc: Encounter, mons: Monster[], par: PartyMember[]) {
       curses: [],
       death_saves: { successes: 0, failures: 0 },
       dex_mod: 0,
+      portrait_url: comp.portrait_url ?? null,
+      portrait_focal_point: comp.portrait_focal_point ?? null,
     });
   }
 
@@ -146,11 +153,18 @@ function initStore(enc: Encounter, mons: Monster[], par: PartyMember[]) {
         curses: [],
         death_saves: { successes: 0, failures: 0 },
         monster_id: monster.id,
+        def_id: entry.id,
         dex_mod: dexMod,
+        reveal_state: "hidden",
+        portrait_url: monster.image_url ?? null,
+        portrait_focal_point: monster.portrait_focal_point ?? null,
       });
     }
   }
 
   store.combatants = combatants;
+  store.availableMonsters = mons;
+  store.events = enc.events ?? [];
+  store.eventsFired = [];
 }
 </script>

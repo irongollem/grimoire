@@ -18,10 +18,10 @@ async function fetchEncounters(campaignId: string): Promise<Encounter[]> {
   return data as Encounter[];
 }
 
-async function fetchEncounter(id: string): Promise<Encounter> {
-  const { data, error } = await supabase.from("encounters").select("*").eq("id", id).single();
+async function fetchEncounter(id: string): Promise<Encounter | null> {
+  const { data, error } = await supabase.from("encounters").select("*").eq("id", id).maybeSingle();
   if (error) throw error;
-  return data as Encounter;
+  return data as Encounter | null;
 }
 
 async function createEncounter(encounter: EncounterInsert): Promise<Encounter> {
@@ -113,6 +113,9 @@ export function useDeleteEncounter() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteEncounter,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onSuccess: (_data, id) => {
+      queryClient.removeQueries({ queryKey: [QUERY_KEY, id] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+    },
   });
 }

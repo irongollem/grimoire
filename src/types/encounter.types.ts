@@ -41,12 +41,46 @@ export interface Encounter {
   reward_currency_pools: RewardCurrencyPool[];
   location_id: string | null;
   is_finished: boolean;
+  events?: EncounterEvent[];
   created_at: string;
   updated_at: string;
 }
 
 export type EncounterInsert = Omit<Encounter, "id" | "user_id" | "created_at" | "updated_at">;
 export type EncounterUpdate = Partial<EncounterInsert>;
+
+// How much health info players see for non-PC combatants
+export type HealthVisibility = "strategic" | "immersive" | "unknown";
+
+// How much a monster is revealed to players in the initiative tracker
+export type RevealState = "hidden" | "unseen" | "revealed";
+
+// Spawn definition for event actions
+export interface SpawnDef {
+  monster_id: string;
+  count: number;
+  faction_id: string;
+  custom_name?: string;
+}
+
+export type EventTrigger =
+  | { type: "round_start"; round: number }
+  | { type: "combatant_hp_pct"; combatant_def_id: string; pct: number }
+  | { type: "combatant_dies"; combatant_def_id: string }
+  | { type: "manual" };
+
+export type EventAction =
+  | { type: "spawn_combatants"; spawns: SpawnDef[] }
+  | { type: "broadcast_message"; message: string };
+
+export interface EncounterEvent {
+  id: string;
+  name: string;
+  trigger: EventTrigger;
+  actions: EventAction[];
+  fire_once: boolean;
+  is_player_visible?: boolean;
+}
 
 // Live combatant during a run (ephemeral — not stored in DB)
 export interface RunCombatant {
@@ -63,8 +97,13 @@ export interface RunCombatant {
   death_saves: { successes: number; failures: number };
   // back-references
   monster_id?: string;
+  def_id?: string;
   party_member_id?: string;
   dex_mod: number; // for initiative tiebreaking
+  portrait_url?: string | null;
+  portrait_focal_point?: { x: number; y: number } | null;
+  // reveal state — only meaningful for monsters; players are always "revealed"
+  reveal_state?: RevealState;
 }
 
 // ── XP / CR tables (D&D 5e) ──────────────────────────────────────────────────
@@ -207,6 +246,7 @@ export interface EncounterState {
   current_round: number;
   active_combatant_index: number;
   combatants_live: RunCombatant[];
+  events_fired?: string[];
   started_at: string | null;
   updated_at: string;
 }

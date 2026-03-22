@@ -57,6 +57,10 @@
 - [x] entity combobox (reward items, locations, NPCs, etc.) dropdown not appearing when typing — dropdown was `position: absolute` inside a card container with `overflow: hidden` + `border-radius`, which clips absolutely-positioned descendants in modern browsers. Fix: teleport dropdown to `<body>` with `position: fixed`, recalculate coordinates from `getBoundingClientRect()` on open and on scroll (capture phase); also flips upward when near the bottom of the viewport.
 - [x] saving a quest on edit doesnt return me to the quest list
 
+- [x] similar to our issue with the notes on companions, the (party) notes on NPC's dont persist as there is no save button and closing the modal doesn't seem to save the data — openNpc now fetches both party_notes and personal notes fresh from DB on open (same fix as companions); notes auto-save on modal close
+
+- [x] deleting an encounter works (204) but then doesnt move back to the list and starts retrying resulting in a 406 — fixed: navigate first before mutateAsync; fetchEncounter now uses maybeSingle() (no 406 on 0 rows); useDeleteEncounter onSuccess calls removeQueries for the specific encounter before invalidating the list
+
 ## Regressing bugs
 
 only manually check these off after rigorous testing of the relevant flows, to avoid marking as done when the underlying issue is still present

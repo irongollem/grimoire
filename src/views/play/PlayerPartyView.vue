@@ -439,9 +439,14 @@ const npcPersonalNotesEdit = ref("");
 
 async function openNpc(npc: Npc) {
   selectedNpc.value = npc;
-  npcPartyNotesEdit.value = npc.party_notes ?? "";
-  const { data } = await supabase.from("npc_player_notes").select("notes").eq("npc_id", npc.id).maybeSingle();
-  npcPersonalNotesEdit.value = data?.notes ?? "";
+  npcPartyNotesEdit.value = "";
+  npcPersonalNotesEdit.value = "";
+  const [{ data: npcData }, { data: personalData }] = await Promise.all([
+    supabase.from("npcs").select("party_notes").eq("id", npc.id).maybeSingle(),
+    supabase.from("npc_player_notes").select("notes").eq("npc_id", npc.id).maybeSingle(),
+  ]);
+  npcPartyNotesEdit.value = npcData?.party_notes ?? "";
+  npcPersonalNotesEdit.value = personalData?.notes ?? "";
 }
 
 async function saveNpcPartyNotes() {

@@ -1,5 +1,5 @@
 <template>
-  <div :class="['w-full h-full', format === 'token' && 'rounded-full overflow-hidden']">
+  <div :class="['w-full h-full', format === 'token' && 'rounded-full overflow-hidden', format === 'square' && 'overflow-hidden']">
     <img
       v-if="src"
       ref="imgRef"
@@ -16,7 +16,7 @@
 import { ref, watch } from "vue";
 import smartcrop from "smartcrop";
 
-export type ImageFormat = "portrait" | "landscape" | "token";
+export type ImageFormat = "portrait" | "landscape" | "token" | "square";
 
 // Target crop ratios passed to smartcrop — should match the display context:
 //   portrait  → playing card back  (63 × 88 mm ≈ 2:3)
@@ -26,6 +26,7 @@ const FORMAT_TARGETS: Record<ImageFormat, { width: number; height: number }> = {
   portrait: { width: 2, height: 3 },
   landscape: { width: 9, height: 4 },
   token: { width: 1, height: 1 },
+  square: { width: 1, height: 1 },
 };
 
 // Default object-position before the focal point is resolved
@@ -33,6 +34,7 @@ const FORMAT_DEFAULTS: Record<ImageFormat, string> = {
   portrait: "50% 25%",
   landscape: "50% 40%",
   token: "50% 25%",
+  square: "50% 25%",
 };
 
 // Bump when analysis logic or cache format changes
