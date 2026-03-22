@@ -1,0 +1,150 @@
+<template>
+  <div>
+    <PageHeader
+      :title="isNew ? 'New Rule' : (rule?.title || 'Loading…')"
+      description="Custom rule, system, or table"
+    />
+
+    <div v-if="isLoading" class="flex justify-center py-16">
+      <LoadingSpinner />
+    </div>
+
+    <form v-else class="max-w-3xl space-y-5" @submit.prevent="handleSave">
+      <!-- Title -->
+      <div class="space-y-1.5">
+        <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">TITLE</label>
+        <input
+          v-model="form.title"
+          type="text"
+          placeholder="e.g. Crafting System, Icy Weather Rules…"
+          required
+          class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+      </div>
+
+      <!-- Category + Tags row -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="space-y-1.5">
+          <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">CATEGORY</label>
+          <select
+            v-model="form.category"
+            class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="">None</option>
+            <option v-for="cat in RULE_CATEGORIES" :key="cat" :value="cat">{{ cat }}</option>
+          </select>
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">TAGS</label>
+          <input
+            v-model="tagsInput"
+            type="text"
+            placeholder="comma-separated tags"
+            class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        </div>
+      </div>
+
+      <!-- Rich text content -->
+      <div class="space-y-1.5">
+        <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">CONTENT</label>
+        <RichTextEditor v-model="form.content" placeholder="Write your rule, table, or system here…" />
+      </div>
+
+      <!-- Actions -->
+      <div class="flex items-center gap-3 pt-2">
+        <button
+          type="submit"
+          :disabled="saving"
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+        >
+          {{ saving ? "Saving…" : "Save Rule" }}
+        </button>
+        <RouterLink
+          to="/rules"
+          class="font-fell text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Cancel
+        </RouterLink>
+        <button
+          v-if="!isNew"
+          type="button"
+          class="ml-auto font-fell text-sm text-destructive hover:opacity-80 transition-opacity"
+          @click="handleDelete"
+        >
+          Delete
+        </button>
+      </div>
+    </form>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { useRule, useCreateRule, useUpdateRule, useDeleteRule } from "@/composables/useRules";
+import { RULE_CATEGORIES } from "@/types/rule.types";
+import PageHeader from "@/components/common/PageHeader.vue";
+import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import RichTextEditor from "@/components/common/RichTextEditor.vue";
+
+const route  = useRoute();
+const router = useRouter();
+const isNew  = computed(() => route.name === "rule-new");
+const id     = computed(() => (isNew.value ? "" : (route.params.id as string)));
+
+const { data: rule, isLoading: ruleLoading } = useRule(id.value);
+const isLoading = computed(() => !isNew.value && ruleLoading.value);
+
+const createRule = useCreateRule();
+const updateRule = useUpdateRule();
+const deleteRule = useDeleteRule();
+const saving = ref(false);
+
+const form = ref({
+  title: "",
+  category: "" as string,
+  content: null as object | null,
+});
+const tagsInput = ref("");
+
+// Populate form when editing an existing rule
+watch(rule, (r) => {
+  if (!r) return;
+  form.value.title    = r.title;
+  form.value.category = r.category ?? "";
+  form.value.content  = r.content ?? null;
+  tagsInput.value     = r.tags.join(", ");
+}, { immediate: true });
+
+async function handleSave() {
+  saving.value = true;
+  try {
+    const tags = tagsInput.value
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+    const payload = {
+      title:    form.value.title,
+      category: form.value.category || null,
+      content:  form.value.content,
+      tags,
+    };
+    if (isNew.value) {
+      await createRule.mutateAsync(payload);
+    } else {
+      await updateRule.mutateAsync({ id: id.value, update: payload });
+    }
+    router.push("/rules");
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function handleDelete() {
+  if (!confirm(`Delete "${rule.value?.title}"? This cannot be undone.`)) return;
+  await deleteRule.mutateAsync(id.value);
+  router.push("/rules");
+}
+</script>

@@ -14,6 +14,7 @@ import {
   ScrollText,
   CircleUser,
   Hammer,
+  Library,
 } from "lucide-vue-next";
 import type { Component } from "vue";
 
@@ -96,6 +97,17 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Hammer,
         description: "Recipes & player crafting",
         requiresCampaign: true,
+      },
+    ],
+  },
+  {
+    label: "Reference",
+    items: [
+      {
+        label: "Reliquary",
+        to: "/rules",
+        icon: Library,
+        description: "DM screen, rules & custom systems",
       },
     ],
   },

@@ -14,6 +14,14 @@
 - [x] DM Notes tracker (Tiptap editor, categories, tags, pinning)
 - [x] Faerûn Calendar / timeline (Calendar of Harptos, adapter pattern for future settings)
 
+### Rules Reliquary
+
+- [x] Rules Reliquary — `/rules` with three tabs: DM Screen, Compendium, Custom Rules
+- [x] DM Screen — hardcoded reference tables: conditions, combat actions, cover, light, skills, DCs, exhaustion, death saves, travel pace, concentration, spell slots
+- [x] Compendium — 317 SRD 2024 rules synced from Open5e v2 into `srd_rules` table (shared, no user_id); searchable + tree-browsable
+- [x] Custom Rules — per-user CRUD with Tiptap editor, category, tags, search
+- [x] `sync-srd-rules` Supabase Edge Function — upserts Open5e v2 rules weekly (deployable via `supabase functions deploy`)
+
 ### Content Creation & Homebrew
 
 - [x] Scriptorium — Homebrewery-style editor, OneDnD 2024 PHB preview + PDF export

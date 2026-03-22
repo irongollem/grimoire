@@ -334,6 +334,26 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Location" },
     },
 
+    // Rules Reliquary
+    {
+      path: "/rules",
+      name: "rules",
+      component: () => import("@/views/rules/RulesView.vue"),
+      meta: { requiresAuth: true, title: "Rules Reliquary" },
+    },
+    {
+      path: "/rules/new",
+      name: "rule-new",
+      component: () => import("@/views/rules/RuleEditView.vue"),
+      meta: { requiresAuth: true, title: "New Rule" },
+    },
+    {
+      path: "/rules/:id",
+      name: "rule-detail",
+      component: () => import("@/views/rules/RuleEditView.vue"),
+      meta: { requiresAuth: true, title: "Edit Rule" },
+    },
+
     // Card Forge
     {
       path: "/forge",
