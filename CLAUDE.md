@@ -52,6 +52,9 @@ Never stay on the detail/editor page or navigate to the newly created resource's
 
 ## Roadmap & Bug Tracking
 
-- Roadmap is in `ROADMAP.md` — use checkboxes to track progress on features, organized by phase
-- Bugs are tracked in `BUGS.md` — add new bugs as they arise, check off when resolved
-- After completing a feature make sure the roadmap is updated and any relevant bugs are marked as resolved
+**CRITICAL — always update these files at the end of every response that implements a feature or fixes a bug:**
+
+- `ROADMAP.md` — check off completed features (checkboxes), add new items if needed
+- `BUGS.md` — check off resolved bugs, add new bugs as they arise
+
+This is a hard requirement: if you implemented or completed anything, the last thing you do before finishing your response is update the relevant file(s). Do not skip this even for small changes.

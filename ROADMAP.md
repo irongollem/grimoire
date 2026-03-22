@@ -167,7 +167,7 @@
 
 - [ ] **Monster import from external sources** — import tool to pull stat blocks from D&D Beyond or Open5e API directly into Bestiary
 - [x] **Campaign settings page** — Edit Campaign modal + `/campaign/settings` (Members, Invite Links, World Settings tabs)
-- [ ] **Crafting system** — allow players to craft items using gear proficiencies, crafting tools
+- [x] **Crafting system** — allow players to craft items using gear proficiencies, crafting tools
 
 ---
 
@@ -272,6 +272,7 @@ Keep the core DM tooling free forever (open source). Gate AI features, advanced 
 
 ## Ideas & Distant Future
 
-- [ ] **Open5e spells & items API** — pre-populate Spells and Items modules with SRD content (no runtime API dependency, scrape/bundle only)
+- [x] **Open5e spells API** — "Import SRD Spells" button in Spellbook populates from open5e.com, deduplicates on re-run
+- [ ] **Open5e items API** — items already done; bundle spells/items offline (no runtime API dependency, scrape/bundle only)
 - [ ] **Custom calendars** — expand adapter pattern for additional campaign settings beyond Faerûn
 - [ ] **SRD imagery** if I (admin) add an image to an SRD monster/NPC/item/spell, make it available to all campaigns as a default option in the image picker, heck wouldnt it be a better idea to have the SRD content in a separate "SRD" section of the DB thats readonly to all players and DM's. That way everyone doesnt need to "import" SRD but can just "enable SRD content" in their campaign settings and have it available everywhere by default

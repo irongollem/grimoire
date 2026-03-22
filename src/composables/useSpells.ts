@@ -94,3 +94,38 @@ export function useDeleteSpell() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }
+
+export function useImportSrdSpells() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<number> => {
+      const { fetchSrdSpells } = await import("@/lib/open5eSpellImport");
+      const spells = await fetchSrdSpells();
+
+      const allNames = spells.map((s) => s.name);
+      const existingNames = new Set<string>();
+      const CHUNK = 200;
+      for (let i = 0; i < allNames.length; i += CHUNK) {
+        const { data } = await supabase
+          .from("spells")
+          .select("name")
+          .eq("source", "srd")
+          .in("name", allNames.slice(i, i + CHUNK));
+        (data ?? []).forEach((r: { name: string }) => existingNames.add(r.name));
+      }
+
+      const toInsert = spells.filter((s) => !existingNames.has(s.name));
+      if (toInsert.length === 0) return 0;
+
+      const user = getCurrentUser();
+      const withUser = toInsert.map((s) => ({ ...s, user_id: user!.id }));
+      const BATCH = 100;
+      for (let i = 0; i < withUser.length; i += BATCH) {
+        const { error } = await supabase.from("spells").insert(withUser.slice(i, i + BATCH));
+        if (error) throw error;
+      }
+      return toInsert.length;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}
