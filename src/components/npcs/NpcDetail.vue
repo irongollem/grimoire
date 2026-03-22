@@ -219,12 +219,16 @@
             </div>
             <div>
               <label class="field-label">Location</label>
-              <select v-model="form.location_id" class="field-input">
-                <option :value="null">— none —</option>
-                <option v-for="loc in allLocations ?? []" :key="loc.id" :value="loc.id">
-                  {{ loc.name }}
-                </option>
-              </select>
+              <EntityCombobox
+                :model-value="form.location_id ?? ''"
+                :options="locationOptions"
+                placeholder="— none —"
+                @update:model-value="form.location_id = $event || null"
+              >
+                <template #option="{ opt }">
+                  <span :style="{ paddingLeft: `${(opt as any).depth * 12}px` }">{{ opt.name }}</span>
+                </template>
+              </EntityCombobox>
             </div>
             <div class="sm:col-span-2">
               <label class="field-label">Affiliation</label>
@@ -378,7 +382,7 @@ import { useRouter } from 'vue-router'
 import { ImagePlus, ScrollText } from 'lucide-vue-next'
 import { useImageUpload } from '@/composables/useImageUpload'
 import { useCreateNpc, useUpdateNpc, useDeleteNpc } from '@/composables/useNpcs'
-import { useAllLocations } from '@/composables/useLocations'
+import { useLocationTree } from '@/composables/useLocations'
 import { useAllMonsters, useCreateMonster } from '@/composables/useMonsters'
 import { useCreateScriptoriumDocument } from '@/composables/useScriptorium'
 import { formatNpcForScriptorium } from '@/lib/scriptoriumImport'
@@ -431,7 +435,7 @@ const props = defineProps<{ npc?: Npc | null }>()
 // ── Store + mutations ─────────────────────────────────────────────────────────
 
 const router = useRouter()
-const { data: allLocations } = useAllLocations()
+const { locationOptions } = useLocationTree()
 const { data: allMonsters } = useAllMonsters()
 const { mutateAsync: createNpc, isPending: isCreating } = useCreateNpc()
 const { mutateAsync: updateNpc, isPending: isUpdating } = useUpdateNpc()

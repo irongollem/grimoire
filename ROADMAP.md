@@ -21,6 +21,7 @@
 - [x] Compendium — 317 SRD 2024 rules synced from Open5e v2 into `srd_rules` table (shared, no user_id); searchable + tree-browsable
 - [x] Custom Rules — per-user CRUD with Tiptap editor, category, tags, search
 - [x] `sync-srd-rules` Supabase Edge Function — upserts Open5e v2 rules weekly (deployable via `supabase functions deploy`)
+- [ ] add a player view version of the reliquary, including a "Player DM Screen" with player-relevant tables (conditions, actions, skills, DCs, exhaustion, death saves, travel pace, concentration, spell slots), also the full compendium (its rules no spoilers right?) and a view-only version of custom rules (DM can mark each rule as player-visible or not)
 
 ### Content Creation & Homebrew
 
