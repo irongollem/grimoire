@@ -75,23 +75,7 @@
     </div>
 
     <!-- Tags -->
-    <div class="flex flex-wrap items-center gap-1 min-h-8 bg-muted/50 border border-border rounded-md px-2 py-1">
-      <span
-        v-for="tag in tags"
-        :key="tag"
-        class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-card font-cinzel text-[11px] text-muted-foreground tracking-wider"
-      >
-        {{ tag }}
-        <button type="button" class="hover:text-destructive transition-colors leading-none text-sm" @click="removeTag(tag)">×</button>
-      </span>
-      <input
-        v-model="tagInput"
-        placeholder="Add tag…"
-        class="bg-transparent border-none outline-none font-fell text-xs text-muted-foreground placeholder:text-muted-foreground/60 min-w-24 flex-1"
-        @keydown.enter.prevent="addTag"
-        @keydown="onTagKeydown"
-      />
-    </div>
+    <TagInput v-model="tags" />
 
     <p v-if="saveError" class="text-destructive font-fell text-sm">{{ saveError }}</p>
 
@@ -173,6 +157,7 @@ import {
   Save, Trash2, Pin, Eye, Strikethrough, List, ListOrdered,
   Quote, Minus, Undo2, Redo2,
 } from "lucide-vue-next";
+import TagInput from "@/components/common/TagInput.vue";
 import { useCreateNote, useUpdateNote, useDeleteNote } from "@/composables/useNotes";
 import type { Note, NoteCategory } from "@/types/notes.types";
 import { useCampaignStore } from "@/stores/campaign";
@@ -196,21 +181,8 @@ const sessionNum = ref<number | null>(props.note?.session_num ?? null);
 const isPinned         = ref(props.note?.is_pinned ?? false);
 const isPlayerVisible  = ref(props.note?.is_player_visible ?? false);
 const tags       = ref<string[]>(props.note?.tags ? [...props.note.tags] : []);
-const tagInput   = ref("");
 const saving     = ref(false);
 const saveError  = ref("");
-
-function addTag() {
-  const val = tagInput.value.replace(/,\s*$/, "").trim();
-  if (val && !tags.value.includes(val)) tags.value.push(val);
-  tagInput.value = "";
-}
-function onTagKeydown(e: KeyboardEvent) {
-  if (e.key === ",") { e.preventDefault(); addTag(); }
-}
-function removeTag(tag: string) {
-  tags.value = tags.value.filter((t) => t !== tag);
-}
 
 const editor = useEditor({
   content: props.note?.content ? JSON.parse(props.note.content) : undefined,

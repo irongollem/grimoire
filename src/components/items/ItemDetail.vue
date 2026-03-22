@@ -73,23 +73,7 @@
         <!-- Tags -->
         <div class="rounded-lg border border-border bg-card p-4 flex flex-col gap-3">
           <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">Tags</h3>
-          <div class="flex items-center gap-1.5 flex-wrap min-h-8 bg-muted border border-border rounded-md px-2 py-1">
-            <span
-              v-for="tag in tags"
-              :key="tag"
-              class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-card font-cinzel text-[11px] text-muted-foreground tracking-wider"
-            >
-              {{ tag }}
-              <button type="button" class="hover:text-destructive transition-colors leading-none text-sm" @click="removeTag(tag)">×</button>
-            </span>
-            <input
-              v-model="tagInput"
-              placeholder="Add tag…"
-              class="bg-transparent border-none outline-none font-fell text-xs text-muted-foreground placeholder:text-muted-foreground/60 min-w-20 flex-1"
-              @keydown.enter.prevent="addTag"
-              @keydown="onTagKey"
-            />
-          </div>
+          <TagInput v-model="tags" />
         </div>
 
         <!-- Linked spells summary (when spells selected) -->
@@ -326,6 +310,7 @@ import { useSpells } from "@/composables/useSpells";
 import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
 import { formatItemForScriptorium } from "@/lib/scriptoriumImport";
 import DamageRollsInput from "@/components/common/DamageRollsInput.vue";
+import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import {
   ITEM_TYPES,
@@ -355,7 +340,6 @@ const description = ref(props.item?.description ?? "");
 const source = ref(props.item?.source ?? "");
 const imageUrl = ref(props.item?.image_url ?? "");
 const tags = ref<string[]>(props.item?.tags ?? []);
-const tagInput = ref("");
 
 // ── Weapon fields ─────────────────────────────────────────────────────────────
 const damageRolls = ref<DamageRoll[]>(props.item?.damage_rolls ?? []);
@@ -394,22 +378,6 @@ const isWeapon = computed(() => isWeaponType(itemType.value));
 const isArmor = computed(() => isArmorType(itemType.value));
 const isMagic = computed(() => rarity.value !== "mundane");
 const rarityColor = computed(() => RARITY_COLORS[rarity.value] ?? "#888888");
-
-// ── Tags ──────────────────────────────────────────────────────────────────────
-function addTag() {
-  const val = tagInput.value.replace(/,\s*$/, "").trim();
-  if (val && !tags.value.includes(val)) tags.value.push(val);
-  tagInput.value = "";
-}
-function onTagKey(e: KeyboardEvent) {
-  if (e.key === ",") {
-    e.preventDefault();
-    addTag();
-  }
-}
-function removeTag(tag: string) {
-  tags.value = tags.value.filter((t) => t !== tag);
-}
 
 // ── Art upload ────────────────────────────────────────────────────────────────
 const artFileInput = ref<HTMLInputElement | null>(null);

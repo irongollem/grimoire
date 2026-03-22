@@ -164,21 +164,7 @@
         <!-- Tags -->
         <div>
           <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">TAGS</p>
-          <div class="flex flex-wrap gap-1.5 mb-1.5">
-            <span
-              v-for="tag in form.tags" :key="tag"
-              class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-muted font-cinzel text-xs text-muted-foreground"
-            >
-              {{ tag }}
-              <button type="button" class="hover:text-destructive leading-none" @click="removeTag(tag)">×</button>
-            </span>
-          </div>
-          <input
-            v-model="tagInput" type="text" placeholder="Add tag + Enter"
-            class="w-full bg-muted border border-border rounded-md px-2.5 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            @keydown.enter.prevent="addTag"
-            @keydown.exact.prevent.comma="addTag"
-          />
+          <TagInput v-model="form.tags" />
         </div>
       </div>
 
@@ -378,6 +364,7 @@
 import { useConfirm } from "@/composables/useConfirm";
 import { ref, reactive, computed } from 'vue'
 import RichTextEditor from '@/components/common/RichTextEditor.vue'
+import TagInput from '@/components/common/TagInput.vue'
 import { useRouter } from 'vue-router'
 import { ImagePlus, ScrollText } from 'lucide-vue-next'
 import { useImageUpload } from '@/composables/useImageUpload'
@@ -649,18 +636,6 @@ function applyTemplate(id: string) {
     actions: sb.actions ? [...sb.actions] : [],
     legendary_actions: sb.legendary_actions ? [...sb.legendary_actions] : [],
   })
-}
-
-// ── Tags ──────────────────────────────────────────────────────────────────────
-
-const tagInput = ref('')
-function addTag() {
-  const t = tagInput.value.trim().replace(/,$/, '')
-  if (t && !form.tags.includes(t)) form.tags.push(t)
-  tagInput.value = ''
-}
-function removeTag(tag: string) {
-  form.tags = form.tags.filter(t => t !== tag)
 }
 
 // ── Portrait upload ───────────────────────────────────────────────────────────

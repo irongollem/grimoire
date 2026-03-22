@@ -695,31 +695,7 @@
           <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase"
             >Tags</span
           >
-          <div
-            class="flex items-center gap-1.5 flex-wrap min-h-8 bg-card border border-border rounded-md px-2 py-1"
-          >
-            <span
-              v-for="tag in tags"
-              :key="tag"
-              class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-muted font-cinzel text-[11px] text-muted-foreground tracking-wider"
-            >
-              {{ tag }}
-              <button
-                type="button"
-                class="hover:text-destructive transition-colors leading-none text-sm"
-                @click="removeTag(tag)"
-              >
-                ×
-              </button>
-            </span>
-            <input
-              v-model="tagInput"
-              placeholder="Add tag…"
-              class="bg-transparent border-none outline-none font-fell text-xs text-muted-foreground placeholder:text-muted-foreground/60 min-w-20 flex-1"
-              @keydown.enter.prevent="addTag"
-              @keydown="onTagKey"
-            />
-          </div>
+          <TagInput v-model="tags" />
         </div>
       </div>
 
@@ -1066,6 +1042,7 @@ import { useImageUpload } from "@/composables/useImageUpload";
 import DiceInput from "@/components/common/DiceInput.vue";
 import DamageRollsInput from "@/components/common/DamageRollsInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import TagInput from "@/components/common/TagInput.vue";
 import {
   SPELL_SCHOOLS,
   SPELL_CLASSES,
@@ -1130,8 +1107,6 @@ const targetDescription = ref(props.spell?.target_description ?? "");
 const aoeShape = ref(props.spell?.aoe_shape ?? "");
 const aoeSize = ref(props.spell?.aoe_size ?? "");
 const conditionInflicted = ref(props.spell?.condition_inflicted ?? "");
-const tagInput = ref("");
-
 function levelSuffix(n: number): string {
   if (n === 1) return "st";
   if (n === 2) return "nd";
@@ -1142,22 +1117,6 @@ function levelSuffix(n: number): string {
 // Auto-set concentration when a concentration duration is selected
 function onDurationChange() {
   if (duration.value.startsWith("Concentration")) concentration.value = true;
-}
-
-// Tags
-function addTag() {
-  const val = tagInput.value.replace(/,\s*$/, "").trim();
-  if (val && !tags.value.includes(val)) tags.value.push(val);
-  tagInput.value = "";
-}
-function onTagKey(e: KeyboardEvent) {
-  if (e.key === ",") {
-    e.preventDefault();
-    addTag();
-  }
-}
-function removeTag(tag: string) {
-  tags.value = tags.value.filter((t) => t !== tag);
 }
 
 // ── Advisor state ─────────────────────────────────────────────────────────────

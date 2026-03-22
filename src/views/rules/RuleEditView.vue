@@ -37,12 +37,7 @@
 
         <div class="space-y-1.5">
           <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">TAGS</label>
-          <input
-            v-model="tagsInput"
-            type="text"
-            placeholder="comma-separated tags"
-            class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          />
+          <TagInput v-model="tags" />
         </div>
       </div>
 
@@ -89,12 +84,14 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
+import { useConfirm } from "@/composables/useConfirm";
 import { useRoute, useRouter } from "vue-router";
 import { useRule, useCreateRule, useUpdateRule, useDeleteRule } from "@/composables/useRules";
 import { RULE_CATEGORIES } from "@/types/rule.types";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import TagInput from "@/components/common/TagInput.vue";
 
 const route  = useRoute();
 const router = useRouter();
@@ -107,6 +104,7 @@ const isLoading = computed(() => !isNew.value && ruleLoading.value);
 const createRule = useCreateRule();
 const updateRule = useUpdateRule();
 const deleteRule = useDeleteRule();
+const { confirm } = useConfirm();
 const saving = ref(false);
 
 const form = ref({
@@ -115,31 +113,27 @@ const form = ref({
   content: null as string | null,  // RichTextEditor serializes Tiptap JSON as string
   isPlayerVisible: false,
 });
-const tagsInput = ref("");
+const tags = ref<string[]>([]);
 
 // Populate form when editing an existing rule
 watch(rule, (r) => {
   if (!r) return;
-  form.value.title    = r.title;
-  form.value.category = r.category ?? "";
+  form.value.title           = r.title;
+  form.value.category        = r.category ?? "";
   form.value.content         = r.content ? JSON.stringify(r.content) : null;
   form.value.isPlayerVisible = r.is_player_visible ?? false;
-  tagsInput.value            = r.tags.join(", ");
+  tags.value                 = [...r.tags];
 }, { immediate: true });
 
 async function handleSave() {
   saving.value = true;
   try {
-    const tags = tagsInput.value
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean);
     const payload = {
       title:    form.value.title,
       category: form.value.category || null,
       content:           form.value.content ? JSON.parse(form.value.content) : null,
       is_player_visible: form.value.isPlayerVisible,
-      tags,
+      tags:              tags.value,
     };
     if (isNew.value) {
       await createRule.mutateAsync(payload);
@@ -153,7 +147,7 @@ async function handleSave() {
 }
 
 async function handleDelete() {
-  if (!confirm(`Delete "${rule.value?.title}"? This cannot be undone.`)) return;
+  if (!await confirm(`Delete "${rule.value?.title}"? This cannot be undone.`)) return;
   await deleteRule.mutateAsync(id.value);
   router.push("/rules");
 }

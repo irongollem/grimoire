@@ -198,31 +198,7 @@
         </div>
 
         <!-- Tags -->
-        <div
-          class="flex flex-wrap items-center gap-1 min-h-8 bg-muted/50 border border-border rounded-md px-2 py-1"
-        >
-          <span
-            v-for="tag in tags"
-            :key="tag"
-            class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-card font-cinzel text-[11px] text-muted-foreground tracking-wider"
-          >
-            {{ tag }}
-            <button
-              type="button"
-              class="hover:text-destructive transition-colors leading-none text-sm"
-              @click="removeTag(tag)"
-            >
-              ×
-            </button>
-          </span>
-          <input
-            v-model="tagInput"
-            placeholder="Add tag…"
-            class="bg-transparent border-none outline-none font-fell text-xs text-muted-foreground placeholder:text-muted-foreground/60 min-w-24 flex-1"
-            @keydown.enter.prevent="addTag"
-            @keydown="onTagKeydown"
-          />
-        </div>
+        <TagInput v-model="tags" />
 
         <!-- Description -->
         <div class="flex flex-col gap-1">
@@ -966,6 +942,7 @@ import { useEncounters } from "@/composables/useEncounters";
 import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
 import { formatQuestForScriptorium } from "@/lib/scriptoriumImport";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import TagInput from "@/components/common/TagInput.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
 import {
@@ -1087,7 +1064,6 @@ const locationId = ref(props.quest?.location_id ?? "");
 const parentQuestId = ref(props.quest?.parent_quest_id ?? props.parentId ?? "");
 const rewards = ref(props.quest?.rewards ?? "");
 const tags = ref<string[]>(props.quest?.tags ? [...props.quest.tags] : []);
-const tagInput = ref("");
 const isPlayerVisible = ref(props.quest?.is_player_visible ?? false);
 const saving = ref(false);
 const saveError = ref("");
@@ -1107,21 +1083,6 @@ const rewardCurrencyPools = ref<
   import("@/types/quest.types").RewardCurrencyPool[]
 >(props.quest?.reward_currency_pools ?? []);
 const sendingToScriptorium = ref(false);
-
-function addTag() {
-  const val = tagInput.value.replace(/,\s*$/, "").trim();
-  if (val && !tags.value.includes(val)) tags.value.push(val);
-  tagInput.value = "";
-}
-function onTagKeydown(e: KeyboardEvent) {
-  if (e.key === ",") {
-    e.preventDefault();
-    addTag();
-  }
-}
-function removeTag(tag: string) {
-  tags.value = tags.value.filter((t) => t !== tag);
-}
 
 // ── Rich text fields ────────────────────────────────────────────────────────────
 const description = ref<string>(props.quest?.description ?? "");

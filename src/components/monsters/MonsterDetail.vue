@@ -186,33 +186,13 @@
           <!-- Tags -->
           <div>
             <p class="field-label">Tags</p>
-            <div
-              class="flex flex-wrap items-center gap-1 min-h-9 bg-muted border border-border rounded-md px-2 py-1"
-            >
+            <TagInput v-if="!isSrd" v-model="form.tags" />
+            <div v-else class="flex flex-wrap gap-1 mt-1">
               <span
                 v-for="tag in form.tags"
                 :key="tag"
-                class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-card font-cinzel text-[11px] text-muted-foreground tracking-wider"
-              >
-                {{ tag }}
-                <button
-                  v-if="!isSrd"
-                  type="button"
-                  class="hover:text-destructive transition-colors leading-none text-sm"
-                  @click="removeTag(tag)"
-                >
-                  ×
-                </button>
-              </span>
-              <input
-                v-if="!isSrd"
-                v-model="tagInput"
-                placeholder="Add tag…"
-                class="bg-transparent border-none outline-none font-fell text-xs text-muted-foreground placeholder:text-muted-foreground/60 min-w-20 flex-1"
-                aria-label="Add tag"
-                @keydown.enter.prevent="addTag"
-                @keydown="onTagKeydown"
-              />
+                class="inline-flex items-center px-2 py-0.5 rounded bg-muted font-cinzel text-[11px] text-muted-foreground tracking-wider"
+              >{{ tag }}</span>
             </div>
           </div>
         </div>
@@ -487,6 +467,7 @@ import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
 import { Save, Trash2, ScrollText, ImagePlus, Copy } from "lucide-vue-next";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import TagInput from "@/components/common/TagInput.vue";
 import { useImageUpload } from "@/composables/useImageUpload";
 import {
   useCreateMonster,
@@ -600,23 +581,6 @@ const sb = reactive<MonsterStatBlock>(
     ? { ...defaultSb(), ...props.monster.stat_block }
     : defaultSb(),
 );
-
-// Tags
-const tagInput = ref("");
-function addTag() {
-  const val = tagInput.value.replace(/,\s*$/, "").trim();
-  if (val && !form.tags.includes(val)) form.tags.push(val);
-  tagInput.value = "";
-}
-function onTagKeydown(e: KeyboardEvent) {
-  if (e.key === ",") {
-    e.preventDefault();
-    addTag();
-  }
-}
-function removeTag(tag: string) {
-  form.tags = form.tags.filter((t) => t !== tag);
-}
 
 // Skills string <-> Record conversion
 const skillsText = computed(() =>

@@ -56,32 +56,7 @@
     </div>
 
     <!-- Tags row -->
-    <div class="flex items-center gap-1.5 flex-wrap min-h-7">
-      <span
-        v-for="tag in tags"
-        :key="tag"
-        class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-muted font-cinzel text-[11px] text-muted-foreground tracking-wider"
-      >
-        {{ tag }}
-        <button
-          type="button"
-          class="hover:text-destructive transition-colors leading-none text-sm"
-          @click="removeTag(tag)"
-        >
-          ×
-        </button>
-      </span>
-      <label>
-        <span class="sr-only">Add tag</span>
-        <input
-          v-model="tagInput"
-          placeholder="Add tag…"
-          class="bg-transparent border-none outline-none font-fell text-xs text-muted-foreground placeholder:text-muted-foreground/60 min-w-20"
-          @keydown.enter.prevent="addTag"
-          @keydown="onTagKeydown"
-        />
-      </label>
-    </div>
+    <TagInput v-model="tags" />
 
     <p v-if="saveError" class="text-destructive font-fell text-sm">{{ saveError }}</p>
 
@@ -406,6 +381,7 @@ import { useScriptoriumPdf } from "@/composables/useScriptoriumPdf";
 import type { ScriptoriumDocument, ScriptoriumDocType } from "@/types/scriptorium.types";
 import PdfPreviewDialog from "@/components/scriptorium/PdfPreviewDialog.vue";
 import AssetInsertPanel from "@/components/scriptorium/AssetInsertPanel.vue";
+import TagInput from "@/components/common/TagInput.vue";
 
 const IMAGE_SIZES = [
   { label: "S", w: 120 },
@@ -482,22 +458,6 @@ const docType = ref<ScriptoriumDocType>(props.doc?.doc_type ?? "custom");
 const isPublished = ref(props.doc?.is_published ?? false);
 const isTwoColumn = ref(props.doc?.is_two_column ?? false);
 const tags = ref<string[]>(props.doc?.tags ?? []);
-const tagInput = ref("");
-
-function addTag() {
-  const val = tagInput.value.replace(/,\s*$/, "").trim();
-  if (val && !tags.value.includes(val)) tags.value.push(val);
-  tagInput.value = "";
-}
-function onTagKeydown(e: KeyboardEvent) {
-  if (e.key === ",") {
-    e.preventDefault();
-    addTag();
-  }
-}
-function removeTag(tag: string) {
-  tags.value = tags.value.filter((t) => t !== tag);
-}
 
 // Editor
 const previewHtml = ref("");
