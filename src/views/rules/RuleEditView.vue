@@ -46,6 +46,13 @@
         </div>
       </div>
 
+      <!-- Player visibility -->
+      <label class="flex items-center gap-2 cursor-pointer select-none">
+        <input type="checkbox" v-model="form.isPlayerVisible" class="rounded" />
+        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">VISIBLE TO PLAYERS</span>
+        <span class="font-fell text-xs text-muted-foreground italic">— players can read this rule in their portal</span>
+      </label>
+
       <!-- Rich text content -->
       <div class="space-y-1.5">
         <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">CONTENT</label>
@@ -106,6 +113,7 @@ const form = ref({
   title: "",
   category: "" as string,
   content: null as string | null,  // RichTextEditor serializes Tiptap JSON as string
+  isPlayerVisible: false,
 });
 const tagsInput = ref("");
 
@@ -114,8 +122,9 @@ watch(rule, (r) => {
   if (!r) return;
   form.value.title    = r.title;
   form.value.category = r.category ?? "";
-  form.value.content  = r.content ? JSON.stringify(r.content) : null;
-  tagsInput.value     = r.tags.join(", ");
+  form.value.content         = r.content ? JSON.stringify(r.content) : null;
+  form.value.isPlayerVisible = r.is_player_visible ?? false;
+  tagsInput.value            = r.tags.join(", ");
 }, { immediate: true });
 
 async function handleSave() {
@@ -128,7 +137,8 @@ async function handleSave() {
     const payload = {
       title:    form.value.title,
       category: form.value.category || null,
-      content:  form.value.content ? JSON.parse(form.value.content) : null,
+      content:           form.value.content ? JSON.parse(form.value.content) : null,
+      is_player_visible: form.value.isPlayerVisible,
       tags,
     };
     if (isNew.value) {

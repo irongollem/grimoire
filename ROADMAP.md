@@ -21,7 +21,7 @@
 - [x] Compendium — 317 SRD 2024 rules synced from Open5e v2 into `srd_rules` table (shared, no user_id); searchable + tree-browsable
 - [x] Custom Rules — per-user CRUD with Tiptap editor, category, tags, search
 - [x] `sync-srd-rules` Supabase Edge Function — upserts Open5e v2 rules weekly (deployable via `supabase functions deploy`)
-- [ ] add a player view version of the reliquary, including a "Player DM Screen" with player-relevant tables (conditions, actions, skills, DCs, exhaustion, death saves, travel pace, concentration, spell slots), also the full compendium (its rules no spoilers right?) and a view-only version of custom rules (DM can mark each rule as player-visible or not)
+- [x] add a player view version of the reliquary: `/play/rules` with Reference tab (full DM screen tables), Compendium tab (full SRD), House Rules tab (view-only custom rules where DM toggled "Visible to players"); DM sets visibility per rule in rule editor; eye icon on DM rule cards
 
 ### Content Creation & Homebrew
 
@@ -153,7 +153,7 @@
 
 ### Scriptorium
 
-- [ ] **Two-column layout** — CSS `columns: 2` toggle for PHB-style two-column pages
+- [x] **Two-column layout** — Columns2 toolbar button toggles `column-count: 2` on both the editor and the Scriptorium preview; persisted per document in DB (`is_two_column`); H1/H2 span both columns in preview
 - [ ] **Table support** — Tiptap table extension for stat comparison tables
 - [ ] **Visual assets** — page border PNG, chapter art (see `ASSETS_PROMPT_LIST.md`)
 

@@ -58,12 +58,15 @@
           <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight line-clamp-2 flex-1">
             {{ rule.title }}
           </h3>
-          <span
-            v-if="rule.category"
-            class="shrink-0 px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider"
-          >
-            {{ rule.category }}
-          </span>
+          <div class="flex items-center gap-1 shrink-0">
+            <Eye v-if="rule.is_player_visible" class="h-3 w-3 text-primary/60" title="Visible to players" />
+            <span
+              v-if="rule.category"
+              class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider"
+            >
+              {{ rule.category }}
+            </span>
+          </div>
         </div>
         <div v-if="rule.tags.length" class="flex flex-wrap gap-1">
           <span
@@ -91,7 +94,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Search } from "lucide-vue-next";
+import { Search, Eye } from "lucide-vue-next";
 import { useRules } from "@/composables/useRules";
 import { RULE_CATEGORIES } from "@/types/rule.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

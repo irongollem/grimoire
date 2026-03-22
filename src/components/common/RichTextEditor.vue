@@ -69,12 +69,16 @@
         <button type="button" title="Redo" :class="tbCls(false)" :disabled="!editor.can().redo()" @click="editor.chain().focus().redo().run()">
           <Redo2 class="h-3.5 w-3.5" />
         </button>
+        <div class="w-px h-5 bg-border mx-0.5" />
+        <button type="button" title="Toggle two-column layout" :class="tbCls(twoColumn)" @click="twoColumn = !twoColumn">
+          <Columns2 class="h-3.5 w-3.5" />
+        </button>
       </template>
     </div>
 
     <!-- Content area -->
     <div class="flex-1 overflow-auto p-3">
-      <EditorContent :editor="editor" class="rte-content h-full" />
+      <EditorContent :editor="editor" :class="['rte-content h-full', twoColumn ? 'rte-two-col' : '']" />
     </div>
 
     <!-- Hidden file input for image upload -->
@@ -93,7 +97,7 @@ import TableRow from "@tiptap/extension-table-row";
 import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
 import Image from "@tiptap/extension-image";
-import { List, ListOrdered, Quote, Undo2, Redo2, Table as TableIcon, BetweenVerticalEnd, BetweenHorizontalEnd, Trash2, ImageIcon } from "lucide-vue-next";
+import { List, ListOrdered, Quote, Undo2, Redo2, Table as TableIcon, BetweenVerticalEnd, BetweenHorizontalEnd, Trash2, ImageIcon, Columns2 } from "lucide-vue-next";
 
 const props = defineProps<{
   modelValue: string | null;
@@ -120,7 +124,7 @@ const editor = useEditor({
   extensions: [
     StarterKit,
     Placeholder.configure({ placeholder: props.placeholder ?? "Write something…" }),
-    Table.configure({ resizable: false }),
+    Table.configure({ resizable: true }),
     TableRow,
     TableHeader,
     TableCell,
@@ -147,6 +151,7 @@ watch(
 
 onUnmounted(() => editor.value?.destroy());
 
+const twoColumn = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
 const uploadingImage = ref(false);
 
@@ -233,6 +238,18 @@ function tbCls(active: boolean) {
 }
 .rte-content :deep(.ProseMirror .selectedCell) {
   @apply bg-primary/10;
+}
+
+/* Two-column layout */
+.rte-two-col :deep(.ProseMirror) {
+  column-count: 2;
+  column-gap: 1.75rem;
+  column-rule: 1px solid hsl(var(--border));
+}
+.rte-two-col :deep(.ProseMirror table),
+.rte-two-col :deep(.ProseMirror .ProseMirror-widget) {
+  break-inside: avoid;
+  column-span: none;
 }
 
 /* Image styles */

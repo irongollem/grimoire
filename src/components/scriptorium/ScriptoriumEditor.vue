@@ -296,6 +296,18 @@
             >
               <Redo2 class="h-3.5 w-3.5" />
             </button>
+
+            <div class="w-px h-5 bg-border mx-0.5" />
+
+            <!-- Layout -->
+            <button
+              type="button"
+              title="Toggle two-column preview"
+              :class="tbCls(isTwoColumn)"
+              @click="isTwoColumn = !isTwoColumn"
+            >
+              <Columns2 class="h-3.5 w-3.5" />
+            </button>
           </template>
         </div>
 
@@ -347,7 +359,7 @@
             <div v-if="pageIndex === 0" class="phb-title-bar">
               {{ title || "Untitled Document" }}
             </div>
-            <div class="phb-body" v-html="pageHtml" />
+            <div class="phb-body" :class="{ 'phb-two-col': isTwoColumn }" v-html="pageHtml" />
           </div>
           <p class="phb-hint">── use the Page Break button (—) to start a new page ──</p>
         </div>
@@ -383,6 +395,7 @@ import {
   AlignCenter,
   AlignRight,
   Trash2,
+  Columns2,
 } from "lucide-vue-next";
 import {
   useCreateScriptoriumDocument,
@@ -467,6 +480,7 @@ const showAssetPanel = ref(false);
 const title = ref(props.doc?.title ?? "");
 const docType = ref<ScriptoriumDocType>(props.doc?.doc_type ?? "custom");
 const isPublished = ref(props.doc?.is_published ?? false);
+const isTwoColumn = ref(props.doc?.is_two_column ?? false);
 const tags = ref<string[]>(props.doc?.tags ?? []);
 const tagInput = ref("");
 
@@ -578,6 +592,7 @@ async function save() {
       doc_type: docType.value,
       tags: tags.value,
       is_published: isPublished.value,
+      is_two_column: isTwoColumn.value,
       word_count: wordCount.value,
     };
     if (props.doc) {
@@ -668,6 +683,16 @@ onUnmounted(() => editor.value?.destroy());
 }
 
 /* Each A4 page card */
+.phb-two-col {
+  column-count: 2;
+  column-gap: 1.5rem;
+  column-rule: 1px solid #c9b99a;
+}
+.phb-two-col :deep(h1),
+.phb-two-col :deep(h2) {
+  column-span: all;
+}
+
 .phb-page {
   position: relative;
   width: 100%;

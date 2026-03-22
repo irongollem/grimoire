@@ -20,6 +20,7 @@ export interface ScriptoriumDocument {
   doc_type: ScriptoriumDocType;
   tags: string[];
   is_published: boolean;
+  is_two_column: boolean;
   word_count: number;
   created_at: string;
   updated_at: string;

@@ -61,6 +61,8 @@
 
 - [x] deleting an encounter works (204) but then doesnt move back to the list and starts retrying resulting in a 406 — fixed: navigate first before mutateAsync; fetchEncounter now uses maybeSingle() (no 406 on 0 rows); useDeleteEncounter onSuccess calls removeQueries for the specific encounter before invalidating the list
 
+- [ ]deleting a spell doesnt return me to the list, causing the same error issues as above here. Please put in your memory that this is a pattern that you need to always tackle when adding a delete inside an item
+
 ## Regressing bugs
 
 only manually check these off after rigorous testing of the relevant flows, to avoid marking as done when the underlying issue is still present

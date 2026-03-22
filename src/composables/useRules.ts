@@ -73,6 +73,23 @@ export function useRules() {
   return useQuery({ queryKey: [CUSTOM_KEY], queryFn: fetchRules, staleTime: Infinity });
 }
 
+/** Player-facing: returns player-visible rules from the campaign DM (via RLS). */
+export function usePlayerVisibleRules() {
+  return useQuery({
+    queryKey: [CUSTOM_KEY, "player-visible"],
+    queryFn: async (): Promise<Rule[]> => {
+      const { data, error } = await supabase
+        .from("rules")
+        .select("*")
+        .eq("is_player_visible", true)
+        .order("title", { ascending: true });
+      if (error) throw error;
+      return data as Rule[];
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
 export function useRule(id: string) {
   return useQuery({
     queryKey: [CUSTOM_KEY, id],

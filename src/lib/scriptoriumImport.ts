@@ -30,6 +30,7 @@ export interface ScriptoriumImportData {
   doc_type: ScriptoriumDocType;
   tags: string[];
   is_published: boolean;
+  is_two_column: boolean;
   word_count: number;
 }
 
@@ -170,6 +171,7 @@ const npcFormatter: AssetFormatter<Npc> = {
       doc_type: "npc-sheet",
       tags: uniqueTags(["npc"], npc.tags, [npc.race]),
       is_published: false,
+      is_two_column: false,
       word_count: countWords(html),
     };
   },
@@ -262,6 +264,7 @@ const monsterFormatter: AssetFormatter<Monster> = {
       doc_type: "monster",
       tags: uniqueTags(["monster"], [monster.monster_type], monster.tags, [monster.source]),
       is_published: false,
+      is_two_column: false,
       word_count: countWords(html),
     };
   },
@@ -333,6 +336,7 @@ const spellFormatter: AssetFormatter<Spell> = {
       doc_type: "spell",
       tags,
       is_published: false,
+      is_two_column: false,
       word_count: countWords(html),
     };
   },
@@ -408,6 +412,7 @@ const itemFormatter: AssetFormatter<{ item: Item; spells: Spell[] }> = {
       doc_type: "item",
       tags,
       is_published: false,
+      is_two_column: false,
       word_count: countWords(html),
     };
   },
@@ -468,6 +473,7 @@ const locationFormatter: AssetFormatter<Location> = {
       doc_type: "location",
       tags,
       is_published: false,
+      is_two_column: false,
       word_count: countWords(html),
     };
   },
@@ -529,6 +535,7 @@ const questFormatter: AssetFormatter<{
       doc_type: "quest",
       tags: uniqueTags(["quest", quest.status], quest.tags),
       is_published: false,
+      is_two_column: false,
       word_count: countWords(html),
     };
   },

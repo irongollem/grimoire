@@ -33,6 +33,7 @@ export interface Rule {
   content: object | null;   // Tiptap JSON
   category: string | null;
   tags: string[];
+  is_player_visible: boolean;
   created_at: string;
   updated_at: string;
 }
