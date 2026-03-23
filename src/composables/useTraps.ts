@@ -1,0 +1,87 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
+import { supabase, getCurrentUser } from "@/lib/supabase";
+import type { Trap, TrapInsert, TrapUpdate } from "@/types/trap.types";
+import type { Ref } from "vue";
+import { computed, isRef, ref } from "vue";
+
+const QUERY_KEY = "traps";
+
+async function fetchTraps(): Promise<Trap[]> {
+  const { data, error } = await supabase
+    .from("traps")
+    .select("*")
+    .order("name", { ascending: true });
+  if (error) throw error;
+  return data as Trap[];
+}
+
+async function fetchTrap(id: string): Promise<Trap | null> {
+  const { data, error } = await supabase.from("traps").select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data as Trap | null;
+}
+
+async function createTrap(trap: TrapInsert): Promise<Trap> {
+  const user = getCurrentUser();
+  const { data, error } = await supabase
+    .from("traps")
+    .insert({ ...trap, user_id: user!.id })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as Trap;
+}
+
+async function updateTrap(id: string, update: TrapUpdate): Promise<Trap> {
+  const { data, error } = await supabase.from("traps").update(update).eq("id", id).select().single();
+  if (error) throw error;
+  return data as Trap;
+}
+
+async function deleteTrap(id: string): Promise<void> {
+  const { error } = await supabase.from("traps").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export function useTraps() {
+  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchTraps });
+}
+
+export function useTrap(id: string | Ref<string>) {
+  const resolved = isRef(id) ? id : ref(id);
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, resolved.value]),
+    queryFn: () => fetchTrap(resolved.value),
+    enabled: () => !!resolved.value,
+  });
+}
+
+export function useCreateTrap() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: createTrap,
+    onSuccess: () => qc.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}
+
+export function useUpdateTrap() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, update }: { id: string; update: TrapUpdate }) => updateTrap(id, update),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: [QUERY_KEY] });
+      qc.invalidateQueries({ queryKey: [QUERY_KEY, id] });
+    },
+  });
+}
+
+export function useDeleteTrap() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: deleteTrap,
+    onSuccess: (_data, id) => {
+      qc.removeQueries({ queryKey: [QUERY_KEY, id] });
+      qc.invalidateQueries({ queryKey: [QUERY_KEY] });
+    },
+  });
+}

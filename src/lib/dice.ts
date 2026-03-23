@@ -113,6 +113,85 @@ export function rollDice(
   };
 }
 
+// ── Simple expression parser (used by DiceExprInput for avg + roll button) ────
+
+export interface ExprTerm {
+  count: number;
+  sides: number;
+}
+
+export interface ParsedExpression {
+  terms: ExprTerm[];
+  modifier: number;
+}
+
+/**
+ * Parse a dice expression into structured form. Handles:
+ *   "2d6+3"  "1d8"  "3d6-2"  "15" (flat)  "2d6+1d4+3" (compound)
+ *   "22 (3d8+9)" — monster HP format; extracts the parenthetical expression
+ *   "2d6 fire" — strips damage type words before parsing
+ *
+ * Returns null if unparseable.
+ */
+export function parseExpression(expr: string | null | undefined): ParsedExpression | null {
+  if (!expr?.trim()) return null;
+
+  let s = expr.trim();
+
+  // Handle "N (expression)" format, e.g. "22 (3d8+9)"
+  const parenMatch = s.match(/\(([^)]+)\)/);
+  if (parenMatch) s = parenMatch[1].trim();
+
+  // Strip damage type words so "2d6 fire" parses cleanly
+  for (const word of DAMAGE_TYPES) {
+    s = s.replace(new RegExp(`\\b${word}\\b`, "gi"), "");
+  }
+  s = s.replace(/\s+/g, "");
+  if (!s) return null;
+
+  // Flat integer
+  if (/^-?\d+$/.test(s)) return { terms: [], modifier: parseInt(s, 10) };
+
+  const terms: ExprTerm[] = [];
+  let modifier = 0;
+
+  // Split on + / - while keeping the sign with the next token
+  // "2d6+3" → ["2d6", "+3"]   "2d6-2" → ["2d6", "-2"]
+  const tokens = s.split(/(?=[+-])/);
+  for (const token of tokens) {
+    if (!token) continue;
+    const sign = token.startsWith("-") ? -1 : 1;
+    const clean = token.replace(/^[+-]/, "");
+    const diceMatch = clean.match(/^(\d+)d(\d+)$/i);
+    if (diceMatch) {
+      const count = parseInt(diceMatch[1], 10);
+      const sides = parseInt(diceMatch[2], 10);
+      if (sides >= 2 && count >= 1) terms.push({ count, sides });
+    } else {
+      const flat = parseInt(clean, 10);
+      if (!isNaN(flat)) modifier += sign * flat;
+    }
+  }
+
+  if (terms.length === 0 && modifier === 0) return null;
+  return { terms, modifier };
+}
+
+/** Floor of the statistical average. */
+export function averageExpression(parsed: ParsedExpression): number {
+  const avg = parsed.terms.reduce((s, t) => s + (t.count * (t.sides + 1)) / 2, 0);
+  return Math.floor(avg + parsed.modifier);
+}
+
+/** Roll all dice in an expression and return the total. */
+export function rollExpression(parsed: ParsedExpression): number {
+  return parsed.terms.reduce((s, t) => {
+    let r = 0;
+    for (let i = 0; i < t.count; i++) r += rollDie(t.sides);
+    return s + r;
+  }, parsed.modifier);
+}
+
 // ── Damage expression helpers ──────────────────────────────────────────────────
 
 export interface DamageRoll {

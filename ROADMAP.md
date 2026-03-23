@@ -118,7 +118,8 @@
 ### Dungeon craft
 
 - [ ] Add a section with tools to help build dungeons
-- [ ] traproom - create traps with images, triggers, CR helper (generator?)
+- [x] **Traproom** — full CRUD for traps with image, type badge, trigger, detection/disarm DCs, CR+XP, save, attack bonus, damage dice (via DiceExprInput), damage type, reset type, rich description + DM notes; Assets group (no campaign scoping)
+- [ ] Add traps (created in the traproom) as elements of an encounter so their CR contributes to the total, and so they can be triggered and tracked in the encounter runner
 - [ ] puzzle room - create puzzles with images, hints, solutions
 - [ ] secret door - create hidden passages with images, triggers, discovery methods
 
@@ -188,6 +189,10 @@
 - [ ] **Monster import from external sources** — import tool to pull stat blocks from D&D Beyond or Open5e API directly into Bestiary
 - [x] **Campaign settings page** — Edit Campaign modal + `/campaign/settings` (Members, Invite Links, World Settings tabs)
 - [x] **Crafting system** — allow players to craft items using gear proficiencies, crafting tools
+- [ ] **Player convenience** During an encounter add
+  - inputbox plus dmg, heal, temp hp buttons on player character sheet HP field
+  - death save pips with click to toggle (and rollerd20 with 10+ successs to stabilize)
+  - have conditions that affect dicerolls, e.g. poisoned gives disadvantage on attack rolls and ability checks, be able to toggle these on the player sheet and have them apply to rolls in the campaign chat
 
 ---
 

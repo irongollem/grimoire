@@ -277,14 +277,14 @@
                   class="field-input w-full"
                 />
               </label>
-              <label class="block">
+              <div class="block">
                 <span class="field-label">Hit Points</span>
-                <input
-                  v-model="sb.hit_points"
-                  class="field-input w-full"
-                  placeholder="22 (3d8+9)"
+                <DiceExprInput
+                  :model-value="sb.hit_points || null"
+                  placeholder="8d8+16"
+                  @update:model-value="sb.hit_points = $event ?? ''"
                 />
-              </label>
+              </div>
               <label class="block">
                 <span class="field-label">Speed</span>
                 <input
@@ -468,6 +468,7 @@ import { useRouter } from "vue-router";
 import { Save, Trash2, ScrollText, ImagePlus, Copy } from "lucide-vue-next";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagInput from "@/components/common/TagInput.vue";
+import DiceExprInput from "@/components/common/DiceExprInput.vue";
 import { useImageUpload } from "@/composables/useImageUpload";
 import {
   useCreateMonster,

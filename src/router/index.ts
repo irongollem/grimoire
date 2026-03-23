@@ -260,6 +260,26 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Item" },
     },
 
+    // Traps (Traproom)
+    {
+      path: "/traps",
+      name: "traps",
+      component: () => import("@/views/traps/TrapsView.vue"),
+      meta: { requiresAuth: true, title: "Traproom" },
+    },
+    {
+      path: "/traps/new",
+      name: "trap-new",
+      component: () => import("@/views/traps/TrapDetailView.vue"),
+      meta: { requiresAuth: true, title: "New Trap" },
+    },
+    {
+      path: "/traps/:id",
+      name: "trap-detail",
+      component: () => import("@/views/traps/TrapDetailView.vue"),
+      meta: { requiresAuth: true, title: "Trap" },
+    },
+
     // Encounters
     {
       path: "/encounters",

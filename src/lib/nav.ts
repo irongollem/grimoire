@@ -16,6 +16,7 @@ import {
   Hammer,
   Library,
   Landmark,
+  Crosshair,
 } from "lucide-vue-next";
 import type { Component } from "vue";
 
@@ -139,6 +140,12 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/vault",
         icon: Package,
         description: "Equipment & magic items",
+      },
+      {
+        label: "Traproom",
+        to: "/traps",
+        icon: Crosshair,
+        description: "Traps, hazards & dungeon dangers",
       },
     ],
   },
