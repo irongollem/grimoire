@@ -3,7 +3,7 @@
     <img
       v-if="src"
       ref="imgRef"
-      :src="src"
+      :src="src ?? undefined"
       :alt="alt ?? ''"
       class="w-full h-full object-cover"
       :style="{ objectPosition }"
@@ -47,6 +47,7 @@ const props = defineProps<{
   /** Manual override — when set, skips smartcrop entirely. Values are 0–100 percentages of the source image. */
   focalPoint?: { x: number; y: number } | null;
 }>();
+
 
 const imgRef = ref<HTMLImageElement | null>(null);
 const objectPosition = ref(FORMAT_DEFAULTS[props.format]);

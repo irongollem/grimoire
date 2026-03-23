@@ -39,6 +39,8 @@
 - [x] Atlas (Locations) — recursive hierarchy (world → plane → continent → region → city → town → building → room), Tiptap description, Scriptorium formatter
 - [x] Atlas — "Populate Setting" button seeds iconic locations from the active campaign's setting (Faerûn: ~70 locations, Greyhawk/Eberron/Dragonlance: ~15–20 each)
 - [x] Atlas — Parent picker in location editor with live breadcrumb updates
+- [x] Atlas — Location sigil/emblem image upload (square format) displayed in editor and list cards
+- [x] Atlas — Location editor restructured: large sigil left, name/parent/child/tags/pins right; child picker as combobox to reparent existing locations; compact calendar pins row
 
 ### Factions
 
