@@ -49,8 +49,8 @@ export function useUpdateEntityNote() {
       id,
       content,
       is_private,
-      entity_type,
-      entity_id,
+      entity_type: _et,
+      entity_id: _ei,
     }: {
       id: string;
       content: string;
@@ -74,8 +74,8 @@ export function useDeleteEntityNote() {
   return useMutation({
     mutationFn: async ({
       id,
-      entity_type,
-      entity_id,
+      entity_type: _et,
+      entity_id: _ei,
     }: {
       id: string;
       entity_type: string;

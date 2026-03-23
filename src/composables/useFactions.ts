@@ -64,7 +64,9 @@ export function usePlayerVisibleFactions() {
 export function useCreateFaction() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: Omit<Faction, "id" | "user_id" | "created_at" | "updated_at">) => {
+    mutationFn: async (
+      payload: Omit<Faction, "id" | "user_id" | "created_at" | "updated_at">,
+    ) => {
       const user = getCurrentUser();
       const { data, error } = await supabase
         .from("factions")
@@ -81,8 +83,17 @@ export function useCreateFaction() {
 export function useUpdateFaction() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, update }: { id: string; update: Partial<Faction> }) => {
-      const { error } = await supabase.from("factions").update(update).eq("id", id);
+    mutationFn: async ({
+      id,
+      update,
+    }: {
+      id: string;
+      update: Partial<Faction>;
+    }) => {
+      const { error } = await supabase
+        .from("factions")
+        .update(update)
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["factions"] }),
@@ -103,7 +114,10 @@ export function useDeleteFaction() {
 // ── Faction Members (NPCs) ─────────────────────────────────────────────────────
 
 export interface FactionNpcWithNpc extends FactionNpc {
-  npc: Pick<Npc, "id" | "name" | "occupation" | "race" | "status" | "portrait_url">;
+  npc: Pick<
+    Npc,
+    "id" | "name" | "occupation" | "race" | "status" | "portrait_url"
+  >;
 }
 
 export function useFactionNpcs(factionId: string) {
@@ -132,7 +146,9 @@ export function useNpcFactions(npcId: string) {
         .eq("npc_id", npcId)
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return data as (FactionNpc & { faction: Pick<Faction, "id" | "name" | "faction_type" | "emblem_url"> })[];
+      return data as (FactionNpc & {
+        faction: Pick<Faction, "id" | "name" | "faction_type" | "emblem_url">;
+      })[];
     },
     enabled: !!npcId,
   });
@@ -141,7 +157,11 @@ export function useNpcFactions(npcId: string) {
 export function useAddFactionNpc() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: { faction_id: string; npc_id: string; role?: string }) => {
+    mutationFn: async (payload: {
+      faction_id: string;
+      npc_id: string;
+      role?: string;
+    }) => {
       const user = getCurrentUser();
       const { error } = await supabase
         .from("faction_npcs")
@@ -158,8 +178,21 @@ export function useAddFactionNpc() {
 export function useUpdateFactionNpcRole() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, role, faction_id, npc_id }: { id: string; role: string; faction_id: string; npc_id: string }) => {
-      const { error } = await supabase.from("faction_npcs").update({ role }).eq("id", id);
+    mutationFn: async ({
+      id,
+      role,
+      faction_id: _f,
+      npc_id: _n,
+    }: {
+      id: string;
+      role: string;
+      faction_id: string;
+      npc_id: string;
+    }) => {
+      const { error } = await supabase
+        .from("faction_npcs")
+        .update({ role })
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: (_d, vars) => {
@@ -172,8 +205,21 @@ export function useUpdateFactionNpcRole() {
 export function useUpdateFactionNpcStatus() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, status, faction_id, npc_id }: { id: string; status: string; faction_id: string; npc_id: string }) => {
-      const { error } = await supabase.from("faction_npcs").update({ status }).eq("id", id);
+    mutationFn: async ({
+      id,
+      status,
+      faction_id: _f,
+      npc_id: _n,
+    }: {
+      id: string;
+      status: string;
+      faction_id: string;
+      npc_id: string;
+    }) => {
+      const { error } = await supabase
+        .from("faction_npcs")
+        .update({ status })
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: (_d, vars) => {
@@ -186,8 +232,19 @@ export function useUpdateFactionNpcStatus() {
 export function useRemoveFactionNpc() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, faction_id, npc_id }: { id: string; faction_id: string; npc_id: string }) => {
-      const { error } = await supabase.from("faction_npcs").delete().eq("id", id);
+    mutationFn: async ({
+      id,
+      faction_id: _f,
+      npc_id: _n,
+    }: {
+      id: string;
+      faction_id: string;
+      npc_id: string;
+    }) => {
+      const { error } = await supabase
+        .from("faction_npcs")
+        .delete()
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: (_d, vars) => {
@@ -222,7 +279,11 @@ export function useFactionLocations(factionId: string) {
 export function useAddFactionLocation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: { faction_id: string; location_id: string; notes?: string }) => {
+    mutationFn: async (payload: {
+      faction_id: string;
+      location_id: string;
+      notes?: string;
+    }) => {
       const user = getCurrentUser();
       const { error } = await supabase
         .from("faction_locations")
@@ -230,19 +291,32 @@ export function useAddFactionLocation() {
       if (error) throw error;
     },
     onSuccess: (_d, vars) =>
-      qc.invalidateQueries({ queryKey: ["faction-locations", vars.faction_id] }),
+      qc.invalidateQueries({
+        queryKey: ["faction-locations", vars.faction_id],
+      }),
   });
 }
 
 export function useRemoveFactionLocation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, faction_id }: { id: string; faction_id: string }) => {
-      const { error } = await supabase.from("faction_locations").delete().eq("id", id);
+    mutationFn: async ({
+      id,
+      faction_id: _f,
+    }: {
+      id: string;
+      faction_id: string;
+    }) => {
+      const { error } = await supabase
+        .from("faction_locations")
+        .delete()
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: (_d, vars) =>
-      qc.invalidateQueries({ queryKey: ["faction-locations", vars.faction_id] }),
+      qc.invalidateQueries({
+        queryKey: ["faction-locations", vars.faction_id],
+      }),
   });
 }
 
@@ -271,7 +345,11 @@ export function useFactionItems(factionId: string) {
 export function useAddFactionItem() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: { faction_id: string; item_id: string; notes?: string }) => {
+    mutationFn: async (payload: {
+      faction_id: string;
+      item_id: string;
+      notes?: string;
+    }) => {
       const user = getCurrentUser();
       const { error } = await supabase
         .from("faction_items")
@@ -286,8 +364,17 @@ export function useAddFactionItem() {
 export function useRemoveFactionItem() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, faction_id }: { id: string; faction_id: string }) => {
-      const { error } = await supabase.from("faction_items").delete().eq("id", id);
+    mutationFn: async ({
+      id,
+      faction_id: _f,
+    }: {
+      id: string;
+      faction_id: string;
+    }) => {
+      const { error } = await supabase
+        .from("faction_items")
+        .delete()
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: (_d, vars) =>
@@ -310,11 +397,15 @@ export function useFactionRelations(factionId: string) {
       const [out, inc] = await Promise.all([
         supabase
           .from("faction_relations")
-          .select("*, source_faction:factions!faction_id(id, name), target_faction:factions!target_faction_id(id, name)")
+          .select(
+            "*, source_faction:factions!faction_id(id, name), target_faction:factions!target_faction_id(id, name)",
+          )
           .eq("faction_id", factionId),
         supabase
           .from("faction_relations")
-          .select("*, source_faction:factions!faction_id(id, name), target_faction:factions!target_faction_id(id, name)")
+          .select(
+            "*, source_faction:factions!faction_id(id, name), target_faction:factions!target_faction_id(id, name)",
+          )
           .eq("target_faction_id", factionId),
       ]);
       if (out.error) throw out.error;
@@ -340,12 +431,19 @@ export function useUpsertFactionRelation() {
       const user = getCurrentUser();
       const { error } = await supabase
         .from("faction_relations")
-        .upsert({ ...payload, user_id: user!.id }, { onConflict: "faction_id,target_faction_id" });
+        .upsert(
+          { ...payload, user_id: user!.id },
+          { onConflict: "faction_id,target_faction_id" },
+        );
       if (error) throw error;
     },
     onSuccess: (_d, vars) => {
-      qc.invalidateQueries({ queryKey: ["faction-relations", vars.faction_id] });
-      qc.invalidateQueries({ queryKey: ["faction-relations", vars.target_faction_id] });
+      qc.invalidateQueries({
+        queryKey: ["faction-relations", vars.faction_id],
+      });
+      qc.invalidateQueries({
+        queryKey: ["faction-relations", vars.target_faction_id],
+      });
     },
   });
 }
@@ -353,13 +451,28 @@ export function useUpsertFactionRelation() {
 export function useDeleteFactionRelation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, faction_id, target_faction_id }: { id: string; faction_id: string; target_faction_id: string }) => {
-      const { error } = await supabase.from("faction_relations").delete().eq("id", id);
+    mutationFn: async ({
+      id,
+      faction_id: _f,
+      target_faction_id: _t,
+    }: {
+      id: string;
+      faction_id: string;
+      target_faction_id: string;
+    }) => {
+      const { error } = await supabase
+        .from("faction_relations")
+        .delete()
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: (_d, vars) => {
-      qc.invalidateQueries({ queryKey: ["faction-relations", vars.faction_id] });
-      qc.invalidateQueries({ queryKey: ["faction-relations", vars.target_faction_id] });
+      qc.invalidateQueries({
+        queryKey: ["faction-relations", vars.faction_id],
+      });
+      qc.invalidateQueries({
+        queryKey: ["faction-relations", vars.target_faction_id],
+      });
     },
   });
 }

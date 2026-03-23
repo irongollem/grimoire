@@ -710,7 +710,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, reactive, nextTick } from "vue";
 import { useRouter } from "vue-router";
-import { Plus, Dices, RotateCcw, Pencil, Sparkles, PawPrint, Backpack, Trash2, ExternalLink, ArrowUpFromLine } from "lucide-vue-next";
+import { Plus, Dices, RotateCcw, Pencil, Sparkles, Backpack, Trash2, ExternalLink, ArrowUpFromLine } from "lucide-vue-next";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import { usePartyInventory, useAddInventoryItem, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
 import { useItems } from "@/composables/useItems";

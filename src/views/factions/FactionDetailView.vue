@@ -135,7 +135,6 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useConfirm } from "@/composables/useConfirm";
 import { useFaction, useCreateFaction, useUpdateFaction, useDeleteFaction } from "@/composables/useFactions";
 import { FACTION_TYPES, FACTION_ALIGNMENTS } from "@/types/faction.types";
-import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
