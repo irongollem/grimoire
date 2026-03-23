@@ -5,6 +5,7 @@
         v-for="e in entries"
         :key="e.id"
         class="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-1"
+        :class="e.status && e.status !== 'Active' && 'opacity-60'"
       >
         <img v-if="e.faction.emblem_url" :src="e.faction.emblem_url" alt="" class="h-4 w-4 rounded-full object-cover shrink-0" />
         <RouterLink :to="`/factions/${e.faction.id}`" class="font-cinzel text-[10px] font-semibold text-foreground hover:text-primary transition-colors">
@@ -17,6 +18,12 @@
         >
           <option v-for="r in NPC_FACTION_ROLES" :key="r" :value="r">{{ r }}</option>
         </select>
+        <!-- Status badge — shown when not Active -->
+        <span
+          v-if="e.status && e.status !== 'Active'"
+          class="font-cinzel text-[9px] font-semibold italic"
+          :style="{ color: NPC_FACTION_STATUS_COLORS[e.status as NpcFactionStatus] }"
+        >{{ e.status }}</span>
         <button type="button" class="text-muted-foreground hover:text-destructive transition-colors text-sm leading-none shrink-0" @click="remove(e)">×</button>
       </div>
     </div>
@@ -47,9 +54,8 @@ import {
   useUpdateFactionNpcRole,
   useRemoveFactionNpc,
 } from "@/composables/useFactions";
-import { NPC_FACTION_ROLES } from "@/types/faction.types";
-import type { FactionNpc } from "@/types/faction.types";
-import type { Faction } from "@/types/faction.types";
+import { NPC_FACTION_ROLES, NPC_FACTION_STATUS_COLORS, type NpcFactionStatus } from "@/types/faction.types";
+import type { FactionNpc, Faction } from "@/types/faction.types";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 
 const props = defineProps<{ npcId: string }>();

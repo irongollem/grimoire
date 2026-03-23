@@ -136,6 +136,7 @@
 - [x] **Companion stat block** — optional full stat block on companions; auto-populated when picking a monster source; ability scores, actions, reactions stored in `stat_block` JSONB
 - [x] **Monstrous NPCs** — `linked_monster_id` FK on NPCs; dropdown to link to existing monster; "Promote to Monster" button creates a Bestiary entry from NPC data and links back
 - [x] **NPC relationship data** — `npc_relationships` table; NPC editor "Relationships" section with add/remove; type badges (Family, Ally, Rival, Enemy, Mentor, etc.); bidirectional display
+- [x] **Faction member status** — Active / Retired / Defected / Expelled / Deceased per membership; former members shown in collapsible "Former Members" section; status badge on NPC faction chips
 - [ ] **NPC relationship map** — visual graph of NPC relationships (family, allies, enemies) with hover details; data already stored in `npc_relationships` table
 
 ### Items & Magic Items

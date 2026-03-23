@@ -169,6 +169,20 @@ export function useUpdateFactionNpcRole() {
   });
 }
 
+export function useUpdateFactionNpcStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, status, faction_id, npc_id }: { id: string; status: string; faction_id: string; npc_id: string }) => {
+      const { error } = await supabase.from("faction_npcs").update({ status }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["faction-npcs", vars.faction_id] });
+      qc.invalidateQueries({ queryKey: ["npc-factions", vars.npc_id] });
+    },
+  });
+}
+
 export function useRemoveFactionNpc() {
   const qc = useQueryClient();
   return useMutation({

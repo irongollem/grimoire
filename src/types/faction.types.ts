@@ -40,6 +40,17 @@ export const NPC_FACTION_ROLES = [
 
 export type NpcFactionRole = (typeof NPC_FACTION_ROLES)[number];
 
+export const NPC_FACTION_STATUSES = ["Active", "Retired", "Defected", "Expelled", "Deceased"] as const;
+export type NpcFactionStatus = (typeof NPC_FACTION_STATUSES)[number];
+
+export const NPC_FACTION_STATUS_COLORS: Record<NpcFactionStatus, string> = {
+  Active:   "#22c55e",
+  Retired:  "#94a3b8",
+  Defected: "#f97316",
+  Expelled: "#ef4444",
+  Deceased: "#6b7280",
+};
+
 export const RELATION_TYPES = [
   { value: "allied", label: "Allied", color: "#22c55e" },
   { value: "friendly", label: "Friendly", color: "#86efac" },
@@ -76,6 +87,7 @@ export interface FactionNpc {
   faction_id: string;
   npc_id: string;
   role: string | null;
+  status: string;
   user_id: string;
 }
 
