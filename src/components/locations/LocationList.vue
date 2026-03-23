@@ -63,10 +63,20 @@
           <!-- Title row -->
           <div class="flex items-start gap-2">
             <div
-              class="h-7 w-7 shrink-0 rounded flex items-center justify-center text-white text-[10px] font-cinzel font-bold mt-0.5"
-              :style="{ backgroundColor: LOCATION_TYPE_COLORS[loc.location_type] }"
+              class="h-7 w-7 shrink-0 rounded overflow-hidden mt-0.5"
+              :style="loc.image_url ? {} : { backgroundColor: LOCATION_TYPE_COLORS[loc.location_type] }"
             >
-              {{ loc.location_type.slice(0, 2).toUpperCase() }}
+              <FocalImage
+                v-if="loc.image_url"
+                :src="loc.image_url"
+                :alt="loc.name"
+                format="portrait"
+                :focal-point="null"
+                class="w-full h-full object-cover"
+              />
+              <div v-else class="w-full h-full flex items-center justify-center text-white text-[10px] font-cinzel font-bold">
+                {{ loc.location_type.slice(0, 2).toUpperCase() }}
+              </div>
             </div>
             <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight line-clamp-2 flex-1">
               {{ loc.name || "Unnamed Location" }}
@@ -123,6 +133,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { Search } from "lucide-vue-next";
+import FocalImage from "@/components/common/FocalImage.vue";
 import { useAllLocations } from "@/composables/useLocations";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
