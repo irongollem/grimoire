@@ -15,6 +15,7 @@ import {
   CircleUser,
   Hammer,
   Library,
+  Landmark,
 } from "lucide-vue-next";
 import type { Component } from "vue";
 
@@ -82,6 +83,13 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/quests",
         icon: ScrollText,
         description: "Quest log & objectives",
+        requiresCampaign: true,
+      },
+      {
+        label: "Factions",
+        to: "/factions",
+        icon: Landmark,
+        description: "Guilds, cults & powers",
         requiresCampaign: true,
       },
       {

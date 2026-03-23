@@ -40,6 +40,15 @@
 - [x] Atlas — "Populate Setting" button seeds iconic locations from the active campaign's setting (Faerûn: ~70 locations, Greyhawk/Eberron/Dragonlance: ~15–20 each)
 - [x] Atlas — Parent picker in location editor with live breadcrumb updates
 
+### Factions
+
+- [x] **Factions system** — full CRUD for guilds, governments, religions, cults, etc. with emblem upload, type, alignment, player visibility toggle, tags, rich-text description
+- [x] **Faction members** — NPC multi-faction membership with roles (Leader, Officer, Member, etc.); replaces free-text affiliation field on NPCs
+- [x] **Faction associations** — link locations and items to factions from the faction detail board
+- [x] **Directional faction relations** — outgoing stance + incoming (how others view this faction); 8 relation types (Allied → Hostile + secret variants)
+- [x] **Entity notes** — generic `entity_notes` table keyed by `entity_type + entity_id`; private (author only) or party-shared notes on any entity; shown on faction detail board
+- [x] **Player faction portal** — `/play/factions` shows player-visible factions with description, notes panel (players can add private + party notes)
+
 ### Encounters & Combat
 
 - [x] Encounters — builder (combatants + NPC combatants, factions, XP difficulty calculator with ally offset)

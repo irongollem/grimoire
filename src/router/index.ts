@@ -89,6 +89,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "People" },
     },
     {
+      path: "/play/factions",
+      name: "play-factions",
+      component: () => import("@/views/play/PlayerFactionsView.vue"),
+      meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Factions" },
+    },
+    {
       path: "/play/rules",
       name: "play-rules",
       component: () => import("@/views/play/PlayerReliquaryView.vue"),
@@ -338,6 +344,26 @@ const router = createRouter({
       name: "location-detail",
       component: () => import("@/views/locations/LocationDetailView.vue"),
       meta: { requiresAuth: true, title: "Location" },
+    },
+
+    // Factions
+    {
+      path: "/factions",
+      name: "factions",
+      component: () => import("@/views/factions/FactionListView.vue"),
+      meta: { requiresAuth: true, title: "Factions" },
+    },
+    {
+      path: "/factions/new",
+      name: "faction-new",
+      component: () => import("@/views/factions/FactionDetailView.vue"),
+      meta: { requiresAuth: true, title: "New Faction" },
+    },
+    {
+      path: "/factions/:id",
+      name: "faction-detail",
+      component: () => import("@/views/factions/FactionDetailView.vue"),
+      meta: { requiresAuth: true, title: "Faction" },
     },
 
     // Rules Reliquary

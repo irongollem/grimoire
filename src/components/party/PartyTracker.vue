@@ -18,24 +18,6 @@
         <RotateCcw class="h-3.5 w-3.5" />
         Clear Initiative
       </button>
-      <div class="ml-auto flex items-center gap-2">
-        <button
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
-          @click="openCompanionForm(null)"
-        >
-          <PawPrint class="h-3.5 w-3.5" />
-          Add Companion
-        </button>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
-          @click="openForm(null)"
-        >
-          <Plus class="h-3.5 w-3.5" />
-          Add Hero
-        </button>
-      </div>
     </div>
 
     <!-- Loading / Empty -->
@@ -1178,6 +1160,8 @@ async function dropNewItemToChat() {
   showItemDropdown.value = false;
   newItem.name = ''; newItem.quantity = 1; newItem.carried_by = ''; newItem.notes = ''; newItem.selectedItemId = '';
 }
+
+defineExpose({ openForm, openCompanionForm });
 </script>
 
 <style scoped>

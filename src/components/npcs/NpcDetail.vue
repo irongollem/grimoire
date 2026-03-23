@@ -216,9 +216,9 @@
                 </template>
               </EntityCombobox>
             </div>
-            <div class="sm:col-span-2">
-              <label class="field-label">Affiliation</label>
-              <input v-model="form.affiliation" placeholder="Guild, faction, cult…" class="field-input" />
+            <div v-if="npc?.id" class="sm:col-span-2">
+              <label class="field-label">Factions</label>
+              <NpcFactionsSection :npc-id="npc.id" />
             </div>
           </div>
         </section>
@@ -377,6 +377,7 @@ import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES, getNpcTemplate } from '@/data/n
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import TraitSection from '@/components/npcs/TraitSection.vue'
 import NpcRelationsSection from '@/components/npcs/NpcRelationsSection.vue'
+import NpcFactionsSection from '@/components/factions/NpcFactionsSection.vue'
 import FocalPointPicker from '@/components/common/FocalPointPicker.vue'
 import type { Npc, NpcInsert, NpcStatus, NpcRelationship, StatBlock } from '@/types/npc.types'
 import { useCampaignStore } from '@/stores/campaign'

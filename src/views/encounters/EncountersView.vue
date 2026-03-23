@@ -1,5 +1,5 @@
 <template>
-  <div class="p-4 sm:p-6 max-w-7xl mx-auto">
+  <div>
     <PageHeader title="Encounters" description="Build and run combat encounters">
       <template #actions>
         <RouterLink

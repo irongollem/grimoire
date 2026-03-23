@@ -3,7 +3,17 @@
     <PageHeader
       title="Workshop"
       description="Create recipes and share them with your players"
-    />
+    >
+      <template #actions>
+        <button
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+          @click="$router.push('/crafting/new')"
+        >
+          <Plus class="h-3.5 w-3.5" />
+          New Recipe
+        </button>
+      </template>
+    </PageHeader>
 
     <!-- Discipline tabs -->
     <div class="flex flex-wrap gap-1 mb-6 rounded-md border border-border p-1 bg-muted w-fit">
@@ -23,16 +33,6 @@
 
     <!-- Recipes for active discipline -->
     <div class="flex flex-col gap-4">
-      <!-- New recipe button -->
-      <div class="flex justify-end">
-        <button
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
-          @click="$router.push('/crafting/new')"
-        >
-          <Plus class="h-3.5 w-3.5" />
-          New Recipe
-        </button>
-      </div>
 
       <div v-if="isLoading" class="font-fell text-sm text-muted-foreground italic">Loading recipes…</div>
 
