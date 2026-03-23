@@ -13,18 +13,8 @@
       <span class="text-foreground">{{ isNew ? "New Location" : props.location?.name }}</span>
     </div>
 
-    <!-- Top bar -->
-    <div class="flex flex-wrap items-center gap-2">
-      <label class="flex-1 min-w-48">
-        <span class="sr-only">Location name</span>
-        <input
-          v-model="name"
-          placeholder="Location name…"
-          class="w-full bg-card border border-border rounded-md px-3 py-2 font-cinzel text-lg font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
-      </label>
-
-      <!-- Type -->
+    <!-- Action row: type + save + delete -->
+    <div class="flex flex-wrap items-center gap-2 justify-end">
       <select
         v-model="locationType"
         class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -33,8 +23,6 @@
           {{ label }}
         </option>
       </select>
-
-      <!-- Save -->
       <button
         type="button"
         :disabled="saving || !name.trim()"
@@ -44,8 +32,6 @@
         <Save class="h-3.5 w-3.5" />
         {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
       </button>
-
-      <!-- Delete -->
       <button
         v-if="!isNew"
         type="button"
@@ -57,69 +43,132 @@
       </button>
     </div>
 
-    <!-- Sigil / emblem image -->
-    <div class="flex items-center gap-3">
-      <div
-        class="w-16 h-16 shrink-0 rounded-lg border border-border bg-muted overflow-hidden cursor-pointer hover:border-primary/50 transition-colors relative group"
-        @click="triggerImageUpload"
-      >
-        <FocalImage
-          v-if="imageUrl"
-          :src="imageUrl"
-          :alt="name"
-          format="portrait"
-          :focal-point="null"
-          class="w-full h-full object-cover"
-        />
-        <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/20">
-          <ImageIcon class="h-6 w-6" />
-        </div>
-        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-          <ImageIcon class="h-4 w-4 text-white" />
-        </div>
-      </div>
-      <div class="flex flex-col gap-1">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Sigil / Emblem</span>
-        <button
-          type="button"
-          class="font-cinzel text-xs text-muted-foreground hover:text-foreground tracking-wider transition-colors text-left"
+    <!-- Sigil + identity fields -->
+    <div class="flex gap-5">
+      <!-- Sigil -->
+      <div class="shrink-0 flex flex-col gap-1.5">
+        <div
+          class="w-48 h-48 rounded-lg border border-border bg-muted overflow-hidden cursor-pointer hover:border-primary/50 transition-colors relative group"
           @click="triggerImageUpload"
         >
-          {{ imageUrl ? "Change image" : "Upload image" }}
-        </button>
+          <FocalImage
+            v-if="imageUrl"
+            :src="imageUrl"
+            :alt="name"
+            format="portrait"
+            :focal-point="null"
+            class="w-full h-full object-cover"
+          />
+          <div v-else class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground/20">
+            <ImageIcon class="h-10 w-10" />
+            <span class="font-cinzel text-[10px] tracking-wider">Sigil / Emblem</span>
+          </div>
+          <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <ImageIcon class="h-6 w-6 text-white" />
+          </div>
+        </div>
         <button
           v-if="imageUrl"
           type="button"
-          class="font-cinzel text-xs text-destructive/70 hover:text-destructive tracking-wider transition-colors text-left"
+          class="font-cinzel text-[10px] text-muted-foreground/50 hover:text-destructive tracking-wider transition-colors text-center w-48"
           @click="imageUrl = null"
         >
           Remove
         </button>
       </div>
       <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onImageFile" />
-    </div>
 
-    <!-- Parent location picker -->
-    <div class="flex items-center gap-2">
-      <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider shrink-0 w-16">Parent</label>
-      <EntityCombobox
-        v-model="parentIdStr"
-        :options="parentOptions"
-        placeholder="— None (top-level) —"
-      >
-        <template #option="{ opt }">
-          <span
-            class="inline-block h-2 w-2 rounded-full shrink-0"
-            :style="{ backgroundColor: LOCATION_TYPE_COLORS[opt.location_type] }"
-          />
-          <span class="flex-1 truncate">{{ opt.name }}</span>
-          <span class="text-xs text-muted-foreground shrink-0 font-cinzel">{{ LOCATION_TYPE_LABELS[opt.location_type] }}</span>
-        </template>
-      </EntityCombobox>
-    </div>
+      <!-- Name, parent, tags, sub-locations, calendar pins -->
+      <div class="flex-1 flex flex-col gap-3 min-w-0">
+        <input
+          v-model="name"
+          placeholder="Location name…"
+          class="w-full bg-card border border-border rounded-md px-3 py-2 font-cinzel text-lg font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
 
-    <!-- Tags -->
-    <TagInput v-model="tags" />
+        <div class="flex items-center gap-2">
+          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider shrink-0 w-16 flex items-center gap-1">
+            <ChevronUp class="h-3.5 w-3.5" />Parent
+          </span>
+          <EntityCombobox
+            v-model="parentIdStr"
+            :options="parentOptions"
+            placeholder="— None (top-level) —"
+          >
+            <template #option="{ opt }">
+              <span
+                class="inline-block h-2 w-2 rounded-full shrink-0"
+                :style="{ backgroundColor: LOCATION_TYPE_COLORS[opt.location_type] }"
+              />
+              <span class="flex-1 truncate">{{ opt.name }}</span>
+              <span class="text-xs text-muted-foreground shrink-0 font-cinzel">{{ LOCATION_TYPE_LABELS[opt.location_type] }}</span>
+            </template>
+          </EntityCombobox>
+        </div>
+
+        <!-- Compact sub-locations -->
+        <div v-if="!isNew" class="flex items-start gap-2">
+          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider shrink-0 w-16 flex items-center gap-1 pt-1.5">
+            <MapPin class="h-3.5 w-3.5" />Child
+          </span>
+          <div class="flex-1 flex flex-wrap items-center gap-1.5 border border-border rounded-md px-3 py-1.5 min-h-8.5 bg-background relative">
+            <span v-if="childrenLoading" class="font-fell text-xs text-muted-foreground italic">Loading…</span>
+            <RouterLink
+              v-for="child in children"
+              :key="child.id"
+              :to="`/locations/${child.id}`"
+              class="inline-flex items-center gap-1.5 rounded border border-border bg-muted/50 hover:border-primary/50 hover:bg-muted transition-colors px-2 py-0.5"
+            >
+              <span class="h-1.5 w-1.5 rounded-full shrink-0" :style="{ backgroundColor: LOCATION_TYPE_COLORS[child.location_type] }" />
+              <span class="font-cinzel text-xs font-semibold text-foreground">{{ child.name }}</span>
+            </RouterLink>
+            <!-- Inline child search -->
+            <div class="relative ml-auto">
+              <input
+                v-model="childSearch"
+                type="text"
+                placeholder="Add child…"
+                class="font-cinzel text-xs text-foreground placeholder:text-muted-foreground/50 bg-transparent focus:outline-none w-24 focus:w-36 transition-all"
+                @focus="childDropdownOpen = true"
+                @blur="onChildBlur"
+                @keydown.escape="childDropdownOpen = false"
+              />
+              <div
+                v-if="childDropdownOpen && childOptions.length"
+                class="absolute right-0 top-full mt-1 z-50 w-56 rounded-md border border-border bg-popover shadow-lg overflow-hidden"
+              >
+                <button
+                  v-for="opt in childOptions"
+                  :key="opt.id"
+                  type="button"
+                  class="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-muted transition-colors"
+                  @mousedown.prevent="addChild(opt)"
+                >
+                  <span class="h-1.5 w-1.5 rounded-full shrink-0" :style="{ backgroundColor: LOCATION_TYPE_COLORS[opt.location_type] }" />
+                  <span class="font-cinzel text-xs text-foreground truncate flex-1">{{ opt.name }}</span>
+                  <span class="font-fell text-[10px] text-muted-foreground shrink-0">{{ LOCATION_TYPE_LABELS[opt.location_type] }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-2">
+          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider shrink-0 w-16 flex items-center gap-1 pt-1.5">
+            <Tag class="h-3.5 w-3.5" />Tags
+          </span>
+          <div class="flex-1"><TagInput v-model="tags" /></div>
+        </div>
+
+        <!-- Compact calendar pins -->
+        <EntityCalendarSection
+          compact
+          entity-type="location"
+          :entity-id="props.location?.id ?? null"
+          :entity-name="name || 'Untitled Location'"
+        />
+      </div>
+    </div>
 
     <p v-if="saveError" class="text-destructive font-fell text-sm">{{ saveError }}</p>
 
@@ -132,53 +181,6 @@
         min-height="320px"
       />
     </div>
-
-    <!-- Children list (only on existing locations) -->
-    <template v-if="!isNew">
-      <div class="flex items-center justify-between mt-2">
-        <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
-          Sub-locations
-          <span v-if="children?.length" class="font-fell font-normal text-muted-foreground">({{ children.length }})</span>
-        </h2>
-        <RouterLink
-          :to="`/locations/new?parent=${props.location?.id}`"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
-        >
-          <Plus class="h-3.5 w-3.5" />
-          Add Sub-location
-        </RouterLink>
-      </div>
-
-      <div v-if="childrenLoading" class="flex justify-center py-8">
-        <LoadingSpinner />
-      </div>
-
-      <div v-else-if="!children?.length" class="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-8 text-center">
-        <MapPin class="h-6 w-6 mx-auto mb-2 text-muted-foreground/40" />
-        <p class="font-fell text-sm text-muted-foreground italic">No sub-locations yet.</p>
-      </div>
-
-      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <RouterLink
-          v-for="child in children"
-          :key="child.id"
-          :to="`/locations/${child.id}`"
-          class="group flex items-center gap-3 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors p-3 overflow-hidden"
-        >
-          <div
-            class="h-8 w-8 shrink-0 rounded flex items-center justify-center text-white text-xs font-cinzel font-bold"
-            :style="{ backgroundColor: LOCATION_TYPE_COLORS[child.location_type] }"
-          >
-            {{ child.location_type.slice(0, 2).toUpperCase() }}
-          </div>
-          <div class="min-w-0 flex-1">
-            <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ child.name }}</p>
-            <p class="font-fell text-xs text-muted-foreground italic truncate">{{ LOCATION_TYPE_LABELS[child.location_type] }}</p>
-          </div>
-          <ChevronRight class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-        </RouterLink>
-      </div>
-    </template>
 
     <!-- NPCs at this location -->
     <template v-if="!isNew && locationNpcs?.length">
@@ -228,12 +230,6 @@
       </div>
     </template>
 
-    <!-- Calendar Pins -->
-    <EntityCalendarSection
-      entity-type="location"
-      :entity-id="props.location?.id ?? null"
-      :entity-name="name || 'Untitled Location'"
-    />
   </div>
 </template>
 
@@ -242,7 +238,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { Save, Trash2, Plus, MapPin, ChevronRight, Image as ImageIcon } from "lucide-vue-next";
+import { Save, Trash2, ChevronRight, Image as ImageIcon, MapPin, ChevronUp, Tag } from "lucide-vue-next";
 import { useImageUpload } from "@/composables/useImageUpload";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
@@ -258,7 +254,6 @@ import {
   useUpdateLocation,
   useDeleteLocation,
 } from "@/composables/useLocations";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
 import type { Location, LocationType } from "@/types/location.types";
 
@@ -298,6 +293,31 @@ const parentOptions = computed(() =>
 const { data: children, isLoading: childrenLoading } = props.location
   ? useLocations(props.location.id)
   : { data: ref([]), isLoading: ref(false) };
+
+// ── Child combobox ─────────────────────────────────────────────────────────────
+const { mutateAsync: reparent } = useUpdateLocation();
+const childSearch = ref("");
+const childDropdownOpen = ref(false);
+
+const childOptions = computed(() => {
+  const q = childSearch.value.toLowerCase().trim();
+  const childIds = new Set((children.value ?? []).map((c: Location) => c.id));
+  return (allLocations.value ?? []).filter((l) =>
+    l.id !== props.location?.id &&
+    !childIds.has(l.id) &&
+    (q === "" || l.name.toLowerCase().includes(q)),
+  ).slice(0, 8);
+});
+
+async function addChild(loc: Location) {
+  childSearch.value = "";
+  childDropdownOpen.value = false;
+  await reparent({ id: loc.id, update: { parent_id: props.location!.id } });
+}
+
+function onChildBlur() {
+  setTimeout(() => { childDropdownOpen.value = false; }, 150);
+}
 
 // ── NPCs + Encounters at this location ─────────────────────────────────────────
 const { data: locationNpcs } = props.location
