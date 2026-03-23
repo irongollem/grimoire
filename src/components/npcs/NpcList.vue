@@ -61,6 +61,16 @@
           <span :style="{ paddingLeft: `${(opt as any).depth * 12}px` }">{{ opt.name }}</span>
         </template>
       </EntityCombobox>
+
+      <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
+        <button
+          v-for="opt in ([{ value: 'name', label: 'Name' }, { value: 'location', label: 'Location' }] as const)"
+          :key="opt.value"
+          class="px-2.5 py-1.5 transition-colors"
+          :class="sortBy === opt.value ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
+          @click="sortBy = opt.value"
+        >{{ opt.label }}</button>
+      </div>
     </div>
 
     <div v-if="isLoading" class="flex justify-center py-16">
@@ -212,6 +222,7 @@ const search = ref("");
 const statusFilter = ref("all");
 const relFilter = ref("all");
 const locationFilter = ref("");
+const sortBy = ref<"name" | "location">("location");
 
 const { data: npcs, isLoading } = useNpcs();
 const { data: allLocations } = useAllLocations();
@@ -220,6 +231,13 @@ const { locationOptions, getDescendantIds } = useLocationTree();
 const locationMap = computed(() => {
   const m = new Map<string, string>();
   for (const loc of allLocations.value ?? []) m.set(loc.id, loc.name);
+  return m;
+});
+
+// Position of each location in tree order (from locationOptions DFS walk)
+const locationOrder = computed(() => {
+  const m = new Map<string, number>();
+  locationOptions.value.forEach((loc, i) => m.set(loc.id, i));
   return m;
 });
 
@@ -245,6 +263,17 @@ const filtered = computed(() => {
   if (locationFilter.value) {
     const locationIds = getDescendantIds(locationFilter.value);
     list = list.filter((n) => n.location_id && locationIds.has(n.location_id));
+  }
+  if (sortBy.value === "location") {
+    const order = locationOrder.value;
+    list = [...list].sort((a, b) => {
+      const ai = a.location_id ? (order.get(a.location_id) ?? Infinity) : Infinity;
+      const bi = b.location_id ? (order.get(b.location_id) ?? Infinity) : Infinity;
+      if (ai !== bi) return ai - bi;
+      return a.name.localeCompare(b.name);
+    });
+  } else {
+    list = [...list].sort((a, b) => a.name.localeCompare(b.name));
   }
   return list;
 });

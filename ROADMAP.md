@@ -153,6 +153,8 @@
 ### Atlas / Locations
 
 - [x] **NPC location filter includes child locations** — selecting a city shows NPCs in all sub-locations; `useLocationTree` composable (with `getDescendantIds` + tree-sorted combobox options) shared across modules
+- [x] **NPC sort by location** — Name / Location toggle in NPC list; location sort uses DFS tree order so parent locations precede children; no-location NPCs go last; ties broken by NPC name
+- [x] **Player NPC relevance rating (1–5)** — players rate NPCs 1–5 for personal relevance (stored in localStorage per device); rating pips on player portal card grid and detail lightbox; portal sorts by rating desc (unrated last), with search and relationship filter
 - [ ] **Planar locations populate** — second "Populate Planes" button or opt-in checkbox in main populate (21 entries: inner/outer/transitive planes, Sigil)
 - [ ] **Time-bound locations** — add optional `era_start` / `era_end` year fields; grey-out or hide locations not in current campaign year
 - [ ] **Who's here?** - dynamic "Who's Here?" section on location pages showing NPCs/monsters currently at that location (based on `current_location_id` in their DB record, updated via RPC when DM moves them), should include child locations visitors (e.g. if NPC is in Easthaven, also show them in the Icewind Dale page)

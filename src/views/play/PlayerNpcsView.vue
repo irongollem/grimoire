@@ -1,75 +1,49 @@
 <template>
   <div>
     <h1 class="font-cinzel text-xl font-bold text-foreground mb-1">People</h1>
-    <p class="font-fell text-sm text-muted-foreground italic mb-6">Characters the party has encountered.</p>
+    <p class="font-fell text-sm text-muted-foreground italic mb-4">Characters the party has encountered.</p>
+
+    <!-- Search + filters -->
+    <div class="flex flex-wrap items-center gap-2 mb-5">
+      <div class="relative flex-1 min-w-40">
+        <SearchIcon class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <input
+          v-model="search"
+          type="text"
+          placeholder="Search…"
+          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+      </div>
+
+      <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
+        <button
+          v-for="opt in REL_FILTER_OPTIONS"
+          :key="opt.value"
+          class="px-2.5 py-1.5 transition-colors"
+          :class="relFilter === opt.value ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
+          @click="relFilter = opt.value"
+        >{{ opt.label }}</button>
+      </div>
+    </div>
 
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
 
     <p
-      v-else-if="!npcs?.length"
+      v-else-if="!filtered.length"
       class="text-center font-fell text-sm text-muted-foreground italic py-12"
     >
-      No NPCs have been revealed yet.
+      {{ npcs?.length ? 'No NPCs match your search.' : 'No NPCs have been revealed yet.' }}
     </p>
 
     <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-      <div
-        v-for="npc in npcs"
+      <PlayerNpcCard
+        v-for="npc in filtered"
         :key="npc.id"
-        class="flex flex-col rounded-lg border border-border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
+        :npc="npc"
         @click="openNpc(npc)"
-      >
-        <!-- Portrait -->
-        <div class="relative aspect-3/4 bg-muted overflow-hidden shrink-0 group">
-          <FocalImage
-            v-if="npc.player_visible_fields.includes('portrait') && npc.portrait_url"
-            :src="npc.portrait_url"
-            :alt="npc.player_visible_fields.includes('name') ? npc.name : '???'"
-            format="portrait"
-            :focal-point="npc.portrait_focal_point"
-            class="group-hover:scale-105 transition-transform duration-300"
-          />
-          <div
-            v-else
-            class="w-full h-full flex items-center justify-center text-muted-foreground/30"
-          >
-            <UserIcon class="h-12 w-12" />
-          </div>
-
-          <span
-            v-if="npc.player_visible_fields.includes('relationship')"
-            class="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] font-cinzel font-bold tracking-wider uppercase text-white"
-            :style="{ backgroundColor: relColor(npc.relationship) + 'EE' }"
-          >
-            {{ npc.relationship }}
-          </span>
-        </div>
-
-        <!-- Info -->
-        <div class="p-2.5 flex flex-col gap-0.5">
-          <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight">
-            {{ npc.player_visible_fields.includes('name') ? npc.name : '???' }}
-          </h3>
-          <p v-if="npc.player_visible_fields.includes('status')" class="flex items-center gap-1 font-fell text-xs text-muted-foreground">
-            <span class="w-1.5 h-1.5 rounded-full shrink-0" :style="{ backgroundColor: statusColor(npc.status) }" />
-            {{ npc.status }}
-          </p>
-          <p
-            v-if="npc.player_visible_fields.includes('race') && (npc.race || npc.class)"
-            class="font-fell text-xs text-muted-foreground italic truncate"
-          >
-            {{ [npc.race, npc.class].filter(Boolean).join(' · ') }}
-          </p>
-          <p
-            v-if="npc.player_visible_fields.includes('occupation') && npc.occupation"
-            class="font-fell text-xs text-muted-foreground truncate"
-          >
-            {{ npc.occupation }}
-          </p>
-        </div>
-      </div>
+      />
     </div>
 
     <!-- Detail lightbox -->
@@ -104,9 +78,23 @@
           <div class="p-4 overflow-y-auto space-y-4">
             <!-- Identity -->
             <div>
-              <h2 class="font-cinzel text-lg font-bold text-foreground">
-                {{ selected.player_visible_fields.includes('name') ? selected.name : '???' }}
-              </h2>
+              <div class="flex items-start justify-between gap-3">
+                <h2 class="font-cinzel text-lg font-bold text-foreground">
+                  {{ selected.player_visible_fields.includes('name') ? selected.name : '???' }}
+                </h2>
+                <!-- Relevance stars in detail view -->
+                <div class="flex items-center gap-0.5 shrink-0 pt-1">
+                  <button
+                    v-for="n in [1,2,3,4,5]"
+                    :key="n"
+                    type="button"
+                    class="text-lg leading-none transition-colors"
+                    :class="n <= selectedRating ? 'text-yellow-400' : 'text-muted-foreground/25 hover:text-yellow-400/60'"
+                    :title="n === 1 ? 'Not relevant' : n === 5 ? 'Very relevant' : `Relevance ${n}`"
+                    @click="setRating(selected.id, n)"
+                  >★</button>
+                </div>
+              </div>
               <div class="flex flex-wrap gap-2 mt-1">
                 <span
                   v-if="selected.player_visible_fields.includes('relationship')"
@@ -138,7 +126,7 @@
             </div>
 
             <!-- Notes -->
-            <PlayerNotesWidget v-if="selected" entity-type="npc" :entity-id="selected.id" placeholder="Your observations about this character…" />
+            <PlayerNotesWidget entity-type="npc" :entity-id="selected.id" placeholder="Your observations about this character…" />
           </div>
         </div>
       </div>
@@ -147,49 +135,73 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
-import { UserIcon, XIcon } from "lucide-vue-next";
+import { ref, computed } from "vue";
+import { XIcon, SearchIcon } from "lucide-vue-next";
 import { useSharedNpcs } from "@/composables/useNpcs";
+import { usePlayerNpcRatings } from "@/composables/usePlayerNpcRatings";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
+import PlayerNpcCard from "@/components/play/PlayerNpcCard.vue";
 import type { Npc, NpcRelationship, NpcStatus } from "@/types/npc.types";
 
-const { data: npcs, isLoading } = useSharedNpcs();
+const REL_FILTER_OPTIONS = [
+  { value: "all", label: "All" },
+  { value: "ally", label: "Ally" },
+  { value: "neutral", label: "Neutral" },
+  { value: "enemy", label: "Enemy" },
+];
 
+const { data: npcs, isLoading } = useSharedNpcs();
+const { getRating, setRating, ratingTick } = usePlayerNpcRatings(() => npcs.value ?? []);
+
+const search = ref("");
+const relFilter = ref("all");
 const selected = ref<Npc | null>(null);
 
-function openNpc(npc: Npc) {
-  selected.value = npc;
-}
+const selectedRating = computed(() => {
+  void ratingTick.value;
+  return selected.value ? getRating(selected.value.id) : 0;
+});
 
-function closeNpc() {
-  selected.value = null;
-}
+const filtered = computed(() => {
+  void ratingTick.value;
+  let list = [...(npcs.value ?? [])];
+  if (search.value.trim()) {
+    const q = search.value.toLowerCase();
+    list = list.filter((n) => {
+      const name = n.player_visible_fields.includes("name") ? n.name.toLowerCase() : "";
+      const occ  = n.player_visible_fields.includes("occupation") ? (n.occupation?.toLowerCase() ?? "") : "";
+      const race = n.player_visible_fields.includes("race") ? (n.race?.toLowerCase() ?? "") : "";
+      return name.includes(q) || occ.includes(q) || race.includes(q);
+    });
+  }
+  if (relFilter.value !== "all") {
+    list = list.filter((n) => n.player_visible_fields.includes("relationship") && n.relationship === relFilter.value);
+  }
+  list.sort((a, b) => {
+    const ra = getRating(a.id);
+    const rb = getRating(b.id);
+    if (ra !== rb) return rb - ra;
+    return a.name.localeCompare(b.name);
+  });
+  return list;
+});
+
+function openNpc(npc: Npc) { selected.value = npc; }
+function closeNpc() { selected.value = null; }
 
 const REL_COLORS: Record<NpcRelationship, string> = {
-  ally: "#2563eb",
-  neutral: "#6b7280",
-  enemy: "#dc2626",
-  unknown: "#9333ea",
+  ally: "#2563eb", neutral: "#6b7280", enemy: "#dc2626", unknown: "#9333ea",
 };
 const STATUS_COLORS: Record<NpcStatus, string> = {
-  alive: "#22c55e",
-  dead: "#ef4444",
-  missing: "#f59e0b",
-  unknown: "#6b7280",
+  alive: "#22c55e", dead: "#ef4444", missing: "#f59e0b", unknown: "#6b7280",
 };
 function relColor(rel: NpcRelationship) { return REL_COLORS[rel] ?? "#6b7280"; }
 function statusColor(s: NpcStatus) { return STATUS_COLORS[s] ?? "#6b7280"; }
 </script>
 
 <style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>

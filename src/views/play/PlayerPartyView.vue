@@ -133,50 +133,14 @@
         <LoadingSpinner />
       </div>
       <div v-else class="flex flex-wrap gap-4">
-        <div
+        <PlayerNpcCard
           v-for="npc in sortedNpcs"
           :key="npc.id"
-          class="flex flex-col rounded-lg border border-border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors shrink-0 w-50"
+          :npc="npc"
+          :location="npc.player_visible_fields.includes('location') ? resolvedLocation(npc) : undefined"
+          class="shrink-0 w-50"
           @click="openNpc(npc)"
-        >
-          <div class="relative aspect-3/4 bg-muted overflow-hidden shrink-0 group">
-            <FocalImage
-              v-if="npc.player_visible_fields.includes('portrait') && npc.portrait_url"
-              :src="npc.portrait_url"
-              :alt="npc.player_visible_fields.includes('name') ? npc.name : '???'"
-              format="portrait"
-              :focal-point="npc.portrait_focal_point"
-              class="group-hover:scale-105 transition-transform duration-300"
-            />
-            <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
-              <UserIcon class="h-10 w-10" />
-            </div>
-            <span
-              v-if="npc.player_visible_fields.includes('relationship')"
-              class="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] font-cinzel font-bold tracking-wider uppercase text-white"
-              :style="{ backgroundColor: relColor(npc.relationship) + 'EE' }"
-            >{{ npc.relationship }}</span>
-          </div>
-
-          <div class="p-2.5 flex flex-col gap-0.5">
-            <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">
-              {{ npc.player_visible_fields.includes('name') ? npc.name : '???' }}
-            </h3>
-            <p v-if="npc.player_visible_fields.includes('status')" class="flex items-center gap-1 font-fell text-xs text-muted-foreground">
-              <span class="w-1.5 h-1.5 rounded-full shrink-0" :style="{ backgroundColor: statusColor(npc.status) }" />
-              {{ npc.status }}
-            </p>
-            <p v-if="npc.player_visible_fields.includes('race') && (npc.race || npc.class)" class="font-fell text-xs text-muted-foreground italic truncate">
-              {{ [npc.race, npc.class].filter(Boolean).join(' · ') }}
-            </p>
-            <p v-if="npc.player_visible_fields.includes('occupation') && npc.occupation" class="font-fell text-xs text-muted-foreground truncate">
-              {{ npc.occupation }}
-            </p>
-            <p v-if="npc.player_visible_fields.includes('location') && resolvedLocation(npc)" class="font-fell text-xs text-muted-foreground truncate">
-              📍 {{ resolvedLocation(npc) }}
-            </p>
-          </div>
-        </div>
+        />
       </div>
     </section>
 
@@ -252,9 +216,22 @@
           </div>
           <div class="p-4 overflow-y-auto space-y-4">
             <div>
-              <h2 class="font-cinzel text-lg font-bold text-foreground">
-                {{ selectedNpc.player_visible_fields.includes('name') ? selectedNpc.name : '???' }}
-              </h2>
+              <div class="flex items-start justify-between gap-3">
+                <h2 class="font-cinzel text-lg font-bold text-foreground">
+                  {{ selectedNpc.player_visible_fields.includes('name') ? selectedNpc.name : '???' }}
+                </h2>
+                <div class="flex items-center gap-0.5 shrink-0 pt-1" @click.stop>
+                  <button
+                    v-for="n in [1,2,3,4,5]"
+                    :key="n"
+                    type="button"
+                    class="text-lg leading-none transition-colors"
+                    :class="n <= (ratingMap.get(selectedNpc.id) ?? 0) ? 'text-yellow-400' : 'text-muted-foreground/25 hover:text-yellow-400/60'"
+                    :title="n === 1 ? 'Not relevant' : n === 5 ? 'Very relevant' : `Relevance ${n}`"
+                    @click="setRating(selectedNpc.id, n)"
+                  >★</button>
+                </div>
+              </div>
               <div class="flex flex-wrap gap-2 mt-1">
                 <span v-if="selectedNpc.player_visible_fields.includes('relationship')"
                   class="px-2 py-0.5 rounded text-[11px] font-cinzel font-bold tracking-wider uppercase text-white"
@@ -350,9 +327,11 @@ import { useParty } from "@/composables/useParty";
 import { useSharedNpcs } from "@/composables/useNpcs";
 import { useAllLocations } from "@/composables/useLocations";
 import { useCompanions } from "@/composables/useCompanions";
+import { usePlayerNpcRatings } from "@/composables/usePlayerNpcRatings";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
+import PlayerNpcCard from "@/components/play/PlayerNpcCard.vue";
 import { COMPANION_TYPE_LABELS, COMPANION_TYPE_COLORS } from "@/types/companion.types";
 import type { Companion } from "@/types/companion.types";
 import type { PartyMember } from "@/types/party.types";
@@ -374,15 +353,21 @@ function resolvedLocation(npc: { location_id: string | null }) {
   return npc.location_id ? (locationMap.value.get(npc.location_id) ?? "") : "";
 }
 
-const sortedNpcs = computed(() =>
-  [...(npcs.value ?? [])].sort((a, b) => {
+const { getRating, setRating, ratingMap, ratingTick } = usePlayerNpcRatings(() => npcs.value ?? []);
+
+const sortedNpcs = computed(() => {
+  void ratingTick.value;
+  return [...(npcs.value ?? [])].sort((a, b) => {
+    const ra = getRating(a.id);
+    const rb = getRating(b.id);
+    if (ra !== rb) return rb - ra;
     const locA = resolvedLocation(a).toLowerCase();
     const locB = resolvedLocation(b).toLowerCase();
     if (locA && !locB) return -1;
     if (!locA && locB) return 1;
     return locA.localeCompare(locB);
-  })
-);
+  });
+});
 
 // ── Party member lightbox ────────────────────────────────────────────────────
 const selectedMember = ref<PartyMember | null>(null);
