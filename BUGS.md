@@ -2,6 +2,8 @@
 
 ## Done
 
+- [x] Saving an existing location wipes it from the list — `buildPayload()` included `campaign_id: null`, overwriting the row's campaign_id on every update; locations query filters by campaign_id so the row became invisible. Fixed by removing `campaign_id` from the update payload.
+
 - [x] hitting print on cardforge when the chat is open instead sends the chat overlay to the printview
 - [x] in tokenforge when clicking download, the downloaded image is only the top left half of the token
 - [x] SRD item import creating duplicates on re-run (Supabase 1000-row cap causing dedup check to miss items beyond row 1000)

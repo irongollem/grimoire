@@ -287,7 +287,6 @@ function buildPayload() {
     tags:          tags.value,
     parent_id:     selectedParentId.value,
     image_url:     props.location?.image_url ?? null,
-    campaign_id:   null as string | null,
   };
 }
 
