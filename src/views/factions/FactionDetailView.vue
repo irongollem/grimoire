@@ -212,11 +212,11 @@ async function handleSave() {
       tags:             tags.value,
     };
     if (isNew.value) {
-      const created = await createFaction.mutateAsync(payload);
-      router.replace(`/factions/${created.id}`);
+      await createFaction.mutateAsync(payload);
     } else {
       await updateFaction.mutateAsync({ id: id.value, update: payload });
     }
+    router.push("/factions");
   } finally {
     saving.value = false;
   }

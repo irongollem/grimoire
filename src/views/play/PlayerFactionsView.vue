@@ -94,11 +94,8 @@
               <RichTextViewer :content="selected.description" />
             </div>
 
-            <!-- Notes (entity notes panel) -->
-            <div>
-              <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">NOTES</p>
-              <EntityNotesPanel entity-type="faction" :entity-id="selected.id" />
-            </div>
+            <!-- Notes -->
+            <PlayerNotesWidget entity-type="faction" :entity-id="selected.id" placeholder="Your thoughts on this faction…" />
           </div>
         </div>
       </div>
@@ -113,7 +110,7 @@ import { usePlayerVisibleFactions } from "@/composables/useFactions";
 import type { Faction } from "@/types/faction.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import EntityNotesPanel from "@/components/common/EntityNotesPanel.vue";
+import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 
 const { data: factions, isLoading } = usePlayerVisibleFactions();
 

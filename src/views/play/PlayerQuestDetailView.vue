@@ -150,77 +150,23 @@
         </div>
       </div>
 
-      <!-- My Note -->
-      <div class="rounded-lg border border-border bg-card overflow-hidden">
-        <div class="px-3 py-2 border-b border-border bg-muted/20 flex items-center justify-between">
-          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">My Note</span>
-          <button
-            type="button"
-            :title="noteIsPrivate ? 'Private — only you can see this' : 'Shared — visible to everyone in the campaign'"
-            class="inline-flex items-center gap-1.5 font-cinzel text-[10px] font-semibold tracking-wider transition-colors px-2 py-0.5 rounded border"
-            :class="noteIsPrivate
-              ? 'text-muted-foreground border-border hover:border-foreground/30'
-              : 'text-elven-green border-elven-green/30 bg-elven-green/10'"
-            @click="togglePrivacy"
-          >
-            <Lock v-if="noteIsPrivate" class="h-3 w-3" />
-            <Eye v-else class="h-3 w-3" />
-            {{ noteIsPrivate ? 'Private' : 'Shared' }}
-          </button>
-        </div>
-        <div class="p-3">
-          <RichTextEditor v-model="noteContent" placeholder="Jot down your thoughts, clues, suspicions…" min-height="120px" />
-          <div class="flex items-center justify-between mt-1">
-            <span v-if="noteSaved" class="font-cinzel text-[10px] text-muted-foreground/60 tracking-wider">Saved</span>
-            <span v-else class="font-cinzel text-[10px] text-muted-foreground/40 tracking-wider">Unsaved</span>
-            <button
-              v-if="myNote"
-              type="button"
-              class="font-cinzel text-[10px] text-muted-foreground/50 hover:text-destructive tracking-wider transition-colors"
-              @click="clearNote"
-            >
-              Clear
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Party Notes (shared by others) -->
-      <div v-if="partyNotes.length" class="rounded-lg border border-border bg-card overflow-hidden">
-        <div class="px-3 py-2 border-b border-border bg-muted/20">
-          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
-            Party Notes
-            <span class="font-fell font-normal">({{ partyNotes.length }})</span>
-          </span>
-        </div>
-        <div class="divide-y divide-border">
-          <div v-for="note in partyNotes" :key="note.id" class="px-3 py-2.5">
-            <p class="font-fell text-sm text-foreground whitespace-pre-wrap leading-relaxed">{{ note.content }}</p>
-            <p class="font-cinzel text-[10px] text-muted-foreground/50 tracking-wider mt-1">
-              {{ note.updated_at.slice(0, 10) }}
-            </p>
-          </div>
-        </div>
-      </div>
+      <!-- Notes -->
+      <PlayerNotesWidget v-if="quest" entity-type="quest" :entity-id="quest.id" placeholder="Jot down your thoughts, clues, suspicions…" />
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useConfirm } from "@/composables/useConfirm";
-const { confirm } = useConfirm();
-import { computed, ref, watch } from "vue";
+import { computed } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import {
   ChevronLeft, ScrollText, User, MapPin,
-  Check, Package, Swords, Skull, Lock, Eye,
+  Check, Package, Swords, Skull,
 } from "lucide-vue-next";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import {
   useQuest, useQuestObjectives, useQuestRefs,
-  useMyQuestNote, useSharedQuestNotes, useUpsertQuestPlayerNote, useDeleteQuestPlayerNote,
 } from "@/composables/useQuests";
-import { useCampaignStore } from "@/stores/campaign";
 import { useNpcs } from "@/composables/useNpcs";
 import { useAllLocations } from "@/composables/useLocations";
 import { useMonsters } from "@/composables/useMonsters";
@@ -269,63 +215,6 @@ const visibleCoins = computed(() => [
 
 const visibleObjectives = computed(() => (objectives.value ?? []).filter((o) => o.is_player_visible));
 const doneCount = computed(() => visibleObjectives.value.filter((o) => o.is_done).length);
-
-// ── Player notes ───────────────────────────────────────────────────────────────
-const campaign = useCampaignStore();
-const { data: myNote }     = useMyQuestNote(questId);
-const { data: sharedNotes } = useSharedQuestNotes(questId);
-const { mutateAsync: upsertNote } = useUpsertQuestPlayerNote();
-const { mutateAsync: deleteNote } = useDeleteQuestPlayerNote();
-
-// Party notes = shared notes that aren't mine (avoid duplicate)
-const partyNotes = computed(() =>
-  (sharedNotes.value ?? []).filter((n) => n.id !== myNote.value?.id),
-);
-
-const noteContent  = ref("");
-const noteIsPrivate = ref(true);
-const noteSaved    = ref(true);
-
-// Sync from DB when loaded
-watch(myNote, (note) => {
-  if (note) {
-    noteContent.value  = note.content;
-    noteIsPrivate.value = note.is_private;
-  }
-}, { immediate: true });
-
-// Mark unsaved and debounce-save on content change
-let saveTimer: ReturnType<typeof setTimeout> | null = null;
-watch(noteContent, () => {
-  noteSaved.value = false;
-  if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => saveNote(), 1500);
-});
-
-async function saveNote() {
-  if (!quest.value || !campaign.activeCampaignId) return;
-  if (!noteContent.value && !myNote.value) return; // nothing to save
-  await upsertNote({
-    quest_id:    questId.value,
-    campaign_id: campaign.activeCampaignId,
-    content:     noteContent.value,
-    is_private:  noteIsPrivate.value,
-  });
-  noteSaved.value = true;
-}
-
-async function togglePrivacy() {
-  noteIsPrivate.value = !noteIsPrivate.value;
-  await saveNote();
-}
-
-async function clearNote() {
-  if (!myNote.value) return;
-  if (!await confirm("Delete your note for this quest?")) return;
-  await deleteNote({ id: myNote.value.id, questId: questId.value });
-  noteContent.value = "";
-  noteSaved.value   = true;
-}
 
 // Name lookups
 function itemName(id: string)      { return (allItems.value ?? []).find((i) => i.id === id)?.name ?? id; }

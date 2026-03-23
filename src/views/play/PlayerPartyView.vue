@@ -227,12 +227,7 @@
               <span v-for="cond in selectedMember.conditions" :key="cond"
                 class="font-cinzel text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive tracking-wider">{{ cond }}</span>
             </div>
-            <div>
-              <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">
-                MY NOTES <span class="font-fell font-normal normal-case text-muted-foreground/60">(private)</span>
-              </p>
-              <RichTextEditor v-model="memberNotesEdit" placeholder="Your thoughts on this party member…" min-height="100px" />
-            </div>
+            <PlayerNotesWidget v-if="selectedMember" entity-type="party_member" :entity-id="selectedMember.id" placeholder="Your thoughts on this party member…" />
           </div>
         </div>
       </div>
@@ -279,16 +274,7 @@
               <p v-if="selectedNpc.player_visible_fields.includes('occupation') && selectedNpc.occupation"
                 class="font-fell text-sm text-muted-foreground">{{ selectedNpc.occupation }}</p>
             </div>
-            <div>
-              <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">PARTY NOTES</p>
-              <RichTextEditor v-model="npcPartyNotesEdit" placeholder="What the party knows…" min-height="100px" />
-            </div>
-            <div>
-              <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">
-                MY NOTES <span class="font-fell font-normal normal-case text-muted-foreground/60">(private)</span>
-              </p>
-              <RichTextEditor v-model="npcPersonalNotesEdit" placeholder="Your personal observations…" min-height="100px" />
-            </div>
+            <PlayerNotesWidget v-if="selectedNpc" entity-type="npc" :entity-id="selectedNpc.id" placeholder="Your observations about this character…" />
           </div>
         </div>
       </div>
@@ -347,16 +333,7 @@
               <span v-for="cond in selectedCompanion.conditions" :key="cond"
                 class="font-cinzel text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive tracking-wider">{{ cond }}</span>
             </div>
-            <div>
-              <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">PARTY NOTES</p>
-              <RichTextEditor v-model="companionPartyNotesEdit" placeholder="What the party knows about this companion…" min-height="100px" />
-            </div>
-            <div>
-              <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">
-                MY NOTES <span class="font-fell font-normal normal-case text-muted-foreground/60">(private)</span>
-              </p>
-              <RichTextEditor v-model="companionPersonalNotesEdit" placeholder="Your personal observations…" min-height="100px" />
-            </div>
+            <PlayerNotesWidget v-if="selectedCompanion" entity-type="companion" :entity-id="selectedCompanion.id" placeholder="Your thoughts on this companion…" />
           </div>
         </div>
       </div>
@@ -373,10 +350,9 @@ import { useParty } from "@/composables/useParty";
 import { useSharedNpcs } from "@/composables/useNpcs";
 import { useAllLocations } from "@/composables/useLocations";
 import { useCompanions } from "@/composables/useCompanions";
-import { supabase, getCurrentUser } from "@/lib/supabase";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import { COMPANION_TYPE_LABELS, COMPANION_TYPE_COLORS } from "@/types/companion.types";
 import type { Companion } from "@/types/companion.types";
 import type { PartyMember } from "@/types/party.types";
@@ -410,99 +386,31 @@ const sortedNpcs = computed(() =>
 
 // ── Party member lightbox ────────────────────────────────────────────────────
 const selectedMember = ref<PartyMember | null>(null);
-const memberNotesEdit = ref("");
 
-async function openMember(m: PartyMember) {
+function openMember(m: PartyMember) {
   selectedMember.value = m;
-  const { data } = await supabase.from("party_member_player_notes").select("notes").eq("party_member_id", m.id).maybeSingle();
-  memberNotesEdit.value = data?.notes ?? "";
 }
 
-async function saveMemberNotes() {
-  if (!selectedMember.value) return;
-  const user = await getCurrentUser();
-  await supabase.from("party_member_player_notes").upsert(
-    { party_member_id: selectedMember.value.id, user_id: user!.id, notes: memberNotesEdit.value },
-    { onConflict: "party_member_id,user_id" },
-  );
-}
-
-async function closeMember() {
-  await saveMemberNotes();
+function closeMember() {
   selectedMember.value = null;
 }
 
 // ── NPC lightbox ─────────────────────────────────────────────────────────────
 const selectedNpc = ref<Npc | null>(null);
-const npcPartyNotesEdit = ref("");
-const npcPersonalNotesEdit = ref("");
 
-async function openNpc(npc: Npc) {
+function openNpc(npc: Npc) {
   selectedNpc.value = npc;
-  npcPartyNotesEdit.value = "";
-  npcPersonalNotesEdit.value = "";
-  const [{ data: npcData }, { data: personalData }] = await Promise.all([
-    supabase.from("npcs").select("party_notes").eq("id", npc.id).maybeSingle(),
-    supabase.from("npc_player_notes").select("notes").eq("npc_id", npc.id).maybeSingle(),
-  ]);
-  npcPartyNotesEdit.value = npcData?.party_notes ?? "";
-  npcPersonalNotesEdit.value = personalData?.notes ?? "";
 }
 
-async function saveNpcPartyNotes() {
-  if (!selectedNpc.value) return;
-  await supabase.rpc("update_npc_party_notes", { p_npc_id: selectedNpc.value.id, p_notes: npcPartyNotesEdit.value });
-}
-
-async function saveNpcPersonalNotes() {
-  if (!selectedNpc.value) return;
-  const user = await getCurrentUser();
-  await supabase.from("npc_player_notes").upsert(
-    { npc_id: selectedNpc.value.id, user_id: user!.id, notes: npcPersonalNotesEdit.value },
-    { onConflict: "npc_id,user_id" },
-  );
-}
-
-async function closeNpc() {
-  await Promise.all([saveNpcPartyNotes(), saveNpcPersonalNotes()]);
+function closeNpc() {
   selectedNpc.value = null;
 }
 
 // ── Companion lightbox ────────────────────────────────────────────────────────
 const selectedCompanion = ref<Companion | null>(null);
-const companionPartyNotesEdit = ref("");
-const companionPersonalNotesEdit = ref("");
 
-async function openCompanion(c: Companion) {
-  selectedCompanion.value = c;
-  companionPartyNotesEdit.value = "";
-  companionPersonalNotesEdit.value = "";
-  const [{ data: companionData }, { data: personalData }] = await Promise.all([
-    supabase.from("companions").select("party_notes").eq("id", c.id).maybeSingle(),
-    supabase.from("companion_player_notes").select("notes").eq("companion_id", c.id).maybeSingle(),
-  ]);
-  companionPartyNotesEdit.value = companionData?.party_notes ?? "";
-  companionPersonalNotesEdit.value = personalData?.notes ?? "";
-}
-
-async function saveCompanionPartyNotes() {
-  if (!selectedCompanion.value) return;
-  await supabase.rpc("update_companion_party_notes", { p_companion_id: selectedCompanion.value.id, p_notes: companionPartyNotesEdit.value });
-}
-
-async function saveCompanionPersonalNotes() {
-  if (!selectedCompanion.value) return;
-  const user = await getCurrentUser();
-  await supabase.from("companion_player_notes").upsert(
-    { companion_id: selectedCompanion.value.id, user_id: user!.id, notes: companionPersonalNotesEdit.value },
-    { onConflict: "companion_id,user_id" },
-  );
-}
-
-async function closeCompanion() {
-  await Promise.all([saveCompanionPartyNotes(), saveCompanionPersonalNotes()]);
-  selectedCompanion.value = null;
-}
+function openCompanion(c: Companion) { selectedCompanion.value = c; }
+function closeCompanion() { selectedCompanion.value = null; }
 
 // ── Companion helpers ─────────────────────────────────────────────────────────
 function ownerName(c: Companion): string {

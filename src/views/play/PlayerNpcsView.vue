@@ -137,19 +137,8 @@
               </p>
             </div>
 
-            <!-- Party notes -->
-            <div>
-              <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">PARTY NOTES</p>
-              <RichTextEditor v-model="partyNotesEdit" placeholder="What the party knows…" min-height="100px" />
-            </div>
-
-            <!-- Personal notes -->
-            <div>
-              <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">
-                MY NOTES <span class="font-fell font-normal normal-case text-muted-foreground/60">(private)</span>
-              </p>
-              <RichTextEditor v-model="personalNotesEdit" placeholder="Your personal observations…" min-height="100px" />
-            </div>
+            <!-- Notes -->
+            <PlayerNotesWidget v-if="selected" entity-type="npc" :entity-id="selected.id" placeholder="Your observations about this character…" />
           </div>
         </div>
       </div>
@@ -161,50 +150,20 @@
 import { ref } from "vue";
 import { UserIcon, XIcon } from "lucide-vue-next";
 import { useSharedNpcs } from "@/composables/useNpcs";
-import { supabase, getCurrentUser } from "@/lib/supabase";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import type { Npc, NpcRelationship, NpcStatus } from "@/types/npc.types";
 
 const { data: npcs, isLoading } = useSharedNpcs();
 
 const selected = ref<Npc | null>(null);
-const partyNotesEdit = ref("");
-const personalNotesEdit = ref("");
 
-async function openNpc(npc: Npc) {
+function openNpc(npc: Npc) {
   selected.value = npc;
-  partyNotesEdit.value = npc.party_notes ?? "";
-
-  // Load this player's personal notes for the NPC
-  const { data } = await supabase
-    .from("npc_player_notes")
-    .select("notes")
-    .eq("npc_id", npc.id)
-    .maybeSingle();
-  personalNotesEdit.value = data?.notes ?? "";
 }
 
-async function savePartyNotes() {
-  if (!selected.value) return;
-  await supabase.rpc("update_npc_party_notes", {
-    p_npc_id: selected.value.id,
-    p_notes: partyNotesEdit.value,
-  });
-}
-
-async function savePersonalNotes() {
-  if (!selected.value) return;
-  const user = await getCurrentUser();
-  await supabase.from("npc_player_notes").upsert(
-    { npc_id: selected.value.id, user_id: user!.id, notes: personalNotesEdit.value },
-    { onConflict: "npc_id,user_id" },
-  );
-}
-
-async function closeNpc() {
-  await Promise.all([savePartyNotes(), savePersonalNotes()]);
+function closeNpc() {
   selected.value = null;
 }
 

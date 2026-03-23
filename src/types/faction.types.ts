@@ -7,6 +7,8 @@ export const FACTION_TYPES = [
   "Merchant",
   "Secret Society",
   "Cult",
+  "Order",
+  "Tribe",
   "Other",
 ] as const;
 
@@ -27,7 +29,9 @@ export const FACTION_ALIGNMENTS = [
 export const NPC_FACTION_ROLES = [
   "Leader",
   "Officer",
+  "Enforcer",
   "Member",
+  "Initiate",
   "Associate",
   "Agent",
   "Informant",
@@ -37,13 +41,13 @@ export const NPC_FACTION_ROLES = [
 export type NpcFactionRole = (typeof NPC_FACTION_ROLES)[number];
 
 export const RELATION_TYPES = [
-  { value: "allied",       label: "Allied",       color: "#22c55e" },
-  { value: "friendly",     label: "Friendly",     color: "#86efac" },
-  { value: "neutral",      label: "Neutral",      color: "#94a3b8" },
-  { value: "suspicious",   label: "Suspicious",   color: "#f59e0b" },
-  { value: "rival",        label: "Rival",        color: "#f97316" },
-  { value: "hostile",      label: "Hostile",      color: "#ef4444" },
-  { value: "secret_ally",  label: "Secret Ally",  color: "#8b5cf6" },
+  { value: "allied", label: "Allied", color: "#22c55e" },
+  { value: "friendly", label: "Friendly", color: "#86efac" },
+  { value: "neutral", label: "Neutral", color: "#94a3b8" },
+  { value: "suspicious", label: "Suspicious", color: "#f59e0b" },
+  { value: "rival", label: "Rival", color: "#f97316" },
+  { value: "hostile", label: "Hostile", color: "#ef4444" },
+  { value: "secret_ally", label: "Secret Ally", color: "#8b5cf6" },
   { value: "secret_enemy", label: "Secret Enemy", color: "#ec4899" },
 ] as const;
 
