@@ -1,10 +1,8 @@
 <template>
-  <div>
-    <PageHeader
-      title="Campaign Settings"
-      description="Manage players, invite links, and campaign configuration"
-    />
-
+  <PageHeader
+    title="Campaign Settings"
+    description="Manage players, invite links, and campaign configuration"
+  >
     <!-- Tabs -->
     <div class="flex gap-1 mb-6 rounded-md border border-border p-1 bg-muted w-fit">
       <button
@@ -23,7 +21,7 @@
     <MembersTab  v-if="activeTab === 'members'"  @switch-tab="activeTab = $event as typeof activeTab" />
     <InvitesTab  v-else-if="activeTab === 'invites'" />
     <WorldTab    v-else-if="activeTab === 'world'" />
-  </div>
+  </PageHeader>
 </template>
 
 <script setup lang="ts">
@@ -39,5 +37,6 @@ const tabs = [
   { id: "world",   label: "World Settings" },
 ] as const;
 
-const activeTab = ref<(typeof tabs)[number]["id"]>("members");
+type TabId = (typeof tabs)[number]["id"];
+const activeTab = ref<TabId>("members");
 </script>

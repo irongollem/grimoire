@@ -1,29 +1,27 @@
 <template>
-  <div>
-    <PageHeader title="Spellbook" description="Your custom spell compendium">
-      <template #actions>
-        <button
-          type="button"
-          :disabled="importMutation.isPending.value"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
-          @click="handleImport"
-        >
-          <Loader2 v-if="importMutation.isPending.value" class="size-3.5 animate-spin shrink-0" />
-          <Download v-else class="size-3.5 shrink-0" />
-          {{ importStatusLabel }}
-        </button>
-        <RouterLink
-          to="/spells/new"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
-        >
-          <Plus class="h-3.5 w-3.5" />
-          New Spell
-        </RouterLink>
-      </template>
-    </PageHeader>
+  <PageHeader title="Spellbook" description="Your custom spell compendium">
+    <template #actions>
+      <button
+        type="button"
+        :disabled="importMutation.isPending.value"
+        class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
+        @click="handleImport"
+      >
+        <Loader2 v-if="importMutation.isPending.value" class="size-3.5 animate-spin shrink-0" />
+        <Download v-else class="size-3.5 shrink-0" />
+        {{ importStatusLabel }}
+      </button>
+      <RouterLink
+        to="/spells/new"
+        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+      >
+        <Plus class="h-3.5 w-3.5" />
+        New Spell
+      </RouterLink>
+    </template>
 
     <SpellList />
-  </div>
+  </PageHeader>
 </template>
 
 <script setup lang="ts">

@@ -1,11 +1,12 @@
 <template>
   <div class="mint-root" :class="`print-${printMode}`">
-  <div class="mint-screen space-y-4">
+  <div class="mint-screen">
     <PageHeader
       title="The Mint"
-      subtitle="Forge VTT tokens and design printable coins."
+      description="Forge VTT tokens and design printable coins."
     />
 
+    <div class="px-4 pb-4 md:px-6 space-y-4">
     <!-- Main tab: Tokens | Coins -->
     <div class="flex items-center gap-0 border-b border-border">
       <button
@@ -458,6 +459,7 @@
       </div>
     </template>
 
+    </div><!-- /content wrapper -->
   </div><!-- /mint-screen -->
 
   <!-- ══════════════════════════════════════════════════════════════ -->

@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col gap-4">
+  <div class="flex flex-col gap-4 p-4 md:p-6">
     <div class="flex items-center gap-3">
       <RouterLink to="/party" class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors tracking-wider">
         ← Party

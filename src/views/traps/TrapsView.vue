@@ -1,15 +1,13 @@
 <template>
-  <div class="space-y-4">
-    <PageHeader title="Traproom" description="Traps, hazards & dungeon dangers">
-      <template #actions>
-        <button
-          class="font-cinzel text-xs font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
-          @click="router.push('/traps/new')"
-        >
-          New Trap
-        </button>
-      </template>
-    </PageHeader>
+  <PageHeader title="Traproom" description="Traps, hazards & dungeon dangers">
+    <template #actions>
+      <button
+        class="font-cinzel text-xs font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+        @click="router.push('/traps/new')"
+      >
+        New Trap
+      </button>
+    </template>
 
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
@@ -17,7 +15,7 @@
 
     <template v-else-if="traps?.length">
       <!-- Filters -->
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2 mb-4">
         <input
           v-model="search"
           type="search"
@@ -89,7 +87,7 @@
       action-label="New Trap"
       @action="router.push('/traps/new')"
     />
-  </div>
+  </PageHeader>
 </template>
 
 <script setup lang="ts">

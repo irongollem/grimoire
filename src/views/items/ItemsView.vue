@@ -1,31 +1,26 @@
 <template>
-  <div>
-    <PageHeader
-      title="Vault"
-      description="Your mundane equipment and magic items"
-    >
-      <template #actions>
-        <button
-          type="button"
-          :disabled="importMutation.isPending.value"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
-          @click="handleImport"
-        >
-          <Loader2 v-if="importMutation.isPending.value" class="size-3.5 animate-spin shrink-0" />
-          <Download v-else class="size-3.5 shrink-0" />
-          {{ importStatusLabel }}
-        </button>
-        <RouterLink
-          to="/vault/new"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
-        >
-          + New Item
-        </RouterLink>
-      </template>
-    </PageHeader>
+  <PageHeader title="Vault" description="Your mundane equipment and magic items">
+    <template #actions>
+      <button
+        type="button"
+        :disabled="importMutation.isPending.value"
+        class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
+        @click="handleImport"
+      >
+        <Loader2 v-if="importMutation.isPending.value" class="size-3.5 animate-spin shrink-0" />
+        <Download v-else class="size-3.5 shrink-0" />
+        {{ importStatusLabel }}
+      </button>
+      <RouterLink
+        to="/vault/new"
+        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+      >
+        + New Item
+      </RouterLink>
+    </template>
 
     <ItemList />
-  </div>
+  </PageHeader>
 </template>
 
 <script setup lang="ts">
@@ -37,7 +32,6 @@ import { useImportSrdItems } from "@/composables/useItems";
 
 const importMutation = useImportSrdItems();
 
-// "idle" | "done:N" | "up-to-date"
 const importStatus = ref<"idle" | "done" | "uptodate">("idle");
 const importedCount = ref(0);
 

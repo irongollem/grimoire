@@ -81,6 +81,10 @@
 - [x] Coin purse on party members — pp/gp/ep/sp/cp fields, incremented on currency claim
 - [x] Paper doll inventory view in player portal — equipped slots, belt, backpack, containers, stored, party stash
 
+### Layout & UX
+
+- [x] **Sticky page headers** — unified `PageHeader` layout component with sticky title/actions bar; `#sticky` named slot for search/filter bars (NPC list, Location list); scrollable body; `main` padding removed so headers sit flush at viewport top with no gap; all DM views converted to use `PageHeader` as root element
+
 ### Images & Artwork
 
 - [x] Smart image cropping — `FocalImage` component with smartcrop.js content-aware analysis + localStorage cache; three canonical formats: `portrait` (2:3), `landscape` (9:4), `token` (1:1 circle)

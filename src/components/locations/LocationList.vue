@@ -1,37 +1,11 @@
 <template>
   <div>
-    <!-- Filters -->
-    <div class="flex flex-col gap-2 mb-5">
-      <div class="relative">
-        <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-        <input
-          v-model="search"
-          type="text"
-          placeholder="Search locations…"
-          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
-      </div>
-      <div class="flex flex-wrap gap-1">
-        <button
-          v-for="opt in TYPE_OPTIONS"
-          :key="opt.value"
-          class="px-2.5 py-1 rounded-md border text-xs font-cinzel font-semibold tracking-wider transition-colors"
-          :class="typeFilter === opt.value
-            ? 'bg-primary text-primary-foreground border-primary'
-            : 'bg-card text-muted-foreground border-border hover:text-foreground'"
-          @click="typeFilter = opt.value"
-        >
-          {{ opt.label }}
-        </button>
-      </div>
-    </div>
-
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
 
     <EmptyState
-      v-else-if="!filtered.length && !search && typeFilter === 'all'"
+      v-else-if="!filtered.length && !props.search && props.typeFilter === 'all'"
       title="No locations yet"
       description="Chart the lands, cities, and dungeons of your realm."
     >
@@ -131,8 +105,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import { Search } from "lucide-vue-next";
+import { computed } from "vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { useAllLocations } from "@/composables/useLocations";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -141,21 +114,18 @@ import { timeAgo, extractTiptapText } from "@/lib/utils";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
 import type { Location } from "@/types/location.types";
 
-const TYPE_OPTIONS = [
-  { value: "all", label: "All" },
-  ...Object.entries(LOCATION_TYPE_LABELS).map(([value, label]) => ({ value, label })),
-];
-
-const search = ref("");
-const typeFilter = ref("all");
+const props = defineProps<{
+  search: string;
+  typeFilter: string;
+}>();
 
 const { data: locations, isLoading } = useAllLocations();
 
 const filtered = computed(() => {
   let list = [...(locations.value ?? [])];
-  if (typeFilter.value !== "all") list = list.filter((l) => l.location_type === typeFilter.value);
-  if (search.value.trim()) {
-    const q = search.value.toLowerCase();
+  if (props.typeFilter !== "all") list = list.filter((l) => l.location_type === props.typeFilter);
+  if (props.search.trim()) {
+    const q = props.search.toLowerCase();
     list = list.filter((l) =>
       l.name.toLowerCase().includes(q) ||
       l.tags.some((t) => t.toLowerCase().includes(q)),

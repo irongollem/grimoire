@@ -134,7 +134,7 @@
                 @keydown.escape="childDropdownOpen = false"
               />
               <div
-                v-if="childDropdownOpen && childOptions.length"
+                v-if="childDropdownOpen && (childOptions.length || childSearch.trim())"
                 class="absolute right-0 top-full mt-1 z-50 w-56 rounded-md border border-border bg-popover shadow-lg overflow-hidden"
               >
                 <button
@@ -147,6 +147,16 @@
                   <span class="h-1.5 w-1.5 rounded-full shrink-0" :style="{ backgroundColor: LOCATION_TYPE_COLORS[opt.location_type] }" />
                   <span class="font-cinzel text-xs text-foreground truncate flex-1">{{ opt.name }}</span>
                   <span class="font-fell text-[10px] text-muted-foreground shrink-0">{{ LOCATION_TYPE_LABELS[opt.location_type] }}</span>
+                </button>
+                <button
+                  type="button"
+                  class="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-muted transition-colors border-t border-border text-primary"
+                  @mousedown.prevent="createChild"
+                >
+                  <Plus class="h-3 w-3 shrink-0" />
+                  <span class="font-cinzel text-xs truncate flex-1">
+                    {{ childSearch.trim() ? `Create "${childSearch.trim()}"` : 'Create new child location' }}
+                  </span>
                 </button>
               </div>
             </div>
@@ -238,7 +248,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { Save, Trash2, ChevronRight, Image as ImageIcon, MapPin, ChevronUp, Tag } from "lucide-vue-next";
+import { Save, Trash2, ChevronRight, Image as ImageIcon, MapPin, ChevronUp, Tag, Plus } from "lucide-vue-next";
 import { useImageUpload } from "@/composables/useImageUpload";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
@@ -260,6 +270,7 @@ import type { Location, LocationType } from "@/types/location.types";
 const props = defineProps<{
   location: Location | null;
   parentId?: string | null;
+  initialName?: string;
 }>();
 
 const router = useRouter();
@@ -319,6 +330,14 @@ function onChildBlur() {
   setTimeout(() => { childDropdownOpen.value = false; }, 150);
 }
 
+function createChild() {
+  const query: Record<string, string> = { parent: props.location!.id };
+  if (childSearch.value.trim()) query.name = childSearch.value.trim();
+  childSearch.value = "";
+  childDropdownOpen.value = false;
+  router.push({ path: "/locations/new", query });
+}
+
 // ── NPCs + Encounters at this location ─────────────────────────────────────────
 const { data: locationNpcs } = props.location
   ? useNpcsByLocation(props.location.id)
@@ -328,7 +347,7 @@ const { data: locationEncounters } = props.location
   : { data: ref([]) };
 
 // ── Form state ─────────────────────────────────────────────────────────────────
-const name         = ref(props.location?.name ?? "");
+const name         = ref(props.location?.name ?? props.initialName ?? "");
 const locationType = ref<LocationType>(props.location?.location_type ?? "other");
 const tags         = ref<string[]>(props.location?.tags ? [...props.location.tags] : []);
 const imageUrl     = ref<string | null>(props.location?.image_url ?? null);
@@ -376,7 +395,7 @@ async function save() {
   try {
     if (props.location) {
       await update({ id: props.location.id, update: buildPayload() });
-      router.push(selectedParentId.value ? `/locations/${selectedParentId.value}` : "/locations");
+      router.push(`/locations/${props.location.id}`);
     } else {
       const created = await create(buildPayload());
       router.push(`/locations/${created.id}`);

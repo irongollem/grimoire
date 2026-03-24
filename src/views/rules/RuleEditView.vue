@@ -1,10 +1,8 @@
 <template>
-  <div>
-    <PageHeader
-      :title="isNew ? 'New Rule' : (rule?.title || 'Loading…')"
-      description="Custom rule, system, or table"
-    />
-
+  <PageHeader
+    :title="isNew ? 'New Rule' : (rule?.title || 'Loading…')"
+    description="Custom rule, system, or table"
+  >
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
@@ -79,7 +77,7 @@
         </button>
       </div>
     </form>
-  </div>
+  </PageHeader>
 </template>
 
 <script setup lang="ts">

@@ -1,16 +1,14 @@
 <template>
-  <div>
-    <PageHeader
-      :title="note?.title || (isNew ? 'New Note' : 'Loading…')"
-      :description="note ? `${note.category}${note.session_num ? ' · Session ' + note.session_num : ''}` : undefined"
-    />
-
+  <PageHeader
+    :title="note?.title || (isNew ? 'New Note' : 'Loading…')"
+    :description="note ? `${note.category}${note.session_num ? ' · Session ' + note.session_num : ''}` : undefined"
+  >
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
 
     <NoteEditor v-else :note="isNew ? null : (note ?? null)" />
-  </div>
+  </PageHeader>
 </template>
 
 <script setup lang="ts">
@@ -21,10 +19,9 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import NoteEditor from "@/components/notes/NoteEditor.vue";
 
-const route  = useRoute();
-const isNew  = computed(() => route.name === "note-new");
-const id     = computed(() => (isNew.value ? "" : (route.params.id as string)));
-
-const { data: note, isLoading: noteLoading } = useNote(id.value);
+const route = useRoute();
+const isNew = computed(() => route.name === "note-new");
+const id = computed(() => (isNew.value ? "" : (route.params.id as string)));
+const { data: note, isLoading: noteLoading } = useNote(id);
 const isLoading = computed(() => !isNew.value && noteLoading.value);
 </script>

@@ -1,84 +1,11 @@
 <template>
   <div>
-    <!-- Filters bar -->
-    <div class="flex flex-wrap items-center gap-2 mb-5">
-      <div class="relative flex-1 min-w-48">
-        <Search
-          class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"
-        />
-        <input
-          v-model="search"
-          type="text"
-          placeholder="Search NPCs…"
-          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
-      </div>
-
-      <div
-        class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider"
-      >
-        <button
-          v-for="s in STATUS_OPTIONS"
-          :key="s.value"
-          class="px-2.5 py-1.5 transition-colors"
-          :class="
-            statusFilter === s.value
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-card text-muted-foreground hover:text-foreground'
-          "
-          @click="statusFilter = s.value"
-        >
-          {{ s.label }}
-        </button>
-      </div>
-
-      <div
-        class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider"
-      >
-        <button
-          v-for="r in REL_OPTIONS"
-          :key="r.value"
-          class="px-2.5 py-1.5 transition-colors"
-          :class="
-            relFilter === r.value
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-card text-muted-foreground hover:text-foreground'
-          "
-          @click="relFilter = r.value"
-        >
-          {{ r.label }}
-        </button>
-      </div>
-
-      <EntityCombobox
-        :model-value="locationFilter"
-        :options="locationOptions"
-        placeholder="All locations"
-        class="min-w-44 max-w-56"
-        @update:model-value="locationFilter = $event"
-      >
-        <template #option="{ opt }">
-          <span :style="{ paddingLeft: `${(opt as any).depth * 12}px` }">{{ opt.name }}</span>
-        </template>
-      </EntityCombobox>
-
-      <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
-        <button
-          v-for="opt in ([{ value: 'name', label: 'Name' }, { value: 'location', label: 'Location' }] as const)"
-          :key="opt.value"
-          class="px-2.5 py-1.5 transition-colors"
-          :class="sortBy === opt.value ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-          @click="sortBy = opt.value"
-        >{{ opt.label }}</button>
-      </div>
-    </div>
-
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
 
     <EmptyState
-      v-else-if="!filtered.length && !search && statusFilter === 'all' && relFilter === 'all' && !locationFilter"
+      v-else-if="!filtered.length && !props.search && props.statusFilter === 'all' && props.relFilter === 'all' && !props.locationFilter"
       title="No NPCs yet"
       description="Populate your realm with merchants, villains, sages, and more."
     >
@@ -193,36 +120,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import { Search } from "lucide-vue-next";
+import { computed } from "vue";
 import { useNpcs } from "@/composables/useNpcs";
 import { useAllLocations, useLocationTree } from "@/composables/useLocations";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import type { NpcRelationship, NpcStatus } from "@/types/npc.types";
 
-const STATUS_OPTIONS = [
-  { value: "all", label: "All" },
-  { value: "alive", label: "Alive" },
-  { value: "dead", label: "Dead" },
-  { value: "missing", label: "Missing" },
-  { value: "unknown", label: "?" },
-];
-
-const REL_OPTIONS = [
-  { value: "all", label: "All" },
-  { value: "ally", label: "Ally" },
-  { value: "neutral", label: "Neutral" },
-  { value: "enemy", label: "Enemy" },
-];
-
-const search = ref("");
-const statusFilter = ref("all");
-const relFilter = ref("all");
-const locationFilter = ref("");
-const sortBy = ref<"name" | "location">("location");
+const props = defineProps<{
+  search: string;
+  statusFilter: string;
+  relFilter: string;
+  locationFilter: string;
+  sortBy: "name" | "location";
+}>();
 
 const { data: npcs, isLoading } = useNpcs();
 const { data: allLocations } = useAllLocations();
@@ -234,7 +146,6 @@ const locationMap = computed(() => {
   return m;
 });
 
-// Position of each location in tree order (from locationOptions DFS walk)
 const locationOrder = computed(() => {
   const m = new Map<string, number>();
   locationOptions.value.forEach((loc, i) => m.set(loc.id, i));
@@ -247,8 +158,8 @@ function locationName(id: string) {
 
 const filtered = computed(() => {
   let list = npcs.value ?? [];
-  if (search.value.trim()) {
-    const q = search.value.toLowerCase();
+  if (props.search.trim()) {
+    const q = props.search.toLowerCase();
     list = list.filter(
       (n) =>
         n.name.toLowerCase().includes(q) ||
@@ -258,13 +169,13 @@ const filtered = computed(() => {
         n.tags.some((t) => t.toLowerCase().includes(q)),
     );
   }
-  if (statusFilter.value !== "all") list = list.filter((n) => n.status === statusFilter.value);
-  if (relFilter.value !== "all") list = list.filter((n) => n.relationship === relFilter.value);
-  if (locationFilter.value) {
-    const locationIds = getDescendantIds(locationFilter.value);
+  if (props.statusFilter !== "all") list = list.filter((n) => n.status === props.statusFilter);
+  if (props.relFilter !== "all") list = list.filter((n) => n.relationship === props.relFilter);
+  if (props.locationFilter) {
+    const locationIds = getDescendantIds(props.locationFilter);
     list = list.filter((n) => n.location_id && locationIds.has(n.location_id));
   }
-  if (sortBy.value === "location") {
+  if (props.sortBy === "location") {
     const order = locationOrder.value;
     list = [...list].sort((a, b) => {
       const ai = a.location_id ? (order.get(a.location_id) ?? Infinity) : Infinity;

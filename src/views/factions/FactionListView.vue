@@ -1,19 +1,14 @@
 <template>
-  <div>
-    <PageHeader
-      title="Factions"
-      description="Guilds, cults, governments, and other organisations"
-    >
-      <template #actions>
-        <RouterLink
-          to="/factions/new"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
-        >
-          <Plus class="h-3.5 w-3.5" />
-          New Faction
-        </RouterLink>
-      </template>
-    </PageHeader>
+  <PageHeader title="Factions" description="Guilds, cults, governments, and other organisations">
+    <template #actions>
+      <RouterLink
+        to="/factions/new"
+        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+      >
+        <Plus class="h-3.5 w-3.5" />
+        New Faction
+      </RouterLink>
+    </template>
 
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
@@ -77,7 +72,7 @@
         </RouterLink>
       </div>
     </template>
-  </div>
+  </PageHeader>
 </template>
 
 <script setup lang="ts">

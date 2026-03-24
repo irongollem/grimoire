@@ -1,6 +1,6 @@
 <template>
+  <PageHeader title="Settings" description="Your profile for this campaign">
   <div class="max-w-lg space-y-8">
-    <PageHeader title="Settings" description="Your profile for this campaign" />
 
     <!-- Display name -->
     <section class="rounded-lg border border-border bg-card p-5 space-y-4">
@@ -126,6 +126,7 @@
       </div>
     </section>
   </div>
+  </PageHeader>
 </template>
 
 <script setup lang="ts">

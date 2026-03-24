@@ -1,16 +1,14 @@
 <template>
-  <div>
-    <PageHeader
-      :title="doc?.title || (isNew ? 'New Document' : 'Edit Document')"
-      description="Write with the quill of a master scribe"
-    />
-
+  <PageHeader
+    :title="doc?.title || (isNew ? 'New Document' : 'Edit Document')"
+    description="Write with the quill of a master scribe"
+  >
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
 
     <ScriptoriumEditor v-else :doc="isNew ? null : (doc ?? null)" />
-  </div>
+  </PageHeader>
 </template>
 
 <script setup lang="ts">

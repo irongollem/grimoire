@@ -1,6 +1,5 @@
 <template>
-  <div>
-    <PageHeader title="Crafting" description="Your known recipes and craft attempts" />
+  <PageHeader title="Crafting" description="Your known recipes and craft attempts">
 
     <div v-if="!member" class="font-fell text-sm text-muted-foreground italic">
       No linked character found.
@@ -126,7 +125,7 @@
       @close="attemptRecipe = null"
       @done="onDone"
     />
-  </div>
+  </PageHeader>
 </template>
 
 <script setup lang="ts">

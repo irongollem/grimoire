@@ -1,16 +1,11 @@
 <template>
-  <div>
-    <PageHeader
-      :title="pageTitle"
-      :description="pageDescription"
-    />
-
+  <PageHeader :title="pageTitle" :description="pageDescription">
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
 
     <MonsterDetail v-else :monster="resolvedMonster" />
-  </div>
+  </PageHeader>
 </template>
 
 <script setup lang="ts">
@@ -26,7 +21,6 @@ const isNew = computed(() => route.name === "monster-new");
 const id = computed(() => (isNew.value ? "" : (route.params.id as string)));
 const isSrdId = computed(() => id.value.startsWith("srd_"));
 
-// For SRD monsters look up from local data; for user monsters fetch from Supabase
 const srdMonster = computed(() => (isSrdId.value ? (getSrdMonster(id.value) ?? null) : null));
 const { data: dbMonster, isLoading: dbLoading } = useMonster(
   isSrdId.value ? "" : id.value,

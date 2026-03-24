@@ -1,10 +1,8 @@
 <template>
-  <div>
-    <PageHeader
-      :title="quest?.title || (isNew ? 'New Quest' : 'Loading…')"
-      :description="quest ? QUEST_STATUS_LABELS[quest.status] : undefined"
-    />
-
+  <PageHeader
+    :title="quest?.title || (isNew ? 'New Quest' : 'Loading…')"
+    :description="quest ? QUEST_STATUS_LABELS[quest.status] : undefined"
+  >
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
@@ -15,7 +13,7 @@
       :quest="isNew ? null : (quest ?? null)"
       :parent-id="parentId ?? null"
     />
-  </div>
+  </PageHeader>
 </template>
 
 <script setup lang="ts">

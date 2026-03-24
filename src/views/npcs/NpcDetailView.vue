@@ -1,16 +1,14 @@
 <template>
-  <div>
-    <PageHeader
-      :title="npc?.name ?? 'New NPC'"
-      :description="npc ? subtitle : 'Fill in the details below to add a new NPC to your realm'"
-    />
-
+  <PageHeader
+    :title="npc?.name ?? 'New NPC'"
+    :description="npc ? subtitle : 'Fill in the details below to add a new NPC to your realm'"
+  >
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
 
     <NpcDetail v-else :key="id" :npc="isNewNpc ? null : (npc ?? null)" />
-  </div>
+  </PageHeader>
 </template>
 
 <script setup lang="ts">

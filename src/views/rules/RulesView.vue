@@ -1,17 +1,15 @@
 <template>
-  <div>
-    <PageHeader title="Rules Reliquary" description="DM screen, SRD compendium & custom rule systems">
-      <template #actions>
-        <RouterLink
-          v-if="activeTab === 'custom'"
-          to="/rules/new"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
-        >
-          <Plus class="h-3.5 w-3.5" />
-          New Rule
-        </RouterLink>
-      </template>
-    </PageHeader>
+  <PageHeader title="Rules Reliquary" description="DM screen, SRD compendium & custom rule systems">
+    <template #actions>
+      <RouterLink
+        v-if="activeTab === 'custom'"
+        to="/rules/new"
+        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+      >
+        <Plus class="h-3.5 w-3.5" />
+        New Rule
+      </RouterLink>
+    </template>
 
     <!-- Tab bar -->
     <div class="flex gap-1 mb-6 border-b border-border">
@@ -32,7 +30,7 @@
     <ScreenTab v-if="activeTab === 'screen'" />
     <CompendiumTab v-else-if="activeTab === 'compendium'" />
     <CustomRulesTab v-else-if="activeTab === 'custom'" />
-  </div>
+  </PageHeader>
 </template>
 
 <script setup lang="ts">
