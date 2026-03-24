@@ -12,12 +12,14 @@
         :my-user-id="myUserId ?? ''"
         :members="members"
         :party="party"
+        :npcs="npcs"
         @send="handleSend"
         @send-roll="handleRoll"
         @delete="deleteMessage"
         @delete-all="handleDeleteAll"
         @claim="handleClaim"
         @claim-currency="handleClaimCurrency"
+        @claim-to-npc="handleClaimToNpc"
         @close="ui.chatOpen = false"
       />
     </aside>
@@ -61,12 +63,14 @@
         :my-user-id="myUserId ?? ''"
         :members="members"
         :party="party"
+        :npcs="npcs"
         @send="handleSend"
         @send-roll="handleRoll"
         @delete="deleteMessage"
         @delete-all="handleDeleteAll"
         @claim="handleClaim"
         @claim-currency="handleClaimCurrency"
+        @claim-to-npc="handleClaimToNpc"
         @close="ui.chatOpen = false"
       />
     </div>
@@ -74,7 +78,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, computed } from "vue";
 import { MessageCircle } from "lucide-vue-next";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
@@ -82,6 +86,8 @@ import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import { useAuthStore } from "@/stores/auth";
 import { useAddInventoryItem } from "@/composables/usePartyInventory";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
+import { useNpcs } from "@/composables/useNpcs";
+import { useAddNpcInventoryItem } from "@/composables/useNpcInventory";
 import ChatPanelContent from "./ChatPanelContent.vue";
 import type { RollResult } from "@/lib/dice";
 import type { ItemDropMetadata, CurrencyDropMetadata } from "@/types/chat.types";
@@ -94,8 +100,14 @@ const { messages, loading, sendMessage, sendRoll, claimItemDrop, claimCurrencyDr
   useCampaignMessages();
 const { data: members } = useCampaignMembers();
 const { data: party }   = useParty();
+const { data: npcsData } = useNpcs();
 const { mutateAsync: addInventoryItem }   = useAddInventoryItem();
 const { mutateAsync: updatePartyMember }  = useUpdatePartyMember();
+const { mutateAsync: addNpcInventoryItem } = useAddNpcInventoryItem();
+
+const npcs = computed(() =>
+  (npcsData.value ?? []).map((n) => ({ id: n.id, name: n.name }))
+);
 
 const unread = ref(0);
 
@@ -199,6 +211,26 @@ async function handleRoll({
   recipientUserId: string | null;
 }) {
   await sendRoll(result, recipientUserId);
+}
+
+async function handleClaimToNpc({ messageId, npcId, npcName }: { messageId: string; npcId: string; npcName: string }) {
+  const msg = messages.value.find(m => m.id === messageId);
+  if (!msg || msg.type !== 'item_drop') return;
+  const meta = msg.metadata as ItemDropMetadata;
+  if (meta.claimed_by_user_id) return;
+
+  try {
+    await claimItemDrop(messageId, npcName, null);
+  } catch {
+    return;
+  }
+  await addNpcInventoryItem({
+    npc_id: npcId,
+    item_id: meta.item_id,
+    name: meta.item_name,
+    quantity: meta.quantity,
+    notes: null,
+  });
 }
 
 async function handleDeleteAll() {

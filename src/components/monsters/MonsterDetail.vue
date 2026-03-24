@@ -85,103 +85,28 @@
       <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
         <!-- Left: Portrait + Tags -->
         <div class="space-y-4">
-          <div
-            class="relative aspect-3/4 rounded-lg border border-border overflow-hidden bg-muted group"
-            :class="isSrd ? 'cursor-default' : 'cursor-pointer'"
-            @click="!isSrd && artFileInput?.click()"
-          >
-            <img
-              v-if="form.image_url"
-              :src="form.image_url"
-              alt="Portrait"
-              class="w-full h-full object-cover"
-            />
-            <div
-              v-else
-              class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground"
-            >
-              <ImagePlus class="h-10 w-10" />
-              <span class="font-fell text-sm italic">{{
-                isUploadingArt ? "Uploading…" : "Upload portrait"
-              }}</span>
-            </div>
-            <div
-              v-if="!isSrd"
-              class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-            >
-              <span class="font-fell text-white text-sm italic">{{
-                form.image_url ? "Change portrait" : "Upload portrait"
-              }}</span>
-            </div>
-          </div>
-          <input
-            ref="artFileInput"
-            type="file"
-            accept="image/*"
-            class="hidden"
-            @change="onArtSelected"
+          <!-- Portrait -->
+          <ImageUpload
+            :model-value="form.image_url || null"
+            :focal-point="form.portrait_focal_point"
+            show-focal-point
+            @update:model-value="onPortraitUrlUpdate($event)"
+            @update:focal-point="onPortraitFocalUpdate($event)"
           />
-          <button
-            v-if="form.image_url && !isSrd"
-            type="button"
-            class="font-cinzel text-[10px] text-destructive hover:underline"
-            @click="form.image_url = ''"
-          >
-            Remove portrait
-          </button>
 
           <!-- Card Art (landscape, for MTG Card Forge) -->
-          <p
-            class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mt-2"
-          >
+          <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mt-2">
             CARD ART
           </p>
-          <div
-            class="relative aspect-video rounded-lg border border-border overflow-hidden bg-muted group"
-            :class="isSrd ? 'cursor-default' : 'cursor-pointer'"
-            @click="!isSrd && cardArtFileInput?.click()"
-          >
-            <img
-              v-if="form.card_art_url"
-              :src="form.card_art_url"
-              alt="Card Art"
-              class="w-full h-full object-cover"
-            />
-            <div
-              v-else
-              class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground"
-            >
-              <ImagePlus class="h-8 w-8" />
-              <span class="font-fell text-xs italic">{{
-                isUploadingCardArt
-                  ? "Uploading…"
-                  : "Upload card art (landscape)"
-              }}</span>
-            </div>
-            <div
-              v-if="!isSrd"
-              class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-            >
-              <span class="font-fell text-white text-xs italic">{{
-                form.card_art_url ? "Change card art" : "Upload card art"
-              }}</span>
-            </div>
-          </div>
-          <input
-            ref="cardArtFileInput"
-            type="file"
-            accept="image/*"
-            class="hidden"
-            @change="onCardArtSelected"
+          <ImageUpload
+            :model-value="form.card_art_url || null"
+            :focal-point="form.card_art_focal_point"
+            aspect="landscape"
+            show-focal-point
+            placeholder="Drop card art or click to upload"
+            @update:model-value="onCardArtUrlUpdate($event)"
+            @update:focal-point="onCardArtFocalUpdate($event)"
           />
-          <button
-            v-if="form.card_art_url && !isSrd"
-            type="button"
-            class="font-cinzel text-[10px] text-destructive hover:underline"
-            @click="form.card_art_url = ''"
-          >
-            Remove card art
-          </button>
 
           <!-- Tags -->
           <div>
@@ -457,25 +382,27 @@
         </div>
       </div>
     </fieldset>
+
   </div>
 </template>
 
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, reactive, computed } from "vue";
+import { ref, reactive, computed, watch } from "vue";
 import { useRouter } from "vue-router";
-import { Save, Trash2, ScrollText, ImagePlus, Copy } from "lucide-vue-next";
+import { Save, Trash2, ScrollText, Copy } from "lucide-vue-next";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagInput from "@/components/common/TagInput.vue";
+import ImageUpload from "@/components/common/ImageUpload.vue";
 import DiceExprInput from "@/components/common/DiceExprInput.vue";
-import { useImageUpload } from "@/composables/useImageUpload";
 import {
   useCreateMonster,
   useUpdateMonster,
   useDeleteMonster,
   useCloneSrdMonster,
 } from "@/composables/useMonsters";
+import { useUpsertSrdMonsterArt } from "@/composables/useSrdMonsterArt";
 import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
 import { formatMonsterForScriptorium } from "@/lib/scriptoriumImport";
 import TraitSection from "@/components/npcs/TraitSection.vue";
@@ -533,6 +460,8 @@ const router = useRouter();
 
 const isSrd = computed(() => !!props.monster?.is_srd);
 
+const { mutateAsync: upsertSrdArt } = useUpsertSrdMonsterArt();
+
 const form = reactive({
   name: props.monster?.name ?? "",
   monster_type: (props.monster?.monster_type ?? "humanoid") as MonsterType,
@@ -545,7 +474,22 @@ const form = reactive({
   notes: props.monster?.notes ?? "",
   image_url: props.monster?.image_url ?? "",
   card_art_url: props.monster?.card_art_url ?? "",
+  portrait_focal_point: props.monster?.portrait_focal_point ?? null,
+  card_art_focal_point: props.monster?.card_art_focal_point ?? null,
 });
+
+// When SRD art loads asynchronously, sync art fields from the updated prop
+watch(
+  () => props.monster,
+  (m) => {
+    if (isSrd.value && m) {
+      form.image_url = m.image_url ?? "";
+      form.card_art_url = m.card_art_url ?? "";
+      form.portrait_focal_point = m.portrait_focal_point ?? null;
+      form.card_art_focal_point = m.card_art_focal_point ?? null;
+    }
+  },
+);
 
 function defaultSb(): MonsterStatBlock {
   return {
@@ -617,26 +561,22 @@ function mod(score: number) {
   return Math.floor((score - 10) / 2);
 }
 
-// Image uploads
-const artFileInput = ref<HTMLInputElement | null>(null);
-const cardArtFileInput = ref<HTMLInputElement | null>(null);
-const { isUploading: isUploadingArt, upload: uploadArt } =
-  useImageUpload("asset-images");
-const { isUploading: isUploadingCardArt, upload: uploadCardArt } =
-  useImageUpload("asset-images");
-async function onArtSelected(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (!file) return;
-  const url = await uploadArt(file);
-  if (url) form.image_url = url;
-  if (artFileInput.value) artFileInput.value.value = "";
+// Image upload handlers (ImageUpload component handles bucket upload/delete internally)
+function onPortraitUrlUpdate(url: string | null) {
+  if (isSrd.value) upsertSrdArt({ srd_id: props.monster!.id, image_url: url });
+  else form.image_url = url ?? "";
 }
-async function onCardArtSelected(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (!file) return;
-  const url = await uploadCardArt(file);
-  if (url) form.card_art_url = url;
-  if (cardArtFileInput.value) cardArtFileInput.value.value = "";
+function onPortraitFocalUpdate(pt: { x: number; y: number } | null) {
+  if (isSrd.value) upsertSrdArt({ srd_id: props.monster!.id, portrait_focal_point: pt });
+  else form.portrait_focal_point = pt;
+}
+function onCardArtUrlUpdate(url: string | null) {
+  if (isSrd.value) upsertSrdArt({ srd_id: props.monster!.id, card_art_url: url });
+  else form.card_art_url = url ?? "";
+}
+function onCardArtFocalUpdate(pt: { x: number; y: number } | null) {
+  if (isSrd.value) upsertSrdArt({ srd_id: props.monster!.id, card_art_focal_point: pt });
+  else form.card_art_focal_point = pt;
 }
 
 // Save
@@ -686,6 +626,8 @@ function buildPayload() {
     notes: form.notes || null,
     image_url: form.image_url || null,
     card_art_url: form.card_art_url || null,
+    portrait_focal_point: form.portrait_focal_point ?? null,
+    card_art_focal_point: form.card_art_focal_point ?? null,
     stat_block: { ...sb },
   };
 }

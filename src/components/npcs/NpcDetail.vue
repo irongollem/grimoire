@@ -38,32 +38,13 @@
       <!-- ── Left: portrait + meta ────────────────────────────────── -->
       <div class="space-y-4">
         <!-- Portrait -->
-        <div
-          class="relative aspect-3/4 rounded-lg border border-border overflow-hidden bg-muted cursor-pointer group"
-          @click="triggerPortraitUpload"
-        >
-          <FocalImage v-if="form.portrait_url" :src="form.portrait_url" format="portrait" :focal-point="form.portrait_focal_point ?? null" />
-          <div v-else class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground">
-            <ImagePlus class="h-10 w-10" />
-            <span class="font-fell text-sm italic">Upload portrait</span>
-          </div>
-          <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-            <span class="font-fell text-white text-sm italic">
-              {{ form.portrait_url ? 'Change portrait' : 'Upload portrait' }}
-            </span>
-          </div>
-          <div v-if="isUploading" class="absolute inset-0 bg-black/60 flex items-center justify-center">
-            <LoadingSpinner />
-          </div>
-        </div>
-        <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileSelected" />
-
-        <!-- Focal point picker — only shown when a portrait exists -->
-        <FocalPointPicker
-          v-if="form.portrait_url"
-          :src="form.portrait_url"
-          :model-value="form.portrait_focal_point ?? null"
-          @update:model-value="form.portrait_focal_point = $event"
+        <ImageUpload
+          :model-value="form.portrait_url || null"
+          :focal-point="form.portrait_focal_point"
+          bucket="npc-portraits"
+          show-focal-point
+          @update:model-value="form.portrait_url = $event ?? ''"
+          @update:focal-point="form.portrait_focal_point = $event"
         />
 
         <!-- Status -->
@@ -355,6 +336,9 @@
 
         <!-- Relationships -->
         <NpcRelationsSection v-if="npc?.id" :npc-id="npc.id" />
+
+        <!-- Inventory -->
+        <NpcInventorySection v-if="npc?.id" :npc-id="npc.id" />
       </div>
     </div>
   </form>
@@ -366,22 +350,20 @@ import { ref, reactive, computed } from 'vue'
 import RichTextEditor from '@/components/common/RichTextEditor.vue'
 import TagInput from '@/components/common/TagInput.vue'
 import { useRouter } from 'vue-router'
-import { ImagePlus, ScrollText } from 'lucide-vue-next'
-import { useImageUpload } from '@/composables/useImageUpload'
+import { ScrollText } from 'lucide-vue-next'
+import ImageUpload from '@/components/common/ImageUpload.vue'
 import { useCreateNpc, useUpdateNpc, useDeleteNpc } from '@/composables/useNpcs'
 import { useLocationTree } from '@/composables/useLocations'
 import { useAllMonsters, useCreateMonster } from '@/composables/useMonsters'
 import { useCreateScriptoriumDocument } from '@/composables/useScriptorium'
 import { formatNpcForScriptorium } from '@/lib/scriptoriumImport'
 import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES, getNpcTemplate } from '@/data/npcTemplates'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import TraitSection from '@/components/npcs/TraitSection.vue'
 import NpcRelationsSection from '@/components/npcs/NpcRelationsSection.vue'
+import NpcInventorySection from '@/components/npcs/NpcInventorySection.vue'
 import NpcFactionsSection from '@/components/factions/NpcFactionsSection.vue'
-import FocalPointPicker from '@/components/common/FocalPointPicker.vue'
 import type { Npc, NpcInsert, NpcStatus, NpcRelationship, StatBlock } from '@/types/npc.types'
 import { useCampaignStore } from '@/stores/campaign'
-import FocalImage from '@/components/common/FocalImage.vue'
 import EntityCombobox from '@/components/common/EntityCombobox.vue'
 import { STAT_BLOCK_ABILITIES, abilityModifier, skillsToString, skillsToRecord } from '@/lib/utils'
 
@@ -639,20 +621,6 @@ function applyTemplate(id: string) {
   })
 }
 
-// ── Portrait upload ───────────────────────────────────────────────────────────
-
-const fileInput = ref<HTMLInputElement | null>(null)
-const { isUploading, upload: uploadPortrait } = useImageUpload('npc-portraits')
-
-function triggerPortraitUpload() { fileInput.value?.click() }
-
-async function onFileSelected(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0]
-  if (!file) return
-  const url = await uploadPortrait(file)
-  if (url) form.portrait_url = url
-  if (fileInput.value) fileInput.value.value = ''
-}
 
 // ── Save / Delete ─────────────────────────────────────────────────────────────
 

@@ -45,40 +45,12 @@
         <template v-if="activeTab === 'identity'">
           <!-- Portrait + name -->
           <div class="flex gap-4">
-            <div
-              class="relative aspect-3/4 w-28 shrink-0 rounded-lg border border-border overflow-hidden bg-muted cursor-pointer group"
-              @click="portraitFileInput?.click()"
-            >
-              <img
-                v-if="portraitUrl"
-                :src="portraitUrl"
-                alt="Portrait"
-                class="w-full h-full object-cover"
+            <div class="w-28 shrink-0">
+              <ImageUpload
+                :model-value="portraitUrl || null"
+                @update:model-value="portraitUrl = $event ?? ''"
               />
-              <div
-                v-else
-                class="w-full h-full flex flex-col items-center justify-center gap-1 text-muted-foreground"
-              >
-                <ImagePlus class="h-7 w-7" />
-                <span class="font-fell text-xs italic text-center px-1">{{
-                  isUploadingPortrait ? "Uploading…" : "Upload"
-                }}</span>
-              </div>
-              <div
-                class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-              >
-                <span class="font-fell text-white text-xs italic">{{
-                  portraitUrl ? "Change" : "Upload"
-                }}</span>
-              </div>
             </div>
-            <input
-              ref="portraitFileInput"
-              type="file"
-              accept="image/*"
-              class="hidden"
-              @change="onPortraitSelected"
-            />
             <div class="flex-1 flex flex-col gap-2">
               <label class="block">
                 <span class="field-label">Character Name *</span>
@@ -107,67 +79,19 @@
                   No players have joined yet — share an invite link first.
                 </p>
               </label>
-              <button
-                v-if="portraitUrl"
-                type="button"
-                class="font-cinzel text-[10px] text-destructive hover:underline text-left"
-                @click="portraitUrl = ''"
-              >
-                Remove portrait
-              </button>
             </div>
           </div>
           <!-- Card Art (landscape, for MTG Card Forge) -->
           <div class="flex flex-col gap-1">
-            <span class="field-label"
-              >Card Art
-              <span
-                class="font-fell normal-case font-normal italic text-muted-foreground"
-                >(landscape, for card printing)</span
-              ></span
-            >
-            <div
-              class="relative aspect-video rounded-lg border border-border overflow-hidden bg-muted cursor-pointer group"
-              @click="cardArtFileInput?.click()"
-            >
-              <img
-                v-if="cardArtUrl"
-                :src="cardArtUrl"
-                alt="Card Art"
-                class="w-full h-full object-cover"
-              />
-              <div
-                v-else
-                class="w-full h-full flex flex-col items-center justify-center gap-1 text-muted-foreground"
-              >
-                <ImagePlus class="h-6 w-6" />
-                <span class="font-fell text-xs italic">{{
-                  isUploadingCardArt ? "Uploading…" : "Upload card art"
-                }}</span>
-              </div>
-              <div
-                class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-              >
-                <span class="font-fell text-white text-xs italic">{{
-                  cardArtUrl ? "Change" : "Upload"
-                }}</span>
-              </div>
-            </div>
-            <input
-              ref="cardArtFileInput"
-              type="file"
-              accept="image/*"
-              class="hidden"
-              @change="onCardArtSelected"
+            <span class="field-label">Card Art
+              <span class="font-fell normal-case font-normal italic text-muted-foreground">(landscape, for card printing)</span>
+            </span>
+            <ImageUpload
+              :model-value="cardArtUrl || null"
+              aspect="landscape"
+              placeholder="Drop card art or click to upload"
+              @update:model-value="cardArtUrl = $event ?? ''"
             />
-            <button
-              v-if="cardArtUrl"
-              type="button"
-              class="font-cinzel text-[10px] text-destructive hover:underline text-left"
-              @click="cardArtUrl = ''"
-            >
-              Remove card art
-            </button>
           </div>
 
           <div class="grid grid-cols-2 gap-3">
@@ -517,8 +441,8 @@
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, reactive, computed } from "vue";
-import { ImagePlus } from "lucide-vue-next";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import ImageUpload from "@/components/common/ImageUpload.vue";
 import {
   useCreatePartyMember,
   useUpdatePartyMember,
@@ -528,7 +452,6 @@ import {
   useCampaignMembers,
   useUpdateCampaignMember,
 } from "@/composables/useCampaignMembers";
-import { useImageUpload } from "@/composables/useImageUpload";
 import { SKILLS } from "@/types/party.types";
 import type {
   PartyMember,
@@ -570,31 +493,9 @@ const emit = defineEmits<{ close: [] }>();
 
 const activeTab = ref<"identity" | "stats" | "profs">("identity");
 
-// Portrait upload
+// Portrait + card art
 const portraitUrl = ref(props.member?.portrait_url ?? "");
-const portraitFileInput = ref<HTMLInputElement | null>(null);
-const { isUploading: isUploadingPortrait, upload: uploadPortrait } =
-  useImageUpload("asset-images");
-async function onPortraitSelected(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (!file) return;
-  const url = await uploadPortrait(file);
-  if (url) portraitUrl.value = url;
-  if (portraitFileInput.value) portraitFileInput.value.value = "";
-}
-
-// Card art upload
 const cardArtUrl = ref(props.member?.card_art_url ?? "");
-const cardArtFileInput = ref<HTMLInputElement | null>(null);
-const { isUploading: isUploadingCardArt, upload: uploadCardArt } =
-  useImageUpload("asset-images");
-async function onCardArtSelected(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (!file) return;
-  const url = await uploadCardArt(file);
-  if (url) cardArtUrl.value = url;
-  if (cardArtFileInput.value) cardArtFileInput.value.value = "";
-}
 
 const f = reactive<
   Omit<PartyMemberInsert, "sort_order" | "portrait_url" | "card_art_url"> & {

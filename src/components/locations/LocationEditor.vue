@@ -46,37 +46,15 @@
     <!-- Sigil + identity fields -->
     <div class="flex gap-5">
       <!-- Sigil -->
-      <div class="shrink-0 flex flex-col gap-1.5">
-        <div
-          class="w-48 h-48 rounded-lg border border-border bg-muted overflow-hidden cursor-pointer hover:border-primary/50 transition-colors relative group"
-          @click="triggerImageUpload"
-        >
-          <FocalImage
-            v-if="imageUrl"
-            :src="imageUrl"
-            :alt="name"
-            format="portrait"
-            :focal-point="null"
-            class="w-full h-full object-cover"
-          />
-          <div v-else class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground/20">
-            <ImageIcon class="h-10 w-10" />
-            <span class="font-cinzel text-[10px] tracking-wider">Sigil / Emblem</span>
-          </div>
-          <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-            <ImageIcon class="h-6 w-6 text-white" />
-          </div>
-        </div>
-        <button
-          v-if="imageUrl"
-          type="button"
-          class="font-cinzel text-[10px] text-muted-foreground/50 hover:text-destructive tracking-wider transition-colors text-center w-48"
-          @click="imageUrl = null"
-        >
-          Remove
-        </button>
+      <div class="shrink-0 w-48">
+        <ImageUpload
+          :model-value="imageUrl"
+          aspect="square"
+          placeholder="Sigil / Emblem"
+          bucket="location-images"
+          @update:model-value="imageUrl = $event"
+        />
       </div>
-      <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onImageFile" />
 
       <!-- Name, parent, tags, sub-locations, calendar pins -->
       <div class="flex-1 flex flex-col gap-3 min-w-0">
@@ -248,9 +226,8 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { Save, Trash2, ChevronRight, Image as ImageIcon, MapPin, ChevronUp, Tag, Plus } from "lucide-vue-next";
-import { useImageUpload } from "@/composables/useImageUpload";
-import FocalImage from "@/components/common/FocalImage.vue";
+import { Save, Trash2, ChevronRight, MapPin, ChevronUp, Tag, Plus } from "lucide-vue-next";
+import ImageUpload from "@/components/common/ImageUpload.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
@@ -354,19 +331,6 @@ const imageUrl     = ref<string | null>(props.location?.image_url ?? null);
 const saving       = ref(false);
 const saveError    = ref("");
 
-// ── Image upload ───────────────────────────────────────────────────────────────
-const fileInput = ref<HTMLInputElement | null>(null);
-const { upload } = useImageUpload("location-images");
-
-function triggerImageUpload() { fileInput.value?.click(); }
-
-async function onImageFile(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (!file) return;
-  const url = await upload(file);
-  if (url) imageUrl.value = url;
-  if (fileInput.value) fileInput.value.value = "";
-}
 
 // ── Description ────────────────────────────────────────────────────────────────
 const description = ref<string>(props.location?.description ?? "");

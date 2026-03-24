@@ -114,7 +114,7 @@
                 >
               </div>
               <!-- Claim buttons (only if unclaimed and not the sender) -->
-              <div v-else class="flex gap-1.5 mt-2">
+              <div v-else class="flex flex-wrap gap-1.5 mt-2">
                 <button
                   type="button"
                   class="px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/40 font-cinzel text-[10px] text-amber-400 hover:bg-amber-500/30 transition-colors tracking-wider"
@@ -133,6 +133,14 @@
                 >
                   To Stash
                 </button>
+                <select
+                  v-if="auth.isDM && props.npcs.length > 0"
+                  class="px-2 py-1 rounded border border-border bg-card font-cinzel text-[10px] text-muted-foreground hover:border-primary/40 focus:outline-none focus:ring-1 focus:ring-ring transition-colors cursor-pointer"
+                  @change="onClaimToNpc(msg.id, $event)"
+                >
+                  <option value="">To NPC…</option>
+                  <option v-for="npc in props.npcs" :key="npc.id" :value="npc.id">{{ npc.name }}</option>
+                </select>
               </div>
               <p class="font-fell text-[10px] text-muted-foreground/50 mt-1.5">
                 {{ timeLabel(msg.created_at) }}
@@ -534,6 +542,7 @@ const props = defineProps<{
   myUserId: string;
   members: CampaignMember[] | undefined;
   party: PartyMember[] | undefined;
+  npcs: { id: string; name: string }[];
 }>();
 
 const emit = defineEmits<{
@@ -544,7 +553,18 @@ const emit = defineEmits<{
   "delete-all": [];
   claim: [payload: { messageId: string; intoStash: boolean }];
   "claim-currency": [payload: { messageId: string }];
+  "claim-to-npc": [payload: { messageId: string; npcId: string; npcName: string }];
 }>();
+
+function onClaimToNpc(messageId: string, e: Event) {
+  const sel = e.target as HTMLSelectElement;
+  const npcId = sel.value;
+  if (!npcId) return;
+  const npc = props.npcs.find((n) => n.id === npcId);
+  if (!npc) return;
+  emit("claim-to-npc", { messageId, npcId, npcName: npc.name });
+  sel.value = "";
+}
 
 const auth = useAuthStore();
 

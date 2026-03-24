@@ -48,34 +48,16 @@
         </div>
         <div class="p-4 flex gap-4">
           <!-- Image -->
-          <div class="shrink-0">
-            <div
-              class="w-28 h-28 rounded-lg border border-border bg-muted overflow-hidden cursor-pointer hover:border-primary/50 transition-colors relative group"
-              @click="triggerImageUpload"
-            >
-              <FocalImage
-                v-if="form.image_url"
-                :src="form.image_url"
-                :alt="form.name"
-                format="portrait"
-                :focal-point="form.image_focal_point"
-              />
-              <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/20">
-                <CrosshairIcon class="h-8 w-8" />
-              </div>
-              <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <ImageIcon class="h-5 w-5 text-white" />
-              </div>
-            </div>
-            <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onImageFile" />
-            <button
-              v-if="form.image_url"
-              type="button"
-              class="mt-1 w-28 font-cinzel text-[10px] text-muted-foreground/50 hover:text-destructive tracking-wider transition-colors text-center"
-              @click="form.image_url = null; form.image_focal_point = null"
-            >
-              Remove
-            </button>
+          <div class="shrink-0 w-28">
+            <ImageUpload
+              :model-value="form.image_url"
+              :focal-point="form.image_focal_point"
+              aspect="square"
+              show-focal-point
+              bucket="trap-images"
+              @update:model-value="form.image_url = $event"
+              @update:focal-point="form.image_focal_point = $event"
+            />
           </div>
 
           <!-- Fields -->
@@ -223,11 +205,10 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { RouterLink, useRoute, useRouter } from "vue-router";
-import { ChevronLeft, Crosshair as CrosshairIcon, Image as ImageIcon } from "lucide-vue-next";
+import { ChevronLeft } from "lucide-vue-next";
 import {
   useTrap, useCreateTrap, useUpdateTrap, useDeleteTrap,
 } from "@/composables/useTraps";
-import { useImageUpload } from "@/composables/useImageUpload";
 import { useConfirm } from "@/composables/useConfirm";
 import {
   TRAP_TYPES, TRAP_TRIGGERS, TRAP_RESET_TYPES, TRAP_SAVE_TYPES, CR_LIST,
@@ -235,7 +216,7 @@ import {
 import { DAMAGE_TYPES } from "@/types/damage.types";
 import { CR_XP } from "@/types/encounter.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
+import ImageUpload from "@/components/common/ImageUpload.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import DiceExprInput from "@/components/common/DiceExprInput.vue";
@@ -302,20 +283,6 @@ watch(trap, (t) => {
 }, { immediate: true });
 
 const crXp = computed(() => form.value.cr ? CR_XP[form.value.cr] : null);
-
-// Image upload
-const fileInput = ref<HTMLInputElement | null>(null);
-const { upload } = useImageUpload("trap-images");
-
-function triggerImageUpload() { fileInput.value?.click(); }
-
-async function onImageFile(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (!file) return;
-  const url = await upload(file);
-  if (url) form.value.image_url = url;
-  if (fileInput.value) fileInput.value.value = "";
-}
 
 async function save() {
   if (!form.value.name.trim()) return;

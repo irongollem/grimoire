@@ -12,6 +12,7 @@
 import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { useMonster, getSrdMonster } from "@/composables/useMonsters";
+import { useSrdMonsterArt } from "@/composables/useSrdMonsterArt";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import MonsterDetail from "@/components/monsters/MonsterDetail.vue";
@@ -21,7 +22,16 @@ const isNew = computed(() => route.name === "monster-new");
 const id = computed(() => (isNew.value ? "" : (route.params.id as string)));
 const isSrdId = computed(() => id.value.startsWith("srd_"));
 
-const srdMonster = computed(() => (isSrdId.value ? (getSrdMonster(id.value) ?? null) : null));
+const { data: artMap } = useSrdMonsterArt();
+const srdMonster = computed(() => {
+  if (!isSrdId.value) return null;
+  const m = getSrdMonster(id.value);
+  if (!m) return null;
+  const art = artMap.value?.[id.value];
+  return art
+    ? { ...m, image_url: art.image_url, card_art_url: art.card_art_url, portrait_focal_point: art.portrait_focal_point, card_art_focal_point: art.card_art_focal_point }
+    : m;
+});
 const { data: dbMonster, isLoading: dbLoading } = useMonster(
   isSrdId.value ? "" : id.value,
 );

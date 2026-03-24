@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { computed } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { SRD_MONSTERS, getSrdMonster } from "@/data/srdMonsters";
+import { useSrdMonsterArt } from "@/composables/useSrdMonsterArt";
 import type { Monster, MonsterInsert, MonsterUpdate } from "@/types/monster.types";
 
 export { getSrdMonster };
@@ -63,12 +64,21 @@ export function useMonsters() {
   return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchMonsters, staleTime: Infinity });
 }
 
-/** Returns SRD monsters merged with the user's custom monsters, sorted by name. */
+/** Returns SRD monsters merged with the user's custom monsters, sorted by name.
+ *  SRD monsters are overlaid with any custom art the user has uploaded. */
 export function useAllMonsters() {
   const query = useMonsters();
+  const { data: artMap } = useSrdMonsterArt();
   const data = computed<Monster[]>(() => {
     const custom = query.data.value ?? [];
-    return [...SRD_MONSTERS, ...custom].sort((a, b) => a.name.localeCompare(b.name));
+    const art = artMap.value ?? {};
+    const srd = SRD_MONSTERS.map((m) => {
+      const a = art[m.id];
+      return a
+        ? { ...m, image_url: a.image_url, card_art_url: a.card_art_url, portrait_focal_point: a.portrait_focal_point, card_art_focal_point: a.card_art_focal_point }
+        : m;
+    });
+    return [...srd, ...custom].sort((a, b) => a.name.localeCompare(b.name));
   });
   return { data, isLoading: query.isLoading };
 }

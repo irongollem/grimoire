@@ -32,5 +32,16 @@ export function useImageUpload(bucket: string) {
     }
   }
 
-  return { isUploading, upload };
+  /** Delete a file from the bucket given its public URL. Silently no-ops on bad URLs. */
+  async function remove(publicUrl: string): Promise<void> {
+    if (!publicUrl) return;
+    // Extract path after /public/{bucket}/
+    const marker = `/object/public/${bucket}/`;
+    const idx = publicUrl.indexOf(marker);
+    if (idx === -1) return;
+    const path = publicUrl.slice(idx + marker.length);
+    await supabase.storage.from(bucket).remove([decodeURIComponent(path)]);
+  }
+
+  return { isUploading, upload, remove };
 }

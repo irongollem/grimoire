@@ -91,6 +91,7 @@
 - [x] Manual focal point override — `FocalPointPicker` component; click-to-set stored per entity in DB (`portrait_focal_point` on NPCs, monsters, companions)
 - [x] Companion portraits — upload, focal point, auto-fill from linked monster/NPC source; token avatar in DM companion card
 - [x] Standardised image displays — NpcList, MonsterList, CardForge (all 8 card types), PartyTracker, TokenForge, and player portal all use FocalImage with the correct format
+- [x] Shared `ImageUpload` component — unified dashed drop zone, drag-and-drop, optional focal point picker, bucket cleanup on replace/remove; used across all 8 upload locations (NPCs, monsters, items, spells, party members, locations, traps); `card_art_focal_point` added to monsters table + SRD art overlay
 
 ### Printing & Export
 

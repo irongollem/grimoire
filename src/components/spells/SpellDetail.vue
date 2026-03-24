@@ -348,28 +348,10 @@
     <div class="grid grid-cols-1 xl:grid-cols-[220px_1fr_260px] gap-6">
       <!-- ── Portrait + Source ─────────────────────────────────────────── -->
       <div class="flex flex-col gap-4">
-        <div
-          class="relative aspect-3/4 rounded-lg border border-border overflow-hidden bg-muted cursor-pointer group"
-          @click="artFileInput?.click()"
-        >
-          <img v-if="imageUrl" :src="imageUrl" alt="Spell art" class="w-full h-full object-cover" />
-          <div v-else class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground">
-            <ImagePlus class="h-10 w-10" />
-            <span class="font-fell text-sm italic">{{ isUploadingArt ? 'Uploading…' : 'Upload art' }}</span>
-          </div>
-          <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-            <span class="font-fell text-white text-sm italic">{{ imageUrl ? 'Change' : 'Upload' }}</span>
-          </div>
-        </div>
-        <input ref="artFileInput" type="file" accept="image/*" class="hidden" @change="onArtSelected" />
-        <button
-          v-if="imageUrl"
-          type="button"
-          class="font-cinzel text-[10px] text-destructive hover:underline text-left"
-          @click.stop="imageUrl = ''"
-        >
-          Remove art
-        </button>
+        <ImageUpload
+          :model-value="imageUrl || null"
+          @update:model-value="imageUrl = $event ?? ''"
+        />
         <label class="flex flex-col gap-1">
           <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Source</span>
           <input
@@ -1037,8 +1019,8 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, reactive, watch } from "vue";
 import { useRouter } from "vue-router";
-import { Save, Trash2, ScrollText, Lightbulb, ChevronDown, ImagePlus } from "lucide-vue-next";
-import { useImageUpload } from "@/composables/useImageUpload";
+import { Save, Trash2, ScrollText, Lightbulb, ChevronDown } from "lucide-vue-next";
+import ImageUpload from "@/components/common/ImageUpload.vue";
 import DiceInput from "@/components/common/DiceInput.vue";
 import DamageRollsInput from "@/components/common/DamageRollsInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
@@ -1259,17 +1241,6 @@ watch(advisorOpen, (open) => {
   }
 });
 
-// ── Art upload ────────────────────────────────────────────────────────────────
-const artFileInput = ref<HTMLInputElement | null>(null);
-const { isUploading: isUploadingArt, upload: uploadArt } = useImageUpload("asset-images");
-
-async function onArtSelected(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (!file) return;
-  const url = await uploadArt(file);
-  if (url) imageUrl.value = url;
-  if (artFileInput.value) artFileInput.value.value = "";
-}
 
 // ── Save / Delete ─────────────────────────────────────────────────────────────
 const { mutateAsync: create } = useCreateSpell();
