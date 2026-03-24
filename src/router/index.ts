@@ -101,6 +101,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Reliquary" },
     },
     {
+      path: "/play/atlas",
+      name: "play-atlas",
+      component: () => import("@/views/play/PlayerLocationsView.vue"),
+      meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Atlas" },
+    },
+    {
       path: "/play/settings",
       name: "play-settings",
       component: () => import("@/views/play/PlayerSettingsView.vue"),

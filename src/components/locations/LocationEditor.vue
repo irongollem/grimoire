@@ -170,6 +170,50 @@
       />
     </div>
 
+    <!-- Map section -->
+    <div class="flex flex-col gap-2">
+      <div class="flex items-center justify-between">
+        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Map</span>
+        <label
+          v-if="mapUrl && !isNew"
+          class="inline-flex items-center gap-2 cursor-pointer"
+          title="Share map with players"
+        >
+          <span class="font-cinzel text-xs text-muted-foreground tracking-wider">Share with players</span>
+          <button
+            type="button"
+            class="relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors focus:outline-none"
+            :class="isMapShared ? 'bg-primary' : 'bg-muted-foreground/30'"
+            @click="isMapShared = !isMapShared"
+          >
+            <span
+              class="inline-block h-3 w-3 rounded-full bg-white shadow transition-transform"
+              :class="isMapShared ? 'translate-x-3.5' : 'translate-x-0.5'"
+            />
+          </button>
+        </label>
+      </div>
+
+      <ImageUpload
+        :model-value="mapUrl"
+        aspect="landscape"
+        placeholder="Upload a map…"
+        bucket="location-images"
+        @update:model-value="mapUrl = $event"
+      />
+
+      <LocationMap
+        v-if="mapUrl && !isNew && children"
+        :map-url="mapUrl"
+        :pins="mapPins"
+        :children="(children as Location[])"
+        mode="edit"
+        :show-hidden-pins="true"
+        @update:pins="mapPins = $event"
+        @pin-click="router.push(`/locations/${$event}`)"
+      />
+    </div>
+
     <!-- NPCs at this location -->
     <template v-if="!isNew && locationNpcs?.length">
       <div class="flex items-center justify-between mt-2">
@@ -231,6 +275,7 @@ import ImageUpload from "@/components/common/ImageUpload.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import LocationMap from "@/components/locations/LocationMap.vue";
 import { useNpcsByLocation } from "@/composables/useNpcs";
 import { useEncountersByLocation } from "@/composables/useEncounters";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
@@ -242,7 +287,7 @@ import {
   useDeleteLocation,
 } from "@/composables/useLocations";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
-import type { Location, LocationType } from "@/types/location.types";
+import type { Location, LocationType, MapPin as MapPinType } from "@/types/location.types";
 
 const props = defineProps<{
   location: Location | null;
@@ -335,6 +380,11 @@ const saveError    = ref("");
 // ── Description ────────────────────────────────────────────────────────────────
 const description = ref<string>(props.location?.description ?? "");
 
+// ── Map ────────────────────────────────────────────────────────────────────────
+const mapUrl      = ref<string | null>(props.location?.map_url ?? null);
+const mapPins     = ref<MapPinType[]>(props.location?.map_pins ? [...props.location.map_pins] : []);
+const isMapShared = ref<boolean>(props.location?.is_map_shared ?? false);
+
 // ── CRUD ───────────────────────────────────────────────────────────────────────
 const { mutateAsync: create } = useCreateLocation();
 const { mutateAsync: update } = useUpdateLocation();
@@ -349,6 +399,9 @@ function buildPayload() {
     tags:          tags.value,
     parent_id:     selectedParentId.value,
     image_url:     imageUrl.value,
+    map_url:       mapUrl.value,
+    map_pins:      mapPins.value,
+    is_map_shared: isMapShared.value,
   };
 }
 

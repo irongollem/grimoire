@@ -182,6 +182,27 @@ export function useUpdateLocation() {
   });
 }
 
+/** Locations with is_map_shared=true visible to campaign members (players). */
+export function useSharedLocations() {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, campaignId.value, "shared-maps"]),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("locations")
+        .select("*")
+        .eq("campaign_id", campaignId.value!)
+        .eq("is_map_shared", true)
+        .not("map_url", "is", null)
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return data as Location[];
+    },
+    enabled: () => !!campaignId.value,
+  });
+}
+
 export function useDeleteLocation() {
   const queryClient = useQueryClient();
   return useMutation({

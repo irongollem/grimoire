@@ -80,11 +80,10 @@
     </p>
 
     <!-- Two-column body: portrait sidebar + stat block content -->
-    <!-- fieldset[disabled] makes all inputs read-only for SRD monsters -->
-    <fieldset :disabled="isSrd" class="contents">
-      <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
-        <!-- Left: Portrait + Tags -->
-        <div class="space-y-4">
+    <!-- Left col is NOT in fieldset — ImageUploads must remain interactive for SRD art -->
+    <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
+      <!-- Left: Portrait + Tags -->
+      <div class="space-y-4">
           <!-- Portrait -->
           <ImageUpload
             :model-value="form.image_url || null"
@@ -120,9 +119,10 @@
               >{{ tag }}</span>
             </div>
           </div>
-        </div>
+      </div>
 
-        <!-- Right: Identity + stat block -->
+      <!-- Right: Identity + stat block — fieldset[disabled] makes inputs read-only for SRD -->
+      <fieldset :disabled="isSrd" class="contents">
         <div class="flex flex-col gap-5">
           <!-- Identity grid -->
           <section class="grid grid-cols-2 lg:grid-cols-3 gap-3">
@@ -380,8 +380,8 @@
             />
           </section>
         </div>
-      </div>
-    </fieldset>
+      </fieldset>
+    </div>
 
   </div>
 </template>

@@ -166,8 +166,9 @@
 - [ ] **Time-bound locations** — add optional `era_start` / `era_end` year fields; grey-out or hide locations not in current campaign year
 - [ ] **Who's here?** - dynamic "Who's Here?" section on location pages showing NPCs/monsters currently at that location (based on `current_location_id` in their DB record, updated via RPC when DM moves them), should include child locations visitors (e.g. if NPC is in Easthaven, also show them in the Icewind Dale page)
 - [ ] **Location relationships** — add `related_location_ids` array field; show linked locations in a "Related Locations" section with breadcrumbs (e.g. Waterdeep → Castle Waterdeep → Undermountain) (now only the direct parent child path is shown)
-- [ ] **Map upload & pinning** — upload a map image for the location; add pins with coordinates + description; pins show on the page and in the Scriptorium formatter.
-- [ ] **share locations with players** — similar to shared NPCs: DM marks location as shared, player notes + visibility toggles, appears in player portal. Each map pin also has a share toggle to show/hide it from players (e.g. DM can share the city map but keep the Undermountain map hidden until they want to reveal it)
+- [x] **Map upload & pinning** — upload a map image per location; interactive `LocationMap` component with drag-to-place child pins, per-pin player visibility toggle, hover labels, single-click navigation; `is_map_shared` toggle shares the map with players; pin positions stored as % in `map_pins` JSONB (child name/type denormalised for player reads)
+- [x] **Player Atlas** — `/play/atlas` lists DM-shared maps; expandable cards show `LocationMap` in view mode (player-visible pins only); clicking a pin auto-expands that child's map if it's also shared
+- [ ] **share locations with players** — full location sharing (description, notes, NPC links) beyond just the map
 
 ### Rules reliquary
 

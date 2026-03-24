@@ -48,6 +48,19 @@ export const LOCATION_TYPE_COLORS: Record<LocationType, string> = {
   other:      "#6b7280",
 };
 
+/** A pin placed on a location's map, pointing to one of its direct children. */
+export interface MapPin {
+  child_location_id: string;
+  /** Denormalised name so players can read it without a separate location query. */
+  child_name: string;
+  child_type: LocationType;
+  /** Fraction of map width (0–1). */
+  x: number;
+  /** Fraction of map height (0–1). */
+  y: number;
+  visible_to_players: boolean;
+}
+
 export interface Location {
   id: string;
   user_id: string;
@@ -59,6 +72,9 @@ export interface Location {
   notes: string | null;
   tags: string[];
   image_url: string | null;
+  map_url: string | null;
+  map_pins: MapPin[];
+  is_map_shared: boolean;
   created_at: string;
   updated_at: string;
 }
