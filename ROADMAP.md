@@ -141,6 +141,8 @@
 - [x] **Monstrous NPCs** — `linked_monster_id` FK on NPCs; dropdown to link to existing monster; "Promote to Monster" button creates a Bestiary entry from NPC data and links back
 - [x] **NPC relationship data** — `npc_relationships` table; NPC editor "Relationships" section with add/remove; type badges (Family, Ally, Rival, Enemy, Mentor, etc.); bidirectional display
 - [x] **Faction member status** — Active / Retired / Defected / Expelled / Deceased per membership; former members shown in collapsible "Former Members" section; status badge on NPC faction chips
+- [x] **NPC inventory** — `npc_inventory` table; per-NPC item management with quantity; "Drop to Chat" sends items as loot; DM can claim chat loot directly into an NPC's inventory via "To NPC" picker
+- [x] **SRD monster art upload** — `srd_monster_art` table stores per-user art overlays (portrait + card art) keyed by stable `srd_id`; merged into in-memory SRD monsters at query time; long-cached (30 min stale); no duplicate bestiary entries
 - [ ] **NPC relationship map** — visual graph of NPC relationships (family, allies, enemies) with hover details; data already stored in `npc_relationships` table
 
 ### Items & Magic Items
@@ -307,6 +309,3 @@ Keep the core DM tooling free forever (open source). Gate AI features, advanced 
 ## Ideas & Distant Future
 
 - [x] **Open5e spells API** — "Import SRD Spells" button in Spellbook populates from open5e.com, deduplicates on re-run
-- [ ] **Open5e items API** — items already done; bundle spells/items offline (no runtime API dependency, scrape/bundle only)
-- [ ] **Custom calendars** — expand adapter pattern for additional campaign settings beyond Faerûn
-- [ ] **SRD imagery** if I (admin) add an image to an SRD monster/NPC/item/spell, make it available to all campaigns as a default option in the image picker, heck wouldnt it be a better idea to have the SRD content in a separate "SRD" section of the DB thats readonly to all players and DM's. That way everyone doesnt need to "import" SRD but can just "enable SRD content" in their campaign settings and have it available everywhere by default
