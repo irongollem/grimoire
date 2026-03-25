@@ -33,6 +33,7 @@
 ### Game Entities
 
 - [x] NPC tracker with full stat blocks, portrait upload, TraitSection editor
+- [x] NPC detail reorganized: Lore/Inventory/Combat tabs, monster link + template unified on Combat tab, player sharing moved to action bar foldout, NPC Connections below Identity, Party Stance renamed from Relationship; Class/Role field removed (use Occupation); DM Secret merged into DM Notes; old affiliation column dropped
 - [x] Bestiary — monster builder with 12 SRD template presets + full SRD bundle
 - [x] Item Vault — full CRUD with 15 item types, 7 rarities, weapon damage dice, charges, attunement, image upload, card printing
 - [x] Spellbook — full CRUD with school/level/class filters, Spell Level Advisor, attack mechanics, AOE, conditions, card printing
@@ -113,6 +114,7 @@
 - [x] **NPC sharing**: DM marks NPC as shared; per-field visibility controls (portrait / name / status / race / occupation / relationship); party notes (shared) + personal player notes (private) on shared NPCs
 - [x] **Companion player portal**: Companions shown alongside party members in player portal; party notes (shared via RPC) + personal notes (private) per companion
 - [x] **Unified player notes**: `PlayerNotesWidget` component backed by `entity_notes` table — consistent one-note-per-player + shared party notes UX across all player portal views (NPCs, quests, factions, companions)
+- [x] **Migrate `npcs.party_notes`** — legacy per-column party notes migrated into `entity_notes`; column dropped; DM editor "Party Notes" field removed; all campaign members can see each other's shared notes via symmetric RLS policy
 
 ---
 
@@ -164,10 +166,13 @@
 - [x] **Player NPC relevance rating (1–5)** — players rate NPCs 1–5 for personal relevance (stored in localStorage per device); rating pips on player portal card grid and detail lightbox; portal sorts by rating desc (unrated last), with search and relationship filter
 - [ ] **Planar locations populate** — second "Populate Planes" button or opt-in checkbox in main populate (21 entries: inner/outer/transitive planes, Sigil)
 - [ ] **Time-bound locations** — add optional `era_start` / `era_end` year fields; grey-out or hide locations not in current campaign year
-- [ ] **Who's here?** - dynamic "Who's Here?" section on location pages showing NPCs/monsters currently at that location (based on `current_location_id` in their DB record, updated via RPC when DM moves them), should include child locations visitors (e.g. if NPC is in Easthaven, also show them in the Icewind Dale page)
-- [ ] **Location relationships** — add `related_location_ids` array field; show linked locations in a "Related Locations" section with breadcrumbs (e.g. Waterdeep → Castle Waterdeep → Undermountain) (now only the direct parent child path is shown)
+- [x] **People in the Area** — "People in the Area" section on location pages shows NPCs assigned to this location or any descendant; sublocation badge shows which child the NPC belongs to; count reflects full tree depth
+- [x] **Full ancestor breadcrumb** — location editor breadcrumb walks the entire parent chain (root → … → parent → current), all segments clickable; depth capped at 10 to prevent cycles
+- [ ] **Location relationships** — add `related_location_ids` array field; show linked locations in a "Related Locations" section (distinct from the ancestor trail)
 - [x] **Map upload & pinning** — upload a map image per location; interactive `LocationMap` component with drag-to-place child pins, per-pin player visibility toggle, hover labels, single-click navigation; `is_map_shared` toggle shares the map with players; pin positions stored as % in `map_pins` JSONB (child name/type denormalised for player reads)
 - [x] **Player Atlas** — `/play/atlas` lists DM-shared maps; expandable cards show `LocationMap` in view mode (player-visible pins only); clicking a pin auto-expands that child's map if it's also shared
+- [x] **Player location notes** — each Atlas card has a `PlayerNotesWidget` (private / shared party notes) using the generic `entity_notes` table with `entity_type="location"`
+- [x] **Player notes UX overhaul** — `PlayerNotesWidget` now shows two independent boxes: "My Private Notes" (is_private=true, only author sees) and "My Party Notes" (is_private=false, full party sees); "From the Party" section shows all other members' shared notes; RLS updated so players can see each other's non-private notes (previously only DM↔player was symmetric)
 - [ ] **share locations with players** — full location sharing (description, notes, NPC links) beyond just the map
 
 ### Rules reliquary

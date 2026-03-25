@@ -346,7 +346,7 @@ const filteredList = computed((): ListItem[] => {
       .map((n: Npc) => ({
         id: n.id,
         name: n.name,
-        sub: [n.race, n.class, n.occupation].filter(Boolean).join(" · "),
+        sub: [n.race, n.occupation].filter(Boolean).join(" · "),
       }));
   }
   if (source.value === "monsters") {

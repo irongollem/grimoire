@@ -1,61 +1,89 @@
 <template>
   <div class="space-y-3">
-    <!-- My note -->
+    <!-- Private note -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">My Note</span>
-        <button
-          type="button"
-          :title="isPrivate ? 'Private — only you can see this' : 'Shared — visible to everyone in the campaign'"
-          class="inline-flex items-center gap-1.5 font-cinzel text-[10px] font-semibold tracking-wider transition-colors px-2 py-0.5 rounded border"
-          :class="isPrivate
-            ? 'text-muted-foreground border-border hover:border-foreground/30'
-            : 'text-elven-green border-elven-green/30 bg-elven-green/10'"
-          @click="isPrivate = !isPrivate"
-        >
-          <Lock v-if="isPrivate" class="h-3 w-3" />
-          <Globe v-else class="h-3 w-3" />
-          {{ isPrivate ? 'Private' : 'Shared' }}
-        </button>
+      <div class="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/20">
+        <Lock class="h-3 w-3 text-muted-foreground shrink-0" />
+        <div>
+          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">My Private Notes</span>
+          <span class="font-fell text-[10px] text-muted-foreground/50 italic ml-2">Only you can see this</span>
+        </div>
       </div>
       <div class="p-3 space-y-2">
-        <RichTextEditor v-model="content" :placeholder="placeholder" min-height="100px" />
+        <RichTextEditor v-model="privateContent" :placeholder="placeholder" min-height="80px" />
         <div class="flex items-center justify-between">
-          <span class="font-cinzel text-[10px] tracking-wider" :class="saved ? 'text-muted-foreground/50' : 'text-muted-foreground/40'">
-            {{ saved ? 'Saved' : 'Unsaved changes' }}
+          <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground/40">
+            {{ privateSaved ? '' : 'Unsaved changes' }}
           </span>
           <div class="flex items-center gap-2">
             <button
-              v-if="myNote"
+              v-if="myPrivateNote"
               type="button"
               class="font-cinzel text-[10px] text-muted-foreground/50 hover:text-destructive tracking-wider transition-colors"
-              @click="clearNote"
+              @click="clearPrivate"
             >
               Clear
             </button>
             <button
               type="button"
-              :disabled="saving || saved"
+              :disabled="privateSaving || privateSaved"
               class="font-cinzel text-[10px] text-primary hover:opacity-80 tracking-wider transition-opacity disabled:opacity-40"
-              @click="save"
+              @click="savePrivate"
             >
-              {{ saving ? 'Saving…' : 'Save' }}
+              {{ privateSaving ? 'Saving…' : 'Save' }}
             </button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Others' shared notes -->
-    <div v-if="partyNotes.length" class="rounded-lg border border-border bg-card overflow-hidden">
+    <!-- Shared / party note -->
+    <div class="rounded-lg border border-border bg-card overflow-hidden">
+      <div class="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/20">
+        <Globe class="h-3 w-3 text-elven-green shrink-0" />
+        <div>
+          <span class="font-cinzel text-xs font-semibold tracking-wider" style="color: var(--color-elven-green)">My Party Notes</span>
+          <span class="font-fell text-[10px] text-muted-foreground/50 italic ml-2">Visible to everyone in the campaign</span>
+        </div>
+      </div>
+      <div class="p-3 space-y-2">
+        <RichTextEditor v-model="sharedContent" :placeholder="placeholder" min-height="80px" />
+        <div class="flex items-center justify-between">
+          <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground/40">
+            {{ sharedSaved ? '' : 'Unsaved changes' }}
+          </span>
+          <div class="flex items-center gap-2">
+            <button
+              v-if="mySharedNote"
+              type="button"
+              class="font-cinzel text-[10px] text-muted-foreground/50 hover:text-destructive tracking-wider transition-colors"
+              @click="clearShared"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              :disabled="sharedSaving || sharedSaved"
+              class="font-cinzel text-[10px] text-primary hover:opacity-80 tracking-wider transition-opacity disabled:opacity-40"
+              @click="saveShared"
+            >
+              {{ sharedSaving ? 'Saving…' : 'Save' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Other party members' shared notes -->
+    <div v-if="othersNotes.length" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-3 py-2 border-b border-border bg-muted/20">
         <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
-          Party Notes
-          <span class="font-fell font-normal text-muted-foreground/60"> · {{ partyNotes.length }}</span>
+          From the Party
+          <span class="font-fell font-normal text-muted-foreground/60"> · {{ othersNotes.length }}</span>
         </span>
       </div>
       <div class="divide-y divide-border">
-        <div v-for="note in partyNotes" :key="note.id" class="px-3 py-2.5">
+        <div v-for="note in othersNotes" :key="note.id" class="px-3 py-2.5">
           <RichTextViewer :content="note.content" />
           <p class="font-cinzel text-[10px] text-muted-foreground/40 tracking-wider mt-1">
             {{ note.updated_at?.slice(0, 10) }}
@@ -95,33 +123,35 @@ const createMut = useCreateEntityNote();
 const updateMut = useUpdateEntityNote();
 const deleteMut = useDeleteEntityNote();
 
-const myNote = computed(() => notes.value?.find((n) => n.user_id === myUserId.value) ?? null);
-const partyNotes = computed(() => (notes.value ?? []).filter((n) => n.user_id !== myUserId.value && !n.is_private));
+// Split notes into my-private, my-shared, others'-shared
+const myPrivateNote = computed(() =>
+  notes.value?.find((n) => n.user_id === myUserId.value && n.is_private) ?? null,
+);
+const mySharedNote = computed(() =>
+  notes.value?.find((n) => n.user_id === myUserId.value && !n.is_private) ?? null,
+);
+const othersNotes = computed(() =>
+  (notes.value ?? []).filter((n) => n.user_id !== myUserId.value && !n.is_private),
+);
 
-const content   = ref<string | null>(null);
-const isPrivate = ref(true);
-const saving    = ref(false);
-const saved     = ref(true);
+// ── Private note state ─────────────────────────────────────────────────────────
+const privateContent = ref<string | null>(null);
+const privateSaving  = ref(false);
+const privateSaved   = ref(true);
 
-// Initialise form from loaded note
-watch(myNote, (note) => {
-  if (note) {
-    content.value   = note.content;
-    isPrivate.value = note.is_private;
-  }
+watch(myPrivateNote, (note) => {
+  if (note) privateContent.value = note.content;
 }, { immediate: true });
+watch(privateContent, () => { privateSaved.value = false; });
 
-// Mark unsaved when content or privacy changes
-watch([content, isPrivate], () => { saved.value = false; });
-
-async function save() {
-  saving.value = true;
+async function savePrivate() {
+  privateSaving.value = true;
   try {
-    if (myNote.value) {
+    if (myPrivateNote.value) {
       await updateMut.mutateAsync({
-        id: myNote.value.id,
-        content: content.value ?? "",
-        is_private: isPrivate.value,
+        id: myPrivateNote.value.id,
+        content: privateContent.value ?? "",
+        is_private: true,
         entity_type: props.entityType,
         entity_id: props.entityId,
       });
@@ -129,25 +159,70 @@ async function save() {
       await createMut.mutateAsync({
         entity_type: props.entityType,
         entity_id: props.entityId,
-        content: content.value ?? "",
-        is_private: isPrivate.value,
+        content: privateContent.value ?? "",
+        is_private: true,
       });
     }
-    saved.value = true;
+    privateSaved.value = true;
   } finally {
-    saving.value = false;
+    privateSaving.value = false;
   }
 }
 
-async function clearNote() {
-  if (!myNote.value) return;
+async function clearPrivate() {
+  if (!myPrivateNote.value) return;
   await deleteMut.mutateAsync({
-    id: myNote.value.id,
+    id: myPrivateNote.value.id,
     entity_type: props.entityType,
     entity_id: props.entityId,
   });
-  content.value   = null;
-  isPrivate.value = true;
-  saved.value     = true;
+  privateContent.value = null;
+  privateSaved.value   = true;
+}
+
+// ── Shared note state ──────────────────────────────────────────────────────────
+const sharedContent = ref<string | null>(null);
+const sharedSaving  = ref(false);
+const sharedSaved   = ref(true);
+
+watch(mySharedNote, (note) => {
+  if (note) sharedContent.value = note.content;
+}, { immediate: true });
+watch(sharedContent, () => { sharedSaved.value = false; });
+
+async function saveShared() {
+  sharedSaving.value = true;
+  try {
+    if (mySharedNote.value) {
+      await updateMut.mutateAsync({
+        id: mySharedNote.value.id,
+        content: sharedContent.value ?? "",
+        is_private: false,
+        entity_type: props.entityType,
+        entity_id: props.entityId,
+      });
+    } else {
+      await createMut.mutateAsync({
+        entity_type: props.entityType,
+        entity_id: props.entityId,
+        content: sharedContent.value ?? "",
+        is_private: false,
+      });
+    }
+    sharedSaved.value = true;
+  } finally {
+    sharedSaving.value = false;
+  }
+}
+
+async function clearShared() {
+  if (!mySharedNote.value) return;
+  await deleteMut.mutateAsync({
+    id: mySharedNote.value.id,
+    entity_type: props.entityType,
+    entity_id: props.entityId,
+  });
+  sharedContent.value = null;
+  sharedSaved.value   = true;
 }
 </script>

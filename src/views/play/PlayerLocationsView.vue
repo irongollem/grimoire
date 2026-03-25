@@ -40,22 +40,29 @@
           />
         </button>
 
-        <!-- Expanded: map -->
-        <div v-if="expanded.has(loc.id)" class="px-4 pb-4">
-          <LocationMap
-            :map-url="loc.map_url!"
-            :pins="playerPins(loc)"
-            :children="[]"
-            mode="view"
-            :show-hidden-pins="false"
-            @pin-click="onPinClick"
+        <!-- Expanded: map + player notes -->
+        <div v-if="expanded.has(loc.id)" class="px-4 pb-4 flex flex-col gap-4">
+          <div>
+            <LocationMap
+              :map-url="loc.map_url!"
+              :pins="playerPins(loc)"
+              :children="[]"
+              mode="view"
+              :show-hidden-pins="false"
+              @pin-click="onPinClick"
+            />
+            <p
+              v-if="!playerPins(loc).length"
+              class="text-center font-fell text-xs text-muted-foreground italic mt-2"
+            >
+              No pins placed yet.
+            </p>
+          </div>
+          <PlayerNotesWidget
+            entity-type="location"
+            :entity-id="loc.id"
+            placeholder="Notes about this place…"
           />
-          <p
-            v-if="!playerPins(loc).length"
-            class="text-center font-fell text-xs text-muted-foreground italic mt-2"
-          >
-            No pins placed yet.
-          </p>
         </div>
       </div>
     </div>
@@ -70,6 +77,7 @@ import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.typ
 import type { Location } from "@/types/location.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
+import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 
 const { data: locations, isLoading } = useSharedLocations();
 

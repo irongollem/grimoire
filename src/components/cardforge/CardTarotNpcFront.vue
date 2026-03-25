@@ -79,7 +79,7 @@ const badge = computed(() => {
   return cr != null ? `CR ${cr}` : null;
 });
 const typeLine = computed(() => {
-  const parts = [props.data.race, props.data.class, props.data.occupation].filter(Boolean).join(" · ");
+  const parts = [props.data.race, props.data.occupation].filter(Boolean).join(" · ");
   return parts || props.data.relationship;
 });
 const hp = computed(() => props.data.stat_block?.hit_points.split(" ")[0] ?? "—");

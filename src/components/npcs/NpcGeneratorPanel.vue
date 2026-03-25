@@ -69,33 +69,17 @@
             />
           </div>
 
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block font-fell text-xs text-muted-foreground mb-1"
-                >Race</label
-              >
-              <select
-                v-model="quickForm.race"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option value="">Any</option>
-                <option v-for="r in RACES" :key="r" :value="r">{{ r }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="block font-fell text-xs text-muted-foreground mb-1"
-                >Class / Role</label
-              >
-              <select
-                v-model="quickForm.class"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option value="">Any</option>
-                <option v-for="c in CLASSES" :key="c" :value="c">
-                  {{ c }}
-                </option>
-              </select>
-            </div>
+          <div>
+            <label class="block font-fell text-xs text-muted-foreground mb-1"
+              >Race</label
+            >
+            <select
+              v-model="quickForm.race"
+              class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="">Any</option>
+              <option v-for="r in RACES" :key="r" :value="r">{{ r }}</option>
+            </select>
           </div>
 
           <div class="grid grid-cols-2 gap-2">
@@ -223,22 +207,6 @@ const RACES = [
   "Goliath",
   "Triton",
 ];
-const CLASSES = [
-  "Fighter",
-  "Rogue",
-  "Wizard",
-  "Cleric",
-  "Paladin",
-  "Ranger",
-  "Barbarian",
-  "Bard",
-  "Druid",
-  "Monk",
-  "Sorcerer",
-  "Warlock",
-  "Artificer",
-  "Blood Hunter",
-];
 const ALIGNMENTS = [
   "Lawful Good",
   "Neutral Good",
@@ -296,7 +264,6 @@ const concept = ref("");
 const quickForm = reactive({
   name: "",
   race: "",
-  class: "",
   alignment: "",
   relationship: "neutral" as NpcRelationship,
   templateId: "",
@@ -317,15 +284,12 @@ async function quickCreate() {
     name,
     campaign_id: campaign.activeCampaignId,
     race: quickForm.race || null,
-    class: quickForm.class || null,
     alignment: quickForm.alignment || null,
     age: null,
     occupation: null,
-    affiliation: null,
     appearance: null,
     personality: null,
     backstory: null,
-    secret: null,
     notes: concept.value.trim() || null,
     status: "alive",
     relationship: quickForm.relationship,
@@ -336,7 +300,6 @@ async function quickCreate() {
     scriptorium_doc_id: null,
     shared_with_players: false,
     player_visible_fields: [],
-    party_notes: null,
   };
 
   const created = await createNpc(payload);

@@ -244,9 +244,9 @@
                   {{ selectedNpc.status }}
                 </span>
               </div>
-              <p v-if="selectedNpc.player_visible_fields.includes('race') && (selectedNpc.race || selectedNpc.class)"
+              <p v-if="selectedNpc.player_visible_fields.includes('race') && selectedNpc.race"
                 class="mt-1 font-fell text-sm text-muted-foreground italic">
-                {{ [selectedNpc.race, selectedNpc.class].filter(Boolean).join(' · ') }}
+                {{ selectedNpc.race }}
               </p>
               <p v-if="selectedNpc.player_visible_fields.includes('occupation') && selectedNpc.occupation"
                 class="font-fell text-sm text-muted-foreground">{{ selectedNpc.occupation }}</p>

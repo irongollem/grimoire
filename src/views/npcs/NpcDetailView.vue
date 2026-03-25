@@ -29,6 +29,6 @@ const isLoading = computed(() => !isNewNpc.value && npcLoading.value);
 
 const subtitle = computed(() => {
   if (!npc.value) return "";
-  return [npc.value.race, npc.value.class, npc.value.occupation].filter(Boolean).join(" · ");
+  return [npc.value.race, npc.value.occupation].filter(Boolean).join(" · ");
 });
 </script>

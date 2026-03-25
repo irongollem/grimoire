@@ -1,15 +1,15 @@
 <template>
   <div class="flex flex-col gap-4">
-    <!-- Breadcrumb -->
-    <div v-if="parentLocation || isNew" class="flex items-center gap-1.5 text-xs font-fell text-muted-foreground">
+    <!-- Breadcrumb: full ancestor chain -->
+    <div v-if="ancestors.length || isNew" class="flex flex-wrap items-center gap-1 text-xs font-fell text-muted-foreground">
       <RouterLink to="/locations" class="hover:text-foreground transition-colors">Locations</RouterLink>
-      <template v-if="parentLocation">
-        <span>/</span>
-        <RouterLink :to="`/locations/${parentLocation.id}`" class="hover:text-foreground transition-colors">
-          {{ parentLocation.name }}
+      <template v-for="anc in ancestors" :key="anc.id">
+        <span class="opacity-40">/</span>
+        <RouterLink :to="`/locations/${anc.id}`" class="hover:text-foreground transition-colors">
+          {{ anc.name }}
         </RouterLink>
       </template>
-      <span>/</span>
+      <span class="opacity-40">/</span>
       <span class="text-foreground">{{ isNew ? "New Location" : props.location?.name }}</span>
     </div>
 
@@ -194,31 +194,61 @@
         </label>
       </div>
 
+      <!-- No map: full drop zone -->
       <ImageUpload
-        :model-value="mapUrl"
+        v-if="!mapUrl"
+        :model-value="null"
         aspect="landscape"
         placeholder="Upload a map…"
         bucket="location-images"
         @update:model-value="mapUrl = $event"
       />
 
-      <LocationMap
-        v-if="mapUrl && !isNew && children"
-        :map-url="mapUrl"
-        :pins="mapPins"
-        :children="(children as Location[])"
-        mode="edit"
-        :show-hidden-pins="true"
-        @update:pins="mapPins = $event"
-        @pin-click="router.push(`/locations/${$event}`)"
-      />
+      <!-- Has map: interactive map + compact controls -->
+      <template v-else>
+        <LocationMap
+          v-if="!isNew && children"
+          :map-url="mapUrl"
+          :pins="mapPins"
+          :children="(children as Location[])"
+          mode="edit"
+          :show-hidden-pins="true"
+          @update:pins="mapPins = $event"
+          @pin-click="router.push(`/locations/${$event}`)"
+        />
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            :disabled="isMapUploading"
+            class="font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+            @click="mapFileInput?.click()"
+          >
+            {{ isMapUploading ? "Uploading…" : "Change map" }}
+          </button>
+          <span class="text-muted-foreground/40 text-xs">·</span>
+          <button
+            type="button"
+            class="font-cinzel text-[10px] tracking-wider text-destructive hover:opacity-80 transition-opacity"
+            @click="clearMap"
+          >
+            Remove
+          </button>
+          <input
+            ref="mapFileInput"
+            type="file"
+            accept="image/*"
+            class="hidden"
+            @change="onMapFileChange"
+          />
+        </div>
+      </template>
     </div>
 
     <!-- NPCs at this location -->
     <template v-if="!isNew && locationNpcs?.length">
       <div class="flex items-center justify-between mt-2">
         <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
-          NPCs Here
+          People in the Area
           <span class="font-fell font-normal text-muted-foreground">({{ locationNpcs.length }})</span>
         </h2>
       </div>
@@ -233,6 +263,9 @@
             <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ npc.name }}</p>
             <p v-if="npc.occupation || npc.race" class="font-fell text-xs text-muted-foreground italic truncate">
               {{ [npc.race, npc.occupation].filter(Boolean).join(" · ") }}
+            </p>
+            <p v-if="npc.location_id && npc.location_id !== props.location?.id" class="font-cinzel text-[10px] text-muted-foreground/60 tracking-wide truncate mt-0.5">
+              {{ allLocations?.find(l => l.id === npc.location_id)?.name ?? "" }}
             </p>
           </div>
           <ChevronRight class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
@@ -268,15 +301,16 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { Save, Trash2, ChevronRight, MapPin, ChevronUp, Tag, Plus } from "lucide-vue-next";
 import ImageUpload from "@/components/common/ImageUpload.vue";
+import { useImageUpload } from "@/composables/useImageUpload";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
-import { useNpcsByLocation } from "@/composables/useNpcs";
+import { useNpcsByLocations } from "@/composables/useNpcs";
 import { useEncountersByLocation } from "@/composables/useEncounters";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
 import {
@@ -306,11 +340,17 @@ const selectedParentId = ref<string | null>(
   props.location?.parent_id ?? props.parentId ?? null,
 );
 
-const parentLocation = computed(() =>
-  selectedParentId.value
-    ? (allLocations.value?.find((l) => l.id === selectedParentId.value) ?? null)
-    : null,
-);
+// Full ancestor chain for breadcrumb (root → … → direct parent)
+const ancestors = computed(() => {
+  if (!selectedParentId.value || !allLocations.value?.length) return [];
+  const chain: Location[] = [];
+  let current = allLocations.value.find((l) => l.id === selectedParentId.value);
+  while (current && chain.length < 10) {
+    chain.unshift(current);
+    current = current.parent_id ? allLocations.value!.find((l) => l.id === current!.parent_id) : undefined;
+  }
+  return chain;
+});
 
 // EntityCombobox uses "" for "none"; selectedParentId uses null
 const parentIdStr = computed({
@@ -360,9 +400,22 @@ function createChild() {
   router.push({ path: "/locations/new", query });
 }
 
-// ── NPCs + Encounters at this location ─────────────────────────────────────────
+// ── NPCs + Encounters at this location (includes descendants) ──────────────────
+function collectDescendantIds(id: string, allLocs: Location[]): string[] {
+  const result: string[] = [id];
+  for (const loc of allLocs) {
+    if (loc.parent_id === id) result.push(...collectDescendantIds(loc.id, allLocs));
+  }
+  return result;
+}
+
+const npcLocationIds = computed(() => {
+  if (!props.location || !allLocations.value?.length) return [];
+  return collectDescendantIds(props.location.id, allLocations.value);
+});
+
 const { data: locationNpcs } = props.location
-  ? useNpcsByLocation(props.location.id)
+  ? useNpcsByLocations(npcLocationIds)
   : { data: ref([]) };
 const { data: locationEncounters } = props.location
   ? useEncountersByLocation(props.location.id)
@@ -384,6 +437,43 @@ const description = ref<string>(props.location?.description ?? "");
 const mapUrl      = ref<string | null>(props.location?.map_url ?? null);
 const mapPins     = ref<MapPinType[]>(props.location?.map_pins ? [...props.location.map_pins] : []);
 const isMapShared = ref<boolean>(props.location?.is_map_shared ?? false);
+
+// Keep denormalized pin metadata (type/name/image) in sync with live children data
+// so saved maps always reflect the current child state (fixes player view colors).
+watch(
+  children,
+  (currentChildren) => {
+    if (!currentChildren?.length || !mapPins.value.length) return;
+    mapPins.value = mapPins.value.map((pin) => {
+      const child = (currentChildren as Location[]).find((c) => c.id === pin.child_location_id);
+      return child
+        ? { ...pin, child_type: child.location_type, child_name: child.name, child_image_url: child.image_url ?? null }
+        : pin;
+    });
+  },
+  { immediate: true },
+);
+
+const mapFileInput = ref<HTMLInputElement | null>(null);
+const { isUploading: isMapUploading, upload: uploadMapFile, remove: removeMapFile } = useImageUpload("location-images");
+
+async function onMapFileChange(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  const oldUrl = mapUrl.value;
+  const url = await uploadMapFile(file);
+  if (url) {
+    mapUrl.value = url;
+    if (oldUrl) await removeMapFile(oldUrl);
+  }
+  (e.target as HTMLInputElement).value = "";
+}
+
+async function clearMap() {
+  if (mapUrl.value) await removeMapFile(mapUrl.value);
+  mapUrl.value = null;
+  mapPins.value = [];
+}
 
 // ── CRUD ───────────────────────────────────────────────────────────────────────
 const { mutateAsync: create } = useCreateLocation();

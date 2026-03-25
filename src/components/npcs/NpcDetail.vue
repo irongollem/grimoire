@@ -1,7 +1,7 @@
 <template>
   <form @submit.prevent="save">
     <!-- ── Top action bar ───────────────────────────────────────────── -->
-    <div class="flex items-center justify-between mb-6 gap-4">
+    <div class="flex items-center justify-between mb-2 gap-4">
       <RouterLink to="/npcs" class="font-fell text-sm text-muted-foreground hover:text-foreground transition-colors">
         ← All NPCs
       </RouterLink>
@@ -22,7 +22,21 @@
           @click="sendToScriptorium"
         >
           <ScrollText class="h-3.5 w-3.5" />
-          {{ isSendingToScriptorium ? 'Exporting…' : 'Send to Scriptorium' }}
+          {{ isSendingToScriptorium ? 'Exporting…' : 'Scriptorium' }}
+        </button>
+        <!-- Players share toggle button -->
+        <button
+          v-if="npc?.id"
+          type="button"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider border rounded-md transition-colors"
+          :class="showPlayerShare
+            ? 'bg-primary/10 border-primary/40 text-primary'
+            : 'border-border hover:bg-muted text-foreground'"
+          @click="showPlayerShare = !showPlayerShare"
+        >
+          <Users class="h-3.5 w-3.5" />
+          Players
+          <ChevronDown class="h-3 w-3 transition-transform" :class="showPlayerShare ? 'rotate-180' : ''" />
         </button>
         <button
           type="submit"
@@ -34,7 +48,50 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
+    <!-- Player sharing foldout -->
+    <div
+      v-if="showPlayerShare && npc?.id"
+      class="mb-4 border border-primary/20 rounded-lg p-4 bg-primary/5 space-y-3"
+    >
+      <div class="flex items-center justify-between">
+        <p class="font-cinzel text-xs font-semibold tracking-wider text-foreground">SHARE WITH PLAYERS</p>
+        <button
+          type="button"
+          class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
+          :class="form.shared_with_players ? 'bg-primary' : 'bg-muted border border-border'"
+          @click="form.shared_with_players = !form.shared_with_players"
+        >
+          <span
+            class="inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform"
+            :class="form.shared_with_players ? 'translate-x-4' : 'translate-x-0.5'"
+          />
+        </button>
+      </div>
+      <template v-if="form.shared_with_players">
+        <p class="font-fell text-[11px] text-muted-foreground italic">Reveal fields to players:</p>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1">
+          <label
+            v-for="f in PLAYER_FIELDS"
+            :key="f.key"
+            class="flex items-center gap-2 cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              class="rounded border-border accent-primary"
+              :checked="form.player_visible_fields.includes(f.key)"
+              @change="toggleVisibleField(f.key)"
+            />
+            <span class="font-fell text-xs text-foreground">{{ f.label }}</span>
+          </label>
+        </div>
+        <div v-if="npc?.id" class="pt-1">
+          <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">PARTY NOTES</p>
+          <PlayerNotesWidget entity-type="npc" :entity-id="npc.id" placeholder="Notes visible to the whole party…" />
+        </div>
+      </template>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
       <!-- ── Left: portrait + meta ────────────────────────────────── -->
       <div class="space-y-4">
         <!-- Portrait -->
@@ -46,6 +103,20 @@
           @update:model-value="form.portrait_url = $event ?? ''"
           @update:focal-point="form.portrait_focal_point = $event"
         />
+
+        <!-- Party Stance (was RELATIONSHIP) -->
+        <div>
+          <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">PARTY STANCE</p>
+          <div class="grid grid-cols-2 gap-1">
+            <button
+              v-for="r in REL_OPTIONS" :key="r.value" type="button"
+              class="py-1.5 rounded border font-cinzel text-xs font-semibold tracking-wider transition-colors"
+              :style="form.relationship === r.value ? { borderColor: r.color, backgroundColor: r.color + '22', color: r.color } : {}"
+              :class="form.relationship !== r.value ? 'border-border text-muted-foreground hover:border-primary/40' : ''"
+              @click="form.relationship = r.value"
+            >{{ r.label }}</button>
+          </div>
+        </div>
 
         <!-- Status -->
         <div>
@@ -59,87 +130,6 @@
               @click="form.status = s.value"
             >{{ s.label }}</button>
           </div>
-        </div>
-
-        <!-- Relationship -->
-        <div>
-          <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">RELATIONSHIP</p>
-          <div class="grid grid-cols-2 gap-1">
-            <button
-              v-for="r in REL_OPTIONS" :key="r.value" type="button"
-              class="py-1.5 rounded border font-cinzel text-xs font-semibold tracking-wider transition-colors"
-              :style="form.relationship === r.value ? { borderColor: r.color, backgroundColor: r.color + '22', color: r.color } : {}"
-              :class="form.relationship !== r.value ? 'border-border text-muted-foreground hover:border-primary/40' : ''"
-              @click="form.relationship = r.value"
-            >{{ r.label }}</button>
-          </div>
-        </div>
-
-        <!-- Player sharing -->
-        <div class="border border-border rounded-lg p-3 space-y-2.5">
-          <div class="flex items-center justify-between">
-            <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">SHARE WITH PLAYERS</p>
-            <button
-              type="button"
-              class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
-              :class="form.shared_with_players ? 'bg-primary' : 'bg-muted border border-border'"
-              @click="form.shared_with_players = !form.shared_with_players"
-            >
-              <span
-                class="inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform"
-                :class="form.shared_with_players ? 'translate-x-4' : 'translate-x-0.5'"
-              />
-            </button>
-          </div>
-
-          <template v-if="form.shared_with_players">
-            <p class="font-fell text-[11px] text-muted-foreground italic">Reveal fields to players:</p>
-            <div class="space-y-1">
-              <label
-                v-for="f in PLAYER_FIELDS"
-                :key="f.key"
-                class="flex items-center gap-2 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  class="rounded border-border accent-primary"
-                  :checked="form.player_visible_fields.includes(f.key)"
-                  @change="toggleVisibleField(f.key)"
-                />
-                <span class="font-fell text-xs text-foreground">{{ f.label }}</span>
-              </label>
-            </div>
-          </template>
-        </div>
-
-        <!-- Monster link -->
-        <div class="border border-border rounded-lg p-3 space-y-2">
-          <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">MONSTER LINK</p>
-          <EntityCombobox
-            :model-value="form.linked_monster_id ?? ''"
-            :options="allMonsters ?? []"
-            placeholder="Search monsters…"
-            @update:model-value="onMonsterLinked($event || null)"
-          />
-          <p v-if="form.linked_monster_id" class="font-fell text-[11px] text-muted-foreground italic">
-            Monster data was imported. Edit fields above to override.
-          </p>
-          <button
-            v-if="npc?.id && !form.linked_monster_id"
-            type="button"
-            :disabled="isPromoting"
-            class="w-full py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-50"
-            @click="promoteToMonster"
-          >
-            {{ isPromoting ? 'Promoting…' : 'Promote to Monster' }}
-          </button>
-          <RouterLink
-            v-if="form.linked_monster_id"
-            :to="`/monsters/${form.linked_monster_id}`"
-            class="block text-center py-1 font-fell text-xs text-primary hover:underline"
-          >
-            View in Bestiary →
-          </RouterLink>
         </div>
 
         <!-- Tags -->
@@ -164,10 +154,6 @@
             <div>
               <label class="field-label">Race</label>
               <input v-model="form.race" placeholder="Human, Elf, Tiefling…" class="field-input" />
-            </div>
-            <div>
-              <label class="field-label">Class / Role</label>
-              <input v-model="form.class" placeholder="Rogue, Guard, Merchant…" class="field-input" />
             </div>
             <div>
               <label class="field-label">Alignment</label>
@@ -204,11 +190,25 @@
           </div>
         </section>
 
-        <!-- Lore -->
-        <section>
-          <div class="font-cinzel text-base font-bold text-foreground mb-1">Lore</div>
-          <div class="gold-divider mb-3" />
-          <div class="space-y-3">
+        <!-- NPC Connections (was Relationships) -->
+        <NpcRelationsSection v-if="npc?.id" :npc-id="npc.id" />
+
+        <!-- Tab bar: Lore | Inventory | Combat -->
+        <div>
+          <div class="flex gap-0 border-b border-border mb-5">
+            <button
+              v-for="tab in TABS" :key="tab.key"
+              type="button"
+              class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider border-b-2 transition-colors -mb-px"
+              :class="activeTab === tab.key
+                ? 'border-primary text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground'"
+              @click="activeTab = tab.key"
+            >{{ tab.label }}</button>
+          </div>
+
+          <!-- Lore tab -->
+          <div v-if="activeTab === 'lore'" class="space-y-3">
             <div>
               <label class="field-label">Appearance</label>
               <RichTextEditor v-model="form.appearance" placeholder="Physical description, clothing, distinguishing features…" min-height="100px" />
@@ -221,124 +221,153 @@
               <label class="field-label">Backstory</label>
               <RichTextEditor v-model="form.backstory" placeholder="History, origin, formative events…" min-height="140px" />
             </div>
-            <div class="border border-burgundy-700/50 rounded-md p-3 bg-burgundy-900/20">
-              <label class="field-label">🔐 DM Secret</label>
-              <RichTextEditor v-model="form.secret" placeholder="Hidden motivations, true identity, dark secret…" min-height="100px" />
-            </div>
             <div>
               <label class="field-label">DM Notes</label>
-              <RichTextEditor v-model="form.notes" placeholder="Session notes, loose threads…" min-height="100px" />
-            </div>
-            <div v-if="form.shared_with_players">
-              <label class="field-label">Party Notes <span class="font-fell font-normal normal-case text-muted-foreground">(visible to all players)</span></label>
-              <RichTextEditor v-model="form.party_notes" placeholder="What the party knows about this NPC…" min-height="100px" />
+              <RichTextEditor v-model="form.notes" placeholder="Session notes, secrets, loose threads…" min-height="100px" />
             </div>
           </div>
-        </section>
 
-        <!-- Stat Block -->
-        <section>
-          <div class="flex items-center justify-between mb-1">
-            <div class="font-cinzel text-base font-bold text-foreground">Stat Block</div>
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input v-model="hasStatBlock" type="checkbox" class="w-4 h-4 rounded border-border accent-primary" />
-              <span class="font-fell text-sm text-foreground">Include stat block</span>
-            </label>
+          <!-- Inventory tab -->
+          <div v-else-if="activeTab === 'inventory'">
+            <NpcInventorySection v-if="npc?.id" :npc-id="npc.id" />
+            <p v-else class="font-fell text-sm text-muted-foreground italic">Save the NPC first to manage inventory.</p>
           </div>
-          <div class="gold-divider mb-3" />
 
-          <div v-if="hasStatBlock" class="space-y-4">
-            <!-- Template picker -->
-            <div>
-              <label class="field-label">Load template</label>
-              <select class="field-input" @change="applyTemplate(($event.target as HTMLSelectElement).value)">
-                <option value="">— Custom / blank —</option>
-                <optgroup v-for="cat in templateCategories" :key="cat" :label="cat">
-                  <option v-for="t in templatesByCategory(cat)" :key="t.id" :value="t.id">
-                    {{ t.name }} (CR {{ t.stat_block.challenge_rating }})
-                  </option>
-                </optgroup>
-              </select>
-            </div>
+          <!-- Combat tab -->
+          <div v-else-if="activeTab === 'combat'" class="space-y-4">
+            <!-- Monster link + template — two ways to populate the stat block -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <!-- From template -->
+              <div class="border border-border rounded-lg p-3 space-y-2">
+                <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">FROM TEMPLATE</p>
+                <select class="field-input" @change="applyTemplate(($event.target as HTMLSelectElement).value)">
+                  <option value="">— Custom / blank —</option>
+                  <optgroup v-for="cat in templateCategories" :key="cat" :label="cat">
+                    <option v-for="t in templatesByCategory(cat)" :key="t.id" :value="t.id">
+                      {{ t.name }} (CR {{ t.stat_block.challenge_rating }})
+                    </option>
+                  </optgroup>
+                </select>
+              </div>
 
-            <!-- Core stats -->
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <div>
-                <label class="field-label">Armor Class</label>
-                <input v-model.number="statBlock.armor_class" type="number" min="0" class="field-input" />
-              </div>
-              <div>
-                <label class="field-label">Hit Points</label>
-                <input v-model="statBlock.hit_points" placeholder="52 (8d8+16)" class="field-input" />
-              </div>
-              <div>
-                <label class="field-label">Speed</label>
-                <input v-model="statBlock.speed" placeholder="30 ft." class="field-input" />
-              </div>
-              <div>
-                <label class="field-label">Challenge Rating</label>
-                <input v-model="statBlock.challenge_rating" placeholder="1/2" class="field-input" />
-              </div>
-            </div>
-
-            <!-- Ability scores -->
-            <div>
-              <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">ABILITY SCORES</p>
-              <div class="grid grid-cols-6 gap-1.5">
-                <div v-for="ab in ABILITIES" :key="ab.key" class="text-center">
-                  <p class="font-cinzel text-[10px] font-bold tracking-wider text-muted-foreground mb-1">{{ ab.label }}</p>
-                  <input
-                    v-model.number="(statBlock as Record<string, unknown>)[ab.key]"
-                    type="number" min="1" max="30"
-                    class="field-input text-center px-1"
-                  />
-                  <p class="font-fell text-xs text-muted-foreground mt-0.5">
-                    {{ modifier((statBlock as Record<string, unknown>)[ab.key] as number) }}
-                  </p>
+              <!-- From Bestiary (monster link) -->
+              <div class="border border-border rounded-lg p-3 space-y-2">
+                <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">FROM BESTIARY</p>
+                <EntityCombobox
+                  :model-value="form.linked_monster_id ?? ''"
+                  :options="allMonsters ?? []"
+                  placeholder="Search monsters…"
+                  @update:model-value="onMonsterLinked($event || null)"
+                />
+                <p v-if="form.linked_monster_id" class="font-fell text-[11px] text-muted-foreground italic">
+                  Monster data imported. Edit fields to override.
+                </p>
+                <div class="flex items-center gap-2">
+                  <button
+                    v-if="npc?.id && !form.linked_monster_id"
+                    type="button"
+                    :disabled="isPromoting"
+                    class="flex-1 py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-50"
+                    @click="promoteToMonster"
+                  >
+                    {{ isPromoting ? 'Promoting…' : 'Promote to Monster' }}
+                  </button>
+                  <RouterLink
+                    v-if="form.linked_monster_id"
+                    :to="`/monsters/${form.linked_monster_id}`"
+                    class="font-fell text-xs text-primary hover:underline"
+                  >
+                    View in Bestiary →
+                  </RouterLink>
                 </div>
               </div>
             </div>
 
-            <!-- Text fields -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div>
-                <label class="field-label">Skills</label>
-                <input v-model="statBlock.skills" placeholder="Perception +4, Stealth +6" class="field-input" />
-              </div>
-              <div>
-                <label class="field-label">Senses</label>
-                <input v-model="statBlock.senses" placeholder="Darkvision 60 ft., passive Perception 14" class="field-input" />
-              </div>
-              <div>
-                <label class="field-label">Damage Resistances</label>
-                <input v-model="statBlock.damage_resistances" class="field-input" />
-              </div>
-              <div>
-                <label class="field-label">Damage Immunities</label>
-                <input v-model="statBlock.damage_immunities" class="field-input" />
-              </div>
-              <div>
-                <label class="field-label">Condition Immunities</label>
-                <input v-model="statBlock.condition_immunities" class="field-input" />
-              </div>
-              <div>
-                <label class="field-label">Languages</label>
-                <input v-model="statBlock.languages" placeholder="Common, Elvish" class="field-input" />
-              </div>
+            <!-- Include stat block toggle -->
+            <div class="flex items-center justify-between">
+              <p class="font-cinzel text-sm font-bold text-foreground">Stat Block</p>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input v-model="hasStatBlock" type="checkbox" class="w-4 h-4 rounded border-border accent-primary" />
+                <span class="font-fell text-sm text-foreground">Include stat block</span>
+              </label>
             </div>
+            <div class="gold-divider" />
 
-            <!-- Special abilities -->
-            <TraitSection v-model="statBlock.special_abilities" label="Special Abilities" />
-            <TraitSection v-model="statBlock.actions" label="Actions" />
-            <TraitSection v-model="statBlock.legendary_actions" label="Legendary Actions" />
+            <div v-if="hasStatBlock" class="space-y-4">
+              <!-- Core stats -->
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div>
+                  <label class="field-label">Armor Class</label>
+                  <input v-model.number="statBlock.armor_class" type="number" min="0" class="field-input" />
+                </div>
+                <div>
+                  <label class="field-label">Hit Points</label>
+                  <input v-model="statBlock.hit_points" placeholder="52 (8d8+16)" class="field-input" />
+                </div>
+                <div>
+                  <label class="field-label">Speed</label>
+                  <input v-model="statBlock.speed" placeholder="30 ft." class="field-input" />
+                </div>
+                <div>
+                  <label class="field-label">Challenge Rating</label>
+                  <input v-model="statBlock.challenge_rating" placeholder="1/2" class="field-input" />
+                </div>
+              </div>
+
+              <!-- Ability scores -->
+              <div>
+                <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">ABILITY SCORES</p>
+                <div class="grid grid-cols-6 gap-1.5">
+                  <div v-for="ab in ABILITIES" :key="ab.key" class="text-center">
+                    <p class="font-cinzel text-[10px] font-bold tracking-wider text-muted-foreground mb-1">{{ ab.label }}</p>
+                    <input
+                      v-model.number="(statBlock as Record<string, unknown>)[ab.key]"
+                      type="number" min="1" max="30"
+                      class="field-input text-center px-1"
+                    />
+                    <p class="font-fell text-xs text-muted-foreground mt-0.5">
+                      {{ modifier((statBlock as Record<string, unknown>)[ab.key] as number) }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Text fields -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label class="field-label">Skills</label>
+                  <input v-model="statBlock.skills" placeholder="Perception +4, Stealth +6" class="field-input" />
+                </div>
+                <div>
+                  <label class="field-label">Senses</label>
+                  <input v-model="statBlock.senses" placeholder="Darkvision 60 ft., passive Perception 14" class="field-input" />
+                </div>
+                <div>
+                  <label class="field-label">Damage Resistances</label>
+                  <input v-model="statBlock.damage_resistances" class="field-input" />
+                </div>
+                <div>
+                  <label class="field-label">Damage Immunities</label>
+                  <input v-model="statBlock.damage_immunities" class="field-input" />
+                </div>
+                <div>
+                  <label class="field-label">Condition Immunities</label>
+                  <input v-model="statBlock.condition_immunities" class="field-input" />
+                </div>
+                <div>
+                  <label class="field-label">Languages</label>
+                  <input v-model="statBlock.languages" placeholder="Common, Elvish" class="field-input" />
+                </div>
+              </div>
+
+              <!-- Special abilities -->
+              <TraitSection v-model="statBlock.special_abilities" label="Special Abilities" />
+              <TraitSection v-model="statBlock.actions" label="Actions" />
+              <TraitSection v-model="statBlock.legendary_actions" label="Legendary Actions" />
+            </div>
           </div>
-        </section>
+        </div>
 
-        <!-- Relationships -->
-        <NpcRelationsSection v-if="npc?.id" :npc-id="npc.id" />
-
-        <!-- Inventory -->
-        <NpcInventorySection v-if="npc?.id" :npc-id="npc.id" />
       </div>
     </div>
   </form>
@@ -350,7 +379,7 @@ import { ref, reactive, computed } from 'vue'
 import RichTextEditor from '@/components/common/RichTextEditor.vue'
 import TagInput from '@/components/common/TagInput.vue'
 import { useRouter } from 'vue-router'
-import { ScrollText } from 'lucide-vue-next'
+import { ScrollText, Users, ChevronDown } from 'lucide-vue-next'
 import ImageUpload from '@/components/common/ImageUpload.vue'
 import { useCreateNpc, useUpdateNpc, useDeleteNpc } from '@/composables/useNpcs'
 import { useLocationTree } from '@/composables/useLocations'
@@ -365,10 +394,19 @@ import NpcFactionsSection from '@/components/factions/NpcFactionsSection.vue'
 import type { Npc, NpcInsert, NpcStatus, NpcRelationship, StatBlock } from '@/types/npc.types'
 import { useCampaignStore } from '@/stores/campaign'
 import EntityCombobox from '@/components/common/EntityCombobox.vue'
+import PlayerNotesWidget from '@/components/common/PlayerNotesWidget.vue'
 import { STAT_BLOCK_ABILITIES, abilityModifier, skillsToString, skillsToRecord } from '@/lib/utils'
 
 const { confirm, notify } = useConfirm();
+
 // ── Constants ─────────────────────────────────────────────────────────────────
+
+const TABS = [
+  { key: 'lore',      label: 'Lore' },
+  { key: 'inventory', label: 'Inventory' },
+  { key: 'combat',    label: 'Combat' },
+] as const
+type TabKey = typeof TABS[number]['key']
 
 const STATUS_OPTIONS: { value: NpcStatus; label: string; color: string }[] = [
   { value: 'alive',   label: 'Alive',   color: '#22c55e' },
@@ -417,13 +455,17 @@ const campaign = useCampaignStore()
 const isSaving = computed(() => isCreating.value || isUpdating.value)
 const isSendingToScriptorium = ref(false)
 
+// ── UI state ──────────────────────────────────────────────────────────────────
+
+const activeTab = ref<TabKey>('lore')
+const showPlayerShare = ref(false)
+
 async function sendToScriptorium() {
   if (!props.npc) return
   isSendingToScriptorium.value = true
   try {
     const importData = formatNpcForScriptorium(props.npc)
     const doc = await createScriptoriumDoc(importData)
-    // Link the NPC back to the new doc
     await updateNpc({ id: props.npc.id, update: { scriptorium_doc_id: doc.id } })
     router.push(`/scriptorium/${doc.id}`)
   } finally {
@@ -467,17 +509,16 @@ async function promoteToMonster() {
 }
 
 function onMonsterLinked(monsterId: string | null) {
-  form.linked_monster_id = monsterId
-  if (!monsterId) return
+  if (!monsterId) { form.linked_monster_id = null; return }
   const m = (allMonsters.value ?? []).find(x => x.id === monsterId)
   if (!m) return
+  // SRD monsters don't have UUID rows — import their data as a template but don't link
+  form.linked_monster_id = m.is_srd ? null : monsterId
 
-  // Populate identity fields if blank
   if (!form.name)        form.name = m.name
   if (!form.alignment)   form.alignment = m.alignment ?? null
   if (!form.tags.length) form.tags = [...m.tags]
 
-  // Portrait — only fill if none set
   if (!form.portrait_url && m.image_url) {
     form.portrait_url = m.image_url
     form.portrait_focal_point = m.portrait_focal_point ?? null
@@ -486,7 +527,6 @@ function onMonsterLinked(monsterId: string | null) {
     form.card_art_url = m.card_art_url
   }
 
-  // Stat block — import monster stat block and enable it
   const msb = m.stat_block
   hasStatBlock.value = true
   Object.assign(statBlock, {
@@ -513,16 +553,13 @@ function onMonsterLinked(monsterId: string | null) {
 const form = reactive<NpcInsert>({
   name: props.npc?.name ?? '',
   race: props.npc?.race ?? null,
-  class: props.npc?.class ?? null,
   alignment: props.npc?.alignment ?? null,
   age: props.npc?.age ?? null,
   occupation: props.npc?.occupation ?? null,
   location_id: props.npc?.location_id ?? null,
-  affiliation: props.npc?.affiliation ?? null,
   appearance: props.npc?.appearance ?? null,
   personality: props.npc?.personality ?? null,
   backstory: props.npc?.backstory ?? null,
-  secret: props.npc?.secret ?? null,
   notes: props.npc?.notes ?? null,
   status: props.npc?.status ?? 'alive',
   relationship: props.npc?.relationship ?? 'neutral',
@@ -536,7 +573,7 @@ const form = reactive<NpcInsert>({
   portrait_focal_point: props.npc?.portrait_focal_point ?? null,
   shared_with_players: props.npc?.shared_with_players ?? false,
   player_visible_fields: [...(props.npc?.player_visible_fields ?? [])],
-  party_notes: props.npc?.party_notes ?? null,
+
 })
 
 function toggleVisibleField(key: string) {
@@ -621,7 +658,6 @@ function applyTemplate(id: string) {
   })
 }
 
-
 // ── Save / Delete ─────────────────────────────────────────────────────────────
 
 function buildStatBlock(): StatBlock | null {
@@ -650,16 +686,13 @@ async function save() {
   const payload: NpcInsert = {
     ...form,
     race: form.race || null,
-    class: form.class || null,
     alignment: form.alignment || null,
     age: form.age || null,
     occupation: form.occupation || null,
     location_id: form.location_id || null,
-    affiliation: form.affiliation || null,
     appearance: form.appearance || null,
     personality: form.personality || null,
     backstory: form.backstory || null,
-    secret: form.secret || null,
     notes: form.notes || null,
     stat_block: buildStatBlock(),
   }

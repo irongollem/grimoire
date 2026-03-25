@@ -77,10 +77,10 @@
           </div>
 
           <p
-            v-if="npc.race || npc.class"
+            v-if="npc.race"
             class="font-fell text-xs text-muted-foreground italic truncate"
           >
-            {{ [npc.race, npc.class].filter(Boolean).join(" · ") }}
+            {{ npc.race }}
           </p>
 
           <p v-if="npc.occupation" class="font-fell text-xs text-muted-foreground truncate">

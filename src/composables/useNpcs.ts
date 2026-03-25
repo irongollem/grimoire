@@ -66,9 +66,27 @@ export function useNpcsByLocation(locationId: string | Ref<string>) {
         .eq("location_id", idRef.value)
         .order("name", { ascending: true });
       if (error) throw error;
-      return data as import("@/types/npc.types").Npc[];
+      return data as Npc[];
     },
     enabled: () => !!idRef.value,
+  });
+}
+
+/** Fetch NPCs across multiple location IDs (for "who's here" with descendants). */
+export function useNpcsByLocations(locationIds: Ref<string[]>) {
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, "by-locations", locationIds.value]),
+    queryFn: async () => {
+      if (!locationIds.value.length) return [];
+      const { data, error } = await supabase
+        .from("npcs")
+        .select("*")
+        .in("location_id", locationIds.value)
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return data as Npc[];
+    },
+    enabled: () => locationIds.value.length > 0,
   });
 }
 
@@ -166,16 +184,3 @@ export function useUpsertNpcPlayerNotes(npcId: string) {
   });
 }
 
-export function useUpdateNpcPartyNotes() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ npcId, notes }: { npcId: string; notes: string }) => {
-      const { error } = await supabase.rpc("update_npc_party_notes", { p_npc_id: npcId, p_notes: notes });
-      if (error) throw error;
-    },
-    onSuccess: (_data, { npcId }) => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, "shared"] });
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, npcId] });
-    },
-  });
-}

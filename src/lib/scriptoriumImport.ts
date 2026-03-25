@@ -82,9 +82,8 @@ const npcFormatter: AssetFormatter<Npc> = {
     // Name heading
     html += `<h1>${npc.name}</h1>\n`;
 
-    // Subtitle line (race + class)
-    const subtitle = [npc.race, npc.class].filter(Boolean).join(", ");
-    if (subtitle) html += `<p><em>${subtitle}</em></p>\n`;
+    // Subtitle line (race)
+    if (npc.race) html += `<p><em>${npc.race}</em></p>\n`;
 
     // Identity block
     const identityRows = [
@@ -92,7 +91,6 @@ const npcFormatter: AssetFormatter<Npc> = {
       npc.age && `<strong>Age</strong> ${npc.age}`,
       npc.occupation && `<strong>Occupation</strong> ${npc.occupation}`,
       npc.location_id && `<strong>Location</strong> ${npc.location_id}`,
-      npc.affiliation && `<strong>Affiliation</strong> ${npc.affiliation}`,
     ].filter(Boolean) as string[];
 
     if (identityRows.length) {
@@ -115,11 +113,6 @@ const npcFormatter: AssetFormatter<Npc> = {
       loreItems.forEach(({ label, value }) => {
         html += `<h3>${label}</h3>\n<p>${value}</p>\n`;
       });
-    }
-
-    // DM Secret (blockquote — visible but clearly marked)
-    if (npc.secret) {
-      html += `<h2>DM Notes</h2>\n<blockquote><p><strong>Secret:</strong> ${npc.secret}</p></blockquote>\n`;
     }
 
     // Stat block

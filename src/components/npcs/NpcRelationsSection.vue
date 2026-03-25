@@ -1,7 +1,7 @@
 <template>
   <section>
     <div class="flex items-center justify-between mb-1">
-      <div class="font-cinzel text-base font-bold text-foreground">Relationships</div>
+      <div class="font-cinzel text-base font-bold text-foreground">NPC Connections</div>
       <button
         type="button"
         class="inline-flex items-center gap-1 px-2.5 py-1 font-cinzel text-xs font-semibold tracking-wider border border-border rounded-md hover:bg-muted transition-colors"

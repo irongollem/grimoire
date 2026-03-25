@@ -212,7 +212,7 @@ const allItems = computed<ListItem[]>(() => {
     return (npcs.value ?? []).map((npc) => ({
       id: npc.id,
       name: npc.name,
-      subtitle: [npc.race, npc.class, npc.occupation].filter(Boolean).join(" · "),
+      subtitle: [npc.race, npc.occupation].filter(Boolean).join(" · "),
       badge: npc.status,
       badgeColor: NPC_STATUS_COLORS[npc.status] ?? "#6b7280",
       type: "npcs" as TabKey,

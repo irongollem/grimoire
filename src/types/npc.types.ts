@@ -109,16 +109,13 @@ export interface Npc {
   campaign_id: string | null;
   name: string;
   race: string | null;
-  class: string | null;
   alignment: string | null;
   age: string | null;
   occupation: string | null;
   location_id: string | null;
-  affiliation: string | null;
   appearance: string | null;
   personality: string | null;
   backstory: string | null;
-  secret: string | null; // DM-only secret
   notes: string | null;
   status: NpcStatus;
   relationship: NpcRelationship;
@@ -131,7 +128,6 @@ export interface Npc {
   scriptorium_doc_id: string | null; // links to a ScriptoriumDocument (e.g. stat block sheet)
   shared_with_players: boolean;
   player_visible_fields: string[]; // subset of: portrait | name | status | race | occupation | relationship
-  party_notes: string | null;
   created_at: string;
   updated_at: string;
 }

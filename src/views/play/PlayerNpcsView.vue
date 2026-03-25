@@ -67,6 +67,16 @@
                 :focal-point="selected.portrait_focal_point"
               />
             </div>
+            <div
+              v-else-if="!selected.player_visible_fields.includes('portrait') && selected.portrait_url"
+              class="w-full h-72 overflow-hidden"
+            >
+              <img
+                src="/assets/npcs/mystery-figure.png"
+                alt="Identity hidden"
+                class="w-full h-full object-cover object-top"
+              />
+            </div>
             <button
               class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors"
               @click="closeNpc"
@@ -112,10 +122,10 @@
                 </span>
               </div>
               <p
-                v-if="selected.player_visible_fields.includes('race') && (selected.race || selected.class)"
+                v-if="selected.player_visible_fields.includes('race') && selected.race"
                 class="mt-1 font-fell text-sm text-muted-foreground italic"
               >
-                {{ [selected.race, selected.class].filter(Boolean).join(' · ') }}
+                {{ selected.race }}
               </p>
               <p
                 v-if="selected.player_visible_fields.includes('occupation') && selected.occupation"
@@ -125,7 +135,7 @@
               </p>
             </div>
 
-            <!-- Notes -->
+            <!-- Player notes (private + shared) -->
             <PlayerNotesWidget entity-type="npc" :entity-id="selected.id" placeholder="Your observations about this character…" />
           </div>
         </div>
@@ -142,6 +152,7 @@ import { usePlayerNpcRatings } from "@/composables/usePlayerNpcRatings";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
+
 import PlayerNpcCard from "@/components/play/PlayerNpcCard.vue";
 import type { Npc, NpcRelationship, NpcStatus } from "@/types/npc.types";
 

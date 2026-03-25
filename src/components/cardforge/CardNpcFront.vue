@@ -76,7 +76,7 @@ const portrait = computed(() => props.data.card_art_url ?? props.data.portrait_u
 const typeGlyph = computed(() => props.data.name.charAt(0).toUpperCase());
 const placeholderLabel = computed(() => props.data.occupation ?? "NPC");
 const typeLine = computed(() => {
-  const parts = [props.data.race, props.data.class].filter(Boolean).join(" ");
+  const parts = [props.data.race, props.data.occupation].filter(Boolean).join(" ");
   const rel = props.data.relationship !== "unknown" ? props.data.relationship : "";
   return [parts, rel].filter(Boolean).join(" • ");
 });

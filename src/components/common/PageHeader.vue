@@ -1,7 +1,7 @@
 <template>
   <div>
     <!-- Sticky section: title + actions + optional extra content -->
-    <div class="sticky top-0 z-10 bg-background px-4 pt-4 md:px-6 md:pt-6">
+    <div class="sticky top-0 z-20 bg-background px-4 pt-4 md:px-6 md:pt-6">
       <div class="flex items-start justify-between gap-4">
         <div>
           <h1 class="font-cinzel text-2xl md:text-3xl font-bold text-foreground tracking-wide">

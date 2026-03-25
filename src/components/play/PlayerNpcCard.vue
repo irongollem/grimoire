@@ -13,6 +13,12 @@
         :focal-point="npc.portrait_focal_point"
         class="group-hover:scale-105 transition-transform duration-300"
       />
+      <img
+        v-else-if="!npc.player_visible_fields.includes('portrait') && npc.portrait_url"
+        src="/assets/npcs/mystery-figure.png"
+        alt="Identity hidden"
+        class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
+      />
       <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
         <UserIcon class="h-10 w-10" />
       </div>
@@ -32,8 +38,8 @@
         <span class="w-1.5 h-1.5 rounded-full shrink-0" :style="{ backgroundColor: statusColor(npc.status) }" />
         {{ npc.status }}
       </p>
-      <p v-if="npc.player_visible_fields.includes('race') && (npc.race || npc.class)" class="font-fell text-xs text-muted-foreground italic truncate">
-        {{ [npc.race, npc.class].filter(Boolean).join(' · ') }}
+      <p v-if="npc.player_visible_fields.includes('race') && npc.race" class="font-fell text-xs text-muted-foreground italic truncate">
+        {{ npc.race }}
       </p>
       <p v-if="npc.player_visible_fields.includes('occupation') && npc.occupation" class="font-fell text-xs text-muted-foreground truncate">
         {{ npc.occupation }}

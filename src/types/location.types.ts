@@ -51,9 +51,11 @@ export const LOCATION_TYPE_COLORS: Record<LocationType, string> = {
 /** A pin placed on a location's map, pointing to one of its direct children. */
 export interface MapPin {
   child_location_id: string;
-  /** Denormalised name so players can read it without a separate location query. */
+  /** Denormalised so players can read without a separate location query. */
   child_name: string;
   child_type: LocationType;
+  /** Sigil/emblem image URL — shown inside the hover token. */
+  child_image_url: string | null;
   /** Fraction of map width (0–1). */
   x: number;
   /** Fraction of map height (0–1). */

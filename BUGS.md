@@ -26,6 +26,10 @@
 - [x] The remote database's migration history does not match local files in supabase/migrations directory, MCP migrations arent stored locally it seems — all MCP migrations now backed by files in supabase/migrations/
 
 - [x] Players cant claim unclaimed party members themselves — "My Character" section added to PlayerSettingsView; shows unclaimed party members (those not claimed by another user), player claims one which sets party_member_id on their campaign_members row
+- [x] Location map pins go over the sticky PageHeader when scrolling — PageHeader sticky z-index raised from z-10 to z-20
+- [x] Location map pin hover popup unreachable (gap between dot and popup drops hover state) — replaced separate popup with inline pill design; dot expands into pill containing token + name + action buttons, all inside one element with no gap
+- [x] Location map image stretches to fill editor width even for small maps — inner container uses w-fit so it hugs image natural size; max-w-full prevents overflow
+- [x] Pin color doesn't update when a child location's type is changed — getChildType() does live lookup in children prop, falling back to stored type
 - [ ] Players cant build characters themselves
 - [x] players that claimed a character still show their name instead of the char name when chatting etc. — useCampaignMessages now uses linked party member's character name as sender_name when available
 - [x] the math aint mathing, str 14 gives +3 not +2, dex 17 gives +5 not +3, etc — formula verified correct (Math.floor((score-10)/2)) everywhere; saving throws and skills intentionally add proficiency bonus on top of the raw modifier, which matches the reported values. The ability score block shows only the raw modifier; saving throws and skills show mod+proficiency by design.
@@ -60,10 +64,11 @@
 - [x] saving a quest on edit doesnt return me to the quest list
 
 - [x] similar to our issue with the notes on companions, the (party) notes on NPC's dont persist as there is no save button and closing the modal doesn't seem to save the data — openNpc now fetches both party_notes and personal notes fresh from DB on open (same fix as companions); notes auto-save on modal close
+- [x] NPC list card referenced old free-text affiliation field (dropped column) — list and player card now show race only (class field removed)
 
 - [x] deleting an encounter works (204) but then doesnt move back to the list and starts retrying resulting in a 406 — fixed: navigate first before mutateAsync; fetchEncounter now uses maybeSingle() (no 406 on 0 rows); useDeleteEncounter onSuccess calls removeQueries for the specific encounter before invalidating the list
 
-- [ ]deleting a spell doesnt return me to the list, causing the same error issues as above here. Please put in your memory that this is a pattern that you need to always tackle when adding a delete inside an item
+- [x] deleting a spell or monster doesn't return to list, and orphaned images left in storage — navigate first (before mutateAsync) to avoid TanStack refetch-404 race; image URLs deleted from asset-images bucket on entity delete
 
 ## Regressing bugs
 
