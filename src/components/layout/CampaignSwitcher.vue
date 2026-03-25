@@ -55,7 +55,7 @@
                 </p>
               </div>
             </button>
-            <!-- Edit / delete icons — visible on row hover -->
+            <!-- Edit icon — visible on row hover -->
             <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
               <button
                 class="p-1 rounded hover:bg-background text-muted-foreground hover:text-foreground transition-colors"
@@ -63,13 +63,6 @@
                 @click.stop="startEdit(c)"
               >
                 <Pencil class="h-3 w-3" />
-              </button>
-              <button
-                class="p-1 rounded hover:bg-background text-muted-foreground hover:text-destructive transition-colors"
-                title="Delete campaign"
-                @click.stop="confirmDelete = c"
-              >
-                <Trash2 class="h-3 w-3" />
               </button>
             </div>
           </div>
@@ -139,9 +132,9 @@
             v-for="tab in modalTabs"
             :key="tab.id"
             class="px-3 py-1.5 rounded text-xs font-cinzel tracking-wide transition-colors"
-            :class="activeModalTab === tab.id
-              ? 'bg-muted text-foreground'
-              : 'text-muted-foreground hover:text-foreground'"
+            :class="tab.id === 'danger'
+              ? activeModalTab === 'danger' ? 'bg-destructive/10 text-destructive' : 'text-destructive/60 hover:text-destructive'
+              : activeModalTab === tab.id ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'"
             @click="activeModalTab = tab.id"
           >
             {{ tab.label }}
@@ -156,6 +149,35 @@
         <!-- Invites tab -->
         <div v-else-if="editing && activeModalTab === 'invites'" class="px-5 py-4 max-h-[60vh] overflow-y-auto">
           <InvitesTab />
+        </div>
+
+        <!-- Danger Zone tab -->
+        <div v-else-if="editing && activeModalTab === 'danger'" class="px-5 py-6 space-y-4">
+          <div class="border border-destructive/40 rounded-lg p-4 space-y-3">
+            <p class="font-cinzel text-xs font-semibold tracking-wider text-destructive">DELETE CAMPAIGN</p>
+            <p class="font-fell text-sm text-muted-foreground">
+              This permanently deletes <span class="text-foreground font-semibold">{{ editing.name }}</span>.
+              Your notes, NPCs, party members, calendar events, and encounters will have their campaign link removed but will not be deleted.
+            </p>
+            <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">
+              TYPE <span class="text-foreground">{{ editing.name }}</span> TO CONFIRM
+            </p>
+            <input
+              v-model="deleteConfirmInput"
+              type="text"
+              autocomplete="off"
+              :placeholder="editing.name"
+              class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-destructive"
+            />
+            <button
+              type="button"
+              :disabled="deleteConfirmInput !== editing.name || isDeleting"
+              class="w-full px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-destructive text-destructive-foreground rounded-md hover:opacity-90 disabled:opacity-30 transition-opacity"
+              @click="doDelete"
+            >
+              {{ isDeleting ? "Deleting…" : "Delete Campaign" }}
+            </button>
+          </div>
         </div>
 
         <!-- Details tab (default, and only content when creating) -->
@@ -296,47 +318,17 @@
               {{ isSaving ? "Saving…" : editing ? "Save Changes" : "Create Campaign" }}
             </button>
           </div>
+
         </form>
       </div>
     </div>
 
-    <!-- Delete confirmation -->
-    <div
-      v-if="confirmDelete"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-      @click.self="confirmDelete = null"
-    >
-      <div class="bg-card border border-border rounded-lg w-full max-w-sm shadow-xl px-5 py-5">
-        <h3 class="font-cinzel text-base font-bold text-foreground mb-2">Delete Campaign?</h3>
-        <p class="font-fell text-sm text-muted-foreground mb-1">
-          This will permanently delete <span class="text-foreground font-semibold">{{ confirmDelete.name }}</span>.
-        </p>
-        <p class="font-fell text-xs text-muted-foreground italic mb-5">
-          Your notes, party members, calendar events, NPCs, and encounters in this campaign will have their campaign link removed but will not be deleted.
-        </p>
-        <div class="flex justify-end gap-2">
-          <button
-            class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
-            @click="confirmDelete = null"
-          >
-            Cancel
-          </button>
-          <button
-            :disabled="isDeleting"
-            class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-destructive text-destructive-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-            @click="doDelete"
-          >
-            {{ isDeleting ? "Deleting…" : "Delete" }}
-          </button>
-        </div>
-      </div>
-    </div>
   </Teleport>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { BookOpen, ChevronDown, Check, Download, Pencil, Plus, Trash2 } from "lucide-vue-next";
+import { BookOpen, ChevronDown, Check, Download, Pencil, Plus } from "lucide-vue-next";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
 import { useTheme } from "@/composables/useTheme";
 import { useAuthStore } from "@/stores/auth";
@@ -353,12 +345,13 @@ import type { Campaign } from "@/types/campaign.types";
 import MembersTab from "@/components/campaign/MembersTab.vue";
 import InvitesTab from "@/components/campaign/InvitesTab.vue";
 
-type ModalTab = "details" | "members" | "invites";
+type ModalTab = "details" | "members" | "invites" | "danger";
 
 const modalTabs: { id: ModalTab; label: string }[] = [
   { id: "details", label: "Details" },
   { id: "members", label: "Members" },
   { id: "invites", label: "Invite Links" },
+  { id: "danger", label: "Danger Zone" },
 ];
 
 const activeModalTab = ref<ModalTab>("details");
@@ -384,7 +377,7 @@ const isSaving = computed(() => isCreating.value || isUpdating.value);
 
 const open = ref(false);
 const editing = ref<Campaign | null>(null);
-const confirmDelete = ref<Campaign | null>(null);
+const deleteConfirmInput = ref("");
 
 // True when there are no campaigns yet — offer to claim pre-existing data
 const isFirstCampaign = computed(() => campaigns.value.length === 0);
@@ -446,6 +439,7 @@ function startCreate() {
 
 function startEdit(campaign: Campaign) {
   editing.value = campaign;
+  deleteConfirmInput.value = "";
   form.value = {
     name: campaign.name,
     setting: campaign.setting,
@@ -462,6 +456,7 @@ function closeModal() {
   showModal.value = false;
   editing.value = null;
   activeModalTab.value = "details";
+  deleteConfirmInput.value = "";
 }
 
 function onCalendarChange() {
@@ -509,11 +504,10 @@ async function submitForm() {
 }
 
 async function doDelete() {
-  if (!confirmDelete.value) return;
-  const deletedId = confirmDelete.value.id;
+  if (!editing.value || deleteConfirmInput.value !== editing.value.name) return;
+  const deletedId = editing.value.id;
   await deleteCampaign(deletedId);
-  confirmDelete.value = null;
-  // If we just deleted the active campaign, switch to another or clear
+  closeModal();
   if (campaignStore.activeCampaignId === deletedId) {
     const remaining = campaigns.value.filter((c) => c.id !== deletedId);
     if (remaining.length > 0) {
