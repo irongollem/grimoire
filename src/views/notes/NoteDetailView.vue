@@ -22,6 +22,6 @@ import NoteEditor from "@/components/notes/NoteEditor.vue";
 const route = useRoute();
 const isNew = computed(() => route.name === "note-new");
 const id = computed(() => (isNew.value ? "" : (route.params.id as string)));
-const { data: note, isLoading: noteLoading } = useNote(id.value);
+const { data: note, isLoading: noteLoading } = useNote(id);
 const isLoading = computed(() => !isNew.value && noteLoading.value);
 </script>

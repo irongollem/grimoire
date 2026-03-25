@@ -1,4 +1,4 @@
-import { computed } from "vue";
+import { computed, type Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
@@ -54,8 +54,12 @@ export function useNotes() {
   });
 }
 
-export function useNote(id: string) {
-  return useQuery({ queryKey: [QUERY_KEY, id], queryFn: () => fetchNote(id) });
+export function useNote(id: Ref<string>) {
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, id.value]),
+    queryFn: () => fetchNote(id.value),
+    enabled: () => !!id.value,
+  });
 }
 
 export function useCreateNote() {
