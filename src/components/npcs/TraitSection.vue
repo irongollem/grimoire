@@ -14,16 +14,11 @@
             @input="update(i, 'name', ($event.target as HTMLInputElement).value)"
           />
         </label>
-        <label class="block">
-          <span class="sr-only">{{ label }} description</span>
-          <textarea
-            :value="entry.description"
-            placeholder="Description…"
-            rows="2"
-            class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-            @input="update(i, 'description', ($event.target as HTMLTextAreaElement).value)"
-          />
-        </label>
+        <RichTextEditor
+          :model-value="entry.description"
+          placeholder="Description…"
+          @update:model-value="update(i, 'description', $event)"
+        />
       </div>
       <button
         type="button"
@@ -44,6 +39,8 @@
 </template>
 
 <script setup lang="ts">
+import RichTextEditor from "@/components/common/RichTextEditor.vue";
+
 const props = defineProps<{
   modelValue: Array<{ name: string; description: string }> | undefined;
   label: string;

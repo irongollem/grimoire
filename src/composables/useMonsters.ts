@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
-import { computed } from "vue";
+import { computed, type Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { SRD_MONSTERS, getSrdMonster } from "@/data/srdMonsters";
 import { useSrdMonsterArt } from "@/composables/useSrdMonsterArt";
@@ -83,11 +83,11 @@ export function useAllMonsters() {
   return { data, isLoading: query.isLoading };
 }
 
-export function useMonster(id: string) {
+export function useMonster(id: Ref<string>) {
   return useQuery({
-    queryKey: [QUERY_KEY, id],
-    queryFn: () => fetchMonster(id),
-    enabled: !!id,
+    queryKey: computed(() => [QUERY_KEY, id.value]),
+    queryFn: () => fetchMonster(id.value),
+    enabled: () => !!id.value,
   });
 }
 

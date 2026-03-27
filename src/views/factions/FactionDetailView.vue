@@ -1,130 +1,116 @@
 <template>
-  <div class="flex flex-col gap-6 max-w-5xl">
-    <!-- Header -->
-    <div class="flex flex-wrap items-center gap-2">
-      <RouterLink to="/factions" class="font-fell text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0">
-        ← Factions
-      </RouterLink>
-      <span class="text-border">·</span>
-      <h1 class="font-cinzel text-base font-bold text-foreground flex-1 min-w-48">
-        {{ isNew ? "New Faction" : (faction?.name || "Loading…") }}
-      </h1>
-      <div class="flex items-center gap-2 shrink-0">
-        <button
-          v-if="!isNew"
-          type="button"
-          class="font-fell text-sm text-destructive hover:opacity-70 transition-opacity"
-          @click="handleDelete"
-        >Delete</button>
-        <button
-          type="button"
-          :disabled="saving || !form.name.trim()"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
-          @click="handleSave"
-        >
-          {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
-        </button>
-      </div>
-    </div>
+  <PageHeader
+    :title="isNew ? 'New Faction' : (faction?.name || 'Loading…')"
+  >
+    <template #actions>
+      <button
+        v-if="!isNew"
+        type="button"
+        class="font-fell text-sm text-destructive hover:opacity-70 transition-opacity"
+        @click="handleDelete"
+      >Delete</button>
+      <button
+        type="button"
+        :disabled="saving || !form.name.trim()"
+        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+        @click="handleSave"
+      >
+        {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
+      </button>
+    </template>
 
     <div v-if="loading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
 
     <template v-else>
-      <!-- Core fields -->
-      <div class="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-5">
-        <!-- Left: emblem + meta -->
-        <div class="flex flex-col gap-4">
-          <!-- Emblem -->
-          <div
-            class="relative aspect-square rounded-lg border border-border overflow-hidden bg-muted cursor-pointer group"
-            @click="fileInput?.click()"
-          >
-            <img v-if="form.emblem_url" :src="form.emblem_url" alt="Faction emblem" class="w-full h-full object-cover" />
-            <div v-else class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground">
-              <Shield class="h-10 w-10" />
-              <span class="font-fell text-sm italic">Upload emblem</span>
+      <div class="flex flex-col gap-6">
+        <!-- Core fields -->
+        <div class="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-5">
+          <!-- Left: emblem + meta -->
+          <div class="flex flex-col gap-4">
+            <!-- Emblem -->
+            <div
+              class="relative aspect-square rounded-lg border border-border overflow-hidden bg-muted cursor-pointer group"
+              @click="fileInput?.click()"
+            >
+              <img v-if="form.emblem_url" :src="form.emblem_url" alt="Faction emblem" class="w-full h-full object-cover" />
+              <div v-else class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                <Shield class="h-10 w-10" />
+                <span class="font-fell text-sm italic">Upload emblem</span>
+              </div>
+              <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <span class="font-fell text-white text-sm italic">{{ form.emblem_url ? "Change" : "Upload" }}</span>
+              </div>
+              <div v-if="uploading" class="absolute inset-0 bg-black/60 flex items-center justify-center">
+                <LoadingSpinner />
+              </div>
             </div>
-            <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <span class="font-fell text-white text-sm italic">{{ form.emblem_url ? "Change" : "Upload" }}</span>
+            <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileSelected" />
+            <button v-if="form.emblem_url" type="button" class="font-cinzel text-[10px] text-destructive hover:underline text-left" @click.stop="form.emblem_url = ''">
+              Remove emblem
+            </button>
+
+            <!-- Type -->
+            <div class="space-y-1.5">
+              <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Type</label>
+              <EntityCombobox v-model="factionTypeStr" :options="FACTION_TYPE_OPTIONS" placeholder="Select type…" />
             </div>
-            <div v-if="uploading" class="absolute inset-0 bg-black/60 flex items-center justify-center">
-              <LoadingSpinner />
+
+            <!-- Alignment -->
+            <div class="space-y-1.5">
+              <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Alignment</label>
+              <EntityCombobox v-model="alignmentStr" :options="FACTION_ALIGNMENT_OPTIONS" placeholder="Select alignment…" />
+            </div>
+
+            <!-- Visibility -->
+            <label class="flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" v-model="form.is_player_visible" class="rounded" />
+              <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">VISIBLE TO PLAYERS</span>
+            </label>
+
+            <!-- Tags -->
+            <div class="space-y-1.5">
+              <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Tags</label>
+              <TagInput v-model="tags" />
             </div>
           </div>
-          <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileSelected" />
-          <button v-if="form.emblem_url" type="button" class="font-cinzel text-[10px] text-destructive hover:underline text-left" @click.stop="form.emblem_url = ''">
-            Remove emblem
-          </button>
 
-          <!-- Type -->
-          <div class="space-y-1.5">
-            <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Type</label>
-            <EntityCombobox
-              v-model="factionTypeStr"
-              :options="FACTION_TYPE_OPTIONS"
-              placeholder="Select type…"
-            />
-          </div>
-
-          <!-- Alignment -->
-          <div class="space-y-1.5">
-            <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Alignment</label>
-            <EntityCombobox
-              v-model="alignmentStr"
-              :options="FACTION_ALIGNMENT_OPTIONS"
-              placeholder="Select alignment…"
-            />
-          </div>
-
-          <!-- Visibility -->
-          <label class="flex items-center gap-2 cursor-pointer select-none">
-            <input type="checkbox" v-model="form.is_player_visible" class="rounded" />
-            <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">VISIBLE TO PLAYERS</span>
-          </label>
-
-          <!-- Tags -->
-          <div class="space-y-1.5">
-            <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Tags</label>
-            <TagInput v-model="tags" />
+          <!-- Right: name + description -->
+          <div class="flex flex-col gap-4">
+            <div class="space-y-1.5">
+              <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Name</label>
+              <input
+                v-model="form.name"
+                placeholder="Faction name…"
+                required
+                class="w-full bg-card border border-border rounded-md px-3 py-2 font-cinzel text-lg font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
+            <div class="flex-1 space-y-1.5">
+              <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Description & Notes</label>
+              <RichTextEditor v-model="form.description" placeholder="History, motives, known activities…" min-height="320px" />
+            </div>
           </div>
         </div>
 
-        <!-- Right: name + description -->
-        <div class="flex flex-col gap-4">
-          <div class="space-y-1.5">
-            <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Name</label>
-            <input
-              v-model="form.name"
-              placeholder="Faction name…"
-              required
-              class="w-full bg-card border border-border rounded-md px-3 py-2 font-cinzel text-lg font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            />
+        <!-- Sub-sections (only on existing factions) -->
+        <template v-if="!isNew">
+          <div class="border-t border-border pt-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <FactionMembersSection :faction-id="id" />
+            <FactionRelationsSection :faction-id="id" />
           </div>
-          <div class="flex-1 space-y-1.5">
-            <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Description & Notes</label>
-            <RichTextEditor v-model="form.description" placeholder="History, motives, known activities…" min-height="320px" />
+          <div class="border-t border-border pt-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <FactionLocationsSection :faction-id="id" />
+            <FactionItemsSection :faction-id="id" />
           </div>
-        </div>
+          <div class="border-t border-border pt-6">
+            <EntityNotesPanel entity-type="faction" :entity-id="id" />
+          </div>
+        </template>
       </div>
-
-      <!-- Sub-sections (only on existing factions) -->
-      <template v-if="!isNew">
-        <div class="border-t border-border pt-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <FactionMembersSection :faction-id="id" />
-          <FactionRelationsSection :faction-id="id" />
-        </div>
-        <div class="border-t border-border pt-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <FactionLocationsSection :faction-id="id" />
-          <FactionItemsSection :faction-id="id" />
-        </div>
-        <div class="border-t border-border pt-6">
-          <EntityNotesPanel entity-type="faction" :entity-id="id" />
-        </div>
-      </template>
     </template>
-  </div>
+  </PageHeader>
 </template>
 
 <script setup lang="ts">
@@ -135,6 +121,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useConfirm } from "@/composables/useConfirm";
 import { useFaction, useCreateFaction, useUpdateFaction, useDeleteFaction } from "@/composables/useFactions";
 import { FACTION_TYPES, FACTION_ALIGNMENTS } from "@/types/faction.types";
+import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";

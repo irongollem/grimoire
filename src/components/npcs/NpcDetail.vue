@@ -335,6 +335,14 @@
               <!-- Text fields -->
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
+                  <label class="field-label">Saving Throws</label>
+                  <input v-model="statBlock.saving_throws" placeholder="Con +5, Wis +3" class="field-input" />
+                </div>
+                <div>
+                  <label class="field-label">Proficiency Bonus</label>
+                  <input v-model="statBlock.proficiency_bonus" type="number" min="0" placeholder="2" class="field-input" />
+                </div>
+                <div>
                   <label class="field-label">Skills</label>
                   <input v-model="statBlock.skills" placeholder="Perception +4, Stealth +6" class="field-input" />
                 </div>
@@ -592,6 +600,8 @@ interface FlatStatBlock {
   speed: string
   str: number; dex: number; con: number; int: number; wis: number; cha: number
   challenge_rating: string
+  proficiency_bonus: string
+  saving_throws: string
   skills: string
   damage_resistances: string
   damage_immunities: string
@@ -614,6 +624,8 @@ const statBlock = reactive<FlatStatBlock>({
   wis: props.npc?.stat_block?.wis ?? 10,
   cha: props.npc?.stat_block?.cha ?? 10,
   challenge_rating: props.npc?.stat_block?.challenge_rating ?? '0',
+  proficiency_bonus: String(props.npc?.stat_block?.proficiency_bonus ?? ''),
+  saving_throws: props.npc?.stat_block?.saving_throws ?? '',
   skills: skillsToString(props.npc?.stat_block?.skills),
   damage_resistances: props.npc?.stat_block?.damage_resistances ?? '',
   damage_immunities: props.npc?.stat_block?.damage_immunities ?? '',
@@ -646,6 +658,8 @@ function applyTemplate(id: string) {
     str: sb.str, dex: sb.dex, con: sb.con,
     int: sb.int, wis: sb.wis, cha: sb.cha,
     challenge_rating: sb.challenge_rating,
+    proficiency_bonus: String(sb.proficiency_bonus ?? ''),
+    saving_throws: sb.saving_throws ?? '',
     skills: skillsToString(sb.skills),
     damage_resistances: sb.damage_resistances ?? '',
     damage_immunities: sb.damage_immunities ?? '',
@@ -670,6 +684,8 @@ function buildStatBlock(): StatBlock | null {
     str: statBlock.str, dex: statBlock.dex, con: statBlock.con,
     int: statBlock.int, wis: statBlock.wis, cha: statBlock.cha,
     challenge_rating: statBlock.challenge_rating,
+    ...(statBlock.proficiency_bonus ? { proficiency_bonus: Number(statBlock.proficiency_bonus) } : {}),
+    ...(statBlock.saving_throws ? { saving_throws: statBlock.saving_throws } : {}),
     ...(Object.keys(skillsRecord).length ? { skills: skillsRecord } : {}),
     ...(statBlock.damage_resistances ? { damage_resistances: statBlock.damage_resistances } : {}),
     ...(statBlock.damage_immunities ? { damage_immunities: statBlock.damage_immunities } : {}),

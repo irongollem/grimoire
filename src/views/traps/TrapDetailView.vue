@@ -1,46 +1,28 @@
 <template>
-  <div class="space-y-4 max-w-2xl mx-auto">
-    <!-- Back -->
-    <RouterLink
-      to="/traps"
-      class="inline-flex items-center gap-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors tracking-wider"
-    >
-      <ChevronLeft class="h-3.5 w-3.5" />
-      Traproom
-    </RouterLink>
+  <PageHeader :title="isNew ? 'New Trap' : (form.name || 'Loading…')">
+    <template #actions>
+      <button
+        v-if="isEdit"
+        type="button"
+        class="font-fell text-sm text-destructive hover:opacity-70 transition-opacity"
+        @click="deleteTrap"
+      >Delete</button>
+      <button
+        type="button"
+        :disabled="saving || !form.name.trim()"
+        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+        @click="save"
+      >
+        {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
+      </button>
+    </template>
 
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
 
     <template v-else>
-      <!-- Header -->
-      <div class="flex items-start justify-between gap-4">
-        <input
-          v-model="form.name"
-          class="flex-1 bg-transparent border-b border-border font-cinzel text-2xl font-bold text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary pb-1"
-          placeholder="Trap name…"
-        />
-        <div class="flex items-center gap-2 shrink-0">
-          <button
-            v-if="isEdit"
-            type="button"
-            class="font-cinzel text-xs text-destructive hover:opacity-80 tracking-wider transition-opacity"
-            @click="deleteTrap"
-          >
-            Delete
-          </button>
-          <button
-            type="button"
-            :disabled="saving || !form.name.trim()"
-            class="font-cinzel text-xs font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-40"
-            @click="save"
-          >
-            {{ saving ? "Saving…" : isEdit ? "Save" : "Create" }}
-          </button>
-        </div>
-      </div>
-
+      <div class="flex flex-col gap-4 max-w-2xl">
       <!-- Image + Identity -->
       <div class="rounded-lg border border-border bg-card overflow-hidden">
         <div class="px-3 py-2 border-b border-border bg-muted/20">
@@ -62,6 +44,14 @@
 
           <!-- Fields -->
           <div class="flex-1 grid grid-cols-2 gap-3">
+            <div class="col-span-2">
+              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Name</label>
+              <input
+                v-model="form.name"
+                placeholder="Trap name…"
+                class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-cinzel text-sm font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
             <div>
               <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Type</label>
               <select v-model="form.trap_type" class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
@@ -198,14 +188,15 @@
           <RichTextEditor v-model="form.notes" placeholder="Private notes, encounter ideas, variants…" min-height="100px" />
         </div>
       </div>
+      </div>
     </template>
-  </div>
+  </PageHeader>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { RouterLink, useRoute, useRouter } from "vue-router";
-import { ChevronLeft } from "lucide-vue-next";
+import { useRoute, useRouter } from "vue-router";
+import PageHeader from "@/components/common/PageHeader.vue";
 import {
   useTrap, useCreateTrap, useUpdateTrap, useDeleteTrap,
 } from "@/composables/useTraps";

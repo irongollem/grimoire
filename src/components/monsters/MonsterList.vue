@@ -83,18 +83,18 @@
       v-else
       class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
     >
-      <RouterLink
+      <div
         v-for="monster in filtered"
         :key="monster.id"
-        :to="`/monsters/${monster.id}`"
-        class="group flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
+        class="group relative flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
       >
+        <!-- Card link overlay -->
+        <RouterLink :to="`/monsters/${monster.id}`" class="absolute inset-0 z-2" />
+
         <!-- CR colour bar -->
         <div
           class="h-1.5 w-full shrink-0"
-          :style="{
-            backgroundColor: crColor(monster.stat_block.challenge_rating),
-          }"
+          :style="{ backgroundColor: crColor(monster.stat_block.challenge_rating) }"
         />
 
         <!-- Thumbnail (landscape) -->
@@ -122,9 +122,7 @@
         <div class="p-3 flex flex-col gap-2 flex-1">
           <!-- Name + SRD badge + CR -->
           <div class="flex items-start justify-between gap-2">
-            <h3
-              class="font-cinzel text-sm font-bold text-foreground leading-tight flex-1 line-clamp-1"
-            >
+            <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight flex-1 line-clamp-1">
               {{ monster.name }}
             </h3>
             <div class="flex items-center gap-1 shrink-0">
@@ -136,9 +134,7 @@
               </span>
               <span
                 class="min-w-8 text-center px-1.5 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider text-white"
-                :style="{
-                  backgroundColor: crColor(monster.stat_block.challenge_rating),
-                }"
+                :style="{ backgroundColor: crColor(monster.stat_block.challenge_rating) }"
               >
                 CR {{ monster.stat_block.challenge_rating }}
               </span>
@@ -152,14 +148,8 @@
 
           <!-- Stats row -->
           <div class="flex gap-3 font-cinzel text-[11px] text-muted-foreground">
-            <span
-              ><span class="text-foreground font-bold">AC</span>
-              {{ monster.stat_block.armor_class }}</span
-            >
-            <span
-              ><span class="text-foreground font-bold">HP</span>
-              {{ monster.stat_block.hit_points }}</span
-            >
+            <span><span class="text-foreground font-bold">AC</span> {{ monster.stat_block.armor_class }}</span>
+            <span><span class="text-foreground font-bold">HP</span> {{ monster.stat_block.hit_points }}</span>
           </div>
 
           <!-- Tags -->
@@ -173,7 +163,18 @@
             </span>
           </div>
         </div>
-      </RouterLink>
+
+        <!-- Edit button (custom monsters only, floats over portrait top-left on hover) -->
+        <RouterLink
+          v-if="!monster.is_srd"
+          :to="`/monsters/${monster.id}?edit=true`"
+          class="absolute top-2 left-2 z-10 flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity"
+          title="Edit monster"
+        >
+          <Pencil class="h-3 w-3" />
+          Edit
+        </RouterLink>
+      </div>
     </div>
 
     <p
@@ -187,7 +188,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Search } from "lucide-vue-next";
+import { Search, Pencil } from "lucide-vue-next";
 import { useAllMonsters } from "@/composables/useMonsters";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";

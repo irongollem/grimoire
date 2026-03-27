@@ -92,6 +92,8 @@ export interface StatBlock {
   wis: number;
   cha: number;
   challenge_rating: string; // e.g. "5" or "1/2"
+  proficiency_bonus?: number; // e.g. 3 (overrides CR-derived default)
+  saving_throws?: string; // e.g. "Con +5, Wis +3"
   skills?: Record<string, string>;
   damage_resistances?: string;
   damage_immunities?: string;

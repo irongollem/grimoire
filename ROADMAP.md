@@ -1,9 +1,5 @@
 # Grimoire — Feature Roadmap
 
-## In Progress / Next Up
-
-- [ ] Scriptorium visual assets (page border PNG, chapter art) — see `ASSETS_PROMPT_LIST.md`
-
 ---
 
 ## Core Features (Complete)
@@ -33,6 +29,11 @@
 ### Game Entities
 
 - [x] NPC tracker with full stat blocks, portrait upload, TraitSection editor
+- [x] Read-only sheet views for Monster, NPC, Item, and Spell — DnD-stat-block-style layout (image top-left, portrait fills row height up to 80vh with sticky on desktop, bordered stat block panel, trait sections); pencil button in page header toggles to edit form via `?edit` query param; shared `StatBlockPanel` and `TraitList` components reused across monster/NPC sheets; `StatBlockPanel` uses per-ability row layout (name | score | mod | save, per-ability color tints), `MonsterSheet` uses two-column layout (stat block left, traits/actions right); **Source Sans 3** added as `font-stat` for all stat block and trait text (15px body, 20px section titles, matching official DnD Beyond typographic spec)
+- [x] List card quick-edit — hover any card to reveal an "Edit" button (pencil, floats top-left over portrait, `z-10` above the `z-2` card overlay link) that jumps directly to `?edit=true`, bypassing the sheet view; SRD monsters excluded
+- [x] TraitSection descriptions switched from fixed-height `<textarea>` to `RichTextEditor` (auto-grows, rich text, handles legacy plain strings via `parseContent`)
+- [x] Focal point support for items and spells — `image_focal_point` jsonb column added; `ImageUpload` uses `show-focal-point` mode matching NPC/monster pattern
+- [x] Saving Throws and Proficiency Bonus added to NPC and Monster stat block types and editors
 - [x] NPC detail reorganized: Lore/Inventory/Combat tabs, monster link + template unified on Combat tab, player sharing moved to action bar foldout, NPC Connections below Identity, Party Stance renamed from Relationship; Class/Role field removed (use Occupation); DM Secret merged into DM Notes; old affiliation column dropped
 - [x] Bestiary — monster builder with 12 SRD template presets + full SRD bundle
 - [x] Item Vault — full CRUD with 15 item types, 7 rarities, weapon damage dice, charges, attunement, image upload, card printing
@@ -117,6 +118,8 @@
 - [x] **Migrate `npcs.party_notes`** — legacy per-column party notes migrated into `entity_notes`; column dropped; DM editor "Party Notes" field removed; all campaign members can see each other's shared notes via symmetric RLS policy
 - [x] **Campaign delete hardening** — trash icon removed from campaign picker dropdown; delete moved to dedicated "Danger Zone" tab in Edit Campaign modal; requires typing campaign name to confirm (GitHub-style)
 - [x] **Typography polish** — placeholder opacity globally dimmed (40%) so placeholders are clearly distinct from input text; body font migrated from IM Fell English (no bold variant) to Crimson Pro (weights 300–700, proper bold rendering); RTE heading sizes toned down (H1: 2xl→lg, H2: xl→base, H3: base→sm)
+- [ ] **Session planner** - have an shared agenda feature to allocate when a player is available so it's easy for a DM or player to plan the next possible session with a threshold of minimal players available
+- [ ] Have an iCal/google calendar link to store and manage the ongoing campaign agenda plan
 
 ---
 
@@ -158,8 +161,13 @@
 
 ### Spells
 
+- [ ] Add the artificer as class to the list of "who this spell is for"
 - [ ] Scriptorium formatter for spells (classic spell card block)
 - [ ] Spell list on NPC / monster stat blocks with Spellbook links
+- [ ] Track the actual book source from SRD instead of labelling it as SRD source when importing from open5e
+- [ ] During import as well as on your list view, allow filtering out which sources are stored to your DB (or shown in listview), persist this in localStorage
+- [ ] When clicking import again, (temp feat or perhaps just script or so for my campaign only) update sources and whos it for (due to the artificer not being on the list before) but be careful not to remove previously associated images. (spent too much time on filling that in to redo)
+- [ ] Make ALL spells available to players so they can browse them, prepare them, assign them to their character etc. Just like in DND beyond they can update their spellbook and define which are prepared etc.
 
 ### Atlas / Locations
 

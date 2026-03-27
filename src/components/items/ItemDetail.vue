@@ -49,7 +49,10 @@
         <!-- Portrait -->
         <ImageUpload
           :model-value="imageUrl || null"
+          show-focal-point
+          :focal-point="imageFocalPoint"
           @update:model-value="imageUrl = $event ?? ''"
+          @update:focal-point="imageFocalPoint = $event"
         />
 
         <!-- Tags -->
@@ -321,6 +324,7 @@ const cost = ref(props.item?.cost ?? "");
 const description = ref(props.item?.description ?? "");
 const source = ref(props.item?.source ?? "");
 const imageUrl = ref(props.item?.image_url ?? "");
+const imageFocalPoint = ref(props.item?.image_focal_point ?? null);
 const tags = ref<string[]>(props.item?.tags ?? []);
 
 // ── Weapon fields ─────────────────────────────────────────────────────────────
@@ -392,6 +396,7 @@ function buildPayload() {
     source: source.value.trim() || null,
     tags: tags.value,
     image_url: imageUrl.value || null,
+    image_focal_point: imageFocalPoint.value,
   };
 }
 

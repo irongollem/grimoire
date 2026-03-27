@@ -27,6 +27,7 @@ export interface MonsterStatBlock {
   wis: number;
   cha: number;
   challenge_rating: string; // e.g. "5" | "1/2" | "1/4"
+  proficiency_bonus?: number; // e.g. 3 (overrides CR-derived default)
   saving_throws?: string; // e.g. "Con +5, Wis +3"
   skills?: Record<string, string>; // e.g. { perception: '+3', stealth: '+5' }
   damage_vulnerabilities?: string;

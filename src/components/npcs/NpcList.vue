@@ -5,7 +5,13 @@
     </div>
 
     <EmptyState
-      v-else-if="!filtered.length && !props.search && props.statusFilter === 'all' && props.relFilter === 'all' && !props.locationFilter"
+      v-else-if="
+        !filtered.length &&
+        !props.search &&
+        props.statusFilter === 'all' &&
+        props.relFilter === 'all' &&
+        !props.locationFilter
+      "
       title="No NPCs yet"
       description="Populate your realm with merchants, villains, sages, and more."
     >
@@ -26,13 +32,18 @@
       No NPCs match your filters.
     </p>
 
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-      <RouterLink
+    <div
+      v-else
+      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
+    >
+      <div
         v-for="npc in filtered"
         :key="npc.id"
-        :to="`/npcs/${npc.id}`"
-        class="group flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
+        class="group relative flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
       >
+        <!-- Card link overlay -->
+        <RouterLink :to="`/npcs/${npc.id}`" class="absolute inset-0 z-2" />
+
         <!-- Thumbnail (landscape) -->
         <div class="relative h-36 bg-muted overflow-hidden shrink-0">
           <FocalImage
@@ -80,14 +91,13 @@
             v-if="npc.race"
             class="font-fell text-xs text-muted-foreground italic truncate"
           >
-            {{ npc.race }}
+            {{ npc.race }} - {{ npc.occupation }}
           </p>
 
-          <p v-if="npc.occupation" class="font-fell text-xs text-muted-foreground truncate">
-            {{ npc.occupation }}
-          </p>
-
-          <p v-if="npc.location_id" class="font-fell text-xs text-muted-foreground truncate">
+          <p
+            v-if="npc.location_id"
+            class="font-fell text-xs text-muted-foreground truncate"
+          >
             📍 {{ locationName(npc.location_id) }}
           </p>
 
@@ -107,7 +117,17 @@
             </span>
           </div>
         </div>
-      </RouterLink>
+
+        <!-- Edit button (floats over portrait top-left on hover) -->
+        <RouterLink
+          :to="`/npcs/${npc.id}?edit=true`"
+          class="absolute top-2 left-2 z-10 flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity"
+          title="Edit NPC"
+        >
+          <Pencil class="h-3 w-3" />
+          Edit
+        </RouterLink>
+      </div>
     </div>
 
     <p
@@ -121,6 +141,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { Pencil } from "lucide-vue-next";
 import { useNpcs } from "@/composables/useNpcs";
 import { useAllLocations, useLocationTree } from "@/composables/useLocations";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -165,12 +186,16 @@ const filtered = computed(() => {
         n.name.toLowerCase().includes(q) ||
         n.race?.toLowerCase().includes(q) ||
         n.occupation?.toLowerCase().includes(q) ||
-        (n.location_id ? locationMap.value.get(n.location_id)?.toLowerCase().includes(q) : false) ||
+        (n.location_id
+          ? locationMap.value.get(n.location_id)?.toLowerCase().includes(q)
+          : false) ||
         n.tags.some((t) => t.toLowerCase().includes(q)),
     );
   }
-  if (props.statusFilter !== "all") list = list.filter((n) => n.status === props.statusFilter);
-  if (props.relFilter !== "all") list = list.filter((n) => n.relationship === props.relFilter);
+  if (props.statusFilter !== "all")
+    list = list.filter((n) => n.status === props.statusFilter);
+  if (props.relFilter !== "all")
+    list = list.filter((n) => n.relationship === props.relFilter);
   if (props.locationFilter) {
     const locationIds = getDescendantIds(props.locationFilter);
     list = list.filter((n) => n.location_id && locationIds.has(n.location_id));
@@ -178,8 +203,12 @@ const filtered = computed(() => {
   if (props.sortBy === "location") {
     const order = locationOrder.value;
     list = [...list].sort((a, b) => {
-      const ai = a.location_id ? (order.get(a.location_id) ?? Infinity) : Infinity;
-      const bi = b.location_id ? (order.get(b.location_id) ?? Infinity) : Infinity;
+      const ai = a.location_id
+        ? (order.get(a.location_id) ?? Infinity)
+        : Infinity;
+      const bi = b.location_id
+        ? (order.get(b.location_id) ?? Infinity)
+        : Infinity;
       if (ai !== bi) return ai - bi;
       return a.name.localeCompare(b.name);
     });

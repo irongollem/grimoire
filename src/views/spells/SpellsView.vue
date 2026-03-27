@@ -20,16 +20,72 @@
       </RouterLink>
     </template>
 
-    <SpellList />
+    <template #sticky>
+      <div class="flex flex-wrap items-center gap-2">
+        <!-- Search -->
+        <div class="relative flex-1 min-w-48">
+          <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <input
+            v-model="search"
+            type="text"
+            placeholder="Search spells…"
+            class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        </div>
+        <!-- Level -->
+        <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
+          <button
+            v-for="lvl in LEVEL_FILTERS"
+            :key="lvl.value"
+            class="px-2.5 py-1.5 transition-colors"
+            :class="levelFilter === lvl.value ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
+            @click="levelFilter = lvl.value"
+          >
+            {{ lvl.label }}
+          </button>
+        </div>
+        <!-- School -->
+        <select v-model="schoolFilter" class="bg-card border border-border rounded-md px-3 py-1.5 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+          <option value="">All Schools</option>
+          <option v-for="s in SPELL_SCHOOLS" :key="s" :value="s" class="capitalize">{{ s }}</option>
+        </select>
+        <!-- Class -->
+        <select v-model="classFilter" class="bg-card border border-border rounded-md px-3 py-1.5 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+          <option value="">All Classes</option>
+          <option v-for="c in SPELL_CLASSES" :key="c" :value="c">{{ c }}</option>
+        </select>
+      </div>
+    </template>
+
+    <SpellList
+      :search="search"
+      :level-filter="levelFilter"
+      :school-filter="schoolFilter"
+      :class-filter="classFilter"
+    />
   </PageHeader>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Plus, Loader2, Download } from "lucide-vue-next";
+import { Plus, Loader2, Download, Search } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import SpellList from "@/components/spells/SpellList.vue";
 import { useImportSrdSpells } from "@/composables/useSpells";
+import { SPELL_SCHOOLS, SPELL_CLASSES } from "@/types/spell.types";
+
+const LEVEL_FILTERS = [
+  { value: "", label: "All" },
+  { value: "0", label: "C" },
+  { value: "1", label: "1" }, { value: "2", label: "2" }, { value: "3", label: "3" },
+  { value: "4", label: "4" }, { value: "5", label: "5" }, { value: "6", label: "6" },
+  { value: "7", label: "7" }, { value: "8", label: "8" }, { value: "9", label: "9" },
+];
+
+const search = ref("");
+const levelFilter = ref("");
+const schoolFilter = ref("");
+const classFilter = ref("");
 
 const importMutation = useImportSrdSpells();
 const importStatus = ref<"idle" | "done" | "uptodate">("idle");

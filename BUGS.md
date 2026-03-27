@@ -71,9 +71,10 @@
 - [x] deleting a spell or monster doesn't return to list, and orphaned images left in storage — navigate first (before mutateAsync) to avoid TanStack refetch-404 race; image URLs deleted from asset-images bucket on entity delete
 
 - [x] Notes page fires a 400 Bad Request (invalid UUID) when navigating to /notes/new — useNote was not reactive (passed id.value instead of id ref) and had no `enabled` guard; fixed by accepting Ref<string> and adding `enabled: () => !!id.value`
-- [ ] Clicking customize effectively creates 2 copies. 1 directly, but it also pushes you into a non-saved copy to actually edit, and when you hit create (not save) then that gets created as well
-- [ ] NPC statblock is missing Saving throws
-- [ ] dropping a landscape image in the box for items, crops part of the item off
+- [x] Clicking customize effectively creates 2 copies. 1 directly, but it also pushes you into a non-saved copy to actually edit, and when you hit create (not save) then that gets created as well — useMonster was called with a non-reactive snapshot; after router.replace to the clone's URL, id changed but the query still watched "" so resolvedMonster stayed null and MonsterDetail rendered as "New Monster". Fixed: useMonster now accepts `Ref<string>` with a computed queryKey so it reactively re-fetches when the route changes.
+- [x] NPC statblock is missing Saving throws — added `saving_throws` and `proficiency_bonus` to NPC StatBlock type and editor; also added `proficiency_bonus` to Monster stat block type and editor
+- [x] dropping a landscape image in the box for items, crops part of the item off — added `image_focal_point` jsonb column to items and spells; switched ImageUpload to `show-focal-point` mode (same pattern as NPCs/monsters) so users can drag to set the crop focal point
+- [x] Abilities and actions on an NPC or monster should be rich-text blocks that grow if the text doesn't fit (now you must scroll) — TraitSection switched from fixed `<textarea rows="2">` to `RichTextEditor`; Tiptap handles auto-height; `parseContent` handles legacy plain strings gracefully
 
 ## Regressing bugs
 

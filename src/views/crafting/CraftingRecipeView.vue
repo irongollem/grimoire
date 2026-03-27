@@ -1,23 +1,13 @@
 <template>
-  <div>
-    <div class="flex items-center gap-2 mb-6">
-      <button
-        class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors"
-        @click="$router.push('/crafting')"
-      >
-        ← Crafting
-      </button>
-      <span class="text-muted-foreground/40">/</span>
-      <span class="font-cinzel text-xs text-foreground">{{ isNew ? "New Recipe" : recipe?.name || "…" }}</span>
-    </div>
-
+  <PageHeader :title="isNew ? 'New Recipe' : (recipe?.name || 'Loading…')">
     <RecipeEditor :recipe="recipe ?? undefined" @saved="onSaved" />
-  </div>
+  </PageHeader>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import PageHeader from "@/components/common/PageHeader.vue";
 import RecipeEditor from "@/components/crafting/RecipeEditor.vue";
 import { useCraftingRecipe } from "@/composables/useCrafting";
 

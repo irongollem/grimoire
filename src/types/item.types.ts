@@ -117,6 +117,7 @@ export interface Item {
   source: string | null;
   tags: string[];
   image_url: string | null;
+  image_focal_point?: { x: number; y: number } | null;
   created_at: string;
   updated_at: string;
 }

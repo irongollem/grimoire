@@ -263,6 +263,16 @@
               />
             </label>
             <label class="block">
+              <span class="field-label">Proficiency Bonus</span>
+              <input
+                v-model.number="sb.proficiency_bonus"
+                type="number"
+                min="0"
+                class="field-input w-full"
+                placeholder="2"
+              />
+            </label>
+            <label class="block">
               <span class="field-label">Skills</span>
               <input
                 :value="skillsText"

@@ -350,7 +350,10 @@
       <div class="flex flex-col gap-4">
         <ImageUpload
           :model-value="imageUrl || null"
+          show-focal-point
+          :focal-point="imageFocalPoint"
           @update:model-value="imageUrl = $event ?? ''"
+          @update:focal-point="imageFocalPoint = $event"
         />
         <label class="flex flex-col gap-1">
           <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Source</span>
@@ -1078,6 +1081,7 @@ const higherLevels = ref(props.spell?.higher_levels ?? "");
 const classes = ref<string[]>(props.spell?.classes ?? []);
 const source = ref(props.spell?.source ?? "");
 const imageUrl = ref(props.spell?.image_url ?? "");
+const imageFocalPoint = ref(props.spell?.image_focal_point ?? null);
 const tags = ref<string[]>(props.spell?.tags ?? []);
 
 // ── Mechanics ─────────────────────────────────────────────────────────────────
@@ -1275,6 +1279,7 @@ function buildPayload() {
     tags: tags.value,
     source: source.value || null,
     image_url: imageUrl.value || null,
+    image_focal_point: imageFocalPoint.value,
     attack_type: attackType.value || null,
     save_attribute: attackType.value === "save" ? saveAttribute.value || null : null,
     save_effect: attackType.value === "save" ? saveEffect.value || null : null,

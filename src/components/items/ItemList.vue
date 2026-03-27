@@ -37,62 +37,77 @@
 
     <!-- Grid -->
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-      <RouterLink
+      <div
         v-for="item in filtered"
         :key="item.id"
-        :to="`/vault/${item.id}`"
-        class="group rounded-lg border border-border bg-card p-4 hover:border-primary/50 transition-colors flex flex-col gap-2"
+        class="group relative rounded-lg border border-border bg-card hover:border-primary/50 transition-colors flex flex-col"
       >
-        <!-- Name + rarity badge -->
-        <div class="flex items-start justify-between gap-2">
-          <span class="font-cinzel text-sm font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1">
-            {{ item.name }}
-          </span>
-          <span
-            class="font-cinzel text-[10px] tracking-wider px-1.5 py-0.5 rounded shrink-0"
-            :style="{ backgroundColor: rarityColor(item.rarity) + '33', color: rarityColor(item.rarity) }"
-          >
-            {{ ITEM_RARITY_LABELS[item.rarity] }}
-          </span>
+        <!-- Card link overlay -->
+        <RouterLink :to="`/vault/${item.id}`" class="absolute inset-0 z-2" />
+
+        <div class="p-4 flex flex-col gap-2 flex-1">
+          <!-- Name + rarity badge -->
+          <div class="flex items-start justify-between gap-2">
+            <span class="font-cinzel text-sm font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1">
+              {{ item.name }}
+            </span>
+            <span
+              class="font-cinzel text-[10px] tracking-wider px-1.5 py-0.5 rounded shrink-0"
+              :style="{ backgroundColor: rarityColor(item.rarity) + '33', color: rarityColor(item.rarity) }"
+            >
+              {{ ITEM_RARITY_LABELS[item.rarity] }}
+            </span>
+          </div>
+
+          <!-- Type line -->
+          <p class="font-fell text-xs text-muted-foreground capitalize">
+            {{ ITEM_TYPE_LABELS[item.item_type] }}
+            <span v-if="item.subtype">· {{ item.subtype }}</span>
+            <span v-if="item.requires_attunement"> · Attunement</span>
+          </p>
+
+          <!-- Damage / AC quick stat -->
+          <div class="flex items-center gap-3 mt-auto pt-1">
+            <span v-if="item.damage_rolls?.length" class="font-fell text-xs text-muted-foreground">
+              ⚔ {{ item.damage_rolls.map(r => r.dice + (r.type ? ' ' + r.type : '')).join(' + ') }}
+            </span>
+            <span v-if="item.armor_class" class="font-fell text-xs text-muted-foreground">
+              🛡 AC {{ item.armor_class }}
+            </span>
+            <span v-if="item.charges" class="font-fell text-xs text-muted-foreground">
+              ✦ {{ item.charges }} charges
+            </span>
+          </div>
+
+          <!-- Tags -->
+          <div v-if="item.tags.length" class="flex gap-1 flex-wrap">
+            <span
+              v-for="tag in item.tags.slice(0, 4)"
+              :key="tag"
+              class="font-cinzel text-[10px] tracking-wider text-muted-foreground bg-muted px-1.5 py-0.5 rounded"
+            >
+              {{ tag }}
+            </span>
+          </div>
         </div>
 
-        <!-- Type line -->
-        <p class="font-fell text-xs text-muted-foreground capitalize">
-          {{ ITEM_TYPE_LABELS[item.item_type] }}
-          <span v-if="item.subtype">· {{ item.subtype }}</span>
-          <span v-if="item.requires_attunement"> · Attunement</span>
-        </p>
-
-        <!-- Damage / AC quick stat -->
-        <div class="flex items-center gap-3 mt-auto pt-1">
-          <span v-if="item.damage_rolls?.length" class="font-fell text-xs text-muted-foreground">
-            ⚔ {{ item.damage_rolls.map(r => r.dice + (r.type ? ' ' + r.type : '')).join(' + ') }}
-          </span>
-          <span v-if="item.armor_class" class="font-fell text-xs text-muted-foreground">
-            🛡 AC {{ item.armor_class }}
-          </span>
-          <span v-if="item.charges" class="font-fell text-xs text-muted-foreground">
-            ✦ {{ item.charges }} charges
-          </span>
-        </div>
-
-        <!-- Tags -->
-        <div v-if="item.tags.length" class="flex gap-1 flex-wrap">
-          <span
-            v-for="tag in item.tags.slice(0, 4)"
-            :key="tag"
-            class="font-cinzel text-[10px] tracking-wider text-muted-foreground bg-muted px-1.5 py-0.5 rounded"
-          >
-            {{ tag }}
-          </span>
-        </div>
-      </RouterLink>
+        <!-- Edit button (floats top-left on hover) -->
+        <RouterLink
+          :to="`/vault/${item.id}?edit=true`"
+          class="absolute top-2 left-2 z-10 flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity"
+          title="Edit item"
+        >
+          <Pencil class="h-3 w-3" />
+          Edit
+        </RouterLink>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { Pencil } from "lucide-vue-next";
 import { useItems } from "@/composables/useItems";
 import {
   ITEM_TYPES,

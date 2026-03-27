@@ -147,6 +147,7 @@ export interface Spell {
   tags: string[];
   source: string | null;
   image_url: string | null; // optional art for card printing
+  image_focal_point?: { x: number; y: number } | null;
   created_at: string;
   updated_at: string;
 }
