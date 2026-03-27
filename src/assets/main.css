@@ -37,7 +37,7 @@
 
   /* Fonts */
   --font-cinzel: "Cinzel", Georgia, serif;
-  --font-fell: "IM Fell English", Georgia, serif;
+  --font-fell: "Crimson Pro", Georgia, serif;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 
   /* Grimoire DnD custom palette */
@@ -123,6 +123,7 @@
   ::placeholder {
     opacity: 0.4;
   }
+
 
   body {
     background-color: var(--background);

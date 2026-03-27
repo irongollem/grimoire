@@ -6,7 +6,11 @@
     @close="closePdfPreview"
     @save="savePdf"
   />
-  <AssetInsertPanel :show="showAssetPanel" :editor="editor" @close="showAssetPanel = false" />
+  <AssetInsertPanel
+    :show="showAssetPanel"
+    :editor="editor"
+    @close="showAssetPanel = false"
+  />
 
   <div class="flex flex-col gap-3">
     <!-- Metadata row -->
@@ -25,12 +29,15 @@
           v-model="docType"
           class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         >
-          <option v-for="t in DOC_TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
+          <option v-for="t in DOC_TYPES" :key="t.value" :value="t.value">
+            {{ t.label }}
+          </option>
         </select>
       </label>
       <label class="flex items-center gap-2 cursor-pointer select-none">
         <input type="checkbox" v-model="isPublished" class="rounded" />
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+        <span
+          class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
           >PUBLISHED</span
         >
       </label>
@@ -58,12 +65,19 @@
     <!-- Tags row -->
     <TagInput v-model="tags" />
 
-    <p v-if="saveError" class="text-destructive font-fell text-sm">{{ saveError }}</p>
+    <p v-if="saveError" class="text-destructive font-fell text-sm">
+      {{ saveError }}
+    </p>
 
     <!-- Editor / Preview split -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3" style="min-height: 620px">
+    <div
+      class="grid grid-cols-1 lg:grid-cols-2 gap-3"
+      style="min-height: 620px"
+    >
       <!-- Editor pane -->
-      <div class="flex flex-col rounded-lg border border-border bg-card overflow-hidden">
+      <div
+        class="flex flex-col rounded-lg border border-border bg-card overflow-hidden"
+      >
         <!-- Toolbar -->
         <div
           class="flex flex-wrap items-center gap-0.5 p-1.5 border-b border-border bg-muted/30 shrink-0"
@@ -112,7 +126,9 @@
               :class="tbCls(editor.isActive('heading', { level: 1 }))"
               @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
             >
-              <span class="text-[10px] font-cinzel font-bold leading-none">H1</span>
+              <span class="text-[10px] font-cinzel font-bold leading-none"
+                >H1</span
+              >
             </button>
             <button
               type="button"
@@ -120,7 +136,9 @@
               :class="tbCls(editor.isActive('heading', { level: 2 }))"
               @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
             >
-              <span class="text-[10px] font-cinzel font-bold leading-none">H2</span>
+              <span class="text-[10px] font-cinzel font-bold leading-none"
+                >H2</span
+              >
             </button>
             <button
               type="button"
@@ -128,7 +146,9 @@
               :class="tbCls(editor.isActive('heading', { level: 3 }))"
               @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
             >
-              <span class="text-[10px] font-cinzel font-bold leading-none">H3</span>
+              <span class="text-[10px] font-cinzel font-bold leading-none"
+                >H3</span
+              >
             </button>
 
             <div class="w-px h-5 bg-border mx-0.5" />
@@ -202,7 +222,9 @@
                 :key="size.w"
                 type="button"
                 :title="`${size.label} (${size.w}px)`"
-                :class="tbCls(editor.getAttributes('image').width === String(size.w))"
+                :class="
+                  tbCls(editor.getAttributes('image').width === String(size.w))
+                "
                 @click="
                   editor
                     .chain()
@@ -211,15 +233,23 @@
                     .run()
                 "
               >
-                <span class="font-cinzel text-[9px] font-bold leading-none">{{ size.label }}</span>
+                <span class="font-cinzel text-[9px] font-bold leading-none">{{
+                  size.label
+                }}</span>
               </button>
               <div class="w-px h-5 bg-border mx-0.5" />
               <button
                 type="button"
                 title="Float left"
-                :class="tbCls(editor.getAttributes('image').dataAlign === 'left')"
+                :class="
+                  tbCls(editor.getAttributes('image').dataAlign === 'left')
+                "
                 @click="
-                  editor.chain().focus().updateAttributes('image', { dataAlign: 'left' }).run()
+                  editor
+                    .chain()
+                    .focus()
+                    .updateAttributes('image', { dataAlign: 'left' })
+                    .run()
                 "
               >
                 <AlignLeft class="h-3.5 w-3.5" />
@@ -227,9 +257,15 @@
               <button
                 type="button"
                 title="Center"
-                :class="tbCls(editor.getAttributes('image').dataAlign === 'center')"
+                :class="
+                  tbCls(editor.getAttributes('image').dataAlign === 'center')
+                "
                 @click="
-                  editor.chain().focus().updateAttributes('image', { dataAlign: 'center' }).run()
+                  editor
+                    .chain()
+                    .focus()
+                    .updateAttributes('image', { dataAlign: 'center' })
+                    .run()
                 "
               >
                 <AlignCenter class="h-3.5 w-3.5" />
@@ -244,7 +280,11 @@
                   )
                 "
                 @click="
-                  editor.chain().focus().updateAttributes('image', { dataAlign: 'right' }).run()
+                  editor
+                    .chain()
+                    .focus()
+                    .updateAttributes('image', { dataAlign: 'right' })
+                    .run()
                 "
               >
                 <AlignRight class="h-3.5 w-3.5" />
@@ -292,7 +332,9 @@
         </div>
 
         <!-- Word count footer -->
-        <div class="px-4 py-1.5 border-t border-border bg-muted/20 flex justify-end shrink-0">
+        <div
+          class="px-4 py-1.5 border-t border-border bg-muted/20 flex justify-end shrink-0"
+        >
           <span class="font-fell text-[11px] text-muted-foreground italic"
             >{{ wordCount }} words</span
           >
@@ -300,7 +342,9 @@
       </div>
 
       <!-- Preview pane -->
-      <div class="flex flex-col rounded-lg border border-border overflow-hidden">
+      <div
+        class="flex flex-col rounded-lg border border-border overflow-hidden"
+      >
         <div
           class="flex items-center justify-between px-4 py-2 border-b border-border bg-card shrink-0"
         >
@@ -312,7 +356,10 @@
           <div class="flex items-center gap-2">
             <span
               class="px-1.5 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider uppercase"
-              :style="{ backgroundColor: typeColor(docType) + '22', color: typeColor(docType) }"
+              :style="{
+                backgroundColor: typeColor(docType) + '22',
+                color: typeColor(docType),
+              }"
             >
               {{ DOC_TYPE_LABELS[docType] }}
             </span>
@@ -330,13 +377,23 @@
           </div>
         </div>
         <div class="flex-1 overflow-auto phb-bg">
-          <div v-for="(pageHtml, pageIndex) in pages" :key="pageIndex" class="phb-page">
+          <div
+            v-for="(pageHtml, pageIndex) in pages"
+            :key="pageIndex"
+            class="phb-page"
+          >
             <div v-if="pageIndex === 0" class="phb-title-bar">
               {{ title || "Untitled Document" }}
             </div>
-            <div class="phb-body" :class="{ 'phb-two-col': isTwoColumn }" v-html="pageHtml" />
+            <div
+              class="phb-body"
+              :class="{ 'phb-two-col': isTwoColumn }"
+              v-html="pageHtml"
+            />
           </div>
-          <p class="phb-hint">── use the Page Break button (—) to start a new page ──</p>
+          <p class="phb-hint">
+            ── use the Page Break button (—) to start a new page ──
+          </p>
         </div>
       </div>
     </div>
@@ -378,7 +435,10 @@ import {
   useDeleteScriptoriumDocument,
 } from "@/composables/useScriptorium";
 import { useScriptoriumPdf } from "@/composables/useScriptoriumPdf";
-import type { ScriptoriumDocument, ScriptoriumDocType } from "@/types/scriptorium.types";
+import type {
+  ScriptoriumDocument,
+  ScriptoriumDocType,
+} from "@/types/scriptorium.types";
 import PdfPreviewDialog from "@/components/scriptorium/PdfPreviewDialog.vue";
 import AssetInsertPanel from "@/components/scriptorium/AssetInsertPanel.vue";
 import TagInput from "@/components/common/TagInput.vue";
@@ -501,9 +561,12 @@ const editor = useEditor({
             },
             renderHTML: (attrs) => {
               const parts: string[] = [];
-              if (attrs.dataAlign === "right") parts.push("float:right;margin:0 0 10px 14px");
-              else if (attrs.dataAlign === "left") parts.push("float:left;margin:0 14px 10px 0");
-              else if (attrs.dataAlign === "center") parts.push("display:block;margin:8px auto");
+              if (attrs.dataAlign === "right")
+                parts.push("float:right;margin:0 0 10px 14px");
+              else if (attrs.dataAlign === "left")
+                parts.push("float:left;margin:0 14px 10px 0");
+              else if (attrs.dataAlign === "center")
+                parts.push("display:block;margin:8px auto");
               if (attrs.width) parts.push(`width:${attrs.width}px`);
               return { style: parts.join(";") };
             },
@@ -530,7 +593,8 @@ const saveError = ref("");
 
 async function destroy() {
   if (!props.doc) return;
-  if (!await confirm(`Delete "${props.doc.title}"? This cannot be undone.`)) return;
+  if (!(await confirm(`Delete "${props.doc.title}"? This cannot be undone.`)))
+    return;
   isDeleting.value = true;
   try {
     await deleteDoc(props.doc.id);
@@ -576,8 +640,14 @@ const pages = computed(() => {
   return parts.length ? parts : [""];
 });
 
-const { showPdfPreview, pdfBlobUrl, isGeneratingPdf, exportPdf, savePdf, closePdfPreview } =
-  useScriptoriumPdf(pages, title);
+const {
+  showPdfPreview,
+  pdfBlobUrl,
+  isGeneratingPdf,
+  exportPdf,
+  savePdf,
+  closePdfPreview,
+} = useScriptoriumPdf(pages, title);
 
 onUnmounted(() => editor.value?.destroy());
 </script>
@@ -658,7 +728,7 @@ onUnmounted(() => editor.value?.destroy());
   width: 100%;
   max-width: 680px;
   min-height: 961px; /* 680px × (297/210) = A4 aspect ratio */
-  background: #f9f6ef;
+  background: url("/assets/scriptorium/page-background.png") center / cover no-repeat;
   padding: 2.5rem 2.5rem 2rem;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
   font-family: Georgia, "Times New Roman", serif;
@@ -666,17 +736,6 @@ onUnmounted(() => editor.value?.destroy());
   line-height: 1.65;
   font-size: 0.9375rem;
   overflow: visible;
-}
-
-/* Border image overlay on each page */
-.phb-page::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: url("/assets/scriptorium/page-border.png");
-  background-size: 100% 100%;
-  pointer-events: none;
-  opacity: 0.65;
 }
 
 .phb-title-bar {

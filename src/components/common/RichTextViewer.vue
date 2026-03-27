@@ -19,7 +19,11 @@ const props = defineProps<{ content: object | string | null }>();
 function parseContent(v: object | string | null) {
   if (!v) return undefined;
   if (typeof v === "string") {
-    try { return JSON.parse(v); } catch { return v; }
+    try {
+      return JSON.parse(v);
+    } catch {
+      return v;
+    }
   }
   return v;
 }
@@ -30,10 +34,13 @@ const editor = useEditor({
   extensions: [StarterKit, Table, TableRow, TableHeader, TableCell, Image],
 });
 
-watch(() => props.content, (v) => {
-  const parsed = parseContent(v);
-  if (editor.value && parsed) editor.value.commands.setContent(parsed);
-});
+watch(
+  () => props.content,
+  (v) => {
+    const parsed = parseContent(v);
+    if (editor.value && parsed) editor.value.commands.setContent(parsed);
+  },
+);
 
 onUnmounted(() => editor.value?.destroy());
 </script>
@@ -48,13 +55,13 @@ onUnmounted(() => editor.value?.destroy());
   @apply mb-3 leading-relaxed last:mb-0;
 }
 .rte-content :deep(.ProseMirror h1) {
-  @apply font-cinzel text-2xl font-bold mb-3 mt-5 first:mt-0;
+  @apply font-cinzel text-lg font-bold mb-3 mt-5 first:mt-0;
 }
 .rte-content :deep(.ProseMirror h2) {
-  @apply font-cinzel text-xl font-bold mb-2 mt-4 first:mt-0;
+  @apply font-cinzel text-base font-bold mb-2 mt-4 first:mt-0;
 }
 .rte-content :deep(.ProseMirror h3) {
-  @apply font-cinzel text-base font-bold mb-2 mt-3 first:mt-0;
+  @apply font-cinzel text-sm font-bold mb-2 mt-3 first:mt-0;
 }
 .rte-content :deep(.ProseMirror ul) {
   @apply list-disc pl-5 mb-3 space-y-1;

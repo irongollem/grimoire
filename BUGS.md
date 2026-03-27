@@ -70,6 +70,11 @@
 
 - [x] deleting a spell or monster doesn't return to list, and orphaned images left in storage — navigate first (before mutateAsync) to avoid TanStack refetch-404 race; image URLs deleted from asset-images bucket on entity delete
 
+- [x] Notes page fires a 400 Bad Request (invalid UUID) when navigating to /notes/new — useNote was not reactive (passed id.value instead of id ref) and had no `enabled` guard; fixed by accepting Ref<string> and adding `enabled: () => !!id.value`
+- [ ] Clicking customize effectively creates 2 copies. 1 directly, but it also pushes you into a non-saved copy to actually edit, and when you hit create (not save) then that gets created as well
+- [ ] NPC statblock is missing Saving throws
+- [ ] dropping a landscape image in the box for items, crops part of the item off
+
 ## Regressing bugs
 
 only manually check these off after rigorous testing of the relevant flows, to avoid marking as done when the underlying issue is still present
