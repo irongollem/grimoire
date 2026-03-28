@@ -146,6 +146,14 @@
 - [x] **Monster reveal system** — monsters start hidden; DM cycles hidden→unseen→revealed per monster; unseen shows mystery slot to players; revealed shows full info; hidden completely absent from player view
 - [x] **Encounter Events** - timed bombs, reinforcements, dynamic changes based on triggers (e.g. "when Goblin King hits 50% HP, spawn 3 Goblin minions") all need initiative positions, tracking, and triggers.
 
+### Monster Discovery & Player Bestiary
+
+- [ ] **Phase 1 — Discovered monsters table** — `discovered_monsters (campaign_id, monster_id, discovered_at)`. DM can manually share a monster via a "Share with Players" button in the bestiary list, monster detail page, and encounter runner sidebar (per-combatant). Shared monsters appear in the player portal.
+- [ ] **Phase 2 — Player Bestiary** (`/play/bestiary`) — lists all discovered monsters with portrait + name + CR + type. Tapping opens a read-only detail view (artwork, size/type/alignment, AC/HP/Speed, ability scores, CR). Players can add private notes + shared party notes via the existing `entity_notes` pattern (how to defeat them, lore, weaknesses). "Bestiary" added to player nav.
+- [ ] **Phase 3 — Auto-discovery on end combat** — when DM clicks "End Combat", any monster combatants that reached `revealed` state are automatically inserted into `discovered_monsters` (deduped). DM sees a toast listing what was auto-shared.
+- [ ] **Phase 4 — Shapeshifter browser** — "Available Forms" tab in `/play/bestiary` (shown only for Druids, Rangers, Summoners). Druids: filters discovered + SRD beasts by CR ≤ ⌊level/2⌋, Beast type, no fly/swim speed (until level 8). Summoners/Rangers: shows linked companion templates. Full stat block viewable per form. DM can pin extra forms to a player regardless of filter rules.
+- [ ] **Phase 5 — Wildshape in encounter** — Druid player panel in encounter runner gets a "Wildshape" button. Opens a picker showing available beast forms. Selecting a form temporarily overlays that combatant's HP/AC/speed with the beast's stats (HP tracked separately, reverts to original when beast HP hits 0 or "Revert Form" is clicked). Beast's actions/abilities shown in detail panel during wildshape.
+
 ### NPCs & Companions
 
 - [x] **Companion stat block** — optional full stat block on companions; auto-populated when picking a monster source; ability scores, actions, reactions stored in `stat_block` JSONB

@@ -1050,7 +1050,8 @@ const router = useRouter();
 // Inventory
 const campaign = useCampaignStore();
 const { sendItemDrop } = useCampaignMessages();
-const { data: inventory } = usePartyInventory();
+const { data: inventoryAll } = usePartyInventory();
+const inventory = computed(() => (inventoryAll.value ?? []).filter((i) => i.carried_by === null));
 const { mutateAsync: addInventoryItem, isPending: addingItem } = useAddInventoryItem();
 const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
 const { mutateAsync: removeInventoryItem } = useRemoveInventoryItem();
