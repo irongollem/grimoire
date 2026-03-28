@@ -76,6 +76,11 @@
 - [x] dropping a landscape image in the box for items, crops part of the item off — added `image_focal_point` jsonb column to items and spells; switched ImageUpload to `show-focal-point` mode (same pattern as NPCs/monsters) so users can drag to set the crop focal point
 - [x] Abilities and actions on an NPC or monster should be rich-text blocks that grow if the text doesn't fit (now you must scroll) — TraitSection switched from fixed `<textarea rows="2">` to `RichTextEditor`; Tiptap handles auto-height; `parseContent` handles legacy plain strings gracefully
 
+- encounter view doesnt respect the focus point when cropping
+- clicking the avatar in ecnounter should trigger the same sidebar as clicking the name
+- the way actions on monsters are currently described doesnt allow for click-and-roll play
+-
+
 ## Regressing bugs
 
 only manually check these off after rigorous testing of the relevant flows, to avoid marking as done when the underlying issue is still present

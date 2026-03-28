@@ -171,7 +171,32 @@
 - [x] Re-import updates existing spells — "Sync from Open5e" button now updates `source` + `classes` for all `open5e_import = true` spells without touching images or user-edited fields; `open5e_import` boolean flag added (migration `20260328000053`); status label shows added/updated counts
 - [x] Human-readable source labels everywhere — `source_title` + `source_url` stored from `document__title`/`document__url`; source line in spell detail and editor is a clickable link to the product page; filter dropdown queries on slug, displays title; `spellSourceLabel(slug, title)` used throughout with hardcoded map as fallback
 - [ ] During import, allow filtering which sources are fetched/stored (persist in localStorage)
-- [ ] Make ALL spells available to players so they can browse them, prepare them, assign them to their character etc. Just like in DND beyond they can update their spellbook and define which are prepared etc.
+
+#### Player Spells — Phase 1: Browse
+
+- [x] `/play/spells` — full spell browser in the player portal, pre-filtered to the character's class; same server-side pagination/filters as DM spellbook; "Spells" added to player nav
+
+#### Player Spells — Phase 2: Spellbook & Known Spells
+
+- [x] `character_spells` DB table — `party_member_id`, `spell_id`, `is_known`, `is_prepared`; RLS: player owns, DM reads; migration `20260328000055`
+- [x] Caster type logic per class: **prepared** (Cleric, Druid, Paladin, Artificer — access full class list, no learning needed), **known** (Sorcerer, Warlock, Bard, Ranger — learn a fixed list, always prepared), **spellbook** (Wizard — add spells to spellbook, then prepare a subset); `getCasterType()` in `spell.types.ts`
+- [x] "Add to Spellbook" / "Learn Spell" button on spell browser cards (spellbook + known casters); hidden for prepared casters
+- [x] "My Spells" tab in `/play/spells` — learned spells grouped by level with remove button; prepared casters see a "browse All Spells" prompt; `PlayerMySpells.vue`
+
+#### Player Spells — Phase 3: Preparation
+
+- [x] 3-tab layout for Wizard: Prepared | Spellbook | All Spells
+- [x] 2-tab layout for prepared casters (Cleric/Druid/etc.): Prepared | All [Class] Spells; "Prepare"/"Unprepare" button in browse tab
+- [x] 2-tab layout for known casters (Sorcerer/etc.): Known | All [Class] Spells
+- [x] Prepare toggle in Spellbook tab (Wizard only) — Flame icon when prepared, Circle when not
+- [x] Cantrips always shown as prepared (level 0), no toggle
+- [x] Prepared count vs. max displayed — `getMaxPrepared()` helper in `spell.types.ts`; Cleric/Druid: WIS mod + level; Paladin: CHA mod + ⌊level/2⌋; Artificer: INT mod + ⌊level/2⌋; Wizard: INT mod + level; counter shows green/amber/red based on current vs. max
+
+#### Player Spells — Phase 4: Click-to-Cast in Encounter
+
+- [ ] Prepared spells accessible from character sheet during encounter
+- [ ] Spells with `damage_rolls` → roll dice → post result to campaign chat (same as weapon attacks)
+- [ ] Optional: track spell slot usage per level
 
 ### Atlas / Locations
 

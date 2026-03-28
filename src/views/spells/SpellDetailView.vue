@@ -1,6 +1,6 @@
 <template>
   <PageHeader :title="spell?.name ?? 'New Spell'" :description="subtitle">
-    <template v-if="!isNew" #actions>
+    <template v-if="!isNew && canEdit" #actions>
       <button
         v-if="!isEditing"
         type="button"
@@ -38,17 +38,23 @@ import { useRoute, useRouter } from "vue-router";
 import { Pencil, Eye } from "lucide-vue-next";
 import { useSpell } from "@/composables/useSpells";
 import { spellLevelLabel } from "@/types/spell.types";
+import { useAuthStore } from "@/stores/auth";
+import { useUiStore } from "@/stores/ui";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import SpellDetail from "@/components/spells/SpellDetail.vue";
 import SpellSheet from "@/components/spells/SpellSheet.vue";
+
+const auth = useAuthStore();
+const ui = useUiStore();
+const canEdit = computed(() => auth.isDM && !ui.dmPreviewMode);
 
 const route = useRoute();
 const router = useRouter();
 
 const id = computed(() => route.params.id as string | undefined);
 const isNew = computed(() => !id.value || id.value === "new");
-const isEditing = computed(() => isNew.value || route.query.edit === "true");
+const isEditing = computed(() => (isNew.value || route.query.edit === "true") && canEdit.value);
 
 function startEditing() {
   router.replace({ query: { ...route.query, edit: "true" } });

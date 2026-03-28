@@ -46,9 +46,17 @@
       class="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2 flex items-center gap-3 shrink-0"
     >
       <Eye class="h-3.5 w-3.5 text-amber-400 shrink-0" />
-      <span class="font-cinzel text-xs text-amber-400 tracking-wider flex-1">DM Preview — you are viewing the player portal</span>
+      <span class="font-cinzel text-xs text-amber-400 tracking-wider shrink-0">DM Preview — viewing as:</span>
+      <select
+        :value="ui.dmPreviewPartyMemberId ?? ''"
+        class="flex-1 min-w-0 max-w-48 bg-amber-500/10 border border-amber-500/30 rounded px-2 py-0.5 font-fell text-xs text-amber-200 focus:outline-none focus:ring-1 focus:ring-amber-500/50"
+        @change="ui.dmPreviewPartyMemberId = ($event.target as HTMLSelectElement).value || null"
+      >
+        <option value="">— pick a character —</option>
+        <option v-for="m in partyMembers" :key="m.id" :value="m.id">{{ m.name }}</option>
+      </select>
       <button
-        class="font-cinzel text-[10px] tracking-wider text-amber-400 hover:text-amber-300 border border-amber-500/40 hover:border-amber-400/60 px-2 py-0.5 rounded transition-colors"
+        class="font-cinzel text-[10px] tracking-wider text-amber-400 hover:text-amber-300 border border-amber-500/40 hover:border-amber-400/60 px-2 py-0.5 rounded transition-colors shrink-0"
         @click="exitPreview"
       >
         Exit Preview
@@ -92,7 +100,7 @@
 <script setup lang="ts">
 import { computed, watch } from "vue";
 import { useRouter } from "vue-router";
-import { LogOut, Shield, ScrollText, BookOpen, Package, User, Megaphone, X, Swords, PenLine, Eye, Settings, Library, Landmark, Globe } from "lucide-vue-next";
+import { LogOut, Shield, ScrollText, BookOpen, Package, User, Megaphone, X, Swords, PenLine, Eye, Settings, Library, Landmark, Globe, Sparkles } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
@@ -122,6 +130,17 @@ watch(campaignData, (c) => {
 const router = useRouter();
 const { data: partyMembers } = useParty();
 
+// Auto-select the first party member when entering DM preview with no character chosen
+watch(
+  [() => ui.dmPreviewMode, partyMembers],
+  ([previewMode, members]) => {
+    if (previewMode && !ui.dmPreviewPartyMemberId && members?.length) {
+      ui.dmPreviewPartyMemberId = members[0].id;
+    }
+  },
+  { immediate: true },
+);
+
 // Join presence channel so DM can see player is online
 useCampaignPresence();
 
@@ -146,6 +165,7 @@ const navItems = [
   { to: "/play/factions",   label: "Factions",   icon: Landmark },
   { to: "/play/atlas",      label: "Atlas",      icon: Globe },
   { to: "/play/encounter",  label: "Encounter",  icon: Swords },
+  { to: "/play/spells",     label: "Spells",     icon: Sparkles },
   { to: "/play/rules",      label: "Reliquary",  icon: Library },
   { to: "/play/settings",   label: "Settings",   icon: Settings },
 ];

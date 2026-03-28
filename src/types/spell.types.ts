@@ -185,6 +185,57 @@ export interface Spell {
 export type SpellInsert = Omit<Spell, "id" | "user_id" | "created_at" | "updated_at">;
 export type SpellUpdate = Partial<SpellInsert>;
 
+// ── Max prepared spells ───────────────────────────────────────────────────────
+/** Returns the maximum number of spells a character can have prepared, or null for known casters. */
+export function getMaxPrepared(
+  member: { level: number; int: number; wis: number; cha: number } | null,
+  cls: string,
+): number | null {
+  if (!member) return null;
+  const mod = (score: number) => Math.floor((score - 10) / 2);
+  switch (cls) {
+    case "Cleric":    return Math.max(1, mod(member.wis) + member.level);
+    case "Druid":     return Math.max(1, mod(member.wis) + member.level);
+    case "Paladin":   return Math.max(1, mod(member.cha) + Math.floor(member.level / 2));
+    case "Artificer": return Math.max(1, mod(member.int) + Math.floor(member.level / 2));
+    case "Wizard":    return Math.max(1, mod(member.int) + member.level);
+    default:          return null;
+  }
+}
+
+// ── Caster types ──────────────────────────────────────────────────────────────
+// prepared: Cleric, Druid, Paladin, Artificer — access full class list, no learning required
+// known:    Sorcerer, Warlock, Bard, Ranger — learn a fixed number, always prepared once known
+// spellbook:Wizard — copy spells to spellbook, then prepare a subset each day
+// none:     non-caster or subclass caster (Fighter EK, Rogue AT, Monk, etc.)
+export type CasterType = "prepared" | "known" | "spellbook" | "none";
+
+const PREPARED_CLASSES = ["Cleric", "Druid", "Paladin", "Artificer"] as const;
+const KNOWN_CLASSES    = ["Sorcerer", "Warlock", "Bard", "Ranger"] as const;
+const SPELLBOOK_CLASSES = ["Wizard"] as const;
+
+export function getCasterType(cls: string | null | undefined): CasterType {
+  if (!cls) return "none";
+  if ((PREPARED_CLASSES as readonly string[]).includes(cls)) return "prepared";
+  if ((KNOWN_CLASSES as readonly string[]).includes(cls))    return "known";
+  if ((SPELLBOOK_CLASSES as readonly string[]).includes(cls)) return "spellbook";
+  return "none";
+}
+
+export interface CharacterSpell {
+  id: string;
+  party_member_id: string;
+  spell_id: string;
+  is_known: boolean;
+  is_prepared: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CharacterSpellEntry extends CharacterSpell {
+  spell: Spell;
+}
+
 // Convenience helpers
 export function spellLevelLabel(level: number): string {
   if (level === 0) return "Cantrip";

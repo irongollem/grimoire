@@ -1,28 +1,5 @@
 <template>
   <div class="space-y-5 pb-8">
-    <!-- DM preview: party member picker -->
-    <div
-      v-if="ui.dmPreviewMode"
-      class="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 flex items-center gap-3"
-    >
-      <span class="font-cinzel text-xs text-amber-400 shrink-0"
-        >Viewing as:</span
-      >
-      <select
-        :value="ui.dmPreviewPartyMemberId ?? ''"
-        class="flex-1 bg-background border border-border rounded px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-amber-500/50"
-        @change="
-          ui.dmPreviewPartyMemberId =
-            ($event.target as HTMLSelectElement).value || null
-        "
-      >
-        <option value="">— pick a character —</option>
-        <option v-for="m in partyMembers" :key="m.id" :value="m.id">
-          {{ m.name }}
-        </option>
-      </select>
-    </div>
-
     <div v-if="!member" class="text-center py-16 space-y-3">
       <p class="font-cinzel text-lg text-muted-foreground">
         No character linked

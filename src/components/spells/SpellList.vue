@@ -100,8 +100,9 @@
             </div>
           </div>
 
-          <!-- Edit button (floats top-left on hover) -->
+          <!-- Edit button — DM mode only -->
           <RouterLink
+            v-if="!props.playerMemberId"
             :to="`/spells/${spell.id}?edit=true`"
             class="absolute top-2 left-2 z-10 flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity"
             title="Edit spell"
@@ -109,6 +110,31 @@
             <Pencil class="h-3 w-3" />
             Edit
           </RouterLink>
+
+          <!-- Learn / Prepare button — player mode -->
+          <template v-if="showLearnButton">
+            <button
+              v-if="!isKnown(spell.id)"
+              class="absolute bottom-2 right-2 z-10 flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-primary/80 hover:bg-primary opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40 cursor-pointer"
+              :disabled="isAdding"
+              @click.prevent.stop="addSpell({ partyMemberId: props.playerMemberId!, spellId: spell.id, isPrepared: props.casterType === 'prepared' })"
+            >
+              <BookPlus class="h-3 w-3" />
+              {{ learnLabel(spell.level === 0) }}
+            </button>
+            <button
+              v-else
+              class="absolute bottom-2 right-2 z-10 flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider bg-black/50 hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40 cursor-pointer"
+              :class="isRemoving ? 'text-muted-foreground' : 'text-emerald-400 hover:text-red-400'"
+              :disabled="isRemoving"
+              :title="props.casterType === 'prepared' ? 'Unprepare' : 'Remove from spellbook'"
+              @click.prevent.stop="removeSpell({ partyMemberId: props.playerMemberId!, spellId: spell.id })"
+            >
+              <Check v-if="!isRemoving" class="h-3 w-3" />
+              <X v-else class="h-3 w-3" />
+              {{ learnedLabel(spell.level === 0) }}
+            </button>
+          </template>
         </div>
       </div>
 
@@ -167,10 +193,12 @@
 
 <script setup lang="ts">
 import { computed, toRef } from "vue";
-import { Pencil } from "lucide-vue-next";
+import { Pencil, BookPlus, Check, X } from "lucide-vue-next";
 import { useSpellsPage, SPELLS_PAGE_SIZE } from "@/composables/useSpells";
 import type { SpellFilters } from "@/composables/useSpells";
+import { useAddCharacterSpell, useRemoveCharacterSpell } from "@/composables/useCharacterSpells";
 import { SCHOOL_COLORS, spellLevelLabel } from "@/types/spell.types";
+import type { CasterType } from "@/types/spell.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 
@@ -181,9 +209,40 @@ const props = defineProps<{
   classFilter: string;
   sourceFilter: string;
   page: number;
+  /** Set when rendering inside the player portal — hides Edit, shows Learn/Remove button. */
+  playerMemberId?: string;
+  /** Caster archetype — controls button label and whether to show the button at all. */
+  casterType?: CasterType;
+  /** Spell IDs already in this character's spellbook (drives button state). */
+  knownSpellIds?: string[];
+  /** Spell IDs currently prepared (subset of knownSpellIds, for prepared casters). */
+  preparedSpellIds?: string[];
 }>();
 
 const emit = defineEmits<{ (e: "update:page", page: number): void }>();
+
+const { mutate: addSpell, isPending: isAdding } = useAddCharacterSpell();
+const { mutate: removeSpell, isPending: isRemoving } = useRemoveCharacterSpell();
+
+const showLearnButton = computed(() => !!props.playerMemberId && props.casterType !== "none");
+
+function learnLabel(isCantrip: boolean) {
+  if (props.casterType === "prepared") return "Prepare";
+  if (isCantrip) return "Learn";
+  return props.casterType === "spellbook" ? "Add" : "Learn";
+}
+
+function learnedLabel(isCantrip: boolean) {
+  if (props.casterType === "prepared") return "Prepared";
+  if (isCantrip) return "Known";
+  return props.casterType === "spellbook" ? "Added" : "Learned";
+}
+
+// For prepared casters the "known" check is whether the spell is prepared
+function isKnown(spellId: string): boolean {
+  if (props.casterType === "prepared") return props.preparedSpellIds?.includes(spellId) ?? false;
+  return props.knownSpellIds?.includes(spellId) ?? false;
+}
 
 const filters = computed<SpellFilters>(() => ({
   search: props.search,
