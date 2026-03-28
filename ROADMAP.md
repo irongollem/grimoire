@@ -71,6 +71,7 @@
 
 ### Party & Character Management
 
+- [x] Party class dropdown — all 13 standard classes (incl. Artificer) replace the free-text input; `PARTY_CLASSES` constant added to `party.types.ts`
 - [x] Party Tracker (initiative, HP, conditions, curses, death saves, passive skills)
 - [x] Companions system (familiar/animal_companion/mount/ally/sidekick with source linking)
 - [x] Companion cards in Party Tracker (HP, AC, conditions, source links)
@@ -161,12 +162,15 @@
 
 ### Spells
 
-- [ ] Add the artificer as class to the list of "who this spell is for"
+- [x] Server-side pagination for Spellbook — 50 per page, Supabase-filtered by level/school/class/name, debounced search, keepPreviousData for smooth transitions
+- [x] Add the artificer as class to the list of "who this spell is for" — Artificer was already in SPELL_CLASSES; existing DB rows lacked it because the old importer filtered it out. Fixed via re-import update pass.
 - [ ] Scriptorium formatter for spells (classic spell card block)
 - [ ] Spell list on NPC / monster stat blocks with Spellbook links
-- [ ] Track the actual book source from SRD instead of labelling it as SRD source when importing from open5e
-- [ ] During import as well as on your list view, allow filtering out which sources are stored to your DB (or shown in listview), persist this in localStorage
-- [ ] When clicking import again, (temp feat or perhaps just script or so for my campaign only) update sources and whos it for (due to the artificer not being on the list before) but be careful not to remove previously associated images. (spent too much time on filling that in to redo)
+- [x] Track the actual book source from open5e — `document__slug` now stored as `source`; `OPEN5E_SOURCE_LABELS` map provides human-readable names; `spellSourceLabel()` helper used in UI
+- [x] Source filter in spell list view — dropdown populated from distinct sources present in DB; labels resolved via `spellSourceLabel()` (human-readable: "D&D SRD 5.1", "Xanathar's Guide to Everything", etc.)
+- [x] Re-import updates existing spells — "Sync from Open5e" button now updates `source` + `classes` for all `open5e_import = true` spells without touching images or user-edited fields; `open5e_import` boolean flag added (migration `20260328000053`); status label shows added/updated counts
+- [x] Human-readable source labels everywhere — `source_title` + `source_url` stored from `document__title`/`document__url`; source line in spell detail and editor is a clickable link to the product page; filter dropdown queries on slug, displays title; `spellSourceLabel(slug, title)` used throughout with hardcoded map as fallback
+- [ ] During import, allow filtering which sources are fetched/stored (persist in localStorage)
 - [ ] Make ALL spells available to players so they can browse them, prepare them, assign them to their character etc. Just like in DND beyond they can update their spellbook and define which are prepared etc.
 
 ### Atlas / Locations

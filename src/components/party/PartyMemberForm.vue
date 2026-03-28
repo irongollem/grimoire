@@ -105,11 +105,10 @@
             </label>
             <label class="block">
               <span class="field-label">Class</span>
-              <input
-                v-model="f.class"
-                class="field-input w-full"
-                placeholder="Fighter"
-              />
+              <select v-model="f.class" class="field-input w-full">
+                <option value="">— None —</option>
+                <option v-for="c in PARTY_CLASSES" :key="c" :value="c">{{ c }}</option>
+              </select>
             </label>
             <label class="block">
               <span class="field-label">Subclass</span>
@@ -452,7 +451,7 @@ import {
   useCampaignMembers,
   useUpdateCampaignMember,
 } from "@/composables/useCampaignMembers";
-import { SKILLS } from "@/types/party.types";
+import { SKILLS, PARTY_CLASSES } from "@/types/party.types";
 import type {
   PartyMember,
   PartyMemberInsert,

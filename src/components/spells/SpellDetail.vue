@@ -355,14 +355,28 @@
           @update:model-value="imageUrl = $event ?? ''"
           @update:focal-point="imageFocalPoint = $event"
         />
-        <label class="flex flex-col gap-1">
+        <div class="flex flex-col gap-1">
           <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Source</span>
+          <div
+            v-if="props.spell?.open5e_import"
+            class="bg-muted/30 border border-border rounded-md px-3 py-2 font-fell text-sm text-muted-foreground italic"
+          >
+            <a
+              v-if="props.spell.source_url"
+              :href="props.spell.source_url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="hover:text-foreground hover:underline transition-colors"
+            >{{ spellSourceLabel(source, props.spell.source_title) }}</a>
+            <span v-else>{{ spellSourceLabel(source, props.spell.source_title) }}</span>
+          </div>
           <input
+            v-else
             v-model="source"
             placeholder="e.g. Homebrew, PHB, XGtE…"
             class="bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
-        </label>
+        </div>
       </div>
 
       <!-- ── Core spell fields ──────────────────────────────────────────── -->
@@ -1042,6 +1056,7 @@ import {
   SAVE_EFFECTS,
 } from "@/types/spell.types";
 import type { Spell, SpellSchool } from "@/types/spell.types";
+import { spellSourceLabel } from "@/types/spell.types";
 import { useCreateSpell, useUpdateSpell, useDeleteSpell } from "@/composables/useSpells";
 import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
 import { formatSpellForScriptorium } from "@/lib/scriptoriumImport";
@@ -1278,6 +1293,9 @@ function buildPayload() {
     classes: classes.value,
     tags: tags.value,
     source: source.value || null,
+    source_title: props.spell?.source_title ?? null,
+    source_url: props.spell?.source_url ?? null,
+    open5e_import: props.spell?.open5e_import ?? false,
     image_url: imageUrl.value || null,
     image_focal_point: imageFocalPoint.value,
     attack_type: attackType.value || null,

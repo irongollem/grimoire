@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npm run build 2>&1 | grep -E \"error TS|✓ built\"",
+            "timeout": 60,
+            "statusMessage": "Checking TypeScript…"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path' | grep -q 'supabase/migrations/.*\\.sql' && echo '{\"systemMessage\":\"Migration written — check the corresponding .types.ts and any buildPayload() functions for the altered table.\"}' || true"
+          }
+        ]
+      }
+    ]
+  }
+}

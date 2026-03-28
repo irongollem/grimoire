@@ -26,9 +26,9 @@
         <div class="relative flex-1 min-w-48">
           <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <input
-            v-model="search"
+            v-model="searchInput"
             type="text"
-            placeholder="Search spells…"
+            placeholder="Search by name…"
             class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
@@ -39,20 +39,36 @@
             :key="lvl.value"
             class="px-2.5 py-1.5 transition-colors"
             :class="levelFilter === lvl.value ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-            @click="levelFilter = lvl.value"
+            @click="setLevelFilter(lvl.value)"
           >
             {{ lvl.label }}
           </button>
         </div>
         <!-- School -->
-        <select v-model="schoolFilter" class="bg-card border border-border rounded-md px-3 py-1.5 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+        <select
+          v-model="schoolFilter"
+          class="bg-card border border-border rounded-md px-3 py-1.5 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        >
           <option value="">All Schools</option>
           <option v-for="s in SPELL_SCHOOLS" :key="s" :value="s" class="capitalize">{{ s }}</option>
         </select>
         <!-- Class -->
-        <select v-model="classFilter" class="bg-card border border-border rounded-md px-3 py-1.5 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+        <select
+          v-model="classFilter"
+          class="bg-card border border-border rounded-md px-3 py-1.5 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        >
           <option value="">All Classes</option>
           <option v-for="c in SPELL_CLASSES" :key="c" :value="c">{{ c }}</option>
+        </select>
+        <!-- Source -->
+        <select
+          v-model="sourceFilter"
+          class="bg-card border border-border rounded-md px-3 py-1.5 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option value="">All Sources</option>
+          <option v-for="s in sources" :key="s.slug" :value="s.slug">
+            {{ spellSourceLabel(s.slug, s.title) }}
+          </option>
         </select>
       </div>
     </template>
@@ -62,17 +78,22 @@
       :level-filter="levelFilter"
       :school-filter="schoolFilter"
       :class-filter="classFilter"
+      :source-filter="sourceFilter"
+      :page="page"
+      @update:page="page = $event"
     />
   </PageHeader>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
+import { refDebounced } from "@vueuse/core";
 import { Plus, Loader2, Download, Search } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import SpellList from "@/components/spells/SpellList.vue";
-import { useImportSrdSpells } from "@/composables/useSpells";
-import { SPELL_SCHOOLS, SPELL_CLASSES } from "@/types/spell.types";
+import { useImportSrdSpells, useSpellSources } from "@/composables/useSpells";
+import { SPELL_SCHOOLS, SPELL_CLASSES, spellSourceLabel } from "@/types/spell.types";
+import type { ImportResult } from "@/composables/useSpells";
 
 const LEVEL_FILTERS = [
   { value: "", label: "All" },
@@ -82,34 +103,53 @@ const LEVEL_FILTERS = [
   { value: "7", label: "7" }, { value: "8", label: "8" }, { value: "9", label: "9" },
 ];
 
-const search = ref("");
+const searchInput = ref("");
+const search = refDebounced(searchInput, 400);
 const levelFilter = ref("");
 const schoolFilter = ref("");
 const classFilter = ref("");
+const sourceFilter = ref("");
+const page = ref(0);
+
+function setLevelFilter(value: string) {
+  levelFilter.value = value;
+  page.value = 0;
+}
+
+watch([search, levelFilter, schoolFilter, classFilter, sourceFilter], () => {
+  page.value = 0;
+});
+
+const { data: sources } = useSpellSources();
 
 const importMutation = useImportSrdSpells();
 const importStatus = ref<"idle" | "done" | "uptodate">("idle");
-const importedCount = ref(0);
+const importResult = ref<ImportResult>({ inserted: 0, updated: 0 });
 const importError = ref<string | null>(null);
 
 const importStatusLabel = computed(() => {
-  if (importMutation.isPending.value) return "Importing…";
+  if (importMutation.isPending.value) return "Syncing…";
   if (importError.value) return `Error: ${importError.value}`;
-  if (importStatus.value === "done") return `Imported ${importedCount.value} spells`;
-  if (importStatus.value === "uptodate") return "Already up to date";
-  return "Import SRD Spells";
+  if (importStatus.value === "done") {
+    const { inserted, updated } = importResult.value;
+    if (inserted === 0 && updated === 0) return "Already up to date";
+    const parts: string[] = [];
+    if (inserted > 0) parts.push(`${inserted} added`);
+    if (updated > 0) parts.push(`${updated} updated`);
+    return parts.join(", ");
+  }
+  return "Sync from Open5e";
 });
 
 async function handleImport() {
   importStatus.value = "idle";
   importError.value = null;
   try {
-    const count = await importMutation.mutateAsync();
-    importedCount.value = count;
-    importStatus.value = count === 0 ? "uptodate" : "done";
+    importResult.value = await importMutation.mutateAsync();
+    importStatus.value = "done";
   } catch (e) {
     importError.value = e instanceof Error ? e.message : String(e);
-    console.error("SRD spell import failed:", e);
+    console.error("Open5e spell sync failed:", e);
   }
   setTimeout(() => {
     importStatus.value = "idle";

@@ -143,7 +143,14 @@
           v-if="spell.source"
           class="font-stat text-[13px] text-muted-foreground italic"
         >
-          {{ spell.source }}
+          <a
+            v-if="spell.source_url"
+            :href="spell.source_url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="hover:text-foreground hover:underline transition-colors"
+          >{{ spellSourceLabel(spell.source, spell.source_title) }}</a>
+          <span v-else>{{ spellSourceLabel(spell.source, spell.source_title) }}</span>
         </div>
       </div>
     </div>
@@ -154,7 +161,7 @@
 import { computed } from "vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import { SCHOOL_COLORS, ATTACK_TYPES } from "@/types/spell.types";
+import { SCHOOL_COLORS, ATTACK_TYPES, spellSourceLabel } from "@/types/spell.types";
 import type { Spell } from "@/types/spell.types";
 
 const props = defineProps<{ spell: Spell }>();

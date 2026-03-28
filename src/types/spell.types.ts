@@ -11,6 +11,33 @@ export const SPELL_SCHOOLS = [
 
 export type SpellSchool = (typeof SPELL_SCHOOLS)[number];
 
+// Human-readable labels for open5e document slugs.
+// Anything not in this map falls back to the raw slug.
+export const OPEN5E_SOURCE_LABELS: Record<string, string> = {
+  "wotc-srd": "D&D SRD 5.1",
+  "phb": "Player's Handbook",
+  "xge": "Xanathar's Guide to Everything",
+  "tce": "Tasha's Cauldron of Everything",
+  "ai": "Acquisitions Incorporated",
+  "a5e": "Level Up: A5E",
+  "blackflag": "Black Flag Roleplaying",
+  "cc": "Creature Codex",
+  "tob": "Tome of Beasts",
+  "tob2": "Tome of Beasts 2",
+  "tob3": "Tome of Beasts 3",
+  "dmag": "Deep Magic",
+  "vom": "Vault of Magic",
+  "menagerie": "Tome of Beasts: Lairs",
+  "srd": "SRD (legacy)",
+};
+
+// Prefer the stored title from the DB; fall back to our hardcoded map, then the raw slug.
+export function spellSourceLabel(slug: string | null, title?: string | null): string {
+  if (!slug) return "Custom";
+  if (title) return title;
+  return OPEN5E_SOURCE_LABELS[slug] ?? slug;
+}
+
 export const SPELL_CLASSES = [
   "Artificer",
   "Bard",
@@ -145,7 +172,10 @@ export interface Spell {
   higher_levels: string | null;
   classes: string[];
   tags: string[];
-  source: string | null;
+  source: string | null;       // open5e document slug, used for filtering
+  source_title: string | null; // human-readable document title ("Deep Magic 5e")
+  source_url: string | null;   // link to the product/document page
+  open5e_import: boolean;      // internal flag — not shown in UI
   image_url: string | null; // optional art for card printing
   image_focal_point?: { x: number; y: number } | null;
   created_at: string;

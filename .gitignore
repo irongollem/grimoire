@@ -19,8 +19,8 @@ dist-ssr/
 # Personal setup notes (gitignored — edit freely)
 TODO_SETUP.md
 
-# Claude Code local config
-.claude/
+# Claude Code — commit project settings, ignore personal overrides
+.claude/settings.local.json
 
 # Supabase CLI temp files (project metadata, not secrets but not needed in repo)
 supabase/.temp/

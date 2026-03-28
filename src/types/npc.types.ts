@@ -95,6 +95,7 @@ export interface StatBlock {
   proficiency_bonus?: number; // e.g. 3 (overrides CR-derived default)
   saving_throws?: string; // e.g. "Con +5, Wis +3"
   skills?: Record<string, string>;
+  damage_vulnerabilities?: string;
   damage_resistances?: string;
   damage_immunities?: string;
   condition_immunities?: string;

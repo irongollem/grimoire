@@ -20,6 +20,8 @@ interface Open5eSpell {
   school: { name: string } | string;
   dnd_class: string;         // "Wizard, Sorcerer" (comma-separated)
   document__slug: string;
+  document__title: string;
+  document__url: string;
 }
 
 interface Open5eListResponse<T> {
@@ -178,7 +180,10 @@ function mapSpell(spell: Open5eSpell): SpellInsert {
     higher_levels: spell.higher_level?.trim() || null,
     classes: normalizeClasses(spell.dnd_class),
     tags: [],
-    source: "srd",
+    source: spell.document__slug ?? null,
+    source_title: spell.document__title ?? null,
+    source_url: spell.document__url ?? null,
+    open5e_import: true,
     image_url: null,
   };
 }
