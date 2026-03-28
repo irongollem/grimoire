@@ -31,6 +31,10 @@ export interface CurrencyDropMetadata {
   claimed_party_member_id: string | null;
 }
 
+export interface FlavorMetadata {
+  skill_label: string;
+}
+
 export interface CampaignMessage {
   id: string;
   campaign_id: string;
@@ -39,7 +43,7 @@ export interface CampaignMessage {
   sender_name: string | null;
   message: string;
   type: MessageType;
-  metadata: RollMetadata | ItemDropMetadata | CurrencyDropMetadata | null;
+  metadata: RollMetadata | ItemDropMetadata | CurrencyDropMetadata | FlavorMetadata | null;
   created_at: string;
 }
 

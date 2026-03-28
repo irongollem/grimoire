@@ -107,6 +107,8 @@
 - [x] **Phase 2**: Player portal (/play/\* routes), presence indicators (online dots), notes/quest visibility flags, party inventory (players read), campaign broadcast system, campaign chat + dice roll log (Supabase Realtime)
 - [x] **Phase 3**: encounter_state table, live encounter sync (DM "Go Live" button), PlayerEncounterView (initiative, HP, active combatant), live encounter indicators, state persists across navigation
 - [x] **Phase 4**: Interactive player character sheet (ability/save/skill rolls in campaign chat, HP ±buttons, death save pips, condition toggles), inventory management (My Items, Party Stash, equipped weapons), RLS for player-owned updates, broadcast notifications
+- [x] **Encounter click-to-roll**: Monster action attack/damage buttons auto-parsed from description ("X to hit", "(XdY+Z)" parenthetical); player prepared/known spells shown in detail panel with 🎲 roll + DC badge; all results post to campaign chat via correct message/type schema
+- [x] **Immersive Rolls**: Campaign-level toggle in World Settings. When on, certain player skill checks (stealth, knowledge, insight, investigation, medicine, survival) post only flavor text to public chat; DM receives the full result via private whisper; player does not see their own dice result — promoting immersion for hidden info scenarios
 - [x] **Stability**: Replaced `getUser()` (navigator.locks + network) with `getSession()` across all mutations — eliminated multi-tab save failures and lock contention
 - [x] **Realtime fix**: Added `REPLICA IDENTITY FULL` to `campaign_messages` — silently-dropped Realtime events with RLS now deliver correctly
 - [x] **Themed dialogs**: Replaced all browser `confirm()`/`alert()` calls with a styled `ConfirmDialog` component (`useConfirm` singleton)
@@ -194,8 +196,7 @@
 
 #### Player Spells — Phase 4: Click-to-Cast in Encounter
 
-- [ ] Prepared spells accessible from character sheet during encounter
-- [ ] Spells with `damage_rolls` → roll dice → post result to campaign chat (same as weapon attacks)
+- [x] Prepared spells accessible from encounter runner player detail panel with 🎲 roll + DC badge
 - [ ] Optional: track spell slot usage per level
 
 ### Atlas / Locations

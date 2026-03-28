@@ -76,10 +76,16 @@
 - [x] dropping a landscape image in the box for items, crops part of the item off — added `image_focal_point` jsonb column to items and spells; switched ImageUpload to `show-focal-point` mode (same pattern as NPCs/monsters) so users can drag to set the crop focal point
 - [x] Abilities and actions on an NPC or monster should be rich-text blocks that grow if the text doesn't fit (now you must scroll) — TraitSection switched from fixed `<textarea rows="2">` to `RichTextEditor`; Tiptap handles auto-height; `parseContent` handles legacy plain strings gracefully
 
-- encounter view doesnt respect the focus point when cropping
-- clicking the avatar in ecnounter should trigger the same sidebar as clicking the name
-- the way actions on monsters are currently described doesnt allow for click-and-roll play
--
+- [x] encounter view doesnt respect the focus point when cropping — detail panel sidebar was using plain `<img>` tags; replaced with `FocalImage` using `selectedCombatant.portrait_focal_point` for both monster and player panels
+- [x] clicking the avatar in encounter should trigger the same sidebar as clicking the name — avatar cell had `@click.stop` swallowing all clicks; changed to `@click.stop="toggleDetail(...)"` so it opens the sidebar while still blocking double-fire from the row handler
+- [x] the way actions on monsters are currently described doesnt allow for click-and-roll play — attack bonus auto-parsed from "X to hit" in description; damage dice auto-parsed via parseExpression() from parenthetical "(XdY+Z)" format; ⚔/🎲 buttons appear per action; results shown in the roll banner and posted to campaign chat. Player prepared/known spells also shown in detail panel with 🎲 roll button and DC badge.
+- [x] Chat showed "You" instead of monster/character name for rolls and item drops — `ChatPanelContent` replaced `user_id === myUserId ? "You" : sender_name` with always showing `sender_name` for roll and drop messages; `getSenderName()` in `useCampaignMessages` now checks DM preview mode and returns the previewed character's name so all message types correctly impersonate the active character
+- [x] DM rolling from encounter sidebar showed DM display name in chat instead of monster name — `postRollToChat` already passed `selectedCombatant.name` but the chat was overriding it with "You"; fixed by the `sender_name` display fix above
+- [x] NPC inventory drops showed DM name instead of NPC name — `sendItemDrop` accepts optional `senderName`; `NpcInventorySection` passes `npcName` prop through; `NpcDetail` passes `npc.name` down
+- [x] DM preview mode rolls used DM display name instead of previewed character's name — `getSenderName()` now checks `ui.dmPreviewMode` first and resolves `ui.dmPreviewPartyMemberId` from party members
+- [x] Immersive roll flavor messages not appearing without refresh — direct `supabase.insert()` bypassed `_optimisticPush`; fixed by routing through `sendFlavorMessage` composable method
+- [x] Immersive roll flavor messages showed skill label inline without color — added `FlavorMetadata` type with `skill_label`; system messages now render with colored `font-cinzel` skill label prefix; `sendFlavorMessage` accepts optional `skillLabel` param
+- artwork and statsblock for companions doesnt show when clicked in the encounter
 
 ## Regressing bugs
 

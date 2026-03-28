@@ -14,167 +14,91 @@
     </div>
 
     <template v-else>
-      <!-- Header -->
-      <div
-        class="rounded-lg border border-border bg-card p-4 flex items-start gap-4"
-      >
-        <div class="shrink-0">
-          <div
-            v-if="member.portrait_url"
-            class="h-20 w-20 rounded-lg overflow-hidden border border-border"
-          >
+      <!-- Header card -->
+      <div class="rounded-lg border border-border bg-card overflow-hidden">
+        <div class="flex items-stretch">
+          <!-- Portrait -->
+          <div class="shrink-0 w-24 relative overflow-hidden bg-muted/50">
             <img
+              v-if="member.portrait_url"
               :src="member.portrait_url"
               :alt="member.name"
-              class="h-full w-full object-cover"
+              class="absolute inset-0 w-full h-full object-cover"
             />
-          </div>
-          <div
-            v-else
-            class="h-20 w-20 rounded-lg bg-muted/50 flex items-center justify-center border border-border"
-          >
             <span
-              class="font-cinzel text-2xl font-bold text-muted-foreground"
+              v-else
+              class="absolute inset-0 flex items-center justify-center font-cinzel text-3xl font-bold text-muted-foreground"
               >{{ member.name.charAt(0) }}</span
             >
           </div>
-        </div>
-        <div class="flex-1 min-w-0">
-          <h1 class="font-cinzel text-2xl font-bold text-foreground">
-            {{ member.name }}
-          </h1>
-          <p class="font-fell text-sm text-muted-foreground italic">
-            {{
-              [member.race, member.class, member.subclass]
-                .filter(Boolean)
-                .join(" · ")
-            }}
-            <span
-              v-if="member.level"
-              class="font-cinzel text-xs text-primary not-italic ml-1"
-              >Level {{ member.level }}</span
-            >
-          </p>
-        </div>
-        <!-- Inspiration -->
-        <button
-          class="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border transition-colors"
-          :class="
-            member.inspiration
-              ? 'bg-gold-500/20 border-gold-500/50 text-gold-500'
-              : 'border-border text-muted-foreground hover:text-foreground'
-          "
-          @click="toggleInspiration"
-        >
-          <Star
-            class="h-4 w-4"
-            :class="member.inspiration ? 'fill-gold-500' : ''"
-          />
-          <span class="font-cinzel text-[10px] tracking-wider">Insp.</span>
-        </button>
-      </div>
-
-      <!-- HP + Combat stats -->
-      <div class="rounded-lg border border-border bg-card p-4 space-y-3">
-        <div class="flex items-center gap-4">
-          <!-- HP control -->
-          <div class="flex-1 min-w-0">
-            <p
-              class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1"
-            >
-              HIT POINTS
-            </p>
-            <div class="flex items-center gap-2">
-              <button
-                class="h-8 w-8 rounded-md bg-muted/50 border border-border flex items-center justify-center hover:bg-muted transition-colors"
-                @click="adjustHp(-1)"
-              >
-                <Minus class="h-3.5 w-3.5" />
-              </button>
-              <div class="text-center min-w-16">
-                <span class="font-cinzel text-3xl font-bold" :class="hpColor">{{
-                  member.current_hp
-                }}</span>
-                <span class="font-fell text-sm text-muted-foreground">
-                  / {{ member.max_hp }}</span
-                >
+          <!-- Right column -->
+          <div class="flex-1 min-w-0 flex flex-col">
+            <!-- Top: name/subtitle + controls row -->
+            <div class="flex items-start justify-between gap-2 px-3 pt-3 pb-1">
+              <!-- Name + subtitle -->
+              <div class="min-w-0">
+                <h1 class="font-cinzel text-lg font-bold text-foreground leading-tight truncate">{{ member.name }}</h1>
+                <p class="font-fell text-xs text-muted-foreground italic">
+                  {{ [member.race, member.class, member.subclass].filter(Boolean).join(" · ") }}
+                  <span v-if="member.level" class="font-cinzel text-[10px] text-primary not-italic ml-1">Lv {{ member.level }}</span>
+                </p>
               </div>
-              <button
-                class="h-8 w-8 rounded-md bg-muted/50 border border-border flex items-center justify-center hover:bg-muted transition-colors"
-                @click="adjustHp(1)"
-              >
-                <Plus class="h-3.5 w-3.5" />
-              </button>
+              <!-- HP controls + Insp stacked top-right -->
+              <div class="shrink-0 flex flex-col items-end gap-1">
+                <!-- Input + DMG/Heal/Temp + Insp -->
+                <div class="flex items-center gap-1">
+                  <input
+                    v-model.number="hpInput"
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    class="w-10 h-6 rounded border border-border bg-muted/40 px-1 font-cinzel text-xs text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                  />
+                  <button class="h-6 px-1.5 rounded bg-destructive/15 border border-destructive/40 font-cinzel text-[9px] text-destructive hover:bg-destructive/25 transition-colors tracking-wider" @click="applyDamage">DMG</button>
+                  <button class="h-6 px-1.5 rounded bg-elven-green/10 border border-elven-green/40 font-cinzel text-[9px] text-elven-green hover:bg-elven-green/20 transition-colors tracking-wider" @click="applyHeal">Heal</button>
+                  <button class="h-6 px-1.5 rounded bg-blue-500/10 border border-blue-500/30 font-cinzel text-[9px] text-blue-400 hover:bg-blue-500/20 transition-colors tracking-wider" @click="applyTempHp">Tmp</button>
+                  <button
+                    class="h-6 flex items-center gap-1 px-1.5 rounded border transition-colors"
+                    :class="member.inspiration ? 'bg-gold-500/20 border-gold-500/50 text-gold-500' : 'border-border text-muted-foreground hover:text-foreground'"
+                    @click="toggleInspiration"
+                  >
+                    <Star class="h-3 w-3" :class="member.inspiration ? 'fill-gold-500' : ''" />
+                    <span class="font-cinzel text-[9px] tracking-wider">Insp.</span>
+                  </button>
+                </div>
+              </div>
             </div>
-            <p
-              v-if="member.temp_hp"
-              class="font-fell text-xs text-blue-400 mt-0.5"
-            >
-              +{{ member.temp_hp }} temp
-            </p>
-          </div>
-
-          <!-- Small combat stats -->
-          <div class="grid grid-cols-2 gap-2 shrink-0">
-            <div
-              class="rounded-md border border-border px-2.5 py-1.5 text-center min-w-14"
-            >
-              <p
-                class="font-cinzel text-[9px] text-muted-foreground tracking-wider"
-              >
-                AC
-              </p>
-              <p class="font-cinzel text-lg font-bold text-foreground">
-                {{ member.ac }}
-              </p>
+            <!-- HP readout -->
+            <div class="flex items-baseline gap-1.5 px-3">
+              <span class="font-cinzel text-2xl font-bold" :class="hpColor">{{ member.current_hp }}</span>
+              <span class="font-fell text-sm text-muted-foreground">/ {{ member.max_hp }}</span>
+              <span v-if="member.temp_hp" class="font-cinzel text-[10px] text-blue-400 ml-1">+{{ member.temp_hp }} tmp</span>
             </div>
-            <div
-              class="rounded-md border border-border px-2.5 py-1.5 text-center min-w-14"
-            >
-              <p
-                class="font-cinzel text-[9px] text-muted-foreground tracking-wider"
-              >
-                SPEED
-              </p>
-              <p class="font-cinzel text-lg font-bold text-foreground">
-                {{ member.speed
-                }}<span class="text-[10px] text-muted-foreground">ft</span>
-              </p>
-            </div>
-            <div
-              class="rounded-md border border-border px-2.5 py-1.5 text-center min-w-14"
-            >
-              <p
-                class="font-cinzel text-[9px] text-muted-foreground tracking-wider"
-              >
-                INIT
-              </p>
-              <p class="font-cinzel text-lg font-bold text-foreground">
-                {{ signedNum(dexMod) }}
-              </p>
-            </div>
-            <div
-              class="rounded-md border border-border px-2.5 py-1.5 text-center min-w-14"
-            >
-              <p
-                class="font-cinzel text-[9px] text-muted-foreground tracking-wider"
-              >
-                PROF
-              </p>
-              <p class="font-cinzel text-lg font-bold text-foreground">
-                +{{ member.proficiency_bonus }}
-              </p>
+            <!-- Bottom: AC/SPD/INIT/PROF + rest buttons -->
+            <div class="flex items-center gap-1 px-3 pt-2 pb-3 mt-auto">
+              <div v-for="cs in COMBAT_STATS" :key="cs.label" class="flex items-baseline gap-0.5">
+                <span class="font-cinzel text-[9px] text-muted-foreground tracking-wider">{{ cs.label }}</span>
+                <span class="font-cinzel text-sm font-bold text-foreground ml-0.5">{{ cs.value }}<span v-if="cs.suffix" class="text-[9px] text-muted-foreground">{{ cs.suffix }}</span></span>
+                <span class="text-border mx-1 select-none">·</span>
+              </div>
+              <div class="ml-auto flex items-center gap-1">
+                <button
+                  class="h-6 flex items-center gap-1 px-1.5 rounded border border-border font-cinzel text-[9px] text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors tracking-wider"
+                  title="Short Rest"
+                  @click="shortRest"
+                ><Moon class="h-3 w-3" /> Rest</button>
+                <button
+                  class="h-6 flex items-center gap-1 px-1.5 rounded bg-primary/10 border border-primary/30 font-cinzel text-[9px] text-primary hover:bg-primary/20 transition-colors tracking-wider"
+                  title="Long Rest"
+                  @click="longRest"
+                ><Sun class="h-3 w-3" /> Sleep</button>
+              </div>
             </div>
           </div>
         </div>
-
         <!-- HP bar -->
-        <div class="h-2 w-full rounded-full bg-muted overflow-hidden">
-          <div
-            class="h-full rounded-full transition-all"
-            :class="hpBarColor"
-            :style="{ width: `${hpPct}%` }"
-          />
+        <div class="h-1.5 w-full bg-muted overflow-hidden">
+          <div class="h-full transition-all" :class="hpBarColor" :style="{ width: `${hpPct}%` }" />
         </div>
       </div>
 
@@ -244,6 +168,60 @@
         </div>
       </div>
 
+      <!-- Spells (prepared / known) -->
+      <div
+        v-if="preparedOrKnownSpells.length"
+        class="rounded-lg border border-border bg-card overflow-hidden"
+      >
+        <div class="px-4 py-2 border-b border-border bg-muted/20 flex items-center justify-between">
+          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
+            {{ casterType === 'known' ? 'Known Spells' : 'Prepared Spells' }}
+          </span>
+          <div class="flex items-center gap-3 font-cinzel text-[10px] text-muted-foreground tracking-wider">
+            <span v-if="spellAttackBonus !== null">Atk {{ signedNum(spellAttackBonus) }}</span>
+            <span v-if="spellSaveDc !== null">DC {{ spellSaveDc }}</span>
+          </div>
+        </div>
+        <div class="divide-y divide-border">
+          <div
+            v-for="entry in preparedOrKnownSpells"
+            :key="entry.id"
+            class="px-4 py-2.5 flex items-center gap-3"
+          >
+            <!-- Level badge -->
+            <span class="shrink-0 h-5 w-5 rounded bg-primary/15 border border-primary/30 font-cinzel text-[9px] font-bold text-primary flex items-center justify-center">
+              {{ entry.spell.level === 0 ? 'C' : entry.spell.level }}
+            </span>
+            <!-- Name -->
+            <span class="font-fell text-sm text-foreground flex-1 min-w-0 truncate">{{ entry.spell.name }}</span>
+            <!-- Roll buttons -->
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button
+                v-if="entry.spell.attack_type === 'ranged' || entry.spell.attack_type === 'melee'"
+                class="flex items-center gap-1 px-2 py-1 rounded border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors"
+                @click="rollSpellAttack(entry.spell)"
+              >
+                <Sword class="h-3 w-3 text-muted-foreground" />
+                <span class="font-cinzel text-[10px] text-foreground">{{ signedNum(spellAttackBonus ?? 0) }}</span>
+              </button>
+              <span
+                v-else-if="entry.spell.attack_type === 'save' && spellSaveDc !== null"
+                class="px-2 py-1 rounded border border-amber-500/30 bg-amber-500/5 font-cinzel text-[9px] text-amber-400 tracking-wider"
+              >DC {{ spellSaveDc }} {{ entry.spell.save_attribute }}</span>
+              <button
+                v-if="entry.spell.damage_rolls?.length"
+                class="flex items-center gap-1 px-2 py-1 rounded border border-border hover:border-amber-500/50 hover:bg-muted/30 transition-colors"
+                @click="rollSpellDamage(entry.spell)"
+              >
+                <Zap class="h-3 w-3 text-muted-foreground" />
+                <span class="font-cinzel text-[10px] text-foreground">{{ entry.spell.damage_rolls[0].dice }}</span>
+                <span class="font-cinzel text-[9px] text-muted-foreground">{{ entry.spell.damage_rolls[0].type }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Death saves (only at 0 HP) -->
       <div
         v-if="member.current_hp <= 0"
@@ -294,124 +272,13 @@
         </div>
       </div>
 
-      <!-- Ability Scores -->
-      <div class="rounded-lg border border-border bg-card overflow-hidden">
-        <div class="px-4 py-2 border-b border-border bg-muted/20">
-          <span
-            class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
-            >Ability Scores</span
-          >
-        </div>
-        <div class="grid grid-cols-3 sm:grid-cols-6 divide-x divide-border">
-          <button
-            v-for="stat in ABILITY_STATS"
-            :key="stat.key"
-            class="flex flex-col items-center gap-0.5 py-4 px-2 hover:bg-muted/30 transition-colors active:bg-muted/50 group"
-            @click="rollAbility(stat)"
-          >
-            <span
-              class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider group-hover:text-foreground transition-colors"
-              >{{ stat.label }}</span
-            >
-            <span class="font-cinzel text-2xl font-bold text-foreground">{{
-              member[stat.key]
-            }}</span>
-            <span
-              class="font-fell text-sm"
-              :class="
-                abilityMod(member[stat.key]) >= 0
-                  ? 'text-elven-green'
-                  : 'text-destructive'
-              "
-            >
-              {{ signedNum(abilityMod(member[stat.key])) }}
-            </span>
-            <span
-              class="font-cinzel text-[9px] text-muted-foreground/60 tracking-wider group-hover:text-primary transition-colors"
-              >ROLL</span
-            >
-          </button>
-        </div>
-      </div>
-
-      <!-- Saving Throws -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="rounded-lg border border-border bg-card overflow-hidden">
-          <div class="px-4 py-2 border-b border-border bg-muted/20">
-            <span
-              class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
-              >Saving Throws</span
-            >
-          </div>
-          <div class="divide-y divide-border">
-            <button
-              v-for="save in SAVES"
-              :key="save.key"
-              class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-muted/30 transition-colors group text-left"
-              @click="rollSave(save)"
-            >
-              <span
-                class="h-3.5 w-3.5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors"
-                :class="
-                  isSaveProficient(save.key)
-                    ? 'bg-primary border-primary'
-                    : 'border-muted-foreground/40'
-                "
-              />
-              <span class="font-fell text-sm flex-1 text-foreground">{{
-                save.label
-              }}</span>
-              <span
-                class="font-cinzel text-sm font-bold"
-                :class="
-                  saveBonus(save.key) >= 0
-                    ? 'text-foreground'
-                    : 'text-destructive'
-                "
-              >
-                {{ signedNum(saveBonus(save.key)) }}
-              </span>
-              <ChevronRight
-                class="h-3 w-3 text-muted-foreground/40 group-hover:text-primary transition-colors"
-              />
-            </button>
-          </div>
-        </div>
-
-        <!-- Passive scores (mobile only — desktop shown in Skills header) -->
-        <div class="flex flex-col gap-3 md:hidden">
-          <div
-            class="rounded-lg border border-border bg-card p-3 flex items-center justify-between"
-          >
-            <span class="font-fell text-sm text-foreground"
-              >Passive Perception</span
-            >
-            <span class="font-cinzel text-sm font-bold text-foreground">{{
-              passivePerception
-            }}</span>
-          </div>
-          <div
-            class="rounded-lg border border-border bg-card p-3 flex items-center justify-between"
-          >
-            <span class="font-fell text-sm text-foreground"
-              >Passive Insight</span
-            >
-            <span class="font-cinzel text-sm font-bold text-foreground">{{
-              passiveInsight
-            }}</span>
-          </div>
-          <div
-            class="rounded-lg border border-border bg-card p-3 flex items-center justify-between"
-          >
-            <span class="font-fell text-sm text-foreground"
-              >Passive Investigation</span
-            >
-            <span class="font-cinzel text-sm font-bold text-foreground">{{
-              passiveInvestigation
-            }}</span>
-          </div>
-        </div>
-      </div>
+      <!-- Ability scores + saves (reusable component) + combat stats -->
+      <AbilityScoreTable
+        :scores="member"
+        :saves="memberSaves"
+        @roll-ability="onRollAbility"
+        @roll-save="onRollSave"
+      />
 
       <!-- Skills -->
       <div class="rounded-lg border border-border bg-card overflow-hidden">
@@ -598,17 +465,22 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Plus, Minus, Star, ChevronRight, Sword, Zap } from "lucide-vue-next";
+import { Star, ChevronRight, Sword, Zap, Moon, Sun } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import { usePartyInventory } from "@/composables/usePartyInventory";
 import { useItems } from "@/composables/useItems";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
+import { useCampaignMembers } from "@/composables/useCampaignMembers";
+import { useCampaignStore } from "@/stores/campaign";
 import { SKILLS, CONDITIONS } from "@/types/party.types";
 import type { PartyMember, SkillProficiencies } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
+import { useCharacterSpellsWithDetails } from "@/composables/useCharacterSpells";
+import { getCasterType } from "@/types/spell.types";
+import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 
 const props = defineProps<{ memberId?: string }>();
 
@@ -619,7 +491,10 @@ const { data: partyMembers } = useParty();
 const { data: inventory } = usePartyInventory();
 const { data: allItems } = useItems();
 const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
-const { sendRoll } = useCampaignMessages();
+const { sendRoll, sendFlavorMessage } = useCampaignMessages();
+const { data: campaignMembers } = useCampaignMembers();
+const campaignStore = useCampaignStore();
+const dmUserId = computed(() => campaignMembers.value?.find((m) => m.role === "dm")?.user_id ?? null);
 
 const resolvedMemberId = computed(
   () =>
@@ -634,23 +509,15 @@ const member = computed<PartyMember | null>(() => {
 });
 
 // ── Ability helpers ────────────────────────────────────────────────────────────
-const ABILITY_STATS = [
-  { key: "str" as const, label: "STR" },
-  { key: "dex" as const, label: "DEX" },
-  { key: "con" as const, label: "CON" },
-  { key: "int" as const, label: "INT" },
-  { key: "wis" as const, label: "WIS" },
-  { key: "cha" as const, label: "CHA" },
-];
+type AbilityKey = "str" | "dex" | "con" | "int" | "wis" | "cha";
+const ABILITY_KEYS: AbilityKey[] = ["str", "dex", "con", "int", "wis", "cha"];
 
-const SAVES = [
-  { key: "str" as const, label: "Strength" },
-  { key: "dex" as const, label: "Dexterity" },
-  { key: "con" as const, label: "Constitution" },
-  { key: "int" as const, label: "Intelligence" },
-  { key: "wis" as const, label: "Wisdom" },
-  { key: "cha" as const, label: "Charisma" },
-];
+const COMBAT_STATS = computed(() => [
+  { label: "AC",   value: member.value?.ac ?? "—",   suffix: "" },
+  { label: "SPD",  value: member.value?.speed ?? "—", suffix: "ft" },
+  { label: "INIT", value: member.value ? signedNum(dexMod.value) : "—", suffix: "" },
+  { label: "PROF", value: member.value ? `+${member.value.proficiency_bonus}` : "—", suffix: "" },
+]);
 
 function abilityMod(score: number) {
   return Math.floor((score - 10) / 2);
@@ -690,11 +557,7 @@ const hpBarColor = computed(() => {
 
 // ── Saving throws ──────────────────────────────────────────────────────────────
 function isSaveProficient(key: string) {
-  return (
-    member.value?.saving_throw_proficiencies?.includes(
-      key as (typeof SAVES)[number]["key"],
-    ) ?? false
-  );
+  return member.value?.saving_throw_proficiencies?.includes(key as AbilityKey) ?? false;
 }
 
 function saveBonus(key: string) {
@@ -703,6 +566,13 @@ function saveBonus(key: string) {
   const mod = abilityMod(score);
   return mod + (isSaveProficient(key) ? member.value.proficiency_bonus : 0);
 }
+
+const memberSaves = computed(() => {
+  if (!member.value) return undefined;
+  return Object.fromEntries(
+    ABILITY_KEYS.map((k) => [k, { bonus: saveBonus(k), proficient: isSaveProficient(k) }]),
+  );
+});
 
 // ── Skills ─────────────────────────────────────────────────────────────────────
 function profLevel(key: keyof SkillProficiencies) {
@@ -760,15 +630,40 @@ async function toggleCondition(cond: string) {
 }
 
 // ── HP / Inspiration ───────────────────────────────────────────────────────────
-async function adjustHp(delta: number) {
+const hpInput = ref(0);
+
+async function applyDamage() {
+  if (!member.value || hpInput.value <= 0) return;
+  const newHp = Math.max(0, member.value.current_hp - hpInput.value);
+  await updatePartyMember({ id: member.value.id, update: { current_hp: newHp } });
+  hpInput.value = 0;
+}
+
+async function applyHeal() {
+  if (!member.value || hpInput.value <= 0) return;
+  const newHp = Math.min(member.value.max_hp, member.value.current_hp + hpInput.value);
+  await updatePartyMember({ id: member.value.id, update: { current_hp: newHp } });
+  hpInput.value = 0;
+}
+
+async function applyTempHp() {
+  if (!member.value || hpInput.value <= 0) return;
+  await updatePartyMember({ id: member.value.id, update: { temp_hp: hpInput.value } });
+  hpInput.value = 0;
+}
+
+async function shortRest() {
+  if (!member.value || hpInput.value <= 0) return;
+  const newHp = Math.min(member.value.max_hp, member.value.current_hp + hpInput.value);
+  await updatePartyMember({ id: member.value.id, update: { current_hp: newHp } });
+  hpInput.value = 0;
+}
+
+async function longRest() {
   if (!member.value) return;
-  const newHp = Math.max(
-    0,
-    Math.min(member.value.max_hp, member.value.current_hp + delta),
-  );
   await updatePartyMember({
     id: member.value.id,
-    update: { current_hp: newHp },
+    update: { current_hp: member.value.max_hp, temp_hp: 0, death_save_successes: 0, death_save_failures: 0 },
   });
 }
 
@@ -813,7 +708,7 @@ function doRoll(label: string, modifier: number) {
     rollToast.value = null;
   }, 3000);
 
-  // Post to campaign chat
+  // Post to campaign chat — getSenderName() handles character name + DM preview impersonation
   void sendRoll({
     total,
     label,
@@ -824,17 +719,130 @@ function doRoll(label: string, modifier: number) {
   });
 }
 
-function rollAbility(stat: (typeof ABILITY_STATS)[number]) {
-  if (!member.value) return;
-  doRoll(`${stat.label} Check`, abilityMod(member.value[stat.key]));
+
+function onRollAbility(_key: string, label: string, mod: number) {
+  doRoll(`${label} Check`, mod);
+}
+function onRollSave(_key: string, label: string, bonus: number) {
+  doRoll(`${label} Save`, bonus);
 }
 
-function rollSave(save: (typeof SAVES)[number]) {
-  doRoll(`${save.label} Save`, saveBonus(save.key));
+// Skills that trigger the immersive roll flow when the campaign setting is on.
+// Player sees only flavor; DM receives the full result via whisper.
+const IMMERSIVE_SKILL_KEYS = new Set([
+  "stealth", "sleight_of_hand", "arcana", "history", "nature", "religion",
+  "insight", "investigation", "medicine",
+]);
+
+function immersiveFlavor(label: string, name: string): string {
+  const l = label.toLowerCase();
+  if (l.includes("stealth"))        return `${name} tries to move undetected`;
+  if (l.includes("sleight"))        return `${name} attempts a careful maneuver`;
+  if (l.includes("arcana"))         return `${name} searches their arcane knowledge`;
+  if (l.includes("history"))        return `${name} tries to recall what they know`;
+  if (l.includes("nature"))         return `${name} reads the signs of the natural world`;
+  if (l.includes("religion"))       return `${name} draws on their religious knowledge`;
+  if (l.includes("insight"))        return `${name} tries to read the situation`;
+  if (l.includes("investigation"))  return `${name} examines the area carefully`;
+  if (l.includes("medicine"))       return `${name} assesses the situation`;
+  return `${name} makes a check`;
 }
 
-function rollSkill(skill: (typeof SKILLS)[number]) {
+async function rollSkill(skill: (typeof SKILLS)[number]) {
+  const isImmersive =
+    campaignStore.activeCampaign?.immersive_rolls &&
+    IMMERSIVE_SKILL_KEYS.has(skill.key);
+
+  if (isImmersive) {
+    const dice = Math.floor(Math.random() * 20) + 1;
+    const modifier = skillBonusValue(skill);
+    const total = dice + modifier;
+    const label = `${skill.label} Check`;
+    const name = member.value?.name ?? "Unknown";
+
+    // Flavor text to all via composable (optimistic push → instant visibility)
+    await sendFlavorMessage(immersiveFlavor(label, name), skill.label);
+
+    // Full result whispered to DM only
+    if (dmUserId.value) {
+      await sendRoll(
+        { label, total, modifier, breakdown: [{ val: dice, dropped: false }], isCrit: dice === 20, isFumble: dice === 1 },
+        dmUserId.value,
+        name,
+      );
+    }
+
+    // No local toast — player is unaware of the result
+    return;
+  }
+
   doRoll(`${skill.label} Check`, skillBonusValue(skill));
+}
+
+// ── Spells ─────────────────────────────────────────────────────────────────────
+const { data: characterSpells } = useCharacterSpellsWithDetails(resolvedMemberId);
+const casterType = computed(() => getCasterType(member.value?.class ?? null));
+
+const preparedOrKnownSpells = computed(() => {
+  const entries = characterSpells.value ?? [];
+  if (casterType.value === "none") return [];
+  if (casterType.value === "known") return entries;
+  return entries.filter((e) => e.is_prepared || e.spell.level === 0);
+});
+
+const spellSaveDc = computed(() => {
+  const m = member.value;
+  if (!m || casterType.value === "none") return null;
+  const cls = m.class ?? "";
+  let spellMod: number;
+  if (["Cleric", "Druid", "Ranger"].includes(cls))                                            spellMod = abilityMod(m.wis);
+  else if (["Wizard", "Fighter (Eldritch Knight)", "Rogue (Arcane Trickster)"].includes(cls)) spellMod = abilityMod(m.int);
+  else                                                                                         spellMod = abilityMod(m.cha);
+  return 8 + m.proficiency_bonus + spellMod;
+});
+
+const spellAttackBonus = computed(() => {
+  const m = member.value;
+  if (!m || casterType.value === "none") return null;
+  const cls = m.class ?? "";
+  let spellMod: number;
+  if (["Cleric", "Druid", "Ranger"].includes(cls))                                            spellMod = abilityMod(m.wis);
+  else if (["Wizard", "Fighter (Eldritch Knight)", "Rogue (Arcane Trickster)"].includes(cls)) spellMod = abilityMod(m.int);
+  else                                                                                         spellMod = abilityMod(m.cha);
+  return m.proficiency_bonus + spellMod;
+});
+
+function rollSpellDamage(spell: { name: string; damage_rolls?: Array<{ dice: string; type: string }> | null }) {
+  if (!spell.damage_rolls?.length) return;
+  const expr = spell.damage_rolls[0].dice;
+  const m = expr.match(/^(\d+)d(\d+)$/);
+  let total = 0;
+  const breakdown: { val: number; dropped: boolean }[] = [];
+  if (m) {
+    const count = parseInt(m[1]);
+    const sides = parseInt(m[2]);
+    for (let i = 0; i < count; i++) {
+      const v = Math.floor(Math.random() * sides) + 1;
+      breakdown.push({ val: v, dropped: false });
+      total += v;
+    }
+  }
+  const label = `${spell.name} — Damage (${spell.damage_rolls[0].type})`;
+  rollToast.value = { label, dice: total, modifier: 0, total };
+  if (rollTimer) clearTimeout(rollTimer);
+  rollTimer = setTimeout(() => { rollToast.value = null; }, 3000);
+  void sendRoll({ total, label, modifier: 0, breakdown, isCrit: false, isFumble: false });
+}
+
+function rollSpellAttack(spell: { name: string }) {
+  if (spellAttackBonus.value === null) return;
+  const dice = Math.floor(Math.random() * 20) + 1;
+  const total = dice + spellAttackBonus.value;
+  const label = `${spell.name} — Spell Attack`;
+  rollToast.value = { label, dice, modifier: spellAttackBonus.value, total };
+  if (rollTimer) clearTimeout(rollTimer);
+  rollTimer = setTimeout(() => { rollToast.value = null; }, 3000);
+  void sendRoll({ total, label, modifier: spellAttackBonus.value, breakdown: [{ val: dice, dropped: false }], isCrit: dice === 20, isFumble: dice === 1 });
 }
 
 // ── Weapon attacks ─────────────────────────────────────────────────────────────

@@ -60,7 +60,7 @@
           @click="toggleDetail(combatant.instance_id)"
         >
           <!-- Avatar + reveal toggle (monsters only) -->
-          <div class="avatar-cell" @click.stop>
+          <div class="avatar-cell" @click.stop="toggleDetail(combatant.instance_id)">
             <div
               class="avatar-inner"
               :class="store.started && combatant.instance_id === store.activeCombatant?.instance_id ? 'avatar-active' : ''"
@@ -222,13 +222,28 @@
           >{{ m.label }}</button>
         </div>
 
+        <!-- Chat mode toggle -->
+        <div class="chat-mode-bar">
+          <button
+            v-for="m in CHAT_MODES"
+            :key="m.value"
+            type="button"
+            class="chat-mode-btn"
+            :class="{ 'chat-mode-active': chatMode === m.value, [m.cls]: chatMode === m.value }"
+            :title="m.title"
+            @click="chatMode = m.value"
+          >{{ m.label }}</button>
+        </div>
+
         <!-- Monster -->
         <template v-if="selectedCombatant.type === 'monster' && selectedMonster">
           <div class="detail-scroll">
-            <img
-              v-if="selectedMonster.image_url"
-              :src="selectedMonster.image_url"
-              :alt="selectedMonster.name"
+            <FocalImage
+              v-if="selectedCombatant.portrait_url"
+              :src="selectedCombatant.portrait_url"
+              :alt="selectedCombatant.name"
+              :focal-point="selectedCombatant.portrait_focal_point ?? null"
+              format="portrait"
               class="detail-portrait"
             />
             <p class="detail-meta">
@@ -243,38 +258,13 @@
               <div class="detail-stat"><span>CR</span><strong>{{ selectedMonster.stat_block?.challenge_rating }}</strong></div>
             </div>
             <div class="detail-divider" />
-            <!-- Ability scores (clickable mods) -->
-            <div class="detail-abilities">
-              <button
-                v-for="s in ABILITY_KEYS"
-                :key="s.key"
-                type="button"
-                class="detail-ability rollable"
-                :title="`Roll ${s.label} check`"
-                @click="performCheck(abilityMod(selectedMonster.stat_block?.[s.key] ?? 10), s.label + ' Check')"
-              >
-                <span>{{ s.label }}</span>
-                <strong>{{ selectedMonster.stat_block?.[s.key] ?? '—' }}</strong>
-                <em>{{ fmtMod(selectedMonster.stat_block?.[s.key] ?? 10) }}</em>
-              </button>
-            </div>
-            <!-- Monster saves -->
-            <template v-if="monsterSaves.length">
-              <div class="detail-divider" />
-              <p class="detail-section-label">Saving Throws</p>
-              <div class="detail-check-grid">
-                <button
-                  v-for="sv in monsterSaves"
-                  :key="sv.label"
-                  type="button"
-                  class="detail-check-btn"
-                  @click="performCheck(sv.bonus, sv.label + ' Save')"
-                >
-                  <span>{{ sv.label }}</span>
-                  <em>{{ sv.bonus >= 0 ? '+' : '' }}{{ sv.bonus }}</em>
-                </button>
-              </div>
-            </template>
+            <AbilityScoreTable
+              :scores="monsterScoresForBlock"
+              :saves="monsterSavesForBlock"
+              :rounded="false"
+              @roll-ability="(_, label, mod) => performCheck(mod, label + ' Check')"
+              @roll-save="(_, label, bonus) => performCheck(bonus, label + ' Save')"
+            />
             <!-- Monster skills -->
             <template v-if="monsterSkillEntries.length">
               <div class="detail-divider" />
@@ -305,7 +295,24 @@
                 <div class="detail-divider" />
                 <p class="detail-section-label">{{ section.label }}</p>
                 <div v-for="t in section.traits" :key="t.name" class="detail-trait">
-                  <strong>{{ t.name }}.</strong> {{ t.description }}
+                  <div class="detail-trait-header">
+                    <strong>{{ t.name }}.</strong>
+                    <div class="trait-roll-bar">
+                      <button
+                        v-if="parseAttackBonus(t.description) !== null"
+                        type="button"
+                        class="trait-roll-btn trait-atk-btn"
+                        @click.stop="rollAttack(parseAttackBonus(t.description) ?? 0, t.name)"
+                      >⚔ {{ (parseAttackBonus(t.description) ?? 0) >= 0 ? '+' : '' }}{{ parseAttackBonus(t.description) ?? 0 }}</button>
+                      <button
+                        v-if="hasRollableDice(t.description)"
+                        type="button"
+                        class="trait-roll-btn trait-dmg-btn"
+                        @click.stop="rollActionDamage(t.description, t.name)"
+                      >🎲 {{ actionDiceLabel(t.description) }}</button>
+                    </div>
+                  </div>
+                  <span class="detail-trait-desc">{{ t.description }}</span>
                 </div>
               </template>
             </template>
@@ -315,10 +322,12 @@
         <!-- Player -->
         <template v-else-if="selectedCombatant.type === 'player' && selectedMember">
           <div class="detail-scroll">
-            <img
-              v-if="selectedMember.portrait_url"
-              :src="selectedMember.portrait_url"
-              :alt="selectedMember.name"
+            <FocalImage
+              v-if="selectedCombatant.portrait_url"
+              :src="selectedCombatant.portrait_url"
+              :alt="selectedCombatant.name"
+              :focal-point="selectedCombatant.portrait_focal_point ?? null"
+              format="portrait"
               class="detail-portrait"
             />
             <p class="detail-meta">
@@ -333,40 +342,13 @@
               <div class="detail-stat"><span>Prof</span><strong>+{{ playerProfBonus }}</strong></div>
             </div>
             <div class="detail-divider" />
-            <!-- Ability scores (clickable mods) -->
-            <div class="detail-abilities">
-              <button
-                v-for="s in ABILITY_KEYS"
-                :key="s.key"
-                type="button"
-                class="detail-ability rollable"
-                :title="`Roll ${s.label} check`"
-                @click="performCheck(abilityMod(selectedMember[s.key]), s.label + ' Check')"
-              >
-                <span>{{ s.label }}</span>
-                <strong>{{ selectedMember[s.key] }}</strong>
-                <em>{{ fmtMod(selectedMember[s.key]) }}</em>
-              </button>
-            </div>
-            <!-- Saving throws -->
-            <div class="detail-divider" />
-            <p class="detail-section-label">Saving Throws</p>
-            <div class="detail-check-grid">
-              <button
-                v-for="s in ABILITY_KEYS"
-                :key="s.key"
-                type="button"
-                class="detail-check-btn"
-                :class="{ 'check-proficient': (selectedMember.saving_throw_proficiencies ?? []).includes(s.key) }"
-                @click="performCheck(playerSaveBonus(s.key), s.label + ' Save')"
-              >
-                <span class="check-label-row">
-                  {{ s.label }}
-                  <span v-if="(selectedMember.saving_throw_proficiencies ?? []).includes(s.key)" class="prof-pip">P</span>
-                </span>
-                <em>{{ playerSaveBonus(s.key) >= 0 ? '+' : '' }}{{ playerSaveBonus(s.key) }}</em>
-              </button>
-            </div>
+            <AbilityScoreTable
+              :scores="playerScoresForBlock"
+              :saves="playerSavesForBlock"
+              :rounded="false"
+              @roll-ability="(_, label, mod) => performCheck(mod, label + ' Check')"
+              @roll-save="(_, label, bonus) => performCheck(bonus, label + ' Save')"
+            />
             <!-- Skills -->
             <div class="detail-divider" />
             <p class="detail-section-label">Skills</p>
@@ -415,6 +397,30 @@
               <div class="detail-divider" />
               <p class="detail-notes">{{ selectedMember.notes }}</p>
             </template>
+
+            <!-- Prepared / Known Spells -->
+            <template v-if="preparedOrKnownSpells.length">
+              <div class="detail-divider" />
+              <p class="detail-section-label">{{ selectedCasterType === 'known' ? 'Known Spells' : 'Prepared Spells' }}</p>
+              <div v-for="entry in preparedOrKnownSpells" :key="entry.id" class="detail-spell">
+                <div class="spell-info">
+                  <span class="spell-level-badge">{{ entry.spell.level === 0 ? 'C' : entry.spell.level }}</span>
+                  <span class="spell-name">{{ entry.spell.name }}</span>
+                </div>
+                <div class="spell-rolls">
+                  <button
+                    v-if="entry.spell.damage_rolls?.length"
+                    type="button"
+                    class="trait-roll-btn trait-dmg-btn"
+                    @click.stop="rollSpellDamage(entry.spell)"
+                  >🎲 {{ entry.spell.damage_rolls[0].dice }}</button>
+                  <span
+                    v-if="entry.spell.attack_type === 'save' && playerSpellSaveDc"
+                    class="spell-save-badge"
+                  >DC {{ playerSpellSaveDc }} {{ entry.spell.save_attribute }}</span>
+                </div>
+              </div>
+            </template>
           </div>
         </template>
 
@@ -444,9 +450,15 @@ import { CONDITIONS, SKILLS } from "@/types/party.types";
 import type { SaveKey } from "@/types/party.types";
 import type { RunCombatant } from "@/types/encounter.types";
 import DiceRoller from "@/components/common/DiceRoller.vue";
+import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import { useEncounterLive } from "@/composables/useEncounterLive";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdatePartyMember } from "@/composables/useParty";
+import { parseExpression, rollDie } from "@/lib/dice";
+import type { Spell as SpellType } from "@/types/spell.types";
+import { getCasterType } from "@/types/spell.types";
+import { useCharacterSpellsWithDetails } from "@/composables/useCharacterSpells";
+import { useAuthStore } from "@/stores/auth";
 
 const store = useEncounterRunStore();
 const router = useRouter();
@@ -489,9 +501,11 @@ watch(
       try {
         await supabase.from("campaign_messages").insert({
           campaign_id: campaign.activeCampaignId,
+          user_id: auth.user?.id ?? "",
+          recipient_user_id: null,
           sender_name: "⚔ Encounter",
-          content: msg,
-          message_type: "system",
+          message: msg,
+          type: "system",
         });
       } catch (e) {
         console.error("Failed to send event broadcast:", e);
@@ -504,6 +518,7 @@ const { data: monsters } = useAllMonsters();
 const { data: party } = useParty();
 
 const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
+const auth = useAuthStore();
 
 const addingCondFor = ref<string | null>(null);
 const selectedId = ref<string | null>(null);
@@ -517,6 +532,13 @@ const ROLL_MODES: { value: CheckMode; label: string; cls: string }[] = [
   { value: "normal",       label: "Normal", cls: "mode-normal" },
   { value: "advantage",    label: "ADV", cls: "mode-adv" },
 ];
+
+type ChatMode = "public" | "silent";
+const CHAT_MODES: { value: ChatMode; label: string; cls: string; title: string }[] = [
+  { value: "public", label: "📢 Public", cls: "cmode-public", title: "Roll result visible to all in chat" },
+  { value: "silent", label: "🔇 Silent", cls: "cmode-silent", title: "Roll not posted to chat" },
+];
+const chatMode = ref<ChatMode>("public");
 
 const rollMode = ref<CheckMode>("normal");
 
@@ -569,6 +591,105 @@ function performCheck(modifier: number, label: string) {
   }
 }
 
+// ── Action roll helpers ───────────────────────────────────────────────────────
+
+function parseAttackBonus(desc: string): number | null {
+  const m = desc.match(/([+-]\d+)\s+to\s+hit/i);
+  return m ? parseInt(m[1]) : null;
+}
+
+function hasRollableDice(desc: string): boolean {
+  const parsed = parseExpression(desc);
+  return !!parsed && parsed.terms.length > 0;
+}
+
+function actionDiceLabel(desc: string): string {
+  const parsed = parseExpression(desc);
+  if (!parsed || !parsed.terms.length) return "";
+  const diceStr = parsed.terms.map((t) => `${t.count}d${t.sides}`).join("+");
+  const mod = parsed.modifier;
+  return diceStr + (mod > 0 ? `+${mod}` : mod < 0 ? `${mod}` : "");
+}
+
+async function postRollToChat(
+  label: string,
+  total: number,
+  breakdown: { val: number; dropped: boolean }[],
+  modifier: number,
+  isCrit: boolean,
+  isFumble: boolean,
+  senderName: string,
+) {
+  if (!campaign.activeCampaignId || !auth.user?.id) return;
+  if (chatMode.value === "silent") return;
+
+  // Public
+  try {
+    await supabase.from("campaign_messages").insert({
+      campaign_id: campaign.activeCampaignId,
+      user_id: auth.user.id,
+      recipient_user_id: null,
+      sender_name: senderName,
+      message: `rolled ${label} = ${total}`,
+      type: "roll",
+      metadata: { label, total, breakdown, modifier, isCrit, isFumble },
+    });
+  } catch (e) {
+    console.error("Failed to post roll:", e);
+  }
+}
+
+function rollAttack(attackBonus: number, actionName: string) {
+  performCheck(attackBonus, actionName + " Attack");
+  if (lastCheck.value) {
+    const lc = lastCheck.value;
+    const breakdown: { val: number; dropped: boolean }[] = [{ val: lc.d20, dropped: false }];
+    if (lc.dropped !== undefined) breakdown.push({ val: lc.dropped, dropped: true });
+    void postRollToChat(lc.label, lc.total, breakdown, lc.modifier, lc.isCrit, lc.isFumble, selectedCombatant.value?.name ?? "Encounter");
+  }
+}
+
+function rollActionDamage(desc: string, actionName: string) {
+  const parsed = parseExpression(desc);
+  if (!parsed || !parsed.terms.length) return;
+  const breakdown: { val: number; dropped: boolean }[] = [];
+  let total = parsed.modifier;
+  for (const term of parsed.terms) {
+    for (let i = 0; i < term.count; i++) {
+      const val = rollDie(term.sides);
+      total += val;
+      breakdown.push({ val, dropped: false });
+    }
+  }
+  const label = `${actionName} (${actionDiceLabel(desc)})`;
+  lastCheck.value = { total, label, modifier: parsed.modifier, d20: breakdown[0]?.val ?? total, isCrit: false, isFumble: false };
+  void postRollToChat(label, total, breakdown, parsed.modifier, false, false, selectedCombatant.value?.name ?? "Encounter");
+}
+
+function rollSpellDamage(spell: SpellType) {
+  const rolls = spell.damage_rolls;
+  if (!rolls?.length) return;
+  const breakdown: { val: number; dropped: boolean }[] = [];
+  let total = 0;
+  for (const roll of rolls) {
+    const parsed = parseExpression(roll.dice);
+    if (parsed) {
+      for (const term of parsed.terms) {
+        for (let i = 0; i < term.count; i++) {
+          const val = rollDie(term.sides);
+          total += val;
+          breakdown.push({ val, dropped: false });
+        }
+      }
+      total += parsed.modifier;
+    }
+  }
+  const diceLabel = rolls.map((r) => `${r.dice}${r.type ? " " + r.type : ""}`).join(" + ");
+  const label = `${spell.name} (${diceLabel})`;
+  lastCheck.value = { total, label, modifier: 0, d20: breakdown[0]?.val ?? total, isCrit: false, isFumble: false };
+  void postRollToChat(label, total, breakdown, 0, false, false, selectedMember.value?.name ?? "Player");
+}
+
 // ── Combatant selection ───────────────────────────────────────────────────────
 
 const selectedCombatant = computed(() =>
@@ -600,19 +721,27 @@ const playerProfBonus = computed(() => {
   return 2;
 });
 
-/** Proficiency bonus for a monster derived from its CR. */
-function crToProfBonus(cr: string | null | undefined): number {
-  if (!cr) return 2;
-  const n = cr === "1/8" ? 0.125 : cr === "1/4" ? 0.25 : cr === "1/2" ? 0.5 : Number(cr);
-  if (n >= 29) return 9;
-  if (n >= 25) return 8;
-  if (n >= 21) return 7;
-  if (n >= 17) return 6;
-  if (n >= 13) return 5;
-  if (n >= 9)  return 4;
-  if (n >= 5)  return 3;
-  return 2;
-}
+// ── Character spells for selected player ──────────────────────────────────────
+const selectedPlayerMemberId = computed(() => selectedMember.value?.id ?? null);
+const { data: selectedPlayerSpells } = useCharacterSpellsWithDetails(selectedPlayerMemberId);
+const selectedCasterType = computed(() => getCasterType(selectedMember.value?.class ?? null));
+const preparedOrKnownSpells = computed(() => {
+  const entries = selectedPlayerSpells.value ?? [];
+  if (selectedCasterType.value === "none") return [];
+  if (selectedCasterType.value === "known") return entries;
+  return entries.filter((e) => e.is_prepared || e.spell.level === 0);
+});
+const playerSpellSaveDc = computed(() => {
+  const m = selectedMember.value;
+  if (!m) return null;
+  const cls = m.class ?? "";
+  let spellMod: number;
+  if (["Cleric", "Druid", "Ranger"].includes(cls))                                              spellMod = abilityMod(m.wis);
+  else if (["Wizard", "Fighter (Eldritch Knight)", "Rogue (Arcane Trickster)"].includes(cls))   spellMod = abilityMod(m.int);
+  else                                                                                           spellMod = abilityMod(m.cha);
+  return 8 + playerProfBonus.value + spellMod;
+});
+
 
 // ── Monster derived data ──────────────────────────────────────────────────────
 
@@ -626,17 +755,40 @@ function parseSaveString(s: string): Record<string, number> {
   return result;
 }
 
-const monsterSaves = computed(() => {
+const monsterScoresForBlock = computed(() => {
   const sb = selectedMonster.value?.stat_block;
-  if (!sb) return [];
-  const parsed = sb.saving_throws ? parseSaveString(sb.saving_throws) : {};
-  const profBonus = crToProfBonus(sb.challenge_rating);
-  return ABILITY_KEYS.map((s) => {
-    const base = abilityMod(sb[s.key] ?? 10);
-    const bonus = parsed[s.key] !== undefined ? parsed[s.key] : base;
-    const hasSave = parsed[s.key] !== undefined;
-    return { label: s.label, key: s.key, bonus, proficient: hasSave, profBonus };
-  }).filter((sv) => sv.proficient);
+  return {
+    str: sb?.str ?? 10, dex: sb?.dex ?? 10, con: sb?.con ?? 10,
+    int: sb?.int ?? 10, wis: sb?.wis ?? 10, cha: sb?.cha ?? 10,
+  };
+});
+
+const monsterSavesForBlock = computed<Record<string, import("@/components/common/AbilityScoreTable.vue").SaveEntry>>(() => {
+  const sb = selectedMonster.value?.stat_block;
+  const parsed = sb?.saving_throws ? parseSaveString(sb.saving_throws) : {};
+  return Object.fromEntries(
+    ABILITY_KEYS.map((s) => {
+      const base = abilityMod(sb?.[s.key] ?? 10);
+      return [s.key, { bonus: parsed[s.key] ?? base, proficient: s.key in parsed }];
+    }),
+  );
+});
+
+const playerScoresForBlock = computed(() => {
+  const m = selectedMember.value;
+  return {
+    str: m?.str ?? 10, dex: m?.dex ?? 10, con: m?.con ?? 10,
+    int: m?.int ?? 10, wis: m?.wis ?? 10, cha: m?.cha ?? 10,
+  };
+});
+
+const playerSavesForBlock = computed<Record<string, import("@/components/common/AbilityScoreTable.vue").SaveEntry>>(() => {
+  return Object.fromEntries(
+    ABILITY_KEYS.map((s) => [
+      s.key,
+      { bonus: playerSaveBonus(s.key as SaveKey), proficient: (selectedMember.value?.saving_throw_proficiencies ?? []).includes(s.key) },
+    ]),
+  );
 });
 
 const monsterSkillEntries = computed(() => {
@@ -709,10 +861,6 @@ function abilityMod(score: number): number {
   return Math.floor((score - 10) / 2);
 }
 
-function fmtMod(score: number): string {
-  const m = abilityMod(score);
-  return (m >= 0 ? "+" : "") + m;
-}
 
 function factionColor(factionId: string): string {
   return store.factions.find((f) => f.id === factionId)?.color ?? "#3D3D3D";
@@ -1068,6 +1216,18 @@ async function handleEndCombat() {
 .mode-normal.roll-mode-active { @apply bg-muted/50 text-foreground; }
 .mode-adv.roll-mode-active   { @apply bg-green-500/10 text-green-600 dark:text-green-400; }
 
+/* Chat mode bar */
+.chat-mode-bar {
+  @apply flex border-b border-border shrink-0;
+}
+.chat-mode-btn {
+  @apply flex-1 py-1 font-cinzel text-[9px] font-bold tracking-wider text-muted-foreground hover:text-foreground transition-colors;
+}
+.chat-mode-active { @apply text-foreground; }
+.cmode-public.chat-mode-active { @apply bg-primary/10 text-primary; }
+.cmode-hidden.chat-mode-active { @apply bg-amber-500/10 text-amber-600 dark:text-amber-400; }
+.cmode-silent.chat-mode-active { @apply bg-muted/60 text-muted-foreground; }
+
 .detail-scroll {
   @apply flex-1 overflow-y-auto p-3 flex flex-col gap-2;
 }
@@ -1162,6 +1322,55 @@ async function handleEndCombat() {
 
 .detail-trait {
   @apply font-fell text-xs text-foreground leading-relaxed;
+}
+
+.detail-trait-header {
+  @apply flex items-start justify-between gap-2 mb-0.5;
+}
+
+.detail-trait-desc {
+  @apply block text-muted-foreground;
+}
+
+.trait-roll-bar {
+  @apply flex gap-1 flex-wrap shrink-0;
+}
+
+.trait-roll-btn {
+  @apply inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-cinzel text-[9px] font-semibold tracking-wider cursor-pointer transition-colors whitespace-nowrap;
+}
+
+.trait-atk-btn {
+  @apply bg-blue-500/15 text-blue-500 border border-blue-500/30 hover:bg-blue-500/25;
+}
+
+.trait-dmg-btn {
+  @apply bg-destructive/15 text-destructive border border-destructive/30 hover:bg-destructive/25;
+}
+
+/* Player spell list in detail panel */
+.detail-spell {
+  @apply flex items-center justify-between gap-2 py-1 border-b border-border/30 last:border-b-0;
+}
+
+.spell-info {
+  @apply flex items-center gap-1.5 min-w-0 flex-1;
+}
+
+.spell-name {
+  @apply font-fell text-xs text-foreground truncate;
+}
+
+.spell-level-badge {
+  @apply font-cinzel text-[9px] font-bold text-muted-foreground bg-muted rounded px-1 shrink-0;
+}
+
+.spell-rolls {
+  @apply flex items-center gap-1 shrink-0;
+}
+
+.spell-save-badge {
+  @apply font-cinzel text-[9px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/30;
 }
 
 .detail-line {

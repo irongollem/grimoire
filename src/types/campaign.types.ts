@@ -8,12 +8,13 @@ export interface Campaign {
   calendar_id: string;  // references CalendarAdapter.id, defaults to 'faerun'
   theme: string;        // references GrimoireTheme.id, defaults to 'grimoire'
   health_visibility: "strategic" | "immersive" | "unknown";
+  immersive_rolls: boolean;
   excluded_monster_ids: string[];
   created_at: string;
   updated_at: string;
 }
 
-export type CampaignInsert = Omit<Campaign, "id" | "user_id" | "created_at" | "updated_at" | "excluded_monster_ids" | "health_visibility"> & { excluded_monster_ids?: string[]; health_visibility?: Campaign["health_visibility"] };
+export type CampaignInsert = Omit<Campaign, "id" | "user_id" | "created_at" | "updated_at" | "excluded_monster_ids" | "health_visibility" | "immersive_rolls"> & { excluded_monster_ids?: string[]; health_visibility?: Campaign["health_visibility"]; immersive_rolls?: boolean };
 export type CampaignUpdate = Partial<CampaignInsert>;
 
 export type CampaignRole = "dm" | "player";

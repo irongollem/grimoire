@@ -2,8 +2,10 @@ import { ref, computed, watch } from "vue";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
+import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/useParty";
-import type { CampaignMessage, CampaignMessageInsert, ItemDropMetadata, CurrencyDropMetadata } from "@/types/chat.types";
+import { useCampaignMembers } from "@/composables/useCampaignMembers";
+import type { CampaignMessage, CampaignMessageInsert, ItemDropMetadata, CurrencyDropMetadata, FlavorMetadata } from "@/types/chat.types";
 import type { RollResult } from "@/lib/dice";
 
 const LIMIT = 100;
@@ -157,15 +159,54 @@ export function useCampaignMessages() {
 
   const campaign = useCampaignStore();
   const auth = useAuthStore();
+  const ui = useUiStore();
   const { data: partyMembers } = useParty();
+  const { data: campaignMembers } = useCampaignMembers();
 
-  // Prefer character name when the user has a linked party member
+  // Prefer character name; in DM preview mode, impersonate the previewed character
   function getSenderName() {
-    if (auth.linkedPartyMemberId && partyMembers.value) {
-      const character = partyMembers.value.find(m => m.id === auth.linkedPartyMemberId);
+    const memberId = ui.dmPreviewMode
+      ? ui.dmPreviewPartyMemberId
+      : auth.linkedPartyMemberId;
+    if (memberId && partyMembers.value) {
+      const character = partyMembers.value.find(m => m.id === memberId);
       if (character?.name) return character.name;
     }
     return auth.membership?.display_name ?? auth.userEmail ?? "Unknown";
+  }
+
+  // In preview mode the DM sees only what the previewed player would see:
+  // public messages + whispers addressed to that player's user_id.
+  const previewedUserId = computed(() => {
+    if (!ui.dmPreviewMode || !ui.dmPreviewPartyMemberId) return null;
+    return campaignMembers.value?.find(
+      m => m.party_member_id === ui.dmPreviewPartyMemberId,
+    )?.user_id ?? null;
+  });
+
+  const visibleMessages = computed(() => {
+    if (!ui.dmPreviewMode) return messages.value;
+    const pid = previewedUserId.value;
+    return messages.value.filter(
+      m => m.recipient_user_id === null || m.recipient_user_id === pid,
+    );
+  });
+
+  async function sendFlavorMessage(text: string, skillLabel?: string) {
+    const cid = campaign.activeCampaignId;
+    if (!cid || !auth.user?.id) return;
+    const metadata: FlavorMetadata | null = skillLabel ? { skill_label: skillLabel } : null;
+    const insert: CampaignMessageInsert = {
+      campaign_id: cid,
+      user_id: auth.user.id,
+      recipient_user_id: null,
+      sender_name: getSenderName(),
+      message: text,
+      type: "system",
+      metadata,
+    };
+    const { data } = await supabase.from("campaign_messages").insert(insert).select().single();
+    if (data) _optimisticPush(data as CampaignMessage);
   }
 
   async function sendMessage(text: string, recipientUserId: string | null = null) {
@@ -184,14 +225,14 @@ export function useCampaignMessages() {
     if (data) _optimisticPush(data as CampaignMessage);
   }
 
-  async function sendRoll(result: RollResult, recipientUserId: string | null = null) {
+  async function sendRoll(result: RollResult, recipientUserId: string | null = null, senderName?: string) {
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id) return;
     const insert: CampaignMessageInsert = {
       campaign_id: cid,
       user_id: auth.user.id,
       recipient_user_id: recipientUserId,
-      sender_name: getSenderName(),
+      sender_name: senderName ?? getSenderName(),
       message: `rolled ${result.label} = ${result.total}`,
       type: "roll",
       metadata: result,
@@ -200,7 +241,7 @@ export function useCampaignMessages() {
     if (data) _optimisticPush(data as CampaignMessage);
   }
 
-  async function sendItemDrop(itemName: string, itemId: string | null, quantity: number, rarity: string | null) {
+  async function sendItemDrop(itemName: string, itemId: string | null, quantity: number, rarity: string | null, senderName?: string) {
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id) return;
     const metadata: ItemDropMetadata = {
@@ -211,7 +252,7 @@ export function useCampaignMessages() {
       campaign_id: cid,
       user_id: auth.user.id,
       recipient_user_id: null,
-      sender_name: getSenderName(),
+      sender_name: senderName ?? getSenderName(),
       message: `dropped ${quantity > 1 ? `${quantity}x ` : ""}${itemName}`,
       type: "item_drop",
       metadata,
@@ -302,5 +343,5 @@ export function useCampaignMessages() {
 
   const myUserId = computed(() => auth.user?.id);
 
-  return { messages, loading, sendMessage, sendRoll, sendItemDrop, claimItemDrop, sendCurrencyDrop, claimCurrencyDrop, deleteMessage, deleteAllMessages, myUserId };
+  return { messages: visibleMessages, loading, sendMessage, sendFlavorMessage, sendRoll, sendItemDrop, claimItemDrop, sendCurrencyDrop, claimCurrencyDrop, deleteMessage, deleteAllMessages, myUserId };
 }

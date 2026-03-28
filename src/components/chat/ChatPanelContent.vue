@@ -78,7 +78,7 @@
               <span
                 class="font-cinzel text-[10px] text-muted-foreground tracking-wider"
               >
-                {{ msg.user_id === myUserId ? "You" : msg.sender_name }} dropped
+                {{ msg.sender_name }} dropped
                 loot
               </span>
             </div>
@@ -165,7 +165,7 @@
               <span
                 class="font-cinzel text-[10px] text-muted-foreground tracking-wider"
               >
-                {{ msg.user_id === myUserId ? "You" : msg.sender_name }} dropped
+                {{ msg.sender_name }} dropped
                 currency
               </span>
             </div>
@@ -243,9 +243,7 @@
             <p
               class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-1.5"
             >
-              <span class="font-semibold text-primary">{{
-                msg.user_id === myUserId ? "You" : msg.sender_name
-              }}</span>
+              <span class="font-semibold text-primary">{{ msg.sender_name }}</span>
               <span v-if="msg.recipient_user_id" class="text-amber-400">
                 whispers</span
               >
@@ -321,6 +319,23 @@
                 </p>
               </div>
             </div>
+          </div>
+
+          <!-- System / flavor message -->
+          <div
+            v-else-if="msg.type === 'system'"
+            class="max-w-[80%] rounded-lg px-3 py-2 bg-muted/40 border border-border/50 italic"
+          >
+            <p class="font-fell text-sm text-foreground/80 leading-snug">
+              <span
+                v-if="(msg.metadata as FlavorMetadata)?.skill_label"
+                class="font-cinzel text-[10px] font-semibold text-primary not-italic tracking-wider"
+              >{{ (msg.metadata as FlavorMetadata).skill_label }}:</span>
+              {{ msg.message }}
+            </p>
+            <p class="font-fell text-[10px] text-muted-foreground/50 mt-0.5 text-right">
+              {{ timeLabel(msg.created_at) }}
+            </p>
           </div>
 
           <!-- Chat message -->
@@ -525,6 +540,7 @@ import type {
   CampaignMessage,
   ItemDropMetadata,
   CurrencyDropMetadata,
+  FlavorMetadata,
   RollMetadata,
 } from "@/types/chat.types";
 

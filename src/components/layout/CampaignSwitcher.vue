@@ -285,6 +285,29 @@
             </div>
           </div>
 
+          <!-- Immersive Rolls -->
+          <div>
+            <label class="flex items-start gap-3 cursor-pointer" @click="form.immersive_rolls = !form.immersive_rolls">
+              <div class="shrink-0 mt-0.5">
+                <div
+                  class="h-5 w-9 rounded-full border-2 transition-colors relative"
+                  :class="form.immersive_rolls ? 'bg-primary border-primary' : 'bg-muted border-border'"
+                >
+                  <div
+                    class="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform"
+                    :class="form.immersive_rolls ? 'translate-x-4' : 'translate-x-0.5'"
+                  />
+                </div>
+              </div>
+              <div class="flex-1 min-w-0">
+                <span class="font-cinzel text-xs font-semibold text-foreground tracking-wide">Immersive Rolls</span>
+                <p class="font-fell text-xs text-muted-foreground mt-0.5">
+                  Stealth, knowledge and insight checks show only flavor text in chat. Full result whispered to DM only — player does not see their dice outcome.
+                </p>
+              </div>
+            </label>
+          </div>
+
           <!-- Claim existing data — only shown when creating the first campaign -->
           <div v-if="isFirstCampaign && !editing" class="rounded-md border border-border bg-muted/50 px-3 py-2.5">
             <label class="flex items-start gap-2.5 cursor-pointer">
@@ -393,6 +416,7 @@ const form = ref({
   current_year: defaultCalendar?.defaultYear ?? 1495,
   theme: "grimoire",
   health_visibility: "strategic" as "strategic" | "immersive" | "unknown",
+  immersive_rolls: false,
 });
 
 const HEALTH_VIS_OPTIONS = [
@@ -432,6 +456,7 @@ function startCreate() {
     current_year: defaultCalendar?.defaultYear ?? 1495,
     theme: "grimoire",
     health_visibility: "strategic",
+    immersive_rolls: false,
   };
   showModal.value = true;
   open.value = false;
@@ -447,6 +472,7 @@ function startEdit(campaign: Campaign) {
     current_year: campaign.current_year,
     theme: campaign.theme ?? "grimoire",
     health_visibility: (campaign.health_visibility as "strategic" | "immersive" | "unknown") ?? "strategic",
+    immersive_rolls: campaign.immersive_rolls ?? false,
   };
   showModal.value = true;
   open.value = false;
@@ -477,6 +503,7 @@ async function submitForm() {
         current_year: form.value.current_year,
         theme: form.value.theme,
         health_visibility: form.value.health_visibility,
+        immersive_rolls: form.value.immersive_rolls,
       },
     });
     // If editing the active campaign, re-sync store (also applies theme)
@@ -493,6 +520,7 @@ async function submitForm() {
       current_year: form.value.current_year,
       theme: form.value.theme,
       health_visibility: form.value.health_visibility,
+      immersive_rolls: form.value.immersive_rolls,
       description: null,
     });
     if (isFirstCampaign.value && claimExisting.value) {

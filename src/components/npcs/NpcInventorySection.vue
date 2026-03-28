@@ -70,7 +70,7 @@ import { useNpcInventory, useAddNpcInventoryItem, useRemoveNpcInventoryItem } fr
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import type { NpcInventoryItem } from "@/types/npc-inventory.types";
 
-const props = defineProps<{ npcId: string }>();
+const props = defineProps<{ npcId: string; npcName?: string }>();
 
 const { data: rawItems } = useNpcInventory(props.npcId);
 const items = computed(() => rawItems.value ?? []);
@@ -99,6 +99,6 @@ async function remove(item: NpcInventoryItem) {
 }
 
 async function dropToChat(item: NpcInventoryItem) {
-  await sendItemDrop(item.name, item.item_id, item.quantity, null);
+  await sendItemDrop(item.name, item.item_id, item.quantity, null, props.npcName);
 }
 </script>

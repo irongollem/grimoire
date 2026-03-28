@@ -229,7 +229,7 @@
 
           <!-- Inventory tab -->
           <div v-else-if="activeTab === 'inventory'">
-            <NpcInventorySection v-if="npc?.id" :npc-id="npc.id" />
+            <NpcInventorySection v-if="npc?.id" :npc-id="npc.id" :npc-name="npc.name" />
             <p v-else class="font-fell text-sm text-muted-foreground italic">Save the NPC first to manage inventory.</p>
           </div>
 
