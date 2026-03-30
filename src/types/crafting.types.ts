@@ -19,8 +19,6 @@ export interface CraftingRecipe {
   discipline: CraftingDiscipline;
   dc: number;
   crafting_time_days: number;
-  output_item_id: string | null;
-  output_quantity: number;
   is_player_visible: boolean;
   created_at: string;
   updated_at: string;
@@ -28,6 +26,15 @@ export interface CraftingRecipe {
 
 export type CraftingRecipeInsert = Omit<CraftingRecipe, "id" | "user_id" | "created_at" | "updated_at">;
 export type CraftingRecipeUpdate = Partial<CraftingRecipeInsert>;
+
+export interface CraftingOutput {
+  id: string;
+  recipe_id: string;
+  item_id: string;
+  quantity: number;
+}
+
+export type CraftingOutputInsert = Omit<CraftingOutput, "id">;
 
 export interface CraftingIngredient {
   id: string;

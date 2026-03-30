@@ -1,7 +1,7 @@
 <template>
   <div class="h-dvh bg-background flex flex-col overflow-hidden">
-    <!-- Top bar -->
-    <header class="h-14 border-b border-border bg-card flex items-center px-4 gap-4 shrink-0">
+    <!-- Top bar: branding + character + sign out -->
+    <header class="h-14 border-b border-border bg-card flex items-center px-4 gap-3 shrink-0">
       <div class="flex items-center gap-2 shrink-0">
         <span class="font-cinzel text-base font-bold text-gold-500 tracking-widest">Grimoire</span>
         <span class="font-fell text-xs text-muted-foreground italic hidden sm:inline">
@@ -9,35 +9,18 @@
         </span>
       </div>
 
-      <!-- Nav tabs -->
-      <nav class="flex-1 flex items-center gap-1 overflow-x-auto">
-        <RouterLink
-          v-for="item in navItems"
-          :key="item.to"
-          :to="item.to"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-fell transition-colors shrink-0"
-          :class="$route.path === item.to
-            ? 'bg-primary/15 text-primary'
-            : 'text-muted-foreground hover:text-foreground hover:bg-navy-800'"
-        >
-          <component :is="item.icon" class="h-3.5 w-3.5 shrink-0" />
-          {{ item.label }}
-        </RouterLink>
-      </nav>
+      <div class="flex-1" />
 
-      <!-- Character name + sign out -->
-      <div class="flex items-center gap-3 shrink-0">
-        <span v-if="characterName" class="font-cinzel text-xs text-foreground hidden sm:inline">
-          {{ characterName }}
-        </span>
-        <button
-          class="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
-          title="Sign out"
-          @click="handleSignOut"
-        >
-          <LogOut class="h-4 w-4" />
-        </button>
-      </div>
+      <span v-if="characterName" class="font-cinzel text-xs text-foreground hidden sm:inline">
+        {{ characterName }}
+      </span>
+      <button
+        class="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+        title="Sign out"
+        @click="handleSignOut"
+      >
+        <LogOut class="h-4 w-4" />
+      </button>
     </header>
 
     <!-- DM preview banner -->
@@ -63,7 +46,7 @@
       </button>
     </div>
 
-    <!-- Broadcast toast stack -->
+    <!-- Broadcast toast -->
     <Transition name="toast">
       <div
         v-if="latestMessage"
@@ -75,18 +58,15 @@
             <p class="font-cinzel text-xs font-semibold text-primary tracking-wider">DM Announcement</p>
             <p class="font-fell text-sm text-foreground mt-0.5">{{ latestMessage.text }}</p>
           </div>
-          <button
-            class="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-            @click="dismiss(latestMessage.id)"
-          >
+          <button class="text-muted-foreground hover:text-foreground transition-colors shrink-0" @click="dismiss(latestMessage.id)">
             <X class="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
     </Transition>
 
-    <!-- Content + chat side panel -->
-    <div class="flex-1 min-h-0 flex overflow-hidden">
+    <!-- Content + chat side panel — pb-16 reserves space above the fixed bottom nav -->
+    <div class="flex-1 min-h-0 flex overflow-hidden pb-16">
       <main class="flex-1 overflow-y-auto">
         <div class="px-4 py-6">
           <RouterView />
@@ -94,13 +74,93 @@
       </main>
       <CampaignChat :contained="true" />
     </div>
+
+    <!-- ── Bottom navigation bar ──────────────────────────────────────────── -->
+    <nav class="fixed bottom-0 inset-x-0 z-40 bg-card border-t border-border">
+      <div class="flex items-stretch justify-around">
+
+        <!-- Mobile (< sm): 4 pinned items -->
+        <RouterLink
+          v-for="item in mobileNav"
+          :key="'mob-' + item.to"
+          :to="item.to"
+          class="sm:hidden flex flex-col items-center justify-center gap-0.5 flex-1 py-2.5 transition-colors"
+          :class="isActive(item.to) ? 'text-primary' : 'text-muted-foreground'"
+          @click="trackNav(item.to)"
+        >
+          <component :is="item.icon" class="h-5 w-5 shrink-0" />
+          <span class="font-cinzel text-[9px] tracking-wider">{{ item.label }}</span>
+        </RouterLink>
+
+        <!-- Tablet+ (sm+): 7 pinned items -->
+        <RouterLink
+          v-for="item in tabletNav"
+          :key="'tab-' + item.to"
+          :to="item.to"
+          class="hidden sm:flex flex-col items-center justify-center gap-0.5 flex-1 py-3 transition-colors"
+          :class="isActive(item.to) ? 'text-primary' : 'text-muted-foreground'"
+          @click="trackNav(item.to)"
+        >
+          <component :is="item.icon" class="h-5 w-5 shrink-0" />
+          <span class="font-cinzel text-[9px] tracking-wider">{{ item.label }}</span>
+        </RouterLink>
+
+        <!-- More button (always) -->
+        <button
+          type="button"
+          class="flex flex-col items-center justify-center gap-0.5 flex-1 py-2.5 sm:py-3 transition-colors"
+          :class="showMore ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
+          @click="showMore = true"
+        >
+          <LayoutGrid class="h-5 w-5 shrink-0" />
+          <span class="font-cinzel text-[9px] tracking-wider">More</span>
+        </button>
+
+      </div>
+    </nav>
   </div>
+
+  <!-- "More" panel -->
+  <Teleport to="body">
+    <Transition name="more-panel">
+      <div
+        v-if="showMore"
+        class="fixed inset-0 z-50 flex flex-col justify-end"
+      >
+        <div class="absolute inset-0 bg-black/50" @click="showMore = false" />
+
+        <div class="relative bg-card border-t border-border rounded-t-2xl px-5 pt-4 pb-8 shadow-xl">
+          <div class="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto mb-5" />
+
+          <div class="grid grid-cols-4 sm:grid-cols-7 gap-1">
+            <RouterLink
+              v-for="item in allNav"
+              :key="item.to"
+              :to="item.to"
+              class="flex flex-col items-center gap-1.5 rounded-xl px-1 py-3 transition-colors"
+              :class="isActive(item.to)
+                ? 'bg-primary/15 text-primary'
+                : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'"
+              @click="trackNav(item.to); showMore = false"
+            >
+              <component :is="item.icon" class="h-5 w-5 shrink-0" />
+              <span class="font-cinzel text-[9px] tracking-wider text-center leading-tight">{{ item.label }}</span>
+            </RouterLink>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from "vue";
-import { useRouter } from "vue-router";
-import { LogOut, Shield, ScrollText, BookOpen, Package, User, Megaphone, X, Swords, PenLine, Eye, Settings, Library, Landmark, Globe, Sparkles } from "lucide-vue-next";
+import { ref, computed, watch, shallowRef } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import {
+  LogOut, Shield, ScrollText, BookOpen, Package, User, Megaphone, X,
+  Swords, PenLine, Eye, Settings, Library, Landmark, Globe, Sparkles,
+  Skull, Hammer, LayoutGrid,
+} from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
@@ -113,9 +173,8 @@ import CampaignChat from "@/components/chat/CampaignChat.vue";
 const auth = useAuthStore();
 const ui = useUiStore();
 const campaign = useCampaignStore();
+const route = useRoute();
 
-// Bootstrap: set activeCampaignId from membership (needed for new players without localStorage entry)
-// and load the campaign object so switchToCampaign can apply the DM's theme.
 const membershipCampaignId = computed(() => auth.membership?.campaign_id ?? null);
 watch(membershipCampaignId, (id) => {
   if (id && !campaign.activeCampaignId) campaign.activeCampaignId = id;
@@ -127,10 +186,10 @@ watch(campaignData, (c) => {
     campaign.switchToCampaign(c);
   }
 }, { immediate: true });
+
 const router = useRouter();
 const { data: partyMembers } = useParty();
 
-// Auto-select the first party member when entering DM preview with no character chosen
 watch(
   [() => ui.dmPreviewMode, partyMembers],
   ([previewMode, members]) => {
@@ -141,34 +200,68 @@ watch(
   { immediate: true },
 );
 
-// Join presence channel so DM can see player is online
 useCampaignPresence();
 
-// Subscribe to DM broadcasts
 const { messages, dismiss } = useCampaignBroadcast();
 const latestMessage = computed(() => messages.value[0] ?? null);
 
 const campaignName = computed(() => campaign.activeCampaign?.name ?? "Campaign");
-
 const characterName = computed(() => {
   if (!auth.linkedPartyMemberId || !partyMembers.value) return null;
   return partyMembers.value.find((m) => m.id === auth.linkedPartyMemberId)?.name ?? null;
 });
 
-const navItems = [
-  { to: "/play",            label: "Character", icon: User },
-  { to: "/play/party",      label: "People",    icon: Shield },
-  { to: "/play/inventory",  label: "Inventory", icon: Package },
-  { to: "/play/quests",     label: "Quests",    icon: ScrollText },
-  { to: "/play/journal",    label: "Journal",   icon: PenLine },
-  { to: "/play/notes",      label: "DM Notes",  icon: BookOpen },
+// Usage tracking — persisted in localStorage, drives pinned bar order
+const NAV_USAGE_KEY = "grimoire_nav_usage";
+
+function loadUsage(): Record<string, number> {
+  try { return JSON.parse(localStorage.getItem(NAV_USAGE_KEY) ?? "{}"); }
+  catch { return {}; }
+}
+
+const usageScores = shallowRef<Record<string, number>>(loadUsage());
+
+function trackNav(to: string) {
+  usageScores.value = { ...usageScores.value, [to]: (usageScores.value[to] ?? 0) + 1 };
+  localStorage.setItem(NAV_USAGE_KEY, JSON.stringify(usageScores.value));
+}
+
+// All items shown in the "More" grid (order = default tiebreaker)
+const allNav = [
+  { to: "/play",            label: "Character",  icon: User },
+  { to: "/play/party",      label: "People",     icon: Shield },
+  { to: "/play/inventory",  label: "Inventory",  icon: Package },
+  { to: "/play/quests",     label: "Quests",     icon: ScrollText },
+  { to: "/play/encounter",  label: "Encounter",  icon: Swords },
+  { to: "/play/journal",    label: "Journal",    icon: PenLine },
+  { to: "/play/notes",      label: "DM Notes",   icon: BookOpen },
+  { to: "/play/crafting",   label: "Workshop",   icon: Hammer },
   { to: "/play/factions",   label: "Factions",   icon: Landmark },
   { to: "/play/atlas",      label: "Atlas",      icon: Globe },
-  { to: "/play/encounter",  label: "Encounter",  icon: Swords },
+  { to: "/play/bestiary",   label: "Bestiary",   icon: Skull },
   { to: "/play/spells",     label: "Spells",     icon: Sparkles },
   { to: "/play/rules",      label: "Reliquary",  icon: Library },
   { to: "/play/settings",   label: "Settings",   icon: Settings },
 ];
+
+// Sort allNav by usage score; original array order is the tiebreaker
+const sortedNav = computed(() =>
+  [...allNav].sort((a, b) => {
+    const diff = (usageScores.value[b.to] ?? 0) - (usageScores.value[a.to] ?? 0);
+    return diff !== 0 ? diff : allNav.indexOf(a) - allNav.indexOf(b);
+  }),
+);
+
+const mobileNav = computed(() => sortedNav.value.slice(0, 4));
+const tabletNav = computed(() => sortedNav.value.slice(0, 7));
+
+const showMore = ref(false);
+
+function isActive(to: string): boolean {
+  return to === "/play" ? route.path === "/play" : route.path.startsWith(to);
+}
+
+watch(() => route.path, () => { showMore.value = false; });
 
 function exitPreview() {
   ui.exitDmPreview();
@@ -190,5 +283,24 @@ async function handleSignOut() {
 .toast-leave-to {
   transform: translateY(-8px);
   opacity: 0;
+}
+
+.more-panel-enter-active {
+  transition: opacity 0.2s ease;
+}
+.more-panel-leave-active {
+  transition: opacity 0.2s ease;
+}
+.more-panel-enter-from,
+.more-panel-leave-to {
+  opacity: 0;
+}
+.more-panel-enter-active .relative,
+.more-panel-leave-active .relative {
+  transition: transform 0.25s ease;
+}
+.more-panel-enter-from .relative,
+.more-panel-leave-to .relative {
+  transform: translateY(100%);
 }
 </style>

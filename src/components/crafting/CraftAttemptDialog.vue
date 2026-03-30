@@ -150,7 +150,7 @@ import { getDiscipline } from "@/lib/crafting-disciplines";
 import { useAttemptCraft } from "@/composables/useCrafting";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 
-import type { CraftingRecipe, CraftingModifier, CraftingAttemptResult } from "@/types/crafting.types";
+import type { CraftingRecipe, CraftingOutput, CraftingModifier, CraftingAttemptResult } from "@/types/crafting.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 import type { PartyMember } from "@/types/party.types";
@@ -158,6 +158,8 @@ import type { PartyMember } from "@/types/party.types";
 const props = defineProps<{
   open: boolean;
   recipe: CraftingRecipe;
+  /** Output items produced on success */
+  outputs: CraftingOutput[];
   /** Required ingredients from the recipe definition */
   requiredIngredients: { item_id: string; quantity: number }[];
   modifiers: CraftingModifier[];
@@ -259,10 +261,19 @@ const outcomeLabel = computed(() => {
   return "Failure";
 });
 
+const outputNames = computed(() =>
+  props.outputs.map((o) => {
+    const name = props.allItems.find((i) => i.id === o.item_id)?.name ?? "item";
+    return o.quantity > 1 ? `${o.quantity}× ${name}` : name;
+  }),
+);
+
 const outcomeDetail = computed(() => {
   if (!result.value) return "";
-  const outputName = props.allItems.find((i) => i.id === props.recipe.output_item_id)?.name ?? "item";
-  if (result.value.outcome === "success") return `${outputName} has been crafted and added to your backpack.`;
+  if (result.value.outcome === "success") {
+    const list = outputNames.value.join(", ");
+    return `${list} added to your backpack.`;
+  }
   if (result.value.outcome === "ruin") return "The primary ingredient was ruined and returned to your inventory. Other ingredients were consumed.";
   return "The attempt failed. All ingredients were consumed.";
 });
@@ -277,6 +288,7 @@ async function attempt() {
   try {
     const res = await attemptCraft({
       recipe: props.recipe,
+      outputs: props.outputs,
       ingredientInventoryIds: ids,
       primaryIngredientInventoryId: primaryId,
       primaryInventoryItem: {
@@ -295,13 +307,12 @@ async function attempt() {
     result.value = res;
 
     // Post to chat
-    const outputName = props.allItems.find((i) => i.id === props.recipe.output_item_id)?.name ?? "item";
     const modSum = modifierBonuses.value.reduce((a, b) => a + b, 0);
     let msg = `🔨 **${props.member.name}** attempted to craft **${props.recipe.name}** (DC ${props.recipe.dc})`;
     msg += `\nRoll: ${res.roll}${res.hasDisadvantage && res.roll2 !== undefined ? ` (disadvantage: also rolled ${Math.max(res.roll, res.roll2)})` : ""} + ${abilityMod.value} (${discipline.value.ability.toUpperCase()}) + ${profBonus.value} (prof)`;
     if (modSum > 0) msg += ` + ${modSum} (modifiers)`;
     msg += ` = **${res.total}** vs DC ${props.recipe.dc}`;
-    if (res.outcome === "success") msg += `\n✅ **Success!** ${outputName} crafted.`;
+    if (res.outcome === "success") msg += `\n✅ **Success!** ${outputNames.value.join(", ")} crafted.`;
     else if (res.outcome === "ruin") msg += `\n💀 **Critical failure!** Primary ingredient ruined.`;
     else msg += `\n❌ **Failed.** Ingredients consumed.`;
 

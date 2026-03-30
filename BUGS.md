@@ -85,6 +85,13 @@
 - [x] DM preview mode rolls used DM display name instead of previewed character's name — `getSenderName()` now checks `ui.dmPreviewMode` first and resolves `ui.dmPreviewPartyMemberId` from party members
 - [x] Immersive roll flavor messages not appearing without refresh — direct `supabase.insert()` bypassed `_optimisticPush`; fixed by routing through `sendFlavorMessage` composable method
 - [x] Immersive roll flavor messages showed skill label inline without color — added `FlavorMetadata` type with `skill_label`; system messages now render with colored `font-cinzel` skill label prefix; `sendFlavorMessage` accepts optional `skillLabel` param
+- [x] Bestiary sharing: clicking a specific player when no discovery existed yet created a whole-party discovery instead — `useToggleMonsterDiscovery` now accepts optional `visibleTo` param; `toggleMember` passes `[memberId]` on first create
+- [x] Bestiary sharing: toggling a player when `visible_to=null` (whole party) did nothing visually — `useUpdateDiscoveryVisibility` now uses optimistic updates (`onMutate` + rollback on error) so the popover responds instantly
+- [x] Bestiary DM preview showed all discovered monsters regardless of which player was selected — `PlayerBestiaryView` now filters discoveries client-side when in DM preview mode
+- [x] Bestiary lightbox and card thumbnails ignored focal point — `:focal-point` prop now passed from `entry.monster?.portrait_focal_point` / `selected.monster?.portrait_focal_point`
+- [x] Player portal bottom nav bar overlays chat input and chat open-tab button — content wrapper now reserves `pb-16` so both the scroll area and the side panel chat end above the nav; mobile slide-up chat lifted to `bottom-16`; chat tab button moved to `bottom-20`
+- [x] Player atlas hid shared locations when their parent wasn't shared — `flatTree` now treats any location whose parent is absent from the shared set as a depth-0 root, so sharing a child without its parent still makes it visible
+- [x] Player crafting recipe description rendered as raw Tiptap JSON — `renderDescription()` now parses and converts to HTML via `generateHTML(StarterKit)`, same pattern as PlayerNotesView
 - artwork and statsblock for companions doesnt show when clicked in the encounter
 
 ## Regressing bugs

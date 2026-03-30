@@ -61,7 +61,6 @@
             </div>
             <p class="font-fell text-xs text-muted-foreground">
               DC {{ recipe.dc }} · {{ recipe.crafting_time_days }} day{{ recipe.crafting_time_days !== 1 ? "s" : "" }}
-              <span v-if="outputItemName(recipe.output_item_id)"> · → {{ outputItemName(recipe.output_item_id) }}</span>
             </p>
           </div>
 
@@ -101,7 +100,6 @@ import { Eye, Pencil, Plus, Trash2 } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting-disciplines";
 import { useCraftingRecipes, useUpdateRecipe, useDeleteRecipe } from "@/composables/useCrafting";
-import { useItems } from "@/composables/useItems";
 import { useConfirm } from "@/composables/useConfirm";
 import type { CraftingRecipe, CraftingDiscipline } from "@/types/crafting.types";
 
@@ -109,7 +107,6 @@ const activeTab = ref<CraftingDiscipline>("smithing");
 const activeDiscipline = computed(() => getDiscipline(activeTab.value));
 
 const { data: recipes, isLoading } = useCraftingRecipes();
-const { data: allItems } = useItems();
 const { mutateAsync: updateRecipe } = useUpdateRecipe();
 const { mutateAsync: deleteRecipe } = useDeleteRecipe();
 const { confirm } = useConfirm();
@@ -117,11 +114,6 @@ const { confirm } = useConfirm();
 const disciplineRecipes = computed(() =>
   (recipes.value ?? []).filter((r) => r.discipline === activeTab.value),
 );
-
-function outputItemName(itemId: string | null): string | null {
-  if (!itemId) return null;
-  return allItems.value?.find((i) => i.id === itemId)?.name ?? null;
-}
 
 async function toggleVisibility(recipe: CraftingRecipe) {
   await updateRecipe({ id: recipe.id, update: { is_player_visible: !recipe.is_player_visible } });

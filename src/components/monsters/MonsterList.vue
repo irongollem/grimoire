@@ -168,12 +168,25 @@
         <RouterLink
           v-if="!monster.is_srd"
           :to="`/monsters/${monster.id}?edit=true`"
-          class="absolute top-2 left-2 z-10 flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity"
+          class="absolute top-2 left-2 z-10 flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
           title="Edit monster"
         >
           <Pencil class="h-3 w-3" />
           Edit
         </RouterLink>
+        <!-- Player visibility button (floats top-right, opens share popover) -->
+        <button
+          type="button"
+          class="absolute top-2 right-2 z-10 flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider transition-opacity cursor-pointer"
+          :class="isDiscovered(monster)
+            ? 'text-primary bg-black/60 opacity-100'
+            : 'text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100'"
+          :title="isDiscovered(monster) ? 'Shared — click to manage' : 'Hidden — click to share'"
+          @click.prevent.stop="openPopover(monster, $event)"
+        >
+          <Eye v-if="isDiscovered(monster)" class="h-3 w-3" />
+          <EyeOff v-else class="h-3 w-3" />
+        </button>
       </div>
     </div>
 
@@ -184,12 +197,96 @@
       {{ filtered.length }} of {{ allMonsters?.length ?? 0 }} monsters
     </p>
   </div>
+
+  <!-- Share popover (Teleported to avoid card overflow clipping) -->
+  <Teleport to="body">
+    <div
+      v-if="popover.monster"
+      class="fixed inset-0 z-50"
+      @mousedown.self="closePopover"
+    >
+      <div
+        class="absolute bg-card border border-border rounded-lg shadow-xl p-3 w-52 space-y-2"
+        :style="popover.style"
+        @mousedown.stop
+      >
+        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider truncate">{{ popover.monster.name }}</p>
+
+        <!-- Whole party -->
+        <button
+          type="button"
+          class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left font-fell text-xs transition-colors"
+          :class="popoverCurrentDiscovery && allPartyIds().every(id => isMemberVisible(id))
+            ? 'bg-primary/15 text-primary'
+            : 'text-foreground hover:bg-muted/50'"
+          @click="setWholeParty()"
+        >
+          <Users class="h-3 w-3 shrink-0" />
+          Whole party
+        </button>
+
+        <!-- Per-player toggles -->
+        <div class="space-y-0.5">
+          <button
+            v-for="member in party"
+            :key="member.id"
+            type="button"
+            class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left font-fell text-xs transition-colors"
+            :class="isMemberVisible(member.id)
+              ? 'bg-primary/15 text-primary'
+              : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'"
+            @click="toggleMember(member.id)"
+          >
+            <component
+              :is="isMemberVisible(member.id) ? Eye : EyeOff"
+              class="h-3 w-3 shrink-0"
+            />
+            {{ member.name }}
+          </button>
+        </div>
+
+        <!-- Reveal stats toggle (only when shared) -->
+        <div v-if="popoverCurrentDiscovery" class="border-t border-border pt-1">
+          <button
+            type="button"
+            class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left font-fell text-xs transition-colors"
+            :class="popoverCurrentDiscovery.reveal_stats
+              ? 'bg-primary/15 text-primary'
+              : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'"
+            @click="updateStats({ id: popoverCurrentDiscovery.id, revealStats: !popoverCurrentDiscovery.reveal_stats })"
+          >
+            <BarChart2 class="h-3 w-3 shrink-0" />
+            {{ popoverCurrentDiscovery.reveal_stats ? 'Stats visible' : 'Stats hidden' }}
+          </button>
+        </div>
+
+        <!-- Divider + unshare -->
+        <div class="border-t border-border pt-1">
+          <button
+            v-if="popoverCurrentDiscovery"
+            type="button"
+            class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left font-fell text-xs text-destructive hover:bg-destructive/10 transition-colors"
+            @click="unshare"
+          >
+            <EyeOff class="h-3 w-3 shrink-0" />
+            Hide from all players
+          </button>
+          <p v-else class="font-fell text-[10px] text-muted-foreground italic px-2">
+            Select players above to share.
+          </p>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import { Search, Pencil } from "lucide-vue-next";
+import { ref, computed, reactive } from "vue";
+import { Search, Pencil, Eye, EyeOff, Users, BarChart2 } from "lucide-vue-next";
 import { useAllMonsters } from "@/composables/useMonsters";
+import { useCampaignDiscoveries, useToggleMonsterDiscovery, useUpdateDiscoveryVisibility, useUpdateDiscoveryStats } from "@/composables/useDiscoveredMonsters";
+import { useParty } from "@/composables/useParty";
+import type { Monster, DiscoveredMonster } from "@/types/monster.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
@@ -216,6 +313,86 @@ const typeFilter = ref("all");
 const sourceFilter = ref("all");
 
 const { data: allMonsters, isLoading } = useAllMonsters();
+const { data: discoveries } = useCampaignDiscoveries();
+const { data: party } = useParty();
+const { mutate: toggleDiscovery } = useToggleMonsterDiscovery();
+const { mutate: updateVisibility } = useUpdateDiscoveryVisibility();
+const { mutate: updateStats } = useUpdateDiscoveryStats();
+
+function getDiscovery(monster: Monster): DiscoveredMonster | undefined {
+  return discoveries.value?.find(
+    (d) => monster.is_srd ? d.srd_slug === monster.id : d.monster_id === monster.id,
+  );
+}
+
+function isDiscovered(monster: Monster): boolean {
+  return !!getDiscovery(monster);
+}
+
+// ── Share popover ────────────────────────────────────────────────────────────
+
+const popover = reactive<{ monster: Monster | null; style: string }>({
+  monster: null,
+  style: "",
+});
+
+const popoverCurrentDiscovery = computed(() =>
+  popover.monster ? getDiscovery(popover.monster) : undefined,
+);
+
+function openPopover(monster: Monster, event: MouseEvent) {
+  popover.monster = monster;
+  const btn = event.currentTarget as HTMLElement;
+  const rect = btn.getBoundingClientRect();
+  const top = rect.bottom + 4;
+  const right = window.innerWidth - rect.right;
+  popover.style = `top:${top}px;right:${right}px`;
+}
+
+function closePopover() { popover.monster = null; }
+
+function allPartyIds(): string[] {
+  return party.value?.map((m) => m.id) ?? [];
+}
+
+function isMemberVisible(memberId: string): boolean {
+  const d = popoverCurrentDiscovery.value;
+  if (!d) return false;
+  if (d.visible_to === null) return true; // legacy null = whole party
+  return d.visible_to.includes(memberId);
+}
+
+function setWholeParty() {
+  if (!popover.monster) return;
+  const ids = allPartyIds();
+  const d = popoverCurrentDiscovery.value;
+  if (!d) {
+    toggleDiscovery({ monster: popover.monster, currentDiscovery: undefined, visibleTo: ids });
+  } else {
+    updateVisibility({ id: d.id, visibleTo: ids });
+  }
+}
+
+function toggleMember(memberId: string) {
+  if (!popover.monster) return;
+  const d = popoverCurrentDiscovery.value;
+  if (!d) {
+    // No discovery yet — create one scoped to just this member
+    toggleDiscovery({ monster: popover.monster, currentDiscovery: undefined, visibleTo: [memberId] });
+    return;
+  }
+  const current: string[] = d.visible_to === null ? allPartyIds() : [...d.visible_to];
+  const idx = current.indexOf(memberId);
+  const next = idx === -1 ? [...current, memberId] : current.filter((id) => id !== memberId);
+  updateVisibility({ id: d.id, visibleTo: next.length === 0 ? [] : next });
+}
+
+function unshare() {
+  if (!popover.monster) return;
+  const d = popoverCurrentDiscovery.value;
+  if (d) toggleDiscovery({ monster: popover.monster, currentDiscovery: d });
+  closePopover();
+}
 
 const filtered = computed(() => {
   let list = allMonsters.value ?? [];

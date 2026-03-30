@@ -54,7 +54,7 @@
               <p class="font-cinzel text-sm font-bold text-foreground truncate">{{ recipe.name }}</p>
               <p class="font-fell text-xs text-muted-foreground">
                 DC {{ recipe.dc }} · {{ recipe.crafting_time_days }} day{{ recipe.crafting_time_days !== 1 ? "s" : "" }}
-                <span v-if="outputItem(recipe.output_item_id)"> · → {{ outputItem(recipe.output_item_id)?.name }}</span>
+                <span v-if="outputsFor(recipe.id).length"> · → {{ outputsFor(recipe.id).map(o => (o.quantity > 1 ? `${o.quantity}× ` : '') + (itemName(o.item_id))).join(', ') }}</span>
               </p>
             </div>
             <span
@@ -67,9 +67,11 @@
           </div>
 
           <!-- Description -->
-          <p v-if="recipe.description" class="px-4 pt-3 font-fell text-sm text-muted-foreground italic">
-            {{ recipe.description }}
-          </p>
+          <div
+            v-if="recipe.description"
+            class="px-4 pt-3 font-fell text-sm text-muted-foreground italic prose prose-sm prose-invert max-w-none"
+            v-html="renderDescription(recipe.description)"
+          />
 
           <!-- Ingredients -->
           <div class="px-4 py-3 flex-1">
@@ -116,6 +118,7 @@
       v-if="attemptRecipe && member"
       :open="!!attemptRecipe"
       :recipe="attemptRecipe"
+      :outputs="outputsFor(attemptRecipe.id)"
       :required-ingredients="ingredientsFor(attemptRecipe.id)"
       :modifiers="modifiersFor(attemptRecipe.id)"
       :inventory="myInventory"
@@ -130,18 +133,20 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { generateHTML } from "@tiptap/core";
+import StarterKit from "@tiptap/starter-kit";
 import { CheckCircle, Dices, XCircle } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import CraftAttemptDialog from "@/components/crafting/CraftAttemptDialog.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting-disciplines";
 import type { DisciplineConfig } from "@/lib/crafting-disciplines";
-import { usePlayerCraftingRecipes, useRecipeIngredients, useRecipeModifiers } from "@/composables/useCrafting";
+import { usePlayerCraftingRecipes, useRecipeIngredients, useRecipeModifiers, useRecipeOutputs } from "@/composables/useCrafting";
 import { useItems } from "@/composables/useItems";
 import { useParty } from "@/composables/useParty";
 import { usePartyInventory } from "@/composables/usePartyInventory";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
-import type { CraftingRecipe, CraftingDiscipline, CraftingIngredient, CraftingModifier, CraftingAttemptResult } from "@/types/crafting.types";
+import type { CraftingRecipe, CraftingDiscipline, CraftingIngredient, CraftingModifier, CraftingOutput, CraftingAttemptResult } from "@/types/crafting.types";
 
 const auth = useAuthStore();
 const ui = useUiStore();
@@ -189,9 +194,10 @@ const disciplineRecipes = computed(() =>
   (recipes.value ?? []).filter((r) => r.discipline === activeTab.value),
 );
 
-// Cache ingredient/modifier fetches per recipe
+// Cache ingredient/modifier/output fetches per recipe
 const ingredientCache = new Map<string, ReturnType<typeof useRecipeIngredients>>();
 const modifierCache = new Map<string, ReturnType<typeof useRecipeModifiers>>();
+const outputCache = new Map<string, ReturnType<typeof useRecipeOutputs>>();
 
 function ingredientsFor(recipeId: string): CraftingIngredient[] {
   if (!ingredientCache.has(recipeId)) {
@@ -207,13 +213,15 @@ function modifiersFor(recipeId: string): CraftingModifier[] {
   return modifierCache.get(recipeId)!.data.value ?? [];
 }
 
-function itemName(itemId: string): string {
-  return allItems.value?.find((i) => i.id === itemId)?.name ?? "Unknown item";
+function outputsFor(recipeId: string): CraftingOutput[] {
+  if (!outputCache.has(recipeId)) {
+    outputCache.set(recipeId, useRecipeOutputs(recipeId));
+  }
+  return outputCache.get(recipeId)!.data.value ?? [];
 }
 
-function outputItem(itemId: string | null) {
-  if (!itemId) return null;
-  return allItems.value?.find((i) => i.id === itemId) ?? null;
+function itemName(itemId: string): string {
+  return allItems.value?.find((i) => i.id === itemId)?.name ?? "Unknown item";
 }
 
 function ownedCount(itemId: string): number {
@@ -235,6 +243,15 @@ function tabClass(d: DisciplineConfig) {
   if (locked) return "border-border/40 text-muted-foreground/40 cursor-not-allowed opacity-50";
   if (activeTab.value === d.id) return "border-primary bg-primary/10 text-foreground";
   return "border-border text-muted-foreground hover:text-foreground hover:border-border/80";
+}
+
+function renderDescription(content: string | null): string {
+  if (!content) return "";
+  try {
+    return generateHTML(JSON.parse(content), [StarterKit]);
+  } catch {
+    return content;
+  }
 }
 
 function openAttempt(recipe: CraftingRecipe) {

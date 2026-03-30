@@ -10,6 +10,8 @@ import type {
   CraftingIngredientInsert,
   CraftingModifier,
   CraftingModifierInsert,
+  CraftingOutput,
+  CraftingOutputInsert,
   CraftingRecipeGrant,
   CraftingAttemptResult,
 } from "@/types/crafting.types";
@@ -18,6 +20,7 @@ import type { PartyInventoryInsert } from "@/types/inventory.types";
 const RECIPES_KEY    = "crafting-recipes";
 const INGREDIENTS_KEY = "crafting-ingredients";
 const MODIFIERS_KEY  = "crafting-modifiers";
+const OUTPUTS_KEY    = "crafting-outputs";
 const GRANTS_KEY     = "crafting-grants";
 
 // ── Fetch helpers ────────────────────────────────────────────────────────────
@@ -58,6 +61,15 @@ async function fetchModifiers(recipeId: string): Promise<CraftingModifier[]> {
     .eq("recipe_id", recipeId);
   if (error) throw error;
   return data as CraftingModifier[];
+}
+
+async function fetchOutputs(recipeId: string): Promise<CraftingOutput[]> {
+  const { data, error } = await supabase
+    .from("crafting_recipe_outputs")
+    .select("*")
+    .eq("recipe_id", recipeId);
+  if (error) throw error;
+  return data as CraftingOutput[];
 }
 
 async function fetchGrants(recipeId: string): Promise<CraftingRecipeGrant[]> {
@@ -112,6 +124,23 @@ async function replaceIngredients(
   const { error } = await supabase
     .from("crafting_recipe_ingredients")
     .insert(ingredients.map((i) => ({ ...i, recipe_id: recipeId })));
+  if (error) throw error;
+}
+
+// Replace all outputs for a recipe
+async function replaceOutputs(
+  recipeId: string,
+  outputs: Omit<CraftingOutputInsert, "recipe_id">[],
+): Promise<void> {
+  const { error: delErr } = await supabase
+    .from("crafting_recipe_outputs")
+    .delete()
+    .eq("recipe_id", recipeId);
+  if (delErr) throw delErr;
+  if (outputs.length === 0) return;
+  const { error } = await supabase
+    .from("crafting_recipe_outputs")
+    .insert(outputs.map((o) => ({ ...o, recipe_id: recipeId })));
   if (error) throw error;
 }
 
@@ -181,6 +210,14 @@ export function useRecipeIngredients(recipeId: string) {
   });
 }
 
+export function useRecipeOutputs(recipeId: string) {
+  return useQuery({
+    queryKey: computed(() => [OUTPUTS_KEY, recipeId]),
+    queryFn: () => fetchOutputs(recipeId),
+    enabled: !!recipeId,
+  });
+}
+
 export function useRecipeModifiers(recipeId: string) {
   return useQuery({
     queryKey: computed(() => [MODIFIERS_KEY, recipeId]),
@@ -244,6 +281,21 @@ export function useReplaceIngredients() {
   });
 }
 
+export function useReplaceOutputs() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      recipeId,
+      outputs,
+    }: {
+      recipeId: string;
+      outputs: Omit<CraftingOutputInsert, "recipe_id">[];
+    }) => replaceOutputs(recipeId, outputs),
+    onSuccess: (_data, { recipeId }) =>
+      queryClient.invalidateQueries({ queryKey: [OUTPUTS_KEY, recipeId] }),
+  });
+}
+
 export function useReplaceModifiers() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -286,6 +338,8 @@ export function useAttemptCraft() {
   return useMutation({
     mutationFn: async (params: {
       recipe: CraftingRecipe;
+      /** Output items to add to inventory on success */
+      outputs: CraftingOutput[];
       /** party_inventory item IDs the player is slotting in (in ingredient order) */
       ingredientInventoryIds: string[];
       /** primary ingredient's inventory id — ruined on critical fail */
@@ -301,6 +355,7 @@ export function useAttemptCraft() {
     }): Promise<CraftingAttemptResult> => {
       const {
         recipe,
+        outputs,
         ingredientInventoryIds,
         primaryInventoryItem,
         modifierBonuses,
@@ -332,13 +387,13 @@ export function useAttemptCraft() {
       }
 
       if (outcome === "success") {
-        // 3a. Add crafted item to inventory
-        if (recipe.output_item_id) {
+        // 3a. Add all crafted outputs to inventory
+        for (const output of outputs) {
           const insert: PartyInventoryInsert = {
             campaign_id: recipe.campaign_id,
-            item_id: recipe.output_item_id,
-            name: "", // will be overwritten by item name — fetched by UI
-            quantity: recipe.output_quantity,
+            item_id: output.item_id,
+            name: "",
+            quantity: output.quantity,
             carried_by: partyMemberId,
             location: "backpack",
             slot: null,

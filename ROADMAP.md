@@ -115,7 +115,7 @@
 - [x] **Theme system**: Campaign-level theme picker (Grimoire dark / Tome light) stored in DB, applied to all players on campaign switch. Canonical vars in `src/lib/themes.ts`
 - [x] **Quest improvements**: Currency reward fields (PP/GP/EP/SP/CP) on quests with drop-to-chat; per-ref player visibility toggle (Eye/EyeOff); removed broken Gregorian date inputs
 - [x] **Edit Campaign modal**: "Calendar" dropdown renamed to "Setting"; game world text field renamed "World"; theme picker added inline to Details tab
-- [x] **NPC sharing**: DM marks NPC as shared; per-field visibility controls (portrait / name / status / race / occupation / relationship); party notes (shared) + personal player notes (private) on shared NPCs
+- [x] **NPC sharing**: DM marks NPC as shared; per-field visibility controls (portrait / name / status / race / occupation / relationship); party notes (shared) + personal player notes (private) on shared NPCs; per-player visibility (eye+popover on list cards, same UX as monster sharing — whole party or specific party members via `player_visible_to uuid[]`)
 - [x] **Companion player portal**: Companions shown alongside party members in player portal; party notes (shared via RPC) + personal notes (private) per companion
 - [x] **Unified player notes**: `PlayerNotesWidget` component backed by `entity_notes` table — consistent one-note-per-player + shared party notes UX across all player portal views (NPCs, quests, factions, companions)
 - [x] **Migrate `npcs.party_notes`** — legacy per-column party notes migrated into `entity_notes`; column dropped; DM editor "Party Notes" field removed; all campaign members can see each other's shared notes via symmetric RLS policy
@@ -145,13 +145,14 @@
 - [x] **Health info visibility** — campaign-level setting (strategic/immersive/unknown); strategic: PCs exact HP + bar, non-PCs bar + label; immersive: PCs exact, others label only; unknown: PCs exact, others nothing
 - [x] **Monster reveal system** — monsters start hidden; DM cycles hidden→unseen→revealed per monster; unseen shows mystery slot to players; revealed shows full info; hidden completely absent from player view
 - [x] **Encounter Events** - timed bombs, reinforcements, dynamic changes based on triggers (e.g. "when Goblin King hits 50% HP, spawn 3 Goblin minions") all need initiative positions, tracking, and triggers.
+- [ ] **Split-screen encounter view** — player portal encounter page redesigned as a split layout: left panel shows the live encounter (initiative, HP bars, active combatant highlight, monster reveals), right panel shows the player's own character sheet (ability scores, HP controls, conditions, inventory). Replaces the current single-page encounter view. Players can follow combat and interact with their sheet simultaneously without switching tabs.
 
 ### Monster Discovery & Player Bestiary
 
-- [ ] **Phase 1 — Discovered monsters table** — `discovered_monsters (campaign_id, monster_id, discovered_at)`. DM can manually share a monster via a "Share with Players" button in the bestiary list, monster detail page, and encounter runner sidebar (per-combatant). Shared monsters appear in the player portal.
-- [ ] **Phase 2 — Player Bestiary** (`/play/bestiary`) — lists all discovered monsters with portrait + name + CR + type. Tapping opens a read-only detail view (artwork, size/type/alignment, AC/HP/Speed, ability scores, CR). Players can add private notes + shared party notes via the existing `entity_notes` pattern (how to defeat them, lore, weaknesses). "Bestiary" added to player nav.
+- [x] **Phase 1 — `discovered_monsters` table** — campaign-scoped discovery records for both SRD (by `srd_slug`) and custom monsters (by `monster_id` FK); `visible_to uuid[]` field: null = whole party, array of `party_member_ids` = specific players (supports druid backstory knowledge, per-encounter reveals). RLS: DM full CRUD; players SELECT only records visible to them.
+- [x] **Phase 2 — Player Bestiary** (`/play/bestiary`) — resolves discoveries against in-memory SRD + DB monsters; portrait grid with CR colour bars; lightbox with artwork banner, AC/HP/Speed, AbilityScoreTable, PlayerNotesWidget (lore, weaknesses, how to defeat). "Bestiary" in player nav (Skull icon). Eye/EyeOff toggle on **all** DM bestiary cards (SRD + custom); lit when shared, hover-reveal when hidden; per-player visibility popover (whole party or specific party members via `visible_to uuid[]`); optimistic updates for instant UI feedback; DM preview respects per-player visibility client-side; focal point passed to bestiary lightbox and card thumbnails; cursor-pointer on eye buttons.
 - [ ] **Phase 3 — Auto-discovery on end combat** — when DM clicks "End Combat", any monster combatants that reached `revealed` state are automatically inserted into `discovered_monsters` (deduped). DM sees a toast listing what was auto-shared.
-- [ ] **Phase 4 — Shapeshifter browser** — "Available Forms" tab in `/play/bestiary` (shown only for Druids, Rangers, Summoners). Druids: filters discovered + SRD beasts by CR ≤ ⌊level/2⌋, Beast type, no fly/swim speed (until level 8). Summoners/Rangers: shows linked companion templates. Full stat block viewable per form. DM can pin extra forms to a player regardless of filter rules.
+- [ ] **Phase 4 — Shapeshifter browser** — "Available Forms" tab in `/play/bestiary` (shown only for Druids, Rangers, Summoners). Druids: filters discovered + SRD beasts by CR ≤ ⌊level/2⌋, Beast type, no fly/swim speed (until level 8). Summoners/Rangers: shows linked companion templates. Full stat block viewable per form. DM can pin extra forms to a player regardless of filter rules. (Note that circle of the moon druids have more flexible rules with regards to available forms)
 - [ ] **Phase 5 — Wildshape in encounter** — Druid player panel in encounter runner gets a "Wildshape" button. Opens a picker showing available beast forms. Selecting a form temporarily overlays that combatant's HP/AC/speed with the beast's stats (HP tracked separately, reverts to original when beast HP hits 0 or "Revert Form" is clicked). Beast's actions/abilities shown in detail panel during wildshape.
 
 ### NPCs & Companions
@@ -255,6 +256,7 @@
 - [ ] **Monster import from external sources** — import tool to pull stat blocks from D&D Beyond or Open5e API directly into Bestiary
 - [x] **Campaign settings page** — Edit Campaign modal + `/campaign/settings` (Members, Invite Links, World Settings tabs)
 - [x] **Crafting system** — allow players to craft items using gear proficiencies, crafting tools
+- [x] **Crafting multi-output** — recipes can produce multiple output items (e.g. 4× leather strips + 1× tanning waste from raw hide)
 - [ ] **Player convenience** During an encounter add
   - inputbox plus dmg, heal, temp hp buttons on player character sheet HP field
   - death save pips with click to toggle (and rollerd20 with 10+ successs to stabilize)

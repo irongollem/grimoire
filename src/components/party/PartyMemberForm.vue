@@ -358,47 +358,24 @@
           <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase mt-4">
             Tool Proficiencies
           </p>
-          <div class="flex flex-wrap gap-1.5 min-h-8">
-            <span
-              v-for="(tool, idx) in f.tool_proficiencies"
-              :key="idx"
-              class="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-0.5 font-cinzel text-[10px] tracking-wide text-primary"
-            >
-              {{ tool }}
-              <button type="button" class="hover:text-destructive transition-colors ml-0.5" @click="f.tool_proficiencies.splice(idx, 1)">×</button>
-            </span>
-            <input
-              v-model="toolProfInput"
-              placeholder="Add tool…"
-              class="bg-transparent border-b border-border font-fell text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary min-w-28 px-1 py-0.5"
-              @keydown.enter.prevent="addToolProf"
-              @keydown.comma.prevent="addToolProf"
-            />
-          </div>
-          <p class="font-fell text-[10px] text-muted-foreground/60 italic">e.g. Smith's Tools, Herbalism Kit — press Enter or comma to add</p>
+          <TagPickerInput
+            :model-value="f.tool_proficiencies"
+            :groups="TOOL_PROFICIENCY_GROUPS"
+            placeholder="Search tools…"
+            variant="primary"
+            @update:model-value="f.tool_proficiencies = $event"
+          />
 
           <!-- Languages -->
           <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase mt-3">
             Languages
           </p>
-          <div class="flex flex-wrap gap-1.5 min-h-8">
-            <span
-              v-for="(lang, idx) in f.languages"
-              :key="idx"
-              class="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2.5 py-0.5 font-cinzel text-[10px] tracking-wide text-foreground"
-            >
-              {{ lang }}
-              <button type="button" class="hover:text-destructive transition-colors ml-0.5" @click="f.languages.splice(idx, 1)">×</button>
-            </span>
-            <input
-              v-model="languageInput"
-              placeholder="Add language…"
-              class="bg-transparent border-b border-border font-fell text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary min-w-28 px-1 py-0.5"
-              @keydown.enter.prevent="addLanguage"
-              @keydown.comma.prevent="addLanguage"
-            />
-          </div>
-          <p class="font-fell text-[10px] text-muted-foreground/60 italic">e.g. Common, Elvish, Dwarvish — press Enter or comma to add</p>
+          <TagPickerInput
+            :model-value="f.languages"
+            :groups="LANGUAGE_GROUPS"
+            placeholder="Search languages…"
+            @update:model-value="f.languages = $event"
+          />
         </template>
       </div>
 
@@ -452,6 +429,8 @@ import {
   useUpdateCampaignMember,
 } from "@/composables/useCampaignMembers";
 import { SKILLS, PARTY_CLASSES } from "@/types/party.types";
+import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
+import TagPickerInput from "@/components/common/TagPickerInput.vue";
 import type {
   PartyMember,
   PartyMemberInsert,
@@ -557,25 +536,6 @@ const profBonus = computed(() => {
 
 function skillProf(key: keyof typeof f.skill_proficiencies) {
   return f.skill_proficiencies[key] ?? "none";
-}
-// Tag inputs for tool proficiencies and languages
-const toolProfInput = ref("");
-const languageInput = ref("");
-
-function addToolProf() {
-  const val = toolProfInput.value.trim().replace(/,$/, "").trim();
-  if (val && !f.tool_proficiencies.includes(val)) {
-    f.tool_proficiencies.push(val);
-  }
-  toolProfInput.value = "";
-}
-
-function addLanguage() {
-  const val = languageInput.value.trim().replace(/,$/, "").trim();
-  if (val && !f.languages.includes(val)) {
-    f.languages.push(val);
-  }
-  languageInput.value = "";
 }
 
 function setSkillProf(

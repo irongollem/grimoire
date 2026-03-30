@@ -16,6 +16,7 @@ export const ITEM_TYPES = [
   "tool",
   "vehicle",
   "trade_good",
+  "crafting_material",
 ] as const;
 export type ItemType = (typeof ITEM_TYPES)[number];
 
@@ -35,6 +36,7 @@ export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
   tool: "Tool",
   vehicle: "Vehicle",
   trade_good: "Trade Good",
+  crafting_material: "Crafting Material",
 };
 
 export const ITEM_RARITIES = [
@@ -71,13 +73,13 @@ export const RARITY_COLORS: Record<ItemRarity, string> = {
 
 /** Vivid badge colours for UI display */
 export const RARITY_BADGE_COLORS: Record<ItemRarity, string> = {
-  mundane:   "#9ca3af",
-  common:    "#d1d5db",
-  uncommon:  "#4ade80",
-  rare:      "#60a5fa",
+  mundane: "#9ca3af",
+  common: "#d1d5db",
+  uncommon: "#4ade80",
+  rare: "#60a5fa",
   very_rare: "#c084fc",
   legendary: "#fb923c",
-  artifact:  "#f87171",
+  artifact: "#f87171",
 };
 
 export const WEAPON_PROPERTIES = [
@@ -122,7 +124,10 @@ export interface Item {
   updated_at: string;
 }
 
-export type ItemInsert = Omit<Item, "id" | "user_id" | "created_at" | "updated_at">;
+export type ItemInsert = Omit<
+  Item,
+  "id" | "user_id" | "created_at" | "updated_at"
+>;
 export type ItemUpdate = Partial<ItemInsert>;
 
 /** True for item types that can have weapon damage dice */

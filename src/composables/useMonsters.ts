@@ -119,6 +119,7 @@ export function useDeleteMonster() {
   });
 }
 
+
 /** Clone an SRD monster into the user's own collection. Returns the new Monster. */
 export function useCloneSrdMonster() {
   const queryClient = useQueryClient();

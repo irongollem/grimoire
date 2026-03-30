@@ -118,15 +118,29 @@
           </div>
         </div>
 
-        <!-- Edit button (floats over portrait top-left on hover) -->
-        <RouterLink
-          :to="`/npcs/${npc.id}?edit=true`"
-          class="absolute top-2 left-2 z-10 flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity"
-          title="Edit NPC"
-        >
-          <Pencil class="h-3 w-3" />
-          Edit
-        </RouterLink>
+        <!-- Top-left action buttons (Edit + visibility, side by side on hover) -->
+        <div class="absolute top-2 left-2 z-10 flex items-center gap-1.5">
+          <RouterLink
+            :to="`/npcs/${npc.id}?edit=true`"
+            class="flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
+            title="Edit NPC"
+          >
+            <Pencil class="h-3 w-3" />
+            Edit
+          </RouterLink>
+          <button
+            type="button"
+            class="flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider transition-opacity cursor-pointer"
+            :class="isShared(npc)
+              ? 'text-primary bg-black/60 opacity-100'
+              : 'text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100'"
+            :title="isShared(npc) ? 'Shared — click to manage' : 'Hidden — click to share'"
+            @click.prevent.stop="openPopover(npc, $event)"
+          >
+            <Eye v-if="isShared(npc)" class="h-3 w-3" />
+            <EyeOff v-else class="h-3 w-3" />
+          </button>
+        </div>
       </div>
     </div>
 
@@ -137,17 +151,84 @@
       {{ filtered.length }} of {{ npcs?.length ?? 0 }} NPCs
     </p>
   </div>
+
+  <!-- Share popover (Teleported to avoid card overflow clipping) -->
+  <Teleport to="body">
+    <div
+      v-if="popover.npc"
+      class="fixed inset-0 z-50"
+      @mousedown.self="closePopover"
+    >
+      <div
+        class="absolute bg-card border border-border rounded-lg shadow-xl p-3 w-52 space-y-2"
+        :style="popover.style"
+        @mousedown.stop
+      >
+        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider truncate">{{ popover.npc.name }}</p>
+
+        <!-- Whole party -->
+        <button
+          type="button"
+          class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left font-fell text-xs transition-colors"
+          :class="isShared(popover.npc) && (party ?? []).every(m => isMemberVisible(m.id))
+            ? 'bg-primary/15 text-primary'
+            : 'text-foreground hover:bg-muted/50'"
+          @click="setWholeParty"
+        >
+          <Users class="h-3 w-3 shrink-0" />
+          Whole party
+        </button>
+
+        <!-- Per-player toggles -->
+        <div class="space-y-0.5">
+          <button
+            v-for="member in party"
+            :key="member.id"
+            type="button"
+            class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left font-fell text-xs transition-colors"
+            :class="isMemberVisible(member.id)
+              ? 'bg-primary/15 text-primary'
+              : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'"
+            @click="toggleMember(member.id)"
+          >
+            <component
+              :is="isMemberVisible(member.id) ? Eye : EyeOff"
+              class="h-3 w-3 shrink-0"
+            />
+            {{ member.name }}
+          </button>
+        </div>
+
+        <!-- Divider + unshare -->
+        <div class="border-t border-border pt-1">
+          <button
+            v-if="isShared(popover.npc)"
+            type="button"
+            class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left font-fell text-xs text-destructive hover:bg-destructive/10 transition-colors"
+            @click="unshare"
+          >
+            <EyeOff class="h-3 w-3 shrink-0" />
+            Hide from all players
+          </button>
+          <p v-else class="font-fell text-[10px] text-muted-foreground italic px-2">
+            Select players above to share.
+          </p>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
-import { Pencil } from "lucide-vue-next";
-import { useNpcs } from "@/composables/useNpcs";
+import { computed, reactive } from "vue";
+import { Pencil, Eye, EyeOff, Users } from "lucide-vue-next";
+import { useNpcs, useUpdateNpc } from "@/composables/useNpcs";
+import { useParty } from "@/composables/useParty";
 import { useAllLocations, useLocationTree } from "@/composables/useLocations";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
-import type { NpcRelationship, NpcStatus } from "@/types/npc.types";
+import type { Npc, NpcRelationship, NpcStatus } from "@/types/npc.types";
 
 const props = defineProps<{
   search: string;
@@ -158,6 +239,8 @@ const props = defineProps<{
 }>();
 
 const { data: npcs, isLoading } = useNpcs();
+const { data: party } = useParty();
+const { mutate: updateNpc } = useUpdateNpc();
 const { data: allLocations } = useAllLocations();
 const { locationOptions, getDescendantIds } = useLocationTree();
 
@@ -244,5 +327,64 @@ function relColor(rel: NpcRelationship) {
 }
 function statusColor(s: NpcStatus) {
   return STATUS_COLORS[s] ?? "#6b7280";
+}
+
+// ── Sharing ───────────────────────────────────────────────────────────────────
+
+function isShared(npc: Npc): boolean {
+  return npc.shared_with_players || (npc.player_visible_to !== null && npc.player_visible_to.length > 0);
+}
+
+const popover = reactive<{ npc: Npc | null; style: string }>({
+  npc: null,
+  style: "",
+});
+
+function openPopover(npc: Npc, event: MouseEvent) {
+  popover.npc = npc;
+  const btn = event.currentTarget as HTMLElement;
+  const rect = btn.getBoundingClientRect();
+  const top = rect.bottom + 4;
+  const right = window.innerWidth - rect.right;
+  popover.style = `top:${top}px;right:${right}px`;
+}
+
+function closePopover() { popover.npc = null; }
+
+function isMemberVisible(memberId: string): boolean {
+  const npc = popover.npc;
+  if (!npc) return false;
+  if (npc.shared_with_players && npc.player_visible_to === null) return true; // whole party
+  if (npc.player_visible_to === null) return false;
+  return npc.player_visible_to.includes(memberId);
+}
+
+function allPartyIds(): string[] {
+  return party.value?.map((m) => m.id) ?? [];
+}
+
+function setWholeParty() {
+  if (!popover.npc) return;
+  updateNpc({ id: popover.npc.id, update: { shared_with_players: false, player_visible_to: allPartyIds() } });
+}
+
+function toggleMember(memberId: string) {
+  if (!popover.npc) return;
+  const npc = popover.npc;
+  const current: string[] = (npc.shared_with_players && npc.player_visible_to === null)
+    ? allPartyIds()
+    : [...(npc.player_visible_to ?? [])];
+  const idx = current.indexOf(memberId);
+  const next = idx === -1 ? [...current, memberId] : current.filter((id) => id !== memberId);
+  updateNpc({
+    id: npc.id,
+    update: { shared_with_players: false, player_visible_to: next.length === 0 ? [] : next },
+  });
+}
+
+function unshare() {
+  if (!popover.npc) return;
+  updateNpc({ id: popover.npc.id, update: { shared_with_players: false, player_visible_to: null } });
+  closePopover();
 }
 </script>
