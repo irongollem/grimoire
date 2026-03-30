@@ -37,7 +37,7 @@
       class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
     >
       <div
-        v-for="npc in filtered"
+        v-for="npc in visibleItems"
         :key="npc.id"
         class="group relative flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
       >
@@ -144,6 +144,8 @@
       </div>
     </div>
 
+    <div ref="sentinelRef" />
+
     <p
       v-if="filtered.length"
       class="mt-4 font-fell text-xs text-muted-foreground italic text-right"
@@ -221,6 +223,7 @@
 
 <script setup lang="ts">
 import { computed, reactive } from "vue";
+import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { Pencil, Eye, EyeOff, Users } from "lucide-vue-next";
 import { useNpcs, useUpdateNpc } from "@/composables/useNpcs";
 import { useParty } from "@/composables/useParty";
@@ -300,6 +303,8 @@ const filtered = computed(() => {
   }
   return list;
 });
+
+const { visibleItems, sentinelRef } = useInfiniteScroll(filtered);
 
 function initials(name: string): string {
   return name

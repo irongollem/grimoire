@@ -38,7 +38,7 @@
     <!-- Grid -->
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
       <div
-        v-for="item in filtered"
+        v-for="item in visibleItems"
         :key="item.id"
         class="group relative rounded-lg border border-border bg-card hover:border-primary/50 transition-colors flex flex-col"
       >
@@ -102,12 +102,14 @@
         </RouterLink>
       </div>
     </div>
+    <div ref="sentinelRef" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { Pencil } from "lucide-vue-next";
+import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useItems } from "@/composables/useItems";
 import {
   ITEM_TYPES,
@@ -141,6 +143,8 @@ const filtered = computed(() => {
     return true;
   });
 });
+
+const { visibleItems, sentinelRef } = useInfiniteScroll(filtered);
 
 function rarityColor(rarity: ItemRarity): string {
   return RARITY_BADGE_COLORS[rarity] ?? "#9ca3af";

@@ -2,6 +2,38 @@ import { ref } from "vue";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/auth";
 
+/** Convert any image File to WebP (max 1920px longest edge, 85% quality).
+ *  Falls back to the original file if canvas conversion fails. */
+async function toWebP(file: File, maxPx = 1920, quality = 0.85): Promise<File> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            resolve(new File([blob], file.name.replace(/\.[^.]+$/, ".webp"), { type: "image/webp" }));
+          } else {
+            resolve(file);
+          }
+        },
+        "image/webp",
+        quality,
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };
+    img.src = objectUrl;
+  });
+}
+
 /**
  * Reusable image upload composable.
  *
@@ -9,7 +41,8 @@ import { useAuthStore } from "@/stores/auth";
  *   const { isUploading, upload } = useImageUpload('asset-images')
  *   const url = await upload(file)   // returns public URL or null on error
  *
- * The file is stored at: {bucket}/{user_id}/{uuid}.{ext}
+ * The file is stored at: {bucket}/{user_id}/{uuid}.webp
+ * All images are converted to WebP before upload (max 1920px, 85% quality).
  */
 export function useImageUpload(bucket: string) {
   const auth = useAuthStore();
@@ -19,9 +52,9 @@ export function useImageUpload(bucket: string) {
     if (!auth.user) return null;
     isUploading.value = true;
     try {
-      const ext = file.name.split(".").pop() ?? "jpg";
-      const path = `${auth.user.id}/${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from(bucket).upload(path, file);
+      const webpFile = await toWebP(file);
+      const path = `${auth.user.id}/${crypto.randomUUID()}.webp`;
+      const { error } = await supabase.storage.from(bucket).upload(path, webpFile, { contentType: "image/webp" });
       if (error) throw error;
       const { data } = supabase.storage.from(bucket).getPublicUrl(path);
       return data.publicUrl;

@@ -84,7 +84,7 @@
       class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
     >
       <div
-        v-for="monster in filtered"
+        v-for="monster in visibleItems"
         :key="monster.id"
         class="group relative flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
       >
@@ -190,6 +190,8 @@
       </div>
     </div>
 
+    <div ref="sentinelRef" />
+
     <p
       v-if="filtered.length"
       class="mt-4 font-fell text-xs text-muted-foreground italic text-right"
@@ -283,6 +285,7 @@
 <script setup lang="ts">
 import { ref, computed, reactive } from "vue";
 import { Search, Pencil, Eye, EyeOff, Users, BarChart2 } from "lucide-vue-next";
+import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useCampaignDiscoveries, useToggleMonsterDiscovery, useUpdateDiscoveryVisibility, useUpdateDiscoveryStats } from "@/composables/useDiscoveredMonsters";
 import { useParty } from "@/composables/useParty";
@@ -412,6 +415,8 @@ const filtered = computed(() => {
     list = list.filter((m) => m.monster_type === typeFilter.value);
   return list;
 });
+
+const { visibleItems, sentinelRef } = useInfiniteScroll(filtered);
 
 function parseFraction(s: string): number {
   const [a, b] = s.split("/");

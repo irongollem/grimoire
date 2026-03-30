@@ -3,17 +3,18 @@
     <img
       v-if="src"
       ref="imgRef"
-      :src="src ?? undefined"
+      :src="displaySrc"
       :alt="alt ?? ''"
       class="w-full h-full object-cover"
       :style="{ objectPosition }"
+      loading="lazy"
       @load="onLoad"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, computed, watch } from "vue";
 import smartcrop from "smartcrop";
 
 export type ImageFormat = "portrait" | "landscape" | "token" | "square";
@@ -48,6 +49,29 @@ const props = defineProps<{
   focalPoint?: { x: number; y: number } | null;
 }>();
 
+
+// ── Supabase image transforms (Pro plan) ───────────────────────────────────────
+// Set VITE_SUPABASE_TRANSFORMS=true in .env.local (and Vercel env vars) to enable.
+// When disabled, falls back to raw URLs — zero behavior change.
+
+const TRANSFORMS_ENABLED = import.meta.env.VITE_SUPABASE_TRANSFORMS === "true";
+
+const FORMAT_RENDER_WIDTHS: Record<ImageFormat, number> = {
+  portrait: 400,
+  landscape: 600,
+  token: 200,
+  square: 300,
+};
+
+function toRenderUrl(url: string, width: number, quality = 80): string {
+  if (!TRANSFORMS_ENABLED) return url;
+  return url.replace("/storage/v1/object/", "/storage/v1/render/image/") +
+    `?width=${width}&quality=${quality}&resize=contain`;
+}
+
+const displaySrc = computed(() =>
+  props.src ? toRenderUrl(props.src, FORMAT_RENDER_WIDTHS[props.format]) : undefined,
+);
 
 const imgRef = ref<HTMLImageElement | null>(null);
 const objectPosition = ref(FORMAT_DEFAULTS[props.format]);
@@ -126,7 +150,7 @@ async function runSmartcrop(src: string): Promise<{ x: number; y: number } | nul
   await new Promise<void>((resolve) => {
     img.onload = () => resolve();
     img.onerror = () => resolve();
-    img.src = src;
+    img.src = toRenderUrl(src, 400, 75);
   });
 
   if (!img.naturalWidth) return null;

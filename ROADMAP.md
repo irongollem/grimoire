@@ -95,6 +95,7 @@
 - [x] Companion portraits — upload, focal point, auto-fill from linked monster/NPC source; token avatar in DM companion card
 - [x] Standardised image displays — NpcList, MonsterList, CardForge (all 8 card types), PartyTracker, TokenForge, and player portal all use FocalImage with the correct format
 - [x] Shared `ImageUpload` component — unified dashed drop zone, drag-and-drop, optional focal point picker, bucket cleanup on replace/remove; used across all 8 upload locations (NPCs, monsters, items, spells, party members, locations, traps); `card_art_focal_point` added to monsters table + SRD art overlay
+- [x] Egress optimisation — WebP conversion on upload (canvas, max 1920px, 85% quality); `FocalImage` lazy-loads all images (`loading="lazy"`); Supabase Pro image transforms (resize + WebP at CDN edge) gated by `VITE_SUPABASE_TRANSFORMS=true`; client-side infinite scroll (48/page, IntersectionObserver) on Monster, NPC, and Item lists
 
 ### Printing & Export
 
@@ -369,7 +370,8 @@ Keep the core DM tooling free forever (open source). Gate AI features, advanced 
 
 ## HIGH PRIORITY
 
-- reduce egress, our NPC's and bestiary load the entire list. We should probably do:
-  - Page virtualization; lazy load images only when they come into view or are near
-  - Paginate data, most of the time filters will be used anyway
-  - Use SupaBase image reduction tools (most our images are high quality assets that are only really needed for print, every other situation should probably request lower version, use a fallback based on a set config to we can easily switch back to "free" mode (currently on pro plan)
+- [x] Reduce egress — NPC/Bestiary/Item lists were loading full-size images for every card with no pagination:
+  - [x] Lazy-load images via `loading="lazy"` on `FocalImage` — browser skips off-screen images entirely
+  - [x] Infinite scroll (48/page, IntersectionObserver) on Monster, NPC, and Item lists — limits DOM + image requests on initial load
+  - [x] Supabase Pro image transforms — CDN-edge resize + WebP conversion, gated by `VITE_SUPABASE_TRANSFORMS=true` (remove to revert to free plan behaviour)
+  - [x] WebP conversion on upload — all new images stored as WebP (max 1920px, 85% quality) reducing source file size for all downstream use
