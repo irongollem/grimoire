@@ -1,6 +1,6 @@
 import { ref, computed } from "vue";
 import { defineStore } from "pinia";
-import type { RunCombatant, FactionDef, RevealState, EncounterEvent, EventTrigger, SpawnDef } from "@/types/encounter.types";
+import type { RunCombatant, FactionDef, RevealState, EncounterEvent, EventTrigger, SpawnDef, WildshapeState } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 
 export const useEncounterRunStore = defineStore("encounterRun", () => {
@@ -82,10 +82,35 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     activeIndex.value = prevIndexInSorted;
   }
 
+  function enterWildshape(instanceId: string, beast: { id: string; name: string; max_hp: number; ac: string }) {
+    const c = combatants.value.find((x) => x.instance_id === instanceId);
+    if (!c) return;
+    c.wildshape = {
+      monster_id: beast.id,
+      beast_name: beast.name,
+      original_hp: c.hp,
+      original_max_hp: c.max_hp,
+      original_ac: c.ac,
+    } satisfies WildshapeState;
+    c.hp = beast.max_hp;
+    c.max_hp = beast.max_hp;
+    c.ac = beast.ac;
+  }
+
+  function revertWildshape(instanceId: string) {
+    const c = combatants.value.find((x) => x.instance_id === instanceId);
+    if (!c?.wildshape) return;
+    c.hp = c.wildshape.original_hp;
+    c.max_hp = c.wildshape.original_max_hp;
+    c.ac = c.wildshape.original_ac;
+    c.wildshape = undefined;
+  }
+
   function adjustHp(instanceId: string, delta: number) {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c) return;
     c.hp = Math.min(c.max_hp, Math.max(0, c.hp + delta));
+    if (c.hp === 0 && c.wildshape) revertWildshape(instanceId);
     checkEvents();
   }
 
@@ -93,6 +118,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c) return;
     c.hp = Math.min(c.max_hp, Math.max(0, value));
+    if (c.hp === 0 && c.wildshape) revertWildshape(instanceId);
     checkEvents();
   }
 
@@ -270,6 +296,8 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     removeCurse,
     setRevealState,
     cycleRevealState,
+    enterWildshape,
+    revertWildshape,
     fireEvent,
     checkEvents,
     clearPendingBroadcast,

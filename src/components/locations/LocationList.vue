@@ -59,7 +59,7 @@ const filtered = computed(() => {
   let list = [...(locations.value ?? [])];
   if (props.typeFilter !== "all") list = list.filter((l) => l.location_type === props.typeFilter);
   if (props.search.trim()) {
-    const q = props.search.toLowerCase();
+    const q = props.search.trim().toLowerCase();
     list = list.filter((l) =>
       l.name.toLowerCase().includes(q) ||
       l.tags.some((t) => t.toLowerCase().includes(q)),

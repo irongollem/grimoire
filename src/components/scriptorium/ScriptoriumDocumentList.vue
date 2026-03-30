@@ -212,7 +212,7 @@ async function confirmDelete(id: string, title: string) {
 const filtered = computed(() => {
   let list = docs.value ?? [];
   if (search.value.trim()) {
-    const q = search.value.toLowerCase();
+    const q = search.value.trim().toLowerCase();
     list = list.filter(
       (d) => d.title.toLowerCase().includes(q) || d.tags.some((t) => t.toLowerCase().includes(q)),
     );

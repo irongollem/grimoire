@@ -123,6 +123,7 @@ function initStore(enc: Encounter, mons: Monster[], par: PartyMember[]) {
       dex_mod: 0,
       portrait_url: comp.portrait_url ?? null,
       portrait_focal_point: comp.portrait_focal_point ?? null,
+      companion_id: comp.id,
     });
   }
 

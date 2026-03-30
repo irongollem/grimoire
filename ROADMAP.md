@@ -151,9 +151,9 @@
 
 - [x] **Phase 1 — `discovered_monsters` table** — campaign-scoped discovery records for both SRD (by `srd_slug`) and custom monsters (by `monster_id` FK); `visible_to uuid[]` field: null = whole party, array of `party_member_ids` = specific players (supports druid backstory knowledge, per-encounter reveals). RLS: DM full CRUD; players SELECT only records visible to them.
 - [x] **Phase 2 — Player Bestiary** (`/play/bestiary`) — resolves discoveries against in-memory SRD + DB monsters; portrait grid with CR colour bars; lightbox with artwork banner, AC/HP/Speed, AbilityScoreTable, PlayerNotesWidget (lore, weaknesses, how to defeat). "Bestiary" in player nav (Skull icon). Eye/EyeOff toggle on **all** DM bestiary cards (SRD + custom); lit when shared, hover-reveal when hidden; per-player visibility popover (whole party or specific party members via `visible_to uuid[]`); optimistic updates for instant UI feedback; DM preview respects per-player visibility client-side; focal point passed to bestiary lightbox and card thumbnails; cursor-pointer on eye buttons.
-- [ ] **Phase 3 — Auto-discovery on end combat** — when DM clicks "End Combat", any monster combatants that reached `revealed` state are automatically inserted into `discovered_monsters` (deduped). DM sees a toast listing what was auto-shared.
-- [ ] **Phase 4 — Shapeshifter browser** — "Available Forms" tab in `/play/bestiary` (shown only for Druids, Rangers, Summoners). Druids: filters discovered + SRD beasts by CR ≤ ⌊level/2⌋, Beast type, no fly/swim speed (until level 8). Summoners/Rangers: shows linked companion templates. Full stat block viewable per form. DM can pin extra forms to a player regardless of filter rules. (Note that circle of the moon druids have more flexible rules with regards to available forms)
-- [ ] **Phase 5 — Wildshape in encounter** — Druid player panel in encounter runner gets a "Wildshape" button. Opens a picker showing available beast forms. Selecting a form temporarily overlays that combatant's HP/AC/speed with the beast's stats (HP tracked separately, reverts to original when beast HP hits 0 or "Revert Form" is clicked). Beast's actions/abilities shown in detail panel during wildshape.
+- [x] **Phase 3 — Auto-discovery on end combat** — when DM clicks "End Combat", any monster combatants that reached `revealed` state are automatically inserted into `discovered_monsters` (deduped). DM sees a toast listing what was auto-shared.
+- [x] **Phase 4 — Shapeshifter browser** — "Available Forms" tab in `/play/bestiary` (shown only for Druids, Rangers, Summoners). Druids: filters discovered + SRD beasts by CR ≤ ⌊level/2⌋, Beast type, no fly/swim speed (until level 8). Summoners/Rangers: shows linked companion templates. Full stat block viewable per form. DM can pin extra forms to a player regardless of filter rules. (Note that circle of the moon druids have more flexible rules with regards to available forms)
+- [x] **Phase 5 — Wildshape in encounter** — Druid player panel in encounter runner gets a "Wildshape" button. Opens a picker showing available beast forms. Selecting a form temporarily overlays that combatant's HP/AC/speed with the beast's stats (HP tracked separately, reverts to original when beast HP hits 0 or "Revert Form" is clicked). Beast's actions/abilities shown in detail panel during wildshape.
 
 ### NPCs & Companions
 
@@ -366,3 +366,10 @@ Keep the core DM tooling free forever (open source). Gate AI features, advanced 
 ## Ideas & Distant Future
 
 - [x] **Open5e spells API** — "Import SRD Spells" button in Spellbook populates from open5e.com, deduplicates on re-run
+
+## HIGH PRIORITY
+
+- reduce egress, our NPC's and bestiary load the entire list. We should probably do:
+  - Page virtualization; lazy load images only when they come into view or are near
+  - Paginate data, most of the time filters will be used anyway
+  - Use SupaBase image reduction tools (most our images are high quality assets that are only really needed for print, every other situation should probably request lower version, use a fallback based on a set config to we can easily switch back to "free" mode (currently on pro plan)

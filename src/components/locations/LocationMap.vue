@@ -10,6 +10,7 @@
         <img
           :src="mapUrl"
           class="block max-w-full h-auto rounded-lg pointer-events-none"
+          :class="compact ? 'max-h-200' : ''"
           draggable="false"
           alt="Location map"
         />
@@ -152,6 +153,8 @@ const props = defineProps<{
   mode: "edit" | "view";
   /** DM sees all pins; players only see visible_to_players ones (caller filters before passing). */
   showHiddenPins?: boolean;
+  /** Cap map height at ~800px with scroll (useful for very tall portrait maps). */
+  compact?: boolean;
 }>();
 
 const emit = defineEmits<{

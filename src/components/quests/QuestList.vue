@@ -201,7 +201,7 @@ const { mutateAsync: updateQuest } = useUpdateQuest();
 const filtered = computed(() => {
   let list = [...(allQuests.value ?? [])];
   if (search.value.trim()) {
-    const q = search.value.toLowerCase();
+    const q = search.value.trim().toLowerCase();
     list = list.filter((quest) =>
       quest.title.toLowerCase().includes(q) ||
       quest.summary?.toLowerCase().includes(q) ||

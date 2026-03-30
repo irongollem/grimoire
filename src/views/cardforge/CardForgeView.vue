@@ -334,7 +334,7 @@ interface ListItem {
 }
 
 const filteredList = computed((): ListItem[] => {
-  const q = search.value.toLowerCase();
+  const q = search.value.trim().toLowerCase();
   if (source.value === "npcs") {
     return (npcsData.value ?? [])
       .filter(

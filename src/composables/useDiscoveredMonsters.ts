@@ -178,6 +178,54 @@ export function useUpdateDiscoveryStats() {
 
 // ── Player: monsters visible to this player ────────────────────────────────
 
+// ── Phase 3: bulk auto-discover revealed monsters at end combat ─────────────
+
+export function useAutoDiscoverMonsters() {
+  const queryClient = useQueryClient();
+  const campaign = useCampaignStore();
+
+  return useMutation({
+    mutationFn: async (monsters: Pick<Monster, "id" | "name" | "is_srd" | "image_url">[]) => {
+      const campaignId = campaign.activeCampaignId!;
+
+      // Fetch existing discoveries to deduplicate
+      const { data: existing } = await supabase
+        .from("discovered_monsters")
+        .select("monster_id, srd_slug")
+        .eq("campaign_id", campaignId);
+
+      const existingMonsterIds = new Set((existing ?? []).map((d) => d.monster_id).filter(Boolean));
+      const existingSlugs = new Set((existing ?? []).map((d) => d.srd_slug).filter(Boolean));
+
+      const toInsert: DiscoveredMonsterInsert[] = monsters
+        .filter((m) => {
+          if (m.is_srd) return !existingSlugs.has(m.id);
+          return !existingMonsterIds.has(m.id);
+        })
+        .map((m) => ({
+          campaign_id: campaignId,
+          monster_id: m.is_srd ? null : m.id,
+          srd_slug: m.is_srd ? m.id : null,
+          monster_name: m.name,
+          image_url: m.image_url ?? null,
+          visible_to: null,
+        }));
+
+      if (toInsert.length === 0) return [];
+
+      const { data, error } = await supabase
+        .from("discovered_monsters")
+        .insert(toInsert)
+        .select();
+      if (error) throw error;
+      return data as DiscoveredMonster[];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, campaign.activeCampaignId] });
+    },
+  });
+}
+
 export function usePlayerDiscoveries() {
   return useQuery({
     queryKey: [QUERY_KEY, "player"],

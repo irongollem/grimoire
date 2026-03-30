@@ -50,14 +50,25 @@
               :children="[]"
               mode="view"
               :show-hidden-pins="false"
+              :compact="!fullSizeMaps.has(entry.loc.id)"
               @pin-click="onPinClick"
             />
-            <p
-              v-if="!playerPins(entry.loc).length"
-              class="text-center font-fell text-xs text-muted-foreground italic mt-2"
-            >
-              No pins placed yet.
-            </p>
+            <div class="flex items-center justify-between mt-1">
+              <p
+                v-if="!playerPins(entry.loc).length"
+                class="font-fell text-xs text-muted-foreground italic"
+              >
+                No pins placed yet.
+              </p>
+              <span v-else />
+              <button
+                type="button"
+                class="font-cinzel text-[10px] text-muted-foreground hover:text-foreground transition-colors tracking-wider"
+                @click="toggleMapSize(entry.loc.id)"
+              >
+                {{ fullSizeMaps.has(entry.loc.id) ? 'Compact' : 'Full size' }}
+              </button>
+            </div>
           </div>
           <PlayerNotesWidget
             entity-type="location"
@@ -118,6 +129,16 @@ const flatTree = computed(() => {
 });
 
 const expanded = ref(new Set<string>());
+const fullSizeMaps = ref(new Set<string>());
+
+function toggleMapSize(id: string) {
+  if (fullSizeMaps.value.has(id)) {
+    fullSizeMaps.value.delete(id);
+  } else {
+    fullSizeMaps.value.add(id);
+  }
+  fullSizeMaps.value = new Set(fullSizeMaps.value);
+}
 
 function toggle(id: string) {
   if (expanded.value.has(id)) {

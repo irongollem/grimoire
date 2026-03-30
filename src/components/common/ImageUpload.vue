@@ -60,7 +60,7 @@
       <div
         class="relative rounded-lg border overflow-hidden cursor-pointer group transition-colors"
         :class="[
-          aspectClass,
+          aspect !== 'auto' ? aspectClass : '',
           dragOver ? 'border-primary/70' : 'border-border hover:border-primary/50',
         ]"
         @dragover.prevent="dragOver = true"
@@ -68,7 +68,7 @@
         @drop.prevent="onDrop"
         @click="fileInput?.click()"
       >
-        <img :src="modelValue" alt="" class="w-full h-full object-cover" />
+        <img :src="modelValue" alt="" :class="aspect === 'auto' ? 'w-full h-auto block' : 'w-full h-full object-cover'" />
         <div
           class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
         >
@@ -107,7 +107,7 @@ const props = withDefaults(
     modelValue: string | null;
     focalPoint?: { x: number; y: number } | null;
     bucket?: string;
-    aspect?: "portrait" | "landscape" | "square";
+    aspect?: "portrait" | "landscape" | "square" | "auto";
     showFocalPoint?: boolean;
     placeholder?: string;
   }>(),
@@ -130,7 +130,7 @@ const dragOver = ref(false);
 const { isUploading, upload, remove } = useImageUpload(props.bucket);
 
 const aspectClass = computed(() => {
-  const map = { portrait: "aspect-3/4", landscape: "aspect-video", square: "aspect-square" } as const;
+  const map = { portrait: "aspect-3/4", landscape: "aspect-video", square: "aspect-square", auto: "min-h-24" } as const;
   return map[props.aspect];
 });
 

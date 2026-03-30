@@ -105,6 +105,7 @@
           <div class="name-cell">
             <span class="combatant-name">{{ combatant.name }}</span>
             <span class="type-badge" :class="combatant.type">{{ combatant.type === 'player' ? 'PC' : 'NPC' }}</span>
+            <span v-if="combatant.wildshape" class="wildshape-row-badge" title="Wildshaping">🐺 {{ combatant.wildshape.beast_name }}</span>
             <span v-if="combatant.hp === 0 && combatant.type === 'monster'" class="dead-badge">☠</span>
           </div>
 
@@ -319,6 +320,69 @@
           </div>
         </template>
 
+        <!-- Companion -->
+        <template v-else-if="selectedCombatant.type === 'player' && selectedCompanion">
+          <div class="detail-scroll">
+            <FocalImage
+              v-if="selectedCombatant.portrait_url"
+              :src="selectedCombatant.portrait_url"
+              :alt="selectedCombatant.name"
+              :focal-point="selectedCombatant.portrait_focal_point ?? null"
+              format="portrait"
+              class="detail-portrait"
+            />
+            <p class="detail-meta capitalize">{{ selectedCompanion.companion_type?.replace('_', ' ') }}</p>
+            <div class="detail-divider" />
+            <div class="detail-stats">
+              <div class="detail-stat"><span>AC</span><strong>{{ selectedCombatant.ac }}</strong></div>
+              <div class="detail-stat"><span>HP</span><strong>{{ selectedCombatant.hp }}/{{ selectedCombatant.max_hp }}</strong></div>
+              <div class="detail-stat" v-if="selectedCompanion.stat_block?.speed"><span>Speed</span><strong>{{ selectedCompanion.stat_block.speed }}</strong></div>
+            </div>
+            <template v-if="selectedCompanion.stat_block">
+              <div class="detail-divider" />
+              <AbilityScoreTable
+                :scores="{
+                  str: selectedCompanion.stat_block.str ?? 10,
+                  dex: selectedCompanion.stat_block.dex ?? 10,
+                  con: selectedCompanion.stat_block.con ?? 10,
+                  int: selectedCompanion.stat_block.int ?? 10,
+                  wis: selectedCompanion.stat_block.wis ?? 10,
+                  cha: selectedCompanion.stat_block.cha ?? 10,
+                }"
+                :rounded="false"
+                @roll-ability="(_, label, mod) => performCheck(mod, label + ' Check')"
+                @roll-save="(_, label, bonus) => performCheck(bonus, label + ' Save')"
+              />
+            </template>
+            <template v-for="section in companionTraitSections" :key="section.label">
+              <template v-if="section.traits?.length">
+                <div class="detail-divider" />
+                <p class="detail-section-label">{{ section.label }}</p>
+                <div v-for="t in section.traits" :key="t.name" class="detail-trait">
+                  <div class="detail-trait-header">
+                    <strong>{{ t.name }}.</strong>
+                    <div class="trait-roll-bar">
+                      <button
+                        v-if="parseAttackBonus(t.description) !== null"
+                        type="button"
+                        class="trait-roll-btn trait-atk-btn"
+                        @click.stop="rollAttack(parseAttackBonus(t.description) ?? 0, t.name)"
+                      >⚔ {{ (parseAttackBonus(t.description) ?? 0) >= 0 ? '+' : '' }}{{ parseAttackBonus(t.description) ?? 0 }}</button>
+                      <button
+                        v-if="hasRollableDice(t.description)"
+                        type="button"
+                        class="trait-roll-btn trait-dmg-btn"
+                        @click.stop="rollActionDamage(t.description, t.name)"
+                      >🎲 {{ actionDiceLabel(t.description) }}</button>
+                    </div>
+                  </div>
+                  <span class="detail-trait-desc">{{ t.description }}</span>
+                </div>
+              </template>
+            </template>
+          </div>
+        </template>
+
         <!-- Player -->
         <template v-else-if="selectedCombatant.type === 'player' && selectedMember">
           <div class="detail-scroll">
@@ -393,6 +457,99 @@
               >+</button>
             </div>
 
+            <!-- ── Wildshape ── -->
+            <template v-if="isSelectedDruid || selectedCombatant.wildshape">
+              <div class="detail-divider" />
+
+              <!-- Active wildshape banner -->
+              <template v-if="selectedCombatant.wildshape">
+                <div class="wildshape-banner">
+                  <span class="wildshape-banner-label">🐺 {{ selectedCombatant.wildshape.beast_name }}</span>
+                  <button
+                    type="button"
+                    class="wildshape-revert-btn"
+                    @click="store.revertWildshape(selectedCombatant.instance_id)"
+                  >Revert Form</button>
+                </div>
+                <template v-if="wildshapeMonster">
+                  <p class="detail-meta mt-1">{{ wildshapeMonster.size }} {{ wildshapeMonster.monster_type }}</p>
+                  <div class="detail-stats mt-2">
+                    <div class="detail-stat"><span>AC</span><strong>{{ wildshapeMonster.stat_block?.armor_class }}</strong></div>
+                    <div class="detail-stat"><span>Speed</span><strong>{{ wildshapeMonster.stat_block?.speed }}</strong></div>
+                  </div>
+                  <div class="detail-divider" />
+                  <AbilityScoreTable
+                    :scores="wildshapeScores"
+                    :saves="wildshapeSaves"
+                    :rounded="false"
+                    @roll-ability="(_, label, mod) => performCheck(mod, label + ' Check')"
+                    @roll-save="(_, label, bonus) => performCheck(bonus, label + ' Save')"
+                  />
+                  <template v-for="section in wildshapeTraitSections" :key="section.label">
+                    <template v-if="section.traits?.length">
+                      <div class="detail-divider" />
+                      <p class="detail-section-label">{{ section.label }}</p>
+                      <div v-for="t in section.traits" :key="t.name" class="detail-trait">
+                        <div class="detail-trait-header">
+                          <strong>{{ t.name }}.</strong>
+                          <div class="trait-roll-bar">
+                            <button
+                              v-if="parseAttackBonus(t.description) !== null"
+                              type="button"
+                              class="trait-roll-btn trait-atk-btn"
+                              @click.stop="rollAttack(parseAttackBonus(t.description) ?? 0, t.name)"
+                            >⚔ {{ (parseAttackBonus(t.description) ?? 0) >= 0 ? '+' : '' }}{{ parseAttackBonus(t.description) ?? 0 }}</button>
+                            <button
+                              v-if="hasRollableDice(t.description)"
+                              type="button"
+                              class="trait-roll-btn trait-dmg-btn"
+                              @click.stop="rollActionDamage(t.description, t.name)"
+                            >🎲 {{ actionDiceLabel(t.description) }}</button>
+                          </div>
+                        </div>
+                        <span class="detail-trait-desc">{{ t.description }}</span>
+                      </div>
+                    </template>
+                  </template>
+                </template>
+              </template>
+
+              <!-- Wildshape picker (Druid only, not currently wildshaped) -->
+              <template v-else-if="isSelectedDruid">
+                <div class="flex items-center justify-between">
+                  <p class="detail-section-label">Wildshape</p>
+                  <div class="flex items-center gap-1.5">
+                    <span class="font-fell text-[10px] text-muted-foreground">Max CR {{ wildshapeCrDisplay }}</span>
+                    <span v-if="isSelectedCircleOfMoon" class="font-cinzel text-[9px] tracking-wider px-1 py-0.5 rounded border border-primary/40 text-primary bg-primary/10">MOON</span>
+                    <button
+                      type="button"
+                      class="font-cinzel text-[10px] px-2 py-1 rounded border border-border hover:border-primary hover:text-primary transition-colors"
+                      @click="showWildshapePicker = !showWildshapePicker"
+                    >{{ showWildshapePicker ? 'Cancel' : '🐺 Choose Form' }}</button>
+                  </div>
+                </div>
+                <template v-if="showWildshapePicker">
+                  <p v-if="!wildshapeForms.length" class="font-fell text-xs text-muted-foreground italic px-1 py-2">
+                    No eligible beast forms at this level.
+                  </p>
+                  <div v-else class="wildshape-picker-list">
+                    <button
+                      v-for="m in wildshapeForms"
+                      :key="m.id"
+                      type="button"
+                      class="wildshape-pick-row"
+                      @click="handleWildshape(m)"
+                    >
+                      <span class="pick-name">{{ m.name }}</span>
+                      <span class="pick-cr">CR {{ m.stat_block?.challenge_rating }}</span>
+                      <span class="pick-ac">AC {{ m.stat_block?.armor_class }}</span>
+                      <span class="pick-speed">{{ m.stat_block?.speed }}</span>
+                    </button>
+                  </div>
+                </template>
+              </template>
+            </template>
+
             <template v-if="selectedMember.notes">
               <div class="detail-divider" />
               <p class="detail-notes">{{ selectedMember.notes }}</p>
@@ -436,7 +593,7 @@
 
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
-const { confirm } = useConfirm();
+const { confirm, notify } = useConfirm();
 import { ref, computed, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { Radio, Eye, EyeOff } from "lucide-vue-next";
@@ -445,6 +602,7 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import type { RevealState } from "@/types/encounter.types";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useAllMonsters } from "@/composables/useMonsters";
+import type { Monster } from "@/types/monster.types";
 import { useParty } from "@/composables/useParty";
 import { CONDITIONS, SKILLS } from "@/types/party.types";
 import type { SaveKey } from "@/types/party.types";
@@ -454,6 +612,9 @@ import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import { useEncounterLive } from "@/composables/useEncounterLive";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdatePartyMember } from "@/composables/useParty";
+import { useAutoDiscoverMonsters, useDiscoveredKeys } from "@/composables/useDiscoveredMonsters";
+import { useDmPinnedForms } from "@/composables/usePinnedForms";
+import { useCompanions } from "@/composables/useCompanions";
 import { parseExpression, rollDie } from "@/lib/dice";
 import type { Spell as SpellType } from "@/types/spell.types";
 import { getCasterType } from "@/types/spell.types";
@@ -518,6 +679,7 @@ const { data: monsters } = useAllMonsters();
 const { data: party } = useParty();
 
 const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
+const { mutateAsync: autoDiscover } = useAutoDiscoverMonsters();
 const auth = useAuthStore();
 
 const addingCondFor = ref<string | null>(null);
@@ -706,6 +868,27 @@ const selectedMember = computed(() => {
   return party.value?.find((m) => m.id === selectedCombatant.value!.party_member_id) ?? null;
 });
 
+const selectedMemberId = computed(() => selectedMember.value?.id ?? null);
+const { data: companions } = useCompanions();
+const selectedCompanion = computed(() => {
+  const cid = selectedCombatant.value?.companion_id;
+  if (!cid) return null;
+  return companions.value?.find((c) => c.id === cid) ?? null;
+});
+const companionTraitSections = computed(() => {
+  const sb = selectedCompanion.value?.stat_block;
+  if (!sb) return [];
+  return [
+    { label: "Special Abilities", traits: sb.special_abilities },
+    { label: "Actions",           traits: sb.actions },
+    { label: "Bonus Actions",     traits: sb.bonus_actions },
+    { label: "Reactions",         traits: sb.reactions },
+    { label: "Legendary Actions", traits: sb.legendary_actions },
+  ].filter((s) => s.traits?.length);
+});
+const discoveredKeys = useDiscoveredKeys();
+const { data: pinnedForms } = useDmPinnedForms(selectedMemberId);
+
 // ── Proficiency bonus helpers ─────────────────────────────────────────────────
 
 /** Proficiency bonus for a player — use stored value, fall back to level-based. */
@@ -813,6 +996,114 @@ const traitSections = computed(() => {
   ];
 });
 
+// ── Wildshape ─────────────────────────────────────────────────────────────────
+
+const showWildshapePicker = ref(false);
+
+const isSelectedDruid = computed(() =>
+  (selectedMember.value?.['class'] as string | null)?.toLowerCase().includes("druid") ?? false,
+);
+
+const isSelectedCircleOfMoon = computed(() =>
+  selectedMember.value?.subclass?.toLowerCase().includes("moon") ?? false,
+);
+
+function parseCrValue(cr: string | null | undefined): number {
+  if (!cr || cr === "0") return 0;
+  if (cr.includes("/")) {
+    const [n, d] = cr.split("/");
+    return Number(n) / Number(d);
+  }
+  return parseFloat(cr) || 0;
+}
+
+const wildshapeMaxCr = computed(() => {
+  const level = selectedMember.value?.level ?? 1;
+  if (isSelectedCircleOfMoon.value) return Math.max(1, Math.floor(level / 3));
+  return Math.max(0.125, Math.floor(level / 2) * 0.5);
+});
+
+const wildshapeCrDisplay = computed(() => {
+  const cr = wildshapeMaxCr.value;
+  if (cr === 0.125) return "1/8";
+  if (cr === 0.25)  return "1/4";
+  if (cr === 0.5)   return "1/2";
+  return String(cr);
+});
+
+const wildshapeForms = computed<Monster[]>(() => {
+  if (!isSelectedDruid.value) return [];
+  const level = selectedMember.value?.level ?? 1;
+  const maxCr = wildshapeMaxCr.value;
+  const dkeys = discoveredKeys.value;
+  const pinnedKeys = new Set<string>(
+    (pinnedForms.value ?? []).map((p) => p.monster_id ?? p.srd_slug ?? "").filter(Boolean),
+  );
+  return (monsters.value ?? [])
+    .filter((m) => {
+      if (!dkeys.has(m.id) && !pinnedKeys.has(m.id)) return false;
+      if ((m.monster_type ?? "").toLowerCase() !== "beast") return false;
+      if (parseCrValue(m.stat_block?.challenge_rating) > maxCr) return false;
+      if (level < 8) {
+        const speed = (m.stat_block?.speed ?? "").toLowerCase();
+        if (speed.includes("fly") || speed.includes("swim")) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => parseCrValue(a.stat_block?.challenge_rating) - parseCrValue(b.stat_block?.challenge_rating));
+});
+
+const wildshapeMonster = computed<Monster | null>(() => {
+  const ws = selectedCombatant.value?.wildshape;
+  if (!ws) return null;
+  return monsters.value?.find((m) => m.id === ws.monster_id) ?? null;
+});
+
+const wildshapeScores = computed(() => {
+  const sb = wildshapeMonster.value?.stat_block;
+  return {
+    str: sb?.str ?? 10, dex: sb?.dex ?? 10, con: sb?.con ?? 10,
+    int: sb?.int ?? 10, wis: sb?.wis ?? 10, cha: sb?.cha ?? 10,
+  };
+});
+
+const wildshapeSaves = computed<Record<string, import("@/components/common/AbilityScoreTable.vue").SaveEntry>>(() => {
+  const sb = wildshapeMonster.value?.stat_block;
+  const parsed = sb?.saving_throws ? parseSaveString(sb.saving_throws) : {};
+  return Object.fromEntries(
+    ABILITY_KEYS.map((s) => {
+      const base = abilityMod(sb?.[s.key] ?? 10);
+      return [s.key, { bonus: parsed[s.key] ?? base, proficient: s.key in parsed }];
+    }),
+  );
+});
+
+const wildshapeTraitSections = computed(() => {
+  const sb = wildshapeMonster.value?.stat_block;
+  if (!sb) return [];
+  return [
+    { label: "Special Abilities", traits: sb.special_abilities },
+    { label: "Actions", traits: sb.actions },
+    { label: "Bonus Actions", traits: sb.bonus_actions },
+    { label: "Reactions", traits: sb.reactions },
+    { label: "Legendary Actions", traits: sb.legendary_actions },
+  ];
+});
+
+function handleWildshape(monster: Monster) {
+  if (!selectedCombatant.value) return;
+  const sb = monster.stat_block;
+  const maxHp = parseInt(String(sb?.hit_points ?? "1").split(" ")[0], 10) || 1;
+  const ac = String(sb?.armor_class ?? "10");
+  store.enterWildshape(selectedCombatant.value.instance_id, {
+    id: monster.id,
+    name: monster.name,
+    max_hp: maxHp,
+    ac,
+  });
+  showWildshapePicker.value = false;
+}
+
 // ── Player derived data ───────────────────────────────────────────────────────
 
 function playerSaveBonus(key: SaveKey): number {
@@ -901,6 +1192,7 @@ function triggerLabel(trigger: import("@/types/encounter.types").EventTrigger): 
 async function handleEndCombat() {
   if (!await confirm("End combat? Party HP, conditions, and curses will be updated.")) return;
   await endLive();
+
   // Sync player combatants back to party_members
   const playerCombatants = store.combatants.filter((c) => c.type === "player" && c.party_member_id);
   await Promise.all(
@@ -917,6 +1209,22 @@ async function handleEndCombat() {
       }),
     ),
   );
+
+  // Auto-discover any monster combatants that reached "revealed" state
+  const revealedMonsterIds = new Set(
+    store.combatants
+      .filter((c) => c.type === "monster" && c.reveal_state === "revealed" && c.monster_id)
+      .map((c) => c.monster_id!),
+  );
+  if (revealedMonsterIds.size > 0) {
+    const revealedMonsters = (monsters.value ?? []).filter((m) => revealedMonsterIds.has(m.id));
+    const newDiscoveries = await autoDiscover(revealedMonsters);
+    if (newDiscoveries.length > 0) {
+      const names = newDiscoveries.map((d) => d.monster_name).join(", ");
+      notify(`Auto-shared to bestiary: ${names}`, "Monsters Discovered");
+    }
+  }
+
   store.reset();
   router.push(`/encounters/${encounterId.value}`);
 }
@@ -1100,6 +1408,46 @@ async function handleEndCombat() {
 
 .dead-badge {
   @apply text-destructive text-xs;
+}
+
+.wildshape-row-badge {
+  @apply font-fell text-[10px] text-amber-400 italic ml-1;
+}
+
+.wildshape-banner {
+  @apply flex items-center justify-between gap-2 rounded-md bg-amber-500/10 border border-amber-500/30 px-3 py-2;
+}
+
+.wildshape-banner-label {
+  @apply font-cinzel text-xs font-semibold text-amber-400;
+}
+
+.wildshape-revert-btn {
+  @apply font-cinzel text-[10px] px-2 py-1 rounded border border-amber-500/40 text-amber-400 hover:bg-amber-500/10 transition-colors shrink-0;
+}
+
+.wildshape-picker-list {
+  @apply flex flex-col gap-0.5 max-h-52 overflow-y-auto rounded border border-border;
+}
+
+.wildshape-pick-row {
+  @apply flex items-center gap-2 px-2 py-1.5 text-left hover:bg-muted/60 transition-colors cursor-pointer;
+}
+
+.pick-name {
+  @apply font-fell text-xs text-foreground flex-1 truncate;
+}
+
+.pick-cr {
+  @apply font-cinzel text-[10px] text-muted-foreground shrink-0;
+}
+
+.pick-ac {
+  @apply font-cinzel text-[10px] text-muted-foreground shrink-0;
+}
+
+.pick-speed {
+  @apply font-fell text-[10px] text-muted-foreground shrink-0 truncate max-w-24 hidden sm:block;
 }
 
 .hp-cell {

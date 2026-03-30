@@ -346,7 +346,7 @@ const { data: allSpells, isLoading: spellsLoading } = useSpells();
 const spellSearch = ref("");
 
 const filteredSpells = computed(() => {
-  const q = spellSearch.value.toLowerCase();
+  const q = spellSearch.value.trim().toLowerCase();
   return (allSpells.value ?? []).filter(
     (s) =>
       !q ||

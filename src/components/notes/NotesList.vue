@@ -150,7 +150,7 @@ const filtered = computed(() => {
   list.sort((a, b) => Number(b.is_pinned) - Number(a.is_pinned) || new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
   if (categoryFilter.value !== "all") list = list.filter((n) => n.category === categoryFilter.value);
   if (search.value.trim()) {
-    const q = search.value.toLowerCase();
+    const q = search.value.trim().toLowerCase();
     list = list.filter((n) =>
       n.title.toLowerCase().includes(q) ||
       n.tags.some((t) => t.toLowerCase().includes(q))

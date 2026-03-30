@@ -140,7 +140,7 @@ const filtered = computed(() => {
   let list = encounters.value ?? [];
   if (hideFinished.value) list = list.filter((e) => !e.is_finished);
   if (search.value.trim()) {
-    const q = search.value.toLowerCase();
+    const q = search.value.trim().toLowerCase();
     list = list.filter((e) => e.name.toLowerCase().includes(q));
   }
   return list;

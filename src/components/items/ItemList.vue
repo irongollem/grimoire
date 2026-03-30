@@ -127,7 +127,7 @@ const typeFilter = ref("");
 const rarityFilter = ref("");
 
 const filtered = computed(() => {
-  const q = search.value.toLowerCase();
+  const q = search.value.trim().toLowerCase();
   return (items.value ?? []).filter((item) => {
     if (typeFilter.value && item.item_type !== typeFilter.value) return false;
     if (rarityFilter.value && item.rarity !== rarityFilter.value) return false;

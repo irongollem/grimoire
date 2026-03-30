@@ -364,7 +364,7 @@ function isMemberVisible(memberId: string): boolean {
 
 function setWholeParty() {
   if (!popover.monster) return;
-  const ids = allPartyIds();
+  const ids = [...new Set(allPartyIds())];
   const d = popoverCurrentDiscovery.value;
   if (!d) {
     toggleDiscovery({ monster: popover.monster, currentDiscovery: undefined, visibleTo: ids });
@@ -399,7 +399,7 @@ const filtered = computed(() => {
   if (sourceFilter.value === "srd") list = list.filter((m) => m.is_srd);
   if (sourceFilter.value === "custom") list = list.filter((m) => !m.is_srd);
   if (search.value.trim()) {
-    const q = search.value.toLowerCase();
+    const q = search.value.trim().toLowerCase();
     list = list.filter(
       (m) =>
         m.name.toLowerCase().includes(q) ||

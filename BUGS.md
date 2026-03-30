@@ -92,7 +92,12 @@
 - [x] Player portal bottom nav bar overlays chat input and chat open-tab button — content wrapper now reserves `pb-16` so both the scroll area and the side panel chat end above the nav; mobile slide-up chat lifted to `bottom-16`; chat tab button moved to `bottom-20`
 - [x] Player atlas hid shared locations when their parent wasn't shared — `flatTree` now treats any location whose parent is absent from the shared set as a depth-0 root, so sharing a child without its parent still makes it visible
 - [x] Player crafting recipe description rendered as raw Tiptap JSON — `renderDescription()` now parses and converts to HTML via `generateHTML(StarterKit)`, same pattern as PlayerNotesView
-- artwork and statsblock for companions doesnt show when clicked in the encounter
+- [x] NPC sharing "Whole Party" button showed stale visibility state after clicking — `popover` now stores only `npcId`; `popoverNpc` is a computed derived from live query cache so it updates automatically after `updateNpc` invalidates
+- [x] `pinned_forms` trigger errored with "record new has no field updated_at" — migration `20260330080000` adds the missing `updated_at` column
+- [x] Player bestiary notes 400 Bad Request on SRD monsters — `entity_notes.entity_id` was `uuid`, blocking slug IDs like `srd_goat`; migration `20260330090000` widens column to `text`
+
+- [x] artwork and statsblock for companions doesnt show when clicked in the encounter — companions had no `party_member_id` so `selectedMember` was null and the player panel was skipped; added `companion_id` to `RunCombatant`, stored on build, added dedicated companion detail panel in runner showing portrait, type, AC/HP/speed, ability scores, and trait sections with roll buttons
+- [x] atlas: location image is square but if you add a portrait image, the top and bottom get clipped — sigil upload in `LocationEditor` used `aspect="square"`; changed to `aspect="portrait"` so portrait images fill the box naturally with `object-cover`
 
 ## Regressing bugs
 

@@ -82,6 +82,15 @@ export interface EncounterEvent {
   is_player_visible?: boolean;
 }
 
+// Wildshape overlay — stores original player stats so they can be restored on revert
+export interface WildshapeState {
+  monster_id: string;
+  beast_name: string;
+  original_hp: number;
+  original_max_hp: number;
+  original_ac: string;
+}
+
 // Live combatant during a run (ephemeral — not stored in DB)
 export interface RunCombatant {
   instance_id: string;      // unique: "m-{defId}-{index}" or "p-{memberId}"
@@ -99,11 +108,14 @@ export interface RunCombatant {
   monster_id?: string;
   def_id?: string;
   party_member_id?: string;
+  companion_id?: string;
   dex_mod: number; // for initiative tiebreaking
   portrait_url?: string | null;
   portrait_focal_point?: { x: number; y: number } | null;
   // reveal state — only meaningful for monsters; players are always "revealed"
   reveal_state?: RevealState;
+  // wildshape — only set for player combatants currently wildshaped
+  wildshape?: WildshapeState;
 }
 
 // ── XP / CR tables (D&D 5e) ──────────────────────────────────────────────────

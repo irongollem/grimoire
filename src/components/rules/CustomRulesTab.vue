@@ -107,7 +107,7 @@ const categoryFilter = ref("");
 const filtered = computed(() => {
   let list = rules.value ?? [];
   if (search.value.trim()) {
-    const q = search.value.toLowerCase();
+    const q = search.value.trim().toLowerCase();
     list = list.filter(
       (r) =>
         r.title.toLowerCase().includes(q) ||

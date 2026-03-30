@@ -155,7 +155,7 @@
   <!-- Share popover (Teleported to avoid card overflow clipping) -->
   <Teleport to="body">
     <div
-      v-if="popover.npc"
+      v-if="popoverNpc"
       class="fixed inset-0 z-50"
       @mousedown.self="closePopover"
     >
@@ -164,13 +164,13 @@
         :style="popover.style"
         @mousedown.stop
       >
-        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider truncate">{{ popover.npc.name }}</p>
+        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider truncate">{{ popoverNpc.name }}</p>
 
         <!-- Whole party -->
         <button
           type="button"
           class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left font-fell text-xs transition-colors"
-          :class="isShared(popover.npc) && (party ?? []).every(m => isMemberVisible(m.id))
+          :class="isShared(popoverNpc) && (party ?? []).every(m => isMemberVisible(m.id))
             ? 'bg-primary/15 text-primary'
             : 'text-foreground hover:bg-muted/50'"
           @click="setWholeParty"
@@ -202,7 +202,7 @@
         <!-- Divider + unshare -->
         <div class="border-t border-border pt-1">
           <button
-            v-if="isShared(popover.npc)"
+            v-if="isShared(popoverNpc)"
             type="button"
             class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left font-fell text-xs text-destructive hover:bg-destructive/10 transition-colors"
             @click="unshare"
@@ -263,7 +263,7 @@ function locationName(id: string) {
 const filtered = computed(() => {
   let list = npcs.value ?? [];
   if (props.search.trim()) {
-    const q = props.search.toLowerCase();
+    const q = props.search.trim().toLowerCase();
     list = list.filter(
       (n) =>
         n.name.toLowerCase().includes(q) ||
@@ -335,13 +335,17 @@ function isShared(npc: Npc): boolean {
   return npc.shared_with_players || (npc.player_visible_to !== null && npc.player_visible_to.length > 0);
 }
 
-const popover = reactive<{ npc: Npc | null; style: string }>({
-  npc: null,
+const popover = reactive<{ npcId: string | null; style: string }>({
+  npcId: null,
   style: "",
 });
 
+const popoverNpc = computed(() =>
+  popover.npcId ? (npcs.value?.find((n) => n.id === popover.npcId) ?? null) : null,
+);
+
 function openPopover(npc: Npc, event: MouseEvent) {
-  popover.npc = npc;
+  popover.npcId = npc.id;
   const btn = event.currentTarget as HTMLElement;
   const rect = btn.getBoundingClientRect();
   const top = rect.bottom + 4;
@@ -349,10 +353,10 @@ function openPopover(npc: Npc, event: MouseEvent) {
   popover.style = `top:${top}px;right:${right}px`;
 }
 
-function closePopover() { popover.npc = null; }
+function closePopover() { popover.npcId = null; }
 
 function isMemberVisible(memberId: string): boolean {
-  const npc = popover.npc;
+  const npc = popoverNpc.value;
   if (!npc) return false;
   if (npc.shared_with_players && npc.player_visible_to === null) return true; // whole party
   if (npc.player_visible_to === null) return false;
@@ -364,13 +368,15 @@ function allPartyIds(): string[] {
 }
 
 function setWholeParty() {
-  if (!popover.npc) return;
-  updateNpc({ id: popover.npc.id, update: { shared_with_players: false, player_visible_to: allPartyIds() } });
+  const npc = popoverNpc.value;
+  if (!npc) return;
+  const ids = [...new Set(allPartyIds())];
+  updateNpc({ id: npc.id, update: { shared_with_players: false, player_visible_to: ids } });
 }
 
 function toggleMember(memberId: string) {
-  if (!popover.npc) return;
-  const npc = popover.npc;
+  const npc = popoverNpc.value;
+  if (!npc) return;
   const current: string[] = (npc.shared_with_players && npc.player_visible_to === null)
     ? allPartyIds()
     : [...(npc.player_visible_to ?? [])];
@@ -383,8 +389,9 @@ function toggleMember(memberId: string) {
 }
 
 function unshare() {
-  if (!popover.npc) return;
-  updateNpc({ id: popover.npc.id, update: { shared_with_players: false, player_visible_to: null } });
+  const npc = popoverNpc.value;
+  if (!npc) return;
+  updateNpc({ id: npc.id, update: { shared_with_players: false, player_visible_to: null } });
   closePopover();
 }
 </script>

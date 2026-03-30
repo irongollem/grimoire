@@ -179,7 +179,7 @@ const filtered = computed(() => {
   void ratingTick.value;
   let list = [...(npcs.value ?? [])];
   if (search.value.trim()) {
-    const q = search.value.toLowerCase();
+    const q = search.value.trim().toLowerCase();
     list = list.filter((n) => {
       const name = n.player_visible_fields.includes("name") ? n.name.toLowerCase() : "";
       const occ  = n.player_visible_fields.includes("occupation") ? (n.occupation?.toLowerCase() ?? "") : "";

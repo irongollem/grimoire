@@ -49,7 +49,7 @@
       <div class="shrink-0 w-48">
         <ImageUpload
           :model-value="imageUrl"
-          aspect="square"
+          aspect="auto"
           placeholder="Sigil / Emblem"
           bucket="location-images"
           @update:model-value="imageUrl = $event"
@@ -213,6 +213,7 @@
           :children="(children as Location[])"
           mode="edit"
           :show-hidden-pins="true"
+          :compact="mapCompact"
           @update:pins="mapPins = $event"
           @pin-click="router.push(`/locations/${$event}`)"
         />
@@ -224,6 +225,15 @@
             @click="mapFileInput?.click()"
           >
             {{ isMapUploading ? "Uploading…" : "Change map" }}
+          </button>
+          <span class="text-muted-foreground/40 text-xs">·</span>
+          <button
+            type="button"
+            class="font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            :title="mapCompact ? 'Show full size' : 'Compact map'"
+            @click="mapCompact = !mapCompact"
+          >
+            {{ mapCompact ? "Full size" : "Compact" }}
           </button>
           <span class="text-muted-foreground/40 text-xs">·</span>
           <button
@@ -437,6 +447,7 @@ const description = ref<string>(props.location?.description ?? "");
 const mapUrl      = ref<string | null>(props.location?.map_url ?? null);
 const mapPins     = ref<MapPinType[]>(props.location?.map_pins ? [...props.location.map_pins] : []);
 const isMapShared = ref<boolean>(props.location?.is_map_shared ?? false);
+const mapCompact  = ref(true);
 
 // Keep denormalized pin metadata (type/name/image) in sync with live children data
 // so saved maps always reflect the current child state (fixes player view colors).
