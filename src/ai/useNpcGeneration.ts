@@ -7,16 +7,29 @@ import type { NpcAiResult, NpcAiGenerated } from "./types";
 const CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const IMAGE_URL = "https://api.openai.com/v1/images/generations";
 
-/** Convert plain paragraphs (double-newline separated) to a minimal Tiptap JSON string. */
+/**
+ * Convert plain text (with optional ## headings) to a minimal Tiptap JSON string.
+ * Lines starting with "## " become level-3 headings; everything else is a paragraph.
+ * Double newlines separate blocks.
+ */
 export function toTiptapJson(text: string): string {
-  const paragraphs = text
+  const blocks = text
     .split(/\n\n+/)
-    .map((p) => p.trim())
+    .map((b) => b.trim())
     .filter(Boolean)
-    .map((p) => ({ type: "paragraph", content: [{ type: "text", text: p }] }));
+    .map((b) => {
+      if (b.startsWith("## ")) {
+        return {
+          type: "heading",
+          attrs: { level: 3 },
+          content: [{ type: "text", text: b.slice(3).trim() }],
+        };
+      }
+      return { type: "paragraph", content: [{ type: "text", text: b }] };
+    });
   return JSON.stringify({
     type: "doc",
-    content: paragraphs.length ? paragraphs : [{ type: "paragraph" }],
+    content: blocks.length ? blocks : [{ type: "paragraph" }],
   });
 }
 

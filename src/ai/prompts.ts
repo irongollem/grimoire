@@ -9,7 +9,7 @@ Generate a detailed NPC based on the dungeon master's description. Return a sing
   "age": "Age as a string (e.g. '45', 'Young adult', 'Elder', 'Ancient')",
   "occupation": "Their role or profession",
   "appearance": "2–3 paragraphs: physical build, face, hair, clothing, distinguishing features. Separate paragraphs with a blank line. Plain text only.",
-  "personality": "2–3 paragraphs: traits, mannerisms, speech patterns, ideals, bonds, flaws. Separate paragraphs with a blank line. Plain text only.",
+  "personality": "Four labelled sections using this exact format — a ## heading line followed by the content paragraph, each section separated by a blank line:\n## Personality Traits\n[2–3 sentences on behaviour, mannerisms, and speech patterns]\n\n## Ideal\n[1–2 sentences on what they believe in or what drives them]\n\n## Bond\n[1–2 sentences on their connection to a person, place, or cause]\n\n## Flaw\n[1–2 sentences on their weakness, compulsion, or fear]",
   "backstory": "3–4 paragraphs of history, origin, and formative events. Separate paragraphs with a blank line. Plain text only.",
   "notes": "1–2 paragraphs of DM-facing content: secrets, plot hooks, rumours, hidden motives. Separate paragraphs with a blank line. Plain text only.",
   "status": "One of: alive, dead, missing, unknown",

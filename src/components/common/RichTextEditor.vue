@@ -97,6 +97,7 @@ import TableRow from "@tiptap/extension-table-row";
 import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
 import Image from "@tiptap/extension-image";
+import { parseMarkdown, looksLikeMarkdown } from "@/lib/markdownToTiptap";
 import { List, ListOrdered, Quote, Undo2, Redo2, Table as TableIcon, BetweenVerticalEnd, BetweenHorizontalEnd, Trash2, ImageIcon, Columns2 } from "lucide-vue-next";
 
 const props = defineProps<{
@@ -130,6 +131,21 @@ const editor = useEditor({
     TableCell,
     Image,
   ],
+  editorProps: {
+    handlePaste(view, event) {
+      const text = event.clipboardData?.getData("text/plain") ?? "";
+      if (!looksLikeMarkdown(text)) return false;
+      event.preventDefault();
+      const content = parseMarkdown(text);
+      view.dispatch(
+        view.state.tr.replaceSelectionWith(
+          view.state.schema.nodeFromJSON({ type: "doc", content }),
+          false,
+        ),
+      );
+      return true;
+    },
+  },
   onUpdate() {
     emit("update:modelValue", JSON.stringify(editor.value?.getJSON() ?? {}));
   },
@@ -203,7 +219,8 @@ function tbCls(active: boolean) {
   @apply font-cinzel text-lg font-bold mb-3 mt-5 first:mt-0;
 }
 .rte-content :deep(.ProseMirror h2) {
-  @apply font-cinzel text-base font-bold mb-2 mt-4 first:mt-0;
+  @apply font-cinzel text-base font-bold mb-2 mt-4 first:mt-0 pb-1.5;
+  border-bottom: 1px solid rgba(201, 146, 10, 0.35);
 }
 .rte-content :deep(.ProseMirror h3) {
   @apply font-cinzel text-sm font-bold mb-2 mt-3 first:mt-0;
