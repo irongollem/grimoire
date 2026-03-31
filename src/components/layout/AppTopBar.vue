@@ -10,7 +10,7 @@
       <Menu class="h-5 w-5" />
     </button>
 
-    <h1 class="font-cinzel text-lg font-semibold text-gold-500 tracking-wider flex-1">
+    <h1 class="font-cinzel text-lg font-semibold text-gold-500 tracking-wider flex-1 truncate">
       {{ pageTitle }}
     </h1>
 

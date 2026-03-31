@@ -337,7 +337,7 @@ function statusColor(s: NpcStatus) {
 // ── Sharing ───────────────────────────────────────────────────────────────────
 
 function isShared(npc: Npc): boolean {
-  return npc.shared_with_players || (npc.player_visible_to !== null && npc.player_visible_to.length > 0);
+  return Array.isArray(npc.player_visible_to) && npc.player_visible_to.length > 0;
 }
 
 const popover = reactive<{ npcId: string | null; style: string }>({
@@ -363,9 +363,7 @@ function closePopover() { popover.npcId = null; }
 function isMemberVisible(memberId: string): boolean {
   const npc = popoverNpc.value;
   if (!npc) return false;
-  if (npc.shared_with_players && npc.player_visible_to === null) return true; // whole party
-  if (npc.player_visible_to === null) return false;
-  return npc.player_visible_to.includes(memberId);
+  return Array.isArray(npc.player_visible_to) && npc.player_visible_to.includes(memberId);
 }
 
 function allPartyIds(): string[] {
@@ -375,28 +373,22 @@ function allPartyIds(): string[] {
 function setWholeParty() {
   const npc = popoverNpc.value;
   if (!npc) return;
-  const ids = [...new Set(allPartyIds())];
-  updateNpc({ id: npc.id, update: { shared_with_players: false, player_visible_to: ids } });
+  updateNpc({ id: npc.id, update: { player_visible_to: [...new Set(allPartyIds())] } });
 }
 
 function toggleMember(memberId: string) {
   const npc = popoverNpc.value;
   if (!npc) return;
-  const current: string[] = (npc.shared_with_players && npc.player_visible_to === null)
-    ? allPartyIds()
-    : [...(npc.player_visible_to ?? [])];
+  const current = [...(npc.player_visible_to ?? [])];
   const idx = current.indexOf(memberId);
   const next = idx === -1 ? [...current, memberId] : current.filter((id) => id !== memberId);
-  updateNpc({
-    id: npc.id,
-    update: { shared_with_players: false, player_visible_to: next.length === 0 ? [] : next },
-  });
+  updateNpc({ id: npc.id, update: { player_visible_to: next.length === 0 ? null : next } });
 }
 
 function unshare() {
   const npc = popoverNpc.value;
   if (!npc) return;
-  updateNpc({ id: npc.id, update: { shared_with_players: false, player_visible_to: null } });
+  updateNpc({ id: npc.id, update: { player_visible_to: null } });
   closePopover();
 }
 </script>

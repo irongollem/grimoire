@@ -37,7 +37,7 @@
         </div>
 
         <!-- Two-column: stat block left, actions right -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
           <!-- Left: stat block panel -->
           <StatBlockPanel :sb="monster.stat_block" />
 

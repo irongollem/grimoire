@@ -1506,10 +1506,60 @@ async function handleEndCombat() {
   @apply text-center font-fell text-sm text-muted-foreground italic py-16;
 }
 
+/* ── Mobile: drop CONDITIONS column, compact HP ───────────────────────────── */
+@media (max-width: 639px) {
+  .combatant-header,
+  .combatant-row {
+    grid-template-columns: 2rem 2.5rem 1fr 7rem 2rem;
+  }
+
+  /* Hide the CONDITIONS header (6th span) and conditions cells */
+  .combatant-header span:nth-child(6),
+  .conditions-cell {
+    display: none;
+  }
+
+  /* Hide "/ max_hp" text to keep HP cell tight */
+  .hp-max {
+    display: none;
+  }
+
+  /* Compact HP buttons */
+  .hp-btn {
+    @apply w-5 h-5 text-xs;
+  }
+
+  /* Compact init input */
+  .init-input {
+    @apply w-8 text-xs;
+  }
+
+  /* Compact avatar */
+  .avatar-cell,
+  .avatar-inner {
+    width: 2rem;
+    height: 2rem;
+  }
+}
+
 /* ── Detail panel ─────────────────────────────────────────────────────────── */
 
 .detail-panel {
   @apply w-80 shrink-0 border-l border-border bg-card flex flex-col overflow-hidden;
+}
+
+@media (max-width: 639px) {
+  .detail-panel {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    z-index: 10;
+    border-left: none;
+  }
+
+  .runner-body-wrap {
+    position: relative;
+  }
 }
 
 .detail-header {

@@ -2,7 +2,7 @@
   <PageHeader title="Campaign Dashboard" description="Your realm at a glance">
     <div class="flex flex-col gap-6">
       <!-- Stat cards -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
           v-for="stat in stats"
           :key="stat.label"

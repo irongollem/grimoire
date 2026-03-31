@@ -1,5 +1,5 @@
 <template>
-  <div class="flex gap-px">
+  <div class="flex flex-col sm:flex-row gap-px">
     <table
       v-for="group in ABILITY_GROUPS"
       :key="group[0].key"

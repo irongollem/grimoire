@@ -142,7 +142,7 @@ export function useSharedNpcs() {
         .from("npcs")
         .select("*")
         .eq("campaign_id", campaignId.value!)
-        .or("shared_with_players.eq.true,player_visible_to.not.is.null")
+        .not("player_visible_to", "is", null)
         .order("name", { ascending: true });
       if (error) throw error;
       return data as Npc[];

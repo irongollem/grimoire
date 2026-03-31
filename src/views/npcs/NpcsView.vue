@@ -23,8 +23,9 @@
     </template>
 
     <template #sticky>
-      <div class="flex flex-wrap items-center gap-2">
-        <div class="relative flex-1 min-w-48">
+      <div class="flex flex-col gap-2">
+        <!-- Row 1: search (full width) -->
+        <div class="relative w-full">
           <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <input
             v-model="search"
@@ -34,54 +35,57 @@
           />
         </div>
 
-        <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
-          <button
-            v-for="s in STATUS_OPTIONS"
-            :key="s.value"
-            class="px-2.5 py-1.5 transition-colors"
-            :class="statusFilter === s.value
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-card text-muted-foreground hover:text-foreground'"
-            @click="statusFilter = s.value"
+        <!-- Row 2: filters + sort -->
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
+            <button
+              v-for="s in STATUS_OPTIONS"
+              :key="s.value"
+              class="px-2.5 py-1.5 transition-colors"
+              :class="statusFilter === s.value
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-card text-muted-foreground hover:text-foreground'"
+              @click="statusFilter = s.value"
+            >
+              {{ s.label }}
+            </button>
+          </div>
+
+          <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
+            <button
+              v-for="r in REL_OPTIONS"
+              :key="r.value"
+              class="px-2.5 py-1.5 transition-colors"
+              :class="relFilter === r.value
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-card text-muted-foreground hover:text-foreground'"
+              @click="relFilter = r.value"
+            >
+              {{ r.label }}
+            </button>
+          </div>
+
+          <EntityCombobox
+            :model-value="locationFilter"
+            :options="locationOptions"
+            placeholder="All locations"
+            class="flex-1 min-w-36"
+            @update:model-value="locationFilter = $event"
           >
-            {{ s.label }}
-          </button>
-        </div>
+            <template #option="{ opt }">
+              <span :style="{ paddingLeft: `${(opt as any).depth * 12}px` }">{{ opt.name }}</span>
+            </template>
+          </EntityCombobox>
 
-        <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
-          <button
-            v-for="r in REL_OPTIONS"
-            :key="r.value"
-            class="px-2.5 py-1.5 transition-colors"
-            :class="relFilter === r.value
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-card text-muted-foreground hover:text-foreground'"
-            @click="relFilter = r.value"
-          >
-            {{ r.label }}
-          </button>
-        </div>
-
-        <EntityCombobox
-          :model-value="locationFilter"
-          :options="locationOptions"
-          placeholder="All locations"
-          class="min-w-44 max-w-56"
-          @update:model-value="locationFilter = $event"
-        >
-          <template #option="{ opt }">
-            <span :style="{ paddingLeft: `${(opt as any).depth * 12}px` }">{{ opt.name }}</span>
-          </template>
-        </EntityCombobox>
-
-        <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
-          <button
-            v-for="opt in ([{ value: 'name', label: 'Name' }, { value: 'location', label: 'Location' }] as const)"
-            :key="opt.value"
-            class="px-2.5 py-1.5 transition-colors"
-            :class="sortBy === opt.value ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-            @click="sortBy = opt.value"
-          >{{ opt.label }}</button>
+          <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
+            <button
+              v-for="opt in ([{ value: 'name', label: 'Name' }, { value: 'location', label: 'Location' }] as const)"
+              :key="opt.value"
+              class="px-2.5 py-1.5 transition-colors"
+              :class="sortBy === opt.value ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
+              @click="sortBy = opt.value"
+            >{{ opt.label }}</button>
+          </div>
         </div>
       </div>
     </template>

@@ -323,6 +323,7 @@
 import { ref, computed } from "vue";
 import { UserIcon, XIcon, Shield } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
+import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/useParty";
 import { useSharedNpcs } from "@/composables/useNpcs";
 import { useAllLocations } from "@/composables/useLocations";
@@ -338,8 +339,20 @@ import type { PartyMember } from "@/types/party.types";
 import type { Npc, NpcRelationship, NpcStatus } from "@/types/npc.types";
 
 const auth = useAuthStore();
+const ui = useUiStore();
+const viewerMemberId = computed(() =>
+  ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId
+);
 const { data: members, isLoading: partyLoading } = useParty();
-const { data: npcs, isLoading: npcsLoading } = useSharedNpcs();
+const { data: allSharedNpcs, isLoading: npcsLoading } = useSharedNpcs();
+const npcs = computed(() => {
+  const all = allSharedNpcs.value ?? [];
+  const memberId = viewerMemberId.value;
+  if (!memberId) return all;
+  return all.filter((npc) =>
+    Array.isArray(npc.player_visible_to) && npc.player_visible_to.includes(memberId)
+  );
+});
 const { data: companions } = useCompanions();
 const { data: allLocations } = useAllLocations();
 
