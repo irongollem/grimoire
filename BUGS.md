@@ -99,6 +99,9 @@
 - [x] artwork and statsblock for companions doesnt show when clicked in the encounter — companions had no `party_member_id` so `selectedMember` was null and the player panel was skipped; added `companion_id` to `RunCombatant`, stored on build, added dedicated companion detail panel in runner showing portrait, type, AC/HP/speed, ability scores, and trait sections with roll buttons
 - [x] atlas: location image is square but if you add a portrait image, the top and bottom get clipped — sigil upload in `LocationEditor` used `aspect="square"`; changed to `aspect="portrait"` so portrait images fill the box naturally with `object-cover`
 
+- NPC inventory is still a freeform string field rather than a link to an item object
+- 2 NPC share systems are competing: the system on the details determine what parts are shared (but apparently shared to all), the system on the list determines per player, but only shows empty ???; this should be combined so that ONLY the earmarked players see the earmarked data pieces
+
 ## Regressing bugs
 
 only manually check these off after rigorous testing of the relevant flows, to avoid marking as done when the underlying issue is still present

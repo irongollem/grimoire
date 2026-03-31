@@ -267,32 +267,30 @@
 
 ## AI Features
 
-AI features are gated behind a Pro tier and proxied through Supabase Edge Functions — API keys never reach the client. Usage is tracked per-user for cost control and quota enforcement.
+BYOK (Bring Your Own Key) — DM enters their OpenAI key in Campaign Settings → AI Assistant tab. Calls are made browser-side directly to OpenAI using the DM's key. No quota enforcement or Edge Functions needed at this stage.
 
-### Implementation Strategy
+**Infrastructure shipped:**
 
-**Architecture:**
+- `src/ai/` module: `types.ts`, `prompts.ts`, `useNpcGeneration.ts`, `NpcGenerateDialog.vue`
+- `openai_api_key` + `ai_setting_prompt` columns on `campaigns` (migration `20260330100000`)
+- Campaign Settings → "AI Assistant" tab in the Edit Campaign modal (`CampaignSwitcher.vue`): key input + campaign setting prompt textarea
+- "Generate" button appears on the NPC form when an API key is configured
+- Note: `CampaignSettingsView.vue` is dead code (never registered in the router) — all campaign config lives in the modal
 
-- All AI calls go through `supabase/functions/ai-*` Edge Functions (Deno). The client calls `supabase.functions.invoke('ai-generate-monster', { body: { prompt } })`.
-- Edge Functions hold the API keys (Anthropic, OpenAI) as Supabase secrets — never in the frontend bundle.
-- `ai_usage_log` table: `(id, user_id, campaign_id, feature, model, tokens_used, cost_cents, created_at)`. Insert a row after every successful AI call.
-- Monthly quota enforced at Edge Function entry: query `ai_usage_log` for current month sum; reject with 429 if exceeded.
-- BYOK (Bring Your Own Key): Pro users can store their own Anthropic/OpenAI key in an encrypted `user_settings` column. Edge Functions check for a user key first and use it (bypassing quota) if present.
+### Text generation — OpenAI (gpt-4o-mini for structured output)
 
-**Text generation — Claude API (claude-haiku-4-5 for speed/cost, sonnet for quality):**
+- [x] **NPC generation** — concept prompt → full NPC (name, race, alignment, age, occupation, appearance, personality, backstory, DM notes, status, relationship, tags) + portrait image prompt. Populates the NPC editor form.
+- [ ] **Description writer** — "Enhance" button in Tiptap editors (notes, location descriptions, NPC backstory): select text → rewrite in vivid D&D prose.
+- [ ] **Quest hook generation** — setting + party level + optional theme → 3–5 quest hooks with title, summary, giver, potential objectives.
+- [ ] **Item generation** — flavour prompt → magic item with name, type, rarity, description, mechanical properties.
+- [ ] **Spell generation** — concept prompt → spell with all fields (school, level, components, casting time, range, duration, description).
+- [ ] **Monster generation** — concept prompt → full stat block populating the Bestiary editor.
 
-- [ ] **Description writer** — "Enhance" button in Tiptap editors (notes, location descriptions, NPC backstory): select text → rewrite in vivid D&D prose. Uses in-editor selection as context. _(simplest — no structured output, easiest entry point for the AI infrastructure)_
-- [ ] **Quest hook generation** — setting + party level + optional theme → 3–5 quest hooks with title, summary, giver, potential objectives. One click creates a draft quest.
-- [ ] **NPC generation** — concept prompt → NPC with name, race, occupation, personality, backstory, appearance, secret. Populates the NPC editor. Option to also generate a stat block.
-- [ ] **Item generation** — flavour prompt → magic item with name, type, rarity, description, mechanical properties (charges, attunement, damage).
-- [ ] **Spell generation** — concept prompt → spell with all fields (school, level, components, casting time, range, duration, description, at higher levels).
-- [ ] **Monster generation** — DM types a concept ("ancient shadow dragon corrupted by the Far Realm") → Edge Function calls Claude with a structured prompt → returns a full `StatBlock` JSON matching the existing `Monster` type → auto-populates the Bestiary editor for review/save. Uses `claude-haiku-4-5` for cost efficiency.
+### Image generation — OpenAI gpt-image-1.5
 
-**Image generation — dedicated image API:**
-
-- [ ] **Portrait generation** — describe an NPC/monster → generate portrait art. Upload directly to the entity's `portrait_url` / `image_url` in Supabase Storage. Recommended API: **Replicate** (Stable Diffusion XL or FLUX) — cheaper than DALL-E 3, good quality, no content-policy issues for fantasy monsters. DALL-E 3 as fallback for higher-quality single shots.
-- [ ] **Token art generation** — generate a tight circular portrait optimised for VTT tokens. Feeds directly into Token Forge. Prompt auto-augmented with "facing forward, dramatic lighting, fantasy portrait style, circular crop". _(straightforward once portrait generation is wired up)_
-- [ ] **Scene/location art** — generate a wide establishing shot for a location (for Scriptorium or session notes header image).
+- [x] **NPC portrait generation** — auto-generated as part of NPC generation; uploaded to `npc-portraits` Supabase Storage bucket.
+- [ ] **Token art generation** — tight circular portrait for VTT tokens. Prompt auto-augmented with token framing.
+- [ ] **Scene/location art** — wide establishing shot for a location (Scriptorium header or session notes).
 
 **Cost estimates (approximate):**
 

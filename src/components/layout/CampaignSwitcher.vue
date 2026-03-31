@@ -151,6 +151,11 @@
           <InvitesTab />
         </div>
 
+        <!-- AI Assistant tab -->
+        <div v-else-if="editing && activeModalTab === 'ai'" class="px-5 py-4 max-h-[60vh] overflow-y-auto">
+          <AiTab />
+        </div>
+
         <!-- Danger Zone tab -->
         <div v-else-if="editing && activeModalTab === 'danger'" class="px-5 py-6 space-y-4">
           <div class="border border-destructive/40 rounded-lg p-4 space-y-3">
@@ -367,14 +372,16 @@ import { listCalendarAdapters, getCalendarAdapter } from "@/calendars/index";
 import type { Campaign } from "@/types/campaign.types";
 import MembersTab from "@/components/campaign/MembersTab.vue";
 import InvitesTab from "@/components/campaign/InvitesTab.vue";
+import AiTab from "@/components/campaign/AiTab.vue";
 
-type ModalTab = "details" | "members" | "invites" | "danger";
+type ModalTab = "details" | "members" | "invites" | "ai" | "danger";
 
 const modalTabs: { id: ModalTab; label: string }[] = [
   { id: "details", label: "Details" },
   { id: "members", label: "Members" },
   { id: "invites", label: "Invite Links" },
-  { id: "danger", label: "Danger Zone" },
+  { id: "ai",      label: "AI Assistant" },
+  { id: "danger",  label: "Danger Zone" },
 ];
 
 const activeModalTab = ref<ModalTab>("details");

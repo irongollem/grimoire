@@ -139,16 +139,24 @@
           </div>
         </div>
 
-        <!-- AI stub notice -->
-        <div class="rounded-md border border-gold-500/30 bg-gold-500/5 p-3">
-          <p class="font-cinzel text-xs font-semibold text-gold-400 mb-1">
-            ✦ AI Generation — Coming Soon
-          </p>
+        <!-- No API key nudge -->
+        <div v-if="!aiApiKey" class="rounded-md border border-border bg-muted/40 p-3">
           <p class="font-fell text-xs text-muted-foreground italic">
-            Will use Claude Haiku or GPT-4o mini to generate name, personality,
-            backstory, and secrets from your concept above. The quick options
-            will act as constraints.
+            Add an OpenAI key in
+            <button type="button" class="text-primary hover:underline" @click="openAiSettings">Campaign Settings → AI Assistant</button>
+            to unlock AI generation.
           </p>
+        </div>
+
+        <!-- Generating state -->
+        <div v-else-if="isGenerating" class="flex flex-col items-center gap-3 py-4">
+          <Sparkles class="h-7 w-7 text-primary animate-pulse" />
+          <p class="font-fell text-sm text-muted-foreground italic">{{ statusText }}</p>
+        </div>
+
+        <!-- Error -->
+        <div v-else-if="genError" class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2">
+          <p class="font-fell text-xs text-destructive">{{ genError }}</p>
         </div>
       </div>
 
@@ -157,11 +165,14 @@
         class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0"
       >
         <button
+          v-if="aiApiKey"
           type="button"
-          disabled
-          class="w-full py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md border border-gold-500/40 text-gold-500/50 cursor-not-allowed"
+          :disabled="isGenerating || !concept.trim()"
+          class="w-full inline-flex items-center justify-center gap-1.5 py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
+          @click="generateAndCreate"
         >
-          ✦ Generate with AI (coming soon)
+          <Sparkles class="h-3.5 w-3.5" />
+          {{ isGenerating ? 'Generating…' : 'Generate with AI' }}
         </button>
         <button
           type="button"
@@ -179,7 +190,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
-import { X } from "lucide-vue-next";
+import { X, Sparkles } from "lucide-vue-next";
 import { useUiStore } from "@/stores/ui";
 import { useCreateNpc } from "@/composables/useNpcs";
 import {
@@ -189,6 +200,7 @@ import {
 } from "@/data/npcTemplates";
 import type { NpcInsert, NpcRelationship } from "@/types/npc.types";
 import { useCampaignStore } from "@/stores/campaign";
+import { useNpcGeneration, toTiptapJson } from "@/ai/useNpcGeneration";
 
 const RACES = [
   "Human",
@@ -259,6 +271,70 @@ const ui = useUiStore();
 const router = useRouter();
 const { mutateAsync: createNpc, isPending: isCreating } = useCreateNpc();
 const campaign = useCampaignStore();
+const { isGenerating, error: genError, phase, generate } = useNpcGeneration();
+
+const aiApiKey = computed(() => campaign.activeCampaign?.openai_api_key ?? "");
+const aiSettingPrompt = computed(() => campaign.activeCampaign?.ai_setting_prompt ?? "");
+
+const STATUS_MESSAGES: Record<string, string> = {
+  text:   "Conjuring character details…",
+  image:  "Painting the portrait…",
+  upload: "Storing the portrait…",
+};
+const statusText = computed(() => STATUS_MESSAGES[phase.value] ?? "Working…");
+
+function openAiSettings() {
+  ui.npcGeneratorOpen = false;
+  // The campaign switcher modal has no programmatic open — user nudge is enough
+}
+
+function buildAiPrompt(): string {
+  const lines = [concept.value.trim()];
+  const constraints: string[] = [];
+  if (quickForm.name.trim())  constraints.push(`Name: ${quickForm.name.trim()}`);
+  if (quickForm.race)         constraints.push(`Race: ${quickForm.race}`);
+  if (quickForm.alignment)    constraints.push(`Alignment: ${quickForm.alignment}`);
+  if (quickForm.relationship) constraints.push(`Party relationship: ${quickForm.relationship}`);
+  if (constraints.length) {
+    lines.push("\nUse these constraints (override only if the concept explicitly conflicts):");
+    lines.push(constraints.join("\n"));
+  }
+  return lines.join("\n");
+}
+
+async function generateAndCreate() {
+  const result = await generate(aiApiKey.value, aiSettingPrompt.value, buildAiPrompt());
+  if (!result) return;
+
+  const tpl = quickForm.templateId ? getNpcTemplate(quickForm.templateId) : null;
+
+  const payload: NpcInsert = {
+    name:              quickForm.name.trim() || result.name,
+    campaign_id:       campaign.activeCampaignId,
+    race:              quickForm.race || result.race || null,
+    alignment:         quickForm.alignment || result.alignment || null,
+    age:               result.age || null,
+    occupation:        result.occupation || null,
+    appearance:        result.appearance  ? toTiptapJson(result.appearance)  : null,
+    personality:       result.personality ? toTiptapJson(result.personality) : null,
+    backstory:         result.backstory   ? toTiptapJson(result.backstory)   : null,
+    notes:             result.notes       ? toTiptapJson(result.notes)       : null,
+    status:            result.status,
+    relationship:      quickForm.relationship || result.relationship,
+    portrait_url:      result.portrait_url ?? null,
+    card_art_url:      null,
+    portrait_focal_point: null,
+    tags:              result.tags ?? [],
+    stat_block:        tpl?.stat_block ?? null,
+    scriptorium_doc_id: null,
+    shared_with_players: false,
+    player_visible_fields: [],
+  };
+
+  const created = await createNpc(payload);
+  ui.npcGeneratorOpen = false;
+  router.push(`/npcs/${created.id}`);
+}
 
 const concept = ref("");
 const quickForm = reactive({

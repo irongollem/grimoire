@@ -39,6 +39,15 @@
           <ChevronDown class="h-3 w-3 transition-transform" :class="showPlayerShare ? 'rotate-180' : ''" />
         </button>
         <button
+          v-if="aiApiKey"
+          type="button"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-primary/40 text-primary rounded-md hover:bg-primary/10 transition-colors"
+          @click="showGenerateDialog = true"
+        >
+          <Sparkles class="h-3.5 w-3.5" />
+          Generate
+        </button>
+        <button
           type="submit"
           :disabled="isSaving"
           class="px-4 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
@@ -379,6 +388,14 @@
       </div>
     </div>
   </form>
+
+  <NpcGenerateDialog
+    v-if="showGenerateDialog"
+    :api-key="aiApiKey"
+    :setting-prompt="aiSettingPrompt"
+    @close="showGenerateDialog = false"
+    @generated="onAiGenerated"
+  />
 </template>
 
 <script setup lang="ts">
@@ -387,7 +404,10 @@ import { ref, reactive, computed } from 'vue'
 import RichTextEditor from '@/components/common/RichTextEditor.vue'
 import TagInput from '@/components/common/TagInput.vue'
 import { useRouter } from 'vue-router'
-import { ScrollText, Users, ChevronDown } from 'lucide-vue-next'
+import { ScrollText, Users, ChevronDown, Sparkles } from 'lucide-vue-next'
+import NpcGenerateDialog from '@/ai/NpcGenerateDialog.vue'
+import { toTiptapJson } from '@/ai/useNpcGeneration'
+import type { NpcAiGenerated } from '@/ai/types'
 import ImageUpload from '@/components/common/ImageUpload.vue'
 import { useCreateNpc, useUpdateNpc, useDeleteNpc } from '@/composables/useNpcs'
 import { useLocationTree } from '@/composables/useLocations'
@@ -467,6 +487,32 @@ const isSendingToScriptorium = ref(false)
 
 const activeTab = ref<TabKey>('lore')
 const showPlayerShare = ref(false)
+const showGenerateDialog = ref(false)
+
+const aiApiKey = computed(() => campaign.activeCampaign?.openai_api_key ?? '')
+const aiSettingPrompt = computed(() => campaign.activeCampaign?.ai_setting_prompt ?? '')
+
+function onAiGenerated(result: NpcAiGenerated) {
+  showGenerateDialog.value = false
+  form.name        = result.name
+  form.race        = result.race || null
+  form.alignment   = result.alignment || null
+  form.age         = result.age || null
+  form.occupation  = result.occupation || null
+  form.status      = result.status
+  form.relationship = result.relationship
+  form.tags        = [...result.tags]
+  form.appearance  = result.appearance  ? toTiptapJson(result.appearance)  : null
+  form.personality = result.personality ? toTiptapJson(result.personality) : null
+  form.backstory   = result.backstory   ? toTiptapJson(result.backstory)   : null
+  form.notes       = result.notes       ? toTiptapJson(result.notes)       : null
+  if (result.portrait_url) {
+    form.portrait_url = result.portrait_url
+    form.portrait_focal_point = null
+  }
+  // Jump to Lore tab so the DM can see the filled fields
+  activeTab.value = 'lore'
+}
 
 async function sendToScriptorium() {
   if (!props.npc) return
