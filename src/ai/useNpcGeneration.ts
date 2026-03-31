@@ -17,15 +17,46 @@ export function toTiptapJson(text: string): string {
     .split(/\n\n+/)
     .map((b) => b.trim())
     .filter(Boolean)
-    .map((b) => {
-      if (b.startsWith("## ")) {
-        return {
-          type: "heading",
-          attrs: { level: 3 },
-          content: [{ type: "text", text: b.slice(3).trim() }],
-        };
+    .flatMap((b) => {
+      const match = b.match(/^(#+)\s/);
+      if (match) {
+        const level = match[1].length;
+
+        const newline = b.indexOf("\n");
+        if (newline !== -1) {
+          // Heading and paragraph were not separated by a blank line — split them
+          const headingText = b.slice(level + 1, newline).trim();
+          const paraText = b.slice(newline + 1).trim();
+          if (paraText) {
+            return [
+              {
+                type: "heading",
+                attrs: { level },
+                content: [{ type: "text", text: headingText }],
+              },
+              {
+                type: "paragraph",
+                content: [{ type: "text", text: paraText }],
+              },
+            ];
+          }
+          return [
+            {
+              type: "heading",
+              attrs: { level },
+              content: [{ type: "text", text: headingText }],
+            },
+          ];
+        }
+        return [
+          {
+            type: "heading",
+            attrs: { level },
+            content: [{ type: "text", text: b.slice(level + 1).trim() }],
+          },
+        ];
       }
-      return { type: "paragraph", content: [{ type: "text", text: b }] };
+      return [{ type: "paragraph", content: [{ type: "text", text: b }] }];
     });
   return JSON.stringify({
     type: "doc",
@@ -74,16 +105,24 @@ export function useNpcGeneration() {
 
       if (!chatRes.ok) {
         const body = await chatRes.json().catch(() => ({}));
-        throw new Error(body?.error?.message ?? `OpenAI error ${chatRes.status}`);
+        throw new Error(
+          body?.error?.message ?? `OpenAI error ${chatRes.status}`,
+        );
       }
 
       const chatData = await chatRes.json();
-      const npcData = JSON.parse(chatData.choices[0].message.content) as NpcAiResult;
+      const npcData = JSON.parse(
+        chatData.choices[0].message.content,
+      ) as NpcAiResult;
 
       // ── 2. Generate portrait ───────────────────────────────────────
       phase.value = "image";
 
-      const imagePrompt = [IMAGE_BASE_PROMPT, settingPrompt, npcData.image_prompt]
+      const imagePrompt = [
+        IMAGE_BASE_PROMPT,
+        settingPrompt,
+        npcData.image_prompt,
+      ]
         .filter(Boolean)
         .join(" — ");
 
@@ -96,14 +135,16 @@ export function useNpcGeneration() {
         body: JSON.stringify({
           model: "gpt-image-1.5",
           prompt: imagePrompt,
-          size: "1024x1024",
-          output_format: "b64_json",
+          size: "1024x1536",
+          output_format: "webp",
         }),
       });
 
       if (!imgRes.ok) {
         const body = await imgRes.json().catch(() => ({}));
-        throw new Error(body?.error?.message ?? `Image generation error ${imgRes.status}`);
+        throw new Error(
+          body?.error?.message ?? `Image generation error ${imgRes.status}`,
+        );
       }
 
       const imgData = await imgRes.json();
@@ -116,14 +157,17 @@ export function useNpcGeneration() {
       if (b64 && auth.user) {
         const byteChars = atob(b64);
         const bytes = new Uint8Array(byteChars.length);
-        for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+        for (let i = 0; i < byteChars.length; i++)
+          bytes[i] = byteChars.charCodeAt(i);
         const blob = new Blob([bytes], { type: "image/png" });
         const path = `${auth.user.id}/${crypto.randomUUID()}.png`;
         const { error: uploadErr } = await supabase.storage
           .from("npc-portraits")
           .upload(path, blob, { contentType: "image/png" });
         if (!uploadErr) {
-          portrait_url = supabase.storage.from("npc-portraits").getPublicUrl(path).data.publicUrl;
+          portrait_url = supabase.storage
+            .from("npc-portraits")
+            .getPublicUrl(path).data.publicUrl;
         }
       }
 

@@ -37,3 +37,4 @@ supabase/.temp/
 *.sln
 *.sw?
 .mcp.json
+src/views/play/TEMPSHIT.ts

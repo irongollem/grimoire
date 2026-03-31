@@ -374,3 +374,5 @@ Keep the core DM tooling free forever (open source). Gate AI features, advanced 
   - [x] Infinite scroll (48/page, IntersectionObserver) on Monster, NPC, and Item lists — limits DOM + image requests on initial load
   - [x] Supabase Pro image transforms — CDN-edge resize + WebP conversion, gated by `VITE_SUPABASE_TRANSFORMS=true` (remove to revert to free plan behaviour)
   - [x] WebP conversion on upload — all new images stored as WebP (max 1920px, 85% quality) reducing source file size for all downstream use
+
+- [ ] NPC, Monster, spell (and other filters) should be stored in local host (with a clear button) so navigating doesn't constantly reset

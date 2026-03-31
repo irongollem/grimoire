@@ -1,19 +1,32 @@
-export type QuestStatus = "active" | "on_hold" | "completed" | "failed";
+export type QuestStatus =
+  | "undiscovered"
+  | "active"
+  | "on_hold"
+  | "completed"
+  | "failed";
 
-export const QUEST_STATUSES: QuestStatus[] = ["active", "on_hold", "completed", "failed"];
+export const QUEST_STATUSES: QuestStatus[] = [
+  "undiscovered",
+  "active",
+  "on_hold",
+  "completed",
+  "failed",
+];
 
 export const QUEST_STATUS_LABELS: Record<QuestStatus, string> = {
-  active:    "Active",
-  on_hold:   "On Hold",
+  undiscovered: "Undiscovered",
+  active: "Active",
+  on_hold: "On Hold",
   completed: "Completed",
-  failed:    "Failed",
+  failed: "Failed",
 };
 
 export const QUEST_STATUS_COLORS: Record<QuestStatus, string> = {
-  active:    "#16a34a",
-  on_hold:   "#ca8a04",
+  undiscovered: "#9ca3af",
+  active: "#16a34a",
+  on_hold: "#ca8a04",
   completed: "#0284c7",
-  failed:    "#dc2626",
+  failed: "#dc2626",
 };
 
 export interface Quest {
@@ -43,7 +56,10 @@ export interface Quest {
   updated_at: string;
 }
 
-export type QuestInsert = Omit<Quest, "id" | "user_id" | "created_at" | "updated_at">;
+export type QuestInsert = Omit<
+  Quest,
+  "id" | "user_id" | "created_at" | "updated_at"
+>;
 export type QuestUpdate = Partial<QuestInsert>;
 
 export interface QuestObjective {
@@ -56,7 +72,9 @@ export interface QuestObjective {
 }
 
 export type QuestObjectiveInsert = Omit<QuestObjective, "id">;
-export type QuestObjectiveUpdate = Partial<Omit<QuestObjective, "id" | "quest_id">>;
+export type QuestObjectiveUpdate = Partial<
+  Omit<QuestObjective, "id" | "quest_id">
+>;
 
 export interface RewardCurrencyPool {
   id: string;
@@ -68,13 +86,18 @@ export interface RewardCurrencyPool {
   cp: number;
 }
 
-export type QuestRefType = "npc" | "location" | "monster" | "item" | "encounter";
+export type QuestRefType =
+  | "npc"
+  | "location"
+  | "monster"
+  | "item"
+  | "encounter";
 
 export const QUEST_REF_TYPE_LABELS: Record<QuestRefType, string> = {
-  npc:      "NPC",
+  npc: "NPC",
   location: "Location",
-  monster:  "Monster",
-  item:     "Item",
+  monster: "Monster",
+  item: "Item",
   encounter: "Encounter",
 };
 
@@ -86,7 +109,9 @@ export interface QuestRef {
   is_player_visible: boolean;
 }
 
-export type QuestRefInsert = Omit<QuestRef, "id" | "is_player_visible"> & { is_player_visible?: boolean };
+export type QuestRefInsert = Omit<QuestRef, "id" | "is_player_visible"> & {
+  is_player_visible?: boolean;
+};
 
 export interface QuestPlayerNote {
   id: string;
@@ -99,4 +124,7 @@ export interface QuestPlayerNote {
   updated_at: string;
 }
 
-export type QuestPlayerNoteUpsert = Pick<QuestPlayerNote, "quest_id" | "campaign_id" | "content" | "is_private">;
+export type QuestPlayerNoteUpsert = Pick<
+  QuestPlayerNote,
+  "quest_id" | "campaign_id" | "content" | "is_private"
+>;
