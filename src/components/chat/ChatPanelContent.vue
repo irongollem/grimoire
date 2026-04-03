@@ -133,14 +133,14 @@
                 >
                   To Stash
                 </button>
-                <select
-                  v-if="auth.isDM && props.npcs.length > 0"
-                  class="px-2 py-1 rounded border border-border bg-card font-cinzel text-[10px] text-muted-foreground hover:border-primary/40 focus:outline-none focus:ring-1 focus:ring-ring transition-colors cursor-pointer"
-                  @change="onClaimToNpc(msg.id, $event)"
-                >
-                  <option value="">To NPC…</option>
-                  <option v-for="npc in props.npcs" :key="npc.id" :value="npc.id">{{ npc.name }}</option>
-                </select>
+                <div v-if="auth.isDM && props.npcs.length > 0" class="w-36">
+                  <EntityCombobox
+                    :model-value="npcSelectState[msg.id] ?? ''"
+                    :options="props.npcs"
+                    placeholder="To NPC…"
+                    @update:model-value="onClaimToNpc(msg.id, $event)"
+                  />
+                </div>
               </div>
               <p class="font-fell text-[10px] text-muted-foreground/50 mt-1.5">
                 {{ timeLabel(msg.created_at) }}
@@ -536,6 +536,7 @@ import {
 } from "lucide-vue-next";
 import { rollDice, ALL_DICE } from "@/lib/dice";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import type {
   CampaignMessage,
   ItemDropMetadata,
@@ -572,14 +573,14 @@ const emit = defineEmits<{
   "claim-to-npc": [payload: { messageId: string; npcId: string; npcName: string }];
 }>();
 
-function onClaimToNpc(messageId: string, e: Event) {
-  const sel = e.target as HTMLSelectElement;
-  const npcId = sel.value;
+const npcSelectState = reactive<Record<string, string>>({});
+
+function onClaimToNpc(messageId: string, npcId: string) {
   if (!npcId) return;
   const npc = props.npcs.find((n) => n.id === npcId);
   if (!npc) return;
   emit("claim-to-npc", { messageId, npcId, npcName: npc.name });
-  sel.value = "";
+  npcSelectState[messageId] = "";
 }
 
 const auth = useAuthStore();

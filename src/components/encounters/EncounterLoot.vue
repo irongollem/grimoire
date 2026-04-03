@@ -15,9 +15,9 @@
         No loot added yet.
       </p>
 
-      <!-- Linked items -->
+      <!-- Linked items (grouped with qty) -->
       <div
-        v-for="item in linkedItems"
+        v-for="{ item, qty } in linkedItemGroups"
         :key="item.id"
         class="flex items-center gap-2 group rounded px-2 py-1.5 hover:bg-muted/40 transition-colors"
       >
@@ -26,10 +26,31 @@
           :to="`/vault/${item.id}`"
           class="font-fell text-sm text-foreground flex-1 truncate hover:text-primary transition-colors"
         >{{ item.name }}</RouterLink>
+
+        <!-- Qty controls -->
+        <div class="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            class="w-5 h-5 rounded bg-muted border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            @click="decrementItem(item.id)"
+          >
+            <Minus class="h-3 w-3" />
+          </button>
+          <span class="font-cinzel text-xs font-bold text-foreground w-5 text-center">{{ qty }}</span>
+          <button
+            type="button"
+            class="w-5 h-5 rounded bg-muted border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            @click="incrementItem(item.id)"
+          >
+            <Plus class="h-3 w-3" />
+          </button>
+        </div>
+
         <button
           type="button"
           class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
-          @click="emit('update:itemIds', itemIds.filter(i => i !== item.id))"
+          title="Remove all"
+          @click="removeAllOfItem(item.id)"
         >
           <X class="h-3.5 w-3.5" />
         </button>
@@ -87,10 +108,10 @@
       <!-- Add controls -->
       <div class="flex flex-col gap-1.5" :class="totalCount ? 'border-t border-border/50 pt-2 mt-1' : 'pt-1'">
         <!-- Add item -->
-        <div v-if="availableItems.length" class="flex items-center gap-2">
+        <div v-if="allItems.length" class="flex items-center gap-2">
           <EntityCombobox
             v-model="selectedItemId"
-            :options="availableItems"
+            :options="allItems"
             placeholder="Add loot item…"
           />
           <button
@@ -102,7 +123,7 @@
             <Plus class="h-4 w-4" />
           </button>
         </div>
-        <!-- Add currency pool — same height as combobox row -->
+        <!-- Add currency pool -->
         <button
           type="button"
           class="w-full flex items-center gap-2 rounded-md border border-border px-3 py-2 font-fell text-sm text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors"
@@ -118,7 +139,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Package, X, Plus, Coins } from "lucide-vue-next";
+import { Package, X, Plus, Minus, Coins } from "lucide-vue-next";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import type { Item } from "@/types/item.types";
 import type { RewardCurrencyPool } from "@/types/quest.types";
@@ -143,17 +164,51 @@ const COIN_TYPES = [
   { key: "cp", label: "CP", color: "#b45309" },
 ];
 
-const linkedItemSet = computed(() => new Set(props.itemIds));
-const linkedItems = computed(() => props.allItems.filter(i => linkedItemSet.value.has(i.id)));
-const availableItems = computed(() => props.allItems.filter(i => !linkedItemSet.value.has(i.id)));
-const totalCount = computed(() => props.itemIds.length + props.currencyPools.length);
+// Count occurrences of each item_id to support multiple of the same item
+const itemCounts = computed(() => {
+  const counts = new Map<string, number>();
+  for (const id of props.itemIds) {
+    counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+  return counts;
+});
+
+const linkedItemGroups = computed(() => {
+  const seen = new Set<string>();
+  const groups: { item: Item; qty: number }[] = [];
+  for (const id of props.itemIds) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const item = props.allItems.find((i) => i.id === id);
+    if (item) groups.push({ item, qty: itemCounts.value.get(id) ?? 1 });
+  }
+  return groups;
+});
+
+const totalCount = computed(() => linkedItemGroups.value.length + props.currencyPools.length);
 
 const selectedItemId = ref("");
 
 function addItem() {
-  if (!selectedItemId.value || linkedItemSet.value.has(selectedItemId.value)) return;
+  if (!selectedItemId.value) return;
   emit("update:itemIds", [...props.itemIds, selectedItemId.value]);
   selectedItemId.value = "";
+}
+
+function incrementItem(id: string) {
+  emit("update:itemIds", [...props.itemIds, id]);
+}
+
+function decrementItem(id: string) {
+  const idx = [...props.itemIds].lastIndexOf(id);
+  if (idx === -1) return;
+  const next = [...props.itemIds];
+  next.splice(idx, 1);
+  emit("update:itemIds", next);
+}
+
+function removeAllOfItem(id: string) {
+  emit("update:itemIds", props.itemIds.filter((i) => i !== id));
 }
 
 function addPool() {

@@ -12,6 +12,12 @@
         <span class="flex-1 font-fell text-sm text-foreground truncate">
           {{ item.quantity > 1 ? `${item.quantity}× ` : "" }}{{ item.name }}
         </span>
+        <RouterLink
+          v-if="item.item_id"
+          :to="`/vault/${item.item_id}`"
+          class="font-cinzel text-[10px] text-primary hover:opacity-80 transition-opacity shrink-0"
+          title="View in vault"
+        >Vault</RouterLink>
         <span v-if="item.notes" class="font-fell text-xs text-muted-foreground italic truncate max-w-32">
           {{ item.notes }}
         </span>
@@ -36,25 +42,19 @@
 
     <p v-else class="font-fell text-xs text-muted-foreground italic">No items on this NPC.</p>
 
-    <!-- Add row -->
+    <!-- Add from vault -->
     <div class="flex items-center gap-2">
-      <input
-        v-model="newName"
-        placeholder="Item name…"
-        class="flex-1 bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @keydown.enter.prevent="add"
-      />
-      <input
-        v-model.number="newQty"
-        type="number"
-        min="1"
-        class="w-16 bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+      <EntityCombobox
+        v-model="selectedVaultId"
+        :options="vaultItems ?? []"
+        placeholder="Search vault items…"
+        class="flex-1"
       />
       <button
         type="button"
-        :disabled="!newName.trim() || adding"
-        class="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 disabled:opacity-40 transition-opacity"
-        @click="add"
+        :disabled="!selectedVaultId || adding"
+        class="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 disabled:opacity-40 transition-opacity shrink-0"
+        @click="addFromVault"
       >
         <Plus class="h-3 w-3" />
         Add
@@ -66,7 +66,9 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { Gift, Plus, Trash2 } from "lucide-vue-next";
+import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useNpcInventory, useAddNpcInventoryItem, useRemoveNpcInventoryItem } from "@/composables/useNpcInventory";
+import { useItems } from "@/composables/useItems";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import type { NpcInventoryItem } from "@/types/npc-inventory.types";
 
@@ -77,18 +79,19 @@ const items = computed(() => rawItems.value ?? []);
 const { mutateAsync: addItem } = useAddNpcInventoryItem();
 const { mutateAsync: removeItem } = useRemoveNpcInventoryItem();
 const { sendItemDrop } = useCampaignMessages();
+const { data: vaultItems } = useItems();
 
-const newName = ref("");
-const newQty = ref(1);
+const selectedVaultId = ref("");
 const adding = ref(false);
 
-async function add() {
-  if (!newName.value.trim()) return;
+async function addFromVault() {
+  if (!selectedVaultId.value) return;
+  const vaultItem = vaultItems.value?.find((i) => i.id === selectedVaultId.value);
+  if (!vaultItem) return;
   adding.value = true;
   try {
-    await addItem({ npc_id: props.npcId, item_id: null, name: newName.value.trim(), quantity: newQty.value, notes: null });
-    newName.value = "";
-    newQty.value = 1;
+    await addItem({ npc_id: props.npcId, item_id: vaultItem.id, name: vaultItem.name, quantity: 1, notes: null });
+    selectedVaultId.value = "";
   } finally {
     adding.value = false;
   }
@@ -100,5 +103,6 @@ async function remove(item: NpcInventoryItem) {
 
 async function dropToChat(item: NpcInventoryItem) {
   await sendItemDrop(item.name, item.item_id, item.quantity, null, props.npcName);
+  await removeItem({ id: item.id, npcId: props.npcId });
 }
 </script>

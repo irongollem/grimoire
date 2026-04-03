@@ -101,7 +101,7 @@
 
 - [x] Mobile layout overflow — full audit and fix pass: Dashboard stat cards stack 1→2→4 cols; NpcsView filter bar wraps into two rows with full-width search; MonsterDetail identity grid goes 1-col on xs; MonsterSheet stat/action split deferred to `lg:`; AbilityScoreTable stat tables stack on xs; NpcDetail status/stance grids go 1-col on xs; AppTopBar title truncates; EncounterRunner combatant grid drops CONDITIONS column + compacts HP on xs, detail panel goes full-screen overlay on xs
 
-- [x] NPC inventory is still a freeform string field — already resolved; `NpcInventorySection` component links to real item objects via `npc_inventory` table
+- [x] NPC inventory is still a freeform string field — `NpcInventorySection` now uses `EntityCombobox` to search and link vault items (`item_id` populated); freeform entry removed entirely
 - [x] 2 NPC share systems competing — dropped `shared_with_players` entirely. `player_visible_to: string[]` is the single source of truth: visible iff party_member_id is in the array. Detail foldout has per-player pill picker; list popover updated to match. `useSharedNpcs` queries `player_visible_to IS NOT NULL`; client-side `includes(memberId)` filter applied in `PlayerPartyView` respecting DM preview mode (`ui.dmPreviewPartyMemberId`). `PlayerNpcsView` deleted (dead code — People tab in `PlayerPartyView` is the only player NPC view). NpcDetail `player_visible_to` form field now watches prop to stay in sync with list popover changes.
 
 - when just logging in, the "current campaign" doesnt load, only on a refresh
@@ -115,7 +115,7 @@
 - [x] toggling vision in NPC list view, triggers a list rerender — `useUpdateNpc` now uses `setQueryData` to patch the list cache in-place instead of invalidating and refetching
 - [x] tags input should trim tags and take a list of comma separated tags to generate multiple at once
 - [x] since we moves the encounters to rich text, the brief on the list needs to actually render that — `descriptionText()` helper extracts plain text from Tiptap JSON for the card preview
-- [ ] encounterbuilder only allows 1 of each loot type
+- [x] encounterbuilder only allows 1 of each loot type — `item_ids` now acts as a multiset (duplicates allowed); each item row shows qty +/− controls and a "remove all" button
 - [x] encounterbuilder should have all party members selected by default — new encounters now auto-select all party members once party data loads
 - [ ] encounterbuilder location is still a normal select
 - [x] encounterbuilder NPC searchbar placeholder should warn something like (only NPC's with combat profile are listed) — placeholder changed to "Search NPCs with a combat profile…"
