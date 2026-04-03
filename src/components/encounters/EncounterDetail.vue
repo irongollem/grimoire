@@ -478,6 +478,19 @@ const form = reactive({
   events: [...(props.encounter?.events ?? [])] as EncounterEvent[],
 });
 
+// For new encounters, auto-select all party members once the party data loads
+if (!props.encounter) {
+  watch(
+    party,
+    (members) => {
+      if (members?.length && !form.party_member_ids.length) {
+        form.party_member_ids = members.map((m) => m.id);
+      }
+    },
+    { immediate: true, once: true },
+  );
+}
+
 // Only reset form when navigating to a different encounter
 watch(
   () => props.encounter?.id,

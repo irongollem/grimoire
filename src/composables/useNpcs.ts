@@ -111,11 +111,16 @@ export function useCreateNpc() {
 
 export function useUpdateNpc() {
   const queryClient = useQueryClient();
+  const campaign = useCampaignStore();
   return useMutation({
     mutationFn: ({ id, update }: { id: string; update: NpcUpdate }) => updateNpc(id, update),
-    onSuccess: (_data, { id }) => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });
+    onSuccess: (updatedNpc, { id }) => {
+      // Update the list cache in-place to avoid a full list rerender
+      queryClient.setQueryData(
+        [QUERY_KEY, campaign.activeCampaignId],
+        (old: Npc[] | undefined) => old?.map((n) => (n.id === id ? updatedNpc : n)),
+      );
+      queryClient.setQueryData([QUERY_KEY, id], updatedNpc);
     },
   });
 }

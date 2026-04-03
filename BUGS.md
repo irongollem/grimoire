@@ -112,13 +112,13 @@
 - [ ] or, can we structure the saving process so that assigning a faction/relation can already be done during creation, then when you hit save we do: create entity -> link faction -> link relations (as saving process)?
 - [ ] before generating an NPC you should also be able to set a location so that after generation that location is added to the generated NPC (doesnt need shipping to the AI)
 - [ ] ai generation takes quite long, the pulsing we do is kind of nice, but perhaps we can rotate small quotes for example "painting the portrait, adding some more details, drawing fake moustaches on their faces and a bunch of other fun but fitting ones, that rotate randomly every few seconds" also perhaps we can push it to the background so a small tab at the bottom keeps going but the DM can continue with the campaign (never support more than 1 AI generation process at the same time for the sake of confusion/corruption)
-- [ ] toggling vision in NPC list view, triggers a list rerender
-- [ ] tags input should trim tags and take a list of comma separated tags to generate multiple at once
-- [ ] since we moves the encounters to rich text, the brief on the list needs to actually render that
+- [x] toggling vision in NPC list view, triggers a list rerender — `useUpdateNpc` now uses `setQueryData` to patch the list cache in-place instead of invalidating and refetching
+- [x] tags input should trim tags and take a list of comma separated tags to generate multiple at once
+- [x] since we moves the encounters to rich text, the brief on the list needs to actually render that — `descriptionText()` helper extracts plain text from Tiptap JSON for the card preview
 - [ ] encounterbuilder only allows 1 of each loot type
-- [ ] encounterbuilder should have all party members selected by default
+- [x] encounterbuilder should have all party members selected by default — new encounters now auto-select all party members once party data loads
 - [ ] encounterbuilder location is still a normal select
-- [ ] encounterbuilder NPC searchbar placeholder should warn something like (only NPC's with combat profile are listed)
+- [x] encounterbuilder NPC searchbar placeholder should warn something like (only NPC's with combat profile are listed) — placeholder changed to "Search NPCs with a combat profile…"
 - [ ] traps from the traproom can't be added to the encounter yet
 - [ ] from an encounter or item detail page I can't drop to chat yet
 - [ ] the encounterlist should have a dropdown that contains all quests (and an all option) to filter encounters based on what quest they are linked to

@@ -93,8 +93,8 @@
           </div>
 
           <!-- Description -->
-          <p v-if="encounter.description" class="font-fell text-xs text-muted-foreground italic line-clamp-2">
-            {{ encounter.description }}
+          <p v-if="descriptionText(encounter.description)" class="font-fell text-xs text-muted-foreground italic line-clamp-2">
+            {{ descriptionText(encounter.description) }}
           </p>
 
           <!-- Stats row -->
@@ -145,6 +145,22 @@ const filtered = computed(() => {
   }
   return list;
 });
+
+function descriptionText(raw: string | null | undefined): string {
+  if (!raw) return "";
+  try {
+    const doc = JSON.parse(raw);
+    const texts: string[] = [];
+    function extract(node: { text?: string; content?: unknown[] }) {
+      if (node.text) texts.push(node.text);
+      node.content?.forEach((child) => extract(child as typeof node));
+    }
+    extract(doc);
+    return texts.join(" ").trim();
+  } catch {
+    return raw;
+  }
+}
 
 function totalMonsterCount(encounter: Encounter): number {
   return encounter.combatants.reduce((s, c) => s + c.count, 0);

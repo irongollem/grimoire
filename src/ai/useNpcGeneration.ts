@@ -8,8 +8,8 @@ const CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const IMAGE_URL = "https://api.openai.com/v1/images/generations";
 
 /**
- * Convert plain text (with optional ## headings) to a minimal Tiptap JSON string.
- * Lines starting with "## " become level-3 headings; everything else is a paragraph.
+ * Convert plain text (with optional markdown headings) to a minimal Tiptap JSON string.
+ * Lines starting with "# " become level-1, "## " level-2, etc. Everything else is a paragraph.
  * Double newlines separate blocks.
  */
 export function toTiptapJson(text: string): string {
