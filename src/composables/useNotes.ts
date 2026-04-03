@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Note, NoteInsert, NoteUpdate } from "@/types/notes.types";
+import { storeToRefs } from "pinia";
 
 const QUERY_KEY = "notes";
 
@@ -17,13 +18,21 @@ async function fetchNotes(campaignId: string): Promise<Note[]> {
 }
 
 async function fetchNote(id: string): Promise<Note> {
-  const { data, error } = await supabase.from("notes").select("*").eq("id", id).single();
+  const { data, error } = await supabase
+    .from("notes")
+    .select("*")
+    .eq("id", id)
+    .single();
   if (error) throw error;
   return data as Note;
 }
 
 async function createNote(note: NoteInsert): Promise<Note> {
-  const { data, error } = await supabase.from("notes").insert(note).select().single();
+  const { data, error } = await supabase
+    .from("notes")
+    .insert(note)
+    .select()
+    .single();
   if (error) throw error;
   return data as Note;
 }
@@ -45,12 +54,12 @@ async function deleteNote(id: string): Promise<void> {
 }
 
 export function useNotes() {
-  const campaign = useCampaignStore();
-  const campaignId = computed(() => campaign.activeCampaignId);
+  const { activeCampaignId } = storeToRefs(useCampaignStore());
+
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value]),
-    queryFn: () => fetchNotes(campaignId.value!),
-    enabled: () => !!campaignId.value,
+    queryKey: computed(() => [QUERY_KEY, activeCampaignId.value]),
+    queryFn: () => fetchNotes(activeCampaignId.value!),
+    enabled: () => !!activeCampaignId.value,
   });
 }
 
@@ -75,7 +84,8 @@ export function useCreateNote() {
 export function useUpdateNote() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, update }: { id: string; update: NoteUpdate }) => updateNote(id, update),
+    mutationFn: ({ id, update }: { id: string; update: NoteUpdate }) =>
+      updateNote(id, update),
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });

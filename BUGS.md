@@ -121,7 +121,15 @@
 - [ ] encounterbuilder NPC searchbar placeholder should warn something like (only NPC's with combat profile are listed)
 - [ ] traps from the traproom can't be added to the encounter yet
 - [ ] from an encounter or item detail page I can't drop to chat yet
+- [ ] the encounterlist should have a dropdown that contains all quests (and an all option) to filter encounters based on what quest they are linked to
+- [ ] the loot system doesn't account for art objects, (basically vendor trash) thats only there to enrich the story and give some tradeable value without having to go through the entire item creation menu set. Perhaps besides normal loot and monetary loot we should create an art object that can be given a name and a value right then and there and falls under a new dedicated "art object" category (so we can still give it an image or so if we deep it relevant later)
+- [ ] deleting an encounter doesnt remove it from a quest (becomes an orphaned id)
+- [ ] deleting a location doesn't remove it from a quest
 
 ## Regressing bugs
 
 only manually check these off after rigorous testing of the relevant flows, to avoid marking as done when the underlying issue is still present
+
+- [ ] the bug below is a MAYOR red flag. It's saving locations (but also notes and many other objects probably) with campaign_id null, making their link to a running campaign null-and-void. For example when trying to LIST them, my notes dont show because the filter uses that to filter. (partially fixed, for notes)
+
+> - [x] Saving an existing location wipes it from the list — `buildPayload()` included `campaign_id: null`, overwriting the row's campaign_id on every update; locations query filters by campaign_id so the row became invisible. Fixed by removing `campaign_id` from the update payload.

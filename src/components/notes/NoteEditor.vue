@@ -16,12 +16,17 @@
         v-model="category"
         class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       >
-        <option v-for="c in CATEGORIES" :key="c.value" :value="c.value">{{ c.label }}</option>
+        <option v-for="c in CATEGORIES" :key="c.value" :value="c.value">
+          {{ c.label }}
+        </option>
       </select>
 
       <!-- Session # — only relevant for session notes -->
       <label v-if="category === 'session'" class="flex items-center gap-1.5">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">#</span>
+        <span
+          class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+          >#</span
+        >
         <input
           v-model.number="sessionNum"
           type="number"
@@ -36,7 +41,11 @@
         type="button"
         :title="isPinned ? 'Unpin note' : 'Pin note'"
         class="p-2 rounded-md border border-border transition-colors"
-        :class="isPinned ? 'bg-primary/10 text-primary border-primary/30' : 'bg-card text-muted-foreground hover:text-foreground'"
+        :class="
+          isPinned
+            ? 'bg-primary/10 text-primary border-primary/30'
+            : 'bg-card text-muted-foreground hover:text-foreground'
+        "
         @click="isPinned = !isPinned"
       >
         <Pin class="h-3.5 w-3.5" />
@@ -45,9 +54,17 @@
       <!-- Player visibility toggle -->
       <button
         type="button"
-        :title="isPlayerVisible ? 'Visible to players — click to hide' : 'Hidden from players — click to share'"
+        :title="
+          isPlayerVisible
+            ? 'Visible to players — click to hide'
+            : 'Hidden from players — click to share'
+        "
         class="p-2 rounded-md border border-border transition-colors"
-        :class="isPlayerVisible ? 'bg-elven-green/15 text-elven-green border-elven-green/30' : 'bg-card text-muted-foreground hover:text-foreground'"
+        :class="
+          isPlayerVisible
+            ? 'bg-elven-green/15 text-elven-green border-elven-green/30'
+            : 'bg-card text-muted-foreground hover:text-foreground'
+        "
         @click="isPlayerVisible = !isPlayerVisible"
       >
         <Eye class="h-3.5 w-3.5" />
@@ -77,168 +94,98 @@
     <!-- Tags -->
     <TagInput v-model="tags" />
 
-    <p v-if="saveError" class="text-destructive font-fell text-sm">{{ saveError }}</p>
+    <p v-if="saveError" class="text-destructive font-fell text-sm">
+      {{ saveError }}
+    </p>
 
     <!-- Tiptap editor -->
-    <div class="flex flex-col rounded-lg border border-border bg-card overflow-hidden" style="min-height: 500px">
-      <!-- Toolbar -->
-      <div class="flex flex-wrap items-center gap-0.5 p-1.5 border-b border-border bg-muted/30 shrink-0">
-        <template v-if="editor">
-          <button type="button" title="Bold" :class="tbCls(editor.isActive('bold'))" @click="editor.chain().focus().toggleBold().run()">
-            <strong class="text-[11px] leading-none">B</strong>
-          </button>
-          <button type="button" title="Italic" :class="tbCls(editor.isActive('italic'))" @click="editor.chain().focus().toggleItalic().run()">
-            <em class="text-[11px] leading-none">I</em>
-          </button>
-          <button type="button" title="Strikethrough" :class="tbCls(editor.isActive('strike'))" @click="editor.chain().focus().toggleStrike().run()">
-            <Strikethrough class="h-3.5 w-3.5" />
-          </button>
-
-          <div class="w-px h-5 bg-border mx-0.5" />
-
-          <button type="button" title="Heading 1" :class="tbCls(editor.isActive('heading', { level: 1 }))" @click="editor.chain().focus().toggleHeading({ level: 1 }).run()">
-            <span class="text-[10px] font-cinzel font-bold leading-none">H1</span>
-          </button>
-          <button type="button" title="Heading 2" :class="tbCls(editor.isActive('heading', { level: 2 }))" @click="editor.chain().focus().toggleHeading({ level: 2 }).run()">
-            <span class="text-[10px] font-cinzel font-bold leading-none">H2</span>
-          </button>
-          <button type="button" title="Heading 3" :class="tbCls(editor.isActive('heading', { level: 3 }))" @click="editor.chain().focus().toggleHeading({ level: 3 }).run()">
-            <span class="text-[10px] font-cinzel font-bold leading-none">H3</span>
-          </button>
-
-          <div class="w-px h-5 bg-border mx-0.5" />
-
-          <button type="button" title="Bullet list" :class="tbCls(editor.isActive('bulletList'))" @click="editor.chain().focus().toggleBulletList().run()">
-            <List class="h-3.5 w-3.5" />
-          </button>
-          <button type="button" title="Ordered list" :class="tbCls(editor.isActive('orderedList'))" @click="editor.chain().focus().toggleOrderedList().run()">
-            <ListOrdered class="h-3.5 w-3.5" />
-          </button>
-          <button type="button" title="Blockquote" :class="tbCls(editor.isActive('blockquote'))" @click="editor.chain().focus().toggleBlockquote().run()">
-            <Quote class="h-3.5 w-3.5" />
-          </button>
-          <button type="button" title="Divider" :class="tbCls(false)" @click="editor.chain().focus().setHorizontalRule().run()">
-            <Minus class="h-3.5 w-3.5" />
-          </button>
-
-          <div class="w-px h-5 bg-border mx-0.5" />
-
-          <button type="button" title="Undo" :class="tbCls(false)" :disabled="!editor.can().undo()" @click="editor.chain().focus().undo().run()">
-            <Undo2 class="h-3.5 w-3.5" />
-          </button>
-          <button type="button" title="Redo" :class="tbCls(false)" :disabled="!editor.can().redo()" @click="editor.chain().focus().redo().run()">
-            <Redo2 class="h-3.5 w-3.5" />
-          </button>
-        </template>
-      </div>
-
-      <!-- Editor content -->
-      <div class="flex-1 overflow-auto p-4">
-        <EditorContent :editor="editor" class="note-editor h-full" />
-      </div>
-
-      <!-- Word count -->
-      <div class="px-4 py-1.5 border-t border-border bg-muted/20 flex justify-end shrink-0">
-        <span class="font-fell text-[11px] text-muted-foreground italic">{{ wordCount }} words</span>
-      </div>
-    </div>
+    <RichTextEditor v-model="body" placeholder="Write your note here…" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, computed, onUnmounted } from "vue";
+import { ref } from "vue";
 import { useRouter } from "vue-router";
-import { useEditor, EditorContent } from "@tiptap/vue-3";
-import StarterKit from "@tiptap/starter-kit";
-import Placeholder from "@tiptap/extension-placeholder";
-import {
-  Save, Trash2, Pin, Eye, Strikethrough, List, ListOrdered,
-  Quote, Minus, Undo2, Redo2,
-} from "lucide-vue-next";
+import RichTextEditor from "../common/RichTextEditor.vue";
+import { Save, Trash2, Pin, Eye } from "lucide-vue-next";
 import TagInput from "@/components/common/TagInput.vue";
-import { useCreateNote, useUpdateNote, useDeleteNote } from "@/composables/useNotes";
+import {
+  useCreateNote,
+  useUpdateNote,
+  useDeleteNote,
+} from "@/composables/useNotes";
 import type { Note, NoteCategory } from "@/types/notes.types";
 import { useCampaignStore } from "@/stores/campaign";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
+import { getCurrentUser } from "@/lib/supabase";
+import { storeToRefs } from "pinia";
 
 const CATEGORIES: { value: NoteCategory; label: string }[] = [
-  { value: "general",  label: "General" },
-  { value: "session",  label: "Session" },
-  { value: "lore",     label: "Lore" },
+  { value: "general", label: "General" },
+  { value: "session", label: "Session" },
+  { value: "lore", label: "Lore" },
   { value: "location", label: "Location" },
-  { value: "quest",    label: "Quest" },
-  { value: "faction",  label: "Faction" },
+  { value: "quest", label: "Quest" },
+  { value: "faction", label: "Faction" },
 ];
 
 const props = defineProps<{ note: Note | null }>();
 const router = useRouter();
 
-const title      = ref(props.note?.title ?? "");
-const category   = ref<NoteCategory>(props.note?.category ?? "general");
+const title = ref(props.note?.title ?? "");
+const body = ref<string | null>(props.note?.content ?? null);
+const category = ref<NoteCategory>(props.note?.category ?? "general");
 const sessionNum = ref<number | null>(props.note?.session_num ?? null);
-const isPinned         = ref(props.note?.is_pinned ?? false);
-const isPlayerVisible  = ref(props.note?.is_player_visible ?? false);
-const tags       = ref<string[]>(props.note?.tags ? [...props.note.tags] : []);
-const saving     = ref(false);
-const saveError  = ref("");
-
-const editor = useEditor({
-  content: props.note?.content ? JSON.parse(props.note.content) : undefined,
-  extensions: [
-    StarterKit,
-    Placeholder.configure({ placeholder: "Write your note here…" }),
-  ],
-});
-
-onUnmounted(() => editor.value?.destroy());
-
-const wordCount = computed(() => {
-  const text = editor.value?.getText() ?? "";
-  return text.trim() ? text.trim().split(/\s+/).length : 0;
-});
-
-function tbCls(active: boolean) {
-  return [
-    "p-1 rounded min-w-[26px] h-[26px] flex items-center justify-center transition-colors disabled:opacity-40",
-    active ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted",
-  ].join(" ");
-}
+const isPinned = ref(props.note?.is_pinned ?? false);
+const isPlayerVisible = ref(props.note?.is_player_visible ?? false);
+const tags = ref<string[]>(props.note?.tags ? [...props.note.tags] : []);
+const saving = ref(false);
+const saveError = ref("");
+const user = getCurrentUser();
 
 const { mutateAsync: create } = useCreateNote();
 const { mutateAsync: update } = useUpdateNote();
-const { mutateAsync: del }    = useDeleteNote();
-const campaign = useCampaignStore();
+const { mutateAsync: del } = useDeleteNote();
+const { activeCampaignId } = storeToRefs(useCampaignStore());
 
 function buildPayload() {
   return {
-    title:       title.value.trim() || "Untitled Note",
-    category:    category.value,
-    session_num: category.value === "session" ? (sessionNum.value ?? null) : null,
-    is_pinned:          isPinned.value,
-    is_player_visible:  isPlayerVisible.value,
-    tags:        tags.value,
-    content:     JSON.stringify(editor.value?.getJSON() ?? {}),
-    campaign_id: null as string | null,
+    title: title.value.trim() || "Untitled Note",
+    category: category.value,
+    session_num:
+      category.value === "session" ? (sessionNum.value ?? null) : null,
+    is_pinned: isPinned.value,
+    is_player_visible: isPlayerVisible.value,
+    tags: tags.value,
+    content: body.value ?? null,
+    campaign_id: activeCampaignId.value,
+    user_id: user?.id,
   };
 }
 
 async function save() {
-  if (!title.value.trim() && !editor.value?.getText().trim()) return;
+  if (!title.value.trim() && !body.value) return;
   saving.value = true;
   saveError.value = "";
   const justShared = isPlayerVisible.value && !props.note?.is_player_visible;
   try {
     if (props.note) {
       await update({ id: props.note.id, update: buildPayload() });
-      if (justShared && campaign.activeCampaignId)
-        void sendCampaignAnnouncement(campaign.activeCampaignId, `📜 Note shared: "${title.value.trim()}"`);
+      if (justShared && activeCampaignId.value)
+        void sendCampaignAnnouncement(
+          activeCampaignId.value,
+          `📜 Note shared: "${title.value.trim()}"`,
+        );
       router.push("/notes");
     } else {
       const created = await create(buildPayload());
-      if (isPlayerVisible.value && campaign.activeCampaignId)
-        void sendCampaignAnnouncement(campaign.activeCampaignId, `📜 Note shared: "${created.title}"`);
+      if (isPlayerVisible.value && activeCampaignId.value)
+        void sendCampaignAnnouncement(
+          activeCampaignId.value,
+          `📜 Note shared: "${created.title}"`,
+        );
       router.replace(`/notes/${created.id}`);
     }
   } catch (e: unknown) {
@@ -250,7 +197,8 @@ async function save() {
 
 async function remove() {
   if (!props.note) return;
-  if (!await confirm(`Delete "${props.note.title}"? This cannot be undone.`)) return;
+  if (!(await confirm(`Delete "${props.note.title}"? This cannot be undone.`)))
+    return;
   await del(props.note.id);
   router.push("/notes");
 }
