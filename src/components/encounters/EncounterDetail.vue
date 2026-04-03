@@ -334,6 +334,7 @@
           @update:item-ids="form.item_ids = $event"
           @update:currency-pools="form.reward_currency_pools = $event"
           @drop-pool="sendCurrencyDrop($event.pp, $event.gp, $event.ep, $event.sp, $event.cp, $event.label || undefined)"
+          @drop-item="handleDropLootItem($event.item, $event.qty)"
         />
 
         <!-- Calendar Pins -->
@@ -414,7 +415,7 @@ const { data: party, isLoading: partyLoading } = useParty();
 const { data: companions } = useCompanions();
 const { data: npcs } = useNpcs();
 const { data: allItems } = useItems();
-const { sendCurrencyDrop } = useCampaignMessages();
+const { sendCurrencyDrop, sendItemDrop } = useCampaignMessages();
 const { data: allLocations } = useAllLocations();
 const { data: linkedQuests } = useQuestsForEncounter(
   computed(() => props.encounter?.id ?? ""),
@@ -737,6 +738,16 @@ async function toggleFinished() {
     id: props.encounter.id,
     update: { is_finished: !props.encounter.is_finished },
   });
+}
+
+async function handleDropLootItem(item: import("@/types/item.types").Item, qty: number) {
+  await sendItemDrop(item.name, item.id, qty, item.rarity ?? null);
+  removeAllOfItem(item.id);
+  await handleSave();
+}
+
+function removeAllOfItem(id: string) {
+  form.item_ids = form.item_ids.filter((i) => i !== id);
 }
 
 async function handleDelete() {

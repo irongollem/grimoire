@@ -48,6 +48,14 @@
 
         <button
           type="button"
+          class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground shrink-0"
+          title="Drop to chat"
+          @click="emit('drop-item', { item, qty })"
+        >
+          <Gift class="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
           class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
           title="Remove all"
           @click="removeAllOfItem(item.id)"
@@ -139,7 +147,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Package, X, Plus, Minus, Coins } from "lucide-vue-next";
+import { Package, X, Plus, Minus, Coins, Gift } from "lucide-vue-next";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import type { Item } from "@/types/item.types";
 import type { RewardCurrencyPool } from "@/types/quest.types";
@@ -154,6 +162,7 @@ const emit = defineEmits<{
   "update:itemIds": [v: string[]];
   "update:currencyPools": [v: RewardCurrencyPool[]];
   "drop-pool": [pool: RewardCurrencyPool];
+  "drop-item": [payload: { item: Item; qty: number }];
 }>();
 
 const COIN_TYPES = [

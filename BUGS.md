@@ -120,7 +120,7 @@
 - [ ] encounterbuilder location is still a normal select
 - [x] encounterbuilder NPC searchbar placeholder should warn something like (only NPC's with combat profile are listed) — placeholder changed to "Search NPCs with a combat profile…"
 - [ ] traps from the traproom can't be added to the encounter yet
-- [ ] from an encounter or item detail page I can't drop to chat yet
+- [x] from an encounter or item detail page I can't drop to chat yet — encounter loot items now have a Gift (drop to chat) button; dropping sends the item to chat and removes it from loot + auto-saves
 - [ ] the encounterlist should have a dropdown that contains all quests (and an all option) to filter encounters based on what quest they are linked to
 - [ ] the loot system doesn't account for art objects, (basically vendor trash) thats only there to enrich the story and give some tradeable value without having to go through the entire item creation menu set. Perhaps besides normal loot and monetary loot we should create an art object that can be given a name and a value right then and there and falls under a new dedicated "art object" category (so we can still give it an image or so if we deep it relevant later)
 - [ ] deleting an encounter doesnt remove it from a quest (becomes an orphaned id)
