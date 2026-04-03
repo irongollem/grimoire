@@ -100,15 +100,11 @@
               class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
               >Quest Giver</label
             >
-            <select
+            <EntityCombobox
               v-model="giverNpcId"
-              class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="">— None —</option>
-              <option v-for="npc in npcs" :key="npc.id" :value="npc.id">
-                {{ npc.name }}
-              </option>
-            </select>
+              :options="npcs ?? []"
+              placeholder="Search NPCs…"
+            />
           </div>
 
           <div class="flex flex-col gap-1.5">
@@ -116,15 +112,11 @@
               class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
               >Location</label
             >
-            <select
+            <EntityCombobox
               v-model="locationId"
-              class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="">— None —</option>
-              <option v-for="loc in locations" :key="loc.id" :value="loc.id">
-                {{ loc.name }}
-              </option>
-            </select>
+              :options="locations ?? []"
+              placeholder="Search locations…"
+            />
           </div>
 
           <div class="flex flex-col gap-1.5">
@@ -132,15 +124,11 @@
               class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
               >Part of Quest</label
             >
-            <select
+            <EntityCombobox
               v-model="parentQuestId"
-              class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="">— None —</option>
-              <option v-for="q in parentCandidates" :key="q.id" :value="q.id">
-                {{ q.title || "Untitled Quest" }}
-              </option>
-            </select>
+              :options="parentCandidateOptions"
+              placeholder="Search quests…"
+            />
           </div>
 
           <div class="flex flex-col gap-1.5">
@@ -202,21 +190,27 @@
 
         <!-- Description -->
         <div class="flex flex-col gap-1">
-          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Description</span>
+          <span
+            class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+            >Description</span
+          >
           <RichTextEditor
             v-model="description"
             placeholder="Narrative description, background lore, context…"
-            min-height="280px"
+            min-height="10rem"
           />
         </div>
 
         <!-- Notes -->
         <div class="flex flex-col gap-1">
-          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">DM Notes</span>
+          <span
+            class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+            >DM Notes</span
+          >
           <RichTextEditor
             v-model="notes"
             placeholder="Session notes, loose threads, reminders…"
-            min-height="160px"
+            min-height="10rem"
           />
         </div>
       </div>
@@ -314,94 +308,25 @@
           </div>
         </div>
 
-        <!-- Rewards: linked items -->
-        <div class="rounded-lg border border-border bg-card overflow-hidden">
-          <div class="px-3 py-2 border-b border-border bg-muted/20">
-            <span
-              class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
-            >
-              Reward Items
-              <span v-if="rewardItems.length" class="font-fell font-normal"
-                >({{ rewardItems.length }})</span
-              >
-            </span>
-          </div>
-          <div class="p-2 flex flex-col gap-1">
-            <div
-              v-for="ref in rewardItems"
-              :key="ref.id"
-              class="flex items-center gap-2 group rounded px-2 py-1.5 hover:bg-muted/40 transition-colors"
-            >
-              <Package class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <RouterLink
-                :to="`/vault/${ref.ref_id}`"
-                class="font-fell text-sm text-foreground flex-1 truncate hover:text-primary transition-colors"
-              >
-                {{ itemName(ref.ref_id) }}
-              </RouterLink>
-              <button
-                v-if="!isNew"
-                type="button"
-                :title="
-                  ref.is_player_visible
-                    ? 'Visible to players'
-                    : 'Hidden from players'
-                "
-                class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                :class="
-                  ref.is_player_visible
-                    ? 'text-elven-green'
-                    : 'text-muted-foreground/40'
-                "
-                @click="toggleRefVisibility(ref)"
-              >
-                <Eye v-if="ref.is_player_visible" class="h-3.5 w-3.5" />
-                <EyeOff v-else class="h-3.5 w-3.5" />
-              </button>
-              <button
-                v-if="!isNew"
-                type="button"
-                class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
-                @click="removeRef(ref)"
-              >
-                <X class="h-3.5 w-3.5" />
-              </button>
-            </div>
-            <div
-              v-if="!isNew && availableItems.length"
-              class="flex items-center gap-2 pt-1"
-            >
-              <EntityCombobox
-                v-model="selectedItemId"
-                :options="availableItems"
-                placeholder="Link an item…"
-              />
-              <button
-                type="button"
-                :disabled="!selectedItemId"
-                class="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
-                @click="addItemRef"
-              >
-                <Plus class="h-4 w-4" />
-              </button>
-            </div>
-            <p
-              v-else-if="isNew"
-              class="font-fell text-xs text-muted-foreground italic px-2 py-1"
-            >
-              Save the quest first, then link items.
-            </p>
-            <p
-              v-else-if="!availableItems.length && !rewardItems.length"
-              class="font-fell text-xs text-muted-foreground italic px-2 py-1"
-            >
-              No items in the vault yet.
-            </p>
-          </div>
-        </div>
-
-        <!-- Reward: currency pools -->
-        <RewardCurrencyPoolsEditor v-model="rewardCurrencyPools" />
+        <!-- Reward: items + currency pools (unified loot panel) -->
+        <EncounterLoot
+          :item-ids="rewardItemIds"
+          :all-items="allItems ?? []"
+          :currency-pools="rewardCurrencyPools"
+          @update:item-ids="rewardItemIds = $event"
+          @update:currency-pools="rewardCurrencyPools = $event"
+          @drop-pool="
+            sendCurrencyDrop(
+              $event.pp,
+              $event.gp,
+              $event.ep,
+              $event.sp,
+              $event.cp,
+              $event.label || undefined,
+            )
+          "
+          @drop-item="handleDropLootItem($event.item, $event.qty)"
+        />
 
         <!-- Rewards: linked encounters -->
         <div class="rounded-lg border border-border bg-card overflow-hidden">
@@ -906,7 +831,6 @@ import {
   Check,
   X,
   ChevronRight,
-  Package,
   Swords,
   BookOpen,
   User,
@@ -916,7 +840,6 @@ import {
 } from "lucide-vue-next";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import RewardCurrencyPoolsEditor from "@/components/common/RewardCurrencyPoolsEditor.vue";
 import {
   useCreateQuest,
   useUpdateQuest,
@@ -942,6 +865,7 @@ import { useEncounters } from "@/composables/useEncounters";
 import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
 import { formatQuestForScriptorium } from "@/lib/scriptoriumImport";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import EncounterLoot from "@/components/encounters/EncounterLoot.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
@@ -973,8 +897,10 @@ const { data: allQuests } = useAllQuests();
 const { data: allItems } = useItems();
 const { data: allEncounters } = useEncounters();
 
-const parentCandidates = computed(() =>
-  (allQuests.value ?? []).filter((q) => q.id !== props.quest?.id),
+const parentCandidateOptions = computed(() =>
+  (allQuests.value ?? [])
+    .filter((q) => q.id !== props.quest?.id)
+    .map((q) => ({ id: q.id, name: q.title || "Untitled Quest" })),
 );
 
 const questId = computed(() => props.quest?.id ?? "");
@@ -989,9 +915,6 @@ const doneCount = computed(
 );
 
 // ── Refs derived lists ─────────────────────────────────────────────────────────
-const rewardItems = computed(() =>
-  (questRefs.value ?? []).filter((r) => r.ref_type === "item"),
-);
 const linkedEncounters = computed(() =>
   (questRefs.value ?? []).filter((r) => r.ref_type === "encounter"),
 );
@@ -1005,9 +928,6 @@ const linkedMonsterRefs = computed(() =>
   (questRefs.value ?? []).filter((r) => r.ref_type === "monster"),
 );
 
-const linkedItemIds = computed(
-  () => new Set(rewardItems.value.map((r) => r.ref_id)),
-);
 const linkedEncounterIds = computed(
   () => new Set(linkedEncounters.value.map((r) => r.ref_id)),
 );
@@ -1021,9 +941,6 @@ const linkedMonsterIds = computed(
   () => new Set(linkedMonsterRefs.value.map((r) => r.ref_id)),
 );
 
-const availableItems = computed(() =>
-  (allItems.value ?? []).filter((i) => !linkedItemIds.value.has(i.id)),
-);
 const availableEncounters = computed(() =>
   (allEncounters.value ?? []).filter(
     (e) => !linkedEncounterIds.value.has(e.id),
@@ -1039,9 +956,6 @@ const availableMonsters = computed(() =>
   (allMonsters.value ?? []).filter((m) => !linkedMonsterIds.value.has(m.id)),
 );
 
-function itemName(id: string): string {
-  return (allItems.value ?? []).find((i) => i.id === id)?.name ?? id;
-}
 function encounterName(id: string): string {
   return (allEncounters.value ?? []).find((e) => e.id === id)?.name ?? id;
 }
@@ -1069,7 +983,7 @@ const saving = ref(false);
 const saveError = ref("");
 
 const newObjective = ref("");
-const selectedItemId = ref("");
+const rewardItemIds = ref<string[]>([...(props.quest?.reward_item_ids ?? [])]);
 const selectedEncounterId = ref("");
 const selectedNpcRefId = ref("");
 const selectedLocationRefId = ref("");
@@ -1108,6 +1022,7 @@ function buildPayload() {
     reward_ep: rewardEp.value,
     reward_sp: rewardSp.value,
     reward_cp: rewardCp.value,
+    reward_item_ids: rewardItemIds.value,
     reward_currency_pools: rewardCurrencyPools.value,
     tags: tags.value,
     description: description.value || null,
@@ -1116,6 +1031,20 @@ function buildPayload() {
     started_at: props.quest?.started_at ?? null,
     resolved_at: props.quest?.resolved_at ?? null,
   };
+}
+
+async function autoSave() {
+  if (!props.quest) return;
+  await update({ id: props.quest.id, update: buildPayload() });
+}
+
+async function handleDropLootItem(
+  item: import("@/types/item.types").Item,
+  qty: number,
+) {
+  await sendItemDrop(item.name, item.id, qty, item.rarity ?? null);
+  rewardItemIds.value = rewardItemIds.value.filter((id) => id !== item.id);
+  await autoSave();
 }
 
 async function save() {
@@ -1226,7 +1155,7 @@ async function removeObjective(obj: QuestObjective) {
 const { mutateAsync: createRef } = useCreateQuestRef();
 const { mutateAsync: updateQuestRef } = useUpdateQuestRef();
 const { mutateAsync: deleteRef } = useDeleteQuestRef();
-const { sendCurrencyDrop } = useCampaignMessages();
+const { sendCurrencyDrop, sendItemDrop } = useCampaignMessages();
 
 async function toggleRefVisibility(ref: QuestRef) {
   if (!props.quest) return;
@@ -1290,16 +1219,6 @@ async function dropCashToChat() {
   dropCp.value = 0;
 }
 
-async function addItemRef() {
-  if (!selectedItemId.value || !props.quest) return;
-  await createRef({
-    quest_id: props.quest.id,
-    ref_type: "item",
-    ref_id: selectedItemId.value,
-  });
-  selectedItemId.value = "";
-}
-
 async function addEncounterRef() {
   if (!selectedEncounterId.value || !props.quest) return;
   await createRef({
@@ -1345,4 +1264,3 @@ async function removeRef(ref: QuestRef) {
   await deleteRef({ id: ref.id, questId: props.quest.id });
 }
 </script>
-

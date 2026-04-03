@@ -49,6 +49,7 @@ export interface Quest {
   description: string | null; // Tiptap JSON — full narrative
   notes: string | null; // Tiptap JSON — DM session notes
   is_player_visible: boolean;
+  reward_item_ids: string[];
   reward_currency_pools: RewardCurrencyPool[];
   started_at: string | null;
   resolved_at: string | null;
@@ -90,14 +91,12 @@ export type QuestRefType =
   | "npc"
   | "location"
   | "monster"
-  | "item"
   | "encounter";
 
 export const QUEST_REF_TYPE_LABELS: Record<QuestRefType, string> = {
   npc: "NPC",
   location: "Location",
   monster: "Monster",
-  item: "Item",
   encounter: "Encounter",
 };
 

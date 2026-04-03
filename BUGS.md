@@ -125,6 +125,7 @@
 - [ ] the loot system doesn't account for art objects, (basically vendor trash) thats only there to enrich the story and give some tradeable value without having to go through the entire item creation menu set. Perhaps besides normal loot and monetary loot we should create an art object that can be given a name and a value right then and there and falls under a new dedicated "art object" category (so we can still give it an image or so if we deep it relevant later)
 - [ ] deleting an encounter doesnt remove it from a quest (becomes an orphaned id)
 - [ ] deleting a location doesn't remove it from a quest
+- [x] quest reward items were separate from currency pools and inconsistent with encounter loot — replaced both with `EncounterLoot` component; items now stored as `reward_item_ids uuid[]` on the quest row (migration `20260404000001`); drop-to-chat removes item and auto-saves
 
 ## Regressing bugs
 

@@ -75,7 +75,7 @@
       </div>
 
       <!-- Rewards -->
-      <div v-if="quest.rewards || rewardItems.length || hasCurrencyReward" class="rounded-lg border border-border bg-card overflow-hidden">
+      <div v-if="quest.rewards || quest.reward_item_ids?.length || hasCurrencyReward" class="rounded-lg border border-border bg-card overflow-hidden">
         <div class="px-3 py-2 border-b border-border bg-muted/20 flex items-center justify-between">
           <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Rewards</span>
         </div>
@@ -88,12 +88,12 @@
             </span>
           </div>
           <div
-            v-for="ref in rewardItems"
-            :key="ref.id"
+            v-for="itemId in quest.reward_item_ids"
+            :key="itemId"
             class="flex items-center gap-2"
           >
             <Package class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span class="font-fell text-sm text-foreground">{{ itemName(ref.ref_id) }}</span>
+            <span class="font-fell text-sm text-foreground">{{ itemName(itemId) }}</span>
           </div>
         </div>
       </div>
@@ -194,7 +194,6 @@ const primaryLocationName = computed(() => (locations.value ?? []).find((l) => l
 
 // Refs grouped by type — only show player-visible ones
 const visibleRefs        = computed(() => (questRefs.value ?? []).filter((r) => r.is_player_visible));
-const rewardItems        = computed(() => visibleRefs.value.filter((r) => r.ref_type === "item"));
 const linkedNpcRefs      = computed(() => visibleRefs.value.filter((r) => r.ref_type === "npc"));
 const linkedLocationRefs = computed(() => visibleRefs.value.filter((r) => r.ref_type === "location"));
 const linkedMonsterRefs  = computed(() => visibleRefs.value.filter((r) => r.ref_type === "monster"));
