@@ -115,24 +115,22 @@
               </div>
               <!-- Claim buttons (only if unclaimed and not the sender) -->
               <div v-else class="flex flex-wrap gap-1.5 mt-2">
-                <button
-                  type="button"
-                  class="px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/40 font-cinzel text-[10px] text-amber-400 hover:bg-amber-500/30 transition-colors tracking-wider"
-                  @click="
-                    $emit('claim', { messageId: msg.id, intoStash: false })
-                  "
-                >
-                  Claim
-                </button>
-                <button
-                  type="button"
-                  class="px-2.5 py-1 rounded border border-border font-cinzel text-[10px] text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors tracking-wider"
-                  @click="
-                    $emit('claim', { messageId: msg.id, intoStash: true })
-                  "
-                >
-                  To Stash
-                </button>
+                <template v-if="auth.linkedPartyMemberId">
+                  <button
+                    type="button"
+                    class="px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/40 font-cinzel text-[10px] text-amber-400 hover:bg-amber-500/30 transition-colors tracking-wider"
+                    @click="$emit('claim', { messageId: msg.id, intoStash: false })"
+                  >
+                    Claim
+                  </button>
+                  <button
+                    type="button"
+                    class="px-2.5 py-1 rounded border border-border font-cinzel text-[10px] text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors tracking-wider"
+                    @click="$emit('claim', { messageId: msg.id, intoStash: true })"
+                  >
+                    To Stash
+                  </button>
+                </template>
                 <div v-if="auth.isDM && props.npcs.length > 0" class="w-36">
                   <EntityCombobox
                     :model-value="npcSelectState[msg.id] ?? ''"
@@ -216,7 +214,7 @@
                 {{ (msg.metadata as CurrencyDropMetadata)?.claimed_by_name }}
               </div>
               <button
-                v-else-if="msg.user_id !== myUserId"
+                v-else-if="msg.user_id !== myUserId && auth.linkedPartyMemberId"
                 type="button"
                 class="mt-2 px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/40 font-cinzel text-[10px] text-amber-400 hover:bg-amber-500/30 transition-colors tracking-wider"
                 @click="$emit('claim-currency', { messageId: msg.id })"

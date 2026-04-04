@@ -138,3 +138,5 @@
 only manually check these off after rigorous testing of the relevant flows, to avoid marking as done when the underlying issue is still present
 
 - [x] Saving an existing location wipes it from the list — `buildPayload()` included `campaign_id: null`, overwriting the row's campaign_id on every update; locations query filters by campaign_id so the row became invisible. Fixed by removing `campaign_id` from the update payload.
+
+- [x] Chat item/currency drops: Claim, To Stash, and Add to Purse buttons shown to unlinked players — no guard on `auth.linkedPartyMemberId`; claiming with a null party member ID created an orphaned claim. Fixed by wrapping claim buttons in `v-if="auth.linkedPartyMemberId"`.
