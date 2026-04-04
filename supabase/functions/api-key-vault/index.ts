@@ -17,7 +17,8 @@ if (vaultKey.length !== 32) {
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "authorization, content-type",
+  "Access-Control-Allow-Headers": "*",
+  "Access-Control-Max-Age": "86400",
 };
 
 async function encryptValue(plaintext: string): Promise<string> {
@@ -71,38 +72,6 @@ async function decryptValue(encrypted: string): Promise<string> {
   return decoder.decode(decrypted);
 }
 
-async function verifyAuth(req: Request): Promise<{ valid: boolean; userId?: string }> {
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return { valid: false };
-  }
-
-  const token = authHeader.slice(7);
-
-  try {
-    // Verify the JWT is valid by checking with Supabase
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY");
-
-    if (!supabaseUrl || !supabaseKey) {
-      return { valid: false };
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token);
-
-    if (error || !user) {
-      return { valid: false };
-    }
-
-    return { valid: true, userId: user.id };
-  } catch {
-    return { valid: false };
-  }
-}
 
 serve(async (req: Request) => {
   // Handle CORS
@@ -111,15 +80,6 @@ serve(async (req: Request) => {
   }
 
   try {
-    // Verify auth
-    const auth = await verifyAuth(req);
-    if (!auth.valid) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     // Parse request
     const body = await req.json();
     const { action, value } = body;
