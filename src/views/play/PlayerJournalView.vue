@@ -220,7 +220,7 @@
           <!-- View mode (party journal or not editing) -->
           <template v-if="activeTab === 'party' || editingId !== entry.id">
             <div class="px-4 py-4">
-              <p class="font-fell text-sm text-foreground whitespace-pre-wrap leading-relaxed">{{ plainText(entry.content) }}</p>
+              <RichTextViewer :content="entry.content" />
               <div v-if="entry.tags?.length" class="flex flex-wrap gap-1 mt-3">
                 <span
                   v-for="tag in entry.tags"
@@ -331,6 +331,7 @@ import { useMonsters } from "@/composables/useMonsters";
 import { useEncounters } from "@/composables/useEncounters";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import RichTextViewer from "@/components/common/RichTextViewer.vue";
 
 // ── Data ───────────────────────────────────────────────────────────────────────
 const { data: myEntries,     isLoading: loadingMine }   = useMyJournalEntries();
