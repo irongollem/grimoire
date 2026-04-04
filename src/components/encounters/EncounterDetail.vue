@@ -215,11 +215,26 @@
                 v-if="form.party_member_ids.includes(member.id)"
                 :value="form.party_member_factions[member.id] ?? 'players'"
                 class="shrink-0 bg-muted border border-border rounded px-2 py-0.5 font-cinzel text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                :style="{ borderColor: (form.factions.find(f => f.id === (form.party_member_factions[member.id] ?? 'players'))?.color ?? undefined) }"
+                :style="{
+                  borderColor:
+                    form.factions.find(
+                      (f) =>
+                        f.id ===
+                        (form.party_member_factions[member.id] ?? 'players'),
+                    )?.color ?? undefined,
+                }"
                 @click.stop
-                @change="(e) => setMemberFaction(member.id, (e.target as HTMLSelectElement).value)"
+                @change="
+                  (e) =>
+                    setMemberFaction(
+                      member.id,
+                      (e.target as HTMLSelectElement).value,
+                    )
+                "
               >
-                <option v-for="f in form.factions" :key="f.id" :value="f.id">{{ f.name }}</option>
+                <option v-for="f in form.factions" :key="f.id" :value="f.id">
+                  {{ f.name }}
+                </option>
               </select>
             </label>
 
@@ -269,11 +284,26 @@
                   v-if="form.companion_ids.includes(comp.id)"
                   :value="form.party_member_factions[comp.id] ?? 'players'"
                   class="shrink-0 bg-muted border border-border rounded px-2 py-0.5 font-cinzel text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                  :style="{ borderColor: (form.factions.find(f => f.id === (form.party_member_factions[comp.id] ?? 'players'))?.color ?? undefined) }"
+                  :style="{
+                    borderColor:
+                      form.factions.find(
+                        (f) =>
+                          f.id ===
+                          (form.party_member_factions[comp.id] ?? 'players'),
+                      )?.color ?? undefined,
+                  }"
                   @click.stop
-                  @change="(e) => setMemberFaction(comp.id, (e.target as HTMLSelectElement).value)"
+                  @change="
+                    (e) =>
+                      setMemberFaction(
+                        comp.id,
+                        (e.target as HTMLSelectElement).value,
+                      )
+                  "
                 >
-                  <option v-for="f in form.factions" :key="f.id" :value="f.id">{{ f.name }}</option>
+                  <option v-for="f in form.factions" :key="f.id" :value="f.id">
+                    {{ f.name }}
+                  </option>
                 </select>
               </label>
             </template>
@@ -344,10 +374,22 @@
           :item-ids="form.item_ids"
           :all-items="allItems ?? []"
           :currency-pools="form.reward_currency_pools"
+          :art-objects="form.art_objects"
           @update:item-ids="form.item_ids = $event"
           @update:currency-pools="form.reward_currency_pools = $event"
-          @drop-pool="sendCurrencyDrop($event.pp, $event.gp, $event.ep, $event.sp, $event.cp, $event.label || undefined)"
+          @update:art-objects="form.art_objects = $event"
+          @drop-pool="
+            sendCurrencyDrop(
+              $event.pp,
+              $event.gp,
+              $event.ep,
+              $event.sp,
+              $event.cp,
+              $event.label || undefined,
+            )
+          "
           @drop-item="handleDropLootItem($event.item, $event.qty)"
+          @drop-art-object="handleDropArtObject($event)"
         />
 
         <!-- Traps & Hazards -->
@@ -492,7 +534,9 @@ const form = reactive({
   location_id: props.encounter?.location_id ?? (null as string | null),
   party_member_ids: [...(props.encounter?.party_member_ids ?? [])],
   companion_ids: [...(props.encounter?.companion_ids ?? [])],
-  party_member_factions: { ...(props.encounter?.party_member_factions ?? {}) } as Record<string, string>,
+  party_member_factions: {
+    ...(props.encounter?.party_member_factions ?? {}),
+  } as Record<string, string>,
   combatants: [...(props.encounter?.combatants ?? [])] as CombatantDef[],
   factions: props.encounter?.factions?.length
     ? [...props.encounter.factions]
@@ -502,6 +546,9 @@ const form = reactive({
   reward_currency_pools: [
     ...(props.encounter?.reward_currency_pools ?? []),
   ] as import("@/types/quest.types").RewardCurrencyPool[],
+  art_objects: [
+    ...(props.encounter?.art_objects ?? []),
+  ] as import("@/types/encounter.types").ArtObject[],
   events: [...(props.encounter?.events ?? [])] as EncounterEvent[],
 });
 
@@ -536,6 +583,7 @@ watch(
     form.item_ids = [...(enc.item_ids ?? [])];
     form.trap_ids = [...(enc.trap_ids ?? [])];
     form.reward_currency_pools = [...(enc.reward_currency_pools ?? [])];
+    form.art_objects = [...(enc.art_objects ?? [])];
     form.location_id = enc.location_id ?? null;
     form.events = [...(enc.events ?? [])];
   },
@@ -729,6 +777,7 @@ async function buildPayload() {
     item_ids: form.item_ids,
     trap_ids: form.trap_ids,
     reward_currency_pools: form.reward_currency_pools,
+    art_objects: form.art_objects,
     is_finished: props.encounter?.is_finished ?? false,
     events: form.events,
   };
@@ -786,9 +835,29 @@ async function toggleFinished() {
   });
 }
 
-async function handleDropLootItem(item: import("@/types/item.types").Item, qty: number) {
+async function handleDropLootItem(
+  item: import("@/types/item.types").Item,
+  qty: number,
+) {
   await sendItemDrop(item.name, item.id, qty, item.rarity ?? null);
   removeAllOfItem(item.id);
+  await handleSave();
+}
+
+async function handleDropArtObject(
+  obj: import("@/types/encounter.types").ArtObject,
+) {
+  const rarity = obj.value_gp > 0 ? `${obj.value_gp} gp` : "Art Object";
+  await sendItemDrop(
+    obj.name || "Art Object",
+    null,
+    1,
+    rarity,
+    undefined,
+    obj.image_url,
+    obj.description,
+  );
+  form.art_objects = form.art_objects.filter((o) => o.id !== obj.id);
   await handleSave();
 }
 

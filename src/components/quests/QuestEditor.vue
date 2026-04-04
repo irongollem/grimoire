@@ -308,13 +308,15 @@
           </div>
         </div>
 
-        <!-- Reward: items + currency pools (unified loot panel) -->
+        <!-- Reward: items + currency pools + art objects (unified loot panel) -->
         <EncounterLoot
           :item-ids="rewardItemIds"
           :all-items="allItems ?? []"
           :currency-pools="rewardCurrencyPools"
+          :art-objects="rewardArtObjects"
           @update:item-ids="rewardItemIds = $event"
           @update:currency-pools="rewardCurrencyPools = $event"
+          @update:art-objects="rewardArtObjects = $event"
           @drop-pool="
             sendCurrencyDrop(
               $event.pp,
@@ -326,6 +328,7 @@
             )
           "
           @drop-item="handleDropLootItem($event.item, $event.qty)"
+          @drop-art-object="handleDropArtObject($event)"
         />
 
         <!-- Rewards: linked encounters -->
@@ -761,50 +764,6 @@
           </div>
         </div>
 
-        <!-- Cash Drop -->
-        <div
-          v-if="!isNew"
-          class="rounded-lg border border-border bg-card overflow-hidden"
-        >
-          <div
-            class="px-3 py-2 border-b border-border bg-muted/20 flex items-center justify-between"
-          >
-            <span
-              class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
-              >Cash Drop</span
-            >
-            <button
-              type="button"
-              :disabled="!hasCashDrop"
-              class="inline-flex items-center gap-1 font-cinzel text-[10px] font-semibold text-amber-400 hover:opacity-80 transition-opacity disabled:opacity-40 tracking-wider"
-              @click="dropCashToChat"
-            >
-              <Coins class="h-3 w-3" />
-              Drop to Chat
-            </button>
-          </div>
-          <div class="p-3">
-            <div class="grid grid-cols-5 gap-2">
-              <div
-                v-for="coin in DROP_COIN_TYPES"
-                :key="coin.key"
-                class="flex flex-col gap-0.5"
-              >
-                <label
-                  class="font-cinzel text-[9px] font-semibold tracking-wider text-center"
-                  :style="{ color: coin.color }"
-                  >{{ coin.label }}</label
-                >
-                <input
-                  v-model.number="coin.model.value"
-                  type="number"
-                  min="0"
-                  class="w-full text-center bg-card border border-border rounded px-1 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
 
         <!-- Calendar Pins -->
         <EntityCalendarSection
@@ -984,6 +943,7 @@ const saveError = ref("");
 
 const newObjective = ref("");
 const rewardItemIds = ref<string[]>([...(props.quest?.reward_item_ids ?? [])]);
+const rewardArtObjects = ref<import("@/types/encounter.types").ArtObject[]>([...(props.quest?.reward_art_objects ?? [])]);
 const selectedEncounterId = ref("");
 const selectedNpcRefId = ref("");
 const selectedLocationRefId = ref("");
@@ -1024,6 +984,7 @@ function buildPayload() {
     reward_cp: rewardCp.value,
     reward_item_ids: rewardItemIds.value,
     reward_currency_pools: rewardCurrencyPools.value,
+    reward_art_objects: rewardArtObjects.value,
     tags: tags.value,
     description: description.value || null,
     notes: notes.value || null,
@@ -1044,6 +1005,13 @@ async function handleDropLootItem(
 ) {
   await sendItemDrop(item.name, item.id, qty, item.rarity ?? null);
   rewardItemIds.value = rewardItemIds.value.filter((id) => id !== item.id);
+  await autoSave();
+}
+
+async function handleDropArtObject(obj: import("@/types/encounter.types").ArtObject) {
+  const rarity = obj.value_gp > 0 ? `${obj.value_gp} gp` : "Art Object";
+  await sendItemDrop(obj.name || "Art Object", null, 1, rarity, undefined, obj.image_url, obj.description);
+  rewardArtObjects.value = rewardArtObjects.value.filter(o => o.id !== obj.id);
   await autoSave();
 }
 
@@ -1184,40 +1152,6 @@ const COIN_TYPES = [
   { key: "cp", label: "CP", color: "#b45309", model: rewardCp },
 ];
 
-// ── Ad-hoc cash drop ───────────────────────────────────────────────────────────
-const dropPp = ref(0);
-const dropGp = ref(0);
-const dropEp = ref(0);
-const dropSp = ref(0);
-const dropCp = ref(0);
-const DROP_COIN_TYPES = [
-  { key: "pp", label: "PP", color: "#a855f7", model: dropPp },
-  { key: "gp", label: "GP", color: "#f59e0b", model: dropGp },
-  { key: "ep", label: "EP", color: "#60a5fa", model: dropEp },
-  { key: "sp", label: "SP", color: "#9ca3af", model: dropSp },
-  { key: "cp", label: "CP", color: "#b45309", model: dropCp },
-];
-const hasCashDrop = computed(
-  () =>
-    dropPp.value + dropGp.value + dropEp.value + dropSp.value + dropCp.value >
-    0,
-);
-
-async function dropCashToChat() {
-  if (!hasCashDrop.value) return;
-  await sendCurrencyDrop(
-    dropPp.value,
-    dropGp.value,
-    dropEp.value,
-    dropSp.value,
-    dropCp.value,
-  );
-  dropPp.value = 0;
-  dropGp.value = 0;
-  dropEp.value = 0;
-  dropSp.value = 0;
-  dropCp.value = 0;
-}
 
 async function addEncounterRef() {
   if (!selectedEncounterId.value || !props.quest) return;

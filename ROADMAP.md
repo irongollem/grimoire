@@ -82,6 +82,7 @@
 - [x] Party inventory — shared table with DM + player item management
 - [x] Player character sheet — interactive D&D Beyond-style sheet with ability/save/skill rolls → campaign chat
 - [x] Character sheet inventory (My Items / Party Stash split, equip toggle, attack/damage rolls)
+- [x] Art object loot type — inline name + value + optional image + description, droppable to chat like vault items; images stored in Supabase Storage; feels identical to item drops for players (irongollem/grimoire#16)
 - [x] Loot drops in chat — items droppable as cards with Claim / To Stash actions (real-time sync)
 - [x] Currency drops in chat — DM drops PP/GP/EP/SP/CP from quest rewards; players claim to purse (real-time sync)
 - [x] Coin purse on party members — pp/gp/ep/sp/cp fields, incremented on currency claim

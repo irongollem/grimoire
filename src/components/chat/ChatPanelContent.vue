@@ -83,6 +83,13 @@
               </span>
             </div>
             <div class="px-3 py-2.5">
+              <!-- Optional art object image -->
+              <img
+                v-if="(msg.metadata as ItemDropMetadata)?.image_url"
+                :src="(msg.metadata as ItemDropMetadata).image_url!"
+                alt=""
+                class="w-full rounded mb-2 object-cover max-h-40"
+              />
               <div class="flex items-baseline gap-2 mb-1">
                 <span class="font-fell text-sm font-semibold text-foreground">
                   {{
@@ -98,6 +105,11 @@
                   {{ (msg.metadata as ItemDropMetadata)?.item_rarity }}
                 </span>
               </div>
+              <!-- Optional description -->
+              <p
+                v-if="(msg.metadata as ItemDropMetadata)?.description"
+                class="font-fell text-xs text-muted-foreground/80 italic mb-1.5 leading-snug"
+              >{{ (msg.metadata as ItemDropMetadata).description }}</p>
               <!-- Claimed state -->
               <div
                 v-if="(msg.metadata as ItemDropMetadata)?.claimed_by_user_id"

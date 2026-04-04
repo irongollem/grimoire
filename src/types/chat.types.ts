@@ -14,6 +14,8 @@ export interface ItemDropMetadata {
   item_name: string;
   item_rarity: string | null;
   quantity: number;
+  image_url?: string | null;
+  description?: string | null;
   claimed_by_user_id: string | null;
   claimed_by_name: string | null;
   claimed_party_member_id: string | null; // null = party stash

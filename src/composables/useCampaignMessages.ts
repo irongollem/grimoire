@@ -241,11 +241,13 @@ export function useCampaignMessages() {
     if (data) _optimisticPush(data as CampaignMessage);
   }
 
-  async function sendItemDrop(itemName: string, itemId: string | null, quantity: number, rarity: string | null, senderName?: string) {
+  async function sendItemDrop(itemName: string, itemId: string | null, quantity: number, rarity: string | null, senderName?: string, imageUrl?: string | null, description?: string | null) {
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id) return;
     const metadata: ItemDropMetadata = {
       item_id: itemId, item_name: itemName, item_rarity: rarity, quantity,
+      image_url: imageUrl ?? null,
+      description: description ?? null,
       claimed_by_user_id: null, claimed_by_name: null, claimed_party_member_id: null,
     };
     const insert: CampaignMessageInsert = {
