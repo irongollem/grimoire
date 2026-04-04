@@ -147,6 +147,7 @@
                   "
                   >{{ signedNum(weaponAttackMod(item)) }}</span
                 >
+                <span v-if="attackDisadvantage" class="font-cinzel text-[9px] text-amber-500 tracking-wider">Dis</span>
               </button>
               <button
                 v-if="item.damage_rolls?.length"
@@ -203,6 +204,7 @@
               >
                 <Sword class="h-3 w-3 text-muted-foreground" />
                 <span class="font-cinzel text-[10px] text-foreground">{{ signedNum(spellAttackBonus ?? 0) }}</span>
+                <span v-if="attackDisadvantage" class="font-cinzel text-[9px] text-amber-500 tracking-wider">Dis</span>
               </button>
               <span
                 v-else-if="entry.spell.attack_type === 'save' && spellSaveDc !== null"
@@ -269,6 +271,10 @@
               />
             </div>
           </div>
+          <button
+            class="ml-auto h-7 px-3 rounded border border-destructive/40 bg-destructive/10 font-cinzel text-[10px] text-destructive hover:bg-destructive/20 transition-colors tracking-wider"
+            @click="rollDeathSave"
+          >Roll d20</button>
         </div>
       </div>
 
@@ -379,11 +385,12 @@
 
       <!-- Conditions -->
       <div class="rounded-lg border border-border bg-card overflow-hidden">
-        <div class="px-4 py-2 border-b border-border bg-muted/20">
-          <span
-            class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
-            >Conditions</span
-          >
+        <div class="px-4 py-2 border-b border-border bg-muted/20 flex items-center justify-between">
+          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Conditions</span>
+          <div v-if="attackDisadvantage || checkDisadvantage" class="flex items-center gap-1.5">
+            <span v-if="attackDisadvantage" class="font-cinzel text-[9px] text-amber-500 tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">⚔ Dis</span>
+            <span v-if="checkDisadvantage" class="font-cinzel text-[9px] text-amber-500 tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">✦ Dis</span>
+          </div>
         </div>
         <div class="p-3 flex flex-wrap gap-2">
           <button
@@ -466,6 +473,8 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { Star, ChevronRight, Sword, Zap, Moon, Sun } from "lucide-vue-next";
+import { rollDice } from "@/lib/dice";
+import type { RollMode } from "@/lib/dice";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
@@ -613,6 +622,18 @@ const passiveInsight = computed(() => passiveScore("insight"));
 const passiveInvestigation = computed(() => passiveScore("investigation"));
 
 // ── Conditions ─────────────────────────────────────────────────────────────────
+
+// D&D 5e conditions that impose disadvantage on specific roll types
+const ATTACK_DIS_CONDITIONS = new Set(["Blinded", "Frightened", "Poisoned", "Prone", "Restrained"]);
+const CHECK_DIS_CONDITIONS  = new Set(["Frightened", "Poisoned", "Exhausted 1", "Exhausted 2", "Exhausted 3"]);
+
+const attackDisadvantage = computed(() =>
+  member.value?.conditions?.some(c => ATTACK_DIS_CONDITIONS.has(c)) ?? false
+);
+const checkDisadvantage = computed(() =>
+  member.value?.conditions?.some(c => CHECK_DIS_CONDITIONS.has(c)) ?? false
+);
+
 function hasCondition(cond: string) {
   return member.value?.conditions?.includes(cond) ?? false;
 }
@@ -689,6 +710,35 @@ async function toggleDeathSave(type: "success" | "failure", pip: number) {
   await updatePartyMember({ id: member.value.id, update });
 }
 
+async function rollDeathSave() {
+  if (!member.value) return;
+  const d = Math.floor(Math.random() * 20) + 1;
+  const name = member.value.name;
+  let update: Partial<{ current_hp: number; death_save_successes: number; death_save_failures: number }>;
+  let outcome: string;
+
+  if (d === 20) {
+    update = { current_hp: 1, death_save_successes: 0, death_save_failures: 0 };
+    outcome = "Nat 20 — Stabilized";
+  } else if (d === 1) {
+    update = { death_save_failures: Math.min(3, member.value.death_save_failures + 2) };
+    outcome = "Nat 1 — 2 Failures";
+  } else if (d >= 10) {
+    update = { death_save_successes: Math.min(3, member.value.death_save_successes + 1) };
+    outcome = "Success";
+  } else {
+    update = { death_save_failures: Math.min(3, member.value.death_save_failures + 1) };
+    outcome = "Failure";
+  }
+
+  await updatePartyMember({ id: member.value.id, update });
+  const label = `${name} — Death Save (${outcome})`;
+  rollToast.value = { label, dice: d, modifier: 0, total: d };
+  if (rollTimer) clearTimeout(rollTimer);
+  rollTimer = setTimeout(() => { rollToast.value = null; }, 3000);
+  void sendRoll({ total: d, label, modifier: 0, breakdown: [{ val: d, dropped: false }], isCrit: d === 20, isFumble: d === 1 });
+}
+
 // ── Roll system ────────────────────────────────────────────────────────────────
 interface RollToast {
   label: string;
@@ -699,29 +749,23 @@ interface RollToast {
 const rollToast = ref<RollToast | null>(null);
 let rollTimer: ReturnType<typeof setTimeout> | null = null;
 
-function doRoll(label: string, modifier: number) {
-  const dice = Math.floor(Math.random() * 20) + 1;
-  const total = dice + modifier;
-  rollToast.value = { label, dice, modifier, total };
-  if (rollTimer) clearTimeout(rollTimer);
-  rollTimer = setTimeout(() => {
-    rollToast.value = null;
-  }, 3000);
+function modeTag(mode: RollMode) {
+  return mode === "advantage" ? " (Adv)" : mode === "disadvantage" ? " (Dis)" : "";
+}
 
-  // Post to campaign chat — getSenderName() handles character name + DM preview impersonation
-  void sendRoll({
-    total,
-    label,
-    modifier,
-    breakdown: [{ val: dice, dropped: false }],
-    isCrit: dice === 20,
-    isFumble: dice === 1,
-  });
+function doRoll(label: string, modifier: number, mode: RollMode = "normal") {
+  const result = rollDice({ 20: 1 }, modifier, mode);
+  const kept = result.breakdown.find(d => !d.dropped)!;
+  const fullLabel = label + modeTag(mode);
+  rollToast.value = { label: fullLabel, dice: kept.val, modifier, total: result.total };
+  if (rollTimer) clearTimeout(rollTimer);
+  rollTimer = setTimeout(() => { rollToast.value = null; }, 3000);
+  void sendRoll({ ...result, label: fullLabel });
 }
 
 
 function onRollAbility(_key: string, label: string, mod: number) {
-  doRoll(`${label} Check`, mod);
+  doRoll(`${label} Check`, mod, checkDisadvantage.value ? "disadvantage" : "normal");
 }
 function onRollSave(_key: string, label: string, bonus: number) {
   doRoll(`${label} Save`, bonus);
@@ -752,11 +796,12 @@ async function rollSkill(skill: (typeof SKILLS)[number]) {
   const isImmersive =
     campaignStore.activeCampaign?.immersive_rolls &&
     IMMERSIVE_SKILL_KEYS.has(skill.key);
+  const mode: RollMode = checkDisadvantage.value ? "disadvantage" : "normal";
 
   if (isImmersive) {
-    const dice = Math.floor(Math.random() * 20) + 1;
     const modifier = skillBonusValue(skill);
-    const total = dice + modifier;
+    const result = rollDice({ 20: 1 }, modifier, mode);
+    const kept = result.breakdown.find(d => !d.dropped)!;
     const label = `${skill.label} Check`;
     const name = member.value?.name ?? "Unknown";
 
@@ -766,17 +811,18 @@ async function rollSkill(skill: (typeof SKILLS)[number]) {
     // Full result whispered to DM only
     if (dmUserId.value) {
       await sendRoll(
-        { label, total, modifier, breakdown: [{ val: dice, dropped: false }], isCrit: dice === 20, isFumble: dice === 1 },
+        { ...result, label },
         dmUserId.value,
         name,
       );
     }
 
     // No local toast — player is unaware of the result
+    void kept; // suppress unused warning
     return;
   }
 
-  doRoll(`${skill.label} Check`, skillBonusValue(skill));
+  doRoll(`${skill.label} Check`, skillBonusValue(skill), mode);
 }
 
 // ── Spells ─────────────────────────────────────────────────────────────────────
@@ -836,13 +882,14 @@ function rollSpellDamage(spell: { name: string; damage_rolls?: Array<{ dice: str
 
 function rollSpellAttack(spell: { name: string }) {
   if (spellAttackBonus.value === null) return;
-  const dice = Math.floor(Math.random() * 20) + 1;
-  const total = dice + spellAttackBonus.value;
-  const label = `${spell.name} — Spell Attack`;
-  rollToast.value = { label, dice, modifier: spellAttackBonus.value, total };
+  const mode: RollMode = attackDisadvantage.value ? "disadvantage" : "normal";
+  const result = rollDice({ 20: 1 }, spellAttackBonus.value, mode);
+  const kept = result.breakdown.find(d => !d.dropped)!;
+  const fullLabel = `${spell.name} — Spell Attack` + modeTag(mode);
+  rollToast.value = { label: fullLabel, dice: kept.val, modifier: spellAttackBonus.value, total: result.total };
   if (rollTimer) clearTimeout(rollTimer);
   rollTimer = setTimeout(() => { rollToast.value = null; }, 3000);
-  void sendRoll({ total, label, modifier: spellAttackBonus.value, breakdown: [{ val: dice, dropped: false }], isCrit: dice === 20, isFumble: dice === 1 });
+  void sendRoll({ ...result, label: fullLabel });
 }
 
 // ── Weapon attacks ─────────────────────────────────────────────────────────────
@@ -898,26 +945,14 @@ function rollDiceExpression(expr: string): {
 
 function rollWeaponAttack(inv: PartyInventoryItem, item: Item) {
   const mod = weaponAttackMod(item);
-  const dice = Math.floor(Math.random() * 20) + 1;
-  const total = dice + mod;
-  rollToast.value = {
-    label: `${inv.name} — Attack`,
-    dice,
-    modifier: mod,
-    total,
-  };
+  const mode: RollMode = attackDisadvantage.value ? "disadvantage" : "normal";
+  const result = rollDice({ 20: 1 }, mod, mode);
+  const kept = result.breakdown.find(d => !d.dropped)!;
+  const fullLabel = `${inv.name} — Attack` + modeTag(mode);
+  rollToast.value = { label: fullLabel, dice: kept.val, modifier: mod, total: result.total };
   if (rollTimer) clearTimeout(rollTimer);
-  rollTimer = setTimeout(() => {
-    rollToast.value = null;
-  }, 3000);
-  void sendRoll({
-    total,
-    label: `${inv.name} — Attack`,
-    modifier: mod,
-    breakdown: [{ val: dice, dropped: false }],
-    isCrit: dice === 20,
-    isFumble: dice === 1,
-  });
+  rollTimer = setTimeout(() => { rollToast.value = null; }, 3000);
+  void sendRoll({ ...result, label: fullLabel });
 }
 
 function rollWeaponDamage(inv: PartyInventoryItem, item: Item) {
