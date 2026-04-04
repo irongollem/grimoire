@@ -142,19 +142,12 @@
               >
                 LOCATION
               </label>
-              <select
-                v-model="form.location_id"
-                class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option :value="null">— none —</option>
-                <option
-                  v-for="loc in allLocations ?? []"
-                  :key="loc.id"
-                  :value="loc.id"
-                >
-                  {{ loc.name }}
-                </option>
-              </select>
+              <EntityCombobox
+                :model-value="form.location_id ?? ''"
+                :options="allLocations ?? []"
+                placeholder="— no location —"
+                @update:model-value="form.location_id = $event || null"
+              />
             </div>
           </div>
         </div>
@@ -397,6 +390,7 @@ import type {
 } from "@/types/encounter.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
 import EncounterCombatants from "@/components/encounters/EncounterCombatants.vue";
 import EncounterDifficulty from "@/components/encounters/EncounterDifficulty.vue";

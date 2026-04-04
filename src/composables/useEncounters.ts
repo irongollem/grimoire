@@ -47,6 +47,8 @@ async function updateEncounter(id: string, update: EncounterUpdate): Promise<Enc
 }
 
 async function deleteEncounter(id: string): Promise<void> {
+  // Remove this encounter from any quest it was linked to
+  await supabase.from("quest_refs").delete().eq("ref_type", "encounter").eq("ref_id", id);
   const { error } = await supabase.from("encounters").delete().eq("id", id);
   if (error) throw error;
 }
@@ -116,6 +118,7 @@ export function useDeleteEncounter() {
     onSuccess: (_data, id) => {
       queryClient.removeQueries({ queryKey: [QUERY_KEY, id] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: ["quests"] });
     },
   });
 }

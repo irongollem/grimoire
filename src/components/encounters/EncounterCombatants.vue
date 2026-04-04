@@ -159,15 +159,13 @@
         </div>
 
         <!-- Faction selector -->
-        <select
-          v-model="entry.faction_id"
-          class="bg-card border border-border rounded px-2 py-1 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @change="emitCombatants"
-        >
-          <option v-for="faction in props.factions" :key="faction.id" :value="faction.id">
-            {{ faction.name }}
-          </option>
-        </select>
+        <EntityCombobox
+          :model-value="entry.faction_id"
+          :options="props.factions"
+          placeholder="Faction…"
+          class="w-36 shrink-0"
+          @update:model-value="entry.faction_id = $event; emitCombatants()"
+        />
 
         <!-- Remove -->
         <button
@@ -189,6 +187,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { Plus, X, Search, Minus } from "lucide-vue-next";
+import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import type { CombatantDef, FactionDef } from "@/types/encounter.types";
 import { crToXp } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";

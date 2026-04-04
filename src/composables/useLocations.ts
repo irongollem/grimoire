@@ -65,6 +65,10 @@ async function updateLocation(id: string, update: LocationUpdate): Promise<Locat
 }
 
 async function deleteLocation(id: string): Promise<void> {
+  // Remove this location from any quest_refs that reference it
+  await supabase.from("quest_refs").delete().eq("ref_type", "location").eq("ref_id", id);
+  // Null out quests that have this location set as their primary location
+  await supabase.from("quests").update({ location_id: null }).eq("location_id", id);
   const { error } = await supabase.from("locations").delete().eq("id", id);
   if (error) throw error;
 }
@@ -212,6 +216,7 @@ export function useDeleteLocation() {
       // view doesn't trigger a refetch (which would return 406 and retry-loop).
       queryClient.removeQueries({ queryKey: [QUERY_KEY, id] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: ["quests"] });
     },
   });
 }

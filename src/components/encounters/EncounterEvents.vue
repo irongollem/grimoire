@@ -31,10 +31,12 @@
             </select>
             <input v-if="editEventData.triggerType === 'round_start'" v-model.number="editEventData.round" type="number" min="1" placeholder="Round number" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
             <template v-if="editEventData.triggerType === 'combatant_hp_pct' || editEventData.triggerType === 'combatant_dies'">
-              <select v-model="editEventData.combatant_def_id" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
-                <option value="">— select combatant —</option>
-                <option v-for="entry in monsterCombatants" :key="entry.id" :value="entry.id">{{ combatantLabel(entry) }}</option>
-              </select>
+              <EntityCombobox
+                :model-value="editEventData.combatant_def_id"
+                :options="monsterCombatantOptions"
+                placeholder="— select combatant —"
+                @update:model-value="editEventData.combatant_def_id = $event"
+              />
               <div v-if="editEventData.triggerType === 'combatant_hp_pct'" class="flex items-center gap-2">
                 <input v-model.number="editEventData.pct" type="number" min="1" max="99" class="w-20 bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
                 <span class="font-cinzel text-xs text-muted-foreground">% HP or below</span>
@@ -48,19 +50,24 @@
               <option value="broadcast_message">Broadcast Message</option>
             </select>
             <template v-if="editEventData.actionType === 'spawn_combatants'">
-              <select v-model="editEventData.spawnMonster" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
-                <option value="">— select monster —</option>
-                <option v-for="m in props.monsters" :key="m.id" :value="m.id">{{ m.name }}</option>
-              </select>
+              <EntityCombobox
+                :model-value="editEventData.spawnMonster"
+                :options="props.monsters"
+                placeholder="— select monster —"
+                @update:model-value="editEventData.spawnMonster = $event"
+              />
               <div class="flex items-center gap-2">
                 <div class="flex items-center gap-1">
                   <button type="button" class="w-6 h-6 rounded bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground" @click="editEventData.spawnCount = Math.max(1, editEventData.spawnCount - 1)"><Minus class="h-3 w-3" /></button>
                   <span class="font-cinzel text-sm font-bold w-6 text-center">{{ editEventData.spawnCount }}</span>
                   <button type="button" class="w-6 h-6 rounded bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground" @click="editEventData.spawnCount = Math.min(20, editEventData.spawnCount + 1)"><Plus class="h-3 w-3" /></button>
                 </div>
-                <select v-model="editEventData.spawnFaction" class="flex-1 bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
-                  <option v-for="faction in props.factions" :key="faction.id" :value="faction.id">{{ faction.name }}</option>
-                </select>
+                <EntityCombobox
+                  :model-value="editEventData.spawnFaction"
+                  :options="props.factions"
+                  placeholder="Faction…"
+                  @update:model-value="editEventData.spawnFaction = $event"
+                />
               </div>
             </template>
             <input v-if="editEventData.actionType === 'broadcast_message'" v-model="editEventData.message" type="text" placeholder="Message to broadcast…" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
@@ -126,10 +133,12 @@
           </select>
           <input v-if="newEvent.triggerType === 'round_start'" v-model.number="newEvent.round" type="number" min="1" placeholder="Round number" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
           <template v-if="newEvent.triggerType === 'combatant_hp_pct' || newEvent.triggerType === 'combatant_dies'">
-            <select v-model="newEvent.combatant_def_id" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
-              <option value="">— select combatant —</option>
-              <option v-for="entry in monsterCombatants" :key="entry.id" :value="entry.id">{{ combatantLabel(entry) }}</option>
-            </select>
+            <EntityCombobox
+              :model-value="newEvent.combatant_def_id"
+              :options="monsterCombatantOptions"
+              placeholder="— select combatant —"
+              @update:model-value="newEvent.combatant_def_id = $event"
+            />
             <div v-if="newEvent.triggerType === 'combatant_hp_pct'" class="flex items-center gap-2">
               <input v-model.number="newEvent.pct" type="number" min="1" max="99" class="w-20 bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
               <span class="font-cinzel text-xs text-muted-foreground">% HP or below</span>
@@ -143,19 +152,24 @@
             <option value="broadcast_message">Broadcast Message</option>
           </select>
           <template v-if="newEvent.actionType === 'spawn_combatants'">
-            <select v-model="newEvent.spawnMonster" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
-              <option value="">— select monster —</option>
-              <option v-for="m in props.monsters" :key="m.id" :value="m.id">{{ m.name }}</option>
-            </select>
+            <EntityCombobox
+              :model-value="newEvent.spawnMonster"
+              :options="props.monsters"
+              placeholder="— select monster —"
+              @update:model-value="newEvent.spawnMonster = $event"
+            />
             <div class="flex items-center gap-2">
               <div class="flex items-center gap-1">
                 <button type="button" class="w-6 h-6 rounded bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground" @click="newEvent.spawnCount = Math.max(1, newEvent.spawnCount - 1)"><Minus class="h-3 w-3" /></button>
                 <span class="font-cinzel text-sm font-bold w-6 text-center">{{ newEvent.spawnCount }}</span>
                 <button type="button" class="w-6 h-6 rounded bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground" @click="newEvent.spawnCount = Math.min(20, newEvent.spawnCount + 1)"><Plus class="h-3 w-3" /></button>
               </div>
-              <select v-model="newEvent.spawnFaction" class="flex-1 bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
-                <option v-for="faction in props.factions" :key="faction.id" :value="faction.id">{{ faction.name }}</option>
-              </select>
+              <EntityCombobox
+                :model-value="newEvent.spawnFaction"
+                :options="props.factions"
+                placeholder="Faction…"
+                @update:model-value="newEvent.spawnFaction = $event"
+              />
             </div>
           </template>
           <input v-if="newEvent.actionType === 'broadcast_message'" v-model="newEvent.message" type="text" placeholder="Message to broadcast to players…" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
@@ -183,6 +197,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { Plus, X, Minus, Eye, EyeOff, Pencil } from "lucide-vue-next";
+import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import type {
   CombatantDef,
   FactionDef,
@@ -235,6 +250,10 @@ function combatantLabel(entry: CombatantDef): string {
 // Only monster combatants are relevant for triggers
 const monsterCombatants = computed(() =>
   props.combatants.filter((c) => c.monster_id),
+);
+
+const monsterCombatantOptions = computed(() =>
+  monsterCombatants.value.map((c) => ({ id: c.id, name: combatantLabel(c) })),
 );
 
 function combatantLabelById(defId: string): string {
