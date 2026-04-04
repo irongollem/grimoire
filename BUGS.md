@@ -2,6 +2,8 @@
 
 ## Done
 
+- [x] Trait/action descriptions in encounter runner showed raw Tiptap JSON (`{"type":"doc",...}`) instead of readable text — `renderTraitDesc()` added to `RunnerEntityDetail`; parses Tiptap JSON via `generateHTML(StarterKit)` and falls back to plain string for legacy entries; all `t.description`, `effect_description`, and `notes` fields now use `v-html="renderTraitDesc(...)"` instead of `{{ t.description }}`
+
 - [x] Saving an existing location wipes it from the list — `buildPayload()` included `campaign_id: null`, overwriting the row's campaign_id on every update; locations query filters by campaign_id so the row became invisible. Fixed by removing `campaign_id` from the update payload.
 
 - [x] hitting print on cardforge when the chat is open instead sends the chat overlay to the printview
@@ -129,6 +131,9 @@
 - [x] deleting an encounter doesnt remove it from a quest (becomes an orphaned id) — deleteEncounter now removes quest_refs rows with ref_type=encounter before deleting
 - [x] deleting a location doesn't remove it from a quest — deleteLocation now removes quest_refs rows with ref_type=location and nulls quests.location_id before deleting
 - [x] quest reward items were separate from currency pools and inconsistent with encounter loot — replaced both with `EncounterLoot` component; items now stored as `reward_item_ids uuid[]` on the quest row (migration `20260404000001`); drop-to-chat removes item and auto-saves
+
+- [x] In encounter runner, both NPCs and Monsters show as "NPC" label — `RunCombatant` type field only distinguished "player" vs "monster"; NPCs were assigned type="monster" so couldn't be visually distinguished. Fixed: type badge now checks `npc_id` field to render "NPC" or "Monster" accordingly.
+- [x] Traps and upcoming events not visible in encounter runner — traps were stored in encounter.trap_ids but never loaded into the encounterRun store; added `useTraps()` query to `EncounterRunView`, filter to encounter's trap_ids, and load into store during init/hydration; added traps panel to EncounterRunner UI showing trap name, type, trigger, and DC/damage dice. Events were already loaded but may not have been visible if encounter had no events defined; now both panels show conditionally when data exists.
 
 ## Regressing bugs
 

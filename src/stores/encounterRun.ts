@@ -3,6 +3,7 @@ import { defineStore } from "pinia";
 import type { RunCombatant, FactionDef, RevealState, EncounterEvent, EventTrigger, SpawnDef, WildshapeState } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import type { Npc } from "@/types/npc.types";
+import type { Trap } from "@/types/trap.types";
 
 export const useEncounterRunStore = defineStore("encounterRun", () => {
   const encounterId = ref<string | null>(null);
@@ -14,6 +15,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   const started = ref(false); // true = initiative locked + sorted
   const events = ref<EncounterEvent[]>([]);
   const eventsFired = ref<string[]>([]);
+  const traps = ref<Trap[]>([]);
   const availableMonsters = ref<Monster[]>([]);
   const availableNpcs = ref<Npc[]>([]);
   const pendingBroadcasts = ref<string[]>([]);
@@ -172,6 +174,70 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     return false;
   }
 
+  function addMonster(monsterId: string, factionId: string, count: number, customName?: string) {
+    const monster = availableMonsters.value.find((m) => m.id === monsterId);
+    if (!monster) return;
+    const sb = monster.stat_block;
+    const maxHp = parseInt(String(sb?.hit_points ?? "1").split(" ")[0], 10) || 1;
+    const dex = Number(sb?.dex ?? 10);
+    const dexMod = Math.floor((dex - 10) / 2);
+    const ac = String(sb?.armor_class ?? 10);
+    const spawnKey = `spawn-${monsterId}-${Date.now()}`;
+    for (let i = 0; i < count; i++) {
+      const displayName = count > 1 ? `${customName || monster.name} ${i + 1}` : customName || monster.name;
+      combatants.value.push({
+        instance_id: `${spawnKey}-${i}`,
+        type: "monster",
+        name: displayName,
+        faction_id: factionId,
+        initiative: started.value ? Math.floor(Math.random() * 20) + 1 + dexMod : null,
+        hp: maxHp,
+        max_hp: maxHp,
+        ac,
+        conditions: [],
+        curses: [],
+        death_saves: { successes: 0, failures: 0 },
+        monster_id: monster.id,
+        dex_mod: dexMod,
+        reveal_state: "hidden",
+        portrait_url: monster.image_url ?? null,
+        portrait_focal_point: monster.portrait_focal_point ?? null,
+      });
+    }
+  }
+
+  function addNpc(npcId: string, factionId: string, count: number, customName?: string) {
+    const npc = availableNpcs.value.find((n) => n.id === npcId);
+    if (!npc) return;
+    const sb = npc.stat_block;
+    const maxHp = parseInt(String(sb?.hit_points ?? "10").split(" ")[0], 10) || 10;
+    const dex = Number(sb?.dex ?? 10);
+    const dexMod = Math.floor((dex - 10) / 2);
+    const ac = String(sb?.armor_class ?? 10);
+    const spawnKey = `spawn-npc-${npcId}-${Date.now()}`;
+    for (let i = 0; i < count; i++) {
+      const displayName = count > 1 ? `${customName || npc.name} ${i + 1}` : customName || npc.name;
+      combatants.value.push({
+        instance_id: `${spawnKey}-${i}`,
+        type: "monster",
+        name: displayName,
+        faction_id: factionId,
+        initiative: started.value ? Math.floor(Math.random() * 20) + 1 + dexMod : null,
+        hp: maxHp,
+        max_hp: maxHp,
+        ac,
+        conditions: [],
+        curses: [],
+        death_saves: { successes: 0, failures: 0 },
+        npc_id: npc.id,
+        dex_mod: dexMod,
+        reveal_state: "hidden",
+        portrait_url: npc.portrait_url ?? null,
+        portrait_focal_point: npc.portrait_focal_point ?? null,
+      });
+    }
+  }
+
   function spawnFromDef(spawn: SpawnDef) {
     const monster = availableMonsters.value.find((m) => m.id === spawn.monster_id);
     if (!monster) return;
@@ -247,6 +313,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     started.value = false;
     events.value = [];
     eventsFired.value = [];
+    traps.value = [];
     availableMonsters.value = [];
     availableNpcs.value = [];
     pendingBroadcasts.value = [];
@@ -261,6 +328,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     combatants_live: RunCombatant[];
     events?: EncounterEvent[];
     events_fired?: string[];
+    traps?: Trap[];
   }) {
     encounterId.value = state.encounter_id;
     encounterName.value = state.encounter_name;
@@ -271,6 +339,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     started.value = true;
     if (state.events) events.value = state.events;
     if (state.events_fired) eventsFired.value = state.events_fired;
+    if (state.traps) traps.value = state.traps;
   }
 
   return {
@@ -283,6 +352,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     started,
     events,
     eventsFired,
+    traps,
     availableMonsters,
     availableNpcs,
     pendingBroadcasts,
@@ -302,6 +372,8 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     cycleRevealState,
     enterWildshape,
     revertWildshape,
+    addMonster,
+    addNpc,
     fireEvent,
     checkEvents,
     clearPendingBroadcast,

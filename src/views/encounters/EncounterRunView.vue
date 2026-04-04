@@ -15,6 +15,7 @@ import { useAllMonsters } from "@/composables/useMonsters";
 import { useParty } from "@/composables/useParty";
 import { useCompanions } from "@/composables/useCompanions";
 import { useNpcs } from "@/composables/useNpcs";
+import { useTraps } from "@/composables/useTraps";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useEncounterLive } from "@/composables/useEncounterLive";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
@@ -33,20 +34,21 @@ const { data: monsters } = useAllMonsters();
 const { data: party } = useParty();
 const { data: companions } = useCompanions();
 const { data: npcs } = useNpcs();
+const { data: allTraps } = useTraps();
 const store = useEncounterRunStore();
 const { liveState, liveStateLoaded } = useEncounterLive(id.value);
 
 const isReady = computed(
-  () => !!encounter.value && !!monsters.value && !!party.value && !!companions.value && !!npcs.value,
+  () => !!encounter.value && !!monsters.value && !!party.value && !!companions.value && !!npcs.value && !!allTraps.value,
 );
 
 watch(
   // Include liveState + liveStateLoaded so the watch re-fires once the DB
   // fetch completes. Without this, liveState is null on page refresh and
   // initStore() would fire before we know whether a live state exists.
-  [encounter, monsters, party, companions, npcs, liveState, liveStateLoaded],
-  ([enc, mons, par, _comps, npcList]) => {
-    if (!enc || !mons || !par || !npcList) return;
+  [encounter, monsters, party, companions, npcs, allTraps, liveState, liveStateLoaded],
+  ([enc, mons, par, _comps, npcList, traps]) => {
+    if (!enc || !mons || !par || !npcList || !traps) return;
     // Wait for the DB check to complete before deciding what to do
     if (!liveStateLoaded.value) return;
 
@@ -64,6 +66,7 @@ watch(
         combatants_live: live.combatants_live,
         events: enc.events ?? [],
         events_fired: live.events_fired ?? [],
+        traps: filterEncounterTraps(enc.trap_ids, traps),
       });
       store.availableMonsters = mons;
       store.availableNpcs = npcList as Npc[];
@@ -72,12 +75,17 @@ watch(
 
     // No live state — always re-init from encounter definition.
     // This ensures monsters/NPCs added in the builder after a previous run are picked up.
-    initStore(enc, mons, par, npcList as Npc[]);
+    initStore(enc, mons, par, npcList as Npc[], filterEncounterTraps(enc.trap_ids, traps));
   },
   { immediate: true },
 );
 
-function initStore(enc: Encounter, mons: Monster[], par: PartyMember[], npcList: Npc[]) {
+function filterEncounterTraps(trapIds: string[], allTraps: any[]): any[] {
+  const trapSet = new Set(trapIds);
+  return allTraps.filter((t) => trapSet.has(t.id));
+}
+
+function initStore(enc: Encounter, mons: Monster[], par: PartyMember[], npcList: Npc[], traps: any[] = []) {
   store.reset();
   store.encounterId = enc.id;
   store.encounterName = enc.name;
@@ -210,5 +218,6 @@ function initStore(enc: Encounter, mons: Monster[], par: PartyMember[], npcList:
   store.availableNpcs = npcList;
   store.events = enc.events ?? [];
   store.eventsFired = [];
+  store.traps = traps;
 }
 </script>

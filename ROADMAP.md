@@ -57,6 +57,7 @@
 
 - [x] Encounters — builder (combatants + NPC combatants, factions, XP difficulty calculator with ally offset)
 - [x] Encounter Runner — live combat with initiative, HP, conditions, death saves
+- [x] Encounter Runner — spawn monsters/NPCs mid-encounter via ⚔ SPAWN panel (EntityCombobox + faction + count, stacked with traps in shared sidebar column)
 - [x] Named curses in encounter runner (separate from flat conditions, syncs back to party on end combat)
 - [x] End-combat sync — HP, conditions, curses, and death saves written back to party_members
 
@@ -139,7 +140,7 @@
 - [x] **Traproom** — full CRUD for traps with image, type badge, trigger, detection/disarm DCs, CR+XP, save, attack bonus, damage dice (via DiceExprInput), damage type, reset type, rich description + DM notes; Assets group (no campaign scoping)
 - [x] Trap HP/AC fields (physical destruction) + CR advisor (Suggest button → modal grades CR from effect category, targeting, DC tier, reset, HP/AC, secondary effects)
 - [x] Add traps (created in the traproom) as elements of an encounter so their CR contributes to the total — `EncounterTraps` component in encounter builder; trap XP added flat (no multiplier) to difficulty; hazard XP shown separately in Difficulty Analysis panel
-- [ ] Trap triggering and tracking in the encounter runner
+- [x] Trap detail panel in encounter runner — click a trap to inspect it; roll Detect/Disarm DCs, attack bonus, save DC, and damage dice; effect description and notes shown inline
 - [ ] puzzle room - create puzzles with images, hints, solutions
 - [ ] secret door - create hidden passages with images, triggers, discovery methods
 
