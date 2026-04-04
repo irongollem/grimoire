@@ -53,11 +53,15 @@
             <div class="flex items-center gap-2 mb-0.5">
               <p class="font-cinzel text-sm font-bold text-foreground truncate">{{ recipe.name }}</p>
               <span
-                class="shrink-0 font-cinzel text-[10px] tracking-wider px-1.5 py-0.5 rounded border"
-                :class="recipe.is_player_visible ? 'border-elven-green/40 text-elven-green bg-elven-green/10' : 'border-border text-muted-foreground'"
-              >
-                {{ recipe.is_player_visible ? "Visible" : "Hidden" }}
-              </span>
+                v-if="recipe.requires_proficiency"
+                class="shrink-0 font-cinzel text-[10px] tracking-wider px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
+                title="Requires tool proficiency"
+              >PROF</span>
+              <span
+                v-if="recipe.requires_tools"
+                class="shrink-0 font-cinzel text-[10px] tracking-wider px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
+                title="Requires physical tools"
+              >TOOLS</span>
             </div>
             <p class="font-fell text-xs text-muted-foreground">
               DC {{ recipe.dc }} · {{ recipe.crafting_time_days }} day{{ recipe.crafting_time_days !== 1 ? "s" : "" }}
@@ -66,13 +70,6 @@
 
           <!-- Actions -->
           <div class="flex items-center gap-1 shrink-0">
-            <button
-              class="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-              title="Toggle player visibility"
-              @click="toggleVisibility(recipe)"
-            >
-              <Eye class="h-3.5 w-3.5" />
-            </button>
             <button
               class="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               title="Edit recipe"
@@ -96,10 +93,10 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Eye, Pencil, Plus, Trash2 } from "lucide-vue-next";
+import { Pencil, Plus, Trash2 } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting-disciplines";
-import { useCraftingRecipes, useUpdateRecipe, useDeleteRecipe } from "@/composables/useCrafting";
+import { useCraftingRecipes, useDeleteRecipe } from "@/composables/useCrafting";
 import { useConfirm } from "@/composables/useConfirm";
 import type { CraftingRecipe, CraftingDiscipline } from "@/types/crafting.types";
 
@@ -107,17 +104,12 @@ const activeTab = ref<CraftingDiscipline>("smithing");
 const activeDiscipline = computed(() => getDiscipline(activeTab.value));
 
 const { data: recipes, isLoading } = useCraftingRecipes();
-const { mutateAsync: updateRecipe } = useUpdateRecipe();
 const { mutateAsync: deleteRecipe } = useDeleteRecipe();
 const { confirm } = useConfirm();
 
 const disciplineRecipes = computed(() =>
   (recipes.value ?? []).filter((r) => r.discipline === activeTab.value),
 );
-
-async function toggleVisibility(recipe: CraftingRecipe) {
-  await updateRecipe({ id: recipe.id, update: { is_player_visible: !recipe.is_player_visible } });
-}
 
 async function remove(recipe: CraftingRecipe) {
   const ok = await confirm(`Delete "${recipe.name}"? This cannot be undone.`, { title: "Delete Recipe" });

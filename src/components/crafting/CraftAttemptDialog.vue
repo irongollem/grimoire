@@ -12,7 +12,8 @@
             <p class="font-fell text-xs text-muted-foreground italic">
               {{ discipline.label }} · DC {{ recipe.dc }} ·
               <span class="capitalize">{{ discipline.ability }} check</span>
-              <span v-if="profBonus > 0"> + proficiency</span>
+              <span v-if="hasProficiency && profBonus > 0"> + proficiency</span>
+              <span v-else-if="!hasProficiency" class="text-gold-400"> · no proficiency</span>
             </p>
           </div>
           <button
@@ -44,6 +45,18 @@
             </div>
           </div>
 
+          <!-- No proficiency notice -->
+          <div
+            v-if="!hasProficiency"
+            class="flex items-start gap-2 rounded-md border border-gold-500/40 bg-gold-500/10 px-3 py-2.5"
+          >
+            <AlertTriangle class="h-4 w-4 text-gold-400 shrink-0 mt-0.5" />
+            <p class="font-fell text-xs text-gold-400">
+              You don't have <span class="font-semibold">{{ discipline.tool }}</span> proficiency.
+              No proficiency bonus is added to this roll.
+            </p>
+          </div>
+
           <!-- Disadvantage notice -->
           <div
             v-if="!hasTools"
@@ -56,10 +69,32 @@
             </p>
           </div>
 
-          <!-- Conditional modifiers -->
-          <div v-if="modifiers.length > 0">
+          <!-- Modifiers: default + recipe-specific -->
+          <div v-if="modifiers.length > 0 || workspaceBonus > 0">
             <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">AVAILABLE MODIFIERS</p>
             <div class="flex flex-col gap-1.5">
+              <!-- Standard workspace bonus -->
+              <label
+                v-if="workspaceBonus > 0"
+                class="flex items-center gap-2.5 rounded-md border border-border px-3 py-2 cursor-pointer hover:bg-muted/40 transition-colors"
+                :class="workspaceEnabled ? 'border-primary/40 bg-primary/5' : ''"
+              >
+                <input type="checkbox" class="accent-primary" v-model="workspaceEnabled" />
+                <span class="flex-1 font-fell text-sm text-foreground">{{ workspaceLabel }}</span>
+                <span class="font-cinzel text-xs text-primary font-semibold shrink-0">+{{ workspaceBonus }}</span>
+              </label>
+
+              <!-- Standard poor-ingredient penalty -->
+              <label
+                class="flex items-center gap-2.5 rounded-md border border-border px-3 py-2 cursor-pointer hover:bg-muted/40 transition-colors"
+                :class="poorIngredientsEnabled ? 'border-destructive/40 bg-destructive/5' : ''"
+              >
+                <input type="checkbox" class="accent-primary" v-model="poorIngredientsEnabled" />
+                <span class="flex-1 font-fell text-sm text-foreground">Poor quality ingredients</span>
+                <span class="font-cinzel text-xs text-destructive font-semibold shrink-0">{{ POOR_INGREDIENTS_PENALTY }}</span>
+              </label>
+
+              <!-- Recipe-specific modifiers -->
               <label
                 v-for="(mod, idx) in modifiers"
                 :key="idx"
@@ -155,6 +190,8 @@ import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 import type { PartyMember } from "@/types/party.types";
 
+const POOR_INGREDIENTS_PENALTY = -2;
+
 const props = defineProps<{
   open: boolean;
   recipe: CraftingRecipe;
@@ -170,6 +207,12 @@ const props = defineProps<{
   member: PartyMember;
   /** Whether the player has the required tool in their inventory */
   hasTools: boolean;
+  /** Whether the player has tool proficiency — if false, proficiency bonus is not added */
+  hasProficiency: boolean;
+  /** Standard bonus for having a proper workspace (per discipline) */
+  workspaceBonus: number;
+  /** Label for the workspace bonus checkbox */
+  workspaceLabel: string;
 }>();
 
 defineEmits<{
@@ -183,6 +226,8 @@ const { sendMessage } = useCampaignMessages();
 const result = ref<CraftingAttemptResult | null>(null);
 const attempting = ref(false);
 const selectedModifiers = ref<Set<number>>(new Set());
+const workspaceEnabled = ref(false);
+const poorIngredientsEnabled = ref(false);
 
 const discipline = computed(() => getDiscipline(props.recipe.discipline));
 
@@ -193,6 +238,8 @@ const abilityMod = computed(() => {
 });
 
 const profBonus = computed(() => props.member.proficiency_bonus);
+// Only apply proficiency bonus if the player has tool proficiency
+const effectiveProfBonus = computed(() => props.hasProficiency ? profBonus.value : 0);
 
 // Match each required ingredient to inventory items
 const ingredientSlots = computed(() =>
@@ -224,9 +271,12 @@ function toggleModifier(idx: number) {
   selectedModifiers.value = new Set(selectedModifiers.value);
 }
 
-const modifierBonuses = computed(() =>
-  [...selectedModifiers.value].map((idx) => props.modifiers[idx].bonus),
-);
+const modifierBonuses = computed(() => {
+  const bonuses = [...selectedModifiers.value].map((idx) => props.modifiers[idx].bonus);
+  if (workspaceEnabled.value) bonuses.push(props.workspaceBonus);
+  if (poorIngredientsEnabled.value) bonuses.push(POOR_INGREDIENTS_PENALTY);
+  return bonuses;
+});
 
 // Resolve which inventory item IDs to consume
 function resolveInventoryIds(): { ids: string[]; primaryId: string; primaryItem: PartyInventoryItem } {
@@ -299,7 +349,7 @@ async function attempt() {
       },
       modifierBonuses: modifierBonuses.value,
       abilityMod: abilityMod.value,
-      profBonus: profBonus.value,
+      profBonus: effectiveProfBonus.value,
       hasTools: props.hasTools,
       partyMemberId: props.member.id,
     });
@@ -309,8 +359,10 @@ async function attempt() {
     // Post to chat
     const modSum = modifierBonuses.value.reduce((a, b) => a + b, 0);
     let msg = `🔨 **${props.member.name}** attempted to craft **${props.recipe.name}** (DC ${props.recipe.dc})`;
-    msg += `\nRoll: ${res.roll}${res.hasDisadvantage && res.roll2 !== undefined ? ` (disadvantage: also rolled ${Math.max(res.roll, res.roll2)})` : ""} + ${abilityMod.value} (${discipline.value.ability.toUpperCase()}) + ${profBonus.value} (prof)`;
-    if (modSum > 0) msg += ` + ${modSum} (modifiers)`;
+    msg += `\nRoll: ${res.roll}${res.hasDisadvantage && res.roll2 !== undefined ? ` (disadvantage: also rolled ${Math.max(res.roll, res.roll2)})` : ""} + ${abilityMod.value} (${discipline.value.ability.toUpperCase()})`;
+    if (props.hasProficiency) msg += ` + ${profBonus.value} (prof)`;
+    else msg += ` (no proficiency)`;
+    if (modSum !== 0) msg += ` ${modSum >= 0 ? "+" : ""}${modSum} (modifiers)`;
     msg += ` = **${res.total}** vs DC ${props.recipe.dc}`;
     if (res.outcome === "success") msg += `\n✅ **Success!** ${outputNames.value.join(", ")} crafted.`;
     else if (res.outcome === "ruin") msg += `\n💀 **Critical failure!** Primary ingredient ruined.`;

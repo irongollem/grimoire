@@ -1,4 +1,4 @@
-import { computed } from "vue";
+import { computed, type Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
@@ -79,6 +79,16 @@ async function fetchGrants(recipeId: string): Promise<CraftingRecipeGrant[]> {
     .eq("recipe_id", recipeId);
   if (error) throw error;
   return data as CraftingRecipeGrant[];
+}
+
+/** Returns recipe IDs granted to a specific party member */
+async function fetchPlayerGrantedRecipeIds(partyMemberId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("crafting_recipe_grants")
+    .select("recipe_id")
+    .eq("party_member_id", partyMemberId);
+  if (error) throw error;
+  return (data ?? []).map((g: { recipe_id: string }) => g.recipe_id);
 }
 
 // ── Mutation helpers ─────────────────────────────────────────────────────────
@@ -231,6 +241,16 @@ export function useRecipeGrants(recipeId: string) {
     queryKey: computed(() => [GRANTS_KEY, recipeId]),
     queryFn: () => fetchGrants(recipeId),
     enabled: !!recipeId,
+  });
+}
+
+const PLAYER_GRANTS_KEY = "crafting-player-grants";
+
+export function usePlayerRecipeGrants(partyMemberId: Ref<string | null>) {
+  return useQuery({
+    queryKey: computed(() => [PLAYER_GRANTS_KEY, partyMemberId.value]),
+    queryFn: () => fetchPlayerGrantedRecipeIds(partyMemberId.value!),
+    enabled: () => !!partyMemberId.value,
   });
 }
 

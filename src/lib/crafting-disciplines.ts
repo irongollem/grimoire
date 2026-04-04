@@ -21,6 +21,8 @@ export interface DisciplineConfig {
   tool: string;          // must match item name in inventory for tool check
   ability: SaveKey;      // primary ability for the crafting roll
   description: string;
+  workspaceBonus: number;   // standard bonus for having a proper workspace
+  workspaceLabel: string;   // label shown in attempt dialog (e.g. "Proper Kitchen Available")
 }
 
 export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
@@ -31,6 +33,8 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
     tool: "Alchemist's Supplies",
     ability: "int",
     description: "Potions, elixirs, acids, and alchemical concoctions.",
+    workspaceBonus: 2,
+    workspaceLabel: "Proper alchemist's lab available",
   },
   {
     id: "smithing",
@@ -39,6 +43,8 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
     tool: "Smith's Tools",
     ability: "str",
     description: "Weapons, armour, and metal goods forged at the anvil.",
+    workspaceBonus: 3,
+    workspaceLabel: "Full forge available",
   },
   {
     id: "leatherworking",
@@ -47,6 +53,8 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
     tool: "Leatherworker's Tools",
     ability: "dex",
     description: "Leather armour, saddlery, quivers, and straps.",
+    workspaceBonus: 2,
+    workspaceLabel: "Equipped leatherworking workshop available",
   },
   {
     id: "woodcarving",
@@ -55,6 +63,8 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
     tool: "Woodcarver's Tools",
     ability: "dex",
     description: "Bows, bolts, arrows, staves, and carved wooden items.",
+    workspaceBonus: 2,
+    workspaceLabel: "Woodworking workshop available",
   },
   {
     id: "jewelcrafting",
@@ -63,6 +73,8 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
     tool: "Jeweler's Tools",
     ability: "dex",
     description: "Rings, amulets, gem settings, and fine jewellery.",
+    workspaceBonus: 2,
+    workspaceLabel: "Jeweler's workshop available",
   },
   {
     id: "herbalism",
@@ -71,6 +83,8 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
     tool: "Herbalism Kit",
     ability: "wis",
     description: "Healing potions, antitoxins, and natural remedies.",
+    workspaceBonus: 2,
+    workspaceLabel: "Herb garden or drying room available",
   },
   {
     id: "poisoncraft",
@@ -79,6 +93,8 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
     tool: "Poisoner's Kit",
     ability: "int",
     description: "Contact, ingested, and injury poisons and antidotes.",
+    workspaceBonus: 2,
+    workspaceLabel: "Equipped poisoner's laboratory available",
   },
   {
     id: "tinkering",
@@ -87,6 +103,8 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
     tool: "Tinker's Tools",
     ability: "int",
     description: "Clockwork devices, traps, and mechanical gadgets.",
+    workspaceBonus: 2,
+    workspaceLabel: "Fully equipped workshop available",
   },
   {
     id: "cooking",
@@ -95,6 +113,8 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
     tool: "Cook's Utensils",
     ability: "wis",
     description: "Meals that grant mechanical benefits: temp HP, advantage, and more.",
+    workspaceBonus: 2,
+    workspaceLabel: "Proper kitchen available",
   },
   {
     id: "scribing",
@@ -103,6 +123,8 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
     tool: "Calligrapher's Supplies",
     ability: "int",
     description: "Spell scrolls, documents, maps, and illuminated texts.",
+    workspaceBonus: 2,
+    workspaceLabel: "Scriptorium or proper writing desk available",
   },
 ];
 

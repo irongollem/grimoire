@@ -13,13 +13,12 @@
           :key="d.id"
           class="flex items-center gap-1.5 px-3 py-2 rounded-md border font-cinzel text-xs tracking-wide transition-colors shrink-0"
           :class="tabClass(d)"
-          :disabled="!hasProficiency(d.tool)"
-          :title="!hasProficiency(d.tool) ? `Requires ${d.tool} proficiency` : d.label"
-          @click="hasProficiency(d.tool) && (activeTab = d.id)"
+          :title="!hasProficiency(d.tool) ? `No ${d.tool} proficiency — no proficiency bonus` : d.label"
+          @click="activeTab = d.id"
         >
           <component :is="d.icon" class="h-3.5 w-3.5" />
           {{ d.label }}
-          <span v-if="!hasProficiency(d.tool)" class="font-cinzel text-[9px] text-muted-foreground/50 tracking-wider">LOCKED</span>
+          <span v-if="!hasProficiency(d.tool)" class="font-cinzel text-[9px] text-muted-foreground/60 tracking-wider">NO PROF</span>
         </button>
       </div>
 
@@ -28,8 +27,13 @@
         {{ activeDiscipline.description }}
         <span class="not-italic ml-1">
           Uses <span class="font-semibold text-foreground">{{ activeDiscipline.ability.toUpperCase() }}</span>
-          ({{ abilityMod >= 0 ? "+" : "" }}{{ abilityMod }}) +
-          Proficiency (+{{ member.proficiency_bonus }}).
+          ({{ abilityMod >= 0 ? "+" : "" }}{{ abilityMod }})
+          <template v-if="hasProficiency(activeDiscipline.tool)">
+            + Proficiency (+{{ member.proficiency_bonus }}).
+          </template>
+          <template v-else>
+            — <span class="text-gold-400">no proficiency bonus</span>.
+          </template>
         </span>
       </p>
 
@@ -58,7 +62,21 @@
               </p>
             </div>
             <span
-              v-if="!hasTools(activeDiscipline.tool)"
+              v-if="recipe.requires_proficiency && !hasProficiency(activeDiscipline.tool)"
+              class="shrink-0 font-cinzel text-[9px] tracking-wider px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
+              :title="`Requires ${activeDiscipline.tool} proficiency`"
+            >
+              LOCKED
+            </span>
+            <span
+              v-else-if="recipe.requires_tools && !hasTools(activeDiscipline.tool)"
+              class="shrink-0 font-cinzel text-[9px] tracking-wider px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
+              :title="`Requires ${activeDiscipline.tool} in inventory`"
+            >
+              NO TOOLS
+            </span>
+            <span
+              v-else-if="!hasTools(activeDiscipline.tool)"
               class="shrink-0 font-cinzel text-[9px] tracking-wider px-1.5 py-0.5 rounded border border-gold-500/40 text-gold-400 bg-gold-500/10"
               title="No tool in inventory — disadvantage"
             >
@@ -101,7 +119,8 @@
           <!-- Attempt button -->
           <div class="px-4 py-3 border-t border-border">
             <button
-              :disabled="!canCraft(recipe.id)"
+              :disabled="!canCraft(recipe)"
+              :title="recipe.requires_proficiency && !hasProficiency(activeDiscipline.tool) ? `Requires ${activeDiscipline.tool} proficiency` : undefined"
               class="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 disabled:opacity-40 transition-opacity"
               @click="openAttempt(recipe)"
             >
@@ -125,6 +144,9 @@
       :all-items="allItems ?? []"
       :member="member"
       :has-tools="hasTools(activeDiscipline.tool)"
+      :has-proficiency="hasProficiency(activeDiscipline.tool)"
+      :workspace-bonus="activeDiscipline.workspaceBonus"
+      :workspace-label="activeDiscipline.workspaceLabel"
       @close="attemptRecipe = null"
       @done="onDone"
     />
@@ -234,14 +256,15 @@ function hasEnough(ing: CraftingIngredient): boolean {
   return ownedCount(ing.item_id) >= ing.quantity;
 }
 
-function canCraft(recipeId: string): boolean {
-  return ingredientsFor(recipeId).every((ing) => hasEnough(ing));
+function canCraft(recipe: CraftingRecipe): boolean {
+  if (recipe.requires_proficiency && !hasProficiency(activeDiscipline.value.tool)) return false;
+  if (recipe.requires_tools && !hasTools(activeDiscipline.value.tool)) return false;
+  return ingredientsFor(recipe.id).every((ing) => hasEnough(ing));
 }
 
 function tabClass(d: DisciplineConfig) {
-  const locked = !hasProficiency(d.tool);
-  if (locked) return "border-border/40 text-muted-foreground/40 cursor-not-allowed opacity-50";
   if (activeTab.value === d.id) return "border-primary bg-primary/10 text-foreground";
+  if (!hasProficiency(d.tool)) return "border-border/60 text-muted-foreground/60 hover:text-muted-foreground hover:border-border/80";
   return "border-border text-muted-foreground hover:text-foreground hover:border-border/80";
 }
 

@@ -19,7 +19,8 @@ export interface CraftingRecipe {
   discipline: CraftingDiscipline;
   dc: number;
   crafting_time_days: number;
-  is_player_visible: boolean;
+  requires_proficiency: boolean;
+  requires_tools: boolean;
   created_at: string;
   updated_at: string;
 }

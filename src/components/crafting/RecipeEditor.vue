@@ -10,12 +10,38 @@
 
       <button
         type="button"
-        :title="form.is_player_visible ? 'Visible to players — click to hide' : 'Hidden from players — click to share'"
+        :title="
+          form.requires_proficiency
+            ? 'Requires proficiency — click to allow unskilled attempts'
+            : 'Unskilled attempts allowed — click to require proficiency'
+        "
         class="p-2 rounded-md border border-border transition-colors"
-        :class="form.is_player_visible ? 'bg-elven-green/15 text-elven-green border-elven-green/30' : 'bg-card text-muted-foreground hover:text-foreground'"
-        @click="form.is_player_visible = !form.is_player_visible"
+        :class="
+          form.requires_proficiency
+            ? 'bg-destructive/15 text-destructive border-destructive/30'
+            : 'bg-card text-muted-foreground hover:text-foreground'
+        "
+        @click="form.requires_proficiency = !form.requires_proficiency"
       >
-        <Eye class="h-3.5 w-3.5" />
+        <Lock class="h-3.5 w-3.5" />
+      </button>
+
+      <button
+        type="button"
+        :title="
+          form.requires_tools
+            ? 'Requires physical tools — click to allow without tools'
+            : 'Attemptable without tools (disadvantage) — click to require them'
+        "
+        class="p-2 rounded-md border border-border transition-colors"
+        :class="
+          form.requires_tools
+            ? 'bg-destructive/15 text-destructive border-destructive/30'
+            : 'bg-card text-muted-foreground hover:text-foreground'
+        "
+        @click="form.requires_tools = !form.requires_tools"
+      >
+        <Wrench class="h-3.5 w-3.5" />
       </button>
 
       <button
@@ -43,21 +69,32 @@
     <div class="grid grid-cols-2 gap-4">
       <!-- Discipline -->
       <div>
-        <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">DISCIPLINE</label>
+        <label
+          class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1"
+          >DISCIPLINE</label
+        >
         <div class="relative">
-          <component :is="activeDiscipline.icon" class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <component
+            :is="activeDiscipline.icon"
+            class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none"
+          />
           <select
             v-model="form.discipline"
             class="w-full bg-muted border border-border rounded-md pl-9 pr-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           >
-            <option v-for="d in CRAFTING_DISCIPLINES" :key="d.id" :value="d.id">{{ d.label }}</option>
+            <option v-for="d in CRAFTING_DISCIPLINES" :key="d.id" :value="d.id">
+              {{ d.label }}
+            </option>
           </select>
         </div>
       </div>
 
       <!-- DC -->
       <div>
-        <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">CRAFTING DC</label>
+        <label
+          class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1"
+          >CRAFTING DC</label
+        >
         <input
           v-model.number="form.dc"
           type="number"
@@ -69,7 +106,10 @@
 
       <!-- Time -->
       <div>
-        <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">CRAFTING TIME (DAYS)</label>
+        <label
+          class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1"
+          >CRAFTING TIME (DAYS)</label
+        >
         <input
           v-model.number="form.crafting_time_days"
           type="number"
@@ -77,12 +117,14 @@
           class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
-
     </div>
 
     <!-- Description -->
     <div>
-      <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">DESCRIPTION</label>
+      <label
+        class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1"
+        >DESCRIPTION</label
+      >
       <RichTextEditor
         v-model="form.description"
         placeholder="How is this item crafted? Any special requirements or lore…"
@@ -92,9 +134,16 @@
 
     <!-- Outputs -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="px-4 py-2.5 border-b border-border bg-muted/20 flex items-center justify-between">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">OUTPUTS</span>
-        <span class="font-fell text-xs text-muted-foreground italic">At least one required</span>
+      <div
+        class="px-4 py-2.5 border-b border-border bg-muted/20 flex items-center justify-between"
+      >
+        <span
+          class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+          >OUTPUTS</span
+        >
+        <span class="font-fell text-xs text-muted-foreground italic"
+          >At least one required</span
+        >
       </div>
       <div class="p-4 flex flex-col gap-2">
         <!-- Existing outputs -->
@@ -113,21 +162,30 @@
             class="w-16 bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center"
           />
           <span class="font-fell text-xs text-muted-foreground">×</span>
-          <button type="button" class="text-muted-foreground hover:text-destructive transition-colors" @click="outputs.splice(idx, 1)">
+          <button
+            type="button"
+            class="text-muted-foreground hover:text-destructive transition-colors"
+            @click="outputs.splice(idx, 1)"
+          >
             <Trash2 class="h-3.5 w-3.5" />
           </button>
         </div>
 
         <!-- Add output -->
         <div class="relative mt-1">
-          <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          <Search
+            class="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none"
+          />
           <input
             v-model="outputSearch"
             placeholder="Add output item…"
             class="w-full bg-muted border border-border rounded-md pl-9 pr-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
-        <div v-if="outputSearch.length > 1" class="max-h-40 overflow-y-auto rounded-md border border-border bg-card divide-y divide-border">
+        <div
+          v-if="outputSearch.length > 1"
+          class="max-h-40 overflow-y-auto rounded-md border border-border bg-card divide-y divide-border"
+        >
           <button
             v-for="item in filteredOutputItems"
             :key="item.id"
@@ -135,19 +193,37 @@
             class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/40 transition-colors"
             @click="addOutput(item.id)"
           >
-            <span class="font-cinzel text-xs font-semibold text-foreground flex-1 truncate">{{ item.name }}</span>
-            <span class="font-fell text-[10px] text-muted-foreground capitalize shrink-0">{{ item.item_type.replace(/_/g, " ") }}</span>
+            <span
+              class="font-cinzel text-xs font-semibold text-foreground flex-1 truncate"
+              >{{ item.name }}</span
+            >
+            <span
+              class="font-fell text-[10px] text-muted-foreground capitalize shrink-0"
+              >{{ item.item_type.replace(/_/g, " ") }}</span
+            >
           </button>
-          <p v-if="filteredOutputItems.length === 0" class="px-3 py-2 font-fell text-xs text-muted-foreground italic">No items found.</p>
+          <p
+            v-if="filteredOutputItems.length === 0"
+            class="px-3 py-2 font-fell text-xs text-muted-foreground italic"
+          >
+            No items found.
+          </p>
         </div>
       </div>
     </div>
 
     <!-- Ingredients -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="px-4 py-2.5 border-b border-border bg-muted/20 flex items-center justify-between">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">INGREDIENTS</span>
-        <span class="font-fell text-xs text-muted-foreground italic">First ingredient = primary (ruined on critical fail)</span>
+      <div
+        class="px-4 py-2.5 border-b border-border bg-muted/20 flex items-center justify-between"
+      >
+        <span
+          class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+          >INGREDIENTS</span
+        >
+        <span class="font-fell text-xs text-muted-foreground italic"
+          >First ingredient = primary (ruined on critical fail)</span
+        >
       </div>
       <div class="p-4 flex flex-col gap-2">
         <!-- Existing ingredients -->
@@ -156,7 +232,11 @@
           :key="idx"
           class="flex items-center gap-2"
         >
-          <span v-if="idx === 0" class="font-cinzel text-[9px] text-primary tracking-wider shrink-0 w-10">PRIMARY</span>
+          <span
+            v-if="idx === 0"
+            class="font-cinzel text-[9px] text-primary tracking-wider shrink-0 w-10"
+            >PRIMARY</span
+          >
           <span v-else class="w-10 shrink-0" />
           <span class="flex-1 font-fell text-sm text-foreground truncate">
             {{ itemById(ing.item_id)?.name ?? "Unknown item" }}
@@ -168,21 +248,30 @@
             class="w-16 bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center"
           />
           <span class="font-fell text-xs text-muted-foreground">×</span>
-          <button type="button" class="text-muted-foreground hover:text-destructive transition-colors" @click="removeIngredient(idx)">
+          <button
+            type="button"
+            class="text-muted-foreground hover:text-destructive transition-colors"
+            @click="removeIngredient(idx)"
+          >
             <Trash2 class="h-3.5 w-3.5" />
           </button>
         </div>
 
         <!-- Add ingredient -->
         <div class="relative mt-1">
-          <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          <Search
+            class="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none"
+          />
           <input
             v-model="ingredientSearch"
             placeholder="Add ingredient…"
             class="w-full bg-muted border border-border rounded-md pl-9 pr-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
-        <div v-if="ingredientSearch.length > 1" class="max-h-40 overflow-y-auto rounded-md border border-border bg-card divide-y divide-border">
+        <div
+          v-if="ingredientSearch.length > 1"
+          class="max-h-40 overflow-y-auto rounded-md border border-border bg-card divide-y divide-border"
+        >
           <button
             v-for="item in filteredIngredientItems"
             :key="item.id"
@@ -190,18 +279,37 @@
             class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/40 transition-colors"
             @click="addIngredient(item.id)"
           >
-            <span class="font-cinzel text-xs font-semibold text-foreground flex-1 truncate">{{ item.name }}</span>
-            <span class="font-fell text-[10px] text-muted-foreground capitalize shrink-0">{{ item.item_type.replace(/_/g, " ") }}</span>
+            <span
+              class="font-cinzel text-xs font-semibold text-foreground flex-1 truncate"
+              >{{ item.name }}</span
+            >
+            <span
+              class="font-fell text-[10px] text-muted-foreground capitalize shrink-0"
+              >{{ item.item_type.replace(/_/g, " ") }}</span
+            >
           </button>
-          <p v-if="filteredIngredientItems.length === 0" class="px-3 py-2 font-fell text-xs text-muted-foreground italic">No items found.</p>
+          <p
+            v-if="filteredIngredientItems.length === 0"
+            class="px-3 py-2 font-fell text-xs text-muted-foreground italic"
+          >
+            No items found.
+          </p>
         </div>
       </div>
     </div>
 
     <!-- Conditional modifiers -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="px-4 py-2.5 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">CONDITIONAL MODIFIERS</span>
+      <div
+        class="px-4 py-2.5 border-b border-border bg-muted/20 flex items-center justify-between"
+      >
+        <span
+          class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+          >CONDITIONAL MODIFIERS</span
+        >
+        <span class="font-fell text-xs text-muted-foreground italic">
+          Workshop and ruined ingredients are already provided</span
+        >
       </div>
       <div class="p-4 flex flex-col gap-2">
         <div
@@ -222,7 +330,11 @@
             max="20"
             class="w-14 bg-muted border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center"
           />
-          <button type="button" class="text-muted-foreground hover:text-destructive transition-colors" @click="modifiers.splice(idx, 1)">
+          <button
+            type="button"
+            class="text-muted-foreground hover:text-destructive transition-colors"
+            @click="modifiers.splice(idx, 1)"
+          >
             <Trash2 class="h-3.5 w-3.5" />
           </button>
         </div>
@@ -252,9 +364,20 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { Eye, Plus, Save, Search, Trash2, UserPlus } from "lucide-vue-next";
+import {
+  Lock,
+  Plus,
+  Save,
+  Search,
+  Trash2,
+  UserPlus,
+  Wrench,
+} from "lucide-vue-next";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting-disciplines";
+import {
+  CRAFTING_DISCIPLINES,
+  getDiscipline,
+} from "@/lib/crafting-disciplines";
 import { useItems } from "@/composables/useItems";
 import { useParty } from "@/composables/useParty";
 import {
@@ -264,8 +387,14 @@ import {
   useReplaceModifiers,
   useReplaceOutputs,
   useRecipeGrants,
+  useRecipeIngredients,
+  useRecipeModifiers,
+  useRecipeOutputs,
 } from "@/composables/useCrafting";
-import type { CraftingRecipe, CraftingDiscipline } from "@/types/crafting.types";
+import type {
+  CraftingRecipe,
+  CraftingDiscipline,
+} from "@/types/crafting.types";
 import GrantRecipeDialog from "./GrantRecipeDialog.vue";
 
 const props = defineProps<{
@@ -280,6 +409,13 @@ const recipeId = computed(() => props.recipe?.id);
 const { data: allItems } = useItems();
 const { data: partyMembers } = useParty();
 const { data: grants } = useRecipeGrants(recipeId.value ?? "");
+
+// Load existing sub-resources when editing
+const { data: existingIngredients } = useRecipeIngredients(
+  recipeId.value ?? "",
+);
+const { data: existingModifiers } = useRecipeModifiers(recipeId.value ?? "");
+const { data: existingOutputs } = useRecipeOutputs(recipeId.value ?? "");
 
 const { mutateAsync: createRecipe, isPending: isCreating } = useCreateRecipe();
 const { mutateAsync: updateRecipe, isPending: isUpdating } = useUpdateRecipe();
@@ -297,7 +433,8 @@ const form = ref({
   discipline: (props.recipe?.discipline ?? "smithing") as CraftingDiscipline,
   dc: props.recipe?.dc ?? 10,
   crafting_time_days: props.recipe?.crafting_time_days ?? 1,
-  is_player_visible: props.recipe?.is_player_visible ?? false,
+  requires_proficiency: props.recipe?.requires_proficiency ?? false,
+  requires_tools: props.recipe?.requires_tools ?? false,
 });
 
 const ingredients = ref<{ item_id: string; quantity: number }[]>([]);
@@ -314,8 +451,49 @@ watch(
         discipline: r.discipline,
         dc: r.dc,
         crafting_time_days: r.crafting_time_days,
-        is_player_visible: r.is_player_visible,
+        requires_proficiency: r.requires_proficiency,
+        requires_tools: r.requires_tools,
       };
+    }
+  },
+  { immediate: true },
+);
+
+// Populate sub-resource refs when fetched data arrives
+watch(
+  existingIngredients,
+  (data) => {
+    if (data && ingredients.value.length === 0) {
+      ingredients.value = data.map((i) => ({
+        item_id: i.item_id,
+        quantity: i.quantity,
+      }));
+    }
+  },
+  { immediate: true },
+);
+
+watch(
+  existingModifiers,
+  (data) => {
+    if (data && modifiers.value.length === 0) {
+      modifiers.value = data.map((m) => ({
+        description: m.description,
+        bonus: m.bonus,
+      }));
+    }
+  },
+  { immediate: true },
+);
+
+watch(
+  existingOutputs,
+  (data) => {
+    if (data && outputs.value.length === 0) {
+      outputs.value = data.map((o) => ({
+        item_id: o.item_id,
+        quantity: o.quantity,
+      }));
     }
   },
   { immediate: true },
@@ -331,13 +509,17 @@ const items = computed(() => allItems.value ?? []);
 
 const filteredOutputItems = computed(() =>
   items.value
-    .filter((i) => i.name.toLowerCase().includes(outputSearch.value.toLowerCase()))
+    .filter((i) =>
+      i.name.toLowerCase().includes(outputSearch.value.toLowerCase()),
+    )
     .slice(0, 20),
 );
 
 const filteredIngredientItems = computed(() =>
   items.value
-    .filter((i) => i.name.toLowerCase().includes(ingredientSearch.value.toLowerCase()))
+    .filter((i) =>
+      i.name.toLowerCase().includes(ingredientSearch.value.toLowerCase()),
+    )
     .slice(0, 20),
 );
 
@@ -377,7 +559,10 @@ async function save() {
     const created = await createRecipe(form.value);
     id = created.id;
   } else {
-    const updated = await updateRecipe({ id: recipeId.value!, update: form.value });
+    const updated = await updateRecipe({
+      id: recipeId.value!,
+      update: form.value,
+    });
     id = updated.id;
   }
 

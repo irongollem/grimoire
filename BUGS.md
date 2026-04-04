@@ -2,6 +2,8 @@
 
 ## Done
 
+- [x] Ghost "Party Notes" appeared on quests in DM view — unreadable and unremovable — because `QuestEditor` still read from the legacy `quest_player_notes` table after notes migrated to `entity_notes`; dropped the legacy table, removed all its code, and switched `QuestEditor` to `useEntityNotes` (irongollem/grimoire#49)
+
 - [x] Creating an NPC navigated to the list, making it impossible to immediately add faction/relation links (which need the NPC's ID); fixed by navigating to `/npcs/:id` after create, and `/npcs` only after update (irongollem/grimoire#11)
 
 - [x] Item list cards showed no thumbnail images — `ItemList` was missing the `h-36` `FocalImage` landscape thumbnail that `NpcList` and `MonsterList` have; added `FocalImage` thumbnail to each card (irongollem/grimoire#1)
