@@ -2,6 +2,8 @@
 
 ## Done
 
+- [x] Creating an NPC navigated to the list, making it impossible to immediately add faction/relation links (which need the NPC's ID); fixed by navigating to `/npcs/:id` after create, and `/npcs` only after update (irongollem/grimoire#11)
+
 - [x] Item list cards showed no thumbnail images — `ItemList` was missing the `h-36` `FocalImage` landscape thumbnail that `NpcList` and `MonsterList` have; added `FocalImage` thumbnail to each card (irongollem/grimoire#1)
 
 - [x] Journal notes showed as unformatted plain text in view/read mode (irongollem/grimoire#6) — expanded entries were rendering `plainText(content)` instead of `RichTextViewer`; replaced the `<p>` with `<RichTextViewer :content="entry.content" />`

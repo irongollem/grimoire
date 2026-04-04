@@ -749,10 +749,12 @@ async function save() {
   try {
     if (props.npc?.id) {
       await updateNpc({ id: props.npc.id, update: payload })
+      router.push('/npcs')
     } else {
-      await createNpc(payload)
+      const created = await createNpc(payload)
+      // Stay on the detail page after create so faction/relation links can be added immediately
+      router.push(`/npcs/${created.id}`)
     }
-    router.push('/npcs')
   } catch {
     notify('Failed to save NPC. Please try again.')
   }
