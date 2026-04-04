@@ -24,20 +24,14 @@
           <ScrollText class="h-3.5 w-3.5" />
           {{ isSendingToScriptorium ? 'Exporting…' : 'Scriptorium' }}
         </button>
-        <!-- Players share toggle button -->
-        <button
+        <!-- Player visibility toggle -->
+        <PlayerVisibilityToggle
           v-if="npc?.id"
-          type="button"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider border rounded-md transition-colors"
-          :class="showPlayerShare
-            ? 'bg-primary/10 border-primary/40 text-primary'
-            : 'border-border hover:bg-muted text-foreground'"
-          @click="showPlayerShare = !showPlayerShare"
-        >
-          <Users class="h-3.5 w-3.5" />
-          Players
-          <ChevronDown class="h-3 w-3 transition-transform" :class="showPlayerShare ? 'rotate-180' : ''" />
-        </button>
+          :shared-with-all="form.shared_with_players"
+          :visible-to="form.player_visible_to ?? null"
+          @update:shared-with-all="form.shared_with_players = $event"
+          @update:visible-to="form.player_visible_to = $event"
+        />
         <button
           v-if="aiApiKey"
           type="button"
@@ -57,67 +51,31 @@
       </div>
     </div>
 
-    <!-- Player sharing foldout -->
+    <!-- Reveal fields (visible when NPC is shared with anyone) -->
     <div
-      v-if="showPlayerShare && npc?.id"
-      class="mb-4 border border-primary/20 rounded-lg p-4 bg-primary/5 space-y-3"
+      v-if="npc?.id && (form.shared_with_players || (form.player_visible_to?.length ?? 0) > 0)"
+      class="mb-4 border border-primary/20 rounded-lg px-4 py-3 bg-primary/5 space-y-3"
     >
-      <p class="font-cinzel text-xs font-semibold tracking-wider text-foreground">SHARE WITH PLAYERS</p>
-
-      <!-- Who sees this NPC -->
-      <div class="space-y-1">
-        <p class="font-fell text-[11px] text-muted-foreground italic">Visible to:</p>
-        <div class="flex flex-wrap gap-1.5">
-          <button
-            type="button"
-            class="flex items-center gap-1.5 px-2.5 py-1 rounded-full border font-cinzel text-[10px] font-semibold tracking-wider transition-colors"
-            :class="isWholeParty
-              ? 'bg-primary/15 border-primary/40 text-primary'
-              : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'"
-            @click="toggleWholeParty"
-          >
-            <Users class="h-3 w-3 shrink-0" />
-            Whole party
-          </button>
-          <button
-            v-for="member in party"
-            :key="member.id"
-            type="button"
-            class="flex items-center gap-1.5 px-2.5 py-1 rounded-full border font-cinzel text-[10px] font-semibold tracking-wider transition-colors"
-            :class="isMemberSelected(member.id)
-              ? 'bg-primary/15 border-primary/40 text-primary'
-              : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'"
-            @click="toggleShareMember(member.id)"
-          >
-            {{ member.name }}
-          </button>
-        </div>
-        <p v-if="!anyPlayerSelected" class="font-fell text-[10px] text-muted-foreground italic">No players selected — NPC is hidden.</p>
+      <p class="font-cinzel text-[10px] font-semibold tracking-widest text-muted-foreground">REVEALED FIELDS</p>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1">
+        <label
+          v-for="f in PLAYER_FIELDS"
+          :key="f.key"
+          class="flex items-center gap-2 cursor-pointer"
+        >
+          <input
+            type="checkbox"
+            class="rounded border-border accent-primary"
+            :checked="form.player_visible_fields.includes(f.key)"
+            @change="toggleVisibleField(f.key)"
+          />
+          <span class="font-fell text-xs text-foreground">{{ f.label }}</span>
+        </label>
       </div>
-
-      <!-- Which fields are revealed -->
-      <template v-if="anyPlayerSelected">
-        <p class="font-fell text-[11px] text-muted-foreground italic">Reveal fields:</p>
-        <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1">
-          <label
-            v-for="f in PLAYER_FIELDS"
-            :key="f.key"
-            class="flex items-center gap-2 cursor-pointer"
-          >
-            <input
-              type="checkbox"
-              class="rounded border-border accent-primary"
-              :checked="form.player_visible_fields.includes(f.key)"
-              @change="toggleVisibleField(f.key)"
-            />
-            <span class="font-fell text-xs text-foreground">{{ f.label }}</span>
-          </label>
-        </div>
-        <div class="pt-1">
-          <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">PARTY NOTES</p>
-          <PlayerNotesWidget entity-type="npc" :entity-id="npc.id" placeholder="Notes visible to the whole party…" />
-        </div>
-      </template>
+      <div class="pt-1">
+        <p class="font-cinzel text-[10px] font-semibold tracking-widest text-muted-foreground mb-2">PARTY NOTES</p>
+        <PlayerNotesWidget entity-type="npc" :entity-id="npc.id" placeholder="Notes visible to the whole party…" />
+      </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
@@ -424,13 +382,12 @@ import { ref, reactive, computed, watch } from 'vue'
 import RichTextEditor from '@/components/common/RichTextEditor.vue'
 import TagInput from '@/components/common/TagInput.vue'
 import { useRouter } from 'vue-router'
-import { ScrollText, Users, ChevronDown, Sparkles } from 'lucide-vue-next'
+import { ScrollText, Sparkles } from 'lucide-vue-next'
 import NpcGenerateDialog from '@/ai/NpcGenerateDialog.vue'
 import { toTiptapJson } from '@/ai/useNpcGeneration'
 import type { NpcAiGenerated } from '@/ai/types'
 import ImageUpload from '@/components/common/ImageUpload.vue'
 import { useCreateNpc, useUpdateNpc, useDeleteNpc } from '@/composables/useNpcs'
-import { useParty } from '@/composables/useParty'
 import { useLocationTree } from '@/composables/useLocations'
 import { useAllMonsters, useCreateMonster } from '@/composables/useMonsters'
 import { useCreateScriptoriumDocument } from '@/composables/useScriptorium'
@@ -444,6 +401,7 @@ import type { Npc, NpcInsert, NpcStatus, NpcRelationship, StatBlock } from '@/ty
 import { useCampaignStore } from '@/stores/campaign'
 import EntityCombobox from '@/components/common/EntityCombobox.vue'
 import PlayerNotesWidget from '@/components/common/PlayerNotesWidget.vue'
+import PlayerVisibilityToggle from '@/components/common/PlayerVisibilityToggle.vue'
 import { STAT_BLOCK_ABILITIES, abilityModifier, skillsToString, skillsToRecord } from '@/lib/utils'
 
 const { confirm, notify } = useConfirm();
@@ -493,8 +451,6 @@ const props = defineProps<{ npc?: Npc | null }>()
 
 const router = useRouter()
 const { locationOptions } = useLocationTree()
-const { data: partyData } = useParty()
-const party = computed(() => partyData.value ?? [])
 const { data: allMonsters } = useAllMonsters()
 const { mutateAsync: createNpc, isPending: isCreating } = useCreateNpc()
 const { mutateAsync: updateNpc, isPending: isUpdating } = useUpdateNpc()
@@ -509,7 +465,6 @@ const isSendingToScriptorium = ref(false)
 // ── UI state ──────────────────────────────────────────────────────────────────
 
 const activeTab = ref<TabKey>('lore')
-const showPlayerShare = ref(false)
 const showGenerateDialog = ref(false)
 
 const aiApiKey = computed(() => campaign.activeCampaign?.openai_api_key ?? '')
@@ -653,40 +608,12 @@ const form = reactive<NpcInsert>({
   player_visible_to: props.npc?.player_visible_to ?? null,
 })
 
-// ── Sharing helpers ───────────────────────────────────────────────────────────
-
-const allPartyIds = computed(() => party.value.map((m) => m.id))
-
-const isWholeParty = computed(() =>
-  allPartyIds.value.length > 0 &&
-  allPartyIds.value.every((id) => (form.player_visible_to ?? []).includes(id))
-)
-
-const anyPlayerSelected = computed(() =>
-  (form.player_visible_to ?? []).length > 0
-)
-
-function isMemberSelected(memberId: string): boolean {
-  return (form.player_visible_to ?? []).includes(memberId)
-}
-
-function toggleWholeParty() {
-  if (isWholeParty.value) {
-    form.player_visible_to = []
-  } else {
-    form.player_visible_to = [...allPartyIds.value]
-  }
-}
-
-function toggleShareMember(memberId: string) {
-  const current = [...(form.player_visible_to ?? [])]
-  const idx = current.indexOf(memberId)
-  form.player_visible_to = idx === -1 ? [...current, memberId] : current.filter((id) => id !== memberId)
-}
-
-// Sync player_visible_to if the prop updates after mount (e.g. list popover saved first)
+// Sync sharing fields if the prop updates after mount (e.g. list popover saved first)
 watch(() => props.npc?.player_visible_to, (val) => {
   form.player_visible_to = val ?? null
+})
+watch(() => props.npc?.shared_with_players, (val) => {
+  form.shared_with_players = val ?? false
 })
 
 function toggleVisibleField(key: string) {
@@ -816,7 +743,7 @@ async function save() {
     backstory: form.backstory || null,
     notes: form.notes || null,
     stat_block: buildStatBlock(),
-    shared_with_players: false,
+    shared_with_players: form.shared_with_players,
     player_visible_to: (form.player_visible_to?.length ?? 0) > 0 ? form.player_visible_to : null,
   }
   try {

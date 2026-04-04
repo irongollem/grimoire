@@ -41,8 +41,17 @@
           />
         </button>
 
-        <!-- Expanded: map + player notes -->
+        <!-- Expanded: summary, map, description, NPCs, player notes -->
         <div v-if="expanded.has(entry.loc.id)" class="px-4 pb-4 flex flex-col gap-4">
+          <!-- Player summary (always shown when present) -->
+          <p
+            v-if="entry.loc.player_summary"
+            class="font-fell text-sm text-foreground italic"
+          >
+            {{ entry.loc.player_summary }}
+          </p>
+
+          <!-- Map -->
           <div v-if="entry.loc.map_url">
             <LocationMap
               :map-url="entry.loc.map_url"
@@ -70,6 +79,33 @@
               </button>
             </div>
           </div>
+
+          <!-- Full description (when shared) -->
+          <div v-if="entry.loc.is_description_shared && entry.loc.description" class="border-t border-border pt-3">
+            <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-1">Description</p>
+            <RichTextViewer :content="entry.loc.description" />
+          </div>
+
+          <!-- Linked NPCs (when shared) -->
+          <div v-if="entry.loc.is_npcs_shared" class="border-t border-border pt-3">
+            <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-2">People in the Area</p>
+            <div v-if="sharedNpcsByLocation[entry.loc.id]?.length" class="flex flex-col gap-1.5">
+              <div
+                v-for="npc in sharedNpcsByLocation[entry.loc.id]"
+                :key="npc.id"
+                class="flex items-center gap-2 rounded border border-border bg-muted/30 px-3 py-2"
+              >
+                <div class="flex-1 min-w-0">
+                  <p class="font-cinzel text-xs font-semibold text-foreground truncate">{{ npc.name }}</p>
+                  <p v-if="npc.occupation || npc.race" class="font-fell text-xs text-muted-foreground italic truncate">
+                    {{ [npc.race, npc.occupation].filter(Boolean).join(" · ") }}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <p v-else class="font-fell text-xs text-muted-foreground italic">No one here yet.</p>
+          </div>
+
           <PlayerNotesWidget
             entity-type="location"
             :entity-id="entry.loc.id"
@@ -85,10 +121,12 @@
 import { ref, computed } from "vue";
 import { ChevronDown } from "lucide-vue-next";
 import { useSharedLocations } from "@/composables/useLocations";
+import { useSharedNpcsByLocations } from "@/composables/useNpcs";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
 import type { Location } from "@/types/location.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
+import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 
 const { data: locations, isLoading } = useSharedLocations();
@@ -130,6 +168,23 @@ const flatTree = computed(() => {
 
 const expanded = ref(new Set<string>());
 const fullSizeMaps = ref(new Set<string>());
+
+// Fetch shared NPCs for all locations with is_npcs_shared = true
+const npcSharedLocationIds = computed(() =>
+  (locations.value ?? []).filter((l) => l.is_npcs_shared).map((l) => l.id),
+);
+const { data: sharedNpcs } = useSharedNpcsByLocations(npcSharedLocationIds);
+
+// Index by location_id for O(1) lookup in the template
+const sharedNpcsByLocation = computed(() => {
+  const map: Record<string, typeof sharedNpcs.value> = {};
+  for (const npc of sharedNpcs.value ?? []) {
+    if (!npc.location_id) continue;
+    if (!map[npc.location_id]) map[npc.location_id] = [];
+    map[npc.location_id]!.push(npc);
+  }
+  return map;
+});
 
 function toggleMapSize(id: string) {
   if (fullSizeMaps.value.has(id)) {

@@ -186,19 +186,18 @@ export function useUpdateLocation() {
   });
 }
 
-/** Locations with is_map_shared=true visible to campaign members (players). */
+/** Locations shared with players (shared_with_players=true OR player_visible_to IS NOT NULL). */
 export function useSharedLocations() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value, "shared-maps"]),
+    queryKey: computed(() => [QUERY_KEY, campaignId.value, "shared"]),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("locations")
         .select("*")
         .eq("campaign_id", campaignId.value!)
-        .eq("is_map_shared", true)
-        .not("map_url", "is", null)
+        .or("shared_with_players.eq.true,player_visible_to.not.is.null")
         .order("name", { ascending: true });
       if (error) throw error;
       return data as Location[];

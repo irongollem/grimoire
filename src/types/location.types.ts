@@ -77,6 +77,11 @@ export interface Location {
   map_url: string | null;
   map_pins: MapPin[];
   is_map_shared: boolean;
+  shared_with_players: boolean;
+  player_visible_to: string[] | null;
+  player_summary: string | null;
+  is_description_shared: boolean;
+  is_npcs_shared: boolean;
   created_at: string;
   updated_at: string;
 }

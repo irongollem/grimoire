@@ -13,7 +13,7 @@
       <span class="text-foreground">{{ isNew ? "New Location" : props.location?.name }}</span>
     </div>
 
-    <!-- Action row: type + save + delete -->
+    <!-- Action row: type + visibility + save + delete -->
     <div class="flex flex-wrap items-center gap-2 justify-end">
       <select
         v-model="locationType"
@@ -23,6 +23,13 @@
           {{ label }}
         </option>
       </select>
+      <PlayerVisibilityToggle
+        v-if="!isNew"
+        :shared-with-all="sharedWithPlayers"
+        :visible-to="playerVisibleTo"
+        @update:shared-with-all="sharedWithPlayers = $event"
+        @update:visible-to="playerVisibleTo = $event"
+      />
       <button
         type="button"
         :disabled="saving || !name.trim()"
@@ -254,6 +261,53 @@
       </template>
     </div>
 
+    <!-- Player sharing options -->
+    <div v-if="!isNew" class="flex flex-col gap-3 rounded-lg border border-border bg-card/50 px-4 py-3">
+      <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Player Sharing</span>
+
+      <!-- Player summary (always shown to players who can see this location) -->
+      <div class="flex flex-col gap-1">
+        <label class="font-cinzel text-[10px] text-muted-foreground tracking-wider">Summary (always visible)</label>
+        <input
+          v-model="playerSummary"
+          placeholder="A short description players always see when they discover this location…"
+          class="w-full bg-background border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+      </div>
+
+      <!-- Share description -->
+      <label class="inline-flex items-center justify-between gap-3 cursor-pointer">
+        <span class="font-cinzel text-xs text-foreground">Share full description</span>
+        <button
+          type="button"
+          class="relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors focus:outline-none"
+          :class="isDescriptionShared ? 'bg-primary' : 'bg-muted-foreground/30'"
+          @click="isDescriptionShared = !isDescriptionShared"
+        >
+          <span
+            class="inline-block h-3 w-3 rounded-full bg-white shadow transition-transform"
+            :class="isDescriptionShared ? 'translate-x-3.5' : 'translate-x-0.5'"
+          />
+        </button>
+      </label>
+
+      <!-- Share linked NPCs -->
+      <label class="inline-flex items-center justify-between gap-3 cursor-pointer">
+        <span class="font-cinzel text-xs text-foreground">Share linked NPCs</span>
+        <button
+          type="button"
+          class="relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors focus:outline-none"
+          :class="isNpcsShared ? 'bg-primary' : 'bg-muted-foreground/30'"
+          @click="isNpcsShared = !isNpcsShared"
+        >
+          <span
+            class="inline-block h-3 w-3 rounded-full bg-white shadow transition-transform"
+            :class="isNpcsShared ? 'translate-x-3.5' : 'translate-x-0.5'"
+          />
+        </button>
+      </label>
+    </div>
+
     <!-- NPCs at this location -->
     <template v-if="!isNew && locationNpcs?.length">
       <div class="flex items-center justify-between mt-2">
@@ -317,6 +371,7 @@ import { Save, Trash2, ChevronRight, MapPin, ChevronUp, Tag, Plus } from "lucide
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import { useImageUpload } from "@/composables/useImageUpload";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
@@ -443,6 +498,13 @@ const saveError    = ref("");
 // ── Description ────────────────────────────────────────────────────────────────
 const description = ref<string>(props.location?.description ?? "");
 
+// ── Player sharing ─────────────────────────────────────────────────────────────
+const sharedWithPlayers   = ref<boolean>(props.location?.shared_with_players ?? false);
+const playerVisibleTo     = ref<string[] | null>(props.location?.player_visible_to ?? null);
+const playerSummary       = ref<string>(props.location?.player_summary ?? "");
+const isDescriptionShared = ref<boolean>(props.location?.is_description_shared ?? false);
+const isNpcsShared        = ref<boolean>(props.location?.is_npcs_shared ?? false);
+
 // ── Map ────────────────────────────────────────────────────────────────────────
 const mapUrl      = ref<string | null>(props.location?.map_url ?? null);
 const mapPins     = ref<MapPinType[]>(props.location?.map_pins ? [...props.location.map_pins] : []);
@@ -500,9 +562,14 @@ function buildPayload() {
     tags:          tags.value,
     parent_id:     selectedParentId.value,
     image_url:     imageUrl.value,
-    map_url:       mapUrl.value,
-    map_pins:      mapPins.value,
-    is_map_shared: isMapShared.value,
+    map_url:               mapUrl.value,
+    map_pins:              mapPins.value,
+    is_map_shared:         isMapShared.value,
+    shared_with_players:   sharedWithPlayers.value,
+    player_visible_to:     playerVisibleTo.value,
+    player_summary:        playerSummary.value || null,
+    is_description_shared: isDescriptionShared.value,
+    is_npcs_shared:        isNpcsShared.value,
   };
 }
 

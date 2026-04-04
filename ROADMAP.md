@@ -203,6 +203,8 @@
 - [x] **Map upload & pinning** — upload a map image per location; interactive `LocationMap` component with drag-to-place child pins, per-pin player visibility toggle, hover labels, single-click navigation; `is_map_shared` toggle shares the map with players; pin positions stored as % in `map_pins` JSONB (child name/type denormalised for player reads)
 - [x] **Player Atlas** — `/play/atlas` lists DM-shared maps; expandable cards show `LocationMap` in view mode (player-visible pins only); clicking a pin auto-expands that child's map if it's also shared
 - [x] **Player location notes** — each Atlas card has a `PlayerNotesWidget` (private / shared party notes) using the generic `entity_notes` table with `entity_type="location"`
+- [x] **Full location sharing** — DM can set a player summary (always visible), share the full Tiptap description, and share linked player-visible NPCs per location; three new DB columns + editor toggles; player atlas renders each section when enabled (issue #34)
+- [x] **PlayerVisibilityToggle component** — reusable eye-icon button in action bars opening a popover with "All players" toggle + individual party member checkboxes; used in LocationEditor and NpcDetail (replacing the old Players foldout); locations get new `shared_with_players` + `player_visible_to` columns matching the NPC pattern
 - [x] **Player notes UX overhaul** — `PlayerNotesWidget` now shows two independent boxes: "My Private Notes" (is_private=true, only author sees) and "My Party Notes" (is_private=false, full party sees); "From the Party" section shows all other members' shared notes; RLS updated so players can see each other's non-private notes (previously only DM↔player was symmetric)
 
 ### Rules reliquary

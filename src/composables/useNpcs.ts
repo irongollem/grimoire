@@ -156,6 +156,25 @@ export function useSharedNpcs() {
   });
 }
 
+/** Fetch player-visible NPCs at specific location IDs (for player atlas). */
+export function useSharedNpcsByLocations(locationIds: Ref<string[]>) {
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, "shared-by-locations", locationIds.value]),
+    queryFn: async () => {
+      if (!locationIds.value.length) return [];
+      const { data, error } = await supabase
+        .from("npcs")
+        .select("*")
+        .in("location_id", locationIds.value)
+        .or("shared_with_players.eq.true,player_visible_to.not.is.null")
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return data as Npc[];
+    },
+    enabled: () => locationIds.value.length > 0,
+  });
+}
+
 // ── Player personal notes on an NPC ──────────────────────────────────────────
 
 const NOTES_KEY = "npc_player_notes";
