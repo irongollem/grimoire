@@ -750,11 +750,7 @@
           </div>
           <div class="divide-y divide-border">
             <div v-for="note in sharedNotes" :key="note.id" class="px-3 py-2.5">
-              <p
-                class="font-fell text-sm text-foreground whitespace-pre-wrap leading-relaxed"
-              >
-                {{ note.content }}
-              </p>
+              <RichTextViewer :content="note.content ?? ''" />
               <p
                 class="font-cinzel text-[10px] text-muted-foreground/50 tracking-wider mt-1"
               >
@@ -813,8 +809,8 @@ import {
   useUpdateQuestRef,
   useDeleteQuestRef,
   useAllQuests,
-  useSharedQuestNotes,
 } from "@/composables/useQuests";
+import { useEntityNotes } from "@/composables/useEntityNotes";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useNpcs } from "@/composables/useNpcs";
 import { useAllLocations } from "@/composables/useLocations";
@@ -824,6 +820,7 @@ import { useEncounters } from "@/composables/useEncounters";
 import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
 import { formatQuestForScriptorium } from "@/lib/scriptoriumImport";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import EncounterLoot from "@/components/encounters/EncounterLoot.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import { useCampaignStore } from "@/stores/campaign";
@@ -867,7 +864,10 @@ const questId = computed(() => props.quest?.id ?? "");
 const { data: subQuests } = useSubQuests(questId);
 const { data: objectives } = useQuestObjectives(questId);
 const { data: questRefs } = useQuestRefs(questId);
-const { data: sharedNotes } = useSharedQuestNotes(questId);
+const { data: allEntityNotes } = useEntityNotes("quest", questId);
+const sharedNotes = computed(() =>
+  (allEntityNotes.value ?? []).filter((n) => !n.is_private),
+);
 
 const doneCount = computed(
   () => (objectives.value ?? []).filter((o) => o.is_done).length,

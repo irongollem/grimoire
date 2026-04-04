@@ -1,21 +1,24 @@
+import { computed, isRef } from "vue";
+import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { EntityNote } from "@/types/faction.types";
 
-export function useEntityNotes(entityType: string, entityId: string) {
+export function useEntityNotes(entityType: string, entityId: string | Ref<string>) {
+  const idRef = isRef(entityId) ? entityId : { value: entityId };
   return useQuery({
-    queryKey: ["entity-notes", entityType, entityId],
+    queryKey: computed(() => ["entity-notes", entityType, idRef.value]),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("entity_notes")
         .select("*")
         .eq("entity_type", entityType)
-        .eq("entity_id", entityId)
+        .eq("entity_id", idRef.value)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return data as EntityNote[];
     },
-    enabled: !!entityId,
+    enabled: () => !!idRef.value,
   });
 }
 
