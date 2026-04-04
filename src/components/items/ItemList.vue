@@ -1,32 +1,5 @@
 <template>
   <div class="flex flex-col gap-4">
-    <!-- Filters row -->
-    <div class="flex items-center gap-3 flex-wrap">
-      <input
-        v-model="search"
-        placeholder="Search items…"
-        class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring flex-1 min-w-40"
-      />
-      <select
-        v-model="typeFilter"
-        class="bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      >
-        <option value="">All types</option>
-        <option v-for="t in ITEM_TYPES" :key="t" :value="t">
-          {{ ITEM_TYPE_LABELS[t] }}
-        </option>
-      </select>
-      <select
-        v-model="rarityFilter"
-        class="bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      >
-        <option value="">All rarities</option>
-        <option v-for="r in ITEM_RARITIES" :key="r" :value="r">
-          {{ ITEM_RARITY_LABELS[r] }}
-        </option>
-      </select>
-    </div>
-
     <!-- Loading -->
     <div v-if="isLoading" class="flex justify-center py-12">
       <LoadingSpinner />
@@ -154,7 +127,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, type Component as VueComponent } from "vue";
+import { computed, type Component as VueComponent } from "vue";
 import {
   Pencil,
   Sword,
@@ -199,28 +172,24 @@ function itemTypeIcon(type: ItemType): VueComponent {
 }
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useItems } from "@/composables/useItems";
-import {
-  ITEM_TYPES,
-  ITEM_TYPE_LABELS,
-  ITEM_RARITIES,
-  ITEM_RARITY_LABELS,
-  RARITY_BADGE_COLORS,
-} from "@/types/item.types";
+import { ITEM_RARITY_LABELS, RARITY_BADGE_COLORS } from "@/types/item.types";
 import type { ItemRarity } from "@/types/item.types";
 import EmptyState from "@/components/common/EmptyState.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 
+const props = defineProps<{
+  search: string;
+  typeFilter: string;
+  rarityFilter: string;
+}>();
+
 const { data: items, isLoading } = useItems();
 
-const search = ref("");
-const typeFilter = ref("");
-const rarityFilter = ref("");
-
 const filtered = computed(() => {
-  const q = search.value.trim().toLowerCase();
+  const q = props.search.trim().toLowerCase();
   return (items.value ?? []).filter((item) => {
-    if (typeFilter.value && item.item_type !== typeFilter.value) return false;
-    if (rarityFilter.value && item.rarity !== rarityFilter.value) return false;
+    if (props.typeFilter && item.item_type !== props.typeFilter) return false;
+    if (props.rarityFilter && item.rarity !== props.rarityFilter) return false;
     if (q) {
       return (
         item.name.toLowerCase().includes(q) ||

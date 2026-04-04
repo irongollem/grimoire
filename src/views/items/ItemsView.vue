@@ -19,16 +19,49 @@
       </RouterLink>
     </template>
 
-    <ItemList />
+    <template #sticky>
+      <div class="flex items-center gap-2 flex-wrap">
+        <div class="relative flex-1 min-w-40">
+          <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <input
+            v-model="search"
+            type="text"
+            placeholder="Search items…"
+            class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        </div>
+        <select
+          v-model="typeFilter"
+          class="bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option value="">All types</option>
+          <option v-for="t in ITEM_TYPES" :key="t" :value="t">{{ ITEM_TYPE_LABELS[t] }}</option>
+        </select>
+        <select
+          v-model="rarityFilter"
+          class="bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option value="">All rarities</option>
+          <option v-for="r in ITEM_RARITIES" :key="r" :value="r">{{ ITEM_RARITY_LABELS[r] }}</option>
+        </select>
+      </div>
+    </template>
+
+    <ItemList :search="search" :type-filter="typeFilter" :rarity-filter="rarityFilter" />
   </PageHeader>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Loader2, Download } from "lucide-vue-next";
+import { Loader2, Download, Search } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import ItemList from "@/components/items/ItemList.vue";
 import { useImportSrdItems } from "@/composables/useItems";
+import { ITEM_TYPES, ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS } from "@/types/item.types";
+
+const search = ref("");
+const typeFilter = ref("");
+const rarityFilter = ref("");
 
 const importMutation = useImportSrdItems();
 
