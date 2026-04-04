@@ -45,7 +45,6 @@ async function onVisibilityChange() {
 
   // Long absence — the JWT may have expired. Warm the session first so that
   // every query fires with a valid token instead of queuing behind the lock.
-  const t0 = Date.now();
   const TIMEOUT_MS = 8_000;
   const timedOut = await Promise.race([
     supabase.auth.getSession().then(() => false),
@@ -60,8 +59,12 @@ async function onVisibilityChange() {
   queryClient.invalidateQueries();
 }
 
-onMounted(() => document.addEventListener("visibilitychange", onVisibilityChange));
-onUnmounted(() => document.removeEventListener("visibilitychange", onVisibilityChange));
+onMounted(() =>
+  document.addEventListener("visibilitychange", onVisibilityChange),
+);
+onUnmounted(() =>
+  document.removeEventListener("visibilitychange", onVisibilityChange),
+);
 
 const route = useRoute();
 
