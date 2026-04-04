@@ -54,7 +54,7 @@
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-2">
               <p class="font-cinzel text-sm font-bold text-foreground truncate flex-1">{{ faction.name }}</p>
-              <Eye v-if="faction.is_player_visible" class="h-3 w-3 shrink-0 text-elven-green" />
+              <Eye v-if="faction.shared_with_players" class="h-3 w-3 shrink-0 text-elven-green" />
             </div>
             <p v-if="faction.faction_type" class="font-cinzel text-[10px] text-muted-foreground tracking-wider mt-0.5">
               {{ faction.faction_type }}

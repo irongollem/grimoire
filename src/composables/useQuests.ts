@@ -162,7 +162,7 @@ export function usePlayerVisibleQuests() {
         .from("quests")
         .select("*")
         .eq("campaign_id", campaignId.value!)
-        .eq("is_player_visible", true)
+        .eq("shared_with_players", true)
         .order("updated_at", { ascending: false });
       if (error) throw error;
       return data as Quest[];

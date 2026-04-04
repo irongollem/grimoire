@@ -76,7 +76,8 @@ export interface Faction {
   description: string | null;
   emblem_url: string | null;
   alignment: string | null;
-  is_player_visible: boolean;
+  shared_with_players: boolean;
+  player_visible_to: string[] | null;
   tags: string[];
   created_at: string;
   updated_at: string;

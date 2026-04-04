@@ -46,7 +46,7 @@
 
 ### Factions
 
-- [x] **Factions system** — full CRUD for guilds, governments, religions, cults, etc. with emblem upload, type, alignment, player visibility toggle, tags, rich-text description
+- [x] **Factions system** — full CRUD for guilds, governments, religions, cults, etc. with emblem upload, type, alignment, player visibility toggle (per-player via `PlayerVisibilityToggle`), tags, rich-text description
 - [x] **Faction members** — NPC multi-faction membership with roles (Leader, Officer, Member, etc.); replaces free-text affiliation field on NPCs
 - [x] **Faction associations** — link locations and items to factions from the faction detail board
 - [x] **Directional faction relations** — outgoing stance + incoming (how others view this faction); 8 relation types (Allied → Hostile + secret variants)
@@ -67,7 +67,7 @@
 
 - [x] Quests — full CRUD with kanban + list view, objectives checklist, sub-quests
 - [x] Quest giver/location linking with item & encounter reward references
-- [x] Player quest visibility (DM shares individual quests to player portal)
+- [x] Player quest visibility (DM shares individual quests to player portal; per-player visibility via `PlayerVisibilityToggle`)
 - [x] Player quest notes table with private/shared toggles per entry
 - [x] Adventure Journal — player personal journal with 6 categories, context linking, private/shared entries
 - [x] Scriptorium formatter for quests (title, status, objectives, notes)

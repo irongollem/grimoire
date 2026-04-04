@@ -64,10 +64,15 @@
             </div>
 
             <!-- Visibility -->
-            <label class="flex items-center gap-2 cursor-pointer select-none">
-              <input type="checkbox" v-model="form.is_player_visible" class="rounded" />
-              <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">VISIBLE TO PLAYERS</span>
-            </label>
+            <div class="space-y-1.5">
+              <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Visible to Players</label>
+              <PlayerVisibilityToggle
+                :shared-with-all="form.shared_with_players"
+                :visible-to="form.player_visible_to"
+                @update:shared-with-all="form.shared_with_players = $event"
+                @update:visible-to="form.player_visible_to = $event"
+              />
+            </div>
 
             <!-- Tags -->
             <div class="space-y-1.5">
@@ -135,6 +140,7 @@ import FactionLocationsSection from "@/components/factions/FactionLocationsSecti
 import FactionItemsSection from "@/components/factions/FactionItemsSection.vue";
 import FactionRelationsSection from "@/components/factions/FactionRelationsSection.vue";
 import EntityNotesPanel from "@/components/common/EntityNotesPanel.vue";
+import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
 
 const route  = useRoute();
 const router = useRouter();
@@ -174,7 +180,8 @@ const form = ref({
   description: null as string | null,
   emblem_url: "" as string,
   alignment: null as string | null,
-  is_player_visible: false,
+  shared_with_players: false,
+  player_visible_to: null as string[] | null,
 });
 
 watch(faction, (f) => {
@@ -184,7 +191,8 @@ watch(faction, (f) => {
   form.value.description      = f.description;
   form.value.emblem_url       = f.emblem_url ?? "";
   form.value.alignment        = f.alignment;
-  form.value.is_player_visible = f.is_player_visible;
+  form.value.shared_with_players = f.shared_with_players;
+  form.value.player_visible_to   = f.player_visible_to ?? null;
   tags.value                  = [...f.tags];
 }, { immediate: true });
 
@@ -198,7 +206,8 @@ async function handleSave() {
       description:      form.value.description,
       emblem_url:       form.value.emblem_url || null,
       alignment:        form.value.alignment,
-      is_player_visible: form.value.is_player_visible,
+      shared_with_players: form.value.shared_with_players,
+      player_visible_to:   form.value.player_visible_to,
       tags:             tags.value,
     };
     if (isNew.value) {

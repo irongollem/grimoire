@@ -56,7 +56,7 @@ export function usePlayerVisibleFactions() {
       const { data, error } = await supabase
         .from("factions")
         .select("*")
-        .eq("is_player_visible", true)
+        .eq("shared_with_players", true)
         .order("name", { ascending: true });
       if (error) throw error;
       return data as Faction[];
@@ -527,12 +527,12 @@ export function usePartyMemberFactions(partyMemberId: string | Ref<string>) {
       const pid = typeof id === "string" ? id : id.value;
       const { data, error } = await supabase
         .from("faction_party_members")
-        .select("*, faction:factions(id, name, faction_type, emblem_url, is_player_visible)")
+        .select("*, faction:factions(id, name, faction_type, emblem_url, shared_with_players)")
         .eq("party_member_id", pid)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return data as (FactionPartyMember & {
-        faction: Pick<Faction, "id" | "name" | "faction_type" | "emblem_url" | "is_player_visible">;
+        faction: Pick<Faction, "id" | "name" | "faction_type" | "emblem_url" | "shared_with_players">;
       })[];
     },
     enabled: computed(() => !!(typeof id === "string" ? id : id.value)),

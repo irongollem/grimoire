@@ -22,23 +22,12 @@
       </select>
 
       <!-- Player visibility toggle -->
-      <button
-        type="button"
-        :title="
-          isPlayerVisible
-            ? 'Visible to players — click to hide'
-            : 'Hidden from players — click to share'
-        "
-        class="p-2 rounded-md border border-border transition-colors"
-        :class="
-          isPlayerVisible
-            ? 'bg-elven-green/15 text-elven-green border-elven-green/30'
-            : 'bg-card text-muted-foreground hover:text-foreground'
-        "
-        @click="isPlayerVisible = !isPlayerVisible"
-      >
-        <Eye class="h-3.5 w-3.5" />
-      </button>
+      <PlayerVisibilityToggle
+        :shared-with-all="sharedWithPlayers"
+        :visible-to="playerVisibleTo"
+        @update:shared-with-all="sharedWithPlayers = $event"
+        @update:visible-to="playerVisibleTo = $event"
+      />
 
       <button
         type="button"
@@ -937,7 +926,8 @@ const locationId = ref(props.quest?.location_id ?? "");
 const parentQuestId = ref(props.quest?.parent_quest_id ?? props.parentId ?? "");
 const rewards = ref(props.quest?.rewards ?? "");
 const tags = ref<string[]>(props.quest?.tags ? [...props.quest.tags] : []);
-const isPlayerVisible = ref(props.quest?.is_player_visible ?? false);
+const sharedWithPlayers = ref(props.quest?.shared_with_players ?? false);
+const playerVisibleTo   = ref<string[] | null>(props.quest?.player_visible_to ?? null);
 const saving = ref(false);
 const saveError = ref("");
 
@@ -988,7 +978,8 @@ function buildPayload() {
     tags: tags.value,
     description: description.value || null,
     notes: notes.value || null,
-    is_player_visible: isPlayerVisible.value,
+    shared_with_players: sharedWithPlayers.value,
+    player_visible_to: playerVisibleTo.value,
     started_at: props.quest?.started_at ?? null,
     resolved_at: props.quest?.resolved_at ?? null,
   };
@@ -1019,7 +1010,7 @@ async function save() {
   if (!title.value.trim()) return;
   saving.value = true;
   saveError.value = "";
-  const justShared = isPlayerVisible.value && !props.quest?.is_player_visible;
+  const justShared = sharedWithPlayers.value && !props.quest?.shared_with_players;
   try {
     if (props.quest) {
       await update({ id: props.quest.id, update: buildPayload() });
@@ -1031,7 +1022,7 @@ async function save() {
       router.push("/quests");
     } else {
       const created = await create(buildPayload());
-      if (isPlayerVisible.value && campaign.activeCampaignId)
+      if (sharedWithPlayers.value && campaign.activeCampaignId)
         void sendCampaignAnnouncement(
           campaign.activeCampaignId,
           `📋 Quest shared: "${created.title}"`,
