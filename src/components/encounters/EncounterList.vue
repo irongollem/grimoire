@@ -42,7 +42,9 @@
         <div class="p-4 flex flex-col gap-3 flex-1">
           <!-- Name -->
           <div class="flex items-start justify-between gap-2">
-            <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight flex-1 line-clamp-1">
+            <h3
+              class="font-cinzel text-sm font-bold text-foreground leading-tight flex-1 line-clamp-1"
+            >
               {{ encounter.name }}
             </h3>
             <span
@@ -56,7 +58,9 @@
               v-else-if="isEncounterRunning(encounter.id)"
               class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider text-green-400 bg-green-500/15 border border-green-500/30"
             >
-              <span class="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+              <span
+                class="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse"
+              />
               Live
             </span>
             <span
@@ -69,37 +73,53 @@
           </div>
 
           <!-- Description -->
-          <p v-if="descriptionText(encounter.description)" class="font-fell text-xs text-muted-foreground italic line-clamp-2">
+          <p
+            v-if="descriptionText(encounter.description)"
+            class="font-fell text-xs text-muted-foreground italic line-clamp-2"
+          >
             {{ descriptionText(encounter.description) }}
           </p>
 
           <!-- Stats row -->
-          <div class="flex gap-4 mt-auto font-cinzel text-[11px] text-muted-foreground">
+          <div
+            class="flex gap-4 mt-auto font-cinzel text-[11px] text-muted-foreground"
+          >
             <span class="flex items-center gap-1">
               <Skull class="h-3 w-3" />
-              {{ totalMonsterCount(encounter) }} monster{{ totalMonsterCount(encounter) !== 1 ? 's' : '' }}
+              {{ totalMonsterCount(encounter) }} monster{{
+                totalMonsterCount(encounter) !== 1 ? "s" : ""
+              }}
             </span>
             <span class="flex items-center gap-1">
               <Users class="h-3 w-3" />
-              {{ encounter.party_member_ids.length }} player{{ encounter.party_member_ids.length !== 1 ? 's' : '' }}
+              {{ encounter.party_member_ids.length }} player{{
+                encounter.party_member_ids.length !== 1 ? "s" : ""
+              }}
             </span>
           </div>
         </div>
       </RouterLink>
     </div>
 
-    <p v-if="filtered.length" class="mt-4 font-fell text-xs text-muted-foreground italic text-right">
+    <p
+      v-if="filtered.length"
+      class="mt-4 font-fell text-xs text-muted-foreground italic text-right"
+    >
       {{ filtered.length }} of {{ encounters?.length ?? 0 }} encounters
     </p>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { computed } from "vue";
 import { Skull, Users, CheckCheck } from "lucide-vue-next";
 import { useEncounters } from "@/composables/useEncounters";
 import { useRunningEncounters } from "@/composables/useEncounterLive";
-import { DIFFICULTY_COLORS, calculateDifficulty, crToXp } from "@/types/encounter.types";
+import {
+  DIFFICULTY_COLORS,
+  calculateDifficulty,
+  crToXp,
+} from "@/types/encounter.types";
 import type { Encounter } from "@/types/encounter.types";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useUiStore } from "@/stores/ui";
@@ -160,7 +180,10 @@ function encounterDifficultyLabel(encounter: Encounter): string {
   const enemyEntries = encounter.combatants
     .filter((c) => enemyFactionIds.has(c.faction_id))
     .map((c) => ({
-      cr: (c.monster_id ? monsterMap.get(c.monster_id)?.stat_block.challenge_rating : null) ?? null,
+      cr:
+        (c.monster_id
+          ? monsterMap.get(c.monster_id)?.stat_block.challenge_rating
+          : null) ?? null,
       count: c.count,
     }))
     .filter((e) => crToXp(e.cr) > 0);
@@ -168,12 +191,17 @@ function encounterDifficultyLabel(encounter: Encounter): string {
   if (!enemyEntries.length) return "Trivial";
 
   // No party info in the list — just show based on raw XP
-  const result = calculateDifficulty(enemyEntries, Array(Math.max(encounter.party_member_ids.length, 1)).fill(3));
+  const result = calculateDifficulty(
+    enemyEntries,
+    Array(Math.max(encounter.party_member_ids.length, 1)).fill(3),
+  );
   return result.label;
 }
 
 function encounterDifficultyColor(encounter: Encounter): string {
   const label = encounterDifficultyLabel(encounter);
-  return DIFFICULTY_COLORS[label as keyof typeof DIFFICULTY_COLORS] ?? "#6B7280";
+  return (
+    DIFFICULTY_COLORS[label as keyof typeof DIFFICULTY_COLORS] ?? "#6B7280"
+  );
 }
 </script>
