@@ -35,6 +35,7 @@ export interface Encounter {
   description: string | null;
   party_member_ids: string[];
   companion_ids: string[];
+  party_member_factions: Record<string, string>; // memberId/companionId → factionId
   combatants: CombatantDef[];
   factions: FactionDef[];
   item_ids: string[];

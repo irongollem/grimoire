@@ -107,6 +107,17 @@ export interface FactionItem {
   user_id: string;
 }
 
+export interface FactionPartyMember {
+  id: string;
+  faction_id: string;
+  party_member_id: string;
+  role: string | null;
+  status: string;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface FactionRelation {
   id: string;
   faction_id: string;

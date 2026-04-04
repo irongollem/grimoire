@@ -60,6 +60,8 @@
 - [x] Encounter Runner — spawn monsters/NPCs mid-encounter via ⚔ SPAWN panel (EntityCombobox + faction + count, stacked with traps in shared sidebar column)
 - [x] Named curses in encounter runner (separate from flat conditions, syncs back to party on end combat)
 - [x] End-combat sync — HP, conditions, curses, and death saves written back to party_members
+- [x] Per-player combat faction assignment — party members and companions can be assigned to any combat faction in the encounter builder (e.g. charmed players fight for the enemy); stored in `party_member_factions` JSONB column (irongollem/grimoire#48)
+- [x] Story faction membership for players — party members can join campaign factions (`faction_party_members` table, same role/status system as NPCs); faction detail page shows both NPC and player members; player portal faction panel shows fellow NPC members + the player's own rank when they share a faction (irongollem/grimoire#5)
 
 ### Quests & Adventures
 
@@ -123,33 +125,23 @@
 - [x] **Migrate `npcs.party_notes`** — legacy per-column party notes migrated into `entity_notes`; column dropped; DM editor "Party Notes" field removed; all campaign members can see each other's shared notes via symmetric RLS policy
 - [x] **Campaign delete hardening** — trash icon removed from campaign picker dropdown; delete moved to dedicated "Danger Zone" tab in Edit Campaign modal; requires typing campaign name to confirm (GitHub-style)
 - [x] **Typography polish** — placeholder opacity globally dimmed (40%) so placeholders are clearly distinct from input text; body font migrated from IM Fell English (no bold variant) to Crimson Pro (weights 300–700, proper bold rendering); RTE heading sizes toned down (H1: 2xl→lg, H2: xl→base, H3: base→sm)
-- [ ] **Session planner** - have an shared agenda feature to allocate when a player is available so it's easy for a DM or player to plan the next possible session with a threshold of minimal players available
-- [ ] Have an iCal/google calendar link to store and manage the ongoing campaign agenda plan
 
 ---
 
 ## Planned (Backlog)
 
-### Quests
-
-- [ ] **Quest triggers** — `quest_triggers` table: quest_id, trigger_type (quest_complete / objective_done), offset_days, action_type (create_calendar_event / send_broadcast), action_payload JSONB. Example: "5 days after this quest completes, create a calendar event"
-
 ### Dungeon craft
 
-- [ ] Add a section with tools to help build dungeons
 - [x] **Traproom** — full CRUD for traps with image, type badge, trigger, detection/disarm DCs, CR+XP, save, attack bonus, damage dice (via DiceExprInput), damage type, reset type, rich description + DM notes; Assets group (no campaign scoping)
 - [x] Trap HP/AC fields (physical destruction) + CR advisor (Suggest button → modal grades CR from effect category, targeting, DC tier, reset, HP/AC, secondary effects)
 - [x] Add traps (created in the traproom) as elements of an encounter so their CR contributes to the total — `EncounterTraps` component in encounter builder; trap XP added flat (no multiplier) to difficulty; hazard XP shown separately in Difficulty Analysis panel
 - [x] Trap detail panel in encounter runner — click a trap to inspect it; roll Detect/Disarm DCs, attack bonus, save DC, and damage dice; effect description and notes shown inline
-- [ ] puzzle room - create puzzles with images, hints, solutions
-- [ ] secret door - create hidden passages with images, triggers, discovery methods
 
 ### Encounters
 
 - [x] **Health info visibility** — campaign-level setting (strategic/immersive/unknown); strategic: PCs exact HP + bar, non-PCs bar + label; immersive: PCs exact, others label only; unknown: PCs exact, others nothing
 - [x] **Monster reveal system** — monsters start hidden; DM cycles hidden→unseen→revealed per monster; unseen shows mystery slot to players; revealed shows full info; hidden completely absent from player view
 - [x] **Encounter Events** - timed bombs, reinforcements, dynamic changes based on triggers (e.g. "when Goblin King hits 50% HP, spawn 3 Goblin minions") all need initiative positions, tracking, and triggers.
-- [ ] **Split-screen encounter view** — player portal encounter page redesigned as a split layout: left panel shows the live encounter (initiative, HP bars, active combatant highlight, monster reveals), right panel shows the player's own character sheet (ability scores, HP controls, conditions, inventory). Replaces the current single-page encounter view. Players can follow combat and interact with their sheet simultaneously without switching tabs.
 
 ### Monster Discovery & Player Bestiary
 
@@ -167,25 +159,15 @@
 - [x] **Faction member status** — Active / Retired / Defected / Expelled / Deceased per membership; former members shown in collapsible "Former Members" section; status badge on NPC faction chips
 - [x] **NPC inventory** — `npc_inventory` table; per-NPC item management with quantity; "Drop to Chat" sends items as loot; DM can claim chat loot directly into an NPC's inventory via "To NPC" picker
 - [x] **SRD monster art upload** — `srd_monster_art` table stores per-user art overlays (portrait + card art) keyed by stable `srd_id`; merged into in-memory SRD monsters at query time; long-cached (30 min stale); no duplicate bestiary entries
-- [ ] **NPC relationship map** — visual graph of NPC relationships (family, allies, enemies) with hover details; data already stored in `npc_relationships` table
-
-### Items & Magic Items
-
-- [ ] Restrict claim button to players who have a linked party member
-- [ ] Show item details tooltip/expand in chat before claiming
-- [ ] Scriptorium formatter for items (stat block style: name, type line, rarity, attunement, description)
 
 ### Spells
 
 - [x] Server-side pagination for Spellbook — 50 per page, Supabase-filtered by level/school/class/name, debounced search, keepPreviousData for smooth transitions
 - [x] Add the artificer as class to the list of "who this spell is for" — Artificer was already in SPELL_CLASSES; existing DB rows lacked it because the old importer filtered it out. Fixed via re-import update pass.
-- [ ] Scriptorium formatter for spells (classic spell card block)
-- [ ] Spell list on NPC / monster stat blocks with Spellbook links
 - [x] Track the actual book source from open5e — `document__slug` now stored as `source`; `OPEN5E_SOURCE_LABELS` map provides human-readable names; `spellSourceLabel()` helper used in UI
 - [x] Source filter in spell list view — dropdown populated from distinct sources present in DB; labels resolved via `spellSourceLabel()` (human-readable: "D&D SRD 5.1", "Xanathar's Guide to Everything", etc.)
 - [x] Re-import updates existing spells — "Sync from Open5e" button now updates `source` + `classes` for all `open5e_import = true` spells without touching images or user-edited fields; `open5e_import` boolean flag added (migration `20260328000053`); status label shows added/updated counts
 - [x] Human-readable source labels everywhere — `source_title` + `source_url` stored from `document__title`/`document__url`; source line in spell detail and editor is a clickable link to the product page; filter dropdown queries on slug, displays title; `spellSourceLabel(slug, title)` used throughout with hardcoded map as fallback
-- [ ] During import, allow filtering which sources are fetched/stored (persist in localStorage)
 
 #### Player Spells — Phase 1: Browse
 
@@ -210,23 +192,18 @@
 #### Player Spells — Phase 4: Click-to-Cast in Encounter
 
 - [x] Prepared spells accessible from encounter runner player detail panel with 🎲 roll + DC badge
-- [ ] Optional: track spell slot usage per level
 
 ### Atlas / Locations
 
 - [x] **NPC location filter includes child locations** — selecting a city shows NPCs in all sub-locations; `useLocationTree` composable (with `getDescendantIds` + tree-sorted combobox options) shared across modules
 - [x] **NPC sort by location** — Name / Location toggle in NPC list; location sort uses DFS tree order so parent locations precede children; no-location NPCs go last; ties broken by NPC name
 - [x] **Player NPC relevance rating (1–5)** — players rate NPCs 1–5 for personal relevance (stored in localStorage per device); rating pips on player portal card grid and detail lightbox; portal sorts by rating desc (unrated last), with search and relationship filter
-- [ ] **Planar locations populate** — second "Populate Planes" button or opt-in checkbox in main populate (21 entries: inner/outer/transitive planes, Sigil)
-- [ ] **Time-bound locations** — add optional `era_start` / `era_end` year fields; grey-out or hide locations not in current campaign year
 - [x] **People in the Area** — "People in the Area" section on location pages shows NPCs assigned to this location or any descendant; sublocation badge shows which child the NPC belongs to; count reflects full tree depth
 - [x] **Full ancestor breadcrumb** — location editor breadcrumb walks the entire parent chain (root → … → parent → current), all segments clickable; depth capped at 10 to prevent cycles
-- [ ] **Location relationships** — add `related_location_ids` array field; show linked locations in a "Related Locations" section (distinct from the ancestor trail)
 - [x] **Map upload & pinning** — upload a map image per location; interactive `LocationMap` component with drag-to-place child pins, per-pin player visibility toggle, hover labels, single-click navigation; `is_map_shared` toggle shares the map with players; pin positions stored as % in `map_pins` JSONB (child name/type denormalised for player reads)
 - [x] **Player Atlas** — `/play/atlas` lists DM-shared maps; expandable cards show `LocationMap` in view mode (player-visible pins only); clicking a pin auto-expands that child's map if it's also shared
 - [x] **Player location notes** — each Atlas card has a `PlayerNotesWidget` (private / shared party notes) using the generic `entity_notes` table with `entity_type="location"`
 - [x] **Player notes UX overhaul** — `PlayerNotesWidget` now shows two independent boxes: "My Private Notes" (is_private=true, only author sees) and "My Party Notes" (is_private=false, full party sees); "From the Party" section shows all other members' shared notes; RLS updated so players can see each other's non-private notes (previously only DM↔player was symmetric)
-- [ ] **share locations with players** — full location sharing (description, notes, NPC links) beyond just the map
 
 ### Rules reliquary
 
@@ -236,18 +213,6 @@
 ### Scriptorium
 
 - [x] **Two-column layout** — Columns2 toolbar button toggles `column-count: 2` on both the editor and the Scriptorium preview; persisted per document in DB (`is_two_column`); H1/H2 span both columns in preview
-- [ ] **Table support** — Tiptap table extension for stat comparison tables
-- [ ] **Visual assets** — page border PNG, chapter art (see `ASSETS_PROMPT_LIST.md`)
-
-### Search & Export
-
-- [ ] **Campaign export/import** — JSON export of entire campaign data; import to restore or share
-- [ ] **Full-text search** — cross-entity search across NPCs, monsters, notes, spells, items, locations, quests
-
-### World Bundles & Community
-
-- [ ] **Unified world bundles** — `WorldBundle` interface combining calendar events + locations + key NPCs + starting items per setting
-- [ ] **User-uploadable bundles** — allow DMs to upload world bundle JSON for custom settings with client-side validation and import preview
 
 ### Tokens & VTT Integration
 
@@ -257,14 +222,9 @@
 
 ### Misc
 
-- [ ] **Monster import from external sources** — import tool to pull stat blocks from D&D Beyond or Open5e API directly into Bestiary
 - [x] **Campaign settings page** — Edit Campaign modal + `/campaign/settings` (Members, Invite Links, World Settings tabs)
 - [x] **Crafting system** — allow players to craft items using gear proficiencies, crafting tools
 - [x] **Crafting multi-output** — recipes can produce multiple output items (e.g. 4× leather strips + 1× tanning waste from raw hide)
-- [ ] **Player convenience** During an encounter add
-  - inputbox plus dmg, heal, temp hp buttons on player character sheet HP field
-  - death save pips with click to toggle (and rollerd20 with 10+ successs to stabilize)
-  - have conditions that affect dicerolls, e.g. poisoned gives disadvantage on attack rolls and ability checks, be able to toggle these on the player sheet and have them apply to rolls in the campaign chat
 
 ---
 
@@ -284,17 +244,10 @@ BYOK (Bring Your Own Key) — DM enters their OpenAI key in Campaign Settings �
 
 - [x] **NPC generation** — concept prompt → full NPC (name, race, alignment, age, occupation, appearance, personality, backstory, DM notes, status, relationship, tags) + portrait image prompt. Populates the NPC editor form. Personality uses D&D 5e sections (Personality Traits / Ideal / Bond / Flaw) as Tiptap h3 headings.
 - [x] **Markdown paste support in RichTextEditor** — pasting text containing markdown block syntax (`## headings`, `- bullets`, `1. ordered lists`, `> blockquotes`, `**bold**`, `*italic*`) is auto-converted to Tiptap nodes. Plain text paste is unaffected.
-- [ ] **Description writer** — "Enhance" button in Tiptap editors (notes, location descriptions, NPC backstory): select text → rewrite in vivid D&D prose.
-- [ ] **Quest hook generation** — setting + party level + optional theme → 3–5 quest hooks with title, summary, giver, potential objectives.
-- [ ] **Item generation** — flavour prompt → magic item with name, type, rarity, description, mechanical properties.
-- [ ] **Spell generation** — concept prompt → spell with all fields (school, level, components, casting time, range, duration, description).
-- [ ] **Monster generation** — concept prompt → full stat block populating the Bestiary editor.
 
 ### Image generation — OpenAI gpt-image-1.5
 
 - [x] **NPC portrait generation** — auto-generated as part of NPC generation; uploaded to `npc-portraits` Supabase Storage bucket.
-- [ ] **Token art generation** — tight circular portrait for VTT tokens. Prompt auto-augmented with token framing.
-- [ ] **Scene/location art** — wide establishing shot for a location (Scriptorium header or session notes).
 
 **Cost estimates (approximate):**
 
@@ -377,5 +330,3 @@ Keep the core DM tooling free forever (open source). Gate AI features, advanced 
   - [x] Infinite scroll (48/page, IntersectionObserver) on Monster, NPC, and Item lists — limits DOM + image requests on initial load
   - [x] Supabase Pro image transforms — CDN-edge resize + WebP conversion, gated by `VITE_SUPABASE_TRANSFORMS=true` (remove to revert to free plan behaviour)
   - [x] WebP conversion on upload — all new images stored as WebP (max 1920px, 85% quality) reducing source file size for all downstream use
-
-- [ ] NPC, Monster, spell (and other filters) should be stored in local host (with a clear button) so navigating doesn't constantly reset

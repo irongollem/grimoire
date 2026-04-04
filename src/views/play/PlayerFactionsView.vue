@@ -94,6 +94,29 @@
               <RichTextViewer :content="selected.description" />
             </div>
 
+            <!-- Fellow faction members (only visible if the player is also in this faction) -->
+            <div v-if="playerMembership && factionNpcs?.length">
+              <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">
+                KNOWN MEMBERS
+                <span class="font-fell font-normal normal-case italic ml-1">({{ playerMembership.role ?? 'Member' }})</span>
+              </p>
+              <div class="flex flex-col gap-1.5">
+                <div
+                  v-for="entry in factionNpcs.filter(e => !e.status || e.status === 'Active')"
+                  :key="entry.id"
+                  class="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2"
+                >
+                  <div class="flex-1 min-w-0">
+                    <span class="font-cinzel text-xs font-semibold text-foreground">{{ entry.npc.name }}</span>
+                    <span v-if="entry.npc.race || entry.npc.occupation" class="font-fell text-[11px] text-muted-foreground italic ml-2">
+                      {{ [entry.npc.race, entry.npc.occupation].filter(Boolean).join(' · ') }}
+                    </span>
+                  </div>
+                  <span class="font-cinzel text-[10px] text-muted-foreground shrink-0">{{ entry.role ?? 'Member' }}</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Notes -->
             <PlayerNotesWidget entity-type="faction" :entity-id="selected.id" placeholder="Your thoughts on this faction…" />
           </div>
@@ -106,16 +129,32 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { Shield, XIcon } from "lucide-vue-next";
-import { usePlayerVisibleFactions } from "@/composables/useFactions";
+import { usePlayerVisibleFactions, usePartyMemberFactions, usePlayerFactionNpcs } from "@/composables/useFactions";
+import { useAuthStore } from "@/stores/auth";
 import type { Faction } from "@/types/faction.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 
+const auth = useAuthStore();
 const { data: factions, isLoading } = usePlayerVisibleFactions();
 
 const search   = ref("");
 const selected = ref<Faction | null>(null);
+
+// Player's faction memberships — used to check if they're in the selected faction
+const myMemberId = computed(() => auth.linkedPartyMemberId ?? "");
+const { data: myFactionMemberships } = usePartyMemberFactions(myMemberId);
+
+const playerMembership = computed(() => {
+  if (!selected.value || !myFactionMemberships.value) return null;
+  return myFactionMemberships.value.find((m) => m.faction_id === selected.value!.id) ?? null;
+});
+
+// NPC members of the selected faction — only fetched if the player is a member (RLS enforces this)
+const selectedFactionId = computed(() => selected.value?.id ?? "");
+const isInFaction = computed(() => !!playerMembership.value);
+const { data: factionNpcs } = usePlayerFactionNpcs(selectedFactionId, isInFaction);
 
 const filtered = computed(() => {
   const q = search.value.toLowerCase().trim();

@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
+import { computed, type Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type {
@@ -7,8 +8,10 @@ import type {
   FactionLocation,
   FactionItem,
   FactionRelation,
+  FactionPartyMember,
 } from "@/types/faction.types";
 import type { Npc } from "@/types/npc.types";
+import type { PartyMember } from "@/types/party.types";
 import type { Location } from "@/types/location.types";
 import type { Item } from "@/types/item.types";
 
@@ -133,6 +136,23 @@ export function useFactionNpcs(factionId: string) {
       return data as FactionNpcWithNpc[];
     },
     enabled: !!factionId,
+  });
+}
+
+/** Player-accessible version — only works if the player is a member of the faction (via RLS) */
+export function usePlayerFactionNpcs(factionId: Ref<string>, enabled: Ref<boolean>) {
+  return useQuery({
+    queryKey: computed(() => ["player-faction-npcs", factionId.value]),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("faction_npcs")
+        .select("*, npc:npcs(id, name, occupation, race)")
+        .eq("faction_id", factionId.value)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data as (FactionNpc & { npc: Pick<Npc, "id" | "name" | "occupation" | "race"> })[];
+    },
+    enabled: computed(() => !!factionId.value && enabled.value),
   });
 }
 
@@ -473,6 +493,113 @@ export function useDeleteFactionRelation() {
       qc.invalidateQueries({
         queryKey: ["faction-relations", vars.target_faction_id],
       });
+    },
+  });
+}
+
+// ── Faction Party Members ──────────────────────────────────────────────────────
+
+export interface FactionPartyMemberWithMember extends FactionPartyMember {
+  party_member: Pick<PartyMember, "id" | "name" | "class" | "race" | "level" | "portrait_url">;
+}
+
+export function useFactionPartyMembers(factionId: string) {
+  return useQuery({
+    queryKey: ["faction-party-members", factionId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("faction_party_members")
+        .select("*, party_member:party_members(id, name, class, race, level, portrait_url)")
+        .eq("faction_id", factionId)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data as FactionPartyMemberWithMember[];
+    },
+    enabled: !!factionId,
+  });
+}
+
+export function usePartyMemberFactions(partyMemberId: string | Ref<string>) {
+  const id = typeof partyMemberId === "string" ? partyMemberId : partyMemberId;
+  return useQuery({
+    queryKey: computed(() => ["party-member-factions", typeof id === "string" ? id : id.value]),
+    queryFn: async () => {
+      const pid = typeof id === "string" ? id : id.value;
+      const { data, error } = await supabase
+        .from("faction_party_members")
+        .select("*, faction:factions(id, name, faction_type, emblem_url, is_player_visible)")
+        .eq("party_member_id", pid)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data as (FactionPartyMember & {
+        faction: Pick<Faction, "id" | "name" | "faction_type" | "emblem_url" | "is_player_visible">;
+      })[];
+    },
+    enabled: computed(() => !!(typeof id === "string" ? id : id.value)),
+  });
+}
+
+export function useAddFactionPartyMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { faction_id: string; party_member_id: string; role?: string }) => {
+      const user = getCurrentUser();
+      const { error } = await supabase
+        .from("faction_party_members")
+        .insert({ ...payload, user_id: user!.id });
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["faction-party-members", vars.faction_id] });
+      qc.invalidateQueries({ queryKey: ["party-member-factions", vars.party_member_id] });
+    },
+  });
+}
+
+export function useUpdateFactionPartyMemberRole() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, role, faction_id: _f, party_member_id: _p }: {
+      id: string; role: string; faction_id: string; party_member_id: string;
+    }) => {
+      const { error } = await supabase.from("faction_party_members").update({ role }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["faction-party-members", vars.faction_id] });
+      qc.invalidateQueries({ queryKey: ["party-member-factions", vars.party_member_id] });
+    },
+  });
+}
+
+export function useUpdateFactionPartyMemberStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, status, faction_id: _f, party_member_id: _p }: {
+      id: string; status: string; faction_id: string; party_member_id: string;
+    }) => {
+      const { error } = await supabase.from("faction_party_members").update({ status }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["faction-party-members", vars.faction_id] });
+      qc.invalidateQueries({ queryKey: ["party-member-factions", vars.party_member_id] });
+    },
+  });
+}
+
+export function useRemoveFactionPartyMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, faction_id: _f, party_member_id: _p }: {
+      id: string; faction_id: string; party_member_id: string;
+    }) => {
+      const { error } = await supabase.from("faction_party_members").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["faction-party-members", vars.faction_id] });
+      qc.invalidateQueries({ queryKey: ["party-member-factions", vars.party_member_id] });
     },
   });
 }

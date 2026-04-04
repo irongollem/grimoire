@@ -52,9 +52,13 @@ Never stay on the detail/editor page or navigate to the newly created resource's
 
 ## Roadmap & Bug Tracking
 
-**CRITICAL — always update these files at the end of every response that implements a feature or fixes a bug:**
+Open work is tracked as GitHub issues on `irongollem/grimoire`. Do NOT add new `[ ]` items to `ROADMAP.md` or `BUGS.md` — open a GitHub issue instead.
 
-- `ROADMAP.md` — check off completed features (checkboxes), add new items if needed
-- `BUGS.md` — check off resolved bugs, add new bugs as they arise
+**CRITICAL — when you implement a feature or fix a bug, always do both:**
 
-This is a hard requirement: if you implemented or completed anything, the last thing you do before finishing your response is update the relevant file(s). Do not skip this even for small changes.
+1. Add a `[x]` entry to the relevant local file with a brief description of what was done and why:
+   - `ROADMAP.md` — for completed features
+   - `BUGS.md` — for resolved bugs
+2. Close the corresponding GitHub issue (if one exists) using `mcp__github__update_issue` with `state: closed`
+
+The local files are a curated history log. GitHub issues are the source of truth for what needs doing.

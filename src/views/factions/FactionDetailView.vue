@@ -98,6 +98,9 @@
         <template v-if="!isNew">
           <div class="border-t border-border pt-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
             <FactionMembersSection :faction-id="id" />
+            <FactionPartyMembersSection :faction-id="id" />
+          </div>
+          <div class="border-t border-border pt-6">
             <FactionRelationsSection :faction-id="id" />
           </div>
           <div class="border-t border-border pt-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -127,6 +130,7 @@ import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import FactionMembersSection from "@/components/factions/FactionMembersSection.vue";
+import FactionPartyMembersSection from "@/components/factions/FactionPartyMembersSection.vue";
 import FactionLocationsSection from "@/components/factions/FactionLocationsSection.vue";
 import FactionItemsSection from "@/components/factions/FactionItemsSection.vue";
 import FactionRelationsSection from "@/components/factions/FactionRelationsSection.vue";

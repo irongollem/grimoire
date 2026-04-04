@@ -211,6 +211,16 @@
               >
                 Lv {{ member.level }}
               </span>
+              <select
+                v-if="form.party_member_ids.includes(member.id)"
+                :value="form.party_member_factions[member.id] ?? 'players'"
+                class="shrink-0 bg-muted border border-border rounded px-2 py-0.5 font-cinzel text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                :style="{ borderColor: (form.factions.find(f => f.id === (form.party_member_factions[member.id] ?? 'players'))?.color ?? undefined) }"
+                @click.stop
+                @change="(e) => setMemberFaction(member.id, (e.target as HTMLSelectElement).value)"
+              >
+                <option v-for="f in form.factions" :key="f.id" :value="f.id">{{ f.name }}</option>
+              </select>
             </label>
 
             <!-- Companions -->
@@ -255,6 +265,16 @@
                 >
                   {{ comp.current_hp }}/{{ comp.max_hp }} HP
                 </span>
+                <select
+                  v-if="form.companion_ids.includes(comp.id)"
+                  :value="form.party_member_factions[comp.id] ?? 'players'"
+                  class="shrink-0 bg-muted border border-border rounded px-2 py-0.5 font-cinzel text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  :style="{ borderColor: (form.factions.find(f => f.id === (form.party_member_factions[comp.id] ?? 'players'))?.color ?? undefined) }"
+                  @click.stop
+                  @change="(e) => setMemberFaction(comp.id, (e.target as HTMLSelectElement).value)"
+                >
+                  <option v-for="f in form.factions" :key="f.id" :value="f.id">{{ f.name }}</option>
+                </select>
               </label>
             </template>
           </div>
@@ -472,6 +492,7 @@ const form = reactive({
   location_id: props.encounter?.location_id ?? (null as string | null),
   party_member_ids: [...(props.encounter?.party_member_ids ?? [])],
   companion_ids: [...(props.encounter?.companion_ids ?? [])],
+  party_member_factions: { ...(props.encounter?.party_member_factions ?? {}) } as Record<string, string>,
   combatants: [...(props.encounter?.combatants ?? [])] as CombatantDef[],
   factions: props.encounter?.factions?.length
     ? [...props.encounter.factions]
@@ -507,6 +528,7 @@ watch(
     form.description = enc.description ?? "";
     form.party_member_ids = [...enc.party_member_ids];
     form.companion_ids = [...(enc.companion_ids ?? [])];
+    form.party_member_factions = { ...(enc.party_member_factions ?? {}) };
     form.combatants = [...enc.combatants];
     form.factions = enc.factions?.length
       ? [...enc.factions]
@@ -524,6 +546,10 @@ function togglePartyMember(memberId: string) {
   const idx = form.party_member_ids.indexOf(memberId);
   if (idx >= 0) form.party_member_ids.splice(idx, 1);
   else form.party_member_ids.push(memberId);
+}
+
+function setMemberFaction(memberId: string, factionId: string) {
+  form.party_member_factions[memberId] = factionId;
 }
 
 function toggleCompanion(companionId: string) {
@@ -697,6 +723,7 @@ async function buildPayload() {
     location_id: form.location_id || null,
     party_member_ids: form.party_member_ids,
     companion_ids: form.companion_ids,
+    party_member_factions: form.party_member_factions,
     combatants: form.combatants,
     factions: form.factions,
     item_ids: form.item_ids,
