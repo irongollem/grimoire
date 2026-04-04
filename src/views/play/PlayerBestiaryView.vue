@@ -463,7 +463,6 @@ async function postRollToChat(label: string, total: number, breakdown: { val: nu
       metadata: { label, total, breakdown, modifier, isCrit: false, isFumble: false },
     });
   } catch (e) {
-    console.error("Failed to post roll:", e);
   }
 }
 

@@ -149,7 +149,6 @@ async function handleImport() {
     importStatus.value = "done";
   } catch (e) {
     importError.value = e instanceof Error ? e.message : String(e);
-    console.error("Open5e spell sync failed:", e);
   }
   setTimeout(() => {
     importStatus.value = "idle";

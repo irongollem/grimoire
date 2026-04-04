@@ -12,7 +12,7 @@ export interface BroadcastMessage {
 // Module-level channel shared between DM sender and player receiver
 let broadcastChannel: ReturnType<typeof supabase.channel> | null = null;
 let broadcastCampaignId: string | null = null;
-let broadcastRefCount = 0;
+let _broadcastRefCount = 0;
 
 function getBroadcastChannel(campaignId: string) {
   if (broadcastChannel && broadcastCampaignId === campaignId) return broadcastChannel;
@@ -45,7 +45,7 @@ export function useCampaignBroadcast() {
   const messages = ref<BroadcastMessage[]>([]);
   let localChannel: ReturnType<typeof supabase.channel> | null = null;
 
-  broadcastRefCount++;
+  _broadcastRefCount++;
 
   function subscribe(campaignId: string) {
     if (localChannel) {
@@ -71,7 +71,7 @@ export function useCampaignBroadcast() {
 
   onUnmounted(() => {
     stopWatch();
-    broadcastRefCount--;
+    _broadcastRefCount--;
     if (localChannel) {
       supabase.removeChannel(localChannel);
       localChannel = null;

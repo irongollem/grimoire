@@ -85,7 +85,7 @@ const dmgStat = computed(() => {
   return avg > 0 ? `~${Math.round(avg)}` : (props.data.damage_rolls[0]?.dice ?? "—");
 });
 const chgStat = computed(() =>
-  props.data.charges != null ? `${props.data.charges}ch` : (props.data.cost ?? "—"),
+  props.data.charges !== null ? `${props.data.charges}ch` : (props.data.cost ?? "—"),
 );
 const infoStats = computed(() => [
   { label: "TYPE", value: ITEM_TYPE_LABELS[props.data.item_type].slice(0, 4) },
@@ -93,7 +93,7 @@ const infoStats = computed(() => [
   { label: "WT", value: props.data.weight ?? "—" },
   { label: "COST", value: props.data.cost ?? "—" },
   { label: "ATT", value: props.data.requires_attunement ? "Yes" : "No" },
-  { label: "CHG", value: props.data.charges != null ? String(props.data.charges) : "—" },
+  { label: "CHG", value: props.data.charges !== null ? String(props.data.charges) : "—" },
 ]);
 const displayTags = computed(() =>
   (props.data.properties.length ? props.data.properties : props.data.tags).slice(0, 2),

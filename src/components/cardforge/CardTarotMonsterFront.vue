@@ -82,7 +82,7 @@ const props = defineProps<{ data: Monster }>();
 const frameColor = computed(() => MONSTER_COLORS[props.data.monster_type] ?? "#1C2A4A");
 const badge = computed(() => {
   const cr = props.data.stat_block?.challenge_rating;
-  return cr != null ? `CR ${cr}` : null;
+  return cr !== null ? `CR ${cr}` : null;
 });
 const typeGlyph = computed(() => MONSTER_GLYPHS_LONG[props.data.monster_type] ?? "??");
 const typeLine = computed(

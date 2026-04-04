@@ -86,7 +86,7 @@ const frameColor = computed(
 );
 const badge = computed(() => {
   const cr = props.data.stat_block?.challenge_rating;
-  return cr != null ? `CR ${cr}` : null;
+  return cr !== null ? `CR ${cr}` : null;
 });
 const typeGlyph = computed(
   () => MONSTER_GLYPHS[props.data.monster_type] ?? "?",

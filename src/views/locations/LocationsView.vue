@@ -92,7 +92,6 @@ async function handlePopulate() {
     populateStatus.value = count === 0 ? "uptodate" : "done";
   } catch (e) {
     populateError.value = e instanceof Error ? e.message : String(e);
-    console.error("Location populate failed:", e);
   }
   setTimeout(() => {
     populateStatus.value = "idle";

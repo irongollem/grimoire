@@ -103,7 +103,7 @@ export function useImportSrdItems() {
     mutationFn: async () => {
       const { fetchSrdItems } = await import("@/lib/open5eImport");
       const { MUNDANE_GEAR } = await import("@/data/mundaneGear");
-      const [apiItems] = await Promise.all([fetchSrdItems()]);
+      const apiItems = await fetchSrdItems();
       const items = [...apiItems, ...MUNDANE_GEAR];
 
       // Check which names already exist — query only the names we're about to

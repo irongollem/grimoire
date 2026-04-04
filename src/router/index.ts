@@ -446,9 +446,7 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore();
   await auth.initialize();
-  console.info(`[router] navigating to ${String(to.name)} — ensuring fresh session`);
   await auth.ensureFreshSession();
-  console.info(`[router] session ready, proceeding to ${String(to.name)}`);
 
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return { name: "login", query: { redirect: to.fullPath } };

@@ -749,8 +749,7 @@ async function postRollToChat(
       type: "roll",
       metadata: { label, total, breakdown, modifier, isCrit, isFumble },
     });
-  } catch (e) {
-    console.error("Failed to post roll:", e);
+  } catch {
   }
 }
 

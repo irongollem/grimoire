@@ -81,7 +81,7 @@ function subscribe(campaignId: string) {
         if (idx >= 0) messages.value[idx] = updated;
       },
     )
-    .subscribe((status, err) => {
+    .subscribe((status, _err) => {
       // CLOSED fires whenever we call removeChannel() ourselves — ignore it.
       // Only reconnect on genuine transport errors for the current generation.
       if (myGen !== generation) return;
@@ -91,13 +91,11 @@ function subscribe(campaignId: string) {
       }
       if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
         if (reconnectAttempts >= MAX_RECONNECT) {
-          console.warn("[chat] max reconnect attempts reached, giving up until next navigation");
           return;
         }
         reconnectAttempts++;
         // Exponential backoff: 2s, 4s, 8s … capped at 30s
         const delay = Math.min(2000 * Math.pow(2, reconnectAttempts - 1), 30_000);
-        console.warn(`[chat] channel error, reconnecting in ${delay}ms (attempt ${reconnectAttempts})…`, status, err);
         setTimeout(() => {
           if (subscribedCampaignId && myGen === generation) {
             fetchMessages(subscribedCampaignId).then(() => {

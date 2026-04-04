@@ -266,8 +266,8 @@ function dayIsInEvent(event: CalendarEvent, month: number, day: number): boolean
   if (event.festival_day) return false;
   const startMonth = event.harptos_month;
   const startDay = event.harptos_day;
-  if (startMonth == null || startDay == null) return false;
-  if (!event.is_multi_day || event.end_day == null) {
+  if (startMonth === null || startDay === null) return false;
+  if (!event.is_multi_day || event.end_day === null) {
     return startMonth === month && startDay === day;
   }
   const endMonth = event.end_month ?? startMonth;
@@ -281,7 +281,7 @@ const monthEvents = computed(() => {
   const month = calendar.currentMonth;
   return (events.value ?? []).filter((e) => {
     if (e.festival_day) return false;
-    if (!e.is_multi_day || e.end_day == null) return e.harptos_month === month;
+    if (!e.is_multi_day || e.end_day === null) return e.harptos_month === month;
     const startMonth = e.harptos_month ?? 0;
     const endMonth = e.end_month ?? startMonth;
     return startMonth <= month && month <= endMonth;

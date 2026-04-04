@@ -535,7 +535,7 @@ const form = reactive({
   party_member_ids: [...(props.encounter?.party_member_ids ?? [])],
   companion_ids: [...(props.encounter?.companion_ids ?? [])],
   party_member_factions: {
-    ...(props.encounter?.party_member_factions ?? {}),
+    ...(props.encounter?.party_member_factions),
   } as Record<string, string>,
   combatants: [...(props.encounter?.combatants ?? [])] as CombatantDef[],
   factions: props.encounter?.factions?.length
@@ -575,7 +575,7 @@ watch(
     form.description = enc.description ?? "";
     form.party_member_ids = [...enc.party_member_ids];
     form.companion_ids = [...(enc.companion_ids ?? [])];
-    form.party_member_factions = { ...(enc.party_member_factions ?? {}) };
+    form.party_member_factions = { ...enc.party_member_factions };
     form.combatants = [...enc.combatants];
     form.factions = enc.factions?.length
       ? [...enc.factions]
@@ -878,7 +878,6 @@ async function handleDelete() {
   try {
     await deleteEncounter.mutateAsync(id);
   } catch (e) {
-    console.error("Failed to delete encounter:", e);
   }
 }
 </script>

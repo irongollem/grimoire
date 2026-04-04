@@ -154,8 +154,7 @@ async function importAll() {
       imported.value++;
     }
     result.value = "success";
-  } catch (e) {
-    console.error("Bundle import failed:", e);
+  } catch {
     result.value = "error";
   } finally {
     importing.value = false;

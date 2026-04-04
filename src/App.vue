@@ -36,19 +36,15 @@ async function onVisibilityChange() {
   }
 
   const awayMs = Date.now() - lastHidden;
-  console.info(`[App] tab visible after ${Math.round(awayMs / 1000)}s`);
-
   if (awayMs < 60_000) {
     // Short absence — staleTime (60s) handles freshness, no forced invalidation.
     // Calling invalidateQueries() here would burst N concurrent Supabase calls,
     // all serializing through navigator.locks, blocking any subsequent navigation.
-    console.info("[App] short absence (<60s), skipping invalidation — staleTime handles it");
     return;
   }
 
   // Long absence — the JWT may have expired. Warm the session first so that
   // every query fires with a valid token instead of queuing behind the lock.
-  console.info("[App] long absence, warming session before invalidating queries…");
   const t0 = Date.now();
   const TIMEOUT_MS = 8_000;
   const timedOut = await Promise.race([
@@ -57,12 +53,10 @@ async function onVisibilityChange() {
   ]);
 
   if (timedOut) {
-    console.warn("[App] session refresh timed out on visibility change, reloading…");
     window.location.reload();
     return;
   }
 
-  console.info(`[App] session warm (${Date.now() - t0}ms), invalidating queries`);
   queryClient.invalidateQueries();
 }
 

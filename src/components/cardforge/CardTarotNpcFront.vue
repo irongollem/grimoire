@@ -76,7 +76,7 @@ const props = defineProps<{ data: Npc }>();
 const frameColor = computed(() => NPC_COLORS[props.data.relationship] ?? "#333344");
 const badge = computed(() => {
   const cr = props.data.stat_block?.challenge_rating;
-  return cr != null ? `CR ${cr}` : null;
+  return cr !== null ? `CR ${cr}` : null;
 });
 const typeLine = computed(() => {
   const parts = [props.data.race, props.data.occupation].filter(Boolean).join(" · ");

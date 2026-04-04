@@ -190,8 +190,7 @@ async function onFileSelected(e: Event) {
     if (error) throw error;
     const { data } = supabase.storage.from("asset-images").getPublicUrl(path);
     editor.value.chain().focus().setImage({ src: data.publicUrl }).run();
-  } catch (err) {
-    console.error("Image upload failed:", err);
+  } catch {
   } finally {
     uploadingImage.value = false;
   }

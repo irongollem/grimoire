@@ -223,10 +223,10 @@ const preparedNonCantrips = computed(
   () => displayedEntries.value.filter((e) => e.spell.level > 0 && e.is_prepared).length,
 );
 const showPreparedCounter = computed(
-  () => props.viewMode === "prepared" && props.maxPrepared != null,
+  () => props.viewMode === "prepared" && props.maxPrepared !== null && props.maxPrepared !== undefined,
 );
 const preparedCounterClass = computed(() => {
-  if (props.maxPrepared == null) return "";
+  if (props.maxPrepared === null || props.maxPrepared === undefined) return "";
   const n = preparedNonCantrips.value;
   if (n > props.maxPrepared) return "text-red-400";
   if (n === props.maxPrepared) return "text-amber-400";

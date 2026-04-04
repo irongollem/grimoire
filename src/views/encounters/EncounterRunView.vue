@@ -23,6 +23,7 @@ import type { RunCombatant, Encounter } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
 import type { Npc } from "@/types/npc.types";
+import type { Trap } from "@/types/trap.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EncounterRunner from "@/components/encounters/EncounterRunner.vue";
 
@@ -80,12 +81,12 @@ watch(
   { immediate: true },
 );
 
-function filterEncounterTraps(trapIds: string[], allTraps: any[]): any[] {
+function filterEncounterTraps(trapIds: string[], allTraps: Trap[]): Trap[] {
   const trapSet = new Set(trapIds);
   return allTraps.filter((t) => trapSet.has(t.id));
 }
 
-function initStore(enc: Encounter, mons: Monster[], par: PartyMember[], npcList: Npc[], traps: any[] = []) {
+function initStore(enc: Encounter, mons: Monster[], par: PartyMember[], npcList: Npc[], traps: Trap[] = []) {
   store.reset();
   store.encounterId = enc.id;
   store.encounterName = enc.name;

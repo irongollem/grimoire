@@ -92,7 +92,6 @@ export const useAuthStore = defineStore("auth", () => {
       } catch (err) {
         // Clear initPromise so callers can retry (e.g. after an AbortError from
         // navigator.locks contention during HMR or multi-tab lock stealing).
-        console.error("[auth] initialize() failed, will retry on next navigation:", err);
         initPromise = null;
         throw err;
       }
@@ -160,7 +159,6 @@ export const useAuthStore = defineStore("auth", () => {
     ]);
 
     if (result === "timeout") {
-      console.warn("[auth] ensureFreshSession: timed out (navigator.locks stuck?), reloading…");
       window.location.reload();
       return;
     }

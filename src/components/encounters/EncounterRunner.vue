@@ -134,7 +134,6 @@ watch(
           type: "system",
         });
       } catch (e) {
-        console.error("Failed to send event broadcast:", e);
       }
     }
   },

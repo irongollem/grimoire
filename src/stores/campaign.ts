@@ -36,8 +36,7 @@ export const useCampaignStore = defineStore("campaign", () => {
         .then((key) => {
           decryptedApiKey.value = key;
         })
-        .catch((err) => {
-          console.error("Failed to decrypt API key:", err);
+        .catch(() => {
           decryptedApiKey.value = "";
         });
     } else {
