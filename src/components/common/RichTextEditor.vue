@@ -74,6 +74,7 @@
           <Columns2 class="h-3.5 w-3.5" />
         </button>
       </template>
+      <slot name="toolbar-end" />
     </div>
 
     <!-- Content area -->

@@ -251,6 +251,15 @@
               <p v-if="selectedNpc.player_visible_fields.includes('occupation') && selectedNpc.occupation"
                 class="font-fell text-sm text-muted-foreground">{{ selectedNpc.occupation }}</p>
             </div>
+            <!-- DM's per-PC relation note -->
+            <div v-if="myNpcPcNote" class="rounded-lg border border-primary/20 bg-primary/5 overflow-hidden">
+              <div class="px-3 py-2 border-b border-primary/20">
+                <p class="font-cinzel text-[10px] font-semibold tracking-widest text-primary/70">YOUR CONNECTION</p>
+              </div>
+              <div class="px-3 py-2.5">
+                <RichTextViewer :content="myNpcPcNote" />
+              </div>
+            </div>
             <PlayerNotesWidget v-if="selectedNpc" entity-type="npc" :entity-id="selectedNpc.id" placeholder="Your observations about this character…" />
           </div>
         </div>
@@ -329,9 +338,11 @@ import { useSharedNpcs } from "@/composables/useNpcs";
 import { useAllLocations } from "@/composables/useLocations";
 import { useCompanions } from "@/composables/useCompanions";
 import { usePlayerNpcRatings } from "@/composables/usePlayerNpcRatings";
+import { useMyNpcPcNote } from "@/composables/useNpcPcNotes";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
+import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import PlayerNpcCard from "@/components/play/PlayerNpcCard.vue";
 import { COMPANION_TYPE_LABELS, COMPANION_TYPE_COLORS } from "@/types/companion.types";
 import type { Companion } from "@/types/companion.types";
@@ -395,6 +406,8 @@ function closeMember() {
 
 // ── NPC lightbox ─────────────────────────────────────────────────────────────
 const selectedNpc = ref<Npc | null>(null);
+const selectedNpcId = computed(() => selectedNpc.value?.id ?? "");
+const { data: myNpcPcNote } = useMyNpcPcNote(selectedNpcId);
 
 function openNpc(npc: Npc) {
   selectedNpc.value = npc;

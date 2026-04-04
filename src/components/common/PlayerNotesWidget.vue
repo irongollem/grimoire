@@ -9,32 +9,28 @@
           <span class="font-fell text-[10px] text-muted-foreground/50 italic ml-2">Only you can see this</span>
         </div>
       </div>
-      <div class="p-3 space-y-2">
-        <RichTextEditor v-model="privateContent" :placeholder="placeholder" min-height="80px" />
-        <div class="flex items-center justify-between">
-          <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground/40">
-            {{ privateSaved ? '' : 'Unsaved changes' }}
-          </span>
-          <div class="flex items-center gap-2">
+      <RichTextEditor v-model="privateContent" :placeholder="placeholder" min-height="80px">
+        <template #toolbar-end>
+          <div class="ml-auto flex items-center gap-2 pl-1">
+            <div class="w-px h-5 bg-border" />
+            <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground/40">
+              {{ privateSaved ? '' : 'Unsaved' }}
+            </span>
             <button
               v-if="myPrivateNote"
               type="button"
-              class="font-cinzel text-[10px] text-muted-foreground/50 hover:text-destructive tracking-wider transition-colors"
+              class="px-2 h-6.5 font-cinzel text-[10px] tracking-wider rounded text-muted-foreground hover:text-destructive hover:bg-muted transition-colors"
               @click="clearPrivate"
-            >
-              Clear
-            </button>
+            >Clear</button>
             <button
               type="button"
               :disabled="privateSaving || privateSaved"
-              class="font-cinzel text-[10px] text-primary hover:opacity-80 tracking-wider transition-opacity disabled:opacity-40"
+              class="px-2 h-6.5 font-cinzel text-[10px] font-semibold tracking-wider rounded bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-40 transition-colors"
               @click="savePrivate"
-            >
-              {{ privateSaving ? 'Saving…' : 'Save' }}
-            </button>
+            >{{ privateSaving ? '…' : 'Save' }}</button>
           </div>
-        </div>
-      </div>
+        </template>
+      </RichTextEditor>
     </div>
 
     <!-- Shared / party note -->
@@ -46,32 +42,28 @@
           <span class="font-fell text-[10px] text-muted-foreground/50 italic ml-2">Visible to everyone in the campaign</span>
         </div>
       </div>
-      <div class="p-3 space-y-2">
-        <RichTextEditor v-model="sharedContent" :placeholder="placeholder" min-height="80px" />
-        <div class="flex items-center justify-between">
-          <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground/40">
-            {{ sharedSaved ? '' : 'Unsaved changes' }}
-          </span>
-          <div class="flex items-center gap-2">
+      <RichTextEditor v-model="sharedContent" :placeholder="placeholder" min-height="80px">
+        <template #toolbar-end>
+          <div class="ml-auto flex items-center gap-2 pl-1">
+            <div class="w-px h-5 bg-border" />
+            <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground/40">
+              {{ sharedSaved ? '' : 'Unsaved' }}
+            </span>
             <button
               v-if="mySharedNote"
               type="button"
-              class="font-cinzel text-[10px] text-muted-foreground/50 hover:text-destructive tracking-wider transition-colors"
+              class="px-2 h-6.5 font-cinzel text-[10px] tracking-wider rounded text-muted-foreground hover:text-destructive hover:bg-muted transition-colors"
               @click="clearShared"
-            >
-              Clear
-            </button>
+            >Clear</button>
             <button
               type="button"
               :disabled="sharedSaving || sharedSaved"
-              class="font-cinzel text-[10px] text-primary hover:opacity-80 tracking-wider transition-opacity disabled:opacity-40"
+              class="px-2 h-6.5 font-cinzel text-[10px] font-semibold tracking-wider rounded bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-40 transition-colors"
               @click="saveShared"
-            >
-              {{ sharedSaving ? 'Saving…' : 'Save' }}
-            </button>
+            >{{ sharedSaving ? '…' : 'Save' }}</button>
           </div>
-        </div>
-      </div>
+        </template>
+      </RichTextEditor>
     </div>
 
     <!-- Other party members' shared notes -->

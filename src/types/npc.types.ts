@@ -141,3 +141,18 @@ export type NpcInsert = Omit<
   "id" | "user_id" | "created_at" | "updated_at" | "location_id" | "linked_monster_id" | "player_visible_to"
 > & { location_id?: string | null; linked_monster_id?: string | null; player_visible_to?: string[] | null };
 export type NpcUpdate = Partial<NpcInsert>;
+
+// ── Per-PC relation notes ─────────────────────────────────────────────────────
+
+export interface NpcPcNote {
+  id: string;
+  user_id: string;
+  campaign_id: string;
+  npc_id: string;
+  party_member_id: string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type NpcPcNoteUpsert = Pick<NpcPcNote, "campaign_id" | "npc_id" | "party_member_id" | "notes">;

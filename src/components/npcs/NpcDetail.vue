@@ -76,6 +76,11 @@
         <p class="font-cinzel text-[10px] font-semibold tracking-widest text-muted-foreground mb-2">PARTY NOTES</p>
         <PlayerNotesWidget entity-type="npc" :entity-id="npc.id" placeholder="Notes visible to the whole party…" />
       </div>
+      <div class="pt-1">
+        <p class="font-cinzel text-[10px] font-semibold tracking-widest text-muted-foreground mb-2">PC CONNECTION NOTES</p>
+        <p class="font-fell text-[11px] text-muted-foreground/60 italic mb-2">Per-player notes visible only to the relevant PC.</p>
+        <NpcPcNotesSection :npc-id="npc.id" />
+      </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
@@ -395,6 +400,7 @@ import { formatNpcForScriptorium } from '@/lib/scriptoriumImport'
 import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES, getNpcTemplate } from '@/data/npcTemplates'
 import TraitSection from '@/components/npcs/TraitSection.vue'
 import NpcRelationsSection from '@/components/npcs/NpcRelationsSection.vue'
+import NpcPcNotesSection from '@/components/npcs/NpcPcNotesSection.vue'
 import NpcInventorySection from '@/components/npcs/NpcInventorySection.vue'
 import NpcFactionsSection from '@/components/factions/NpcFactionsSection.vue'
 import type { Npc, NpcInsert, NpcStatus, NpcRelationship, StatBlock } from '@/types/npc.types'
