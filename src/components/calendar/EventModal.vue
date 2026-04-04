@@ -510,7 +510,9 @@ async function submit() {
   };
 
   if (props.editEvent) {
-    await updateEvent({ id: props.editEvent.id, update: payload });
+    // Exclude campaign_id: never overwrite it on update.
+    const { campaign_id: _cid, ...updatePayload } = payload;
+    await updateEvent({ id: props.editEvent.id, update: updatePayload });
   } else {
     await createEvent(payload);
   }

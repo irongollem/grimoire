@@ -77,6 +77,12 @@
 - [x] similar to our issue with the notes on companions, the (party) notes on NPC's dont persist as there is no save button and closing the modal doesn't seem to save the data — openNpc now fetches both party_notes and personal notes fresh from DB on open (same fix as companions); notes auto-save on modal close
 - [x] NPC list card referenced old free-text affiliation field (dropped column) — list and player card now show race only (class field removed)
 
+- [x] New player lands on DM dashboard after first login and campaign appears blank until refresh (irongollem/grimoire#8, irongollem/grimoire#10) — `signIn()` relied on `onAuthStateChange` (setTimeout-deferred) to load membership, so the router guard saw role=null and didn't redirect to `/play`; fixed by eagerly loading membership from the `signInWithPassword` response before navigating.
+
+- [x] Player with no linked character saw all shared NPCs in the People section (irongollem/grimoire#8) — `if (!memberId) return all` fell back to showing every shared NPC; changed to `return []` so unlinked players see nothing until the DM assigns them a character.
+
+- [x] Notes, NPCs, calendar events, and party members could have `campaign_id` silently overwritten with `null` on save (irongollem/grimoire#12) — update payloads in `NoteEditor`, `NpcDetail`, `EventModal`, and `PartyMemberForm` all spread `campaign_id` from the active campaign store (null during state init); fixed by excluding `campaign_id` from all update payloads (it only belongs in insert payloads).
+
 - [x] deleting an encounter works (204) but then doesnt move back to the list and starts retrying resulting in a 406 — fixed: navigate first before mutateAsync; fetchEncounter now uses maybeSingle() (no 406 on 0 rows); useDeleteEncounter onSuccess calls removeQueries for the specific encounter before invalidating the list
 
 - [x] deleting a spell or monster doesn't return to list, and orphaned images left in storage — navigate first (before mutateAsync) to avoid TanStack refetch-404 race; image URLs deleted from asset-images bucket on entity delete

@@ -160,7 +160,8 @@ function buildPayload() {
     is_player_visible: isPlayerVisible.value,
     tags: tags.value,
     content: body.value ?? null,
-    campaign_id: activeCampaignId.value,
+    // campaign_id is injected by useCreateNote for inserts; never include it
+    // in update payloads or it can overwrite with null on a stale active campaign.
     user_id: user?.id,
   };
 }

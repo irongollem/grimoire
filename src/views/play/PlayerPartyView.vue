@@ -359,7 +359,9 @@ const { data: allSharedNpcs, isLoading: npcsLoading } = useSharedNpcs();
 const npcs = computed(() => {
   const all = allSharedNpcs.value ?? [];
   const memberId = viewerMemberId.value;
-  if (!memberId) return all;
+  // If no character is linked yet, show nothing — the player hasn't been
+  // assigned to a party member so they shouldn't see any NPC visibility lists.
+  if (!memberId) return [];
   return all.filter((npc) =>
     Array.isArray(npc.player_visible_to) && npc.player_visible_to.includes(memberId)
   );

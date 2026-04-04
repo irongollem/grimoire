@@ -754,7 +754,10 @@ async function save() {
   }
   try {
     if (props.npc?.id) {
-      await updateNpc({ id: props.npc.id, update: payload })
+      // Exclude campaign_id: it must not be overwritten on update (could be null
+      // if activeCampaignId hasn't loaded yet, severing the campaign link).
+      const { campaign_id: _cid, ...updatePayload } = payload;
+      await updateNpc({ id: props.npc.id, update: updatePayload })
       router.push('/npcs')
     } else {
       const created = await createNpc(payload)

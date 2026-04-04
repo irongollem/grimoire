@@ -650,7 +650,9 @@ async function save() {
 
   let partyMemberId = props.member?.id;
   if (props.member) {
-    await update({ id: props.member.id, update: payload });
+    // Exclude campaign_id: never overwrite it on update.
+    const { campaign_id: _cid, ...updatePayload } = payload;
+    await update({ id: props.member.id, update: updatePayload });
   } else {
     const created = await create(payload);
     partyMemberId = created.id;

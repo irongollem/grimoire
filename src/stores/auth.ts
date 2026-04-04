@@ -103,8 +103,18 @@ export const useAuthStore = defineStore("auth", () => {
   async function signIn(email: string, password: string) {
     loading.value = true;
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
+      // Eagerly set user/session and load membership so the router guard sees
+      // the correct role before the post-login navigation happens. Without this
+      // the onAuthStateChange callback fires asynchronously (via setTimeout) and
+      // the player lands on the DM dashboard before membership is loaded.
+      if (data.user) {
+        user.value = data.user;
+        session.value = data.session;
+        setCachedUser(data.user);
+        await loadMembership(data.user.id);
+      }
     } finally {
       loading.value = false;
     }
