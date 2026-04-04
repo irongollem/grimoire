@@ -246,7 +246,6 @@ import {
   User,
   MapPin,
   Check,
-  Package,
   Swords,
   Skull,
 } from "lucide-vue-next";
@@ -259,7 +258,6 @@ import {
 import { useNpcs } from "@/composables/useNpcs";
 import { useAllLocations } from "@/composables/useLocations";
 import { useMonsters } from "@/composables/useMonsters";
-import { useItems } from "@/composables/useItems";
 import { useEncounters } from "@/composables/useEncounters";
 import { QUEST_STATUS_LABELS, QUEST_STATUS_COLORS } from "@/types/quest.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -274,7 +272,6 @@ const { data: questRefs } = useQuestRefs(questId);
 const { data: npcs } = useNpcs();
 const { data: locations } = useAllLocations();
 const { data: allMonsters } = useMonsters();
-const { data: allItems } = useItems();
 const { data: allEncounters } = useEncounters();
 
 // Giver / primary location names
@@ -316,15 +313,6 @@ const hasCurrencyReward = computed(
       (quest.value?.reward_cp ?? 0) >
     0,
 );
-const visibleCoins = computed(() =>
-  [
-    { label: "PP", amount: quest.value?.reward_pp ?? 0, color: "#a855f7" },
-    { label: "GP", amount: quest.value?.reward_gp ?? 0, color: "#f59e0b" },
-    { label: "EP", amount: quest.value?.reward_ep ?? 0, color: "#60a5fa" },
-    { label: "SP", amount: quest.value?.reward_sp ?? 0, color: "#9ca3af" },
-    { label: "CP", amount: quest.value?.reward_cp ?? 0, color: "#b45309" },
-  ].filter((c) => c.amount > 0),
-);
 
 const visibleObjectives = computed(() =>
   (objectives.value ?? []).filter((o) => o.is_player_visible),
@@ -334,9 +322,6 @@ const doneCount = computed(
 );
 
 // Name lookups
-function itemName(id: string) {
-  return (allItems.value ?? []).find((i) => i.id === id)?.name ?? id;
-}
 function npcName(id: string) {
   return (npcs.value ?? []).find((n) => n.id === id)?.name ?? id;
 }

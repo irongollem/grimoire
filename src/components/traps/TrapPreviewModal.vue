@@ -1,0 +1,182 @@
+<template>
+  <Teleport to="body">
+    <div
+      v-if="trap"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      @click.self="emit('close')"
+      @keydown.escape="emit('close')"
+    >
+      <div class="w-full max-w-lg bg-card border border-border rounded-xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+
+        <!-- Header -->
+        <div class="flex items-center gap-3 px-5 py-4 border-b border-border shrink-0">
+          <span
+            class="font-cinzel text-[10px] font-bold px-2 py-0.5 rounded tracking-wider text-white shrink-0"
+            :style="{ backgroundColor: TRAP_TYPE_COLORS[trap.trap_type] + 'DD' }"
+          >{{ trap.trap_type }}</span>
+          <h2 class="font-cinzel text-sm font-bold text-foreground flex-1 truncate">{{ trap.name }}</h2>
+          <span v-if="trap.cr" class="font-cinzel text-xs text-muted-foreground shrink-0">
+            CR {{ trap.cr }} · {{ crToXp(trap.cr) }} XP
+          </span>
+          <button type="button" class="text-muted-foreground hover:text-foreground transition-colors ml-1 shrink-0" @click="emit('close')">
+            <X class="h-4 w-4" />
+          </button>
+        </div>
+
+        <!-- Scrollable body -->
+        <div class="flex-1 overflow-y-auto">
+
+          <!-- Image + identity row -->
+          <div v-if="trap.image_url || trap.tags.length" class="flex gap-4 px-5 pt-4">
+            <FocalImage
+              v-if="trap.image_url"
+              :src="trap.image_url"
+              :alt="trap.name"
+              format="portrait"
+              :focal-point="trap.image_focal_point"
+              class="w-24 h-24 rounded-lg shrink-0 object-cover"
+            />
+            <div class="flex-1 flex flex-col gap-2 justify-center">
+              <div v-if="trap.tags.length" class="flex flex-wrap gap-1">
+                <span
+                  v-for="tag in trap.tags"
+                  :key="tag"
+                  class="font-cinzel text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground tracking-wider"
+                >{{ tag }}</span>
+              </div>
+              <div v-if="trap.damage_immunities?.length" class="flex flex-wrap gap-1">
+                <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider mr-1">Immune:</span>
+                <span
+                  v-for="dmg in trap.damage_immunities"
+                  :key="dmg"
+                  class="font-cinzel text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 tracking-wider capitalize"
+                >{{ dmg }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mechanics -->
+          <div class="px-5 pt-4">
+            <div class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-2">MECHANICS</div>
+            <div class="grid grid-cols-3 gap-x-4 gap-y-2">
+              <div v-if="trap.trigger_type">
+                <div class="font-cinzel text-[10px] text-muted-foreground tracking-wider">Trigger</div>
+                <div class="font-fell text-sm text-foreground">{{ trap.trigger_type }}</div>
+              </div>
+              <div v-if="trap.detection_dc">
+                <div class="font-cinzel text-[10px] text-muted-foreground tracking-wider">Detection DC</div>
+                <div class="font-cinzel text-sm font-bold text-foreground">{{ trap.detection_dc }}</div>
+              </div>
+              <div v-if="trap.disarm_dc">
+                <div class="font-cinzel text-[10px] text-muted-foreground tracking-wider">Disarm DC</div>
+                <div class="font-cinzel text-sm font-bold text-foreground">{{ trap.disarm_dc }}</div>
+              </div>
+              <div>
+                <div class="font-cinzel text-[10px] text-muted-foreground tracking-wider">Reset</div>
+                <div class="font-fell text-sm text-foreground">{{ trap.reset_type }}</div>
+              </div>
+              <div v-if="trap.trap_hp">
+                <div class="font-cinzel text-[10px] text-muted-foreground tracking-wider">HP</div>
+                <div class="font-cinzel text-sm font-bold text-foreground">{{ trap.trap_hp }}</div>
+              </div>
+              <div v-if="trap.trap_ac">
+                <div class="font-cinzel text-[10px] text-muted-foreground tracking-wider">AC</div>
+                <div class="font-cinzel text-sm font-bold text-foreground">{{ trap.trap_ac }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Effect -->
+          <div
+            v-if="trap.effect_description || trap.attack_bonus != null || trap.save_type || trap.damage_dice"
+            class="px-5 pt-4"
+          >
+            <div class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-2">EFFECT</div>
+            <p v-if="trap.effect_description" class="font-fell text-sm text-foreground mb-2">
+              {{ trap.effect_description }}
+            </p>
+            <div class="flex flex-wrap gap-4">
+              <div v-if="trap.attack_bonus != null">
+                <div class="font-cinzel text-[10px] text-muted-foreground tracking-wider">Attack</div>
+                <div class="font-cinzel text-sm font-bold text-foreground">
+                  {{ trap.attack_bonus >= 0 ? "+" : "" }}{{ trap.attack_bonus }}
+                </div>
+              </div>
+              <div v-if="trap.save_type">
+                <div class="font-cinzel text-[10px] text-muted-foreground tracking-wider">Save</div>
+                <div class="font-cinzel text-sm font-bold text-foreground">
+                  {{ trap.save_type }} DC {{ trap.save_dc ?? "—" }}
+                </div>
+              </div>
+              <div v-if="trap.damage_dice">
+                <div class="font-cinzel text-[10px] text-muted-foreground tracking-wider">Damage</div>
+                <div class="font-cinzel text-sm font-bold text-foreground capitalize">
+                  {{ trap.damage_dice }}<span v-if="trap.damage_type"> {{ trap.damage_type }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div v-if="descriptionHtml" class="px-5 pt-4">
+            <div class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-2">DESCRIPTION</div>
+            <div class="prose prose-sm prose-invert max-w-none font-fell text-sm text-foreground" v-html="descriptionHtml" />
+          </div>
+
+          <!-- DM Notes -->
+          <div v-if="notesHtml" class="px-5 pt-4 pb-2">
+            <div class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-2">DM NOTES</div>
+            <div class="prose prose-sm prose-invert max-w-none font-fell text-sm text-foreground" v-html="notesHtml" />
+          </div>
+
+          <div class="h-4" />
+        </div>
+
+        <!-- Footer -->
+        <div class="flex items-center justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
+          <button
+            type="button"
+            class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-2"
+            @click="emit('close')"
+          >Close</button>
+          <RouterLink
+            :to="`/traps/${trap.id}`"
+            class="inline-flex items-center gap-1.5 rounded-md border border-border px-4 py-2 font-cinzel text-xs font-semibold text-foreground hover:border-primary/50 transition-colors"
+            @click="emit('close')"
+          >
+            <Pencil class="h-3.5 w-3.5" />
+            Edit Trap
+          </RouterLink>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+</template>
+
+<script setup lang="ts">
+import { computed } from "vue";
+import { RouterLink } from "vue-router";
+import { X, Pencil } from "lucide-vue-next";
+import { generateHTML } from "@tiptap/core";
+import StarterKit from "@tiptap/starter-kit";
+import FocalImage from "@/components/common/FocalImage.vue";
+import { TRAP_TYPE_COLORS } from "@/types/trap.types";
+import { crToXp } from "@/types/encounter.types";
+import type { Trap } from "@/types/trap.types";
+
+const props = defineProps<{ trap: Trap | null }>();
+const emit = defineEmits<{ close: [] }>();
+
+function renderRichText(content: string | null): string {
+  if (!content) return "";
+  try {
+    const json = typeof content === "string" ? JSON.parse(content) : content;
+    return generateHTML(json, [StarterKit]);
+  } catch {
+    return `<p>${content}</p>`;
+  }
+}
+
+const descriptionHtml = computed(() => renderRichText(props.trap?.description ?? null));
+const notesHtml = computed(() => renderRichText(props.trap?.notes ?? null));
+</script>

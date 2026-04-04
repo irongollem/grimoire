@@ -28,6 +28,10 @@
         <span class="text-muted-foreground">Adjusted XP</span>
         <span class="font-bold text-foreground">{{ props.difficulty.adjustedXp.toLocaleString() }}</span>
       </div>
+      <div v-if="props.difficulty.hazardXp > 0" class="flex justify-between">
+        <span class="text-muted-foreground">Trap / Hazard XP</span>
+        <span class="font-bold text-amber-500">+ {{ props.difficulty.hazardXp.toLocaleString() }}</span>
+      </div>
       <template v-if="props.difficulty.allyAdjustedXp > 0">
         <div class="flex justify-between">
           <span class="text-muted-foreground">

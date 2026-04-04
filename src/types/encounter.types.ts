@@ -38,6 +38,7 @@ export interface Encounter {
   combatants: CombatantDef[];
   factions: FactionDef[];
   item_ids: string[];
+  trap_ids: string[];
   reward_currency_pools: RewardCurrencyPool[];
   location_id: string | null;
   is_finished: boolean;
@@ -106,6 +107,7 @@ export interface RunCombatant {
   death_saves: { successes: number; failures: number };
   // back-references
   monster_id?: string;
+  npc_id?: string;
   def_id?: string;
   party_member_id?: string;
   companion_id?: string;
@@ -180,6 +182,7 @@ export const DIFFICULTY_COLORS: Record<DifficultyLabel, string> = {
 export interface DifficultyResult {
   rawXp: number;
   adjustedXp: number;
+  hazardXp: number;
   allyAdjustedXp: number;
   netXp: number;
   multiplier: number;
@@ -194,6 +197,7 @@ export function calculateDifficulty(
   enemyEntries: { cr: string | null | undefined; count: number }[],
   partyLevels: number[],
   allyEntries: { cr: string | null | undefined; count: number }[] = [],
+  hazardXp = 0,
 ): DifficultyResult {
   // Enemy side
   const enemyCount = enemyEntries.reduce((s, e) => s + e.count, 0);
@@ -214,7 +218,8 @@ export function calculateDifficulty(
   const allyAdjustedXp = Math.round(allyRawXp * allyMultiplier);
 
   // Net XP is what we compare against thresholds
-  const netXp = Math.max(0, adjustedXp - allyAdjustedXp);
+  // Trap/hazard XP is added flat (no count multiplier — static hazards fire once)
+  const netXp = Math.max(0, adjustedXp + hazardXp - allyAdjustedXp);
 
   // Party thresholds = sum of each member's threshold for their level
   const partyThresholds = { easy: 0, medium: 0, hard: 0, deadly: 0 };
@@ -236,7 +241,7 @@ export function calculateDifficulty(
   else                                            label = "Legendary";
 
   return {
-    rawXp, adjustedXp, allyAdjustedXp, netXp,
+    rawXp, adjustedXp, hazardXp, allyAdjustedXp, netXp,
     multiplier: adjustedMultiplier, allyMultiplier,
     enemyCount, allyCount, partyThresholds, label,
   };

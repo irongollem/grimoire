@@ -28,6 +28,7 @@
           <Radio class="h-3.5 w-3.5" />
           {{ goingLive ? 'Starting…' : isLive ? '● Live' : 'Go Live' }}
         </button>
+        <button @click="handleAbandon" class="abandon-btn" title="End run without syncing HP or discovering monsters">Abandon</button>
         <button @click="handleEndCombat" class="end-btn">End Combat</button>
       </div>
     </div>
@@ -317,6 +318,79 @@
                 </div>
               </template>
             </template>
+          </div>
+        </template>
+
+        <!-- NPC -->
+        <template v-else-if="selectedCombatant.type === 'monster' && selectedNpc">
+          <div class="detail-scroll">
+            <FocalImage
+              v-if="selectedCombatant.portrait_url"
+              :src="selectedCombatant.portrait_url"
+              :alt="selectedCombatant.name"
+              :focal-point="selectedCombatant.portrait_focal_point ?? null"
+              format="portrait"
+              class="detail-portrait"
+            />
+            <p class="detail-meta">
+              {{ [selectedNpc.race, selectedNpc.occupation].filter(Boolean).join(' · ') }}
+              <span v-if="selectedNpc.alignment"> · {{ selectedNpc.alignment }}</span>
+            </p>
+            <template v-if="selectedNpc.stat_block">
+              <div class="detail-divider" />
+              <div class="detail-stats">
+                <div class="detail-stat"><span>AC</span><strong>{{ selectedNpc.stat_block.armor_class }}</strong></div>
+                <div class="detail-stat"><span>HP</span><strong>{{ selectedNpc.stat_block.hit_points }}</strong></div>
+                <div class="detail-stat" v-if="selectedNpc.stat_block.speed"><span>Speed</span><strong>{{ selectedNpc.stat_block.speed }}</strong></div>
+                <div class="detail-stat" v-if="selectedNpc.stat_block.challenge_rating"><span>CR</span><strong>{{ selectedNpc.stat_block.challenge_rating }}</strong></div>
+              </div>
+              <div class="detail-divider" />
+              <AbilityScoreTable
+                :scores="{
+                  str: selectedNpc.stat_block.str ?? 10,
+                  dex: selectedNpc.stat_block.dex ?? 10,
+                  con: selectedNpc.stat_block.con ?? 10,
+                  int: selectedNpc.stat_block.int ?? 10,
+                  wis: selectedNpc.stat_block.wis ?? 10,
+                  cha: selectedNpc.stat_block.cha ?? 10,
+                }"
+                :rounded="false"
+                @roll-ability="(_, label, mod) => performCheck(mod, label + ' Check')"
+                @roll-save="(_, label, bonus) => performCheck(bonus, label + ' Save')"
+              />
+              <p v-if="selectedNpc.stat_block.senses" class="detail-line"><span>Senses</span>{{ selectedNpc.stat_block.senses }}</p>
+              <p v-if="selectedNpc.stat_block.languages" class="detail-line"><span>Languages</span>{{ selectedNpc.stat_block.languages }}</p>
+              <p v-if="selectedNpc.stat_block.damage_resistances" class="detail-line"><span>Resistances</span>{{ selectedNpc.stat_block.damage_resistances }}</p>
+              <p v-if="selectedNpc.stat_block.damage_immunities" class="detail-line"><span>Immunities</span>{{ selectedNpc.stat_block.damage_immunities }}</p>
+              <p v-if="selectedNpc.stat_block.condition_immunities" class="detail-line"><span>Cond. Immune</span>{{ selectedNpc.stat_block.condition_immunities }}</p>
+              <template v-for="section in npcTraitSections" :key="section.label">
+                <template v-if="section.traits?.length">
+                  <div class="detail-divider" />
+                  <p class="detail-section-label">{{ section.label }}</p>
+                  <div v-for="t in section.traits" :key="t.name" class="detail-trait">
+                    <div class="detail-trait-header">
+                      <strong>{{ t.name }}.</strong>
+                      <div class="trait-roll-bar">
+                        <button
+                          v-if="parseAttackBonus(t.description) !== null"
+                          type="button"
+                          class="trait-roll-btn trait-atk-btn"
+                          @click.stop="rollAttack(parseAttackBonus(t.description) ?? 0, t.name)"
+                        >⚔ {{ (parseAttackBonus(t.description) ?? 0) >= 0 ? '+' : '' }}{{ parseAttackBonus(t.description) ?? 0 }}</button>
+                        <button
+                          v-if="hasRollableDice(t.description)"
+                          type="button"
+                          class="trait-roll-btn trait-dmg-btn"
+                          @click.stop="rollActionDamage(t.description, t.name)"
+                        >🎲 {{ actionDiceLabel(t.description) }}</button>
+                      </div>
+                    </div>
+                    <span class="detail-trait-desc">{{ t.description }}</span>
+                  </div>
+                </template>
+              </template>
+            </template>
+            <p v-else class="font-fell text-xs text-muted-foreground italic px-1 pt-2">No stat block defined for this NPC.</p>
           </div>
         </template>
 
@@ -863,6 +937,11 @@ const selectedMonster = computed(() => {
   return monsters.value?.find((m) => m.id === selectedCombatant.value!.monster_id) ?? null;
 });
 
+const selectedNpc = computed(() => {
+  if (!selectedCombatant.value?.npc_id) return null;
+  return store.availableNpcs.find((n) => n.id === selectedCombatant.value!.npc_id) ?? null;
+});
+
 const selectedMember = computed(() => {
   if (!selectedCombatant.value?.party_member_id) return null;
   return party.value?.find((m) => m.id === selectedCombatant.value!.party_member_id) ?? null;
@@ -875,6 +954,16 @@ const selectedCompanion = computed(() => {
   if (!cid) return null;
   return companions.value?.find((c) => c.id === cid) ?? null;
 });
+const npcTraitSections = computed(() => {
+  const sb = selectedNpc.value?.stat_block;
+  if (!sb) return [];
+  return [
+    { label: "Special Abilities", traits: sb.special_abilities },
+    { label: "Actions",           traits: sb.actions },
+    { label: "Legendary Actions", traits: sb.legendary_actions },
+  ].filter((s) => s.traits?.length);
+});
+
 const companionTraitSections = computed(() => {
   const sb = selectedCompanion.value?.stat_block;
   if (!sb) return [];
@@ -1189,6 +1278,13 @@ function triggerLabel(trigger: import("@/types/encounter.types").EventTrigger): 
   return "Manual";
 }
 
+async function handleAbandon() {
+  if (!await confirm("Abandon this run? Party HP and conditions will NOT be updated.")) return;
+  await endLive();
+  store.reset();
+  router.push(`/encounters/${encounterId.value}`);
+}
+
 async function handleEndCombat() {
   if (!await confirm("End combat? Party HP, conditions, and curses will be updated.")) return;
   await endLive();
@@ -1271,6 +1367,10 @@ async function handleEndCombat() {
 
 .roll-btn {
   @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs font-semibold hover:opacity-90 transition-opacity;
+}
+
+.abandon-btn {
+  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-muted-foreground font-cinzel text-xs font-semibold hover:bg-muted transition-colors;
 }
 
 .end-btn {

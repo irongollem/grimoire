@@ -50,6 +50,9 @@ export interface Trap {
   damage_dice: string | null;
   damage_type: string | null;
   reset_type: TrapResetType;
+  trap_hp: number | null;
+  trap_ac: number | null;
+  damage_immunities: string[];
   image_url: string | null;
   image_focal_point: { x: number; y: number } | null;
   tags: string[];

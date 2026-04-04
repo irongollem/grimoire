@@ -2,6 +2,7 @@ import { ref, computed } from "vue";
 import { defineStore } from "pinia";
 import type { RunCombatant, FactionDef, RevealState, EncounterEvent, EventTrigger, SpawnDef, WildshapeState } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
+import type { Npc } from "@/types/npc.types";
 
 export const useEncounterRunStore = defineStore("encounterRun", () => {
   const encounterId = ref<string | null>(null);
@@ -14,6 +15,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   const events = ref<EncounterEvent[]>([]);
   const eventsFired = ref<string[]>([]);
   const availableMonsters = ref<Monster[]>([]);
+  const availableNpcs = ref<Npc[]>([]);
   const pendingBroadcasts = ref<string[]>([]);
 
   // Sorted by initiative desc, dex_mod desc (tiebreaker: players first)
@@ -246,6 +248,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     events.value = [];
     eventsFired.value = [];
     availableMonsters.value = [];
+    availableNpcs.value = [];
     pendingBroadcasts.value = [];
   }
 
@@ -281,6 +284,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     events,
     eventsFired,
     availableMonsters,
+    availableNpcs,
     pendingBroadcasts,
     sortedCombatants,
     activeCombatant,

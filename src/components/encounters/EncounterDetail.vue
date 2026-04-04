@@ -330,6 +330,13 @@
           @drop-item="handleDropLootItem($event.item, $event.qty)"
         />
 
+        <!-- Traps & Hazards -->
+        <EncounterTraps
+          :trap-ids="form.trap_ids"
+          :all-traps="allTraps ?? []"
+          @update:trap-ids="form.trap_ids = $event"
+        />
+
         <!-- Calendar Pins -->
         <EntityCalendarSection
           entity-type="encounter"
@@ -363,6 +370,7 @@ import { useParty } from "@/composables/useParty";
 import { useCompanions } from "@/composables/useCompanions";
 import { useNpcs } from "@/composables/useNpcs";
 import { useItems } from "@/composables/useItems";
+import { useTraps } from "@/composables/useTraps";
 import { useAllLocations } from "@/composables/useLocations";
 import {
   useCreateEncounter,
@@ -397,6 +405,7 @@ import EncounterDifficulty from "@/components/encounters/EncounterDifficulty.vue
 import EncounterEvents from "@/components/encounters/EncounterEvents.vue";
 import EncounterFactions from "@/components/encounters/EncounterFactions.vue";
 import EncounterLoot from "@/components/encounters/EncounterLoot.vue";
+import EncounterTraps from "@/components/encounters/EncounterTraps.vue";
 
 const props = defineProps<{
   encounter: Encounter | null;
@@ -409,6 +418,7 @@ const { data: party, isLoading: partyLoading } = useParty();
 const { data: companions } = useCompanions();
 const { data: npcs } = useNpcs();
 const { data: allItems } = useItems();
+const { data: allTraps } = useTraps();
 const { sendCurrencyDrop, sendItemDrop } = useCampaignMessages();
 const { data: allLocations } = useAllLocations();
 const { data: linkedQuests } = useQuestsForEncounter(
@@ -467,6 +477,7 @@ const form = reactive({
     ? [...props.encounter.factions]
     : [...DEFAULT_FACTIONS],
   item_ids: [...(props.encounter?.item_ids ?? [])],
+  trap_ids: [...(props.encounter?.trap_ids ?? [])],
   reward_currency_pools: [
     ...(props.encounter?.reward_currency_pools ?? []),
   ] as import("@/types/quest.types").RewardCurrencyPool[],
@@ -501,6 +512,7 @@ watch(
       ? [...enc.factions]
       : [...DEFAULT_FACTIONS];
     form.item_ids = [...(enc.item_ids ?? [])];
+    form.trap_ids = [...(enc.trap_ids ?? [])];
     form.reward_currency_pools = [...(enc.reward_currency_pools ?? [])];
     form.location_id = enc.location_id ?? null;
     form.events = [...(enc.events ?? [])];
@@ -620,11 +632,23 @@ const allyEntries = computed(() => {
   return entries;
 });
 
+const trapMap = computed(
+  () => new Map((allTraps.value ?? []).map((t) => [t.id, t])),
+);
+
+const hazardXp = computed(() =>
+  form.trap_ids.reduce((sum, id) => {
+    const trap = trapMap.value.get(id);
+    return sum + crToXp(trap?.cr);
+  }, 0),
+);
+
 const difficulty = computed(() =>
   calculateDifficulty(
     enemyEntries.value.map((e) => ({ cr: e.cr, count: e.count })),
     partyLevels.value.length ? partyLevels.value : [3],
     allyEntries.value,
+    hazardXp.value,
   ),
 );
 
@@ -676,6 +700,7 @@ async function buildPayload() {
     combatants: form.combatants,
     factions: form.factions,
     item_ids: form.item_ids,
+    trap_ids: form.trap_ids,
     reward_currency_pools: form.reward_currency_pools,
     is_finished: props.encounter?.is_finished ?? false,
     events: form.events,

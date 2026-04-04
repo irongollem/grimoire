@@ -137,7 +137,9 @@
 
 - [ ] Add a section with tools to help build dungeons
 - [x] **Traproom** — full CRUD for traps with image, type badge, trigger, detection/disarm DCs, CR+XP, save, attack bonus, damage dice (via DiceExprInput), damage type, reset type, rich description + DM notes; Assets group (no campaign scoping)
-- [ ] Add traps (created in the traproom) as elements of an encounter so their CR contributes to the total, and so they can be triggered and tracked in the encounter runner
+- [x] Trap HP/AC fields (physical destruction) + CR advisor (Suggest button → modal grades CR from effect category, targeting, DC tier, reset, HP/AC, secondary effects)
+- [x] Add traps (created in the traproom) as elements of an encounter so their CR contributes to the total — `EncounterTraps` component in encounter builder; trap XP added flat (no multiplier) to difficulty; hazard XP shown separately in Difficulty Analysis panel
+- [ ] Trap triggering and tracking in the encounter runner
 - [ ] puzzle room - create puzzles with images, hints, solutions
 - [ ] secret door - create hidden passages with images, triggers, discovery methods
 
