@@ -10,6 +10,35 @@
       </RouterLink>
     </template>
 
+    <template #sticky>
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="relative flex-1 min-w-40">
+          <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <input
+            v-model="ui.factionsSearch"
+            type="text"
+            placeholder="Filter factions…"
+            class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        </div>
+        <select
+          v-model="ui.factionsFilterType"
+          class="bg-card border border-border rounded-md px-2 py-1.5 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option value="">All types</option>
+          <option v-for="t in FACTION_TYPES" :key="t" :value="t">{{ t }}</option>
+        </select>
+        <button
+          v-if="ui.factionsHasActiveFilters"
+          type="button"
+          class="px-2.5 py-1.5 rounded-md border border-border bg-card font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+          @click="ui.resetFactionsFilters()"
+        >
+          Clear
+        </button>
+      </div>
+    </template>
+
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
@@ -21,23 +50,6 @@
     />
 
     <template v-else>
-      <!-- Filter bar -->
-      <div class="flex flex-wrap items-center gap-2 mb-4">
-        <input
-          v-model="search"
-          type="search"
-          placeholder="Filter factions…"
-          class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
-        <select
-          v-model="typeFilter"
-          class="bg-card border border-border rounded-md px-3 py-1.5 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
-          <option value="">All types</option>
-          <option v-for="t in FACTION_TYPES" :key="t" :value="t">{{ t }}</option>
-        </select>
-      </div>
-
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <RouterLink
           v-for="faction in filtered"
@@ -76,23 +88,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import { Plus, Shield, ChevronRight, Eye } from "lucide-vue-next";
+import { computed } from "vue";
+import { Plus, Shield, ChevronRight, Eye, Search } from "lucide-vue-next";
 import { useAllFactions } from "@/composables/useFactions";
 import { FACTION_TYPES } from "@/types/faction.types";
+import { useUiStore } from "@/stores/ui";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 
+const ui = useUiStore();
 const { data: factions, isLoading } = useAllFactions();
 
-const search     = ref("");
-const typeFilter = ref("");
-
 const filtered = computed(() => {
-  const q = search.value.trim().toLowerCase();
+  const q = ui.factionsSearch.trim().toLowerCase();
   return (factions.value ?? []).filter((f) => {
-    if (typeFilter.value && f.faction_type !== typeFilter.value) return false;
+    if (ui.factionsFilterType && f.faction_type !== ui.factionsFilterType) return false;
     if (q && !f.name.toLowerCase().includes(q) && !f.tags.some((t) => t.toLowerCase().includes(q))) return false;
     return true;
   });

@@ -86,6 +86,15 @@
               @click="sortBy = opt.value"
             >{{ opt.label }}</button>
           </div>
+
+          <button
+            v-if="hasActiveFilters"
+            type="button"
+            class="px-2.5 py-1.5 rounded-md border border-border bg-card font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+            @click="clearFilters"
+          >
+            Clear
+          </button>
         </div>
       </div>
     </template>
@@ -102,7 +111,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed } from "vue";
+import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
 import { Plus, Wand2, Search } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import NpcList from "@/components/npcs/NpcList.vue";
@@ -120,18 +130,21 @@ const STATUS_OPTIONS = [
   { value: "dead", label: "Dead" },
   { value: "missing", label: "Missing" },
   { value: "unknown", label: "?" },
-];
+] as const;
 
 const REL_OPTIONS = [
   { value: "all", label: "All" },
   { value: "ally", label: "Ally" },
   { value: "neutral", label: "Neutral" },
   { value: "enemy", label: "Enemy" },
-];
+] as const;
 
-const search = ref("");
-const statusFilter = ref("all");
-const relFilter = ref("all");
-const locationFilter = ref("");
-const sortBy = ref<"name" | "location">("location");
+const search = computed({ get: () => ui.npcsSearchQuery, set: (v) => { ui.npcsSearchQuery = v; } });
+const statusFilter = computed({ get: () => ui.npcsFilterStatus, set: (v: NpcStatus | "all") => { ui.npcsFilterStatus = v; } });
+const relFilter = computed({ get: () => ui.npcsFilterRelationship, set: (v: NpcRelationship | "all") => { ui.npcsFilterRelationship = v; } });
+const locationFilter = computed({ get: () => ui.npcsFilterLocation, set: (v) => { ui.npcsFilterLocation = v; } });
+const sortBy = computed({ get: () => ui.npcsFilterSortBy, set: (v) => { ui.npcsFilterSortBy = v; } });
+
+const hasActiveFilters = computed(() => ui.npcsHasActiveFilters);
+function clearFilters() { ui.resetNpcsFilters(); }
 </script>

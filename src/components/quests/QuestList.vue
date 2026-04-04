@@ -1,32 +1,5 @@
 <template>
   <div>
-    <!-- Toolbar -->
-    <div class="flex flex-col gap-2 mb-5">
-      <div class="flex items-center gap-2">
-        <!-- Search -->
-        <div class="relative flex-1">
-          <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <input
-            v-model="search"
-            type="text"
-            placeholder="Search quests…"
-            class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-        </div>
-        <!-- View toggle -->
-        <button
-          type="button"
-          :title="isKanban ? 'Switch to list view' : 'Switch to kanban view'"
-          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border bg-card text-muted-foreground hover:text-foreground transition-colors"
-          @click="isKanban = !isKanban"
-        >
-          <Columns2 v-if="isKanban" class="h-3.5 w-3.5" />
-          <LayoutList v-else class="h-3.5 w-3.5" />
-          <span class="font-cinzel text-[10px] font-semibold tracking-wider">{{ isKanban ? 'Kanban' : 'List' }}</span>
-        </button>
-      </div>
-    </div>
-
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
@@ -179,8 +152,9 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { Search, Columns2, LayoutList, ScrollText } from "lucide-vue-next";
+import { ScrollText } from "lucide-vue-next";
 import { useAllQuests, useUpdateQuest } from "@/composables/useQuests";
+import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import { timeAgo } from "@/lib/utils";
@@ -192,8 +166,9 @@ import {
 } from "@/types/quest.types";
 
 const router = useRouter();
-const search = ref("");
-const isKanban = ref(true);
+const ui = useUiStore();
+const search = computed(() => ui.questsSearch);
+const isKanban = computed(() => ui.questsIsKanban);
 
 const { data: allQuests, isLoading } = useAllQuests();
 const { mutateAsync: updateQuest } = useUpdateQuest();

@@ -44,6 +44,14 @@
           <option value="">All rarities</option>
           <option v-for="r in ITEM_RARITIES" :key="r" :value="r">{{ ITEM_RARITY_LABELS[r] }}</option>
         </select>
+        <button
+          v-if="hasActiveFilters"
+          type="button"
+          class="px-2.5 py-1.5 rounded-md border border-border bg-card font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+          @click="clearFilters"
+        >
+          Clear
+        </button>
       </div>
     </template>
 
@@ -58,10 +66,24 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import ItemList from "@/components/items/ItemList.vue";
 import { useImportSrdItems } from "@/composables/useItems";
 import { ITEM_TYPES, ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS } from "@/types/item.types";
+import { useUiStore } from "@/stores/ui";
 
-const search = ref("");
-const typeFilter = ref("");
-const rarityFilter = ref("");
+const ui = useUiStore();
+const search = computed({
+  get: () => ui.vaultSearch,
+  set: (v) => { ui.vaultSearch = v; },
+});
+const typeFilter = computed({
+  get: () => ui.vaultFilterType,
+  set: (v) => { ui.vaultFilterType = v; },
+});
+const rarityFilter = computed({
+  get: () => ui.vaultFilterRarity,
+  set: (v) => { ui.vaultFilterRarity = v; },
+});
+
+const hasActiveFilters = computed(() => ui.vaultHasActiveFilters);
+function clearFilters() { ui.resetVaultFilters(); }
 
 const importMutation = useImportSrdItems();
 
@@ -87,7 +109,6 @@ async function handleImport() {
     importStatus.value = count === 0 ? "uptodate" : "done";
   } catch (e) {
     importError.value = e instanceof Error ? e.message : String(e);
-    console.error("SRD import failed:", e);
   }
   setTimeout(() => {
     importStatus.value = "idle";

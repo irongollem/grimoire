@@ -1,8 +1,9 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import type { NoteCategory } from "@/types/notes.types";
 import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
 import type { ScriptoriumDocType } from "@/types/scriptorium.types";
+import type { ItemType, ItemRarity } from "@/types/item.types";
 
 export const useUiStore = defineStore("ui", () => {
   // Notes UI state
@@ -23,8 +24,86 @@ export const useUiStore = defineStore("ui", () => {
   const npcsFilterStatus = ref<NpcStatus | "all">("all");
   const npcsFilterRelationship = ref<NpcRelationship | "all">("all");
   const npcsSearchQuery = ref("");
+  const npcsFilterLocation = ref("");
+  const npcsFilterSortBy = ref<"name" | "location">("location");
   const activeNpcId = ref<string | null>(null);
   const npcGeneratorOpen = ref(false);
+
+  const npcsHasActiveFilters = computed(() =>
+    npcsSearchQuery.value !== "" ||
+    npcsFilterStatus.value !== "all" ||
+    npcsFilterRelationship.value !== "all" ||
+    npcsFilterLocation.value !== "" ||
+    npcsFilterSortBy.value !== "location",
+  );
+
+  // Monster UI state
+  const monstersSearch = ref("");
+  const monstersFilterType = ref("all");
+  const monstersFilterSource = ref("all");
+
+  const monstersHasActiveFilters = computed(() =>
+    monstersSearch.value !== "" ||
+    monstersFilterType.value !== "all" ||
+    monstersFilterSource.value !== "all",
+  );
+
+  function resetMonstersFilters() {
+    monstersSearch.value = "";
+    monstersFilterType.value = "all";
+    monstersFilterSource.value = "all";
+  }
+
+  // Vault (Items) UI state
+  const vaultSearch = ref("");
+  const vaultFilterType = ref<ItemType | "">("");
+  const vaultFilterRarity = ref<ItemRarity | "">("");
+
+  const vaultHasActiveFilters = computed(() =>
+    vaultSearch.value !== "" || vaultFilterType.value !== "" || vaultFilterRarity.value !== "",
+  );
+
+  function resetVaultFilters() {
+    vaultSearch.value = "";
+    vaultFilterType.value = "";
+    vaultFilterRarity.value = "";
+  }
+
+  // Quest UI state
+  const questsSearch = ref("");
+  const questsIsKanban = ref(true);
+
+  const questsHasActiveFilters = computed(() => questsSearch.value !== "");
+
+  function resetQuestsFilters() {
+    questsSearch.value = "";
+  }
+
+  // Faction UI state
+  const factionsSearch = ref("");
+  const factionsFilterType = ref("");
+
+  const factionsHasActiveFilters = computed(
+    () => factionsSearch.value !== "" || factionsFilterType.value !== "",
+  );
+
+  function resetFactionsFilters() {
+    factionsSearch.value = "";
+    factionsFilterType.value = "";
+  }
+
+  // Encounter UI state
+  const encountersSearch = ref("");
+  const encountersHideFinished = ref(true);
+
+  const encountersHasActiveFilters = computed(
+    () => encountersSearch.value !== "" || !encountersHideFinished.value,
+  );
+
+  function resetEncountersFilters() {
+    encountersSearch.value = "";
+    encountersHideFinished.value = true;
+  }
 
   // Mobile nav
   const mobileNavOpen = ref(false);
@@ -64,6 +143,8 @@ export const useUiStore = defineStore("ui", () => {
     npcsFilterStatus.value = "all";
     npcsFilterRelationship.value = "all";
     npcsSearchQuery.value = "";
+    npcsFilterLocation.value = "";
+    npcsFilterSortBy.value = "location";
   }
 
   return {
@@ -86,9 +167,44 @@ export const useUiStore = defineStore("ui", () => {
     npcsFilterStatus,
     npcsFilterRelationship,
     npcsSearchQuery,
+    npcsFilterLocation,
+    npcsFilterSortBy,
+    npcsHasActiveFilters,
     activeNpcId,
     npcGeneratorOpen,
     resetNpcsFilters,
+
+    // Monsters
+    monstersSearch,
+    monstersFilterType,
+    monstersFilterSource,
+    monstersHasActiveFilters,
+    resetMonstersFilters,
+
+    // Vault
+    vaultSearch,
+    vaultFilterType,
+    vaultFilterRarity,
+    vaultHasActiveFilters,
+    resetVaultFilters,
+
+    // Quests
+    questsSearch,
+    questsIsKanban,
+    questsHasActiveFilters,
+    resetQuestsFilters,
+
+    // Factions
+    factionsSearch,
+    factionsFilterType,
+    factionsHasActiveFilters,
+    resetFactionsFilters,
+
+    // Encounters
+    encountersSearch,
+    encountersHideFinished,
+    encountersHasActiveFilters,
+    resetEncountersFilters,
 
     // Layout
     mobileNavOpen,

@@ -62,3 +62,13 @@ Open work is tracked as GitHub issues on `irongollem/grimoire`. Do NOT add new `
 2. Close the corresponding GitHub issue (if one exists) using `mcp__github__update_issue` with `state: closed`
 
 The local files are a curated history log. GitHub issues are the source of truth for what needs doing.
+
+## Filter State Pattern
+
+Any list view with filters **must** store its state in `useUiStore` (`src/stores/ui.ts`) — not in local `ref`s, not in `useLocalStorage`. This ensures filters survive navigation within a session without permanently polluting localStorage.
+
+**Required for every filter set:**
+
+1. Add state refs + a `hasActiveFilters` computed + a `reset*Filters()` function to `useUiStore`
+2. Wire the view/component to the store via writable `computed` getters/setters
+3. Show a **Clear** button (visible only when `hasActiveFilters` is true) that calls `reset*Filters()`

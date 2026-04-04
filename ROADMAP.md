@@ -92,6 +92,7 @@
 ### Layout & UX
 
 - [x] **Sticky page headers** — unified `PageHeader` layout component with sticky title/actions bar; `#sticky` named slot for search/filter bars (NPC list, Location list); scrollable body; `main` padding removed so headers sit flush at viewport top with no gap; all DM views converted to use `PageHeader` as root element
+- [x] **Persistent filter state** — Quests, Factions, Encounters, NPCs, Monsters, and Vault filter state stored in `useUiStore` (Pinia), persists across navigation within a session; filter bars lifted into `#sticky` PageHeader slots; `hasActiveFilters` + "Clear" button on all six views
 
 ### Images & Artwork
 

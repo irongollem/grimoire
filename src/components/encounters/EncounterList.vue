@@ -1,29 +1,5 @@
 <template>
   <div>
-    <!-- Header bar -->
-    <div class="flex items-center gap-2 mb-5">
-      <div class="relative flex-1 min-w-48">
-        <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-        <input
-          v-model="search"
-          type="text"
-          placeholder="Search encounters…"
-          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
-      </div>
-      <button
-        type="button"
-        class="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md border font-cinzel text-xs tracking-wider transition-colors"
-        :class="hideFinished
-          ? 'border-primary/40 bg-primary/10 text-primary'
-          : 'border-border text-muted-foreground hover:text-foreground'"
-        @click="hideFinished = !hideFinished"
-      >
-        <CheckCheck class="h-3.5 w-3.5" />
-        {{ hideFinished ? 'Active only' : 'All' }}
-      </button>
-    </div>
-
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
@@ -120,17 +96,19 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Search, Skull, Users, CheckCheck } from "lucide-vue-next";
+import { Skull, Users, CheckCheck } from "lucide-vue-next";
 import { useEncounters } from "@/composables/useEncounters";
 import { useRunningEncounters } from "@/composables/useEncounterLive";
 import { DIFFICULTY_COLORS, calculateDifficulty, crToXp } from "@/types/encounter.types";
 import type { Encounter } from "@/types/encounter.types";
 import { useAllMonsters } from "@/composables/useMonsters";
+import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 
-const search = ref("");
-const hideFinished = ref(true);
+const ui = useUiStore();
+const search = computed(() => ui.encountersSearch);
+const hideFinished = computed(() => ui.encountersHideFinished);
 
 const { data: encounters, isLoading } = useEncounters();
 const { data: monsters } = useAllMonsters();
