@@ -21,6 +21,8 @@ export interface CraftingRecipe {
   crafting_time_days: number;
   requires_proficiency: boolean;
   requires_tools: boolean;
+  shared_with_players: boolean;
+  player_visible_to: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -54,12 +56,6 @@ export interface CraftingModifier {
 }
 
 export type CraftingModifierInsert = Omit<CraftingModifier, "id">;
-
-export interface CraftingRecipeGrant {
-  recipe_id: string;
-  party_member_id: string;
-  granted_at: string;
-}
 
 export type CraftingOutcome = "success" | "fail" | "ruin";
 

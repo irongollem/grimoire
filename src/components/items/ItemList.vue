@@ -12,14 +12,18 @@
         class="bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       >
         <option value="">All types</option>
-        <option v-for="t in ITEM_TYPES" :key="t" :value="t">{{ ITEM_TYPE_LABELS[t] }}</option>
+        <option v-for="t in ITEM_TYPES" :key="t" :value="t">
+          {{ ITEM_TYPE_LABELS[t] }}
+        </option>
       </select>
       <select
         v-model="rarityFilter"
         class="bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       >
         <option value="">All rarities</option>
-        <option v-for="r in ITEM_RARITIES" :key="r" :value="r">{{ ITEM_RARITY_LABELS[r] }}</option>
+        <option v-for="r in ITEM_RARITIES" :key="r" :value="r">
+          {{ ITEM_RARITY_LABELS[r] }}
+        </option>
       </select>
     </div>
 
@@ -32,11 +36,19 @@
     <EmptyState
       v-else-if="!filtered.length"
       title="No items found"
-      :description="search || typeFilter || rarityFilter ? 'Try adjusting your filters.' : 'Add your first item to the vault.'"
+      :description="
+        search || typeFilter || rarityFilter
+          ? 'Try adjusting your filters.'
+          : 'Add your first item to the vault.'
+      "
     />
 
     <!-- Grid -->
-    <div v-else class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr))">
+    <div
+      v-else
+      class="grid gap-3"
+      style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr))"
+    >
       <div
         v-for="item in visibleItems"
         :key="item.id"
@@ -46,7 +58,9 @@
         <RouterLink :to="`/vault/${item.id}`" class="absolute inset-0 z-2" />
 
         <!-- Thumbnail with overlays -->
-        <div class="relative h-36 bg-muted overflow-hidden shrink-0 rounded-t-lg">
+        <div
+          class="relative h-36 bg-muted overflow-hidden shrink-0 rounded-t-lg"
+        >
           <FocalImage
             v-if="item.image_url"
             :src="item.image_url"
@@ -58,30 +72,56 @@
           <!-- Rarity badge — top right -->
           <span
             class="absolute top-1.5 right-1.5 font-cinzel text-[9px] tracking-wider px-1.5 py-0.5 rounded leading-none"
-            :style="{ backgroundColor: rarityColor(item.rarity) + 'cc', color: '#fff' }"
+            :style="{
+              backgroundColor: rarityColor(item.rarity) + 'cc',
+              color: '#fff',
+            }"
           >
             {{ ITEM_RARITY_LABELS[item.rarity] }}
           </span>
           <!-- Type icon + name — bottom gradient -->
-          <div class="absolute bottom-0 left-0 right-0 px-2.5 py-2 bg-linear-to-t from-black/75 to-transparent flex items-end gap-1.5">
-            <component :is="itemTypeIcon(item.item_type)" class="h-3.5 w-3.5 shrink-0 text-white/70 mb-px" />
-            <span class="font-cinzel text-sm font-bold text-white group-hover:text-primary/90 transition-colors leading-tight line-clamp-2">
+          <div
+            class="absolute bottom-0 left-0 right-0 px-2.5 py-2 bg-linear-to-t from-black/75 to-transparent flex items-end gap-1.5"
+          >
+            <component
+              :is="itemTypeIcon(item.item_type)"
+              class="h-3.5 w-3.5 shrink-0 text-white/70 mb-px"
+            />
+            <span
+              class="font-cinzel text-sm font-bold text-white group-hover:text-primary/90 transition-colors leading-tight line-clamp-2"
+            >
               {{ item.name }}
             </span>
           </div>
         </div>
 
         <div class="px-3 py-2 flex flex-col gap-1.5 flex-1">
-
           <!-- Damage / AC quick stat -->
-          <div class="flex items-center gap-3 mt-auto pt-1">
-            <span v-if="item.damage_rolls?.length" class="font-fell text-xs text-muted-foreground">
-              ⚔ {{ item.damage_rolls.map(r => r.dice + (r.type ? ' ' + r.type : '')).join(' + ') }}
+          <div
+            v-if="item.damage_rolls?.length || item.armor_class || item.charges"
+            class="flex items-center gap-3 mt-auto pt-1"
+          >
+            <span
+              v-if="item.damage_rolls?.length"
+              class="font-fell text-xs text-muted-foreground"
+            >
+              ⚔
+              {{
+                item.damage_rolls
+                  .map((r) => r.dice + (r.type ? " " + r.type : ""))
+                  .join(" + ")
+              }}
             </span>
-            <span v-if="item.armor_class" class="font-fell text-xs text-muted-foreground">
+            <span
+              v-if="item.armor_class"
+              class="font-fell text-xs text-muted-foreground"
+            >
               🛡 AC {{ item.armor_class }}
             </span>
-            <span v-if="item.charges" class="font-fell text-xs text-muted-foreground">
+            <span
+              v-if="item.charges"
+              class="font-fell text-xs text-muted-foreground"
+            >
               ✦ {{ item.charges }} charges
             </span>
           </div>
@@ -91,7 +131,7 @@
             <span
               v-for="tag in item.tags.slice(0, 4)"
               :key="tag"
-              class="font-cinzel text-[10px] tracking-wider text-muted-foreground bg-muted px-1.5 py-0.5 rounded"
+              class="font-cinzel text-[10px] tracking-wider text-muted-foreground bg-muted px-1 py-1 rounded"
             >
               {{ tag }}
             </span>
@@ -116,28 +156,41 @@
 <script setup lang="ts">
 import { ref, computed, type Component as VueComponent } from "vue";
 import {
-  Pencil, Sword, Shield, FlaskConical, Sparkles, Circle, Wand2, ScrollText,
-  Zap, Backpack, Wrench, Truck, Coins, Gem, Component,
+  Pencil,
+  Sword,
+  Shield,
+  FlaskConical,
+  Sparkles,
+  Circle,
+  Wand2,
+  ScrollText,
+  Zap,
+  Backpack,
+  Wrench,
+  Truck,
+  Coins,
+  Gem,
+  Component,
 } from "lucide-vue-next";
 import FocalImage from "@/components/common/FocalImage.vue";
 import type { ItemType } from "@/types/item.types";
 
 const ITEM_TYPE_ICONS: Record<ItemType, VueComponent> = {
-  weapon:            Sword,
-  armor:             Shield,
-  shield:            Shield,
-  potion:            FlaskConical,
-  wondrous_item:     Sparkles,
-  ring:              Circle,
-  rod:               Wand2,
-  staff:             Wand2,
-  wand:              Wand2,
-  scroll:            ScrollText,
-  ammunition:        Zap,
-  gear:              Backpack,
-  tool:              Wrench,
-  vehicle:           Truck,
-  trade_good:        Coins,
+  weapon: Sword,
+  armor: Shield,
+  shield: Shield,
+  potion: FlaskConical,
+  wondrous_item: Sparkles,
+  ring: Circle,
+  rod: Wand2,
+  staff: Wand2,
+  wand: Wand2,
+  scroll: ScrollText,
+  ammunition: Zap,
+  gear: Backpack,
+  tool: Wrench,
+  vehicle: Truck,
+  trade_good: Coins,
   crafting_material: Gem,
 };
 

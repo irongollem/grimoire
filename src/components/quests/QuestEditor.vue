@@ -810,6 +810,7 @@ import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
 import { formatQuestForScriptorium } from "@/lib/scriptoriumImport";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
 import EncounterLoot from "@/components/encounters/EncounterLoot.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import { useCampaignStore } from "@/stores/campaign";

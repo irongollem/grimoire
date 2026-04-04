@@ -1,4 +1,4 @@
-import { computed, type Ref } from "vue";
+import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
@@ -12,7 +12,6 @@ import type {
   CraftingModifierInsert,
   CraftingOutput,
   CraftingOutputInsert,
-  CraftingRecipeGrant,
   CraftingAttemptResult,
 } from "@/types/crafting.types";
 import type { PartyInventoryInsert } from "@/types/inventory.types";
@@ -21,7 +20,6 @@ const RECIPES_KEY    = "crafting-recipes";
 const INGREDIENTS_KEY = "crafting-ingredients";
 const MODIFIERS_KEY  = "crafting-modifiers";
 const OUTPUTS_KEY    = "crafting-outputs";
-const GRANTS_KEY     = "crafting-grants";
 
 // ── Fetch helpers ────────────────────────────────────────────────────────────
 
@@ -70,25 +68,6 @@ async function fetchOutputs(recipeId: string): Promise<CraftingOutput[]> {
     .eq("recipe_id", recipeId);
   if (error) throw error;
   return data as CraftingOutput[];
-}
-
-async function fetchGrants(recipeId: string): Promise<CraftingRecipeGrant[]> {
-  const { data, error } = await supabase
-    .from("crafting_recipe_grants")
-    .select("*")
-    .eq("recipe_id", recipeId);
-  if (error) throw error;
-  return data as CraftingRecipeGrant[];
-}
-
-/** Returns recipe IDs granted to a specific party member */
-async function fetchPlayerGrantedRecipeIds(partyMemberId: string): Promise<string[]> {
-  const { data, error } = await supabase
-    .from("crafting_recipe_grants")
-    .select("recipe_id")
-    .eq("party_member_id", partyMemberId);
-  if (error) throw error;
-  return (data ?? []).map((g: { recipe_id: string }) => g.recipe_id);
 }
 
 // ── Mutation helpers ─────────────────────────────────────────────────────────
@@ -171,21 +150,6 @@ async function replaceModifiers(
   if (error) throw error;
 }
 
-async function grantRecipe(recipeId: string, partyMemberId: string): Promise<void> {
-  const { error } = await supabase
-    .from("crafting_recipe_grants")
-    .insert({ recipe_id: recipeId, party_member_id: partyMemberId });
-  if (error && error.code !== "23505") throw error; // ignore duplicate
-}
-
-async function revokeGrant(recipeId: string, partyMemberId: string): Promise<void> {
-  const { error } = await supabase
-    .from("crafting_recipe_grants")
-    .delete()
-    .eq("recipe_id", recipeId)
-    .eq("party_member_id", partyMemberId);
-  if (error) throw error;
-}
 
 // ── Query composables ────────────────────────────────────────────────────────
 
@@ -236,23 +200,6 @@ export function useRecipeModifiers(recipeId: string) {
   });
 }
 
-export function useRecipeGrants(recipeId: string) {
-  return useQuery({
-    queryKey: computed(() => [GRANTS_KEY, recipeId]),
-    queryFn: () => fetchGrants(recipeId),
-    enabled: !!recipeId,
-  });
-}
-
-const PLAYER_GRANTS_KEY = "crafting-player-grants";
-
-export function usePlayerRecipeGrants(partyMemberId: Ref<string | null>) {
-  return useQuery({
-    queryKey: computed(() => [PLAYER_GRANTS_KEY, partyMemberId.value]),
-    queryFn: () => fetchPlayerGrantedRecipeIds(partyMemberId.value!),
-    enabled: () => !!partyMemberId.value,
-  });
-}
 
 // ── Mutation composables ─────────────────────────────────────────────────────
 
@@ -331,25 +278,6 @@ export function useReplaceModifiers() {
   });
 }
 
-export function useGrantRecipe() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ recipeId, partyMemberId }: { recipeId: string; partyMemberId: string }) =>
-      grantRecipe(recipeId, partyMemberId),
-    onSuccess: (_data, { recipeId }) =>
-      queryClient.invalidateQueries({ queryKey: [GRANTS_KEY, recipeId] }),
-  });
-}
-
-export function useRevokeGrant() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ recipeId, partyMemberId }: { recipeId: string; partyMemberId: string }) =>
-      revokeGrant(recipeId, partyMemberId),
-    onSuccess: (_data, { recipeId }) =>
-      queryClient.invalidateQueries({ queryKey: [GRANTS_KEY, recipeId] }),
-  });
-}
 
 // ── Crafting attempt ─────────────────────────────────────────────────────────
 

@@ -44,15 +44,12 @@
         <Wrench class="h-3.5 w-3.5" />
       </button>
 
-      <button
-        v-if="!isNew"
-        type="button"
-        class="p-2 rounded-md border border-border bg-card text-muted-foreground hover:text-foreground transition-colors"
-        title="Grant recipe to party members"
-        @click="showGrant = true"
-      >
-        <UserPlus class="h-3.5 w-3.5" />
-      </button>
+      <PlayerVisibilityToggle
+        :shared-with-all="form.shared_with_players"
+        :visible-to="form.player_visible_to"
+        @update:shared-with-all="form.shared_with_players = $event"
+        @update:visible-to="form.player_visible_to = $event"
+      />
 
       <button
         type="button"
@@ -350,52 +347,30 @@
       </div>
     </div>
 
-    <GrantRecipeDialog
-      v-if="!isNew"
-      :open="showGrant"
-      :recipe-id="recipeId!"
-      :recipe-name="form.name"
-      :party-members="partyMembers ?? []"
-      :existing-grants="grants ?? []"
-      @close="showGrant = false"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import {
-  Lock,
-  Plus,
-  Save,
-  Search,
-  Trash2,
-  UserPlus,
-  Wrench,
-} from "lucide-vue-next";
+import { Lock, Plus, Save, Search, Trash2, Wrench } from "lucide-vue-next";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
 import {
   CRAFTING_DISCIPLINES,
   getDiscipline,
 } from "@/lib/crafting-disciplines";
 import { useItems } from "@/composables/useItems";
-import { useParty } from "@/composables/useParty";
 import {
   useCreateRecipe,
   useUpdateRecipe,
   useReplaceIngredients,
   useReplaceModifiers,
   useReplaceOutputs,
-  useRecipeGrants,
   useRecipeIngredients,
   useRecipeModifiers,
   useRecipeOutputs,
 } from "@/composables/useCrafting";
-import type {
-  CraftingRecipe,
-  CraftingDiscipline,
-} from "@/types/crafting.types";
-import GrantRecipeDialog from "./GrantRecipeDialog.vue";
+import type { CraftingRecipe, CraftingDiscipline } from "@/types/crafting.types";
 
 const props = defineProps<{
   recipe?: CraftingRecipe;
@@ -407,8 +382,6 @@ const isNew = computed(() => !props.recipe);
 const recipeId = computed(() => props.recipe?.id);
 
 const { data: allItems } = useItems();
-const { data: partyMembers } = useParty();
-const { data: grants } = useRecipeGrants(recipeId.value ?? "");
 
 // Load existing sub-resources when editing
 const { data: existingIngredients } = useRecipeIngredients(
@@ -424,7 +397,6 @@ const { mutateAsync: replaceModifiers } = useReplaceModifiers();
 const { mutateAsync: replaceOutputs } = useReplaceOutputs();
 
 const saving = computed(() => isCreating.value || isUpdating.value);
-const showGrant = ref(false);
 
 // Form state
 const form = ref({
@@ -435,6 +407,8 @@ const form = ref({
   crafting_time_days: props.recipe?.crafting_time_days ?? 1,
   requires_proficiency: props.recipe?.requires_proficiency ?? false,
   requires_tools: props.recipe?.requires_tools ?? false,
+  shared_with_players: props.recipe?.shared_with_players ?? false,
+  player_visible_to: props.recipe?.player_visible_to ?? null,
 });
 
 const ingredients = ref<{ item_id: string; quantity: number }[]>([]);
@@ -453,6 +427,8 @@ watch(
         crafting_time_days: r.crafting_time_days,
         requires_proficiency: r.requires_proficiency,
         requires_tools: r.requires_tools,
+        shared_with_players: r.shared_with_players,
+        player_visible_to: r.player_visible_to,
       };
     }
   },

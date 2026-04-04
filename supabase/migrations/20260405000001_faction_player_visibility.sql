@@ -5,14 +5,14 @@ alter table factions
   add column shared_with_players boolean not null default false,
   add column player_visible_to    uuid[]  default null;
 
+-- Drop old player SELECT policy first (depends on is_player_visible column)
+drop policy "factions_player_select" on factions;
+
 -- Migrate existing is_player_visible → shared_with_players
 update factions set shared_with_players = true where is_player_visible = true;
 
 -- Drop old column
 alter table factions drop column is_player_visible;
-
--- Drop old player SELECT policy and recreate with per-player support
-drop policy "factions_player_select" on factions;
 
 create policy "factions_player_select" on factions for select using (
   shared_with_players = true

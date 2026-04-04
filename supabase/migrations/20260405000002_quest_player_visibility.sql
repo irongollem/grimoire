@@ -2,6 +2,11 @@
 -- (shared_with_players + player_visible_to) to match Atlas/NPCs pattern.
 -- quest_objectives and quest_refs keep their binary is_player_visible (sub-item toggles).
 
+-- Drop all policies that depend on quests.is_player_visible before we drop the column
+drop policy "quests_select" on quests;
+drop policy "quest_refs_player_select" on quest_refs;
+drop policy "quest_objectives_player_select" on quest_objectives;
+
 alter table quests
   add column shared_with_players boolean not null default false,
   add column player_visible_to    uuid[]  default null;
@@ -12,37 +17,51 @@ update quests set shared_with_players = true where is_player_visible = true;
 -- Drop old column
 alter table quests drop column is_player_visible;
 
--- Add player SELECT policy (previously quests had no player-facing RLS)
-create policy "quests_player_select" on quests for select using (
-  shared_with_players = true
-  and campaign_id is not null
-  and (
-    -- Whole party
-    (
-      player_visible_to is null
-      and is_campaign_member(campaign_id)
-    )
-    or
-    -- Per-player: current user's linked party_member_id is in player_visible_to
-    (
-      player_visible_to is not null
-      and exists (
-        select 1 from campaign_members cm
-        where cm.user_id = auth.uid()
-          and cm.campaign_id = quests.campaign_id
-          and cm.party_member_id = any(quests.player_visible_to)
+-- Recreate the quests_select policy: DM access + player access based on shared_with_players
+create policy "quests_select" on quests for select using (
+  auth.uid() = user_id
+  or (
+    shared_with_players = true
+    and campaign_id is not null
+    and (
+      -- Whole party
+      (
+        player_visible_to is null
+        and is_campaign_member(campaign_id)
+      )
+      or
+      -- Per-player: current user's linked party_member_id is in player_visible_to
+      (
+        player_visible_to is not null
+        and exists (
+          select 1 from campaign_members cm
+          where cm.user_id = auth.uid()
+            and cm.campaign_id = quests.campaign_id
+            and cm.party_member_id = any(quests.player_visible_to)
+        )
       )
     )
   )
 );
 
--- Update quest_refs player select policy to reference new column name
-drop policy "quest_refs_player_select" on quest_refs;
+-- Recreate quest_refs player select policy to reference new column name
 create policy "quest_refs_player_select" on quest_refs for select using (
   is_player_visible = true
   and exists (
     select 1 from quests
     where quests.id = quest_refs.quest_id
+      and quests.shared_with_players = true
+      and quests.campaign_id is not null
+      and is_campaign_member(quests.campaign_id)
+  )
+);
+
+-- Recreate quest_objectives player select policy
+create policy "quest_objectives_player_select" on quest_objectives for select using (
+  is_player_visible = true
+  and exists (
+    select 1 from quests
+    where quests.id = quest_objectives.quest_id
       and quests.shared_with_players = true
       and quests.campaign_id is not null
       and is_campaign_member(quests.campaign_id)

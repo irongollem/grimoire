@@ -47,6 +47,7 @@
 ### Factions
 
 - [x] **Factions system** — full CRUD for guilds, governments, religions, cults, etc. with emblem upload, type, alignment, player visibility toggle (per-player via `PlayerVisibilityToggle`), tags, rich-text description
+- [x] **Unified player sharing pattern** — refactored Atlas, Quests, Factions, and Workshop (Crafting) to use the same `PlayerVisibilityToggle` component and DB pattern (`shared_with_players` + `player_visible_to`); replaced Crafting's grant-table system with the per-player visibility column approach; NPCs already implemented this pattern
 - [x] **Faction members** — NPC multi-faction membership with roles (Leader, Officer, Member, etc.); replaces free-text affiliation field on NPCs
 - [x] **Faction associations** — link locations and items to factions from the faction detail board
 - [x] **Directional faction relations** — outgoing stance + incoming (how others view this faction); 8 relation types (Allied → Hostile + secret variants)
@@ -230,6 +231,7 @@
 - [x] **Crafting system** — allow players to craft items using gear proficiencies, crafting tools
 - [x] **Crafting multi-output** — recipes can produce multiple output items (e.g. 4× leather strips + 1× tanning waste from raw hide)
 - [x] **Crafting open to non-proficient players** — disciplines no longer fully locked; players without tool proficiency can still attempt (no proficiency bonus), with "NO PROF" badge on tab; standard workspace bonus and poor-ingredient penalty modifiers added to all attempt dialogs
+- [x] **Recipe player visibility** — replaced dedicated GrantRecipeDialog with unified PlayerVisibilityToggle component; recipes now use `shared_with_players` + `player_visible_to` columns matching NPC/quest/location pattern
 
 ---
 
