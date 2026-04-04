@@ -2,6 +2,8 @@
 
 ## Done
 
+- [x] Item list cards showed no thumbnail images — `ItemList` was missing the `h-36` `FocalImage` landscape thumbnail that `NpcList` and `MonsterList` have; added `FocalImage` thumbnail to each card (irongollem/grimoire#1)
+
 - [x] Journal notes showed as unformatted plain text in view/read mode (irongollem/grimoire#6) — expanded entries were rendering `plainText(content)` instead of `RichTextViewer`; replaced the `<p>` with `<RichTextViewer :content="entry.content" />`
 
 - [x] Trait/action descriptions in encounter runner showed raw Tiptap JSON (`{"type":"doc",...}`) instead of readable text — `renderTraitDesc()` added to `RunnerEntityDetail`; parses Tiptap JSON via `generateHTML(StarterKit)` and falls back to plain string for legacy entries; all `t.description`, `effect_description`, and `notes` fields now use `v-html="renderTraitDesc(...)"` instead of `{{ t.description }}`

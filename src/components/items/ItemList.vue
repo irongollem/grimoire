@@ -36,7 +36,7 @@
     />
 
     <!-- Grid -->
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+    <div v-else class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr))">
       <div
         v-for="item in visibleItems"
         :key="item.id"
@@ -45,26 +45,33 @@
         <!-- Card link overlay -->
         <RouterLink :to="`/vault/${item.id}`" class="absolute inset-0 z-2" />
 
-        <div class="p-4 flex flex-col gap-2 flex-1">
-          <!-- Name + rarity badge -->
-          <div class="flex items-start justify-between gap-2">
-            <span class="font-cinzel text-sm font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1">
+        <!-- Thumbnail with overlays -->
+        <div class="relative h-36 bg-muted overflow-hidden shrink-0 rounded-t-lg">
+          <FocalImage
+            v-if="item.image_url"
+            :src="item.image_url"
+            :alt="item.name"
+            format="landscape"
+            :focal-point="item.image_focal_point"
+            class="group-hover:scale-105 transition-transform duration-300"
+          />
+          <!-- Rarity badge — top right -->
+          <span
+            class="absolute top-1.5 right-1.5 font-cinzel text-[9px] tracking-wider px-1.5 py-0.5 rounded leading-none"
+            :style="{ backgroundColor: rarityColor(item.rarity) + 'cc', color: '#fff' }"
+          >
+            {{ ITEM_RARITY_LABELS[item.rarity] }}
+          </span>
+          <!-- Type icon + name — bottom gradient -->
+          <div class="absolute bottom-0 left-0 right-0 px-2.5 py-2 bg-linear-to-t from-black/75 to-transparent flex items-end gap-1.5">
+            <component :is="itemTypeIcon(item.item_type)" class="h-3.5 w-3.5 shrink-0 text-white/70 mb-px" />
+            <span class="font-cinzel text-sm font-bold text-white group-hover:text-primary/90 transition-colors leading-tight line-clamp-2">
               {{ item.name }}
             </span>
-            <span
-              class="font-cinzel text-[10px] tracking-wider px-1.5 py-0.5 rounded shrink-0"
-              :style="{ backgroundColor: rarityColor(item.rarity) + '33', color: rarityColor(item.rarity) }"
-            >
-              {{ ITEM_RARITY_LABELS[item.rarity] }}
-            </span>
           </div>
+        </div>
 
-          <!-- Type line -->
-          <p class="font-fell text-xs text-muted-foreground capitalize">
-            {{ ITEM_TYPE_LABELS[item.item_type] }}
-            <span v-if="item.subtype">· {{ item.subtype }}</span>
-            <span v-if="item.requires_attunement"> · Attunement</span>
-          </p>
+        <div class="px-3 py-2 flex flex-col gap-1.5 flex-1">
 
           <!-- Damage / AC quick stat -->
           <div class="flex items-center gap-3 mt-auto pt-1">
@@ -107,8 +114,36 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import { Pencil } from "lucide-vue-next";
+import { ref, computed, type Component as VueComponent } from "vue";
+import {
+  Pencil, Sword, Shield, FlaskConical, Sparkles, Circle, Wand2, ScrollText,
+  Zap, Backpack, Wrench, Truck, Coins, Gem, Component,
+} from "lucide-vue-next";
+import FocalImage from "@/components/common/FocalImage.vue";
+import type { ItemType } from "@/types/item.types";
+
+const ITEM_TYPE_ICONS: Record<ItemType, VueComponent> = {
+  weapon:            Sword,
+  armor:             Shield,
+  shield:            Shield,
+  potion:            FlaskConical,
+  wondrous_item:     Sparkles,
+  ring:              Circle,
+  rod:               Wand2,
+  staff:             Wand2,
+  wand:              Wand2,
+  scroll:            ScrollText,
+  ammunition:        Zap,
+  gear:              Backpack,
+  tool:              Wrench,
+  vehicle:           Truck,
+  trade_good:        Coins,
+  crafting_material: Gem,
+};
+
+function itemTypeIcon(type: ItemType): VueComponent {
+  return ITEM_TYPE_ICONS[type] ?? Component;
+}
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useItems } from "@/composables/useItems";
 import {

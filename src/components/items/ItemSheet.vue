@@ -3,13 +3,14 @@
     <div class="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
       <!-- Left: image -->
       <div class="flex flex-col gap-3 lg:sticky lg:top-6">
-        <FocalImage
-          v-if="item.image_url"
-          :src="item.image_url"
-          :focal-point="item.image_focal_point"
-          format="portrait"
-          class="w-full rounded-lg overflow-hidden flex-1 min-h-0 max-h-[75vh]"
-        />
+        <div v-if="item.image_url" class="w-full rounded-lg overflow-hidden" style="aspect-ratio: 2/3; max-height: 75vh">
+          <FocalImage
+            :src="item.image_url"
+            :focal-point="item.image_focal_point"
+            format="portrait"
+            class="h-full"
+          />
+        </div>
         <!-- Rarity badge -->
         <div
           class="rounded-lg border bg-card p-3 flex flex-col gap-1.5 font-stat text-[15px]"
