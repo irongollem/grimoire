@@ -1,6 +1,31 @@
 <template>
   <form class="max-w-md flex flex-col gap-6" @submit.prevent="save">
 
+    <!-- Local Mode Toggle -->
+    <div class="rounded-lg border border-border bg-card overflow-hidden">
+      <div class="px-4 py-3 border-b border-border bg-muted/20">
+        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Key Storage Mode</span>
+      </div>
+      <div class="p-4 flex flex-col gap-3">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input
+            v-model="localModeEnabled"
+            type="checkbox"
+            class="h-4 w-4 rounded border-border bg-background"
+          />
+          <span class="text-sm">Store key locally on this device only</span>
+        </label>
+        <p class="font-fell text-xs text-muted-foreground italic">
+          <span v-if="localModeEnabled" class="block text-yellow-600 dark:text-yellow-500 font-semibold mb-1">
+            ⚠️ Local storage only: Your key is not saved to your account. Using Grimoire on a different browser or device will require re-entering the key.
+          </span>
+          <span v-else class="block text-green-600 dark:text-green-500">
+            ✓ Encrypted in your account: Your key is encrypted and stored securely in your campaign.
+          </span>
+        </p>
+      </div>
+    </div>
+
     <!-- API Key -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/20">
@@ -8,8 +33,8 @@
       </div>
       <div class="p-4 flex flex-col gap-3">
         <p class="font-fell text-xs text-muted-foreground italic">
-          Your key is stored in your campaign and protected by your account.
-          It is never shared with other players.
+          <span v-if="localModeEnabled">Your key is stored on this device only.</span>
+          <span v-else>Your key is encrypted and stored in your campaign, protected by your account. It is never shared with other players.</span>
           <a
             href="https://platform.openai.com/api-keys"
             target="_blank"
@@ -74,6 +99,10 @@ import { ref, watch } from "vue";
 import { Eye, EyeOff } from "lucide-vue-next";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/useCampaigns";
+import { encryptApiKey } from "@/lib/apiKeyVault";
+
+const LOCAL_MODE_KEY = "grimoire_openai_key_mode";
+const LOCAL_KEY_STORAGE = "grimoire_openai_key";
 
 const campaign = useCampaignStore();
 const { mutateAsync: updateCampaign } = useUpdateCampaign();
@@ -85,6 +114,7 @@ const form = ref({
 
 const showKey = ref(false);
 const isSaving = ref(false);
+const localModeEnabled = ref(localStorage.getItem(LOCAL_MODE_KEY) === "local");
 
 // Sync if the active campaign switches
 watch(
@@ -101,15 +131,40 @@ async function save() {
   if (!campaign.activeCampaignId || !campaign.activeCampaign) return;
   isSaving.value = true;
   try {
+    let apiKeyValue: string | null = null;
+
+    if (localModeEnabled.value) {
+      // Local mode: save to localStorage, clear from DB
+      const trimmedKey = form.value.openai_api_key.trim();
+      if (trimmedKey) {
+        localStorage.setItem(LOCAL_KEY_STORAGE, trimmedKey);
+      } else {
+        localStorage.removeItem(LOCAL_KEY_STORAGE);
+      }
+      localStorage.setItem(LOCAL_MODE_KEY, "local");
+      // DB value should be null in local mode
+      apiKeyValue = null;
+    } else {
+      // DB mode: encrypt and save to DB, clear localStorage
+      const trimmedKey = form.value.openai_api_key.trim();
+      if (trimmedKey) {
+        apiKeyValue = await encryptApiKey(trimmedKey);
+      } else {
+        apiKeyValue = null;
+      }
+      localStorage.removeItem(LOCAL_KEY_STORAGE);
+      localStorage.removeItem(LOCAL_MODE_KEY);
+    }
+
     const updated = await updateCampaign({
       id: campaign.activeCampaignId,
       update: {
-        openai_api_key: form.value.openai_api_key.trim() || null,
+        openai_api_key: apiKeyValue,
         ai_setting_prompt: form.value.ai_setting_prompt.trim() || null,
       },
     });
     // Re-sync the store with a fresh writable object so computed props
-    // that read openai_api_key (e.g. the NPC Generate button) update immediately.
+    // that read decryptedApiKey (e.g. the NPC Generate button) update immediately.
     campaign.switchToCampaign(updated);
   } finally {
     isSaving.value = false;

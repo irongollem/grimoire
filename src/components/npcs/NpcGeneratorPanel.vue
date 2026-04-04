@@ -273,7 +273,7 @@ const { mutateAsync: createNpc, isPending: isCreating } = useCreateNpc();
 const campaign = useCampaignStore();
 const { isGenerating, error: genError, phase, generate } = useNpcGeneration();
 
-const aiApiKey = computed(() => campaign.activeCampaign?.openai_api_key ?? "");
+const aiApiKey = computed(() => campaign.decryptedApiKey);
 const aiSettingPrompt = computed(() => campaign.activeCampaign?.ai_setting_prompt ?? "");
 
 const STATUS_MESSAGES: Record<string, string> = {

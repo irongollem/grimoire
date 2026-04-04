@@ -247,6 +247,11 @@ BYOK (Bring Your Own Key) — DM enters their OpenAI key in Campaign Settings �
 - "Generate" button appears on the NPC form when an API key is configured
 - Note: `CampaignSettingsView.vue` is dead code (never registered in the router) — all campaign config lives in the modal
 
+**Security & Storage:**
+
+- [x] **API key encryption** — AES-256-GCM via Supabase Edge Function (`api-key-vault`); keys stored as `enc:v1:<iv>:<ciphertext>` in DB; encryption secret held in Supabase env (not in code/DB); `decryptApiKey()` transparently handles legacy plaintext; backward compatible (irongollem/grimoire#51)
+- [x] **Local-only storage option** — checkbox in AI tab; when enabled, key stored only in `localStorage`, DB set to `null`, warning shown that key is device-specific; when disabled, key encrypted to DB, localStorage cleared
+
 ### Text generation — OpenAI (gpt-4o-mini for structured output)
 
 - [x] **NPC generation** — concept prompt → full NPC (name, race, alignment, age, occupation, appearance, personality, backstory, DM notes, status, relationship, tags) + portrait image prompt. Populates the NPC editor form. Personality uses D&D 5e sections (Personality Traits / Ideal / Bond / Flaw) as Tiptap h3 headings.

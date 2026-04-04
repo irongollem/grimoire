@@ -473,7 +473,7 @@ const isSendingToScriptorium = ref(false)
 const activeTab = ref<TabKey>('lore')
 const showGenerateDialog = ref(false)
 
-const aiApiKey = computed(() => campaign.activeCampaign?.openai_api_key ?? '')
+const aiApiKey = computed(() => campaign.decryptedApiKey)
 const aiSettingPrompt = computed(() => campaign.activeCampaign?.ai_setting_prompt ?? '')
 
 function onAiGenerated(result: NpcAiGenerated) {

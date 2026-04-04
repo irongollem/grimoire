@@ -113,7 +113,9 @@ onUnmounted(() => window.removeEventListener("scroll", updatePosition, true));
 
 function addTag(tag: string) {
   const clean = tag.trim();
-  if (clean && !model.value.includes(clean)) model.value.push(clean);
+  if (clean && !model.value.includes(clean)) {
+    model.value = [...model.value, clean];
+  }
   inputVal.value = "";
 }
 
