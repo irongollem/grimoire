@@ -112,7 +112,7 @@
     >
       <div
         class="bg-card border border-border rounded-lg w-full shadow-xl transition-all"
-        :class="editing && activeModalTab !== 'details' ? 'max-w-xl' : 'max-w-md'"
+        :class="editing && activeModalTab === 'scheduling' ? 'max-w-2xl' : editing && activeModalTab !== 'details' ? 'max-w-xl' : 'max-w-md'"
       >
         <div class="flex items-center justify-between px-5 py-4 border-b border-border">
           <h2 class="font-cinzel text-lg font-bold text-foreground">
@@ -149,6 +149,11 @@
         <!-- Invites tab -->
         <div v-else-if="editing && activeModalTab === 'invites'" class="px-5 py-4 max-h-[60vh] overflow-y-auto">
           <InvitesTab />
+        </div>
+
+        <!-- Scheduling tab -->
+        <div v-else-if="editing && activeModalTab === 'scheduling'" class="px-5 py-4 max-h-[70vh] overflow-y-auto">
+          <SchedulingTab />
         </div>
 
         <!-- AI Assistant tab -->
@@ -372,16 +377,18 @@ import { listCalendarAdapters, getCalendarAdapter } from "@/calendars/index";
 import type { Campaign } from "@/types/campaign.types";
 import MembersTab from "@/components/campaign/MembersTab.vue";
 import InvitesTab from "@/components/campaign/InvitesTab.vue";
+import SchedulingTab from "@/components/campaign/SchedulingTab.vue";
 import AiTab from "@/components/campaign/AiTab.vue";
 
-type ModalTab = "details" | "members" | "invites" | "ai" | "danger";
+type ModalTab = "details" | "members" | "invites" | "scheduling" | "ai" | "danger";
 
 const modalTabs: { id: ModalTab; label: string }[] = [
-  { id: "details", label: "Details" },
-  { id: "members", label: "Members" },
-  { id: "invites", label: "Invite Links" },
-  { id: "ai",      label: "AI Assistant" },
-  { id: "danger",  label: "Danger Zone" },
+  { id: "details",    label: "Details" },
+  { id: "members",    label: "Members" },
+  { id: "invites",    label: "Invite Links" },
+  { id: "scheduling", label: "Scheduling" },
+  { id: "ai",         label: "AI Assistant" },
+  { id: "danger",     label: "Danger Zone" },
 ];
 
 const activeModalTab = ref<ModalTab>("details");

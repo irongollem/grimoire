@@ -111,6 +111,74 @@
       </div>
     </section>
 
+    <!-- Upcoming sessions -->
+    <section class="rounded-lg border border-border bg-card p-5 space-y-4">
+      <h2 class="font-cinzel text-sm font-semibold text-foreground tracking-wide">Upcoming Sessions</h2>
+
+      <div v-if="!confirmedSessions.length" class="font-fell text-sm text-muted-foreground italic">
+        No confirmed sessions yet — check back when your DM books one.
+      </div>
+      <div v-else class="space-y-2">
+        <div
+          v-for="s in confirmedSessions"
+          :key="s.id"
+          class="flex items-center gap-3 rounded-md border border-border px-3 py-2.5"
+        >
+          <CalendarCheck class="h-4 w-4 text-elven-green shrink-0" />
+          <div class="flex-1 min-w-0">
+            <p class="font-cinzel text-sm font-semibold text-foreground">{{ s.title }}</p>
+            <p class="font-fell text-xs text-muted-foreground">{{ formatSessionDate(s.proposed_date, s.proposed_time) }}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Session availability -->
+    <section v-if="proposedSessions.length > 0" class="rounded-lg border border-border bg-card p-5 space-y-4">
+      <div>
+        <h2 class="font-cinzel text-sm font-semibold text-foreground tracking-wide">Session Availability</h2>
+        <p class="font-fell text-xs text-muted-foreground italic mt-1">
+          Let your DM know when you can make it.
+        </p>
+      </div>
+
+      <div class="space-y-3">
+        <div
+          v-for="s in proposedSessions"
+          :key="s.id"
+          class="flex items-center gap-3"
+        >
+          <div class="flex-1 min-w-0">
+            <p class="font-cinzel text-sm font-semibold text-foreground">{{ s.title }}</p>
+            <p class="font-fell text-xs text-muted-foreground">{{ formatSessionDate(s.proposed_date, s.proposed_time) }}</p>
+          </div>
+          <!-- 3-way toggle -->
+          <div class="flex items-center gap-1 shrink-0">
+            <button
+              class="inline-flex items-center gap-1 px-2 py-1 rounded font-cinzel text-[10px] tracking-wider border transition-colors"
+              :class="myAvailability(s.id) === true
+                ? 'border-elven-green/50 bg-elven-green/15 text-elven-green'
+                : 'border-border text-muted-foreground hover:border-elven-green/30 hover:text-elven-green'"
+              @click="setAvailability(s, true)"
+            >
+              <Check class="h-3 w-3" />
+              Yes
+            </button>
+            <button
+              class="inline-flex items-center gap-1 px-2 py-1 rounded font-cinzel text-[10px] tracking-wider border transition-colors"
+              :class="myAvailability(s.id) === false
+                ? 'border-destructive/50 bg-destructive/10 text-destructive'
+                : 'border-border text-muted-foreground hover:border-destructive/30 hover:text-destructive'"
+              @click="setAvailability(s, false)"
+            >
+              <X class="h-3 w-3" />
+              No
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Account info (read-only) -->
     <section class="rounded-lg border border-border bg-card p-5 space-y-2">
       <h2 class="font-cinzel text-sm font-semibold text-foreground tracking-wide">Account</h2>
@@ -131,16 +199,23 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Check, Save, User } from "lucide-vue-next";
+import { CalendarCheck, Check, Save, User, X } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useParty } from "@/composables/useParty";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
+import { useSessionProposals, useAllSessionAvailability, useUpsertAvailability } from "@/composables/useScheduling";
+import { useCampaignStore } from "@/stores/campaign";
 import { supabase } from "@/lib/supabase";
+import type { SessionProposal } from "@/types/scheduling.types";
 
 const auth = useAuthStore();
+const campaign = useCampaignStore();
 const { data: partyMembers } = useParty();
 const { data: campaignMembers } = useCampaignMembers();
+const { data: proposals } = useSessionProposals();
+const { data: allAvailability } = useAllSessionAvailability();
+const { mutateAsync: upsertAvailability } = useUpsertAvailability();
 
 // ── Display name ──────────────────────────────────────────────────────────────
 const currentName = computed(() => auth.membership?.display_name ?? "");
@@ -192,6 +267,45 @@ const linkedCharacter = computed(() => {
   if (!auth.linkedPartyMemberId || !partyMembers.value) return null;
   return partyMembers.value.find(m => m.id === auth.linkedPartyMemberId) ?? null;
 });
+
+// ── Scheduling ────────────────────────────────────────────────────────────────
+
+const confirmedSessions = computed(() =>
+  (proposals.value ?? [])
+    .filter(p => p.status === "confirmed")
+    .sort((a, b) => a.proposed_date.localeCompare(b.proposed_date))
+);
+
+const proposedSessions = computed(() =>
+  (proposals.value ?? [])
+    .filter(p => p.status === "proposed")
+    .sort((a, b) => a.proposed_date.localeCompare(b.proposed_date))
+);
+
+function myAvailability(proposalId: string): boolean | null {
+  const row = (allAvailability.value ?? [])
+    .find(a => a.session_proposal_id === proposalId && a.user_id === auth.user?.id);
+  return row ? row.available : null;
+}
+
+async function setAvailability(proposal: SessionProposal, available: boolean) {
+  if (!campaign.activeCampaignId) return;
+  await upsertAvailability({
+    session_proposal_id: proposal.id,
+    campaign_id: campaign.activeCampaignId,
+    available,
+  });
+}
+
+function formatSessionDate(date: string, time: string | null): string {
+  const d = new Date(date + "T00:00:00");
+  const dateStr = d.toLocaleDateString(undefined, { weekday: "short", year: "numeric", month: "short", day: "numeric" });
+  if (!time) return dateStr;
+  const [h, m] = time.split(":");
+  const t = new Date();
+  t.setHours(Number(h), Number(m));
+  return `${dateStr} · ${t.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`;
+}
 
 async function claimCharacter() {
   if (!auth.membership?.id || !claimTarget.value) return;

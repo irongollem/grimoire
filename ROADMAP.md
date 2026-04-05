@@ -353,3 +353,4 @@ Keep the core DM tooling free forever (open source). Gate AI features, advanced 
   - [x] WebP conversion on upload — all new images stored as WebP (max 1920px, 85% quality) reducing source file size for all downstream use
 
 - [x] Per-PC NPC relation notes — DM can write a short note per party member on any NPC describing how they know each other; the relevant PC sees only their own note in the People panel of the player portal (NPC lightbox)
+- [x] **Session scheduling** (irongollem/grimoire#4, #17, #18) — DM proposes candidate real-world dates via new "Scheduling" tab in Campaign Settings modal; players mark availability (yes/no) for each date from their Settings page; DM confirms a session, which appears in both the DM's agenda and the player's "Upcoming Sessions" section; confirmed sessions exportable as an iCal `.ics` file for Google Calendar / Apple Calendar import; backed by `session_proposals` + `session_availability` tables with campaign-scoped RLS
