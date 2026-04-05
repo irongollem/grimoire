@@ -1,5 +1,7 @@
 import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
 import type { MonsterType, MonsterSize, MonsterStatBlock } from "@/types/monster.types";
+import type { ItemType, ItemRarity } from "@/types/item.types";
+import type { DamageRoll } from "@/lib/dice";
 
 export interface NpcAiResult {
   name: string;
@@ -40,5 +42,30 @@ export interface MonsterAiResult {
 }
 
 export interface MonsterAiGenerated extends MonsterAiResult {
+  image_url: string | null;
+}
+
+export interface ItemAiResult {
+  name: string;
+  item_type: ItemType;
+  subtype: string | null;
+  rarity: ItemRarity;
+  requires_attunement: boolean;
+  attunement_requirements: string | null;
+  weight: string | null;
+  cost: string | null;
+  damage_rolls: DamageRoll[] | null;
+  armor_class: string | null;
+  properties: string[];
+  charges: number | null;
+  recharge: string | null;
+  /** Plain text — convert to Tiptap JSON before writing to form */
+  description: string;
+  tags: string[];
+  /** Subject description for image generation */
+  image_prompt: string;
+}
+
+export interface ItemAiGenerated extends ItemAiResult {
   image_url: string | null;
 }

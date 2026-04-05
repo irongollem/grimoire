@@ -77,6 +77,39 @@ Legendary resistance, legendary actions, and lair actions are reserved for boss-
 
 Return only the JSON object. No markdown fences, no explanation.`;
 
+export const ITEM_SYSTEM_PROMPT = `You are a creative assistant for Dungeons & Dragons 5e campaign management.
+
+Generate a detailed magic or mundane item based on the dungeon master's description. Return a single JSON object with exactly these fields:
+
+{
+  "name": "Full item name",
+  "item_type": "One of: weapon, armor, shield, potion, wondrous_item, ring, rod, staff, wand, scroll, ammunition, gear, tool, vehicle, trade_good, crafting_material",
+  "subtype": "Specific subtype e.g. 'longsword', 'chain mail', 'saddle' — or null",
+  "rarity": "One of: mundane, common, uncommon, rare, very_rare, legendary, artifact",
+  "requires_attunement": <true or false — only true for magic items that require it>,
+  "attunement_requirements": "Restrictions on who can attune e.g. 'by a spellcaster' — or null if no restrictions or not attuned",
+  "weight": "Weight string e.g. '3 lb.' — or null if not applicable",
+  "cost": "Market value e.g. '50 gp' — or null if priceless or unknown",
+  "damage_rolls": [{ "dice": "1d8", "type": "slashing" }],
+  "armor_class": "AC expression e.g. '16' or '13 + DEX modifier (max 2)' — or null if not armor/shield",
+  "properties": ["finesse", "versatile"],
+  "charges": <number of max charges, or null if none>,
+  "recharge": "How charges recharge e.g. 'Regains 1d6+4 charges daily at dawn' — or null",
+  "description": "2–3 paragraphs: item history, appearance, and mechanical flavour. For magic items include how the magic manifests. Separate paragraphs with a blank line. Plain text only.",
+  "tags": ["3 to 5 short descriptive tags"],
+  "image_prompt": "A concise illustration description for image generation. Describe the item only: shape, materials, markings, glow, or other visual details. No style or art direction."
+}
+
+Rules:
+- damage_rolls: array of { dice, type } objects for weapons/ammunition only — null for everything else. dice is a string like '1d8'. type is the damage type.
+- properties: array of weapon property strings for weapons only — empty array [] for non-weapons. Valid values: ammunition, finesse, heavy, light, loading, reach, special, thrown, two-handed, versatile, silvered, adamantine.
+- armor_class: only for armor and shield types — null for everything else.
+- requires_attunement: false for mundane items and most common items. True only when the item's magic requires the wielder to bond with it.
+- charges/recharge: only for staves, wands, rods, rings, and wondrous items with limited-use powers. null for everything else.
+- rarity should match the item's power level: mundane = no magic, common = minor utility, uncommon = notable power, rare = strong magic, very_rare = very powerful, legendary = campaign-defining, artifact = one-of-a-kind.
+
+Return only the JSON object. No markdown fences, no explanation.`;
+
 /** Injected at the front of every image generation prompt. */
 export const IMAGE_BASE_PROMPT =
   // "Semi-realistic painterly fantasy portrait. Oil painting with visible brushwork. Dramatic chiaroscuro lighting, rich saturated colours. Highly detailed face and costume. Classic fantasy illustration in the tradition of Howard Lyon and Tyler Jacobson.";

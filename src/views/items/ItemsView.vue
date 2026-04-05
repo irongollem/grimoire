@@ -11,6 +11,14 @@
         <Download v-else class="size-3.5 shrink-0" />
         {{ importStatusLabel }}
       </button>
+      <button
+        type="button"
+        class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+        @click="ui.itemGeneratorOpen = true"
+      >
+        <Sparkles class="size-3.5 shrink-0" />
+        Generate
+      </button>
       <RouterLink
         to="/vault/new"
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
@@ -57,13 +65,16 @@
 
     <ItemList :search="search" :type-filter="typeFilter" :rarity-filter="rarityFilter" />
   </PageHeader>
+
+  <ItemGeneratorPanel />
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Loader2, Download, Search } from "lucide-vue-next";
+import { Loader2, Download, Search, Sparkles } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import ItemList from "@/components/items/ItemList.vue";
+import ItemGeneratorPanel from "@/components/items/ItemGeneratorPanel.vue";
 import { useImportSrdItems } from "@/composables/useItems";
 import { ITEM_TYPES, ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS } from "@/types/item.types";
 import { useUiStore } from "@/stores/ui";

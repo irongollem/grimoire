@@ -29,6 +29,7 @@
 ### Game Entities
 
 - [x] NPC Generator — faction picker + role, known associate picker + relationship type added to generator panel; all three (location, faction, associate) are folded into the AI prompt as grounding constraints and pre-applied to the created NPC via post-create hooks
+- [x] Item Generator — AI generates magic or mundane item (name, type, rarity, description, mechanical properties) from a flavor prompt with optional type/rarity constraints; creates item directly and navigates to it; same panel pattern as Monster/NPC generators
 - [x] NPC tracker with full stat blocks, portrait upload, TraitSection editor
 - [x] Read-only sheet views for Monster, NPC, Item, and Spell — DnD-stat-block-style layout (image top-left, portrait fills row height up to 80vh with sticky on desktop, bordered stat block panel, trait sections); pencil button in page header toggles to edit form via `?edit` query param; shared `StatBlockPanel` and `TraitList` components reused across monster/NPC sheets; `StatBlockPanel` uses per-ability row layout (name | score | mod | save, per-ability color tints), `MonsterSheet` uses two-column layout (stat block left, traits/actions right); **Source Sans 3** added as `font-stat` for all stat block and trait text (15px body, 20px section titles, matching official DnD Beyond typographic spec)
 - [x] List card quick-edit — hover any card to reveal an "Edit" button (pencil, floats top-left over portrait, `z-10` above the `z-2` card overlay link) that jumps directly to `?edit=true`, bypassing the sheet view; SRD monsters excluded
