@@ -91,6 +91,7 @@
 - [x] Currency drops in chat — DM drops PP/GP/EP/SP/CP from quest rewards; players claim to purse (real-time sync)
 - [x] Coin purse on party members — pp/gp/ep/sp/cp fields, incremented on currency claim
 - [x] Paper doll inventory view in player portal — equipped slots, belt, backpack, containers, stored, party stash
+- [x] Item detail panel in player inventory — click any item name to open a slide-in panel showing art, type, rarity, cost, weight, description; quantity +/− controls; charge tracking (spend / recharge) for magic items with `current_charges` in `party_inventory`
 
 ### Layout & UX
 

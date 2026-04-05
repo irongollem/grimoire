@@ -155,6 +155,7 @@
         @remove="removeItem"
         @adjust-qty="adjustQty"
         @drop-to-chat="dropItemToChat"
+        @open-detail="openDetail"
       />
 
       <!-- Belt -->
@@ -170,6 +171,7 @@
         @remove="removeItem"
         @adjust-qty="adjustQty"
         @drop-to-chat="dropItemToChat"
+        @open-detail="openDetail"
       />
 
       <!-- Custom containers (items with is_container=true) -->
@@ -190,6 +192,7 @@
         @remove-container="removeItem(c.id)"
         @adjust-qty="adjustQty"
         @drop-to-chat="dropItemToChat"
+        @open-detail="openDetail"
       />
     </div>
 
@@ -206,6 +209,7 @@
           @remove="removeItem"
           @adjust-qty="adjustQty"
           @drop-to-chat="dropItemToChat"
+          @open-detail="openDetail"
         />
       </div>
       <div v-else class="rounded-lg border border-dashed border-border p-4 text-center">
@@ -228,6 +232,7 @@
           @remove="removeItem"
           @adjust-qty="adjustQty"
           @drop-to-chat="dropItemToChat"
+          @open-detail="openDetail"
         />
       </div>
       <div v-else class="rounded-lg border border-dashed border-border p-4 text-center">
@@ -285,6 +290,13 @@
       </div>
     </form>
 
+    <!-- Item detail panel -->
+    <ItemDetailPanel
+      :inv="selectedInv"
+      :vault-item="selectedVaultItem"
+      @close="selectedInv = null"
+    />
+
     <!-- Slot assignment modal -->
     <Transition name="fade">
       <div v-if="slotModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @click.self="slotModal = null">
@@ -337,6 +349,7 @@ import EquipSlotRow from "@/components/inventory/EquipSlotRow.vue";
 import ContainerSection from "@/components/inventory/ContainerSection.vue";
 import ItemRow from "@/components/inventory/ItemRow.vue";
 import CoinRow from "@/components/inventory/CoinRow.vue";
+import ItemDetailPanel from "@/components/inventory/ItemDetailPanel.vue";
 
 // ── Stores / composables ───────────────────────────────────────────────────────
 const auth = useAuthStore();
@@ -476,6 +489,18 @@ async function addToLocation(location: PartyInventoryItem['location'], container
     is_container: false, container_id: containerId,
     is_attuned: false, is_equipped: false, notes: null, is_ruined: false,
   });
+}
+
+// ── Item detail panel ──────────────────────────────────────────────────────────
+const selectedInv = ref<PartyInventoryItem | null>(null);
+
+const selectedVaultItem = computed<Item | null>(() => {
+  if (!selectedInv.value?.item_id) return null;
+  return allItems.value?.find(it => it.id === selectedInv.value!.item_id) ?? null;
+});
+
+function openDetail(inv: PartyInventoryItem) {
+  selectedInv.value = inv;
 }
 
 // ── Add item combobox ──────────────────────────────────────────────────────────

@@ -33,14 +33,15 @@ export interface PartyInventoryItem {
   is_attuned: boolean;
   is_equipped: boolean; // legacy; derived from location='equipped'
   notes: string | null;
+  current_charges: number | null; // remaining charges; null = full (use Item.charges as max)
   updated_at: string;
   is_ruined: boolean;
 }
 
 export type PartyInventoryInsert = Omit<
   PartyInventoryItem,
-  "id" | "user_id" | "updated_at"
->;
+  "id" | "user_id" | "updated_at" | "current_charges"
+> & { current_charges?: number | null };
 export type PartyInventoryUpdate = Partial<
   Pick<
     PartyInventoryItem,
@@ -54,5 +55,6 @@ export type PartyInventoryUpdate = Partial<
     | "is_equipped"
     | "notes"
     | "name"
+    | "current_charges"
   >
 >;

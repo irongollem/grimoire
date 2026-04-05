@@ -29,6 +29,7 @@
         @remove="(id) => $emit('remove', id)"
         @adjust-qty="(item, d) => $emit('adjust-qty', item, d)"
         @drop-to-chat="(item) => $emit('drop-to-chat', item)"
+        @open-detail="(item) => $emit('open-detail', item)"
       />
       <div v-if="!items.length && !showAdd" class="px-4 py-3">
         <p class="font-fell text-xs text-muted-foreground/50 italic">Empty.</p>
@@ -95,6 +96,7 @@ const emit = defineEmits<{
   'remove-container': [];
   'adjust-qty': [item: PartyInventoryItem, delta: number];
   'drop-to-chat': [item: PartyInventoryItem];
+  'open-detail': [item: PartyInventoryItem];
 }>();
 
 const open = ref(true);

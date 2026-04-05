@@ -1,7 +1,11 @@
 <template>
   <div class="flex items-center gap-2 px-4 py-2.5 border-b border-border last:border-0 hover:bg-muted/10 transition-colors group">
     <div class="flex-1 min-w-0">
-      <p class="font-fell text-sm text-foreground truncate">{{ item.name }}</p>
+      <button
+        type="button"
+        class="font-fell text-sm text-foreground truncate text-left hover:text-primary transition-colors w-full"
+        @click="$emit('open-detail', item)"
+      >{{ item.name }}</button>
       <p v-if="item.notes" class="font-fell text-xs text-muted-foreground italic truncate">{{ item.notes }}</p>
       <p v-if="showCarrier && item.carried_by" class="font-cinzel text-[9px] text-muted-foreground/60 tracking-wider">
         {{ carrierName(item.carried_by) }}
@@ -64,6 +68,7 @@ const emit = defineEmits<{
   'move': [item: PartyInventoryItem, location: string, containerId?: string];
   'remove': [id: string];
   'drop-to-chat': [item: PartyInventoryItem];
+  'open-detail': [item: PartyInventoryItem];
 }>();
 
 const currentLocationLabel = computed(() => {
