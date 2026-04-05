@@ -2,6 +2,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Item, ItemInsert, ItemUpdate } from "@/types/item.types";
 
+interface ItemSource {
+  slug: string;
+  title: string | null;
+}
+
 const QUERY_KEY = "items";
 
 async function fetchItems(): Promise<Item[]> {
@@ -55,6 +60,37 @@ async function deleteItem(id: string): Promise<void> {
   if (error) throw error;
 }
 
+async function fetchItemSources(): Promise<ItemSource[]> {
+  const all: { source: string; source_title: string | null }[] = [];
+  const PAGE = 1000;
+  let offset = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("items")
+      .select("source, source_title")
+      .not("source", "is", null)
+      .range(offset, offset + PAGE - 1);
+    if (error) throw error;
+    all.push(...(data as { source: string; source_title: string | null }[]));
+    if ((data ?? []).length < PAGE) break;
+    offset += PAGE;
+  }
+  // Deduplicate by slug, preferring a non-null title
+  const map = new Map<string, string | null>();
+  for (const r of all) {
+    if (!map.has(r.source) || r.source_title) map.set(r.source, r.source_title);
+  }
+  return [...map.entries()]
+    .map(([slug, title]) => ({ slug, title }))
+    .sort((a, b) => (a.title ?? a.slug).localeCompare(b.title ?? b.slug));
+}
+
+const SOURCES_KEY = "item-sources";
+
+export function useItemSources() {
+  return useQuery({ queryKey: [SOURCES_KEY], queryFn: fetchItemSources, staleTime: Infinity });
+}
+
 export function useItems() {
   return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchItems, staleTime: Infinity });
 }
@@ -106,33 +142,57 @@ export function useImportSrdItems() {
       const apiItems = await fetchSrdItems();
       const items = [...apiItems, ...MUNDANE_GEAR];
 
-      // Check which names already exist — query only the names we're about to
-      // insert (in chunks of 200) to avoid the default 1000-row Supabase limit
-      // that would otherwise silently miss items and cause duplicates on re-import.
+      // Check which names already exist — match by name only (no source filter)
+      // so that re-imports correctly find previously imported items regardless of
+      // what source value they were stored with.
       const allNames = items.map((i) => i.name);
-      const existingNames = new Set<string>();
+      const existingByName = new Map<string, string>(); // name → id
       const NAME_CHUNK = 200;
       for (let i = 0; i < allNames.length; i += NAME_CHUNK) {
         const { data } = await supabase
           .from("items")
-          .select("name")
-          .eq("source", "srd")
+          .select("id, name")
           .in("name", allNames.slice(i, i + NAME_CHUNK));
-        (data ?? []).forEach((r: { name: string }) => existingNames.add(r.name));
+        (data ?? []).forEach((r: { id: string; name: string }) => existingByName.set(r.name, r.id));
       }
 
-      const toInsert = items.filter((i) => !existingNames.has(i.name));
-      if (toInsert.length === 0) return 0;
       const user = getCurrentUser();
-      const withUser = toInsert.map((i) => ({ ...i, user_id: user!.id }));
-      // Batch insert in groups of 100 to avoid request size limits
+      const toInsert = items.filter((i) => !existingByName.has(i.name));
+      const toUpdate = items.filter((i) => existingByName.has(i.name));
+
+      // Insert new items in batches of 100
       const BATCH = 100;
-      for (let i = 0; i < withUser.length; i += BATCH) {
-        const { error } = await supabase.from("items").insert(withUser.slice(i, i + BATCH));
+      for (let i = 0; i < toInsert.length; i += BATCH) {
+        const batch = toInsert.slice(i, i + BATCH).map((item) => ({ ...item, user_id: user!.id }));
+        const { error } = await supabase.from("items").insert(batch);
         if (error) throw error;
       }
+
+      // Update existing items: refresh source fields + new structural fields only.
+      // Preserves user-added data (image_url, image_focal_point, tags, description).
+      const UPDATE_BATCH = 50;
+      for (let i = 0; i < toUpdate.length; i += UPDATE_BATCH) {
+        await Promise.all(
+          toUpdate.slice(i, i + UPDATE_BATCH).map((item) =>
+            supabase
+              .from("items")
+              .update({
+                source: item.source,
+                source_title: item.source_title ?? null,
+                source_url: item.source_url ?? null,
+                weapon_range: item.weapon_range ?? null,
+                versatile_damage: item.versatile_damage ?? null,
+              })
+              .eq("id", existingByName.get(item.name)!),
+          ),
+        );
+      }
+
       return toInsert.length;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [SOURCES_KEY] });
+    },
   });
 }

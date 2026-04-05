@@ -1,4 +1,15 @@
 import type { DamageRoll } from "@/lib/dice";
+import { OPEN5E_SOURCE_LABELS } from "@/types/spell.types";
+
+// Prefer the stored title from the DB; fall back to our hardcoded map, then the raw slug.
+export function itemSourceLabel(
+  slug: string | null,
+  title?: string | null,
+): string {
+  if (!slug) return "Custom";
+  if (title) return title;
+  return OPEN5E_SOURCE_LABELS[slug] ?? slug;
+}
 
 export const ITEM_TYPES = [
   "weapon",
@@ -112,11 +123,15 @@ export interface Item {
   damage_rolls: DamageRoll[] | null; // for weapons
   armor_class: string | null; // e.g. "13 + DEX modifier (max 2)"
   properties: string[]; // weapon properties
-  charges: number | null; // max charges (staff/wand/rod)
+  charges: number | null; // max charges (staff/wand/rod) or quantity (ammunition)
   recharge: string | null; // e.g. "Regains 1d6+4 charges daily at dawn"
   spell_ids: string[]; // UUIDs referencing spells in the spells table
+  weapon_range?: string | null; // e.g. "80/320 ft." for ranged weapons
+  versatile_damage?: string | null; // e.g. "1d10" two-handed damage for versatile weapons
   description: string;
-  source: string | null;
+  source: string | null; // open5e document slug, used for filtering
+  source_title?: string | null; // human-readable document title, e.g. "Vault of Magic"
+  source_url?: string | null; // link to the product page
   tags: string[];
   image_url: string | null;
   image_focal_point?: { x: number; y: number } | null;

@@ -181,6 +181,7 @@ const props = defineProps<{
   search: string;
   typeFilter: string;
   rarityFilter: string;
+  sourceFilter: string;
 }>();
 
 const { data: items, isLoading } = useItems();
@@ -190,6 +191,7 @@ const filtered = computed(() => {
   return (items.value ?? []).filter((item) => {
     if (props.typeFilter && item.item_type !== props.typeFilter) return false;
     if (props.rarityFilter && item.rarity !== props.rarityFilter) return false;
+    if (props.sourceFilter && item.source !== props.sourceFilter) return false;
     if (q) {
       return (
         item.name.toLowerCase().includes(q) ||

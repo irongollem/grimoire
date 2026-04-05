@@ -59,16 +59,18 @@ export const useUiStore = defineStore("ui", () => {
   const vaultSearch = ref("");
   const vaultFilterType = ref<ItemType | "">("");
   const vaultFilterRarity = ref<ItemRarity | "">("");
+  const vaultFilterSource = ref("");
   const itemGeneratorOpen = ref(false);
 
   const vaultHasActiveFilters = computed(() =>
-    vaultSearch.value !== "" || vaultFilterType.value !== "" || vaultFilterRarity.value !== "",
+    vaultSearch.value !== "" || vaultFilterType.value !== "" || vaultFilterRarity.value !== "" || vaultFilterSource.value !== "",
   );
 
   function resetVaultFilters() {
     vaultSearch.value = "";
     vaultFilterType.value = "";
     vaultFilterRarity.value = "";
+    vaultFilterSource.value = "";
   }
 
   // Quest UI state
@@ -190,6 +192,7 @@ export const useUiStore = defineStore("ui", () => {
     vaultSearch,
     vaultFilterType,
     vaultFilterRarity,
+    vaultFilterSource,
     vaultHasActiveFilters,
     resetVaultFilters,
     itemGeneratorOpen,

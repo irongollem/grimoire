@@ -145,6 +145,24 @@
             <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Damage</span>
             <DamageRollsInput v-model="damageRolls" />
           </div>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="flex flex-col gap-1">
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Versatile Damage</span>
+              <input
+                v-model="versatileDamage"
+                placeholder="e.g. 1d10 (two-handed)"
+                class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </label>
+            <label class="flex flex-col gap-1">
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Range</span>
+              <input
+                v-model="weaponRange"
+                placeholder="e.g. 80/320 ft."
+                class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </label>
+          </div>
           <div class="flex flex-col gap-2">
             <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Properties</span>
             <div class="flex flex-wrap gap-x-4 gap-y-2">
@@ -198,24 +216,24 @@
           />
         </div>
 
-        <!-- Charges (independent of spells — any item can have charges) -->
+        <!-- Charges / Quantity (independent of spells — any item can have charges) -->
         <div class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3">
           <h3 class="font-cinzel text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
-            Charges
+            {{ itemType === "ammunition" ? "Quantity" : "Charges" }}
             <span class="normal-case font-fell font-normal text-muted-foreground/60"> — optional</span>
           </h3>
           <div class="grid grid-cols-2 gap-3">
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Max Charges</span>
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">{{ itemType === "ammunition" ? "Count" : "Max Charges" }}</span>
               <input
                 v-model.number="charges"
                 type="number"
                 min="0"
-                placeholder="e.g. 10"
+                placeholder="e.g. 20"
                 class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </label>
-            <label class="flex flex-col gap-1">
+            <label v-if="itemType !== 'ammunition'" class="flex flex-col gap-1">
               <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Recharge</span>
               <input
                 v-model="recharge"
@@ -269,14 +287,30 @@
         </div>
 
         <!-- Source -->
-        <label class="flex flex-col gap-1">
+        <div class="flex flex-col gap-1">
           <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Source</span>
+          <!-- Imported items: read-only with optional link -->
+          <div
+            v-if="props.item?.source_url || props.item?.source_title"
+            class="bg-muted/30 border border-border rounded-md px-3 py-2 font-fell text-sm text-muted-foreground italic"
+          >
+            <a
+              v-if="props.item.source_url"
+              :href="props.item.source_url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="hover:text-foreground hover:underline transition-colors"
+            >{{ itemSourceLabel(source, props.item.source_title) }}</a>
+            <span v-else>{{ itemSourceLabel(source, props.item.source_title) }}</span>
+          </div>
+          <!-- Custom items: editable -->
           <input
+            v-else
             v-model="source"
             placeholder="e.g. Homebrew, DMG, XGtE…"
             class="bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
-        </label>
+        </div>
       </div>
 
     </div>
@@ -306,6 +340,7 @@ import {
   RARITY_COLORS,
   isWeaponType,
   isArmorType,
+  itemSourceLabel,
 } from "@/types/item.types";
 import type { Item, ItemType, ItemRarity } from "@/types/item.types";
 import type { DamageRoll } from "@/lib/dice";
@@ -330,6 +365,8 @@ const tags = ref<string[]>(props.item?.tags ?? []);
 // ── Weapon fields ─────────────────────────────────────────────────────────────
 const damageRolls = ref<DamageRoll[]>(props.item?.damage_rolls ?? []);
 const properties = ref<string[]>(props.item?.properties ?? []);
+const weaponRange = ref(props.item?.weapon_range ?? "");
+const versatileDamage = ref(props.item?.versatile_damage ?? "");
 
 // ── Armor fields ──────────────────────────────────────────────────────────────
 const armorClass = ref(props.item?.armor_class ?? "");
@@ -389,11 +426,15 @@ function buildPayload() {
     damage_rolls: isWeapon.value && damageRolls.value.length ? damageRolls.value : null,
     armor_class: isArmor.value ? armorClass.value.trim() || null : null,
     properties: isWeapon.value ? properties.value : [],
+    weapon_range: isWeapon.value ? weaponRange.value.trim() || null : null,
+    versatile_damage: isWeapon.value ? versatileDamage.value.trim() || null : null,
     charges: charges.value ?? null,
     recharge: recharge.value.trim() || null,
     spell_ids: spellIds.value,
     description: description.value,
     source: source.value.trim() || null,
+    source_title: props.item?.source_title ?? null,
+    source_url: props.item?.source_url ?? null,
     tags: tags.value,
     image_url: imageUrl.value || null,
     image_focal_point: imageFocalPoint.value,

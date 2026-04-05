@@ -52,6 +52,14 @@
           <option value="">All rarities</option>
           <option v-for="r in ITEM_RARITIES" :key="r" :value="r">{{ ITEM_RARITY_LABELS[r] }}</option>
         </select>
+        <select
+          v-if="sources?.length"
+          v-model="sourceFilter"
+          class="bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option value="">All sources</option>
+          <option v-for="s in sources" :key="s.slug" :value="s.slug">{{ itemSourceLabel(s.slug, s.title) }}</option>
+        </select>
         <button
           v-if="hasActiveFilters"
           type="button"
@@ -63,7 +71,7 @@
       </div>
     </template>
 
-    <ItemList :search="search" :type-filter="typeFilter" :rarity-filter="rarityFilter" />
+    <ItemList :search="search" :type-filter="typeFilter" :rarity-filter="rarityFilter" :source-filter="sourceFilter" />
   </PageHeader>
 
   <ItemGeneratorPanel />
@@ -75,8 +83,8 @@ import { Loader2, Download, Search, Sparkles } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import ItemList from "@/components/items/ItemList.vue";
 import ItemGeneratorPanel from "@/components/items/ItemGeneratorPanel.vue";
-import { useImportSrdItems } from "@/composables/useItems";
-import { ITEM_TYPES, ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS } from "@/types/item.types";
+import { useImportSrdItems, useItemSources } from "@/composables/useItems";
+import { ITEM_TYPES, ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS, itemSourceLabel } from "@/types/item.types";
 import { useUiStore } from "@/stores/ui";
 
 const ui = useUiStore();
@@ -92,10 +100,15 @@ const rarityFilter = computed({
   get: () => ui.vaultFilterRarity,
   set: (v) => { ui.vaultFilterRarity = v; },
 });
+const sourceFilter = computed({
+  get: () => ui.vaultFilterSource,
+  set: (v) => { ui.vaultFilterSource = v; },
+});
 
 const hasActiveFilters = computed(() => ui.vaultHasActiveFilters);
 function clearFilters() { ui.resetVaultFilters(); }
 
+const { data: sources } = useItemSources();
 const importMutation = useImportSrdItems();
 
 const importStatus = ref<"idle" | "done" | "uptodate">("idle");

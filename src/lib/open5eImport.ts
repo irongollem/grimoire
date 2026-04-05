@@ -12,7 +12,11 @@ interface Open5eWeapon {
   damage_type: string;       // e.g. "slashing"
   weight: string;            // e.g. "8 lb." (already formatted)
   properties: string[];      // e.g. ["two-handed", "heavy"]
+  range?: string;            // e.g. "(80/320 ft.)" for ranged weapons
+  versatile?: string;        // e.g. "1d10" two-handed damage for versatile weapons
   document__slug: string;
+  document__title: string;
+  document__url: string;
 }
 
 interface Open5eArmor {
@@ -28,6 +32,8 @@ interface Open5eArmor {
   weight: string;
   stealth_disadvantage: boolean;
   document__slug: string;
+  document__title: string;
+  document__url: string;
 }
 
 interface Open5eMagicItem {
@@ -38,6 +44,8 @@ interface Open5eMagicItem {
   requires_attunement: string; // "" or "requires attunement by..."
   desc: string;
   document__slug: string;
+  document__title: string;
+  document__url: string;
 }
 
 interface Open5eListResponse<T> {
@@ -118,8 +126,12 @@ function mapWeapon(item: Open5eWeapon): ItemInsert {
     charges: null,
     recharge: null,
     spell_ids: [],
+    weapon_range: item.range?.trim() || null,
+    versatile_damage: item.versatile?.trim() || null,
     description: "",
-    source: "srd",
+    source: item.document__slug || "srd",
+    source_title: item.document__title || null,
+    source_url: item.document__url || null,
     tags: [],
     image_url: null,
   };
@@ -142,7 +154,9 @@ function mapArmor(item: Open5eArmor): ItemInsert {
     recharge: null,
     spell_ids: [],
     description: "",
-    source: "srd",
+    source: item.document__slug || "srd",
+    source_title: item.document__title || null,
+    source_url: item.document__url || null,
     tags: [],
     image_url: null,
   };
@@ -166,7 +180,9 @@ function mapMagicItem(item: Open5eMagicItem): ItemInsert {
     recharge: null,
     spell_ids: [],
     description: item.desc,
-    source: "srd",
+    source: item.document__slug || "srd",
+    source_title: item.document__title || null,
+    source_url: item.document__url || null,
     tags: [],
     image_url: null,
   };

@@ -67,18 +67,21 @@
 
         <!-- Weapon stats -->
         <div
-          v-if="item.damage_rolls?.length"
+          v-if="item.damage_rolls?.length || item.weapon_range"
           class="rounded-lg border border-border bg-card/50 p-3 flex flex-col gap-1"
         >
           <h3
             class="font-cinzel text-[10px] font-bold tracking-wider text-muted-foreground uppercase"
           >
-            Damage
+            Weapon
           </h3>
-          <p class="font-stat text-[15px]">
+          <p v-if="item.damage_rolls?.length" class="font-stat text-[15px]">
             {{
               item.damage_rolls.map((r) => `${r.dice} ${r.type}`).join(" + ")
-            }}
+            }}<span v-if="item.versatile_damage" class="text-muted-foreground"> ({{ item.versatile_damage }} two-handed)</span>
+          </p>
+          <p v-if="item.weapon_range" class="font-stat text-[14px] text-muted-foreground">
+            Range: {{ item.weapon_range }}
           </p>
           <p
             v-if="item.properties?.length"
@@ -101,7 +104,7 @@
           <p class="font-stat text-[15px]">{{ item.armor_class }}</p>
         </div>
 
-        <!-- Charges -->
+        <!-- Charges / Quantity -->
         <div
           v-if="item.charges"
           class="rounded-lg border border-border bg-card/50 p-3 flex flex-col gap-1"
@@ -109,10 +112,10 @@
           <h3
             class="font-cinzel text-[10px] font-bold tracking-wider text-muted-foreground uppercase"
           >
-            Charges
+            {{ item.item_type === "ammunition" ? "Quantity" : "Charges" }}
           </h3>
           <p class="font-stat text-[15px]">
-            {{ item.charges }} charges<span v-if="item.recharge">
+            {{ item.charges }}<span v-if="item.item_type !== 'ammunition'"> charges</span><span v-if="item.recharge">
               · {{ item.recharge }}</span
             >
           </p>
@@ -132,7 +135,14 @@
           v-if="item.source"
           class="font-stat text-[13px] text-muted-foreground italic"
         >
-          {{ item.source }}
+          <a
+            v-if="item.source_url"
+            :href="item.source_url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="hover:text-foreground hover:underline transition-colors"
+          >{{ itemSourceLabel(item.source, item.source_title) }}</a>
+          <span v-else>{{ itemSourceLabel(item.source, item.source_title) }}</span>
         </div>
       </div>
     </div>
@@ -148,6 +158,7 @@ import {
   ITEM_RARITY_LABELS,
   RARITY_COLORS,
   RARITY_BADGE_COLORS,
+  itemSourceLabel,
 } from "@/types/item.types";
 import type { Item } from "@/types/item.types";
 

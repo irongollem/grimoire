@@ -93,6 +93,8 @@ Generate a detailed magic or mundane item based on the dungeon master's descript
   "damage_rolls": [{ "dice": "1d8", "type": "slashing" }],
   "armor_class": "AC expression e.g. '16' or '13 + DEX modifier (max 2)' — or null if not armor/shield",
   "properties": ["finesse", "versatile"],
+  "weapon_range": "Normal/long range string e.g. '80/320 ft.' for ranged weapons — or null",
+  "versatile_damage": "Two-handed damage dice e.g. '1d10' for versatile weapons — or null",
   "charges": <number of max charges, or null if none>,
   "recharge": "How charges recharge e.g. 'Regains 1d6+4 charges daily at dawn' — or null",
   "description": "2–3 paragraphs: item history, appearance, and mechanical flavour. For magic items include how the magic manifests. Separate paragraphs with a blank line. Plain text only.",
@@ -103,6 +105,8 @@ Generate a detailed magic or mundane item based on the dungeon master's descript
 Rules:
 - damage_rolls: array of { dice, type } objects for weapons/ammunition only — null for everything else. dice is a string like '1d8'. type is the damage type.
 - properties: array of weapon property strings for weapons only — empty array [] for non-weapons. Valid values: ammunition, finesse, heavy, light, loading, reach, special, thrown, two-handed, versatile, silvered, adamantine.
+- weapon_range: range string for ranged weapons (those with "ammunition" or "thrown" property) e.g. "80/320 ft." — null for melee weapons and non-weapons.
+- versatile_damage: two-handed damage dice (just the dice string, e.g. "1d10") for weapons with the "versatile" property — null for all other items.
 - armor_class: only for armor and shield types — null for everything else.
 - requires_attunement: false for mundane items and most common items. True only when the item's magic requires the wielder to bond with it.
 - charges/recharge: only for staves, wands, rods, rings, and wondrous items with limited-use powers. null for everything else.

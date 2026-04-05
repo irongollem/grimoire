@@ -135,4 +135,14 @@ Do NOT commit. Wait for the user to confirm the implementation looks correct bef
 Once the user confirms:
 
 1. Commit following the project's git conventions (conventional commits, Co-Authored-By trailer)
-2. Close the GitHub issue: `mcp__github__update_issue` with the parsed `owner`, `repo`, `issue_number`, `state: "closed"`, and a `body` describing what was actually built — even if a body was already written in Step 1, update it to reflect the final implementation, any out-of-scope decisions, and any related issues/PRs.
+2. Close the GitHub issue: `mcp__github__update_issue` with the parsed `owner`, `repo`, `issue_number`, `state: "closed"`, and a `body` structured as follows — preserve the original issue text as a blockquote at the top, then add the resolution below it:
+
+```
+> <original issue body, with each line prefixed by "> ">
+
+---
+
+**Resolution:** <what was actually built, any out-of-scope decisions, related issues/PRs>
+```
+
+If the original body is very long (> ~20 lines), summarise it in the blockquote instead of quoting verbatim.

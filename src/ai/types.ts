@@ -57,6 +57,8 @@ export interface ItemAiResult {
   damage_rolls: DamageRoll[] | null;
   armor_class: string | null;
   properties: string[];
+  weapon_range: string | null;
+  versatile_damage: string | null;
   charges: number | null;
   recharge: string | null;
   /** Plain text — convert to Tiptap JSON before writing to form */

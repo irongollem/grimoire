@@ -13,9 +13,16 @@
       class="fixed right-0 top-0 bottom-0 w-full max-w-md bg-card border-l border-border z-50 flex flex-col"
     >
       <!-- Header -->
-      <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-        <h2 class="font-cinzel text-base font-semibold text-foreground">Item Generator</h2>
-        <button class="text-muted-foreground hover:text-foreground" @click="ui.itemGeneratorOpen = false">
+      <div
+        class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0"
+      >
+        <h2 class="font-cinzel text-base font-semibold text-foreground">
+          Item Generator
+        </h2>
+        <button
+          class="text-muted-foreground hover:text-foreground"
+          @click="ui.itemGeneratorOpen = false"
+        >
           <X class="h-5 w-5" />
         </button>
       </div>
@@ -24,9 +31,14 @@
       <div class="flex-1 overflow-y-auto p-5 space-y-5">
         <!-- Concept -->
         <div>
-          <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">
+          <label
+            class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5"
+          >
             CONCEPT
-            <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(AI will use this)</span>
+            <span
+              class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1"
+              >(AI will use this)</span
+            >
           </label>
           <textarea
             v-model="concept"
@@ -40,30 +52,43 @@
 
         <!-- Constraints -->
         <div class="space-y-3">
-          <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">
+          <p
+            class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+          >
             CONSTRAINTS
-            <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(optional)</span>
+            <span
+              class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1"
+              >(optional)</span
+            >
           </p>
 
           <div class="grid grid-cols-2 gap-2">
             <div>
-              <label class="block font-fell text-xs text-muted-foreground mb-1">Item Type</label>
+              <label class="block font-fell text-xs text-muted-foreground mb-1"
+                >Item Type</label
+              >
               <select
                 v-model="constraints.item_type"
                 class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="">Any</option>
-                <option v-for="t in ITEM_TYPES" :key="t" :value="t">{{ ITEM_TYPE_LABELS[t] }}</option>
+                <option v-for="t in ITEM_TYPES" :key="t" :value="t">
+                  {{ ITEM_TYPE_LABELS[t] }}
+                </option>
               </select>
             </div>
             <div>
-              <label class="block font-fell text-xs text-muted-foreground mb-1">Rarity</label>
+              <label class="block font-fell text-xs text-muted-foreground mb-1"
+                >Rarity</label
+              >
               <select
                 v-model="constraints.rarity"
                 class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="">Any</option>
-                <option v-for="r in ITEM_RARITIES" :key="r" :value="r">{{ ITEM_RARITY_LABELS[r] }}</option>
+                <option v-for="r in ITEM_RARITIES" :key="r" :value="r">
+                  {{ ITEM_RARITY_LABELS[r] }}
+                </option>
               </select>
             </div>
           </div>
@@ -71,11 +96,15 @@
 
         <!-- Image generation toggle -->
         <div v-if="aiApiKey" class="flex items-center justify-between">
-          <span class="font-fell text-xs text-muted-foreground">Generate item art</span>
+          <span class="font-fell text-xs text-muted-foreground"
+            >Generate item art</span
+          >
           <button
             type="button"
             class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
-            :class="generateImage ? 'bg-primary' : 'bg-muted border border-border'"
+            :class="
+              generateImage ? 'bg-primary' : 'bg-muted border border-border'
+            "
             @click="generateImage = !generateImage"
           >
             <span
@@ -86,7 +115,10 @@
         </div>
 
         <!-- No API key nudge -->
-        <div v-if="!aiApiKey" class="rounded-md border border-border bg-muted/40 p-3">
+        <div
+          v-if="!aiApiKey"
+          class="rounded-md border border-border bg-muted/40 p-3"
+        >
           <p class="font-fell text-xs text-muted-foreground italic">
             Add an OpenAI key in
             <RouterLink
@@ -101,9 +133,14 @@
         </div>
 
         <!-- Generating state -->
-        <div v-else-if="isGenerating" class="flex flex-col items-center gap-3 py-4">
+        <div
+          v-else-if="isGenerating"
+          class="flex flex-col items-center gap-3 py-4"
+        >
           <Sparkles class="h-7 w-7 text-primary animate-pulse" />
-          <p class="font-fell text-sm text-muted-foreground italic">{{ statusText }}</p>
+          <p class="font-fell text-sm text-muted-foreground italic">
+            {{ statusText }}
+          </p>
         </div>
 
         <!-- Error -->
@@ -116,7 +153,9 @@
       </div>
 
       <!-- Footer -->
-      <div class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0">
+      <div
+        class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0"
+      >
         <button
           v-if="aiApiKey"
           type="button"
@@ -129,7 +168,11 @@
         </button>
         <RouterLink
           to="/vault/new"
-          :class="aiApiKey ? 'border border-border bg-card text-foreground hover:bg-muted' : 'bg-primary text-primary-foreground'"
+          :class="
+            aiApiKey
+              ? 'border border-border bg-card text-foreground hover:bg-muted'
+              : 'bg-primary text-primary-foreground'
+          "
           class="w-full inline-flex items-center justify-center py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md hover:opacity-90 transition-opacity"
           @click="ui.itemGeneratorOpen = false"
         >
@@ -149,11 +192,16 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useCreateItem } from "@/composables/useItems";
 import { useItemGeneration } from "@/ai/useItemGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
-import { ITEM_TYPES, ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS } from "@/types/item.types";
+import {
+  ITEM_TYPES,
+  ITEM_TYPE_LABELS,
+  ITEM_RARITIES,
+  ITEM_RARITY_LABELS,
+} from "@/types/item.types";
 
 const STATUS_MESSAGES: Record<string, string> = {
-  text:   "Forging the item…",
-  image:  "Illustrating the item…",
+  text: "Forging the item…",
+  image: "Illustrating the item…",
   upload: "Storing the illustration…",
 };
 
@@ -164,7 +212,9 @@ const { mutateAsync: createItem } = useCreateItem();
 const { isGenerating, error: genError, phase, generate } = useItemGeneration();
 
 const aiApiKey = computed(() => campaign.decryptedApiKey);
-const aiSettingPrompt = computed(() => campaign.activeCampaign?.ai_setting_prompt ?? "");
+const aiSettingPrompt = computed(
+  () => campaign.activeCampaign?.ai_setting_prompt ?? "",
+);
 const statusText = computed(() => STATUS_MESSAGES[phase.value] ?? "Working…");
 
 const concept = ref("");
@@ -196,6 +246,8 @@ async function generateAndCreate() {
     damage_rolls: result.damage_rolls ?? null,
     armor_class: result.armor_class ?? null,
     properties: result.properties ?? [],
+    weapon_range: result.weapon_range ?? null,
+    versatile_damage: result.versatile_damage ?? null,
     charges: result.charges ?? null,
     recharge: result.recharge ?? null,
     spell_ids: [],
@@ -213,7 +265,8 @@ async function generateAndCreate() {
 
 <style scoped>
 .gold-divider {
-  border-top: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
+  border-top: 1px solid
+    color-mix(in srgb, var(--color-primary) 30%, transparent);
 }
 .fade-enter-active,
 .fade-leave-active {
