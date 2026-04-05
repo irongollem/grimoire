@@ -115,6 +115,25 @@
 
           <div>
             <label class="block font-fell text-xs text-muted-foreground mb-1"
+              >Location</label
+            >
+            <EntityCombobox
+              :model-value="quickForm.location_id ?? ''"
+              :options="locationOptions"
+              placeholder="— none —"
+              @update:model-value="quickForm.location_id = $event || null"
+            >
+              <template #option="{ opt }">
+                <span
+                  :style="{ paddingLeft: `${(opt as any).depth * 12}px` }"
+                  >{{ opt.name }}</span
+                >
+              </template>
+            </EntityCombobox>
+          </div>
+
+          <div>
+            <label class="block font-fell text-xs text-muted-foreground mb-1"
               >Stat block template</label
             >
             <select
@@ -140,22 +159,39 @@
         </div>
 
         <!-- No API key nudge -->
-        <div v-if="!aiApiKey" class="rounded-md border border-border bg-muted/40 p-3">
+        <div
+          v-if="!aiApiKey"
+          class="rounded-md border border-border bg-muted/40 p-3"
+        >
           <p class="font-fell text-xs text-muted-foreground italic">
             Add an OpenAI key in
-            <button type="button" class="text-primary hover:underline" @click="openAiSettings">Campaign Settings → AI Assistant</button>
+            <button
+              type="button"
+              class="text-primary hover:underline"
+              @click="openAiSettings"
+            >
+              Campaign Settings → AI Assistant
+            </button>
             to unlock AI generation.
           </p>
         </div>
 
         <!-- Generating state -->
-        <div v-else-if="isGenerating" class="flex flex-col items-center gap-3 py-4">
+        <div
+          v-else-if="isGenerating"
+          class="flex flex-col items-center gap-3 py-4"
+        >
           <Sparkles class="h-7 w-7 text-primary animate-pulse" />
-          <p class="font-fell text-sm text-muted-foreground italic">{{ statusText }}</p>
+          <p class="font-fell text-sm text-muted-foreground italic">
+            {{ statusText }}
+          </p>
         </div>
 
         <!-- Error -->
-        <div v-else-if="genError" class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2">
+        <div
+          v-else-if="genError"
+          class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2"
+        >
           <p class="font-fell text-xs text-destructive">{{ genError }}</p>
         </div>
       </div>
@@ -172,7 +208,7 @@
           @click="generateAndCreate"
         >
           <Sparkles class="h-3.5 w-3.5" />
-          {{ isGenerating ? 'Generating…' : 'Generate with AI' }}
+          {{ isGenerating ? "Generating…" : "Generate with AI" }}
         </button>
         <button
           type="button"
@@ -201,6 +237,8 @@ import {
 import type { NpcInsert, NpcRelationship } from "@/types/npc.types";
 import { useCampaignStore } from "@/stores/campaign";
 import { useNpcGeneration, toTiptapJson } from "@/ai/useNpcGeneration";
+import { useLocationTree } from "@/composables/useLocations";
+import EntityCombobox from "@/components/common/EntityCombobox.vue";
 
 const RACES = [
   "Human",
@@ -272,13 +310,16 @@ const router = useRouter();
 const { mutateAsync: createNpc, isPending: isCreating } = useCreateNpc();
 const campaign = useCampaignStore();
 const { isGenerating, error: genError, phase, generate } = useNpcGeneration();
+const { locationOptions } = useLocationTree();
 
 const aiApiKey = computed(() => campaign.decryptedApiKey);
-const aiSettingPrompt = computed(() => campaign.activeCampaign?.ai_setting_prompt ?? "");
+const aiSettingPrompt = computed(
+  () => campaign.activeCampaign?.ai_setting_prompt ?? "",
+);
 
 const STATUS_MESSAGES: Record<string, string> = {
-  text:   "Conjuring character details…",
-  image:  "Painting the portrait…",
+  text: "Conjuring character details…",
+  image: "Painting the portrait…",
   upload: "Storing the portrait…",
 };
 const statusText = computed(() => STATUS_MESSAGES[phase.value] ?? "Working…");
@@ -291,41 +332,62 @@ function openAiSettings() {
 function buildAiPrompt(): string {
   const lines = [concept.value.trim()];
   const constraints: string[] = [];
-  if (quickForm.name.trim())  constraints.push(`Name: ${quickForm.name.trim()}`);
-  if (quickForm.race)         constraints.push(`Race: ${quickForm.race}`);
-  if (quickForm.alignment)    constraints.push(`Alignment: ${quickForm.alignment}`);
-  if (quickForm.relationship) constraints.push(`Party relationship: ${quickForm.relationship}`);
+  if (quickForm.name.trim()) constraints.push(`Name: ${quickForm.name.trim()}`);
+  if (quickForm.race) constraints.push(`Race: ${quickForm.race}`);
+  if (quickForm.alignment)
+    constraints.push(`Alignment: ${quickForm.alignment}`);
+  if (quickForm.relationship)
+    constraints.push(`Party relationship: ${quickForm.relationship}`);
+  if (quickForm.location_id) {
+    const loc = locationOptions.value.find(
+      (l) => l.id === quickForm.location_id,
+    );
+    if (loc) {
+      constraints.push(`Location: ${loc.name}`);
+      if (loc.player_summary)
+        constraints.push(`locationSummary: ${loc.player_summary}`);
+    }
+  }
   if (constraints.length) {
-    lines.push("\nUse these constraints (override only if the concept explicitly conflicts):");
+    lines.push(
+      "\nUse these constraints (override only if the concept explicitly conflicts):",
+    );
     lines.push(constraints.join("\n"));
   }
   return lines.join("\n");
 }
 
 async function generateAndCreate() {
-  const result = await generate(aiApiKey.value, aiSettingPrompt.value, buildAiPrompt());
+  const result = await generate(
+    aiApiKey.value,
+    aiSettingPrompt.value,
+    buildAiPrompt(),
+  );
   if (!result) return;
 
-  const tpl = quickForm.templateId ? getNpcTemplate(quickForm.templateId) : null;
+  const tpl = quickForm.templateId
+    ? getNpcTemplate(quickForm.templateId)
+    : null;
 
   const payload: NpcInsert = {
-    name:              quickForm.name.trim() || result.name,
-    campaign_id:       campaign.activeCampaignId,
-    race:              quickForm.race || result.race || null,
-    alignment:         quickForm.alignment || result.alignment || null,
-    age:               result.age || null,
-    occupation:        result.occupation || null,
-    appearance:        result.appearance  ? toTiptapJson(result.appearance)  : null,
-    personality:       result.personality ? toTiptapJson(result.personality) : null,
-    backstory:         result.backstory   ? toTiptapJson(result.backstory)   : null,
-    notes:             result.notes       ? toTiptapJson(result.notes)       : null,
-    status:            result.status,
-    relationship:      quickForm.relationship || result.relationship,
-    portrait_url:      result.portrait_url ?? null,
-    card_art_url:      null,
+    name: quickForm.name.trim() || result.name,
+    campaign_id: campaign.activeCampaignId,
+    race: quickForm.race || result.race || null,
+    alignment: quickForm.alignment || result.alignment || null,
+    age: result.age || null,
+    occupation: result.occupation || null,
+    appearance: result.appearance ? toTiptapJson(result.appearance) : null,
+    personality: result.personality ? toTiptapJson(result.personality) : null,
+    backstory: result.backstory ? toTiptapJson(result.backstory) : null,
+    notes: result.notes ? toTiptapJson(result.notes) : null,
+    status: result.status,
+    relationship: quickForm.relationship || result.relationship,
+    portrait_url: result.portrait_url ?? null,
+    card_art_url: null,
     portrait_focal_point: null,
-    tags:              result.tags ?? [],
-    stat_block:        tpl?.stat_block ?? null,
+    tags: result.tags ?? [],
+    stat_block: tpl?.stat_block ?? null,
+    location_id: quickForm.location_id,
     scriptorium_doc_id: null,
     shared_with_players: false,
     player_visible_fields: [],
@@ -343,6 +405,7 @@ const quickForm = reactive({
   alignment: "",
   relationship: "neutral" as NpcRelationship,
   templateId: "",
+  location_id: null as string | null,
 });
 
 const templateCategories = computed(() => NPC_TEMPLATE_CATEGORIES);
@@ -373,6 +436,7 @@ async function quickCreate() {
     card_art_url: null,
     tags: [],
     stat_block: tpl?.stat_block ?? null,
+    location_id: quickForm.location_id,
     scriptorium_doc_id: null,
     shared_with_players: false,
     player_visible_fields: [],
