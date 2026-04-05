@@ -108,6 +108,7 @@
 ### Printing & Export
 
 - [x] Card Forge — MTG (63×88mm) and Tarot (70×120mm) print-ready cards with duplex alignment
+- [x] Card Forge — 5mm gap between printed cards (3mm visible after 1mm bleed each side); padding recalculated to keep sheets perfectly centered on A4; duplex alignment unaffected
 - [x] Card Library — localStorage save/load named collections across all card types
 
 ### Collaboration & Multi-Player

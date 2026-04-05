@@ -98,21 +98,27 @@ function computeCenteredPosition(
   const iw = img.naturalWidth;
   const ih = img.naturalHeight;
 
-  if (!cw || !ch || !iw || !ih) return FORMAT_DEFAULTS[props.format];
+  if (!iw || !ih) return FORMAT_DEFAULTS[props.format];
+  // Element has no layout dimensions (e.g. inside display:none print container).
+  // Use the format's known aspect ratio as proxy container dimensions — the
+  // math is ratio-based so this gives the exact same result as real pixel dims.
+  const { width: proxyW, height: proxyH } = FORMAT_TARGETS[props.format];
+  const _cw = cw || proxyW;
+  const _ch = ch || proxyH;
 
   // object-fit: cover scale
-  const scale = Math.max(cw / iw, ch / ih);
+  const scale = Math.max(_cw / iw, _ch / ih);
   const scaledW = iw * scale;
   const scaledH = ih * scale;
 
-  const excessX = scaledW - cw;
-  const excessY = scaledH - ch;
+  const excessX = scaledW - _cw;
+  const excessY = scaledH - _ch;
 
   const fpXpx = (fp.x / 100) * scaledW;
   const fpYpx = (fp.y / 100) * scaledH;
 
-  const x = excessX <= 0 ? 50 : Math.max(0, Math.min(100, ((fpXpx - cw / 2) / excessX) * 100));
-  const y = excessY <= 0 ? 50 : Math.max(0, Math.min(100, ((fpYpx - ch / 2) / excessY) * 100));
+  const x = excessX <= 0 ? 50 : Math.max(0, Math.min(100, ((fpXpx - _cw / 2) / excessX) * 100));
+  const y = excessY <= 0 ? 50 : Math.max(0, Math.min(100, ((fpYpx - _ch / 2) / excessY) * 100));
 
   return `${Math.round(x)}% ${Math.round(y)}%`;
 }

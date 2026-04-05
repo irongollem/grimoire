@@ -15,6 +15,7 @@
           v-if="data.card_art_url ?? data.image_url"
           :src="(data.card_art_url ?? data.image_url)!"
           format="landscape"
+          :focal-point="data.card_art_focal_point ?? data.portrait_focal_point"
         />
         <div v-else class="art-placeholder">
           <span class="placeholder-glyph">{{ typeGlyph }}</span>

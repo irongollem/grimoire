@@ -822,19 +822,23 @@ function formatDate(iso: string) {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  /* MTG: 3×3 grid on A4 */
+  /* MTG: 3×3 grid on A4, 5mm gap between cards.
+   * H: 2×5.5mm padding + 3×63mm cards + 2×5mm gaps = 210mm ✓
+   * V: 2×11.45mm padding + 3×88mm cards + 2×5mm gaps = 296.9mm ✓ */
   .mtg-sheet {
     grid-template-columns: repeat(3, 63mm);
     grid-template-rows: repeat(3, 88mm);
-    padding: 16.5mm 10.5mm;
-    gap: 0;
+    padding: 11.45mm 5.5mm;
+    gap: 5mm;
   }
-  /* Tarot: 2×2 grid on A4 */
+  /* Tarot: 2×2 grid on A4, 5mm gap between cards.
+   * H: 2×32.5mm padding + 2×70mm cards + 1×5mm gap = 210mm ✓
+   * V: 2×25.95mm padding + 2×120mm cards + 1×5mm gap = 296.9mm ✓ */
   .tarot-sheet {
     grid-template-columns: repeat(2, 70mm);
     grid-template-rows: repeat(2, 120mm);
-    padding: 28.5mm 35mm;
-    gap: 0;
+    padding: 25.95mm 32.5mm;
+    gap: 5mm;
   }
   /* Card sizing: 1mm bleed each side so colours fully cover cut lines */
   .mtg-sheet .print-card {
