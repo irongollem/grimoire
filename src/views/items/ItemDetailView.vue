@@ -4,6 +4,7 @@
     :description="item ? subtitle : 'Fill in the details to add an item to your vault'"
   >
     <template v-if="!isNewItem" #actions>
+      <ItemSendMenu v-if="item" :item="item" />
       <button
         v-if="!isEditing"
         type="button"
@@ -48,6 +49,7 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import ItemDetail from "@/components/items/ItemDetail.vue";
 import ItemSheet from "@/components/items/ItemSheet.vue";
+import ItemSendMenu from "@/components/items/ItemSendMenu.vue";
 
 const route = useRoute();
 const router = useRouter();
