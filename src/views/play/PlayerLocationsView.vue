@@ -60,7 +60,10 @@
               mode="view"
               :show-hidden-pins="false"
               :compact="!fullSizeMaps.has(entry.loc.id)"
+              :shared-child-ids="sharedChildIds"
               @pin-click="onPinClick"
+              @pin-go="onPinGo"
+              @pin-watch="onPinWatch"
             />
             <div class="flex items-center justify-between mt-1">
               <p
@@ -115,19 +118,97 @@
       </div>
     </div>
   </div>
+
+  <!-- Watch panel — art + player summary + notes for a pinned sub-location -->
+  <Teleport to="body">
+    <div
+      v-if="watchingLocation"
+      class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4"
+      @click.self="watchingLocation = null"
+      @keydown.escape="watchingLocation = null"
+    >
+      <div class="w-full sm:max-w-md bg-card border border-border rounded-t-2xl sm:rounded-xl shadow-xl flex flex-col max-h-[85vh] overflow-hidden">
+        <!-- Header -->
+        <div class="flex items-center gap-3 px-4 py-3 border-b border-border shrink-0">
+          <span
+            class="h-2 w-2 rounded-full shrink-0"
+            :style="{ backgroundColor: locColor(watchingLocation.location_type) }"
+          />
+          <h2 class="font-cinzel text-sm font-semibold text-foreground flex-1 truncate">
+            {{ watchingLocation.name }}
+          </h2>
+          <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider shrink-0">
+            {{ locLabel(watchingLocation.location_type) }}
+          </span>
+          <button
+            type="button"
+            class="text-muted-foreground hover:text-foreground transition-colors ml-1 shrink-0"
+            @click="watchingLocation = null"
+          >
+            <X class="h-4 w-4" />
+          </button>
+        </div>
+
+        <!-- Scrollable body -->
+        <div class="flex-1 overflow-y-auto">
+          <!-- Art -->
+          <div v-if="watchingLocation.image_url" class="w-full aspect-video">
+            <FocalImage
+              :src="watchingLocation.image_url"
+              :alt="watchingLocation.name"
+              format="landscape"
+              class="w-full h-full"
+            />
+          </div>
+
+          <div class="px-4 py-4 flex flex-col gap-4">
+            <!-- Player summary -->
+            <p
+              v-if="watchingLocation.player_summary"
+              class="font-fell text-sm text-foreground italic"
+            >
+              {{ watchingLocation.player_summary }}
+            </p>
+            <p
+              v-else
+              class="font-fell text-xs text-muted-foreground italic"
+            >
+              No description shared yet.
+            </p>
+
+            <!-- Player notes -->
+            <PlayerNotesWidget
+              entity-type="location"
+              :entity-id="watchingLocation.id"
+              placeholder="Notes about this place…"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { ChevronDown } from "lucide-vue-next";
+import { ChevronDown, X } from "lucide-vue-next";
 import { useSharedLocations } from "@/composables/useLocations";
 import { useSharedNpcsByLocations } from "@/composables/useNpcs";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
-import type { Location } from "@/types/location.types";
+import type { Location, LocationType } from "@/types/location.types";
+
+interface WatchTarget {
+  id: string;
+  name: string;
+  location_type: LocationType;
+  image_url: string | null;
+  player_summary: string | null;
+}
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
+import FocalImage from "@/components/common/FocalImage.vue";
 
 const { data: locations, isLoading } = useSharedLocations();
 
@@ -217,9 +298,48 @@ function playerPins(loc: Location) {
   return (loc.map_pins ?? []).filter((p) => p.visible_to_players);
 }
 
+// IDs of all shared locations — gates Go-there + Watch buttons on map pins.
+const sharedChildIds = computed(() => new Set((locations.value ?? []).map((l) => l.id)));
+
+// Watch panel — shows art, player summary, and notes for a pinned sub-location.
+const watchingLocation = ref<WatchTarget | null>(null);
+
 /** If the clicked child location also has a shared map, expand it. */
 function onPinClick(childId: string) {
   const child = locations.value?.find((l) => l.id === childId);
   if (child) toggle(child.id);
+}
+
+function onPinGo(childId: string) {
+  const child = locations.value?.find((l) => l.id === childId);
+  if (child) toggle(child.id);
+}
+
+function onPinWatch(childId: string) {
+  const fullLoc = locations.value?.find((l) => l.id === childId);
+  if (fullLoc) {
+    watchingLocation.value = {
+      id: fullLoc.id,
+      name: fullLoc.name,
+      location_type: fullLoc.location_type,
+      image_url: fullLoc.image_url,
+      player_summary: fullLoc.player_summary,
+    };
+    return;
+  }
+  // Not a shared location — use denormalised pin data (image + name from pin).
+  for (const loc of (locations.value ?? [])) {
+    const pin = (loc.map_pins ?? []).find((p) => p.child_location_id === childId);
+    if (pin) {
+      watchingLocation.value = {
+        id: childId,
+        name: pin.child_name,
+        location_type: pin.child_type,
+        image_url: pin.child_image_url,
+        player_summary: null,
+      };
+      return;
+    }
+  }
 }
 </script>

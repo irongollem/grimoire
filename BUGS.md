@@ -2,6 +2,8 @@
 
 ## Done
 
+- [x] Atlas map location dots: nearby collapsed dots rendered above the expanded pill (z-index), pill centered on cursor instead of growing from the dot (pinStyle anchor), and names truncated at 128px regardless of available space; fixed by promoting hovered pin to z-20, anchoring the expanded pill at the dot position (grows right/left from pin), and widening name truncation to max-w-48 (irongollem/grimoire#56)
+
 - [x] Card Forge print layout ignored focal points — `FocalImage.computeCenteredPosition` returned generic defaults when `offsetWidth`/`offsetHeight` were 0 (print layout is `display:none` on screen); fixed by falling back to direct `${fp.x}% ${fp.y}%` when element dimensions are unavailable. Also wired missing `focal-point` props on Monster, Item, and Spell card components (irongollem/grimoire#53)
 
 - [x] `api-key-vault` Edge Function blocked by CORS on every request — Supabase JS client sends `x-client-info` and `apikey` headers that weren't listed in `Access-Control-Allow-Headers`; also returned 401 because default JWT verification conflicted with the project's lock-free session cache. Fixed by expanding allowed headers to `*` and deploying with `--no-verify-jwt` (security relies on `VAULT_KEY` env secret, not user identity).

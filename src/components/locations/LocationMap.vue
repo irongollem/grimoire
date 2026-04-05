@@ -6,7 +6,7 @@
       :class="placingChildId ? 'cursor-crosshair' : ''"
     >
       <!-- Inner div sizes to image natural width; mx-auto centers it -->
-      <div ref="mapContainer" class="relative w-fit max-w-full mx-auto">
+      <div ref="mapContainer" class="relative w-fit max-w-full mx-auto" @click="pinnedPinId = null">
         <img
           :src="mapUrl"
           class="block max-w-full h-auto rounded-lg pointer-events-none"
@@ -26,9 +26,12 @@
         <div
           v-for="pin in visiblePins"
           :key="pin.child_location_id"
-          class="absolute z-10"
-          :style="pinStyle(pin)"
-          :class="mode === 'edit' ? 'cursor-grab' : 'cursor-pointer'"
+          class="absolute"
+          :class="[
+            mode === 'edit' ? 'cursor-grab' : 'cursor-pointer',
+            isHovered(pin.child_location_id) ? 'z-20' : 'z-10',
+          ]"
+          :style="pinStyle(pin, isHovered(pin.child_location_id))"
           @pointerenter="onPinEnter(pin.child_location_id)"
           @pointerleave="onPinLeave"
           @pointerdown="mode === 'edit' ? onPinPointerDown($event, pin.child_location_id) : undefined"
@@ -68,7 +71,7 @@
             </div>
 
             <!-- Name -->
-            <span class="font-cinzel text-xs font-semibold text-foreground max-w-32 truncate">
+            <span class="font-cinzel text-xs font-semibold text-foreground max-w-48 truncate">
               {{ pin.child_name }}
             </span>
 
@@ -92,6 +95,31 @@
                 @pointerdown.stop
               >
                 <X class="h-3 w-3" />
+              </button>
+            </template>
+
+            <!-- View actions (player view) -->
+            <template v-if="mode === 'view'">
+              <!-- Go there — only when the child location is shared/navigable -->
+              <button
+                v-if="sharedChildIds?.has(pin.child_location_id)"
+                type="button"
+                class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                title="Go there"
+                @click.stop="emit('pin-go', pin.child_location_id)"
+                @pointerdown.stop
+              >
+                <Navigation class="h-3 w-3" />
+              </button>
+              <!-- Watch — always available; shows art + summary + notes -->
+              <button
+                type="button"
+                class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                title="Watch"
+                @click.stop="emit('pin-watch', pin.child_location_id)"
+                @pointerdown.stop
+              >
+                <ScanEye class="h-3 w-3" />
               </button>
             </template>
           </div>
@@ -141,7 +169,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from "vue";
-import { Eye, EyeOff, X, MapPin as MapPinIcon } from "lucide-vue-next";
+import { Eye, EyeOff, X, MapPin as MapPinIcon, Navigation, ScanEye } from "lucide-vue-next";
 import { LOCATION_TYPE_COLORS } from "@/types/location.types";
 import type { MapPin as MapPinType, LocationType } from "@/types/location.types";
 
@@ -155,11 +183,15 @@ const props = defineProps<{
   showHiddenPins?: boolean;
   /** Cap map height at ~800px with scroll (useful for very tall portrait maps). */
   compact?: boolean;
+  /** Player view only: IDs of child locations that are shared (gates Go-there + Watch buttons). */
+  sharedChildIds?: Set<string>;
 }>();
 
 const emit = defineEmits<{
   "update:pins": [pins: MapPinType[]];
   "pin-click": [childId: string];
+  "pin-go": [childId: string];
+  "pin-watch": [childId: string];
 }>();
 
 const mapContainer = ref<HTMLElement | null>(null);
@@ -173,15 +205,21 @@ const visiblePins = computed(() =>
 
 // ── Hover state with grace period (fixes gap between dot and popup) ────────────
 const hoveredPinId = ref<string | null>(null);
+// Touch/click-pinned pill — stays open until tapping elsewhere or same pin again.
+const pinnedPinId = ref<string | null>(null);
 let leaveTimer: ReturnType<typeof setTimeout> | null = null;
 
 function isHovered(childId: string) {
-  return hoveredPinId.value === childId;
+  return hoveredPinId.value === childId || pinnedPinId.value === childId;
 }
 
 function onPinEnter(childId: string) {
   if (leaveTimer) { clearTimeout(leaveTimer); leaveTimer = null; }
   hoveredPinId.value = childId;
+  // Dismiss any pinned pill from a different pin when hovering with a cursor.
+  if (pinnedPinId.value && pinnedPinId.value !== childId) {
+    pinnedPinId.value = null;
+  }
 }
 
 function onPinLeave() {
@@ -195,8 +233,19 @@ function getChildType(pin: MapPinType): LocationType {
 }
 
 // ── Pin anchor style: position + edge-aware transform so pill never clips ─────
-function pinStyle(pin: MapPinType): Record<string, string> {
-  const tx = pin.x < 0.2 ? "0%" : pin.x > 0.8 ? "-100%" : "-50%";
+// When hovered (expanded pill): anchor at the dot position so the pill grows
+// away from the cursor rather than centering on it. Near the right edge the
+// pill grows left so it never clips.
+// When collapsed (dot): center the dot on the pin coords as before.
+function pinStyle(pin: MapPinType, hovered: boolean): Record<string, string> {
+  let tx: string;
+  if (hovered) {
+    // Overlap the dot by 6px (half dot width) so the pill always covers the hover zone,
+    // preventing flutter when the cursor entered from the far side of the dot.
+    tx = pin.x > 0.5 ? "calc(-100% + 6px)" : "-6px";
+  } else {
+    tx = pin.x < 0.2 ? "0%" : pin.x > 0.8 ? "-100%" : "-50%";
+  }
   const ty = pin.y < 0.15 ? "0%" : pin.y > 0.85 ? "-100%" : "-50%";
   return {
     left: `${pin.x * 100}%`,
@@ -295,10 +344,15 @@ onUnmounted(() => {
   window.removeEventListener("pointermove", onDragMove);
   window.removeEventListener("pointerup", onDragEnd);
   if (leaveTimer) clearTimeout(leaveTimer);
+  pinnedPinId.value = null;
 });
 
-// ── View mode: click to navigate ──────────────────────────────────────────────
+// ── View mode: click to navigate + toggle pinned state for touch ──────────────
 function onPinClick(childId: string) {
+  // Toggle pinned — keeps the pill open on touch until another tap dismisses it.
+  // The mapContainer @click (with @click.stop on pins) clears pinnedPinId when
+  // the player taps anywhere else on the map.
+  pinnedPinId.value = pinnedPinId.value === childId ? null : childId;
   emit("pin-click", childId);
 }
 
