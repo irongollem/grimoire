@@ -115,6 +115,33 @@
 
           <div>
             <label class="block font-fell text-xs text-muted-foreground mb-1"
+              >Faction</label
+            >
+            <select
+              v-model="quickForm.faction_id"
+              class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="">None</option>
+              <option v-for="f in factions" :key="f.id" :value="f.id">
+                {{ f.name }}{{ f.faction_type ? ` (${f.faction_type})` : "" }}
+              </option>
+            </select>
+          </div>
+
+          <div v-if="quickForm.faction_id">
+            <label class="block font-fell text-xs text-muted-foreground mb-1"
+              >Role in faction</label
+            >
+            <select
+              v-model="quickForm.faction_role"
+              class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option v-for="r in NPC_FACTION_ROLES" :key="r" :value="r">{{ r }}</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block font-fell text-xs text-muted-foreground mb-1"
               >Location</label
             >
             <EntityCombobox
@@ -154,6 +181,34 @@
                   {{ t.name }} (CR {{ t.stat_block.challenge_rating }})
                 </option>
               </optgroup>
+            </select>
+          </div>
+
+          <div>
+            <label class="block font-fell text-xs text-muted-foreground mb-1"
+              >Known associate</label
+            >
+            <EntityCombobox
+              :model-value="quickForm.related_npc_id ?? ''"
+              :options="npcs ?? []"
+              placeholder="— none —"
+              @update:model-value="quickForm.related_npc_id = $event || null"
+            />
+          </div>
+
+          <div v-if="quickForm.related_npc_id">
+            <label class="block font-fell text-xs text-muted-foreground mb-1"
+              >Relationship type</label
+            >
+            <select
+              v-model="quickForm.related_npc_relationship"
+              class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option
+                v-for="[type, label] in Object.entries(NPC_RELATIONSHIP_TYPE_LABELS)"
+                :key="type"
+                :value="type"
+              >{{ label }}</option>
             </select>
           </div>
         </div>
@@ -234,10 +289,15 @@ import {
   NPC_TEMPLATE_CATEGORIES,
   getNpcTemplate,
 } from "@/data/npcTemplates";
-import type { NpcInsert, NpcRelationship } from "@/types/npc.types";
+import type { NpcInsert, NpcRelationship, NpcRelationshipType } from "@/types/npc.types";
+import { NPC_RELATIONSHIP_TYPE_LABELS } from "@/types/npc.types";
 import { useCampaignStore } from "@/stores/campaign";
 import { useNpcGeneration, toTiptapJson } from "@/ai/useNpcGeneration";
 import { useLocationTree } from "@/composables/useLocations";
+import { useAllFactions, useAddFactionNpc } from "@/composables/useFactions";
+import { NPC_FACTION_ROLES } from "@/types/faction.types";
+import { useNpcs } from "@/composables/useNpcs";
+import { useCreateNpcRelation } from "@/composables/useNpcRelations";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 
 const RACES = [
@@ -311,6 +371,10 @@ const { mutateAsync: createNpc, isPending: isCreating } = useCreateNpc();
 const campaign = useCampaignStore();
 const { isGenerating, error: genError, phase, generate } = useNpcGeneration();
 const { locationOptions } = useLocationTree();
+const { data: factions } = useAllFactions();
+const { mutateAsync: addFactionNpc } = useAddFactionNpc();
+const { data: npcs } = useNpcs();
+const { mutateAsync: createNpcRelation } = useCreateNpcRelation();
 
 const aiApiKey = computed(() => campaign.decryptedApiKey);
 const aiSettingPrompt = computed(
@@ -346,6 +410,20 @@ function buildAiPrompt(): string {
       constraints.push(`Location: ${loc.name}`);
       if (loc.player_summary)
         constraints.push(`locationSummary: ${loc.player_summary}`);
+    }
+  }
+  if (quickForm.faction_id) {
+    const faction = factions.value?.find((f) => f.id === quickForm.faction_id);
+    if (faction) {
+      const typeLabel = faction.faction_type ? ` (${faction.faction_type})` : "";
+      constraints.push(`Faction: ${faction.name}${typeLabel}, Role: ${quickForm.faction_role}`);
+    }
+  }
+  if (quickForm.related_npc_id) {
+    const npc = npcs.value?.find((n) => n.id === quickForm.related_npc_id);
+    if (npc) {
+      const relLabel = NPC_RELATIONSHIP_TYPE_LABELS[quickForm.related_npc_relationship];
+      constraints.push(`Known associate: ${npc.name} (${relLabel})`);
     }
   }
   if (constraints.length) {
@@ -394,6 +472,7 @@ async function generateAndCreate() {
   };
 
   const created = await createNpc(payload);
+  await applyPostCreate(created.id);
   ui.npcGeneratorOpen = false;
   router.push(`/npcs/${created.id}`);
 }
@@ -406,11 +485,24 @@ const quickForm = reactive({
   relationship: "neutral" as NpcRelationship,
   templateId: "",
   location_id: null as string | null,
+  faction_id: null as string | null,
+  faction_role: "Member" as string,
+  related_npc_id: null as string | null,
+  related_npc_relationship: "contact" as NpcRelationshipType,
 });
 
 const templateCategories = computed(() => NPC_TEMPLATE_CATEGORIES);
 function templatesByCategory(cat: string) {
   return NPC_TEMPLATES.filter((t) => t.category === cat);
+}
+
+async function applyPostCreate(npcId: string) {
+  if (quickForm.faction_id) {
+    await addFactionNpc({ faction_id: quickForm.faction_id, npc_id: npcId, role: quickForm.faction_role });
+  }
+  if (quickForm.related_npc_id) {
+    await createNpcRelation({ npc_id: npcId, related_npc_id: quickForm.related_npc_id, relationship_type: quickForm.related_npc_relationship, notes: null });
+  }
 }
 
 async function quickCreate() {
@@ -443,6 +535,7 @@ async function quickCreate() {
   };
 
   const created = await createNpc(payload);
+  await applyPostCreate(created.id);
   ui.npcGeneratorOpen = false;
   router.push(`/npcs/${created.id}`);
 }
