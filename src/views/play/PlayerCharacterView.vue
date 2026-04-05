@@ -19,11 +19,12 @@
         <div class="flex items-stretch">
           <!-- Portrait -->
           <div class="shrink-0 w-24 relative overflow-hidden bg-muted/50">
-            <img
+            <FocalImage
               v-if="member.portrait_url"
               :src="member.portrait_url"
               :alt="member.name"
-              class="absolute inset-0 w-full h-full object-cover"
+              format="portrait"
+              :focal-point="member.portrait_focal_point ?? null"
             />
             <span
               v-else
@@ -490,6 +491,7 @@ import type { Item } from "@/types/item.types";
 import { useCharacterSpellsWithDetails } from "@/composables/useCharacterSpells";
 import { getCasterType } from "@/types/spell.types";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
+import FocalImage from "@/components/common/FocalImage.vue";
 
 const props = defineProps<{ memberId?: string }>();
 

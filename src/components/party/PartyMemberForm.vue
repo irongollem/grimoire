@@ -48,7 +48,10 @@
             <div class="w-28 shrink-0">
               <ImageUpload
                 :model-value="portraitUrl || null"
+                :focal-point="focalPoint"
+                show-focal-point
                 @update:model-value="portraitUrl = $event ?? ''"
+                @update:focal-point="focalPoint = $event"
               />
             </div>
             <div class="flex-1 flex flex-col gap-2">
@@ -473,7 +476,8 @@ const activeTab = ref<"identity" | "stats" | "profs">("identity");
 
 // Portrait + card art
 const portraitUrl = ref(props.member?.portrait_url ?? "");
-const cardArtUrl = ref(props.member?.card_art_url ?? "");
+const focalPoint  = ref<{ x: number; y: number } | null>(props.member?.portrait_focal_point ?? null);
+const cardArtUrl  = ref(props.member?.card_art_url ?? "");
 
 const f = reactive<
   Omit<PartyMemberInsert, "sort_order" | "portrait_url" | "card_art_url"> & {
@@ -644,6 +648,7 @@ async function save() {
     race: f.race || null,
     notes: f.notes || null,
     portrait_url: portraitUrl.value || null,
+    portrait_focal_point: focalPoint.value,
     card_art_url: cardArtUrl.value || null,
     proficiency_bonus: profBonus.value,
   };

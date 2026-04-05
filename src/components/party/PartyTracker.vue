@@ -63,6 +63,7 @@
                   :src="member.portrait_url"
                   :alt="member.name"
                   format="token"
+                  :focal-point="member.portrait_focal_point ?? null"
                 />
               </div>
               <div>

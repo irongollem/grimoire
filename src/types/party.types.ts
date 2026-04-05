@@ -93,6 +93,7 @@ export interface PartyMember {
   death_save_successes: number;
   death_save_failures: number;
   portrait_url: string | null;  // tall profile image
+  portrait_focal_point?: { x: number; y: number } | null;
   card_art_url: string | null;  // landscape art for MTG Card Forge
   notes: string | null;
   sort_order: number;

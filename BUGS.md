@@ -144,6 +144,7 @@
 
 - [x] In encounter runner, both NPCs and Monsters show as "NPC" label — `RunCombatant` type field only distinguished "player" vs "monster"; NPCs were assigned type="monster" so couldn't be visually distinguished. Fixed: type badge now checks `npc_id` field to render "NPC" or "Monster" accordingly.
 - [x] Traps and upcoming events not visible in encounter runner — traps were stored in encounter.trap_ids but never loaded into the encounterRun store; added `useTraps()` query to `EncounterRunView`, filter to encounter's trap_ids, and load into store during init/hydration; added traps panel to EncounterRunner UI showing trap name, type, trigger, and DC/damage dice. Events were already loaded but may not have been visible if encounter had no events defined; now both panels show conditionally when data exists.
+- [x] Party member portrait focal point not respected in player views (irongollem/grimoire#55) — `PartyMember` had no `portrait_focal_point` field; added `portrait_focal_point jsonb` column to `party_members`, updated type, enabled focal-point picker in `PartyMemberForm`, and wired `:focal-point` in `PlayerPartyView` (thumbnails + lightbox), `PartyTracker`, and `PlayerCharacterView` (also replaced raw `<img>` with `FocalImage` there).
 
 ## Regressing bugs
 

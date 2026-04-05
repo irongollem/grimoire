@@ -26,6 +26,7 @@
               :src="m.portrait_url"
               :alt="m.name"
               format="portrait"
+              :focal-point="m.portrait_focal_point ?? null"
               class="group-hover:scale-105 transition-transform duration-300"
             />
             <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
@@ -150,7 +151,7 @@
         <div class="bg-card rounded-xl border border-border w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
           <div class="relative shrink-0">
             <div v-if="selectedMember.portrait_url" class="w-full h-72 overflow-hidden">
-              <FocalImage :src="selectedMember.portrait_url" :alt="selectedMember.name" format="portrait" />
+              <FocalImage :src="selectedMember.portrait_url" :alt="selectedMember.name" format="portrait" :focal-point="selectedMember.portrait_focal_point ?? null" />
             </div>
             <button class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors" @click="closeMember">
               <XIcon class="h-4 w-4" />
