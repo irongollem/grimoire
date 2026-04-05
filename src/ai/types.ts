@@ -1,4 +1,5 @@
 import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
+import type { MonsterType, MonsterSize, MonsterStatBlock } from "@/types/monster.types";
 
 export interface NpcAiResult {
   name: string;
@@ -20,4 +21,24 @@ export interface NpcAiResult {
 
 export interface NpcAiGenerated extends NpcAiResult {
   portrait_url: string | null;
+}
+
+export interface MonsterAiResult {
+  name: string;
+  monster_type: MonsterType;
+  size: MonsterSize;
+  alignment: string;
+  habitat: string | null;
+  tags: string[];
+  /** Plain text — convert to Tiptap JSON before writing to form */
+  description: string;
+  /** Plain text — convert to Tiptap JSON before writing to form */
+  notes: string;
+  stat_block: MonsterStatBlock;
+  /** Subject description for image generation */
+  image_prompt: string;
+}
+
+export interface MonsterAiGenerated extends MonsterAiResult {
+  image_url: string | null;
 }

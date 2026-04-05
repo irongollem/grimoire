@@ -259,6 +259,7 @@ BYOK (Bring Your Own Key) — DM enters their OpenAI key in Campaign Settings �
 ### Text generation — OpenAI (gpt-4o-mini for structured output)
 
 - [x] **NPC generation** — concept prompt → full NPC (name, race, alignment, age, occupation, appearance, personality, backstory, DM notes, status, relationship, tags) + portrait image prompt. Populates the NPC editor form. Personality uses D&D 5e sections (Personality Traits / Ideal / Bond / Flaw) as Tiptap h3 headings.
+- [x] **Monster generation** — concept prompt → full stat block (name, type, size, alignment, habitat, tags, description, DM notes, and complete MonsterStatBlock: AC, HP, speed, ability scores, saving throws, skills, immunities/resistances, senses, languages, special abilities, actions, bonus actions, reactions, legendary). Optional CR/type/size constraints lock specific values while AI fills the rest. Populates the Bestiary editor form.
 - [x] **Markdown paste support in RichTextEditor** — pasting text containing markdown block syntax (`## headings`, `- bullets`, `1. ordered lists`, `> blockquotes`, `**bold**`, `*italic*`) is auto-converted to Tiptap nodes. Plain text paste is unaffected.
 
 ### Image generation — OpenAI gpt-image-1.5

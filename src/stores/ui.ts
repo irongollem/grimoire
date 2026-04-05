@@ -41,6 +41,7 @@ export const useUiStore = defineStore("ui", () => {
   const monstersSearch = ref("");
   const monstersFilterType = ref("all");
   const monstersFilterSource = ref("all");
+  const monsterGeneratorOpen = ref(false);
 
   const monstersHasActiveFilters = computed(() =>
     monstersSearch.value !== "" ||
@@ -182,6 +183,7 @@ export const useUiStore = defineStore("ui", () => {
     monstersFilterSource,
     monstersHasActiveFilters,
     resetMonstersFilters,
+    monsterGeneratorOpen,
 
     // Vault
     vaultSearch,

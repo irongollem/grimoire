@@ -1,13 +1,22 @@
 <template>
   <PageHeader title="Bestiary" description="Your custom monster compendium">
     <template #actions>
-      <RouterLink
-        to="/monsters/new"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
-      >
-        <Plus class="h-3.5 w-3.5" />
-        New Monster
-      </RouterLink>
+      <div class="flex gap-2">
+        <button
+          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-foreground tracking-wider hover:bg-accent hover:text-accent-foreground transition-colors"
+          @click="ui.monsterGeneratorOpen = true"
+        >
+          <Wand2 class="h-3.5 w-3.5" />
+          Generate
+        </button>
+        <RouterLink
+          to="/monsters/new"
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+        >
+          <Plus class="h-3.5 w-3.5" />
+          New Monster
+        </RouterLink>
+      </div>
     </template>
 
     <template #sticky>
@@ -59,12 +68,15 @@
 
     <MonsterList />
   </PageHeader>
+
+  <MonsterGeneratorPanel />
 </template>
 
 <script setup lang="ts">
-import { Plus, Search } from "lucide-vue-next";
+import { Plus, Search, Wand2 } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import MonsterList from "@/components/monsters/MonsterList.vue";
+import MonsterGeneratorPanel from "@/components/monsters/MonsterGeneratorPanel.vue";
 import { useUiStore } from "@/stores/ui";
 
 const ui = useUiStore();

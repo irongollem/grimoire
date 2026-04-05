@@ -46,6 +46,15 @@
         </optgroup>
       </select>
       <button
+        v-if="aiApiKey"
+        type="button"
+        class="inline-flex items-center gap-1.5 rounded-md border border-primary/40 px-3 py-2 font-cinzel text-xs font-semibold text-primary hover:bg-primary/10 transition-colors"
+        @click="showGenerateDialog = true"
+      >
+        <Sparkles class="h-3.5 w-3.5" />
+        Generate
+      </button>
+      <button
         type="button"
         :disabled="saving || !form.name.trim()"
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
@@ -394,6 +403,15 @@
     </div>
 
   </div>
+
+  <!-- AI generation dialog -->
+  <MonsterGenerateDialog
+    v-if="showGenerateDialog && aiApiKey"
+    :api-key="aiApiKey"
+    :setting-prompt="aiSettingPrompt"
+    @close="showGenerateDialog = false"
+    @generated="onAiGenerated"
+  />
 </template>
 
 <script setup lang="ts">
@@ -401,7 +419,11 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, reactive, computed, watch } from "vue";
 import { useRouter } from "vue-router";
-import { Save, Trash2, ScrollText, Copy } from "lucide-vue-next";
+import { Save, Trash2, ScrollText, Copy, Sparkles } from "lucide-vue-next";
+import MonsterGenerateDialog from "@/ai/MonsterGenerateDialog.vue";
+import { toTiptapJson } from "@/ai/useNpcGeneration";
+import { useCampaignStore } from "@/stores/campaign";
+import type { MonsterAiGenerated } from "@/ai/types";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
@@ -588,6 +610,30 @@ function onCardArtUrlUpdate(url: string | null) {
 function onCardArtFocalUpdate(pt: { x: number; y: number } | null) {
   if (isSrd.value) upsertSrdArt({ srd_id: props.monster!.id, card_art_focal_point: pt });
   else form.card_art_focal_point = pt;
+}
+
+// AI generation
+const campaignStore = useCampaignStore();
+const aiApiKey = computed(() => campaignStore.decryptedApiKey);
+const aiSettingPrompt = computed(() => campaignStore.activeCampaign?.ai_setting_prompt ?? "");
+const showGenerateDialog = ref(false);
+
+function onAiGenerated(result: MonsterAiGenerated) {
+  showGenerateDialog.value = false;
+  form.name = result.name;
+  form.monster_type = result.monster_type;
+  form.size = result.size;
+  form.alignment = (result.alignment || "unaligned").toLowerCase();
+  form.habitat = result.habitat ?? "";
+  form.source = "Grimoire:AI";
+  form.tags = [...result.tags];
+  form.description = result.description ? toTiptapJson(result.description) : "";
+  form.notes = result.notes ? toTiptapJson(result.notes) : "";
+  if (result.image_url) {
+    form.image_url = result.image_url;
+    form.portrait_focal_point = null;
+  }
+  Object.assign(sb, defaultSb(), result.stat_block);
 }
 
 // Save
