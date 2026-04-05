@@ -20,6 +20,14 @@
             class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
+        <select
+          v-model="ui.encountersFilterQuestId"
+          class="bg-card border border-border rounded-md px-2 py-1.5 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option value="all">All quests</option>
+          <option value="unassigned">Unassigned</option>
+          <option v-for="q in quests" :key="q.id" :value="q.id">{{ q.title }}</option>
+        </select>
         <button
           type="button"
           class="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md border font-cinzel text-xs tracking-wider transition-colors"
@@ -51,6 +59,8 @@ import { Search, CheckCheck } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import EncounterList from "@/components/encounters/EncounterList.vue";
 import { useUiStore } from "@/stores/ui";
+import { useAllQuests } from "@/composables/useQuests";
 
 const ui = useUiStore();
+const { data: quests } = useAllQuests();
 </script>

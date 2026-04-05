@@ -5,7 +5,7 @@
     </div>
 
     <EmptyState
-      v-else-if="!filtered.length && !search"
+      v-else-if="!filtered.length && !search && questFilter === 'all'"
       title="No encounters yet"
       description="Build encounters to plan combat — monsters, factions, difficulty analysis, and live tracking."
     >
@@ -122,6 +122,7 @@ import {
 } from "@/types/encounter.types";
 import type { Encounter } from "@/types/encounter.types";
 import { useAllMonsters } from "@/composables/useMonsters";
+import { useEncounterQuestLinks } from "@/composables/useQuests";
 import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
@@ -129,10 +130,25 @@ import EmptyState from "@/components/common/EmptyState.vue";
 const ui = useUiStore();
 const search = computed(() => ui.encountersSearch);
 const hideFinished = computed(() => ui.encountersHideFinished);
+const questFilter = computed(() => ui.encountersFilterQuestId);
 
 const { data: encounters, isLoading } = useEncounters();
 const { data: monsters } = useAllMonsters();
+const { data: questLinks } = useEncounterQuestLinks();
 const { isEncounterRunning } = useRunningEncounters();
+
+// Set of encounter IDs that are linked to at least one quest
+const linkedEncounterIds = computed(() => new Set((questLinks.value ?? []).map(l => l.encounterId)));
+
+// Map from questId → Set of encounter IDs
+const questEncounterMap = computed(() => {
+  const map = new Map<string, Set<string>>();
+  for (const link of questLinks.value ?? []) {
+    if (!map.has(link.questId)) map.set(link.questId, new Set());
+    map.get(link.questId)!.add(link.encounterId);
+  }
+  return map;
+});
 
 const filtered = computed(() => {
   let list = encounters.value ?? [];
@@ -140,6 +156,12 @@ const filtered = computed(() => {
   if (search.value.trim()) {
     const q = search.value.trim().toLowerCase();
     list = list.filter((e) => e.name.toLowerCase().includes(q));
+  }
+  if (questFilter.value === "unassigned") {
+    list = list.filter((e) => !linkedEncounterIds.value.has(e.id));
+  } else if (questFilter.value !== "all") {
+    const ids = questEncounterMap.value.get(questFilter.value) ?? new Set<string>();
+    list = list.filter((e) => ids.has(e.id));
   }
   return list;
 });

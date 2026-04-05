@@ -95,14 +95,16 @@ export const useUiStore = defineStore("ui", () => {
   // Encounter UI state
   const encountersSearch = ref("");
   const encountersHideFinished = ref(true);
+  const encountersFilterQuestId = ref<"all" | "unassigned" | string>("all");
 
   const encountersHasActiveFilters = computed(
-    () => encountersSearch.value !== "" || !encountersHideFinished.value,
+    () => encountersSearch.value !== "" || !encountersHideFinished.value || encountersFilterQuestId.value !== "all",
   );
 
   function resetEncountersFilters() {
     encountersSearch.value = "";
     encountersHideFinished.value = true;
+    encountersFilterQuestId.value = "all";
   }
 
   // Mobile nav
@@ -203,6 +205,7 @@ export const useUiStore = defineStore("ui", () => {
     // Encounters
     encountersSearch,
     encountersHideFinished,
+    encountersFilterQuestId,
     encountersHasActiveFilters,
     resetEncountersFilters,
 

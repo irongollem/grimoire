@@ -329,3 +329,31 @@ export function useQuestsForEncounter(encounterId: string | Ref<string>) {
   });
 }
 
+// ── All encounter-quest links for a campaign (for list filter) ─────────────────
+
+const ENCOUNTER_QUEST_LINKS_KEY = "encounter_quest_links";
+
+async function fetchEncounterQuestLinks(): Promise<{ encounterId: string; questId: string }[]> {
+  // RLS scopes this to the current user's quests; encounter list is already
+  // campaign-scoped, so cross-campaign links simply won't match.
+  const { data, error } = await supabase
+    .from("quest_refs")
+    .select("ref_id, quest_id")
+    .eq("ref_type", "encounter");
+  if (error) throw error;
+  return (data ?? []).map(row => ({
+    encounterId: (row as { ref_id: string; quest_id: string }).ref_id,
+    questId: (row as { ref_id: string; quest_id: string }).quest_id,
+  }));
+}
+
+export function useEncounterQuestLinks() {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  return useQuery({
+    queryKey: computed(() => [ENCOUNTER_QUEST_LINKS_KEY, campaignId.value]),
+    queryFn: fetchEncounterQuestLinks,
+    enabled: () => !!campaignId.value,
+  });
+}
+
