@@ -35,7 +35,8 @@ interface Open5eListResponse<T> {
 
 async function fetchAll<T>(baseUrl: string): Promise<T[]> {
   const results: T[] = [];
-  let url: string | null = `${baseUrl}?limit=500&format=json`;
+  const sep = baseUrl.includes("?") ? "&" : "?";
+  let url: string | null = `${baseUrl}${sep}limit=500&format=json`;
   while (url) {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`open5e fetch failed: ${res.status} ${url}`);
@@ -44,6 +45,18 @@ async function fetchAll<T>(baseUrl: string): Promise<T[]> {
     url = json.next;
   }
   return results;
+}
+
+// ── Document list ─────────────────────────────────────────────────────────────
+
+export interface Open5eDocument {
+  slug: string;
+  title: string;
+}
+
+export async function fetchOpen5eDocuments(): Promise<Open5eDocument[]> {
+  const docs = await fetchAll<Open5eDocument>("https://api.open5e.com/v1/documents/");
+  return docs.slice().sort((a, b) => a.title.localeCompare(b.title));
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -193,11 +206,22 @@ function mapSpell(spell: Open5eSpell): SpellInsert {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-export async function fetchSrdSpells(): Promise<SpellInsert[]> {
-  const spells = await fetchAll<Open5eSpell>("https://api.open5e.com/v1/spells/");
+export async function fetchSrdSpells(sourceSlugs?: string[]): Promise<SpellInsert[]> {
+  let rawSpells: Open5eSpell[];
+
+  if (sourceSlugs && sourceSlugs.length > 0) {
+    const fetches = await Promise.all(
+      sourceSlugs.map((slug) =>
+        fetchAll<Open5eSpell>(`https://api.open5e.com/v1/spells/?document__slug=${slug}`),
+      ),
+    );
+    rawSpells = fetches.flat();
+  } else {
+    rawSpells = await fetchAll<Open5eSpell>("https://api.open5e.com/v1/spells/");
+  }
 
   const seen = new Set<string>();
-  return spells
+  return rawSpells
     .map(mapSpell)
     .filter((s) => {
       if (seen.has(s.name)) return false;

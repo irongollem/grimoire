@@ -1,6 +1,54 @@
 <template>
   <PageHeader title="Spellbook" description="Your custom spell compendium">
     <template #actions>
+      <!-- Source picker popover -->
+      <div ref="sourcePickerRef" class="relative">
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+          :title="selectedSources.length === 0 ? 'All sources selected' : `${selectedSources.length} source(s) selected`"
+          @click="showSourcePicker = !showSourcePicker"
+        >
+          <Settings2 class="size-3.5 shrink-0" />
+        </button>
+        <div
+          v-show="showSourcePicker"
+          class="absolute right-0 top-full mt-1 z-50 min-w-64 max-h-80 overflow-y-auto rounded-md border border-border bg-popover shadow-lg"
+        >
+          <div class="p-3 border-b border-border">
+            <p class="font-cinzel text-xs font-semibold text-foreground">Import Sources</p>
+            <p class="font-fell text-xs text-muted-foreground mt-0.5">Leave all unchecked to import everything.</p>
+          </div>
+          <div v-if="docsLoading" class="p-3 flex items-center justify-center">
+            <Loader2 class="size-4 animate-spin text-muted-foreground" />
+          </div>
+          <div v-else class="p-2 flex flex-col gap-0.5">
+            <label
+              v-for="doc in open5eDocs"
+              :key="doc.slug"
+              class="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-accent transition-colors"
+            >
+              <input
+                v-model="selectedSources"
+                type="checkbox"
+                :value="doc.slug"
+                class="accent-primary"
+              />
+              <span class="font-fell text-sm text-foreground">{{ doc.title }}</span>
+              <span class="font-fell text-xs text-muted-foreground ml-auto">{{ doc.slug }}</span>
+            </label>
+          </div>
+          <div v-if="selectedSources.length > 0" class="p-2 border-t border-border">
+            <button
+              type="button"
+              class="w-full text-center font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
+              @click="selectedSources = []"
+            >
+              Clear selection
+            </button>
+          </div>
+        </div>
+      </div>
       <button
         type="button"
         :disabled="importMutation.isPending.value"
@@ -87,11 +135,11 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { refDebounced } from "@vueuse/core";
-import { Plus, Loader2, Download, Search } from "lucide-vue-next";
+import { refDebounced, useLocalStorage, onClickOutside } from "@vueuse/core";
+import { Plus, Loader2, Download, Search, Settings2 } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import SpellList from "@/components/spells/SpellList.vue";
-import { useImportSrdSpells, useSpellSources } from "@/composables/useSpells";
+import { useImportSrdSpells, useSpellSources, useOpen5eDocuments } from "@/composables/useSpells";
 import { SPELL_SCHOOLS, SPELL_CLASSES, spellSourceLabel } from "@/types/spell.types";
 import type { ImportResult } from "@/composables/useSpells";
 
@@ -122,6 +170,16 @@ watch([search, levelFilter, schoolFilter, classFilter, sourceFilter], () => {
 
 const { data: sources } = useSpellSources();
 
+// ── Source picker ─────────────────────────────────────────────────────────────
+const selectedSources = useLocalStorage<string[]>("grimoire:spell-import-sources", ["srd"]);
+const showSourcePicker = ref(false);
+const sourcePickerRef = ref<HTMLElement | null>(null);
+
+onClickOutside(sourcePickerRef, () => { showSourcePicker.value = false; });
+
+const { data: open5eDocs, isLoading: docsLoading } = useOpen5eDocuments(showSourcePicker);
+
+// ── Import ────────────────────────────────────────────────────────────────────
 const importMutation = useImportSrdSpells();
 const importStatus = ref<"idle" | "done" | "uptodate">("idle");
 const importResult = ref<ImportResult>({ inserted: 0, updated: 0 });
@@ -145,7 +203,7 @@ async function handleImport() {
   importStatus.value = "idle";
   importError.value = null;
   try {
-    importResult.value = await importMutation.mutateAsync();
+    importResult.value = await importMutation.mutateAsync(selectedSources.value);
     importStatus.value = "done";
   } catch (e) {
     importError.value = e instanceof Error ? e.message : String(e);

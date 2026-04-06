@@ -138,6 +138,20 @@ export function useSpellSources() {
   return useQuery({ queryKey: [SOURCES_KEY], queryFn: fetchDistinctSources, staleTime: Infinity });
 }
 
+const OPEN5E_DOCS_KEY = "open5e-documents";
+
+export function useOpen5eDocuments(enabled: Ref<boolean>) {
+  return useQuery({
+    queryKey: [OPEN5E_DOCS_KEY],
+    queryFn: async () => {
+      const { fetchOpen5eDocuments } = await import("@/lib/open5eSpellImport");
+      return fetchOpen5eDocuments();
+    },
+    staleTime: Infinity,
+    enabled,
+  });
+}
+
 export function useSpells() {
   const spellsQuery = useQuery({ queryKey: [QUERY_KEY], queryFn: fetchSpells, staleTime: Infinity });
   const artDefaults = useSrdArtDefaults();
@@ -197,9 +211,9 @@ export type ImportResult = { inserted: number; updated: number };
 export function useImportSrdSpells() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (): Promise<ImportResult> => {
+    mutationFn: async (sourceSlugs: string[]): Promise<ImportResult> => {
       const { fetchSrdSpells } = await import("@/lib/open5eSpellImport");
-      const spells = await fetchSrdSpells();
+      const spells = await fetchSrdSpells(sourceSlugs.length > 0 ? sourceSlugs : undefined);
       const user = getCurrentUser();
 
       // Fetch existing open5e-imported spells using the flag (not source='srd')
