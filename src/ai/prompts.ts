@@ -98,6 +98,7 @@ Generate a detailed magic or mundane item based on the dungeon master's descript
   "charges": <number of max charges, or null if none>,
   "recharge": "How charges recharge e.g. 'Regains 1d6+4 charges daily at dawn' — or null",
   "description": "2–3 paragraphs: item history, appearance, and mechanical flavour. For magic items include how the magic manifests. Separate paragraphs with a blank line. Plain text only.",
+  "curse_description": "DM-facing description of the curse: what it does, how it activates, and how it can be removed — or null if the item is not cursed.",
   "tags": ["3 to 5 short descriptive tags"],
   "image_prompt": "A concise illustration description for image generation. Describe the item only: shape, materials, markings, glow, or other visual details. No style or art direction."
 }
@@ -111,6 +112,7 @@ Rules:
 - requires_attunement: false for mundane items and most common items. True only when the item's magic requires the wielder to bond with it.
 - charges/recharge: only for staves, wands, rods, rings, and wondrous items with limited-use powers. null for everything else.
 - rarity should match the item's power level: mundane = no magic, common = minor utility, uncommon = notable power, rare = strong magic, very_rare = very powerful, legendary = campaign-defining, artifact = one-of-a-kind.
+- curse_description: populate only when the concept clearly implies a cursed, corrupted, or sinister item. Describe the curse effect, trigger condition, and removal method (typically remove curse spell). Set to null for all non-cursed items.
 
 Return only the JSON object. No markdown fences, no explanation.`;
 

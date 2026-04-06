@@ -94,24 +94,36 @@
           </div>
         </div>
 
-        <!-- Image generation toggle -->
-        <div v-if="aiApiKey" class="flex items-center justify-between">
-          <span class="font-fell text-xs text-muted-foreground"
-            >Generate item art</span
-          >
-          <button
-            type="button"
-            class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
-            :class="
-              generateImage ? 'bg-primary' : 'bg-muted border border-border'
-            "
-            @click="generateImage = !generateImage"
-          >
-            <span
-              class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow-sm"
-              :class="generateImage ? 'translate-x-4.5' : 'translate-x-0.5'"
-            />
-          </button>
+        <!-- Toggles -->
+        <div v-if="aiApiKey" class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-fell text-xs text-muted-foreground">Generate item art</span>
+            <button
+              type="button"
+              class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
+              :class="generateImage ? 'bg-primary' : 'bg-muted border border-border'"
+              @click="generateImage = !generateImage"
+            >
+              <span
+                class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow-sm"
+                :class="generateImage ? 'translate-x-4.5' : 'translate-x-0.5'"
+              />
+            </button>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="font-fell text-xs text-muted-foreground">Make it cursed <span class="text-muted-foreground/50">(AI chooses the curse)</span></span>
+            <button
+              type="button"
+              class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
+              :class="generateCursed ? 'bg-destructive' : 'bg-muted border border-border'"
+              @click="generateCursed = !generateCursed"
+            >
+              <span
+                class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow-sm"
+                :class="generateCursed ? 'translate-x-4.5' : 'translate-x-0.5'"
+              />
+            </button>
+          </div>
         </div>
 
         <!-- No API key nudge -->
@@ -220,6 +232,7 @@ const statusText = computed(() => STATUS_MESSAGES[phase.value] ?? "Working…");
 const concept = ref("");
 const constraints = reactive({ item_type: "", rarity: "" });
 const generateImage = ref(true);
+const generateCursed = ref(false);
 
 async function generateAndCreate() {
   const result = await generate(
@@ -229,6 +242,7 @@ async function generateAndCreate() {
     {
       item_type: constraints.item_type || undefined,
       rarity: constraints.rarity || undefined,
+      cursed: generateCursed.value || undefined,
       generateImage: generateImage.value,
     },
   );
@@ -256,6 +270,8 @@ async function generateAndCreate() {
     tags: result.tags ?? [],
     image_url: result.image_url ?? null,
     image_focal_point: null,
+    curse_description: result.curse_description ?? null,
+    curse_revealed: false,
   });
 
   ui.itemGeneratorOpen = false;

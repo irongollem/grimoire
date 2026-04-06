@@ -10,6 +10,7 @@ const IMAGE_URL = "https://api.openai.com/v1/images/generations";
 export interface ItemGenerationOptions {
   item_type?: string;
   rarity?: string;
+  cursed?: boolean;
   generateImage?: boolean;
 }
 
@@ -39,6 +40,7 @@ export function useItemGeneration() {
       const constraints: string[] = [];
       if (options?.item_type) constraints.push(`Item Type: ${options.item_type}`);
       if (options?.rarity) constraints.push(`Rarity: ${options.rarity}`);
+      if (options?.cursed) constraints.push(`This item must be cursed — populate curse_description with the curse effect, trigger, and removal method`);
 
       const fullPrompt = constraints.length
         ? `${userPrompt}\n\n[Constraints — use exactly these values: ${constraints.join(", ")}]`

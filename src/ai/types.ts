@@ -63,6 +63,8 @@ export interface ItemAiResult {
   recharge: string | null;
   /** Plain text — convert to Tiptap JSON before writing to form */
   description: string;
+  /** DM-facing curse text — null for non-cursed items */
+  curse_description: string | null;
   tags: string[];
   /** Subject description for image generation */
   image_prompt: string;
