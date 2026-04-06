@@ -70,7 +70,7 @@
           <Redo2 class="h-3.5 w-3.5" />
         </button>
         <div class="w-px h-5 bg-border mx-0.5" />
-        <button type="button" title="Toggle two-column layout" :class="tbCls(twoColumn)" @click="twoColumn = !twoColumn">
+        <button type="button" title="Toggle two-column layout" :class="tbCls(twoColumn)" @click="editor.chain().focus().updateAttributes('doc', { twoColumn: !twoColumn }).run()">
           <Columns2 class="h-3.5 w-3.5" />
         </button>
       </template>
@@ -91,8 +91,10 @@
 import { ref, watch, onUnmounted } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
+import { Node } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
+
 import { Table } from "@tiptap/extension-table";
 import TableRow from "@tiptap/extension-table-row";
 import TableCell from "@tiptap/extension-table-cell";
@@ -100,6 +102,17 @@ import TableHeader from "@tiptap/extension-table-header";
 import Image from "@tiptap/extension-image";
 import { parseMarkdown, looksLikeMarkdown } from "@/lib/markdownToTiptap";
 import { List, ListOrdered, Quote, Undo2, Redo2, Table as TableIcon, BetweenVerticalEnd, BetweenHorizontalEnd, Trash2, ImageIcon, Columns2 } from "lucide-vue-next";
+
+const CustomDocument = Node.create({
+  name: "doc",
+  topNode: true,
+  content: "block+",
+  addAttributes() {
+    return {
+      twoColumn: { default: false },
+    };
+  },
+});
 
 const props = defineProps<{
   modelValue: string | null;
@@ -124,7 +137,8 @@ function parseContent(value: string | null): object | string | undefined {
 const editor = useEditor({
   content: parseContent(props.modelValue),
   extensions: [
-    StarterKit,
+    StarterKit.configure({ document: false }),
+    CustomDocument,
     Placeholder.configure({ placeholder: props.placeholder ?? "Write something…" }),
     Table.configure({ resizable: true }),
     TableRow,
@@ -147,6 +161,9 @@ const editor = useEditor({
       return true;
     },
   },
+  onCreate() {
+    twoColumn.value = editor.value?.getAttributes("doc").twoColumn ?? false;
+  },
   onUpdate() {
     emit("update:modelValue", JSON.stringify(editor.value?.getJSON() ?? {}));
   },
@@ -162,6 +179,7 @@ watch(
     const currentStr = JSON.stringify(editor.value.getJSON());
     if (incomingStr !== currentStr) {
       editor.value.commands.setContent(incoming ?? "");
+      twoColumn.value = editor.value.getAttributes("doc").twoColumn ?? false;
     }
   },
 );

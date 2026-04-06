@@ -2,6 +2,8 @@
 
 ## Done
 
+- [x] Rich text editor two-column layout toggle not persisted — `twoColumn` was a local `ref(false)` that only applied a CSS class at runtime and was never serialised into the Tiptap JSON, so the layout was lost on reload; fixed by extending the Tiptap `doc` node with a `twoColumn` attribute (`CustomDocument`), writing it via `updateAttributes('doc', …)` on toggle, and syncing the ref back in `onCreate`/`onUpdate` so saved content carries the layout setting (`src/components/common/RichTextEditor.vue`)
+
 - [x] AI item generation: curse details leaked into the public description, and magic item benefits were vague flavour text instead of concrete D&D 5e mechanics; fixed by tightening the `ITEM_SYSTEM_PROMPT` description field to explicitly forbid curse references and require mechanical precision (e.g. "+1 to attack and damage rolls", spell names with recharge) (`src/ai/prompts.ts`)
 
 - [x] Bestiary player view used stale snapshot data — `discovered_monsters` and `pinned_forms` tables stored `image_url` and `monster_name` as snapshots; player saw old image/name if the DM later edited the monster; fixes: dropped both columns from both tables, updated all composables to store references only, player view now resolves monster name/image from live data; `useAutoDiscoverMonsters` now accepts explicit `partyMemberIds` so auto-shared monsters reach the right players (irongollem/grimoire#70)
