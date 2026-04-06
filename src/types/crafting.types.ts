@@ -20,7 +20,8 @@ export interface CraftingRecipe {
   description: string;
   discipline: CraftingDiscipline;
   dc: number;
-  crafting_time_days: number;
+  crafting_time: number;
+  crafting_time_unit: "minutes" | "hours" | "days";
   requires_proficiency: boolean;
   requires_tools: boolean;
   shared_with_players: boolean;

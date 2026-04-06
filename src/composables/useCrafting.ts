@@ -1,4 +1,4 @@
-import { computed } from "vue";
+import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
@@ -176,27 +176,27 @@ export function useCraftingRecipe(id: string) {
   });
 }
 
-export function useRecipeIngredients(recipeId: string) {
+export function useRecipeIngredients(recipeId: MaybeRefOrGetter<string>) {
   return useQuery({
-    queryKey: computed(() => [INGREDIENTS_KEY, recipeId]),
-    queryFn: () => fetchIngredients(recipeId),
-    enabled: !!recipeId,
+    queryKey: computed(() => [INGREDIENTS_KEY, toValue(recipeId)]),
+    queryFn: () => fetchIngredients(toValue(recipeId)),
+    enabled: () => !!toValue(recipeId),
   });
 }
 
-export function useRecipeOutputs(recipeId: string) {
+export function useRecipeOutputs(recipeId: MaybeRefOrGetter<string>) {
   return useQuery({
-    queryKey: computed(() => [OUTPUTS_KEY, recipeId]),
-    queryFn: () => fetchOutputs(recipeId),
-    enabled: !!recipeId,
+    queryKey: computed(() => [OUTPUTS_KEY, toValue(recipeId)]),
+    queryFn: () => fetchOutputs(toValue(recipeId)),
+    enabled: () => !!toValue(recipeId),
   });
 }
 
-export function useRecipeModifiers(recipeId: string) {
+export function useRecipeModifiers(recipeId: MaybeRefOrGetter<string>) {
   return useQuery({
-    queryKey: computed(() => [MODIFIERS_KEY, recipeId]),
-    queryFn: () => fetchModifiers(recipeId),
-    enabled: !!recipeId,
+    queryKey: computed(() => [MODIFIERS_KEY, toValue(recipeId)]),
+    queryFn: () => fetchModifiers(toValue(recipeId)),
+    enabled: () => !!toValue(recipeId),
   });
 }
 

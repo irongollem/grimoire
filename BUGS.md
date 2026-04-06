@@ -155,3 +155,5 @@ only manually check these off after rigorous testing of the relevant flows, to a
 - [x] Saving an existing location wipes it from the list — `buildPayload()` included `campaign_id: null`, overwriting the row's campaign_id on every update; locations query filters by campaign_id so the row became invisible. Fixed by removing `campaign_id` from the update payload.
 
 - [x] Chat item/currency drops: Claim, To Stash, and Add to Purse buttons shown to unlinked players — no guard on `auth.linkedPartyMemberId`; claiming with a null party member ID created an orphaned claim. Fixed by wrapping claim buttons in `v-if="auth.linkedPartyMemberId"`.
+
+- [x] RecipeEditor ingredients/outputs/modifiers blank after hard refresh — `useRecipeIngredients/Outputs/Modifiers` were called with `recipeId.value` (a plain string) at mount time, while the recipe prop was still loading; the query key was permanently locked to `""` so data never fetched. Fixed by passing a `computed(() => recipeId ?? "")` ref so TanStack Query re-enables reactively once the recipe resolves.

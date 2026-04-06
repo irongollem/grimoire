@@ -85,7 +85,7 @@
               >TOOLS</span>
             </div>
             <p class="font-fell text-xs text-muted-foreground">
-              DC {{ recipe.dc }} · {{ recipe.crafting_time_days }} day{{ recipe.crafting_time_days !== 1 ? "s" : "" }}
+              DC {{ recipe.dc }} · {{ recipe.crafting_time }} {{ recipe.crafting_time !== 1 ? recipe.crafting_time_unit : recipe.crafting_time_unit.replace(/s$/, '') }}
             </p>
           </div>
 

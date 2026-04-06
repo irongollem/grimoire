@@ -105,14 +105,24 @@
       <div>
         <label
           class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1"
-          >CRAFTING TIME (DAYS)</label
+          >CRAFTING TIME</label
         >
-        <input
-          v-model.number="form.crafting_time_days"
-          type="number"
-          min="1"
-          class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
+        <div class="flex gap-2">
+          <input
+            v-model.number="form.crafting_time"
+            type="number"
+            min="1"
+            class="flex-1 min-w-0 bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+          <select
+            v-model="form.crafting_time_unit"
+            class="bg-muted border border-border rounded-md px-2 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="minutes">minutes</option>
+            <option value="hours">hours</option>
+            <option value="days">days</option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -411,12 +421,12 @@ const ui = useUiStore();
 
 const { data: allItems } = useItems();
 
-// Load existing sub-resources when editing
-const { data: existingIngredients } = useRecipeIngredients(
-  recipeId.value ?? "",
-);
-const { data: existingModifiers } = useRecipeModifiers(recipeId.value ?? "");
-const { data: existingOutputs } = useRecipeOutputs(recipeId.value ?? "");
+// Load existing sub-resources when editing — pass the computed so the query
+// re-enables reactively once the recipe prop resolves after a hard refresh.
+const recipeIdStr = computed(() => recipeId.value ?? "");
+const { data: existingIngredients } = useRecipeIngredients(recipeIdStr);
+const { data: existingModifiers } = useRecipeModifiers(recipeIdStr);
+const { data: existingOutputs } = useRecipeOutputs(recipeIdStr);
 
 const { mutateAsync: createRecipe, isPending: isCreating } = useCreateRecipe();
 const { mutateAsync: updateRecipe, isPending: isUpdating } = useUpdateRecipe();
@@ -432,7 +442,8 @@ const form = ref({
   description: props.recipe?.description ?? "",
   discipline: (props.recipe?.discipline ?? (ui.workshopActiveTab !== "all" ? ui.workshopActiveTab : "smithing")) as CraftingDiscipline,
   dc: props.recipe?.dc ?? 10,
-  crafting_time_days: props.recipe?.crafting_time_days ?? 1,
+  crafting_time: props.recipe?.crafting_time ?? 1,
+  crafting_time_unit: (props.recipe?.crafting_time_unit ?? "days") as "minutes" | "hours" | "days",
   requires_proficiency: props.recipe?.requires_proficiency ?? false,
   requires_tools: props.recipe?.requires_tools ?? false,
   shared_with_players: props.recipe?.shared_with_players ?? false,
@@ -452,7 +463,8 @@ watch(
         description: r.description,
         discipline: r.discipline,
         dc: r.dc,
-        crafting_time_days: r.crafting_time_days,
+        crafting_time: r.crafting_time,
+        crafting_time_unit: r.crafting_time_unit,
         requires_proficiency: r.requires_proficiency,
         requires_tools: r.requires_tools,
         shared_with_players: r.shared_with_players,
@@ -514,20 +526,22 @@ const tagIngredientInput = ref("");
 const items = computed(() => allItems.value ?? []);
 
 const filteredOutputItems = computed(() =>
-  items.value
-    .filter((i) =>
-      i.name.toLowerCase().includes(outputSearch.value.toLowerCase()),
-    )
-    .slice(0, 20),
+  items.value.filter((i) => matchesSearch(i.name, outputSearch.value)).slice(0, 20),
 );
 
 const filteredIngredientItems = computed(() =>
-  items.value
-    .filter((i) =>
-      i.name.toLowerCase().includes(ingredientSearch.value.toLowerCase()),
-    )
-    .slice(0, 20),
+  items.value.filter((i) => matchesSearch(i.name, ingredientSearch.value)).slice(0, 20),
 );
+
+// Split query on spaces, keeping quoted phrases together. All tokens must match.
+function matchesSearch(name: string, query: string): boolean {
+  const lower = name.toLowerCase();
+  const tokens: string[] = [];
+  const re = /"([^"]+)"|(\S+)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(query)) !== null) tokens.push((m[1] ?? m[2]).toLowerCase());
+  return tokens.length === 0 || tokens.every((t) => lower.includes(t));
+}
 
 function itemById(id: string) {
   return items.value.find((i) => i.id === id);
