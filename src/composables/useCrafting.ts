@@ -382,3 +382,106 @@ export function useAttemptCraft() {
     },
   });
 }
+
+
+// ── Starter recipe import ────────────────────────────────────────────────────
+
+/** Returns the number of recipes inserted (skips ones that already exist by name). */
+export function useImportStarterRecipes() {
+  const queryClient = useQueryClient();
+  const campaign = useCampaignStore();
+
+  return useMutation({
+    mutationFn: async (): Promise<number> => {
+      const { STARTER_RECIPES } = await import("@/data/starterRecipes");
+      const { MUNDANE_GEAR } = await import("@/data/mundaneGear");
+      const user = getCurrentUser();
+      const campaignId = campaign.activeCampaignId!;
+
+      // 1. Ensure all output items exist in the vault (insert missing ones)
+      const outputNames = [...new Set(STARTER_RECIPES.flatMap((r) => r.outputs.map((o) => o.name)))];
+      const { data: existingItems } = await supabase
+        .from("items")
+        .select("id, name")
+        .eq("user_id", user!.id)
+        .in("name", outputNames);
+      const existingByName = new Map((existingItems ?? []).map((i: { id: string; name: string }) => [i.name, i.id]));
+
+      const missing = outputNames.filter((n) => !existingByName.has(n));
+      if (missing.length > 0) {
+        const toInsert = MUNDANE_GEAR
+          .filter((g) => missing.includes(g.name))
+          .map((g) => ({ curse_description: null, curse_revealed: false, ...g, user_id: user!.id }));
+        if (toInsert.length > 0) {
+          const { data: inserted, error } = await supabase
+            .from("items")
+            .insert(toInsert)
+            .select("id, name");
+          if (error) throw error;
+          (inserted ?? []).forEach((i: { id: string; name: string }) => existingByName.set(i.name, i.id));
+        }
+      }
+
+      // 2. Skip recipes that already exist (by name + campaign)
+      const { data: existingRecipes } = await supabase
+        .from("crafting_recipes")
+        .select("name")
+        .eq("campaign_id", campaignId);
+      const existingNames = new Set((existingRecipes ?? []).map((r: { name: string }) => r.name));
+
+      const toImport = STARTER_RECIPES.filter((r) => !existingNames.has(r.name));
+
+      // 3. Insert each recipe + its ingredients + outputs + modifiers
+      for (const def of toImport) {
+        const { data: recipe, error: rErr } = await supabase
+          .from("crafting_recipes")
+          .insert({
+            user_id: user!.id,
+            campaign_id: campaignId,
+            name: def.name,
+            description: def.description,
+            discipline: def.discipline,
+            dc: def.dc,
+            crafting_time: def.crafting_time,
+            crafting_time_unit: def.crafting_time_unit,
+            requires_proficiency: def.requires_proficiency,
+            requires_tools: def.requires_tools,
+            shared_with_players: false,
+            player_visible_to: null,
+          })
+          .select("id")
+          .single();
+        if (rErr) throw rErr;
+
+        const recipeId: string = recipe.id;
+
+        if (def.ingredients.length > 0) {
+          const { error } = await supabase
+            .from("crafting_recipe_ingredients")
+            .insert(def.ingredients.map((i) => ({ recipe_id: recipeId, item_id: null, tag: i.tag, quantity: i.quantity })));
+          if (error) throw error;
+        }
+
+        const outputRows = def.outputs
+          .map((o) => ({ recipe_id: recipeId, item_id: existingByName.get(o.name) ?? null, quantity: o.quantity }))
+          .filter((o) => o.item_id !== null);
+        if (outputRows.length > 0) {
+          const { error } = await supabase.from("crafting_recipe_outputs").insert(outputRows);
+          if (error) throw error;
+        }
+
+        if (def.modifiers && def.modifiers.length > 0) {
+          const { error } = await supabase
+            .from("crafting_recipe_modifiers")
+            .insert(def.modifiers.map((m) => ({ recipe_id: recipeId, description: m.description, bonus: m.bonus })));
+          if (error) throw error;
+        }
+      }
+
+      return toImport.length;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [RECIPES_KEY] });
+    },
+  });
+}

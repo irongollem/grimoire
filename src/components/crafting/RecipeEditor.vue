@@ -246,8 +246,12 @@
           >
           <span v-else class="w-10 shrink-0" />
           <span class="flex-1 font-fell text-sm text-foreground truncate">
-            <span v-if="ing.item_id">{{ itemById(ing.item_id)?.name ?? "Unknown item" }}</span>
-            <span v-else class="italic text-muted-foreground">any "{{ ing.tag }}"</span>
+            <span v-if="ing.item_id">{{
+              itemById(ing.item_id)?.name ?? "Unknown item"
+            }}</span>
+            <span v-else class="italic text-muted-foreground"
+              >any "{{ ing.tag }}"</span
+            >
           </span>
           <input
             v-model.number="ing.quantity"
@@ -381,7 +385,6 @@
         </button>
       </div>
     </div>
-
   </div>
 </template>
 
@@ -406,7 +409,10 @@ import {
   useRecipeModifiers,
   useRecipeOutputs,
 } from "@/composables/useCrafting";
-import type { CraftingRecipe, CraftingDiscipline } from "@/types/crafting.types";
+import type {
+  CraftingRecipe,
+  CraftingDiscipline,
+} from "@/types/crafting.types";
 
 const props = defineProps<{
   recipe?: CraftingRecipe;
@@ -440,17 +446,25 @@ const saving = computed(() => isCreating.value || isUpdating.value);
 const form = ref({
   name: props.recipe?.name ?? "",
   description: props.recipe?.description ?? "",
-  discipline: (props.recipe?.discipline ?? (ui.workshopActiveTab !== "all" ? ui.workshopActiveTab : "smithing")) as CraftingDiscipline,
+  discipline: (props.recipe?.discipline ??
+    (ui.workshopActiveTab !== "all"
+      ? ui.workshopActiveTab
+      : "smithing")) as CraftingDiscipline,
   dc: props.recipe?.dc ?? 10,
   crafting_time: props.recipe?.crafting_time ?? 1,
-  crafting_time_unit: (props.recipe?.crafting_time_unit ?? "days") as "minutes" | "hours" | "days",
+  crafting_time_unit: (props.recipe?.crafting_time_unit ?? "days") as
+    | "minutes"
+    | "hours"
+    | "days",
   requires_proficiency: props.recipe?.requires_proficiency ?? false,
   requires_tools: props.recipe?.requires_tools ?? false,
   shared_with_players: props.recipe?.shared_with_players ?? false,
   player_visible_to: props.recipe?.player_visible_to ?? null,
 });
 
-const ingredients = ref<{ item_id: string | null; tag: string | null; quantity: number }[]>([]);
+const ingredients = ref<
+  { item_id: string | null; tag: string | null; quantity: number }[]
+>([]);
 const modifiers = ref<{ description: string; bonus: number }[]>([]);
 const outputs = ref<{ item_id: string; quantity: number }[]>([]);
 
@@ -526,11 +540,15 @@ const tagIngredientInput = ref("");
 const items = computed(() => allItems.value ?? []);
 
 const filteredOutputItems = computed(() =>
-  items.value.filter((i) => matchesSearch(i.name, outputSearch.value)).slice(0, 20),
+  items.value
+    .filter((i) => matchesSearch(i.name, outputSearch.value))
+    .slice(0, 20),
 );
 
 const filteredIngredientItems = computed(() =>
-  items.value.filter((i) => matchesSearch(i.name, ingredientSearch.value)).slice(0, 20),
+  items.value
+    .filter((i) => matchesSearch(i.name, ingredientSearch.value))
+    .slice(0, 20),
 );
 
 // Split query on spaces, keeping quoted phrases together. All tokens must match.
@@ -539,8 +557,9 @@ function matchesSearch(name: string, query: string): boolean {
   const tokens: string[] = [];
   const re = /"([^"]+)"|(\S+)/g;
   let m: RegExpExecArray | null;
-  while ((m = re.exec(query)) !== null) tokens.push((m[1] ?? m[2]).toLowerCase());
-  return tokens.length === 0 || tokens.every((t) => lower.includes(t));
+  while ((m = re.exec(query)) !== null)
+    tokens.push((m[1] ?? m[2]).toLowerCase());
+  return tokens.every((t) => lower.includes(t));
 }
 
 function itemById(id: string) {

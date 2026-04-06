@@ -5,6 +5,15 @@
   >
     <template #actions>
       <button
+        :disabled="importMutation.isPending.value"
+        class="inline-flex items-center gap-1.5 rounded-md bg-muted border border-border px-4 py-2 font-cinzel text-xs font-semibold text-muted-foreground tracking-wider hover:text-foreground hover:border-border/80 disabled:opacity-50 transition-colors"
+        :title="importStatusLabel"
+        @click="handleImport"
+      >
+        <Download class="h-3.5 w-3.5" />
+        {{ importStatusLabel }}
+      </button>
+      <button
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
         @click="$router.push('/crafting/new')"
       >
@@ -113,11 +122,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
-import { LayoutList, Pencil, Plus, Trash2 } from "lucide-vue-next";
+import { computed, ref } from "vue";
+
+import { Download, LayoutList, Pencil, Plus, Trash2 } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting-disciplines";
-import { useCraftingRecipes, useDeleteRecipe } from "@/composables/useCrafting";
+import { useCraftingRecipes, useDeleteRecipe, useImportStarterRecipes } from "@/composables/useCrafting";
 import { useConfirm } from "@/composables/useConfirm";
 import { useUiStore } from "@/stores/ui";
 import type { CraftingRecipe } from "@/types/crafting.types";
@@ -131,6 +141,25 @@ const activeDiscipline = computed(() =>
 const { data: recipes, isLoading } = useCraftingRecipes();
 const { mutateAsync: deleteRecipe } = useDeleteRecipe();
 const { confirm } = useConfirm();
+
+const importMutation = useImportStarterRecipes();
+const importStatus = ref<"idle" | "done" | "uptodate">("idle");
+const importedCount = ref(0);
+
+const importStatusLabel = computed(() => {
+  if (importMutation.isPending.value) return "Importing…";
+  if (importStatus.value === "done") return `Imported ${importedCount.value} recipes`;
+  if (importStatus.value === "uptodate") return "Already up to date";
+  return "Import Starter Recipes";
+});
+
+async function handleImport() {
+  importStatus.value = "idle";
+  const count = await importMutation.mutateAsync();
+  importedCount.value = count;
+  importStatus.value = count === 0 ? "uptodate" : "done";
+  setTimeout(() => { importStatus.value = "idle"; }, 8000);
+}
 
 const disciplineRecipes = computed(() =>
   ui.workshopActiveTab === "all"
