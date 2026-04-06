@@ -2,6 +2,8 @@
 
 ## Done
 
+- [x] Spell list empty for players, and "Add your first spell" button shown to players — `spells` RLS used a single `FOR ALL` policy (`auth.uid() = user_id`) so players (different auth.uid()) saw zero results; split into separate policies: SELECT allows campaign members to read spells owned by anyone in their campaign, INSERT/UPDATE/DELETE remain owner-only; also gated the empty-state CTA in `SpellList.vue` behind `!playerMemberId` (irongollem/grimoire#67)
+
 - [x] Atlas map location dots: nearby collapsed dots rendered above the expanded pill (z-index), pill centered on cursor instead of growing from the dot (pinStyle anchor), and names truncated at 128px regardless of available space; fixed by promoting hovered pin to z-20, anchoring the expanded pill at the dot position (grows right/left from pin), and widening name truncation to max-w-48 (irongollem/grimoire#56)
 
 - [x] Card Forge print layout ignored focal points — `FocalImage.computeCenteredPosition` returned generic defaults when `offsetWidth`/`offsetHeight` were 0 (print layout is `display:none` on screen); fixed by falling back to direct `${fp.x}% ${fp.y}%` when element dimensions are unavailable. Also wired missing `focal-point` props on Monster, Item, and Spell card components (irongollem/grimoire#53)
