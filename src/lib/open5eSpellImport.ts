@@ -1,5 +1,6 @@
 import type { SpellInsert, SpellSchool } from "@/types/spell.types";
 import { SPELL_SCHOOLS, SPELL_CLASSES } from "@/types/spell.types";
+import { ARTIFICER_SPELL_DELTA } from "@/data/artificerSpellDelta";
 
 // ── Open5e v1 API shapes ──────────────────────────────────────────────────────
 
@@ -131,12 +132,14 @@ function normalizeRange(raw: string): { range: string; range_custom: string | nu
 
 const VALID_CLASSES = new Set<string>(SPELL_CLASSES);
 
-function normalizeClasses(raw: string): string[] {
-  if (!raw) return [];
-  return raw
-    .split(",")
-    .map((c) => c.trim())
-    .filter((c) => VALID_CLASSES.has(c));
+function normalizeClasses(raw: string, spellName: string): string[] {
+  const classes = raw
+    ? raw.split(",").map((c) => c.trim()).filter((c) => VALID_CLASSES.has(c))
+    : [];
+  if (ARTIFICER_SPELL_DELTA.has(spellName) && !classes.includes("Artificer")) {
+    classes.push("Artificer");
+  }
+  return classes;
 }
 
 function normalizeComponents(raw: string): string[] {
@@ -178,7 +181,7 @@ function mapSpell(spell: Open5eSpell): SpellInsert {
     condition_inflicted: null,
     description: spell.desc ?? "",
     higher_levels: spell.higher_level?.trim() || null,
-    classes: normalizeClasses(spell.dnd_class),
+    classes: normalizeClasses(spell.dnd_class, spell.name),
     tags: [],
     source: spell.document__slug ?? null,
     source_title: spell.document__title ?? null,
