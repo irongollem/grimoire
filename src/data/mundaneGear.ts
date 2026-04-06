@@ -1,7 +1,9 @@
 import type { ItemInsert } from "@/types/item.types";
 
 /** SRD adventuring gear, tools, and trade goods — static list since open5e has no gear endpoint */
-export const MUNDANE_GEAR: Omit<ItemInsert, "user_id">[] = [
+type StaticItemData = Omit<ItemInsert, "user_id" | "curse_description" | "curse_revealed">;
+
+export const MUNDANE_GEAR: StaticItemData[] = [
   // Adventuring Gear
   { name: "Abacus", item_type: "gear", subtype: null, rarity: "mundane", requires_attunement: false, attunement_requirements: null, cost: "2 gp", weight: "2 lb.", damage_rolls: null, armor_class: null, properties: [], charges: null, recharge: null, spell_ids: [], description: "", source: "srd", tags: [], image_url: null },
   { name: "Acid (vial)", item_type: "gear", subtype: null, rarity: "mundane", requires_attunement: false, attunement_requirements: null, cost: "25 gp", weight: "1 lb.", damage_rolls: null, armor_class: null, properties: [], charges: null, recharge: null, spell_ids: [], description: "As an action, you can splash the contents of this vial onto a creature within 5 feet of you or throw the vial up to 20 feet, shattering it on impact. In either case, make a ranged attack against a creature or object, treating the acid as an improvised weapon. On a hit, the target takes 2d6 acid damage.", source: "srd", tags: [], image_url: null },

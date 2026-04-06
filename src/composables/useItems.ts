@@ -164,7 +164,12 @@ export function useImportSrdItems() {
       // Insert new items in batches of 100
       const BATCH = 100;
       for (let i = 0; i < toInsert.length; i += BATCH) {
-        const batch = toInsert.slice(i, i + BATCH).map((item) => ({ ...item, user_id: user!.id }));
+        const batch = toInsert.slice(i, i + BATCH).map((item) => ({
+          curse_description: null,
+          curse_revealed: false,
+          ...item,
+          user_id: user!.id,
+        }));
         const { error } = await supabase.from("items").insert(batch);
         if (error) throw error;
       }

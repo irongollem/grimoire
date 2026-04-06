@@ -133,6 +133,15 @@
           <RichTextViewer :content="vaultItem.description" />
         </div>
 
+        <!-- Curse (only visible to players once revealed by the DM) -->
+        <div
+          v-if="vaultItem?.curse_revealed && vaultItem.curse_description"
+          class="rounded-lg border border-destructive/30 bg-destructive/5 p-3 flex flex-col gap-2"
+        >
+          <p class="font-cinzel text-xs font-semibold text-destructive tracking-wider uppercase">Curse</p>
+          <RichTextViewer :content="vaultItem.curse_description" />
+        </div>
+
       </div>
     </aside>
   </Transition>

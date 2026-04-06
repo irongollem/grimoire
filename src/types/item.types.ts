@@ -137,6 +137,8 @@ export interface Item {
   tags: string[];
   image_url: string | null;
   image_focal_point?: { x: number; y: number } | null;
+  curse_description: string | null;
+  curse_revealed: boolean;
   created_at: string;
   updated_at: string;
 }

@@ -286,6 +286,34 @@
           />
         </div>
 
+        <!-- Curse -->
+        <div class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3">
+          <div class="flex items-center justify-between gap-2">
+            <h3 class="font-cinzel text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
+              Curse
+              <span class="normal-case font-fell font-normal text-muted-foreground/60"> — optional</span>
+            </h3>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" v-model="isCursed" class="rounded" />
+              <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">CURSED</span>
+            </label>
+          </div>
+          <template v-if="isCursed">
+            <RichTextEditor
+              v-model="curseDescription"
+              placeholder="Describe the curse effect, trigger, and how it can be removed…"
+              min-height="120px"
+            />
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" v-model="curseRevealed" class="rounded" />
+              <span class="font-fell text-sm text-foreground">Revealed to players</span>
+            </label>
+            <p class="font-fell text-xs text-muted-foreground italic">
+              When hidden, players cannot see the curse description. Toggle revealed once a player attunes or triggers the curse.
+            </p>
+          </template>
+        </div>
+
         <!-- Source -->
         <div class="flex flex-col gap-1">
           <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Source</span>
@@ -371,6 +399,11 @@ const versatileDamage = ref(props.item?.versatile_damage ?? "");
 // ── Armor fields ──────────────────────────────────────────────────────────────
 const armorClass = ref(props.item?.armor_class ?? "");
 
+// ── Curse fields ──────────────────────────────────────────────────────────────
+const isCursed = ref(!!(props.item?.curse_description));
+const curseDescription = ref(props.item?.curse_description ?? "");
+const curseRevealed = ref(props.item?.curse_revealed ?? false);
+
 // ── Magic fields ──────────────────────────────────────────────────────────────
 const requiresAttunement = ref(props.item?.requires_attunement ?? false);
 const attunementRequirements = ref(props.item?.attunement_requirements ?? "");
@@ -438,6 +471,8 @@ function buildPayload() {
     tags: tags.value,
     image_url: imageUrl.value || null,
     image_focal_point: imageFocalPoint.value,
+    curse_description: isCursed.value ? curseDescription.value || null : null,
+    curse_revealed: isCursed.value ? curseRevealed.value : false,
   };
 }
 

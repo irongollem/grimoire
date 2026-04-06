@@ -4,7 +4,9 @@ import type { ItemInsert } from "@/types/item.types";
  * Common services from the SRD (PHB Chapter 5: Equipment — Services table).
  * Source: "srd" so re-importing deduplicates by name.
  */
-export const SERVICES: Omit<ItemInsert, "user_id">[] = [
+type StaticItemData = Omit<ItemInsert, "user_id" | "curse_description" | "curse_revealed">;
+
+export const SERVICES: StaticItemData[] = [
   // ── Lifestyle Expenses (per day) ─────────────────────────────────────────
   {
     name: "Lifestyle: Wretched (per day)",
@@ -360,7 +362,8 @@ export const SERVICES: Omit<ItemInsert, "user_id">[] = [
     charges: null,
     recharge: null,
     spell_ids: [],
-    description: "A mug of honey mead — the drink of choice in many a tavern across the realms.",
+    description:
+      "A mug of honey mead — the drink of choice in many a tavern across the realms.",
     source: "srd",
     source_title: "System Reference Document",
     source_url: null,
@@ -406,7 +409,8 @@ export const SERVICES: Omit<ItemInsert, "user_id">[] = [
     charges: null,
     recharge: null,
     spell_ids: [],
-    description: "A night's lodging in a flea-ridden room shared with strangers.",
+    description:
+      "A night's lodging in a flea-ridden room shared with strangers.",
     source: "srd",
     source_title: "System Reference Document",
     source_url: null,
@@ -472,7 +476,8 @@ export const SERVICES: Omit<ItemInsert, "user_id">[] = [
     charges: null,
     recharge: null,
     spell_ids: [],
-    description: "A night's lodging in a comfortable inn, including a private room.",
+    description:
+      "A night's lodging in a comfortable inn, including a private room.",
     source: "srd",
     source_title: "System Reference Document",
     source_url: null,
@@ -803,7 +808,7 @@ export const SERVICES: Omit<ItemInsert, "user_id">[] = [
     name: "Spellcasting: Cure Wounds (1st level)",
     item_type: "service",
     subtype: "spellcasting",
-    rarity: "mundane",
+    rarity: "common",
     requires_attunement: false,
     attunement_requirements: null,
     cost: "10 gp",
@@ -826,7 +831,7 @@ export const SERVICES: Omit<ItemInsert, "user_id">[] = [
     name: "Spellcasting: Identify",
     item_type: "service",
     subtype: "spellcasting",
-    rarity: "mundane",
+    rarity: "common",
     requires_attunement: false,
     attunement_requirements: null,
     cost: "20 gp",
@@ -871,7 +876,7 @@ export const SERVICES: Omit<ItemInsert, "user_id">[] = [
     name: "Spellcasting: Remove Curse",
     item_type: "service",
     subtype: "spellcasting",
-    rarity: "mundane",
+    rarity: "uncommon",
     requires_attunement: false,
     attunement_requirements: null,
     cost: "90 gp",
@@ -894,7 +899,7 @@ export const SERVICES: Omit<ItemInsert, "user_id">[] = [
     name: "Spellcasting: Cure Disease (Lesser Restoration)",
     item_type: "service",
     subtype: "spellcasting",
-    rarity: "mundane",
+    rarity: "common",
     requires_attunement: false,
     attunement_requirements: null,
     cost: "40 gp",

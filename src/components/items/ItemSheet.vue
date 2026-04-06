@@ -131,6 +131,32 @@
           <RichTextViewer :content="item.description" />
         </div>
 
+        <!-- Curse (DM always sees it; badge shows player visibility) -->
+        <div
+          v-if="item.curse_description"
+          class="rounded-lg border border-destructive/30 bg-destructive/5 p-4 flex flex-col gap-3"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <h3 class="font-cinzel text-xs font-bold tracking-wider text-destructive uppercase">
+              Curse
+            </h3>
+            <button
+              type="button"
+              :disabled="isTogglingReveal"
+              class="inline-flex items-center gap-1.5 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider border transition-colors disabled:opacity-50"
+              :class="item.curse_revealed
+                ? 'border-amber-500/50 text-amber-500 hover:bg-amber-500/10'
+                : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'"
+              @click="toggleReveal"
+            >
+              <Eye v-if="item.curse_revealed" class="h-3 w-3" />
+              <EyeOff v-else class="h-3 w-3" />
+              {{ item.curse_revealed ? 'Revealed to players' : 'Hidden from players' }}
+            </button>
+          </div>
+          <RichTextViewer :content="item.curse_description" />
+        </div>
+
         <div
           v-if="item.source"
           class="font-stat text-[13px] text-muted-foreground italic"
@@ -150,9 +176,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { ref, computed } from "vue";
+import { Eye, EyeOff } from "lucide-vue-next";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import { useUpdateItem } from "@/composables/useItems";
 import {
   ITEM_TYPE_LABELS,
   ITEM_RARITY_LABELS,
@@ -167,4 +195,16 @@ const props = defineProps<{ item: Item }>();
 const rarityColor = computed(
   () => RARITY_COLORS[props.item.rarity] ?? "#888888",
 );
+
+const { mutateAsync: updateItem } = useUpdateItem();
+const isTogglingReveal = ref(false);
+
+async function toggleReveal() {
+  isTogglingReveal.value = true;
+  try {
+    await updateItem({ id: props.item.id, update: { curse_revealed: !props.item.curse_revealed } });
+  } finally {
+    isTogglingReveal.value = false;
+  }
+}
 </script>

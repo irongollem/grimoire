@@ -134,6 +134,8 @@ function mapWeapon(item: Open5eWeapon): ItemInsert {
     source_url: item.document__url || null,
     tags: [],
     image_url: null,
+    curse_description: null,
+    curse_revealed: false,
   };
 }
 
@@ -159,6 +161,8 @@ function mapArmor(item: Open5eArmor): ItemInsert {
     source_url: item.document__url || null,
     tags: [],
     image_url: null,
+    curse_description: null,
+    curse_revealed: false,
   };
 }
 
@@ -185,6 +189,8 @@ function mapMagicItem(item: Open5eMagicItem): ItemInsert {
     source_url: item.document__url || null,
     tags: [],
     image_url: null,
+    curse_description: null,
+    curse_revealed: false,
   };
 }
 

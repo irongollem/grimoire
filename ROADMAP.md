@@ -40,6 +40,7 @@
 - [x] Bestiary — monster builder with 12 SRD template presets + full SRD bundle
 - [x] Item Vault — full CRUD with 15 item types, 7 rarities, weapon damage dice, charges, attunement, image upload, card printing
 - [x] Item Vault imports — real source from open5e `document__slug`; `weapon_range` + `versatile_damage` fields captured; re-import updates source/range/versatile without touching user images/tags; ammunition uses "Quantity" label instead of "Charges"
+- [x] Vault: Cursed Items — `curse_description` + `curse_revealed` fields; DM always sees curse with hidden/revealed badge and inline reveal toggle on the detail view; players see curse only once DM reveals it
 - [x] Vault: Services — added `service` item type; 36 SRD services (lifestyle expenses, food/drink, lodging, meals, hirelings, transport, spellcasting) imported via the existing SRD import button; DMs can edit or delete individual entries
 - [x] Spellbook — full CRUD with school/level/class filters, Spell Level Advisor, attack mechanics, AOE, conditions, card printing
 - [x] Atlas (Locations) — recursive hierarchy (world → plane → continent → region → city → town → building → room), Tiptap description, Scriptorium formatter
