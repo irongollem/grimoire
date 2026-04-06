@@ -9,15 +9,27 @@
           <h1 class="font-cinzel text-xl font-bold text-gold-500 tracking-widest">Grimoire</h1>
           <p class="font-fell text-xs text-muted-foreground italic mt-0.5">Campaign Companion</p>
         </RouterLink>
-        <RouterLink
-          v-if="anyRunning && firstRunning"
-          :to="`/encounters/${firstRunning.encounter_id}/run`"
-          class="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-500/15 border border-green-500/30 hover:bg-green-500/25 transition-colors"
-          title="Encounter in progress"
-        >
-          <span class="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
-          <span class="font-cinzel text-[9px] text-green-400 tracking-wider">Live</span>
-        </RouterLink>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <!-- AI generation in-progress spinner -->
+          <button
+            v-if="isAnyAiGenerating && activeGenerator"
+            class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/15 border border-primary/30 hover:bg-primary/25 transition-colors"
+            :title="currentLoadingQuote"
+            @click="activeGenerator.openPanel()"
+          >
+            <Loader2 class="h-3 w-3 text-primary animate-spin" />
+            <span class="font-cinzel text-[9px] text-primary tracking-wider">AI</span>
+          </button>
+          <RouterLink
+            v-if="anyRunning && firstRunning"
+            :to="`/encounters/${firstRunning.encounter_id}/run`"
+            class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-500/15 border border-green-500/30 hover:bg-green-500/25 transition-colors"
+            title="Encounter in progress"
+          >
+            <span class="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+            <span class="font-cinzel text-[9px] text-green-400 tracking-wider">Live</span>
+          </RouterLink>
+        </div>
       </div>
     </div>
 
@@ -100,7 +112,9 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { LogOut, Pencil, Check, Eye } from "lucide-vue-next";
+import { LogOut, Pencil, Check, Eye, Loader2 } from "lucide-vue-next";
+import { isAnyAiGenerating, getAiGeneratorRegistry } from "@/ai/aiGeneratorRegistry";
+import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useUpdateCampaignMember } from "@/composables/useCampaignMembers";
@@ -114,6 +128,9 @@ const auth = useAuthStore();
 const ui = useUiStore();
 const router = useRouter();
 const { anyRunning, firstRunning } = useRunningEncounters();
+const activeGenerator = computed(() =>
+  getAiGeneratorRegistry().find((e) => e.isGenerating.value) ?? null,
+);
 const { mutateAsync: updateMember } = useUpdateCampaignMember();
 
 const userEmail   = computed(() => auth.userEmail ?? "");

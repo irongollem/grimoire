@@ -86,7 +86,7 @@
       <!-- Generating state -->
       <div v-if="isGenerating" class="flex flex-col items-center gap-3 py-6">
         <Sparkles class="h-8 w-8 text-primary animate-pulse" />
-        <p class="font-fell text-sm text-muted-foreground italic">{{ statusText }}</p>
+        <p class="font-fell text-sm text-muted-foreground italic">{{ currentLoadingQuote }}</p>
       </div>
 
       <!-- Actions -->
@@ -114,9 +114,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from "vue";
+import { ref, reactive } from "vue";
 import { X, Sparkles } from "lucide-vue-next";
 import { useMonsterGeneration } from "./useMonsterGeneration";
+import { currentLoadingQuote } from "./aiGenerationState";
 import type { MonsterAiGenerated } from "./types";
 import type { MonsterType, MonsterSize } from "@/types/monster.types";
 
@@ -139,14 +140,7 @@ const emit = defineEmits<{
 const prompt = ref("");
 const options = reactive({ challenge_rating: "", monster_type: "", size: "" });
 const generateImage = ref(true);
-const { isGenerating, error, phase, generate } = useMonsterGeneration();
-
-const STATUS_MESSAGES: Record<string, string> = {
-  text:   "Conjuring the creature…",
-  image:  "Painting the portrait…",
-  upload: "Storing the portrait…",
-};
-const statusText = computed(() => STATUS_MESSAGES[phase.value] ?? "Working…");
+const { isGenerating, error, generate } = useMonsterGeneration();
 
 async function run() {
   if (!prompt.value.trim()) return;

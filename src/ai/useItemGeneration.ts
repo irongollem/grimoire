@@ -1,8 +1,14 @@
-import { ref } from "vue";
-import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/auth";
+import { supabase } from "@/lib/supabase";
 import { ITEM_SYSTEM_PROMPT, IMAGE_BASE_PROMPT } from "./prompts";
 import type { ItemAiResult, ItemAiGenerated } from "./types";
+import {
+  createAiGenerationState,
+  startAiQuotes,
+  stopAiQuotes,
+} from "./aiGenerationState";
+import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
+import { useUiStore } from "@/stores/ui";
 
 const CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const IMAGE_URL = "https://api.openai.com/v1/images/generations";
@@ -14,11 +20,22 @@ export interface ItemGenerationOptions {
   generateImage?: boolean;
 }
 
+// ── Module-level singleton state ────────────────────────────────────────────
+const _state = createAiGenerationState();
+
+registerAiGenerator({
+  ..._state,
+  label: "Item",
+  entityRoute: (id) => `/vault/${id}`,
+  openPanel: () => {
+    useUiStore().itemGeneratorOpen = true;
+  },
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+
 export function useItemGeneration() {
   const auth = useAuthStore();
-  const isGenerating = ref(false);
-  const error = ref<string | null>(null);
-  const phase = ref<"idle" | "text" | "image" | "upload">("idle");
 
   async function generate(
     apiKey: string,
@@ -26,13 +43,13 @@ export function useItemGeneration() {
     userPrompt: string,
     options?: ItemGenerationOptions,
   ): Promise<ItemAiGenerated | null> {
-    isGenerating.value = true;
-    error.value = null;
+    if (isAnyAiGenerating.value) return null;
+    _state.isGenerating.value = true;
+    _state.error.value = null;
+    startAiQuotes();
 
     try {
       // ── 1. Generate item text ─────────────────────────────────────────────
-      phase.value = "text";
-
       const systemContent = settingPrompt
         ? `${ITEM_SYSTEM_PROMPT}\n\nCampaign setting context provided by the DM:\n${settingPrompt}`
         : ITEM_SYSTEM_PROMPT;
@@ -79,8 +96,6 @@ export function useItemGeneration() {
       let image_url: string | null = null;
 
       if (wantImage) {
-        phase.value = "image";
-
         const imagePrompt = [IMAGE_BASE_PROMPT, settingPrompt, result.image_prompt]
           .filter(Boolean)
           .join(" — ");
@@ -109,7 +124,6 @@ export function useItemGeneration() {
 
         // ── 3. Upload to Supabase storage ─────────────────────────────────
         if (b64 && auth.user) {
-          phase.value = "upload";
           const byteChars = atob(b64);
           const bytes = new Uint8Array(byteChars.length);
           for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
@@ -126,13 +140,13 @@ export function useItemGeneration() {
 
       return { ...result, image_url };
     } catch (e) {
-      error.value = e instanceof Error ? e.message : "Generation failed";
+      _state.error.value = e instanceof Error ? e.message : "Generation failed";
       return null;
     } finally {
-      isGenerating.value = false;
-      phase.value = "idle";
+      _state.isGenerating.value = false;
+      stopAiQuotes();
     }
   }
 
-  return { isGenerating, error, phase, generate };
+  return { ..._state, generate };
 }

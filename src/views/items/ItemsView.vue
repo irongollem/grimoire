@@ -73,8 +73,6 @@
 
     <ItemList :search="search" :type-filter="typeFilter" :rarity-filter="rarityFilter" :source-filter="sourceFilter" />
   </PageHeader>
-
-  <ItemGeneratorPanel />
 </template>
 
 <script setup lang="ts">
@@ -82,7 +80,6 @@ import { ref, computed } from "vue";
 import { Loader2, Download, Search, Sparkles } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import ItemList from "@/components/items/ItemList.vue";
-import ItemGeneratorPanel from "@/components/items/ItemGeneratorPanel.vue";
 import { useImportSrdItems, useItemSources } from "@/composables/useItems";
 import { ITEM_TYPES, ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS, itemSourceLabel } from "@/types/item.types";
 import { useUiStore } from "@/stores/ui";

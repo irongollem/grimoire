@@ -106,7 +106,6 @@
       :location-filter="locationFilter"
       :sort-by="sortBy"
     />
-    <NpcGeneratorPanel />
   </PageHeader>
 </template>
 
@@ -116,7 +115,6 @@ import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
 import { Plus, Wand2, Search } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import NpcList from "@/components/npcs/NpcList.vue";
-import NpcGeneratorPanel from "@/components/npcs/NpcGeneratorPanel.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useLocationTree } from "@/composables/useLocations";
 import { useUiStore } from "@/stores/ui";

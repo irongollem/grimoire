@@ -68,15 +68,12 @@
 
     <MonsterList />
   </PageHeader>
-
-  <MonsterGeneratorPanel />
 </template>
 
 <script setup lang="ts">
 import { Plus, Search, Wand2 } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import MonsterList from "@/components/monsters/MonsterList.vue";
-import MonsterGeneratorPanel from "@/components/monsters/MonsterGeneratorPanel.vue";
 import { useUiStore } from "@/stores/ui";
 
 const ui = useUiStore();

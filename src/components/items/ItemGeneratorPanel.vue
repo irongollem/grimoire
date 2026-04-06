@@ -150,9 +150,16 @@
           class="flex flex-col items-center gap-3 py-4"
         >
           <Sparkles class="h-7 w-7 text-primary animate-pulse" />
-          <p class="font-fell text-sm text-muted-foreground italic">
-            {{ statusText }}
+          <p class="font-fell text-sm text-muted-foreground italic text-center">
+            {{ currentLoadingQuote }}
           </p>
+          <button
+            type="button"
+            class="mt-1 font-fell text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+            @click="ui.itemGeneratorOpen = false"
+          >
+            Continue in background
+          </button>
         </div>
 
         <!-- Error -->
@@ -171,7 +178,8 @@
         <button
           v-if="aiApiKey"
           type="button"
-          :disabled="isGenerating || !concept.trim()"
+          :disabled="isAnyAiGenerating || !concept.trim()"
+          :title="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
           class="w-full inline-flex items-center justify-center gap-1.5 py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
           @click="generateAndCreate"
         >
@@ -204,6 +212,8 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useCreateItem } from "@/composables/useItems";
 import { useItemGeneration } from "@/ai/useItemGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
+import { currentLoadingQuote } from "@/ai/aiGenerationState";
+import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import {
   ITEM_TYPES,
   ITEM_TYPE_LABELS,
@@ -211,23 +221,16 @@ import {
   ITEM_RARITY_LABELS,
 } from "@/types/item.types";
 
-const STATUS_MESSAGES: Record<string, string> = {
-  text: "Forging the item…",
-  image: "Illustrating the item…",
-  upload: "Storing the illustration…",
-};
-
 const ui = useUiStore();
 const router = useRouter();
 const campaign = useCampaignStore();
 const { mutateAsync: createItem } = useCreateItem();
-const { isGenerating, error: genError, phase, generate } = useItemGeneration();
+const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useItemGeneration();
 
 const aiApiKey = computed(() => campaign.decryptedApiKey);
 const aiSettingPrompt = computed(
   () => campaign.activeCampaign?.ai_setting_prompt ?? "",
 );
-const statusText = computed(() => STATUS_MESSAGES[phase.value] ?? "Working…");
 
 const concept = ref("");
 const constraints = reactive({ item_type: "", rarity: "" });
@@ -235,6 +238,9 @@ const generateImage = ref(true);
 const generateCursed = ref(false);
 
 async function generateAndCreate() {
+  genConcept.value = concept.value.trim();
+  clearCompleted();
+
   const result = await generate(
     aiApiKey.value,
     aiSettingPrompt.value,
@@ -274,8 +280,12 @@ async function generateAndCreate() {
     curse_revealed: false,
   });
 
-  ui.itemGeneratorOpen = false;
-  router.push(`/vault/${created.id}`);
+  if (ui.itemGeneratorOpen) {
+    ui.itemGeneratorOpen = false;
+    router.push(`/vault/${created.id}`);
+  } else {
+    completedEntityId.value = created.id;
+  }
 }
 </script>
 

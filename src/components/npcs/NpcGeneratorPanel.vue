@@ -3,7 +3,7 @@
     <div
       v-if="ui.npcGeneratorOpen"
       class="fixed inset-0 bg-black/60 z-40"
-      @click="ui.npcGeneratorOpen = false"
+      @click="handleClose"
     />
   </Transition>
 
@@ -21,7 +21,7 @@
         </h2>
         <button
           class="text-muted-foreground hover:text-foreground"
-          @click="ui.npcGeneratorOpen = false"
+          @click="handleClose"
         >
           <X class="h-5 w-5" />
         </button>
@@ -237,9 +237,16 @@
           class="flex flex-col items-center gap-3 py-4"
         >
           <Sparkles class="h-7 w-7 text-primary animate-pulse" />
-          <p class="font-fell text-sm text-muted-foreground italic">
-            {{ statusText }}
+          <p class="font-fell text-sm text-muted-foreground italic text-center">
+            {{ currentLoadingQuote }}
           </p>
+          <button
+            type="button"
+            class="mt-1 font-fell text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+            @click="dismissToBackground"
+          >
+            Continue in background
+          </button>
         </div>
 
         <!-- Error -->
@@ -258,7 +265,8 @@
         <button
           v-if="aiApiKey"
           type="button"
-          :disabled="isGenerating || !concept.trim()"
+          :disabled="isAnyAiGenerating || !concept.trim()"
+          :title="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
           class="w-full inline-flex items-center justify-center gap-1.5 py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
           @click="generateAndCreate"
         >
@@ -293,6 +301,8 @@ import type { NpcInsert, NpcRelationship, NpcRelationshipType } from "@/types/np
 import { NPC_RELATIONSHIP_TYPE_LABELS } from "@/types/npc.types";
 import { useCampaignStore } from "@/stores/campaign";
 import { useNpcGeneration, toTiptapJson } from "@/ai/useNpcGeneration";
+import { currentLoadingQuote } from "@/ai/aiGenerationState";
+import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { useLocationTree } from "@/composables/useLocations";
 import { useAllFactions, useAddFactionNpc } from "@/composables/useFactions";
 import { NPC_FACTION_ROLES } from "@/types/faction.types";
@@ -369,7 +379,7 @@ const ui = useUiStore();
 const router = useRouter();
 const { mutateAsync: createNpc, isPending: isCreating } = useCreateNpc();
 const campaign = useCampaignStore();
-const { isGenerating, error: genError, phase, generate } = useNpcGeneration();
+const { isGenerating, error: genError, concept: genConcept, completedNpcId, clearCompleted, generate } = useNpcGeneration();
 const { locationOptions } = useLocationTree();
 const { data: factions } = useAllFactions();
 const { mutateAsync: addFactionNpc } = useAddFactionNpc();
@@ -381,16 +391,18 @@ const aiSettingPrompt = computed(
   () => campaign.activeCampaign?.ai_setting_prompt ?? "",
 );
 
-const STATUS_MESSAGES: Record<string, string> = {
-  text: "Conjuring character details…",
-  image: "Painting the portrait…",
-  upload: "Storing the portrait…",
-};
-const statusText = computed(() => STATUS_MESSAGES[phase.value] ?? "Working…");
-
 function openAiSettings() {
   ui.npcGeneratorOpen = false;
-  // The campaign switcher modal has no programmatic open — user nudge is enough
+}
+
+/** Close the panel while allowing generation to continue in background. */
+function dismissToBackground() {
+  ui.npcGeneratorOpen = false;
+}
+
+/** Close button / backdrop click: if generating, dismiss to background; otherwise close. */
+function handleClose() {
+  ui.npcGeneratorOpen = false;
 }
 
 function buildAiPrompt(): string {
@@ -436,6 +448,10 @@ function buildAiPrompt(): string {
 }
 
 async function generateAndCreate() {
+  // Store concept text for badge display during background generation
+  genConcept.value = concept.value.trim();
+  clearCompleted();
+
   const result = await generate(
     aiApiKey.value,
     aiSettingPrompt.value,
@@ -473,8 +489,15 @@ async function generateAndCreate() {
 
   const created = await createNpc(payload);
   await applyPostCreate(created.id);
-  ui.npcGeneratorOpen = false;
-  router.push(`/npcs/${created.id}`);
+
+  if (ui.npcGeneratorOpen) {
+    // Panel is still open — navigate directly
+    ui.npcGeneratorOpen = false;
+    router.push(`/npcs/${created.id}`);
+  } else {
+    // Panel was dismissed — store completed ID for badge
+    completedNpcId.value = created.id;
+  }
 }
 
 const concept = ref("");

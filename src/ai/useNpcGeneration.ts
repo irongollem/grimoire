@@ -1,11 +1,31 @@
-import { ref } from "vue";
-import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/auth";
+import { supabase } from "@/lib/supabase";
 import { NPC_SYSTEM_PROMPT, IMAGE_BASE_PROMPT } from "./prompts";
 import type { NpcAiResult, NpcAiGenerated } from "./types";
+import {
+  createAiGenerationState,
+  startAiQuotes,
+  stopAiQuotes,
+} from "./aiGenerationState";
+import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
+import { useUiStore } from "@/stores/ui";
 
 const CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const IMAGE_URL = "https://api.openai.com/v1/images/generations";
+
+// ── Module-level singleton state ────────────────────────────────────────────
+const _state = createAiGenerationState();
+
+registerAiGenerator({
+  ..._state,
+  label: "NPC",
+  entityRoute: (id) => `/npcs/${id}`,
+  openPanel: () => {
+    useUiStore().npcGeneratorOpen = true;
+  },
+});
+
+// ────────────────────────────────────────────────────────────────────────────
 
 /**
  * Convert plain text (with optional markdown headings) to a minimal Tiptap JSON string.
@@ -66,23 +86,19 @@ export function toTiptapJson(text: string): string {
 
 export function useNpcGeneration() {
   const auth = useAuthStore();
-  const isGenerating = ref(false);
-  const error = ref<string | null>(null);
-  /** Rough phase indicator for status messaging in the dialog. */
-  const phase = ref<"idle" | "text" | "image" | "upload">("idle");
 
   async function generate(
     apiKey: string,
     settingPrompt: string,
     userPrompt: string,
   ): Promise<NpcAiGenerated | null> {
-    isGenerating.value = true;
-    error.value = null;
+    if (isAnyAiGenerating.value) return null;
+    _state.isGenerating.value = true;
+    _state.error.value = null;
+    startAiQuotes();
 
     try {
       // ── 1. Generate NPC text data ──────────────────────────────────
-      phase.value = "text";
-
       const systemContent = settingPrompt
         ? `${NPC_SYSTEM_PROMPT}\n\nCampaign setting context provided by the DM:\n${settingPrompt}`
         : NPC_SYSTEM_PROMPT;
@@ -116,8 +132,6 @@ export function useNpcGeneration() {
       ) as NpcAiResult;
 
       // ── 2. Generate portrait ───────────────────────────────────────
-      phase.value = "image";
-
       const imagePrompt = [
         IMAGE_BASE_PROMPT,
         settingPrompt,
@@ -151,7 +165,6 @@ export function useNpcGeneration() {
       const b64 = imgData.data?.[0]?.b64_json as string | undefined;
 
       // ── 3. Upload portrait to Supabase storage ─────────────────────
-      phase.value = "upload";
       let portrait_url: string | null = null;
 
       if (b64 && auth.user) {
@@ -173,13 +186,13 @@ export function useNpcGeneration() {
 
       return { ...npcData, portrait_url };
     } catch (e) {
-      error.value = e instanceof Error ? e.message : "Generation failed";
+      _state.error.value = e instanceof Error ? e.message : "Generation failed";
       return null;
     } finally {
-      isGenerating.value = false;
-      phase.value = "idle";
+      _state.isGenerating.value = false;
+      stopAiQuotes();
     }
   }
 
-  return { isGenerating, error, phase, generate };
+  return { ..._state, generate };
 }
