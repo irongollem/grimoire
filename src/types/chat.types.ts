@@ -18,7 +18,8 @@ export interface ItemDropMetadata {
   description?: string | null;
   claimed_by_user_id: string | null;
   claimed_by_name: string | null;
-  claimed_party_member_id: string | null; // null = party stash
+  claimed_party_member_id: string | null; // null when claimed to stash or NPC inventory
+  npc_id?: string | null; // present when claimed into a specific NPC's inventory
 }
 
 export interface CurrencyDropMetadata {

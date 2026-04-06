@@ -35,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { Pencil, Eye } from "lucide-vue-next";
 import { useNpc } from "@/composables/useNpcs";
@@ -61,6 +61,18 @@ function stopEditing() {
 }
 
 const { data: npc, isLoading: npcLoading } = useNpc(id);
+
+// Lock main scroll in view mode so only the right column scrolls
+let mainEl: HTMLElement | null = null;
+function setMainScroll(lock: boolean) {
+  if (mainEl) mainEl.style.overflow = lock ? "hidden" : "";
+}
+onMounted(() => {
+  mainEl = document.querySelector("main");
+  setMainScroll(!isEditing.value);
+});
+watch(isEditing, (editing) => setMainScroll(!editing));
+onUnmounted(() => setMainScroll(false));
 const isLoading = computed(() => !isNewNpc.value && npcLoading.value);
 
 const subtitle = computed(() => {

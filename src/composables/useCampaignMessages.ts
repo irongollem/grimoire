@@ -306,7 +306,7 @@ export function useCampaignMessages() {
     if (idx >= 0) messages.value[idx] = { ...messages.value[idx], metadata: newMeta };
   }
 
-  async function claimItemDrop(messageId: string, claimerName: string, partyMemberId: string | null) {
+  async function claimItemDrop(messageId: string, claimerName: string, partyMemberId: string | null, npcId?: string | null) {
     const msg = messages.value.find(m => m.id === messageId);
     if (!msg || msg.type !== 'item_drop') return;
     const existing = msg.metadata as ItemDropMetadata;
@@ -316,6 +316,7 @@ export function useCampaignMessages() {
       claimed_by_user_id: auth.user!.id,
       claimed_by_name: claimerName,
       claimed_party_member_id: partyMemberId,
+      npc_id: npcId,
     };
     const { error } = await supabase.from("campaign_messages").update({ metadata: newMeta }).eq("id", messageId);
     if (error) throw error;

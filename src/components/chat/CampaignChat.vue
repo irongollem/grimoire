@@ -220,7 +220,7 @@ async function handleClaimToNpc({ messageId, npcId, npcName }: { messageId: stri
   if (meta.claimed_by_user_id) return;
 
   try {
-    await claimItemDrop(messageId, npcName, null);
+    await claimItemDrop(messageId, npcName, null, npcId);
   } catch {
     return;
   }

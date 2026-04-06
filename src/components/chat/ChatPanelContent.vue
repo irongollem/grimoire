@@ -110,6 +110,23 @@
                 v-if="(msg.metadata as ItemDropMetadata)?.description"
                 class="font-fell text-xs text-muted-foreground/80 italic mb-1.5 leading-snug"
               >{{ (msg.metadata as ItemDropMetadata).description }}</p>
+              <!-- Expand details toggle (vault items only) -->
+              <button
+                v-if="(msg.metadata as ItemDropMetadata)?.item_id"
+                type="button"
+                class="flex items-center gap-1 font-cinzel text-[10px] text-muted-foreground hover:text-foreground transition-colors tracking-wider mb-1"
+                @click="toggleDetails(msg.id)"
+              >
+                <ChevronDown
+                  class="h-3 w-3 transition-transform"
+                  :class="expandedItems.has(msg.id) ? 'rotate-180' : ''"
+                />
+                {{ expandedItems.has(msg.id) ? 'Hide Details' : 'Show Details' }}
+              </button>
+              <ChatItemDropDetails
+                v-if="expandedItems.has(msg.id)"
+                :item-id="(msg.metadata as ItemDropMetadata).item_id!"
+              />
               <!-- Claimed state -->
               <div
                 v-if="(msg.metadata as ItemDropMetadata)?.claimed_by_user_id"
@@ -119,7 +136,8 @@
                 {{ (msg.metadata as ItemDropMetadata)?.claimed_by_name }}
                 <span
                   v-if="
-                    !(msg.metadata as ItemDropMetadata)?.claimed_party_member_id
+                    !(msg.metadata as ItemDropMetadata)?.claimed_party_member_id &&
+                    !(msg.metadata as ItemDropMetadata)?.npc_id
                   "
                 >
                   (party stash)</span
@@ -534,7 +552,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, nextTick } from "vue";
+import { ref, reactive, computed, watch, nextTick, shallowRef } from "vue";
 import {
   MessageCircle,
   X,
@@ -543,7 +561,9 @@ import {
   Trash2,
   Gift,
   Coins,
+  ChevronDown,
 } from "lucide-vue-next";
+import ChatItemDropDetails from "@/components/chat/ChatItemDropDetails.vue";
 import { rollDice, ALL_DICE } from "@/lib/dice";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
@@ -584,6 +604,15 @@ const emit = defineEmits<{
 }>();
 
 const npcSelectState = reactive<Record<string, string>>({});
+
+// ── Item details expand/collapse ───────────────────────────────────────────────
+const expandedItems = shallowRef(new Set<string>());
+function toggleDetails(messageId: string) {
+  const next = new Set(expandedItems.value);
+  if (next.has(messageId)) next.delete(messageId);
+  else next.add(messageId);
+  expandedItems.value = next;
+}
 
 function onClaimToNpc(messageId: string, npcId: string) {
   if (!npcId) return;
