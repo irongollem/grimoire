@@ -120,8 +120,12 @@ function addTag(tag: string) {
 }
 
 function addFromInput() {
-  const tags = inputVal.value.split(",");
-  for (const tag of tags) addTag(tag);
+  const newTags = inputVal.value
+    .split(",")
+    .map((t) => t.trim())
+    .filter((t) => t && !model.value.includes(t));
+  if (newTags.length) model.value = [...model.value, ...newTags];
+  inputVal.value = "";
 }
 
 function remove(tag: string) {

@@ -394,7 +394,8 @@ export function useImportStarterRecipes() {
   return useMutation({
     mutationFn: async (): Promise<number> => {
       const { STARTER_RECIPES } = await import("@/data/starterRecipes");
-      const { MUNDANE_GEAR } = await import("@/data/mundaneGear");
+      const { GEAR } = await import("@/data/gear");
+      const { PROVISIONS } = await import("@/data/provisions");
       const user = getCurrentUser();
       const campaignId = campaign.activeCampaignId!;
 
@@ -409,7 +410,7 @@ export function useImportStarterRecipes() {
 
       const missing = outputNames.filter((n) => !existingByName.has(n));
       if (missing.length > 0) {
-        const toInsert = MUNDANE_GEAR
+        const toInsert = [...GEAR, ...PROVISIONS]
           .filter((g) => missing.includes(g.name))
           .map((g) => ({ curse_description: null, curse_revealed: false, ...g, user_id: user!.id }));
         if (toInsert.length > 0) {

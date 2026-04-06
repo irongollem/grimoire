@@ -28,6 +28,7 @@ export const ITEM_TYPES = [
   "vehicle",
   "trade_good",
   "crafting_material",
+  "provision",
   "service",
 ] as const;
 export type ItemType = (typeof ITEM_TYPES)[number];
@@ -49,6 +50,7 @@ export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
   vehicle: "Vehicle",
   trade_good: "Trade Good",
   crafting_material: "Crafting Material",
+  provision: "Provision",
   service: "Service",
 };
 
@@ -148,6 +150,8 @@ export type ItemInsert = Omit<
   "id" | "user_id" | "created_at" | "updated_at"
 >;
 export type ItemUpdate = Partial<ItemInsert>;
+/** Subset used by static data files — fields managed by the DB are omitted */
+export type StaticItemData = Omit<ItemInsert, "user_id" | "curse_description" | "curse_revealed">;
 
 /** True for item types that can have weapon damage dice */
 export function isWeaponType(t: ItemType): boolean {

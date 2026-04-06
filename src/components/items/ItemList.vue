@@ -145,6 +145,7 @@ import {
   Gem,
   Component,
   Handshake,
+  UtensilsCrossed,
 } from "lucide-vue-next";
 import FocalImage from "@/components/common/FocalImage.vue";
 import type { ItemType } from "@/types/item.types";
@@ -166,6 +167,7 @@ const ITEM_TYPE_ICONS: Record<ItemType, VueComponent> = {
   vehicle: Truck,
   trade_good: Coins,
   crafting_material: Gem,
+  provision: UtensilsCrossed,
   service: Handshake,
 };
 

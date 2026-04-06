@@ -155,10 +155,11 @@ export function useImportSrdItems() {
   return useMutation({
     mutationFn: async () => {
       const { fetchSrdItems } = await import("@/lib/open5eImport");
-      const { MUNDANE_GEAR } = await import("@/data/mundaneGear");
+      const { GEAR } = await import("@/data/gear");
+      const { PROVISIONS } = await import("@/data/provisions");
       const { SERVICES } = await import("@/data/services");
       const apiItems = await fetchSrdItems();
-      const items = [...apiItems, ...MUNDANE_GEAR, ...SERVICES];
+      const items = [...apiItems, ...GEAR, ...PROVISIONS, ...SERVICES];
 
       // Check which names already exist — match by name only (no source filter)
       // so that re-imports correctly find previously imported items regardless of
