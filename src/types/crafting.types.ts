@@ -44,7 +44,10 @@ export type CraftingOutputInsert = Omit<CraftingOutput, "id">;
 export interface CraftingIngredient {
   id: string;
   recipe_id: string;
-  item_id: string;
+  /** Specific item required. Exactly one of item_id / tag must be set. */
+  item_id: string | null;
+  /** Tag-based ingredient: any item whose tags include this value. */
+  tag: string | null;
   quantity: number;
 }
 

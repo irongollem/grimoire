@@ -236,7 +236,8 @@
           >
           <span v-else class="w-10 shrink-0" />
           <span class="flex-1 font-fell text-sm text-foreground truncate">
-            {{ itemById(ing.item_id)?.name ?? "Unknown item" }}
+            <span v-if="ing.item_id">{{ itemById(ing.item_id)?.name ?? "Unknown item" }}</span>
+            <span v-else class="italic text-muted-foreground">any "{{ ing.tag }}"</span>
           </span>
           <input
             v-model.number="ing.quantity"
@@ -254,14 +255,14 @@
           </button>
         </div>
 
-        <!-- Add ingredient -->
+        <!-- Add ingredient by specific item -->
         <div class="relative mt-1">
           <Search
             class="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none"
           />
           <input
             v-model="ingredientSearch"
-            placeholder="Add ingredient…"
+            placeholder="Add specific item…"
             class="w-full bg-muted border border-border rounded-md pl-9 pr-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
@@ -291,6 +292,30 @@
           >
             No items found.
           </p>
+        </div>
+
+        <!-- Add ingredient by tag -->
+        <div class="flex items-center gap-2 mt-1">
+          <div class="relative flex-1">
+            <Tag
+              class="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none"
+            />
+            <input
+              v-model="tagIngredientInput"
+              placeholder='Add by tag (e.g. "meat")…'
+              class="w-full bg-muted border border-border rounded-md pl-9 pr-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              @keydown.enter.prevent="addTagIngredient"
+            />
+          </div>
+          <button
+            type="button"
+            :disabled="!tagIngredientInput.trim()"
+            class="shrink-0 inline-flex items-center gap-1 px-3 py-2 rounded-md bg-muted border border-border font-cinzel text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
+            @click="addTagIngredient"
+          >
+            <Plus class="h-3.5 w-3.5" />
+            Add tag
+          </button>
         </div>
       </div>
     </div>
@@ -352,13 +377,14 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { Lock, Plus, Save, Search, Trash2, Wrench } from "lucide-vue-next";
+import { Lock, Plus, Save, Search, Tag, Trash2, Wrench } from "lucide-vue-next";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
 import {
   CRAFTING_DISCIPLINES,
   getDiscipline,
 } from "@/lib/crafting-disciplines";
+import { useUiStore } from "@/stores/ui";
 import { useItems } from "@/composables/useItems";
 import {
   useCreateRecipe,
@@ -381,6 +407,8 @@ const emit = defineEmits<{ saved: [id: string] }>();
 const isNew = computed(() => !props.recipe);
 const recipeId = computed(() => props.recipe?.id);
 
+const ui = useUiStore();
+
 const { data: allItems } = useItems();
 
 // Load existing sub-resources when editing
@@ -402,7 +430,7 @@ const saving = computed(() => isCreating.value || isUpdating.value);
 const form = ref({
   name: props.recipe?.name ?? "",
   description: props.recipe?.description ?? "",
-  discipline: (props.recipe?.discipline ?? "smithing") as CraftingDiscipline,
+  discipline: (props.recipe?.discipline ?? (ui.workshopActiveTab !== "all" ? ui.workshopActiveTab : "smithing")) as CraftingDiscipline,
   dc: props.recipe?.dc ?? 10,
   crafting_time_days: props.recipe?.crafting_time_days ?? 1,
   requires_proficiency: props.recipe?.requires_proficiency ?? false,
@@ -411,7 +439,7 @@ const form = ref({
   player_visible_to: props.recipe?.player_visible_to ?? null,
 });
 
-const ingredients = ref<{ item_id: string; quantity: number }[]>([]);
+const ingredients = ref<{ item_id: string | null; tag: string | null; quantity: number }[]>([]);
 const modifiers = ref<{ description: string; bonus: number }[]>([]);
 const outputs = ref<{ item_id: string; quantity: number }[]>([]);
 
@@ -442,6 +470,7 @@ watch(
     if (data && ingredients.value.length === 0) {
       ingredients.value = data.map((i) => ({
         item_id: i.item_id,
+        tag: i.tag,
         quantity: i.quantity,
       }));
     }
@@ -480,6 +509,7 @@ const activeDiscipline = computed(() => getDiscipline(form.value.discipline));
 // Item search
 const outputSearch = ref("");
 const ingredientSearch = ref("");
+const tagIngredientInput = ref("");
 
 const items = computed(() => allItems.value ?? []);
 
@@ -518,9 +548,21 @@ function addIngredient(itemId: string) {
   if (existing) {
     existing.quantity += 1;
   } else {
-    ingredients.value.push({ item_id: itemId, quantity: 1 });
+    ingredients.value.push({ item_id: itemId, tag: null, quantity: 1 });
   }
   ingredientSearch.value = "";
+}
+
+function addTagIngredient() {
+  const tag = tagIngredientInput.value.trim();
+  if (!tag) return;
+  const existing = ingredients.value.find((i) => i.tag === tag);
+  if (existing) {
+    existing.quantity += 1;
+  } else {
+    ingredients.value.push({ item_id: null, tag, quantity: 1 });
+  }
+  tagIngredientInput.value = "";
 }
 
 function removeIngredient(idx: number) {

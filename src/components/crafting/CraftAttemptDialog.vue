@@ -37,7 +37,7 @@
               >
                 <component :is="ing.matched ? CheckCircle : XCircle" class="h-4 w-4 shrink-0" :class="ing.matched ? 'text-elven-green' : 'text-destructive'" />
                 <div class="flex-1 min-w-0">
-                  <p class="font-cinzel text-xs font-semibold text-foreground truncate">{{ ing.itemName }}</p>
+                  <p class="font-cinzel text-xs font-semibold text-foreground truncate" :class="{ italic: !ing.item_id }">{{ ing.itemName }}</p>
                   <p class="font-fell text-[10px] text-muted-foreground">Need {{ ing.needed }}×<span v-if="ing.matched"> · Have {{ ing.available }}×</span></p>
                 </div>
                 <span v-if="idx === 0" class="font-cinzel text-[9px] text-primary tracking-wider shrink-0">PRIMARY</span>
@@ -198,7 +198,7 @@ const props = defineProps<{
   /** Output items produced on success */
   outputs: CraftingOutput[];
   /** Required ingredients from the recipe definition */
-  requiredIngredients: { item_id: string; quantity: number }[];
+  requiredIngredients: { item_id: string | null; tag: string | null; quantity: number }[];
   modifiers: CraftingModifier[];
   /** Player's full inventory (carried items) */
   inventory: PartyInventoryItem[];
@@ -244,12 +244,29 @@ const effectiveProfBonus = computed(() => props.hasProficiency ? profBonus.value
 // Match each required ingredient to inventory items
 const ingredientSlots = computed(() =>
   props.requiredIngredients.map((req) => {
-    const itemName = props.allItems.find((i) => i.id === req.item_id)?.name ?? "Unknown item";
-    const available = props.inventory
-      .filter((inv) => inv.item_id === req.item_id && !inv.is_ruined)
-      .reduce((sum, inv) => sum + inv.quantity, 0);
+    let itemName: string;
+    let available: number;
+
+    if (req.item_id) {
+      itemName = props.allItems.find((i) => i.id === req.item_id)?.name ?? "Unknown item";
+      available = props.inventory
+        .filter((inv) => inv.item_id === req.item_id && !inv.is_ruined)
+        .reduce((sum, inv) => sum + inv.quantity, 0);
+    } else {
+      // Tag-based: any non-ruined inventory item whose vault item has the tag
+      itemName = `Any "${req.tag}"`;
+      available = props.inventory
+        .filter((inv) => {
+          if (inv.is_ruined) return false;
+          const def = props.allItems.find((i) => i.id === inv.item_id);
+          return def?.tags?.includes(req.tag!) ?? false;
+        })
+        .reduce((sum, inv) => sum + inv.quantity, 0);
+    }
+
     return {
       item_id: req.item_id,
+      tag: req.tag,
       itemName,
       needed: req.quantity,
       available,
@@ -286,9 +303,17 @@ function resolveInventoryIds(): { ids: string[]; primaryId: string; primaryItem:
 
   for (const req of props.requiredIngredients) {
     let remaining = req.quantity;
-    const matchingItems = props.inventory
-      .filter((inv) => inv.item_id === req.item_id && !inv.is_ruined)
-      .sort((a, b) => b.quantity - a.quantity);
+    const matchingItems = req.item_id
+      ? props.inventory
+          .filter((inv) => inv.item_id === req.item_id && !inv.is_ruined)
+          .sort((a, b) => b.quantity - a.quantity)
+      : props.inventory
+          .filter((inv) => {
+            if (inv.is_ruined) return false;
+            const def = props.allItems.find((i) => i.id === inv.item_id);
+            return def?.tags?.includes(req.tag!) ?? false;
+          })
+          .sort((a, b) => b.quantity - a.quantity);
 
     for (const inv of matchingItems) {
       if (remaining <= 0) break;

@@ -125,11 +125,11 @@
                 class="h-3.5 w-3.5 shrink-0"
                 :class="hasEnough(ing) ? 'text-elven-green' : 'text-destructive'"
               />
-              <span class="font-fell text-xs text-foreground flex-1 truncate">
-                {{ itemName(ing.item_id) }}
+              <span class="font-fell text-xs text-foreground flex-1 truncate" :class="{ italic: !ing.item_id }">
+                {{ ingredientLabel(ing) }}
               </span>
               <span class="font-cinzel text-[10px] text-muted-foreground shrink-0">
-                {{ ownedCount(ing.item_id) }}/{{ ing.quantity }}
+                {{ ownedCount(ing) }}/{{ ing.quantity }}
               </span>
             </div>
             <p v-if="ingredientsFor(recipe.id).length === 0" class="font-fell text-xs text-muted-foreground italic">
@@ -284,14 +284,29 @@ function itemName(itemId: string): string {
   return allItems.value?.find((i) => i.id === itemId)?.name ?? "Unknown item";
 }
 
-function ownedCount(itemId: string): number {
+function ingredientLabel(ing: CraftingIngredient): string {
+  if (ing.item_id) return itemName(ing.item_id);
+  return `Any "${ing.tag}"`;
+}
+
+function ownedCount(ing: CraftingIngredient): number {
+  if (ing.item_id) {
+    return myInventory.value
+      .filter((i) => i.item_id === ing.item_id && !i.is_ruined)
+      .reduce((sum, i) => sum + i.quantity, 0);
+  }
+  // Tag-based: sum all non-ruined inventory items whose vault definition has the tag
   return myInventory.value
-    .filter((i) => i.item_id === itemId && !i.is_ruined)
+    .filter((i) => {
+      if (i.is_ruined) return false;
+      const def = allItems.value?.find((a) => a.id === i.item_id);
+      return def?.tags?.includes(ing.tag!) ?? false;
+    })
     .reduce((sum, i) => sum + i.quantity, 0);
 }
 
 function hasEnough(ing: CraftingIngredient): boolean {
-  return ownedCount(ing.item_id) >= ing.quantity;
+  return ownedCount(ing) >= ing.quantity;
 }
 
 function canCraft(recipe: CraftingRecipe): boolean {
