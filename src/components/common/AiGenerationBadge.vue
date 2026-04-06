@@ -64,10 +64,8 @@ import { useRouter } from "vue-router";
 import { Sparkles, CheckCircle, AlertCircle, X } from "lucide-vue-next";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { getAiGeneratorRegistry } from "@/ai/aiGeneratorRegistry";
-import { useUiStore } from "@/stores/ui";
 
 const router = useRouter();
-const ui = useUiStore();
 const registry = getAiGeneratorRegistry();
 
 // Show a pill for completed or errored generators (in-progress is shown in the sidebar spinner)

@@ -38,7 +38,7 @@
       <!-- Generating state -->
       <div v-if="isGenerating" class="flex flex-col items-center gap-3 py-6">
         <Sparkles class="h-8 w-8 text-primary animate-pulse" />
-        <p class="font-fell text-sm text-muted-foreground italic">{{ statusText }}</p>
+        <p class="font-fell text-sm text-muted-foreground italic">{{ currentLoadingQuote }}</p>
       </div>
 
       <!-- Actions -->
@@ -66,9 +66,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref } from "vue";
 import { X, Sparkles } from "lucide-vue-next";
 import { useNpcGeneration } from "./useNpcGeneration";
+import { currentLoadingQuote } from "./aiGenerationState";
 import type { NpcAiGenerated } from "./types";
 
 const props = defineProps<{
@@ -82,14 +83,7 @@ const emit = defineEmits<{
 }>();
 
 const prompt = ref("");
-const { isGenerating, error, phase, generate } = useNpcGeneration();
-
-const STATUS_MESSAGES: Record<string, string> = {
-  text:   "Conjuring character details…",
-  image:  "Painting the portrait…",
-  upload: "Storing the portrait…",
-};
-const statusText = computed(() => STATUS_MESSAGES[phase.value] ?? "Working…");
+const { isGenerating, error, generate } = useNpcGeneration();
 
 async function run() {
   if (!prompt.value.trim()) return;
