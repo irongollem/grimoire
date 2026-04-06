@@ -3,7 +3,11 @@
     <div class="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
       <!-- Left: image -->
       <div class="flex flex-col gap-3 lg:sticky lg:top-6">
-        <div v-if="item.image_url" class="w-full rounded-lg overflow-hidden" style="aspect-ratio: 2/3; max-height: 75vh">
+        <div
+          v-if="item.image_url"
+          class="w-full rounded-lg overflow-hidden"
+          style="aspect-ratio: 2/3; max-height: 75vh"
+        >
           <FocalImage
             :src="item.image_url"
             :focal-point="item.image_focal_point"
@@ -60,8 +64,9 @@
           v-if="item.requires_attunement"
           class="font-stat text-[15px] text-primary italic"
         >
-          Requires attunement<span v-if="item.attunement_requirements">
-            {{ item.attunement_requirements }}</span
+          Requires attunement
+          <span v-if="item.attunement_requirements"
+            >- {{ item.attunement_requirements }}</span
           >
         </div>
 
@@ -76,11 +81,15 @@
             Weapon
           </h3>
           <p v-if="item.damage_rolls?.length" class="font-stat text-[15px]">
-            {{
-              item.damage_rolls.map((r) => `${r.dice} ${r.type}`).join(" + ")
-            }}<span v-if="item.versatile_damage" class="text-muted-foreground"> ({{ item.versatile_damage }} two-handed)</span>
+            {{ item.damage_rolls.map((r) => `${r.dice} ${r.type}`).join(" + ")
+            }}<span v-if="item.versatile_damage" class="text-muted-foreground">
+              ({{ item.versatile_damage }} two-handed)</span
+            >
           </p>
-          <p v-if="item.weapon_range" class="font-stat text-[14px] text-muted-foreground">
+          <p
+            v-if="item.weapon_range"
+            class="font-stat text-[14px] text-muted-foreground"
+          >
             Range: {{ item.weapon_range }}
           </p>
           <p
@@ -115,9 +124,9 @@
             {{ item.item_type === "ammunition" ? "Quantity" : "Charges" }}
           </h3>
           <p class="font-stat text-[15px]">
-            {{ item.charges }}<span v-if="item.item_type !== 'ammunition'"> charges</span><span v-if="item.recharge">
-              · {{ item.recharge }}</span
-            >
+            {{ item.charges
+            }}<span v-if="item.item_type !== 'ammunition'"> charges</span
+            ><span v-if="item.recharge"> · {{ item.recharge }}</span>
           </p>
         </div>
 
@@ -137,7 +146,9 @@
           class="rounded-lg border border-destructive/30 bg-destructive/5 p-4 flex flex-col gap-3"
         >
           <div class="flex items-center justify-between gap-2">
-            <h3 class="font-cinzel text-xs font-bold tracking-wider text-destructive uppercase">
+            <h3
+              class="font-cinzel text-xs font-bold tracking-wider text-destructive uppercase"
+            >
               Curse
             </h3>
             <button
@@ -145,14 +156,20 @@
               type="button"
               :disabled="isTogglingReveal"
               class="inline-flex items-center gap-1.5 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider border transition-colors disabled:opacity-50"
-              :class="item.curse_revealed
-                ? 'border-amber-500/50 text-amber-500 hover:bg-amber-500/10'
-                : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'"
+              :class="
+                item.curse_revealed
+                  ? 'border-amber-500/50 text-amber-500 hover:bg-amber-500/10'
+                  : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+              "
               @click="toggleReveal"
             >
               <Eye v-if="item.curse_revealed" class="h-3 w-3" />
               <EyeOff v-else class="h-3 w-3" />
-              {{ item.curse_revealed ? 'Revealed to players' : 'Hidden from players' }}
+              {{
+                item.curse_revealed
+                  ? "Revealed to players"
+                  : "Hidden from players"
+              }}
             </button>
           </div>
           <RichTextViewer :content="item.curse_description" />
@@ -168,8 +185,11 @@
             target="_blank"
             rel="noopener noreferrer"
             class="hover:text-foreground hover:underline transition-colors"
-          >{{ itemSourceLabel(item.source, item.source_title) }}</a>
-          <span v-else>{{ itemSourceLabel(item.source, item.source_title) }}</span>
+            >{{ itemSourceLabel(item.source, item.source_title) }}</a
+          >
+          <span v-else>{{
+            itemSourceLabel(item.source, item.source_title)
+          }}</span>
         </div>
       </div>
     </div>
@@ -191,10 +211,18 @@ import {
 } from "@/types/item.types";
 import type { Item } from "@/types/item.types";
 
-const props = defineProps<{ item: Item; playerView?: boolean; priceOverride?: string | null }>();
+const props = defineProps<{
+  item: Item;
+  playerView?: boolean;
+  priceOverride?: string | null;
+}>();
 
-const rarityColor = computed(() => RARITY_COLORS[props.item.rarity] ?? "#888888");
-const displayCost = computed(() => props.priceOverride ?? props.item.cost ?? null);
+const rarityColor = computed(
+  () => RARITY_COLORS[props.item.rarity] ?? "#888888",
+);
+const displayCost = computed(
+  () => props.priceOverride ?? props.item.cost ?? null,
+);
 
 const { mutateAsync: updateItem } = useUpdateItem();
 const isTogglingReveal = ref(false);
@@ -202,7 +230,10 @@ const isTogglingReveal = ref(false);
 async function toggleReveal() {
   isTogglingReveal.value = true;
   try {
-    await updateItem({ id: props.item.id, update: { curse_revealed: !props.item.curse_revealed } });
+    await updateItem({
+      id: props.item.id,
+      update: { curse_revealed: !props.item.curse_revealed },
+    });
   } finally {
     isTogglingReveal.value = false;
   }
