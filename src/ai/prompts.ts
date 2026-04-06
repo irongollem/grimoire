@@ -77,44 +77,95 @@ Legendary resistance, legendary actions, and lair actions are reserved for boss-
 
 Return only the JSON object. No markdown fences, no explanation.`;
 
-export const ITEM_SYSTEM_PROMPT = `You are a creative assistant for Dungeons & Dragons 5e campaign management.
+export const ITEM_SYSTEM_PROMPT = `You generate Dungeons & Dragons 5e items for campaign management.
 
-Generate a detailed magic or mundane item based on the dungeon master's description. Return a single JSON object with exactly these fields:
+Return exactly one valid JSON object and no other text.
+
+The JSON object must contain exactly these fields:
 
 {
-  "name": "Full item name",
-  "item_type": "One of: weapon, armor, shield, potion, wondrous_item, ring, rod, staff, wand, scroll, ammunition, gear, tool, vehicle, trade_good, crafting_material",
-  "subtype": "Specific subtype e.g. 'longsword', 'chain mail', 'saddle' — or null",
-  "rarity": "One of: mundane, common, uncommon, rare, very_rare, legendary, artifact",
-  "requires_attunement": <true or false — only true for magic items that require it>,
-  "attunement_requirements": "Restrictions on who can attune e.g. 'by a spellcaster' — or null if no restrictions or not attuned",
-  "weight": "Weight string e.g. '3 lb.' — or null if not applicable",
-  "cost": "Market value e.g. '50 gp' — or null if priceless or unknown",
-  "damage_rolls": [{ "dice": "1d8", "type": "slashing" }],
-  "armor_class": "AC expression e.g. '16' or '13 + DEX modifier (max 2)' — or null if not armor/shield",
-  "properties": ["finesse", "versatile"],
-  "weapon_range": "Normal/long range string e.g. '80/320 ft.' for ranged weapons — or null",
-  "versatile_damage": "Two-handed damage dice e.g. '1d10' for versatile weapons — or null",
-  "charges": <number of max charges, or null if none>,
-  "recharge": "How charges recharge e.g. 'Regains 1d6+4 charges daily at dawn' — or null",
-  "description": "2–3 paragraphs: item history, appearance, and mechanical flavour. For magic items include how the magic manifests. Separate paragraphs with a blank line. Plain text only.",
-  "curse_description": "DM-facing description of the curse: what it does, how it activates, and how it can be removed — or null if the item is not cursed.",
-  "tags": ["3 to 5 short descriptive tags"],
-  "image_prompt": "A concise illustration description for image generation. Describe the item only: shape, materials, markings, glow, or other visual details. No style or art direction."
+  "name": "string",
+  "item_type": "weapon|armor|shield|potion|wondrous_item|ring|rod|staff|wand|scroll|ammunition|gear|tool|vehicle|trade_good|crafting_material",
+  "subtype": "string or null",
+  "rarity": "mundane|common|uncommon|rare|very_rare|legendary|artifact",
+  "requires_attunement": "boolean",
+  "attunement_requirements": "string or null",
+  "weight": "string or null",
+  "cost": "string",
+  "damage_rolls": "array of objects with keys dice and type, or null",
+  "armor_class": "string or null",
+  "properties": "array of strings",
+  "weapon_range": "string or null",
+  "versatile_damage": "string or null",
+  "charges": "number or null",
+  "recharge": "string or null",
+  "description": "string",
+  "game_benefits": "string",
+  "curse_description": "string or null",
+  "tags": "array of 3 to 5 short strings",
+  "image_prompt": "string"
 }
 
-Rules:
-- damage_rolls: array of { dice, type } objects for weapons/ammunition only — null for everything else. dice is a string like '1d8'. type is the damage type.
-- properties: array of weapon property strings for weapons only — empty array [] for non-weapons. Valid values: ammunition, finesse, heavy, light, loading, reach, special, thrown, two-handed, versatile, silvered, adamantine.
-- weapon_range: range string for ranged weapons (those with "ammunition" or "thrown" property) e.g. "80/320 ft." — null for melee weapons and non-weapons.
-- versatile_damage: two-handed damage dice (just the dice string, e.g. "1d10") for weapons with the "versatile" property — null for all other items.
-- armor_class: only for armor and shield types — null for everything else.
-- requires_attunement: false for mundane items and most common items. True only when the item's magic requires the wielder to bond with it.
-- charges/recharge: only for staves, wands, rods, rings, and wondrous items with limited-use powers. null for everything else.
-- rarity should match the item's power level: mundane = no magic, common = minor utility, uncommon = notable power, rare = strong magic, very_rare = very powerful, legendary = campaign-defining, artifact = one-of-a-kind.
-- curse_description: populate only when the concept clearly implies a cursed, corrupted, or sinister item. Describe the curse effect, trigger condition, and removal method (typically remove curse spell). Set to null for all non-cursed items.
+Field purpose:
+- description: appearance, materials, origin, symbolism, and lore only.
+- game_benefits: beneficial mechanics only.
+- curse_description: curse mechanics only, or null.
 
-Return only the JSON object. No markdown fences, no explanation.`;
+Hard rules:
+- Return valid parseable JSON only.
+- Do not wrap the response in markdown.
+- Do not include any extra keys.
+- Do not include explanations before or after the JSON.
+
+Content separation rules:
+- description must contain only flavor text: physical appearance, craftsmanship, origin, history, cultural meaning, or non-mechanical lore.
+- description must not contain mechanics, activation instructions, numbers tied to bonuses, durations, charges, recharge text, action types, saving throws, DCs, advantage/disadvantage language, resistances, immunities, spellcasting rules, or curse hints.
+- game_benefits must contain only beneficial player-facing mechanics written in clear D&D 5e rules language.
+- game_benefits must state exact mechanics, including activation, action type, duration, frequency, charges, recharge, limits, save DC, range, targets, or passive nature whenever relevant.
+- game_benefits must not contain lore, history, appearance, symbolism, story, drawback text, or curse text.
+- curse_description must contain only the curse: trigger, exact mechanical effect, duration, and removal method.
+- curse_description must not repeat the item's normal lore or beneficial mechanics except where necessary to explain the curse trigger.
+- If the item is not clearly cursed and the user does not ask for a curse, set curse_description to null.
+
+Precision rules:
+- Every beneficial effect must be directly usable at the table without DM interpretation.
+- Avoid vague phrases unless immediately defined in exact 5e mechanics.
+- Bad examples of vague wording: "grants swiftness", "offers strength", "bestows stealth", "guidance in survival", "bolsters capabilities", "in dire situations".
+- If the item grants a bonus, specify the exact bonus and what it applies to.
+- If the item grants advantage, specify the exact checks, attacks, or saving throws.
+- If the item allows casting a spell, specify the spell name, frequency, and recharge if applicable.
+- If the item has multiple modes, describe each mode explicitly and state whether more than one can be active at once.
+- If no activation is required, say the effect is passive.
+- If an item uses charges, the charges, recharge, and game_benefits fields must agree exactly.
+
+Type rules:
+- cost should be a fitting amount in the dnd universe in gp
+- damage_rolls applies only to weapons or ammunition; otherwise use null.
+- properties applies only to weapons; use [] for non-weapons.
+- weapon_range applies only to ranged or thrown weapons; otherwise use null.
+- versatile_damage applies only to weapons with the versatile property; otherwise use null.
+- armor_class applies only to armor or shields; otherwise use null.
+- charges and recharge apply only to limited-use items; otherwise use null.
+- requires_attunement must be true only if the item actually requires attunement; otherwise false.
+- attunement_requirements must be null unless there is a specific restriction.
+- rarity must match power level.
+
+Power guidelines:
+- mundane: no magic
+- common: minor utility
+- uncommon: modest useful magic
+- rare: strong magic
+- very_rare: very powerful magic
+- legendary: campaign-defining power
+- artifact: unique exceptional power
+
+Final check before answering:
+1. description contains no mechanics or curse hints
+2. game_benefits contains all beneficial mechanics
+3. curse_description contains only curse mechanics or null
+4. all mechanics are precise and table-usable
+
+Return only the JSON object.`;
 
 /** Injected at the front of every image generation prompt. */
 export const IMAGE_BASE_PROMPT =

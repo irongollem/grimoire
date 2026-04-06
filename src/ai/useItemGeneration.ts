@@ -87,6 +87,11 @@ export function useItemGeneration() {
       const chatData = await chatRes.json();
       const result = JSON.parse(chatData.choices[0].message.content) as ItemAiResult;
 
+      // Merge game_benefits into description as a separate paragraph
+      if (result.game_benefits) {
+        result.description = `${result.description}\n\n${result.game_benefits}`;
+      }
+
       // Honour explicit user overrides
       if (options?.item_type) result.item_type = options.item_type as ItemAiResult["item_type"];
       if (options?.rarity) result.rarity = options.rarity as ItemAiResult["rarity"];
@@ -96,6 +101,7 @@ export function useItemGeneration() {
       let image_url: string | null = null;
 
       if (wantImage) {
+        startAiQuotes("image");
         const imagePrompt = [IMAGE_BASE_PROMPT, settingPrompt, result.image_prompt]
           .filter(Boolean)
           .join(" — ");

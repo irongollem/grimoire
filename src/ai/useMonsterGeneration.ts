@@ -97,6 +97,7 @@ export function useMonsterGeneration() {
       let image_url: string | null = null;
 
       if (wantImage) {
+        startAiQuotes("image");
         const imagePrompt = [IMAGE_BASE_PROMPT, settingPrompt, result.image_prompt]
           .filter(Boolean)
           .join(" — ");

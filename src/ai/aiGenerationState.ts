@@ -19,33 +19,51 @@ import type { Ref } from "vue";
 
 // ── Rotating quotes ─────────────────────────────────────────────────────────
 
-const LOADING_QUOTES = [
+const TEXT_QUOTES = [
   "Conjuring character details…",
-  "Painting the portrait…",
-  "Adding a suspicious moustache…",
   "Forging a questionable backstory…",
   "Consulting the tavern gossip…",
   "Rolling for personality…",
-  "Sewing a dramatic cloak…",
   "Inventing a mysterious scar…",
   "Browsing the rogues' gallery…",
   "Rehearsing the villain monologue…",
   "Picking a suspiciously convenient name…",
-  "Visiting the character barber…",
   "Bribing the local scribe…",
   "Negotiating with the character's conscience…",
   "Sharpening the plot hooks…",
   "Consulting the oracle (on a budget)…",
+  "Thumbing through the monster manual…",
+  "Cross-referencing the arcane registry…",
+  "Querying the Hall of Records…",
+  "Dusting off the lore tomes…",
 ];
 
+const IMAGE_QUOTES = [
+  "Mixing magical pigments…",
+  "Posing the subject under a dramatic torch…",
+  "Adding a suspicious moustache…",
+  "Visiting the character barber…",
+  "Draping a mysteriously ominous cloak…",
+  "Arguing about lighting with the court painter…",
+  "Touching up the glowing runes…",
+  "Adjusting the focal point of the enchanted canvas…",
+  "Picking the right shade of menacing shadow…",
+  "Convincing the subject to hold still…",
+  "Sourcing the correct shade of villainous purple…",
+  "Framing the ideal heroic silhouette…",
+];
+
+const _quotePool = ref<string[]>(TEXT_QUOTES);
 const _quoteIndex = ref(0);
 let _quoteInterval: ReturnType<typeof setInterval> | null = null;
 
 /** Start cycling the loading quotes. Call when generation begins. */
-export function startAiQuotes() {
-  _quoteIndex.value = Math.floor(Math.random() * LOADING_QUOTES.length);
+export function startAiQuotes(phase: "text" | "image" = "text") {
+  const pool = phase === "image" ? IMAGE_QUOTES : TEXT_QUOTES;
+  _quotePool.value = pool;
+  _quoteIndex.value = Math.floor(Math.random() * pool.length);
   _quoteInterval = setInterval(() => {
-    _quoteIndex.value = (_quoteIndex.value + 1) % LOADING_QUOTES.length;
+    _quoteIndex.value = (_quoteIndex.value + 1) % _quotePool.value.length;
   }, 3000);
 }
 
@@ -59,7 +77,7 @@ export function stopAiQuotes() {
 
 /** Current rotating flavor quote — import this wherever a loading state is displayed. */
 export const currentLoadingQuote = computed(
-  () => LOADING_QUOTES[_quoteIndex.value],
+  () => _quotePool.value[_quoteIndex.value],
 );
 
 // ── Per-generator state factory ─────────────────────────────────────────────

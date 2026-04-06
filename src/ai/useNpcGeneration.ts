@@ -132,6 +132,7 @@ export function useNpcGeneration() {
       ) as NpcAiResult;
 
       // ── 2. Generate portrait ───────────────────────────────────────
+      startAiQuotes("image");
       const imagePrompt = [
         IMAGE_BASE_PROMPT,
         settingPrompt,
