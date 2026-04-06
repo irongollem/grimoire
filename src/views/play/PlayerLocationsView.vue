@@ -89,6 +89,12 @@
             <RichTextViewer :content="entry.loc.description" />
           </div>
 
+          <!-- Wares (store / tavern / inn when inventory shared) -->
+          <div v-if="STORE_LOCATION_TYPES.has(entry.loc.location_type) && entry.loc.is_inventory_shared" class="border-t border-border pt-3">
+            <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-2">Wares</p>
+            <PlayerStoreWares :location-id="entry.loc.id" />
+          </div>
+
           <!-- Linked NPCs (when shared) -->
           <div v-if="entry.loc.is_npcs_shared" class="border-t border-border pt-3">
             <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-2">People in the Area</p>
@@ -194,7 +200,7 @@ import { ref, computed } from "vue";
 import { ChevronDown, X } from "lucide-vue-next";
 import { useSharedLocations } from "@/composables/useLocations";
 import { useSharedNpcsByLocations } from "@/composables/useNpcs";
-import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
+import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS, STORE_LOCATION_TYPES } from "@/types/location.types";
 import type { Location, LocationType } from "@/types/location.types";
 
 interface WatchTarget {
@@ -205,6 +211,7 @@ interface WatchTarget {
   player_summary: string | null;
 }
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import PlayerStoreWares from "@/components/locations/PlayerStoreWares.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";

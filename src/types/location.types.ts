@@ -9,10 +9,16 @@ export type LocationType =
   | "village"
   | "district"
   | "building"
+  | "store"
+  | "tavern"
+  | "inn"
   | "room"
   | "dungeon"
   | "wilderness"
   | "other";
+
+/** Location types that can hold a store inventory. */
+export const STORE_LOCATION_TYPES = new Set<LocationType>(["store", "tavern", "inn"]);
 
 export const LOCATION_TYPE_LABELS: Record<LocationType, string> = {
   world:      "World",
@@ -25,6 +31,9 @@ export const LOCATION_TYPE_LABELS: Record<LocationType, string> = {
   village:    "Village",
   district:   "District",
   building:   "Building",
+  store:      "Store",
+  tavern:     "Tavern",
+  inn:        "Inn",
   room:       "Room",
   dungeon:    "Dungeon",
   wilderness: "Wilderness",
@@ -42,6 +51,9 @@ export const LOCATION_TYPE_COLORS: Record<LocationType, string> = {
   village:    "#9333ea",
   district:   "#c026d3",
   building:   "#b45309",
+  store:      "#d97706",
+  tavern:     "#b45309",
+  inn:        "#92400e",
   room:       "#92400e",
   dungeon:    "#991b1b",
   wilderness: "#15803d",
@@ -82,6 +94,7 @@ export interface Location {
   player_summary: string | null;
   is_description_shared: boolean;
   is_npcs_shared: boolean;
+  is_inventory_shared: boolean;
   created_at: string;
   updated_at: string;
 }

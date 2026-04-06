@@ -38,9 +38,9 @@
             <span class="text-muted-foreground">Weight</span>
             <span>{{ item.weight }}</span>
           </div>
-          <div v-if="item.cost" class="flex justify-between">
+          <div v-if="displayCost" class="flex justify-between">
             <span class="text-muted-foreground">Cost</span>
-            <span>{{ item.cost }}</span>
+            <span>{{ displayCost }}</span>
           </div>
         </div>
         <div v-if="item.tags?.length" class="flex flex-wrap gap-1">
@@ -131,9 +131,9 @@
           <RichTextViewer :content="item.description" />
         </div>
 
-        <!-- Curse (DM always sees it; badge shows player visibility) -->
+        <!-- Curse (DM always sees it; players only see it when revealed) -->
         <div
-          v-if="item.curse_description"
+          v-if="item.curse_description && (!playerView || item.curse_revealed)"
           class="rounded-lg border border-destructive/30 bg-destructive/5 p-4 flex flex-col gap-3"
         >
           <div class="flex items-center justify-between gap-2">
@@ -141,6 +141,7 @@
               Curse
             </h3>
             <button
+              v-if="!playerView"
               type="button"
               :disabled="isTogglingReveal"
               class="inline-flex items-center gap-1.5 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider border transition-colors disabled:opacity-50"
@@ -190,11 +191,10 @@ import {
 } from "@/types/item.types";
 import type { Item } from "@/types/item.types";
 
-const props = defineProps<{ item: Item }>();
+const props = defineProps<{ item: Item; playerView?: boolean; priceOverride?: string | null }>();
 
-const rarityColor = computed(
-  () => RARITY_COLORS[props.item.rarity] ?? "#888888",
-);
+const rarityColor = computed(() => RARITY_COLORS[props.item.rarity] ?? "#888888");
+const displayCost = computed(() => props.priceOverride ?? props.item.cost ?? null);
 
 const { mutateAsync: updateItem } = useUpdateItem();
 const isTogglingReveal = ref(false);
