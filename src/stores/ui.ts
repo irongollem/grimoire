@@ -4,6 +4,7 @@ import type { NoteCategory } from "@/types/notes.types";
 import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
 import type { ScriptoriumDocType } from "@/types/scriptorium.types";
 import type { ItemType, ItemRarity } from "@/types/item.types";
+import type { CraftingDiscipline } from "@/types/crafting.types";
 
 export const useUiStore = defineStore("ui", () => {
   // Notes UI state
@@ -95,6 +96,10 @@ export const useUiStore = defineStore("ui", () => {
     factionsSearch.value = "";
     factionsFilterType.value = "";
   }
+
+  // Workshop (Crafting) UI state
+  const workshopActiveTab = ref<CraftingDiscipline | "all">("all");
+  const playerCraftingActiveTab = ref<CraftingDiscipline | "all">("all");
 
   // Encounter UI state
   const encountersSearch = ref("");
@@ -208,6 +213,10 @@ export const useUiStore = defineStore("ui", () => {
     factionsFilterType,
     factionsHasActiveFilters,
     resetFactionsFilters,
+
+    // Workshop (Crafting)
+    workshopActiveTab,
+    playerCraftingActiveTab,
 
     // Encounters
     encountersSearch,

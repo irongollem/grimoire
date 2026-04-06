@@ -1,14 +1,16 @@
 export type CraftingDiscipline =
   | "alchemy"
   | "smithing"
-  | "leatherworking"
-  | "woodcarving"
+  | "leathercraft"
+  | "woodcraft"
   | "jewelcrafting"
   | "herbalism"
   | "poisoncraft"
   | "tinkering"
   | "cooking"
-  | "scribing";
+  | "scribing"
+  | "brewing"
+  | "weaving";
 
 export interface CraftingRecipe {
   id: string;

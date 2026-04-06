@@ -10,6 +10,8 @@ import {
   Wrench,
   UtensilsCrossed,
   Feather,
+  Wine,
+  Layers,
 } from "lucide-vue-next";
 import type { CraftingDiscipline } from "@/types/crafting.types";
 import type { SaveKey } from "@/types/party.types";
@@ -18,11 +20,13 @@ export interface DisciplineConfig {
   id: CraftingDiscipline;
   label: string;
   icon: Component;
-  tool: string;          // must match item name in inventory for tool check
+  /** All accepted tools — first entry is the primary (used for display). Multiple entries
+   *  mean the player can use any of them for proficiency/inventory checks. */
+  tools: string[];
   ability: SaveKey;      // primary ability for the crafting roll
   description: string;
   workspaceBonus: number;   // standard bonus for having a proper workspace
-  workspaceLabel: string;   // label shown in attempt dialog (e.g. "Proper Kitchen Available")
+  workspaceLabel: string;   // label shown in attempt dialog
 }
 
 export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
@@ -30,7 +34,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
     id: "alchemy",
     label: "Alchemy",
     icon: FlaskConical,
-    tool: "Alchemist's Supplies",
+    tools: ["Alchemist's Supplies"],
     ability: "int",
     description: "Potions, elixirs, acids, and alchemical concoctions.",
     workspaceBonus: 2,
@@ -40,29 +44,29 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
     id: "smithing",
     label: "Smithing",
     icon: Hammer,
-    tool: "Smith's Tools",
+    tools: ["Smith's Tools"],
     ability: "str",
     description: "Weapons, armour, and metal goods forged at the anvil.",
     workspaceBonus: 3,
     workspaceLabel: "Full forge available",
   },
   {
-    id: "leatherworking",
-    label: "Leatherworking",
+    id: "leathercraft",
+    label: "Leathercraft",
     icon: Scissors,
-    tool: "Leatherworker's Tools",
+    tools: ["Leatherworker's Tools", "Cobbler's Tools"],
     ability: "dex",
-    description: "Leather armour, saddlery, quivers, and straps.",
+    description: "Leather armour, saddlery, quivers, pouches, and footwear.",
     workspaceBonus: 2,
     workspaceLabel: "Equipped leatherworking workshop available",
   },
   {
-    id: "woodcarving",
-    label: "Woodcarving",
+    id: "woodcraft",
+    label: "Woodcraft",
     icon: Axe,
-    tool: "Woodcarver's Tools",
+    tools: ["Woodcarver's Tools", "Carpenter's Tools", "Shipwright's Tools"],
     ability: "dex",
-    description: "Bows, bolts, arrows, staves, and carved wooden items.",
+    description: "Bows, bolts, arrows, staves, furniture, and wooden structures.",
     workspaceBonus: 2,
     workspaceLabel: "Woodworking workshop available",
   },
@@ -70,7 +74,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
     id: "jewelcrafting",
     label: "Jewel Crafting",
     icon: Gem,
-    tool: "Jeweler's Tools",
+    tools: ["Jeweler's Tools", "Gemcutter's Tools"],
     ability: "dex",
     description: "Rings, amulets, gem settings, and fine jewellery.",
     workspaceBonus: 2,
@@ -80,7 +84,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
     id: "herbalism",
     label: "Herbalism",
     icon: Leaf,
-    tool: "Herbalism Kit",
+    tools: ["Herbalism Kit"],
     ability: "wis",
     description: "Healing potions, antitoxins, and natural remedies.",
     workspaceBonus: 2,
@@ -90,7 +94,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
     id: "poisoncraft",
     label: "Poisoncraft",
     icon: Skull,
-    tool: "Poisoner's Kit",
+    tools: ["Poisoner's Kit"],
     ability: "int",
     description: "Contact, ingested, and injury poisons and antidotes.",
     workspaceBonus: 2,
@@ -100,7 +104,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
     id: "tinkering",
     label: "Tinkering",
     icon: Wrench,
-    tool: "Tinker's Tools",
+    tools: ["Tinker's Tools"],
     ability: "int",
     description: "Clockwork devices, traps, and mechanical gadgets.",
     workspaceBonus: 2,
@@ -110,7 +114,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
     id: "cooking",
     label: "Cooking",
     icon: UtensilsCrossed,
-    tool: "Cook's Utensils",
+    tools: ["Cook's Utensils"],
     ability: "wis",
     description: "Meals that grant mechanical benefits: temp HP, advantage, and more.",
     workspaceBonus: 2,
@@ -120,11 +124,31 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
     id: "scribing",
     label: "Scribing",
     icon: Feather,
-    tool: "Calligrapher's Supplies",
+    tools: ["Calligrapher's Supplies", "Bookbinder's Tools", "Scribe's Supplies"],
     ability: "int",
-    description: "Spell scrolls, documents, maps, and illuminated texts.",
+    description: "Spell scrolls, documents, maps, illuminated texts, and bound books.",
     workspaceBonus: 2,
     workspaceLabel: "Scriptorium or proper writing desk available",
+  },
+  {
+    id: "brewing",
+    label: "Brewing",
+    icon: Wine,
+    tools: ["Brewer's Supplies"],
+    ability: "wis",
+    description: "Ales, meads, spirits, and tonics that grant temporary benefits.",
+    workspaceBonus: 2,
+    workspaceLabel: "Brewing facility or equipped tavern available",
+  },
+  {
+    id: "weaving",
+    label: "Weaving",
+    icon: Layers,
+    tools: ["Weaver's Tools", "Tailor's Tools"],
+    ability: "dex",
+    description: "Cloth armour, cloaks, garments, and woven goods with minor boons.",
+    workspaceBonus: 2,
+    workspaceLabel: "Equipped loom or tailoring room available",
   },
 ];
 

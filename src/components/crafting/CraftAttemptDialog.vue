@@ -52,7 +52,7 @@
           >
             <AlertTriangle class="h-4 w-4 text-gold-400 shrink-0 mt-0.5" />
             <p class="font-fell text-xs text-gold-400">
-              You don't have <span class="font-semibold">{{ discipline.tool }}</span> proficiency.
+              You don't have <span class="font-semibold">{{ discipline.tools.join(' or ') }}</span> proficiency.
               No proficiency bonus is added to this roll.
             </p>
           </div>
@@ -64,7 +64,7 @@
           >
             <AlertTriangle class="h-4 w-4 text-gold-400 shrink-0 mt-0.5" />
             <p class="font-fell text-xs text-gold-400">
-              You don't have <span class="font-semibold">{{ discipline.tool }}</span> in your inventory.
+              You don't have <span class="font-semibold">{{ discipline.tools.join(' or ') }}</span> in your inventory.
               This roll is made at <span class="font-semibold">disadvantage</span> (roll twice, take lower).
             </p>
           </div>

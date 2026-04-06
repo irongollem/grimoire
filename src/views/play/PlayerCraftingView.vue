@@ -6,29 +6,39 @@
     </div>
 
     <template v-else>
-      <!-- Discipline tabs -->
+      <!-- Discipline tabs — only disciplines with accessible recipes, plus All -->
       <div class="flex flex-wrap gap-1 mb-6 overflow-x-auto pb-1">
         <button
-          v-for="d in CRAFTING_DISCIPLINES"
+          class="flex items-center gap-1.5 px-3 py-2 rounded-md border font-cinzel text-xs tracking-wide transition-colors shrink-0"
+          :class="ui.playerCraftingActiveTab === 'all'
+            ? 'border-primary bg-primary/10 text-foreground'
+            : 'border-border text-muted-foreground hover:text-foreground hover:border-border/80'"
+          @click="ui.playerCraftingActiveTab = 'all'"
+        >
+          <LayoutList class="h-3.5 w-3.5" />
+          All
+        </button>
+        <button
+          v-for="d in availableDisciplines"
           :key="d.id"
           class="flex items-center gap-1.5 px-3 py-2 rounded-md border font-cinzel text-xs tracking-wide transition-colors shrink-0"
           :class="tabClass(d)"
-          :title="!hasProficiency(d.tool) ? `No ${d.tool} proficiency — no proficiency bonus` : d.label"
-          @click="activeTab = d.id"
+          :title="!hasProficiency(d.tools) ? `No ${d.tools[0]} proficiency — no proficiency bonus` : d.label"
+          @click="ui.playerCraftingActiveTab = d.id"
         >
           <component :is="d.icon" class="h-3.5 w-3.5" />
           {{ d.label }}
-          <span v-if="!hasProficiency(d.tool)" class="font-cinzel text-[9px] text-muted-foreground/60 tracking-wider">NO PROF</span>
+          <span v-if="!hasProficiency(d.tools)" class="font-cinzel text-[9px] text-muted-foreground/60 tracking-wider">NO PROF</span>
         </button>
       </div>
 
-      <!-- Discipline description -->
-      <p class="font-fell text-sm text-muted-foreground italic mb-5">
+      <!-- Discipline description (only when a specific discipline is selected) -->
+      <p v-if="activeDiscipline" class="font-fell text-sm text-muted-foreground italic mb-5">
         {{ activeDiscipline.description }}
         <span class="not-italic ml-1">
           Uses <span class="font-semibold text-foreground">{{ activeDiscipline.ability.toUpperCase() }}</span>
-          ({{ abilityMod >= 0 ? "+" : "" }}{{ abilityMod }})
-          <template v-if="hasProficiency(activeDiscipline.tool)">
+          ({{ abilityModFor(activeDiscipline) >= 0 ? "+" : "" }}{{ abilityModFor(activeDiscipline) }})
+          <template v-if="hasProficiency(activeDiscipline.tools)">
             + Proficiency (+{{ member.proficiency_bonus }}).
           </template>
           <template v-else>
@@ -39,10 +49,15 @@
 
       <!-- Recipes -->
       <div v-if="disciplineRecipes.length === 0" class="rounded-lg border border-border border-dashed px-6 py-10 text-center">
-        <component :is="activeDiscipline.icon" class="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
+        <component
+          :is="activeDiscipline ? activeDiscipline.icon : LayoutList"
+          class="h-8 w-8 text-muted-foreground/40 mx-auto mb-3"
+        />
         <p class="font-cinzel text-sm font-semibold text-muted-foreground">No recipes known</p>
         <p class="font-fell text-xs text-muted-foreground/60 italic mt-1">
-          Your DM can share {{ activeDiscipline.label.toLowerCase() }} recipes with you.
+          {{ activeDiscipline
+            ? `Your DM can share ${activeDiscipline.label.toLowerCase()} recipes with you.`
+            : 'Your DM can share recipes with you.' }}
         </p>
       </div>
 
@@ -55,28 +70,34 @@
           <!-- Card header -->
           <div class="px-4 py-3 border-b border-border bg-muted/20 flex items-start justify-between gap-2">
             <div class="flex-1 min-w-0">
-              <p class="font-cinzel text-sm font-bold text-foreground truncate">{{ recipe.name }}</p>
+              <div class="flex items-center gap-2 mb-0.5">
+                <p class="font-cinzel text-sm font-bold text-foreground truncate">{{ recipe.name }}</p>
+                <span
+                  v-if="!activeDiscipline"
+                  class="shrink-0 font-cinzel text-[10px] tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
+                >{{ getDiscipline(recipe.discipline).label }}</span>
+              </div>
               <p class="font-fell text-xs text-muted-foreground">
                 DC {{ recipe.dc }} · {{ recipe.crafting_time_days }} day{{ recipe.crafting_time_days !== 1 ? "s" : "" }}
                 <span v-if="outputsFor(recipe.id).length"> · → {{ outputsFor(recipe.id).map(o => (o.quantity > 1 ? `${o.quantity}× ` : '') + (itemName(o.item_id))).join(', ') }}</span>
               </p>
             </div>
             <span
-              v-if="recipe.requires_proficiency && !hasProficiency(activeDiscipline.tool)"
+              v-if="recipe.requires_proficiency && !hasProficiency(getDiscipline(recipe.discipline).tools)"
               class="shrink-0 font-cinzel text-[9px] tracking-wider px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
-              :title="`Requires ${activeDiscipline.tool} proficiency`"
+              :title="`Requires ${getDiscipline(recipe.discipline).tools[0]} proficiency`"
             >
               LOCKED
             </span>
             <span
-              v-else-if="recipe.requires_tools && !hasTools(activeDiscipline.tool)"
+              v-else-if="recipe.requires_tools && !hasTools(getDiscipline(recipe.discipline).tools)"
               class="shrink-0 font-cinzel text-[9px] tracking-wider px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
-              :title="`Requires ${activeDiscipline.tool} in inventory`"
+              :title="`Requires ${getDiscipline(recipe.discipline).tools[0]} in inventory`"
             >
               NO TOOLS
             </span>
             <span
-              v-else-if="!hasTools(activeDiscipline.tool)"
+              v-else-if="!hasTools(getDiscipline(recipe.discipline).tools)"
               class="shrink-0 font-cinzel text-[9px] tracking-wider px-1.5 py-0.5 rounded border border-gold-500/40 text-gold-400 bg-gold-500/10"
               title="No tool in inventory — disadvantage"
             >
@@ -120,7 +141,7 @@
           <div class="px-4 py-3 border-t border-border">
             <button
               :disabled="!canCraft(recipe)"
-              :title="recipe.requires_proficiency && !hasProficiency(activeDiscipline.tool) ? `Requires ${activeDiscipline.tool} proficiency` : undefined"
+              :title="recipe.requires_proficiency && !hasProficiency(getDiscipline(recipe.discipline).tools) ? `Requires ${getDiscipline(recipe.discipline).tools[0]} proficiency` : undefined"
               class="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 disabled:opacity-40 transition-opacity"
               @click="openAttempt(recipe)"
             >
@@ -134,7 +155,7 @@
 
     <!-- Attempt dialog -->
     <CraftAttemptDialog
-      v-if="attemptRecipe && member"
+      v-if="attemptRecipe && member && attemptDiscipline"
       :open="!!attemptRecipe"
       :recipe="attemptRecipe"
       :outputs="outputsFor(attemptRecipe.id)"
@@ -143,10 +164,10 @@
       :inventory="myInventory"
       :all-items="allItems ?? []"
       :member="member"
-      :has-tools="hasTools(activeDiscipline.tool)"
-      :has-proficiency="hasProficiency(activeDiscipline.tool)"
-      :workspace-bonus="activeDiscipline.workspaceBonus"
-      :workspace-label="activeDiscipline.workspaceLabel"
+      :has-tools="hasTools(attemptDiscipline.tools)"
+      :has-proficiency="hasProficiency(attemptDiscipline.tools)"
+      :workspace-bonus="attemptDiscipline.workspaceBonus"
+      :workspace-label="attemptDiscipline.workspaceLabel"
       @close="attemptRecipe = null"
       @done="onDone"
     />
@@ -157,7 +178,7 @@
 import { ref, computed } from "vue";
 import { generateHTML } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
-import { CheckCircle, Dices, XCircle } from "lucide-vue-next";
+import { CheckCircle, Dices, LayoutList, XCircle } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import CraftAttemptDialog from "@/components/crafting/CraftAttemptDialog.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting-disciplines";
@@ -177,8 +198,6 @@ const { data: allItems } = useItems();
 const { data: partyMembers } = useParty();
 const { data: inventory } = usePartyInventory();
 
-const activeTab = ref<CraftingDiscipline>("smithing");
-const activeDiscipline = computed(() => getDiscipline(activeTab.value));
 const attemptRecipe = ref<CraftingRecipe | null>(null);
 
 // Resolve current party member
@@ -193,27 +212,46 @@ const myInventory = computed(() =>
   ),
 );
 
-// Ability modifier for active discipline
-const abilityMod = computed(() => {
-  if (!member.value) return 0;
-  const score = member.value[activeDiscipline.value.ability];
-  return Math.floor((score - 10) / 2);
+// Only disciplines that have at least one accessible recipe
+const availableDisciplines = computed(() => {
+  const disciplinesWithRecipes = new Set((recipes.value ?? []).map((r) => r.discipline));
+  return CRAFTING_DISCIPLINES.filter((d) => disciplinesWithRecipes.has(d.id));
 });
 
-// Check tool proficiency on character
-function hasProficiency(tool: string): boolean {
-  return member.value?.tool_proficiencies?.includes(tool) ?? false;
+const activeDiscipline = computed(() =>
+  ui.playerCraftingActiveTab === "all" ? null : getDiscipline(ui.playerCraftingActiveTab as CraftingDiscipline),
+);
+
+// Discipline used for the attempt dialog — derived from the recipe being attempted
+const attemptDiscipline = computed(() =>
+  attemptRecipe.value ? getDiscipline(attemptRecipe.value.discipline) : null,
+);
+
+// Ability modifier for a given discipline
+function abilityModFor(discipline: DisciplineConfig): number {
+  if (!member.value) return 0;
+  const score = member.value[discipline.ability];
+  return Math.floor((score - 10) / 2);
 }
 
-// Check if player has the physical tool item in inventory
-function hasTools(tool: string): boolean {
-  return myInventory.value.some(
-    (inv) => inv.name.toLowerCase().includes(tool.toLowerCase()) && !inv.is_ruined,
+// Check tool proficiency on character — any accepted tool counts
+function hasProficiency(tools: string[]): boolean {
+  return tools.some((t) => member.value?.tool_proficiencies?.includes(t) ?? false);
+}
+
+// Check if player has any accepted tool in inventory
+function hasTools(tools: string[]): boolean {
+  return tools.some((tool) =>
+    myInventory.value.some(
+      (inv) => inv.name.toLowerCase().includes(tool.toLowerCase()) && !inv.is_ruined,
+    ),
   );
 }
 
 const disciplineRecipes = computed(() =>
-  (recipes.value ?? []).filter((r) => r.discipline === activeTab.value),
+  ui.playerCraftingActiveTab === "all"
+    ? (recipes.value ?? [])
+    : (recipes.value ?? []).filter((r) => r.discipline === ui.playerCraftingActiveTab),
 );
 
 // Cache ingredient/modifier/output fetches per recipe
@@ -257,14 +295,15 @@ function hasEnough(ing: CraftingIngredient): boolean {
 }
 
 function canCraft(recipe: CraftingRecipe): boolean {
-  if (recipe.requires_proficiency && !hasProficiency(activeDiscipline.value.tool)) return false;
-  if (recipe.requires_tools && !hasTools(activeDiscipline.value.tool)) return false;
+  const discipline = getDiscipline(recipe.discipline);
+  if (recipe.requires_proficiency && !hasProficiency(discipline.tools)) return false;
+  if (recipe.requires_tools && !hasTools(discipline.tools)) return false;
   return ingredientsFor(recipe.id).every((ing) => hasEnough(ing));
 }
 
 function tabClass(d: DisciplineConfig) {
-  if (activeTab.value === d.id) return "border-primary bg-primary/10 text-foreground";
-  if (!hasProficiency(d.tool)) return "border-border/60 text-muted-foreground/60 hover:text-muted-foreground hover:border-border/80";
+  if (ui.playerCraftingActiveTab === d.id) return "border-primary bg-primary/10 text-foreground";
+  if (!hasProficiency(d.tools)) return "border-border/60 text-muted-foreground/60 hover:text-muted-foreground hover:border-border/80";
   return "border-border text-muted-foreground hover:text-foreground hover:border-border/80";
 }
 

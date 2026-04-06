@@ -16,13 +16,23 @@
     <!-- Discipline tabs -->
     <div class="flex flex-wrap gap-1 mb-6 rounded-md border border-border p-1 bg-muted w-fit">
       <button
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-cinzel tracking-wide transition-colors"
+        :class="ui.workshopActiveTab === 'all'
+          ? 'bg-card text-foreground shadow-sm'
+          : 'text-muted-foreground hover:text-foreground'"
+        @click="ui.workshopActiveTab = 'all'"
+      >
+        <LayoutList class="h-3.5 w-3.5" />
+        All
+      </button>
+      <button
         v-for="d in CRAFTING_DISCIPLINES"
         :key="d.id"
         class="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-cinzel tracking-wide transition-colors"
-        :class="activeTab === d.id
+        :class="ui.workshopActiveTab === d.id
           ? 'bg-card text-foreground shadow-sm'
           : 'text-muted-foreground hover:text-foreground'"
-        @click="activeTab = d.id"
+        @click="ui.workshopActiveTab = d.id"
       >
         <component :is="d.icon" class="h-3.5 w-3.5" />
         {{ d.label }}
@@ -35,10 +45,17 @@
       <div v-if="isLoading" class="font-fell text-sm text-muted-foreground italic">Loading recipes…</div>
 
       <div v-else-if="disciplineRecipes.length === 0" class="rounded-lg border border-border border-dashed px-6 py-10 text-center">
-        <component :is="activeDiscipline.icon" class="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
-        <p class="font-cinzel text-sm font-semibold text-muted-foreground">No {{ activeDiscipline.label }} recipes yet</p>
+        <component
+          :is="activeDiscipline ? activeDiscipline.icon : LayoutList"
+          class="h-8 w-8 text-muted-foreground/40 mx-auto mb-3"
+        />
+        <p class="font-cinzel text-sm font-semibold text-muted-foreground">
+          {{ activeDiscipline ? `No ${activeDiscipline.label} recipes yet` : 'No recipes yet' }}
+        </p>
         <p class="font-fell text-xs text-muted-foreground/60 italic mt-1">
-          Create a recipe to let players craft {{ activeDiscipline.label.toLowerCase() }} items.
+          {{ activeDiscipline
+            ? `Create a recipe to let players craft ${activeDiscipline.label.toLowerCase()} items.`
+            : 'Create a recipe to get started.' }}
         </p>
       </div>
 
@@ -52,6 +69,10 @@
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-0.5">
               <p class="font-cinzel text-sm font-bold text-foreground truncate">{{ recipe.name }}</p>
+              <span
+                v-if="!activeDiscipline"
+                class="shrink-0 font-cinzel text-[10px] tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
+              >{{ getDiscipline(recipe.discipline).label }}</span>
               <span
                 v-if="recipe.requires_proficiency"
                 class="shrink-0 font-cinzel text-[10px] tracking-wider px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
@@ -92,23 +113,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import { Pencil, Plus, Trash2 } from "lucide-vue-next";
+import { computed } from "vue";
+import { LayoutList, Pencil, Plus, Trash2 } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting-disciplines";
 import { useCraftingRecipes, useDeleteRecipe } from "@/composables/useCrafting";
 import { useConfirm } from "@/composables/useConfirm";
-import type { CraftingRecipe, CraftingDiscipline } from "@/types/crafting.types";
+import { useUiStore } from "@/stores/ui";
+import type { CraftingRecipe } from "@/types/crafting.types";
 
-const activeTab = ref<CraftingDiscipline>("smithing");
-const activeDiscipline = computed(() => getDiscipline(activeTab.value));
+const ui = useUiStore();
+
+const activeDiscipline = computed(() =>
+  ui.workshopActiveTab === "all" ? null : getDiscipline(ui.workshopActiveTab),
+);
 
 const { data: recipes, isLoading } = useCraftingRecipes();
 const { mutateAsync: deleteRecipe } = useDeleteRecipe();
 const { confirm } = useConfirm();
 
 const disciplineRecipes = computed(() =>
-  (recipes.value ?? []).filter((r) => r.discipline === activeTab.value),
+  ui.workshopActiveTab === "all"
+    ? (recipes.value ?? [])
+    : (recipes.value ?? []).filter((r) => r.discipline === ui.workshopActiveTab),
 );
 
 async function remove(recipe: CraftingRecipe) {
