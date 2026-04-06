@@ -97,6 +97,26 @@ export const useUiStore = defineStore("ui", () => {
     factionsFilterType.value = "";
   }
 
+  // Player People (NPC) filter state
+  const playerPeopleSearch = ref("");
+  const playerPeopleFilterRelationship = ref<NpcRelationship | "all">("all");
+  const playerPeopleFilterStatus = ref<NpcStatus | "all">("all");
+  const playerPeopleFilterLocation = ref("");
+
+  const playerPeopleHasActiveFilters = computed(() =>
+    playerPeopleSearch.value !== "" ||
+    playerPeopleFilterRelationship.value !== "all" ||
+    playerPeopleFilterStatus.value !== "all" ||
+    playerPeopleFilterLocation.value !== ""
+  );
+
+  function resetPlayerPeopleFilters() {
+    playerPeopleSearch.value = "";
+    playerPeopleFilterRelationship.value = "all";
+    playerPeopleFilterStatus.value = "all";
+    playerPeopleFilterLocation.value = "";
+  }
+
   // Workshop (Crafting) UI state
   const workshopActiveTab = ref<CraftingDiscipline | "all">("all");
   const playerCraftingActiveTab = ref<CraftingDiscipline | "all">("all");
@@ -213,6 +233,14 @@ export const useUiStore = defineStore("ui", () => {
     factionsFilterType,
     factionsHasActiveFilters,
     resetFactionsFilters,
+
+    // Player People (NPCs)
+    playerPeopleSearch,
+    playerPeopleFilterRelationship,
+    playerPeopleFilterStatus,
+    playerPeopleFilterLocation,
+    playerPeopleHasActiveFilters,
+    resetPlayerPeopleFilters,
 
     // Workshop (Crafting)
     workshopActiveTab,

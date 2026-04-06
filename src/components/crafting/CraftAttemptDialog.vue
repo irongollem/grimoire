@@ -268,7 +268,7 @@ const ingredientSlots = computed(() =>
 
     return {
       item_id: req.item_id,
-      tag: req.tag,
+      tags: req.tags,
       itemName,
       needed: req.quantity,
       available,

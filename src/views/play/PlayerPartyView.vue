@@ -128,21 +128,74 @@
 
     <!-- ── People (shared NPCs) ────────────────────────────────────────────── -->
     <section v-if="npcs?.length || npcsLoading">
-      <h2 class="font-cinzel text-lg font-bold text-foreground mb-4">People</h2>
+      <h2 class="font-cinzel text-lg font-bold text-foreground mb-3">People</h2>
 
       <div v-if="npcsLoading" class="flex justify-center py-8">
         <LoadingSpinner />
       </div>
-      <div v-else class="flex flex-wrap gap-4">
-        <PlayerNpcCard
-          v-for="npc in sortedNpcs"
-          :key="npc.id"
-          :npc="npc"
-          :location="npc.player_visible_fields.includes('location') ? resolvedLocation(npc) : undefined"
-          class="shrink-0 w-50"
-          @click="openNpc(npc)"
-        />
-      </div>
+      <template v-else>
+        <!-- Filter bar -->
+        <div class="flex flex-wrap gap-2 mb-4">
+          <div class="relative flex-1 min-w-48">
+            <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <input
+              v-model="ui.playerPeopleSearch"
+              type="text"
+              placeholder="Search people…"
+              class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+          <select
+            v-model="ui.playerPeopleFilterRelationship"
+            class="bg-card border border-border rounded-md px-2.5 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="all">All relations</option>
+            <option value="ally">Ally</option>
+            <option value="neutral">Neutral</option>
+            <option value="enemy">Enemy</option>
+            <option value="unknown">Unknown</option>
+          </select>
+          <select
+            v-model="ui.playerPeopleFilterStatus"
+            class="bg-card border border-border rounded-md px-2.5 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="all">All statuses</option>
+            <option value="alive">Alive</option>
+            <option value="dead">Dead</option>
+            <option value="missing">Missing</option>
+            <option value="unknown">Unknown</option>
+          </select>
+          <select
+            v-if="availableLocations.length"
+            v-model="ui.playerPeopleFilterLocation"
+            class="bg-card border border-border rounded-md px-2.5 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="">All locations</option>
+            <option v-for="loc in availableLocations" :key="loc.id" :value="loc.id">{{ loc.name }}</option>
+          </select>
+          <button
+            v-if="ui.playerPeopleHasActiveFilters"
+            type="button"
+            class="px-3 py-1.5 font-cinzel text-xs tracking-wide text-muted-foreground hover:text-foreground border border-border rounded-md hover:border-foreground/30 transition-colors"
+            @click="ui.resetPlayerPeopleFilters()"
+          >Clear</button>
+        </div>
+
+        <p
+          v-if="!filteredNpcs.length"
+          class="font-fell text-sm text-muted-foreground italic"
+        >No people match your filters.</p>
+        <div v-else class="flex flex-wrap gap-4">
+          <PlayerNpcCard
+            v-for="npc in filteredNpcs"
+            :key="npc.id"
+            :npc="npc"
+            :location="npc.player_visible_fields.includes('location') ? resolvedLocation(npc) : undefined"
+            class="shrink-0 w-50"
+            @click="openNpc(npc)"
+          />
+        </div>
+      </template>
     </section>
 
     <!-- ── Party member lightbox ───────────────────────────────────────────── -->
@@ -331,7 +384,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { UserIcon, XIcon, Shield } from "lucide-vue-next";
+import { UserIcon, XIcon, Shield, Search } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/useParty";
@@ -394,6 +447,56 @@ const sortedNpcs = computed(() => {
     if (!locA && locB) return 1;
     return locA.localeCompare(locB);
   });
+});
+
+// ── People filter ─────────────────────────────────────────────────────────────
+const availableLocations = computed(() => {
+  const seen = new Set<string>();
+  const result: { id: string; name: string }[] = [];
+  for (const npc of sortedNpcs.value) {
+    if (npc.player_visible_fields.includes("location") && npc.location_id && !seen.has(npc.location_id)) {
+      const name = locationMap.value.get(npc.location_id);
+      if (name) {
+        seen.add(npc.location_id);
+        result.push({ id: npc.location_id, name });
+      }
+    }
+  }
+  return result.sort((a, b) => a.name.localeCompare(b.name));
+});
+
+const filteredNpcs = computed(() => {
+  void ratingTick.value;
+  let list = sortedNpcs.value;
+
+  const q = ui.playerPeopleSearch.trim().toLowerCase();
+  if (q) {
+    list = list.filter((npc) => {
+      const parts: string[] = [];
+      if (npc.player_visible_fields.includes("name")) parts.push(npc.name.toLowerCase());
+      if (npc.player_visible_fields.includes("race") && npc.race) parts.push(npc.race.toLowerCase());
+      if (npc.player_visible_fields.includes("occupation") && npc.occupation) parts.push(npc.occupation.toLowerCase());
+      return parts.some((p) => p.includes(q));
+    });
+  }
+
+  if (ui.playerPeopleFilterRelationship !== "all") {
+    list = list.filter(
+      (npc) => npc.player_visible_fields.includes("relationship") && npc.relationship === ui.playerPeopleFilterRelationship
+    );
+  }
+
+  if (ui.playerPeopleFilterStatus !== "all") {
+    list = list.filter(
+      (npc) => npc.player_visible_fields.includes("status") && npc.status === ui.playerPeopleFilterStatus
+    );
+  }
+
+  if (ui.playerPeopleFilterLocation) {
+    list = list.filter((npc) => npc.location_id === ui.playerPeopleFilterLocation);
+  }
+
+  return list;
 });
 
 // ── Party member lightbox ────────────────────────────────────────────────────
