@@ -2,6 +2,10 @@
 
 ## Done
 
+- [x] DM preview faction view shows all factions, no member styling, and no "KNOWN MEMBERS" section — root cause: preview mode used `auth.linkedPartyMemberId` (null for DM) instead of `ui.dmPreviewPartyMemberId`; fixed by wiring preview party member ID, adding client-side filter to match player RLS, sorting member factions first, and green card styling for member factions (irongollem/grimoire#71)
+
+- [x] Player view doesn't see faction they're a member of — `faction_party_members` had no player SELECT policy so `usePartyMemberFactions()` returned empty and "KNOWN MEMBERS" never showed; `factions` had no member-based SELECT policy so member-only factions were invisible; `usePlayerVisibleFactions()` also hard-filtered to `shared_with_players = true` client-side; fixed with two new RLS policies and removed the client-side filter (irongollem/grimoire#71)
+
 - [x] Wares don't render for players — `items` table had no campaign-member RLS policy, so the `items(*)` join in `fetchStoreItems` returned nothing for players even though `store_items` RLS was correct; added `items_campaign_member_select` policy allowing campaign members to read items that appear as visible wares in a shared location (irongollem/grimoire#69)
 
 - [x] Spell list empty for players, and "Add your first spell" button shown to players — `spells` RLS used a single `FOR ALL` policy (`auth.uid() = user_id`) so players (different auth.uid()) saw zero results; split into separate policies: SELECT allows campaign members to read spells owned by anyone in their campaign, INSERT/UPDATE/DELETE remain owner-only; also gated the empty-state CTA in `SpellList.vue` behind `!playerMemberId` (irongollem/grimoire#67)

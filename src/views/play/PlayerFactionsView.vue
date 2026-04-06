@@ -33,7 +33,10 @@
         <div
           v-for="faction in filtered"
           :key="faction.id"
-          class="rounded-lg border border-border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
+          class="rounded-lg border overflow-hidden cursor-pointer transition-colors"
+          :class="myFactionIds.has(faction.id)
+            ? 'border-emerald-500/50 bg-emerald-900/10 hover:border-emerald-400/70'
+            : 'border-border bg-card hover:border-primary/50'"
           @click="open(faction)"
         >
           <div class="flex items-center gap-3 p-3">
@@ -95,14 +98,33 @@
             </div>
 
             <!-- Fellow faction members (only visible if the player is also in this faction) -->
-            <div v-if="playerMembership && factionNpcs?.length">
+            <div v-if="playerMembership && (factionPcMembers?.length || factionNpcs?.length)">
               <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">
                 KNOWN MEMBERS
                 <span class="font-fell font-normal normal-case italic ml-1">({{ playerMembership.role ?? 'Member' }})</span>
               </p>
               <div class="flex flex-col gap-1.5">
+                <!-- PC members (party characters) -->
                 <div
-                  v-for="entry in factionNpcs.filter(e => !e.status || e.status === 'Active')"
+                  v-for="entry in factionPcMembers"
+                  :key="entry.id"
+                  class="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-2"
+                  :class="entry.party_member.id === myMemberId
+                    ? 'border-emerald-500/50 bg-emerald-900/10'
+                    : 'border-border'"
+                >
+                  <div class="flex-1 min-w-0">
+                    <span class="font-cinzel text-xs font-semibold text-foreground">{{ entry.party_member.name }}</span>
+                    <span v-if="entry.party_member.race || entry.party_member.class" class="font-fell text-[11px] text-muted-foreground italic ml-2">
+                      {{ [entry.party_member.race, entry.party_member.class].filter(Boolean).join(' · ') }}
+                    </span>
+                    <span v-if="entry.party_member.id === myMemberId" class="font-cinzel text-[9px] text-emerald-400 ml-2 tracking-wider">(You)</span>
+                  </div>
+                  <span class="font-cinzel text-[10px] text-muted-foreground shrink-0">{{ entry.role ?? 'Member' }}</span>
+                </div>
+                <!-- NPC members (shared with player) -->
+                <div
+                  v-for="entry in factionNpcs?.filter(e => e.npc && (!e.status || e.status === 'Active'))"
                   :key="entry.id"
                   class="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2"
                 >
@@ -129,37 +151,68 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { Shield, XIcon } from "lucide-vue-next";
-import { usePlayerVisibleFactions, usePartyMemberFactions, usePlayerFactionNpcs } from "@/composables/useFactions";
+import { usePlayerVisibleFactions, usePartyMemberFactions, usePlayerFactionNpcs, usePlayerFactionPartyMembers } from "@/composables/useFactions";
 import { useAuthStore } from "@/stores/auth";
+import { useUiStore } from "@/stores/ui";
 import type { Faction } from "@/types/faction.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 
 const auth = useAuthStore();
+const ui   = useUiStore();
 const { data: factions, isLoading } = usePlayerVisibleFactions();
 
 const search   = ref("");
 const selected = ref<Faction | null>(null);
 
-// Player's faction memberships — used to check if they're in the selected faction
-const myMemberId = computed(() => auth.linkedPartyMemberId ?? "");
+// In DM preview, use the previewed party member; otherwise use the real player's link.
+const myMemberId = computed(() => {
+  if (ui.dmPreviewMode) return ui.dmPreviewPartyMemberId ?? "";
+  return auth.linkedPartyMemberId ?? "";
+});
 const { data: myFactionMemberships } = usePartyMemberFactions(myMemberId);
+
+// Set of faction IDs this player/character belongs to.
+const myFactionIds = computed(() =>
+  new Set((myFactionMemberships.value ?? []).map((m) => m.faction_id)),
+);
+
+// In DM preview the DM owns all rows so RLS returns everything — filter
+// client-side to match what a real player would see via the DB policies:
+// shared_with_players = true, OR the player is a direct member.
+const visibleFactions = computed(() => {
+  const all = factions.value ?? [];
+  if (!ui.dmPreviewMode) return all;
+  return all.filter((f) => f.shared_with_players || myFactionIds.value.has(f.id));
+});
+
+// Member factions float to the top; within each group sort alphabetically.
+const sortedFactions = computed(() =>
+  [...visibleFactions.value].sort((a, b) => {
+    const aMember = myFactionIds.value.has(a.id);
+    const bMember = myFactionIds.value.has(b.id);
+    if (aMember && !bMember) return -1;
+    if (!aMember && bMember) return 1;
+    return a.name.localeCompare(b.name);
+  }),
+);
 
 const playerMembership = computed(() => {
   if (!selected.value || !myFactionMemberships.value) return null;
   return myFactionMemberships.value.find((m) => m.faction_id === selected.value!.id) ?? null;
 });
 
-// NPC members of the selected faction — only fetched if the player is a member (RLS enforces this)
+// NPC + PC members of the selected faction — only fetched if the player is a member.
 const selectedFactionId = computed(() => selected.value?.id ?? "");
 const isInFaction = computed(() => !!playerMembership.value);
 const { data: factionNpcs } = usePlayerFactionNpcs(selectedFactionId, isInFaction);
+const { data: factionPcMembers } = usePlayerFactionPartyMembers(selectedFactionId, isInFaction);
 
 const filtered = computed(() => {
   const q = search.value.toLowerCase().trim();
-  if (!q) return factions.value ?? [];
-  return (factions.value ?? []).filter(
+  if (!q) return sortedFactions.value;
+  return sortedFactions.value.filter(
     (f) =>
       f.name.toLowerCase().includes(q) ||
       (f.faction_type ?? "").toLowerCase().includes(q) ||

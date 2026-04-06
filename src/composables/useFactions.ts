@@ -56,7 +56,6 @@ export function usePlayerVisibleFactions() {
       const { data, error } = await supabase
         .from("factions")
         .select("*")
-        .eq("shared_with_players", true)
         .order("name", { ascending: true });
       if (error) throw error;
       return data as Faction[];
@@ -136,6 +135,25 @@ export function useFactionNpcs(factionId: string) {
       return data as FactionNpcWithNpc[];
     },
     enabled: !!factionId,
+  });
+}
+
+/** Player-accessible version — returns all PC members of a faction the player belongs to. */
+export function usePlayerFactionPartyMembers(factionId: Ref<string>, enabled: Ref<boolean>) {
+  return useQuery({
+    queryKey: computed(() => ["player-faction-party-members", factionId.value]),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("faction_party_members")
+        .select("*, party_member:party_members(id, name, class, race, level, portrait_url)")
+        .eq("faction_id", factionId.value)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data as (FactionPartyMember & {
+        party_member: Pick<PartyMember, "id" | "name" | "class" | "race" | "level" | "portrait_url">;
+      })[];
+    },
+    enabled: computed(() => !!factionId.value && enabled.value),
   });
 }
 
