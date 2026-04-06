@@ -361,6 +361,8 @@ Keep the core DM tooling free forever (open source). Gate AI features, advanced 
 
 - [x] **Workshop tag-based ingredients** — recipe ingredients can now match any item with a given tag (e.g. "meat", "herb") instead of requiring a specific item; item_id is now nullable and a `tag` column added with a DB check constraint; RecipeEditor has a tag input alongside item search; CraftAttemptDialog and PlayerCraftingView match/consume by tag using item vault metadata
 
+- [x] **Workshop combo tag ingredients** — tag-based ingredients now support AND combos: entering "glass, container" requires an item to have both tags (e.g. a glass bottle or vial); `tag text` column replaced by `tags text[]` across DB, types, and all matching logic; tag input accepts comma or `+` as separator; display shows `any "meat"` for singles and `any [glass + container]` for combos
+
 - [x] **Workshop crafting time units** — crafting time now supports minutes, hours, or days (previously days-only); `crafting_time_days` renamed to `crafting_time` with a new `crafting_time_unit` column (check constraint: minutes/hours/days, default days); RecipeEditor shows a unit selector next to the number input; list views display the correct singular/plural label
 
 - [x] **Workshop: Import Starter Recipes button** — one-click import button in Workshop header (same pattern as Vault's Import SRD Items); inserts missing output items into the vault automatically, then creates 35 starter recipes across all 12 disciplines; skips existing recipes by name so re-runs are idempotent

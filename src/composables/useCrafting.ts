@@ -459,7 +459,7 @@ export function useImportStarterRecipes() {
         if (def.ingredients.length > 0) {
           const { error } = await supabase
             .from("crafting_recipe_ingredients")
-            .insert(def.ingredients.map((i) => ({ recipe_id: recipeId, item_id: null, tag: i.tag, quantity: i.quantity })));
+            .insert(def.ingredients.map((i) => ({ recipe_id: recipeId, item_id: null, tags: i.tags, quantity: i.quantity })));
           if (error) throw error;
         }
 

@@ -198,7 +198,7 @@ const props = defineProps<{
   /** Output items produced on success */
   outputs: CraftingOutput[];
   /** Required ingredients from the recipe definition */
-  requiredIngredients: { item_id: string | null; tag: string | null; quantity: number }[];
+  requiredIngredients: { item_id: string | null; tags: string[] | null; quantity: number }[];
   modifiers: CraftingModifier[];
   /** Player's full inventory (carried items) */
   inventory: PartyInventoryItem[];
@@ -253,13 +253,15 @@ const ingredientSlots = computed(() =>
         .filter((inv) => inv.item_id === req.item_id && !inv.is_ruined)
         .reduce((sum, inv) => sum + inv.quantity, 0);
     } else {
-      // Tag-based: any non-ruined inventory item whose vault item has the tag
-      itemName = `Any "${req.tag}"`;
+      // Tag-based: any non-ruined inventory item whose vault item has ALL required tags
+      itemName = req.tags!.length === 1
+        ? `Any "${req.tags![0]}"`
+        : `Any [${req.tags!.join(" + ")}]`;
       available = props.inventory
         .filter((inv) => {
           if (inv.is_ruined) return false;
           const def = props.allItems.find((i) => i.id === inv.item_id);
-          return def?.tags?.includes(req.tag!) ?? false;
+          return req.tags!.every((t) => def?.tags?.includes(t) ?? false);
         })
         .reduce((sum, inv) => sum + inv.quantity, 0);
     }
@@ -311,7 +313,7 @@ function resolveInventoryIds(): { ids: string[]; primaryId: string; primaryItem:
           .filter((inv) => {
             if (inv.is_ruined) return false;
             const def = props.allItems.find((i) => i.id === inv.item_id);
-            return def?.tags?.includes(req.tag!) ?? false;
+            return req.tags!.every((t) => def?.tags?.includes(t) ?? false);
           })
           .sort((a, b) => b.quantity - a.quantity);
 

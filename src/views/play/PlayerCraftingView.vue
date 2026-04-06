@@ -286,7 +286,8 @@ function itemName(itemId: string): string {
 
 function ingredientLabel(ing: CraftingIngredient): string {
   if (ing.item_id) return itemName(ing.item_id);
-  return `Any "${ing.tag}"`;
+  if (!ing.tags) return "Any";
+  return ing.tags.length === 1 ? `Any "${ing.tags[0]}"` : `Any [${ing.tags.join(" + ")}]`;
 }
 
 function ownedCount(ing: CraftingIngredient): number {
@@ -295,12 +296,12 @@ function ownedCount(ing: CraftingIngredient): number {
       .filter((i) => i.item_id === ing.item_id && !i.is_ruined)
       .reduce((sum, i) => sum + i.quantity, 0);
   }
-  // Tag-based: sum all non-ruined inventory items whose vault definition has the tag
+  // Tag-based: sum all non-ruined inventory items whose vault definition has ALL required tags
   return myInventory.value
     .filter((i) => {
       if (i.is_ruined) return false;
       const def = allItems.value?.find((a) => a.id === i.item_id);
-      return def?.tags?.includes(ing.tag!) ?? false;
+      return ing.tags!.every((t) => def?.tags?.includes(t) ?? false);
     })
     .reduce((sum, i) => sum + i.quantity, 0);
 }

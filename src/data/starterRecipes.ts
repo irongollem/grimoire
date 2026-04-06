@@ -10,7 +10,7 @@ export interface StarterRecipeDef {
   requires_proficiency: boolean;
   requires_tools: boolean;
   /** All ingredients are tag-based so any tagged item qualifies */
-  ingredients: { tag: string; quantity: number }[];
+  ingredients: { tags: string[]; quantity: number }[];
   outputs: { name: string; quantity: number }[];
   modifiers?: { description: string; bonus: number }[];
 }
@@ -27,9 +27,9 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: false,
     requires_tools: false,
     ingredients: [
-      { tag: "wood",  quantity: 1 },
-      { tag: "cloth", quantity: 1 },
-      { tag: "oil",   quantity: 1 },
+      { tags: ["wood"], quantity: 1 },
+      { tags: ["cloth"], quantity: 1 },
+      { tags: ["oil"], quantity: 1 },
     ],
     outputs: [{ name: "Torch", quantity: 3 }],
   },
@@ -43,7 +43,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     crafting_time_unit: "minutes",
     requires_proficiency: false,
     requires_tools: false,
-    ingredients: [{ tag: "meat", quantity: 1 }],
+    ingredients: [{ tags: ["meat"], quantity: 1 }],
     outputs: [{ name: "Grilled Meat", quantity: 1 }],
   },
   {
@@ -57,8 +57,8 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: false,
     requires_tools: false,
     ingredients: [
-      { tag: "meat", quantity: 1 },
-      { tag: "salt", quantity: 1 },
+      { tags: ["meat"], quantity: 1 },
+      { tags: ["salt"], quantity: 1 },
     ],
     outputs: [{ name: "Roast Meat", quantity: 2 }],
   },
@@ -73,8 +73,8 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: false,
     requires_tools: false,
     ingredients: [
-      { tag: "meat", quantity: 1 },
-      { tag: "salt", quantity: 1 },
+      { tags: ["meat"], quantity: 1 },
+      { tags: ["salt"], quantity: 1 },
     ],
     outputs: [{ name: "Smoked Meat (Jerky)", quantity: 2 }],
   },
@@ -88,7 +88,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     crafting_time_unit: "minutes",
     requires_proficiency: false,
     requires_tools: false,
-    ingredients: [{ tag: "fish", quantity: 1 }],
+    ingredients: [{ tags: ["fish"], quantity: 1 }],
     outputs: [{ name: "Grilled Fish", quantity: 1 }],
   },
   {
@@ -102,9 +102,9 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: false,
     requires_tools: false,
     ingredients: [
-      { tag: "meat",      quantity: 1 },
-      { tag: "vegetable", quantity: 1 },
-      { tag: "water",     quantity: 1 },
+      { tags: ["meat"], quantity: 1 },
+      { tags: ["vegetable"], quantity: 1 },
+      { tags: ["water"], quantity: 1 },
     ],
     outputs: [{ name: "Pot of Stew", quantity: 1 }],
   },
@@ -118,7 +118,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     crafting_time_unit: "hours",
     requires_proficiency: false,
     requires_tools: true,
-    ingredients: [{ tag: "ore", quantity: 2 }],
+    ingredients: [{ tags: ["ore"], quantity: 2 }],
     outputs: [{ name: "Iron Ingot", quantity: 1 }],
     modifiers: [{ description: "Full forge with bellows available", bonus: 3 }],
   },
@@ -132,7 +132,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     crafting_time_unit: "hours",
     requires_proficiency: false,
     requires_tools: true,
-    ingredients: [{ tag: "silver", quantity: 2 }],
+    ingredients: [{ tags: ["silver"], quantity: 2 }],
     outputs: [{ name: "Silver Ingot", quantity: 1 }],
     modifiers: [{ description: "Full forge with bellows available", bonus: 3 }],
   },
@@ -147,8 +147,8 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: true,
     requires_tools: true,
     ingredients: [
-      { tag: "healing", quantity: 2 },
-      { tag: "water",   quantity: 1 },
+      { tags: ["healing"], quantity: 2 },
+      { tags: ["water"], quantity: 1 },
     ],
     outputs: [{ name: "Antitoxin (vial)", quantity: 1 }],
   },
@@ -163,8 +163,8 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: false,
     requires_tools: true,
     ingredients: [
-      { tag: "hide", quantity: 1 },
-      { tag: "salt", quantity: 1 },
+      { tags: ["hide"], quantity: 1 },
+      { tags: ["salt"], quantity: 1 },
     ],
     outputs: [{ name: "Tanned Leather", quantity: 2 }],
   },
@@ -180,8 +180,8 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: false,
     requires_tools: true,
     ingredients: [
-      { tag: "grain", quantity: 2 },
-      { tag: "water", quantity: 1 },
+      { tags: ["grain"], quantity: 2 },
+      { tags: ["water"], quantity: 1 },
     ],
     outputs: [{ name: "Ale (mug)", quantity: 4 }],
   },
@@ -196,8 +196,8 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: false,
     requires_tools: true,
     ingredients: [
-      { tag: "honey", quantity: 2 },
-      { tag: "water", quantity: 1 },
+      { tags: ["honey"], quantity: 2 },
+      { tags: ["water"], quantity: 1 },
     ],
     outputs: [{ name: "Mead (bottle)", quantity: 2 }],
   },
@@ -214,8 +214,8 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: true,
     requires_tools: true,
     ingredients: [
-      { tag: "poison", quantity: 2 },
-      { tag: "water",  quantity: 1 },
+      { tags: ["poison"], quantity: 2 },
+      { tags: ["water"], quantity: 1 },
     ],
     outputs: [{ name: "Poison, Basic (vial)", quantity: 1 }],
   },
@@ -232,8 +232,8 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: false,
     requires_tools: false,
     ingredients: [
-      { tag: "wood",  quantity: 1 },
-      { tag: "flint", quantity: 1 },
+      { tags: ["wood"], quantity: 1 },
+      { tags: ["flint"], quantity: 1 },
     ],
     outputs: [{ name: "Tinderbox", quantity: 2 }],
   },
@@ -248,7 +248,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: false,
     requires_tools: true,
     ingredients: [
-      { tag: "metal", quantity: 2 },
+      { tags: ["metal"], quantity: 2 },
     ],
     outputs: [{ name: "Hunting Trap", quantity: 1 }],
     modifiers: [{ description: "Full forge available", bonus: 2 }],
@@ -266,7 +266,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: false,
     requires_tools: false,
     ingredients: [
-      { tag: "fiber", quantity: 3 },
+      { tags: ["fiber"], quantity: 3 },
     ],
     outputs: [{ name: "Rope, Hempen (50 feet)", quantity: 1 }],
   },
@@ -281,7 +281,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: false,
     requires_tools: true,
     ingredients: [
-      { tag: "cloth", quantity: 2 },
+      { tags: ["cloth"], quantity: 2 },
     ],
     outputs: [{ name: "Clothes, Common", quantity: 2 }],
   },
@@ -298,9 +298,9 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: true,
     requires_tools: true,
     ingredients: [
-      { tag: "parchment", quantity: 10 },
-      { tag: "leather",   quantity: 1  },
-      { tag: "ink",       quantity: 1  },
+      { tags: ["parchment"], quantity: 10 },
+      { tags: ["leather"], quantity: 1  },
+      { tags: ["ink"], quantity: 1  },
     ],
     outputs: [{ name: "Spellbook", quantity: 1 }],
   },
@@ -317,8 +317,8 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: false,
     requires_tools: false,
     ingredients: [
-      { tag: "healing", quantity: 4 },
-      { tag: "cloth",   quantity: 1 },
+      { tags: ["healing"], quantity: 4 },
+      { tags: ["cloth"], quantity: 1 },
     ],
     outputs: [{ name: "Healer's Kit", quantity: 1 }],
   },
@@ -335,8 +335,8 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: true,
     requires_tools: true,
     ingredients: [
-      { tag: "oil",      quantity: 1 },
-      { tag: "brimstone", quantity: 1 },
+      { tags: ["oil"], quantity: 1 },
+      { tags: ["brimstone"], quantity: 1 },
     ],
     outputs: [{ name: "Alchemist's Fire (flask)", quantity: 1 }],
     modifiers: [{ description: "Proper alchemical laboratory available", bonus: 2 }],
@@ -354,7 +354,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: false,
     requires_tools: true,
     ingredients: [
-      { tag: "ingot", quantity: 2 },
+      { tags: ["ingot"], quantity: 2 },
     ],
     outputs: [{ name: "Pot, Iron", quantity: 1 }],
     modifiers: [{ description: "Full forge with bellows available", bonus: 3 }],
@@ -372,7 +372,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: false,
     requires_tools: true,
     ingredients: [
-      { tag: "leather", quantity: 3 },
+      { tags: ["leather"], quantity: 3 },
     ],
     outputs: [{ name: "Backpack", quantity: 1 }],
   },
@@ -389,7 +389,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: false,
     requires_tools: false,
     ingredients: [
-      { tag: "wood", quantity: 1 },
+      { tags: ["wood"], quantity: 1 },
     ],
     outputs: [{ name: "Pole (10-foot)", quantity: 2 }],
   },
@@ -406,7 +406,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: true,
     requires_tools: true,
     ingredients: [
-      { tag: "silver", quantity: 1 },
+      { tags: ["silver"], quantity: 1 },
     ],
     outputs: [{ name: "Signet Ring", quantity: 1 }],
     modifiers: [{ description: "Proper jeweler's bench with fine tools", bonus: 2 }],
@@ -424,8 +424,8 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: false,
     requires_tools: false,
     ingredients: [
-      { tag: "grain", quantity: 1 },
-      { tag: "meat",  quantity: 1 },
+      { tags: ["grain"], quantity: 1 },
+      { tags: ["meat"], quantity: 1 },
     ],
     outputs: [{ name: "Rations (1 day)", quantity: 3 }],
   },
@@ -442,7 +442,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: false,
     requires_tools: true,
     ingredients: [
-      { tag: "ingot", quantity: 1 },
+      { tags: ["ingot"], quantity: 1 },
     ],
     outputs: [{ name: "Spikes, Iron (10)", quantity: 2 }],
     modifiers: [{ description: "Full forge with bellows available", bonus: 3 }],
@@ -458,8 +458,8 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: false,
     requires_tools: true,
     ingredients: [
-      { tag: "ingot", quantity: 1 },
-      { tag: "cloth", quantity: 1 },
+      { tags: ["ingot"], quantity: 1 },
+      { tags: ["cloth"], quantity: 1 },
     ],
     outputs: [{ name: "Lamp", quantity: 1 }],
     modifiers: [{ description: "Full forge with bellows available", bonus: 3 }],
@@ -477,7 +477,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: true,
     requires_tools: true,
     ingredients: [
-      { tag: "stone", quantity: 2 },
+      { tags: ["stone"], quantity: 2 },
     ],
     outputs: [{ name: "Vial", quantity: 3 }],
   },
@@ -492,7 +492,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: false,
     requires_tools: false,
     ingredients: [
-      { tag: "stone", quantity: 1 },
+      { tags: ["stone"], quantity: 1 },
     ],
     outputs: [{ name: "Whetstone", quantity: 2 }],
   },
@@ -507,7 +507,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: false,
     requires_tools: false,
     ingredients: [
-      { tag: "clay", quantity: 1 },
+      { tags: ["clay"], quantity: 1 },
     ],
     outputs: [{ name: "Flask or Tankard", quantity: 2 }],
   },
@@ -524,8 +524,8 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: false,
     requires_tools: false,
     ingredients: [
-      { tag: "leather", quantity: 1 },
-      { tag: "fiber",   quantity: 1 },
+      { tags: ["leather"], quantity: 1 },
+      { tags: ["fiber"], quantity: 1 },
     ],
     outputs: [{ name: "Pouch", quantity: 2 }],
   },
@@ -540,8 +540,8 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: false,
     requires_tools: true,
     ingredients: [
-      { tag: "leather", quantity: 2 },
-      { tag: "metal",   quantity: 1 },
+      { tags: ["leather"], quantity: 2 },
+      { tags: ["metal"], quantity: 1 },
     ],
     outputs: [{ name: "Traveler's Boots", quantity: 1 }],
   },
@@ -558,7 +558,7 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: false,
     requires_tools: false,
     ingredients: [
-      { tag: "wood", quantity: 1 },
+      { tags: ["wood"], quantity: 1 },
     ],
     outputs: [{ name: "Carved Holy Symbol", quantity: 1 }],
   },
@@ -573,8 +573,8 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: false,
     requires_tools: true,
     ingredients: [
-      { tag: "wood",  quantity: 3 },
-      { tag: "metal", quantity: 1 },
+      { tags: ["wood"], quantity: 3 },
+      { tags: ["metal"], quantity: 1 },
     ],
     outputs: [{ name: "Chest", quantity: 1 }],
   },
@@ -591,9 +591,9 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: false,
     requires_tools: false,
     ingredients: [
-      { tag: "parchment", quantity: 1 },
-      { tag: "ink",       quantity: 1 },
-      { tag: "charcoal",  quantity: 1 },
+      { tags: ["parchment"], quantity: 1 },
+      { tags: ["ink"], quantity: 1 },
+      { tags: ["charcoal"], quantity: 1 },
     ],
     outputs: [{ name: "Local Area Map", quantity: 1 }],
   },
@@ -610,8 +610,8 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_proficiency: true,
     requires_tools: true,
     ingredients: [
-      { tag: "healing", quantity: 3 },
-      { tag: "water",   quantity: 1 },
+      { tags: ["healing"], quantity: 3 },
+      { tags: ["water"], quantity: 1 },
     ],
     outputs: [{ name: "Potion of Healing", quantity: 1 }],
   },

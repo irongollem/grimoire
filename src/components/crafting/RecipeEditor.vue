@@ -249,9 +249,11 @@
             <span v-if="ing.item_id">{{
               itemById(ing.item_id)?.name ?? "Unknown item"
             }}</span>
-            <span v-else class="italic text-muted-foreground"
-              >any "{{ ing.tag }}"</span
-            >
+            <span v-else class="italic text-muted-foreground">
+              any
+              <template v-if="ing.tags && ing.tags.length === 1">"{{ ing.tags[0] }}"</template>
+              <template v-else-if="ing.tags">{{ ing.tags.join(" + ") }}</template>
+            </span>
           </span>
           <input
             v-model.number="ing.quantity"
@@ -316,7 +318,7 @@
             />
             <input
               v-model="tagIngredientInput"
-              placeholder='Add by tag (e.g. "meat")…'
+              placeholder='Add by tag(s), e.g. "meat" or "glass, container"…'
               class="w-full bg-muted border border-border rounded-md pl-9 pr-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               @keydown.enter.prevent="addTagIngredient"
             />
@@ -463,7 +465,7 @@ const form = ref({
 });
 
 const ingredients = ref<
-  { item_id: string | null; tag: string | null; quantity: number }[]
+  { item_id: string | null; tags: string[] | null; quantity: number }[]
 >([]);
 const modifiers = ref<{ description: string; bonus: number }[]>([]);
 const outputs = ref<{ item_id: string; quantity: number }[]>([]);
@@ -496,7 +498,7 @@ watch(
     if (data && ingredients.value.length === 0) {
       ingredients.value = data.map((i) => ({
         item_id: i.item_id,
-        tag: i.tag,
+        tags: i.tags,
         quantity: i.quantity,
       }));
     }
@@ -581,19 +583,24 @@ function addIngredient(itemId: string) {
   if (existing) {
     existing.quantity += 1;
   } else {
-    ingredients.value.push({ item_id: itemId, tag: null, quantity: 1 });
+    ingredients.value.push({ item_id: itemId, tags: null, quantity: 1 });
   }
   ingredientSearch.value = "";
 }
 
 function addTagIngredient() {
-  const tag = tagIngredientInput.value.trim();
-  if (!tag) return;
-  const existing = ingredients.value.find((i) => i.tag === tag);
+  const raw = tagIngredientInput.value.trim();
+  if (!raw) return;
+  const tags = raw.split(/[,+]/).map((t) => t.trim()).filter(Boolean);
+  if (tags.length === 0) return;
+  const key = tags.join(",");
+  const existing = ingredients.value.find(
+    (i) => i.tags !== null && i.tags.join(",") === key,
+  );
   if (existing) {
     existing.quantity += 1;
   } else {
-    ingredients.value.push({ item_id: null, tag, quantity: 1 });
+    ingredients.value.push({ item_id: null, tags, quantity: 1 });
   }
   tagIngredientInput.value = "";
 }
