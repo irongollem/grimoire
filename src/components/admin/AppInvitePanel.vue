@@ -27,6 +27,38 @@
         </div>
 
         <div class="px-5 py-4 space-y-5 max-h-[70vh] overflow-y-auto">
+          <!-- SRD Art Defaults -->
+          <div class="space-y-2">
+            <h3 class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              SRD Art Defaults
+            </h3>
+            <p class="font-fell text-xs text-muted-foreground italic">
+              Publish your uploaded SRD art as community defaults. Other DMs will see your images
+              for any SRD content they haven't personalised. Re-running is safe — it updates
+              existing defaults with your latest images.
+            </p>
+            <div v-if="statsQuery.data.value" class="font-fell text-xs text-foreground">
+              Currently published:
+              <span class="font-semibold">{{ statsQuery.data.value.monsters }}</span> monsters ·
+              <span class="font-semibold">{{ statsQuery.data.value.spells }}</span> spells ·
+              <span class="font-semibold">{{ statsQuery.data.value.items }}</span> items
+            </div>
+            <div v-if="publishResult" class="font-fell text-xs text-elven-green">
+              Done — {{ publishResult.monsters }} monsters · {{ publishResult.spells }} spells ·
+              {{ publishResult.items }} items published.
+            </div>
+            <button
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50"
+              :disabled="bulkPublish.isPending.value"
+              @click="handlePublishArt"
+            >
+              <Upload class="h-3.5 w-3.5" />
+              {{ bulkPublish.isPending.value ? 'Publishing…' : 'Publish all my SRD art' }}
+            </button>
+          </div>
+
+          <div class="border-t border-border" />
+
           <!-- Generate new invite -->
           <div class="space-y-3">
             <h3 class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase">
@@ -128,14 +160,21 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { ShieldCheck, Plus, Trash2, Copy, Check } from "lucide-vue-next";
+import { ShieldCheck, Plus, Trash2, Copy, Check, Upload } from "lucide-vue-next";
 import { useAppInvites, useCreateAppInvite, useDeleteAppInvite } from "@/composables/useAppInvites";
 import type { AppInvite } from "@/composables/useAppInvites";
+import { useBulkPublishSrdArtDefaults, useSrdArtDefaultStats } from "@/composables/useSrdArtDefaults";
+import type { SrdArtDefaultStats } from "@/composables/useSrdArtDefaults";
+import { useBulkMarkSrdMonsterArtAsCanonical } from "@/composables/useSrdMonsterArt";
 
 const open = ref(false);
 const invitesQuery = useAppInvites();
 const createInvite = useCreateAppInvite();
 const deleteInvite = useDeleteAppInvite();
+const statsQuery = useSrdArtDefaultStats();
+const bulkPublish = useBulkPublishSrdArtDefaults();
+const bulkMarkMonsters = useBulkMarkSrdMonsterArtAsCanonical();
+const publishResult = ref<SrdArtDefaultStats | null>(null);
 
 const invites = computed(() => invitesQuery.data.value ?? []);
 
@@ -170,6 +209,16 @@ function handleCreate() {
       newMaxUses.value = 1;
     },
   });
+}
+
+async function handlePublishArt() {
+  publishResult.value = null;
+  const [monsterCount, contentResult] = await Promise.all([
+    bulkMarkMonsters.mutateAsync(),
+    bulkPublish.mutateAsync(),
+  ]);
+  publishResult.value = { monsters: monsterCount, spells: contentResult.spells, items: contentResult.items };
+  statsQuery.refetch();
 }
 
 async function copy(invite: AppInvite) {

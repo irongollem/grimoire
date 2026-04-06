@@ -1,6 +1,8 @@
+import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Item, ItemInsert, ItemUpdate } from "@/types/item.types";
+import { useSrdArtDefaults } from "@/composables/useSrdArtDefaults";
 
 interface ItemSource {
   slug: string;
@@ -92,7 +94,22 @@ export function useItemSources() {
 }
 
 export function useItems() {
-  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchItems, staleTime: Infinity });
+  const itemsQuery = useQuery({ queryKey: [QUERY_KEY], queryFn: fetchItems, staleTime: Infinity });
+  const artDefaults = useSrdArtDefaults();
+
+  const data = computed(() => {
+    const items = itemsQuery.data.value;
+    const defaults = artDefaults.data.value;
+    if (!items || !defaults) return items;
+    return items.map((item) => {
+      if (item.image_url || !item.source) return item;
+      const d = defaults[`item:${item.name.toLowerCase()}`];
+      if (!d?.image_url) return item;
+      return { ...item, image_url: d.image_url, image_focal_point: d.image_focal_point };
+    });
+  });
+
+  return { ...itemsQuery, data };
 }
 
 export function useItem(id: string) {
