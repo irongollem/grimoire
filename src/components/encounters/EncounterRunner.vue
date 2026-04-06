@@ -68,7 +68,7 @@ import { Radio } from "lucide-vue-next";
 import { supabase } from "@/lib/supabase";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useAllMonsters } from "@/composables/useMonsters";
-import { useUpdatePartyMember } from "@/composables/useParty";
+import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import DiceRoller from "@/components/common/DiceRoller.vue";
 import { useEncounterLive } from "@/composables/useEncounterLive";
 import { useCampaignStore } from "@/stores/campaign";
@@ -88,6 +88,7 @@ const goingLive = ref(false);
 const auth = useAuthStore();
 
 const { data: monsters } = useAllMonsters();
+const { data: partyMembers } = useParty();
 const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
 const { mutateAsync: autoDiscover } = useAutoDiscoverMonsters();
 
@@ -175,9 +176,14 @@ async function handleEndCombat() {
   );
   if (revealedMonsterIds.size > 0) {
     const revealedMonsters = (monsters.value ?? []).filter((m) => revealedMonsterIds.has(m.id));
-    const newDiscoveries = await autoDiscover(revealedMonsters);
+    const partyMemberIds = (partyMembers.value ?? []).map((m) => m.id);
+    const newDiscoveries = await autoDiscover({ monsters: revealedMonsters, partyMemberIds });
     if (newDiscoveries.length > 0) {
-      const names = newDiscoveries.map((d) => d.monster_name).join(", ");
+      const newIds = new Set([
+        ...newDiscoveries.map((d) => d.monster_id).filter(Boolean),
+        ...newDiscoveries.map((d) => d.srd_slug).filter(Boolean),
+      ]);
+      const names = revealedMonsters.filter((m) => newIds.has(m.id)).map((m) => m.name).join(", ");
       notify(`Auto-shared to bestiary: ${names}`, "Monsters Discovered");
     }
   }

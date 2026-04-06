@@ -10,8 +10,6 @@ export interface PinnedForm {
   party_member_id: string;
   monster_id: string | null;
   srd_slug: string | null;
-  monster_name: string;
-  image_url: string | null;
 }
 
 const QUERY_KEY = "pinned-forms";
@@ -58,7 +56,7 @@ export function useTogglePinnedForm() {
       partyMemberId,
       existing,
     }: {
-      monster: Pick<Monster, "id" | "name" | "is_srd" | "image_url">;
+      monster: Pick<Monster, "id" | "is_srd">;
       partyMemberId: string;
       existing: PinnedForm | undefined;
     }) => {
@@ -74,8 +72,6 @@ export function useTogglePinnedForm() {
             party_member_id: partyMemberId,
             monster_id: monster.is_srd ? null : monster.id,
             srd_slug: monster.is_srd ? monster.id : null,
-            monster_name: monster.name,
-            image_url: monster.image_url ?? null,
           })
           .select()
           .single();

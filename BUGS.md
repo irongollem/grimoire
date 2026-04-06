@@ -2,6 +2,8 @@
 
 ## Done
 
+- [x] Bestiary player view used stale snapshot data — `discovered_monsters` and `pinned_forms` tables stored `image_url` and `monster_name` as snapshots; player saw old image/name if the DM later edited the monster; fixes: dropped both columns from both tables, updated all composables to store references only, player view now resolves monster name/image from live data; `useAutoDiscoverMonsters` now accepts explicit `partyMemberIds` so auto-shared monsters reach the right players (irongollem/grimoire#70)
+
 - [x] DM preview faction view shows all factions, no member styling, and no "KNOWN MEMBERS" section — root cause: preview mode used `auth.linkedPartyMemberId` (null for DM) instead of `ui.dmPreviewPartyMemberId`; fixed by wiring preview party member ID, adding client-side filter to match player RLS, sorting member factions first, and green card styling for member factions (irongollem/grimoire#71)
 
 - [x] Player view doesn't see faction they're a member of — `faction_party_members` had no player SELECT policy so `usePartyMemberFactions()` returned empty and "KNOWN MEMBERS" never showed; `factions` had no member-based SELECT policy so member-only factions were invisible; `usePlayerVisibleFactions()` also hard-filtered to `shared_with_players = true` client-side; fixed with two new RLS policies and removed the client-side filter (irongollem/grimoire#71)

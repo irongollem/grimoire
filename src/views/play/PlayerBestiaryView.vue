@@ -45,8 +45,8 @@
           >
             <MonsterFormCard
               :monster="entry.monster"
-              :name="entry.discovery.monster_name"
-              :image-url="entry.discovery.image_url"
+              :name="entry.monster?.name ?? 'Unknown creature'"
+              :image-url="entry.monster?.image_url ?? null"
               :reveal-stats="entry.discovery.reveal_stats"
             />
           </div>
@@ -67,6 +67,19 @@
           </p>
         </div>
         <span v-if="isDruid && isCircleOfMoon" class="font-cinzel text-[9px] tracking-wider px-1.5 py-0.5 rounded border border-primary/40 text-primary bg-primary/10">MOON</span>
+      </div>
+
+      <!-- DM: share all eligible beasts with this druid -->
+      <div v-if="ui.dmPreviewMode && isDruid && unsharedEligibleBeasts.length > 0" class="flex items-center justify-between rounded-md border border-primary/20 bg-primary/5 px-3 py-2">
+        <p class="font-fell text-xs text-muted-foreground italic">{{ unsharedEligibleBeasts.length }} eligible beast{{ unsharedEligibleBeasts.length === 1 ? '' : 's' }} not yet shared</p>
+        <button
+          type="button"
+          :disabled="sharingBeasts"
+          class="inline-flex items-center gap-1.5 rounded px-2.5 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-primary border border-primary/40 hover:bg-primary/10 transition-colors disabled:opacity-50"
+          @click="shareAllEligibleBeasts"
+        >
+          {{ sharingBeasts ? 'Sharing…' : 'Share all eligible beasts' }}
+        </button>
       </div>
 
       <div v-if="wildForms.length === 0" class="text-center py-16 space-y-2">
@@ -232,7 +245,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { Pin, Search, X } from "lucide-vue-next";
-import { usePlayerDiscoveries } from "@/composables/useDiscoveredMonsters";
+import { usePlayerDiscoveries, useAutoDiscoverMonsters } from "@/composables/useDiscoveredMonsters";
 import { usePinnedForms, useTogglePinnedForm } from "@/composables/usePinnedForms";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useParty } from "@/composables/useParty";
@@ -306,7 +319,7 @@ const filtered = computed(() => {
   if (!search.value.trim()) return resolved.value;
   const q = search.value.trim().toLowerCase();
   return resolved.value.filter(
-    (e) => e.discovery.monster_name.toLowerCase().includes(q) || e.monster?.monster_type.toLowerCase().includes(q),
+    (e) => (e.monster?.name ?? "").toLowerCase().includes(q) || (e.monster?.monster_type ?? "").toLowerCase().includes(q),
   );
 });
 
@@ -365,21 +378,43 @@ const pinnedFormMonsters = computed<FormEntry[]>(() => {
       pin.srd_slug ? m.id === pin.srd_slug : m.id === pin.monster_id,
     ) ?? null;
     if (!monster) return [];
-    return [{ monster, name: pin.monster_name, imageUrl: pin.image_url }];
+    return [{ monster, name: monster.name, imageUrl: monster.image_url ?? null }];
   });
 });
 
 const pinnedMonsterIds = computed(() => new Set(pinnedFormMonsters.value.map((e) => e.monster.id)));
 
-// Build a set of discovered monster keys (monster_id or srd_slug)
+// Build a set of discovered monster keys visible to the current (preview) player
 const discoveredMonsterKeys = computed<Set<string>>(() => {
   const s = new Set<string>();
-  for (const d of discoveries.value ?? []) {
+  for (const d of (discoveries.value ?? []).filter(isVisibleToPreviewMember)) {
     if (d.monster_id) s.add(d.monster_id);
     if (d.srd_slug)   s.add(d.srd_slug);
   }
   return s;
 });
+
+// DM: eligible beasts not yet shared with the previewed party member
+const unsharedEligibleBeasts = computed(() => {
+  if (!isDruid.value) return [];
+  return (allMonsters.value ?? []).filter(
+    (m) => isEligibleBeast(m) && !discoveredMonsterKeys.value.has(m.id),
+  );
+});
+
+const sharingBeasts = ref(false);
+const { mutateAsync: autoDiscover } = useAutoDiscoverMonsters();
+
+async function shareAllEligibleBeasts() {
+  const memberId = ui.dmPreviewPartyMemberId;
+  if (!memberId || !unsharedEligibleBeasts.value.length) return;
+  sharingBeasts.value = true;
+  try {
+    await autoDiscover({ monsters: unsharedEligibleBeasts.value, partyMemberIds: [memberId] });
+  } finally {
+    sharingBeasts.value = false;
+  }
+}
 
 // Eligible beast forms: only beasts the player has discovered that pass CR/speed filter
 const eligibleBeastForms = computed<FormEntry[]>(() => {
@@ -424,8 +459,8 @@ function openLightbox(monster: Monster | null, discovery: DiscoveredMonster | nu
   lastRoll.value = null;
   lightbox.value = {
     monster,
-    name: discovery?.monster_name ?? monster?.name ?? "",
-    imageUrl: discovery?.image_url ?? monster?.image_url ?? null,
+    name: monster?.name ?? "Unknown creature",
+    imageUrl: monster?.image_url ?? null,
     revealStats: discovery?.reveal_stats ?? null,
     entityId: discovery?.monster_id ?? discovery?.srd_slug ?? monster?.id ?? "",
   };

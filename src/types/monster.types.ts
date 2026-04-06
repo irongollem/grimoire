@@ -75,9 +75,7 @@ export interface DiscoveredMonster {
   campaign_id: string;
   monster_id: string | null;   // custom monster FK
   srd_slug: string | null;     // SRD monster stable ID e.g. "srd_aboleth"
-  monster_name: string;
-  image_url: string | null;
-  visible_to: string[] | null; // null = whole party; array = specific party_member_ids
+  visible_to: string[] | null; // null = whole party (legacy); array = specific party_member_ids
   reveal_stats: boolean;       // false = name/art/CR only; true = full stat block
   discovered_at: string;
 }

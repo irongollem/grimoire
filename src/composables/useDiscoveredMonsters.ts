@@ -18,7 +18,7 @@ export function useCampaignDiscoveries() {
         .from("discovered_monsters")
         .select("*")
         .eq("campaign_id", campaignId.value!)
-        .order("monster_name");
+        .order("discovered_at", { ascending: false });
       if (error) throw error;
       return data as DiscoveredMonster[];
     },
@@ -39,7 +39,7 @@ export function useDiscoveredKeys() {
   });
 }
 
-// ── Toggle a monster's discovery (share / unshare with whole party) ────────
+// ── Toggle a monster's discovery (share / unshare) ─────────────────────────
 
 export function useToggleMonsterDiscovery() {
   const queryClient = useQueryClient();
@@ -64,8 +64,6 @@ export function useToggleMonsterDiscovery() {
           campaign_id: campaignId,
           monster_id:  monster.is_srd ? null : monster.id,
           srd_slug:    monster.is_srd ? monster.id : null,
-          monster_name: monster.name,
-          image_url:   monster.image_url,
           visible_to:  visibleTo,
         };
         const { data, error } = await supabase.from("discovered_monsters").insert(insert).select().single();
@@ -87,8 +85,6 @@ export function useToggleMonsterDiscovery() {
           campaign_id: campaign.activeCampaignId!,
           monster_id: monster.is_srd ? null : monster.id,
           srd_slug: monster.is_srd ? monster.id : null,
-          monster_name: monster.name,
-          image_url: monster.image_url ?? null,
           visible_to: visibleTo,
           reveal_stats: false,
           discovered_at: new Date().toISOString(),
@@ -118,7 +114,7 @@ export function useToggleMonsterDiscovery() {
   });
 }
 
-/** Update who can see a specific discovery (null = whole party). */
+/** Update who can see a specific discovery. */
 export function useUpdateDiscoveryVisibility() {
   const queryClient = useQueryClient();
   const campaign = useCampaignStore();
@@ -127,7 +123,6 @@ export function useUpdateDiscoveryVisibility() {
       const { error } = await supabase.from("discovered_monsters").update({ visible_to: visibleTo }).eq("id", id);
       if (error) throw error;
     },
-    // Optimistic update: apply immediately so the popover responds without waiting for refetch
     onMutate: async ({ id, visibleTo }) => {
       const queryKey = [QUERY_KEY, campaign.activeCampaignId];
       await queryClient.cancelQueries({ queryKey });
@@ -176,16 +171,21 @@ export function useUpdateDiscoveryStats() {
   });
 }
 
-// ── Player: monsters visible to this player ────────────────────────────────
-
-// ── Phase 3: bulk auto-discover revealed monsters at end combat ─────────────
+// ── Bulk auto-discover revealed monsters at end of combat ───────────────────
+// partyMemberIds: explicit list of who should see the discovery (all active party members).
 
 export function useAutoDiscoverMonsters() {
   const queryClient = useQueryClient();
   const campaign = useCampaignStore();
 
   return useMutation({
-    mutationFn: async (monsters: Pick<Monster, "id" | "name" | "is_srd" | "image_url">[]) => {
+    mutationFn: async ({
+      monsters,
+      partyMemberIds,
+    }: {
+      monsters: Pick<Monster, "id" | "is_srd">[];
+      partyMemberIds: string[];
+    }) => {
       const campaignId = campaign.activeCampaignId!;
 
       // Fetch existing discoveries to deduplicate
@@ -206,9 +206,7 @@ export function useAutoDiscoverMonsters() {
           campaign_id: campaignId,
           monster_id: m.is_srd ? null : m.id,
           srd_slug: m.is_srd ? m.id : null,
-          monster_name: m.name,
-          image_url: m.image_url ?? null,
-          visible_to: null,
+          visible_to: partyMemberIds.length > 0 ? partyMemberIds : null,
         }));
 
       if (toInsert.length === 0) return [];
@@ -226,6 +224,8 @@ export function useAutoDiscoverMonsters() {
   });
 }
 
+// ── Player: monsters visible to this player ────────────────────────────────
+
 export function usePlayerDiscoveries() {
   return useQuery({
     queryKey: [QUERY_KEY, "player"],
@@ -233,7 +233,7 @@ export function usePlayerDiscoveries() {
       const { data, error } = await supabase
         .from("discovered_monsters")
         .select("*")
-        .order("monster_name");
+        .order("discovered_at", { ascending: false });
       if (error) throw error;
       return data as DiscoveredMonster[];
     },
