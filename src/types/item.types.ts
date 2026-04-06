@@ -28,6 +28,7 @@ export const ITEM_TYPES = [
   "vehicle",
   "trade_good",
   "crafting_material",
+  "service",
 ] as const;
 export type ItemType = (typeof ITEM_TYPES)[number];
 
@@ -48,6 +49,7 @@ export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
   vehicle: "Vehicle",
   trade_good: "Trade Good",
   crafting_material: "Crafting Material",
+  service: "Service",
 };
 
 export const ITEM_RARITIES = [
