@@ -15,34 +15,62 @@
     </p>
 
     <div v-else class="flex flex-col gap-2">
+      <div class="flex justify-end">
+        <button
+          type="button"
+          class="font-cinzel text-[10px] tracking-wider transition-colors"
+          :class="detailOpen.size > 0 || childrenOpen.size > 0
+            ? 'text-muted-foreground hover:text-foreground'
+            : 'invisible pointer-events-none'"
+          @click="detailOpen = new Set(); childrenOpen = new Set()"
+        >
+          Close all
+        </button>
+      </div>
       <div
-        v-for="entry in flatTree"
+        v-for="entry in visibleTree"
         :key="entry.loc.id"
+        :data-location-id="entry.loc.id"
         class="rounded-lg border border-border bg-card overflow-hidden"
         :style="{ marginLeft: `${entry.depth * 16}px` }"
       >
         <!-- Header row -->
-        <button
-          type="button"
-          class="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left"
-          @click="toggle(entry.loc.id)"
-        >
-          <span
-            class="h-2 w-2 rounded-full shrink-0"
-            :style="{ backgroundColor: locColor(entry.loc.location_type) }"
-          />
-          <span class="flex-1 font-cinzel text-sm font-semibold text-foreground">{{ entry.loc.name }}</span>
-          <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
-            {{ locLabel(entry.loc.location_type) }}
-          </span>
-          <ChevronDown
-            class="h-3.5 w-3.5 text-muted-foreground transition-transform duration-150 shrink-0"
-            :class="expanded.has(entry.loc.id) ? 'rotate-180' : ''"
-          />
-        </button>
+        <div class="w-full flex items-stretch">
+          <!-- Main bar: toggles children visibility -->
+          <button
+            type="button"
+            class="flex-1 flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left min-w-0"
+            @click="toggleChildren(entry.loc.id)"
+          >
+            <span
+              class="h-2 w-2 rounded-full shrink-0"
+              :style="{ backgroundColor: locColor(entry.loc.location_type) }"
+            />
+            <span class="flex-1 font-cinzel text-sm font-semibold text-foreground truncate">{{ entry.loc.name }}</span>
+            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider shrink-0">
+              {{ locLabel(entry.loc.location_type) }}
+            </span>
+            <ChevronDown
+              v-if="hasSharedChildren.has(entry.loc.id)"
+              class="h-3.5 w-3.5 text-muted-foreground transition-transform duration-150 shrink-0"
+              :class="childrenOpen.has(entry.loc.id) ? 'rotate-180' : ''"
+            />
+          </button>
+          <!-- Details button: toggles detail panel -->
+          <button
+            type="button"
+            class="shrink-0 flex items-center gap-1.5 px-3 text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors border-l border-border"
+            :class="detailOpen.has(entry.loc.id) ? 'text-foreground' : ''"
+            :title="detailOpen.has(entry.loc.id) ? 'Hide details' : 'Show details'"
+            @click="toggleDetail(entry.loc.id)"
+          >
+            <Eye class="h-3.5 w-3.5 shrink-0" />
+            <span class="hidden sm:inline font-cinzel text-[10px] tracking-wider">Details</span>
+          </button>
+        </div>
 
-        <!-- Expanded: summary, map, description, NPCs, player notes -->
-        <div v-if="expanded.has(entry.loc.id)" class="px-4 pb-4 flex flex-col gap-4">
+        <!-- Detail panel: summary, map, description, NPCs, player notes -->
+        <div v-if="detailOpen.has(entry.loc.id)" class="px-4 pb-4 flex flex-col gap-4">
           <!-- Player summary (always shown when present) -->
           <p
             v-if="entry.loc.player_summary"
@@ -196,8 +224,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import { ChevronDown, X } from "lucide-vue-next";
+import { ref, computed, nextTick } from "vue";
+import { ChevronDown, X, Eye } from "lucide-vue-next";
 import { useSharedLocations } from "@/composables/useLocations";
 import { useSharedNpcsByLocations } from "@/composables/useNpcs";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS, STORE_LOCATION_TYPES } from "@/types/location.types";
@@ -254,8 +282,43 @@ const flatTree = computed(() => {
   });
 });
 
-const expanded = ref(new Set<string>());
+// childrenOpen — which locations have their child cards visible in the list.
+// detailOpen   — which locations have their detail panel (map/description/NPCs) open.
+const childrenOpen = ref(new Set<string>());
+const detailOpen = ref(new Set<string>());
 const fullSizeMaps = ref(new Set<string>());
+
+// Locations that have at least one shared child.
+const hasSharedChildren = computed(() => {
+  const sharedIds = new Set((locations.value ?? []).map((l) => l.id));
+  const result = new Set<string>();
+  for (const entry of flatTree.value) {
+    if (entry.loc.parent_id && sharedIds.has(entry.loc.parent_id)) {
+      result.add(entry.loc.parent_id);
+    }
+  }
+  return result;
+});
+
+// visibleTree hides children whose parent is not in childrenOpen.
+// Because flatTree is parent-before-child, a single pass propagates transitively.
+const visibleTree = computed(() => {
+  const all = flatTree.value;
+  const sharedIds = new Set((locations.value ?? []).map((l) => l.id));
+  const hiddenIds = new Set<string>();
+
+  for (const entry of all) {
+    const parentId = entry.loc.parent_id;
+    const parentIsShared = parentId !== null && sharedIds.has(parentId);
+    const parentIsCollapsed = parentIsShared && !childrenOpen.value.has(parentId);
+    const parentIsHidden = parentId !== null && hiddenIds.has(parentId);
+    if (parentIsCollapsed || parentIsHidden) {
+      hiddenIds.add(entry.loc.id);
+    }
+  }
+
+  return all.filter((e) => !hiddenIds.has(e.loc.id));
+});
 
 // Fetch shared NPCs for all locations with is_npcs_shared = true
 const npcSharedLocationIds = computed(() =>
@@ -283,14 +346,16 @@ function toggleMapSize(id: string) {
   fullSizeMaps.value = new Set(fullSizeMaps.value);
 }
 
-function toggle(id: string) {
-  if (expanded.value.has(id)) {
-    expanded.value.delete(id);
-  } else {
-    expanded.value.add(id);
-  }
-  // trigger reactivity
-  expanded.value = new Set(expanded.value);
+function toggleDetail(id: string) {
+  const s = new Set(detailOpen.value);
+  s.has(id) ? s.delete(id) : s.add(id);
+  detailOpen.value = s;
+}
+
+function toggleChildren(id: string) {
+  const s = new Set(childrenOpen.value);
+  s.has(id) ? s.delete(id) : s.add(id);
+  childrenOpen.value = s;
 }
 
 function locColor(type: Location["location_type"]): string {
@@ -311,15 +376,41 @@ const sharedChildIds = computed(() => new Set((locations.value ?? []).map((l) =>
 // Watch panel — shows art, player summary, and notes for a pinned sub-location.
 const watchingLocation = ref<WatchTarget | null>(null);
 
-/** If the clicked child location also has a shared map, expand it. */
+/**
+ * Expand the target location (and all its shared ancestors so it becomes visible),
+ * then scroll it into view. Used by both pin-click and pin-go.
+ */
+async function goToLocation(locationId: string) {
+  const allLocs = locations.value ?? [];
+  const sharedIds = new Set(allLocs.map((l) => l.id));
+  const newChildren = new Set(childrenOpen.value);
+  const newDetail = new Set(detailOpen.value);
+
+  // Walk up the ancestor chain, opening children at each level so the target is visible.
+  let current: typeof allLocs[number] | undefined = allLocs.find((l) => l.id === locationId);
+  while (current) {
+    newDetail.add(current.id);
+    if (!current.parent_id || !sharedIds.has(current.parent_id)) break;
+    newChildren.add(current.parent_id);
+    current = allLocs.find((l) => l.id === current!.parent_id);
+  }
+  childrenOpen.value = newChildren;
+  detailOpen.value = newDetail;
+
+  await nextTick();
+  document
+    .querySelector(`[data-location-id="${locationId}"]`)
+    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 function onPinClick(childId: string) {
-  const child = locations.value?.find((l) => l.id === childId);
-  if (child) toggle(child.id);
+  if (locations.value?.some((l) => l.id === childId)) {
+    goToLocation(childId);
+  }
 }
 
 function onPinGo(childId: string) {
-  const child = locations.value?.find((l) => l.id === childId);
-  if (child) toggle(child.id);
+  goToLocation(childId);
 }
 
 function onPinWatch(childId: string) {

@@ -37,6 +37,8 @@
 - [x] Saving an existing location wipes it from the list — `buildPayload()` included `campaign_id: null`, overwriting the row's campaign_id on every update; locations query filters by campaign_id so the row became invisible. Fixed by removing `campaign_id` from the update payload.
 
 - [x] hitting print on cardforge when the chat is open instead sends the chat overlay to the printview
+
+- [x] Atlas "Travel to" pin button expanded the location detail but never scrolled it into view (irongollem/grimoire#75) — root cause: `onPinGo` called `toggle()` but did nothing after; fixed by replacing with `goToLocation()` which expands the target and all shared ancestors, awaits `nextTick`, then calls `scrollIntoView`; also added `visibleTree` computed so children are hidden when their parent is collapsed (collapsing a parent cleans up the list), and a "Close all" button to fold everything at once
 - [x] in tokenforge when clicking download, the downloaded image is only the top left half of the token
 - [x] SRD item import creating duplicates on re-run (Supabase 1000-row cap causing dedup check to miss items beyond row 1000)
 - [x] Item / monster / spell lists cutting off at ~"P" alphabetically (same 1000-row Supabase default limit, fixed with paginated range queries)
