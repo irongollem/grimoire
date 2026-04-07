@@ -244,6 +244,139 @@ export function spellLevelLabel(level: number): string {
   return `${level}${suffix}-Level`;
 }
 
+// ── Default spell slots ───────────────────────────────────────────────────────
+// Per-level slot counts indexed by character level (index 0 = level 1).
+// Each row: [1st, 2nd, 3rd, 4th, 5th, 6th, 7th, 8th, 9th]
+
+const FULL_CASTER_SLOTS: number[][] = [
+  [2,0,0,0,0,0,0,0,0], // 1
+  [3,0,0,0,0,0,0,0,0], // 2
+  [4,2,0,0,0,0,0,0,0], // 3
+  [4,3,0,0,0,0,0,0,0], // 4
+  [4,3,2,0,0,0,0,0,0], // 5
+  [4,3,3,0,0,0,0,0,0], // 6
+  [4,3,3,1,0,0,0,0,0], // 7
+  [4,3,3,2,0,0,0,0,0], // 8
+  [4,3,3,3,1,0,0,0,0], // 9
+  [4,3,3,3,2,0,0,0,0], // 10
+  [4,3,3,3,2,1,0,0,0], // 11
+  [4,3,3,3,2,1,0,0,0], // 12
+  [4,3,3,3,2,1,1,0,0], // 13
+  [4,3,3,3,2,1,1,0,0], // 14
+  [4,3,3,3,2,1,1,1,0], // 15
+  [4,3,3,3,2,1,1,1,0], // 16
+  [4,3,3,3,2,1,1,1,1], // 17
+  [4,3,3,3,3,1,1,1,1], // 18
+  [4,3,3,3,3,2,1,1,1], // 19
+  [4,3,3,3,3,2,2,1,1], // 20
+];
+
+// Half-casters (Paladin, Ranger). Level 1 = no slots.
+const HALF_CASTER_SLOTS: number[][] = [
+  [0,0,0,0,0], // 1
+  [2,0,0,0,0], // 2
+  [3,0,0,0,0], // 3
+  [3,0,0,0,0], // 4
+  [4,2,0,0,0], // 5
+  [4,2,0,0,0], // 6
+  [4,3,0,0,0], // 7
+  [4,3,0,0,0], // 8
+  [4,3,2,0,0], // 9
+  [4,3,2,0,0], // 10
+  [4,3,3,0,0], // 11
+  [4,3,3,0,0], // 12
+  [4,3,3,1,0], // 13
+  [4,3,3,1,0], // 14
+  [4,3,3,2,0], // 15
+  [4,3,3,2,0], // 16
+  [4,3,3,3,1], // 17
+  [4,3,3,3,1], // 18
+  [4,3,3,3,2], // 19
+  [4,3,3,3,2], // 20
+];
+
+// Artificer is a half-caster but gets 2 slots at level 1.
+const ARTIFICER_SLOTS: number[][] = [
+  [2,0,0,0,0], // 1
+  ...HALF_CASTER_SLOTS.slice(1),
+];
+
+// Third-casters (Eldritch Knight, Arcane Trickster). Slots start at level 3.
+const THIRD_CASTER_SLOTS: number[][] = [
+  [0,0,0,0], // 1
+  [0,0,0,0], // 2
+  [2,0,0,0], // 3
+  [3,0,0,0], // 4
+  [3,0,0,0], // 5
+  [3,0,0,0], // 6
+  [4,2,0,0], // 7
+  [4,2,0,0], // 8
+  [4,2,0,0], // 9
+  [4,3,0,0], // 10
+  [4,3,0,0], // 11
+  [4,3,0,0], // 12
+  [4,3,2,0], // 13
+  [4,3,2,0], // 14
+  [4,3,2,0], // 15
+  [4,3,3,0], // 16
+  [4,3,3,0], // 17
+  [4,3,3,0], // 18
+  [4,3,3,1], // 19
+  [4,3,3,1], // 20
+];
+
+// Warlock pact magic: [slot level, slot count] per character level.
+// All slots are the same level and regain on short rest.
+const WARLOCK_PACT_SLOTS: [number, number][] = [
+  [1,1],[1,2],[2,2],[2,2],[3,2],[3,2],[4,2],[4,2],[5,2],[5,2],
+  [5,3],[5,3],[5,3],[5,3],[5,3],[5,3],[5,4],[5,4],[5,4],[5,4],
+];
+
+function slotsFromRow(row: number[]): import("@/types/party.types").SpellSlotEntry[] {
+  return row
+    .map((max, i) => ({ level: i + 1, max, used: 0 }))
+    .filter((s) => s.max > 0);
+}
+
+/** Returns the default spell slots for a given class and level per 5e rules. */
+export function getDefaultSpellSlots(
+  cls: string | null | undefined,
+  level: number,
+): import("@/types/party.types").SpellSlotEntry[] {
+  const l = Math.max(1, Math.min(20, Math.round(level)));
+  const idx = l - 1;
+  switch (cls) {
+    case "Bard":
+    case "Cleric":
+    case "Druid":
+    case "Sorcerer":
+    case "Wizard":
+      return slotsFromRow(FULL_CASTER_SLOTS[idx]);
+    case "Paladin":
+    case "Ranger":
+      return slotsFromRow(HALF_CASTER_SLOTS[idx]);
+    case "Artificer":
+      return slotsFromRow(ARTIFICER_SLOTS[idx]);
+    case "Fighter (Eldritch Knight)":
+    case "Rogue (Arcane Trickster)":
+      return slotsFromRow(THIRD_CASTER_SLOTS[idx]);
+    case "Warlock": {
+      const [slotLevel, count] = WARLOCK_PACT_SLOTS[idx];
+      return count > 0 ? [{ level: slotLevel, max: count, used: 0 }] : [];
+    }
+    default:
+      return [];
+  }
+}
+
+/**
+ * Returns 'short' if the class regains spell slots on a short rest (Warlock pact magic),
+ * 'long' otherwise.
+ */
+export function getSlotRecovery(cls: string | null | undefined): "short" | "long" {
+  return cls === "Warlock" ? "short" : "long";
+}
+
 export const SCHOOL_COLORS: Record<SpellSchool, string> = {
   abjuration: "#2563eb",
   conjuration: "#7c3aed",

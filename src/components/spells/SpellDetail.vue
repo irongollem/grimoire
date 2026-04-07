@@ -1320,7 +1320,7 @@ async function save() {
       router.push("/spells");
     } else {
       const created = await create(buildPayload());
-      router.replace(`/spells/${created.id}`);
+      router.replace(`/spells/${created.id}?edit=true`);
     }
   } catch (e: unknown) {
     saveError.value = e instanceof Error ? e.message : "Failed to save";

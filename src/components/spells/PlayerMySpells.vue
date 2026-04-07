@@ -24,9 +24,9 @@
       <p class="font-fell text-sm text-muted-foreground max-w-sm mx-auto">{{ emptyBody }}</p>
     </div>
 
-    <!-- Spell list + optional prepared counter -->
-    <template v-else-if="displayedEntries.length">
-      <!-- Prepared count vs. max banner -->
+    <!-- Grouped spell list -->
+    <template v-else>
+      <!-- Prepared count vs. max banner (Wizard prepared tab) -->
       <div
         v-if="showPreparedCounter"
         class="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-2 mb-2"
@@ -36,16 +36,58 @@
           {{ preparedNonCantrips }} / {{ maxPrepared }}
         </span>
       </div>
-      <div v-for="group in levelGroups" :key="group.level" class="mb-4">
-        <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase mb-1.5 px-1">
-          {{ group.level === 0 ? "Cantrips" : `Level ${group.level}` }}
-        </h3>
 
-        <div class="rounded-lg border border-border bg-card divide-y divide-border overflow-hidden">
+      <div v-for="group in levelGroups" :key="group.level" class="mb-2">
+        <!-- Level header (accordion toggle) -->
+        <button
+          class="w-full flex items-center gap-2 px-3 py-2 rounded-t-lg bg-muted/40 border border-border hover:bg-muted/60 transition-colors"
+          :class="ui.playerSpellOpenLevels.includes(group.level) ? 'rounded-t-lg border-b-0' : 'rounded-lg'"
+          @click="ui.togglePlayerSpellLevel(group.level)"
+        >
+          <ChevronRight
+            class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform"
+            :class="ui.playerSpellOpenLevels.includes(group.level) ? 'rotate-90' : ''"
+          />
+
+          <!-- Label -->
+          <span class="font-cinzel text-xs font-bold tracking-wider text-foreground">
+            {{ group.level === 0 ? "Cantrips" : SLOT_LEVEL_LABELS[group.level - 1] + " Level" }}
+          </span>
+
+          <!-- Slot pips for this level -->
+          <template v-if="group.level > 0 && slotForLevel(group.level)">
+            <div class="flex items-center gap-0.5 ml-1" @click.stop>
+              <button
+                v-for="pip in slotForLevel(group.level)!.max"
+                :key="pip"
+                class="h-3.5 w-3.5 rounded-full border-2 transition-colors"
+                :class="pip <= slotForLevel(group.level)!.used
+                  ? 'bg-primary border-primary'
+                  : 'border-muted-foreground/40 hover:border-primary/60'"
+                :title="pip <= slotForLevel(group.level)!.used ? 'Recover slot' : 'Spend slot'"
+                @click="togglePip(group.level, pip)"
+              />
+            </div>
+            <span class="font-cinzel text-[10px] text-muted-foreground">
+              {{ slotForLevel(group.level)!.max - slotForLevel(group.level)!.used }}/{{ slotForLevel(group.level)!.max }}
+            </span>
+          </template>
+
+          <!-- Spell count badge -->
+          <span class="ml-auto font-cinzel text-[10px] text-muted-foreground tracking-wider">
+            {{ group.entries.length }}
+          </span>
+        </button>
+
+        <!-- Spell rows -->
+        <div
+          v-show="ui.playerSpellOpenLevels.includes(group.level)"
+          class="rounded-b-lg border border-t-0 border-border bg-card divide-y divide-border overflow-hidden"
+        >
           <div
             v-for="entry in group.entries"
             :key="entry.id"
-            class="group flex items-center gap-3 px-3 py-2.5 hover:bg-muted/30 transition-colors"
+            class="group flex items-center gap-2 px-3 py-2.5 hover:bg-muted/30 transition-colors"
           >
             <!-- School colour dot -->
             <div
@@ -53,36 +95,54 @@
               :style="{ backgroundColor: SCHOOL_COLORS[entry.spell.school] }"
             />
 
-            <!-- Name -->
-            <RouterLink
-              :to="`/spells/${entry.spell.id}`"
-              class="flex-1 font-fell text-sm text-foreground hover:text-primary transition-colors"
+            <!-- Spell name -->
+            <button
+              class="flex-1 font-fell text-sm text-foreground hover:text-primary transition-colors min-w-0 truncate text-left"
+              @click.stop="selectedSpell = entry.spell"
             >
               {{ entry.spell.name }}
-            </RouterLink>
+            </button>
 
             <!-- Badges -->
             <span
               v-if="entry.spell.ritual"
-              class="font-cinzel text-[10px] tracking-wider text-muted-foreground border border-border rounded px-1"
+              class="shrink-0 font-cinzel text-[10px] tracking-wider text-muted-foreground border border-border rounded px-1"
             >R</span>
             <span
               v-if="entry.spell.concentration"
-              class="font-cinzel text-[10px] tracking-wider text-primary/70 border border-primary/30 rounded px-1"
+              class="shrink-0 font-cinzel text-[10px] tracking-wider text-primary/70 border border-primary/30 rounded px-1"
             >C</span>
 
-            <!-- School label -->
-            <span class="hidden sm:block font-cinzel text-[10px] tracking-wider text-muted-foreground capitalize w-20 text-right shrink-0">
-              {{ entry.spell.school }}
-            </span>
+            <!-- Attack / save info -->
+            <span
+              v-if="isCastable(entry) && spellAttackBonus !== null && (entry.spell.attack_type === 'ranged_spell' || entry.spell.attack_type === 'melee_spell')"
+              class="shrink-0 font-cinzel text-[10px] text-muted-foreground"
+            >Atk {{ signedNum(spellAttackBonus) }}</span>
+            <span
+              v-else-if="isCastable(entry) && spellSaveDc !== null && entry.spell.attack_type === 'save'"
+              class="shrink-0 font-cinzel text-[10px] text-muted-foreground"
+            >DC {{ spellSaveDc }}</span>
 
-            <!-- Prepare toggle (Wizard spellbook tab + non-cantrips) -->
+            <!-- Cast button (castable spells) -->
+            <button
+              v-if="isCastable(entry)"
+              class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded font-cinzel text-[10px] font-semibold tracking-wider transition-colors border"
+              :class="castButtonClass(entry)"
+              :disabled="isCasting"
+              :title="castButtonTitle(entry)"
+              @click="castSpell(entry)"
+            >
+              <Wand2 class="h-3 w-3" />
+              Cast
+            </button>
+
+            <!-- Prepare toggle (Wizard spellbook tab) -->
             <button
               v-if="showPrepareToggle && entry.spell.level > 0"
-              class="shrink-0 flex items-center gap-1 rounded px-2 py-0.5 font-cinzel text-[10px] font-semibold tracking-wider transition-colors cursor-pointer"
+              class="shrink-0 flex items-center gap-1 rounded px-2 py-0.5 font-cinzel text-[10px] font-semibold tracking-wider transition-colors cursor-pointer border"
               :class="entry.is_prepared
-                ? 'bg-primary/15 text-primary border border-primary/30 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30'
-                : 'bg-muted text-muted-foreground border border-border hover:bg-primary/10 hover:text-primary hover:border-primary/30'"
+                ? 'bg-primary/15 text-primary border-primary/30 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30'
+                : 'bg-muted text-muted-foreground border-border hover:bg-primary/10 hover:text-primary hover:border-primary/30'"
               :disabled="isToggling"
               :title="entry.is_prepared ? 'Unprepare' : 'Prepare'"
               @click="togglePrepare(entry)"
@@ -92,17 +152,15 @@
               {{ entry.is_prepared ? "Prepared" : "Prepare" }}
             </button>
 
-            <!-- Cantrip always-prepared badge -->
+            <!-- Cantrip always-prepared badge (Wizard spellbook only) -->
             <span
               v-else-if="showPrepareToggle && entry.spell.level === 0"
               class="shrink-0 font-cinzel text-[10px] tracking-wider text-emerald-500/70 border border-emerald-500/20 rounded px-2 py-0.5"
-            >
-              Always
-            </span>
+            >Always</span>
 
             <!-- Remove button -->
             <button
-              class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-400 p-1 rounded cursor-pointer"
+              class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-400 p-1 rounded cursor-pointer shrink-0"
               :title="removeTitle"
               :disabled="isRemoving"
               @click="handleRemove(entry)"
@@ -117,28 +175,42 @@
         {{ footerText }}
       </p>
     </template>
+
+    <!-- Spell detail modal -->
+    <PlayerSpellModal :spell="selectedSpell" @close="selectedSpell = null" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
-import { Flame, Circle, X, BookOpen } from "lucide-vue-next";
+import { ref, computed } from "vue";
+import { Flame, Circle, X, BookOpen, ChevronRight, Wand2 } from "lucide-vue-next";
 import {
   useCharacterSpellsWithDetails,
   useRemoveCharacterSpell,
   useTogglePrepared,
 } from "@/composables/useCharacterSpells";
+import { useUpdatePartyMember } from "@/composables/useParty";
+import { useCampaignMessages } from "@/composables/useCampaignMessages";
+import { useUiStore } from "@/stores/ui";
 import { SCHOOL_COLORS } from "@/types/spell.types";
-import type { CasterType, CharacterSpellEntry } from "@/types/spell.types";
+import type { CasterType, CharacterSpellEntry, Spell } from "@/types/spell.types";
+import type { SpellSlotEntry } from "@/types/party.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
+
+const SLOT_LEVEL_LABELS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"] as const;
 
 const props = defineProps<{
   partyMemberId: string | null;
   casterType: CasterType;
   memberClass: string;
+  memberName: string;
+  spellSlots: SpellSlotEntry[];
+  spellAttackBonus: number | null;
+  spellSaveDc: number | null;
   /**
-   * "spellbook" — show all character_spells (used for Wizard spellbook tab + Known tab)
-   * "prepared"  — show only is_prepared = true (used for Prepared tab)
+   * "spellbook" — show all character_spells (Wizard spellbook tab + Known tab for known casters)
+   * "prepared"  — show only is_prepared = true (Wizard/Cleric/etc. prepared tab)
    */
   viewMode: "spellbook" | "prepared";
   /** Max spells that can be prepared (null = no cap / not applicable). */
@@ -150,7 +222,98 @@ const { data: allEntries, isLoading } = useCharacterSpellsWithDetails(
 );
 const { mutate: removeSpell, isPending: isRemoving } = useRemoveCharacterSpell();
 const { mutate: togglePreparedMutation, isPending: isToggling } = useTogglePrepared();
+const { mutateAsync: updateMember } = useUpdatePartyMember();
+const { sendFlavorMessage } = useCampaignMessages();
+const ui = useUiStore();
 
+// ── Modal ──────────────────────────────────────────────────────────────────────
+const selectedSpell = ref<Spell | null>(null);
+
+// ── Slot helpers ───────────────────────────────────────────────────────────────
+function slotForLevel(level: number): SpellSlotEntry | undefined {
+  return props.spellSlots.find((s) => s.level === level);
+}
+
+async function togglePip(level: number, pip: number) {
+  if (!props.partyMemberId) return;
+  const updated = props.spellSlots.map((s) => {
+    if (s.level !== level) return s;
+    const newUsed = s.used >= pip ? pip - 1 : pip;
+    return { ...s, used: newUsed };
+  });
+  await updateMember({ id: props.partyMemberId, update: { spell_slots: updated } });
+}
+
+// ── Cast ───────────────────────────────────────────────────────────────────────
+const isCasting = ref(false);
+
+/** A spell is castable if it's prepared, a cantrip, or the caster always has it ready (known casters). */
+function isCastable(entry: CharacterSpellEntry): boolean {
+  if (props.viewMode === "prepared") return true;
+  if (props.casterType === "known") return true;
+  return entry.is_prepared || entry.spell.level === 0;
+}
+
+function slotAvailable(level: number): boolean {
+  if (level === 0) return true; // cantrips always available
+  const slot = slotForLevel(level);
+  if (!slot) return true; // no slot tracking configured — allow anyway
+  return slot.used < slot.max;
+}
+
+function castButtonClass(entry: CharacterSpellEntry): string {
+  if (entry.spell.level === 0) {
+    return "bg-muted/50 border-border text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30";
+  }
+  if (!slotAvailable(entry.spell.level)) {
+    return "bg-muted/30 border-border/50 text-muted-foreground/40 cursor-not-allowed";
+  }
+  return "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20";
+}
+
+function castButtonTitle(entry: CharacterSpellEntry): string {
+  if (entry.spell.level === 0) return "Cast cantrip";
+  const slot = slotForLevel(entry.spell.level);
+  if (slot && slot.used >= slot.max) return "No slots remaining";
+  return `Cast — spend one ${SLOT_LEVEL_LABELS[entry.spell.level - 1]}-level slot`;
+}
+
+function signedNum(n: number): string {
+  return n >= 0 ? `+${n}` : `${n}`;
+}
+
+async function castSpell(entry: CharacterSpellEntry) {
+  if (!props.partyMemberId || isCasting.value) return;
+  isCasting.value = true;
+  try {
+    const level = entry.spell.level;
+
+    // Build flavor text
+    let text = `${props.memberName} casts ${entry.spell.name}`;
+    if (level > 0 && props.spellAttackBonus !== null
+      && (entry.spell.attack_type === "ranged_spell" || entry.spell.attack_type === "melee_spell")) {
+      text += ` (Atk ${signedNum(props.spellAttackBonus)})`;
+    } else if (level > 0 && props.spellSaveDc !== null && entry.spell.attack_type === "save") {
+      text += ` (DC ${props.spellSaveDc} ${entry.spell.save_attribute ?? ""})`;
+    }
+    await sendFlavorMessage(text, "spell");
+
+    // Spend slot
+    if (level > 0) {
+      const slot = slotForLevel(level);
+      if (slot && slot.used < slot.max) {
+        const updated = props.spellSlots.map((s) =>
+          s.level === level ? { ...s, used: s.used + 1 } : s,
+        );
+        await updateMember({ id: props.partyMemberId, update: { spell_slots: updated } });
+      }
+    }
+  } finally {
+    isCasting.value = false;
+  }
+}
+
+// ── Prepare toggle ─────────────────────────────────────────────────────────────
 /** Prepare toggle is shown only for Wizard in their spellbook tab. */
 const showPrepareToggle = computed(
   () => props.casterType === "spellbook" && props.viewMode === "spellbook",
@@ -193,7 +356,7 @@ const emptyBody = computed(() => {
   return 'Browse "All Spells" and click "Learn" to add spells to your list.';
 });
 
-// ── Remove / unprepare ─────────────────────────────────────────────────────────
+// ── Remove ─────────────────────────────────────────────────────────────────────
 const removeTitle = computed(() => {
   if (props.viewMode === "prepared" && props.casterType !== "spellbook") return "Unprepare";
   return "Remove from spellbook";
@@ -201,12 +364,7 @@ const removeTitle = computed(() => {
 
 function handleRemove(entry: CharacterSpellEntry) {
   if (!props.partyMemberId) return;
-  if (props.viewMode === "prepared" && props.casterType !== "spellbook") {
-    // Prepared casters: deleting from prepared tab removes the row entirely
-    removeSpell({ partyMemberId: props.partyMemberId, spellId: entry.spell.id });
-  } else {
-    removeSpell({ partyMemberId: props.partyMemberId, spellId: entry.spell.id });
-  }
+  removeSpell({ partyMemberId: props.partyMemberId, spellId: entry.spell.id });
 }
 
 function togglePrepare(entry: CharacterSpellEntry) {
@@ -218,7 +376,7 @@ function togglePrepare(entry: CharacterSpellEntry) {
   });
 }
 
-// ── Prepared counter ──────────────────────────────────────────────────────────
+// ── Prepared counter ───────────────────────────────────────────────────────────
 const preparedNonCantrips = computed(
   () => displayedEntries.value.filter((e) => e.spell.level > 0 && e.is_prepared).length,
 );

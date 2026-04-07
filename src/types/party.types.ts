@@ -61,6 +61,12 @@ export const SKILLS: Array<{ key: keyof SkillProficiencies; label: string; abili
   { key: "survival", label: "Survival", ability: "wis" },
 ];
 
+export interface SpellSlotEntry {
+  level: number; // 1–9
+  max: number;
+  used: number;
+}
+
 export interface PartyMember {
   id: string;
   user_id: string;
@@ -106,6 +112,7 @@ export interface PartyMember {
   // Proficiencies & languages
   tool_proficiencies: string[];
   languages: string[];
+  spell_slots: SpellSlotEntry[];
   created_at: string;
   updated_at: string;
 }

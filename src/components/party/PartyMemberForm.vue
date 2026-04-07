@@ -285,6 +285,37 @@
               </p>
             </div>
           </div>
+          <!-- Spell slots -->
+          <div class="flex items-center justify-between mt-2">
+            <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">
+              Spell Slots (Max per Level)
+            </p>
+            <button
+              type="button"
+              class="font-cinzel text-[10px] tracking-wider text-primary/70 hover:text-primary transition-colors"
+              @click="resetSlotsToDefault"
+            >
+              Reset to class defaults
+            </button>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <label
+              v-for="lvl in 9"
+              :key="lvl"
+              class="flex flex-col items-center gap-1"
+            >
+              <span class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">
+                {{ SLOT_LEVEL_LABELS[lvl - 1] }}
+              </span>
+              <input
+                v-model.number="spellSlotMaxes[lvl - 1]"
+                type="number"
+                min="0"
+                max="9"
+                class="field-input w-full text-center px-1"
+              />
+            </label>
+          </div>
         </template>
 
         <!-- Proficiencies tab -->
@@ -419,7 +450,7 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, reactive, computed } from "vue";
+import { ref, reactive, computed, watch } from "vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import {
@@ -439,7 +470,11 @@ import type {
   PartyMemberInsert,
   SkillProfLevel,
   SaveKey,
+  SpellSlotEntry,
 } from "@/types/party.types";
+import { getDefaultSpellSlots } from "@/types/spell.types";
+
+const SLOT_LEVEL_LABELS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"] as const;
 
 const TABS = [
   { id: "identity", label: "Identity" },
@@ -480,7 +515,7 @@ const focalPoint  = ref<{ x: number; y: number } | null>(props.member?.portrait_
 const cardArtUrl  = ref(props.member?.card_art_url ?? "");
 
 const f = reactive<
-  Omit<PartyMemberInsert, "sort_order" | "portrait_url" | "card_art_url"> & {
+  Omit<PartyMemberInsert, "sort_order" | "portrait_url" | "card_art_url" | "spell_slots"> & {
     sort_order: number;
   }
 >({
@@ -523,6 +558,35 @@ const f = reactive<
   cp: props.member?.cp ?? 0,
   tool_proficiencies: [...(props.member?.tool_proficiencies ?? [])],
   languages: [...(props.member?.languages ?? [])],
+});
+
+// Spell slot max per level (index 0 = level 1, ..., index 8 = level 9)
+function buildSlotMaxes(
+  existing: SpellSlotEntry[] | undefined,
+  cls: string,
+  level: number,
+): number[] {
+  if (existing && existing.length > 0) {
+    // Use existing configured values
+    return Array.from({ length: 9 }, (_, i) => existing.find((s) => s.level === i + 1)?.max ?? 0);
+  }
+  // No config yet — seed from 5e rules
+  const defaults = getDefaultSpellSlots(cls || null, level);
+  return Array.from({ length: 9 }, (_, i) => defaults.find((s) => s.level === i + 1)?.max ?? 0);
+}
+
+const spellSlotMaxes = reactive<number[]>(
+  buildSlotMaxes(props.member?.spell_slots, props.member?.class ?? "", props.member?.level ?? 1),
+);
+
+function resetSlotsToDefault() {
+  const defaults = buildSlotMaxes(undefined, f.class ?? "", f.level);
+  defaults.forEach((v, i) => { spellSlotMaxes[i] = v; });
+}
+
+// Auto-update slot defaults when class changes (only if all slots are currently 0)
+watch(() => f.class, () => {
+  if (spellSlotMaxes.every((v) => v === 0)) resetSlotsToDefault();
 });
 
 function mod(score: number) {
@@ -651,6 +715,12 @@ async function save() {
     portrait_focal_point: focalPoint.value,
     card_art_url: cardArtUrl.value || null,
     proficiency_bonus: profBonus.value,
+    spell_slots: spellSlotMaxes
+      .map((max, i) => {
+        const existing = props.member?.spell_slots?.find((s: SpellSlotEntry) => s.level === i + 1);
+        return { level: i + 1, max, used: max > 0 ? (existing?.used ?? 0) : 0 };
+      })
+      .filter((s) => s.max > 0),
   };
 
   let partyMemberId = props.member?.id;

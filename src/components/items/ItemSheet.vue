@@ -59,6 +59,11 @@
 
       <!-- Right: details -->
       <div class="flex flex-col gap-4">
+        <!-- Arcane focus -->
+        <div v-if="item.is_arcane_focus" class="font-stat text-[15px] text-muted-foreground italic">
+          Can be used as an arcane focus
+        </div>
+
         <!-- Attunement -->
         <div
           v-if="item.requires_attunement"

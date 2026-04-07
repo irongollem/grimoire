@@ -242,6 +242,10 @@
               />
             </label>
           </div>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" v-model="isArcaneFocus" class="rounded" />
+            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">ARCANE FOCUS</span>
+          </label>
         </div>
 
         <!-- Spell references (optional, links to Spellbook entries) -->
@@ -399,6 +403,9 @@ const versatileDamage = ref(props.item?.versatile_damage ?? "");
 // ── Armor fields ──────────────────────────────────────────────────────────────
 const armorClass = ref(props.item?.armor_class ?? "");
 
+// ── Spellcasting ──────────────────────────────────────────────────────────────
+const isArcaneFocus = ref(props.item?.is_arcane_focus ?? false);
+
 // ── Curse fields ──────────────────────────────────────────────────────────────
 const isCursed = ref(!!(props.item?.curse_description));
 const curseDescription = ref(props.item?.curse_description ?? "");
@@ -471,6 +478,7 @@ function buildPayload() {
     tags: tags.value,
     image_url: imageUrl.value || null,
     image_focal_point: imageFocalPoint.value,
+    is_arcane_focus: isArcaneFocus.value,
     curse_description: isCursed.value ? curseDescription.value || null : null,
     curse_revealed: isCursed.value ? curseRevealed.value : false,
   };

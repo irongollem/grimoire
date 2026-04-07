@@ -136,6 +136,19 @@ export const useUiStore = defineStore("ui", () => {
     encountersFilterQuestId.value = "all";
   }
 
+  // Player spell accordion — which levels are expanded (cantrips = 0, open by default)
+  const playerSpellOpenLevels = ref<number[]>([0]);
+
+  function togglePlayerSpellLevel(level: number) {
+    const idx = playerSpellOpenLevels.value.indexOf(level);
+    if (idx >= 0) playerSpellOpenLevels.value.splice(idx, 1);
+    else playerSpellOpenLevels.value.push(level);
+  }
+
+  function resetPlayerSpellOpenLevels() {
+    playerSpellOpenLevels.value = [0];
+  }
+
   // Mobile nav
   const mobileNavOpen = ref(false);
 
@@ -252,6 +265,11 @@ export const useUiStore = defineStore("ui", () => {
     encountersFilterQuestId,
     encountersHasActiveFilters,
     resetEncountersFilters,
+
+    // Player spell accordion
+    playerSpellOpenLevels,
+    togglePlayerSpellLevel,
+    resetPlayerSpellOpenLevels,
 
     // Layout
     mobileNavOpen,

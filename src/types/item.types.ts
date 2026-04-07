@@ -110,6 +110,15 @@ export const WEAPON_PROPERTIES = [
   "versatile",
   "silvered",
   "adamantine",
+  // 2024 PHB mastery properties
+  "cleave",
+  "graze",
+  "nick",
+  "push",
+  "sap",
+  "slow",
+  "topple",
+  "vex",
 ] as const;
 export type WeaponProperty = (typeof WEAPON_PROPERTIES)[number];
 
@@ -139,6 +148,7 @@ export interface Item {
   tags: string[];
   image_url: string | null;
   image_focal_point?: { x: number; y: number } | null;
+  is_arcane_focus: boolean;
   curse_description: string | null;
   curse_revealed: boolean;
   created_at: string;
@@ -151,7 +161,7 @@ export type ItemInsert = Omit<
 >;
 export type ItemUpdate = Partial<ItemInsert>;
 /** Subset used by static data files — fields managed by the DB are omitted */
-export type StaticItemData = Omit<ItemInsert, "user_id" | "curse_description" | "curse_revealed">;
+export type StaticItemData = Omit<ItemInsert, "user_id" | "curse_description" | "curse_revealed" | "is_arcane_focus">;
 
 /** True for item types that can have weapon damage dice */
 export function isWeaponType(t: ItemType): boolean {

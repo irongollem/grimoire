@@ -24,6 +24,10 @@
       :party-member-id="resolvedMemberId"
       :caster-type="casterType"
       :member-class="memberClass"
+      :member-name="memberName"
+      :spell-slots="effectiveSpellSlots"
+      :spell-attack-bonus="spellAttackBonus"
+      :spell-save-dc="spellSaveDc"
       :max-prepared="maxPrepared"
       view-mode="prepared"
     />
@@ -34,6 +38,10 @@
       :party-member-id="resolvedMemberId"
       :caster-type="casterType"
       :member-class="memberClass"
+      :member-name="memberName"
+      :spell-slots="effectiveSpellSlots"
+      :spell-attack-bonus="spellAttackBonus"
+      :spell-save-dc="spellSaveDc"
       :max-prepared="maxPrepared"
       view-mode="spellbook"
     />
@@ -108,7 +116,7 @@ import { useParty } from "@/composables/useParty";
 import { useCharacterSpells } from "@/composables/useCharacterSpells";
 import SpellList from "@/components/spells/SpellList.vue";
 import PlayerMySpells from "@/components/spells/PlayerMySpells.vue";
-import { SPELL_SCHOOLS, SPELL_CLASSES, getCasterType, getMaxPrepared } from "@/types/spell.types";
+import { SPELL_SCHOOLS, SPELL_CLASSES, getCasterType, getMaxPrepared, getDefaultSpellSlots } from "@/types/spell.types";
 
 const LEVEL_FILTERS = [
   { value: "", label: "All" },
@@ -135,6 +143,34 @@ const memberClass = computed(() => {
 const casterType  = computed(() => getCasterType(memberClass.value));
 const member      = computed(() => partyMembers.value?.find((m) => m.id === resolvedMemberId.value) ?? null);
 const maxPrepared = computed(() => getMaxPrepared(member.value, memberClass.value));
+const memberName  = computed(() => member.value?.name ?? "");
+
+// Effective spell slots — fall back to 5e defaults if none configured yet
+const effectiveSpellSlots = computed(() => {
+  const m = member.value;
+  if (!m || casterType.value === "none") return [];
+  if (m.spell_slots?.length) return m.spell_slots;
+  return getDefaultSpellSlots(m.class, m.level);
+});
+
+// Spell attack bonus and save DC
+function abilityMod(score: number) { return Math.floor((score - 10) / 2); }
+
+const spellAttackBonus = computed(() => {
+  const m = member.value;
+  if (!m || casterType.value === "none") return null;
+  const cls = m.class ?? "";
+  let mod: number;
+  if (["Cleric", "Druid", "Ranger"].includes(cls))                                            mod = abilityMod(m.wis);
+  else if (["Wizard", "Fighter (Eldritch Knight)", "Rogue (Arcane Trickster)"].includes(cls)) mod = abilityMod(m.int);
+  else                                                                                         mod = abilityMod(m.cha);
+  return m.proficiency_bonus + mod;
+});
+
+const spellSaveDc = computed(() => {
+  const bonus = spellAttackBonus.value;
+  return bonus !== null ? 8 + bonus : null;
+});
 
 // Character spells — used for button state in browse tab
 const { data: characterSpells } = useCharacterSpells(resolvedMemberId);

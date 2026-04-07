@@ -136,6 +136,7 @@ function mapWeapon(item: Open5eWeapon): ItemInsert {
     image_url: null,
     curse_description: null,
     curse_revealed: false,
+    is_arcane_focus: false,
   };
 }
 
@@ -163,6 +164,7 @@ function mapArmor(item: Open5eArmor): ItemInsert {
     image_url: null,
     curse_description: null,
     curse_revealed: false,
+    is_arcane_focus: false,
   };
 }
 
@@ -191,6 +193,7 @@ function mapMagicItem(item: Open5eMagicItem): ItemInsert {
     image_url: null,
     curse_description: null,
     curse_revealed: false,
+    is_arcane_focus: false,
   };
 }
 

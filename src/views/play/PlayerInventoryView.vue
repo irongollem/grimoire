@@ -305,8 +305,11 @@
 
           <!-- Currently equipped in this slot -->
           <div v-if="slotItem(slotModal)" class="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 flex items-center justify-between gap-2">
-            <span class="font-fell text-sm text-foreground">{{ slotItem(slotModal)!.name }}</span>
-            <button class="font-cinzel text-[10px] text-destructive hover:opacity-70" @click="unequipSlot(slotModal!)">Remove</button>
+            <button
+              class="font-fell text-sm text-foreground hover:text-primary transition-colors text-left flex-1 min-w-0 truncate"
+              @click="openDetail(slotItem(slotModal)!)"
+            >{{ slotItem(slotModal)!.name }}</button>
+            <button class="shrink-0 font-cinzel text-[10px] text-destructive hover:opacity-70" @click="unequipSlot(slotModal!)">Remove</button>
           </div>
           <p v-else class="font-fell text-xs text-muted-foreground italic">Nothing equipped here.</p>
 
@@ -413,7 +416,28 @@ function openEquipMenu(item: PartyInventoryItem) {
 }
 
 async function equipToSlot(item: PartyInventoryItem, slot: InventorySlot) {
-  await updateInventoryItem({ id: item.id, update: { location: 'equipped', slot, is_equipped: true } });
+  if (item.quantity > 1) {
+    // Split: decrement original, create a new equipped entry with qty 1
+    await Promise.all([
+      updateInventoryItem({ id: item.id, update: { quantity: item.quantity - 1 } }),
+      addInventoryItem({
+        item_id: item.item_id,
+        name: item.name,
+        quantity: 1,
+        carried_by: item.carried_by,
+        location: 'equipped',
+        slot,
+        is_container: false,
+        container_id: null,
+        is_attuned: false,
+        is_equipped: true,
+        notes: item.notes,
+        is_ruined: item.is_ruined,
+      }),
+    ]);
+  } else {
+    await updateInventoryItem({ id: item.id, update: { location: 'equipped', slot, is_equipped: true } });
+  }
   slotModal.value = null;
 }
 

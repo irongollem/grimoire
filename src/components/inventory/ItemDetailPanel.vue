@@ -60,6 +60,10 @@
             <span class="text-muted-foreground">Cost</span>
             <span>{{ vaultItem.cost }}</span>
           </div>
+          <div v-if="vaultItem?.is_arcane_focus" class="flex justify-between">
+            <span class="text-muted-foreground">Arcane Focus</span>
+            <span>Yes</span>
+          </div>
           <div v-if="vaultItem?.requires_attunement" class="flex justify-between gap-4">
             <span class="text-muted-foreground shrink-0">Attunement</span>
             <span class="text-right">{{ vaultItem.attunement_requirements || "Required" }}</span>
