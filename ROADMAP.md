@@ -148,6 +148,7 @@
 - [x] Trap HP/AC fields (physical destruction) + CR advisor (Suggest button → modal grades CR from effect category, targeting, DC tier, reset, HP/AC, secondary effects)
 - [x] Add traps (created in the traproom) as elements of an encounter so their CR contributes to the total — `EncounterTraps` component in encounter builder; trap XP added flat (no multiplier) to difficulty; hazard XP shown separately in Difficulty Analysis panel
 - [x] Trap detail panel in encounter runner — click a trap to inspect it; roll Detect/Disarm DCs, attack bonus, save DC, and damage dice; effect description and notes shown inline
+- [x] Traproom prepopulation — "Populate Traproom" button bulk-inserts 14 classic DMG/PHB trap archetypes (pit, needle, darts, rolling sphere, collapsing roof, net, fire statue, sphere of annihilation, flooding room, glyph, alarm, mushrooms, swinging log); skips traps that already exist by name
 
 ### Encounters
 

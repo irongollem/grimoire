@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Trap, TrapInsert, TrapUpdate } from "@/types/trap.types";
+import { TRAP_TEMPLATES } from "@/data/trapTemplates";
 import type { Ref } from "vue";
 import { computed, isRef, ref } from "vue";
 
@@ -83,5 +84,34 @@ export function useDeleteTrap() {
       qc.removeQueries({ queryKey: [QUERY_KEY, id] });
       qc.invalidateQueries({ queryKey: [QUERY_KEY] });
     },
+  });
+}
+
+/** Bulk-insert template traps that don't already exist (matched by name). Returns inserted count. */
+export function usePopulateTraps() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<number> => {
+      const user = getCurrentUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: existing, error: fetchError } = await supabase
+        .from("traps")
+        .select("name");
+      if (fetchError) throw fetchError;
+
+      const existingNames = new Set((existing ?? []).map((t: { name: string }) => t.name.toLowerCase()));
+      const toInsert = TRAP_TEMPLATES
+        .filter((t) => !existingNames.has(t.name.toLowerCase()))
+        .map((t) => ({ ...t, user_id: user.id, image_url: null, image_focal_point: null }));
+
+      if (toInsert.length === 0) return 0;
+
+      const { error: insertError } = await supabase.from("traps").insert(toInsert);
+      if (insertError) throw insertError;
+
+      return toInsert.length;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }

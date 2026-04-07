@@ -2,6 +2,16 @@
   <PageHeader title="Traproom" description="Traps, hazards & dungeon dangers">
     <template #actions>
       <button
+        type="button"
+        :disabled="populateMutation.isPending.value"
+        class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
+        @click="handlePopulate"
+      >
+        <Loader2 v-if="populateMutation.isPending.value" class="size-3.5 animate-spin shrink-0" />
+        <BookOpen v-else class="size-3.5 shrink-0" />
+        {{ populateStatusLabel }}
+      </button>
+      <button
         class="font-cinzel text-xs font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
         @click="router.push('/traps/new')"
       >
@@ -93,8 +103,8 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
-import { Crosshair as CrosshairIcon } from "lucide-vue-next";
-import { useTraps } from "@/composables/useTraps";
+import { Crosshair as CrosshairIcon, Loader2, BookOpen } from "lucide-vue-next";
+import { useTraps, usePopulateTraps } from "@/composables/useTraps";
 import { TRAP_TYPES, TRAP_TYPE_COLORS } from "@/types/trap.types";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -118,4 +128,33 @@ const filtered = computed(() => {
   );
   return list;
 });
+
+const populateMutation = usePopulateTraps();
+const populateStatus = ref<"idle" | "done" | "uptodate">("idle");
+const populatedCount = ref(0);
+const populateError = ref<string | null>(null);
+
+const populateStatusLabel = computed(() => {
+  if (populateMutation.isPending.value) return "Populating…";
+  if (populateError.value) return `Error: ${populateError.value}`;
+  if (populateStatus.value === "done") return `Added ${populatedCount.value} traps`;
+  if (populateStatus.value === "uptodate") return "Already up to date";
+  return "Populate Traproom";
+});
+
+async function handlePopulate() {
+  populateStatus.value = "idle";
+  populateError.value = null;
+  try {
+    const count = await populateMutation.mutateAsync();
+    populatedCount.value = count;
+    populateStatus.value = count === 0 ? "uptodate" : "done";
+  } catch (e) {
+    populateError.value = e instanceof Error ? e.message : String(e);
+  }
+  setTimeout(() => {
+    populateStatus.value = "idle";
+    populateError.value = null;
+  }, 8000);
+}
 </script>
