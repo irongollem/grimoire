@@ -179,6 +179,78 @@
       </div>
     </section>
 
+    <!-- Navigation preference -->
+    <section class="rounded-lg border border-border bg-card p-5 space-y-4">
+      <div>
+        <h2 class="font-cinzel text-sm font-semibold text-foreground tracking-wide">Navigation</h2>
+        <p class="font-fell text-xs text-muted-foreground italic mt-1">
+          Control which icons appear in your quick-access bar.
+        </p>
+      </div>
+
+      <!-- Mode toggle -->
+      <div class="flex items-center gap-3">
+        <button
+          type="button"
+          class="flex-1 rounded-md px-3 py-2 font-cinzel text-xs tracking-wider border transition-colors"
+          :class="navMode === 'dynamic'
+            ? 'border-primary/50 bg-primary/10 text-primary'
+            : 'border-border text-muted-foreground hover:border-primary/30'"
+          @click="setNavMode('dynamic')"
+        >
+          Dynamic
+        </button>
+        <button
+          type="button"
+          class="flex-1 rounded-md px-3 py-2 font-cinzel text-xs tracking-wider border transition-colors"
+          :class="navMode === 'custom'
+            ? 'border-primary/50 bg-primary/10 text-primary'
+            : 'border-border text-muted-foreground hover:border-primary/30'"
+          @click="setNavMode('custom')"
+        >
+          Custom
+        </button>
+      </div>
+
+      <p v-if="navMode === 'dynamic'" class="font-fell text-xs text-muted-foreground italic">
+        Your most-visited sections rise to the top. Needs roughly twice the visits to advance — small diffs won't shuffle icons around.
+      </p>
+
+      <!-- Custom order: drag-to-reorder list -->
+      <div v-else>
+        <p class="font-fell text-xs text-muted-foreground italic mb-3">
+          Drag to reorder. The first 4 (or 7 on tablet) appear in the quick bar.
+        </p>
+
+        <ol ref="dragListRef" class="space-y-1">
+          <li
+            v-for="(item, i) in sortedNav"
+            :key="item.to"
+            class="flex items-center gap-3 rounded-md border px-3 py-2 bg-card select-none transition-colors"
+            :class="{
+              'opacity-40': draggingIdx === i,
+              'border-primary/50': overIdx === i && draggingIdx !== null && draggingIdx !== i,
+              'border-border': !(overIdx === i && draggingIdx !== null && draggingIdx !== i),
+            }"
+          >
+            <!-- Drag handle -->
+            <span
+              class="cursor-grab active:cursor-grabbing text-muted-foreground touch-none"
+              @pointerdown.prevent="onHandlePointerDown(i, $event)"
+            >
+              <GripVertical class="h-4 w-4 shrink-0" />
+            </span>
+            <component :is="item.icon" class="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span class="font-cinzel text-xs tracking-wider flex-1">{{ item.label }}</span>
+            <span
+              v-if="i < MOBILE_NAV_SLOTS"
+              class="font-cinzel text-[9px] tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary shrink-0"
+            >bar</span>
+          </li>
+        </ol>
+      </div>
+    </section>
+
     <!-- Account info (read-only) -->
     <section class="rounded-lg border border-border bg-card p-5 space-y-2">
       <h2 class="font-cinzel text-sm font-semibold text-foreground tracking-wide">Account</h2>
@@ -198,8 +270,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import { CalendarCheck, Check, Save, User, X } from "lucide-vue-next";
+import { ref, computed, onBeforeUnmount } from "vue";
+import { CalendarCheck, Check, GripVertical, Save, User, X } from "lucide-vue-next";
+import { usePlayerNavPrefs } from "@/composables/usePlayerNavPrefs";
+import { MOBILE_NAV_SLOTS } from "@/lib/playerNav";
 import PageHeader from "@/components/common/PageHeader.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useParty } from "@/composables/useParty";
@@ -210,6 +284,54 @@ import { supabase } from "@/lib/supabase";
 import type { SessionProposal } from "@/types/scheduling.types";
 
 const auth = useAuthStore();
+
+// ── Navigation preferences ─────────────────────────────────────────────────────
+const { navMode, sortedNav, setNavMode, setNavOrder } = usePlayerNavPrefs();
+
+const dragListRef = ref<HTMLElement | null>(null);
+const draggingIdx = ref<number | null>(null);
+const overIdx     = ref<number | null>(null);
+
+function getOverIndex(clientY: number): number {
+  if (!dragListRef.value) return 0;
+  const items = Array.from(dragListRef.value.children) as HTMLElement[];
+  for (let i = 0; i < items.length; i++) {
+    const rect = items[i].getBoundingClientRect();
+    if (clientY < rect.top + rect.height / 2) return i;
+  }
+  return items.length - 1;
+}
+
+let activeMove: ((ev: PointerEvent) => void) | null = null;
+let activeUp: (() => void) | null = null;
+
+function onHandlePointerDown(index: number, _e: PointerEvent) {
+  draggingIdx.value = index;
+  overIdx.value = index;
+
+  activeMove = (ev: PointerEvent) => { overIdx.value = getOverIndex(ev.clientY); };
+  activeUp = () => {
+    if (draggingIdx.value !== null && overIdx.value !== null && draggingIdx.value !== overIdx.value) {
+      const current = sortedNav.value.map((item) => item.to);
+      const [moved] = current.splice(draggingIdx.value, 1);
+      current.splice(overIdx.value, 0, moved);
+      setNavOrder(current);
+    }
+    draggingIdx.value = null;
+    overIdx.value     = null;
+    window.removeEventListener("pointermove", activeMove!);
+    activeMove = null;
+    activeUp   = null;
+  };
+
+  window.addEventListener("pointermove", activeMove);
+  window.addEventListener("pointerup", activeUp, { once: true });
+}
+
+onBeforeUnmount(() => {
+  if (activeMove) window.removeEventListener("pointermove", activeMove);
+  if (activeUp)   window.removeEventListener("pointerup", activeUp);
+});
 const campaign = useCampaignStore();
 const { data: partyMembers } = useParty();
 const { data: campaignMembers } = useCampaignMembers();

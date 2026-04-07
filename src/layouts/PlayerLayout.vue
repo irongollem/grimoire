@@ -134,7 +134,7 @@
 
           <div class="grid grid-cols-4 sm:grid-cols-7 gap-1">
             <RouterLink
-              v-for="item in allNav"
+              v-for="item in sortedNav"
               :key="item.to"
               :to="item.to"
               class="flex flex-col items-center gap-1.5 rounded-xl px-1 py-3 transition-colors"
@@ -154,13 +154,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, shallowRef } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import {
-  LogOut, Shield, ScrollText, BookOpen, Package, User, Megaphone, X,
-  Swords, PenLine, Eye, Settings, Library, Landmark, Globe, Sparkles,
-  Skull, Hammer, LayoutGrid,
-} from "lucide-vue-next";
+import { LogOut, Megaphone, X, Eye, LayoutGrid } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
@@ -168,6 +164,8 @@ import { useCampaignById } from "@/composables/useCampaigns";
 import { useParty } from "@/composables/useParty";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
 import { useCampaignBroadcast } from "@/composables/useCampaignBroadcast";
+import { usePlayerNavPrefs } from "@/composables/usePlayerNavPrefs";
+import { MOBILE_NAV_SLOTS, TABLET_NAV_SLOTS } from "@/lib/playerNav";
 import CampaignChat from "@/components/chat/CampaignChat.vue";
 
 const auth = useAuthStore();
@@ -211,49 +209,10 @@ const characterName = computed(() => {
   return partyMembers.value.find((m) => m.id === auth.linkedPartyMemberId)?.name ?? null;
 });
 
-// Usage tracking — persisted in localStorage, drives pinned bar order
-const NAV_USAGE_KEY = "grimoire_nav_usage";
+const { sortedNav, trackNav } = usePlayerNavPrefs();
 
-function loadUsage(): Record<string, number> {
-  try { return JSON.parse(localStorage.getItem(NAV_USAGE_KEY) ?? "{}"); }
-  catch { return {}; }
-}
-
-const usageScores = shallowRef<Record<string, number>>(loadUsage());
-
-function trackNav(to: string) {
-  usageScores.value = { ...usageScores.value, [to]: (usageScores.value[to] ?? 0) + 1 };
-  localStorage.setItem(NAV_USAGE_KEY, JSON.stringify(usageScores.value));
-}
-
-// All items shown in the "More" grid (order = default tiebreaker)
-const allNav = [
-  { to: "/play",            label: "Character",  icon: User },
-  { to: "/play/party",      label: "People",     icon: Shield },
-  { to: "/play/inventory",  label: "Inventory",  icon: Package },
-  { to: "/play/quests",     label: "Quests",     icon: ScrollText },
-  { to: "/play/encounter",  label: "Encounter",  icon: Swords },
-  { to: "/play/journal",    label: "Journal",    icon: PenLine },
-  { to: "/play/notes",      label: "DM Notes",   icon: BookOpen },
-  { to: "/play/crafting",   label: "Workshop",   icon: Hammer },
-  { to: "/play/factions",   label: "Factions",   icon: Landmark },
-  { to: "/play/atlas",      label: "Atlas",      icon: Globe },
-  { to: "/play/bestiary",   label: "Bestiary",   icon: Skull },
-  { to: "/play/spells",     label: "Spells",     icon: Sparkles },
-  { to: "/play/rules",      label: "Reliquary",  icon: Library },
-  { to: "/play/settings",   label: "Settings",   icon: Settings },
-];
-
-// Sort allNav by usage score; original array order is the tiebreaker
-const sortedNav = computed(() =>
-  [...allNav].sort((a, b) => {
-    const diff = (usageScores.value[b.to] ?? 0) - (usageScores.value[a.to] ?? 0);
-    return diff !== 0 ? diff : allNav.indexOf(a) - allNav.indexOf(b);
-  }),
-);
-
-const mobileNav = computed(() => sortedNav.value.slice(0, 4));
-const tabletNav = computed(() => sortedNav.value.slice(0, 7));
+const mobileNav = computed(() => sortedNav.value.slice(0, MOBILE_NAV_SLOTS));
+const tabletNav = computed(() => sortedNav.value.slice(0, TABLET_NAV_SLOTS));
 
 const showMore = ref(false);
 
