@@ -307,7 +307,7 @@ const icalFeedUrl = computed(() => {
 });
 
 const webcalUrl = computed(() => {
-  return icalFeedUrl.value?.replace(/^https?:\/\//, "webcal://") ?? null;
+  return icalFeedUrl.value?.replace(/^https?:\/\//, "webcal://") ?? undefined;
 });
 
 const players = computed(() =>

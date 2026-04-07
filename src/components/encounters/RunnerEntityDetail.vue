@@ -559,18 +559,24 @@
         </div>
 
         <!-- Damage -->
-        <template v-if="selectedTrap.damage_dice">
+        <template v-if="selectedTrap.damage_entries?.length">
           <div class="detail-divider" />
           <p class="detail-section-label">Damage</p>
-          <div class="flex items-center gap-2 mt-1">
-            <span class="font-cinzel text-sm font-bold text-foreground">{{ selectedTrap.damage_dice }}</span>
-            <span v-if="selectedTrap.damage_type" class="font-fell text-xs text-muted-foreground italic">{{ selectedTrap.damage_type }}</span>
-            <button
-              v-if="hasRollableDice(selectedTrap.damage_dice)"
-              type="button"
-              class="trait-roll-btn trait-dmg-btn ml-auto"
-              @click="rollActionDamage(selectedTrap.damage_dice, selectedTrap.name)"
-            >🎲 {{ actionDiceLabel(selectedTrap.damage_dice) }}</button>
+          <div class="flex flex-col gap-1 mt-1">
+            <div
+              v-for="(entry, i) in selectedTrap.damage_entries"
+              :key="i"
+              class="flex items-center gap-2"
+            >
+              <span class="font-cinzel text-sm font-bold text-foreground">{{ entry.dice }}</span>
+              <span v-if="entry.type" class="font-fell text-xs text-muted-foreground italic capitalize">{{ entry.type }}</span>
+              <button
+                v-if="hasRollableDice(entry.dice)"
+                type="button"
+                class="trait-roll-btn trait-dmg-btn ml-auto"
+                @click="rollActionDamage(entry.dice, selectedTrap.name)"
+              >🎲 {{ actionDiceLabel(entry.dice) }}</button>
+            </div>
           </div>
         </template>
 

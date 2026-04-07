@@ -124,7 +124,7 @@
           </div>
           <div class="col-span-2 sm:col-span-3">
             <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Damage Immunities</label>
-            <TagInput v-model="form.damage_immunities" :suggestions="DAMAGE_TYPES as unknown as string[]" placeholder="Add immunity…" />
+            <TagInput v-model="form.damage_immunities" :suggestions="[...DAMAGE_TYPES]" placeholder="Add immunity…" />
           </div>
         </div>
       </div>
@@ -174,17 +174,41 @@
                 class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
-            <!-- Damage -->
-            <div>
-              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Damage Dice</label>
-              <DiceExprInput v-model="form.damage_dice" placeholder="2d10+3" />
+          </div>
+
+          <!-- Damage entries -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Damage</label>
+              <button
+                type="button"
+                class="font-cinzel text-[10px] font-semibold text-primary hover:opacity-80 transition-opacity tracking-wider"
+                @click="addDamageEntry"
+              >+ Add</button>
             </div>
-            <div>
-              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Damage Type</label>
-              <select v-model="form.damage_type" class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring capitalize">
-                <option :value="null">—</option>
-                <option v-for="d in DAMAGE_TYPES" :key="d" :value="d" class="capitalize">{{ d }}</option>
-              </select>
+            <div class="flex flex-col gap-2">
+              <div
+                v-for="(entry, i) in form.damage_entries"
+                :key="i"
+                class="flex items-center gap-2"
+              >
+                <DiceExprInput v-model="entry.dice" placeholder="1d6" class="w-28 shrink-0" />
+                <select
+                  v-model="entry.type"
+                  class="flex-1 bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring capitalize"
+                >
+                  <option value="">—</option>
+                  <option v-for="d in DAMAGE_TYPES" :key="d" :value="d" class="capitalize">{{ d }}</option>
+                </select>
+                <button
+                  type="button"
+                  class="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+                  @click="form.damage_entries.splice(i, 1)"
+                >
+                  <X class="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <p v-if="!form.damage_entries.length" class="font-fell text-xs text-muted-foreground italic">No damage — add a component above.</p>
             </div>
           </div>
         </div>
@@ -386,6 +410,7 @@ import { useConfirm } from "@/composables/useConfirm";
 import {
   TRAP_TYPES, TRAP_TRIGGERS, TRAP_RESET_TYPES, TRAP_SAVE_TYPES, CR_LIST,
 } from "@/types/trap.types";
+import type { DamageEntry } from "@/types/trap.types";
 import { DAMAGE_TYPES } from "@/types/damage.types";
 import { CR_XP } from "@/types/encounter.types";
 import { adviseCr, CR_TRAP_BENCHMARKS } from "@/lib/trapAdvisor";
@@ -442,7 +467,7 @@ const advisorInputs = reactive({
 // Pre-fill advisor from form values when opening
 watch(showAdvisor, (open) => {
   if (!open) return;
-  advisorInputs.damageDice = form.value.damage_dice ?? "";
+  advisorInputs.damageDice = form.value.damage_entries.map((e) => e.dice).join("+") ?? "";
   advisorInputs.resetType = form.value.reset_type;
   const maxDc = Math.max(
     form.value.detection_dc ?? 0,
@@ -495,8 +520,7 @@ const blankForm = () => ({
   attack_bonus:       null as number | null,
   save_type:          null as string | null,
   save_dc:            null as number | null,
-  damage_dice:        null as string | null,
-  damage_type:        null as string | null,
+  damage_entries:     [] as DamageEntry[],
   reset_type:         "None" as const,
   trap_hp:            null as number | null,
   trap_ac:            null as number | null,
@@ -522,8 +546,7 @@ watch(trap, (t) => {
     attack_bonus: t.attack_bonus,
     save_type: t.save_type,
     save_dc: t.save_dc,
-    damage_dice: t.damage_dice,
-    damage_type: t.damage_type,
+    damage_entries: t.damage_entries ? t.damage_entries.map((e) => ({ ...e })) : [],
     reset_type: t.reset_type,
     trap_hp: t.trap_hp,
     trap_ac: t.trap_ac,
@@ -537,6 +560,10 @@ watch(trap, (t) => {
 }, { immediate: true });
 
 const crXp = computed(() => form.value.cr ? CR_XP[form.value.cr] : null);
+
+function addDamageEntry() {
+  form.value.damage_entries.push({ dice: "", type: "" });
+}
 
 async function save() {
   if (!form.value.name.trim()) return;

@@ -26,6 +26,11 @@ export type TrapResetType = typeof TRAP_RESET_TYPES[number];
 export const TRAP_SAVE_TYPES = ["STR", "DEX", "CON", "INT", "WIS", "CHA"] as const;
 export type TrapSaveType = typeof TRAP_SAVE_TYPES[number];
 
+export interface DamageEntry {
+  dice: string;
+  type: string;
+}
+
 export const CR_LIST = [
   "0", "1/8", "1/4", "1/2",
   "1", "2", "3", "4", "5", "6", "7", "8", "9", "10",
@@ -47,8 +52,7 @@ export interface Trap {
   save_type: TrapSaveType | null;
   save_dc: number | null;
   attack_bonus: number | null;
-  damage_dice: string | null;
-  damage_type: string | null;
+  damage_entries: DamageEntry[];
   reset_type: TrapResetType;
   trap_hp: number | null;
   trap_ac: number | null;

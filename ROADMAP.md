@@ -149,6 +149,7 @@
 - [x] Add traps (created in the traproom) as elements of an encounter so their CR contributes to the total — `EncounterTraps` component in encounter builder; trap XP added flat (no multiplier) to difficulty; hazard XP shown separately in Difficulty Analysis panel
 - [x] Trap detail panel in encounter runner — click a trap to inspect it; roll Detect/Disarm DCs, attack bonus, save DC, and damage dice; effect description and notes shown inline
 - [x] Traproom prepopulation — "Populate Traproom" button bulk-inserts 14 classic DMG/PHB trap archetypes (pit, needle, darts, rolling sphere, collapsing roof, net, fire statue, sphere of annihilation, flooding room, glyph, alarm, mushrooms, swinging log); skips traps that already exist by name
+- [x] **Multiple damage types per trap** — refactored from single `damage_type`/`damage_dice` fields to `damage_entries` array (`DamageEntry` interface with `dice` + `type`); trap editor has "+ Add" button to add multiple damage entries (e.g. 1d6 bludgeoning + 1d10 piercing); all trap templates updated to support split damage
 
 ### Encounters
 
@@ -393,3 +394,5 @@ Keep the core DM tooling free forever (open source). Gate AI features, advanced 
 - [x] **Chat tab: draggable vertical position** (irongollem/grimoire#78) — chat tab button is now draggable up/down the right edge; position saved in localStorage (`grimoire:chat-tab-top`); click still opens chat when not dragged (delta < 6px); grab cursor on hover
 
 - [x] **Subscribable session calendar feed** (irongollem/grimoire#66) — each campaign gets a stable `ical_token` (UUID) stored on the `campaigns` table; a new Supabase edge function (`ical-feed`) serves confirmed session proposals as a standards-compliant iCal (.ics) feed without authentication — the token is the shared secret; Scheduling tab in campaign settings shows the subscription URL, a one-click copy button, a "Subscribe in Calendar App" link (webcal:// protocol), and a DM-only Regenerate URL button (with confirmation warning); feed supports ETag + Last-Modified for cache-friendly delivery; Google Calendar, Apple Calendar, and Outlook can subscribe via URL
+
+- [x] **Traproom: multiple damage types** (irongollem/grimoire#79) — replaced single `damage_dice`/`damage_type` fields with a `damage_entries` array of `{ dice, type }` objects; each damage component has its own dice expression and type; UI shows a dynamic list editor with + Add / × remove per row; preview modal and encounter runner both render each entry; prefilled archetypes updated (Spiked Pit: 1d6 bludgeoning + 1d10 piercing, Poison Needle/Darts: piercing + poison)

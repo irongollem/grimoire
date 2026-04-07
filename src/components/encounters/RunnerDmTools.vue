@@ -52,7 +52,7 @@
           </div>
           <div class="trap-badges">
             <span v-if="trap.save_dc" class="trap-badge">DC {{ trap.save_dc }}</span>
-            <span v-if="trap.damage_dice" class="trap-badge">{{ trap.damage_dice }}</span>
+            <span v-if="trap.damage_entries?.length" class="trap-badge">{{ trap.damage_entries.map(e => e.dice).join('+') }}</span>
           </div>
         </div>
       </div>

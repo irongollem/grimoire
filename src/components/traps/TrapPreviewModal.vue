@@ -88,7 +88,7 @@
 
           <!-- Effect -->
           <div
-            v-if="trap.effect_description || trap.attack_bonus != null || trap.save_type || trap.damage_dice"
+            v-if="trap.effect_description || trap.attack_bonus != null || trap.save_type || trap.damage_entries?.length"
             class="px-5 pt-4"
           >
             <div class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-2">EFFECT</div>
@@ -108,10 +108,13 @@
                   {{ trap.save_type }} DC {{ trap.save_dc ?? "—" }}
                 </div>
               </div>
-              <div v-if="trap.damage_dice">
+              <div v-if="trap.damage_entries?.length">
                 <div class="font-cinzel text-[10px] text-muted-foreground tracking-wider">Damage</div>
                 <div class="font-cinzel text-sm font-bold text-foreground capitalize">
-                  {{ trap.damage_dice }}<span v-if="trap.damage_type"> {{ trap.damage_type }}</span>
+                  <span v-for="(entry, i) in trap.damage_entries" :key="i">
+                    <span v-if="i > 0" class="text-muted-foreground font-normal"> + </span>
+                    {{ entry.dice }}<span v-if="entry.type" class="font-normal text-xs"> {{ entry.type }}</span>
+                  </span>
                 </div>
               </div>
             </div>
