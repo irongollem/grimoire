@@ -248,6 +248,15 @@
                 placeholder="= DEX mod"
               />
             </label>
+            <label class="block">
+              <span class="field-label">Carry Capacity Override</span>
+              <input
+                v-model="f.carry_capacity_override"
+                type="text"
+                class="field-input w-full"
+                placeholder="*2, +30, 150 — blank = STR×15"
+              />
+            </label>
           </div>
 
           <!-- Computed passives (read-only) -->
@@ -559,6 +568,7 @@ const f = reactive<
   tool_proficiencies: [...(props.member?.tool_proficiencies ?? [])],
   languages: [...(props.member?.languages ?? [])],
   current_location_id: props.member?.current_location_id ?? null,
+  carry_capacity_override: props.member?.carry_capacity_override ?? null,
 });
 
 // Spell slot max per level (index 0 = level 1, ..., index 8 = level 9)

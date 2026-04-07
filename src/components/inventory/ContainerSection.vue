@@ -5,7 +5,9 @@
       <button class="flex items-center gap-1.5 flex-1 text-left" @click="open = !open">
         <ChevronRight class="h-3 w-3 text-muted-foreground transition-transform" :class="open ? 'rotate-90' : ''" />
         <span class="font-cinzel text-xs font-semibold text-foreground tracking-wider">{{ label }}</span>
-        <span class="font-cinzel text-[9px] text-muted-foreground/60 ml-1">({{ items.length }})</span>
+        <span class="font-cinzel text-[9px] text-muted-foreground/60 ml-1">
+          ({{ items.length }}<template v-if="weight != null"> · {{ formatWeightLb(weight) }}</template>)
+        </span>
       </button>
       <button
         class="font-cinzel text-[10px] text-muted-foreground hover:text-foreground transition-colors"
@@ -79,6 +81,7 @@ import { ref, computed } from "vue";
 import { ChevronRight } from "lucide-vue-next";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
+import { formatWeightLb } from "@/lib/utils";
 import ItemRow from "./ItemRow.vue";
 
 const props = defineProps<{
@@ -91,7 +94,9 @@ const props = defineProps<{
   isDefault?: boolean;
   removable?: boolean;
   sellable?: boolean;
+  weight?: number;
 }>();
+
 
 const emit = defineEmits<{
   add: [name: string, itemId: string | null];

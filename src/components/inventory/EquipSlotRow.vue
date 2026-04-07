@@ -6,7 +6,7 @@
       : 'border-dashed border-border hover:border-primary/40'"
     @click="$emit('click')"
   >
-    <span class="font-fell text-xs flex-1 truncate" :class="item ? 'text-foreground' : 'text-muted-foreground/50'">
+    <span class="font-fell text-xs flex-1 min-w-0 truncate" :class="item ? 'text-foreground' : 'text-muted-foreground/50'">
       {{ item ? item.name : label }}
     </span>
     <span v-if="item" class="font-cinzel text-[9px] text-primary/60 shrink-0">✓</span>

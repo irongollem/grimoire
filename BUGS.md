@@ -2,6 +2,8 @@
 
 ## Done
 
+- [x] `EquipSlotRow` label overflow at narrow widths — long item names (e.g. "Wand of the War Mage +1") caused the button to exceed its container at ~648–710px viewport widths; the `truncate` class was already present but `min-w-0` was missing from the `flex-1` span, preventing flex shrink from kicking in; fixed by adding `min-w-0` (`src/components/inventory/EquipSlotRow.vue`)
+
 - [x] `FocalImage` focal point ignored in overflow-clipped containers — when `max-h-*` was applied without an explicit height, `h-full` on the inner elements resolved to `auto`, so `object-fit: cover` + `object-position` had no effect and the image showed its natural top; fixed in `FocalImage.vue` by detecting the clipped case (`renderedH > containerH + 2`) and switching to `translateY` positioning so the focal point is always centred in the visible strip
 
 - [x] Rich text editor two-column layout toggle not persisted — `twoColumn` was a local `ref(false)` that only applied a CSS class at runtime and was never serialised into the Tiptap JSON, so the layout was lost on reload; fixed by extending the Tiptap `doc` node with a `twoColumn` attribute (`CustomDocument`), writing it via `updateAttributes('doc', …)` on toggle, and syncing the ref back in `onCreate`/`onUpdate` so saved content carries the layout setting (`src/components/common/RichTextEditor.vue`)
