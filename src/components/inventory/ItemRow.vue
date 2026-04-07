@@ -42,6 +42,14 @@
       @click="$emit('drop-to-chat', item)"
     ><ArrowUpFromLine class="h-3 w-3" /></button>
 
+    <!-- List for sale -->
+    <button
+      v-if="sellable"
+      class="h-6 w-6 flex items-center justify-center rounded text-muted-foreground/40 hover:text-sky-400 hover:bg-sky-400/10 transition-colors opacity-0 group-hover:opacity-100"
+      title="List for sale"
+      @click="$emit('sell-item', item)"
+    ><ShoppingBag class="h-3 w-3" /></button>
+
     <!-- Remove -->
     <button
       class="h-6 w-6 flex items-center justify-center rounded text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
@@ -52,7 +60,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { Plus, Minus, Trash2, ArrowUpFromLine } from "lucide-vue-next";
+import { Plus, Minus, Trash2, ArrowUpFromLine, ShoppingBag } from "lucide-vue-next";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { PartyMember } from "@/types/party.types";
 
@@ -61,6 +69,7 @@ const props = defineProps<{
   allContainers: PartyInventoryItem[];
   showCarrier?: boolean;
   partyMembers?: PartyMember[];
+  sellable?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -69,6 +78,7 @@ const emit = defineEmits<{
   'remove': [id: string];
   'drop-to-chat': [item: PartyInventoryItem];
   'open-detail': [item: PartyInventoryItem];
+  'sell-item': [item: PartyInventoryItem];
 }>();
 
 const currentLocationLabel = computed(() => {

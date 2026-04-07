@@ -208,6 +208,7 @@
       <ContainerSection
         label="Backpack"
         :is-default="true"
+        :sellable="true"
         :items="backpackItems"
         :all-containers="allContainers"
         :all-items="allItems ?? []"
@@ -218,11 +219,13 @@
         @adjust-qty="adjustQty"
         @drop-to-chat="dropItemToChat"
         @open-detail="openDetail"
+        @sell-item="openDetailWithSell"
       />
 
       <!-- Belt -->
       <ContainerSection
         label="Belt"
+        :sellable="true"
         :items="beltItems"
         :all-containers="allContainers"
         :all-items="allItems ?? []"
@@ -234,6 +237,7 @@
         @adjust-qty="adjustQty"
         @drop-to-chat="dropItemToChat"
         @open-detail="openDetail"
+        @sell-item="openDetailWithSell"
       />
 
       <!-- Custom containers (items with is_container=true) -->
@@ -242,6 +246,7 @@
         :key="c.id"
         :label="c.name"
         :container-id="c.id"
+        :sellable="true"
         :items="itemsInContainer(c.id)"
         :all-containers="allContainers"
         :all-items="allItems ?? []"
@@ -255,6 +260,7 @@
         @adjust-qty="adjustQty"
         @drop-to-chat="dropItemToChat"
         @open-detail="openDetail"
+        @sell-item="openDetailWithSell"
       />
     </div>
 
@@ -267,11 +273,13 @@
           :key="item.id"
           :item="item"
           :all-containers="allContainers"
+          :sellable="true"
           @move="moveItem"
           @remove="removeItem"
           @adjust-qty="adjustQty"
           @drop-to-chat="dropItemToChat"
           @open-detail="openDetail"
+          @sell-item="openDetailWithSell"
         />
       </div>
       <div v-else class="rounded-lg border border-dashed border-border p-4 text-center">
@@ -355,10 +363,12 @@
 
     <!-- Item detail panel -->
     <ItemDetailPanel
+      ref="detailPanel"
       :inv="selectedInv"
       :vault-item="selectedVaultItem"
       @close="selectedInv = null"
       @unequip="unequipSelected"
+      @sell="handleSell"
     />
 
     <!-- Slot assignment modal -->
@@ -397,7 +407,7 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, computed, reactive } from "vue";
+import { ref, computed, reactive, nextTick } from "vue";
 import { Plus, MessageCircle } from "lucide-vue-next";
 import { COINS, type CoinKey } from "@/lib/currency";
 import { useAuthStore } from "@/stores/auth";
@@ -426,7 +436,7 @@ const { mutateAsync: addInventoryItem } = useAddInventoryItem();
 const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
 const { mutateAsync: removeInventoryItem } = useRemoveInventoryItem();
 const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
-const { sendItemDrop, sendCurrencyDrop } = useCampaignMessages();
+const { sendItemDrop, sendCurrencyDrop, sendPlayerOffer } = useCampaignMessages();
 
 const resolvedMemberId = computed(() =>
   ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId
@@ -644,6 +654,20 @@ async function addToLocation(location: PartyInventoryItem['location'], container
 
 // ── Item detail panel ──────────────────────────────────────────────────────────
 const selectedInv = ref<PartyInventoryItem | null>(null);
+const detailPanel = ref<InstanceType<typeof ItemDetailPanel> | null>(null);
+
+async function openDetailWithSell(inv: PartyInventoryItem) {
+  selectedInv.value = inv;
+  await nextTick();
+  detailPanel.value?.openSell();
+}
+
+async function handleSell(pp: number, gp: number, ep: number, sp: number, cp: number) {
+  const inv = selectedInv.value;
+  if (!inv || !member.value) return;
+  await sendPlayerOffer(inv.name, inv.item_id, inv.id, inv.quantity, member.value.id, pp, gp, ep, sp, cp);
+  selectedInv.value = null;
+}
 
 const selectedVaultItem = computed<Item | null>(() => {
   if (!selectedInv.value?.item_id) return null;

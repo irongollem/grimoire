@@ -22,6 +22,7 @@
         @claim-to-npc="handleClaimToNpc"
         @pay-vendor-offer="handlePayVendorOffer"
         @send-vendor-offer="handleSendVendorOffer"
+        @buy-player-offer="handleBuyPlayerOffer"
         @close="ui.chatOpen = false"
       />
     </aside>
@@ -76,6 +77,7 @@
         @claim-to-npc="handleClaimToNpc"
         @pay-vendor-offer="handlePayVendorOffer"
         @send-vendor-offer="handleSendVendorOffer"
+        @buy-player-offer="handleBuyPlayerOffer"
         @close="ui.chatOpen = false"
       />
     </div>
@@ -89,13 +91,13 @@ import { useUiStore } from "@/stores/ui";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import { useAuthStore } from "@/stores/auth";
-import { useAddInventoryItem } from "@/composables/usePartyInventory";
+import { useAddInventoryItem, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import { useNpcs } from "@/composables/useNpcs";
 import { useAddNpcInventoryItem } from "@/composables/useNpcInventory";
 import ChatPanelContent from "./ChatPanelContent.vue";
 import type { RollResult } from "@/lib/dice";
-import type { ItemDropMetadata, CurrencyDropMetadata, VendorOfferMetadata } from "@/types/chat.types";
+import type { ItemDropMetadata, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata } from "@/types/chat.types";
 import { toCP, fromCP } from "@/lib/currency";
 
 const props = withDefaults(defineProps<{ contained?: boolean }>(), { contained: false });
@@ -153,13 +155,15 @@ onUnmounted(() => {
 
 const ui = useUiStore();
 const auth = useAuthStore();
-const { messages, loading, sendMessage, sendRoll, claimItemDrop, claimCurrencyDrop, sendVendorOffer, claimVendorOffer, deleteMessage, deleteAllMessages, myUserId } =
+const { messages, loading, sendMessage, sendRoll, claimItemDrop, claimCurrencyDrop, sendVendorOffer, claimVendorOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId } =
   useCampaignMessages();
 const { data: members } = useCampaignMembers();
 const { data: party }   = useParty();
 const { data: npcsData } = useNpcs();
-const { mutateAsync: addInventoryItem }   = useAddInventoryItem();
-const { mutateAsync: updatePartyMember }  = useUpdatePartyMember();
+const { mutateAsync: addInventoryItem }    = useAddInventoryItem();
+const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
+const { mutateAsync: removeInventoryItem } = useRemoveInventoryItem();
+const { mutateAsync: updatePartyMember }   = useUpdatePartyMember();
 const { mutateAsync: addNpcInventoryItem } = useAddNpcInventoryItem();
 
 const npcs = computed(() =>
@@ -183,6 +187,7 @@ watch(
 );
 
 function resolveClaimerName(): string {
+  if (ui.dmTalkAsNpcName) return ui.dmTalkAsNpcName;
   if (auth.linkedPartyMemberId) {
     const character = (party.value ?? []).find(p => p.id === auth.linkedPartyMemberId);
     if (character?.name) return character.name;
@@ -251,8 +256,8 @@ async function handleClaimCurrency({ messageId }: { messageId: string }) {
   }
 }
 
-async function handleSendVendorOffer(payload: { description: string; itemName: string | null; itemId: string | null; pp: number; gp: number; ep: number; sp: number; cp: number; npcName: string | null }) {
-  await sendVendorOffer(payload.description, payload.itemName, payload.itemId, payload.pp, payload.gp, payload.ep, payload.sp, payload.cp, payload.npcName ?? undefined);
+async function handleSendVendorOffer(payload: { description: string; itemName: string | null; itemId: string | null; pp: number; gp: number; ep: number; sp: number; cp: number }) {
+  await sendVendorOffer(payload.description, payload.itemName, payload.itemId, payload.pp, payload.gp, payload.ep, payload.sp, payload.cp);
 }
 
 async function handlePayVendorOffer({ messageId }: { messageId: string }) {
@@ -273,18 +278,56 @@ async function handlePayVendorOffer({ messageId }: { messageId: string }) {
   await claimVendorOffer(messageId, payerName, partyMemberId);
 
   const { pp, gp, ep, sp, cp } = fromCP(walletCP - costCP);
-  await updatePartyMember({ id: member.id, update: { pp, gp, ep, sp, cp } });
-
-  // If the offer specifies an item, add it to the buyer's inventory
-  if (meta.item_name) {
-    await addInventoryItem({
+  await Promise.all([
+    updatePartyMember({ id: member.id, update: { pp, gp, ep, sp, cp } }),
+    meta.item_name ? addInventoryItem({
       name: meta.item_name, quantity: 1, item_id: meta.item_id,
       carried_by: partyMemberId,
       location: 'backpack', slot: null,
       is_container: false, container_id: null,
       is_attuned: false, is_equipped: false, notes: null, is_ruined: false,
-    });
+    }) : Promise.resolve(),
+  ]);
+}
+
+async function handleBuyPlayerOffer({ messageId }: { messageId: string }) {
+  const msg = messages.value.find(m => m.id === messageId);
+  if (!msg || msg.type !== 'player_offer') return;
+  const meta = msg.metadata as PlayerOfferMetadata;
+  if (meta.sold_to_user_id || meta.sold_to_name) return;
+
+  const buyerName = resolveClaimerName();
+  const buyerPartyMemberId = auth.isDM ? null : (auth.linkedPartyMemberId ?? null);
+
+  await claimPlayerOffer(messageId, buyerName, buyerPartyMemberId);
+
+  const priceCP = toCP(meta.pp, meta.gp, meta.ep, meta.sp, meta.cp);
+  const mutations: Promise<unknown>[] = [];
+
+  // Credit the seller
+  const seller = (party.value ?? []).find(m => m.id === meta.seller_party_member_id);
+  if (seller) {
+    const { pp, gp, ep, sp, cp } = fromCP(toCP(seller.pp, seller.gp, seller.ep, seller.sp, seller.cp) + priceCP);
+    mutations.push(updatePartyMember({ id: seller.id, update: { pp, gp, ep, sp, cp } }));
   }
+
+  if (auth.isDM) {
+    // DM buys: just remove the item from seller (money from thin air)
+    mutations.push(removeInventoryItem(meta.inventory_item_id));
+  } else if (buyerPartyMemberId) {
+    // Player buys: deduct buyer's wallet + transfer item ownership
+    const buyer = (party.value ?? []).find(m => m.id === buyerPartyMemberId);
+    if (buyer) {
+      const { pp, gp, ep, sp, cp } = fromCP(Math.max(0, toCP(buyer.pp, buyer.gp, buyer.ep, buyer.sp, buyer.cp) - priceCP));
+      mutations.push(updatePartyMember({ id: buyer.id, update: { pp, gp, ep, sp, cp } }));
+    }
+    mutations.push(updateInventoryItem({
+      id: meta.inventory_item_id,
+      update: { carried_by: buyerPartyMemberId, location: 'backpack', slot: null, is_equipped: false },
+    }));
+  }
+
+  await Promise.all(mutations);
 }
 
 async function handleSend({

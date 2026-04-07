@@ -5,7 +5,8 @@ import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/useParty";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
-import type { CampaignMessage, CampaignMessageInsert, ItemDropMetadata, CurrencyDropMetadata, VendorOfferMetadata, FlavorMetadata } from "@/types/chat.types";
+import type { CampaignMessage, CampaignMessageInsert, ItemDropMetadata, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, FlavorMetadata } from "@/types/chat.types";
+import { formatCoinParts } from "@/lib/currency";
 import type { RollResult } from "@/lib/dice";
 
 const LIMIT = 100;
@@ -79,6 +80,14 @@ function subscribe(campaignId: string) {
         const updated = payload.new as CampaignMessage;
         const idx = messages.value.findIndex(m => m.id === updated.id);
         if (idx >= 0) messages.value[idx] = updated;
+      },
+    )
+    .on(
+      "postgres_changes",
+      { event: "DELETE", schema: "public", table: "campaign_messages", filter: `campaign_id=eq.${campaignId}` },
+      (payload) => {
+        const deletedId = (payload.old as { id: string }).id;
+        messages.value = messages.value.filter(m => m.id !== deletedId);
       },
     )
     .subscribe((status, _err) => {
@@ -161,8 +170,9 @@ export function useCampaignMessages() {
   const { data: partyMembers } = useParty();
   const { data: campaignMembers } = useCampaignMembers();
 
-  // Prefer character name; in DM preview mode, impersonate the previewed character
+  // Name resolution priority: NPC persona → previewed character → linked character → display name
   function getSenderName() {
+    if (ui.dmTalkAsNpcName) return ui.dmTalkAsNpcName;
     const memberId = ui.dmPreviewMode
       ? ui.dmPreviewPartyMemberId
       : auth.linkedPartyMemberId;
@@ -264,12 +274,7 @@ export function useCampaignMessages() {
   async function sendCurrencyDrop(pp: number, gp: number, ep: number, sp: number, cp: number, label?: string) {
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id) return;
-    const parts: string[] = [];
-    if (pp) parts.push(`${pp} PP`);
-    if (gp) parts.push(`${gp} GP`);
-    if (ep) parts.push(`${ep} EP`);
-    if (sp) parts.push(`${sp} SP`);
-    if (cp) parts.push(`${cp} CP`);
+    const parts = formatCoinParts(pp, gp, ep, sp, cp);
     if (!parts.length) return;
     const metadata: CurrencyDropMetadata = {
       label: label || null,
@@ -292,12 +297,7 @@ export function useCampaignMessages() {
   async function sendVendorOffer(description: string, itemName: string | null, itemId: string | null, pp: number, gp: number, ep: number, sp: number, cp: number, senderName?: string) {
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id) return;
-    const parts: string[] = [];
-    if (pp) parts.push(`${pp} PP`);
-    if (gp) parts.push(`${gp} GP`);
-    if (ep) parts.push(`${ep} EP`);
-    if (sp) parts.push(`${sp} SP`);
-    if (cp) parts.push(`${cp} CP`);
+    const parts = formatCoinParts(pp, gp, ep, sp, cp);
     const metadata: VendorOfferMetadata = {
       description, item_name: itemName, item_id: itemId,
       pp, gp, ep, sp, cp,
@@ -388,5 +388,45 @@ export function useCampaignMessages() {
 
   const myUserId = computed(() => auth.user?.id);
 
-  return { messages: visibleMessages, loading, sendMessage, sendFlavorMessage, sendRoll, sendItemDrop, claimItemDrop, sendCurrencyDrop, claimCurrencyDrop, sendVendorOffer, claimVendorOffer, deleteMessage, deleteAllMessages, myUserId };
+  async function sendPlayerOffer(itemName: string, itemId: string | null, inventoryItemId: string, quantity: number, sellerPartyMemberId: string, pp: number, gp: number, ep: number, sp: number, cp: number) {
+    const cid = campaign.activeCampaignId;
+    if (!cid || !auth.user?.id) return;
+    const parts = formatCoinParts(pp, gp, ep, sp, cp);
+    const metadata: PlayerOfferMetadata = {
+      item_name: itemName, item_id: itemId, inventory_item_id: inventoryItemId,
+      quantity, pp, gp, ep, sp, cp,
+      seller_party_member_id: sellerPartyMemberId,
+      sold_to_user_id: null, sold_to_name: null, sold_to_party_member_id: null,
+    };
+    const insert: CampaignMessageInsert = {
+      campaign_id: cid,
+      user_id: auth.user.id,
+      recipient_user_id: null,
+      sender_name: getSenderName(),
+      message: `offers ${quantity > 1 ? `${quantity}× ` : ""}${itemName} for ${parts.join(", ")}`,
+      type: "player_offer",
+      metadata,
+    };
+    const { data } = await supabase.from("campaign_messages").insert(insert).select().single();
+    if (data) _optimisticPush(data as CampaignMessage);
+  }
+
+  async function claimPlayerOffer(messageId: string, buyerName: string, buyerPartyMemberId: string | null) {
+    const msg = messages.value.find(m => m.id === messageId);
+    if (!msg || msg.type !== 'player_offer') return;
+    const existing = msg.metadata as PlayerOfferMetadata;
+    if (existing.sold_to_user_id) return;
+    const newMeta: PlayerOfferMetadata = {
+      ...existing,
+      sold_to_user_id: auth.user!.id,
+      sold_to_name: buyerName,
+      sold_to_party_member_id: buyerPartyMemberId,
+    };
+    const { error } = await supabase.from("campaign_messages").update({ metadata: newMeta }).eq("id", messageId);
+    if (error) throw error;
+    const idx = messages.value.findIndex(m => m.id === messageId);
+    if (idx >= 0) messages.value[idx] = { ...messages.value[idx], metadata: newMeta };
+  }
+
+  return { messages: visibleMessages, loading, sendMessage, sendFlavorMessage, sendRoll, sendItemDrop, claimItemDrop, sendCurrencyDrop, claimCurrencyDrop, sendVendorOffer, claimVendorOffer, sendPlayerOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId };
 }

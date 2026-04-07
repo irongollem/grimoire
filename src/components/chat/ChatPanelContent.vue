@@ -198,11 +198,9 @@
               </p>
               <!-- Price -->
               <div class="flex flex-wrap gap-2 mb-2">
-                <span v-if="(msg.metadata as VendorOfferMetadata)?.pp" class="font-fell text-sm font-semibold" style="color: #a855f7">{{ (msg.metadata as VendorOfferMetadata).pp }} PP</span>
-                <span v-if="(msg.metadata as VendorOfferMetadata)?.gp" class="font-fell text-sm font-semibold" style="color: #f59e0b">{{ (msg.metadata as VendorOfferMetadata).gp }} GP</span>
-                <span v-if="(msg.metadata as VendorOfferMetadata)?.ep" class="font-fell text-sm font-semibold" style="color: #60a5fa">{{ (msg.metadata as VendorOfferMetadata).ep }} EP</span>
-                <span v-if="(msg.metadata as VendorOfferMetadata)?.sp" class="font-fell text-sm font-semibold" style="color: #9ca3af">{{ (msg.metadata as VendorOfferMetadata).sp }} SP</span>
-                <span v-if="(msg.metadata as VendorOfferMetadata)?.cp" class="font-fell text-sm font-semibold" style="color: #b45309">{{ (msg.metadata as VendorOfferMetadata).cp }} CP</span>
+                <template v-for="coin in COINS" :key="coin.key">
+                  <span v-if="(msg.metadata as VendorOfferMetadata)?.[coin.key]" class="font-fell text-sm font-semibold" :style="{ color: coin.hexColor }">{{ (msg.metadata as VendorOfferMetadata)[coin.key] }} {{ coin.symbol }}</span>
+                </template>
               </div>
               <!-- Paid state -->
               <div v-if="(msg.metadata as VendorOfferMetadata)?.paid_by_user_id" class="font-fell text-xs text-muted-foreground italic">
@@ -221,6 +219,57 @@
                   @click="$emit('pay-vendor-offer', { messageId: msg.id })"
                 >Pay</button>
                 <span v-if="!canAffordOffer(msg.metadata as VendorOfferMetadata)" class="ml-2 font-fell text-[10px] text-destructive/70">Insufficient funds</span>
+              </template>
+              <p class="font-fell text-[10px] text-muted-foreground/50 mt-1.5">
+                {{ timeLabel(msg.created_at) }}
+              </p>
+            </div>
+          </div>
+
+          <!-- Player offer message -->
+          <div
+            v-else-if="msg.type === 'player_offer'"
+            class="max-w-[90%] rounded-lg border overflow-hidden"
+            :class="
+              (msg.metadata as PlayerOfferMetadata)?.sold_to_user_id
+                ? 'border-border bg-muted/40'
+                : 'border-sky-500/30 bg-sky-500/5'
+            "
+          >
+            <div class="px-3 py-2 border-b border-border/50 flex items-center gap-2">
+              <Tag class="h-3.5 w-3.5 text-sky-400 shrink-0" />
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
+                {{ msg.sender_name }} offers for sale
+              </span>
+            </div>
+            <div class="px-3 py-2.5">
+              <p class="font-fell text-sm font-semibold text-foreground mb-0.5">
+                {{ (msg.metadata as PlayerOfferMetadata)?.quantity > 1
+                  ? `${(msg.metadata as PlayerOfferMetadata).quantity}× ` : '' }}{{ (msg.metadata as PlayerOfferMetadata)?.item_name }}
+              </p>
+              <!-- Price -->
+              <div class="flex flex-wrap gap-2 mb-2">
+                <template v-for="coin in COINS" :key="coin.key">
+                  <span v-if="(msg.metadata as PlayerOfferMetadata)?.[coin.key]" class="font-fell text-sm font-semibold" :style="{ color: coin.hexColor }">{{ (msg.metadata as PlayerOfferMetadata)[coin.key] }} {{ coin.symbol }}</span>
+                </template>
+              </div>
+              <!-- Sold state -->
+              <div v-if="(msg.metadata as PlayerOfferMetadata)?.sold_to_name" class="font-fell text-xs text-muted-foreground italic">
+                {{ (msg.metadata as PlayerOfferMetadata).sold_to_user_id ? 'Bought by' : 'Sold to' }} {{ (msg.metadata as PlayerOfferMetadata).sold_to_name }}
+              </div>
+              <!-- Buy button: players who aren't the seller, or DM -->
+              <template v-else-if="auth.isDM || (auth.linkedPartyMemberId && auth.linkedPartyMemberId !== (msg.metadata as PlayerOfferMetadata)?.seller_party_member_id)">
+                <button
+                  type="button"
+                  class="mt-1 px-2.5 py-1 rounded border font-cinzel text-[10px] tracking-wider transition-colors"
+                  :class="auth.isDM || canAffordOffer(msg.metadata as PlayerOfferMetadata)
+                    ? 'bg-sky-500/20 border-sky-500/40 text-sky-400 hover:bg-sky-500/30'
+                    : 'border-border text-muted-foreground/40 cursor-not-allowed'"
+                  :disabled="!auth.isDM && !canAffordOffer(msg.metadata as PlayerOfferMetadata)"
+                  :title="auth.isDM || canAffordOffer(msg.metadata as PlayerOfferMetadata) ? 'Buy' : 'Insufficient funds'"
+                  @click="$emit('buy-player-offer', { messageId: msg.id })"
+                >{{ auth.isDM ? 'Accept (DM)' : 'Buy' }}</button>
+                <span v-if="!auth.isDM && !canAffordOffer(msg.metadata as PlayerOfferMetadata)" class="ml-2 font-fell text-[10px] text-destructive/70">Insufficient funds</span>
               </template>
               <p class="font-fell text-[10px] text-muted-foreground/50 mt-1.5">
                 {{ timeLabel(msg.created_at) }}
@@ -429,13 +478,13 @@
             "
           >
             <div
-              v-if="msg.user_id !== myUserId || msg.recipient_user_id"
+              v-if="msg.sender_name || msg.recipient_user_id"
               class="flex items-center gap-1 mb-0.5"
             >
               <p
                 class="font-cinzel text-[10px] font-semibold tracking-wider text-primary"
               >
-                {{ msg.user_id === myUserId ? "You" : msg.sender_name }}
+                {{ msg.sender_name }}
               </p>
               <span
                 v-if="msg.recipient_user_id"
@@ -464,13 +513,6 @@
         class="shrink-0 border-t border-border bg-muted/20 px-3 py-2 space-y-2"
       >
         <p class="font-cinzel text-[10px] text-muted-foreground tracking-widest uppercase">Vendor Offer</p>
-        <!-- NPC sender combobox -->
-        <EntityCombobox
-          :model-value="vendorNpcId"
-          :options="props.npcs"
-          placeholder="Send as myself…"
-          @update:model-value="vendorNpcId = $event"
-        />
         <input
           v-model="vendorDesc"
           type="text"
@@ -612,6 +654,20 @@
       </div>
     </Transition>
 
+    <!-- DM persona selector -->
+    <div
+      v-if="auth.isDM"
+      class="shrink-0 px-2 pt-1.5 flex items-center gap-2"
+    >
+      <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider shrink-0">As:</span>
+      <EntityCombobox
+        :model-value="ui.dmTalkAsNpcId"
+        :options="props.npcs"
+        placeholder="Myself"
+        @update:model-value="onTalkAsChange"
+      />
+    </div>
+
     <!-- Whisper target selector -->
     <div
       v-if="members && members.length > 1"
@@ -697,6 +753,7 @@ import {
   Gift,
   Coins,
   ShoppingBag,
+  Tag,
   ChevronDown,
 } from "lucide-vue-next";
 import ChatItemDropDetails from "@/components/chat/ChatItemDropDetails.vue";
@@ -708,6 +765,7 @@ import type {
   ItemDropMetadata,
   CurrencyDropMetadata,
   VendorOfferMetadata,
+  PlayerOfferMetadata,
   FlavorMetadata,
   RollMetadata,
 } from "@/types/chat.types";
@@ -721,6 +779,14 @@ import type { DieSize, RollMode, RollResult } from "@/lib/dice";
 import { useItems } from "@/composables/useItems";
 import { COINS, type CoinKey, toCP } from "@/lib/currency";
 import { useAuthStore } from "@/stores/auth";
+import { useUiStore } from "@/stores/ui";
+
+const ui = useUiStore();
+
+function onTalkAsChange(id: string) {
+  const npc = id ? props.npcs.find(n => n.id === id) : null;
+  ui.setDmTalkAsNpc(id, npc?.name ?? null);
+}
 
 const props = defineProps<{
   messages: CampaignMessage[];
@@ -741,7 +807,8 @@ const emit = defineEmits<{
   "claim-currency": [payload: { messageId: string }];
   "claim-to-npc": [payload: { messageId: string; npcId: string; npcName: string }];
   "pay-vendor-offer": [payload: { messageId: string }];
-  "send-vendor-offer": [payload: { description: string; itemName: string | null; itemId: string | null; pp: number; gp: number; ep: number; sp: number; cp: number; npcName: string | null }];
+  "send-vendor-offer": [payload: { description: string; itemName: string | null; itemId: string | null; pp: number; gp: number; ep: number; sp: number; cp: number }];
+  "buy-player-offer": [payload: { messageId: string }];
 }>();
 
 const npcSelectState = reactive<Record<string, string>>({});
@@ -753,7 +820,7 @@ const myMember = computed(() =>
     : null
 );
 
-function canAffordOffer(meta: VendorOfferMetadata): boolean {
+function canAffordOffer(meta: { pp: number; gp: number; ep: number; sp: number; cp: number }): boolean {
   const m = myMember.value;
   if (!m) return false;
   const walletCP = toCP(m.pp, m.gp, m.ep, m.sp, m.cp);
@@ -762,12 +829,8 @@ function canAffordOffer(meta: VendorOfferMetadata): boolean {
 }
 
 // ── Vendor offer form (DM only) ─────────────────────────────────────────────────────
-const vendorOpen      = ref(false);
-const vendorNpcId     = ref("");
-const vendorNpcName   = computed(() =>
-  vendorNpcId.value ? (props.npcs.find(n => n.id === vendorNpcId.value)?.name ?? null) : null
-);
-const vendorDesc      = ref("");
+const vendorOpen  = ref(false);
+const vendorDesc  = ref("");
 const vendorItemQuery = ref("");
 const vendorItemId    = ref("");
 const vendorShowItems = ref(false);
@@ -793,9 +856,8 @@ function postVendorOffer() {
     itemId: selectedItem?.id ?? null,
     pp: vendorPrice.pp, gp: vendorPrice.gp, ep: vendorPrice.ep,
     sp: vendorPrice.sp, cp: vendorPrice.cp,
-    npcName: vendorNpcName.value || null,
   });
-  vendorDesc.value = ""; vendorItemQuery.value = ""; vendorItemId.value = ""; vendorNpcId.value = "";
+  vendorDesc.value = ""; vendorItemQuery.value = ""; vendorItemId.value = "";
   COINS.forEach(c => { vendorPrice[c.key] = 0; });
   vendorOpen.value = false;
 }

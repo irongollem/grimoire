@@ -155,7 +155,7 @@ import type { StoreItem } from "@/composables/useStoreItems";
 import type { Item } from "@/types/item.types";
 import { ITEM_TYPE_LABELS } from "@/types/item.types";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
-import { COINS, type CoinKey } from "@/lib/currency";
+import { COINS, type CoinKey, parseCoinText } from "@/lib/currency";
 
 const props = defineProps<{ locationId: string; ownerNpcName?: string | null }>();
 
@@ -217,18 +217,6 @@ const offerDesc   = ref("");
 const offerPrice  = reactive<Record<CoinKey, number>>({ pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
 const offerHasPrice = computed(() => COINS.some(c => offerPrice[c.key] > 0));
 
-/** Parse freeform price text like "5 gp", "1 gp 5 sp", "150 gold" into coins. */
-function parsePriceText(text: string): Record<CoinKey, number> {
-  const t = text.toLowerCase();
-  const match = (pattern: RegExp) => { const m = t.match(pattern); return m ? parseInt(m[1]) : 0; };
-  return {
-    pp: match(/(\d+)\s*pp/),
-    gp: match(/(\d+)\s*(?:gp|gold)/),
-    ep: match(/(\d+)\s*ep/),
-    sp: match(/(\d+)\s*(?:sp|silver)/),
-    cp: match(/(\d+)\s*(?:cp|copper)/),
-  };
-}
 
 function toggleOffer(si: StoreItem) {
   if (offeringId.value === si.id) {
@@ -238,7 +226,7 @@ function toggleOffer(si: StoreItem) {
   offeringId.value = si.id;
   offerDesc.value = si.item.name;
   const priceText = si.price_override ?? si.item.cost ?? "";
-  const parsed = parsePriceText(priceText);
+  const parsed = parseCoinText(priceText);
   COINS.forEach(c => { offerPrice[c.key] = parsed[c.key]; });
 }
 

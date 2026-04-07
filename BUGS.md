@@ -18,6 +18,9 @@
 
 - [x] Spell list empty for players, and "Add your first spell" button shown to players — `spells` RLS used a single `FOR ALL` policy (`auth.uid() = user_id`) so players (different auth.uid()) saw zero results; split into separate policies: SELECT allows campaign members to read spells owned by anyone in their campaign, INSERT/UPDATE/DELETE remain owner-only; also gated the empty-state CTA in `SpellList.vue` behind `!playerMemberId` (irongollem/grimoire#67)
 
+- [x] Chat message deletes not propagated in real-time — realtime subscription only registered `INSERT` and `UPDATE` handlers; `DELETE` events were ignored so other clients only saw deletions after a manual refresh; fixed by adding a `DELETE` postgres_changes handler that filters the message out of the local array (`src/composables/useCampaignMessages.ts`)
+- [x] Inventory add-item dropdown clipped in ContainerSection — `overflow-hidden` on the section root was clipping the absolutely-positioned suggestion list regardless of z-index; fixed by removing `overflow-hidden` from the root and adding `rounded-t-lg` directly to the header child to preserve border-radius
+
 - [x] Atlas map location dots: nearby collapsed dots rendered above the expanded pill (z-index), pill centered on cursor instead of growing from the dot (pinStyle anchor), and names truncated at 128px regardless of available space; fixed by promoting hovered pin to z-20, anchoring the expanded pill at the dot position (grows right/left from pin), and widening name truncation to max-w-48 (irongollem/grimoire#56)
 
 - [x] Card Forge print layout ignored focal points — `FocalImage.computeCenteredPosition` returned generic defaults when `offsetWidth`/`offsetHeight` were 0 (print layout is `display:none` on screen); fixed by falling back to direct `${fp.x}% ${fp.y}%` when element dimensions are unavailable. Also wired missing `focal-point` props on Monster, Item, and Spell card components (irongollem/grimoire#53)

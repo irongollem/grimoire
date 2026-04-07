@@ -153,14 +153,51 @@
           <RichTextViewer :content="vaultItem.curse_description" />
         </div>
 
+        <!-- Sell form -->
+        <div class="border-t border-border pt-4">
+          <button
+            v-if="!sellOpen"
+            class="flex items-center gap-1.5 font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            @click="openSell"
+          >
+            <ShoppingBag class="h-3.5 w-3.5" />
+            List for Sale
+          </button>
+          <div v-else class="space-y-2">
+            <p class="font-cinzel text-[10px] text-amber-400/80 tracking-widest uppercase">List for Sale</p>
+            <div class="grid grid-cols-5 gap-1">
+              <div v-for="coin in COINS" :key="coin.key" class="flex flex-col items-center gap-0.5">
+                <span class="font-cinzel text-[9px] font-bold" :class="coin.color">{{ coin.symbol }}</span>
+                <input
+                  v-model.number="sellPrice[coin.key]"
+                  type="number" min="0"
+                  class="w-full bg-muted/30 border border-border rounded px-1 py-0.5 font-cinzel text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button
+                :disabled="!sellHasPrice"
+                class="flex-1 py-1 bg-amber-600/80 text-white rounded font-cinzel text-[10px] tracking-wider hover:opacity-90 transition-opacity disabled:opacity-40"
+                @click="confirmSell"
+              >Post to Chat</button>
+              <button
+                class="px-2 py-1 border border-border rounded font-cinzel text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                @click="sellOpen = false"
+              >Cancel</button>
+            </div>
+          </div>
+        </div>
+
       </div>
     </aside>
   </Transition>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
-import { X, Plus, Minus } from "lucide-vue-next";
+import { computed, ref, reactive, watch } from "vue";
+import { X, Plus, Minus, ShoppingBag } from "lucide-vue-next";
+import { COINS, type CoinKey, parseCoinText } from "@/lib/currency";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { useUpdateInventoryItem } from "@/composables/usePartyInventory";
@@ -178,7 +215,30 @@ const props = defineProps<{
   vaultItem: Item | null;
 }>();
 
-const emit = defineEmits<{ close: []; unequip: [] }>();
+const emit = defineEmits<{
+  close: [];
+  unequip: [];
+  sell: [pp: number, gp: number, ep: number, sp: number, cp: number];
+}>();
+
+const sellOpen  = ref(false);
+const sellPrice = reactive<Record<CoinKey, number>>({ pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
+const sellHasPrice = computed(() => COINS.some(c => sellPrice[c.key] > 0));
+
+function openSell() {
+  const parsed = props.vaultItem?.cost ? parseCoinText(props.vaultItem.cost) : null;
+  COINS.forEach(c => { sellPrice[c.key] = parsed?.[c.key] ?? 0; });
+  sellOpen.value = true;
+}
+
+function confirmSell() {
+  if (!sellHasPrice.value) return;
+  emit('sell', sellPrice.pp, sellPrice.gp, sellPrice.ep, sellPrice.sp, sellPrice.cp);
+  sellOpen.value = false;
+}
+
+// Reset sell form when panel closes
+watch(() => props.inv, () => { sellOpen.value = false; });
 
 const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
 const isUpdating = ref(false);
@@ -228,6 +288,8 @@ async function recharge() {
     isUpdating.value = false;
   }
 }
+
+defineExpose({ openSell });
 </script>
 
 <style scoped>

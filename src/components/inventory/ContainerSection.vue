@@ -1,7 +1,7 @@
 <template>
-  <div class="rounded-lg border border-border bg-card overflow-hidden">
+  <div class="rounded-lg border border-border bg-card">
     <!-- Header -->
-    <div class="px-4 py-2 border-b border-border bg-muted/20 flex items-center gap-2">
+    <div class="px-4 py-2 border-b border-border bg-muted/20 flex items-center gap-2 rounded-t-lg">
       <button class="flex items-center gap-1.5 flex-1 text-left" @click="open = !open">
         <ChevronRight class="h-3 w-3 text-muted-foreground transition-transform" :class="open ? 'rotate-90' : ''" />
         <span class="font-cinzel text-xs font-semibold text-foreground tracking-wider">{{ label }}</span>
@@ -25,11 +25,13 @@
         :key="item.id"
         :item="item"
         :all-containers="allContainers"
+        :sellable="sellable"
         @move="(item, loc, cid) => $emit('move', item, loc, cid)"
         @remove="(id) => $emit('remove', id)"
         @adjust-qty="(item, d) => $emit('adjust-qty', item, d)"
         @drop-to-chat="(item) => $emit('drop-to-chat', item)"
         @open-detail="(item) => $emit('open-detail', item)"
+        @sell-item="(item) => $emit('sell-item', item)"
       />
       <div v-if="!items.length && !showAdd" class="px-4 py-3">
         <p class="font-fell text-xs text-muted-foreground/50 italic">Empty.</p>
@@ -88,6 +90,7 @@ const props = defineProps<{
   containerId?: string;
   isDefault?: boolean;
   removable?: boolean;
+  sellable?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -98,6 +101,7 @@ const emit = defineEmits<{
   'adjust-qty': [item: PartyInventoryItem, delta: number];
   'drop-to-chat': [item: PartyInventoryItem];
   'open-detail': [item: PartyInventoryItem];
+  'sell-item': [item: PartyInventoryItem];
 }>();
 
 const open = ref(true);

@@ -163,6 +163,17 @@ export const useUiStore = defineStore("ui", () => {
     chatOpen.value = !chatOpen.value;
   }
 
+  // DM "talk as" NPC — DM can speak/act as any NPC
+  const dmTalkAsNpcId   = ref("");
+  const dmTalkAsNpcName = ref<string | null>(null);
+
+  function setDmTalkAsNpc(id: string, name: string | null) {
+    const cleanName = name || null;
+    if (dmTalkAsNpcId.value === id && dmTalkAsNpcName.value === cleanName) return;
+    dmTalkAsNpcId.value   = id;
+    dmTalkAsNpcName.value = cleanName;
+  }
+
   // DM preview mode — lets DM browse the player portal without a second account
   const dmPreviewMode = ref(false);
   const dmPreviewPartyMemberId = ref<string | null>(null);
@@ -276,6 +287,11 @@ export const useUiStore = defineStore("ui", () => {
     toggleMobileNav,
     chatOpen,
     toggleChat,
+
+    // DM persona
+    dmTalkAsNpcId,
+    dmTalkAsNpcName,
+    setDmTalkAsNpc,
 
     // DM preview
     dmPreviewMode,
