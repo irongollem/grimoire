@@ -1,4 +1,5 @@
-import { computed } from "vue";
+import { computed, isRef } from "vue";
+import type { Ref, ComputedRef } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Item, ItemInsert, ItemUpdate } from "@/types/item.types";
@@ -112,11 +113,11 @@ export function useItems() {
   return { ...itemsQuery, data };
 }
 
-export function useItem(id: string) {
+export function useItem(id: Ref<string> | ComputedRef<string> | string) {
   return useQuery({
-    queryKey: [QUERY_KEY, id],
-    queryFn: () => fetchItem(id),
-    enabled: !!id,
+    queryKey: computed(() => [QUERY_KEY, isRef(id) ? id.value : id]),
+    queryFn: () => fetchItem(isRef(id) ? id.value : id),
+    enabled: () => !!(isRef(id) ? id.value : id),
   });
 }
 

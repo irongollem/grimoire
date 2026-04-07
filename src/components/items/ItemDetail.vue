@@ -22,6 +22,16 @@
         <button
           v-if="item"
           type="button"
+          :disabled="isCloning"
+          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors disabled:opacity-50"
+          @click="cloneItem"
+        >
+          <Copy class="h-3.5 w-3.5" />
+          {{ isCloning ? "Cloning…" : "Clone" }}
+        </button>
+        <button
+          v-if="item"
+          type="button"
           :disabled="isDeleting"
           class="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors disabled:opacity-50"
           @click="confirmDelete"
@@ -354,7 +364,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm, notify } = useConfirm();
 import { ref, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { Save, Trash2, ScrollText } from "lucide-vue-next";
+import { Save, Trash2, ScrollText, Copy } from "lucide-vue-next";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import { useCreateItem, useUpdateItem, useDeleteItem } from "@/composables/useItems";
 import { useSpells } from "@/composables/useSpells";
@@ -449,6 +459,7 @@ const { mutateAsync: updateItem } = useUpdateItem();
 const { mutateAsync: deleteItem } = useDeleteItem();
 const isSaving = ref(false);
 const isDeleting = ref(false);
+const isCloning = ref(false);
 const saveError = ref("");
 
 function buildPayload() {
@@ -515,6 +526,24 @@ async function confirmDelete() {
     notify("Failed to delete item. Please try again.");
   } finally {
     isDeleting.value = false;
+  }
+}
+
+// ── Clone ─────────────────────────────────────────────────────────────────────
+async function cloneItem() {
+  if (!props.item) return;
+  isCloning.value = true;
+  try {
+    const created = await createItem({
+      ...buildPayload(),
+      name: `${props.item.name} - Clone`,
+      source: null,
+      source_title: null,
+      source_url: null,
+    });
+    router.replace(`/vault/${created.id}?edit=true`);
+  } finally {
+    isCloning.value = false;
   }
 }
 

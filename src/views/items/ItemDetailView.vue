@@ -32,6 +32,7 @@
       <ItemSheet v-if="!isEditing && item" :item="item" />
       <ItemDetail
         v-else
+        :key="id"
         :item="isNewItem ? null : (item ?? null)"
         :prefill-name="isNewItem ? (route.query.name as string | undefined) : undefined"
       />
@@ -67,7 +68,7 @@ function stopEditing() {
   router.replace({ query: q });
 }
 
-const { data: item, isLoading: itemLoading } = useItem(id.value);
+const { data: item, isLoading: itemLoading } = useItem(id);
 const isLoading = computed(() => !isNewItem.value && itemLoading.value);
 
 const subtitle = computed(() => {
