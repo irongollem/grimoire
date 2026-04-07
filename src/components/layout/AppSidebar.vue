@@ -36,6 +36,11 @@
     <!-- Campaign switcher -->
     <CampaignSwitcher />
 
+    <!-- Global search -->
+    <div class="px-3 py-2 border-b border-border">
+      <GlobalSearch />
+    </div>
+
     <!-- Navigation -->
     <nav class="flex-1 overflow-y-auto px-2 py-4">
       <template v-for="group in NAV_GROUPS" :key="group.label">
@@ -122,6 +127,7 @@ import { NAV_GROUPS } from "@/lib/nav";
 import { useRunningEncounters } from "@/composables/useEncounterLive";
 import NavItem from "./NavItem.vue";
 import CampaignSwitcher from "./CampaignSwitcher.vue";
+import GlobalSearch from "./GlobalSearch.vue";
 import AppInvitePanel from "@/components/admin/AppInvitePanel.vue";
 
 const auth = useAuthStore();

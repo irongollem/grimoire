@@ -14,19 +14,106 @@
       {{ pageTitle }}
     </h1>
 
+    <button
+      class="text-muted-foreground hover:text-foreground transition-colors"
+      aria-label="Search"
+      @click="searchOpen = true"
+    >
+      <Search class="h-5 w-5" />
+    </button>
+
     <DiceRoller />
+
+    <!-- Mobile search overlay -->
+    <Teleport to="body">
+      <div
+        v-if="searchOpen"
+        class="fixed inset-0 z-50 bg-black/60 flex flex-col"
+        @click.self="searchOpen = false"
+      >
+        <div class="bg-card border-b border-border px-4 py-3">
+          <div class="relative">
+            <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <input
+              ref="mobileInputRef"
+              v-model="mobileQuery"
+              type="text"
+              placeholder="Search anything…"
+              class="w-full pl-8 pr-8 py-2 rounded-md bg-background border border-border text-sm font-fell text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500"
+              @keydown.escape="searchOpen = false"
+            />
+            <button
+              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              @click="searchOpen = false"
+            >
+              <X class="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Results -->
+        <div class="flex-1 overflow-y-auto bg-card">
+          <div v-if="mobileQuery.trim().length < 2" class="px-4 py-8 text-center text-sm text-muted-foreground font-fell">
+            Type at least 2 characters to search
+          </div>
+          <div v-else-if="isFetching" class="px-4 py-4 flex items-center gap-2 text-sm text-muted-foreground font-fell">
+            <Loader2 class="h-4 w-4 animate-spin" />
+            Searching…
+          </div>
+          <div v-else-if="mobileGroups.length === 0" class="px-4 py-8 text-center text-sm text-muted-foreground font-fell">
+            No results for "{{ mobileQuery.trim() }}"
+          </div>
+          <template v-else>
+            <template v-for="group in mobileGroups" :key="group.type">
+              <div class="px-4 py-2 font-cinzel text-[10px] tracking-widest text-muted-foreground/60 uppercase bg-secondary/30 border-b border-t border-border/50">
+                {{ group.label }}
+              </div>
+              <RouterLink
+                v-for="item in group.items"
+                :key="item.id"
+                :to="item.route"
+                class="flex items-center px-4 py-3 text-sm font-fell text-foreground hover:bg-secondary/60 border-b border-border/30 transition-colors"
+                @click="searchOpen = false"
+              >
+                {{ item.name }}
+              </RouterLink>
+            </template>
+          </template>
+        </div>
+      </div>
+    </Teleport>
   </header>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { ref, computed, watch, nextTick } from "vue";
 import { useRoute } from "vue-router";
-import { Menu } from "lucide-vue-next";
+import { Menu, Search, X, Loader2 } from "lucide-vue-next";
 import { useUiStore } from "@/stores/ui";
 import DiceRoller from "@/components/common/DiceRoller.vue";
+import { useGlobalSearch } from "@/composables/useGlobalSearch";
 
 const route = useRoute();
 const ui = useUiStore();
 
 const pageTitle = computed(() => (route.meta.title as string | undefined) ?? "Grimoire");
+
+const searchOpen = ref(false);
+const mobileQuery = ref("");
+const mobileInputRef = ref<HTMLInputElement | null>(null);
+
+const { data, isFetching } = useGlobalSearch(mobileQuery);
+
+const mobileGroups = computed(() => {
+  if (mobileQuery.value.trim().length < 2) return [];
+  return data.value ?? [];
+});
+
+watch(searchOpen, async (val) => {
+  if (val) {
+    mobileQuery.value = "";
+    await nextTick();
+    mobileInputRef.value?.focus();
+  }
+});
 </script>
