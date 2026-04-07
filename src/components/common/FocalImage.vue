@@ -1,12 +1,21 @@
 <template>
-  <div :class="['w-full h-full', format === 'token' && 'rounded-full overflow-hidden', format === 'square' && 'overflow-hidden']">
+  <div
+    ref="rootRef"
+    :class="[
+      'w-full h-full',
+      format === 'token' && 'rounded-full overflow-hidden',
+      format === 'square' && 'overflow-hidden',
+    ]"
+  >
     <img
       v-if="src"
       ref="imgRef"
       :src="displaySrc"
       :alt="alt ?? ''"
-      class="w-full h-full object-cover"
-      :style="{ objectPosition }"
+      :class="isClipped ? 'w-full' : 'w-full h-full object-cover'"
+      :style="isClipped
+        ? { transform: `translateY(${clippedTranslateY}px)` }
+        : { objectPosition }"
       loading="lazy"
       @load="onLoad"
     />
@@ -14,7 +23,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onBeforeUnmount } from "vue";
 import smartcrop from "smartcrop";
 
 export type ImageFormat = "portrait" | "landscape" | "token" | "square";
@@ -49,7 +58,6 @@ const props = defineProps<{
   focalPoint?: { x: number; y: number } | null;
 }>();
 
-
 // ── Supabase image transforms (Pro plan) ───────────────────────────────────────
 // Set VITE_SUPABASE_TRANSFORMS=true in .env.local (and Vercel env vars) to enable.
 // When disabled, falls back to raw URLs — zero behavior change.
@@ -65,16 +73,25 @@ const FORMAT_RENDER_WIDTHS: Record<ImageFormat, number> = {
 
 function toRenderUrl(url: string, width: number, quality = 80): string {
   if (!TRANSFORMS_ENABLED) return url;
-  return url.replace("/storage/v1/object/", "/storage/v1/render/image/") +
-    `?width=${width}&quality=${quality}&resize=contain`;
+  return (
+    url.replace("/storage/v1/object/", "/storage/v1/render/image/") +
+    `?width=${width}&quality=${quality}&resize=contain`
+  );
 }
 
 const displaySrc = computed(() =>
-  props.src ? toRenderUrl(props.src, FORMAT_RENDER_WIDTHS[props.format]) : undefined,
+  props.src
+    ? toRenderUrl(props.src, FORMAT_RENDER_WIDTHS[props.format])
+    : undefined,
 );
 
+const rootRef = ref<HTMLElement | null>(null);
 const imgRef = ref<HTMLImageElement | null>(null);
 const objectPosition = ref(FORMAT_DEFAULTS[props.format]);
+// Clipped mode: image taller than its overflow:hidden container (no h-full in chain).
+// Use translateY to center the focal point instead of object-position.
+const isClipped = ref(false);
+const clippedTranslateY = ref(0);
 
 // Raw focal point: 0–100 percentages of the SOURCE IMAGE dimensions.
 // This is stored/cached. The display object-position is computed separately
@@ -117,16 +134,40 @@ function computeCenteredPosition(
   const fpXpx = (fp.x / 100) * scaledW;
   const fpYpx = (fp.y / 100) * scaledH;
 
-  const x = excessX <= 0 ? 50 : Math.max(0, Math.min(100, ((fpXpx - _cw / 2) / excessX) * 100));
-  const y = excessY <= 0 ? 50 : Math.max(0, Math.min(100, ((fpYpx - _ch / 2) / excessY) * 100));
+  const x =
+    excessX <= 0
+      ? 50
+      : Math.max(0, Math.min(100, ((fpXpx - _cw / 2) / excessX) * 100));
+  const y =
+    excessY <= 0
+      ? 50
+      : Math.max(0, Math.min(100, ((fpYpx - _ch / 2) / excessY) * 100));
 
   return `${Math.round(x)}% ${Math.round(y)}%`;
+}
+
+function applyFocalPoint(img: HTMLImageElement, fp: { x: number; y: number }) {
+  const containerH = rootRef.value?.offsetHeight ?? 0;
+  const renderedH = img.naturalHeight * (img.offsetWidth / img.naturalWidth);
+
+  // Clipped mode: image renders at natural height, container clips it via overflow:hidden.
+  // object-position has no effect here — use translateY to center the focal point.
+  if (containerH > 0 && renderedH > containerH + 2) {
+    isClipped.value = true;
+    const focusY = (fp.y / 100) * renderedH;
+    const offset = Math.max(0, Math.min(renderedH - containerH, focusY - containerH / 2));
+    clippedTranslateY.value = -offset;
+  } else {
+    isClipped.value = false;
+    clippedTranslateY.value = 0;
+    objectPosition.value = computeCenteredPosition(img, fp);
+  }
 }
 
 function onLoad() {
   const img = imgRef.value;
   if (!img || !rawFocalPoint.value) return;
-  objectPosition.value = computeCenteredPosition(img, rawFocalPoint.value);
+  applyFocalPoint(img, rawFocalPoint.value);
 }
 
 // ── Cache helpers ──────────────────────────────────────────────────────────────
@@ -150,7 +191,9 @@ function writeCache(url: string, fp: { x: number; y: number }) {
 
 // ── Smartcrop analysis ─────────────────────────────────────────────────────────
 
-async function runSmartcrop(src: string): Promise<{ x: number; y: number } | null> {
+async function runSmartcrop(
+  src: string,
+): Promise<{ x: number; y: number } | null> {
   const img = new Image();
   img.crossOrigin = "anonymous";
   await new Promise<void>((resolve) => {
@@ -165,11 +208,22 @@ async function runSmartcrop(src: string): Promise<{ x: number; y: number } | nul
   // so smartcrop favours the face over high-saturation details lower down.
   const isPortraitImage = img.naturalHeight > img.naturalWidth;
   const boosts = isPortraitImage
-    ? [{ x: 0, y: 0, width: img.naturalWidth, height: Math.floor(img.naturalHeight * 0.45), weight: 1.0 }]
+    ? [
+        {
+          x: 0,
+          y: 0,
+          width: img.naturalWidth,
+          height: Math.floor(img.naturalHeight * 0.45),
+          weight: 1.0,
+        },
+      ]
     : [];
 
   try {
-    const result = await smartcrop.crop(img, { ...FORMAT_TARGETS[props.format], boost: boosts });
+    const result = await smartcrop.crop(img, {
+      ...FORMAT_TARGETS[props.format],
+      boost: boosts,
+    });
     const crop = result.topCrop;
     return {
       x: Math.round(((crop.x + crop.width / 2) / img.naturalWidth) * 100),
@@ -182,7 +236,10 @@ async function runSmartcrop(src: string): Promise<{ x: number; y: number } | nul
 
 // ── Main resolution logic ──────────────────────────────────────────────────────
 
-async function resolve(src: string, manualFp: { x: number; y: number } | null | undefined) {
+async function resolve(
+  src: string,
+  manualFp: { x: number; y: number } | null | undefined,
+) {
   if (manualFp) {
     rawFocalPoint.value = manualFp;
   } else {
@@ -201,7 +258,7 @@ async function resolve(src: string, manualFp: { x: number; y: number } | null | 
   // Apply if the image element already finished loading
   const img = imgRef.value;
   if (img?.complete && img.naturalWidth && rawFocalPoint.value) {
-    objectPosition.value = computeCenteredPosition(img, rawFocalPoint.value);
+    applyFocalPoint(img, rawFocalPoint.value);
   }
 }
 
@@ -214,4 +271,21 @@ watch(
   },
   { immediate: true },
 );
+
+// Recalculate focal position on resize — translateY depends on both the
+// rendered image height and the container clip height, both of which change
+// when the viewport is resized.
+const resizeObserver = new ResizeObserver(() => {
+  const img = imgRef.value;
+  if (img?.complete && img.naturalWidth && rawFocalPoint.value) {
+    applyFocalPoint(img, rawFocalPoint.value);
+  }
+});
+
+watch(rootRef, (el, prev) => {
+  if (prev) resizeObserver.unobserve(prev);
+  if (el) resizeObserver.observe(el);
+});
+
+onBeforeUnmount(() => resizeObserver.disconnect());
 </script>
