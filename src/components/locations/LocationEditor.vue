@@ -327,7 +327,21 @@
 
     <!-- Store inventory (store / tavern / inn only) -->
     <template v-if="!isNew && STORE_LOCATION_TYPES.has(locationType)">
-      <StoreInventory :location-id="props.location!.id" />
+      <!-- Owner NPC — used as the sender name on vendor offer messages -->
+      <div class="flex items-center gap-3">
+        <span class="font-cinzel text-xs text-foreground shrink-0">Proprietor</span>
+        <EntityCombobox
+          :model-value="npcOwnerId"
+          :options="npcOptions"
+          placeholder="No proprietor set…"
+          class="flex-1"
+          @update:model-value="npcOwnerId = $event"
+        />
+      </div>
+      <StoreInventory
+        :location-id="props.location!.id"
+        :owner-npc-name="ownerNpcName"
+      />
     </template>
 
     <!-- NPCs at this location -->
@@ -529,7 +543,7 @@ import TagInput from "@/components/common/TagInput.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
 import StoreInventory from "@/components/locations/StoreInventory.vue";
-import { useNpcsByLocations } from "@/composables/useNpcs";
+import { useNpcs, useNpcsByLocations } from "@/composables/useNpcs";
 import { useEncountersByLocation } from "@/composables/useEncounters";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
 import {
@@ -689,6 +703,10 @@ const isNpcsShared = ref<boolean>(props.location?.is_npcs_shared ?? false);
 const isInventoryShared = ref<boolean>(
   props.location?.is_inventory_shared ?? false,
 );
+const npcOwnerId = ref<string>(props.location?.npc_owner_id ?? "");
+const { data: allNpcs } = useNpcs();
+const npcOptions = computed(() => (allNpcs.value ?? []).map(n => ({ id: n.id, name: n.name })));
+const ownerNpcName = computed(() => allNpcs.value?.find(n => n.id === npcOwnerId.value)?.name ?? null);
 
 // ── Map ────────────────────────────────────────────────────────────────────────
 const mapUrl = ref<string | null>(props.location?.map_url ?? null);
@@ -769,6 +787,7 @@ function buildPayload() {
     is_description_shared: isDescriptionShared.value,
     is_npcs_shared: isNpcsShared.value,
     is_inventory_shared: isInventoryShared.value,
+    npc_owner_id: npcOwnerId.value || null,
   };
 }
 

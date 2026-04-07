@@ -176,6 +176,58 @@
             </div>
           </div>
 
+          <!-- Vendor offer message -->
+          <div
+            v-else-if="msg.type === 'vendor_offer'"
+            class="max-w-[90%] rounded-lg border overflow-hidden"
+            :class="
+              (msg.metadata as VendorOfferMetadata)?.paid_by_user_id
+                ? 'border-border bg-muted/40'
+                : 'border-emerald-500/30 bg-emerald-500/5'
+            "
+          >
+            <div class="px-3 py-2 border-b border-border/50 flex items-center gap-2">
+              <ShoppingBag class="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
+                {{ msg.sender_name }} offers
+              </span>
+            </div>
+            <div class="px-3 py-2.5">
+              <p class="font-fell text-sm text-foreground leading-snug mb-1.5">
+                {{ (msg.metadata as VendorOfferMetadata)?.description }}
+              </p>
+              <!-- Price -->
+              <div class="flex flex-wrap gap-2 mb-2">
+                <span v-if="(msg.metadata as VendorOfferMetadata)?.pp" class="font-fell text-sm font-semibold" style="color: #a855f7">{{ (msg.metadata as VendorOfferMetadata).pp }} PP</span>
+                <span v-if="(msg.metadata as VendorOfferMetadata)?.gp" class="font-fell text-sm font-semibold" style="color: #f59e0b">{{ (msg.metadata as VendorOfferMetadata).gp }} GP</span>
+                <span v-if="(msg.metadata as VendorOfferMetadata)?.ep" class="font-fell text-sm font-semibold" style="color: #60a5fa">{{ (msg.metadata as VendorOfferMetadata).ep }} EP</span>
+                <span v-if="(msg.metadata as VendorOfferMetadata)?.sp" class="font-fell text-sm font-semibold" style="color: #9ca3af">{{ (msg.metadata as VendorOfferMetadata).sp }} SP</span>
+                <span v-if="(msg.metadata as VendorOfferMetadata)?.cp" class="font-fell text-sm font-semibold" style="color: #b45309">{{ (msg.metadata as VendorOfferMetadata).cp }} CP</span>
+              </div>
+              <!-- Paid state -->
+              <div v-if="(msg.metadata as VendorOfferMetadata)?.paid_by_user_id" class="font-fell text-xs text-muted-foreground italic">
+                Paid by {{ (msg.metadata as VendorOfferMetadata)?.paid_by_name }}
+              </div>
+              <!-- Pay button (players with a linked character only) -->
+              <template v-else-if="auth.linkedPartyMemberId">
+                <button
+                  type="button"
+                  class="mt-1 px-2.5 py-1 rounded border font-cinzel text-[10px] tracking-wider transition-colors"
+                  :class="canAffordOffer(msg.metadata as VendorOfferMetadata)
+                    ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30'
+                    : 'border-border text-muted-foreground/40 cursor-not-allowed'"
+                  :disabled="!canAffordOffer(msg.metadata as VendorOfferMetadata)"
+                  :title="canAffordOffer(msg.metadata as VendorOfferMetadata) ? 'Pay' : 'Insufficient funds'"
+                  @click="$emit('pay-vendor-offer', { messageId: msg.id })"
+                >Pay</button>
+                <span v-if="!canAffordOffer(msg.metadata as VendorOfferMetadata)" class="ml-2 font-fell text-[10px] text-destructive/70">Insufficient funds</span>
+              </template>
+              <p class="font-fell text-[10px] text-muted-foreground/50 mt-1.5">
+                {{ timeLabel(msg.created_at) }}
+              </p>
+            </div>
+          </div>
+
           <!-- Currency drop message -->
           <div
             v-else-if="msg.type === 'currency_drop'"
@@ -405,6 +457,75 @@
       </template>
     </div>
 
+    <!-- Vendor offer panel (DM only) -->
+    <Transition name="dice-expand">
+      <div
+        v-if="vendorOpen && auth.isDM"
+        class="shrink-0 border-t border-border bg-muted/20 px-3 py-2 space-y-2"
+      >
+        <p class="font-cinzel text-[10px] text-muted-foreground tracking-widest uppercase">Vendor Offer</p>
+        <!-- NPC sender combobox -->
+        <EntityCombobox
+          :model-value="vendorNpcId"
+          :options="props.npcs"
+          placeholder="Send as myself…"
+          @update:model-value="vendorNpcId = $event"
+        />
+        <input
+          v-model="vendorDesc"
+          type="text"
+          placeholder="What is being offered? (e.g. Healing Potion)"
+          class="w-full bg-muted/30 border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+        <!-- Item combobox -->
+        <div class="relative">
+          <input
+            v-model="vendorItemQuery"
+            type="text"
+            placeholder="Vault item to give on payment (optional)"
+            autocomplete="off"
+            class="w-full bg-muted/30 border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
+            :class="vendorItemQuery && !vendorItemId ? 'border-amber-500/50' : ''"
+            @input="vendorItemId = ''"
+            @focus="vendorShowItems = true"
+            @keydown.escape="vendorShowItems = false"
+          />
+          <div
+            v-if="vendorShowItems && vendorItemSuggestions.length"
+            class="absolute left-0 bottom-full mb-0.5 z-20 w-full rounded border border-border bg-card shadow overflow-hidden max-h-40 overflow-y-auto"
+          >
+            <button
+              v-for="it in vendorItemSuggestions"
+              :key="it.id"
+              type="button"
+              class="w-full text-left px-2 py-1 font-fell text-xs text-foreground hover:bg-muted transition-colors flex items-baseline gap-2"
+              @click="vendorItemQuery = it.name; vendorItemId = it.id; vendorShowItems = false"
+            >
+              <span class="truncate">{{ it.name }}</span>
+              <span class="font-cinzel text-[9px] text-muted-foreground shrink-0 capitalize">{{ it.item_type }}</span>
+            </button>
+          </div>
+          <div v-if="vendorShowItems" class="fixed inset-0 z-10" @click="vendorShowItems = false" />
+        </div>
+        <div class="grid grid-cols-5 gap-1">
+          <div v-for="coin in COINS" :key="coin.key" class="flex flex-col items-center gap-0.5">
+            <span class="font-cinzel text-[9px] font-bold" :class="coin.color">{{ coin.symbol }}</span>
+            <input
+              v-model.number="vendorPrice[coin.key]"
+              type="number" min="0"
+              class="w-full bg-muted/30 border border-border rounded px-1 py-0.5 font-cinzel text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+        </div>
+        <button
+          type="button"
+          :disabled="!vendorDesc.trim() || !vendorHasPrice"
+          class="w-full py-1.5 font-cinzel text-xs font-bold tracking-wider bg-emerald-600 text-white rounded-md hover:opacity-90 transition-opacity disabled:opacity-40"
+          @click="postVendorOffer"
+        >Post Offer</button>
+      </div>
+    </Transition>
+
     <!-- Dice panel -->
     <Transition name="dice-expand">
       <div
@@ -524,9 +645,23 @@
             : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
         "
         title="Dice roller"
-        @click="diceOpen = !diceOpen"
+        @click="diceOpen = !diceOpen; vendorOpen = false"
       >
         <Dices class="h-4 w-4" />
+      </button>
+      <button
+        v-if="auth.isDM"
+        type="button"
+        class="p-1.5 rounded-md transition-colors shrink-0"
+        :class="
+          vendorOpen
+            ? 'text-emerald-400 bg-emerald-500/10'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+        "
+        title="Vendor offer"
+        @click="vendorOpen = !vendorOpen; diceOpen = false"
+      >
+        <ShoppingBag class="h-4 w-4" />
       </button>
       <textarea
         ref="inputEl"
@@ -561,6 +696,7 @@ import {
   Trash2,
   Gift,
   Coins,
+  ShoppingBag,
   ChevronDown,
 } from "lucide-vue-next";
 import ChatItemDropDetails from "@/components/chat/ChatItemDropDetails.vue";
@@ -571,6 +707,7 @@ import type {
   CampaignMessage,
   ItemDropMetadata,
   CurrencyDropMetadata,
+  VendorOfferMetadata,
   FlavorMetadata,
   RollMetadata,
 } from "@/types/chat.types";
@@ -581,6 +718,8 @@ function asRoll(m: CampaignMessage["metadata"]): RollMetadata {
 import type { CampaignMember } from "@/types/campaign.types";
 import type { PartyMember } from "@/types/party.types";
 import type { DieSize, RollMode, RollResult } from "@/lib/dice";
+import { useItems } from "@/composables/useItems";
+import { COINS, type CoinKey, toCP } from "@/lib/currency";
 import { useAuthStore } from "@/stores/auth";
 
 const props = defineProps<{
@@ -601,9 +740,65 @@ const emit = defineEmits<{
   claim: [payload: { messageId: string; intoStash: boolean }];
   "claim-currency": [payload: { messageId: string }];
   "claim-to-npc": [payload: { messageId: string; npcId: string; npcName: string }];
+  "pay-vendor-offer": [payload: { messageId: string }];
+  "send-vendor-offer": [payload: { description: string; itemName: string | null; itemId: string | null; pp: number; gp: number; ep: number; sp: number; cp: number; npcName: string | null }];
 }>();
 
 const npcSelectState = reactive<Record<string, string>>({});
+
+// ── Vendor offer affordability ─────────────────────────────────────────────────────
+const myMember = computed(() =>
+  auth.linkedPartyMemberId
+    ? (props.party ?? []).find(p => p.id === auth.linkedPartyMemberId) ?? null
+    : null
+);
+
+function canAffordOffer(meta: VendorOfferMetadata): boolean {
+  const m = myMember.value;
+  if (!m) return false;
+  const walletCP = toCP(m.pp, m.gp, m.ep, m.sp, m.cp);
+  const costCP   = toCP(meta.pp, meta.gp, meta.ep, meta.sp, meta.cp);
+  return walletCP >= costCP;
+}
+
+// ── Vendor offer form (DM only) ─────────────────────────────────────────────────────
+const vendorOpen      = ref(false);
+const vendorNpcId     = ref("");
+const vendorNpcName   = computed(() =>
+  vendorNpcId.value ? (props.npcs.find(n => n.id === vendorNpcId.value)?.name ?? null) : null
+);
+const vendorDesc      = ref("");
+const vendorItemQuery = ref("");
+const vendorItemId    = ref("");
+const vendorShowItems = ref(false);
+const { data: allVaultItems } = useItems();
+const vendorItemSuggestions = computed(() => {
+  const q = vendorItemQuery.value.trim().toLowerCase();
+  const all = allVaultItems.value ?? [];
+  if (!q) return all.slice(0, 8);
+  return all.filter(it => it.name.toLowerCase().includes(q)).slice(0, 8);
+});
+
+const vendorPrice = reactive<Record<CoinKey, number>>({ pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
+const vendorHasPrice = computed(() => COINS.some(c => vendorPrice[c.key] > 0));
+
+function postVendorOffer() {
+  if (!vendorDesc.value.trim()) return;
+  const selectedItem = vendorItemId.value
+    ? (allVaultItems.value ?? []).find(it => it.id === vendorItemId.value) ?? null
+    : null;
+  emit("send-vendor-offer", {
+    description: vendorDesc.value.trim(),
+    itemName: selectedItem?.name ?? null,
+    itemId: selectedItem?.id ?? null,
+    pp: vendorPrice.pp, gp: vendorPrice.gp, ep: vendorPrice.ep,
+    sp: vendorPrice.sp, cp: vendorPrice.cp,
+    npcName: vendorNpcName.value || null,
+  });
+  vendorDesc.value = ""; vendorItemQuery.value = ""; vendorItemId.value = ""; vendorNpcId.value = "";
+  COINS.forEach(c => { vendorPrice[c.key] = 0; });
+  vendorOpen.value = false;
+}
 
 // ── Item details expand/collapse ───────────────────────────────────────────────
 const expandedItems = shallowRef(new Set<string>());

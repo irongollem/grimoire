@@ -10,7 +10,12 @@
         <div class="flex gap-4">
           <!-- Silhouette -->
           <div class="relative shrink-0 w-24 h-40 select-none">
-            <svg viewBox="0 0 80 140" class="w-full h-full text-muted-foreground/20" fill="currentColor">
+            <svg
+              viewBox="0 0 80 140"
+              class="w-full h-full transition-colors"
+              :class="slotItem('clothes') ? 'text-muted-foreground/20' : 'text-pink-400/40'"
+              fill="currentColor"
+            >
               <!-- head -->
               <ellipse cx="40" cy="14" rx="11" ry="13" />
               <!-- neck -->
@@ -38,6 +43,7 @@
             <SlotButton
               style="top: -4px; left: 50%; transform: translateX(-50%)"
               :item="slotItem('head')"
+              :disabled="!slotItem('head') && !slotCanEquip('head')"
               label="Head"
               @click="openSlot('head')"
             />
@@ -45,6 +51,7 @@
             <SlotButton
               style="top: 20px; left: 50%; transform: translateX(-50%)"
               :item="slotItem('neck')"
+              :disabled="!slotItem('neck') && !slotCanEquip('neck')"
               label="Neck"
               @click="openSlot('neck')"
             />
@@ -52,6 +59,7 @@
             <SlotButton
               style="top: 28px; left: -10px"
               :item="slotItem('shoulders')"
+              :disabled="!slotItem('shoulders') && !slotCanEquip('shoulders')"
               label="Shldr"
               @click="openSlot('shoulders')"
             />
@@ -59,6 +67,7 @@
             <SlotButton
               style="top: 44px; left: 50%; transform: translateX(-50%)"
               :item="slotItem('body')"
+              :disabled="!slotItem('body') && !slotCanEquip('body')"
               label="Body"
               @click="openSlot('body')"
             />
@@ -66,6 +75,7 @@
             <SlotButton
               style="top: 56px; right: -10px"
               :item="slotItem('hands')"
+              :disabled="!slotItem('hands') && !slotCanEquip('hands')"
               label="Gloves"
               @click="openSlot('hands')"
             />
@@ -73,6 +83,7 @@
             <SlotButton
               style="top: 72px; left: -12px"
               :item="slotItem('ring')"
+              :disabled="!slotItem('ring') && !slotCanEquip('ring')"
               label="Ring"
               @click="openSlot('ring')"
             />
@@ -80,13 +91,24 @@
             <SlotButton
               style="top: 68px; left: 50%; transform: translateX(-50%)"
               :item="slotItem('waist')"
+              :disabled="!slotItem('waist') && !slotCanEquip('waist')"
               label="Waist"
               @click="openSlot('waist')"
+            />
+            <!-- CLOTHES (legs) -->
+            <SlotButton
+              style="top: 84px; right: -10px"
+              :item="slotItem('clothes')"
+              :warn="!slotItem('clothes') && slotCanEquip('clothes')"
+              :disabled="!slotItem('clothes') && !slotCanEquip('clothes')"
+              label="Clothes"
+              @click="openSlot('clothes')"
             />
             <!-- FEET -->
             <SlotButton
               style="bottom: -4px; left: 50%; transform: translateX(-50%)"
               :item="slotItem('feet')"
+              :disabled="!slotItem('feet') && !slotCanEquip('feet')"
               label="Boots"
               @click="openSlot('feet')"
             />
@@ -120,13 +142,53 @@
         <div v-if="!member" class="text-center py-4">
           <p class="font-fell text-sm text-muted-foreground italic">No character selected.</p>
         </div>
-        <div v-else class="space-y-2">
-          <CoinRow v-for="coin in COINS" :key="coin.key"
-            :label="coin.label" :symbol="coin.symbol" :color="coin.color"
-            :value="member[coin.key]"
-            @adjust="(d) => adjustCurrency(coin.key, d)"
-          />
-        </div>
+        <template v-else>
+          <!-- Compact 5-coin grid -->
+          <div class="grid grid-cols-5 gap-1.5">
+            <CoinRow v-for="coin in COINS" :key="coin.key"
+              :label="coin.label" :symbol="coin.symbol" :color="coin.color"
+              :value="member[coin.key]"
+              @commit="(v) => setCurrency(coin.key, v)"
+            />
+          </div>
+
+          <!-- Drop form -->
+          <div v-if="showCoinDrop" class="mt-3 border-t border-border pt-3">
+            <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase mb-2">Drop to Chat</p>
+            <div class="grid grid-cols-5 gap-1.5 mb-3">
+              <div v-for="coin in COINS" :key="coin.key" class="flex flex-col items-center gap-1">
+                <span class="font-cinzel text-[10px] font-bold" :class="coin.color" :title="coin.label">{{ coin.symbol }}</span>
+                <input
+                  v-model.number="coinDrop[coin.key]"
+                  type="number" min="0" :max="member[coin.key]"
+                  class="w-full bg-muted/30 border border-border rounded px-1 py-0.5 font-cinzel text-sm text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                  :class="coinDrop[coin.key] > member[coin.key] ? 'border-destructive' : ''"
+                  :title="`Max: ${member[coin.key]}`"
+                />
+                <span class="font-cinzel text-[9px] text-muted-foreground/60">/ {{ member[coin.key] }}</span>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button
+                class="flex-1 py-1 bg-primary text-primary-foreground rounded font-cinzel text-xs tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+                :disabled="!coinDropHasValue || coinDropOverLimit"
+                @click="submitCoinDrop"
+              >Drop</button>
+              <button
+                class="px-3 py-1 border border-border rounded font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors"
+                @click="showCoinDrop = false"
+              >Cancel</button>
+            </div>
+          </div>
+          <button
+            v-else
+            class="mt-2 w-full flex items-center justify-center gap-1.5 py-1 border border-dashed border-border rounded font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+            @click="openCoinDrop"
+          >
+            <MessageCircle class="h-3 w-3" />
+            Drop Coins to Chat
+          </button>
+        </template>
       </div>
     </div>
 
@@ -248,9 +310,10 @@
           <input
             v-model="newItemName"
             type="text"
-            placeholder="Search vault or type a name…"
+            placeholder="Search vault…"
             autocomplete="off"
             class="w-full bg-muted/30 border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            :class="newItemName && !newItemSelectedId ? 'border-amber-500/50' : ''"
             @input="onAddInput"
             @focus="onAddInput"
             @keydown.escape="showDropdown = false"
@@ -285,7 +348,7 @@
         <button
           type="submit"
           class="px-3 py-1.5 bg-primary text-primary-foreground rounded-md font-cinzel text-xs tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
-          :disabled="!newItemName.trim()"
+          :disabled="!newItemSelectedId"
         >Add</button>
       </div>
     </form>
@@ -295,6 +358,7 @@
       :inv="selectedInv"
       :vault-item="selectedVaultItem"
       @close="selectedInv = null"
+      @unequip="unequipSelected"
     />
 
     <!-- Slot assignment modal -->
@@ -305,10 +369,7 @@
 
           <!-- Currently equipped in this slot -->
           <div v-if="slotItem(slotModal)" class="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 flex items-center justify-between gap-2">
-            <button
-              class="font-fell text-sm text-foreground hover:text-primary transition-colors text-left flex-1 min-w-0 truncate"
-              @click="openDetail(slotItem(slotModal)!)"
-            >{{ slotItem(slotModal)!.name }}</button>
+            <span class="font-fell text-sm text-foreground flex-1 min-w-0 truncate">{{ slotItem(slotModal)!.name }}</span>
             <button class="shrink-0 font-cinzel text-[10px] text-destructive hover:opacity-70" @click="unequipSlot(slotModal!)">Remove</button>
           </div>
           <p v-else class="font-fell text-xs text-muted-foreground italic">Nothing equipped here.</p>
@@ -337,7 +398,8 @@
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, reactive } from "vue";
-import { Plus } from "lucide-vue-next";
+import { Plus, MessageCircle } from "lucide-vue-next";
+import { COINS, type CoinKey } from "@/lib/currency";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
@@ -364,7 +426,7 @@ const { mutateAsync: addInventoryItem } = useAddInventoryItem();
 const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
 const { mutateAsync: removeInventoryItem } = useRemoveInventoryItem();
 const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
-const { sendItemDrop } = useCampaignMessages();
+const { sendItemDrop, sendCurrencyDrop } = useCampaignMessages();
 
 const resolvedMemberId = computed(() =>
   ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId
@@ -400,19 +462,66 @@ function slotItem(slot: InventorySlot): PartyInventoryItem | null {
 
 const SLOT_LABELS: Record<InventorySlot, string> = {
   head: "Head", neck: "Neck", shoulders: "Shoulders", body: "Body",
-  hands: "Gloves", ring: "Ring", waist: "Waist", feet: "Boots",
+  clothes: "Clothes", hands: "Gloves", ring: "Ring", waist: "Waist", feet: "Boots",
   main_hand: "Main Hand", off_hand: "Off Hand", other: "Other",
 };
 function slotLabel(slot: InventorySlot) { return SLOT_LABELS[slot]; }
 
-function candidatesForSlot(_slot: InventorySlot): PartyInventoryItem[] {
-  return myItems.value.filter(i => i.location !== 'equipped');
+function candidatesForSlot(slot: InventorySlot): PartyInventoryItem[] {
+  const unequipped = myItems.value.filter(i => i.location !== 'equipped');
+
+  function vaultItem(inv: PartyInventoryItem) {
+    return inv.item_id ? (allItems.value?.find(it => it.id === inv.item_id) ?? null) : null;
+  }
+
+  // Slots that use tag-based filtering — multiple accepted tags/keywords per slot
+  const TAG_SLOTS: Partial<Record<InventorySlot, string[]>> = {
+    clothes:   ['clothes', 'clothing'],
+    neck:      ['amulet', 'necklace', 'pendant'],
+    hands:     ['gloves', 'gauntlets', 'bracers'],
+    feet:      ['boots', 'shoes', 'sandals', 'footwear'],
+    head:      ['helmet', 'hat', 'hood', 'circlet', 'crown'],
+    shoulders: ['cloak', 'cape', 'mantle', 'pauldrons'],
+    waist:     ['belt', 'girdle', 'sash'],
+  };
+
+  function matches(inv: PartyInventoryItem): boolean {
+    const vi = vaultItem(inv);
+    // Type-restricted slots: must have a vault item of the right type
+    if (slot === 'body')  return !!vi && vi.item_type === 'armor';
+    if (slot === 'ring')  return !!vi && vi.item_type === 'ring';
+    // Tag-restricted slots: match on any accepted tag OR subtype keyword; custom items excluded
+    const tags = TAG_SLOTS[slot];
+    if (tags) {
+      if (!vi) return false;
+      const sub = vi.subtype?.toLowerCase() ?? '';
+      return tags.some(t => vi.tags.includes(t) || sub.includes(t));
+    }
+    // All other slots: show everything
+    return true;
+  }
+
+  return unequipped.filter(matches);
 }
 
 const slotModal = ref<InventorySlot | null>(null);
-function openSlot(slot: InventorySlot) { slotModal.value = slot; }
+function slotCanEquip(slot: InventorySlot): boolean {
+  return candidatesForSlot(slot).length > 0;
+}
+
+function openSlot(slot: InventorySlot) {
+  const equipped = slotItem(slot);
+  if (equipped) openDetail(equipped);
+  else if (slotCanEquip(slot)) slotModal.value = slot;
+}
 function openEquipMenu(item: PartyInventoryItem) {
   slotModal.value = item.slot ?? 'other';
+}
+
+async function unequipSelected() {
+  if (!selectedInv.value) return;
+  await updateInventoryItem({ id: selectedInv.value.id, update: { location: 'backpack', slot: null, is_equipped: false } });
+  selectedInv.value = null;
 }
 
 async function equipToSlot(item: PartyInventoryItem, slot: InventorySlot) {
@@ -449,20 +558,38 @@ async function unequipSlot(slot: InventorySlot) {
 }
 
 // ── Currency ───────────────────────────────────────────────────────────────────
-type CoinKey = 'cp' | 'sp' | 'ep' | 'gp' | 'pp';
 
-const COINS: { key: CoinKey; label: string; symbol: string; color: string }[] = [
-  { key: 'pp', label: 'Platinum', symbol: 'PP', color: 'text-slate-300' },
-  { key: 'gp', label: 'Gold',     symbol: 'GP', color: 'text-gold-500'  },
-  { key: 'ep', label: 'Electrum', symbol: 'EP', color: 'text-teal-400'  },
-  { key: 'sp', label: 'Silver',   symbol: 'SP', color: 'text-slate-400' },
-  { key: 'cp', label: 'Copper',   symbol: 'CP', color: 'text-amber-600' },
-];
-
-async function adjustCurrency(key: CoinKey, delta: number) {
+function setCurrency(key: CoinKey, value: number) {
   if (!member.value) return;
-  const current = member.value[key] ?? 0;
-  await updatePartyMember({ id: member.value.id, update: { [key]: Math.max(0, current + delta) } });
+  void updatePartyMember({ id: member.value.id, update: { [key]: value } });
+}
+
+// ── Coin drop form ─────────────────────────────────────────────────────────────
+const showCoinDrop = ref(false);
+const coinDrop = reactive<Record<CoinKey, number>>({ pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
+
+const coinDropHasValue = computed(() =>
+  COINS.some(c => coinDrop[c.key] > 0)
+);
+const coinDropOverLimit = computed(() =>
+  member.value ? COINS.some(c => coinDrop[c.key] > (member.value![c.key] ?? 0)) : false
+);
+
+function openCoinDrop() {
+  COINS.forEach(c => { coinDrop[c.key] = 0; });
+  showCoinDrop.value = true;
+}
+
+async function submitCoinDrop() {
+  if (!member.value || !coinDropHasValue.value || coinDropOverLimit.value) return;
+  await sendCurrencyDrop(coinDrop.pp, coinDrop.gp, coinDrop.ep, coinDrop.sp, coinDrop.cp, member.value.name ?? undefined);
+  // Deduct dropped amounts from wallet
+  for (const c of COINS) {
+    if (coinDrop[c.key] > 0) {
+      setCurrency(c.key, Math.max(0, (member.value[c.key] ?? 0) - coinDrop[c.key]));
+    }
+  }
+  showCoinDrop.value = false;
 }
 
 // ── Mutations ──────────────────────────────────────────────────────────────────
@@ -546,7 +673,7 @@ function selectItem(it: Item) { newItemName.value = it.name; newItemSelectedId.v
 function focusDropdownItem(idx: number) { dropdownRefs[idx]?.focus(); }
 
 async function addItem() {
-  if (!newItemName.value.trim()) return;
+  if (!newItemSelectedId.value) return;
   await addInventoryItem({
     name: newItemName.value.trim(), quantity: newItemQty.value,
     item_id: newItemSelectedId.value || null,

@@ -3,6 +3,7 @@ export type InventorySlot =
   | "neck"
   | "shoulders"
   | "body"
+  | "clothes"
   | "hands"
   | "ring"
   | "waist"

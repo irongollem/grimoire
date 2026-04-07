@@ -137,6 +137,7 @@
 - [x] **Unified player notes**: `PlayerNotesWidget` component backed by `entity_notes` table — consistent one-note-per-player + shared party notes UX across all player portal views (NPCs, quests, factions, companions)
 - [x] **Migrate `npcs.party_notes`** — legacy per-column party notes migrated into `entity_notes`; column dropped; DM editor "Party Notes" field removed; all campaign members can see each other's shared notes via symmetric RLS policy
 - [x] **Campaign delete hardening** — trash icon removed from campaign picker dropdown; delete moved to dedicated "Danger Zone" tab in Edit Campaign modal; requires typing campaign name to confirm (GitHub-style)
+- [x] **Vendor offer chat message** — DM posts price propositions from chat toolbar (ShoppingBag button) or directly from store/inn/tavern location wares (ShoppingBag per item, pre-fills price from override/item.cost via parser); players see PAY button; auto-converts wallet across denominations (PP→GP→SP→CP greedy, EP preserved); item added to inventory if specified; insufficient funds shown inline
 - [x] **Typography polish** — placeholder opacity globally dimmed (40%) so placeholders are clearly distinct from input text; body font migrated from IM Fell English (no bold variant) to Crimson Pro (weights 300–700, proper bold rendering); RTE heading sizes toned down (H1: 2xl→lg, H2: xl→base, H3: base→sm)
 
 ---
@@ -403,3 +404,7 @@ Keep the core DM tooling free forever (open source). Gate AI features, advanced 
 - [x] **Weapon mastery properties** — added all 8 2024 PHB weapon mastery properties (cleave, graze, nick, push, sap, slow, topple, vex) to `WEAPON_PROPERTIES` in `item.types.ts`; also fixed Combat tab to only show weapons (`item_type === "weapon"`), fixed equipping a stacked item (qty > 1) to split into an equipped qty-1 entry leaving the remainder in inventory, and added item detail access from the slot assignment modal
 
 - [x] **Clone item** (irongollem/grimoire#80) — "Clone" button in the vault item editor duplicates the current item (appending " - Clone" to the name, clearing source fields) and navigates directly to the copy in edit mode via `router.replace`
+
+- [x] **Inventory slot filtering & clothes slot** — added `clothes` equipment slot to the paper doll mannequin; slot candidates are filtered by type/tag per slot (body→armor type, ring→ring type, clothes/neck/hands/feet/head/shoulders/waist→tag or subtype match); custom items without a vault link are excluded from filtered slots (fall back to all items if nothing matches); mannequin silhouette turns pink and clothes slot button turns red when no clothes are equipped; DB migration adds `'clothes'` to the `inventory_slot` enum
+
+- [x] **Coin purse UX improvements** — replaced per-coin +/- with an editable number input (optimistic, fire-and-forget save); added "Drop Coins to Chat" inline form that lets players enter a mixed-currency drop (validated against owned amounts, red border on over-limit), sends a single combined currency_drop chat message, and deducts the amounts from the wallet

@@ -95,6 +95,7 @@ export interface Location {
   is_description_shared: boolean;
   is_npcs_shared: boolean;
   is_inventory_shared: boolean;
+  npc_owner_id: string | null;
   created_at: string;
   updated_at: string;
 }

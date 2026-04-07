@@ -5,7 +5,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/useParty";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
-import type { CampaignMessage, CampaignMessageInsert, ItemDropMetadata, CurrencyDropMetadata, FlavorMetadata } from "@/types/chat.types";
+import type { CampaignMessage, CampaignMessageInsert, ItemDropMetadata, CurrencyDropMetadata, VendorOfferMetadata, FlavorMetadata } from "@/types/chat.types";
 import type { RollResult } from "@/lib/dice";
 
 const LIMIT = 100;
@@ -289,6 +289,50 @@ export function useCampaignMessages() {
     if (data) _optimisticPush(data as CampaignMessage);
   }
 
+  async function sendVendorOffer(description: string, itemName: string | null, itemId: string | null, pp: number, gp: number, ep: number, sp: number, cp: number, senderName?: string) {
+    const cid = campaign.activeCampaignId;
+    if (!cid || !auth.user?.id) return;
+    const parts: string[] = [];
+    if (pp) parts.push(`${pp} PP`);
+    if (gp) parts.push(`${gp} GP`);
+    if (ep) parts.push(`${ep} EP`);
+    if (sp) parts.push(`${sp} SP`);
+    if (cp) parts.push(`${cp} CP`);
+    const metadata: VendorOfferMetadata = {
+      description, item_name: itemName, item_id: itemId,
+      pp, gp, ep, sp, cp,
+      paid_by_user_id: null, paid_by_name: null, paid_party_member_id: null,
+    };
+    const insert: CampaignMessageInsert = {
+      campaign_id: cid,
+      user_id: auth.user.id,
+      recipient_user_id: null,
+      sender_name: senderName ?? getSenderName(),
+      message: `offers ${description}${parts.length ? ` for ${parts.join(", ")}` : ""}`,
+      type: "vendor_offer",
+      metadata,
+    };
+    const { data } = await supabase.from("campaign_messages").insert(insert).select().single();
+    if (data) _optimisticPush(data as CampaignMessage);
+  }
+
+  async function claimVendorOffer(messageId: string, payerName: string, partyMemberId: string | null) {
+    const msg = messages.value.find(m => m.id === messageId);
+    if (!msg || msg.type !== 'vendor_offer') return;
+    const existing = msg.metadata as VendorOfferMetadata;
+    if (existing.paid_by_user_id) return;
+    const newMeta: VendorOfferMetadata = {
+      ...existing,
+      paid_by_user_id: auth.user!.id,
+      paid_by_name: payerName,
+      paid_party_member_id: partyMemberId,
+    };
+    const { error } = await supabase.from("campaign_messages").update({ metadata: newMeta }).eq("id", messageId);
+    if (error) throw error;
+    const idx = messages.value.findIndex(m => m.id === messageId);
+    if (idx >= 0) messages.value[idx] = { ...messages.value[idx], metadata: newMeta };
+  }
+
   async function claimCurrencyDrop(messageId: string, claimerName: string, partyMemberId: string | null) {
     const msg = messages.value.find(m => m.id === messageId);
     if (!msg || msg.type !== 'currency_drop') return;
@@ -344,5 +388,5 @@ export function useCampaignMessages() {
 
   const myUserId = computed(() => auth.user?.id);
 
-  return { messages: visibleMessages, loading, sendMessage, sendFlavorMessage, sendRoll, sendItemDrop, claimItemDrop, sendCurrencyDrop, claimCurrencyDrop, deleteMessage, deleteAllMessages, myUserId };
+  return { messages: visibleMessages, loading, sendMessage, sendFlavorMessage, sendRoll, sendItemDrop, claimItemDrop, sendCurrencyDrop, claimCurrencyDrop, sendVendorOffer, claimVendorOffer, deleteMessage, deleteAllMessages, myUserId };
 }

@@ -15,9 +15,16 @@
       <!-- Header -->
       <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
         <h2 class="font-cinzel text-base font-semibold text-foreground truncate pr-2">{{ inv.name }}</h2>
-        <button class="text-muted-foreground hover:text-foreground shrink-0" @click="$emit('close')">
-          <X class="h-5 w-5" />
-        </button>
+        <div class="flex items-center gap-2 shrink-0">
+          <button
+            v-if="inv.location === 'equipped'"
+            class="font-cinzel text-[10px] tracking-wider text-destructive hover:opacity-70 transition-opacity"
+            @click="emit('unequip')"
+          >Unequip</button>
+          <button class="text-muted-foreground hover:text-foreground" @click="$emit('close')">
+            <X class="h-5 w-5" />
+          </button>
+        </div>
       </div>
 
       <!-- Body -->
@@ -171,7 +178,7 @@ const props = defineProps<{
   vaultItem: Item | null;
 }>();
 
-defineEmits<{ close: [] }>();
+const emit = defineEmits<{ close: []; unequip: [] }>();
 
 const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
 const isUpdating = ref(false);

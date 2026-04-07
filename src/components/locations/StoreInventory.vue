@@ -9,49 +9,98 @@
       <div
         v-for="si in items"
         :key="si.id"
-        class="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2"
+        class="flex flex-col rounded-md border border-border bg-card overflow-hidden"
       >
-        <!-- Visibility toggle -->
-        <button
-          type="button"
-          :title="si.visible ? 'Visible (click to hide)' : 'Under the counter (click to show)'"
-          class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-          @click="toggleVisible(si)"
-        >
-          <Eye v-if="si.visible" class="h-3.5 w-3.5" />
-          <EyeOff v-else class="h-3.5 w-3.5 opacity-40" />
-        </button>
+        <!-- Main row -->
+        <div class="flex items-center gap-2 px-3 py-2">
+          <!-- Visibility toggle -->
+          <button
+            type="button"
+            :title="si.visible ? 'Visible (click to hide)' : 'Under the counter (click to show)'"
+            class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+            @click="toggleVisible(si)"
+          >
+            <Eye v-if="si.visible" class="h-3.5 w-3.5" />
+            <EyeOff v-else class="h-3.5 w-3.5 opacity-40" />
+          </button>
 
-        <!-- Item name + type -->
-        <div class="flex-1 min-w-0">
-          <span class="font-cinzel text-xs font-semibold text-foreground truncate block">{{ si.item.name }}</span>
-          <span class="font-fell text-[10px] text-muted-foreground italic">
-            {{ ITEM_TYPE_LABELS[si.item.item_type] }}
-            <span v-if="!si.visible" class="text-amber-500/70"> · under the counter</span>
-          </span>
+          <!-- Item name + type -->
+          <div class="flex-1 min-w-0">
+            <span class="font-cinzel text-xs font-semibold text-foreground truncate block">{{ si.item.name }}</span>
+            <span class="font-fell text-[10px] text-muted-foreground italic">
+              {{ ITEM_TYPE_LABELS[si.item.item_type] }}
+              <span v-if="!si.visible" class="text-amber-500/70"> · under the counter</span>
+            </span>
+          </div>
+
+          <!-- Price -->
+          <div class="flex items-center gap-1 shrink-0">
+            <input
+              :value="si.price_override ?? si.item.cost ?? ''"
+              type="text"
+              placeholder="Price…"
+              class="w-20 bg-background border border-border rounded px-2 py-0.5 font-fell text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring text-right"
+              @blur="onPriceBlur(si, $event)"
+              @keydown.enter="($event.target as HTMLInputElement).blur()"
+            />
+          </div>
+
+          <!-- Post to chat -->
+          <button
+            type="button"
+            :title="offeringId === si.id ? 'Cancel offer' : 'Post vendor offer to chat'"
+            class="shrink-0 transition-colors"
+            :class="offeringId === si.id ? 'text-emerald-400' : 'text-muted-foreground hover:text-emerald-400'"
+            @click="toggleOffer(si)"
+          >
+            <ShoppingBag class="h-3.5 w-3.5" />
+          </button>
+
+          <!-- Remove -->
+          <button
+            type="button"
+            class="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+            title="Remove from store"
+            @click="remove(si.id)"
+          >
+            <X class="h-3.5 w-3.5" />
+          </button>
         </div>
 
-        <!-- Price -->
-        <div class="flex items-center gap-1 shrink-0">
+        <!-- Inline offer form -->
+        <div v-if="offeringId === si.id" class="border-t border-border/60 bg-muted/20 px-3 py-2 space-y-2">
+          <p class="font-cinzel text-[9px] text-emerald-400/80 tracking-widest uppercase">Vendor Offer</p>
           <input
-            :value="si.price_override ?? si.item.cost ?? ''"
+            v-model="offerDesc"
             type="text"
-            placeholder="Price…"
-            class="w-20 bg-background border border-border rounded px-2 py-0.5 font-fell text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring text-right"
-            @blur="onPriceBlur(si, $event)"
-            @keydown.enter="($event.target as HTMLInputElement).blur()"
+            placeholder="Description shown in chat…"
+            class="w-full bg-muted/30 border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
           />
+          <!-- Coin price inputs -->
+          <div class="grid grid-cols-5 gap-1">
+            <div v-for="coin in COINS" :key="coin.key" class="flex flex-col items-center gap-0.5">
+              <span class="font-cinzel text-[9px] font-bold" :class="coin.color">{{ coin.symbol }}</span>
+              <input
+                v-model.number="offerPrice[coin.key]"
+                type="number" min="0"
+                class="w-full bg-muted/30 border border-border rounded px-1 py-0.5 font-cinzel text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button
+              type="button"
+              :disabled="!offerDesc.trim() || !offerHasPrice"
+              class="flex-1 py-1 bg-emerald-600 text-white rounded font-cinzel text-[10px] tracking-wider hover:opacity-90 transition-opacity disabled:opacity-40"
+              @click="postOffer(si)"
+            >Post to Chat</button>
+            <button
+              type="button"
+              class="px-2 py-1 border border-border rounded font-cinzel text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+              @click="offeringId = null"
+            >Cancel</button>
+          </div>
         </div>
-
-        <!-- Remove -->
-        <button
-          type="button"
-          class="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
-          title="Remove from store"
-          @click="remove(si.id)"
-        >
-          <X class="h-3.5 w-3.5" />
-        </button>
       </div>
     </div>
 
@@ -93,8 +142,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import { Eye, EyeOff, Plus, X } from "lucide-vue-next";
+import { ref, computed, reactive } from "vue";
+import { Eye, EyeOff, Plus, X, ShoppingBag } from "lucide-vue-next";
 import { useItems } from "@/composables/useItems";
 import {
   useStoreItems,
@@ -105,8 +154,10 @@ import {
 import type { StoreItem } from "@/composables/useStoreItems";
 import type { Item } from "@/types/item.types";
 import { ITEM_TYPE_LABELS } from "@/types/item.types";
+import { useCampaignMessages } from "@/composables/useCampaignMessages";
+import { COINS, type CoinKey } from "@/lib/currency";
 
-const props = defineProps<{ locationId: string }>();
+const props = defineProps<{ locationId: string; ownerNpcName?: string | null }>();
 
 const locationIdRef = computed(() => props.locationId);
 
@@ -115,6 +166,7 @@ const { data: allItems } = useItems();
 const { mutate: add } = useAddStoreItem();
 const { mutate: update } = useUpdateStoreItem(locationIdRef);
 const { mutate: removeItem } = useRemoveStoreItem(locationIdRef);
+const { sendVendorOffer } = useCampaignMessages();
 
 // ── Add item search ─────────────────────────────────────────────────────────────
 const search = ref("");
@@ -156,5 +208,49 @@ function onPriceBlur(si: StoreItem, e: FocusEvent) {
 // ── Remove ──────────────────────────────────────────────────────────────────────
 function remove(id: string) {
   removeItem(id);
+}
+
+// ── Vendor offer form ───────────────────────────────────────────────────────────
+
+const offeringId  = ref<string | null>(null);
+const offerDesc   = ref("");
+const offerPrice  = reactive<Record<CoinKey, number>>({ pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
+const offerHasPrice = computed(() => COINS.some(c => offerPrice[c.key] > 0));
+
+/** Parse freeform price text like "5 gp", "1 gp 5 sp", "150 gold" into coins. */
+function parsePriceText(text: string): Record<CoinKey, number> {
+  const t = text.toLowerCase();
+  const match = (pattern: RegExp) => { const m = t.match(pattern); return m ? parseInt(m[1]) : 0; };
+  return {
+    pp: match(/(\d+)\s*pp/),
+    gp: match(/(\d+)\s*(?:gp|gold)/),
+    ep: match(/(\d+)\s*ep/),
+    sp: match(/(\d+)\s*(?:sp|silver)/),
+    cp: match(/(\d+)\s*(?:cp|copper)/),
+  };
+}
+
+function toggleOffer(si: StoreItem) {
+  if (offeringId.value === si.id) {
+    offeringId.value = null;
+    return;
+  }
+  offeringId.value = si.id;
+  offerDesc.value = si.item.name;
+  const priceText = si.price_override ?? si.item.cost ?? "";
+  const parsed = parsePriceText(priceText);
+  COINS.forEach(c => { offerPrice[c.key] = parsed[c.key]; });
+}
+
+async function postOffer(si: StoreItem) {
+  if (!offerDesc.value.trim() || !offerHasPrice.value) return;
+  await sendVendorOffer(
+    offerDesc.value.trim(),
+    si.item.name,
+    si.item_id,
+    offerPrice.pp, offerPrice.gp, offerPrice.ep, offerPrice.sp, offerPrice.cp,
+    props.ownerNpcName ?? undefined,
+  );
+  offeringId.value = null;
 }
 </script>

@@ -41,9 +41,10 @@
           <input
             v-model="addName"
             type="text"
-            placeholder="Item name…"
+            placeholder="Search vault…"
             autocomplete="off"
             class="w-full bg-muted/30 border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            :class="addName && !addSelectedId ? 'border-amber-500/50' : ''"
             @input="onInput"
             @focus="onInput"
             @keydown.escape="showSuggestions = false"
@@ -62,7 +63,7 @@
           </div>
           <div v-if="showSuggestions" class="fixed inset-0 z-10" @click="showSuggestions = false" />
         </div>
-        <button type="submit" class="px-2 py-1 bg-primary text-primary-foreground rounded font-cinzel text-[10px] tracking-wider hover:opacity-90 transition-opacity" :disabled="!addName.trim()">
+        <button type="submit" class="px-2 py-1 bg-primary text-primary-foreground rounded font-cinzel text-[10px] tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50" :disabled="!addSelectedId">
           Add
         </button>
         <button type="button" class="font-cinzel text-[10px] text-muted-foreground hover:text-foreground" @click="showAdd = false">✕</button>
@@ -115,7 +116,7 @@ function onInput() { addSelectedId.value = ""; showSuggestions.value = true; }
 function selectSuggestion(it: Item) { addName.value = it.name; addSelectedId.value = it.id; showSuggestions.value = false; }
 
 function submit() {
-  if (!addName.value.trim()) return;
+  if (!addSelectedId.value) return;
   emit('add', addName.value.trim(), addSelectedId.value || null);
   addName.value = ""; addSelectedId.value = ""; showAdd.value = false;
 }

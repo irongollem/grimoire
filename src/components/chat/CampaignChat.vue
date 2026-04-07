@@ -20,6 +20,8 @@
         @claim="handleClaim"
         @claim-currency="handleClaimCurrency"
         @claim-to-npc="handleClaimToNpc"
+        @pay-vendor-offer="handlePayVendorOffer"
+        @send-vendor-offer="handleSendVendorOffer"
         @close="ui.chatOpen = false"
       />
     </aside>
@@ -72,6 +74,8 @@
         @claim="handleClaim"
         @claim-currency="handleClaimCurrency"
         @claim-to-npc="handleClaimToNpc"
+        @pay-vendor-offer="handlePayVendorOffer"
+        @send-vendor-offer="handleSendVendorOffer"
         @close="ui.chatOpen = false"
       />
     </div>
@@ -91,7 +95,8 @@ import { useNpcs } from "@/composables/useNpcs";
 import { useAddNpcInventoryItem } from "@/composables/useNpcInventory";
 import ChatPanelContent from "./ChatPanelContent.vue";
 import type { RollResult } from "@/lib/dice";
-import type { ItemDropMetadata, CurrencyDropMetadata } from "@/types/chat.types";
+import type { ItemDropMetadata, CurrencyDropMetadata, VendorOfferMetadata } from "@/types/chat.types";
+import { toCP, fromCP } from "@/lib/currency";
 
 const props = withDefaults(defineProps<{ contained?: boolean }>(), { contained: false });
 
@@ -148,7 +153,7 @@ onUnmounted(() => {
 
 const ui = useUiStore();
 const auth = useAuthStore();
-const { messages, loading, sendMessage, sendRoll, claimItemDrop, claimCurrencyDrop, deleteMessage, deleteAllMessages, myUserId } =
+const { messages, loading, sendMessage, sendRoll, claimItemDrop, claimCurrencyDrop, sendVendorOffer, claimVendorOffer, deleteMessage, deleteAllMessages, myUserId } =
   useCampaignMessages();
 const { data: members } = useCampaignMembers();
 const { data: party }   = useParty();
@@ -243,6 +248,42 @@ async function handleClaimCurrency({ messageId }: { messageId: string }) {
         },
       });
     }
+  }
+}
+
+async function handleSendVendorOffer(payload: { description: string; itemName: string | null; itemId: string | null; pp: number; gp: number; ep: number; sp: number; cp: number; npcName: string | null }) {
+  await sendVendorOffer(payload.description, payload.itemName, payload.itemId, payload.pp, payload.gp, payload.ep, payload.sp, payload.cp, payload.npcName ?? undefined);
+}
+
+async function handlePayVendorOffer({ messageId }: { messageId: string }) {
+  const msg = messages.value.find(m => m.id === messageId);
+  if (!msg || msg.type !== 'vendor_offer') return;
+  const meta = msg.metadata as VendorOfferMetadata;
+  if (meta.paid_by_user_id) return;
+
+  const partyMemberId = auth.linkedPartyMemberId ?? null;
+  const member = partyMemberId ? (party.value ?? []).find(m => m.id === partyMemberId) : null;
+  if (!member) return;
+
+  const walletCP = toCP(member.pp, member.gp, member.ep, member.sp, member.cp);
+  const costCP   = toCP(meta.pp, meta.gp, meta.ep, meta.sp, meta.cp);
+  if (walletCP < costCP) return; // button is already disabled; guard against race conditions
+
+  const payerName = resolveClaimerName();
+  await claimVendorOffer(messageId, payerName, partyMemberId);
+
+  const { pp, gp, ep, sp, cp } = fromCP(walletCP - costCP);
+  await updatePartyMember({ id: member.id, update: { pp, gp, ep, sp, cp } });
+
+  // If the offer specifies an item, add it to the buyer's inventory
+  if (meta.item_name) {
+    await addInventoryItem({
+      name: meta.item_name, quantity: 1, item_id: meta.item_id,
+      carried_by: partyMemberId,
+      location: 'backpack', slot: null,
+      is_container: false, container_id: null,
+      is_attuned: false, is_equipped: false, notes: null, is_ruined: false,
+    });
   }
 }
 

@@ -1,4 +1,4 @@
-export type MessageType = "chat" | "roll" | "system" | "item_drop" | "currency_drop";
+export type MessageType = "chat" | "roll" | "system" | "item_drop" | "currency_drop" | "vendor_offer";
 
 export interface RollMetadata {
   label: string;
@@ -34,6 +34,20 @@ export interface CurrencyDropMetadata {
   claimed_party_member_id: string | null;
 }
 
+export interface VendorOfferMetadata {
+  description: string;          // what is being sold / flavor text
+  item_name: string | null;     // if set, added to buyer's inventory on payment
+  item_id: string | null;       // optional vault item link
+  pp: number;
+  gp: number;
+  ep: number;
+  sp: number;
+  cp: number;
+  paid_by_user_id: string | null;
+  paid_by_name: string | null;
+  paid_party_member_id: string | null;
+}
+
 export interface FlavorMetadata {
   skill_label: string;
 }
@@ -46,7 +60,7 @@ export interface CampaignMessage {
   sender_name: string | null;
   message: string;
   type: MessageType;
-  metadata: RollMetadata | ItemDropMetadata | CurrencyDropMetadata | FlavorMetadata | null;
+  metadata: RollMetadata | ItemDropMetadata | CurrencyDropMetadata | VendorOfferMetadata | FlavorMetadata | null;
   created_at: string;
 }
 
