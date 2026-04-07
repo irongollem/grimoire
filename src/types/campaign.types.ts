@@ -12,12 +12,13 @@ export interface Campaign {
   excluded_monster_ids: string[];
   openai_api_key: string | null;
   ai_setting_prompt: string | null;
+  ical_token: string;   // UUID; used as the shared secret for the iCal subscription URL
   created_at: string;
   updated_at: string;
 }
 
-export type CampaignInsert = Omit<Campaign, "id" | "user_id" | "created_at" | "updated_at" | "excluded_monster_ids" | "health_visibility" | "immersive_rolls" | "openai_api_key" | "ai_setting_prompt"> & { excluded_monster_ids?: string[]; health_visibility?: Campaign["health_visibility"]; immersive_rolls?: boolean; openai_api_key?: string | null; ai_setting_prompt?: string | null };
-export type CampaignUpdate = Partial<CampaignInsert>;
+export type CampaignInsert = Omit<Campaign, "id" | "user_id" | "created_at" | "updated_at" | "excluded_monster_ids" | "health_visibility" | "immersive_rolls" | "openai_api_key" | "ai_setting_prompt" | "ical_token"> & { excluded_monster_ids?: string[]; health_visibility?: Campaign["health_visibility"]; immersive_rolls?: boolean; openai_api_key?: string | null; ai_setting_prompt?: string | null };
+export type CampaignUpdate = Partial<CampaignInsert> & { ical_token?: string };
 
 export type CampaignRole = "dm" | "player";
 

@@ -114,6 +114,15 @@ export function useDeleteCampaign() {
   });
 }
 
+export function useRegenerateIcalToken() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (campaignId: string) =>
+      updateCampaign(campaignId, { ical_token: crypto.randomUUID() } as CampaignUpdate),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}
+
 export function useClaimOrphanedData() {
   const queryClient = useQueryClient();
   return useMutation({

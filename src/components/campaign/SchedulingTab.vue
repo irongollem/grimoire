@@ -214,12 +214,63 @@
       </div>
     </div>
 
+    <!-- ── Calendar subscription ──────────────────────────────────────── -->
+    <div v-if="icalFeedUrl" class="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+      <h3 class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+        Calendar Subscription
+      </h3>
+      <p class="font-fell text-xs text-muted-foreground">
+        Subscribe once and your calendar app will automatically receive future session updates.
+      </p>
+
+      <!-- URL field + copy -->
+      <div class="flex items-center gap-2">
+        <input
+          :value="icalFeedUrl"
+          readonly
+          class="flex-1 bg-background border border-border rounded-md px-3 py-1.5 font-mono text-xs text-muted-foreground select-all focus:outline-none focus:ring-1 focus:ring-ring truncate"
+          @click="($event.target as HTMLInputElement).select()"
+        />
+        <button
+          class="shrink-0 inline-flex items-center gap-1 font-cinzel text-[10px] tracking-wider px-2.5 py-1.5 rounded border border-border hover:bg-muted transition-colors"
+          :title="copied ? 'Copied!' : 'Copy URL'"
+          @click="copyUrl"
+        >
+          <Check v-if="copied" class="h-3 w-3 text-elven-green" />
+          <Copy v-else class="h-3 w-3" />
+          {{ copied ? 'Copied' : 'Copy' }}
+        </button>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <a
+          :href="webcalUrl"
+          class="inline-flex items-center gap-1.5 font-cinzel text-[10px] tracking-wider px-3 py-1.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+        >
+          <CalendarPlus class="h-3 w-3" />
+          Subscribe in Calendar App
+        </a>
+
+        <button
+          v-if="isDM"
+          class="inline-flex items-center gap-1.5 font-cinzel text-[10px] tracking-wider px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-destructive hover:border-destructive transition-colors"
+          :disabled="isRegenerating"
+          title="Generate a new URL — existing subscriptions will stop updating"
+          @click="regenerateToken"
+        >
+          <RefreshCw class="h-3 w-3" />
+          {{ isRegenerating ? 'Regenerating…' : 'Regenerate URL' }}
+        </button>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Calendar, CalendarCheck, CalendarX, Check, Download, Plus, Trash2, X } from "lucide-vue-next";
+import { Calendar, CalendarCheck, CalendarPlus, CalendarX, Check, Copy, Download, Plus, RefreshCw, Trash2, X } from "lucide-vue-next";
 import {
   useSessionProposals,
   useAllSessionAvailability,
@@ -227,19 +278,37 @@ import {
   useUpdateProposal,
   useDeleteProposal,
 } from "@/composables/useScheduling";
+import { useCampaignById, useRegenerateIcalToken } from "@/composables/useCampaigns";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import { useCampaignStore } from "@/stores/campaign";
+import { useAuthStore } from "@/stores/auth";
 import type { SessionProposal } from "@/types/scheduling.types";
 
 const campaign = useCampaignStore();
+const auth = useAuthStore();
 const { data: proposals } = useSessionProposals();
 const { data: allAvailability } = useAllSessionAvailability();
 const { data: members } = useCampaignMembers();
+const { data: campaignData } = useCampaignById(() => campaign.activeCampaignId);
 const { mutateAsync: createProposal, isPending: isCreating } = useCreateProposal();
 const { mutateAsync: updateProposal, isPending: isUpdating } = useUpdateProposal();
 const { mutateAsync: deleteProposal } = useDeleteProposal();
+const { mutateAsync: doRegenerateToken, isPending: isRegenerating } = useRegenerateIcalToken();
 
 // ── Computed ──────────────────────────────────────────────────────────────────
+
+const isDM = computed(() => auth.isDM);
+
+const icalFeedUrl = computed(() => {
+  const token = campaignData.value?.ical_token;
+  if (!token) return null;
+  const base = import.meta.env.VITE_SUPABASE_URL as string;
+  return `${base}/functions/v1/ical-feed/${token}`;
+});
+
+const webcalUrl = computed(() => {
+  return icalFeedUrl.value?.replace(/^https?:\/\//, "webcal://") ?? null;
+});
 
 const players = computed(() =>
   (members.value ?? []).filter(m => m.role === "player")
@@ -310,6 +379,26 @@ async function cancelSession(p: SessionProposal) {
 
 async function removeProposal(id: string) {
   await deleteProposal(id);
+}
+
+// ── Calendar subscription ─────────────────────────────────────────────────────
+
+const copied = ref(false);
+
+async function copyUrl() {
+  if (!icalFeedUrl.value) return;
+  await navigator.clipboard.writeText(icalFeedUrl.value);
+  copied.value = true;
+  setTimeout(() => { copied.value = false; }, 2000);
+}
+
+async function regenerateToken() {
+  if (!campaign.activeCampaignId) return;
+  const confirmed = window.confirm(
+    "Regenerating the URL will break all existing calendar subscriptions. Everyone will need to re-subscribe with the new URL. Continue?"
+  );
+  if (!confirmed) return;
+  await doRegenerateToken(campaign.activeCampaignId);
 }
 
 // ── iCal export ───────────────────────────────────────────────────────────────
