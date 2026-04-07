@@ -558,6 +558,7 @@ const f = reactive<
   cp: props.member?.cp ?? 0,
   tool_proficiencies: [...(props.member?.tool_proficiencies ?? [])],
   languages: [...(props.member?.languages ?? [])],
+  current_location_id: props.member?.current_location_id ?? null,
 });
 
 // Spell slot max per level (index 0 = level 1, ..., index 8 = level 9)

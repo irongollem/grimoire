@@ -113,6 +113,7 @@ export interface PartyMember {
   tool_proficiencies: string[];
   languages: string[];
   spell_slots: SpellSlotEntry[];
+  current_location_id: string | null;
   created_at: string;
   updated_at: string;
 }

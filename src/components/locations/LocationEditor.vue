@@ -430,6 +430,58 @@
       </div>
     </template>
 
+    <!-- Party members currently here -->
+    <template v-if="!isNew">
+      <div class="flex items-center justify-between mt-2">
+        <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
+          Currently Here
+          <span class="font-fell font-normal text-muted-foreground"
+            v-if="membersHere.length">({{ membersHere.length }})</span
+          >
+        </h2>
+      </div>
+
+      <div v-if="membersHere.length" class="flex flex-wrap gap-2">
+        <div
+          v-for="m in membersHere"
+          :key="m.id"
+          class="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5"
+        >
+          <RouterLink
+            :to="`/party/${m.id}`"
+            class="font-cinzel text-xs font-semibold text-foreground hover:text-primary transition-colors"
+          >
+            {{ m.name }}
+          </RouterLink>
+          <span v-if="m.class" class="font-fell text-[10px] text-muted-foreground italic">{{ m.class }}</span>
+          <button
+            type="button"
+            class="text-muted-foreground hover:text-destructive transition-colors text-sm leading-none ml-1"
+            title="Remove from this location"
+            @click="removeMemberFromLocation(m.id)"
+          >×</button>
+        </div>
+      </div>
+      <p v-else class="font-fell text-xs text-muted-foreground italic">No party members currently here.</p>
+
+      <!-- Add member to location -->
+      <div class="flex items-center gap-2">
+        <EntityCombobox
+          v-model="newResidentId"
+          :options="availableMembers"
+          placeholder="Move a party member here…"
+        />
+        <button
+          type="button"
+          :disabled="!newResidentId || movingMember"
+          class="shrink-0 inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+          @click="addMemberToLocation"
+        >
+          Move here
+        </button>
+      </div>
+    </template>
+
     <!-- Map section -->
     <div class="flex flex-col gap-2">
       <div class="flex items-center justify-between">
@@ -553,6 +605,7 @@ import {
   useUpdateLocation,
   useDeleteLocation,
 } from "@/composables/useLocations";
+import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import {
   LOCATION_TYPE_LABELS,
   LOCATION_TYPE_COLORS,
@@ -671,6 +724,37 @@ const { data: locationNpcs } = props.location
 const { data: locationEncounters } = props.location
   ? useEncountersByLocation(props.location.id)
   : { data: ref([]) };
+
+// ── Party members currently at this location ───────────────────────────────────
+const { data: allPartyMembers } = useParty();
+const { mutateAsync: updatePartyMember, isPending: movingMember } = useUpdatePartyMember();
+
+const membersHere = computed(() =>
+  (allPartyMembers.value ?? []).filter(
+    (m) => m.current_location_id === props.location?.id,
+  ),
+);
+
+const availableMembers = computed(() =>
+  (allPartyMembers.value ?? []).filter(
+    (m) => m.current_location_id !== props.location?.id,
+  ),
+);
+
+const newResidentId = ref("");
+
+async function addMemberToLocation() {
+  if (!newResidentId.value || !props.location) return;
+  await updatePartyMember({
+    id: newResidentId.value,
+    update: { current_location_id: props.location.id },
+  });
+  newResidentId.value = "";
+}
+
+async function removeMemberFromLocation(memberId: string) {
+  await updatePartyMember({ id: memberId, update: { current_location_id: null } });
+}
 
 // ── Form state ─────────────────────────────────────────────────────────────────
 const name = ref(props.location?.name ?? props.initialName ?? "");

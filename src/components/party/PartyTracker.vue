@@ -52,80 +52,70 @@
         "
       >
         <div class="flex flex-col md:flex-row">
-          <!-- Left: identity + initiative -->
-          <div
-            class="flex items-start justify-between gap-3 p-4 md:w-56 md:flex-col md:justify-start md:border-r md:border-border shrink-0"
-          >
-            <div class="flex-1 flex items-start gap-2.5">
-              <div class="w-16 h-16 rounded-full overflow-hidden shrink-0 border border-border bg-muted">
-                <FocalImage
-                  v-if="member.portrait_url"
-                  :src="member.portrait_url"
-                  :alt="member.name"
-                  format="token"
-                  :focal-point="member.portrait_focal_point ?? null"
-                />
-              </div>
-              <div>
-                <RouterLink
-                  :to="`/party/${member.id}`"
-                  class="font-cinzel text-sm font-bold text-foreground leading-tight hover:text-primary transition-colors"
-                >
-                  {{ member.name }}
-                </RouterLink>
-                <p
-                  class="font-fell text-xs text-muted-foreground italic mt-0.5"
-                >
-                  {{
-                    [
-                      member.race,
-                      member.class,
-                      member.level ? `Lv${member.level}` : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")
-                  }}
-                </p>
-                <p
-                  v-if="member.player_name"
-                  class="font-fell text-[11px] text-muted-foreground mt-0.5"
-                >
-                  {{ member.player_name }}
-                </p>
+          <!-- Left: identity -->
+          <div class="flex flex-col md:w-44 md:border-r md:border-border shrink-0 overflow-hidden">
+            <!-- Top half: portrait -->
+            <div class="h-31.25 bg-muted overflow-hidden">
+              <FocalImage
+                v-if="member.portrait_url"
+                :src="member.portrait_url"
+                :alt="member.name"
+                format="landscape"
+                :focal-point="member.portrait_focal_point ?? null"
+              />
+              <div v-else class="w-full h-full flex items-center justify-center">
+                <span class="font-cinzel text-3xl text-muted-foreground/30 font-bold select-none">
+                  {{ member.name.charAt(0) }}
+                </span>
               </div>
             </div>
 
-            <!-- Initiative -->
-            <div class="flex flex-col items-center gap-1">
-              <span
-                class="font-cinzel text-[10px] text-muted-foreground tracking-wider"
-                >INIT</span
-              >
+            <!-- Bottom half: name + info -->
+            <div class="flex flex-col gap-0.5 px-3 py-2.5">
               <div class="flex items-center gap-1">
-                <input
-                  type="number"
-                  :value="member.current_initiative ?? ''"
-                  placeholder="–"
-                  class="w-10 bg-transparent border-b border-border font-cinzel text-lg font-bold text-center text-primary focus:outline-none focus:border-primary placeholder:text-muted-foreground"
-                  @change="
-                    setInitiative(
-                      member,
-                      ($event.target as HTMLInputElement).value,
-                    )
-                  "
-                />
+                <RouterLink
+                  :to="`/party/${member.id}`"
+                  class="font-cinzel text-sm font-bold text-foreground leading-tight hover:text-primary transition-colors flex-1"
+                >
+                  {{ member.name }}
+                </RouterLink>
                 <button
                   type="button"
-                  class="text-muted-foreground hover:text-primary transition-colors"
-                  title="Roll initiative"
-                  @click="rollInitiative(member)"
+                  class="md:hidden w-6 h-6 flex items-center justify-center text-muted-foreground/40 hover:text-foreground transition-colors shrink-0"
+                  title="Edit character"
+                  @click="openForm(member)"
                 >
-                  <Dices class="h-3.5 w-3.5" />
+                  <Pencil class="h-3.5 w-3.5" />
                 </button>
               </div>
-              <span class="font-cinzel text-[10px] text-muted-foreground">
-                {{ member.initiative_bonus >= 0 ? "+" : ""
-                }}{{ member.initiative_bonus }} bonus
+              <p class="font-fell text-xs text-muted-foreground italic">
+                {{
+                  [
+                    member.race,
+                    member.class,
+                    member.level ? `Lv${member.level}` : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
+                }}
+              </p>
+              <p v-if="member.player_name" class="font-fell text-[11px] text-muted-foreground">
+                {{ member.player_name }}
+              </p>
+              <RouterLink
+                v-if="member.current_location_id"
+                :to="`/locations/${member.current_location_id}`"
+                class="inline-flex items-center gap-0.5 font-cinzel text-[10px] text-muted-foreground hover:text-primary transition-colors"
+              >
+                <MapPin class="h-2.5 w-2.5 shrink-0" />
+                {{ locationNameMap.get(member.current_location_id) ?? '…' }}
+              </RouterLink>
+              <span
+                v-else
+                class="inline-flex items-center gap-0.5 font-cinzel text-[10px] text-muted-foreground/40 italic"
+              >
+                <MapPin class="h-2.5 w-2.5 shrink-0" />
+                Location unknown
               </span>
             </div>
           </div>
@@ -134,10 +124,8 @@
           <div class="flex-1 p-4 flex flex-col gap-3">
             <!-- HP section -->
             <div class="flex flex-col gap-2">
-              <div class="flex items-center justify-between">
-                <span
-                  class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
-                >
+              <div class="flex items-center gap-2">
+                <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider flex-1">
                   HP
                   <span
                     class="ml-2 text-sm font-bold"
@@ -153,11 +141,27 @@
                     >+{{ member.temp_hp }} tmp</span
                   >
                 </span>
-                <span
-                  v-if="member.inspiration"
-                  class="font-cinzel text-[10px] font-bold text-yellow-400 tracking-wider"
-                  >✦ INSPIRED</span
+                <button
+                  type="button"
+                  :class="[
+                    'w-7 h-7 rounded-full flex items-center justify-center transition-colors shrink-0',
+                    member.inspiration
+                      ? 'bg-yellow-400/20 text-yellow-400'
+                      : 'text-muted-foreground/40 hover:text-yellow-400',
+                  ]"
+                  title="Toggle inspiration"
+                  @click="toggleInspiration(member)"
                 >
+                  <Sparkles class="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  class="hidden md:flex w-7 h-7 rounded-full items-center justify-center text-muted-foreground/40 hover:text-foreground transition-colors shrink-0"
+                  title="Edit character"
+                  @click="openForm(member)"
+                >
+                  <Pencil class="h-3.5 w-3.5" />
+                </button>
               </div>
 
               <!-- HP bar -->
@@ -425,32 +429,6 @@
             </div>
           </div>
 
-          <!-- Right: actions -->
-          <div
-            class="flex md:flex-col items-center justify-end gap-2 px-4 py-3 md:border-l md:border-border shrink-0"
-          >
-            <button
-              type="button"
-              :class="[
-                'w-8 h-8 rounded-full flex items-center justify-center transition-colors',
-                member.inspiration
-                  ? 'bg-yellow-400/20 text-yellow-400'
-                  : 'text-muted-foreground hover:text-yellow-400',
-              ]"
-              title="Toggle inspiration"
-              @click="toggleInspiration(member)"
-            >
-              <Sparkles class="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              class="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-              title="Edit character"
-              @click="openForm(member)"
-            >
-              <Pencil class="h-4 w-4" />
-            </button>
-          </div>
         </div>
 
         <!-- Companions for this member -->
@@ -711,8 +689,9 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, reactive, nextTick } from "vue";
 import { useRouter } from "vue-router";
-import { Plus, Dices, RotateCcw, Pencil, Sparkles, Backpack, Trash2, ExternalLink, ArrowUpFromLine } from "lucide-vue-next";
+import { Plus, Dices, RotateCcw, Pencil, Sparkles, Backpack, Trash2, ExternalLink, ArrowUpFromLine, MapPin } from "lucide-vue-next";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
+import { useAllLocations } from "@/composables/useLocations";
 import { usePartyInventory, useAddInventoryItem, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
 import { useItems } from "@/composables/useItems";
 import type { Item } from "@/types/item.types";
@@ -739,6 +718,12 @@ import type {
 
 const { data: party, isLoading } = useParty();
 const { mutateAsync: updateMember } = useUpdatePartyMember();
+const { data: allLocations } = useAllLocations();
+const locationNameMap = computed(() => {
+  const m = new Map<string, string>();
+  for (const l of allLocations.value ?? []) m.set(l.id, l.name);
+  return m;
+});
 
 // Initiative
 const sortedMembers = computed(() => {
@@ -760,11 +745,6 @@ function d20() {
 async function rollInitiative(member: PartyMember) {
   const roll = d20() + member.initiative_bonus;
   await updateMember({ id: member.id, update: { current_initiative: roll } });
-}
-async function setInitiative(member: PartyMember, value: string) {
-  const parsed = value === "" ? null : parseInt(value, 10);
-  if (parsed !== null && isNaN(parsed)) return;
-  await updateMember({ id: member.id, update: { current_initiative: parsed } });
 }
 async function rollAllInitiative() {
   await Promise.all((party.value ?? []).map((member) => rollInitiative(member)));

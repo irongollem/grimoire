@@ -178,6 +178,7 @@ function buildInsert(event: BundleEvent) {
     linked_quest_id: null,
     linked_encounter_id: null,
     linked_location_id: null,
+    travel_party_member_ids: [],
     campaign_id: null, // injected by composable
   };
 }

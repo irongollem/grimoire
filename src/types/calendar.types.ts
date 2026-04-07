@@ -39,6 +39,7 @@ export interface CalendarEvent {
   linked_quest_id: string | null;
   linked_encounter_id: string | null;
   linked_location_id: string | null;
+  travel_party_member_ids: string[];
   created_at: string;
   updated_at: string;
 }

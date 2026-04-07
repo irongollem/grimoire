@@ -282,8 +282,52 @@
             />
           </div>
 
-          <!-- Entity link (read-only when editing a pinned event) -->
-          <div v-if="entityRoute" class="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-2">
+          <!-- Travel fields: location + party members -->
+          <template v-if="form.event_type === 'travel'">
+            <div>
+              <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">
+                DESTINATION
+              </label>
+              <EntityCombobox
+                v-model="linkedLocationId"
+                :options="locations ?? []"
+                placeholder="Pick a location…"
+              >
+                <template #option="{ opt }">
+                  <span class="flex-1 truncate">{{ opt.name }}</span>
+                  <span class="text-xs text-muted-foreground shrink-0 font-cinzel">{{ LOCATION_TYPE_LABELS[opt.location_type as LocationType] }}</span>
+                </template>
+              </EntityCombobox>
+            </div>
+
+            <div v-if="party?.length">
+              <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">
+                TRAVELERS
+                <span class="font-fell normal-case tracking-normal text-muted-foreground">(updates their current location)</span>
+              </label>
+              <div class="flex flex-wrap gap-2">
+                <label
+                  v-for="m in party"
+                  :key="m.id"
+                  class="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 cursor-pointer transition-colors text-xs font-cinzel font-semibold"
+                  :class="form.travel_party_member_ids.includes(m.id)
+                    ? 'border-primary bg-primary/10 text-foreground'
+                    : 'border-border bg-muted text-muted-foreground hover:border-primary/50'"
+                >
+                  <input
+                    type="checkbox"
+                    class="sr-only"
+                    :checked="form.travel_party_member_ids.includes(m.id)"
+                    @change="toggleTraveler(m.id)"
+                  />
+                  {{ m.name }}
+                </label>
+              </div>
+            </div>
+          </template>
+
+          <!-- Entity link (read-only when editing a non-travel pinned event) -->
+          <div v-if="entityRoute && form.event_type !== 'travel'" class="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-2">
             <component :is="entityIconComponent" class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             <span class="font-fell text-sm text-muted-foreground flex-1 capitalize">
               Pinned {{ editEvent?.event_type }}
@@ -331,6 +375,7 @@ import { ref, watch, computed } from "vue";
 import { RouterLink } from "vue-router";
 import { Scroll, Swords, MapPin } from "lucide-vue-next";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useCalendarStore } from "@/stores/calendar";
 import {
   useCreateCalendarEvent,
@@ -342,6 +387,9 @@ import type {
   CalendarEventInsert,
 } from "@/types/calendar.types";
 import { useCampaignStore } from "@/stores/campaign";
+import { useAllLocations } from "@/composables/useLocations";
+import { useParty, useUpdatePartyMember } from "@/composables/useParty";
+import { LOCATION_TYPE_LABELS, type LocationType } from "@/types/location.types";
 
 const PRESET_COLORS = [
   "#C9920A", // gold
@@ -369,7 +417,15 @@ const { mutateAsync: createEvent, isPending: isCreating } =
   useCreateCalendarEvent();
 const { mutateAsync: updateEvent, isPending: isUpdating } =
   useUpdateCalendarEvent();
+const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
 const campaign = useCampaignStore();
+const { data: locations } = useAllLocations();
+const { data: party } = useParty();
+
+const linkedLocationId = computed({
+  get: () => form.value.linked_location_id ?? "",
+  set: (v: string) => { form.value.linked_location_id = v || null; },
+});
 
 const isPending = computed(() => isCreating.value || isUpdating.value);
 
@@ -394,6 +450,7 @@ function defaultForm(): CalendarEventInsert {
     linked_quest_id: null,
     linked_encounter_id: null,
     linked_location_id: null,
+    travel_party_member_ids: [],
   };
 }
 
@@ -429,6 +486,7 @@ watch(
           linked_quest_id: props.editEvent.linked_quest_id,
           linked_encounter_id: props.editEvent.linked_encounter_id,
           linked_location_id: props.editEvent.linked_location_id,
+          travel_party_member_ids: props.editEvent.travel_party_member_ids ?? [],
         };
         dateType.value = props.editEvent.festival_day ? "festival" : "regular";
       } else {
@@ -496,6 +554,16 @@ function close() {
   emit("update:modelValue", false);
 }
 
+function toggleTraveler(memberId: string) {
+  const ids = form.value.travel_party_member_ids;
+  const idx = ids.indexOf(memberId);
+  if (idx === -1) {
+    form.value.travel_party_member_ids = [...ids, memberId];
+  } else {
+    form.value.travel_party_member_ids = ids.filter((id) => id !== memberId);
+  }
+}
+
 async function submit() {
   const payload: CalendarEventInsert = {
     ...form.value,
@@ -516,6 +584,18 @@ async function submit() {
   } else {
     await createEvent(payload);
   }
+
+  if (payload.event_type === "travel" && payload.travel_party_member_ids.length) {
+    await Promise.allSettled(
+      payload.travel_party_member_ids.map((memberId) =>
+        updatePartyMember({
+          id: memberId,
+          update: { current_location_id: payload.linked_location_id },
+        }),
+      ),
+    );
+  }
+
   close();
 }
 </script>
