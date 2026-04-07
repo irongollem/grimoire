@@ -30,9 +30,10 @@
     <button
       v-if="!ui.chatOpen"
       type="button"
-      class="chat-no-print fixed right-0 bottom-20 z-40 flex flex-col items-center gap-1.5 px-2 py-3 rounded-l-xl border border-r-0 border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors shadow-lg"
+      class="chat-no-print fixed right-0 z-40 flex flex-col items-center gap-1.5 px-2 py-3 rounded-l-xl border border-r-0 border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors shadow-lg select-none"
+      :style="{ top: tabTop + 'px', touchAction: 'none' }"
       title="Open chat"
-      @click="ui.toggleChat()"
+      @pointerdown="onTabPointerDown"
     >
       <MessageCircle class="h-4 w-4" />
       <span
@@ -78,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from "vue";
+import { ref, watch, computed, onMounted, onUnmounted } from "vue";
 import { MessageCircle } from "lucide-vue-next";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
@@ -93,6 +94,57 @@ import type { RollResult } from "@/lib/dice";
 import type { ItemDropMetadata, CurrencyDropMetadata } from "@/types/chat.types";
 
 const props = withDefaults(defineProps<{ contained?: boolean }>(), { contained: false });
+
+// ── Chat tab vertical drag ──────────────────────────────────────────────────
+const CHAT_TAB_TOP_KEY = "grimoire:chat-tab-top";
+
+function clampTabTop(v: number): number {
+  return Math.max(8, Math.min(v, window.innerHeight - 100));
+}
+
+function getInitialTop(): number {
+  const stored = localStorage.getItem(CHAT_TAB_TOP_KEY);
+  if (stored) {
+    const v = parseFloat(stored);
+    if (!isNaN(v)) return clampTabTop(v);
+  }
+  return Math.round(window.innerHeight * 0.7);
+}
+
+const tabTop = ref(0);
+const dragState = ref<{ startY: number; startTop: number } | null>(null);
+
+onMounted(() => {
+  tabTop.value = getInitialTop();
+});
+
+function onTabPointerDown(e: PointerEvent) {
+  e.preventDefault();
+  dragState.value = { startY: e.clientY, startTop: tabTop.value };
+  window.addEventListener("pointermove", onPointerMove);
+  window.addEventListener("pointerup", onPointerUp);
+}
+
+function onPointerMove(e: PointerEvent) {
+  if (!dragState.value) return;
+  const delta = e.clientY - dragState.value.startY;
+  tabTop.value = clampTabTop(dragState.value.startTop + delta);
+}
+
+function onPointerUp(e: PointerEvent) {
+  if (!dragState.value) return;
+  const delta = Math.abs(e.clientY - dragState.value.startY);
+  if (delta < 6) ui.toggleChat();
+  localStorage.setItem(CHAT_TAB_TOP_KEY, String(tabTop.value));
+  dragState.value = null;
+  window.removeEventListener("pointermove", onPointerMove);
+  window.removeEventListener("pointerup", onPointerUp);
+}
+
+onUnmounted(() => {
+  window.removeEventListener("pointermove", onPointerMove);
+  window.removeEventListener("pointerup", onPointerUp);
+});
 
 const ui = useUiStore();
 const auth = useAuthStore();
@@ -262,7 +314,7 @@ async function handleDeleteAll() {
 .tab-fade-enter-from,
 .tab-fade-leave-to {
   opacity: 0;
-  transform: translateY(-50%) translateX(8px);
+  transform: translateX(8px);
 }
 
 .slide-up-enter-active,
@@ -281,5 +333,13 @@ async function handleDeleteAll() {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* Chat tab drag */
+button[title="Open chat"] {
+  cursor: grab;
+}
+button[title="Open chat"]:active {
+  cursor: grabbing;
 }
 </style>

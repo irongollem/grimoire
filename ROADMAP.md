@@ -388,3 +388,5 @@ Keep the core DM tooling free forever (open source). Gate AI features, advanced 
 - [x] **People search & filters** (irongollem/grimoire#74) — added search input + relationship/status/location filter dropdowns above the People section in the player portal; filter state stored in `useUiStore`; Clear button appears when any filter is active; results show empty state when nothing matches
 
 - [x] **Player nav customisation** — players can choose between Dynamic mode (log-tier scoring: needs ~2× visits to advance a tier, preventing jitter from small score differences) or Custom mode (drag-to-reorder list in Settings, pointer-events based so it works on mobile); mode + custom order persisted in localStorage via singleton `usePlayerNavPrefs` composable; nav item definitions and slot counts (`MOBILE_NAV_SLOTS=4`, `TABLET_NAV_SLOTS=7`) centralised in `src/lib/playerNav.ts`
+
+- [x] **Chat tab: draggable vertical position** (irongollem/grimoire#78) — chat tab button is now draggable up/down the right edge; position saved in localStorage (`grimoire:chat-tab-top`); click still opens chat when not dragged (delta < 6px); grab cursor on hover
