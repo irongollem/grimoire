@@ -19,7 +19,7 @@
         <Dice6 class="h-4 w-4" />
       </button>
     </div>
-    <div class="h-4 mt-0.5">
+    <div v-if="!compact" class="h-4 mt-0.5">
       <Transition name="dice-anim">
         <span
           v-if="rollResult !== null"
@@ -49,8 +49,10 @@ import { parseExpression, averageExpression, rollExpression } from "@/lib/dice";
 const props = withDefaults(defineProps<{
   modelValue: string | null;
   placeholder?: string;
+  compact?: boolean;
 }>(), {
   placeholder: "2d6+3",
+  compact: false,
 });
 
 const emit = defineEmits<{ "update:modelValue": [value: string | null] }>();

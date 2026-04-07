@@ -97,18 +97,32 @@ export function usePopulateTraps() {
 
       const { data: existing, error: fetchError } = await supabase
         .from("traps")
-        .select("name");
+        .select("id, name");
       if (fetchError) throw fetchError;
 
-      const existingNames = new Set((existing ?? []).map((t: { name: string }) => t.name.toLowerCase()));
+      const existingByName = new Map(
+        (existing ?? []).map((t: { id: string; name: string }) => [t.name.toLowerCase(), t.id]),
+      );
+
       const toInsert = TRAP_TEMPLATES
-        .filter((t) => !existingNames.has(t.name.toLowerCase()))
+        .filter((t) => !existingByName.has(t.name.toLowerCase()))
         .map((t) => ({ ...t, user_id: user.id, image_url: null, image_focal_point: null }));
 
-      if (toInsert.length === 0) return 0;
+      const toUpdate = TRAP_TEMPLATES
+        .filter((t) => existingByName.has(t.name.toLowerCase()))
+        .map((t) => ({ id: existingByName.get(t.name.toLowerCase())!, damage_entries: t.damage_entries }));
 
-      const { error: insertError } = await supabase.from("traps").insert(toInsert);
-      if (insertError) throw insertError;
+      const results = await Promise.all([
+        toInsert.length
+          ? supabase.from("traps").insert(toInsert)
+          : Promise.resolve({ error: null }),
+        ...toUpdate.map(({ id, damage_entries }) =>
+          supabase.from("traps").update({ damage_entries }).eq("id", id),
+        ),
+      ]);
+
+      const firstError = results.find((r) => r.error)?.error;
+      if (firstError) throw firstError;
 
       return toInsert.length;
     },

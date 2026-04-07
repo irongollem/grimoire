@@ -192,7 +192,7 @@
                 :key="i"
                 class="flex items-center gap-2"
               >
-                <DiceExprInput v-model="entry.dice" placeholder="1d6" class="w-28 shrink-0" />
+                <DiceExprInput v-model="entry.dice" placeholder="1d6" compact class="w-28 shrink-0" />
                 <select
                   v-model="entry.type"
                   class="flex-1 bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring capitalize"
