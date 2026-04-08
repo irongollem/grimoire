@@ -54,3 +54,16 @@ app.use(VueQueryPlugin, { queryClient });
 app.use(router);
 
 app.mount("#app");
+
+// iOS Safari: when the virtual keyboard appears the visual viewport shrinks
+// without reflowing the layout. Scroll the focused input to the centre of the
+// visible area so that absolute-positioned dropdowns (top-full / bottom-full)
+// are not hidden behind the keyboard.
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", () => {
+    const el = document.activeElement as HTMLElement | null;
+    if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT")) {
+      setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "center" }), 60);
+    }
+  });
+}
