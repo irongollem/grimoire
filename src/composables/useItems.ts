@@ -159,8 +159,9 @@ export function useImportSrdItems() {
       const { GEAR } = await import("@/data/gear");
       const { PROVISIONS } = await import("@/data/provisions");
       const { SERVICES } = await import("@/data/services");
+      const { AMMUNITION } = await import("@/data/ammunition");
       const apiItems = await fetchSrdItems();
-      const items = [...apiItems, ...GEAR, ...PROVISIONS, ...SERVICES];
+      const items = [...apiItems, ...GEAR, ...PROVISIONS, ...SERVICES, ...AMMUNITION];
 
       // Check which names already exist — match by name only (no source filter)
       // so that re-imports correctly find previously imported items regardless of
