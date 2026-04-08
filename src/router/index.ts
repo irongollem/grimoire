@@ -47,6 +47,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Edit Character" },
     },
     {
+      path: "/play/character/levelup",
+      name: "play-character-levelup",
+      component: () => import("@/views/play/PlayerLevelUpView.vue"),
+      meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Level Up" },
+    },
+    {
       path: "/play/party",
       name: "play-party",
       component: () => import("@/views/play/PlayerPartyView.vue"),

@@ -432,6 +432,8 @@ const f = reactive<
   languages:           [...(m?.languages ?? [])],
   current_location_id: m?.current_location_id ?? null,
   carry_capacity_override: m?.carry_capacity_override ?? null,
+  class_resources: m?.class_resources ?? {},
+  class_choices: m?.class_choices ?? {},
 });
 
 // Spell slot maxes (index 0 = level 1)

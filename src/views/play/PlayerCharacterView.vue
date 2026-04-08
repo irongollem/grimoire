@@ -23,13 +23,20 @@
       <!-- ── Always visible ─────────────────────────────────── -->
       <div class="flex items-start justify-between gap-2">
         <PlayerCharacterHeader :member="member" class="flex-1 min-w-0" />
-        <RouterLink
-          v-if="!ui.dmPreviewMode"
-          to="/play/character/edit"
-          class="shrink-0 inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors mt-1"
-        >
-          Edit
-        </RouterLink>
+        <div v-if="!ui.dmPreviewMode" class="shrink-0 flex items-center gap-1.5 mt-1">
+          <RouterLink
+            to="/play/character/levelup"
+            class="inline-flex items-center gap-1.5 rounded-md bg-primary/10 border border-primary/30 px-3 py-1.5 font-cinzel text-xs text-primary hover:bg-primary/20 transition-colors"
+          >
+            Level Up
+          </RouterLink>
+          <RouterLink
+            to="/play/character/edit"
+            class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+          >
+            Edit
+          </RouterLink>
+        </div>
       </div>
 
       <AbilityScoreTable

@@ -115,6 +115,8 @@ export interface PartyMember {
   spell_slots: SpellSlotEntry[];
   current_location_id: string | null;
   carry_capacity_override: string | null; // expression: "*2", "+30", "-10", or bare number for absolute
+  class_resources: Record<string, { current: number; max: number; rest: "short" | "long" }>;
+  class_choices: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
