@@ -108,6 +108,14 @@ function filterProperties(props: string[] | null | undefined): WeaponProperty[] 
 
 // ── Mappers ───────────────────────────────────────────────────────────────────
 
+function weaponTags(category: string): string[] {
+  const c = category.toLowerCase();
+  if (c.includes("firearm") || c.includes("renaissance") || c.includes("modern") || c.includes("futuristic")) {
+    return ["firearm", "black powder", "ranged"];
+  }
+  return [];
+}
+
 function mapWeapon(item: Open5eWeapon): ItemInsert {
   return {
     name: item.name,
@@ -132,7 +140,7 @@ function mapWeapon(item: Open5eWeapon): ItemInsert {
     source: item.document__slug || "srd",
     source_title: item.document__title || null,
     source_url: item.document__url || null,
-    tags: [],
+    tags: weaponTags(item.category),
     image_url: null,
     curse_description: null,
     curse_revealed: false,
