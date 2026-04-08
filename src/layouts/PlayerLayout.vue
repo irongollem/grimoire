@@ -14,6 +14,20 @@
       <span v-if="characterName" class="font-cinzel text-xs text-foreground hidden sm:inline">
         {{ characterName }}
       </span>
+
+      <!-- Live encounter button -->
+      <RouterLink
+        v-if="anyRunning"
+        :to="{ name: 'player-encounter' }"
+        class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-green-500/15 border border-green-500/40 text-green-400 hover:bg-green-500/25 transition-colors font-cinzel text-xs font-semibold tracking-wider"
+      >
+        <span class="relative flex h-2 w-2 shrink-0">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+        </span>
+        Live
+      </RouterLink>
+
       <button
         class="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
         title="Sign out"
@@ -45,6 +59,29 @@
         Exit Preview
       </button>
     </div>
+
+    <!-- Encounter live toast -->
+    <Transition name="toast">
+      <div
+        v-if="encounterLiveToast"
+        class="fixed top-16 right-4 z-50 w-full max-w-sm"
+      >
+        <RouterLink
+          :to="{ name: 'player-encounter' }"
+          class="rounded-lg border border-green-500/40 bg-card shadow-xl px-4 py-3 flex items-start gap-3"
+          @click="encounterLiveToast = false"
+        >
+          <Swords class="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
+          <div class="flex-1 min-w-0">
+            <p class="font-cinzel text-xs font-semibold text-green-400 tracking-wider">Encounter Started!</p>
+            <p class="font-fell text-sm text-foreground mt-0.5">Your DM has started a live encounter. Tap to join.</p>
+          </div>
+          <button class="text-muted-foreground hover:text-foreground transition-colors shrink-0" @click.prevent="encounterLiveToast = false">
+            <X class="h-3.5 w-3.5" />
+          </button>
+        </RouterLink>
+      </div>
+    </Transition>
 
     <!-- Broadcast toast -->
     <Transition name="toast">
@@ -156,12 +193,13 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { LogOut, Megaphone, X, Eye, LayoutGrid } from "lucide-vue-next";
+import { LogOut, Megaphone, X, Eye, LayoutGrid, Swords } from "lucide-vue-next";
+import { useRunningEncounters, usePlayerEncounterLive } from "@/composables/useEncounterLive";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCampaignById } from "@/composables/useCampaigns";
-import { useParty } from "@/composables/useParty";
+import { useParty, usePartyLive } from "@/composables/useParty";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
 import { useCampaignBroadcast } from "@/composables/useCampaignBroadcast";
 import { usePlayerNavPrefs } from "@/composables/usePlayerNavPrefs";
@@ -199,6 +237,25 @@ watch(
 );
 
 useCampaignPresence();
+usePartyLive();
+
+const { anyRunning, runningLoaded } = useRunningEncounters();
+// Keep the player encounter subscription alive for the entire session so state
+// stays in sync even when the player navigates away from the encounter page.
+usePlayerEncounterLive(campaign.activeCampaignId ?? "");
+const encounterLiveToast = ref(false);
+
+// Auto-navigate + toast when a NEW encounter goes live (skip initial data load)
+watch([runningLoaded, anyRunning], ([loaded, isRunning], [wasLoaded]) => {
+  if (!loaded || !wasLoaded) return; // skip until initial fetch is done
+  if (isRunning) {
+    encounterLiveToast.value = true;
+    setTimeout(() => { encounterLiveToast.value = false; }, 6000);
+    if (route.name !== "player-encounter") {
+      void router.push({ name: "player-encounter" });
+    }
+  }
+});
 
 const { messages, dismiss } = useCampaignBroadcast();
 const latestMessage = computed(() => messages.value[0] ?? null);

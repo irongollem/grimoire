@@ -7,6 +7,7 @@ import type { EncounterState, RunCombatant } from "@/types/encounter.types";
 let runChannel: ReturnType<typeof supabase.channel> | null = null;
 let runRefCount = 0;
 const runningStates = ref<EncounterState[]>([]);
+const runningLoaded = ref(false);
 
 export function useRunningEncounters() {
   const campaign = useCampaignStore();
@@ -20,6 +21,7 @@ export function useRunningEncounters() {
       .eq("campaign_id", campaignId)
       .eq("is_running", true);
     runningStates.value = (data ?? []) as EncounterState[];
+    runningLoaded.value = true;
   }
 
   function subscribe() {
@@ -47,6 +49,7 @@ export function useRunningEncounters() {
 
   return {
     runningStates,
+    runningLoaded,
     isEncounterRunning: (id: string) => runningStates.value.some((s) => s.encounter_id === id),
     anyRunning: computed(() => runningStates.value.length > 0),
     firstRunning: computed(() => runningStates.value[0] ?? null),
@@ -54,7 +57,9 @@ export function useRunningEncounters() {
 }
 
 // ── Shared live state (module-level so player + DM composable share it) ───────
-const liveState = ref<EncounterState | null>(null);
+// Exported so PlayerLayout can keep the subscription alive and PlayerEncounterView
+// can read the same reactive ref without needing its own subscription.
+export const liveState = ref<EncounterState | null>(null);
 const liveStateLoaded = ref(false);
 let playerChannel: ReturnType<typeof supabase.channel> | null = null;
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -147,6 +152,7 @@ export function useEncounterLive(encounterId: string) {
 // ── Player composable ──────────────────────────────────────────────────────────
 export function usePlayerEncounterLive(campaignId: string) {
   async function fetchRunning() {
+    if (!campaignId) { liveState.value = null; return; }
     const { data } = await supabase
       .from("encounter_state")
       .select("*")
@@ -157,7 +163,7 @@ export function usePlayerEncounterLive(campaignId: string) {
   }
 
   function subscribe() {
-    if (playerChannel) return;
+    if (playerChannel || !campaignId) return;
     playerChannel = supabase
       .channel(`encounter_state:${campaignId}`)
       .on(

@@ -62,7 +62,7 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm, notify } = useConfirm();
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { Radio } from "lucide-vue-next";
 import { supabase } from "@/lib/supabase";
@@ -118,6 +118,65 @@ watch(
   { deep: true },
 );
 
+// ── Bidirectional HP sync between runner and party_members ───────────────────
+// Loop-breaking relies on Vue's same-value reactive no-op: subscription echoes
+// of our own writes don't change store.combatants, so the watch never re-fires.
+
+const partyHpQueue = new Map<string, number>(); // partyMemberId → pending hp
+let partyHpTimer: ReturnType<typeof setTimeout> | null = null;
+
+watch(
+  () => store.combatants
+    .filter((c) => c.type === "player" && c.party_member_id)
+    .map((c) => ({ iid: c.instance_id, hp: c.hp, pmId: c.party_member_id! })),
+  (newVals, oldVals) => {
+    if (!isLive.value || !oldVals) return;
+    for (const nv of newVals) {
+      const ov = oldVals.find((o) => o.iid === nv.iid);
+      if (ov && ov.hp !== nv.hp) partyHpQueue.set(nv.pmId, nv.hp);
+    }
+    if (!partyHpQueue.size) return;
+    if (partyHpTimer) clearTimeout(partyHpTimer);
+    partyHpTimer = setTimeout(async () => {
+      const entries = [...partyHpQueue.entries()];
+      partyHpQueue.clear();
+      await Promise.all(entries.map(([id, current_hp]) =>
+        updatePartyMember({ id, update: { current_hp } }),
+      ));
+    }, 400);
+  },
+);
+
+let partyMembersChannel: ReturnType<typeof supabase.channel> | null = null;
+
+onMounted(() => {
+  const campaignId = campaign.activeCampaignId;
+  if (!campaignId) return;
+  partyMembersChannel = supabase
+    .channel("runner_party_members_hp")
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "party_members",
+        filter: `campaign_id=eq.${campaignId}` },
+      (payload) => {
+        const row = payload.new as { id: string; current_hp: number };
+        const combatant = store.combatants.find((c) => c.party_member_id === row.id);
+        if (combatant && combatant.hp !== row.current_hp) {
+          store.setHp(combatant.instance_id, row.current_hp);
+        }
+      },
+    )
+    .subscribe();
+});
+
+onUnmounted(() => {
+  if (partyHpTimer) clearTimeout(partyHpTimer);
+  if (partyMembersChannel) {
+    supabase.removeChannel(partyMembersChannel);
+    partyMembersChannel = null;
+  }
+});
+
 watch(
   () => store.pendingBroadcasts.length,
   async () => {
@@ -149,6 +208,9 @@ async function handleAbandon() {
 
 async function handleEndCombat() {
   if (!await confirm("End combat? Party HP, conditions, and curses will be updated.")) return;
+  // Cancel any pending HP debounce — end-combat does its own authoritative write below.
+  if (partyHpTimer) { clearTimeout(partyHpTimer); partyHpTimer = null; }
+  partyHpQueue.clear();
   await endLive();
 
   // Sync player combatants back to party_members
