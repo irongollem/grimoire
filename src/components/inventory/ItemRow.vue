@@ -6,7 +6,7 @@
         type="button"
         class="font-fell text-sm text-foreground truncate text-left hover:text-primary transition-colors w-full"
         @click="$emit('open-detail', item)"
-      >{{ item.name }}</button>
+      >{{ item.name }}<span v-if="item.is_attuned" class="ml-1 font-cinzel text-[9px] text-primary/70" title="Attuned">✦</span></button>
       <p v-if="item.notes" class="font-fell text-xs text-muted-foreground italic truncate">{{ item.notes }}</p>
       <p v-if="showCarrier && item.carried_by" class="font-cinzel text-[9px] text-muted-foreground/60 tracking-wider">
         {{ carrierName(item.carried_by) }}
