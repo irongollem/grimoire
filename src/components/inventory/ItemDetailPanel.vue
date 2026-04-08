@@ -164,14 +164,14 @@
             <span v-if="vaultItem.attunement_requirements" class="font-fell text-xs text-muted-foreground italic">{{ vaultItem.attunement_requirements }}</span>
           </div>
           <button
-            class="shrink-0 px-3 py-1 rounded-md font-cinzel text-[10px] tracking-wider transition-colors"
-            :class="inv.is_attuned
+            class="shrink-0 px-3 py-1 rounded-md font-cinzel text-[10px] tracking-wider transition-colors cursor-pointer disabled:cursor-not-allowed"
+            :class="localAttuned
               ? 'bg-primary/20 text-primary border border-primary/40 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40'
               : 'border border-border text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40'"
-            :disabled="!inv.is_attuned && attunedCount >= 3"
-            :title="!inv.is_attuned && attunedCount >= 3 ? 'Maximum 3 attuned items' : undefined"
+            :disabled="!localAttuned && attunedCount >= 3"
+            :title="!localAttuned && attunedCount >= 3 ? 'Maximum 3 attuned items' : undefined"
             @click="toggleAttunement"
-          >{{ inv.is_attuned ? 'Attuned ✓' : attunedCount >= 3 ? 'Slots Full' : 'Attune' }}</button>
+          >{{ localAttuned ? 'Attuned ✓' : attunedCount >= 3 ? 'Slots Full' : 'Attune' }}</button>
         </div>
 
         <!-- Notes -->
@@ -292,6 +292,7 @@ const rarityColor = computed(() =>
 
 // Local optimistic charge count — avoids stale reads on rapid clicks before refetch
 const localCharges = ref(0);
+const localAttuned = ref(false);
 
 function syncCharges() {
   if (!props.vaultItem?.charges) { localCharges.value = 0; return; }
@@ -300,12 +301,16 @@ function syncCharges() {
 
 // Sync when panel opens on a new item, or when the server value arrives after refetch
 watch(() => [props.inv?.id, props.inv?.current_charges] as const, syncCharges, { immediate: true });
+watch(() => [props.inv?.id, props.inv?.is_attuned] as const, () => {
+  localAttuned.value = props.inv?.is_attuned ?? false;
+}, { immediate: true });
 
 const currentCharges = computed(() => localCharges.value);
 
 async function toggleAttunement() {
   if (!props.inv) return;
-  await updateInventoryItem({ id: props.inv.id, update: { is_attuned: !props.inv.is_attuned } });
+  localAttuned.value = !localAttuned.value;
+  await updateInventoryItem({ id: props.inv.id, update: { is_attuned: localAttuned.value } });
 }
 
 async function adjustQty(delta: number) {
