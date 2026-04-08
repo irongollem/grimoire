@@ -18,6 +18,7 @@ import { MONK_DATA,    getMonkResources                        } from "./classes
 import { CLERIC_DATA,  getClericResources                      } from "./classes/cleric";
 import { BARD_DATA,       getBardSteps                            } from "./classes/bard";
 import { BARBARIAN_DATA,  getBarbarianResources                   } from "./classes/barbarian";
+import { WARLOCK_DATA,    getWarlockSteps                         } from "./classes/warlock";
 
 function buildLevels(
   asiLevels: number[],
@@ -50,8 +51,7 @@ const paladin   = PALADIN_DATA;
 const ranger    = RANGER_DATA;
 const rogue     = ROGUE_DATA;
 const sorcerer  = SORCERER_DATA;
-// Subclass (Otherworldly Patron): 1, 6, 10, 14
-const warlock   = buildLevels(STANDARD_ASI, [1, 6, 10, 14]);
+const warlock   = WARLOCK_DATA;
 // Subclass (Arcane Tradition): 2, 6, 10, 14
 const wizard    = buildLevels(STANDARD_ASI, [2, 6, 10, 14]);
 
@@ -91,6 +91,7 @@ export function getClassSteps(className: string, nextLevel: number): ClassStep[]
   switch (className) {
     case "Artificer": return getArtificerSteps(nextLevel);
     case "Bard":      return getBardSteps(nextLevel);
+    case "Warlock":   return getWarlockSteps(nextLevel);
     case "Paladin":   return getPaladinSteps(nextLevel);
     case "Ranger":    return getRangerSteps(nextLevel);
     case "Rogue":     return getRogueSteps(nextLevel);
