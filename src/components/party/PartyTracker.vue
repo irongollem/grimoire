@@ -1090,6 +1090,7 @@ async function submitAddItem() {
     router.push({ path: "/vault/new", query: { name, redirect: "/party" } });
     return;
   }
+  const vaultItem = (catalogItems.value ?? []).find((i) => i.id === newItem.selectedItemId);
   await addInventoryItem({
     name,
     quantity: newItem.quantity,
@@ -1103,6 +1104,7 @@ async function submitAddItem() {
     is_container: false,
     container_id: null,
     is_ruined: false,
+    is_identified: !vaultItem || vaultItem.rarity === 'mundane',
   });
   if (campaign.activeCampaignId)
     void sendCampaignAnnouncement(campaign.activeCampaignId, `🎒 Item added to inventory: "${name}"`);

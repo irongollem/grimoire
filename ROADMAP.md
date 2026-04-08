@@ -102,6 +102,8 @@
 - [x] Ammunition data — arrows, bolts, sling bullets, blowgun needles, darts; silvered + adamantine variants for arrows and bolts; silvered bullets; firearm bullets (standard + silvered); all wired into vault import
 - [x] Item detail panel stats — armor class, damage dice, versatile damage, range, and properties now shown in the player item detail panel
 - [x] Attunement toggle — Attune/Unattune button in item detail panel for items requiring it; capped at 3 with "Slots Full" label; 3-pip indicator next to paper doll shows attuned slot usage with per-pip item name tooltip; optimistic state flip on click; `✦` glyph on attuned items in all inventory rows
+- [x] Item identification system — `mundane_description` field on vault items (physical appearance before magic is revealed); `is_identified` flag on `party_inventory` (default true); unidentified items show mundane description + mundane rarity, hide attunement/charges/magical stats; DM sees amber "Unidentified" banner with one-click Identify button in item detail panel; Dashboard shows foldable "Unidentified Items" block with carrier info and per-item Identify button; AI generator populates `mundane_description` with no magical hints
+- [x] Mundane artwork — `mundane_image_url` + `mundane_image_focal_point` fields on items; vault editor shows Identified/Mundane art tabs; vault sheet shows tabbed art preview when both images present; item detail panel in player inventory shows mundane art (falling back to identified art) while unidentified
 
 ### Layout & UX
 

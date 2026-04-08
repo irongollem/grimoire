@@ -144,6 +144,7 @@ async function addToStash() {
       is_equipped: false,
       notes: null,
       is_ruined: false,
+      is_identified: props.item.rarity === 'mundane',
     });
     open.value = false;
     showConfirmation("Added to party stash");
@@ -168,6 +169,7 @@ async function assignToPlayer(member: PartyMember) {
       is_equipped: false,
       notes: null,
       is_ruined: false,
+      is_identified: props.item.rarity === 'mundane',
     });
     open.value = false;
     showConfirmation(`Assigned to ${member.name}`);

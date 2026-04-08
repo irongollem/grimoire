@@ -302,10 +302,8 @@
           :item-ids="rewardItemIds"
           :all-items="allItems ?? []"
           :currency-pools="rewardCurrencyPools"
-          :art-objects="rewardArtObjects"
           @update:item-ids="rewardItemIds = $event"
           @update:currency-pools="rewardCurrencyPools = $event"
-          @update:art-objects="rewardArtObjects = $event"
           @drop-pool="
             sendCurrencyDrop(
               $event.pp,
@@ -317,7 +315,6 @@
             )
           "
           @drop-item="handleDropLootItem($event.item, $event.qty)"
-          @drop-art-object="handleDropArtObject($event)"
         />
 
         <!-- Rewards: linked encounters -->
@@ -934,7 +931,6 @@ const saveError = ref("");
 
 const newObjective = ref("");
 const rewardItemIds = ref<string[]>([...(props.quest?.reward_item_ids ?? [])]);
-const rewardArtObjects = ref<import("@/types/encounter.types").ArtObject[]>([...(props.quest?.reward_art_objects ?? [])]);
 const selectedEncounterId = ref("");
 const selectedNpcRefId = ref("");
 const selectedLocationRefId = ref("");
@@ -975,7 +971,6 @@ function buildPayload() {
     reward_cp: rewardCp.value,
     reward_item_ids: rewardItemIds.value,
     reward_currency_pools: rewardCurrencyPools.value,
-    reward_art_objects: rewardArtObjects.value,
     tags: tags.value,
     description: description.value || null,
     notes: notes.value || null,
@@ -997,13 +992,6 @@ async function handleDropLootItem(
 ) {
   await sendItemDrop(item.name, item.id, qty, item.rarity ?? null);
   rewardItemIds.value = rewardItemIds.value.filter((id) => id !== item.id);
-  await autoSave();
-}
-
-async function handleDropArtObject(obj: import("@/types/encounter.types").ArtObject) {
-  const rarity = obj.value_gp > 0 ? `${obj.value_gp} gp` : "Art Object";
-  await sendItemDrop(obj.name || "Art Object", null, 1, rarity, undefined, obj.image_url, obj.description);
-  rewardArtObjects.value = rewardArtObjects.value.filter(o => o.id !== obj.id);
   await autoSave();
 }
 

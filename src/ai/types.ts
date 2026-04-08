@@ -63,6 +63,8 @@ export interface ItemAiResult {
   recharge: string | null;
   /** Plain text — convert to Tiptap JSON before writing to form */
   description: string;
+  /** Physical appearance before magical identification — null for mundane items */
+  mundane_description: string | null;
   /** Precise D&D 5e mechanical benefits — concatenated into description before use */
   game_benefits: string;
   /** DM-facing curse text — null for non-cursed items */

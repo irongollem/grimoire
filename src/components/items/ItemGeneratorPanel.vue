@@ -272,6 +272,7 @@ async function generateAndCreate() {
     recharge: result.recharge ?? null,
     spell_ids: [],
     description: result.description ? toTiptapJson(result.description) : "",
+    mundane_description: result.mundane_description ? toTiptapJson(result.mundane_description) : null,
     source: "Grimoire:AI",
     tags: result.tags ?? [],
     image_url: result.image_url ?? null,

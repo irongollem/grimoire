@@ -1,10 +1,32 @@
 <template>
   <div class="flex flex-col gap-6">
     <div class="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
-      <!-- Left: image -->
+      <!-- Left: image(s) -->
       <div class="flex flex-col gap-3 lg:sticky lg:top-6">
+        <!-- Tabbed art (identified / mundane) when both exist; otherwise single image -->
+        <template v-if="item.image_url && item.mundane_image_url">
+          <div class="flex border-b border-border mb-1">
+            <button
+              v-for="tab in (['identified', 'mundane'] as const)"
+              :key="tab"
+              class="px-3 py-1.5 font-cinzel text-[11px] font-semibold tracking-wider border-b-2 transition-colors capitalize"
+              :class="sheetArtTab === tab
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'"
+              @click="sheetArtTab = tab"
+            >{{ tab }}</button>
+          </div>
+          <div class="w-full rounded-lg overflow-hidden" style="aspect-ratio: 2/3; max-height: 75vh">
+            <FocalImage
+              :src="sheetArtTab === 'identified' ? item.image_url : item.mundane_image_url"
+              :focal-point="sheetArtTab === 'identified' ? item.image_focal_point : item.mundane_image_focal_point"
+              format="portrait"
+              class="h-full"
+            />
+          </div>
+        </template>
         <div
-          v-if="item.image_url"
+          v-else-if="item.image_url"
           class="w-full rounded-lg overflow-hidden"
           style="aspect-ratio: 2/3; max-height: 75vh"
         >
@@ -135,6 +157,15 @@
           </p>
         </div>
 
+        <!-- Mundane description (pre-identification) — DM only -->
+        <div v-if="item.mundane_description" class="flex flex-col gap-1 rounded-lg border border-border bg-card/50 p-3">
+          <h3 class="font-cinzel text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
+            Mundane Description
+            <span class="normal-case font-fell font-normal text-muted-foreground/60"> — shown before identification</span>
+          </h3>
+          <RichTextViewer :content="item.mundane_description" />
+        </div>
+
         <!-- Description -->
         <div class="flex flex-col gap-1">
           <h3
@@ -221,6 +252,8 @@ const props = defineProps<{
   playerView?: boolean;
   priceOverride?: string | null;
 }>();
+
+const sheetArtTab = ref<'identified' | 'mundane'>('identified');
 
 const rarityColor = computed(
   () => RARITY_COLORS[props.item.rarity] ?? "#888888",

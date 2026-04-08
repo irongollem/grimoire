@@ -168,6 +168,7 @@ const ITEM_TYPE_ICONS: Record<ItemType, VueComponent> = {
   trade_good: Coins,
   crafting_material: Gem,
   provision: UtensilsCrossed,
+  art_object: Gem,
   service: Handshake,
 };
 

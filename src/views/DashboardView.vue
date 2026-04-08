@@ -238,6 +238,44 @@
         </div>
       </div>
 
+      <!-- Unidentified Items (foldable, DM only) -->
+      <div v-if="unidentifiedItems.length" class="rounded-lg border border-amber-500/30 bg-card overflow-hidden">
+        <button
+          class="w-full flex items-center justify-between px-4 py-3 border-b border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 transition-colors"
+          @click="unidentifiedOpen = !unidentifiedOpen"
+        >
+          <div class="flex items-center gap-2">
+            <h2 class="font-cinzel text-sm font-bold text-amber-500/90 tracking-wide">Unidentified Items</h2>
+            <span class="font-cinzel text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 border border-amber-500/30">
+              {{ unidentifiedItems.length }}
+            </span>
+          </div>
+          <ChevronDown
+            class="h-4 w-4 text-amber-500/70 transition-transform"
+            :class="unidentifiedOpen ? 'rotate-180' : ''"
+          />
+        </button>
+
+        <div v-if="unidentifiedOpen" class="divide-y divide-border">
+          <div
+            v-for="entry in unidentifiedItems"
+            :key="entry.inv.id"
+            class="flex items-center gap-3 px-4 py-3"
+          >
+            <div class="min-w-0 flex-1">
+              <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ entry.inv.name }}</p>
+              <p class="font-fell text-xs text-muted-foreground italic truncate">
+                {{ entry.carrier ?? "Party stash" }}
+              </p>
+            </div>
+            <button
+              class="shrink-0 px-3 py-1 rounded-md font-cinzel text-[10px] tracking-wider border border-amber-500/50 text-amber-500 hover:bg-amber-500/10 transition-colors cursor-pointer"
+              @click="identifyItem(entry.inv.id)"
+            >Identify</button>
+          </div>
+        </div>
+      </div>
+
       <!-- On Hold quests chip strip -->
       <div v-if="onHoldQuests.length" class="rounded-lg border border-border bg-card overflow-hidden">
         <div class="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/20">
@@ -266,10 +304,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import {
   BookOpen, Shield, Users, Swords, MapPin, ScrollText,
-  ChevronRight, Pin, Eye, Brain, Radio,
+  ChevronRight, Pin, Eye, Brain, Radio, ChevronDown,
 } from "lucide-vue-next";
 import { useRunningEncounters } from "@/composables/useEncounterLive";
 import PageHeader from "@/components/common/PageHeader.vue";
@@ -284,6 +322,7 @@ import { useAllLocations } from "@/composables/useLocations";
 import { useEncounters } from "@/composables/useEncounters";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
+import { usePartyInventory, useUpdateInventoryItem } from "@/composables/usePartyInventory";
 import type { Note } from "@/types/notes.types";
 import type { Quest } from "@/types/quest.types";
 import type { PartyMember } from "@/types/party.types";
@@ -296,6 +335,8 @@ const { data: locations } = useAllLocations();
 const { data: encounters } = useEncounters();
 const { data: campaignMembers } = useCampaignMembers();
 const { isOnline } = useCampaignPresence();
+const { data: inventory } = usePartyInventory();
+const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
 
 const activeQuests = computed(() => (allQuests.value ?? []).filter((q) => q.status === "active"));
 const onHoldQuests = computed(() => (allQuests.value ?? []).filter((q) => q.status === "on_hold"));
@@ -370,4 +411,22 @@ function partyMemberOnline(partyMemberId: string): boolean {
 }
 
 const { anyRunning, firstRunning } = useRunningEncounters();
+
+// Unidentified items panel
+const unidentifiedOpen = ref(true);
+
+const unidentifiedItems = computed(() => {
+  const inv = inventory.value ?? [];
+  const memberNames = new Map((party.value ?? []).map(m => [m.id, m.name]));
+  return inv
+    .filter((i) => i.is_identified === false)
+    .map((i) => ({
+      inv: i,
+      carrier: i.carried_by ? (memberNames.get(i.carried_by) ?? null) : null,
+    }));
+});
+
+async function identifyItem(invId: string) {
+  await updateInventoryItem({ id: invId, update: { is_identified: true } });
+}
 </script>

@@ -639,6 +639,7 @@
       :inv="selectedInv"
       :vault-item="selectedVaultItem"
       :attuned-count="attunedItems.length"
+      :can-identify="auth.isDM && !ui.dmPreviewMode"
       @close="selectedInv = null"
       @unequip="unequipSelected"
       @sell="handleSell"
@@ -1067,6 +1068,7 @@ async function equipToSlot(item: PartyInventoryItem, slot: InventorySlot) {
         is_equipped: true,
         notes: item.notes,
         is_ruined: item.is_ruined,
+        is_identified: item.is_identified,
       }),
     ]);
   } else {
@@ -1217,6 +1219,12 @@ async function promoteToContainer(item: PartyInventoryItem) {
   containerPickerSearch.value = "";
 }
 
+function isMagicVaultItem(itemId: string | null): boolean {
+  if (!itemId) return false;
+  const item = (allItems.value ?? []).find((i) => i.id === itemId);
+  return !!item && item.rarity !== "mundane";
+}
+
 async function addToLocation(
   location: PartyInventoryItem["location"],
   containerId: string | null,
@@ -1236,6 +1244,7 @@ async function addToLocation(
     is_equipped: false,
     notes: null,
     is_ruined: false,
+    is_identified: !isMagicVaultItem(itemId),
   });
 }
 
@@ -1326,6 +1335,7 @@ async function addItem() {
     is_equipped: false,
     notes: null,
     is_ruined: false,
+    is_identified: !isMagicVaultItem(newItemSelectedId.value || null),
   });
   newItemName.value = "";
   newItemSelectedId.value = "";

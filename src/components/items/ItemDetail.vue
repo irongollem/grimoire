@@ -56,14 +56,36 @@
     <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
       <!-- Left: Portrait + Tags -->
       <div class="flex flex-col gap-4">
-        <!-- Portrait -->
-        <ImageUpload
-          :model-value="imageUrl || null"
-          show-focal-point
-          :focal-point="imageFocalPoint"
-          @update:model-value="imageUrl = $event ?? ''"
-          @update:focal-point="imageFocalPoint = $event"
-        />
+        <!-- Portrait (tabbed: Identified / Mundane) -->
+        <div class="flex flex-col gap-0">
+          <div class="flex border-b border-border">
+            <button
+              v-for="tab in (['identified', 'mundane'] as const)"
+              :key="tab"
+              class="px-3 py-1.5 font-cinzel text-[11px] font-semibold tracking-wider border-b-2 transition-colors capitalize"
+              :class="artTab === tab
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'"
+              @click="artTab = tab"
+            >{{ tab }}</button>
+          </div>
+          <ImageUpload
+            v-if="artTab === 'identified'"
+            :model-value="imageUrl || null"
+            show-focal-point
+            :focal-point="imageFocalPoint"
+            @update:model-value="imageUrl = $event ?? ''"
+            @update:focal-point="imageFocalPoint = $event"
+          />
+          <ImageUpload
+            v-else
+            :model-value="mundaneImageUrl || null"
+            show-focal-point
+            :focal-point="mundaneImageFocalPoint"
+            @update:model-value="mundaneImageUrl = $event ?? ''"
+            @update:focal-point="mundaneImageFocalPoint = $event"
+          />
+        </div>
 
         <!-- Tags -->
         <div class="rounded-lg border border-border bg-card p-4 flex flex-col gap-3">
@@ -93,7 +115,7 @@
         />
 
         <!-- Type + Subtype + Rarity -->
-        <div class="grid grid-cols-3 gap-3">
+        <div class="grid gap-3" :class="isArtObject ? 'grid-cols-1' : 'grid-cols-3'">
           <label class="flex flex-col gap-1">
             <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Type</span>
             <select
@@ -103,24 +125,26 @@
               <option v-for="t in ITEM_TYPES" :key="t" :value="t">{{ ITEM_TYPE_LABELS[t] }}</option>
             </select>
           </label>
-          <label class="flex flex-col gap-1">
-            <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Subtype</span>
-            <input
-              v-model="subtype"
-              placeholder="e.g. longsword, chain mail…"
-              class="bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-          </label>
-          <label class="flex flex-col gap-1">
-            <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Rarity</span>
-            <select
-              v-model="rarity"
-              class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              :style="{ borderColor: rarityColor + '66' }"
-            >
-              <option v-for="r in ITEM_RARITIES" :key="r" :value="r">{{ ITEM_RARITY_LABELS[r] }}</option>
-            </select>
-          </label>
+          <template v-if="!isArtObject">
+            <label class="flex flex-col gap-1">
+              <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Subtype</span>
+              <input
+                v-model="subtype"
+                placeholder="e.g. longsword, chain mail…"
+                class="bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </label>
+            <label class="flex flex-col gap-1">
+              <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Rarity</span>
+              <select
+                v-model="rarity"
+                class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                :style="{ borderColor: rarityColor + '66' }"
+              >
+                <option v-for="r in ITEM_RARITIES" :key="r" :value="r">{{ ITEM_RARITY_LABELS[r] }}</option>
+              </select>
+            </label>
+          </template>
         </div>
 
         <!-- Physical: Weight + Cost -->
@@ -145,7 +169,7 @@
 
         <!-- Weapon stats (damage + properties) -->
         <div
-          v-if="isWeapon"
+          v-if="isWeapon && !isArtObject"
           class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3"
         >
           <h3 class="font-cinzel text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
@@ -190,7 +214,7 @@
 
         <!-- Armor stats -->
         <div
-          v-if="isArmor"
+          v-if="isArmor && !isArtObject"
           class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3"
         >
           <h3 class="font-cinzel text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
@@ -208,7 +232,7 @@
 
         <!-- Attunement (shown for non-mundane) -->
         <div
-          v-if="isMagic"
+          v-if="isMagic && !isArtObject"
           class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-2"
         >
           <h3 class="font-cinzel text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
@@ -227,7 +251,7 @@
         </div>
 
         <!-- Charges / Quantity (independent of spells — any item can have charges) -->
-        <div class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3">
+        <div v-if="!isArtObject" class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3">
           <h3 class="font-cinzel text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
             {{ itemType === "ammunition" ? "Quantity" : "Charges" }}
             <span class="normal-case font-fell font-normal text-muted-foreground/60"> — optional</span>
@@ -263,7 +287,7 @@
         </div>
 
         <!-- Spell references (optional, links to Spellbook entries) -->
-        <div class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-2">
+        <div v-if="!isArtObject" class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-2">
           <div class="flex items-center justify-between">
             <h3 class="font-cinzel text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
               Linked Spells
@@ -294,6 +318,19 @@
           </div>
         </div>
 
+        <!-- Mundane description (pre-identification) -->
+        <div v-if="isMagic && !isArtObject" class="flex flex-col gap-1">
+          <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">
+            Mundane Description
+            <span class="normal-case font-fell font-normal text-muted-foreground/60"> — shown before identification</span>
+          </span>
+          <RichTextEditor
+            v-model="mundaneDescription"
+            placeholder="What does this item appear to be before it's identified? Describe only its physical appearance — no magical hints…"
+            min-height="120px"
+          />
+        </div>
+
         <!-- Description -->
         <div class="flex flex-col gap-1">
           <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Description</span>
@@ -305,7 +342,7 @@
         </div>
 
         <!-- Curse -->
-        <div class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3">
+        <div v-if="!isArtObject" class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3">
           <div class="flex items-center justify-between gap-2">
             <h3 class="font-cinzel text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
               Curse
@@ -403,9 +440,13 @@ const rarity = ref<ItemRarity>(props.item?.rarity ?? "mundane");
 const weight = ref(props.item?.weight ?? "");
 const cost = ref(props.item?.cost ?? "");
 const description = ref(props.item?.description ?? "");
+const mundaneDescription = ref(props.item?.mundane_description ?? "");
 const source = ref(props.item?.source ?? "");
 const imageUrl = ref(props.item?.image_url ?? "");
 const imageFocalPoint = ref(props.item?.image_focal_point ?? null);
+const mundaneImageUrl = ref(props.item?.mundane_image_url ?? "");
+const mundaneImageFocalPoint = ref(props.item?.mundane_image_focal_point ?? null);
+const artTab = ref<'identified' | 'mundane'>('identified');
 const tags = ref<string[]>(props.item?.tags ?? []);
 
 // ── Weapon fields ─────────────────────────────────────────────────────────────
@@ -461,6 +502,7 @@ const selectedSpells = computed(
 const isWeapon = computed(() => isWeaponType(itemType.value));
 const isArmor = computed(() => isArmorType(itemType.value));
 const isMagic = computed(() => rarity.value !== "mundane");
+const isArtObject = computed(() => itemType.value === "art_object");
 const rarityColor = computed(() => RARITY_COLORS[rarity.value] ?? "#888888");
 
 
@@ -494,12 +536,15 @@ function buildPayload() {
     recharge: recharge.value.trim() || null,
     spell_ids: spellIds.value,
     description: description.value,
+    mundane_description: isMagic.value ? mundaneDescription.value || null : null,
     source: source.value.trim() || null,
     source_title: props.item?.source_title ?? null,
     source_url: props.item?.source_url ?? null,
     tags: tags.value,
     image_url: imageUrl.value || null,
     image_focal_point: imageFocalPoint.value,
+    mundane_image_url: mundaneImageUrl.value || null,
+    mundane_image_focal_point: mundaneImageFocalPoint.value,
     is_arcane_focus: isArcaneFocus.value,
     curse_description: isCursed.value ? curseDescription.value || null : null,
     curse_revealed: isCursed.value ? curseRevealed.value : false,

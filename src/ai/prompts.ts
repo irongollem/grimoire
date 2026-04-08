@@ -85,7 +85,7 @@ The JSON object must contain exactly these fields:
 
 {
   "name": "string",
-  "item_type": "weapon|armor|shield|potion|wondrous_item|ring|rod|staff|wand|scroll|ammunition|gear|tool|vehicle|trade_good|crafting_material",
+  "item_type": "weapon|armor|shield|potion|wondrous_item|ring|rod|staff|wand|scroll|ammunition|gear|tool|vehicle|trade_good|crafting_material|art_object",
   "subtype": "string or null",
   "rarity": "mundane|common|uncommon|rare|very_rare|legendary|artifact",
   "requires_attunement": "boolean",
@@ -100,6 +100,7 @@ The JSON object must contain exactly these fields:
   "charges": "number or null",
   "recharge": "string or null",
   "description": "string",
+  "mundane_description": "string or null",
   "game_benefits": "string",
   "curse_description": "string or null",
   "tags": "array of 3 to 5 short strings",
@@ -107,7 +108,8 @@ The JSON object must contain exactly these fields:
 }
 
 Field purpose:
-- description: appearance, materials, origin, symbolism, and lore only.
+- description: appearance, materials, origin, symbolism, and lore only. Written for a player who knows the item is magical.
+- mundane_description: what the item looks like to someone who has NOT yet identified it. Describe only physical appearance — no magical hints, no unusual glows, no suspicious runes. It should read as an ordinary object. Set to null for mundane (non-magical) items.
 - game_benefits: beneficial mechanics only.
 - curse_description: curse mechanics only, or null.
 
@@ -118,8 +120,9 @@ Hard rules:
 - Do not include explanations before or after the JSON.
 
 Content separation rules:
-- description must contain only flavor text: physical appearance, craftsmanship, origin, history, cultural meaning, or non-mechanical lore.
+- description must contain only flavor text: physical appearance, craftsmanship, origin, history, cultural meaning, or non-mechanical lore. May reference the item's magical or legendary nature.
 - description must not contain mechanics, activation instructions, numbers tied to bonuses, durations, charges, recharge text, action types, saving throws, DCs, advantage/disadvantage language, resistances, immunities, spellcasting rules, or curse hints.
+- mundane_description must describe only what an observer sees before magical identification: shape, material, craftsmanship, and mundane appearance. It must contain no magical language, no glowing, no humming, no runes, no auras, and no hint of supernatural power. It should sound like any similar non-magical item. Set to null for mundane (non-magical) items where rarity is "mundane".
 - game_benefits must contain only beneficial player-facing mechanics written in clear D&D 5e rules language.
 - game_benefits must state exact mechanics, including activation, action type, duration, frequency, charges, recharge, limits, save DC, range, targets, or passive nature whenever relevant.
 - game_benefits must not contain lore, history, appearance, symbolism, story, drawback text, or curse text.
@@ -161,9 +164,10 @@ Power guidelines:
 
 Final check before answering:
 1. description contains no mechanics or curse hints
-2. game_benefits contains all beneficial mechanics
-3. curse_description contains only curse mechanics or null
-4. all mechanics are precise and table-usable
+2. mundane_description contains no magic hints (or is null for mundane items)
+3. game_benefits contains all beneficial mechanics
+4. curse_description contains only curse mechanics or null
+5. all mechanics are precise and table-usable
 
 Return only the JSON object.`;
 

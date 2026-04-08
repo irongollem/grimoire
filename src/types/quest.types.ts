@@ -52,7 +52,7 @@ export interface Quest {
   player_visible_to: string[] | null;
   reward_item_ids: string[];
   reward_currency_pools: RewardCurrencyPool[];
-  reward_art_objects: import("@/types/encounter.types").ArtObject[];
+  reward_art_objects?: import("@/types/encounter.types").ArtObject[];
   started_at: string | null;
   resolved_at: string | null;
   created_at: string;

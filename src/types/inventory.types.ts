@@ -36,14 +36,15 @@ export interface PartyInventoryItem {
   notes: string | null;
   current_charges: number | null; // remaining charges; null = full (use Item.charges as max)
   updated_at: string;
+  is_identified: boolean; // false = players see only mundane_description
   is_ruined: boolean;
   sort_order: number;
 }
 
 export type PartyInventoryInsert = Omit<
   PartyInventoryItem,
-  "id" | "user_id" | "updated_at" | "current_charges" | "sort_order"
-> & { current_charges?: number | null; sort_order?: number };
+  "id" | "user_id" | "updated_at" | "current_charges" | "sort_order" | "is_identified"
+> & { current_charges?: number | null; sort_order?: number; is_identified?: boolean };
 export type PartyInventoryUpdate = Partial<
   Pick<
     PartyInventoryItem,
@@ -55,6 +56,7 @@ export type PartyInventoryUpdate = Partial<
     | "container_id"
     | "is_attuned"
     | "is_equipped"
+    | "is_identified"
     | "notes"
     | "name"
     | "current_charges"

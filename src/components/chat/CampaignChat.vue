@@ -92,6 +92,7 @@ import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import { useAuthStore } from "@/stores/auth";
 import { useAddInventoryItem, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
+import { useItems } from "@/composables/useItems";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import { useNpcs } from "@/composables/useNpcs";
 import { useAddNpcInventoryItem } from "@/composables/useNpcInventory";
@@ -158,7 +159,8 @@ const auth = useAuthStore();
 const { messages, loading, sendMessage, sendRoll, claimItemDrop, claimCurrencyDrop, sendVendorOffer, claimVendorOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId } =
   useCampaignMessages();
 const { data: members } = useCampaignMembers();
-const { data: party }   = useParty();
+const { data: party }    = useParty();
+const { data: allItems } = useItems();
 const { data: npcsData } = useNpcs();
 const { mutateAsync: addInventoryItem }    = useAddInventoryItem();
 const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
@@ -211,6 +213,7 @@ async function handleClaim({ messageId, intoStash }: { messageId: string; intoSt
   } catch {
     return; // claim failed (already claimed by someone else or RLS); don't add to inventory
   }
+  const claimedVaultItem = (allItems.value ?? []).find(i => i.id === meta.item_id);
   await addInventoryItem({
     name: meta.item_name,
     quantity: meta.quantity,
@@ -224,6 +227,7 @@ async function handleClaim({ messageId, intoStash }: { messageId: string; intoSt
     is_attuned: false,
     is_equipped: false,
     notes: null,
+    is_identified: !claimedVaultItem || claimedVaultItem.rarity === 'mundane',
   });
 }
 
@@ -278,6 +282,7 @@ async function handlePayVendorOffer({ messageId }: { messageId: string }) {
   await claimVendorOffer(messageId, payerName, partyMemberId);
 
   const { pp, gp, ep, sp, cp } = fromCP(walletCP - costCP);
+  const vendorVaultItem = (allItems.value ?? []).find(i => i.id === meta.item_id);
   await Promise.all([
     updatePartyMember({ id: member.id, update: { pp, gp, ep, sp, cp } }),
     meta.item_name ? addInventoryItem({
@@ -286,6 +291,7 @@ async function handlePayVendorOffer({ messageId }: { messageId: string }) {
       location: 'backpack', slot: null,
       is_container: false, container_id: null,
       is_attuned: false, is_equipped: false, notes: null, is_ruined: false,
+      is_identified: !vendorVaultItem || vendorVaultItem.rarity === 'mundane',
     }) : Promise.resolve(),
   ]);
 }

@@ -30,33 +30,66 @@
       <!-- Body -->
       <div class="flex-1 overflow-y-auto p-5 space-y-4">
 
-        <!-- Art -->
-        <div v-if="vaultItem?.image_url" class="w-full rounded-lg overflow-hidden" style="aspect-ratio: 2/3; max-height: 50vh">
+        <!-- Art: mundane art when unidentified (if present), else identified art -->
+        <div
+          v-if="displayImageUrl"
+          class="w-full rounded-lg overflow-hidden"
+          style="aspect-ratio: 2/3; max-height: 50vh"
+        >
           <FocalImage
-            :src="vaultItem.image_url"
-            :focal-point="vaultItem.image_focal_point"
+            :src="displayImageUrl!"
+            :focal-point="displayImageFocalPoint"
             format="portrait"
             class="h-full"
           />
         </div>
 
+        <!-- Identification status (DM only, magic items) -->
+        <div
+          v-if="canIdentify && inv && vaultItem && vaultItem.rarity !== 'mundane'"
+          class="rounded-lg border p-3 flex items-center justify-between gap-3 transition-colors"
+          :class="localIdentified
+            ? 'border-border bg-card/50'
+            : 'border-amber-500/30 bg-amber-500/5'"
+        >
+          <div class="flex flex-col gap-0.5">
+            <span
+              class="font-cinzel text-xs font-semibold tracking-wider uppercase"
+              :class="localIdentified ? 'text-muted-foreground' : 'text-amber-500/80'"
+            >{{ localIdentified ? 'Identified' : 'Unidentified' }}</span>
+            <span class="font-fell text-xs text-muted-foreground italic">
+              {{ localIdentified ? 'Players see the full description' : 'Players see only the mundane description' }}
+            </span>
+          </div>
+          <button
+            class="shrink-0 px-3 py-1 rounded-md font-cinzel text-[10px] tracking-wider border transition-colors cursor-pointer"
+            :class="localIdentified
+              ? 'border-border text-muted-foreground hover:border-amber-500/50 hover:text-amber-500 hover:bg-amber-500/5'
+              : 'border-amber-500/50 text-amber-500 hover:bg-amber-500/10'"
+            @click="toggleIdentified"
+          >{{ localIdentified ? 'Unidentify' : 'Identify' }}</button>
+        </div>
+
         <!-- Stat block: type / rarity / cost / weight -->
         <div
           class="rounded-lg border bg-card p-3 flex flex-col gap-1.5 font-stat text-[15px]"
-          :style="vaultItem ? { borderColor: rarityColor + '66' } : {}"
+          :style="vaultItem && localIdentified ? { borderColor: rarityColor + '66' } : {}"
         >
-          <div v-if="vaultItem" class="flex justify-between">
+          <div class="flex justify-between">
             <span class="text-muted-foreground">Type</span>
-            <span class="font-bold">{{ ITEM_TYPE_LABELS[vaultItem.item_type] }}</span>
+            <span class="font-bold">{{ displayItemTypeLabel }}</span>
           </div>
-          <div v-if="vaultItem?.subtype" class="flex justify-between">
+          <div v-if="vaultItem?.subtype && localIdentified" class="flex justify-between">
             <span class="text-muted-foreground">Subtype</span>
             <span>{{ vaultItem.subtype }}</span>
           </div>
           <div v-if="vaultItem" class="flex justify-between">
             <span class="text-muted-foreground">Rarity</span>
-            <span class="font-bold" :style="{ color: RARITY_BADGE_COLORS[vaultItem.rarity] }">
-              {{ ITEM_RARITY_LABELS[vaultItem.rarity] }}
+            <span
+              class="font-bold"
+              :style="localIdentified ? { color: RARITY_BADGE_COLORS[vaultItem.rarity] } : { color: RARITY_BADGE_COLORS['mundane'] }"
+            >
+              {{ localIdentified ? ITEM_RARITY_LABELS[vaultItem.rarity] : ITEM_RARITY_LABELS['mundane'] }}
             </span>
           </div>
           <div v-if="vaultItem?.weight" class="flex justify-between">
@@ -79,7 +112,7 @@
               <span class="font-bold capitalize">{{ roll.dice }} {{ roll.type }}</span>
             </div>
           </template>
-          <div v-if="vaultItem?.versatile_damage" class="flex justify-between">
+          <div v-if="vaultItem?.versatile_damage && localIdentified" class="flex justify-between">
             <span class="text-muted-foreground">Versatile</span>
             <span>{{ vaultItem.versatile_damage }} (two-handed)</span>
           </div>
@@ -87,16 +120,16 @@
             <span class="text-muted-foreground">Range</span>
             <span>{{ vaultItem.weapon_range }}</span>
           </div>
-          <!-- Properties -->
+          <!-- Properties (physical only when unidentified) -->
           <div v-if="vaultItem?.properties?.length" class="flex justify-between gap-3">
             <span class="text-muted-foreground shrink-0">Properties</span>
             <span class="text-right capitalize">{{ vaultItem.properties.join(", ") }}</span>
           </div>
-          <div v-if="vaultItem?.is_arcane_focus" class="flex justify-between">
+          <div v-if="vaultItem?.is_arcane_focus && localIdentified" class="flex justify-between">
             <span class="text-muted-foreground">Arcane Focus</span>
             <span>Yes</span>
           </div>
-          <div v-if="vaultItem?.requires_attunement" class="flex justify-between gap-4">
+          <div v-if="vaultItem?.requires_attunement && localIdentified" class="flex justify-between gap-4">
             <span class="text-muted-foreground shrink-0">Attunement</span>
             <span class="text-right">{{ vaultItem.attunement_requirements || "Required" }}</span>
           </div>
@@ -119,8 +152,8 @@
           </div>
         </div>
 
-        <!-- Charges (only shown when vault item has charges) -->
-        <div v-if="vaultItem?.charges" class="rounded-lg border border-border bg-card/50 p-3 flex flex-col gap-3">
+        <!-- Charges (only shown when vault item has charges AND item is identified) -->
+        <div v-if="vaultItem?.charges && localIdentified" class="rounded-lg border border-border bg-card/50 p-3 flex flex-col gap-3">
           <div class="flex items-center justify-between">
             <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">Charges</span>
             <span class="font-cinzel text-sm font-bold text-foreground">
@@ -157,8 +190,8 @@
           </p>
         </div>
 
-        <!-- Attunement -->
-        <div v-if="vaultItem?.requires_attunement" class="rounded-lg border border-border bg-card/50 p-3 flex items-center justify-between gap-3">
+        <!-- Attunement (hidden until identified) -->
+        <div v-if="vaultItem?.requires_attunement && localIdentified" class="rounded-lg border border-border bg-card/50 p-3 flex items-center justify-between gap-3">
           <div class="flex flex-col gap-0.5">
             <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">Attunement</span>
             <span v-if="vaultItem.attunement_requirements" class="font-fell text-xs text-muted-foreground italic">{{ vaultItem.attunement_requirements }}</span>
@@ -180,10 +213,10 @@
           <p class="font-fell text-sm text-foreground">{{ inv.notes }}</p>
         </div>
 
-        <!-- Description -->
-        <div v-if="vaultItem?.description" class="flex flex-col gap-1">
+        <!-- Description: mundane when unidentified, full when identified -->
+        <div v-if="displayDescription" class="flex flex-col gap-1">
           <p class="font-cinzel text-xs font-semibold text-primary tracking-wider uppercase">Description</p>
-          <RichTextViewer :content="vaultItem.description" />
+          <RichTextViewer :content="displayDescription" />
         </div>
 
         <!-- Curse (only visible to players once revealed by the DM) -->
@@ -248,6 +281,7 @@ import {
   ITEM_RARITY_LABELS,
   RARITY_COLORS,
   RARITY_BADGE_COLORS,
+  MAGIC_ONLY_ITEM_TYPES,
 } from "@/types/item.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
@@ -256,6 +290,7 @@ const props = defineProps<{
   inv: PartyInventoryItem | null;
   vaultItem: Item | null;
   attunedCount: number;
+  canIdentify?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -290,9 +325,35 @@ const rarityColor = computed(() =>
   props.vaultItem ? (RARITY_COLORS[props.vaultItem.rarity] ?? "#888888") : "#888888"
 );
 
+const displayImageUrl = computed(() =>
+  localIdentified.value
+    ? props.vaultItem?.image_url
+    : (props.vaultItem?.mundane_image_url || props.vaultItem?.image_url)
+);
+
+const displayImageFocalPoint = computed(() =>
+  localIdentified.value
+    ? props.vaultItem?.image_focal_point
+    : (props.vaultItem?.mundane_image_focal_point || props.vaultItem?.image_focal_point)
+);
+
+const displayItemTypeLabel = computed(() => {
+  if (!props.vaultItem) return ITEM_TYPE_LABELS['art_object'];
+  if (!localIdentified.value && props.vaultItem.item_type === 'potion') return ITEM_TYPE_LABELS['provision'];
+  if (!localIdentified.value && MAGIC_ONLY_ITEM_TYPES.has(props.vaultItem.item_type)) return ITEM_TYPE_LABELS['art_object'];
+  return ITEM_TYPE_LABELS[props.vaultItem.item_type];
+});
+
+const displayDescription = computed(() =>
+  localIdentified.value
+    ? (props.vaultItem?.description ?? null)
+    : (props.vaultItem?.mundane_description ?? null)
+);
+
 // Local optimistic charge count — avoids stale reads on rapid clicks before refetch
 const localCharges = ref(0);
 const localAttuned = ref(false);
+const localIdentified = ref(true);
 
 function syncCharges() {
   if (!props.vaultItem?.charges) { localCharges.value = 0; return; }
@@ -304,6 +365,15 @@ watch(() => [props.inv?.id, props.inv?.current_charges] as const, syncCharges, {
 watch(() => [props.inv?.id, props.inv?.is_attuned] as const, () => {
   localAttuned.value = props.inv?.is_attuned ?? false;
 }, { immediate: true });
+watch(() => [props.inv?.id, props.inv?.is_identified] as const, () => {
+  localIdentified.value = props.inv?.is_identified ?? true;
+}, { immediate: true });
+
+async function toggleIdentified() {
+  if (!props.inv) return;
+  localIdentified.value = !localIdentified.value;
+  await updateInventoryItem({ id: props.inv.id, update: { is_identified: localIdentified.value } });
+}
 
 const currentCharges = computed(() => localCharges.value);
 

@@ -374,10 +374,8 @@
           :item-ids="form.item_ids"
           :all-items="allItems ?? []"
           :currency-pools="form.reward_currency_pools"
-          :art-objects="form.art_objects"
           @update:item-ids="form.item_ids = $event"
           @update:currency-pools="form.reward_currency_pools = $event"
-          @update:art-objects="form.art_objects = $event"
           @drop-pool="
             sendCurrencyDrop(
               $event.pp,
@@ -389,7 +387,6 @@
             )
           "
           @drop-item="handleDropLootItem($event.item, $event.qty)"
-          @drop-art-object="handleDropArtObject($event)"
         />
 
         <!-- Traps & Hazards -->
@@ -844,22 +841,6 @@ async function handleDropLootItem(
   await handleSave();
 }
 
-async function handleDropArtObject(
-  obj: import("@/types/encounter.types").ArtObject,
-) {
-  const rarity = obj.value_gp > 0 ? `${obj.value_gp} gp` : "Art Object";
-  await sendItemDrop(
-    obj.name || "Art Object",
-    null,
-    1,
-    rarity,
-    undefined,
-    obj.image_url,
-    obj.description,
-  );
-  form.art_objects = form.art_objects.filter((o) => o.id !== obj.id);
-  await handleSave();
-}
 
 function removeAllOfItem(id: string) {
   form.item_ids = form.item_ids.filter((i) => i !== id);

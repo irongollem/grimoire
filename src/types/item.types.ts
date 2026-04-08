@@ -29,6 +29,7 @@ export const ITEM_TYPES = [
   "trade_good",
   "crafting_material",
   "provision",
+  "art_object",
   "service",
 ] as const;
 export type ItemType = (typeof ITEM_TYPES)[number];
@@ -51,6 +52,7 @@ export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
   trade_good: "Trade Good",
   crafting_material: "Crafting Material",
   provision: "Provision",
+  art_object: "Art Object",
   service: "Service",
 };
 
@@ -149,6 +151,9 @@ export interface Item {
   image_url: string | null;
   image_focal_point?: { x: number; y: number } | null;
   is_arcane_focus: boolean;
+  mundane_description: string | null; // shown to players before identification
+  mundane_image_url: string | null; // artwork shown before identification
+  mundane_image_focal_point?: { x: number; y: number } | null;
   curse_description: string | null;
   curse_revealed: boolean;
   created_at: string;
@@ -157,8 +162,12 @@ export interface Item {
 
 export type ItemInsert = Omit<
   Item,
-  "id" | "user_id" | "created_at" | "updated_at"
->;
+  "id" | "user_id" | "created_at" | "updated_at" | "mundane_description" | "mundane_image_url" | "mundane_image_focal_point"
+> & {
+  mundane_description?: string | null;
+  mundane_image_url?: string | null;
+  mundane_image_focal_point?: { x: number; y: number } | null;
+};
 export type ItemUpdate = Partial<ItemInsert>;
 /** Subset used by static data files — fields managed by the DB are omitted */
 export type StaticItemData = Omit<ItemInsert, "user_id" | "curse_description" | "curse_revealed" | "is_arcane_focus">;
@@ -177,3 +186,13 @@ export function isArmorType(t: ItemType): boolean {
 export function isChargeType(t: ItemType): boolean {
   return t === "staff" || t === "wand" || t === "rod" || t === "ring";
 }
+
+/** Item types that are inherently magical — showing the type before identification reveals the magic */
+export const MAGIC_ONLY_ITEM_TYPES = new Set<ItemType>([
+  "wondrous_item",
+  "ring",
+  "rod",
+  "staff",
+  "wand",
+  "scroll",
+]);
