@@ -12,6 +12,7 @@ import { RANGER_DATA,    getRangerSteps                          } from "./class
 import { ARTIFICER_DATA, getArtificerSteps                      } from "./classes/artificer";
 import { SORCERER_DATA,  getSorcererSteps, getSorcererResources  } from "./classes/sorcerer";
 import { PALADIN_DATA,   getPaladinSteps,  getPaladinResources   } from "./classes/paladin";
+import { DRUID_DATA                                              } from "./classes/druid";
 
 function buildLevels(
   asiLevels: number[],
@@ -38,8 +39,7 @@ const barbarian = buildLevels(STANDARD_ASI, [3, 6, 10, 14]);
 const bard      = buildLevels(STANDARD_ASI, [3, 6, 14]);
 // Subclass (Divine Domain): 1, 2, 6, 8, 17
 const cleric    = buildLevels(STANDARD_ASI, [1, 2, 6, 8, 17]);
-// Subclass (Circle): 2, 6, 10, 14
-const druid     = buildLevels(STANDARD_ASI, [2, 6, 10, 14]);
+const druid     = DRUID_DATA;
 // Subclass (Martial Archetype): 3, 7, 10, 15, 18 — extra ASI at 6, 14
 const fighter   = buildLevels([4, 6, 8, 12, 14, 16, 19], [3, 7, 10, 15, 18]);
 // Subclass (Monastic Tradition): 3, 6, 11, 17
