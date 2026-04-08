@@ -157,6 +157,23 @@
           </p>
         </div>
 
+        <!-- Attunement -->
+        <div v-if="vaultItem?.requires_attunement" class="rounded-lg border border-border bg-card/50 p-3 flex items-center justify-between gap-3">
+          <div class="flex flex-col gap-0.5">
+            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">Attunement</span>
+            <span v-if="vaultItem.attunement_requirements" class="font-fell text-xs text-muted-foreground italic">{{ vaultItem.attunement_requirements }}</span>
+          </div>
+          <button
+            class="shrink-0 px-3 py-1 rounded-md font-cinzel text-[10px] tracking-wider transition-colors"
+            :class="inv.is_attuned
+              ? 'bg-primary/20 text-primary border border-primary/40 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40'
+              : 'border border-border text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40'"
+            :disabled="!inv.is_attuned && attunedCount >= 3"
+            :title="!inv.is_attuned && attunedCount >= 3 ? 'Maximum 3 attuned items' : undefined"
+            @click="toggleAttunement"
+          >{{ inv.is_attuned ? 'Attuned ✓' : attunedCount >= 3 ? 'Slots Full' : 'Attune' }}</button>
+        </div>
+
         <!-- Notes -->
         <div v-if="inv.notes" class="rounded-lg border border-border bg-card/50 p-3">
           <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider uppercase mb-1">Notes</p>
@@ -238,6 +255,7 @@ import type { Item } from "@/types/item.types";
 const props = defineProps<{
   inv: PartyInventoryItem | null;
   vaultItem: Item | null;
+  attunedCount: number;
 }>();
 
 const emit = defineEmits<{
@@ -284,6 +302,11 @@ function syncCharges() {
 watch(() => [props.inv?.id, props.inv?.current_charges] as const, syncCharges, { immediate: true });
 
 const currentCharges = computed(() => localCharges.value);
+
+async function toggleAttunement() {
+  if (!props.inv) return;
+  await updateInventoryItem({ id: props.inv.id, update: { is_attuned: !props.inv.is_attuned } });
+}
 
 async function adjustQty(delta: number) {
   if (!props.inv) return;

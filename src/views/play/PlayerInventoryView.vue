@@ -140,10 +140,25 @@
           </div>
         </div>
 
+        <!-- Attunement slots -->
+        <div v-if="member" class="mt-2 flex items-center justify-between gap-2">
+          <span class="font-cinzel text-[9px] text-muted-foreground/50 tracking-wider">ATTUNEMENT</span>
+          <div class="flex items-center gap-1.5">
+            <div
+              v-for="n in 3"
+              :key="n"
+              class="h-2 w-2 rounded-full border transition-colors"
+              :class="n <= attunedItems.length ? 'bg-primary border-primary' : 'bg-muted border-border'"
+              :title="n <= attunedItems.length ? attunedItems[n - 1]?.name : 'Empty slot'"
+            />
+            <span class="font-cinzel text-[9px] text-muted-foreground/50">{{ attunedItems.length }}/3</span>
+          </div>
+        </div>
+
         <!-- Equipped weight -->
         <p
           v-if="member && equippedWeight > 0"
-          class="mt-2 font-cinzel text-[9px] text-muted-foreground/50 tracking-wider text-right"
+          class="font-cinzel text-[9px] text-muted-foreground/50 tracking-wider text-right"
         >
           Equipped: {{ formatWeightLb(equippedWeight) }}
         </p>
@@ -623,6 +638,7 @@
       ref="detailPanel"
       :inv="selectedInv"
       :vault-item="selectedVaultItem"
+      :attuned-count="attunedItems.length"
       @close="selectedInv = null"
       @unequip="unequipSelected"
       @sell="handleSell"
@@ -776,6 +792,9 @@ const backpackItems = computed(() =>
 );
 const storedItems = computed(() =>
   myItems.value.filter((i) => i.location === "stored" && !i.is_container),
+);
+const attunedItems = computed(() =>
+  myItems.value.filter((i) => i.is_attuned),
 );
 const customContainers = computed(() =>
   myItems.value.filter((i) => i.is_container),
