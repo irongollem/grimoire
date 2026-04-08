@@ -11,7 +11,7 @@
     </div>
 
     <!-- Max level guard -->
-    <div v-if="nextLevel > 20" class="rounded-lg border border-border bg-card p-6 text-center space-y-2">
+    <div v-if="nextLevel > 20" class="rounded-lg border border-border bg-card p-6 text-center">
       <p class="font-cinzel text-sm text-muted-foreground">{{ member.name }} has already reached level 20.</p>
     </div>
 
@@ -43,7 +43,47 @@
           </p>
         </template>
 
-        <!-- Proficiency bonus bump notice -->
+        <!-- Spells known increase -->
+        <div
+          v-if="spellsKnownGain > 0"
+          class="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/20 px-3 py-2"
+        >
+          <span class="font-cinzel text-xs text-primary tracking-wider">SPELLS</span>
+          <span class="font-fell text-sm text-foreground">
+            Spells known increases to
+            <strong class="font-cinzel">{{ levelData?.spells_known }}</strong>
+            — add {{ spellsKnownGain }} new spell{{ spellsKnownGain > 1 ? 's' : '' }} in your spell list.
+          </span>
+        </div>
+
+        <!-- Infusions known increase (Artificer) -->
+        <div
+          v-if="infusionsKnownGain > 0"
+          class="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/20 px-3 py-2"
+        >
+          <span class="font-cinzel text-xs text-primary tracking-wider">INFUSIONS</span>
+          <span class="font-fell text-sm text-foreground">
+            Infusions known increases to
+            <strong class="font-cinzel">{{ levelData?.infusions_known }}</strong>
+            — choose {{ infusionsKnownGain }} new infusion{{ infusionsKnownGain > 1 ? 's' : '' }} from your Artificer list.
+          </span>
+        </div>
+
+        <!-- Class resource updates (e.g. Sorcery Points) -->
+        <div
+          v-for="res in resourceNotices"
+          :key="res.key"
+          class="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/20 px-3 py-2"
+        >
+          <span class="font-cinzel text-xs text-primary tracking-wider uppercase">{{ res.key.replace('_', ' ') }}</span>
+          <span class="font-fell text-sm text-foreground">
+            {{ res.label }} maximum:
+            <strong class="font-cinzel">{{ res.oldMax }}</strong>
+            → <strong class="font-cinzel">{{ res.newMax }}</strong>
+          </span>
+        </div>
+
+        <!-- Proficiency bonus bump -->
         <div
           v-if="newProfBonus !== member.proficiency_bonus"
           class="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/20 px-3 py-2"
@@ -54,6 +94,15 @@
             <strong class="font-cinzel">+{{ newProfBonus }}</strong>
           </span>
         </div>
+
+        <!-- Spell slot change -->
+        <div
+          v-if="newSpellSlotSummary"
+          class="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/20 px-3 py-2"
+        >
+          <span class="font-cinzel text-xs text-primary tracking-wider">SLOTS</span>
+          <span class="font-fell text-sm text-foreground">{{ newSpellSlotSummary }}</span>
+        </div>
       </div>
 
       <!-- ASI picker -->
@@ -61,7 +110,6 @@
         <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">Ability Score Improvement</h3>
         <p class="font-fell text-sm text-muted-foreground">Choose how to apply your improvement.</p>
 
-        <!-- Mode toggle -->
         <div class="flex rounded-md border border-border overflow-hidden w-fit font-cinzel text-xs tracking-wider">
           <button
             class="px-3 py-1.5 transition-colors"
@@ -75,7 +123,6 @@
           >+1 / +1</button>
         </div>
 
-        <!-- Ability picker(s) -->
         <div class="flex flex-wrap gap-3">
           <div class="space-y-1">
             <label class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
@@ -102,7 +149,6 @@
           </div>
         </div>
 
-        <!-- Preview -->
         <div v-if="asiPreview.length > 0" class="font-fell text-sm text-muted-foreground">
           <span v-for="(line, i) in asiPreview" :key="i" class="mr-3">{{ line }}</span>
         </div>
@@ -113,14 +159,67 @@
         <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">Choose Subclass</h3>
         <p class="font-fell text-sm text-muted-foreground">
           At level {{ nextLevel }}, {{ member.class }} characters choose their specialisation.
-          Individual subclass pickers are added per class — for now, enter the name directly.
         </p>
+        <select
+          v-if="subclassOptions.length > 0"
+          v-model="subclassInput"
+          class="w-full rounded border border-border bg-muted/40 px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option value="" disabled>Select subclass…</option>
+          <option v-for="sc in subclassOptions" :key="sc" :value="sc">{{ sc }}</option>
+        </select>
         <input
+          v-else
           v-model="subclassInput"
           type="text"
           placeholder="e.g. Circle of the Moon"
           class="w-full rounded border border-border bg-muted/40 px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
+      </div>
+
+      <!-- Class-specific steps (single or multi-pick) -->
+      <div
+        v-for="step in classSteps"
+        :key="step.key"
+        class="rounded-lg border border-border bg-card p-4 space-y-3"
+      >
+        <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">{{ step.label }}</h3>
+        <p v-if="step.description" class="font-fell text-sm text-muted-foreground">{{ step.description }}</p>
+
+        <!-- Multi-pick: render N selects -->
+        <template v-if="(step.count ?? 1) > 1">
+          <div
+            v-for="pickIdx in (step.count ?? 1)"
+            :key="pickIdx"
+            class="space-y-1"
+          >
+            <label class="font-cinzel text-[10px] text-muted-foreground tracking-wider">Choice {{ pickIdx }}</label>
+            <select
+              :value="(stepMultiValues[step.key] ?? [])[pickIdx - 1] ?? ''"
+              class="w-full rounded border border-border bg-muted/40 px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              @change="onMultiStepChange(step, pickIdx - 1, ($event.target as HTMLSelectElement).value)"
+            >
+              <option value="" disabled>Select…</option>
+              <option
+                v-for="opt in step.options"
+                :key="opt"
+                :value="opt"
+                :disabled="isMultiPickTaken(step, pickIdx - 1, opt)"
+              >{{ opt }}</option>
+            </select>
+          </div>
+        </template>
+
+        <!-- Single-pick -->
+        <select
+          v-else
+          :value="stepValues[step.key] ?? ''"
+          class="w-full rounded border border-border bg-muted/40 px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          @change="onStepChange(step, ($event.target as HTMLSelectElement).value)"
+        >
+          <option value="" disabled>Select…</option>
+          <option v-for="opt in step.options" :key="opt" :value="opt">{{ opt }}</option>
+        </select>
       </div>
 
       <!-- Error -->
@@ -148,15 +247,30 @@
 import { ref, computed } from "vue";
 import { useRouter, RouterLink } from "vue-router";
 import { useUpdatePartyMember } from "@/composables/useParty";
-import { getLevelData, proficiencyBonusForLevel } from "./classFeatures";
-import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
-import type { AbilityKey, AsiMode } from "./types";
+import { getLevelData, proficiencyBonusForLevel, getClassSteps, getClassResources } from "./classFeatures";
+import { getDefaultSpellSlots } from "@/types/spell.types";
+import type { PartyMember, PartyMemberUpdate, SpellSlotEntry } from "@/types/party.types";
+import type { AbilityKey, AsiMode, ClassStep } from "./types";
+import { RANGER_SUBCLASSES }    from "./classes/ranger";
+import { ARTIFICER_SUBCLASSES } from "./classes/artificer";
+import { SORCERER_SUBCLASSES }  from "./classes/sorcerer";
+import { PALADIN_SUBCLASSES }   from "./classes/paladin";
+import { DRUID_SUBCLASSES }    from "./classes/druid";
+import { ROGUE_SUBCLASSES }    from "./classes/rogue";
+import { MONK_SUBCLASSES }    from "./classes/monk";
+import { CLERIC_SUBCLASSES }  from "./classes/cleric";
+import { BARD_SUBCLASSES }       from "./classes/bard";
+import { BARBARIAN_SUBCLASSES }  from "./classes/barbarian";
+import { WARLOCK_SUBCLASSES }    from "./classes/warlock";
+import { FIGHTER_SUBCLASSES }   from "./classes/fighter";
+import { WIZARD_SUBCLASSES }    from "./classes/wizard";
 
 const props = defineProps<{ member: PartyMember }>();
 
 const router = useRouter();
 const { mutateAsync: updateMember, isPending } = useUpdatePartyMember();
 
+// ── Derived ────────────────────────────────────────────────────────────────────
 const nextLevel    = computed(() => props.member.level + 1);
 const levelData    = computed(() => getLevelData(props.member.class ?? "", nextLevel.value));
 const newProfBonus = computed(() => proficiencyBonusForLevel(nextLevel.value));
@@ -165,6 +279,72 @@ const needsSubclassChoice = computed(() =>
   !!levelData.value?.subclass_feature && !props.member.subclass,
 );
 
+const SUBCLASS_OPTIONS: Record<string, readonly string[]> = {
+  Artificer: ARTIFICER_SUBCLASSES,
+  Barbarian: BARBARIAN_SUBCLASSES,
+  Bard:      BARD_SUBCLASSES,
+  Cleric:    CLERIC_SUBCLASSES,
+  Druid:     DRUID_SUBCLASSES,
+  Fighter:   FIGHTER_SUBCLASSES,
+  Monk:      MONK_SUBCLASSES,
+  Paladin:   PALADIN_SUBCLASSES,
+  Ranger:    RANGER_SUBCLASSES,
+  Rogue:     ROGUE_SUBCLASSES,
+  Sorcerer:  SORCERER_SUBCLASSES,
+  Warlock:   WARLOCK_SUBCLASSES,
+  Wizard:    WIZARD_SUBCLASSES,
+};
+const subclassOptions = computed(() => SUBCLASS_OPTIONS[props.member.class ?? ""] ?? []);
+
+// Spell slot change summary
+const prevSpellSlots = computed<SpellSlotEntry[]>(() =>
+  getDefaultSpellSlots(props.member.class, props.member.level),
+);
+const newSpellSlots = computed<SpellSlotEntry[]>(() =>
+  getDefaultSpellSlots(props.member.class, nextLevel.value),
+);
+const newSpellSlotSummary = computed(() => {
+  const prev = prevSpellSlots.value;
+  const next = newSpellSlots.value;
+  if (next.length === 0) return null;
+  const gains: string[] = [];
+  for (const slot of next) {
+    const old = prev.find(s => s.level === slot.level);
+    if (!old) gains.push(`${slot.max}× level-${slot.level}`);
+    else if (slot.max > old.max) gains.push(`+${slot.max - old.max} level-${slot.level}`);
+  }
+  if (gains.length === 0) return null;
+  return `Spell slots: ${gains.join(", ")}`;
+});
+
+// Infusions known gain (Artificer)
+const infusionsKnownGain = computed(() => {
+  const cur  = levelData.value?.infusions_known;
+  const prev = getLevelData(props.member.class ?? "", props.member.level)?.infusions_known ?? 0;
+  if (!cur) return 0;
+  return Math.max(0, cur - prev);
+});
+
+// Spells known gain
+const spellsKnownGain = computed(() => {
+  const cur  = levelData.value?.spells_known;
+  const prev = getLevelData(props.member.class ?? "", props.member.level)?.spells_known ?? 0;
+  if (!cur) return 0;
+  return Math.max(0, cur - prev);
+});
+
+// Class resource change notices (e.g. Sorcery Points)
+const classDefs = computed(() => getClassResources(props.member.class ?? "", nextLevel.value));
+const resourceNotices = computed(() => {
+  return classDefs.value.flatMap(def => {
+    const newMax = def.maxAtLevel(nextLevel.value);
+    const oldMax = def.maxAtLevel(props.member.level);
+    if (newMax === oldMax) return [];
+    return [{ key: def.key, label: def.label, oldMax, newMax }];
+  });
+});
+
+// ── ASI ────────────────────────────────────────────────────────────────────────
 const ABILITY_LABEL: Record<AbilityKey, string> = {
   str: "Strength", dex: "Dexterity", con: "Constitution",
   int: "Intelligence", wis: "Wisdom", cha: "Charisma",
@@ -188,8 +368,34 @@ const asiPreview = computed(() => {
   return lines;
 });
 
+// ── Subclass ───────────────────────────────────────────────────────────────────
 const subclassInput = ref("");
-const error         = ref("");
+
+// ── Class-specific steps ───────────────────────────────────────────────────────
+const classSteps = computed<ClassStep[]>(() =>
+  getClassSteps(props.member.class ?? "", nextLevel.value),
+);
+
+// Single-pick steps (count === 1 or undefined)
+const stepValues = ref<Record<string, string>>({});
+function onStepChange(step: ClassStep, value: string) {
+  stepValues.value = { ...stepValues.value, [step.key]: value };
+}
+
+// Multi-pick steps (count > 1) — stored as string[] per key
+const stepMultiValues = ref<Record<string, string[]>>({});
+function onMultiStepChange(step: ClassStep, idx: number, value: string) {
+  const cur = [...(stepMultiValues.value[step.key] ?? [])];
+  cur[idx] = value;
+  stepMultiValues.value = { ...stepMultiValues.value, [step.key]: cur };
+}
+function isMultiPickTaken(step: ClassStep, ownIdx: number, opt: string): boolean {
+  const picks = stepMultiValues.value[step.key] ?? [];
+  return picks.some((v, i) => i !== ownIdx && v === opt);
+}
+
+// ── Validation ─────────────────────────────────────────────────────────────────
+const error = ref("");
 
 const canConfirm = computed(() => {
   if (nextLevel.value > 20) return false;
@@ -197,9 +403,20 @@ const canConfirm = computed(() => {
     if (!asiPrimary.value) return false;
     if (asiMode.value === "plus1plus1" && (!asiSecondary.value || asiSecondary.value === asiPrimary.value)) return false;
   }
+  if (needsSubclassChoice.value && !subclassInput.value.trim()) return false;
+  for (const step of classSteps.value) {
+    const count = step.count ?? 1;
+    if (count > 1) {
+      const picks = stepMultiValues.value[step.key] ?? [];
+      if (picks.filter(Boolean).length < count) return false;
+    } else {
+      if (!stepValues.value[step.key]) return false;
+    }
+  }
   return true;
 });
 
+// ── Confirm ────────────────────────────────────────────────────────────────────
 async function confirm() {
   error.value = "";
   const update: Record<string, unknown> = {
@@ -207,6 +424,16 @@ async function confirm() {
     proficiency_bonus: newProfBonus.value,
   };
 
+  // Spell slots — always sync to class defaults on level-up
+  if (newSpellSlots.value.length > 0) {
+    const existing = props.member.spell_slots ?? [];
+    update.spell_slots = newSpellSlots.value.map(s => ({
+      ...s,
+      used: existing.find(e => e.level === s.level)?.used ?? 0,
+    }));
+  }
+
+  // ASI
   if (levelData.value?.asi && asiPrimary.value) {
     const bonus = asiMode.value === "plus2" ? 2 : 1;
     update[asiPrimary.value] = (props.member[asiPrimary.value as keyof PartyMember] as number) + bonus;
@@ -215,10 +442,58 @@ async function confirm() {
     }
   }
 
+  // Class resources (e.g. Sorcery Points)
+  const defs = classDefs.value;
+  if (defs.length > 0) {
+    const newResources = { ...props.member.class_resources };
+    for (const def of defs) {
+      const newMax = def.maxAtLevel(nextLevel.value);
+      const existing = newResources[def.key];
+      newResources[def.key] = {
+        max:     newMax,
+        current: existing ? Math.min(existing.current, newMax) : newMax,
+        rest:    def.rest,
+      };
+    }
+    update.class_resources = newResources;
+  }
+
+  // Subclass + class_choices
+  const newChoices: Record<string, unknown> = { ...props.member.class_choices };
+
   const subclass = subclassInput.value.trim();
   if (needsSubclassChoice.value && subclass) {
     update.subclass = subclass;
-    update.class_choices = { ...props.member.class_choices, subclass };
+    newChoices.subclass = subclass;
+  }
+
+  // Class-specific step values
+  for (const step of classSteps.value) {
+    const count = step.count ?? 1;
+    if (count > 1) {
+      const picks = (stepMultiValues.value[step.key] ?? []).filter(Boolean);
+      if (picks.length === 0) continue;
+      if (step.type === "append") {
+        const existing = Array.isArray(newChoices[step.key]) ? (newChoices[step.key] as string[]) : [];
+        newChoices[step.key] = [...existing, ...picks];
+      } else {
+        newChoices[step.key] = picks;
+      }
+    } else {
+      const val = stepValues.value[step.key];
+      if (!val) continue;
+      if (step.type === "append") {
+        const existing = Array.isArray(newChoices[step.key]) ? (newChoices[step.key] as string[]) : [];
+        newChoices[step.key] = [...existing, val];
+      } else {
+        newChoices[step.key] = val;
+      }
+    }
+  }
+
+  if (Object.keys(newChoices).length > Object.keys(props.member.class_choices).length
+    || classSteps.value.length > 0 || (needsSubclassChoice.value && subclass)) {
+    update.class_choices = newChoices;
   }
 
   try {

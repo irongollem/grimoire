@@ -295,10 +295,29 @@ const HALF_CASTER_SLOTS: number[][] = [
   [4,3,3,3,2], // 20
 ];
 
-// Artificer is a half-caster but gets 2 slots at level 1.
+// Artificer: half-caster that rounds UP (unlocks next slot level every 2 levels starting at 3).
+// Differs from Paladin/Ranger (round down) — gets 2nd-level slots at level 3, not 5.
 const ARTIFICER_SLOTS: number[][] = [
   [2,0,0,0,0], // 1
-  ...HALF_CASTER_SLOTS.slice(1),
+  [2,0,0,0,0], // 2
+  [3,2,0,0,0], // 3  ← 2nd-level slots unlock here (rounds up)
+  [3,2,0,0,0], // 4
+  [4,2,0,0,0], // 5
+  [4,2,0,0,0], // 6
+  [4,3,0,0,0], // 7
+  [4,3,0,0,0], // 8
+  [4,3,2,0,0], // 9
+  [4,3,2,0,0], // 10
+  [4,3,3,0,0], // 11
+  [4,3,3,0,0], // 12
+  [4,3,3,1,0], // 13
+  [4,3,3,1,0], // 14
+  [4,3,3,2,0], // 15
+  [4,3,3,2,0], // 16
+  [4,3,3,3,1], // 17
+  [4,3,3,3,1], // 18
+  [4,3,3,3,2], // 19
+  [4,3,3,3,2], // 20
 ];
 
 // Third-casters (Eldritch Knight, Arcane Trickster). Slots start at level 3.
