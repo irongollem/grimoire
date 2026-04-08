@@ -45,10 +45,20 @@ export interface AsiChoice {
 //             (used for accumulating choices like Favored Enemy, Natural Explorer)
 export type ClassStepType = "select" | "append";
 
+// Declares a class resource that should be initialised/updated on level-up.
+// The wizard will upsert this into class_resources on confirm.
+export interface ClassResourceDef {
+  key: string;       // e.g. "sorcery_points"
+  label: string;     // e.g. "Sorcery Points"
+  rest: "short" | "long";
+  maxAtLevel: (level: number) => number;
+}
+
 export interface ClassStep {
   type: ClassStepType;
-  key: string;       // key in class_choices where the value is stored
-  label: string;     // section heading shown in the wizard
+  key: string;         // key in class_choices where the value is stored
+  label: string;       // section heading shown in the wizard
   description?: string;
   options: string[];
+  count?: number;      // how many picks to make (default 1); renders count selects for "append" steps
 }

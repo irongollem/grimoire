@@ -69,6 +69,20 @@
           </span>
         </div>
 
+        <!-- Class resource updates (e.g. Sorcery Points) -->
+        <div
+          v-for="res in resourceNotices"
+          :key="res.key"
+          class="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/20 px-3 py-2"
+        >
+          <span class="font-cinzel text-xs text-primary tracking-wider uppercase">{{ res.key.replace('_', ' ') }}</span>
+          <span class="font-fell text-sm text-foreground">
+            {{ res.label }} maximum:
+            <strong class="font-cinzel">{{ res.oldMax }}</strong>
+            → <strong class="font-cinzel">{{ res.newMax }}</strong>
+          </span>
+        </div>
+
         <!-- Proficiency bonus bump -->
         <div
           v-if="newProfBonus !== member.proficiency_bonus"
@@ -163,7 +177,7 @@
         />
       </div>
 
-      <!-- Class-specific steps (Fighting Style, Favored Enemy, Natural Explorer, etc.) -->
+      <!-- Class-specific steps (single or multi-pick) -->
       <div
         v-for="step in classSteps"
         :key="step.key"
@@ -171,7 +185,34 @@
       >
         <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">{{ step.label }}</h3>
         <p v-if="step.description" class="font-fell text-sm text-muted-foreground">{{ step.description }}</p>
+
+        <!-- Multi-pick: render N selects -->
+        <template v-if="(step.count ?? 1) > 1">
+          <div
+            v-for="pickIdx in (step.count ?? 1)"
+            :key="pickIdx"
+            class="space-y-1"
+          >
+            <label class="font-cinzel text-[10px] text-muted-foreground tracking-wider">Choice {{ pickIdx }}</label>
+            <select
+              :value="(stepMultiValues[step.key] ?? [])[pickIdx - 1] ?? ''"
+              class="w-full rounded border border-border bg-muted/40 px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              @change="onMultiStepChange(step, pickIdx - 1, ($event.target as HTMLSelectElement).value)"
+            >
+              <option value="" disabled>Select…</option>
+              <option
+                v-for="opt in step.options"
+                :key="opt"
+                :value="opt"
+                :disabled="isMultiPickTaken(step, pickIdx - 1, opt)"
+              >{{ opt }}</option>
+            </select>
+          </div>
+        </template>
+
+        <!-- Single-pick -->
         <select
+          v-else
           :value="stepValues[step.key] ?? ''"
           class="w-full rounded border border-border bg-muted/40 px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @change="onStepChange(step, ($event.target as HTMLSelectElement).value)"
@@ -206,12 +247,13 @@
 import { ref, computed } from "vue";
 import { useRouter, RouterLink } from "vue-router";
 import { useUpdatePartyMember } from "@/composables/useParty";
-import { getLevelData, proficiencyBonusForLevel, getClassSteps } from "./classFeatures";
+import { getLevelData, proficiencyBonusForLevel, getClassSteps, getClassResources } from "./classFeatures";
 import { getDefaultSpellSlots } from "@/types/spell.types";
 import type { PartyMember, PartyMemberUpdate, SpellSlotEntry } from "@/types/party.types";
 import type { AbilityKey, AsiMode, ClassStep } from "./types";
 import { RANGER_SUBCLASSES }    from "./classes/ranger";
 import { ARTIFICER_SUBCLASSES } from "./classes/artificer";
+import { SORCERER_SUBCLASSES }  from "./classes/sorcerer";
 
 const props = defineProps<{ member: PartyMember }>();
 
@@ -227,10 +269,10 @@ const needsSubclassChoice = computed(() =>
   !!levelData.value?.subclass_feature && !props.member.subclass,
 );
 
-// Subclass options dropdown (empty = free-text fallback)
 const SUBCLASS_OPTIONS: Record<string, readonly string[]> = {
   Artificer: ARTIFICER_SUBCLASSES,
   Ranger:    RANGER_SUBCLASSES,
+  Sorcerer:  SORCERER_SUBCLASSES,
 };
 const subclassOptions = computed(() => SUBCLASS_OPTIONS[props.member.class ?? ""] ?? []);
 
@@ -242,7 +284,6 @@ const newSpellSlotSummary = computed(() => {
   const prev = getDefaultSpellSlots(props.member.class, props.member.level);
   const next = newSpellSlots.value;
   if (next.length === 0) return null;
-  // Find first slot level that gained max count
   const gains: string[] = [];
   for (const slot of next) {
     const old = prev.find(s => s.level === slot.level);
@@ -267,6 +308,17 @@ const spellsKnownGain = computed(() => {
   const prev = getLevelData(props.member.class ?? "", props.member.level)?.spells_known ?? 0;
   if (!cur) return 0;
   return Math.max(0, cur - prev);
+});
+
+// Class resource change notices (e.g. Sorcery Points)
+const resourceNotices = computed(() => {
+  const defs = getClassResources(props.member.class ?? "", nextLevel.value);
+  return defs.flatMap(def => {
+    const newMax = def.maxAtLevel(nextLevel.value);
+    const oldMax = def.maxAtLevel(props.member.level);
+    if (newMax === oldMax) return [];
+    return [{ key: def.key, label: def.label, oldMax, newMax }];
+  });
 });
 
 // ── ASI ────────────────────────────────────────────────────────────────────────
@@ -301,11 +353,22 @@ const classSteps = computed<ClassStep[]>(() =>
   getClassSteps(props.member.class ?? "", nextLevel.value),
 );
 
-// stepValues holds the current selection for each step key
+// Single-pick steps (count === 1 or undefined)
 const stepValues = ref<Record<string, string>>({});
-
 function onStepChange(step: ClassStep, value: string) {
   stepValues.value = { ...stepValues.value, [step.key]: value };
+}
+
+// Multi-pick steps (count > 1) — stored as string[] per key
+const stepMultiValues = ref<Record<string, string[]>>({});
+function onMultiStepChange(step: ClassStep, idx: number, value: string) {
+  const cur = [...(stepMultiValues.value[step.key] ?? [])];
+  cur[idx] = value;
+  stepMultiValues.value = { ...stepMultiValues.value, [step.key]: cur };
+}
+function isMultiPickTaken(step: ClassStep, ownIdx: number, opt: string): boolean {
+  const picks = stepMultiValues.value[step.key] ?? [];
+  return picks.some((v, i) => i !== ownIdx && v === opt);
 }
 
 // ── Validation ─────────────────────────────────────────────────────────────────
@@ -319,7 +382,13 @@ const canConfirm = computed(() => {
   }
   if (needsSubclassChoice.value && !subclassInput.value.trim()) return false;
   for (const step of classSteps.value) {
-    if (!stepValues.value[step.key]) return false;
+    const count = step.count ?? 1;
+    if (count > 1) {
+      const picks = stepMultiValues.value[step.key] ?? [];
+      if (picks.filter(Boolean).length < count) return false;
+    } else {
+      if (!stepValues.value[step.key]) return false;
+    }
   }
   return true;
 });
@@ -334,7 +403,6 @@ async function confirm() {
 
   // Spell slots — always sync to class defaults on level-up
   if (newSpellSlots.value.length > 0) {
-    // Preserve used counts from existing slots, add new slots at 0 used
     const existing = props.member.spell_slots ?? [];
     update.spell_slots = newSpellSlots.value.map(s => ({
       ...s,
@@ -351,6 +419,22 @@ async function confirm() {
     }
   }
 
+  // Class resources (e.g. Sorcery Points)
+  const defs = getClassResources(props.member.class ?? "", nextLevel.value);
+  if (defs.length > 0) {
+    const newResources = { ...props.member.class_resources };
+    for (const def of defs) {
+      const newMax = def.maxAtLevel(nextLevel.value);
+      const existing = newResources[def.key];
+      newResources[def.key] = {
+        max:     newMax,
+        current: existing ? Math.min(existing.current, newMax) : newMax,
+        rest:    def.rest,
+      };
+    }
+    update.class_resources = newResources;
+  }
+
   // Subclass + class_choices
   const newChoices: Record<string, unknown> = { ...props.member.class_choices };
 
@@ -362,13 +446,25 @@ async function confirm() {
 
   // Class-specific step values
   for (const step of classSteps.value) {
-    const val = stepValues.value[step.key];
-    if (!val) continue;
-    if (step.type === "append") {
-      const existing = Array.isArray(newChoices[step.key]) ? (newChoices[step.key] as string[]) : [];
-      newChoices[step.key] = [...existing, val];
+    const count = step.count ?? 1;
+    if (count > 1) {
+      const picks = (stepMultiValues.value[step.key] ?? []).filter(Boolean);
+      if (picks.length === 0) continue;
+      if (step.type === "append") {
+        const existing = Array.isArray(newChoices[step.key]) ? (newChoices[step.key] as string[]) : [];
+        newChoices[step.key] = [...existing, ...picks];
+      } else {
+        newChoices[step.key] = picks;
+      }
     } else {
-      newChoices[step.key] = val;
+      const val = stepValues.value[step.key];
+      if (!val) continue;
+      if (step.type === "append") {
+        const existing = Array.isArray(newChoices[step.key]) ? (newChoices[step.key] as string[]) : [];
+        newChoices[step.key] = [...existing, val];
+      } else {
+        newChoices[step.key] = val;
+      }
     }
   }
 

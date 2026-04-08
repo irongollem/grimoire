@@ -7,9 +7,10 @@
  * by importing and merging into the registry via src/levelup/classes/<class>.ts.
  */
 
-import type { ClassFeatureTable, ClassLevelData, ClassStep } from "./types";
-import { RANGER_DATA,    getRangerSteps    } from "./classes/ranger";
-import { ARTIFICER_DATA, getArtificerSteps } from "./classes/artificer";
+import type { ClassFeatureTable, ClassLevelData, ClassStep, ClassResourceDef } from "./types";
+import { RANGER_DATA,    getRangerSteps                          } from "./classes/ranger";
+import { ARTIFICER_DATA, getArtificerSteps                      } from "./classes/artificer";
+import { SORCERER_DATA,  getSorcererSteps, getSorcererResources  } from "./classes/sorcerer";
 
 function buildLevels(
   asiLevels: number[],
@@ -47,8 +48,7 @@ const paladin   = buildLevels(STANDARD_ASI, [3, 7, 15, 20]);
 const ranger    = RANGER_DATA;
 // Subclass (Roguish Archetype): 3, 9, 13, 17 — extra ASI at 10
 const rogue     = buildLevels([4, 8, 10, 12, 16, 19], [3, 9, 13, 17]);
-// Subclass (Sorcerous Origin): 1, 6, 14, 18
-const sorcerer  = buildLevels(STANDARD_ASI, [1, 6, 14, 18]);
+const sorcerer  = SORCERER_DATA;
 // Subclass (Otherworldly Patron): 1, 6, 10, 14
 const warlock   = buildLevels(STANDARD_ASI, [1, 6, 10, 14]);
 // Subclass (Arcane Tradition): 2, 6, 10, 14
@@ -90,6 +90,18 @@ export function getClassSteps(className: string, nextLevel: number): ClassStep[]
   switch (className) {
     case "Artificer": return getArtificerSteps(nextLevel);
     case "Ranger":    return getRangerSteps(nextLevel);
+    case "Sorcerer":  return getSorcererSteps(nextLevel);
     default:          return [];
+  }
+}
+
+/**
+ * Returns class resource definitions that should be upserted on level-up.
+ * Returns an empty array for classes with no trackable resources.
+ */
+export function getClassResources(className: string, nextLevel: number): ClassResourceDef[] {
+  switch (className) {
+    case "Sorcerer": return getSorcererResources(nextLevel);
+    default:         return [];
   }
 }
