@@ -4,6 +4,7 @@
  * Arcane Recovery (short rest slot regain) is a class feature, not a tracked resource pool.
  */
 
+import { STANDARD_ASI } from "../types";
 import type { ClassLevelData } from "../types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -21,7 +22,6 @@ export const WIZARD_SUBCLASSES = [
 
 // ── Feature progression ───────────────────────────────────────────────────────
 
-const STANDARD_ASI    = [4, 8, 12, 16, 19];
 const SUBCLASS_LEVELS = [2, 6, 10, 14];
 
 const FEATURES: Record<number, string[]> = {

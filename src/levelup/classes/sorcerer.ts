@@ -3,6 +3,7 @@
  * Full caster (CHA). Spells known. Sorcery Points = level. Metamagic at 3/10/17.
  */
 
+import { STANDARD_ASI } from "../types";
 import type { ClassLevelData, ClassStep, ClassResourceDef } from "../types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -37,7 +38,6 @@ export const SORCERY_POINTS: ClassResourceDef = {
 
 // ── Feature progression ────────────────────────────────────────────────────────
 
-const STANDARD_ASI    = [4, 8, 12, 16, 19];
 const SUBCLASS_LEVELS = [1, 6, 14, 18];
 
 const FEATURES: Record<number, string[]> = {

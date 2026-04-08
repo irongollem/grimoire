@@ -3,6 +3,7 @@
  * Half-caster (WIS). Spells known (not prepared). Spellcasting begins at level 2.
  */
 
+import { STANDARD_ASI } from "../types";
 import type { ClassLevelData, ClassStep } from "../types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -70,7 +71,6 @@ export const RANGER_SPELLS_KNOWN = [
 
 // ── Feature progression ────────────────────────────────────────────────────────
 
-const STANDARD_ASI = [4, 8, 12, 16, 19];
 const SUBCLASS_LEVELS = [3, 7, 11, 15];
 
 const FEATURES: Record<number, string[]> = {

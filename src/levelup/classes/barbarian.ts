@@ -5,6 +5,7 @@
  * Unarmored Defense: AC = 10 + DEX mod + CON mod.
  */
 
+import { STANDARD_ASI } from "../types";
 import type { ClassLevelData, ClassResourceDef } from "../types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -37,7 +38,6 @@ export const RAGE: ClassResourceDef = {
 
 // ── Feature progression ───────────────────────────────────────────────────────
 
-const STANDARD_ASI    = [4, 8, 12, 16, 19];
 const SUBCLASS_LEVELS = [3, 6, 10, 14];
 
 const FEATURES: Record<number, string[]> = {

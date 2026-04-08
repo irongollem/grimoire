@@ -4,6 +4,7 @@
  * Unarmored Movement bonus scale with level (display-only on character sheet).
  */
 
+import { STANDARD_ASI } from "../types";
 import type { ClassLevelData, ClassResourceDef } from "../types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -43,7 +44,6 @@ export const KI_POINTS: ClassResourceDef = {
 
 // ── Feature progression ───────────────────────────────────────────────────────
 
-const STANDARD_ASI    = [4, 8, 12, 16, 19];
 const SUBCLASS_LEVELS = [3, 6, 11, 17];
 
 const FEATURES: Record<number, string[]> = {

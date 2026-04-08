@@ -4,6 +4,7 @@
  * Channel Divinity: 1/rest at level 2, 2/rest at level 6, 3/rest at level 18.
  */
 
+import { STANDARD_ASI } from "../types";
 import type { ClassLevelData, ClassResourceDef } from "../types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -33,7 +34,6 @@ export const CHANNEL_DIVINITY: ClassResourceDef = {
 
 // ── Feature progression ───────────────────────────────────────────────────────
 
-const STANDARD_ASI    = [4, 8, 12, 16, 19];
 const SUBCLASS_LEVELS = [1, 2, 6, 8, 17];
 
 const FEATURES: Record<number, string[]> = {

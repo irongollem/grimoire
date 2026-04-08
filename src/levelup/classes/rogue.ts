@@ -4,6 +4,7 @@
  * Extra ASI schedule: 4, 8, 10, 12, 16, 19. Expertise at levels 1 and 6.
  */
 
+import { SKILL_NAMES } from "../types";
 import type { ClassLevelData, ClassStep } from "../types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -15,27 +16,7 @@ export const ROGUE_SUBCLASSES = [
 ] as const;
 
 // All skills + Thieves' Tools (valid Expertise targets)
-export const EXPERTISE_OPTIONS = [
-  "Acrobatics",
-  "Animal Handling",
-  "Arcana",
-  "Athletics",
-  "Deception",
-  "History",
-  "Insight",
-  "Intimidation",
-  "Investigation",
-  "Medicine",
-  "Nature",
-  "Perception",
-  "Performance",
-  "Persuasion",
-  "Religion",
-  "Sleight of Hand",
-  "Stealth",
-  "Survival",
-  "Thieves' Tools",
-] as const;
+const EXPERTISE_OPTIONS = [...SKILL_NAMES, "Thieves' Tools"] as const;
 
 // Sneak Attack dice by level (index = level - 1): 1d6 at 1, +1d6 every 2 levels
 export const SNEAK_ATTACK_DICE = Array.from({ length: 20 }, (_, i) =>

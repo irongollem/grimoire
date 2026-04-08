@@ -3,6 +3,7 @@
  * Half-caster (INT) with accelerated slot table (rounds up). Prepared spells.
  */
 
+import { STANDARD_ASI } from "../types";
 import type { ClassLevelData, ClassStep } from "../types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -27,7 +28,6 @@ const ITEMS_INFUSED = [
 
 // ── Feature progression ────────────────────────────────────────────────────────
 
-const STANDARD_ASI    = [4, 8, 12, 16, 19];
 const SUBCLASS_LEVELS = [3, 5, 9, 15];
 
 const FEATURES: Record<number, string[]> = {

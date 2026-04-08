@@ -4,6 +4,7 @@
  * Expertise at levels 3 & 10. Magical Secrets at levels 10, 14, 18.
  */
 
+import { STANDARD_ASI, SKILL_NAMES } from "../types";
 import type { ClassLevelData, ClassStep } from "../types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -19,28 +20,6 @@ export const BARD_SPELLS_KNOWN = [
   15, 15, 16, 18, 19, 19, 20, 22, 22, 22, // 11–20
 ] as const;
 
-// Skills (and Thieves' Tools) eligible for Expertise
-const EXPERTISE_OPTIONS = [
-  "Acrobatics",
-  "Animal Handling",
-  "Arcana",
-  "Athletics",
-  "Deception",
-  "History",
-  "Insight",
-  "Intimidation",
-  "Investigation",
-  "Medicine",
-  "Nature",
-  "Perception",
-  "Performance",
-  "Persuasion",
-  "Religion",
-  "Sleight of Hand",
-  "Stealth",
-  "Survival",
-] as const;
-
 // Bardic Inspiration die by level
 export function bardicInspirationDie(level: number): string {
   if (level >= 15) return "d12";
@@ -51,7 +30,6 @@ export function bardicInspirationDie(level: number): string {
 
 // ── Feature progression ───────────────────────────────────────────────────────
 
-const STANDARD_ASI    = [4, 8, 12, 16, 19];
 const SUBCLASS_LEVELS = [3, 6, 14];
 
 const FEATURES: Record<number, string[]> = {
@@ -100,7 +78,7 @@ export function getBardSteps(nextLevel: number): ClassStep[] {
       key:         "expertise",
       label:       "Expertise",
       description: "Choose 2 skills to gain Expertise (double proficiency bonus). Must be skills you are already proficient in.",
-      options:     [...EXPERTISE_OPTIONS],
+      options:     [...SKILL_NAMES],
       count:       2,
     });
   }

@@ -3,6 +3,7 @@
  * Full caster (WIS). Prepared spells (WIS mod + level). No class-specific wizard steps.
  */
 
+import { STANDARD_ASI } from "../types";
 import type { ClassLevelData } from "../types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -14,7 +15,6 @@ export const DRUID_SUBCLASSES = [
 
 // ── Feature progression ───────────────────────────────────────────────────────
 
-const STANDARD_ASI    = [4, 8, 12, 16, 19];
 const SUBCLASS_LEVELS = [2, 6, 10, 14];
 
 const FEATURES: Record<number, string[]> = {

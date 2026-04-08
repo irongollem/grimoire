@@ -4,6 +4,7 @@
  * Spells known. Eldritch Invocations scale with level. Subclass at level 1.
  */
 
+import { STANDARD_ASI } from "../types";
 import type { ClassLevelData, ClassStep } from "../types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -64,7 +65,6 @@ export const WARLOCK_SPELLS_KNOWN = [
 
 // ── Feature progression ───────────────────────────────────────────────────────
 
-const STANDARD_ASI    = [4, 8, 12, 16, 19];
 const SUBCLASS_LEVELS = [1, 6, 10, 14];
 
 const FEATURES: Record<number, string[]> = {

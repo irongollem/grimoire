@@ -4,6 +4,7 @@
  * Lay on Hands: 5 × level HP pool (long rest). Channel Divinity: 1 use (short rest, from level 3).
  */
 
+import { STANDARD_ASI } from "../types";
 import type { ClassLevelData, ClassStep, ClassResourceDef } from "../types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -40,7 +41,6 @@ export const CHANNEL_DIVINITY: ClassResourceDef = {
 
 // ── Feature progression ───────────────────────────────────────────────────────
 
-const STANDARD_ASI    = [4, 8, 12, 16, 19];
 const SUBCLASS_LEVELS = [3, 7, 15, 20];
 
 const FEATURES: Record<number, string[]> = {

@@ -2,6 +2,31 @@ import type { SpellSlotEntry, SaveKey } from "@/types/party.types";
 
 export type AbilityKey = SaveKey;
 
+/** Standard ASI levels shared by most classes (4, 8, 12, 16, 19). */
+export const STANDARD_ASI: readonly number[] = [4, 8, 12, 16, 19];
+
+/** All 18 standard skills — used as Expertise and similar picker sources. */
+export const SKILL_NAMES = [
+  "Acrobatics",
+  "Animal Handling",
+  "Arcana",
+  "Athletics",
+  "Deception",
+  "History",
+  "Insight",
+  "Intimidation",
+  "Investigation",
+  "Medicine",
+  "Nature",
+  "Perception",
+  "Performance",
+  "Persuasion",
+  "Religion",
+  "Sleight of Hand",
+  "Stealth",
+  "Survival",
+] as const;
+
 export interface ClassLevelData {
   level: number;
   features: string[];

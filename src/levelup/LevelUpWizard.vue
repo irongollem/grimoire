@@ -297,11 +297,14 @@ const SUBCLASS_OPTIONS: Record<string, readonly string[]> = {
 const subclassOptions = computed(() => SUBCLASS_OPTIONS[props.member.class ?? ""] ?? []);
 
 // Spell slot change summary
+const prevSpellSlots = computed<SpellSlotEntry[]>(() =>
+  getDefaultSpellSlots(props.member.class, props.member.level),
+);
 const newSpellSlots = computed<SpellSlotEntry[]>(() =>
   getDefaultSpellSlots(props.member.class, nextLevel.value),
 );
 const newSpellSlotSummary = computed(() => {
-  const prev = getDefaultSpellSlots(props.member.class, props.member.level);
+  const prev = prevSpellSlots.value;
   const next = newSpellSlots.value;
   if (next.length === 0) return null;
   const gains: string[] = [];
@@ -331,9 +334,9 @@ const spellsKnownGain = computed(() => {
 });
 
 // Class resource change notices (e.g. Sorcery Points)
+const classDefs = computed(() => getClassResources(props.member.class ?? "", nextLevel.value));
 const resourceNotices = computed(() => {
-  const defs = getClassResources(props.member.class ?? "", nextLevel.value);
-  return defs.flatMap(def => {
+  return classDefs.value.flatMap(def => {
     const newMax = def.maxAtLevel(nextLevel.value);
     const oldMax = def.maxAtLevel(props.member.level);
     if (newMax === oldMax) return [];
@@ -440,7 +443,7 @@ async function confirm() {
   }
 
   // Class resources (e.g. Sorcery Points)
-  const defs = getClassResources(props.member.class ?? "", nextLevel.value);
+  const defs = classDefs.value;
   if (defs.length > 0) {
     const newResources = { ...props.member.class_resources };
     for (const def of defs) {
