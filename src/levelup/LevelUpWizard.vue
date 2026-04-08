@@ -263,6 +263,7 @@ import { BARD_SUBCLASSES }       from "./classes/bard";
 import { BARBARIAN_SUBCLASSES }  from "./classes/barbarian";
 import { WARLOCK_SUBCLASSES }    from "./classes/warlock";
 import { FIGHTER_SUBCLASSES }   from "./classes/fighter";
+import { WIZARD_SUBCLASSES }    from "./classes/wizard";
 
 const props = defineProps<{ member: PartyMember }>();
 
@@ -291,6 +292,7 @@ const SUBCLASS_OPTIONS: Record<string, readonly string[]> = {
   Rogue:     ROGUE_SUBCLASSES,
   Sorcerer:  SORCERER_SUBCLASSES,
   Warlock:   WARLOCK_SUBCLASSES,
+  Wizard:    WIZARD_SUBCLASSES,
 };
 const subclassOptions = computed(() => SUBCLASS_OPTIONS[props.member.class ?? ""] ?? []);
 

@@ -2,9 +2,7 @@
  * Static class feature progression tables (SRD-derived; Artificer hand-coded).
  * One entry per level (1–20) for each class.
  *
- * ASI and subclass_feature flags are complete.
- * Feature name arrays are stubs — each class sub-ticket (#84–#96) fills them in
- * by importing and merging into the registry via src/levelup/classes/<class>.ts.
+ * All 13 classes implemented in src/levelup/classes/<class>.ts.
  */
 
 import type { ClassFeatureTable, ClassLevelData, ClassStep, ClassResourceDef } from "./types";
@@ -20,24 +18,7 @@ import { BARD_DATA,       getBardSteps                            } from "./clas
 import { BARBARIAN_DATA,  getBarbarianResources                   } from "./classes/barbarian";
 import { WARLOCK_DATA,    getWarlockSteps                         } from "./classes/warlock";
 import { FIGHTER_DATA,   getFighterSteps, getFighterResources    } from "./classes/fighter";
-
-function buildLevels(
-  asiLevels: number[],
-  subclassLevels: number[],
-  featureMap: Record<number, string[]> = {},
-): ClassLevelData[] {
-  return Array.from({ length: 20 }, (_, i) => {
-    const level = i + 1;
-    return {
-      level,
-      features: featureMap[level] ?? [],
-      asi: asiLevels.includes(level),
-      subclass_feature: subclassLevels.includes(level) ? true : undefined,
-    };
-  });
-}
-
-const STANDARD_ASI = [4, 8, 12, 16, 19];
+import { WIZARD_DATA                                             } from "./classes/wizard";
 
 const artificer = ARTIFICER_DATA;
 const barbarian = BARBARIAN_DATA;
@@ -52,8 +33,7 @@ const ranger    = RANGER_DATA;
 const rogue     = ROGUE_DATA;
 const sorcerer  = SORCERER_DATA;
 const warlock   = WARLOCK_DATA;
-// Subclass (Arcane Tradition): 2, 6, 10, 14
-const wizard    = buildLevels(STANDARD_ASI, [2, 6, 10, 14]);
+const wizard    = WIZARD_DATA;
 
 export const CLASS_FEATURES: ClassFeatureTable = {
   Artificer: artificer,
