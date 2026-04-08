@@ -11,6 +11,7 @@ async function fetchInventory(campaignId: string): Promise<PartyInventoryItem[]>
     .from("party_inventory")
     .select("*")
     .eq("campaign_id", campaignId)
+    .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
   if (error) throw error;
   return data as PartyInventoryItem[];
@@ -77,5 +78,32 @@ export function useRemoveInventoryItem() {
   return useMutation({
     mutationFn: removeItem,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}
+
+export function useReorderInventoryItems() {
+  const queryClient = useQueryClient();
+  const campaign = useCampaignStore();
+  return useMutation({
+    mutationFn: async (updates: Array<{ id: string; sort_order: number }>) => {
+      await Promise.all(updates.map(({ id, sort_order }) => updateItem(id, { sort_order })));
+    },
+    onMutate: async (updates) => {
+      const qk = [QUERY_KEY, campaign.activeCampaignId];
+      await queryClient.cancelQueries({ queryKey: qk });
+      const previous = queryClient.getQueryData<PartyInventoryItem[]>(qk);
+      queryClient.setQueryData<PartyInventoryItem[]>(qk, (old) => {
+        if (!old) return old;
+        const orderMap = new Map(updates.map(u => [u.id, u.sort_order]));
+        return old
+          .map(item => orderMap.has(item.id) ? { ...item, sort_order: orderMap.get(item.id)! } : item)
+          .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
+      });
+      return { previous };
+    },
+    onError: (_e, _u, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData([QUERY_KEY, campaign.activeCampaignId], ctx.previous);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }

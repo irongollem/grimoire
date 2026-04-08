@@ -22,19 +22,21 @@
 
     <!-- Items -->
     <div v-if="open">
-      <ItemRow
-        v-for="item in items"
-        :key="item.id"
-        :item="item"
-        :all-containers="allContainers"
-        :sellable="sellable"
-        @move="(item, loc, cid) => $emit('move', item, loc, cid)"
-        @remove="(id) => $emit('remove', id)"
-        @adjust-qty="(item, d) => $emit('adjust-qty', item, d)"
-        @drop-to-chat="(item) => $emit('drop-to-chat', item)"
-        @open-detail="(item) => $emit('open-detail', item)"
-        @sell-item="(item) => $emit('sell-item', item)"
-      />
+      <VueDraggable v-model="localItems" handle=".drag-handle" :animation="150" @end="onReorder">
+        <ItemRow
+          v-for="item in localItems"
+          :key="item.id"
+          :item="item"
+          :all-containers="allContainers"
+          :sellable="sellable"
+          @move="(item, loc, cid) => $emit('move', item, loc, cid)"
+          @remove="(id) => $emit('remove', id)"
+          @adjust-qty="(item, d) => $emit('adjust-qty', item, d)"
+          @drop-to-chat="(item) => $emit('drop-to-chat', item)"
+          @open-detail="(item) => $emit('open-detail', item)"
+          @sell-item="(item) => $emit('sell-item', item)"
+        />
+      </VueDraggable>
       <div v-if="!items.length && !showAdd" class="px-4 py-3">
         <p class="font-fell text-xs text-muted-foreground/50 italic">Empty.</p>
       </div>
@@ -77,8 +79,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { ChevronRight } from "lucide-vue-next";
+import { VueDraggable } from "vue-draggable-plus";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 import { formatWeightLb } from "@/lib/utils";
@@ -107,9 +110,13 @@ const emit = defineEmits<{
   'drop-to-chat': [item: PartyInventoryItem];
   'open-detail': [item: PartyInventoryItem];
   'sell-item': [item: PartyInventoryItem];
+  reorder: [items: PartyInventoryItem[]];
 }>();
 
 const open = ref(true);
+const localItems = ref<PartyInventoryItem[]>([...props.items]);
+watch(() => props.items, (newItems) => { localItems.value = [...newItems]; });
+function onReorder() { emit('reorder', localItems.value); }
 const showAdd = ref(false);
 const addName = ref("");
 const addSelectedId = ref("");

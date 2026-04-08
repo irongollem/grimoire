@@ -128,7 +128,7 @@
                 :key="item.id"
                 :item="item"
                 :label="item.name"
-                @click="openEquipMenu(item)"
+                @click="openDetail(item)"
               />
               <EquipSlotRow
                 v-if="!otherEquipped.length"
@@ -324,6 +324,7 @@
         @drop-to-chat="dropItemToChat"
         @open-detail="openDetail"
         @sell-item="openDetailWithSell"
+        @reorder="handleReorder"
       />
 
       <!-- Belt -->
@@ -343,6 +344,7 @@
         @drop-to-chat="dropItemToChat"
         @open-detail="openDetail"
         @sell-item="openDetailWithSell"
+        @reorder="handleReorder"
       />
 
       <!-- Custom containers (items with is_container=true) -->
@@ -367,6 +369,7 @@
         @drop-to-chat="dropItemToChat"
         @open-detail="openDetail"
         @sell-item="openDetailWithSell"
+        @reorder="handleReorder"
       />
     </div>
 
@@ -609,6 +612,7 @@ import {
   useAddInventoryItem,
   useUpdateInventoryItem,
   useRemoveInventoryItem,
+  useReorderInventoryItems,
 } from "@/composables/usePartyInventory";
 import { useItems } from "@/composables/useItems";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
@@ -634,6 +638,7 @@ const { data: allItems } = useItems();
 const { mutateAsync: addInventoryItem } = useAddInventoryItem();
 const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
 const { mutateAsync: removeInventoryItem } = useRemoveInventoryItem();
+const { mutate: reorderInventoryItems } = useReorderInventoryItems();
 const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
 const { sendItemDrop, sendCurrencyDrop, sendPlayerOffer } =
   useCampaignMessages();
@@ -865,9 +870,6 @@ function openSlot(slot: InventorySlot) {
   if (equipped) openDetail(equipped);
   else if (slotCanEquip(slot)) slotModal.value = slot;
 }
-function openEquipMenu(item: PartyInventoryItem) {
-  slotModal.value = item.slot ?? "other";
-}
 
 async function unequipSelected() {
   if (!selectedInv.value) return;
@@ -995,6 +997,10 @@ async function moveItem(
       ...(toLocation !== "equipped" ? { is_equipped: false, slot: null } : {}),
     },
   });
+}
+
+function handleReorder(items: PartyInventoryItem[]) {
+  reorderInventoryItems(items.map((item, i) => ({ id: item.id, sort_order: i * 100 })));
 }
 
 async function removeItem(id: string) {

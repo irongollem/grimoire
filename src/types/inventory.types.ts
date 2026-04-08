@@ -37,12 +37,13 @@ export interface PartyInventoryItem {
   current_charges: number | null; // remaining charges; null = full (use Item.charges as max)
   updated_at: string;
   is_ruined: boolean;
+  sort_order: number;
 }
 
 export type PartyInventoryInsert = Omit<
   PartyInventoryItem,
-  "id" | "user_id" | "updated_at" | "current_charges"
-> & { current_charges?: number | null };
+  "id" | "user_id" | "updated_at" | "current_charges" | "sort_order"
+> & { current_charges?: number | null; sort_order?: number };
 export type PartyInventoryUpdate = Partial<
   Pick<
     PartyInventoryItem,
@@ -57,5 +58,6 @@ export type PartyInventoryUpdate = Partial<
     | "notes"
     | "name"
     | "current_charges"
+    | "sort_order"
   >
 >;
