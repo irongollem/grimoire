@@ -11,6 +11,7 @@ import type { ClassFeatureTable, ClassLevelData, ClassStep, ClassResourceDef } f
 import { RANGER_DATA,    getRangerSteps                          } from "./classes/ranger";
 import { ARTIFICER_DATA, getArtificerSteps                      } from "./classes/artificer";
 import { SORCERER_DATA,  getSorcererSteps, getSorcererResources  } from "./classes/sorcerer";
+import { PALADIN_DATA,   getPaladinSteps,  getPaladinResources   } from "./classes/paladin";
 
 function buildLevels(
   asiLevels: number[],
@@ -44,7 +45,7 @@ const fighter   = buildLevels([4, 6, 8, 12, 14, 16, 19], [3, 7, 10, 15, 18]);
 // Subclass (Monastic Tradition): 3, 6, 11, 17
 const monk      = buildLevels(STANDARD_ASI, [3, 6, 11, 17]);
 // Subclass (Sacred Oath): 3, 7, 15, 20
-const paladin   = buildLevels(STANDARD_ASI, [3, 7, 15, 20]);
+const paladin   = PALADIN_DATA;
 const ranger    = RANGER_DATA;
 // Subclass (Roguish Archetype): 3, 9, 13, 17 — extra ASI at 10
 const rogue     = buildLevels([4, 8, 10, 12, 16, 19], [3, 9, 13, 17]);
@@ -89,6 +90,7 @@ export function proficiencyBonusForLevel(level: number): number {
 export function getClassSteps(className: string, nextLevel: number): ClassStep[] {
   switch (className) {
     case "Artificer": return getArtificerSteps(nextLevel);
+    case "Paladin":   return getPaladinSteps(nextLevel);
     case "Ranger":    return getRangerSteps(nextLevel);
     case "Sorcerer":  return getSorcererSteps(nextLevel);
     default:          return [];
@@ -101,6 +103,7 @@ export function getClassSteps(className: string, nextLevel: number): ClassStep[]
  */
 export function getClassResources(className: string, nextLevel: number): ClassResourceDef[] {
   switch (className) {
+    case "Paladin":  return getPaladinResources(nextLevel);
     case "Sorcerer": return getSorcererResources(nextLevel);
     default:         return [];
   }

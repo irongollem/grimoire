@@ -254,6 +254,7 @@ import type { AbilityKey, AsiMode, ClassStep } from "./types";
 import { RANGER_SUBCLASSES }    from "./classes/ranger";
 import { ARTIFICER_SUBCLASSES } from "./classes/artificer";
 import { SORCERER_SUBCLASSES }  from "./classes/sorcerer";
+import { PALADIN_SUBCLASSES }   from "./classes/paladin";
 
 const props = defineProps<{ member: PartyMember }>();
 
@@ -271,6 +272,7 @@ const needsSubclassChoice = computed(() =>
 
 const SUBCLASS_OPTIONS: Record<string, readonly string[]> = {
   Artificer: ARTIFICER_SUBCLASSES,
+  Paladin:   PALADIN_SUBCLASSES,
   Ranger:    RANGER_SUBCLASSES,
   Sorcerer:  SORCERER_SUBCLASSES,
 };
