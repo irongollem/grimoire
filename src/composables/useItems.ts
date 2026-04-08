@@ -193,8 +193,8 @@ export function useImportSrdItems() {
         if (error) throw error;
       }
 
-      // Update existing items: refresh source fields + new structural fields only.
-      // Preserves user-added data (image_url, image_focal_point, tags, description).
+      // Update existing items: refresh source fields + tags.
+      // Preserves user-added data (image_url, image_focal_point, description).
       const UPDATE_BATCH = 50;
       for (let i = 0; i < toUpdate.length; i += UPDATE_BATCH) {
         await Promise.all(
@@ -207,6 +207,7 @@ export function useImportSrdItems() {
                 source_url: item.source_url ?? null,
                 weapon_range: item.weapon_range ?? null,
                 versatile_damage: item.versatile_damage ?? null,
+                tags: item.tags,
               })
               .eq("id", existingByName.get(item.name)!),
           ),

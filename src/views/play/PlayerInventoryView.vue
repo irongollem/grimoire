@@ -301,10 +301,32 @@
         </p>
         <button
           class="flex items-center gap-1 font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-          @click="addContainer"
+          @click="showContainerPicker = !showContainerPicker; containerPickerSearch = ''"
         >
           <Plus class="h-3 w-3" />Add container
         </button>
+      </div>
+
+      <!-- Container picker: promote an existing inventory item to a container -->
+      <div v-if="showContainerPicker" class="mb-2 rounded-lg border border-border bg-card p-3 flex flex-col gap-2">
+        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">Pick an item from your inventory:</p>
+        <input
+          v-model="containerPickerSearch"
+          type="text"
+          placeholder="Filter items…"
+          class="w-full bg-muted/30 border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+        <div v-if="containerCandidates.length" class="rounded border border-border overflow-hidden">
+          <button
+            v-for="item in containerCandidates"
+            :key="item.id"
+            type="button"
+            class="w-full text-left px-3 py-1.5 font-fell text-sm text-foreground hover:bg-muted transition-colors border-b border-border last:border-0"
+            @click="promoteToContainer(item)"
+          >{{ item.name }}</button>
+        </div>
+        <p v-else class="font-fell text-xs text-muted-foreground/50 italic">No items in inventory.</p>
+        <button type="button" class="font-cinzel text-[10px] text-muted-foreground hover:text-foreground self-end" @click="showContainerPicker = false">Cancel</button>
       </div>
 
       <!-- Default backpack always shown -->
@@ -665,13 +687,13 @@ const equippedItems = computed(() =>
   myItems.value.filter((i) => i.location === "equipped"),
 );
 const beltItems = computed(() =>
-  myItems.value.filter((i) => i.location === "belt"),
+  myItems.value.filter((i) => i.location === "belt" && !i.is_container),
 );
 const backpackItems = computed(() =>
-  myItems.value.filter((i) => i.location === "backpack"),
+  myItems.value.filter((i) => i.location === "backpack" && !i.is_container),
 );
 const storedItems = computed(() =>
-  myItems.value.filter((i) => i.location === "stored"),
+  myItems.value.filter((i) => i.location === "stored" && !i.is_container),
 );
 const customContainers = computed(() =>
   myItems.value.filter((i) => i.is_container),
@@ -680,6 +702,11 @@ const allContainers = computed(() => customContainers.value);
 const otherEquipped = computed(() =>
   equippedItems.value.filter((i) => i.slot === "other" || !i.slot),
 );
+
+function isContainerVaultItem(itemId: string | null): boolean {
+  if (!itemId) return false;
+  return allItems.value?.find((it) => it.id === itemId)?.tags.includes("container") ?? false;
+}
 
 function itemsInContainer(cid: string) {
   return myItems.value.filter(
@@ -1027,23 +1054,21 @@ async function dropItemToChat(inv: PartyInventoryItem) {
   await removeInventoryItem(inv.id);
 }
 
-async function addContainer() {
-  const name = prompt("Container name (e.g. 'Belt Pouch', 'Saddlebag'):");
-  if (!name?.trim()) return;
-  await addInventoryItem({
-    name: name.trim(),
-    quantity: 1,
-    item_id: null,
-    carried_by: resolvedMemberId.value ?? null,
-    location: "backpack",
-    slot: null,
-    is_container: true,
-    container_id: null,
-    is_attuned: false,
-    is_equipped: false,
-    notes: null,
-    is_ruined: false,
-  });
+// ── Add container picker ───────────────────────────────────────────────────────
+const showContainerPicker = ref(false);
+const containerPickerSearch = ref("");
+
+const containerCandidates = computed(() => {
+  const q = containerPickerSearch.value.trim().toLowerCase();
+  return myItems.value
+    .filter((i) => !i.is_container && i.location !== "equipped" && (!q || i.name.toLowerCase().includes(q)))
+    .slice(0, 8);
+});
+
+async function promoteToContainer(item: PartyInventoryItem) {
+  await updateInventoryItem({ id: item.id, update: { is_container: true } });
+  showContainerPicker.value = false;
+  containerPickerSearch.value = "";
 }
 
 async function addToLocation(
@@ -1059,7 +1084,7 @@ async function addToLocation(
     carried_by: resolvedMemberId.value ?? null,
     location,
     slot: null,
-    is_container: false,
+    is_container: isContainerVaultItem(itemId),
     container_id: containerId,
     is_attuned: false,
     is_equipped: false,
@@ -1149,7 +1174,7 @@ async function addItem() {
     carried_by: resolvedMemberId.value ?? null,
     location: "backpack",
     slot: null,
-    is_container: false,
+    is_container: isContainerVaultItem(newItemSelectedId.value || null),
     container_id: null,
     is_attuned: false,
     is_equipped: false,

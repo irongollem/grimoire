@@ -256,6 +256,10 @@
             <input type="checkbox" v-model="isArcaneFocus" class="rounded" />
             <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">ARCANE FOCUS</span>
           </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" v-model="isContainer" class="rounded" />
+            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">CONTAINER</span>
+          </label>
         </div>
 
         <!-- Spell references (optional, links to Spellbook entries) -->
@@ -415,6 +419,13 @@ const armorClass = ref(props.item?.armor_class ?? "");
 
 // ── Spellcasting ──────────────────────────────────────────────────────────────
 const isArcaneFocus = ref(props.item?.is_arcane_focus ?? false);
+const isContainer = computed({
+  get: () => tags.value.includes('container'),
+  set: (v) => {
+    if (v && !tags.value.includes('container')) tags.value = [...tags.value, 'container'];
+    else if (!v) tags.value = tags.value.filter(t => t !== 'container');
+  },
+});
 
 // ── Curse fields ──────────────────────────────────────────────────────────────
 const isCursed = ref(!!(props.item?.curse_description));

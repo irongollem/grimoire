@@ -98,6 +98,7 @@
 - [x] Portrait image swapping on paper doll — replaced SVG character placeholder with real portrait images; swaps between `/assets/dressed.png` and `/assets/naked.png` based on whether the clothes slot is equipped; smooth opacity transition on swap
 - [x] Carry weight tracking — parses `Item.weight` strings ("3 lb.", "1/4 lb." etc.) into numbers; shows per-container weight in container headers; total carried vs. capacity bar with green/amber/red colouring; Powerful Build races (Goliath, Centaur, Firbolg, Bugbear, Orc) auto-detected from race field for ×2 capacity; capacity override accepts expressions (`*2`, `+30`, `150`) so adjustments stay meaningful as STR changes; override editable inline in inventory and via character sheet form; `carry_capacity_override text` column added to `party_members`
 - [x] Drag-and-drop inventory sorting — grip handle on each item row; drag to reorder within backpack, belt, or any custom container; order persists via `sort_order` column on `party_inventory`; optimistic cache update prevents flicker
+- [x] Container tag system — vault items tagged `"container"` (Backpack, Barrel, Basket, Bucket, Chest, Component Pouch, Pouch, Quiver, Sack) auto-set `is_container: true` when added to inventory; CONTAINER checkbox in item editor; containers filtered out of backpack/belt/stored lists; "Add container" replaces `prompt()` with inline inventory picker to promote any owned item to a container; re-import now refreshes tags on existing SRD items
 
 ### Layout & UX
 
