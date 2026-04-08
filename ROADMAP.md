@@ -101,7 +101,7 @@
 - [x] Container tag system — vault items tagged `"container"` (Backpack, Barrel, Basket, Bucket, Chest, Component Pouch, Pouch, Quiver, Sack) auto-set `is_container: true` when added to inventory; CONTAINER checkbox in item editor; containers filtered out of backpack/belt/stored lists; "Add container" replaces `prompt()` with inline inventory picker to promote any owned item to a container; re-import now refreshes tags on existing SRD items
 - [x] Ammunition data — arrows, bolts, sling bullets, blowgun needles, darts; silvered + adamantine variants for arrows and bolts; silvered bullets; firearm bullets (standard + silvered); all wired into vault import
 - [x] Item detail panel stats — armor class, damage dice, versatile damage, range, and properties now shown in the player item detail panel
-- [x] Attunement toggle — Attune/Unattune button in item detail panel for items requiring it; capped at 3 with "Slots Full" label; 3-pip indicator next to paper doll shows attuned slot usage with per-pip item name tooltip
+- [x] Attunement toggle — Attune/Unattune button in item detail panel for items requiring it; capped at 3 with "Slots Full" label; 3-pip indicator next to paper doll shows attuned slot usage with per-pip item name tooltip; optimistic state flip on click; `✦` glyph on attuned items in all inventory rows
 
 ### Layout & UX
 
