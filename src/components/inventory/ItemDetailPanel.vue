@@ -67,6 +67,31 @@
             <span class="text-muted-foreground">Cost</span>
             <span>{{ vaultItem.cost }}</span>
           </div>
+          <!-- Armor class -->
+          <div v-if="vaultItem?.armor_class" class="flex justify-between">
+            <span class="text-muted-foreground">Armor Class</span>
+            <span class="font-bold">{{ vaultItem.armor_class }}</span>
+          </div>
+          <!-- Weapon damage -->
+          <template v-if="vaultItem?.damage_rolls?.length">
+            <div v-for="(roll, i) in vaultItem.damage_rolls" :key="i" class="flex justify-between">
+              <span class="text-muted-foreground">{{ i === 0 ? 'Damage' : 'Alt. Damage' }}</span>
+              <span class="font-bold capitalize">{{ roll.dice }} {{ roll.type }}</span>
+            </div>
+          </template>
+          <div v-if="vaultItem?.versatile_damage" class="flex justify-between">
+            <span class="text-muted-foreground">Versatile</span>
+            <span>{{ vaultItem.versatile_damage }} (two-handed)</span>
+          </div>
+          <div v-if="vaultItem?.weapon_range" class="flex justify-between">
+            <span class="text-muted-foreground">Range</span>
+            <span>{{ vaultItem.weapon_range }}</span>
+          </div>
+          <!-- Properties -->
+          <div v-if="vaultItem?.properties?.length" class="flex justify-between gap-3">
+            <span class="text-muted-foreground shrink-0">Properties</span>
+            <span class="text-right capitalize">{{ vaultItem.properties.join(", ") }}</span>
+          </div>
           <div v-if="vaultItem?.is_arcane_focus" class="flex justify-between">
             <span class="text-muted-foreground">Arcane Focus</span>
             <span>Yes</span>
