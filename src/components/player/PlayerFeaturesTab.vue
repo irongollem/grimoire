@@ -97,18 +97,41 @@
         <div
           v-for="(features, lvl) in featuresByLevel"
           :key="lvl"
-          class="flex gap-3 px-4 py-2.5"
+          class="px-4 py-2.5"
         >
-          <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-12 shrink-0 pt-0.5">
-            Lvl {{ lvl }}
-          </span>
-          <div class="flex flex-wrap gap-1.5">
-            <span
-              v-for="feat in features"
-              :key="feat"
-              class="inline-flex items-center rounded-md bg-muted/50 border border-border px-2 py-0.5 font-fell text-sm text-foreground"
-            >{{ feat }}</span>
+          <div class="flex gap-3">
+            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-12 shrink-0 pt-0.5">
+              Lvl {{ lvl }}
+            </span>
+            <div class="flex flex-wrap gap-1.5">
+              <button
+                v-for="feat in features"
+                :key="featureName(feat)"
+                class="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 font-fell text-sm text-foreground transition-colors"
+                :class="featureDescription(feat)
+                  ? 'bg-muted/50 border-border hover:border-primary/40 hover:bg-primary/5 cursor-pointer'
+                  : 'bg-muted/50 border-border cursor-default'"
+                @click="featureDescription(feat) && toggleExpanded(featureName(feat))"
+              >
+                {{ featureName(feat) }}
+                <ChevronDown
+                  v-if="featureDescription(feat)"
+                  class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
+                  :class="expanded.has(featureName(feat)) ? 'rotate-180' : ''"
+                />
+              </button>
+            </div>
           </div>
+          <!-- Expanded descriptions -->
+          <template v-for="feat in features" :key="`desc-${featureName(feat)}`">
+            <div
+              v-if="featureDescription(feat) && expanded.has(featureName(feat))"
+              class="mt-2 ml-15 rounded-md bg-muted/30 border border-border/60 px-3 py-2"
+            >
+              <p class="font-cinzel text-[10px] text-primary tracking-wider mb-1">{{ featureName(feat) }}</p>
+              <p class="font-fell text-sm text-muted-foreground leading-relaxed">{{ featureDescription(feat) }}</p>
+            </div>
+          </template>
         </div>
       </div>
     </div>
@@ -143,7 +166,9 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
+import { ChevronDown } from "lucide-vue-next";
 import { getCharacterFeatures } from "@/levelup/classFeatures";
+import { featureName, featureDescription } from "@/levelup/types";
 import { getDefaultSpellSlots, getSlotRecovery } from "@/types/spell.types";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useConfirm } from "@/composables/useConfirm";
@@ -259,11 +284,18 @@ async function longRest() {
   persistSlots();
 }
 
-// ── Features (read-only) ──────────────────────────────────────────────────────
+// ── Features (read-only, expandable) ─────────────────────────────────────────
 
 const featuresByLevel = computed(() =>
   getCharacterFeatures(props.member.class ?? "", props.member.level),
 );
+
+const expanded = ref(new Set<string>());
+function toggleExpanded(name: string) {
+  if (expanded.value.has(name)) expanded.value.delete(name);
+  else expanded.value.add(name);
+  expanded.value = new Set(expanded.value); // trigger reactivity
+}
 
 // ── Class choices (read-only) ─────────────────────────────────────────────────
 

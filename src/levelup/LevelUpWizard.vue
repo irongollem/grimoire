@@ -24,11 +24,11 @@
           <ul class="space-y-1">
             <li
               v-for="feat in levelData.features"
-              :key="feat"
+              :key="featureName(feat)"
               class="flex items-start gap-2 font-fell text-sm text-foreground"
             >
               <span class="text-primary mt-0.5">✦</span>
-              <span>{{ feat }}</span>
+              <span>{{ featureName(feat) }}</span>
             </li>
           </ul>
         </template>
@@ -250,6 +250,7 @@ import { useUpdatePartyMember } from "@/composables/useParty";
 import { getLevelData, proficiencyBonusForLevel, getClassSteps, getClassResources } from "./classFeatures";
 import { getDefaultSpellSlots } from "@/types/spell.types";
 import type { PartyMember, PartyMemberUpdate, SpellSlotEntry } from "@/types/party.types";
+import { featureName } from "./types";
 import type { AbilityKey, AsiMode, ClassStep } from "./types";
 import { RANGER_SUBCLASSES }    from "./classes/ranger";
 import { ARTIFICER_SUBCLASSES } from "./classes/artificer";

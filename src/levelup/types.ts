@@ -27,9 +27,22 @@ export const SKILL_NAMES = [
   "Survival",
 ] as const;
 
+/** A feature entry is either a plain name string, or a name + description object. */
+export type FeatureEntry = string | { name: string; description: string };
+
+/** Extracts the display name from a FeatureEntry. */
+export function featureName(e: FeatureEntry): string {
+  return typeof e === "string" ? e : e.name;
+}
+
+/** Returns the description for a FeatureEntry, or null if none. */
+export function featureDescription(e: FeatureEntry): string | null {
+  return typeof e === "string" ? null : e.description;
+}
+
 export interface ClassLevelData {
   level: number;
-  features: string[];
+  features: FeatureEntry[];
   asi: boolean;
   subclass_feature?: boolean;
   spell_slots?: SpellSlotEntry[];

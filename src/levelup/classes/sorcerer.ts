@@ -4,7 +4,7 @@
  */
 
 import { STANDARD_ASI } from "../types";
-import type { ClassLevelData, ClassStep, ClassResourceDef } from "../types";
+import type { ClassLevelData, ClassStep, ClassResourceDef, FeatureEntry } from "../types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -40,10 +40,17 @@ export const SORCERY_POINTS: ClassResourceDef = {
 
 const SUBCLASS_LEVELS = [1, 6, 14, 18];
 
-const FEATURES: Record<number, string[]> = {
-  1:  ["Spellcasting", "Sorcerous Origin"],
-  2:  ["Font of Magic (2 Sorcery Points)"],
-  3:  ["Metamagic (choose 2)"],
+const FEATURES: Record<number, FeatureEntry[]> = {
+  1: [
+    { name: "Spellcasting", description: "An event in your past imbued you with magical power. CHA is your spellcasting ability. You know a fixed number of Sorcerer spells (they are always prepared). You can cast known spells using your spell slots." },
+    { name: "Sorcerous Origin", description: "Choose a sorcerous origin that describes the source of your innate magical power, such as Draconic Bloodline or Wild Magic. Your choice grants features at 1st level and again at 6th, 14th, and 18th level." },
+  ],
+  2: [
+    { name: "Font of Magic (2 Sorcery Points)", description: "You tap into a deep wellspring of magic within yourself — Sorcery Points. You have 2 points (equal to your level), regained on a long rest. As a bonus action you can create a spell slot by spending Sorcery Points, or convert a spell slot into Sorcery Points. Also used to fuel Metamagic options." },
+  ],
+  3: [
+    { name: "Metamagic (choose 2)", description: "You gain the ability to twist your spells to suit your needs. Choose 2 Metamagic options: Careful (protect allies from your spells), Distant (double range), Empowered (reroll damage dice, costs 1 point), Extended (double duration), Heightened (impose disadvantage on save, costs 3), Quickened (cast as bonus action, costs 2), Subtle (no verbal/somatic components), or Twinned (target second creature, costs spell level in points)." },
+  ],
   4:  ["ASI"],
   5:  [],
   6:  ["Sorcerous Origin feature"],

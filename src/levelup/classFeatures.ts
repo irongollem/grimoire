@@ -5,7 +5,7 @@
  * All 13 classes implemented in src/levelup/classes/<class>.ts.
  */
 
-import type { ClassFeatureTable, ClassLevelData, ClassStep, ClassResourceDef } from "./types";
+import type { ClassFeatureTable, ClassLevelData, ClassStep, ClassResourceDef, FeatureEntry } from "./types";
 import { RANGER_DATA,    getRangerSteps                          } from "./classes/ranger";
 import { ARTIFICER_DATA, getArtificerSteps                      } from "./classes/artificer";
 import { SORCERER_DATA,  getSorcererSteps, getSorcererResources  } from "./classes/sorcerer";
@@ -67,10 +67,10 @@ export function proficiencyBonusForLevel(level: number): number {
  * Returns all features a character has gained from levels 1 through `currentLevel`,
  * keyed by level. Levels with no features are omitted.
  */
-export function getCharacterFeatures(className: string, currentLevel: number): Record<number, string[]> {
+export function getCharacterFeatures(className: string, currentLevel: number): Record<number, FeatureEntry[]> {
   const table = CLASS_FEATURES[className];
   if (!table) return {};
-  const result: Record<number, string[]> = {};
+  const result: Record<number, FeatureEntry[]> = {};
   for (let lvl = 1; lvl <= currentLevel; lvl++) {
     const features = table[lvl - 1]?.features ?? [];
     if (features.length > 0) result[lvl] = features;
