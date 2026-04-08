@@ -1,18 +1,36 @@
 <template>
   <div class="space-y-4 pb-8">
     <!-- No character linked -->
-    <div v-if="!member" class="text-center py-16 space-y-3">
+    <div v-if="!member" class="text-center py-16 space-y-4">
       <p class="font-cinzel text-lg text-muted-foreground">No character linked</p>
-      <p class="font-fell text-sm text-muted-foreground italic">
-        {{ ui.dmPreviewMode
-          ? "Select a character above to preview their sheet."
-          : "Ask your DM to link your account to a party member." }}
-      </p>
+      <template v-if="ui.dmPreviewMode">
+        <p class="font-fell text-sm text-muted-foreground italic">Select a character above to preview their sheet.</p>
+      </template>
+      <template v-else>
+        <p class="font-fell text-sm text-muted-foreground italic">
+          Build your own character sheet, or ask your DM to link you to an existing party member.
+        </p>
+        <RouterLink
+          to="/play/character/create"
+          class="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+        >
+          Create Character
+        </RouterLink>
+      </template>
     </div>
 
     <template v-else>
       <!-- ── Always visible ─────────────────────────────────── -->
-      <PlayerCharacterHeader :member="member" />
+      <div class="flex items-start justify-between gap-2">
+        <PlayerCharacterHeader :member="member" class="flex-1 min-w-0" />
+        <RouterLink
+          v-if="!ui.dmPreviewMode"
+          to="/play/character/edit"
+          class="shrink-0 inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors mt-1"
+        >
+          Edit
+        </RouterLink>
+      </div>
 
       <AbilityScoreTable
         :scores="member"
@@ -91,6 +109,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { RouterLink } from "vue-router";
 import { rollDice } from "@/lib/dice";
 import type { RollMode } from "@/lib/dice";
 import { useAuthStore } from "@/stores/auth";

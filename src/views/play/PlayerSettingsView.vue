@@ -54,16 +54,24 @@
 
       <div v-else>
         <p class="font-fell text-sm text-muted-foreground italic mb-3">
-          Claim a character to link your account to a party member.
+          Build your own character sheet, or claim an existing party member created by your DM.
         </p>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 font-cinzel text-xs text-primary hover:bg-primary/20 transition-colors"
-          @click="showClaim = true"
-        >
-          <User class="h-3.5 w-3.5" />
-          Claim a character
-        </button>
+        <div class="flex flex-wrap gap-2">
+          <RouterLink
+            to="/play/character/create"
+            class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+          >
+            <User class="h-3.5 w-3.5" />
+            Create character
+          </RouterLink>
+          <button
+            type="button"
+            class="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 font-cinzel text-xs text-primary hover:bg-primary/20 transition-colors"
+            @click="showClaim = true"
+          >
+            Claim existing
+          </button>
+        </div>
       </div>
 
       <!-- Claim picker -->
@@ -271,6 +279,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onBeforeUnmount } from "vue";
+import { RouterLink } from "vue-router";
 import { CalendarCheck, Check, GripVertical, Save, User, X } from "lucide-vue-next";
 import { usePlayerNavPrefs } from "@/composables/usePlayerNavPrefs";
 import { MOBILE_NAV_SLOTS } from "@/lib/playerNav";

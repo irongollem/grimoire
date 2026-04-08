@@ -35,6 +35,18 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Your Character" },
     },
     {
+      path: "/play/character/create",
+      name: "play-character-create",
+      component: () => import("@/views/play/PlayerCharacterCreateView.vue"),
+      meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Create Character" },
+    },
+    {
+      path: "/play/character/edit",
+      name: "play-character-edit",
+      component: () => import("@/views/play/PlayerCharacterCreateView.vue"),
+      meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Edit Character" },
+    },
+    {
       path: "/play/party",
       name: "play-party",
       component: () => import("@/views/play/PlayerPartyView.vue"),
