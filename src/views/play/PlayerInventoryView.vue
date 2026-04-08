@@ -141,7 +141,10 @@
         </div>
 
         <!-- Equipped weight -->
-        <p v-if="member && equippedWeight > 0" class="mt-2 font-cinzel text-[9px] text-muted-foreground/50 tracking-wider text-right">
+        <p
+          v-if="member && equippedWeight > 0"
+          class="mt-2 font-cinzel text-[9px] text-muted-foreground/50 tracking-wider text-right"
+        >
           Equipped: {{ formatWeightLb(equippedWeight) }}
         </p>
       </div>
@@ -238,8 +241,10 @@
     </div>
 
     <!-- ═══ CARRY WEIGHT ═══ -->
-    <div v-if="member" class="rounded-lg border border-border bg-card px-4 py-3 flex gap-3 items-center">
-
+    <div
+      v-if="member"
+      class="rounded-lg border border-border bg-card px-4 py-3 flex gap-3 items-center"
+    >
       <!-- Burden portrait -->
       <div class="shrink-0 w-15 h-21 select-none">
         <img
@@ -253,18 +258,33 @@
       <div class="flex-1 min-w-0">
         <div class="flex items-center justify-between mb-1 gap-2">
           <!-- Burden label -->
-          <span class="font-cinzel text-[10px] font-semibold tracking-wider transition-colors" :class="BURDEN_META[burdenLevel].color">
+          <span
+            class="font-cinzel text-[10px] font-semibold tracking-wider transition-colors"
+            :class="BURDEN_META[burdenLevel].color"
+          >
             {{ BURDEN_META[burdenLevel].label }}
           </span>
 
           <!-- weight / capacity + powerful build -->
           <div class="flex items-center gap-1.5 shrink-0">
-            <span v-if="powerfulBuild" class="font-cinzel text-[8px] text-amber-400/70 tracking-wider uppercase">Powerful Build</span>
-            <span class="font-cinzel text-[10px] text-foreground">{{ formatWeightLb(totalCarriedWeight) }}</span>
-            <span class="font-cinzel text-[9px] text-muted-foreground/40">/</span>
+            <span
+              v-if="powerfulBuild"
+              class="font-cinzel text-[8px] text-amber-400/70 tracking-wider uppercase"
+              >Powerful Build</span
+            >
+            <span class="font-cinzel text-[10px] text-foreground">{{
+              formatWeightLb(totalCarriedWeight)
+            }}</span>
+            <span class="font-cinzel text-[9px] text-muted-foreground/40"
+              >/</span
+            >
 
             <!-- editable capacity -->
-            <form v-if="editingCapacity" class="flex items-center gap-1" @submit.prevent="saveCapacity">
+            <form
+              v-if="editingCapacity"
+              class="flex items-center gap-1"
+              @submit.prevent="saveCapacity"
+            >
               <input
                 v-model="capacityDraft"
                 type="text"
@@ -273,20 +293,56 @@
                 autofocus
                 @keydown.escape="editingCapacity = false"
               />
-              <button type="submit" class="font-cinzel text-[9px] text-primary hover:opacity-70">✓</button>
-              <button v-if="member.carry_capacity_override != null" type="button" class="font-cinzel text-[9px] text-muted-foreground hover:text-foreground" title="Reset to STR×15" @click="resetCapacity">↺</button>
-              <button type="button" class="font-cinzel text-[9px] text-muted-foreground hover:text-foreground" @click="editingCapacity = false">✕</button>
+              <button
+                type="submit"
+                class="font-cinzel text-[9px] text-primary hover:opacity-70"
+              >
+                ✓
+              </button>
+              <button
+                v-if="member.carry_capacity_override != null"
+                type="button"
+                class="font-cinzel text-[9px] text-muted-foreground hover:text-foreground"
+                title="Reset to STR×15"
+                @click="resetCapacity"
+              >
+                ↺
+              </button>
+              <button
+                type="button"
+                class="font-cinzel text-[9px] text-muted-foreground hover:text-foreground"
+                @click="editingCapacity = false"
+              >
+                ✕
+              </button>
             </form>
-            <button v-else class="font-cinzel text-[10px] hover:text-primary transition-colors flex items-center gap-0.5" :class="member.carry_capacity_override != null ? 'text-amber-400' : 'text-muted-foreground/60'" @click="openCapacityEdit">
+            <button
+              v-else
+              class="font-cinzel text-[10px] hover:text-primary transition-colors flex items-center gap-0.5"
+              :class="
+                member.carry_capacity_override != null
+                  ? 'text-amber-400'
+                  : 'text-muted-foreground/60'
+              "
+              @click="openCapacityEdit"
+            >
               {{ formatWeightLb(effectiveCapacity) }}
-              <span v-if="member.carry_capacity_override" class="text-[8px] opacity-60">({{ member.carry_capacity_override }})</span>
+              <span
+                v-if="member.carry_capacity_override"
+                class="text-[8px] opacity-60"
+                >({{ member.carry_capacity_override }})</span
+              >
             </button>
           </div>
         </div>
 
         <!-- bar -->
         <div class="h-1.5 rounded-full bg-muted/40 overflow-hidden">
-          <div class="h-full rounded-full transition-all duration-300" :class="carryColor" :style="{ width: carryPercent + '%' }" />
+          <div
+            class="h-full rounded-full transition-all duration-300"
+            :class="carryColor"
+            :style="{ width: carryPercent + '%' }"
+          />
         </div>
       </div>
     </div>
@@ -301,32 +357,53 @@
         </p>
         <button
           class="flex items-center gap-1 font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-          @click="showContainerPicker = !showContainerPicker; containerPickerSearch = ''"
+          @click="
+            showContainerPicker = !showContainerPicker;
+            containerPickerSearch = '';
+          "
         >
           <Plus class="h-3 w-3" />Add container
         </button>
       </div>
 
       <!-- Container picker: promote an existing inventory item to a container -->
-      <div v-if="showContainerPicker" class="mb-2 rounded-lg border border-border bg-card p-3 flex flex-col gap-2">
-        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">Pick an item from your inventory:</p>
+      <div
+        v-if="showContainerPicker"
+        class="mb-2 rounded-lg border border-border bg-card p-3 flex flex-col gap-2"
+      >
+        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
+          Pick an item from your inventory:
+        </p>
         <input
           v-model="containerPickerSearch"
           type="text"
           placeholder="Filter items…"
           class="w-full bg-muted/30 border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
-        <div v-if="containerCandidates.length" class="rounded border border-border overflow-hidden">
+        <div
+          v-if="containerCandidates.length"
+          class="rounded border border-border overflow-hidden"
+        >
           <button
             v-for="item in containerCandidates"
             :key="item.id"
             type="button"
             class="w-full text-left px-3 py-1.5 font-fell text-sm text-foreground hover:bg-muted transition-colors border-b border-border last:border-0"
             @click="promoteToContainer(item)"
-          >{{ item.name }}</button>
+          >
+            {{ item.name }}
+          </button>
         </div>
-        <p v-else class="font-fell text-xs text-muted-foreground/50 italic">No items in inventory.</p>
-        <button type="button" class="font-cinzel text-[10px] text-muted-foreground hover:text-foreground self-end" @click="showContainerPicker = false">Cancel</button>
+        <p v-else class="font-fell text-xs text-muted-foreground/50 italic">
+          No items in inventory.
+        </p>
+        <button
+          type="button"
+          class="font-cinzel text-[10px] text-muted-foreground hover:text-foreground self-end"
+          @click="showContainerPicker = false"
+        >
+          Cancel
+        </button>
       </div>
 
       <!-- Default backpack always shown -->
@@ -625,7 +702,12 @@ const { confirm } = useConfirm();
 import { ref, computed, reactive, nextTick } from "vue";
 import { Plus, MessageCircle } from "lucide-vue-next";
 import { COINS, type CoinKey } from "@/lib/currency";
-import { parseWeightLb, hasPowerfulBuild, carryCapacity, formatWeightLb } from "@/lib/utils";
+import {
+  parseWeightLb,
+  hasPowerfulBuild,
+  carryCapacity,
+  formatWeightLb,
+} from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
@@ -705,7 +787,11 @@ const otherEquipped = computed(() =>
 
 function isContainerVaultItem(itemId: string | null): boolean {
   if (!itemId) return false;
-  return allItems.value?.find((it) => it.id === itemId)?.tags.includes("container") ?? false;
+  return (
+    allItems.value
+      ?.find((it) => it.id === itemId)
+      ?.tags.includes("container") ?? false
+  );
 }
 
 function itemsInContainer(cid: string) {
@@ -718,7 +804,7 @@ function itemsInContainer(cid: string) {
 // Pre-build a Map<item_id, weight_per_unit> so every invWeight lookup is O(1).
 const itemWeightMap = computed((): Map<string, number> => {
   const m = new Map<string, number>();
-  for (const it of (allItems.value ?? [])) {
+  for (const it of allItems.value ?? []) {
     m.set(it.id, parseWeightLb(it.weight));
   }
   return m;
@@ -733,9 +819,9 @@ function sumWeight(items: PartyInventoryItem[]): number {
   return Math.round(items.reduce((acc, i) => acc + invWeight(i), 0) * 10) / 10;
 }
 
-const equippedWeight  = computed(() => sumWeight(equippedItems.value));
-const beltWeight      = computed(() => sumWeight(beltItems.value));
-const backpackWeight  = computed(() => sumWeight(backpackItems.value));
+const equippedWeight = computed(() => sumWeight(equippedItems.value));
+const beltWeight = computed(() => sumWeight(beltItems.value));
+const backpackWeight = computed(() => sumWeight(backpackItems.value));
 
 // Memoize per-container weights to avoid recomputing in both template and totalCarriedWeight.
 const containerWeightMap = computed((): Map<string, number> => {
@@ -750,13 +836,18 @@ function containerWeight(cid: string) {
   return containerWeightMap.value.get(cid) ?? 0;
 }
 
-const totalCarriedWeight = computed(() =>
-  Math.round((
-    equippedWeight.value +
-    beltWeight.value +
-    backpackWeight.value +
-    customContainers.value.reduce((acc, c) => acc + containerWeight(c.id), 0)
-  ) * 10) / 10,
+const totalCarriedWeight = computed(
+  () =>
+    Math.round(
+      (equippedWeight.value +
+        beltWeight.value +
+        backpackWeight.value +
+        customContainers.value.reduce(
+          (acc, c) => acc + containerWeight(c.id),
+          0,
+        )) *
+        10,
+    ) / 10,
 );
 
 // ── Carry capacity ─────────────────────────────────────────────────────────────
@@ -778,18 +869,41 @@ const carryPercent = computed(() =>
 
 const carryColor = computed(() => {
   if (carryPercent.value >= 100) return "bg-destructive";
-  if (carryPercent.value >= 67)  return "bg-amber-500";
-  if (carryPercent.value >= 33)  return "bg-amber-400/70";
+  if (carryPercent.value >= 67) return "bg-amber-500";
+  if (carryPercent.value >= 33) return "bg-amber-400/70";
   return "bg-primary";
 });
 
-type BurdenLevel = "unencumbered" | "encumbered" | "heavily_encumbered" | "over_encumbered";
+type BurdenLevel =
+  | "unencumbered"
+  | "encumbered"
+  | "heavily_encumbered"
+  | "over_encumbered";
 
-const BURDEN_META: Record<BurdenLevel, { label: string; img: string; color: string }> = {
-  unencumbered:      { label: "Unencumbered",       img: "/assets/unencumbered.png",       color: "text-muted-foreground/60" },
-  encumbered:        { label: "Encumbered",          img: "/assets/encumbered.png",          color: "text-amber-400" },
-  heavily_encumbered:{ label: "Heavily Encumbered",  img: "/assets/heavily_encumbered.png",  color: "text-orange-500" },
-  over_encumbered:   { label: "Over Encumbered",     img: "/assets/over_encumbered.png",     color: "text-destructive" },
+const BURDEN_META: Record<
+  BurdenLevel,
+  { label: string; img: string; color: string }
+> = {
+  unencumbered: {
+    label: "Unencumbered",
+    img: "/assets/unencumbered.png",
+    color: "text-muted-foreground/60",
+  },
+  encumbered: {
+    label: "Encumbered",
+    img: "/assets/encumbered.png",
+    color: "text-amber-400",
+  },
+  heavily_encumbered: {
+    label: "Heavily Encumbered",
+    img: "/assets/heavily_encumbered.png",
+    color: "text-orange-500",
+  },
+  over_encumbered: {
+    label: "Over Encumbered",
+    img: "/assets/over_encumbered.png",
+    color: "text-destructive",
+  },
 };
 
 const burdenLevel = computed((): BurdenLevel => {
@@ -799,13 +913,13 @@ const burdenLevel = computed((): BurdenLevel => {
   const str = member.value.str;
   if (w > str * 15 * mult) return "over_encumbered";
   if (w > str * 10 * mult) return "heavily_encumbered";
-  if (w > str *  5 * mult) return "encumbered";
+  if (w > str * 5 * mult) return "encumbered";
   return "unencumbered";
 });
 
 // capacity override edit
 const editingCapacity = ref(false);
-const capacityDraft   = ref("");
+const capacityDraft = ref("");
 
 function openCapacityEdit() {
   capacityDraft.value = member.value?.carry_capacity_override ?? "";
@@ -815,13 +929,19 @@ function openCapacityEdit() {
 async function saveCapacity() {
   if (!member.value) return;
   const val = capacityDraft.value.trim() || null;
-  await updatePartyMember({ id: member.value.id, update: { carry_capacity_override: val } });
+  await updatePartyMember({
+    id: member.value.id,
+    update: { carry_capacity_override: val },
+  });
   editingCapacity.value = false;
 }
 
 function resetCapacity() {
   if (!member.value) return;
-  void updatePartyMember({ id: member.value.id, update: { carry_capacity_override: null } });
+  void updatePartyMember({
+    id: member.value.id,
+    update: { carry_capacity_override: null },
+  });
   editingCapacity.value = false;
 }
 
@@ -1027,7 +1147,9 @@ async function moveItem(
 }
 
 function handleReorder(items: PartyInventoryItem[]) {
-  reorderInventoryItems(items.map((item, i) => ({ id: item.id, sort_order: i * 100 })));
+  reorderInventoryItems(
+    items.map((item, i) => ({ id: item.id, sort_order: i * 100 })),
+  );
 }
 
 async function removeItem(id: string) {
@@ -1061,7 +1183,12 @@ const containerPickerSearch = ref("");
 const containerCandidates = computed(() => {
   const q = containerPickerSearch.value.trim().toLowerCase();
   return myItems.value
-    .filter((i) => !i.is_container && i.location !== "equipped" && (!q || i.name.toLowerCase().includes(q)))
+    .filter(
+      (i) =>
+        !i.is_container &&
+        i.location !== "equipped" &&
+        (!q || i.name.toLowerCase().includes(q)),
+    )
     .slice(0, 8);
 });
 
@@ -1149,7 +1276,7 @@ const filteredItems = computed((): Item[] => {
   const q = newItemName.value.trim().toLowerCase();
   const all = allItems.value ?? [];
   if (!q) return all.slice(0, 8);
-  return all.filter((it) => it.name.toLowerCase().includes(q)).slice(0, 8);
+  return all.filter((it) => it.name.toLowerCase().includes(q));
 });
 
 function onAddInput() {
