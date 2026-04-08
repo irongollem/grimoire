@@ -97,6 +97,7 @@
 - [x] Item detail panel in player inventory — click any item name to open a slide-in panel showing art, type, rarity, cost, weight, description; quantity +/− controls; charge tracking (spend / recharge) for magic items with `current_charges` in `party_inventory`
 - [x] Portrait image swapping on paper doll — replaced SVG character placeholder with real portrait images; swaps between `/assets/dressed.png` and `/assets/naked.png` based on whether the clothes slot is equipped; smooth opacity transition on swap
 - [x] Carry weight tracking — parses `Item.weight` strings ("3 lb.", "1/4 lb." etc.) into numbers; shows per-container weight in container headers; total carried vs. capacity bar with green/amber/red colouring; Powerful Build races (Goliath, Centaur, Firbolg, Bugbear, Orc) auto-detected from race field for ×2 capacity; capacity override accepts expressions (`*2`, `+30`, `150`) so adjustments stay meaningful as STR changes; override editable inline in inventory and via character sheet form; `carry_capacity_override text` column added to `party_members`
+- [x] Drag-and-drop inventory sorting — grip handle on each item row; drag to reorder within backpack, belt, or any custom container; order persists via `sort_order` column on `party_inventory`; optimistic cache update prevents flicker
 
 ### Layout & UX
 
