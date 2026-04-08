@@ -8,6 +8,7 @@ export interface ClassLevelData {
   asi: boolean;
   subclass_feature?: boolean;
   spell_slots?: SpellSlotEntry[];
+  spells_known?: number; // total spells known at this level (for "known" casters)
 }
 
 export type ClassFeatureTable = Record<string, ClassLevelData[]>;
@@ -35,4 +36,18 @@ export interface AsiChoice {
   mode: AsiMode;
   primary: AbilityKey;
   secondary?: AbilityKey; // required when mode === "plus1plus1"
+}
+
+// ── Class-specific wizard steps ───────────────────────────────────────────────
+// "select"  — stores a single string at class_choices[key]
+// "append"  — appends one selection to the existing string[] at class_choices[key]
+//             (used for accumulating choices like Favored Enemy, Natural Explorer)
+export type ClassStepType = "select" | "append";
+
+export interface ClassStep {
+  type: ClassStepType;
+  key: string;       // key in class_choices where the value is stored
+  label: string;     // section heading shown in the wizard
+  description?: string;
+  options: string[];
 }

@@ -7,7 +7,8 @@
  * by importing and merging into the registry via src/levelup/classes/<class>.ts.
  */
 
-import type { ClassFeatureTable, ClassLevelData } from "./types";
+import type { ClassFeatureTable, ClassLevelData, ClassStep } from "./types";
+import { RANGER_DATA, getRangerSteps } from "./classes/ranger";
 
 function buildLevels(
   asiLevels: number[],
@@ -43,8 +44,7 @@ const fighter   = buildLevels([4, 6, 8, 12, 14, 16, 19], [3, 7, 10, 15, 18]);
 const monk      = buildLevels(STANDARD_ASI, [3, 6, 11, 17]);
 // Subclass (Sacred Oath): 3, 7, 15, 20
 const paladin   = buildLevels(STANDARD_ASI, [3, 7, 15, 20]);
-// Subclass (Ranger Archetype): 3, 7, 11, 15
-const ranger    = buildLevels(STANDARD_ASI, [3, 7, 11, 15]);
+const ranger    = RANGER_DATA;
 // Subclass (Roguish Archetype): 3, 9, 13, 17 — extra ASI at 10
 const rogue     = buildLevels([4, 8, 10, 12, 16, 19], [3, 9, 13, 17]);
 // Subclass (Sorcerous Origin): 1, 6, 14, 18
@@ -80,4 +80,15 @@ export function getLevelData(className: string, targetLevel: number): ClassLevel
 /** Standard D&D proficiency bonus for a given character level. */
 export function proficiencyBonusForLevel(level: number): number {
   return 2 + Math.floor((level - 1) / 4);
+}
+
+/**
+ * Returns the class-specific wizard steps for a character levelling to `nextLevel`.
+ * Returns an empty array for classes not yet implemented.
+ */
+export function getClassSteps(className: string, nextLevel: number): ClassStep[] {
+  switch (className) {
+    case "Ranger": return getRangerSteps(nextLevel);
+    default:       return [];
+  }
 }

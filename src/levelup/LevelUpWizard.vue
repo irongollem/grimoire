@@ -11,7 +11,7 @@
     </div>
 
     <!-- Max level guard -->
-    <div v-if="nextLevel > 20" class="rounded-lg border border-border bg-card p-6 text-center space-y-2">
+    <div v-if="nextLevel > 20" class="rounded-lg border border-border bg-card p-6 text-center">
       <p class="font-cinzel text-sm text-muted-foreground">{{ member.name }} has already reached level 20.</p>
     </div>
 
@@ -43,7 +43,20 @@
           </p>
         </template>
 
-        <!-- Proficiency bonus bump notice -->
+        <!-- Spells known increase -->
+        <div
+          v-if="spellsKnownGain > 0"
+          class="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/20 px-3 py-2"
+        >
+          <span class="font-cinzel text-xs text-primary tracking-wider">SPELLS</span>
+          <span class="font-fell text-sm text-foreground">
+            Spells known increases to
+            <strong class="font-cinzel">{{ levelData?.spells_known }}</strong>
+            — add {{ spellsKnownGain }} new spell{{ spellsKnownGain > 1 ? 's' : '' }} in your spell list.
+          </span>
+        </div>
+
+        <!-- Proficiency bonus bump -->
         <div
           v-if="newProfBonus !== member.proficiency_bonus"
           class="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/20 px-3 py-2"
@@ -54,6 +67,15 @@
             <strong class="font-cinzel">+{{ newProfBonus }}</strong>
           </span>
         </div>
+
+        <!-- Spell slot change -->
+        <div
+          v-if="newSpellSlotSummary"
+          class="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/20 px-3 py-2"
+        >
+          <span class="font-cinzel text-xs text-primary tracking-wider">SLOTS</span>
+          <span class="font-fell text-sm text-foreground">{{ newSpellSlotSummary }}</span>
+        </div>
       </div>
 
       <!-- ASI picker -->
@@ -61,7 +83,6 @@
         <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">Ability Score Improvement</h3>
         <p class="font-fell text-sm text-muted-foreground">Choose how to apply your improvement.</p>
 
-        <!-- Mode toggle -->
         <div class="flex rounded-md border border-border overflow-hidden w-fit font-cinzel text-xs tracking-wider">
           <button
             class="px-3 py-1.5 transition-colors"
@@ -75,7 +96,6 @@
           >+1 / +1</button>
         </div>
 
-        <!-- Ability picker(s) -->
         <div class="flex flex-wrap gap-3">
           <div class="space-y-1">
             <label class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
@@ -102,7 +122,6 @@
           </div>
         </div>
 
-        <!-- Preview -->
         <div v-if="asiPreview.length > 0" class="font-fell text-sm text-muted-foreground">
           <span v-for="(line, i) in asiPreview" :key="i" class="mr-3">{{ line }}</span>
         </div>
@@ -113,14 +132,40 @@
         <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">Choose Subclass</h3>
         <p class="font-fell text-sm text-muted-foreground">
           At level {{ nextLevel }}, {{ member.class }} characters choose their specialisation.
-          Individual subclass pickers are added per class — for now, enter the name directly.
         </p>
+        <select
+          v-if="subclassOptions.length > 0"
+          v-model="subclassInput"
+          class="w-full rounded border border-border bg-muted/40 px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option value="" disabled>Select subclass…</option>
+          <option v-for="sc in subclassOptions" :key="sc" :value="sc">{{ sc }}</option>
+        </select>
         <input
+          v-else
           v-model="subclassInput"
           type="text"
           placeholder="e.g. Circle of the Moon"
           class="w-full rounded border border-border bg-muted/40 px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
+      </div>
+
+      <!-- Class-specific steps (Fighting Style, Favored Enemy, Natural Explorer, etc.) -->
+      <div
+        v-for="step in classSteps"
+        :key="step.key"
+        class="rounded-lg border border-border bg-card p-4 space-y-3"
+      >
+        <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">{{ step.label }}</h3>
+        <p v-if="step.description" class="font-fell text-sm text-muted-foreground">{{ step.description }}</p>
+        <select
+          :value="stepValues[step.key] ?? ''"
+          class="w-full rounded border border-border bg-muted/40 px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          @change="onStepChange(step, ($event.target as HTMLSelectElement).value)"
+        >
+          <option value="" disabled>Select…</option>
+          <option v-for="opt in step.options" :key="opt" :value="opt">{{ opt }}</option>
+        </select>
       </div>
 
       <!-- Error -->
@@ -148,15 +193,18 @@
 import { ref, computed } from "vue";
 import { useRouter, RouterLink } from "vue-router";
 import { useUpdatePartyMember } from "@/composables/useParty";
-import { getLevelData, proficiencyBonusForLevel } from "./classFeatures";
-import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
-import type { AbilityKey, AsiMode } from "./types";
+import { getLevelData, proficiencyBonusForLevel, getClassSteps } from "./classFeatures";
+import { getDefaultSpellSlots } from "@/types/spell.types";
+import type { PartyMember, PartyMemberUpdate, SpellSlotEntry } from "@/types/party.types";
+import type { AbilityKey, AsiMode, ClassStep } from "./types";
+import { RANGER_SUBCLASSES } from "./classes/ranger";
 
 const props = defineProps<{ member: PartyMember }>();
 
 const router = useRouter();
 const { mutateAsync: updateMember, isPending } = useUpdatePartyMember();
 
+// ── Derived ────────────────────────────────────────────────────────────────────
 const nextLevel    = computed(() => props.member.level + 1);
 const levelData    = computed(() => getLevelData(props.member.class ?? "", nextLevel.value));
 const newProfBonus = computed(() => proficiencyBonusForLevel(nextLevel.value));
@@ -165,6 +213,40 @@ const needsSubclassChoice = computed(() =>
   !!levelData.value?.subclass_feature && !props.member.subclass,
 );
 
+// Subclass options dropdown (empty = free-text fallback)
+const SUBCLASS_OPTIONS: Record<string, readonly string[]> = {
+  Ranger: RANGER_SUBCLASSES,
+};
+const subclassOptions = computed(() => SUBCLASS_OPTIONS[props.member.class ?? ""] ?? []);
+
+// Spell slot change summary
+const newSpellSlots = computed<SpellSlotEntry[]>(() =>
+  getDefaultSpellSlots(props.member.class, nextLevel.value),
+);
+const newSpellSlotSummary = computed(() => {
+  const prev = getDefaultSpellSlots(props.member.class, props.member.level);
+  const next = newSpellSlots.value;
+  if (next.length === 0) return null;
+  // Find first slot level that gained max count
+  const gains: string[] = [];
+  for (const slot of next) {
+    const old = prev.find(s => s.level === slot.level);
+    if (!old) gains.push(`${slot.max}× level-${slot.level}`);
+    else if (slot.max > old.max) gains.push(`+${slot.max - old.max} level-${slot.level}`);
+  }
+  if (gains.length === 0) return null;
+  return `Spell slots: ${gains.join(", ")}`;
+});
+
+// Spells known gain
+const spellsKnownGain = computed(() => {
+  const cur  = levelData.value?.spells_known;
+  const prev = getLevelData(props.member.class ?? "", props.member.level)?.spells_known ?? 0;
+  if (!cur) return 0;
+  return Math.max(0, cur - prev);
+});
+
+// ── ASI ────────────────────────────────────────────────────────────────────────
 const ABILITY_LABEL: Record<AbilityKey, string> = {
   str: "Strength", dex: "Dexterity", con: "Constitution",
   int: "Intelligence", wis: "Wisdom", cha: "Charisma",
@@ -188,8 +270,23 @@ const asiPreview = computed(() => {
   return lines;
 });
 
+// ── Subclass ───────────────────────────────────────────────────────────────────
 const subclassInput = ref("");
-const error         = ref("");
+
+// ── Class-specific steps ───────────────────────────────────────────────────────
+const classSteps = computed<ClassStep[]>(() =>
+  getClassSteps(props.member.class ?? "", nextLevel.value),
+);
+
+// stepValues holds the current selection for each step key
+const stepValues = ref<Record<string, string>>({});
+
+function onStepChange(step: ClassStep, value: string) {
+  stepValues.value = { ...stepValues.value, [step.key]: value };
+}
+
+// ── Validation ─────────────────────────────────────────────────────────────────
+const error = ref("");
 
 const canConfirm = computed(() => {
   if (nextLevel.value > 20) return false;
@@ -197,9 +294,14 @@ const canConfirm = computed(() => {
     if (!asiPrimary.value) return false;
     if (asiMode.value === "plus1plus1" && (!asiSecondary.value || asiSecondary.value === asiPrimary.value)) return false;
   }
+  if (needsSubclassChoice.value && !subclassInput.value.trim()) return false;
+  for (const step of classSteps.value) {
+    if (!stepValues.value[step.key]) return false;
+  }
   return true;
 });
 
+// ── Confirm ────────────────────────────────────────────────────────────────────
 async function confirm() {
   error.value = "";
   const update: Record<string, unknown> = {
@@ -207,6 +309,17 @@ async function confirm() {
     proficiency_bonus: newProfBonus.value,
   };
 
+  // Spell slots — always sync to class defaults on level-up
+  if (newSpellSlots.value.length > 0) {
+    // Preserve used counts from existing slots, add new slots at 0 used
+    const existing = props.member.spell_slots ?? [];
+    update.spell_slots = newSpellSlots.value.map(s => ({
+      ...s,
+      used: existing.find(e => e.level === s.level)?.used ?? 0,
+    }));
+  }
+
+  // ASI
   if (levelData.value?.asi && asiPrimary.value) {
     const bonus = asiMode.value === "plus2" ? 2 : 1;
     update[asiPrimary.value] = (props.member[asiPrimary.value as keyof PartyMember] as number) + bonus;
@@ -215,10 +328,30 @@ async function confirm() {
     }
   }
 
+  // Subclass + class_choices
+  const newChoices: Record<string, unknown> = { ...props.member.class_choices };
+
   const subclass = subclassInput.value.trim();
   if (needsSubclassChoice.value && subclass) {
     update.subclass = subclass;
-    update.class_choices = { ...props.member.class_choices, subclass };
+    newChoices.subclass = subclass;
+  }
+
+  // Class-specific step values
+  for (const step of classSteps.value) {
+    const val = stepValues.value[step.key];
+    if (!val) continue;
+    if (step.type === "append") {
+      const existing = Array.isArray(newChoices[step.key]) ? (newChoices[step.key] as string[]) : [];
+      newChoices[step.key] = [...existing, val];
+    } else {
+      newChoices[step.key] = val;
+    }
+  }
+
+  if (Object.keys(newChoices).length > Object.keys(props.member.class_choices).length
+    || classSteps.value.length > 0 || (needsSubclassChoice.value && subclass)) {
+    update.class_choices = newChoices;
   }
 
   try {
