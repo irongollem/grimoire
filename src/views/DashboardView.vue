@@ -322,7 +322,7 @@ import { useAllLocations } from "@/composables/useLocations";
 import { useEncounters } from "@/composables/useEncounters";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
-import { usePartyInventory, useUpdateInventoryItem } from "@/composables/usePartyInventory";
+import { usePartyInventory, useUpdateInventoryItem, useInventoryLive } from "@/composables/usePartyInventory";
 import type { Note } from "@/types/notes.types";
 import type { Quest } from "@/types/quest.types";
 import type { PartyMember } from "@/types/party.types";
@@ -336,6 +336,7 @@ const { data: encounters } = useEncounters();
 const { data: campaignMembers } = useCampaignMembers();
 const { isOnline } = useCampaignPresence();
 const { data: inventory } = usePartyInventory();
+useInventoryLive();
 const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
 
 const activeQuests = computed(() => (allQuests.value ?? []).filter((q) => q.status === "active"));

@@ -1,4 +1,4 @@
-import { computed } from "vue";
+import { computed, watch, onUnmounted } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
@@ -78,6 +78,32 @@ export function useRemoveInventoryItem() {
   return useMutation({
     mutationFn: removeItem,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}
+
+export function useInventoryLive() {
+  const campaign = useCampaignStore();
+  const queryClient = useQueryClient();
+  let channel: ReturnType<typeof supabase.channel> | null = null;
+
+  watch(
+    () => campaign.activeCampaignId,
+    (campaignId) => {
+      if (channel) { supabase.removeChannel(channel); channel = null; }
+      if (!campaignId) return;
+      channel = supabase
+        .channel(`party_inventory_live:${campaignId}`)
+        .on("postgres_changes", { event: "*", schema: "public", table: "party_inventory",
+          filter: `campaign_id=eq.${campaignId}` },
+          () => { void queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }); },
+        )
+        .subscribe();
+    },
+    { immediate: true },
+  );
+
+  onUnmounted(() => {
+    if (channel) { supabase.removeChannel(channel); channel = null; }
   });
 }
 

@@ -104,6 +104,9 @@
 - [x] Attunement toggle — Attune/Unattune button in item detail panel for items requiring it; capped at 3 with "Slots Full" label; 3-pip indicator next to paper doll shows attuned slot usage with per-pip item name tooltip; optimistic state flip on click; `✦` glyph on attuned items in all inventory rows
 - [x] Item identification system — `mundane_description` field on vault items (physical appearance before magic is revealed); `is_identified` flag on `party_inventory` (default true); unidentified items show mundane description + mundane rarity, hide attunement/charges/magical stats; DM sees amber "Unidentified" banner with one-click Identify button in item detail panel; Dashboard shows foldable "Unidentified Items" block with carrier info and per-item Identify button; AI generator populates `mundane_description` with no magical hints
 - [x] Mundane artwork — `mundane_image_url` + `mundane_image_focal_point` fields on items; vault editor shows Identified/Mundane art tabs; vault sheet shows tabbed art preview when both images present; item detail panel in player inventory shows mundane art (falling back to identified art) while unidentified
+- [x] Inventory realtime sync — `useInventoryLive` subscribes to all `party_inventory` INSERT/UPDATE/DELETE events per campaign; all players (including DM dashboard unidentified-items panel) see changes instantly without reload
+- [x] Party stash move dropdown — "Party Stash" option added to every item row's location select; moving to stash sets `carried_by = null`; moving from stash to a personal location assigns `carried_by` to the acting player; `InventoryLocation` type enforced through the emit chain
+- [x] RLS: campaign members can read vault items in party inventory — without this players saw `vaultItem = null` causing every item to show as "Art Object" with no artwork
 
 ### Layout & UX
 

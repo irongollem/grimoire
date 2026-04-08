@@ -75,7 +75,7 @@
           class="rounded-lg border bg-card p-3 flex flex-col gap-1.5 font-stat text-[15px]"
           :style="vaultItem && localIdentified ? { borderColor: rarityColor + '66' } : {}"
         >
-          <div class="flex justify-between">
+          <div v-if="displayItemTypeLabel" class="flex justify-between">
             <span class="text-muted-foreground">Type</span>
             <span class="font-bold">{{ displayItemTypeLabel }}</span>
           </div>
@@ -338,9 +338,10 @@ const displayImageFocalPoint = computed(() =>
 );
 
 const displayItemTypeLabel = computed(() => {
-  if (!props.vaultItem) return ITEM_TYPE_LABELS['art_object'];
-  if (!localIdentified.value && props.vaultItem.item_type === 'potion') return ITEM_TYPE_LABELS['provision'];
-  if (!localIdentified.value && MAGIC_ONLY_ITEM_TYPES.has(props.vaultItem.item_type)) return ITEM_TYPE_LABELS['art_object'];
+  if (!props.vaultItem) return !localIdentified.value ? ITEM_TYPE_LABELS['art_object'] : null;
+  const shouldMask = !localIdentified.value && props.vaultItem.rarity !== 'mundane';
+  if (shouldMask && props.vaultItem.item_type === 'potion') return ITEM_TYPE_LABELS['provision'];
+  if (shouldMask && MAGIC_ONLY_ITEM_TYPES.has(props.vaultItem.item_type)) return ITEM_TYPE_LABELS['art_object'];
   return ITEM_TYPE_LABELS[props.vaultItem.item_type];
 });
 

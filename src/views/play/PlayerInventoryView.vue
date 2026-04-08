@@ -734,11 +734,13 @@ import {
   useUpdateInventoryItem,
   useRemoveInventoryItem,
   useReorderInventoryItems,
+  useInventoryLive,
 } from "@/composables/usePartyInventory";
 import { useItems } from "@/composables/useItems";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import type {
   PartyInventoryItem,
+  InventoryLocation,
   InventorySlot,
 } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
@@ -755,6 +757,7 @@ const auth = useAuthStore();
 const ui = useUiStore();
 const { data: partyMembers } = useParty();
 const { data: inventory } = usePartyInventory();
+useInventoryLive();
 const { data: allItems } = useItems();
 const { mutateAsync: addInventoryItem } = useAddInventoryItem();
 const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
@@ -1154,15 +1157,19 @@ async function adjustQty(item: PartyInventoryItem, delta: number) {
 
 async function moveItem(
   item: PartyInventoryItem,
-  toLocation: string,
-  containerId?: string,
+  toLocation: InventoryLocation | 'stash',
+  containerId: string | null,
 ) {
+  // 'stash' is a UI-only virtual location meaning carried_by=null, defaulting to backpack
+  const location: InventoryLocation = toLocation === 'stash' ? 'backpack' : toLocation;
+  const carriedBy = toLocation === 'stash' ? null : resolvedMemberId.value ?? null;
   await updateInventoryItem({
     id: item.id,
     update: {
-      location: toLocation as PartyInventoryItem["location"],
-      container_id: containerId ?? null,
-      ...(toLocation !== "equipped" ? { is_equipped: false, slot: null } : {}),
+      location,
+      container_id: containerId,
+      carried_by: carriedBy,
+      ...(location !== "equipped" ? { is_equipped: false, slot: null } : {}),
     },
   });
 }

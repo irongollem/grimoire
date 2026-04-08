@@ -24,12 +24,13 @@
       </button>
     </div>
 
-    <!-- Move to container dropdown -->
+    <!-- Move to location dropdown -->
     <select
       class="text-[10px] font-cinzel bg-transparent border border-border rounded px-1 py-0.5 text-muted-foreground focus:outline-none opacity-0 group-hover:opacity-100 transition-opacity max-w-24"
       :value="currentLocationLabel"
       @change="onMove($event)"
     >
+      <option value="stash">Party Stash</option>
       <option value="backpack">Backpack</option>
       <option value="belt">Belt</option>
       <option v-for="c in allContainers" :key="c.id" :value="`container:${c.id}`">{{ c.name }}</option>
@@ -62,7 +63,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { Plus, Minus, Trash2, ArrowUpFromLine, ShoppingBag, GripVertical } from "lucide-vue-next";
-import type { PartyInventoryItem } from "@/types/inventory.types";
+import type { PartyInventoryItem, InventoryLocation } from "@/types/inventory.types";
 import type { PartyMember } from "@/types/party.types";
 
 const props = defineProps<{
@@ -75,7 +76,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'adjust-qty': [item: PartyInventoryItem, delta: number];
-  'move': [item: PartyInventoryItem, location: string, containerId?: string];
+  // location='stash' is a UI-only virtual value meaning carried_by=null; parent resolves to a real InventoryLocation
+  'move': [item: PartyInventoryItem, location: InventoryLocation | 'stash', containerId: string | null];
   'remove': [id: string];
   'drop-to-chat': [item: PartyInventoryItem];
   'open-detail': [item: PartyInventoryItem];
@@ -83,6 +85,7 @@ const emit = defineEmits<{
 }>();
 
 const currentLocationLabel = computed(() => {
+  if (props.item.carried_by === null) return 'stash';
   if (props.item.location === 'container' && props.item.container_id)
     return `container:${props.item.container_id}`;
   return props.item.location;
@@ -97,7 +100,7 @@ function onMove(e: Event) {
   if (val.startsWith('container:')) {
     emit('move', props.item, 'container', val.slice(10));
   } else {
-    emit('move', props.item, val);
+    emit('move', props.item, val as InventoryLocation | 'stash', null);
   }
 }
 </script>

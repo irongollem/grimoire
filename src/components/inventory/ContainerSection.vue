@@ -82,7 +82,7 @@
 import { ref, computed, watch } from "vue";
 import { ChevronRight } from "lucide-vue-next";
 import { VueDraggable } from "vue-draggable-plus";
-import type { PartyInventoryItem } from "@/types/inventory.types";
+import type { PartyInventoryItem, InventoryLocation } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 import { formatWeightLb } from "@/lib/utils";
 import ItemRow from "./ItemRow.vue";
@@ -103,7 +103,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   add: [name: string, itemId: string | null];
-  move: [item: PartyInventoryItem, location: string, containerId?: string];
+  move: [item: PartyInventoryItem, location: InventoryLocation | 'stash', containerId: string | null];
   remove: [id: string];
   'remove-container': [];
   'adjust-qty': [item: PartyInventoryItem, delta: number];
