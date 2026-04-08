@@ -69,6 +69,7 @@
 - [x] Per-player combat faction assignment — party members and companions can be assigned to any combat faction in the encounter builder (e.g. charmed players fight for the enemy); stored in `party_member_factions` JSONB column (irongollem/grimoire#48)
 - [x] Story faction membership for players — party members can join campaign factions (`faction_party_members` table, same role/status system as NPCs); faction detail page shows both NPC and player members; player portal faction panel shows fellow NPC members + the player's own rank when they share a faction (irongollem/grimoire#5)
 - [x] Encounter list quest filter — dropdown with All / Unassigned / per-quest options; uses `quest_refs` (ref_type=encounter) via `useEncounterQuestLinks`; filter state persisted in ui store (irongollem/grimoire#15)
+- [x] Unarmed strike + improvised weapon attacks in encounter runner — player detail panel now always shows Melee Attacks section with roll buttons (irongollem/grimoire#104)
 
 ### Quests & Adventures
 

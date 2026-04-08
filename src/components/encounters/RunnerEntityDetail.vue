@@ -314,6 +314,32 @@
             <em>{{ playerSkillBonus(sk.key, sk.ability) >= 0 ? '+' : '' }}{{ playerSkillBonus(sk.key, sk.ability) }}</em>
           </button>
         </div>
+        <!-- Melee Attacks -->
+        <div class="detail-divider" />
+        <p class="detail-section-label">Melee Attacks</p>
+        <div v-for="atk in playerMeleeAttacks" :key="atk.name" class="detail-trait">
+          <div class="detail-trait-header">
+            <strong>{{ atk.name }}.</strong>
+            <div class="trait-roll-bar">
+              <button
+                type="button"
+                class="trait-roll-btn trait-atk-btn"
+                @click.stop="rollAttack(atk.attackBonus, atk.name)"
+              >⚔ {{ atk.attackBonus >= 0 ? '+' : '' }}{{ atk.attackBonus }}</button>
+              <button
+                v-if="atk.damageDice"
+                type="button"
+                class="trait-roll-btn trait-dmg-btn"
+                @click.stop="rollActionDamage(atk.damageDice, atk.name)"
+              >🎲 {{ actionDiceLabel(atk.damageDice) }}</button>
+              <span
+                v-else-if="atk.damageFixed"
+                class="font-cinzel text-[9px] text-muted-foreground whitespace-nowrap self-center"
+              >{{ atk.damageFixed }}</span>
+            </div>
+          </div>
+          <span class="detail-trait-desc">{{ atk.description }}</span>
+        </div>
         <!-- Curses -->
         <div class="detail-divider" />
         <p class="detail-section-label">Curses</p>
@@ -896,6 +922,43 @@ const playerSpellSaveDc = computed(() => {
   else if (["Wizard", "Fighter (Eldritch Knight)", "Rogue (Arcane Trickster)"].includes(cls))   spellMod = abilityMod(m.int);
   else                                                                                           spellMod = abilityMod(m.cha);
   return 8 + playerProfBonus.value + spellMod;
+});
+
+// ── Player melee attacks (unarmed + improvised) ───────────────────────────────
+
+interface MeleeAttack {
+  name: string;
+  attackBonus: number;
+  damageDice: string | null;
+  damageFixed: string | null;
+  description: string;
+}
+
+const playerMeleeAttacks = computed<MeleeAttack[]>(() => {
+  const m = selectedMember.value;
+  if (!m) return [];
+  const strMod = abilityMod(m.str);
+  const dexMod = abilityMod(m.dex);
+  const prof = playerProfBonus.value;
+  const bestMod = Math.max(strMod, dexMod);
+  const unarmedDmg = 1 + strMod;
+  const impDice = `1d4${bestMod >= 0 ? "+" : ""}${bestMod}`;
+  return [
+    {
+      name: "Unarmed Strike",
+      attackBonus: strMod + prof,
+      damageDice: null,
+      damageFixed: `${unarmedDmg} bludgeoning`,
+      description: `Melee attack. Proficient. Hit: ${unarmedDmg} bludgeoning damage.`,
+    },
+    {
+      name: "Improvised Weapon",
+      attackBonus: bestMod,
+      damageDice: impDice,
+      damageFixed: null,
+      description: `Melee or ranged attack. No proficiency bonus. Hit: ${impDice} damage (type varies).`,
+    },
+  ];
 });
 
 // ── Monster derived data ──────────────────────────────────────────────────────
