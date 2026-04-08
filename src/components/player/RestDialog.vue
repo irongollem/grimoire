@@ -55,7 +55,7 @@
                     class="flex-1 cursor-pointer rounded border border-primary/40 bg-primary/10 px-3 py-1.5 font-cinzel text-xs text-primary hover:bg-primary/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     :disabled="remainingAfterSpend <= 0 || previewHp >= member.max_hp"
                     @click="rollHitDie"
-                  >Roll d{{ hitDie }} ({{ signedMod(conMod) }})</button>
+                  >Roll d{{ hitDie }} ({{ abilityModifier(props.member.con) }})</button>
                 </div>
 
                 <!-- Roll history -->
@@ -112,7 +112,8 @@
 import { ref, computed } from "vue";
 import { Moon, Sun } from "lucide-vue-next";
 import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
-import { getSlotRecovery } from "@/types/spell.types";
+import { getSlotRecovery, getHitDie } from "@/types/spell.types";
+import { abilityModifier } from "@/lib/utils";
 
 const props = defineProps<{
   member: PartyMember;
@@ -127,15 +128,7 @@ const emit = defineEmits<{
 
 // ── Hit dice ──────────────────────────────────────────────────────────────────
 
-function hitDieForClass(cls: string | null): number {
-  const c = cls?.toLowerCase() ?? "";
-  if (c === "barbarian") return 12;
-  if (c === "fighter" || c === "paladin" || c === "ranger") return 10;
-  if (c === "wizard" || c === "sorcerer") return 6;
-  return 8;
-}
-
-const hitDie = computed(() => hitDieForClass(props.member.class));
+const hitDie = computed(() => getHitDie(props.member.class));
 const conMod = computed(() => Math.floor((props.member.con - 10) / 2));
 const hitDiceRemaining = computed(() => props.member.hit_dice_remaining ?? props.member.level);
 
@@ -161,7 +154,6 @@ function rollHitDie() {
   rolls.value.push(healed);
 }
 
-function signedMod(n: number) { return n >= 0 ? `+${n}` : `${n}`; }
 
 // ── HP preview ────────────────────────────────────────────────────────────────
 

@@ -144,3 +144,6 @@ export const CONDITIONS = [
   "Stunned",
   "Unconscious",
 ];
+
+export const ATTACK_DIS_CONDITIONS = new Set(["Blinded", "Frightened", "Poisoned", "Prone", "Restrained"]);
+export const CHECK_DIS_CONDITIONS  = new Set(["Frightened", "Poisoned", "Exhausted 1", "Exhausted 2", "Exhausted 3"]);

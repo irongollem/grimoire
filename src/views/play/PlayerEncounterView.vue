@@ -202,10 +202,8 @@ const myPlayer = computed(() =>
 
 const isMyTurn = computed(() => {
   if (!myPlayer.value || !liveState.value) return false;
-  const idx = sortedCombatants.value.findIndex(
-    (c) => c.instance_id === myPlayer.value!.instance_id,
-  );
-  return idx === liveState.value.active_combatant_index;
+  const active = sortedCombatants.value[liveState.value.active_combatant_index];
+  return active?.instance_id === myPlayer.value.instance_id;
 });
 
 function isActive(combatant: RunCombatant): boolean {

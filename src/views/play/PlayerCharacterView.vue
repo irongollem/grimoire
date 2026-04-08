@@ -112,7 +112,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onBeforeUnmount } from "vue";
 import { RouterLink } from "vue-router";
 import { rollDice } from "@/lib/dice";
 import type { RollMode } from "@/lib/dice";
@@ -121,8 +121,8 @@ import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/useParty";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { getCasterType, getDefaultSpellSlots, getMaxPrepared } from "@/types/spell.types";
-import type { SpellSlotEntry } from "@/types/party.types";
-import type { PartyMember } from "@/types/party.types";
+import { ATTACK_DIS_CONDITIONS, CHECK_DIS_CONDITIONS } from "@/types/party.types";
+import type { SpellSlotEntry, PartyMember } from "@/types/party.types";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import PlayerCharacterHeader from "@/components/player/PlayerCharacterHeader.vue";
 import PlayerConditions from "@/components/player/PlayerConditions.vue";
@@ -180,8 +180,6 @@ const memberSaves = computed(() => {
 });
 
 // ── Conditions (needed as props for child components) ──────────────────────────
-const ATTACK_DIS_CONDITIONS = new Set(["Blinded", "Frightened", "Poisoned", "Prone", "Restrained"]);
-const CHECK_DIS_CONDITIONS  = new Set(["Frightened", "Poisoned", "Exhausted 1", "Exhausted 2", "Exhausted 3"]);
 const attackDisadvantage = computed(() =>
   member.value?.conditions?.some(c => ATTACK_DIS_CONDITIONS.has(c)) ?? false,
 );
@@ -221,6 +219,7 @@ const spellAttackBonus = computed(() => {
 interface RollToast { label: string; dice: number; modifier: number; total: number; }
 const rollToast = ref<RollToast | null>(null);
 let rollTimer: ReturnType<typeof setTimeout> | null = null;
+onBeforeUnmount(() => { if (rollTimer) clearTimeout(rollTimer); });
 
 function showToast(result: RollToast) {
   rollToast.value = result;

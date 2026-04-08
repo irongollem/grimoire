@@ -396,6 +396,15 @@ export function getSlotRecovery(cls: string | null | undefined): "short" | "long
   return cls === "Warlock" ? "short" : "long";
 }
 
+export function getHitDie(cls: string | null | undefined): number {
+  const c = cls?.toLowerCase() ?? "";
+  if (c === "barbarian") return 12;
+  if (c === "fighter" || c === "paladin" || c === "ranger") return 10;
+  if (c === "wizard" || c === "sorcerer") return 6;
+  // bard, cleric, druid, monk, rogue, warlock → d8; artificer → d8
+  return 8;
+}
+
 export const SCHOOL_COLORS: Record<SpellSchool, string> = {
   abjuration: "#2563eb",
   conjuration: "#7c3aed",

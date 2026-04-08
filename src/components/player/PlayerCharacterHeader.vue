@@ -138,8 +138,9 @@ import { ref, computed, nextTick } from "vue";
 import { RouterLink } from "vue-router";
 import { Star, TrendingUp, Settings } from "lucide-vue-next";
 import { useUpdatePartyMember } from "@/composables/useParty";
-import { CONDITIONS } from "@/types/party.types";
+import { CONDITIONS, ATTACK_DIS_CONDITIONS, CHECK_DIS_CONDITIONS } from "@/types/party.types";
 import type { PartyMember } from "@/types/party.types";
+import { abilityModifier } from "@/lib/utils";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RestButtons from "@/components/player/RestButtons.vue";
 
@@ -163,9 +164,10 @@ function openConditionPicker() {
   nextTick(() => conditionSearchInput.value?.focus());
 }
 
-const filteredConditions = computed(() =>
-  CONDITIONS.filter(c => c.toLowerCase().includes(conditionSearch.value.toLowerCase())),
-);
+const filteredConditions = computed(() => {
+  const q = conditionSearch.value.toLowerCase();
+  return CONDITIONS.filter(c => c.toLowerCase().includes(q));
+});
 function hasCondition(cond: string) { return props.member.conditions?.includes(cond) ?? false; }
 async function addCondition(cond: string) {
   if (hasCondition(cond)) return;
@@ -173,15 +175,10 @@ async function addCondition(cond: string) {
   await updateMember({ id: props.member.id, update: { conditions: [...(props.member.conditions ?? []), cond] } });
 }
 
-function abilityMod(score: number) { return Math.floor((score - 10) / 2); }
-function signedNum(n: number) { return n >= 0 ? `+${n}` : `${n}`; }
-
-const dexMod = computed(() => abilityMod(props.member.dex));
-
 const combatStats = computed(() => [
   { label: "AC",   value: props.member.ac,    suffix: "" },
   { label: "SPD",  value: props.member.speed, suffix: "ft" },
-  { label: "INIT", value: signedNum(dexMod.value), suffix: "" },
+  { label: "INIT", value: abilityModifier(props.member.dex), suffix: "" },
   { label: "PROF", value: `+${props.member.proficiency_bonus}`, suffix: "" },
 ]);
 
@@ -204,8 +201,6 @@ const hpBarColor = computed(() => {
   return "bg-elven-green";
 });
 
-const ATTACK_DIS_CONDITIONS = new Set(["Blinded", "Frightened", "Poisoned", "Prone", "Restrained"]);
-const CHECK_DIS_CONDITIONS  = new Set(["Frightened", "Poisoned", "Exhausted 1", "Exhausted 2", "Exhausted 3"]);
 const attackDisadvantage = computed(() => props.member.conditions?.some(c => ATTACK_DIS_CONDITIONS.has(c)) ?? false);
 const checkDisadvantage  = computed(() => props.member.conditions?.some(c => CHECK_DIS_CONDITIONS.has(c)) ?? false);
 

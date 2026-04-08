@@ -8,11 +8,10 @@
       :key="cond"
       class="flex items-center gap-1 rounded-full border border-destructive/40 bg-destructive/10 pl-2.5 pr-1 py-0.5"
     >
-      <button
+      <span
         class="font-cinzel text-[11px] text-destructive tracking-wider leading-none"
         :title="CONDITION_DESCRIPTIONS[cond]"
-        @click="() => {}"
-      >{{ cond }}</button>
+      >{{ cond }}</span>
       <button
         class="flex items-center justify-center w-4 h-4 rounded-full text-destructive/50 hover:text-destructive hover:bg-destructive/20 transition-colors text-sm leading-none"
         title="Remove condition"
