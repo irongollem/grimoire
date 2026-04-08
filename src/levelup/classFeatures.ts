@@ -15,6 +15,7 @@ import { PALADIN_DATA,   getPaladinSteps,  getPaladinResources   } from "./class
 import { DRUID_DATA                                              } from "./classes/druid";
 import { ROGUE_DATA,    getRogueSteps                           } from "./classes/rogue";
 import { MONK_DATA,    getMonkResources                        } from "./classes/monk";
+import { CLERIC_DATA,  getClericResources                      } from "./classes/cleric";
 
 function buildLevels(
   asiLevels: number[],
@@ -39,8 +40,7 @@ const artificer = ARTIFICER_DATA;
 const barbarian = buildLevels(STANDARD_ASI, [3, 6, 10, 14]);
 // Subclass (College): 3, 6, 14
 const bard      = buildLevels(STANDARD_ASI, [3, 6, 14]);
-// Subclass (Divine Domain): 1, 2, 6, 8, 17
-const cleric    = buildLevels(STANDARD_ASI, [1, 2, 6, 8, 17]);
+const cleric    = CLERIC_DATA;
 const druid     = DRUID_DATA;
 // Subclass (Martial Archetype): 3, 7, 10, 15, 18 — extra ASI at 6, 14
 const fighter   = buildLevels([4, 6, 8, 12, 14, 16, 19], [3, 7, 10, 15, 18]);
@@ -104,6 +104,7 @@ export function getClassSteps(className: string, nextLevel: number): ClassStep[]
  */
 export function getClassResources(className: string, nextLevel: number): ClassResourceDef[] {
   switch (className) {
+    case "Cleric":   return getClericResources(nextLevel);
     case "Monk":     return getMonkResources(nextLevel);
     case "Paladin":  return getPaladinResources(nextLevel);
     case "Sorcerer": return getSorcererResources(nextLevel);
