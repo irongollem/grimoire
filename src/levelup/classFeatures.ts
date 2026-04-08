@@ -8,7 +8,8 @@
  */
 
 import type { ClassFeatureTable, ClassLevelData, ClassStep } from "./types";
-import { RANGER_DATA, getRangerSteps } from "./classes/ranger";
+import { RANGER_DATA,    getRangerSteps    } from "./classes/ranger";
+import { ARTIFICER_DATA, getArtificerSteps } from "./classes/artificer";
 
 function buildLevels(
   asiLevels: number[],
@@ -28,8 +29,7 @@ function buildLevels(
 
 const STANDARD_ASI = [4, 8, 12, 16, 19];
 
-// Subclass (Specialist): 3, 5, 9, 15
-const artificer = buildLevels(STANDARD_ASI, [3, 5, 9, 15]);
+const artificer = ARTIFICER_DATA;
 // Subclass (Primal Path): 3, 6, 10, 14
 const barbarian = buildLevels(STANDARD_ASI, [3, 6, 10, 14]);
 // Subclass (College): 3, 6, 14
@@ -88,7 +88,8 @@ export function proficiencyBonusForLevel(level: number): number {
  */
 export function getClassSteps(className: string, nextLevel: number): ClassStep[] {
   switch (className) {
-    case "Ranger": return getRangerSteps(nextLevel);
-    default:       return [];
+    case "Artificer": return getArtificerSteps(nextLevel);
+    case "Ranger":    return getRangerSteps(nextLevel);
+    default:          return [];
   }
 }

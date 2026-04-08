@@ -8,7 +8,8 @@ export interface ClassLevelData {
   asi: boolean;
   subclass_feature?: boolean;
   spell_slots?: SpellSlotEntry[];
-  spells_known?: number; // total spells known at this level (for "known" casters)
+  spells_known?: number;    // total spells known at this level (for "known" casters)
+  infusions_known?: number; // Artificer only — total infusions known at this level
 }
 
 export type ClassFeatureTable = Record<string, ClassLevelData[]>;

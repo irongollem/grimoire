@@ -56,6 +56,19 @@
           </span>
         </div>
 
+        <!-- Infusions known increase (Artificer) -->
+        <div
+          v-if="infusionsKnownGain > 0"
+          class="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/20 px-3 py-2"
+        >
+          <span class="font-cinzel text-xs text-primary tracking-wider">INFUSIONS</span>
+          <span class="font-fell text-sm text-foreground">
+            Infusions known increases to
+            <strong class="font-cinzel">{{ levelData?.infusions_known }}</strong>
+            — choose {{ infusionsKnownGain }} new infusion{{ infusionsKnownGain > 1 ? 's' : '' }} from your Artificer list.
+          </span>
+        </div>
+
         <!-- Proficiency bonus bump -->
         <div
           v-if="newProfBonus !== member.proficiency_bonus"
@@ -197,7 +210,8 @@ import { getLevelData, proficiencyBonusForLevel, getClassSteps } from "./classFe
 import { getDefaultSpellSlots } from "@/types/spell.types";
 import type { PartyMember, PartyMemberUpdate, SpellSlotEntry } from "@/types/party.types";
 import type { AbilityKey, AsiMode, ClassStep } from "./types";
-import { RANGER_SUBCLASSES } from "./classes/ranger";
+import { RANGER_SUBCLASSES }    from "./classes/ranger";
+import { ARTIFICER_SUBCLASSES } from "./classes/artificer";
 
 const props = defineProps<{ member: PartyMember }>();
 
@@ -215,7 +229,8 @@ const needsSubclassChoice = computed(() =>
 
 // Subclass options dropdown (empty = free-text fallback)
 const SUBCLASS_OPTIONS: Record<string, readonly string[]> = {
-  Ranger: RANGER_SUBCLASSES,
+  Artificer: ARTIFICER_SUBCLASSES,
+  Ranger:    RANGER_SUBCLASSES,
 };
 const subclassOptions = computed(() => SUBCLASS_OPTIONS[props.member.class ?? ""] ?? []);
 
@@ -236,6 +251,14 @@ const newSpellSlotSummary = computed(() => {
   }
   if (gains.length === 0) return null;
   return `Spell slots: ${gains.join(", ")}`;
+});
+
+// Infusions known gain (Artificer)
+const infusionsKnownGain = computed(() => {
+  const cur  = levelData.value?.infusions_known;
+  const prev = getLevelData(props.member.class ?? "", props.member.level)?.infusions_known ?? 0;
+  if (!cur) return 0;
+  return Math.max(0, cur - prev);
 });
 
 // Spells known gain
