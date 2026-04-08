@@ -9,6 +9,16 @@
     </div>
 
     <template v-else>
+      <!-- Your Turn! banner -->
+      <div
+        v-if="isMyTurn"
+        class="flex items-center justify-center gap-2 rounded-lg border border-primary bg-primary/10 px-4 py-3 animate-pulse"
+      >
+        <Swords class="h-4 w-4 text-primary shrink-0" />
+        <span class="font-cinzel text-sm font-bold text-primary tracking-wider">YOUR TURN!</span>
+        <Swords class="h-4 w-4 text-primary shrink-0" />
+      </div>
+
       <!-- Round + active turn header -->
       <div class="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
         <div class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">ROUND</div>
@@ -128,6 +138,12 @@
           </div>
         </template>
       </div>
+
+      <!-- My character resources (visible when player is in this encounter) -->
+      <div v-if="myMember" class="space-y-2">
+        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider px-1">MY CHARACTER</p>
+        <PlayerFeaturesTab :member="myMember" :show-rest-buttons="true" />
+      </div>
     </template>
   </div>
 </template>
@@ -136,11 +152,16 @@
 import { computed } from "vue";
 import { Swords } from "lucide-vue-next";
 import FocalImage from "@/components/common/FocalImage.vue";
+import PlayerFeaturesTab from "@/components/player/PlayerFeaturesTab.vue";
 import { useCampaignStore } from "@/stores/campaign";
+import { useAuthStore } from "@/stores/auth";
+import { useParty } from "@/composables/useParty";
 import { usePlayerEncounterLive } from "@/composables/useEncounterLive";
 import type { RunCombatant, HealthVisibility } from "@/types/encounter.types";
 
 const campaign = useCampaignStore();
+const auth = useAuthStore();
+const { data: partyMembers } = useParty();
 const { liveState } = usePlayerEncounterLive(campaign.activeCampaignId ?? "");
 
 const healthVis = computed<HealthVisibility>(
@@ -168,6 +189,24 @@ const visibleCombatants = computed(() =>
 const activeCombatant = computed(() =>
   sortedCombatants.value[liveState.value?.active_combatant_index ?? 0] ?? null,
 );
+
+const myMemberId = computed(() => auth.linkedPartyMemberId);
+
+const myMember = computed(() =>
+  partyMembers.value?.find((m) => m.id === myMemberId.value) ?? null,
+);
+
+const myPlayer = computed(() =>
+  sortedCombatants.value.find((c) => c.party_member_id === myMemberId.value) ?? null,
+);
+
+const isMyTurn = computed(() => {
+  if (!myPlayer.value || !liveState.value) return false;
+  const idx = sortedCombatants.value.findIndex(
+    (c) => c.instance_id === myPlayer.value!.instance_id,
+  );
+  return idx === liveState.value.active_combatant_index;
+});
 
 function isActive(combatant: RunCombatant): boolean {
   const fullIdx = sortedCombatants.value.findIndex(

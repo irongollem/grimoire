@@ -77,7 +77,6 @@ const FEATURES: Record<number, FeatureEntry[]> = {
   ],
   3: [
     { name: "Pact Boon", description: "Your patron bestows a gift upon you for your loyal service. Choose one: Pact of the Chain (gain a familiar from an expanded list including imps and pseudodragons), Pact of the Blade (summon a magical weapon as an action), or Pact of the Tome (gain a Book of Shadows with 3 cantrips from any class list)." },
-    "Eldritch Invocations (3)",
   ],
   4:  ["ASI"],
   5:  ["Eldritch Invocations (4)"],

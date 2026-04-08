@@ -1,8 +1,8 @@
 <template>
   <div class="space-y-4">
 
-    <!-- ── Rest buttons ───────────────────────────────────────────────────── -->
-    <div class="flex gap-2">
+    <!-- ── Rest buttons (hidden when header already provides them) ────────── -->
+    <div v-if="showRestButtons" class="flex gap-2">
       <button
         class="flex-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 font-cinzel text-xs text-amber-600 hover:bg-amber-500/20 transition-colors"
         @click="shortRest"
@@ -174,7 +174,7 @@ import { useUpdatePartyMember } from "@/composables/useParty";
 import { useConfirm } from "@/composables/useConfirm";
 import type { PartyMember, SpellSlotEntry } from "@/types/party.types";
 
-const props = defineProps<{ member: PartyMember }>();
+const props = defineProps<{ member: PartyMember; showRestButtons?: boolean }>();
 
 const { mutate: updateMember } = useUpdatePartyMember();
 const { confirm } = useConfirm();
@@ -208,7 +208,7 @@ function syncFromProps() {
     : getDefaultSpellSlots(props.member.class, props.member.level).map(s => ({ ...s }));
 }
 
-watch(() => props.member.id, syncFromProps, { immediate: true });
+watch(() => [props.member.id, props.member.updated_at], syncFromProps, { immediate: true });
 
 // ── Persist helpers ───────────────────────────────────────────────────────────
 

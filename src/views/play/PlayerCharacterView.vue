@@ -21,39 +21,30 @@
 
     <template v-else>
       <!-- ── Always visible ─────────────────────────────────── -->
-      <div class="flex items-start justify-between gap-2">
-        <PlayerCharacterHeader :member="member" class="flex-1 min-w-0" />
-        <div v-if="!ui.dmPreviewMode" class="shrink-0 flex items-center gap-1.5 mt-1">
-          <RouterLink
-            to="/play/character/levelup"
-            class="inline-flex items-center gap-1.5 rounded-md bg-primary/10 border border-primary/30 px-3 py-1.5 font-cinzel text-xs text-primary hover:bg-primary/20 transition-colors"
-          >
-            Level Up
-          </RouterLink>
-          <RouterLink
-            to="/play/character/edit"
-            class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
-          >
-            Edit
-          </RouterLink>
+      <div class="flex flex-col gap-3 md:flex-row md:items-stretch md:gap-0">
+        <PlayerCharacterHeader
+          :member="member"
+          :show-controls="!ui.dmPreviewMode"
+          class="md:flex-1 md:rounded-r-none md:border-r-0"
+        />
+        <div class="md:w-72 md:shrink-0 md:border md:border-l-0 md:border-border md:bg-card md:rounded-r-lg md:overflow-hidden md:flex md:flex-col md:justify-center md:gap-3 md:px-3 md:py-3">
+          <AbilityScoreTable
+            :scores="member"
+            :saves="memberSaves"
+            :rounded="false"
+            @roll-ability="onRollAbility"
+            @roll-save="onRollSave"
+          />
+          <PlayerConditions :member="member" @roll="onChildRoll" />
         </div>
       </div>
-
-      <AbilityScoreTable
-        :scores="member"
-        :saves="memberSaves"
-        @roll-ability="onRollAbility"
-        @roll-save="onRollSave"
-      />
-
-      <PlayerConditions :member="member" @roll="onChildRoll" />
 
       <!-- ── Tabs ───────────────────────────────────────────── -->
       <div class="flex rounded-md border border-border overflow-hidden w-fit text-xs font-cinzel font-semibold tracking-wider">
         <button
           v-for="tab in TABS"
           :key="tab.id"
-          class="px-4 py-1.5 transition-colors"
+          class="cursor-pointer px-4 py-1.5 transition-colors"
           :class="activeTab === tab.id ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
           @click="activeTab = tab.id"
         >{{ tab.label }}</button>

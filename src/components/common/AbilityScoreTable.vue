@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col sm:flex-row gap-px">
+  <div class="flex flex-row gap-px">
     <table
       v-for="group in ABILITY_GROUPS"
       :key="group[0].key"
@@ -25,6 +25,7 @@
             <button
               class="w-full py-1.5 px-1.5 font-cinzel text-[10px] font-bold tracking-wider text-left transition-opacity hover:opacity-60"
               :style="{ color: ab.color }"
+              :title="`Roll ${ab.label} check`"
               @click="emit('roll-ability', ab.key, ab.label, mod(ab.key))"
             >{{ ab.label }}</button>
           </td>
@@ -32,6 +33,7 @@
           <td class="py-0 px-0 text-center">
             <button
               class="w-full py-1.5 px-1 font-cinzel text-sm font-bold text-foreground hover:bg-white/5 transition-colors"
+              :title="`Roll ${ab.label} check`"
               @click="emit('roll-ability', ab.key, ab.label, mod(ab.key))"
             >{{ scores[ab.key] }}</button>
           </td>
@@ -40,6 +42,7 @@
             <button
               class="w-full py-1.5 px-1 font-fell text-xs hover:bg-white/5 transition-colors"
               :class="mod(ab.key) >= 0 ? 'text-elven-green' : 'text-destructive'"
+              :title="`Roll ${ab.label} check`"
               @click="emit('roll-ability', ab.key, ab.label, mod(ab.key))"
             >{{ fmt(mod(ab.key)) }}</button>
           </td>
@@ -47,6 +50,7 @@
           <td class="py-0 px-0 text-center">
             <button
               class="w-full flex items-center justify-center gap-1 py-1.5 px-1.5 hover:bg-white/5 transition-colors"
+              :title="`Roll ${ab.label} saving throw`"
               @click="emit('roll-save', ab.key, ab.label, saveBonus(ab.key))"
             >
               <span
