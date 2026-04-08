@@ -5,7 +5,7 @@
  */
 
 import { STANDARD_ASI } from "../types";
-import type { ClassLevelData } from "../types";
+import type { ClassLevelData, FeatureEntry } from "../types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -24,9 +24,14 @@ export const WIZARD_SUBCLASSES = [
 
 const SUBCLASS_LEVELS = [2, 6, 10, 14];
 
-const FEATURES: Record<number, string[]> = {
-  1:  ["Spellcasting (Spellbook)", "Arcane Recovery"],
-  2:  ["Arcane Tradition"],
+const FEATURES: Record<number, FeatureEntry[]> = {
+  1: [
+    { name: "Spellcasting (Spellbook)", description: "You have a spellbook containing 6 1st-level spells. INT is your spellcasting ability. After each long rest, you prepare a number of spells equal to your INT modifier + Wizard level from your spellbook. You can copy new spells into your spellbook (costs 2 hours and 50 gp per spell level). You learn 2 new spells each time you gain a Wizard level." },
+    { name: "Arcane Recovery", description: "Once per day when you finish a short rest, you can recover expended spell slots with a combined level equal to or less than half your Wizard level (rounded up), and none of the slots can be 6th level or higher." },
+  ],
+  2: [
+    { name: "Arcane Tradition", description: "Choose an arcane tradition, shaping your practice of magic through one of the schools: Abjuration, Conjuration, Divination, Enchantment, Evocation, Illusion, Necromancy, or Transmutation. Your choice grants features at 2nd, 6th, 10th, and 14th level." },
+  ],
   3:  [],
   4:  ["ASI"],
   5:  [],

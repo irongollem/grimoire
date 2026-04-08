@@ -21,39 +21,30 @@
 
     <template v-else>
       <!-- ── Always visible ─────────────────────────────────── -->
-      <div class="flex items-start justify-between gap-2">
-        <PlayerCharacterHeader :member="member" class="flex-1 min-w-0" />
-        <div v-if="!ui.dmPreviewMode" class="shrink-0 flex items-center gap-1.5 mt-1">
-          <RouterLink
-            to="/play/character/levelup"
-            class="inline-flex items-center gap-1.5 rounded-md bg-primary/10 border border-primary/30 px-3 py-1.5 font-cinzel text-xs text-primary hover:bg-primary/20 transition-colors"
-          >
-            Level Up
-          </RouterLink>
-          <RouterLink
-            to="/play/character/edit"
-            class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
-          >
-            Edit
-          </RouterLink>
+      <div class="flex flex-col gap-3 md:flex-row md:items-stretch md:gap-0">
+        <PlayerCharacterHeader
+          :member="member"
+          :show-controls="!ui.dmPreviewMode"
+          class="md:flex-1 md:rounded-r-none md:border-r-0"
+        />
+        <div class="md:w-72 md:shrink-0 md:border md:border-l-0 md:border-border md:bg-card md:rounded-r-lg md:overflow-hidden md:flex md:flex-col md:justify-center md:gap-3 md:px-3 md:py-3">
+          <AbilityScoreTable
+            :scores="member"
+            :saves="memberSaves"
+            :rounded="false"
+            @roll-ability="onRollAbility"
+            @roll-save="onRollSave"
+          />
+          <PlayerConditions :member="member" @roll="onChildRoll" />
         </div>
       </div>
-
-      <AbilityScoreTable
-        :scores="member"
-        :saves="memberSaves"
-        @roll-ability="onRollAbility"
-        @roll-save="onRollSave"
-      />
-
-      <PlayerConditions :member="member" @roll="onChildRoll" />
 
       <!-- ── Tabs ───────────────────────────────────────────── -->
       <div class="flex rounded-md border border-border overflow-hidden w-fit text-xs font-cinzel font-semibold tracking-wider">
         <button
           v-for="tab in TABS"
           :key="tab.id"
-          class="px-4 py-1.5 transition-colors"
+          class="cursor-pointer px-4 py-1.5 transition-colors"
           :class="activeTab === tab.id ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
           @click="activeTab = tab.id"
         >{{ tab.label }}</button>
@@ -79,6 +70,12 @@
         :spell-save-dc="spellSaveDc"
         :max-prepared="maxPrepared"
         :view-mode="casterType === 'known' ? 'spellbook' : 'prepared'"
+      />
+
+      <!-- Features -->
+      <PlayerFeaturesTab
+        v-else-if="activeTab === 'features'"
+        :member="member"
       />
 
       <!-- Combat -->
@@ -115,7 +112,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onBeforeUnmount } from "vue";
 import { RouterLink } from "vue-router";
 import { rollDice } from "@/lib/dice";
 import type { RollMode } from "@/lib/dice";
@@ -124,13 +121,14 @@ import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/useParty";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { getCasterType, getDefaultSpellSlots, getMaxPrepared } from "@/types/spell.types";
-import type { SpellSlotEntry } from "@/types/party.types";
-import type { PartyMember } from "@/types/party.types";
+import { ATTACK_DIS_CONDITIONS, CHECK_DIS_CONDITIONS } from "@/types/party.types";
+import type { SpellSlotEntry, PartyMember } from "@/types/party.types";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import PlayerCharacterHeader from "@/components/player/PlayerCharacterHeader.vue";
 import PlayerConditions from "@/components/player/PlayerConditions.vue";
 import PlayerSkillsTab from "@/components/player/PlayerSkillsTab.vue";
 import PlayerCombatTab from "@/components/player/PlayerCombatTab.vue";
+import PlayerFeaturesTab from "@/components/player/PlayerFeaturesTab.vue";
 import PlayerMySpells from "@/components/spells/PlayerMySpells.vue";
 
 const props = defineProps<{ memberId?: string }>();
@@ -152,9 +150,10 @@ const member = computed<PartyMember | null>(() =>
 
 // ── Tabs ───────────────────────────────────────────────────────────────────────
 const TABS = [
-  { id: "skills",  label: "Skills"  },
-  { id: "spells",  label: "Spells"  },
-  { id: "combat",  label: "Combat"  },
+  { id: "skills",   label: "Skills"   },
+  { id: "spells",   label: "Spells"   },
+  { id: "features", label: "Features" },
+  { id: "combat",   label: "Combat"   },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 const activeTab = ref<TabId>("skills");
@@ -181,8 +180,6 @@ const memberSaves = computed(() => {
 });
 
 // ── Conditions (needed as props for child components) ──────────────────────────
-const ATTACK_DIS_CONDITIONS = new Set(["Blinded", "Frightened", "Poisoned", "Prone", "Restrained"]);
-const CHECK_DIS_CONDITIONS  = new Set(["Frightened", "Poisoned", "Exhausted 1", "Exhausted 2", "Exhausted 3"]);
 const attackDisadvantage = computed(() =>
   member.value?.conditions?.some(c => ATTACK_DIS_CONDITIONS.has(c)) ?? false,
 );
@@ -222,6 +219,7 @@ const spellAttackBonus = computed(() => {
 interface RollToast { label: string; dice: number; modifier: number; total: number; }
 const rollToast = ref<RollToast | null>(null);
 let rollTimer: ReturnType<typeof setTimeout> | null = null;
+onBeforeUnmount(() => { if (rollTimer) clearTimeout(rollTimer); });
 
 function showToast(result: RollToast) {
   rollToast.value = result;

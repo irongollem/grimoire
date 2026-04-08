@@ -125,6 +125,10 @@
     opacity: 0.4;
   }
 
+  button, [role="button"] {
+    cursor: pointer;
+  }
+
 
   body {
     background-color: var(--background);

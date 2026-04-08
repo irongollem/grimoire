@@ -5,7 +5,7 @@
  */
 
 import { STANDARD_ASI } from "../types";
-import type { ClassLevelData, ClassResourceDef } from "../types";
+import type { ClassLevelData, ClassResourceDef, FeatureEntry } from "../types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -46,12 +46,28 @@ export const KI_POINTS: ClassResourceDef = {
 
 const SUBCLASS_LEVELS = [3, 6, 11, 17];
 
-const FEATURES: Record<number, string[]> = {
-  1:  ["Unarmored Defense (10+DEX+WIS)", "Martial Arts (1d4)"],
-  2:  ["Ki (2 points)", "Unarmored Movement (+10 ft)"],
-  3:  ["Monastic Tradition", "Deflect Missiles"],
-  4:  ["ASI", "Slow Fall"],
-  5:  ["Extra Attack", "Stunning Strike", "Martial Arts (1d6)"],
+const FEATURES: Record<number, FeatureEntry[]> = {
+  1: [
+    { name: "Unarmored Defense (10+DEX+WIS)", description: "While you are wearing no armor and not wielding a shield, your AC equals 10 + your Dexterity modifier + your Wisdom modifier." },
+    { name: "Martial Arts (1d4)", description: "You can use DEX instead of STR for unarmed strikes and monk weapons. Your unarmed strikes deal 1d4 damage. When you use the Attack action with an unarmed strike or monk weapon, you can make one unarmed strike as a bonus action." },
+  ],
+  2: [
+    { name: "Ki (2 points)", description: "You can spend ki points to fuel special abilities. You have ki points equal to your Monk level, regained on a short or long rest. Flurry of Blows (1 ki): after the Attack action, make two unarmed strikes as a bonus action. Patient Defense (1 ki): take the Dodge action as a bonus action. Step of the Wind (1 ki): take the Disengage or Dash action as a bonus action, and your jump distance is doubled." },
+    { name: "Unarmored Movement (+10 ft)", description: "Your speed increases by 10 feet while you are not wearing armor or wielding a shield. This bonus increases at higher levels." },
+  ],
+  3: [
+    "Monastic Tradition",
+    { name: "Deflect Missiles", description: "As a reaction when you are hit by a ranged weapon attack, you can deflect or catch the missile. The damage is reduced by 1d10 + your DEX modifier + your Monk level. If you reduce the damage to 0, you can spend 1 ki point to throw the projectile back as a ranged attack (range 20/60 ft, deals 1d6 + DEX damage)." },
+  ],
+  4: [
+    "ASI",
+    { name: "Slow Fall", description: "As a reaction when you fall, you can reduce any falling damage you take by an amount equal to five times your Monk level." },
+  ],
+  5: [
+    { name: "Extra Attack", description: "You can attack twice, instead of once, whenever you take the Attack action on your turn." },
+    { name: "Stunning Strike", description: "When you hit another creature with a melee weapon attack, you can spend 1 ki point to attempt a stunning strike. The target must succeed on a CON saving throw (DC = 8 + proficiency bonus + WIS modifier) or be stunned until the end of your next turn." },
+    "Martial Arts (1d6)",
+  ],
   6:  ["Ki-Empowered Strikes", "Monastic Tradition feature", "Unarmored Movement (+15 ft)"],
   7:  ["Evasion", "Stillness of Mind"],
   8:  ["ASI"],

@@ -5,7 +5,7 @@
  */
 
 import { STANDARD_ASI, SKILL_NAMES } from "../types";
-import type { ClassLevelData, ClassStep } from "../types";
+import type { ClassLevelData, ClassStep, FeatureEntry } from "../types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -32,12 +32,24 @@ export function bardicInspirationDie(level: number): string {
 
 const SUBCLASS_LEVELS = [3, 6, 14];
 
-const FEATURES: Record<number, string[]> = {
-  1:  ["Spellcasting", "Bardic Inspiration (d6, CHA mod/rest)"],
-  2:  ["Jack of All Trades", "Song of Rest (d6)"],
-  3:  ["Bard College", "Expertise (×2 skills)"],
+const FEATURES: Record<number, FeatureEntry[]> = {
+  1: [
+    { name: "Spellcasting", description: "You have learned to untangle and reshape the fabric of reality using music, speech, and song. Your spells are drawn from the Bard spell list. You know 4 spells at 1st level. Charisma is your spellcasting ability." },
+    { name: "Bardic Inspiration (d6, CHA mod/rest)", description: "As a bonus action, choose one creature (other than yourself) within 60 feet who can hear you. That creature gains a Bardic Inspiration die (d6). Once within the next 10 minutes, the creature can roll the die and add the result to one ability check, attack roll, or saving throw. You can use this a number of times equal to your Charisma modifier (minimum 1), regaining uses on a long rest." },
+  ],
+  2: [
+    { name: "Jack of All Trades", description: "You can add half your proficiency bonus, rounded down, to any ability check you make that doesn't already include your proficiency bonus." },
+    { name: "Song of Rest (d6)", description: "You can use soothing music or oration to help revitalize your wounded allies during a short rest. If you or any friendly creatures who can hear your performance regain hit points by spending hit dice at the end of a short rest, each of those creatures regains an extra 1d6 hit points." },
+  ],
+  3: [
+    "Bard College",
+    { name: "Expertise (×2 skills)", description: "Choose two of your skill proficiencies. Your proficiency bonus is doubled for any ability check you make that uses either of the chosen proficiencies. At 10th level, you can choose two more skills to gain this benefit." },
+  ],
   4:  ["ASI"],
-  5:  ["Bardic Inspiration (d8, short rest recharge)", "Font of Inspiration"],
+  5: [
+    { name: "Bardic Inspiration (d8, short rest recharge)", description: "Your Bardic Inspiration die increases to a d8. Additionally, Font of Inspiration means you now regain uses on a short or long rest (rather than only on a long rest)." },
+    { name: "Font of Inspiration", description: "You now regain your expended Bardic Inspiration uses when you finish a short or long rest." },
+  ],
   6:  ["Countercharm", "Bard College feature"],
   7:  [],
   8:  ["ASI"],

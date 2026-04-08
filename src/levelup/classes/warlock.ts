@@ -5,7 +5,7 @@
  */
 
 import { STANDARD_ASI } from "../types";
-import type { ClassLevelData, ClassStep } from "../types";
+import type { ClassLevelData, ClassStep, FeatureEntry } from "../types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -67,10 +67,17 @@ export const WARLOCK_SPELLS_KNOWN = [
 
 const SUBCLASS_LEVELS = [1, 6, 10, 14];
 
-const FEATURES: Record<number, string[]> = {
-  1:  ["Otherworldly Patron", "Spellcasting (Pact Magic, short rest)"],
-  2:  ["Eldritch Invocations (2)"],
-  3:  ["Pact Boon", "Eldritch Invocations (3)"],
+const FEATURES: Record<number, FeatureEntry[]> = {
+  1: [
+    { name: "Otherworldly Patron", description: "You have struck a bargain with an otherworldly being of great power. Your choice of patron (Archfey, Fiend, or Great Old One) grants you features at 1st, 6th, 10th, and 14th level. The nature of your pact shapes your spells and abilities." },
+    { name: "Spellcasting (Pact Magic, short rest)", description: "Your arcane research and the magic bestowed on you by your patron give you spells. CHA is your spellcasting ability. You have a small number of spell slots, all of the same level — this level increases as you gain levels. Your slots recharge on a short or long rest, unlike other casters." },
+  ],
+  2: [
+    { name: "Eldritch Invocations (2)", description: "In your study of occult lore, you have unearthed Eldritch Invocations — fragments of forbidden knowledge that imbue you with an abiding magical ability. You learn 2 invocations from the list. Some have prerequisites (level, Pact Boon). You can replace one known invocation each time you gain a Warlock level." },
+  ],
+  3: [
+    { name: "Pact Boon", description: "Your patron bestows a gift upon you for your loyal service. Choose one: Pact of the Chain (gain a familiar from an expanded list including imps and pseudodragons), Pact of the Blade (summon a magical weapon as an action), or Pact of the Tome (gain a Book of Shadows with 3 cantrips from any class list)." },
+  ],
   4:  ["ASI"],
   5:  ["Eldritch Invocations (4)"],
   6:  ["Otherworldly Patron feature"],

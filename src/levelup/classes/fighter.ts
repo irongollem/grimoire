@@ -4,7 +4,7 @@
  * Most ASIs of any class: 4, 6, 8, 12, 14, 16, 19.
  */
 
-import type { ClassLevelData, ClassStep, ClassResourceDef } from "../types";
+import type { ClassLevelData, ClassStep, ClassResourceDef, FeatureEntry } from "../types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -55,12 +55,19 @@ export const INDOMITABLE: ClassResourceDef = {
 const FIGHTER_ASI    = [4, 6, 8, 12, 14, 16, 19];
 const SUBCLASS_LEVELS = [3, 7, 10, 15, 18];
 
-const FEATURES: Record<number, string[]> = {
-  1:  ["Fighting Style", "Second Wind"],
-  2:  ["Action Surge (1 use)"],
+const FEATURES: Record<number, FeatureEntry[]> = {
+  1: [
+    { name: "Fighting Style", description: "You adopt a particular style of fighting as your specialty. Choose one: Archery (+2 ranged attack rolls), Defense (+1 AC while armored), Dueling (+2 damage with one-handed weapon and no other weapon), Great Weapon Fighting (reroll 1s and 2s on damage with two-handed weapons), Protection (impose disadvantage on attacks against adjacent allies), or Two-Weapon Fighting (add ability modifier to off-hand damage)." },
+    { name: "Second Wind", description: "As a bonus action, you can regain hit points equal to 1d10 + your Fighter level. Once you use this feature, you must finish a short or long rest before you can use it again." },
+  ],
+  2: [
+    { name: "Action Surge (1 use)", description: "On your turn, you can push yourself beyond your normal limits. You take one additional action on top of your regular action and a possible bonus action. Once you use this feature, you must finish a short or long rest before you can use it again. At 17th level you can use it twice before a rest." },
+  ],
   3:  ["Martial Archetype"],
   4:  ["ASI"],
-  5:  ["Extra Attack"],
+  5: [
+    { name: "Extra Attack", description: "You can attack twice, instead of once, whenever you take the Attack action on your turn. The number of attacks increases to three at 11th level and four at 20th level." },
+  ],
   6:  ["ASI"],
   7:  ["Archetype feature"],
   8:  ["ASI"],

@@ -5,7 +5,7 @@
  */
 
 import { STANDARD_ASI } from "../types";
-import type { ClassLevelData, ClassResourceDef } from "../types";
+import type { ClassLevelData, ClassResourceDef, FeatureEntry } from "../types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -36,12 +36,20 @@ export const CHANNEL_DIVINITY: ClassResourceDef = {
 
 const SUBCLASS_LEVELS = [1, 2, 6, 8, 17];
 
-const FEATURES: Record<number, string[]> = {
-  1:  ["Spellcasting", "Divine Domain"],
-  2:  ["Channel Divinity (1/rest)", "Divine Domain feature"],
+const FEATURES: Record<number, FeatureEntry[]> = {
+  1: [
+    { name: "Spellcasting", description: "You have learned to draw on divine magic through prayer and devotion. Your spells are drawn from the Cleric spell list. Wisdom is your spellcasting ability. You prepare a number of spells equal to your Wisdom modifier + your Cleric level after each long rest." },
+    { name: "Divine Domain", description: "Choose a domain related to your deity. Your choice grants you domain spells and other features at levels 1, 2, 6, 8, and 17. Domain spells are always prepared and don't count against your prepared spells total." },
+  ],
+  2: [
+    { name: "Channel Divinity (1/rest)", description: "You gain the ability to channel divine energy directly from your deity. You know two Channel Divinity options: Turn Undead and an option determined by your domain. When you use Channel Divinity, choose which option to use. You regain the ability to use it after a short or long rest." },
+    "Divine Domain feature",
+  ],
   3:  [],
   4:  ["ASI"],
-  5:  ["Destroy Undead (CR ½)"],
+  5: [
+    { name: "Destroy Undead (CR ½)", description: "When an undead fails its saving throw against your Turn Undead feature, the creature is instantly destroyed if its challenge rating is at or below CR ½. This threshold increases as you gain levels." },
+  ],
   6:  ["Channel Divinity (2/rest)", "Divine Domain feature"],
   7:  [],
   8:  ["ASI", "Destroy Undead (CR 1)", "Divine Domain feature"],

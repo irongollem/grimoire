@@ -1,80 +1,74 @@
 <template>
-  <div class="rounded-lg border border-border bg-card overflow-hidden">
-    <div class="px-4 py-2 border-b border-border bg-muted/20 flex items-center justify-between">
-      <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Conditions</span>
-      <div v-if="attackDisadvantage || checkDisadvantage" class="flex items-center gap-1.5">
-        <span v-if="attackDisadvantage" class="font-cinzel text-[9px] text-amber-500 tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">⚔ Dis</span>
-        <span v-if="checkDisadvantage" class="font-cinzel text-[9px] text-amber-500 tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">✦ Dis</span>
-      </div>
-    </div>
+  <!-- Conditions row: chips + add button -->
+  <div class="flex flex-wrap items-center gap-1.5 min-h-8">
 
-    <div class="p-3 flex flex-wrap gap-2">
+    <!-- Active condition chips -->
+    <div
+      v-for="cond in member.conditions"
+      :key="cond"
+      class="flex items-center gap-1 rounded-full border border-destructive/40 bg-destructive/10 pl-2.5 pr-1 py-0.5"
+    >
+      <span
+        class="font-cinzel text-[11px] text-destructive tracking-wider leading-none"
+        :title="CONDITION_DESCRIPTIONS[cond]"
+      >{{ cond }}</span>
       <button
-        v-for="cond in CONDITIONS"
-        :key="cond"
-        class="px-2.5 py-1 rounded-md border font-cinzel text-[11px] tracking-wider transition-colors"
-        :class="hasCondition(cond)
-          ? 'bg-destructive/15 border-destructive/40 text-destructive'
-          : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'"
-        @click="toggleCondition(cond)"
-      >{{ cond }}</button>
+        class="flex items-center justify-center w-4 h-4 rounded-full text-destructive/50 hover:text-destructive hover:bg-destructive/20 transition-colors text-sm leading-none"
+        title="Remove condition"
+        @click="removeCondition(cond)"
+      >×</button>
     </div>
 
     <!-- Active curses (read-only) -->
-    <div v-if="member.curses?.length" class="px-3 pb-3 flex flex-wrap gap-2">
-      <span
-        v-for="curse in member.curses"
-        :key="curse"
-        class="px-2.5 py-1 rounded-md bg-violet-500/10 border border-violet-500/30 font-cinzel text-[11px] text-violet-400 tracking-wider"
-      >Cursed: {{ curse }}</span>
+    <div
+      v-for="curse in member.curses"
+      :key="curse"
+      class="flex items-center rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-0.5"
+    >
+      <span class="font-cinzel text-[11px] text-violet-400 tracking-wider leading-none">{{ curse }}</span>
     </div>
 
-    <!-- Death saves (inline when at 0 HP) -->
-    <div v-if="member.current_hp <= 0" class="px-4 pb-4 pt-3 border-t border-destructive/20">
-      <p class="font-cinzel text-xs font-semibold text-destructive tracking-wider mb-3">Death Saving Throws</p>
-      <div class="flex items-center gap-8">
-        <div>
-          <p class="font-fell text-xs text-muted-foreground mb-1.5">Successes</p>
-          <div class="flex gap-2">
-            <button
-              v-for="i in 3"
-              :key="`s-${i}`"
-              class="h-6 w-6 rounded-full border-2 transition-colors"
-              :class="i <= member.death_save_successes
-                ? 'bg-elven-green border-elven-green'
-                : 'border-border hover:border-elven-green/50'"
-              @click="toggleDeathSave('success', i)"
-            />
-          </div>
+  </div>
+
+  <!-- Death saves (shown only at 0 HP) -->
+  <div v-if="member.current_hp <= 0" class="mt-2 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3">
+    <p class="font-cinzel text-xs font-semibold text-destructive tracking-wider mb-3">Death Saving Throws</p>
+    <div class="flex items-center gap-8">
+      <div>
+        <p class="font-fell text-xs text-muted-foreground mb-1.5">Successes</p>
+        <div class="flex gap-2">
+          <button
+            v-for="i in 3"
+            :key="`s-${i}`"
+            class="h-6 w-6 rounded-full border-2 transition-colors"
+            :class="i <= member.death_save_successes ? 'bg-elven-green border-elven-green' : 'border-border hover:border-elven-green/50'"
+            @click="toggleDeathSave('success', i)"
+          />
         </div>
-        <div>
-          <p class="font-fell text-xs text-muted-foreground mb-1.5">Failures</p>
-          <div class="flex gap-2">
-            <button
-              v-for="i in 3"
-              :key="`f-${i}`"
-              class="h-6 w-6 rounded-full border-2 transition-colors"
-              :class="i <= member.death_save_failures
-                ? 'bg-destructive border-destructive'
-                : 'border-border hover:border-destructive/50'"
-              @click="toggleDeathSave('failure', i)"
-            />
-          </div>
-        </div>
-        <button
-          class="ml-auto h-7 px-3 rounded border border-destructive/40 bg-destructive/10 font-cinzel text-[10px] text-destructive hover:bg-destructive/20 transition-colors tracking-wider"
-          @click="rollDeathSave"
-        >Roll d20</button>
       </div>
+      <div>
+        <p class="font-fell text-xs text-muted-foreground mb-1.5">Failures</p>
+        <div class="flex gap-2">
+          <button
+            v-for="i in 3"
+            :key="`f-${i}`"
+            class="h-6 w-6 rounded-full border-2 transition-colors"
+            :class="i <= member.death_save_failures ? 'bg-destructive border-destructive' : 'border-border hover:border-destructive/50'"
+            @click="toggleDeathSave('failure', i)"
+          />
+        </div>
+      </div>
+      <button
+        class="ml-auto h-7 px-3 rounded border border-destructive/40 bg-destructive/10 font-cinzel text-[10px] text-destructive hover:bg-destructive/20 transition-colors tracking-wider"
+        @click="rollDeathSave"
+      >Roll d20</button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
-import { CONDITIONS } from "@/types/party.types";
 import type { PartyMember } from "@/types/party.types";
 
 const props = defineProps<{ member: PartyMember }>();
@@ -83,20 +77,35 @@ const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifie
 const { mutateAsync: updateMember } = useUpdatePartyMember();
 const { sendRoll } = useCampaignMessages();
 
-const ATTACK_DIS_CONDITIONS = new Set(["Blinded", "Frightened", "Poisoned", "Prone", "Restrained"]);
-const CHECK_DIS_CONDITIONS  = new Set(["Frightened", "Poisoned", "Exhausted 1", "Exhausted 2", "Exhausted 3"]);
+// ── Condition descriptions ────────────────────────────────────────────────────
 
-const attackDisadvantage = computed(() => props.member.conditions?.some(c => ATTACK_DIS_CONDITIONS.has(c)) ?? false);
-const checkDisadvantage  = computed(() => props.member.conditions?.some(c => CHECK_DIS_CONDITIONS.has(c)) ?? false);
+const CONDITION_DESCRIPTIONS: Record<string, string> = {
+  "Blinded":      "Can't see. Auto-fail sight checks. Your attacks have disadvantage; attacks against you have advantage.",
+  "Charmed":      "Can't attack or harm the charmer. Charmer has advantage on social interactions with you.",
+  "Deafened":     "Can't hear. Auto-fail hearing checks.",
+  "Exhausted 1":  "Disadvantage on ability checks.",
+  "Exhausted 2":  "Speed halved.",
+  "Exhausted 3":  "Disadvantage on attack rolls and saving throws.",
+  "Frightened":   "Disadvantage on ability checks and attacks while source is visible. Can't willingly move closer to it.",
+  "Grappled":     "Speed becomes 0. Ends if grappler is incapacitated or you are moved out of reach.",
+  "Incapacitated":"Can't take actions or reactions.",
+  "Invisible":    "Can't be seen without special senses. Your attacks have advantage; attacks against you have disadvantage.",
+  "Paralyzed":    "Incapacitated, can't move or speak. Auto-fail STR/DEX saves. Attacks have advantage and are auto-crits within 5 ft.",
+  "Petrified":    "Transformed to stone. Incapacitated, resistant to all damage. Auto-fail STR/DEX saves; attacks have advantage.",
+  "Poisoned":     "Disadvantage on attack rolls and ability checks.",
+  "Prone":        "Your attacks have disadvantage. Melee attacks against you within 5 ft have advantage; ranged attacks have disadvantage.",
+  "Restrained":   "Speed 0. Disadvantage on attacks and DEX saves. Attacks against you have advantage.",
+  "Stunned":      "Incapacitated, can't move. Auto-fail STR/DEX saves. Attacks against you have advantage.",
+  "Unconscious":  "Incapacitated, prone. Auto-fail STR/DEX saves. Attacks have advantage and are auto-crits within 5 ft.",
+};
 
-function hasCondition(cond: string) { return props.member.conditions?.includes(cond) ?? false; }
+// ── Condition helpers ─────────────────────────────────────────────────────────
 
-async function toggleCondition(cond: string) {
-  const current = [...(props.member.conditions ?? [])];
-  const idx = current.indexOf(cond);
-  if (idx >= 0) current.splice(idx, 1); else current.push(cond);
-  await updateMember({ id: props.member.id, update: { conditions: current } });
+async function removeCondition(cond: string) {
+  await updateMember({ id: props.member.id, update: { conditions: (props.member.conditions ?? []).filter(c => c !== cond) } });
 }
+
+// ── Death saves ───────────────────────────────────────────────────────────────
 
 async function toggleDeathSave(type: "success" | "failure", pip: number) {
   const current = type === "success" ? props.member.death_save_successes : props.member.death_save_failures;

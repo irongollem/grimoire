@@ -4,7 +4,7 @@
  */
 
 import { STANDARD_ASI } from "../types";
-import type { ClassLevelData, ClassStep } from "../types";
+import type { ClassLevelData, ClassStep, FeatureEntry } from "../types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -73,12 +73,23 @@ export const RANGER_SPELLS_KNOWN = [
 
 const SUBCLASS_LEVELS = [3, 7, 11, 15];
 
-const FEATURES: Record<number, string[]> = {
-  1:  ["Favored Enemy", "Natural Explorer"],
-  2:  ["Fighting Style", "Spellcasting"],
-  3:  ["Ranger Archetype", "Primeval Awareness"],
+const FEATURES: Record<number, FeatureEntry[]> = {
+  1: [
+    { name: "Favored Enemy", description: "Choose a type of favored enemy: aberrations, beasts, celestials, constructs, dragons, elementals, fey, fiends, giants, monstrosities, oozes, plants, or undead. Alternatively, choose two races of humanoid. You have advantage on Survival checks to track them and Intelligence checks to recall information about them. You also learn one language they speak." },
+    { name: "Natural Explorer", description: "Choose a favored terrain type: arctic, coast, desert, forest, grassland, mountain, swamp, or the Underdark. When traveling in your favored terrain you gain several benefits: difficult terrain doesn't slow group travel, you can't get lost by non-magical means, you remain alert to danger even while foraging or navigating, you can move stealthily at normal pace alone, you find twice as much food foraging, and you learn the exact number and size of creature groups passing through the area." },
+  ],
+  2: [
+    { name: "Fighting Style", description: "Adopt a fighting style: Archery (+2 ranged attack rolls), Defense (+1 AC while armored), Dueling (+2 damage one-handed weapon), or Two-Weapon Fighting (add ability modifier to off-hand damage)." },
+    { name: "Spellcasting", description: "You have learned to use the magical essence of nature to cast spells. WIS is your spellcasting ability. You know a number of spells from the Ranger spell list and can cast them using your spell slots." },
+  ],
+  3: [
+    "Ranger Archetype",
+    { name: "Primeval Awareness", description: "As an action, expend one spell slot to focus your awareness on the region around you. For 1 minute per spell slot level, you can sense whether certain types of creatures (aberrations, celestials, dragons, elementals, fey, fiends, or undead) are present within 1 mile of you (or 6 miles if in your favored terrain), though not their exact location or number." },
+  ],
   4:  ["ASI"],
-  5:  ["Extra Attack"],
+  5: [
+    { name: "Extra Attack", description: "You can attack twice, instead of once, whenever you take the Attack action on your turn." },
+  ],
   6:  ["Favored Enemy improvement", "Natural Explorer improvement"],
   7:  ["Ranger Archetype feature"],
   8:  ["ASI", "Land's Stride"],

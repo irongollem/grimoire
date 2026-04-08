@@ -6,7 +6,7 @@
  */
 
 import { STANDARD_ASI } from "../types";
-import type { ClassLevelData, ClassResourceDef } from "../types";
+import type { ClassLevelData, ClassResourceDef, FeatureEntry } from "../types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -40,12 +40,21 @@ export const RAGE: ClassResourceDef = {
 
 const SUBCLASS_LEVELS = [3, 6, 10, 14];
 
-const FEATURES: Record<number, string[]> = {
-  1:  ["Rage (2 uses, +2 dmg)", "Unarmored Defense (10+DEX+CON)"],
-  2:  ["Reckless Attack", "Danger Sense"],
+const FEATURES: Record<number, FeatureEntry[]> = {
+  1: [
+    { name: "Rage (2 uses, +2 dmg)", description: "As a bonus action, enter a rage for up to 1 minute. While raging you have advantage on STR checks and saves, deal +2 damage on STR melee attacks, and gain resistance to bludgeoning, piercing, and slashing damage. You can't cast or concentrate on spells while raging. Ends early if you are knocked unconscious, or if your turn ends without attacking or taking damage." },
+    { name: "Unarmored Defense (10+DEX+CON)", description: "While you are not wearing any armor, your AC equals 10 + your Dexterity modifier + your Constitution modifier. You can use a shield and still gain this benefit." },
+  ],
+  2: [
+    { name: "Reckless Attack", description: "When you make your first attack on your turn, you can decide to attack recklessly. Doing so gives you advantage on melee weapon attack rolls using STR during this turn, but attack rolls against you have advantage until your next turn." },
+    { name: "Danger Sense", description: "You gain an uncanny sense of danger. You have advantage on Dexterity saving throws against effects that you can see, such as traps and spells. This benefit is denied if you are blinded, deafened, or incapacitated." },
+  ],
   3:  ["Primal Path"],
   4:  ["ASI"],
-  5:  ["Extra Attack", "Fast Movement"],
+  5: [
+    { name: "Extra Attack", description: "You can attack twice, instead of once, whenever you take the Attack action on your turn." },
+    { name: "Fast Movement", description: "Your speed increases by 10 feet while you aren't wearing heavy armor." },
+  ],
   6:  ["Path feature", "Rage (4 uses)"],
   7:  ["Feral Instinct"],
   8:  ["ASI"],

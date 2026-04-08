@@ -5,7 +5,7 @@
  */
 
 import { SKILL_NAMES } from "../types";
-import type { ClassLevelData, ClassStep } from "../types";
+import type { ClassLevelData, ClassStep, FeatureEntry } from "../types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -32,12 +32,21 @@ function sneakDice(level: number): string {
   return `${Math.ceil(level / 2)}d6`;
 }
 
-const FEATURES: Record<number, string[]> = {
-  1:  ["Expertise (×2 skills)", "Sneak Attack (1d6)", "Thieves' Cant"],
-  2:  ["Cunning Action"],
-  3:  [`Roguish Archetype`, `Sneak Attack (${sneakDice(3)})`],
+const FEATURES: Record<number, FeatureEntry[]> = {
+  1: [
+    { name: "Expertise (×2 skills)", description: "Choose two of your skill proficiencies, or one skill proficiency and your proficiency with thieves' tools. Your proficiency bonus is doubled for any ability check using either chosen proficiency." },
+    { name: "Sneak Attack (1d6)", description: "Once per turn, you can deal extra 1d6 damage to one creature you hit with an attack if you have advantage on the roll, or if another enemy of the target is within 5 feet and you don't have disadvantage. This extra damage increases as you level up." },
+    { name: "Thieves' Cant", description: "You have learned thieves' cant, a secret mix of dialect, jargon, and code that allows you to hide messages in seemingly normal conversation. You also understand a set of secret signs and symbols used to convey short, simple messages." },
+  ],
+  2: [
+    { name: "Cunning Action", description: "Your quick thinking lets you act faster. As a bonus action, you can take the Dash, Disengage, or Hide action." },
+  ],
+  3:  ["Roguish Archetype", `Sneak Attack (${sneakDice(3)})`],
   4:  ["ASI"],
-  5:  [`Uncanny Dodge`, `Sneak Attack (${sneakDice(5)})`],
+  5: [
+    { name: "Uncanny Dodge", description: "When an attacker that you can see hits you with an attack, you can use your reaction to halve the attack's damage against you." },
+    `Sneak Attack (${sneakDice(5)})`,
+  ],
   6:  ["Expertise (×2 more skills)"],
   7:  [`Evasion`, `Sneak Attack (${sneakDice(7)})`],
   8:  ["ASI"],
