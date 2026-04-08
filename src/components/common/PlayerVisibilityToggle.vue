@@ -7,7 +7,7 @@
       :class="isShared
         ? 'bg-primary/10 border-primary/40 text-primary hover:bg-primary/20'
         : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'"
-      @click="open = !open"
+      @click="toggleOpen()"
     >
       <Eye v-if="isShared" class="h-3.5 w-3.5" />
       <EyeOff v-else class="h-3.5 w-3.5" />
@@ -16,7 +16,11 @@
     <!-- Popover -->
     <div
       v-if="open"
-      class="absolute right-0 top-full mt-1 z-50 w-56 rounded-lg border border-border bg-popover shadow-lg overflow-hidden"
+      class="absolute z-50 w-56 rounded-lg border border-border bg-popover shadow-lg overflow-hidden"
+      :class="[
+        openUpward  ? 'bottom-full mb-1' : 'top-full mt-1',
+        openLeftward ? 'left-0'          : 'right-0',
+      ]"
     >
       <div class="px-3 pt-3 pb-1">
         <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-widest mb-2">VISIBLE TO</p>
@@ -96,6 +100,29 @@ const party = computed(() => partyData.value ?? []);
 
 const open = ref(false);
 const containerRef = ref<HTMLElement | null>(null);
+
+// Edge-aware positioning: computed when the popover opens.
+// POPOVER_W must match the w-56 (224px) class on the popover div.
+const POPOVER_W = 224;
+// Rough estimate: header + "All players" btn + up-to-6 members + hide btn
+const POPOVER_H_EST = 280;
+const openUpward = ref(false);
+const openLeftward = ref(false);
+
+function computePosition() {
+  const el = containerRef.value;
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  openUpward.value  = vh - rect.bottom < POPOVER_H_EST && rect.top > vh - rect.bottom;
+  openLeftward.value = rect.right < POPOVER_W && vw - rect.left >= POPOVER_W;
+}
+
+function toggleOpen() {
+  if (!open.value) computePosition();
+  open.value = !open.value;
+}
 
 const isShared = computed(
   () => props.sharedWithAll || (props.visibleTo !== null && props.visibleTo.length > 0),
