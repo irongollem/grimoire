@@ -16,6 +16,7 @@ import { DRUID_DATA                                              } from "./class
 import { ROGUE_DATA,    getRogueSteps                           } from "./classes/rogue";
 import { MONK_DATA,    getMonkResources                        } from "./classes/monk";
 import { CLERIC_DATA,  getClericResources                      } from "./classes/cleric";
+import { BARD_DATA,    getBardSteps                            } from "./classes/bard";
 
 function buildLevels(
   asiLevels: number[],
@@ -38,8 +39,7 @@ const STANDARD_ASI = [4, 8, 12, 16, 19];
 const artificer = ARTIFICER_DATA;
 // Subclass (Primal Path): 3, 6, 10, 14
 const barbarian = buildLevels(STANDARD_ASI, [3, 6, 10, 14]);
-// Subclass (College): 3, 6, 14
-const bard      = buildLevels(STANDARD_ASI, [3, 6, 14]);
+const bard      = BARD_DATA;
 const cleric    = CLERIC_DATA;
 const druid     = DRUID_DATA;
 // Subclass (Martial Archetype): 3, 7, 10, 15, 18 — extra ASI at 6, 14
@@ -90,6 +90,7 @@ export function proficiencyBonusForLevel(level: number): number {
 export function getClassSteps(className: string, nextLevel: number): ClassStep[] {
   switch (className) {
     case "Artificer": return getArtificerSteps(nextLevel);
+    case "Bard":      return getBardSteps(nextLevel);
     case "Paladin":   return getPaladinSteps(nextLevel);
     case "Ranger":    return getRangerSteps(nextLevel);
     case "Rogue":     return getRogueSteps(nextLevel);
