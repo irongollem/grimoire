@@ -2,14 +2,6 @@
   <header
     class="md:hidden flex items-center gap-3 px-4 py-3 border-b border-border bg-card sticky top-0 z-30"
   >
-    <button
-      class="text-muted-foreground hover:text-foreground transition-colors"
-      aria-label="Open navigation"
-      @click="ui.toggleMobileNav()"
-    >
-      <Menu class="h-5 w-5" />
-    </button>
-
     <h1 class="font-cinzel text-lg font-semibold text-gold-500 tracking-wider flex-1 truncate">
       {{ pageTitle }}
     </h1>
@@ -23,6 +15,17 @@
     </button>
 
     <DiceRoller />
+
+    <!-- Mobile nav FAB — bottom-left, thumb-friendly -->
+    <Teleport to="body">
+      <button
+        class="md:hidden fixed bottom-5 left-4 z-40 flex items-center justify-center w-12 h-12 rounded-full bg-card border border-border shadow-lg text-muted-foreground hover:text-foreground active:scale-95 transition-all"
+        aria-label="Open navigation"
+        @click="ui.toggleMobileNav()"
+      >
+        <Menu class="h-5 w-5" />
+      </button>
+    </Teleport>
 
     <!-- Mobile search overlay -->
     <Teleport to="body">
