@@ -64,6 +64,21 @@ export function proficiencyBonusForLevel(level: number): number {
 }
 
 /**
+ * Returns all features a character has gained from levels 1 through `currentLevel`,
+ * keyed by level. Levels with no features are omitted.
+ */
+export function getCharacterFeatures(className: string, currentLevel: number): Record<number, string[]> {
+  const table = CLASS_FEATURES[className];
+  if (!table) return {};
+  const result: Record<number, string[]> = {};
+  for (let lvl = 1; lvl <= currentLevel; lvl++) {
+    const features = table[lvl - 1]?.features ?? [];
+    if (features.length > 0) result[lvl] = features;
+  }
+  return result;
+}
+
+/**
  * Returns the class-specific wizard steps for a character levelling to `nextLevel`.
  * Returns an empty array for classes not yet implemented.
  */

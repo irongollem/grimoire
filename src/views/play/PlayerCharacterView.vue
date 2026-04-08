@@ -81,6 +81,12 @@
         :view-mode="casterType === 'known' ? 'spellbook' : 'prepared'"
       />
 
+      <!-- Features -->
+      <PlayerFeaturesTab
+        v-else-if="activeTab === 'features'"
+        :member="member"
+      />
+
       <!-- Combat -->
       <PlayerCombatTab
         v-else
@@ -131,6 +137,7 @@ import PlayerCharacterHeader from "@/components/player/PlayerCharacterHeader.vue
 import PlayerConditions from "@/components/player/PlayerConditions.vue";
 import PlayerSkillsTab from "@/components/player/PlayerSkillsTab.vue";
 import PlayerCombatTab from "@/components/player/PlayerCombatTab.vue";
+import PlayerFeaturesTab from "@/components/player/PlayerFeaturesTab.vue";
 import PlayerMySpells from "@/components/spells/PlayerMySpells.vue";
 
 const props = defineProps<{ memberId?: string }>();
@@ -152,9 +159,10 @@ const member = computed<PartyMember | null>(() =>
 
 // ── Tabs ───────────────────────────────────────────────────────────────────────
 const TABS = [
-  { id: "skills",  label: "Skills"  },
-  { id: "spells",  label: "Spells"  },
-  { id: "combat",  label: "Combat"  },
+  { id: "skills",   label: "Skills"   },
+  { id: "spells",   label: "Spells"   },
+  { id: "features", label: "Features" },
+  { id: "combat",   label: "Combat"   },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 const activeTab = ref<TabId>("skills");

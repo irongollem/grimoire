@@ -139,6 +139,7 @@
 - [x] **Realtime fix**: Added `REPLICA IDENTITY FULL` to `campaign_messages` — silently-dropped Realtime events with RLS now deliver correctly
 - [x] **Themed dialogs**: Replaced all browser `confirm()`/`alert()` calls with a styled `ConfirmDialog` component (`useConfirm` singleton)
 - [x] **Theme system**: Campaign-level theme picker (Grimoire dark / Tome light) stored in DB, applied to all players on campaign switch. Canonical vars in `src/lib/themes.ts`
+- [x] **Character sheet — Features tab**: Added "Features" tab to `PlayerCharacterView`; shows all class features grouped by level (derived from static class data), class choices (subclass, invocations, expertise, etc.) as chips, and resource pool current/max with rest-type badges — no new DB columns needed
 - [x] **Quest improvements**: Currency reward fields (PP/GP/EP/SP/CP) on quests with drop-to-chat; per-ref player visibility toggle (Eye/EyeOff); removed broken Gregorian date inputs
 - [x] **Edit Campaign modal**: "Calendar" dropdown renamed to "Setting"; game world text field renamed "World"; theme picker added inline to Details tab
 - [x] **NPC sharing**: DM marks NPC as shared; per-field visibility controls (portrait / name / status / race / occupation / relationship); party notes (shared) + personal player notes (private) on shared NPCs; per-player visibility (eye+popover on list cards, same UX as monster sharing — whole party or specific party members via `player_visible_to uuid[]`)
