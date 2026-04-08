@@ -52,23 +52,12 @@
       </button>
 
       <!-- Player visibility toggle -->
-      <button
-        type="button"
-        :title="
-          isPlayerVisible
-            ? 'Visible to players — click to hide'
-            : 'Hidden from players — click to share'
-        "
-        class="p-2 rounded-md border border-border transition-colors"
-        :class="
-          isPlayerVisible
-            ? 'bg-elven-green/15 text-elven-green border-elven-green/30'
-            : 'bg-card text-muted-foreground hover:text-foreground'
-        "
-        @click="isPlayerVisible = !isPlayerVisible"
-      >
-        <Eye class="h-3.5 w-3.5" />
-      </button>
+      <PlayerVisibilityToggle
+        :shared-with-all="sharedWithPlayers"
+        :visible-to="playerVisibleTo"
+        @update:shared-with-all="sharedWithPlayers = $event"
+        @update:visible-to="playerVisibleTo = $event"
+      />
 
       <button
         type="button"
@@ -109,8 +98,9 @@ const { confirm } = useConfirm();
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import RichTextEditor from "../common/RichTextEditor.vue";
-import { Save, Trash2, Pin, Eye } from "lucide-vue-next";
+import { Save, Trash2, Pin } from "lucide-vue-next";
 import TagInput from "@/components/common/TagInput.vue";
+import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
 import {
   useCreateNote,
   useUpdateNote,
@@ -139,7 +129,8 @@ const body = ref<string | null>(props.note?.content ?? null);
 const category = ref<NoteCategory>(props.note?.category ?? "general");
 const sessionNum = ref<number | null>(props.note?.session_num ?? null);
 const isPinned = ref(props.note?.is_pinned ?? false);
-const isPlayerVisible = ref(props.note?.is_player_visible ?? false);
+const sharedWithPlayers = ref(props.note?.shared_with_players ?? false);
+const playerVisibleTo = ref<string[] | null>(props.note?.player_visible_to ?? null);
 const tags = ref<string[]>(props.note?.tags ? [...props.note.tags] : []);
 const saving = ref(false);
 const saveError = ref("");
@@ -157,7 +148,8 @@ function buildPayload() {
     session_num:
       category.value === "session" ? (sessionNum.value ?? null) : null,
     is_pinned: isPinned.value,
-    is_player_visible: isPlayerVisible.value,
+    shared_with_players: sharedWithPlayers.value,
+    player_visible_to: playerVisibleTo.value,
     tags: tags.value,
     content: body.value ?? null,
     // campaign_id is injected by useCreateNote for inserts; never include it
@@ -170,7 +162,9 @@ async function save() {
   if (!title.value.trim() && !body.value) return;
   saving.value = true;
   saveError.value = "";
-  const justShared = isPlayerVisible.value && !props.note?.is_player_visible;
+  const wasShared = props.note?.shared_with_players || (props.note?.player_visible_to?.length ?? 0) > 0;
+  const nowShared = sharedWithPlayers.value || (playerVisibleTo.value?.length ?? 0) > 0;
+  const justShared = nowShared && !wasShared;
   try {
     if (props.note) {
       await update({ id: props.note.id, update: buildPayload() });
@@ -182,7 +176,7 @@ async function save() {
       router.push("/notes");
     } else {
       const created = await create(buildPayload());
-      if (isPlayerVisible.value && activeCampaignId.value)
+      if (nowShared && activeCampaignId.value)
         void sendCampaignAnnouncement(
           activeCampaignId.value,
           `📜 Note shared: "${created.title}"`,

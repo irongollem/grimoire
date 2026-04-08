@@ -10,7 +10,8 @@ export interface Note {
   tags: string[];
   session_num: number | null;
   is_pinned: boolean;
-  is_player_visible: boolean;
+  shared_with_players: boolean;
+  player_visible_to: string[] | null; // null = whole party; uuid[] = specific party_member_ids
   created_at: string;
   updated_at: string;
 }

@@ -63,6 +63,7 @@
           <!-- Title row -->
           <div class="flex items-start gap-1.5">
             <Pin v-if="note.is_pinned" class="h-3 w-3 shrink-0 mt-0.5 text-primary" />
+            <Eye v-if="note.shared_with_players || note.player_visible_to?.length" class="h-3 w-3 shrink-0 mt-0.5 text-elven-green" />
             <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight line-clamp-2 flex-1">
               {{ note.title || "Untitled Note" }}
             </h3>
@@ -114,7 +115,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Search, Pin } from "lucide-vue-next";
+import { Search, Pin, Eye } from "lucide-vue-next";
 import { useNotes } from "@/composables/useNotes";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
