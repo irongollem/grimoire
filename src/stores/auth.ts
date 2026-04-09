@@ -13,7 +13,7 @@ export const useAuthStore = defineStore("auth", () => {
 
   const isAuthenticated = computed(() => !!user.value);
   const userEmail = computed(() => user.value?.email ?? null);
-  const isAppAdmin = computed(() => user.value?.email === "jeffrey@crocode.nl");
+  const isAppAdmin = computed(() => user.value?.app_metadata?.["role"] === "admin");
   const currentRole = computed<CampaignRole | null>(() => membership.value?.role ?? null);
   const isDM = computed(() => currentRole.value === "dm");
   const isPlayer = computed(() => currentRole.value === "player");

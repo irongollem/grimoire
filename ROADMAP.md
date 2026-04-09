@@ -117,6 +117,7 @@
 - [x] **Persistent filter state** — Quests, Factions, Encounters, NPCs, Monsters, and Vault filter state stored in `useUiStore` (Pinia), persists across navigation within a session; filter bars lifted into `#sticky` PageHeader slots; `hasActiveFilters` + "Clear" button on all six views
 - [x] **Global cross-entity search** — Cmd/K search bar in sidebar (desktop) and search icon overlay (mobile); parallel ilike queries across NPCs, monsters, notes, spells, items, locations, and quests; results grouped by entity type with direct navigation links; 5 results per group max (irongollem/grimoire#37)
 - [x] **Alter ego search** — NPC list filter and global search both match `disguise_name`; global search results show `Real Name (Alter Ego)` when an alter ego is set
+- [x] **Hall of Heroes** — global admin-curated NPC roster at `/hall-of-heroes`; `hall_of_heroes` table with setting tag + admin-only RLS; any DM can browse and click "Add to Campaign" to clone a hero into their NPC list; campaign-setting heroes sorted to top; admin editor at `/hall-of-heroes/new` and `/:id/edit`; seeded with 10 iconic characters (Icewind Dale + Honor Among Thieves) with public-knowledge lore filled in (irongollem/grimoire#107)
 
 ### Images & Artwork
 

@@ -176,3 +176,36 @@ export interface NpcPcNote {
 }
 
 export type NpcPcNoteUpsert = Pick<NpcPcNote, "campaign_id" | "npc_id" | "party_member_id" | "notes">;
+
+// ── Hall of Heroes ─────────────────────────────────────────────────────────────
+
+export interface HallOfHero {
+  id: string;
+  user_id: string;
+  name: string;
+  setting: string;
+  race: string | null;
+  alignment: string | null;
+  age: string | null;
+  occupation: string | null;
+  appearance: string | null;
+  personality: string | null;
+  backstory: string | null;
+  notes: string | null;
+  status: NpcStatus;
+  relationship: NpcRelationship;
+  portrait_url: string | null;
+  card_art_url: string | null;
+  portrait_focal_point?: { x: number; y: number } | null;
+  disguise_name: string | null;
+  disguise_portrait_url: string | null;
+  disguise_portrait_focal_point?: { x: number; y: number } | null;
+  is_revealed: boolean;
+  tags: string[];
+  stat_block: StatBlock | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type HallOfHeroInsert = Omit<HallOfHero, "id" | "user_id" | "created_at" | "updated_at">;
+export type HallOfHeroUpdate = Partial<HallOfHeroInsert>;

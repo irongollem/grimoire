@@ -1,0 +1,276 @@
+<template>
+  <PageHeader
+    :title="isNew ? 'New Hero' : (hero?.name ?? 'Edit Hero')"
+    :description="isNew ? 'Add a hero to the Hall of Heroes' : 'Edit hero details'"
+  >
+    <div v-if="!isAppAdmin" class="py-16 text-center font-fell text-muted-foreground">
+      You don't have permission to access this page.
+    </div>
+
+    <div v-else-if="isLoading" class="flex justify-center py-16">
+      <LoadingSpinner />
+    </div>
+
+    <form v-else @submit.prevent="save" class="space-y-8 pb-16">
+      <!-- Top action bar -->
+      <div class="flex items-center justify-between gap-4">
+        <RouterLink to="/hall-of-heroes" class="font-fell text-sm text-muted-foreground hover:text-foreground transition-colors">
+          ← Hall of Heroes
+        </RouterLink>
+        <div class="flex items-center gap-2">
+          <button
+            v-if="!isNew"
+            type="button"
+            class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 transition-colors"
+            @click="handleDelete"
+          >
+            Delete
+          </button>
+          <button
+            type="submit"
+            :disabled="isSaving"
+            class="px-4 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+          >
+            {{ isSaving ? 'Saving…' : (isNew ? 'Create Hero' : 'Save Changes') }}
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 gap-8 lg:grid-cols-[280px_1fr]">
+        <!-- Left: portrait + basic fields -->
+        <div class="space-y-4">
+          <ImageUpload
+            v-model="form.portrait_url"
+            v-model:focal-point="form.portrait_focal_point"
+            bucket="npc-portraits"
+            aspect="portrait"
+            :show-focal-point="true"
+            placeholder="Drop portrait or click to upload"
+          />
+
+          <!-- Setting -->
+          <div class="space-y-1">
+            <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Setting</label>
+            <select
+              v-model="form.setting"
+              class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option v-for="s in SETTINGS" :key="s.value" :value="s.value">{{ s.label }}</option>
+            </select>
+          </div>
+
+          <!-- Name -->
+          <div class="space-y-1">
+            <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Name *</label>
+            <input
+              v-model="form.name"
+              required
+              type="text"
+              class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+
+          <!-- Race -->
+          <div class="space-y-1">
+            <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Race</label>
+            <input
+              v-model="form.race"
+              type="text"
+              class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+
+          <!-- Alignment -->
+          <div class="space-y-1">
+            <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Alignment</label>
+            <input
+              v-model="form.alignment"
+              type="text"
+              class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+
+          <!-- Occupation -->
+          <div class="space-y-1">
+            <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Occupation</label>
+            <input
+              v-model="form.occupation"
+              type="text"
+              class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+
+          <!-- Age -->
+          <div class="space-y-1">
+            <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Age</label>
+            <input
+              v-model="form.age"
+              type="text"
+              class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+
+          <!-- Status -->
+          <div class="space-y-1">
+            <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Status</label>
+            <select
+              v-model="form.status"
+              class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="alive">Alive</option>
+              <option value="dead">Dead</option>
+              <option value="missing">Missing</option>
+              <option value="unknown">Unknown</option>
+            </select>
+          </div>
+
+          <!-- Tags -->
+          <div class="space-y-1">
+            <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Tags</label>
+            <input
+              :value="form.tags.join(', ')"
+              type="text"
+              placeholder="comma separated"
+              class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              @input="form.tags = ($event.target as HTMLInputElement).value.split(',').map(t => t.trim()).filter(Boolean)"
+            />
+          </div>
+        </div>
+
+        <!-- Right: rich text fields -->
+        <div class="space-y-6">
+          <div class="space-y-1">
+            <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Appearance</label>
+            <RichTextEditor v-model="form.appearance" placeholder="Describe how this character looks…" min-height="6rem" />
+          </div>
+
+          <div class="space-y-1">
+            <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Personality</label>
+            <RichTextEditor v-model="form.personality" placeholder="Their traits, ideals, and mannerisms…" min-height="6rem" />
+          </div>
+
+          <div class="space-y-1">
+            <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Backstory</label>
+            <RichTextEditor v-model="form.backstory" placeholder="Their history and origins…" min-height="10rem" />
+          </div>
+
+          <div class="space-y-1">
+            <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">DM Notes</label>
+            <RichTextEditor v-model="form.notes" placeholder="Private notes…" min-height="6rem" />
+          </div>
+        </div>
+      </div>
+    </form>
+  </PageHeader>
+</template>
+
+<script setup lang="ts">
+import { computed, reactive, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { useHallOfHero, useCreateHero, useUpdateHero, useDeleteHero } from "@/composables/useHallOfHeroes";
+import { useAuthStore } from "@/stores/auth";
+import PageHeader from "@/components/common/PageHeader.vue";
+import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import ImageUpload from "@/components/common/ImageUpload.vue";
+import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import type { HallOfHeroInsert } from "@/types/npc.types";
+
+const SETTINGS = [
+  { value: "faerun",      label: "Faerûn"      },
+  { value: "eberron",     label: "Eberron"      },
+  { value: "greyhawk",    label: "Greyhawk"     },
+  { value: "dragonlance", label: "Dragonlance"  },
+  { value: "other",       label: "Other"        },
+] as const;
+
+const route = useRoute();
+const router = useRouter();
+const auth = useAuthStore();
+
+const isAppAdmin = computed(() => auth.isAppAdmin);
+const isNew = computed(() => route.name === "hero-new");
+const heroId = computed(() => (isNew.value ? "" : (route.params.id as string)));
+
+const { data: hero, isLoading: heroLoading } = useHallOfHero(heroId);
+const isLoading = computed(() => !isNew.value && heroLoading.value);
+
+const { mutate: createHero, isPending: creating } = useCreateHero();
+const { mutate: updateHero, isPending: updating } = useUpdateHero();
+const { mutate: deleteHero } = useDeleteHero();
+const isSaving = computed(() => creating.value || updating.value);
+
+function blankForm(): HallOfHeroInsert {
+  return {
+    name: "",
+    setting: "faerun",
+    race: null,
+    alignment: null,
+    age: null,
+    occupation: null,
+    appearance: null,
+    personality: null,
+    backstory: null,
+    notes: null,
+    status: "alive",
+    relationship: "neutral",
+    portrait_url: null,
+    card_art_url: null,
+    portrait_focal_point: null,
+    disguise_name: null,
+    disguise_portrait_url: null,
+    disguise_portrait_focal_point: null,
+    is_revealed: false,
+    tags: [],
+    stat_block: null,
+  };
+}
+
+const form = reactive<HallOfHeroInsert>(blankForm());
+
+watch(
+  hero,
+  (h) => {
+    if (!h) return;
+    Object.assign(form, {
+      name: h.name,
+      setting: h.setting,
+      race: h.race,
+      alignment: h.alignment,
+      age: h.age,
+      occupation: h.occupation,
+      appearance: h.appearance,
+      personality: h.personality,
+      backstory: h.backstory,
+      notes: h.notes,
+      status: h.status,
+      relationship: h.relationship,
+      portrait_url: h.portrait_url,
+      card_art_url: h.card_art_url,
+      portrait_focal_point: h.portrait_focal_point,
+      disguise_name: h.disguise_name,
+      disguise_portrait_url: h.disguise_portrait_url,
+      disguise_portrait_focal_point: h.disguise_portrait_focal_point,
+      is_revealed: h.is_revealed,
+      tags: h.tags,
+      stat_block: h.stat_block,
+    });
+  },
+  { immediate: true },
+);
+
+function save() {
+  if (isNew.value) {
+    createHero({ ...form }, { onSuccess: () => router.push("/hall-of-heroes") });
+  } else {
+    updateHero(
+      { id: heroId.value, update: { ...form } },
+      { onSuccess: () => router.push("/hall-of-heroes") },
+    );
+  }
+}
+
+function handleDelete() {
+  if (!hero.value || !confirm(`Delete "${hero.value.name}" from the Hall of Heroes?`)) return;
+  deleteHero(hero.value.id, { onSuccess: () => router.push("/hall-of-heroes") });
+}
+</script>

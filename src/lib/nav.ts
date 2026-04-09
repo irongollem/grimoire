@@ -18,6 +18,7 @@ import {
   Landmark,
   Crosshair,
   Puzzle,
+  Crown,
 } from "lucide-vue-next";
 import type { Component } from "vue";
 
@@ -153,6 +154,12 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/puzzles",
         icon: Puzzle,
         description: "Puzzle rooms, riddles & conundrums",
+      },
+      {
+        label: "Hall of Heroes",
+        to: "/hall-of-heroes",
+        icon: Crown,
+        description: "Iconic characters importable into any campaign",
       },
     ],
   },

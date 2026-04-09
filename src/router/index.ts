@@ -342,6 +342,32 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Puzzle" },
     },
 
+    // Hall of Heroes
+    {
+      path: "/hall-of-heroes",
+      name: "hall-of-heroes",
+      component: () => import("@/views/HallOfHeroesView.vue"),
+      meta: { requiresAuth: true, title: "Hall of Heroes" },
+    },
+    {
+      path: "/hall-of-heroes/:id",
+      name: "hero-detail",
+      component: () => import("@/views/HeroDetailView.vue"),
+      meta: { requiresAuth: true, title: "Hero" },
+    },
+    {
+      path: "/hall-of-heroes/new",
+      name: "hero-new",
+      component: () => import("@/views/HeroEditorView.vue"),
+      meta: { requiresAuth: true, title: "New Hero" },
+    },
+    {
+      path: "/hall-of-heroes/:id/edit",
+      name: "hero-edit",
+      component: () => import("@/views/HeroEditorView.vue"),
+      meta: { requiresAuth: true, title: "Edit Hero" },
+    },
+
     // Encounters
     {
       path: "/encounters",
