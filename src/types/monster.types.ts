@@ -1,3 +1,5 @@
+import type { SpellcastingBlock } from "@/types/npc.types";
+
 export type MonsterType =
   | "aberration"
   | "beast"
@@ -43,6 +45,7 @@ export interface MonsterStatBlock {
   legendary_resistance?: number;
   legendary_actions?: Array<{ name: string; description: string }>;
   lair_actions?: Array<{ name: string; description: string }>;
+  spellcasting?: SpellcastingBlock;
 }
 
 export interface Monster {

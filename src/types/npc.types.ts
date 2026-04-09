@@ -81,6 +81,20 @@ export interface NpcRelation {
 export type NpcRelationInsert = Omit<NpcRelation, "id" | "user_id" | "created_at" | "updated_at">;
 export type NpcRelationUpdate = Partial<NpcRelationInsert>;
 
+export interface SpellcastingEntry {
+  frequency: string; // e.g. "at will", "3/day each", "1st level (4 slots)"
+  spell_ids: string[];
+}
+
+export type SpellcastingAbility = "INT" | "WIS" | "CHA";
+
+export interface SpellcastingBlock {
+  ability?: SpellcastingAbility;
+  save_dc?: number;
+  attack_bonus?: number;
+  entries: SpellcastingEntry[];
+}
+
 export interface StatBlock {
   armor_class: number;
   hit_points: string; // e.g. "52 (8d8 + 16)"
@@ -104,6 +118,7 @@ export interface StatBlock {
   special_abilities?: Array<{ name: string; description: string }>;
   actions?: Array<{ name: string; description: string }>;
   legendary_actions?: Array<{ name: string; description: string }>;
+  spellcasting?: SpellcastingBlock;
 }
 
 export interface Npc {

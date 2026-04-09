@@ -59,6 +59,7 @@
       <template v-if="npc.stat_block">
         <StatBlockPanel :sb="npc.stat_block" />
         <TraitList title="Special Abilities" :traits="npc.stat_block.special_abilities" />
+        <SpellcastingList :spellcasting="npc.stat_block.spellcasting" />
         <TraitList title="Actions" :traits="npc.stat_block.actions" />
         <TraitList title="Legendary Actions" :traits="npc.stat_block.legendary_actions" />
       </template>
@@ -72,6 +73,7 @@ import { ref } from "vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import StatBlockPanel from "@/components/common/StatBlockPanel.vue";
 import TraitList from "@/components/common/TraitList.vue";
+import SpellcastingList from "@/components/common/SpellcastingList.vue";
 import NpcInventorySection from "@/components/npcs/NpcInventorySection.vue";
 import type { Npc } from "@/types/npc.types";
 

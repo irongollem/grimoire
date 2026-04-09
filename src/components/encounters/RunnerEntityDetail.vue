@@ -129,6 +129,10 @@
             </div>
           </template>
         </template>
+        <template v-if="selectedMonster.stat_block?.spellcasting?.entries?.length">
+          <div class="detail-divider" />
+          <SpellcastingList :spellcasting="selectedMonster.stat_block.spellcasting" />
+        </template>
       </div>
     </template>
 
@@ -199,6 +203,10 @@
                 <span class="detail-trait-desc" v-html="renderTraitDesc(t.description)"></span>
               </div>
             </template>
+          </template>
+          <template v-if="selectedNpc.stat_block?.spellcasting?.entries?.length">
+            <div class="detail-divider" />
+            <SpellcastingList :spellcasting="selectedNpc.stat_block.spellcasting" />
           </template>
         </template>
         <p v-else class="font-fell text-xs text-muted-foreground italic px-1 pt-2">No stat block defined for this NPC.</p>
@@ -630,6 +638,7 @@ import { ref, computed } from "vue";
 import { supabase } from "@/lib/supabase";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
+import SpellcastingList from "@/components/common/SpellcastingList.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useAllMonsters } from "@/composables/useMonsters";
 import type { Monster } from "@/types/monster.types";

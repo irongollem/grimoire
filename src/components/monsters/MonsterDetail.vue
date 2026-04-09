@@ -379,6 +379,16 @@
             <TraitSection v-model="sb.lair_actions" label="Lair Actions" />
           </section>
 
+          <!-- Spellcasting -->
+          <section>
+            <SpellcastingSection
+              v-model="sb.spellcasting"
+              :ability-scores="{ int: sb.int, wis: sb.wis, cha: sb.cha }"
+              :proficiency-bonus="sb.proficiency_bonus ?? null"
+              :challenge-rating="sb.challenge_rating"
+            />
+          </section>
+
           <!-- Description -->
           <section>
             <span class="field-label block mb-1">Description</span>
@@ -439,6 +449,7 @@ import { useUpsertSrdMonsterArt } from "@/composables/useSrdMonsterArt";
 import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
 import { formatMonsterForScriptorium } from "@/lib/scriptoriumImport";
 import TraitSection from "@/components/npcs/TraitSection.vue";
+import SpellcastingSection from "@/components/common/SpellcastingSection.vue";
 import {
   MONSTER_TEMPLATE_CATEGORIES,
   getMonsterTemplate,

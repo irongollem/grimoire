@@ -405,6 +405,12 @@
 
               <!-- Special abilities -->
               <TraitSection v-model="statBlock.special_abilities" label="Special Abilities" />
+              <SpellcastingSection
+                v-model="statBlock.spellcasting"
+                :ability-scores="{ int: statBlock.int, wis: statBlock.wis, cha: statBlock.cha }"
+                :proficiency-bonus="statBlock.proficiency_bonus ? Number(statBlock.proficiency_bonus) : null"
+                :challenge-rating="statBlock.challenge_rating"
+              />
               <TraitSection v-model="statBlock.actions" label="Actions" />
               <TraitSection v-model="statBlock.legendary_actions" label="Legendary Actions" />
             </div>
@@ -442,6 +448,7 @@ import { useCreateScriptoriumDocument } from '@/composables/useScriptorium'
 import { formatNpcForScriptorium } from '@/lib/scriptoriumImport'
 import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES, getNpcTemplate } from '@/data/npcTemplates'
 import TraitSection from '@/components/npcs/TraitSection.vue'
+import SpellcastingSection from '@/components/common/SpellcastingSection.vue'
 import NpcRelationsSection from '@/components/npcs/NpcRelationsSection.vue'
 import NpcPcNotesSection from '@/components/npcs/NpcPcNotesSection.vue'
 import NpcInventorySection from '@/components/npcs/NpcInventorySection.vue'
@@ -637,6 +644,7 @@ function onMonsterLinked(monsterId: string | null) {
     special_abilities:  msb.special_abilities ? [...msb.special_abilities] : [],
     actions:            msb.actions ? [...msb.actions] : [],
     legendary_actions:  msb.legendary_actions ? [...msb.legendary_actions] : [],
+    spellcasting:       msb.spellcasting ?? null,
   })
 }
 
@@ -707,6 +715,7 @@ interface FlatStatBlock {
   special_abilities: StatBlock['special_abilities']
   actions: StatBlock['actions']
   legendary_actions: StatBlock['legendary_actions']
+  spellcasting: StatBlock['spellcasting'] | null
 }
 
 const statBlock = reactive<FlatStatBlock>({
@@ -731,6 +740,7 @@ const statBlock = reactive<FlatStatBlock>({
   special_abilities: props.npc?.stat_block?.special_abilities ? [...props.npc.stat_block.special_abilities] : [],
   actions: props.npc?.stat_block?.actions ? [...props.npc.stat_block.actions] : [],
   legendary_actions: props.npc?.stat_block?.legendary_actions ? [...props.npc.stat_block.legendary_actions] : [],
+  spellcasting: props.npc?.stat_block?.spellcasting ?? null,
 })
 
 const modifier = abilityModifier
@@ -765,6 +775,7 @@ function applyTemplate(id: string) {
     special_abilities: sb.special_abilities ? [...sb.special_abilities] : [],
     actions: sb.actions ? [...sb.actions] : [],
     legendary_actions: sb.legendary_actions ? [...sb.legendary_actions] : [],
+    spellcasting: sb.spellcasting ?? null,
   })
 }
 
@@ -791,6 +802,7 @@ function buildStatBlock(): StatBlock | null {
     ...(statBlock.special_abilities?.length ? { special_abilities: statBlock.special_abilities } : {}),
     ...(statBlock.actions?.length ? { actions: statBlock.actions } : {}),
     ...(statBlock.legendary_actions?.length ? { legendary_actions: statBlock.legendary_actions } : {}),
+    ...(statBlock.spellcasting?.entries?.length ? { spellcasting: statBlock.spellcasting } : {}),
   }
 }
 

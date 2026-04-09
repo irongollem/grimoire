@@ -47,6 +47,7 @@
               title="Special Abilities"
               :traits="monster.stat_block.special_abilities"
             />
+            <SpellcastingList :spellcasting="(monster.stat_block as MonsterStatBlock).spellcasting" />
             <TraitList title="Actions" :traits="monster.stat_block.actions" />
             <TraitList
               title="Bonus Actions"
@@ -90,6 +91,7 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import StatBlockPanel from "@/components/common/StatBlockPanel.vue";
 import TraitList from "@/components/common/TraitList.vue";
+import SpellcastingList from "@/components/common/SpellcastingList.vue";
 import type { Monster, MonsterStatBlock } from "@/types/monster.types";
 
 defineProps<{ monster: Monster }>();
