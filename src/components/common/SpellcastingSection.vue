@@ -187,7 +187,7 @@ function crToProfBonus(cr: string): number {
 }
 
 const resolvedProfBonus = computed(() => {
-  if (props.proficiencyBonus != null) return props.proficiencyBonus;
+  if (props.proficiencyBonus !== null && props.proficiencyBonus !== undefined) return props.proficiencyBonus;
   return crToProfBonus(props.challengeRating ?? "0");
 });
 

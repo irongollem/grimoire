@@ -5,6 +5,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type { NpcPcNote, NpcPcNoteUpsert } from "@/types/npc.types";
 
+
 const QUERY_KEY = "npc_pc_notes";
 
 // ── DM: fetch all PC notes for an NPC ────────────────────────────────────────
@@ -59,6 +60,26 @@ export function useDeleteNpcPcNote(npcId: string) {
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY, npcId] }),
+  });
+}
+
+// ── DM: fetch all NPC IDs connected to a specific party member ───────────────
+
+export function useNpcPcNotesByPartyMember(partyMemberId: string | Ref<string>) {
+  const idRef = isRef(partyMemberId) ? partyMemberId : ref(partyMemberId);
+  const campaign = useCampaignStore();
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, "by-party-member", idRef.value]),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("npc_pc_notes")
+        .select("npc_id")
+        .eq("campaign_id", campaign.activeCampaignId!)
+        .eq("party_member_id", idRef.value);
+      if (error) throw error;
+      return new Set((data as { npc_id: string }[]).map((r) => r.npc_id));
+    },
+    enabled: () => !!idRef.value && !!campaign.activeCampaignId,
   });
 }
 

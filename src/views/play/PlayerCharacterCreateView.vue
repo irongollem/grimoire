@@ -414,7 +414,7 @@ const f = reactive<
   wis: m?.wis ?? 10,
   cha: m?.cha ?? 10,
   proficiency_bonus:           m?.proficiency_bonus ?? 2,
-  skill_proficiencies:         { ...(m?.skill_proficiencies ?? {}) },
+  skill_proficiencies:         { ...m?.skill_proficiencies },
   saving_throw_proficiencies:  [...(m?.saving_throw_proficiencies ?? [])],
   conditions:   [...(m?.conditions ?? [])],
   inspiration:  m?.inspiration ?? false,

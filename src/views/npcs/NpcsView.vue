@@ -77,6 +77,14 @@
             </template>
           </EntityCombobox>
 
+          <EntityCombobox
+            :model-value="partyMemberFilter"
+            :options="partyOptions"
+            placeholder="Connected to…"
+            class="flex-1 min-w-36"
+            @update:model-value="partyMemberFilter = $event"
+          />
+
           <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
             <button
               v-for="opt in ([{ value: 'name', label: 'Name' }, { value: 'location', label: 'Location' }] as const)"
@@ -104,6 +112,7 @@
       :status-filter="statusFilter"
       :rel-filter="relFilter"
       :location-filter="locationFilter"
+      :party-member-filter="partyMemberFilter"
       :sort-by="sortBy"
     />
   </PageHeader>
@@ -117,10 +126,12 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import NpcList from "@/components/npcs/NpcList.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useLocationTree } from "@/composables/useLocations";
+import { useParty } from "@/composables/useParty";
 import { useUiStore } from "@/stores/ui";
 
 const ui = useUiStore();
 const { locationOptions } = useLocationTree();
+const { data: party } = useParty();
 
 const STATUS_OPTIONS = [
   { value: "all", label: "All" },
@@ -141,7 +152,10 @@ const search = computed({ get: () => ui.npcsSearchQuery, set: (v) => { ui.npcsSe
 const statusFilter = computed({ get: () => ui.npcsFilterStatus, set: (v: NpcStatus | "all") => { ui.npcsFilterStatus = v; } });
 const relFilter = computed({ get: () => ui.npcsFilterRelationship, set: (v: NpcRelationship | "all") => { ui.npcsFilterRelationship = v; } });
 const locationFilter = computed({ get: () => ui.npcsFilterLocation, set: (v) => { ui.npcsFilterLocation = v; } });
+const partyMemberFilter = computed({ get: () => ui.npcsFilterPartyMember, set: (v) => { ui.npcsFilterPartyMember = v; } });
 const sortBy = computed({ get: () => ui.npcsFilterSortBy, set: (v) => { ui.npcsFilterSortBy = v; } });
+
+const partyOptions = computed(() => (party.value ?? []).map((m) => ({ id: m.id, name: m.name })));
 
 const hasActiveFilters = computed(() => ui.npcsHasActiveFilters);
 function clearFilters() { ui.resetNpcsFilters(); }

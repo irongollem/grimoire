@@ -123,8 +123,8 @@ const castingInfo = computed(() => {
   if (!s) return "";
   const parts: string[] = [];
   if (s.ability) parts.push(`${s.ability}-based`);
-  if (s.save_dc != null) parts.push(`Spell save DC ${s.save_dc}`);
-  if (s.attack_bonus != null) parts.push(`${s.attack_bonus >= 0 ? "+" : ""}${s.attack_bonus} to hit`);
+  if (s.save_dc !== null && s.save_dc !== undefined) parts.push(`Spell save DC ${s.save_dc}`);
+  if (s.attack_bonus !== null && s.attack_bonus !== undefined) parts.push(`${s.attack_bonus >= 0 ? "+" : ""}${s.attack_bonus} to hit`);
   return parts.join(" · ");
 });
 

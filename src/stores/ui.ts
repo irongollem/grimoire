@@ -26,6 +26,7 @@ export const useUiStore = defineStore("ui", () => {
   const npcsFilterRelationship = ref<NpcRelationship | "all">("all");
   const npcsSearchQuery = ref("");
   const npcsFilterLocation = ref("");
+  const npcsFilterPartyMember = ref("");
   const npcsFilterSortBy = ref<"name" | "location">("location");
   const activeNpcId = ref<string | null>(null);
   const npcGeneratorOpen = ref(false);
@@ -35,6 +36,7 @@ export const useUiStore = defineStore("ui", () => {
     npcsFilterStatus.value !== "all" ||
     npcsFilterRelationship.value !== "all" ||
     npcsFilterLocation.value !== "" ||
+    npcsFilterPartyMember.value !== "" ||
     npcsFilterSortBy.value !== "location",
   );
 
@@ -200,6 +202,7 @@ export const useUiStore = defineStore("ui", () => {
     npcsFilterRelationship.value = "all";
     npcsSearchQuery.value = "";
     npcsFilterLocation.value = "";
+    npcsFilterPartyMember.value = "";
     npcsFilterSortBy.value = "location";
   }
 
@@ -224,6 +227,7 @@ export const useUiStore = defineStore("ui", () => {
     npcsFilterRelationship,
     npcsSearchQuery,
     npcsFilterLocation,
+    npcsFilterPartyMember,
     npcsFilterSortBy,
     npcsHasActiveFilters,
     activeNpcId,

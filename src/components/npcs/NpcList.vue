@@ -10,7 +10,8 @@
         !props.search &&
         props.statusFilter === 'all' &&
         props.relFilter === 'all' &&
-        !props.locationFilter
+        !props.locationFilter &&
+        !props.partyMemberFilter
       "
       title="No NPCs yet"
       description="Populate your realm with merchants, villains, sages, and more."
@@ -227,6 +228,7 @@ import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { Pencil, Eye, EyeOff, Users } from "lucide-vue-next";
 import { useNpcs, useUpdateNpc } from "@/composables/useNpcs";
 import { useParty } from "@/composables/useParty";
+import { useNpcPcNotesByPartyMember } from "@/composables/useNpcPcNotes";
 import { useAllLocations, useLocationTree } from "@/composables/useLocations";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
@@ -239,11 +241,14 @@ const props = defineProps<{
   statusFilter: string;
   relFilter: string;
   locationFilter: string;
+  partyMemberFilter: string;
   sortBy: "name" | "location";
 }>();
 
 const { data: npcs, isLoading } = useNpcs();
 const { data: party } = useParty();
+
+const { data: connectedNpcIds } = useNpcPcNotesByPartyMember(computed(() => props.partyMemberFilter));
 const { mutate: updateNpc } = useUpdateNpc();
 const { data: allLocations } = useAllLocations();
 const { locationOptions, getDescendantIds } = useLocationTree();
@@ -287,6 +292,10 @@ const filtered = computed(() => {
   if (props.locationFilter) {
     const locationIds = getDescendantIds(props.locationFilter);
     list = list.filter((n) => n.location_id && locationIds.has(n.location_id));
+  }
+  if (props.partyMemberFilter) {
+    const ids = connectedNpcIds.value ?? new Set<string>();
+    list = list.filter((n) => ids.has(n.id));
   }
   if (props.sortBy === "location") {
     const order = locationOrder.value;
