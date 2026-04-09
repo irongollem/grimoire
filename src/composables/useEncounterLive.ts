@@ -149,6 +149,23 @@ export function useEncounterLive(encounterId: string) {
   return { isLive, liveState, liveStateLoaded, goLive, schedulePush, endLive };
 }
 
+// ── Player-callable live state patch ──────────────────────────────────────────
+// Writes updated conditions for a party member into encounter_state.combatants_live
+// so the DM runner reflects player-side condition changes in real time.
+export async function patchLiveCombatantConditions(partyMemberId: string, conditions: string[]) {
+  if (!liveState.value) return;
+  const updated = liveState.value.combatants_live.map((c) =>
+    c.party_member_id === partyMemberId ? { ...c, conditions } : c,
+  );
+  const { data, error } = await supabase
+    .from("encounter_state")
+    .update({ combatants_live: updated })
+    .eq("encounter_id", liveState.value.encounter_id)
+    .select()
+    .single();
+  if (!error && data) liveState.value = data as EncounterState;
+}
+
 // ── Player composable ──────────────────────────────────────────────────────────
 export function usePlayerEncounterLive(campaignId: string) {
   async function fetchRunning() {

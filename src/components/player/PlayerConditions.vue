@@ -69,6 +69,7 @@
 <script setup lang="ts">
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
+import { patchLiveCombatantConditions } from "@/composables/useEncounterLive";
 import type { PartyMember } from "@/types/party.types";
 
 const props = defineProps<{ member: PartyMember }>();
@@ -102,7 +103,9 @@ const CONDITION_DESCRIPTIONS: Record<string, string> = {
 // ── Condition helpers ─────────────────────────────────────────────────────────
 
 async function removeCondition(cond: string) {
-  await updateMember({ id: props.member.id, update: { conditions: (props.member.conditions ?? []).filter(c => c !== cond) } });
+  const updated = (props.member.conditions ?? []).filter(c => c !== cond);
+  await updateMember({ id: props.member.id, update: { conditions: updated } });
+  void patchLiveCombatantConditions(props.member.id, updated);
 }
 
 // ── Death saves ───────────────────────────────────────────────────────────────

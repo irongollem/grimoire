@@ -252,7 +252,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onMounted, onUnmounted } from "vue";
+import { computed, watch } from "vue";
 import { Swords } from "lucide-vue-next";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { useAuthStore } from "@/stores/auth";
@@ -261,61 +261,14 @@ import { liveState } from "@/composables/useEncounterLive";
 import type { RunCombatant, HealthVisibility } from "@/types/encounter.types";
 import PlayerCharacterView from "@/views/play/PlayerCharacterView.vue";
 import { usePlayerCombatPrefs } from "@/composables/usePlayerCombatPrefs";
+import { useTurnChime } from "@/composables/useTurnChime";
+import { useScreenShake } from "@/composables/useScreenShake";
 
 const campaign = useCampaignStore();
 const auth = useAuthStore();
 const { turnAudioEnabled } = usePlayerCombatPrefs();
-
-// ── Your Turn notification ────────────────────────────────────────────────────
-
-const isShaking = ref(false);
-
-// Persistent AudioContext — created + resumed on first user interaction so it's
-// in "running" state by the time the turn fires from a websocket event.
-let _audioCtx: AudioContext | null = null;
-
-function primeAudioCtx() {
-  try {
-    const Ctor =
-      window.AudioContext ??
-      (window as unknown as { webkitAudioContext?: typeof AudioContext })
-        .webkitAudioContext;
-    if (!Ctor) return;
-    if (!_audioCtx) _audioCtx = new Ctor();
-    if (_audioCtx.state === "suspended") void _audioCtx.resume();
-  } catch { /* unsupported */ }
-}
-
-onMounted(() => {
-  window.addEventListener("pointerdown", primeAudioCtx, { passive: true });
-  window.addEventListener("keydown", primeAudioCtx, { passive: true });
-});
-onUnmounted(() => {
-  window.removeEventListener("pointerdown", primeAudioCtx);
-  window.removeEventListener("keydown", primeAudioCtx);
-});
-
-function playTurnChime() {
-  const ctx = _audioCtx;
-  if (!ctx || ctx.state !== "running") return;
-  try {
-    // Two-note ascending chime: C5 → G5
-    [523.25, 783.99].forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const g = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.value = freq;
-      const t = ctx.currentTime + i * 0.18;
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.25, t + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
-      osc.connect(g);
-      g.connect(ctx.destination);
-      osc.start(t);
-      osc.stop(t + 0.4);
-    });
-  } catch { /* silently skip */ }
-}
+const { playTurnChime } = useTurnChime();
+const { isShaking, triggerShake } = useScreenShake();
 
 const healthVis = computed<HealthVisibility>(
   () =>
@@ -363,8 +316,7 @@ const isMyTurn = computed(() => {
 
 watch(isMyTurn, (now, prev) => {
   if (now && !prev) {
-    isShaking.value = true;
-    setTimeout(() => { isShaking.value = false; }, 600);
+    triggerShake();
     if (turnAudioEnabled.value) playTurnChime();
   }
 });
@@ -455,22 +407,5 @@ function hpLabel(c: RunCombatant): string {
   font-family: var(--font-cinzel, serif);
   font-size: 11px;
   font-weight: 700;
-}
-
-@keyframes screen-shake {
-  0%,  100% { transform: translate(0, 0) rotate(0deg); }
-  10%        { transform: translate(-4px, -2px) rotate(-0.3deg); }
-  20%        { transform: translate(4px, 2px) rotate(0.3deg); }
-  30%        { transform: translate(-3px, 2px) rotate(-0.2deg); }
-  40%        { transform: translate(3px, -2px) rotate(0.2deg); }
-  50%        { transform: translate(-2px, 2px) rotate(-0.1deg); }
-  60%        { transform: translate(2px, -1px) rotate(0.1deg); }
-  70%        { transform: translate(-1px, 1px) rotate(0deg); }
-  80%        { transform: translate(1px, -1px); }
-  90%        { transform: translate(-1px, 0); }
-}
-
-.shake {
-  animation: screen-shake 0.6s ease-out;
 }
 </style>

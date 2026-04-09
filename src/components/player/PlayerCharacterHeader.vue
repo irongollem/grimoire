@@ -138,6 +138,7 @@ import { ref, computed, nextTick } from "vue";
 import { RouterLink } from "vue-router";
 import { Star, TrendingUp, Settings } from "lucide-vue-next";
 import { useUpdatePartyMember } from "@/composables/useParty";
+import { patchLiveCombatantConditions } from "@/composables/useEncounterLive";
 import { CONDITIONS, ATTACK_DIS_CONDITIONS, CHECK_DIS_CONDITIONS } from "@/types/party.types";
 import type { PartyMember } from "@/types/party.types";
 import { abilityModifier } from "@/lib/utils";
@@ -172,7 +173,9 @@ function hasCondition(cond: string) { return props.member.conditions?.includes(c
 async function addCondition(cond: string) {
   if (hasCondition(cond)) return;
   showConditionPicker.value = false;
-  await updateMember({ id: props.member.id, update: { conditions: [...(props.member.conditions ?? []), cond] } });
+  const updated = [...(props.member.conditions ?? []), cond];
+  await updateMember({ id: props.member.id, update: { conditions: updated } });
+  void patchLiveCombatantConditions(props.member.id, updated);
 }
 
 const combatStats = computed(() => [
