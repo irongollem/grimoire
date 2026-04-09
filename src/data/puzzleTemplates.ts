@@ -1,7 +1,7 @@
 import type { PuzzleInsert } from "@/types/puzzle.types";
 
 /** Pre-seeded puzzle room examples. Skips any that already exist by name. */
-export const PUZZLE_TEMPLATES: Omit<PuzzleInsert, "image_focal_point">[] = [
+export const PUZZLE_TEMPLATES: Omit<PuzzleInsert, "image_focal_point" | "campaign_id" | "is_shared" | "shared_hints" | "read_aloud">[] = [
   {
     name: "The Three Doors",
     image_url: "/assets/puzzles/three-doors.png",

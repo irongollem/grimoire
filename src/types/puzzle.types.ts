@@ -65,6 +65,14 @@ export interface PuzzleRoom {
   image_focal_point: { x: number; y: number } | null;
   tags: string[];
   notes: string | null;
+  /** Campaign this puzzle is shared into (set automatically when is_shared = true) */
+  campaign_id: string | null;
+  /** Whether players in the campaign can see this puzzle */
+  is_shared: boolean;
+  /** Hint orders that have been revealed to players (e.g. [1, 2]) */
+  shared_hints: number[];
+  /** Short spoken text the DM reads aloud when players enter the room */
+  read_aloud: string | null;
   created_at: string;
   updated_at: string;
 }

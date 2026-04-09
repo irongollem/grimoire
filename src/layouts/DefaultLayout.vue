@@ -23,6 +23,7 @@
     <NpcGeneratorPanel />
     <MonsterGeneratorPanel />
     <ItemGeneratorPanel />
+    <PuzzleGeneratorPanel />
 
     <!-- Shows a pill for every active/completed/errored AI generation -->
     <AiGenerationBadge />
@@ -37,6 +38,7 @@ import CampaignChat from "@/components/chat/CampaignChat.vue";
 import NpcGeneratorPanel from "@/components/npcs/NpcGeneratorPanel.vue";
 import MonsterGeneratorPanel from "@/components/monsters/MonsterGeneratorPanel.vue";
 import ItemGeneratorPanel from "@/components/items/ItemGeneratorPanel.vue";
+import PuzzleGeneratorPanel from "@/components/puzzles/PuzzleGeneratorPanel.vue";
 import AiGenerationBadge from "@/components/common/AiGenerationBadge.vue";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
 

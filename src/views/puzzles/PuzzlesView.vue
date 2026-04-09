@@ -12,6 +12,13 @@
         {{ populateStatusLabel }}
       </button>
       <button
+        class="inline-flex items-center gap-1.5 font-cinzel text-xs font-semibold px-3 py-1.5 rounded-md border border-border bg-card text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+        @click="ui.puzzleGeneratorOpen = true"
+      >
+        <Sparkles class="size-3.5 shrink-0" />
+        Generate
+      </button>
+      <button
         class="font-cinzel text-xs font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
         @click="router.push('/puzzles/new')"
       >
@@ -115,13 +122,16 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
-import { Puzzle as PuzzleIcon, Loader2, BookOpen } from "lucide-vue-next";
+import { Puzzle as PuzzleIcon, Loader2, BookOpen, Sparkles } from "lucide-vue-next";
 import { usePuzzles, usePopulatePuzzles } from "@/composables/usePuzzles";
 import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES, PUZZLE_TYPE_COLORS, PUZZLE_DIFFICULTY_COLORS } from "@/types/puzzle.types";
+import { useUiStore } from "@/stores/ui";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+
+const ui = useUiStore();
 
 const router = useRouter();
 const { data: puzzles, isLoading } = usePuzzles();

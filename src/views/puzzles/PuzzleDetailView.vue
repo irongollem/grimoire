@@ -1,29 +1,241 @@
 <template>
-  <PageHeader :title="isNew ? 'New Puzzle' : form.name || 'Loading…'">
+  <PageHeader :title="isNew ? 'New Puzzle' : (puzzle?.name || 'Loading…')">
     <template #actions>
-      <button
-        v-if="isEdit"
-        type="button"
-        class="font-fell text-sm text-destructive hover:opacity-70 transition-opacity"
-        @click="handleDelete"
-      >
-        Delete
-      </button>
-      <button
-        type="button"
-        :disabled="saving || !form.name.trim()"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
-        @click="save"
-      >
-        {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
-      </button>
+      <!-- View mode actions -->
+      <template v-if="mode === 'view' && !isNew">
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+          @click="mode = 'edit'"
+        >
+          <Pencil class="size-3.5 shrink-0" />
+          Edit
+        </button>
+      </template>
+
+      <!-- Edit mode actions -->
+      <template v-else-if="mode === 'edit' || isNew">
+        <button
+          v-if="isEdit"
+          type="button"
+          class="font-fell text-sm text-destructive hover:opacity-70 transition-opacity"
+          @click="handleDelete"
+        >
+          Delete
+        </button>
+        <button
+          v-if="isEdit"
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+          @click="mode = 'view'"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          :disabled="saving || !form.name.trim()"
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+          @click="save"
+        >
+          {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
+        </button>
+      </template>
     </template>
 
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
 
-    <template v-else>
+    <!-- ═══════════ VIEW MODE ═══════════ -->
+    <template v-else-if="mode === 'view' && puzzle">
+      <div class="flex flex-col gap-5 max-w-2xl">
+
+        <!-- Art + Identity card -->
+        <div class="rounded-lg border border-border bg-card overflow-hidden">
+          <div class="flex gap-0">
+            <!-- Portrait -->
+            <div v-if="puzzle.image_url" class="shrink-0 w-40 sm:w-52 self-stretch">
+              <FocalImage
+                :src="puzzle.image_url"
+                :alt="puzzle.name"
+                format="portrait"
+                :focal-point="puzzle.image_focal_point"
+                class="h-full"
+              />
+            </div>
+
+            <!-- Title + meta -->
+            <div class="flex-1 p-4 flex flex-col gap-2 min-w-0">
+              <h2 class="font-cinzel text-xl font-bold text-foreground leading-tight">{{ puzzle.name }}</h2>
+              <div class="flex flex-wrap gap-2">
+                <span
+                  class="font-cinzel text-[10px] px-2 py-0.5 rounded tracking-wider text-white font-bold"
+                  :style="{ backgroundColor: PUZZLE_TYPE_COLORS[puzzle.puzzle_type] + 'DD' }"
+                >{{ puzzle.puzzle_type }}</span>
+                <span
+                  class="font-cinzel text-[10px] px-2 py-0.5 rounded tracking-wider text-white font-bold"
+                  :style="{ backgroundColor: PUZZLE_DIFFICULTY_COLORS[puzzle.difficulty] + 'DD' }"
+                >{{ puzzle.difficulty }}</span>
+              </div>
+              <div v-if="puzzle.tags.length" class="flex flex-wrap gap-1 mt-auto">
+                <span
+                  v-for="tag in puzzle.tags"
+                  :key="tag"
+                  class="font-cinzel text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground tracking-wider"
+                >{{ tag }}</span>
+              </div>
+
+              <!-- Skill checks -->
+              <div v-if="puzzle.skill_checks.length" class="flex flex-wrap gap-2 mt-1">
+                <span
+                  v-for="sc in puzzle.skill_checks"
+                  :key="sc.skill"
+                  class="font-fell text-[11px] text-muted-foreground"
+                >
+                  {{ sc.skill }} DC {{ sc.dc }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Share panel -->
+        <div class="rounded-lg border border-border bg-card overflow-hidden">
+          <div class="px-4 py-3 border-b border-border bg-muted/20 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+              <Share2 class="size-3.5 text-muted-foreground shrink-0" />
+              <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Player Share</span>
+            </div>
+            <!-- Share toggle -->
+            <button
+              type="button"
+              class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
+              :class="shareState.is_shared ? 'bg-primary' : 'bg-muted border border-border'"
+              @click="toggleShare"
+            >
+              <span
+                class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow-sm"
+                :class="shareState.is_shared ? 'translate-x-4.5' : 'translate-x-0.5'"
+              />
+            </button>
+          </div>
+          <div class="p-4 space-y-3">
+            <p v-if="!shareState.is_shared" class="font-fell text-xs text-muted-foreground italic">
+              Toggle sharing to make this puzzle visible to players in your campaign.
+            </p>
+            <template v-else>
+              <p class="font-fell text-xs text-muted-foreground">
+                Shared with players in your campaign. Revealed hints: {{ shareState.shared_hints.length }} / {{ puzzle.hints.length }}
+              </p>
+
+              <!-- Read aloud -->
+              <div>
+                <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1.5">
+                  Read-Aloud Text
+                  <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(players will see this)</span>
+                </label>
+                <textarea
+                  v-model="shareState.read_aloud"
+                  rows="3"
+                  placeholder="Read this aloud as the party enters the room…"
+                  class="w-full bg-background border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+                  @blur="saveShareState"
+                />
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- Setup description -->
+        <div v-if="puzzle.description" class="rounded-lg border border-border bg-card overflow-hidden">
+          <div class="px-3 py-2 border-b border-border bg-muted/20">
+            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Setup</span>
+          </div>
+          <div class="p-4">
+            <RichTextViewer :content="puzzle.description" />
+          </div>
+        </div>
+
+        <!-- Hints -->
+        <div v-if="puzzle.hints.length" class="rounded-lg border border-border bg-card overflow-hidden">
+          <div class="px-3 py-2 border-b border-border bg-muted/20">
+            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Hints</span>
+          </div>
+          <div class="divide-y divide-border">
+            <div
+              v-for="hint in sortedViewHints"
+              :key="hint.order"
+              class="flex items-start gap-3 px-4 py-3"
+            >
+              <span class="shrink-0 font-cinzel text-[10px] font-bold text-muted-foreground/60 w-4 mt-0.5">{{ hint.order }}</span>
+              <div class="flex-1 min-w-0">
+                <RichTextViewer :content="hint.text" />
+              </div>
+              <!-- Reveal toggle -->
+              <button
+                type="button"
+                class="shrink-0 inline-flex items-center gap-1 font-cinzel text-[10px] font-semibold tracking-wider px-2 py-1 rounded transition-colors"
+                :class="shareState.shared_hints.includes(hint.order)
+                  ? 'bg-primary/15 text-primary hover:bg-primary/25'
+                  : 'bg-muted text-muted-foreground hover:text-foreground'"
+                :title="shareState.shared_hints.includes(hint.order) ? 'Hide from players' : 'Reveal to players'"
+                @click="toggleHint(hint.order)"
+              >
+                <Eye v-if="shareState.shared_hints.includes(hint.order)" class="size-3" />
+                <EyeOff v-else class="size-3" />
+                {{ shareState.shared_hints.includes(hint.order) ? 'Revealed' : 'Hidden' }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Solution (DM only, collapsible) -->
+        <div v-if="puzzle.solution" class="rounded-lg border border-border bg-card overflow-hidden">
+          <button
+            type="button"
+            class="w-full flex items-center justify-between px-3 py-2 border-b border-border bg-muted/20 hover:bg-muted/40 transition-colors"
+            @click="solutionOpen = !solutionOpen"
+          >
+            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Solution</span>
+            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">{{ solutionOpen ? 'Hide' : 'Reveal' }}</span>
+          </button>
+          <div v-if="solutionOpen" class="p-4">
+            <RichTextViewer :content="puzzle.solution" />
+          </div>
+        </div>
+
+        <!-- Outcomes -->
+        <div v-if="puzzle.success_outcome || puzzle.failure_consequence" class="rounded-lg border border-border bg-card overflow-hidden">
+          <div class="px-3 py-2 border-b border-border bg-muted/20">
+            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Outcomes</span>
+          </div>
+          <div class="divide-y divide-border">
+            <div v-if="puzzle.success_outcome" class="p-4">
+              <p class="font-cinzel text-[10px] font-semibold text-primary tracking-wider mb-1.5">SUCCESS</p>
+              <RichTextViewer :content="puzzle.success_outcome" />
+            </div>
+            <div v-if="puzzle.failure_consequence" class="p-4">
+              <p class="font-cinzel text-[10px] font-semibold text-destructive tracking-wider mb-1.5">FAILURE</p>
+              <RichTextViewer :content="puzzle.failure_consequence" />
+            </div>
+          </div>
+        </div>
+
+        <!-- DM Notes -->
+        <div v-if="puzzle.notes" class="rounded-lg border border-border bg-card overflow-hidden">
+          <div class="px-3 py-2 border-b border-border bg-muted/20">
+            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">DM Notes</span>
+          </div>
+          <div class="p-4">
+            <RichTextViewer :content="puzzle.notes" />
+          </div>
+        </div>
+
+      </div>
+    </template>
+
+    <!-- ═══════════ EDIT MODE ═══════════ -->
+    <template v-else-if="mode === 'edit' || isNew">
       <div class="flex flex-col gap-4 max-w-2xl">
 
         <!-- Identity -->
@@ -113,13 +325,9 @@
           </div>
           <div class="p-4 space-y-2">
             <p v-if="!form.skill_checks.length" class="font-fell text-xs text-muted-foreground italic">
-              No skill checks yet. Add the skills that help players progress.
+              No skill checks yet.
             </p>
-            <div
-              v-for="(check, i) in form.skill_checks"
-              :key="i"
-              class="flex items-center gap-2"
-            >
+            <div v-for="(check, i) in form.skill_checks" :key="i" class="flex items-center gap-2">
               <select
                 v-model="check.skill"
                 class="flex-1 bg-background border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -161,11 +369,7 @@
             <p v-if="!form.hints.length" class="font-fell text-xs text-muted-foreground italic">
               No hints yet. Add tiered hints from subtle to obvious.
             </p>
-            <div
-              v-for="(hint, i) in sortedHints"
-              :key="hint.order"
-              class="flex items-start gap-2"
-            >
+            <div v-for="(hint, i) in sortedHints" :key="hint.order" class="flex items-start gap-2">
               <span class="shrink-0 mt-1.5 font-cinzel text-[10px] font-bold text-muted-foreground w-6 text-right">{{ hint.order }}</span>
               <RichTextEditor
                 :model-value="hint.text"
@@ -179,7 +383,6 @@
                   v-if="i > 0"
                   type="button"
                   class="text-muted-foreground hover:text-foreground transition-colors"
-                  title="Move up"
                   @click="moveHint(i, -1)"
                 >
                   <ChevronUp class="size-3.5" />
@@ -188,7 +391,6 @@
                   v-if="i < form.hints.length - 1"
                   type="button"
                   class="text-muted-foreground hover:text-foreground transition-colors"
-                  title="Move down"
                   @click="moveHint(i, 1)"
                 >
                   <ChevronDown class="size-3.5" />
@@ -230,9 +432,7 @@
           </div>
           <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2">
-                Success
-              </label>
+              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2">Success</label>
               <RichTextEditor
                 :model-value="form.success_outcome"
                 placeholder="What happens when the puzzle is solved…"
@@ -241,9 +441,7 @@
               />
             </div>
             <div>
-              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2">
-                Failure / Consequence
-              </label>
+              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2">Failure / Consequence</label>
               <RichTextEditor
                 :model-value="form.failure_consequence"
                 placeholder="What happens on a wrong answer or giving up…"
@@ -275,27 +473,35 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { X, ChevronUp, ChevronDown } from "lucide-vue-next";
-import { ref } from "vue";
+import { X, ChevronUp, ChevronDown, Pencil, Eye, EyeOff, Share2 } from "lucide-vue-next";
 import { usePuzzle, useCreatePuzzle, useUpdatePuzzle, useDeletePuzzle } from "@/composables/usePuzzles";
-import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES, PUZZLE_SKILLS } from "@/types/puzzle.types";
+import { useCampaignStore } from "@/stores/campaign";
+import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES, PUZZLE_SKILLS, PUZZLE_TYPE_COLORS, PUZZLE_DIFFICULTY_COLORS } from "@/types/puzzle.types";
 import type { PuzzleHint, PuzzleSkillCheck } from "@/types/puzzle.types";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import FocalImage from "@/components/common/FocalImage.vue";
 
-const route  = useRoute();
-const router = useRouter();
+const route    = useRoute();
+const router   = useRouter();
+const campaign = useCampaignStore();
 
 const id     = computed(() => route.params.id as string | undefined);
 const isNew  = computed(() => !id.value || id.value === "new");
 const isEdit = computed(() => !isNew.value);
 
+// Default to view mode for existing puzzles, edit for new
+const mode = ref<"view" | "edit">(isNew.value ? "edit" : "view");
+
 const { data: puzzle, isLoading } = usePuzzle(computed(() => id.value ?? ""));
+
+// ── Edit form state ─────────────────────────────────────────────────────────
 
 const form = reactive({
   name:                "",
@@ -330,8 +536,64 @@ watch(puzzle, (p) => {
   form.notes               = p.notes;
 }, { immediate: true });
 
+// ── Share state (view mode, autosaved) ──────────────────────────────────────
+
+const shareState = reactive({
+  is_shared:    false,
+  shared_hints: [] as number[],
+  read_aloud:   null as string | null,
+});
+
+watch(puzzle, (p) => {
+  if (!p) return;
+  shareState.is_shared    = p.is_shared;
+  shareState.shared_hints = [...p.shared_hints];
+  shareState.read_aloud   = p.read_aloud;
+}, { immediate: true });
+
+const updateMutation = useUpdatePuzzle();
+
+async function saveShareState() {
+  if (!id.value) return;
+  await updateMutation.mutateAsync({
+    id: id.value,
+    update: {
+      is_shared:    shareState.is_shared,
+      shared_hints: shareState.shared_hints,
+      read_aloud:   shareState.read_aloud || null,
+      // auto-assign campaign when sharing
+      campaign_id: shareState.is_shared
+        ? (puzzle.value?.campaign_id ?? campaign.activeCampaignId ?? null)
+        : (puzzle.value?.campaign_id ?? null),
+    },
+  });
+}
+
+function toggleShare() {
+  shareState.is_shared = !shareState.is_shared;
+  if (!shareState.is_shared) shareState.shared_hints = [];
+  saveShareState();
+}
+
+function toggleHint(order: number) {
+  const idx = shareState.shared_hints.indexOf(order);
+  if (idx >= 0) {
+    shareState.shared_hints.splice(idx, 1);
+  } else {
+    shareState.shared_hints.push(order);
+    shareState.shared_hints.sort((a, b) => a - b);
+  }
+  saveShareState();
+}
+
+// ── Hint helpers ────────────────────────────────────────────────────────────
+
 const sortedHints = computed(() =>
   [...form.hints].sort((a, b) => a.order - b.order),
+);
+
+const sortedViewHints = computed(() =>
+  puzzle.value ? [...puzzle.value.hints].sort((a, b) => a.order - b.order) : [],
 );
 
 function addHint() {
@@ -344,7 +606,6 @@ function removeHint(sortedIndex: number) {
   const target = sorted[sortedIndex];
   const idx = form.hints.findIndex((h) => h.order === target.order);
   form.hints.splice(idx, 1);
-  // Renumber
   form.hints.sort((a, b) => a.order - b.order).forEach((h, i) => { h.order = i + 1; });
 }
 
@@ -364,10 +625,12 @@ function addSkillCheck() {
   form.skill_checks.push({ skill: "Investigation", dc: 15 });
 }
 
+// ── Save / delete ───────────────────────────────────────────────────────────
+
 const createMutation = useCreatePuzzle();
-const updateMutation = useUpdatePuzzle();
 const deleteMutation = useDeletePuzzle();
 const saving         = ref(false);
+const solutionOpen   = ref(false);
 
 async function save() {
   if (!form.name.trim()) return;
@@ -389,11 +652,12 @@ async function save() {
       notes:               form.notes || null,
     };
     if (isNew.value) {
-      await createMutation.mutateAsync(payload);
+      await createMutation.mutateAsync({ ...payload, campaign_id: null, is_shared: false, shared_hints: [], read_aloud: null });
+      router.push("/puzzles");
     } else {
       await updateMutation.mutateAsync({ id: id.value!, update: payload });
+      mode.value = "view";
     }
-    router.push("/puzzles");
   } finally {
     saving.value = false;
   }

@@ -77,3 +77,26 @@ export interface ItemAiResult {
 export interface ItemAiGenerated extends ItemAiResult {
   image_url: string | null;
 }
+
+export interface PuzzleAiResult {
+  name: string;
+  puzzle_type: string;
+  difficulty: string;
+  /** Plain text — convert to Tiptap JSON before writing to form */
+  description: string;
+  hints: Array<{ order: number; text: string }>;
+  /** Plain text — convert to Tiptap JSON before writing to form */
+  solution: string;
+  skill_checks: Array<{ skill: string; dc: number }>;
+  success_outcome: string;
+  failure_consequence: string;
+  tags: string[];
+  /** Plain text — convert to Tiptap JSON before writing to form */
+  notes: string;
+  /** Room illustration description for image generation */
+  image_prompt: string;
+}
+
+export interface PuzzleAiGenerated extends PuzzleAiResult {
+  image_url: string | null;
+}

@@ -1,7 +1,7 @@
 import type { Component } from "vue";
 import {
   BookOpen, Globe, Hammer, Landmark, Library, Package,
-  PenLine, ScrollText, Settings, Shield, Skull, Sparkles, Swords, User,
+  PenLine, Puzzle, ScrollText, Settings, Shield, Skull, Sparkles, Swords, User,
 } from "lucide-vue-next";
 
 export interface PlayerNavItem {
@@ -20,6 +20,7 @@ export const ALL_PLAYER_NAV: PlayerNavItem[] = [
   { to: "/play/notes",     label: "DM Notes",  icon: BookOpen },
   { to: "/play/crafting",  label: "Workshop",  icon: Hammer },
   { to: "/play/factions",  label: "Factions",  icon: Landmark },
+  { to: "/play/puzzles",   label: "Puzzles",   icon: Puzzle },
   { to: "/play/atlas",     label: "Atlas",     icon: Globe },
   { to: "/play/bestiary",  label: "Bestiary",  icon: Skull },
   { to: "/play/spells",    label: "Spells",    icon: Sparkles },

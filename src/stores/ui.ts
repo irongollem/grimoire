@@ -62,6 +62,7 @@ export const useUiStore = defineStore("ui", () => {
   const vaultFilterRarity = ref<ItemRarity | "">("");
   const vaultFilterSource = ref("");
   const itemGeneratorOpen = ref(false);
+  const puzzleGeneratorOpen = ref(false);
 
   const vaultHasActiveFilters = computed(() =>
     vaultSearch.value !== "" || vaultFilterType.value !== "" || vaultFilterRarity.value !== "" || vaultFilterSource.value !== "",
@@ -245,6 +246,7 @@ export const useUiStore = defineStore("ui", () => {
     vaultHasActiveFilters,
     resetVaultFilters,
     itemGeneratorOpen,
+    puzzleGeneratorOpen,
 
     // Quests
     questsSearch,

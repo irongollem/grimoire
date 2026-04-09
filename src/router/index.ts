@@ -107,6 +107,18 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Factions" },
     },
     {
+      path: "/play/puzzles",
+      name: "play-puzzles",
+      component: () => import("@/views/play/PlayerPuzzlesView.vue"),
+      meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Puzzles" },
+    },
+    {
+      path: "/play/puzzles/:id",
+      name: "play-puzzle-detail",
+      component: () => import("@/views/play/PlayerPuzzleDetailView.vue"),
+      meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Puzzle" },
+    },
+    {
       path: "/play/rules",
       name: "play-rules",
       component: () => import("@/views/play/PlayerReliquaryView.vue"),
