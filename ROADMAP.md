@@ -175,6 +175,7 @@
 - [x] Trap detail panel in encounter runner — click a trap to inspect it; roll Detect/Disarm DCs, attack bonus, save DC, and damage dice; effect description and notes shown inline
 - [x] Traproom prepopulation — "Populate Traproom" button bulk-inserts 14 classic DMG/PHB trap archetypes (pit, needle, darts, rolling sphere, collapsing roof, net, fire statue, sphere of annihilation, flooding room, glyph, alarm, mushrooms, swinging log); skips traps that already exist by name
 - [x] **Multiple damage types per trap** — refactored from single `damage_type`/`damage_dice` fields to `damage_entries` array (`DamageEntry` interface with `dice` + `type`); trap editor has "+ Add" button to add multiple damage entries (e.g. 1d6 bludgeoning + 1d10 piercing); all trap templates updated to support split damage
+- [x] **Enigmarium (puzzle room builder)** — full CRUD for puzzle rooms: type (Logic/Physical/Arcane/Social/Environmental), difficulty (Trivial→Deadly), setup description, ordered hints (add/reorder/remove), solution field, skill checks with DCs, success outcome + failure consequence, image with focal point, tags, DM notes; "Populate Examples" button inserts 3 curated examples (The Three Doors, The Celestial Orrery, The Waterway Vault); Assets group in nav
 
 ### Encounters
 

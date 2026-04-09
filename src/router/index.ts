@@ -310,6 +310,26 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Trap" },
     },
 
+    // Puzzles (Enigmarium)
+    {
+      path: "/puzzles",
+      name: "puzzles",
+      component: () => import("@/views/puzzles/PuzzlesView.vue"),
+      meta: { requiresAuth: true, title: "Enigmarium" },
+    },
+    {
+      path: "/puzzles/new",
+      name: "puzzle-new",
+      component: () => import("@/views/puzzles/PuzzleDetailView.vue"),
+      meta: { requiresAuth: true, title: "New Puzzle" },
+    },
+    {
+      path: "/puzzles/:id",
+      name: "puzzle-detail",
+      component: () => import("@/views/puzzles/PuzzleDetailView.vue"),
+      meta: { requiresAuth: true, title: "Puzzle" },
+    },
+
     // Encounters
     {
       path: "/encounters",

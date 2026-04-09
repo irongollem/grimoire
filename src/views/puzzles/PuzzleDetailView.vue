@@ -1,0 +1,408 @@
+<template>
+  <PageHeader :title="isNew ? 'New Puzzle' : form.name || 'Loading…'">
+    <template #actions>
+      <button
+        v-if="isEdit"
+        type="button"
+        class="font-fell text-sm text-destructive hover:opacity-70 transition-opacity"
+        @click="handleDelete"
+      >
+        Delete
+      </button>
+      <button
+        type="button"
+        :disabled="saving || !form.name.trim()"
+        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+        @click="save"
+      >
+        {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
+      </button>
+    </template>
+
+    <div v-if="isLoading" class="flex justify-center py-16">
+      <LoadingSpinner />
+    </div>
+
+    <template v-else>
+      <div class="flex flex-col gap-4 max-w-2xl">
+
+        <!-- Identity -->
+        <div class="rounded-lg border border-border bg-card overflow-hidden">
+          <div class="px-3 py-2 border-b border-border bg-muted/20">
+            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Identity</span>
+          </div>
+          <div class="p-4 flex gap-4">
+            <!-- Image -->
+            <div class="shrink-0 w-28">
+              <ImageUpload
+                :model-value="form.image_url"
+                :focal-point="form.image_focal_point"
+                aspect="square"
+                show-focal-point
+                bucket="puzzle-images"
+                @update:model-value="form.image_url = $event"
+                @update:focal-point="form.image_focal_point = $event"
+              />
+            </div>
+
+            <!-- Fields -->
+            <div class="flex-1 grid grid-cols-2 gap-3">
+              <div class="col-span-2">
+                <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Name</label>
+                <input
+                  v-model="form.name"
+                  placeholder="Puzzle name…"
+                  class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-cinzel text-sm font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+              <div>
+                <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Type</label>
+                <select
+                  v-model="form.puzzle_type"
+                  class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                >
+                  <option v-for="t in PUZZLE_TYPES" :key="t" :value="t">{{ t }}</option>
+                </select>
+              </div>
+              <div>
+                <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Difficulty</label>
+                <select
+                  v-model="form.difficulty"
+                  class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                >
+                  <option v-for="d in PUZZLE_DIFFICULTIES" :key="d" :value="d">{{ d }}</option>
+                </select>
+              </div>
+              <div class="col-span-2">
+                <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Tags</label>
+                <TagInput v-model="form.tags" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Setup -->
+        <div class="rounded-lg border border-border bg-card overflow-hidden">
+          <div class="px-3 py-2 border-b border-border bg-muted/20">
+            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Setup</span>
+          </div>
+          <div class="p-4">
+            <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2">
+              What the players see / experience
+            </label>
+            <RichTextEditor
+              :model-value="form.description"
+              placeholder="Describe the room, the mechanisms, and what is immediately observable…"
+              min-height="140px"
+              @update:model-value="form.description = $event"
+            />
+          </div>
+        </div>
+
+        <!-- Skill Checks -->
+        <div class="rounded-lg border border-border bg-card overflow-hidden">
+          <div class="px-3 py-2 border-b border-border bg-muted/20 flex items-center justify-between">
+            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Skill Checks</span>
+            <button
+              type="button"
+              class="font-cinzel text-[10px] font-semibold text-primary hover:opacity-80 transition-opacity tracking-wider"
+              @click="addSkillCheck"
+            >
+              + Add
+            </button>
+          </div>
+          <div class="p-4 space-y-2">
+            <p v-if="!form.skill_checks.length" class="font-fell text-xs text-muted-foreground italic">
+              No skill checks yet. Add the skills that help players progress.
+            </p>
+            <div
+              v-for="(check, i) in form.skill_checks"
+              :key="i"
+              class="flex items-center gap-2"
+            >
+              <select
+                v-model="check.skill"
+                class="flex-1 bg-background border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option v-for="s in PUZZLE_SKILLS" :key="s" :value="s">{{ s }}</option>
+              </select>
+              <span class="font-cinzel text-xs text-muted-foreground shrink-0">DC</span>
+              <input
+                v-model.number="check.dc"
+                type="number"
+                min="1"
+                max="30"
+                class="w-16 bg-background border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center"
+              />
+              <button
+                type="button"
+                class="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+                @click="form.skill_checks.splice(i, 1)"
+              >
+                <X class="size-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hints -->
+        <div class="rounded-lg border border-border bg-card overflow-hidden">
+          <div class="px-3 py-2 border-b border-border bg-muted/20 flex items-center justify-between">
+            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Hints</span>
+            <button
+              type="button"
+              class="font-cinzel text-[10px] font-semibold text-primary hover:opacity-80 transition-opacity tracking-wider"
+              @click="addHint"
+            >
+              + Add Hint
+            </button>
+          </div>
+          <div class="p-4 space-y-3">
+            <p v-if="!form.hints.length" class="font-fell text-xs text-muted-foreground italic">
+              No hints yet. Add tiered hints from subtle to obvious.
+            </p>
+            <div
+              v-for="(hint, i) in sortedHints"
+              :key="hint.order"
+              class="flex items-start gap-2"
+            >
+              <span class="shrink-0 mt-1.5 font-cinzel text-[10px] font-bold text-muted-foreground w-6 text-right">{{ hint.order }}</span>
+              <RichTextEditor
+                :model-value="hint.text"
+                :placeholder="`Hint ${hint.order}…`"
+                min-height="80px"
+                class="flex-1"
+                @update:model-value="hint.text = $event"
+              />
+              <div class="shrink-0 flex flex-col gap-0.5 mt-1">
+                <button
+                  v-if="i > 0"
+                  type="button"
+                  class="text-muted-foreground hover:text-foreground transition-colors"
+                  title="Move up"
+                  @click="moveHint(i, -1)"
+                >
+                  <ChevronUp class="size-3.5" />
+                </button>
+                <button
+                  v-if="i < form.hints.length - 1"
+                  type="button"
+                  class="text-muted-foreground hover:text-foreground transition-colors"
+                  title="Move down"
+                  @click="moveHint(i, 1)"
+                >
+                  <ChevronDown class="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  class="text-muted-foreground hover:text-destructive transition-colors"
+                  @click="removeHint(i)"
+                >
+                  <X class="size-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Solution -->
+        <div class="rounded-lg border border-border bg-card overflow-hidden">
+          <div class="px-3 py-2 border-b border-border bg-muted/20">
+            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Solution</span>
+          </div>
+          <div class="p-4">
+            <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2">
+              The answer / mechanism (DM eyes only)
+            </label>
+            <RichTextEditor
+              :model-value="form.solution"
+              placeholder="The answer is… / The mechanism works by…"
+              min-height="120px"
+              @update:model-value="form.solution = $event"
+            />
+          </div>
+        </div>
+
+        <!-- Outcomes -->
+        <div class="rounded-lg border border-border bg-card overflow-hidden">
+          <div class="px-3 py-2 border-b border-border bg-muted/20">
+            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Outcomes</span>
+          </div>
+          <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2">
+                Success
+              </label>
+              <RichTextEditor
+                :model-value="form.success_outcome"
+                placeholder="What happens when the puzzle is solved…"
+                min-height="100px"
+                @update:model-value="form.success_outcome = $event"
+              />
+            </div>
+            <div>
+              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2">
+                Failure / Consequence
+              </label>
+              <RichTextEditor
+                :model-value="form.failure_consequence"
+                placeholder="What happens on a wrong answer or giving up…"
+                min-height="100px"
+                @update:model-value="form.failure_consequence = $event"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- DM Notes -->
+        <div class="rounded-lg border border-border bg-card overflow-hidden">
+          <div class="px-3 py-2 border-b border-border bg-muted/20">
+            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">DM Notes</span>
+          </div>
+          <div class="p-4">
+            <RichTextEditor
+              :model-value="form.notes"
+              placeholder="Running notes, variant solutions, pacing tips…"
+              min-height="100px"
+              @update:model-value="form.notes = $event"
+            />
+          </div>
+        </div>
+
+      </div>
+    </template>
+  </PageHeader>
+</template>
+
+<script setup lang="ts">
+import { computed, reactive, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { X, ChevronUp, ChevronDown } from "lucide-vue-next";
+import { ref } from "vue";
+import { usePuzzle, useCreatePuzzle, useUpdatePuzzle, useDeletePuzzle } from "@/composables/usePuzzles";
+import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES, PUZZLE_SKILLS } from "@/types/puzzle.types";
+import type { PuzzleHint, PuzzleSkillCheck } from "@/types/puzzle.types";
+import PageHeader from "@/components/common/PageHeader.vue";
+import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import ImageUpload from "@/components/common/ImageUpload.vue";
+import TagInput from "@/components/common/TagInput.vue";
+import RichTextEditor from "@/components/common/RichTextEditor.vue";
+
+const route  = useRoute();
+const router = useRouter();
+
+const id     = computed(() => route.params.id as string | undefined);
+const isNew  = computed(() => !id.value || id.value === "new");
+const isEdit = computed(() => !isNew.value);
+
+const { data: puzzle, isLoading } = usePuzzle(computed(() => id.value ?? ""));
+
+const form = reactive({
+  name:                "",
+  puzzle_type:         "Logic" as typeof PUZZLE_TYPES[number],
+  difficulty:          "Medium" as typeof PUZZLE_DIFFICULTIES[number],
+  description:         null as string | null,
+  solution:            null as string | null,
+  hints:               [] as PuzzleHint[],
+  skill_checks:        [] as PuzzleSkillCheck[],
+  success_outcome:     null as string | null,
+  failure_consequence: null as string | null,
+  image_url:           null as string | null,
+  image_focal_point:   null as { x: number; y: number } | null,
+  tags:                [] as string[],
+  notes:               null as string | null,
+});
+
+watch(puzzle, (p) => {
+  if (!p) return;
+  form.name                = p.name;
+  form.puzzle_type         = p.puzzle_type;
+  form.difficulty          = p.difficulty;
+  form.description         = p.description;
+  form.solution            = p.solution;
+  form.hints               = p.hints.map((h) => ({ ...h }));
+  form.skill_checks        = p.skill_checks.map((s) => ({ ...s }));
+  form.success_outcome     = p.success_outcome;
+  form.failure_consequence = p.failure_consequence;
+  form.image_url           = p.image_url;
+  form.image_focal_point   = p.image_focal_point;
+  form.tags                = [...p.tags];
+  form.notes               = p.notes;
+}, { immediate: true });
+
+const sortedHints = computed(() =>
+  [...form.hints].sort((a, b) => a.order - b.order),
+);
+
+function addHint() {
+  const maxOrder = form.hints.reduce((m, h) => Math.max(m, h.order), 0);
+  form.hints.push({ order: maxOrder + 1, text: "" });
+}
+
+function removeHint(sortedIndex: number) {
+  const sorted = [...form.hints].sort((a, b) => a.order - b.order);
+  const target = sorted[sortedIndex];
+  const idx = form.hints.findIndex((h) => h.order === target.order);
+  form.hints.splice(idx, 1);
+  // Renumber
+  form.hints.sort((a, b) => a.order - b.order).forEach((h, i) => { h.order = i + 1; });
+}
+
+function moveHint(sortedIndex: number, direction: -1 | 1) {
+  const sorted = [...form.hints].sort((a, b) => a.order - b.order);
+  const swapIdx = sortedIndex + direction;
+  if (swapIdx < 0 || swapIdx >= sorted.length) return;
+  const aOrder = sorted[sortedIndex].order;
+  const bOrder = sorted[swapIdx].order;
+  const aHint = form.hints.find((h) => h.order === aOrder)!;
+  const bHint = form.hints.find((h) => h.order === bOrder)!;
+  aHint.order = bOrder;
+  bHint.order = aOrder;
+}
+
+function addSkillCheck() {
+  form.skill_checks.push({ skill: "Investigation", dc: 15 });
+}
+
+const createMutation = useCreatePuzzle();
+const updateMutation = useUpdatePuzzle();
+const deleteMutation = useDeletePuzzle();
+const saving         = ref(false);
+
+async function save() {
+  if (!form.name.trim()) return;
+  saving.value = true;
+  try {
+    const payload = {
+      name:                form.name.trim(),
+      puzzle_type:         form.puzzle_type,
+      difficulty:          form.difficulty,
+      description:         form.description || null,
+      solution:            form.solution || null,
+      hints:               [...form.hints].sort((a, b) => a.order - b.order),
+      skill_checks:        form.skill_checks,
+      success_outcome:     form.success_outcome || null,
+      failure_consequence: form.failure_consequence || null,
+      image_url:           form.image_url,
+      image_focal_point:   form.image_focal_point,
+      tags:                form.tags,
+      notes:               form.notes || null,
+    };
+    if (isNew.value) {
+      await createMutation.mutateAsync(payload);
+    } else {
+      await updateMutation.mutateAsync({ id: id.value!, update: payload });
+    }
+    router.push("/puzzles");
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function handleDelete() {
+  if (!id.value) return;
+  if (!confirm(`Delete "${form.name}"? This cannot be undone.`)) return;
+  await deleteMutation.mutateAsync(id.value);
+  router.push("/puzzles");
+}
+</script>

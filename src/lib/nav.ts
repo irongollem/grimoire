@@ -17,6 +17,7 @@ import {
   Library,
   Landmark,
   Crosshair,
+  Puzzle,
 } from "lucide-vue-next";
 import type { Component } from "vue";
 
@@ -146,6 +147,12 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/traps",
         icon: Crosshair,
         description: "Traps, hazards & dungeon dangers",
+      },
+      {
+        label: "Enigmarium",
+        to: "/puzzles",
+        icon: Puzzle,
+        description: "Puzzle rooms, riddles & conundrums",
       },
     ],
   },
