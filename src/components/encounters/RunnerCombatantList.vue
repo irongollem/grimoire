@@ -74,17 +74,24 @@
 
     <!-- HP -->
     <div class="hp-cell" @click.stop>
-      <button class="hp-btn" @click="store.adjustHp(combatant.instance_id, -1)">−</button>
+      <button class="hp-btn" @click="handleAdjustHp(combatant.instance_id, -1)">−</button>
       <input
         type="number"
         :value="combatant.hp"
         min="0"
         :max="combatant.max_hp"
         class="hp-input"
-        @change="(e) => store.setHp(combatant.instance_id, Number((e.target as HTMLInputElement).value))"
+        @change="(e) => handleSetHp(combatant.instance_id, Number((e.target as HTMLInputElement).value))"
       />
       <span class="hp-max">/ {{ combatant.max_hp }}</span>
-      <button class="hp-btn" @click="store.adjustHp(combatant.instance_id, 1)">+</button>
+      <button class="hp-btn" @click="handleAdjustHp(combatant.instance_id, 1)">+</button>
+      <span
+        v-if="flashState[combatant.instance_id]"
+        :key="flashState[combatant.instance_id]!.id"
+        class="damage-flash"
+        :class="flashState[combatant.instance_id]!.delta < 0 ? 'is-damage' : 'is-heal'"
+        @animationend="clearFlash(combatant.instance_id)"
+      >{{ flashState[combatant.instance_id]!.delta > 0 ? '+' : '' }}{{ flashState[combatant.instance_id]!.delta }}</span>
     </div>
 
     <!-- AC -->
@@ -140,6 +147,56 @@ const emit = defineEmits<{
 
 const store = useEncounterRunStore();
 const addingCondFor = ref<string | null>(null);
+
+// Debounce state for HP +/- buttons
+const pendingDeltas = new Map<string, number>();
+const pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+// Flash overlay state: maps instance_id → { delta, id } while flash is active
+const flashState = ref<Record<string, { delta: number; id: number } | undefined>>({});
+
+function showFlash(instanceId: string, delta: number) {
+  flashState.value[instanceId] = { delta, id: Date.now() };
+}
+
+function clearFlash(instanceId: string) {
+  delete flashState.value[instanceId];
+}
+
+function handleAdjustHp(instanceId: string, delta: number) {
+  const current = pendingDeltas.get(instanceId) ?? 0;
+  pendingDeltas.set(instanceId, current + delta);
+
+  const existing = pendingTimers.get(instanceId);
+  if (existing) clearTimeout(existing);
+
+  const timer = setTimeout(() => {
+    const total = pendingDeltas.get(instanceId) ?? 0;
+    if (total !== 0) {
+      store.adjustHp(instanceId, total);
+      showFlash(instanceId, total);
+    }
+    pendingDeltas.delete(instanceId);
+    pendingTimers.delete(instanceId);
+  }, 500);
+
+  pendingTimers.set(instanceId, timer);
+}
+
+function handleSetHp(instanceId: string, newHp: number) {
+  // Cancel any pending debounced adjustments
+  const timer = pendingTimers.get(instanceId);
+  if (timer) {
+    clearTimeout(timer);
+    pendingTimers.delete(instanceId);
+    pendingDeltas.delete(instanceId);
+  }
+
+  const combatant = store.sortedCombatants.find((c) => c.instance_id === instanceId);
+  const delta = combatant ? newHp - combatant.hp : 0;
+  store.setHp(instanceId, newHp);
+  if (delta !== 0) showFlash(instanceId, delta);
+}
 
 function toggleDetail(instanceId: string) {
   if (props.selectedId === instanceId) {
@@ -301,6 +358,35 @@ function revealBtnTitle(state: RevealState | undefined) {
 
 .hp-cell {
   @apply flex items-center justify-center gap-1 relative;
+}
+
+@keyframes damage-flash {
+  0%   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  70%  { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+}
+
+.damage-flash {
+  position: absolute;
+  top: -0.1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-cinzel);
+  font-size: 0.9rem;
+  font-weight: 800;
+  pointer-events: none;
+  animation: damage-flash 10s ease-in forwards;
+  z-index: 10;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+}
+
+.damage-flash.is-damage {
+  @apply text-destructive;
+}
+
+.damage-flash.is-heal {
+  @apply text-green-500;
 }
 
 .hp-btn {
