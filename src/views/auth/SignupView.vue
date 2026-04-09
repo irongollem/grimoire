@@ -119,22 +119,8 @@ const successMessage = ref("");
 
 onMounted(async () => {
   if (!token) return;
-  // Validate token against app_invites (public read policy allows this)
-  const { data } = await supabase
-    .from("app_invites")
-    .select("id, expires_at, max_uses, use_count")
-    .eq("token", token)
-    .maybeSingle();
-
-  if (
-    !data ||
-    (data.expires_at && new Date(data.expires_at) < new Date()) ||
-    (data.max_uses !== null && data.use_count >= data.max_uses)
-  ) {
-    tokenState.value = "invalid";
-  } else {
-    tokenState.value = "valid";
-  }
+  const { data: valid } = await supabase.rpc("validate_app_invite", { p_token: token });
+  tokenState.value = valid ? "valid" : "invalid";
 });
 
 async function handleSubmit() {
