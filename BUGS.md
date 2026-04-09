@@ -2,6 +2,8 @@
 
 ## Done
 
+- [x] Mundane items displayed magic-only fields in the item editor — Linked Spells, Curse, and Recharge were only gated on `!isArtObject`, not `isMagic`; fixed by adding `isMagic &&` to those `v-if` conditions in `ItemDetail.vue`; Charges/Quantity and Arcane Focus remain visible for mundane items (ammunition needs a count; a plain crystal/rod/staff is a valid arcane focus per PHB)
+
 - [x] Player portal showed NPCs' true identity instead of their disguise — `PlayerNpcCard`, `PlayerLocationsView`, `PlayerFactionsView`, and `PlayerPartyView` all used `npc.name` / `npc.portrait_url` directly without checking the alter ego fields; fixed by resolving `displayName`, `displayPortrait`, and `displayFocalPoint` from `disguise_name` / `disguise_portrait_url` when `is_revealed = false`; faction Supabase query also updated to select the three disguise columns it was missing
 
 - [x] `EquipSlotRow` label overflow at narrow widths — long item names (e.g. "Wand of the War Mage +1") caused the button to exceed its container at ~648–710px viewport widths; the `truncate` class was already present but `min-w-0` was missing from the `flex-1` span, preventing flex shrink from kicking in; fixed by adding `min-w-0` (`src/components/inventory/EquipSlotRow.vue`)

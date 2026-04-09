@@ -267,7 +267,7 @@
                 class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </label>
-            <label v-if="itemType !== 'ammunition'" class="flex flex-col gap-1">
+            <label v-if="isMagic && itemType !== 'ammunition'" class="flex flex-col gap-1">
               <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Recharge</span>
               <input
                 v-model="recharge"
@@ -287,7 +287,7 @@
         </div>
 
         <!-- Spell references (optional, links to Spellbook entries) -->
-        <div v-if="!isArtObject" class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-2">
+        <div v-if="isMagic && !isArtObject" class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-2">
           <div class="flex items-center justify-between">
             <h3 class="font-cinzel text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
               Linked Spells
@@ -342,7 +342,7 @@
         </div>
 
         <!-- Curse -->
-        <div v-if="!isArtObject" class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3">
+        <div v-if="isMagic && !isArtObject" class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3">
           <div class="flex items-center justify-between gap-2">
             <h3 class="font-cinzel text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
               Curse
