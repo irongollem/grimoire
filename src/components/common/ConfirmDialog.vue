@@ -3,7 +3,7 @@
     <Transition name="dialog-fade">
       <div
         v-if="dialog"
-        class="fixed inset-0 z-[200] flex items-center justify-center p-4"
+        class="fixed inset-0 z-200 flex items-center justify-center p-4"
         @mousedown.self="cancel"
       >
         <!-- Backdrop -->
@@ -20,16 +20,25 @@
           <div class="flex items-start gap-3 px-5 pt-5 pb-3">
             <div
               class="shrink-0 flex items-center justify-center w-9 h-9 rounded-full"
-              :class="dialog.danger ? 'bg-destructive/15 text-destructive' : 'bg-primary/15 text-primary'"
+              :class="
+                dialog.danger
+                  ? 'bg-destructive/15 text-destructive'
+                  : 'bg-primary/15 text-primary'
+              "
             >
               <AlertTriangle v-if="dialog.danger" class="h-4.5 w-4.5" />
               <Info v-else class="h-4.5 w-4.5" />
             </div>
             <div class="flex-1 min-w-0">
-              <h2 id="dialog-title" class="font-cinzel text-sm font-bold text-foreground tracking-wide">
+              <h2
+                id="dialog-title"
+                class="font-cinzel text-sm font-bold text-foreground tracking-wide"
+              >
                 {{ dialog.title }}
               </h2>
-              <p class="mt-1 font-fell text-sm text-muted-foreground leading-snug">
+              <p
+                class="mt-1 font-fell text-sm text-muted-foreground leading-snug"
+              >
                 {{ dialog.message }}
               </p>
             </div>
@@ -48,9 +57,11 @@
             <button
               type="button"
               class="px-4 py-1.5 rounded-md font-cinzel text-xs font-semibold tracking-wider transition-colors"
-              :class="dialog.danger
-                ? 'bg-destructive text-destructive-foreground hover:opacity-90'
-                : 'bg-primary text-primary-foreground hover:opacity-90'"
+              :class="
+                dialog.danger
+                  ? 'bg-destructive text-destructive-foreground hover:opacity-90'
+                  : 'bg-primary text-primary-foreground hover:opacity-90'
+              "
               @click="ok"
             >
               {{ dialog.confirmLabel }}
@@ -68,8 +79,12 @@ import { useConfirm } from "@/composables/useConfirm";
 
 const { dialog, _resolve } = useConfirm();
 
-function ok()     { _resolve(true); }
-function cancel() { _resolve(false); }
+function ok() {
+  _resolve(true);
+}
+function cancel() {
+  _resolve(false);
+}
 </script>
 
 <style scoped>
@@ -79,7 +94,9 @@ function cancel() { _resolve(false); }
 }
 .dialog-fade-enter-active .relative,
 .dialog-fade-leave-active .relative {
-  transition: transform 0.15s ease, opacity 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease;
 }
 .dialog-fade-enter-from,
 .dialog-fade-leave-to {

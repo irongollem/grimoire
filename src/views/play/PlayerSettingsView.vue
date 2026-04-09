@@ -259,6 +259,35 @@
       </div>
     </section>
 
+    <!-- Combat notifications -->
+    <section class="rounded-lg border border-border bg-card p-5 space-y-4">
+      <div>
+        <h2 class="font-cinzel text-sm font-semibold text-foreground tracking-wide">Combat Notifications</h2>
+        <p class="font-fell text-xs text-muted-foreground italic mt-1">
+          Alerts when it's your turn in a live encounter.
+        </p>
+      </div>
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="font-cinzel text-xs text-foreground tracking-wide">Turn audio cue</p>
+          <p class="font-fell text-xs text-muted-foreground italic">A short chime plays when your turn begins.</p>
+        </div>
+        <button
+          type="button"
+          class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200"
+          :class="turnAudioEnabled ? 'bg-primary' : 'bg-muted'"
+          role="switch"
+          :aria-checked="turnAudioEnabled"
+          @click="setTurnAudio(!turnAudioEnabled)"
+        >
+          <span
+            class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200"
+            :class="turnAudioEnabled ? 'translate-x-5' : 'translate-x-0'"
+          />
+        </button>
+      </div>
+    </section>
+
     <!-- Account info (read-only) -->
     <section class="rounded-lg border border-border bg-card p-5 space-y-2">
       <h2 class="font-cinzel text-sm font-semibold text-foreground tracking-wide">Account</h2>
@@ -282,6 +311,7 @@ import { ref, computed, onBeforeUnmount } from "vue";
 import { RouterLink } from "vue-router";
 import { CalendarCheck, Check, GripVertical, Save, User, X } from "lucide-vue-next";
 import { usePlayerNavPrefs } from "@/composables/usePlayerNavPrefs";
+import { usePlayerCombatPrefs } from "@/composables/usePlayerCombatPrefs";
 import { MOBILE_NAV_SLOTS } from "@/lib/playerNav";
 import PageHeader from "@/components/common/PageHeader.vue";
 import { useAuthStore } from "@/stores/auth";
@@ -296,6 +326,9 @@ const auth = useAuthStore();
 
 // ── Navigation preferences ─────────────────────────────────────────────────────
 const { navMode, sortedNav, setNavMode, setNavOrder } = usePlayerNavPrefs();
+
+// ── Combat preferences ────────────────────────────────────────────────────────
+const { turnAudioEnabled, setTurnAudio } = usePlayerCombatPrefs();
 
 const dragListRef = ref<HTMLElement | null>(null);
 const draggingIdx = ref<number | null>(null);

@@ -238,7 +238,7 @@
   }
 
   .pager-btn {
-    @apply min-w-[2rem] h-7 px-1.5 rounded border border-border bg-card font-cinzel text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground hover:border-primary/50 disabled:opacity-40 disabled:cursor-not-allowed;
+    @apply min-w-8 h-7 px-1.5 rounded border border-border bg-card font-cinzel text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground hover:border-primary/50 disabled:opacity-40 disabled:cursor-not-allowed;
   }
 }
 

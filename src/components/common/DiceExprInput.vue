@@ -13,7 +13,7 @@
         v-if="parsed"
         type="button"
         title="Click to roll · Enter to roll"
-        class="shrink-0 h-[34px] w-[34px] rounded-md border border-border bg-card flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors"
+        class="shrink-0 h-8.5 w-8.5 rounded-md border border-border bg-card flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors"
         @click="tryRoll"
       >
         <Dice6 class="h-4 w-4" />
@@ -25,17 +25,20 @@
           v-if="rollResult !== null"
           key="result"
           class="font-cinzel text-[10px] font-bold text-primary tracking-wider"
-        >= {{ rollResult }}</span>
+          >= {{ rollResult }}</span
+        >
         <span
           v-else-if="parsed"
           key="avg"
           class="font-cinzel text-[10px] text-muted-foreground/60 tracking-wider"
-        >avg {{ average }}</span>
+          >avg {{ average }}</span
+        >
         <span
           v-else-if="modelValue && !parsed"
           key="invalid"
           class="font-cinzel text-[10px] text-destructive/70 tracking-wider"
-        >invalid</span>
+          >invalid</span
+        >
       </Transition>
     </div>
   </div>
@@ -46,14 +49,17 @@ import { computed, ref } from "vue";
 import { Dice6 } from "lucide-vue-next";
 import { parseExpression, averageExpression, rollExpression } from "@/lib/dice";
 
-const props = withDefaults(defineProps<{
-  modelValue: string | null;
-  placeholder?: string;
-  compact?: boolean;
-}>(), {
-  placeholder: "2d6+3",
-  compact: false,
-});
+const props = withDefaults(
+  defineProps<{
+    modelValue: string | null;
+    placeholder?: string;
+    compact?: boolean;
+  }>(),
+  {
+    placeholder: "2d6+3",
+    compact: false,
+  },
+);
 
 const emit = defineEmits<{ "update:modelValue": [value: string | null] }>();
 
@@ -61,7 +67,9 @@ const rollResult = ref<number | null>(null);
 let rollTimer: ReturnType<typeof setTimeout> | null = null;
 
 const parsed = computed(() => parseExpression(props.modelValue));
-const average = computed(() => (parsed.value ? averageExpression(parsed.value) : null));
+const average = computed(() =>
+  parsed.value ? averageExpression(parsed.value) : null,
+);
 
 function onInput(e: Event) {
   const val = (e.target as HTMLInputElement).value;
@@ -73,7 +81,9 @@ function tryRoll() {
   if (!parsed.value) return;
   rollResult.value = rollExpression(parsed.value);
   if (rollTimer) clearTimeout(rollTimer);
-  rollTimer = setTimeout(() => { rollResult.value = null; }, 2500);
+  rollTimer = setTimeout(() => {
+    rollResult.value = null;
+  }, 2500);
 }
 </script>
 
