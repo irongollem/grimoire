@@ -271,6 +271,7 @@ const filtered = computed(() => {
     list = list.filter(
       (n) =>
         n.name.toLowerCase().includes(q) ||
+        n.disguise_name?.toLowerCase().includes(q) ||
         n.race?.toLowerCase().includes(q) ||
         n.occupation?.toLowerCase().includes(q) ||
         (n.location_id

@@ -33,8 +33,8 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
       ? supabase.from("notes").select("id, title").eq("campaign_id", campaignId).ilike("title", q).limit(LIMIT)
       : Promise.resolve({ data: [] as { id: string; title: string }[], error: null }),
     campaignId
-      ? supabase.from("npcs").select("id, name").eq("campaign_id", campaignId).ilike("name", q).limit(LIMIT)
-      : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
+      ? supabase.from("npcs").select("id, name, disguise_name").eq("campaign_id", campaignId).or(`name.ilike.${q},disguise_name.ilike.${q}`).limit(LIMIT)
+      : Promise.resolve({ data: [] as { id: string; name: string; disguise_name: string | null }[], error: null }),
     supabase.from("monsters").select("id, name").ilike("name", q).limit(LIMIT),
     supabase.from("spells").select("id, name").ilike("name", q).limit(LIMIT),
     supabase.from("items").select("id, name").ilike("name", q).limit(LIMIT),
@@ -50,9 +50,9 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
     {
       type: "npc",
       label: "NPCs",
-      items: ((npcsRes.data ?? []) as { id: string; name: string }[]).map((r) => ({
+      items: ((npcsRes.data ?? []) as { id: string; name: string; disguise_name: string | null }[]).map((r) => ({
         id: r.id,
-        name: r.name,
+        name: r.disguise_name ? `${r.name} (${r.disguise_name})` : r.name,
         route: `/npcs/${r.id}`,
       })),
     },
