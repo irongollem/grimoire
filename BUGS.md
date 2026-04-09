@@ -2,6 +2,8 @@
 
 ## Done
 
+- [x] Player portal showed NPCs' true identity instead of their disguise — `PlayerNpcCard`, `PlayerLocationsView`, `PlayerFactionsView`, and `PlayerPartyView` all used `npc.name` / `npc.portrait_url` directly without checking the alter ego fields; fixed by resolving `displayName`, `displayPortrait`, and `displayFocalPoint` from `disguise_name` / `disguise_portrait_url` when `is_revealed = false`; faction Supabase query also updated to select the three disguise columns it was missing
+
 - [x] `EquipSlotRow` label overflow at narrow widths — long item names (e.g. "Wand of the War Mage +1") caused the button to exceed its container at ~648–710px viewport widths; the `truncate` class was already present but `min-w-0` was missing from the `flex-1` span, preventing flex shrink from kicking in; fixed by adding `min-w-0` (`src/components/inventory/EquipSlotRow.vue`)
 
 - [x] `FocalImage` focal point ignored in overflow-clipped containers — when `max-h-*` was applied without an explicit height, `h-full` on the inner elements resolved to `auto`, so `object-fit: cover` + `object-position` had no effect and the image showed its natural top; fixed in `FocalImage.vue` by detecting the clipped case (`renderedH > containerH + 2`) and switching to `translateY` positioning so the focal point is always centred in the visible strip

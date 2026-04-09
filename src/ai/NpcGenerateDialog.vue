@@ -30,6 +30,20 @@
         />
       </div>
 
+      <!-- Alter ego toggle -->
+      <div class="rounded-md border border-border bg-muted/30 px-3 py-2.5 flex flex-col gap-1.5">
+        <label class="flex items-center gap-2.5 cursor-pointer">
+          <input type="checkbox" v-model="generateAlterEgo" :disabled="isGenerating" class="rounded accent-primary" />
+          <span class="font-cinzel text-[11px] font-semibold tracking-wider text-foreground">Generate Alter Ego</span>
+        </label>
+        <p v-if="generateAlterEgo" class="font-fell text-[11px] text-amber-500 italic">
+          ⚠ Uses 2× generation credits — a true-form portrait is generated first, then used as seed for the disguise portrait.
+        </p>
+        <p v-else class="font-fell text-[11px] text-muted-foreground italic">
+          Also generate a disguised identity (name + portrait) for this NPC.
+        </p>
+      </div>
+
       <!-- Error -->
       <div v-if="error" class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2">
         <p class="font-fell text-xs text-destructive">{{ error }}</p>
@@ -83,11 +97,17 @@ const emit = defineEmits<{
 }>();
 
 const prompt = ref("");
+const generateAlterEgo = ref(false);
 const { isGenerating, error, generate } = useNpcGeneration();
 
 async function run() {
   if (!prompt.value.trim()) return;
-  const result = await generate(props.apiKey, props.settingPrompt, prompt.value.trim());
+  const result = await generate(
+    props.apiKey,
+    props.settingPrompt,
+    prompt.value.trim(),
+    { generateAlterEgo: generateAlterEgo.value },
+  );
   if (result) emit("generated", result);
 }
 </script>

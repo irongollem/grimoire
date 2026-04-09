@@ -1,6 +1,6 @@
 <template>
   <PageHeader
-    :title="npc?.name ?? 'New NPC'"
+    :title="displayName"
     :description="npc ? subtitle : 'Fill in the details below to add a new NPC to your realm'"
   >
     <template v-if="!isNewNpc" #actions>
@@ -78,5 +78,11 @@ const isLoading = computed(() => !isNewNpc.value && npcLoading.value);
 const subtitle = computed(() => {
   if (!npc.value) return "";
   return [npc.value.race, npc.value.occupation].filter(Boolean).join(" · ");
+});
+
+const displayName = computed(() => {
+  if (!npc.value) return "New NPC";
+  const concealed = !!(npc.value.disguise_name || npc.value.disguise_portrait_url) && !npc.value.is_revealed;
+  return concealed && npc.value.disguise_name ? npc.value.disguise_name : npc.value.name;
 });
 </script>

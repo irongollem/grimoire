@@ -256,12 +256,12 @@
       <div v-if="selectedNpc" class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" @click.self="closeNpc">
         <div class="bg-card rounded-xl border border-border w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
           <div class="relative shrink-0">
-            <div v-if="selectedNpc.player_visible_fields.includes('portrait') && selectedNpc.portrait_url" class="w-full h-72 overflow-hidden">
+            <div v-if="selectedNpc.player_visible_fields.includes('portrait') && selectedNpcDisplay.portrait" class="w-full h-72 overflow-hidden">
               <FocalImage
-                :src="selectedNpc.portrait_url"
-                :alt="selectedNpc.player_visible_fields.includes('name') ? selectedNpc.name : '???'"
+                :src="selectedNpcDisplay.portrait!"
+                :alt="selectedNpc.player_visible_fields.includes('name') ? selectedNpcDisplay.name : '???'"
                 format="portrait"
-                :focal-point="selectedNpc.portrait_focal_point"
+                :focal-point="selectedNpcDisplay.focalPoint"
               />
             </div>
             <button class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors" @click="closeNpc">
@@ -272,7 +272,7 @@
             <div>
               <div class="flex items-start justify-between gap-3">
                 <h2 class="font-cinzel text-lg font-bold text-foreground">
-                  {{ selectedNpc.player_visible_fields.includes('name') ? selectedNpc.name : '???' }}
+                  {{ selectedNpc.player_visible_fields.includes('name') ? selectedNpcDisplay.name : '???' }}
                 </h2>
                 <div class="flex items-center gap-0.5 shrink-0 pt-1" @click.stop>
                   <button
@@ -401,6 +401,7 @@ import PlayerNpcCard from "@/components/play/PlayerNpcCard.vue";
 import { COMPANION_TYPE_LABELS, COMPANION_TYPE_COLORS } from "@/types/companion.types";
 import type { Companion } from "@/types/companion.types";
 import type { PartyMember } from "@/types/party.types";
+import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
 import type { Npc, NpcRelationship, NpcStatus } from "@/types/npc.types";
 
 const auth = useAuthStore();
@@ -473,7 +474,7 @@ const filteredNpcs = computed(() => {
   if (q) {
     list = list.filter((npc) => {
       const parts: string[] = [];
-      if (npc.player_visible_fields.includes("name")) parts.push(npc.name.toLowerCase());
+      if (npc.player_visible_fields.includes("name")) parts.push(getNpcDisplayName(npc).toLowerCase());
       if (npc.player_visible_fields.includes("race") && npc.race) parts.push(npc.race.toLowerCase());
       if (npc.player_visible_fields.includes("occupation") && npc.occupation) parts.push(npc.occupation.toLowerCase());
       return parts.some((p) => p.includes(q));
@@ -513,6 +514,11 @@ function closeMember() {
 // ── NPC lightbox ─────────────────────────────────────────────────────────────
 const selectedNpc = ref<Npc | null>(null);
 const selectedNpcId = computed(() => selectedNpc.value?.id ?? "");
+const selectedNpcDisplay = computed(() => ({
+  name: selectedNpc.value ? getNpcDisplayName(selectedNpc.value) : "???",
+  portrait: selectedNpc.value ? getNpcDisplayPortrait(selectedNpc.value) : null,
+  focalPoint: selectedNpc.value ? getNpcDisplayFocalPoint(selectedNpc.value) : null,
+}));
 const { data: myNpcPcNote } = useMyNpcPcNote(selectedNpcId);
 
 function openNpc(npc: Npc) {

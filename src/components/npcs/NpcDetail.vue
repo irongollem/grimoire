@@ -32,6 +32,16 @@
           @update:shared-with-all="form.shared_with_players = $event"
           @update:visible-to="form.player_visible_to = $event"
         />
+        <!-- Reveal / Conceal alter ego toggle -->
+        <button
+          v-if="npc?.id && (form.disguise_name || form.disguise_portrait_url)"
+          type="button"
+          class="flex items-center gap-1.5 px-2.5 py-1.5 font-cinzel text-[10px] font-semibold tracking-wider rounded border transition-colors"
+          :class="form.is_revealed
+            ? 'border-amber-500/50 text-amber-500 bg-amber-500/10 hover:bg-amber-500/20'
+            : 'border-border text-muted-foreground hover:border-foreground/40'"
+          @click="form.is_revealed = !form.is_revealed"
+        >{{ form.is_revealed ? '✦ Revealed' : '◈ Concealed' }}</button>
         <button
           v-if="aiApiKey"
           type="button"
@@ -86,15 +96,39 @@
     <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
       <!-- ── Left: portrait + meta ────────────────────────────────── -->
       <div class="space-y-4">
-        <!-- Portrait -->
-        <ImageUpload
-          :model-value="form.portrait_url || null"
-          :focal-point="form.portrait_focal_point"
-          bucket="npc-portraits"
-          show-focal-point
-          @update:model-value="form.portrait_url = $event ?? ''"
-          @update:focal-point="form.portrait_focal_point = $event"
-        />
+        <!-- Portrait (tabbed: True Form / Alter Ego) -->
+        <div class="flex flex-col gap-0">
+          <div class="flex border-b border-border">
+            <button
+              v-for="tab in (['true-form', 'alter-ego'] as const)"
+              :key="tab"
+              type="button"
+              class="px-3 py-1.5 font-cinzel text-[11px] font-semibold tracking-wider border-b-2 transition-colors"
+              :class="artTab === tab
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'"
+              @click="artTab = tab"
+            >{{ tab === 'true-form' ? 'True Form' : 'Alter Ego' }}</button>
+          </div>
+          <ImageUpload
+            v-if="artTab === 'true-form'"
+            :model-value="form.portrait_url || null"
+            :focal-point="form.portrait_focal_point"
+            bucket="npc-portraits"
+            show-focal-point
+            @update:model-value="form.portrait_url = $event ?? ''"
+            @update:focal-point="form.portrait_focal_point = $event"
+          />
+          <ImageUpload
+            v-else
+            :model-value="form.disguise_portrait_url || null"
+            :focal-point="form.disguise_portrait_focal_point"
+            bucket="npc-portraits"
+            show-focal-point
+            @update:model-value="form.disguise_portrait_url = $event ?? ''"
+            @update:focal-point="form.disguise_portrait_focal_point = $event"
+          />
+        </div>
 
         <!-- Party Stance (was RELATIONSHIP) -->
         <div>
@@ -129,6 +163,7 @@
           <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">TAGS</p>
           <TagInput v-model="form.tags" />
         </div>
+
       </div>
 
       <!-- ── Right: form sections ──────────────────────────────────── -->
@@ -142,6 +177,14 @@
             <div class="sm:col-span-2">
               <label class="field-label">Name *</label>
               <input v-model="form.name" required placeholder="Full name…" class="field-input" />
+            </div>
+            <div class="sm:col-span-2">
+              <label class="field-label">Disguise Name <span class="font-normal text-muted-foreground/60">(alter ego)</span></label>
+              <input
+                v-model="form.disguise_name"
+                placeholder="Melisande the Miller's Wife…"
+                class="field-input"
+              />
             </div>
             <div>
               <label class="field-label">Race</label>
@@ -472,6 +515,9 @@ const isSendingToScriptorium = ref(false)
 
 const activeTab = ref<TabKey>('lore')
 const showGenerateDialog = ref(false)
+const artTab = ref<'true-form' | 'alter-ego'>(
+  props.npc?.disguise_name || props.npc?.disguise_portrait_url ? 'alter-ego' : 'true-form'
+)
 
 const aiApiKey = computed(() => campaign.decryptedApiKey)
 const aiSettingPrompt = computed(() => campaign.activeCampaign?.ai_setting_prompt ?? '')
@@ -493,6 +539,14 @@ function onAiGenerated(result: NpcAiGenerated) {
   if (result.portrait_url) {
     form.portrait_url = result.portrait_url
     form.portrait_focal_point = null
+  }
+  if (result.disguise_portrait_url) {
+    form.disguise_portrait_url = result.disguise_portrait_url
+    form.disguise_portrait_focal_point = null
+    artTab.value = 'alter-ego'
+  }
+  if (result.disguise_name) {
+    form.disguise_name = result.disguise_name
   }
   // Jump to Lore tab so the DM can see the filled fields
   activeTab.value = 'lore'
@@ -602,6 +656,10 @@ const form = reactive<NpcInsert>({
   status: props.npc?.status ?? 'alive',
   relationship: props.npc?.relationship ?? 'neutral',
   portrait_url: props.npc?.portrait_url ?? null,
+  disguise_name: props.npc?.disguise_name ?? null,
+  disguise_portrait_url: props.npc?.disguise_portrait_url ?? null,
+  disguise_portrait_focal_point: props.npc?.disguise_portrait_focal_point ?? null,
+  is_revealed: props.npc?.is_revealed ?? false,
   tags: [...(props.npc?.tags ?? [])],
   stat_block: props.npc?.stat_block ?? null,
   linked_monster_id: props.npc?.linked_monster_id ?? null,

@@ -133,7 +133,7 @@
                 class="flex items-center gap-2 rounded border border-border bg-muted/30 px-3 py-2"
               >
                 <div class="flex-1 min-w-0">
-                  <p class="font-cinzel text-xs font-semibold text-foreground truncate">{{ npc.name }}</p>
+                  <p class="font-cinzel text-xs font-semibold text-foreground truncate">{{ getNpcDisplayName(npc) }}</p>
                   <p v-if="npc.occupation || npc.race" class="font-fell text-xs text-muted-foreground italic truncate">
                     {{ [npc.race, npc.occupation].filter(Boolean).join(" · ") }}
                   </p>
@@ -228,6 +228,7 @@ import { ref, computed, nextTick } from "vue";
 import { ChevronDown, X, Eye } from "lucide-vue-next";
 import { useSharedLocations } from "@/composables/useLocations";
 import { useSharedNpcsByLocations } from "@/composables/useNpcs";
+import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS, STORE_LOCATION_TYPES } from "@/types/location.types";
 import type { Location, LocationType } from "@/types/location.types";
 

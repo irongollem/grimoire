@@ -3,9 +3,9 @@
     <!-- Col 1 / top: portrait + badges, never scrolls on desktop -->
     <div class="flex flex-col gap-3 lg:w-52 lg:shrink-0 lg:pb-6">
       <FocalImage
-        v-if="npc.portrait_url"
-        :src="npc.portrait_url"
-        :focal-point="npc.portrait_focal_point"
+        v-if="displayPortrait"
+        :src="displayPortrait"
+        :focal-point="displayFocalPoint"
         format="portrait"
         class="w-full rounded-lg overflow-hidden max-h-80 lg:max-h-none lg:flex-1 lg:min-h-0"
       />
@@ -15,6 +15,27 @@
       </div>
       <div v-if="npc.tags?.length" class="flex flex-wrap gap-1">
         <span v-for="tag in npc.tags" :key="tag" class="font-cinzel text-[10px] tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5">{{ tag }}</span>
+      </div>
+
+      <!-- Alter ego reveal control (DM only — always visible in the sheet) -->
+      <div v-if="hasDisguise" class="pt-1 border-t border-border/50">
+        <p class="font-cinzel text-[10px] tracking-widest text-muted-foreground mb-1.5">ALTER EGO</p>
+        <div class="flex flex-col gap-1.5">
+          <p class="font-fell text-xs text-muted-foreground italic">
+            {{ npc.is_revealed ? `True form revealed` : `Disguised as ${npc.disguise_name || 'unknown'}` }}
+          </p>
+          <button
+            type="button"
+            :disabled="isToggling"
+            class="w-full py-1 font-cinzel text-[10px] font-semibold tracking-wider rounded border transition-colors disabled:opacity-50"
+            :class="npc.is_revealed
+              ? 'border-border text-muted-foreground hover:border-foreground/40'
+              : 'border-amber-500/50 text-amber-500 bg-amber-500/10 hover:bg-amber-500/20'"
+            @click="toggleReveal"
+          >
+            {{ isToggling ? '…' : (npc.is_revealed ? '◈ Conceal' : '✦ Reveal') }}
+          </button>
+        </div>
       </div>
     </div>
 
@@ -26,9 +47,33 @@
 </template>
 
 <script setup lang="ts">
+import { computed, ref } from "vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import NpcTabContent from "@/components/npcs/NpcTabContent.vue";
+import { useUpdateNpc } from "@/composables/useNpcs";
+import { getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
 import type { Npc } from "@/types/npc.types";
 
-defineProps<{ npc: Npc }>();
+const props = defineProps<{ npc: Npc }>();
+
+const hasDisguise = computed(() =>
+  !!(props.npc.disguise_name || props.npc.disguise_portrait_url)
+);
+
+const displayPortrait = computed(() => getNpcDisplayPortrait(props.npc));
+const displayFocalPoint = computed(() => getNpcDisplayFocalPoint(props.npc));
+
+// Quick reveal/conceal toggle — saves immediately without opening edit mode
+const { mutateAsync: updateNpc } = useUpdateNpc();
+const isToggling = ref(false);
+
+async function toggleReveal() {
+  if (isToggling.value) return;
+  isToggling.value = true;
+  try {
+    await updateNpc({ id: props.npc.id, update: { is_revealed: !props.npc.is_revealed } });
+  } finally {
+    isToggling.value = false;
+  }
+}
 </script>

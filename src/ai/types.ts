@@ -19,10 +19,16 @@ export interface NpcAiResult {
   tags: string[];
   /** NPC-specific subject description for image generation */
   image_prompt: string;
+  /** Populated when alter ego was requested — describes the disguise appearance */
+  disguise_image_prompt?: string;
+  /** AI-suggested name for the NPC's disguise */
+  disguise_name?: string;
 }
 
 export interface NpcAiGenerated extends NpcAiResult {
   portrait_url: string | null;
+  /** Populated when alter ego generation was requested */
+  disguise_portrait_url?: string | null;
 }
 
 export interface MonsterAiResult {

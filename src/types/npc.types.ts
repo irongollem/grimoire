@@ -125,6 +125,11 @@ export interface Npc {
   portrait_url: string | null; // tall profile image
   card_art_url: string | null; // landscape art for MTG Card Forge
   portrait_focal_point?: { x: number; y: number } | null; // manual override for FocalImage (0–100 percentages)
+  // Alter ego / disguise: false identity shown to players until revealed
+  disguise_name: string | null;
+  disguise_portrait_url: string | null;
+  disguise_portrait_focal_point?: { x: number; y: number } | null;
+  is_revealed: boolean;
   tags: string[];
   stat_block: StatBlock | null;
   linked_monster_id: string | null; // links to a Bestiary monster (monstrous NPC)

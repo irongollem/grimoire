@@ -164,11 +164,11 @@ export function usePlayerFactionNpcs(factionId: Ref<string>, enabled: Ref<boolea
     queryFn: async () => {
       const { data, error } = await supabase
         .from("faction_npcs")
-        .select("*, npc:npcs(id, name, occupation, race)")
+        .select("*, npc:npcs(id, name, occupation, race, disguise_name, disguise_portrait_url, is_revealed)")
         .eq("faction_id", factionId.value)
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return data as (FactionNpc & { npc: Pick<Npc, "id" | "name" | "occupation" | "race"> })[];
+      return data as (FactionNpc & { npc: Pick<Npc, "id" | "name" | "occupation" | "race" | "disguise_name" | "disguise_portrait_url" | "is_revealed"> })[];
     },
     enabled: computed(() => !!factionId.value && enabled.value),
   });

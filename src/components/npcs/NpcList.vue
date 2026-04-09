@@ -47,11 +47,11 @@
         <!-- Thumbnail (landscape) -->
         <div class="relative h-36 bg-muted overflow-hidden shrink-0">
           <FocalImage
-            v-if="npc.portrait_url"
-            :src="npc.portrait_url"
-            :alt="npc.name"
+            v-if="getNpcDisplayPortrait(npc)"
+            :src="getNpcDisplayPortrait(npc)!"
+            :alt="getNpcDisplayName(npc)"
             format="landscape"
-            :focal-point="npc.portrait_focal_point"
+            :focal-point="getNpcDisplayFocalPoint(npc)"
             class="group-hover:scale-105 transition-transform duration-300"
           />
           <div
@@ -62,7 +62,7 @@
               color: relColor(npc.relationship),
             }"
           >
-            {{ initials(npc.name) }}
+            {{ initials(getNpcDisplayName(npc)) }}
           </div>
           <span
             class="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] font-cinzel font-bold tracking-wider uppercase text-white"
@@ -78,7 +78,7 @@
             <h3
               class="font-cinzel text-sm font-bold text-foreground leading-tight line-clamp-1 flex-1"
             >
-              {{ npc.name }}
+              {{ getNpcDisplayName(npc) }}
             </h3>
             <span
               :title="npc.status"
@@ -231,6 +231,7 @@ import { useAllLocations, useLocationTree } from "@/composables/useLocations";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
 import type { Npc, NpcRelationship, NpcStatus } from "@/types/npc.types";
 
 const props = defineProps<{
@@ -305,6 +306,7 @@ const filtered = computed(() => {
 });
 
 const { visibleItems, sentinelRef } = useInfiniteScroll(filtered);
+
 
 function initials(name: string): string {
   return name

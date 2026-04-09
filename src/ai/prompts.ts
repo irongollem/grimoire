@@ -20,6 +20,17 @@ Generate a detailed NPC based on the dungeon master's description. Return a sing
 
 Return only the JSON object. No markdown fences, no explanation.`;
 
+/**
+ * Appended to NPC_SYSTEM_PROMPT when the DM requests alter ego generation.
+ * Instructs the model to add two extra fields describing the disguise identity.
+ */
+export const ALTER_EGO_PROMPT_ADDON = `
+
+Additionally, this NPC has a disguise — a false identity they present to the world. Add two extra fields to your JSON:
+
+"disguise_name": "A plausible false name used in disguise — full first and last name, matching the species and setting",
+"disguise_image_prompt": "How this NPC looks while in disguise. Same format as image_prompt but describe the altered appearance: different clothing, hairstyle, colour, accessories — but keep underlying bone structure and facial proportions consistent so the same face is recognisable under different styling. The subject should look believably unrelated to their true form at a glance."`;
+
 export const MONSTER_SYSTEM_PROMPT = `You are a creative assistant for Dungeons & Dragons 5e campaign management.
 
 Generate a detailed monster stat block based on the dungeon master's description. Return a single JSON object with exactly these fields:

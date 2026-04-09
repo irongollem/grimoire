@@ -213,6 +213,20 @@
           </div>
         </div>
 
+        <!-- Alter ego toggle -->
+        <div v-if="aiApiKey" class="rounded-md border border-border bg-muted/30 px-3 py-2.5 flex flex-col gap-1.5">
+          <label class="flex items-center gap-2.5 cursor-pointer">
+            <input type="checkbox" v-model="generateAlterEgo" class="rounded accent-primary" />
+            <span class="font-cinzel text-[11px] font-semibold tracking-wider text-foreground">Generate Alter Ego</span>
+          </label>
+          <p v-if="generateAlterEgo" class="font-fell text-[11px] text-amber-500 italic">
+            ⚠ Uses 2× generation credits — a true-form portrait is generated first, then used as seed for the disguise portrait.
+          </p>
+          <p v-else class="font-fell text-[11px] text-muted-foreground italic">
+            Also generate a disguised identity (name + portrait) for this NPC.
+          </p>
+        </div>
+
         <!-- No API key nudge -->
         <div
           v-if="!aiApiKey"
@@ -456,6 +470,7 @@ async function generateAndCreate() {
     aiApiKey.value,
     aiSettingPrompt.value,
     buildAiPrompt(),
+    { generateAlterEgo: generateAlterEgo.value },
   );
   if (!result) return;
 
@@ -479,6 +494,10 @@ async function generateAndCreate() {
     portrait_url: result.portrait_url ?? null,
     card_art_url: null,
     portrait_focal_point: null,
+    disguise_name: result.disguise_name ?? null,
+    disguise_portrait_url: result.disguise_portrait_url ?? null,
+    disguise_portrait_focal_point: null,
+    is_revealed: false,
     tags: result.tags ?? [],
     stat_block: tpl?.stat_block ?? null,
     location_id: quickForm.location_id,
@@ -501,6 +520,7 @@ async function generateAndCreate() {
 }
 
 const concept = ref("");
+const generateAlterEgo = ref(false);
 const quickForm = reactive({
   name: "",
   race: "",
@@ -553,6 +573,10 @@ async function quickCreate() {
     stat_block: tpl?.stat_block ?? null,
     location_id: quickForm.location_id,
     scriptorium_doc_id: null,
+    disguise_name: null,
+    disguise_portrait_url: null,
+    disguise_portrait_focal_point: null,
+    is_revealed: false,
     shared_with_players: false,
     player_visible_fields: [],
   };
