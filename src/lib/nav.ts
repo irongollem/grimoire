@@ -19,6 +19,7 @@ import {
   Crosshair,
   Puzzle,
   Crown,
+  DoorOpen,
 } from "lucide-vue-next";
 import type { Component } from "vue";
 
@@ -154,6 +155,12 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/puzzles",
         icon: Puzzle,
         description: "Puzzle rooms, riddles & conundrums",
+      },
+      {
+        label: "Dungeon Craft",
+        to: "/dungeon-features",
+        icon: DoorOpen,
+        description: "Secret doors, hidden passages & concealed treasures",
       },
       {
         label: "Hall of Heroes",

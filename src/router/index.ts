@@ -322,6 +322,26 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Trap" },
     },
 
+    // Dungeon Craft (dungeon features)
+    {
+      path: "/dungeon-features",
+      name: "dungeon-features",
+      component: () => import("@/views/dungeon-features/DungeonFeaturesView.vue"),
+      meta: { requiresAuth: true, title: "Dungeon Craft" },
+    },
+    {
+      path: "/dungeon-features/new",
+      name: "dungeon-feature-new",
+      component: () => import("@/views/dungeon-features/DungeonFeatureDetailView.vue"),
+      meta: { requiresAuth: true, title: "New Dungeon Feature" },
+    },
+    {
+      path: "/dungeon-features/:id",
+      name: "dungeon-feature-detail",
+      component: () => import("@/views/dungeon-features/DungeonFeatureDetailView.vue"),
+      meta: { requiresAuth: true, title: "Dungeon Feature" },
+    },
+
     // Puzzles (Enigmarium)
     {
       path: "/puzzles",
