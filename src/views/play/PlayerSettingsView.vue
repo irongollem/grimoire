@@ -318,6 +318,35 @@
       </div>
     </section>
 
+    <!-- Keep screen awake -->
+    <section v-if="wakeLockSupported" class="rounded-lg border border-border bg-card p-5 space-y-4">
+      <div>
+        <h2 class="font-cinzel text-sm font-semibold text-foreground tracking-wide">Screen</h2>
+        <p class="font-fell text-xs text-muted-foreground italic mt-1">
+          Useful during long sessions on a tablet.
+        </p>
+      </div>
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="font-cinzel text-xs text-foreground tracking-wide">Keep screen awake</p>
+          <p class="font-fell text-xs text-muted-foreground italic">Prevents your device from sleeping while this page is open.</p>
+        </div>
+        <button
+          type="button"
+          class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200"
+          :class="wakeLockEnabled ? 'bg-primary' : 'bg-muted'"
+          role="switch"
+          :aria-checked="wakeLockEnabled"
+          @click="toggleWakeLock"
+        >
+          <span
+            class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200"
+            :class="wakeLockEnabled ? 'translate-x-5' : 'translate-x-0'"
+          />
+        </button>
+      </div>
+    </section>
+
     <!-- Account info (read-only) -->
     <section class="rounded-lg border border-border bg-card p-5 space-y-2">
       <h2 class="font-cinzel text-sm font-semibold text-foreground tracking-wide">Account</h2>
@@ -341,8 +370,10 @@ import { ref, computed, onBeforeUnmount } from "vue";
 import { RouterLink } from "vue-router";
 import { CalendarCheck, Check, Download, GripVertical, Save, User, X } from "lucide-vue-next";
 import { usePwaInstall } from "@/composables/usePwaInstall";
+import { useWakeLock } from "@/composables/useWakeLock";
 
 const { canInstall, hasNativePrompt, install } = usePwaInstall();
+const { enabled: wakeLockEnabled, isSupported: wakeLockSupported, toggle: toggleWakeLock } = useWakeLock();
 import { usePlayerNavPrefs } from "@/composables/usePlayerNavPrefs";
 import { usePlayerCombatPrefs } from "@/composables/usePlayerCombatPrefs";
 import { MOBILE_NAV_SLOTS } from "@/lib/playerNav";
