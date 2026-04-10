@@ -1,6 +1,31 @@
 <template>
   <PageHeader title="Campaign Dashboard" description="Your realm at a glance">
     <div class="flex flex-col gap-6">
+      <!-- PWA install banner -->
+      <div
+        v-if="canInstall"
+        class="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3"
+      >
+        <Download class="h-4 w-4 text-primary shrink-0" />
+        <div class="flex-1 min-w-0">
+          <p class="font-cinzel text-sm font-semibold text-foreground">Install Grimoire</p>
+          <p class="font-fell text-xs text-muted-foreground italic">Add to your home screen for quick access</p>
+        </div>
+        <button
+          class="font-cinzel text-xs font-semibold text-primary border border-primary/50 rounded-md px-3 py-1.5 hover:bg-primary/10 transition-colors cursor-pointer shrink-0"
+          @click="install"
+        >
+          Install
+        </button>
+        <button
+          class="text-muted-foreground hover:text-foreground transition-colors cursor-pointer shrink-0"
+          aria-label="Dismiss"
+          @click="dismiss"
+        >
+          <X class="h-4 w-4" />
+        </button>
+      </div>
+
       <!-- Stat cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
@@ -307,8 +332,11 @@
 import { computed, ref } from "vue";
 import {
   BookOpen, Shield, Users, Swords, MapPin, ScrollText,
-  ChevronRight, Pin, Eye, Brain, Radio, ChevronDown,
+  ChevronRight, Pin, Eye, Brain, Radio, ChevronDown, Download, X,
 } from "lucide-vue-next";
+import { usePwaInstall } from "@/composables/usePwaInstall";
+
+const { canInstall, install, dismiss } = usePwaInstall();
 import { useRunningEncounters } from "@/composables/useEncounterLive";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
