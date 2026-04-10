@@ -5,6 +5,11 @@ import router from "./router";
 import App from "./App.vue";
 
 import "./assets/main.css";
+import { captureInstallPrompt } from "./composables/usePwaInstall";
+import { onWakeLockVisibilityChange } from "./composables/useWakeLock";
+
+window.addEventListener("beforeinstallprompt", captureInstallPrompt, { once: true });
+document.addEventListener("visibilitychange", onWakeLockVisibilityChange);
 
 // networkMode: 'always' prevents TanStack Query from pausing mutations/queries
 // when the browser briefly reports "offline" on tab focus after sleep/switch.
