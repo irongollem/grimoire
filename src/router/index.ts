@@ -302,13 +302,18 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Item" },
     },
 
-    // Traps (Traproom)
+    // Dungeon Craft (tabbed hub: features + traps + puzzles)
     {
-      path: "/traps",
-      name: "traps",
-      component: () => import("@/views/traps/TrapsView.vue"),
-      meta: { requiresAuth: true, title: "Traproom" },
+      path: "/dungeon-craft",
+      name: "dungeon-craft",
+      component: () => import("@/views/dungeon-features/DungeonCraftView.vue"),
+      meta: { requiresAuth: true, title: "Dungeon Craft" },
     },
+    { path: "/dungeon-features", redirect: "/dungeon-craft" },
+    { path: "/traps",            redirect: { path: "/dungeon-craft", query: { tab: "traps" } } },
+    { path: "/puzzles",          redirect: { path: "/dungeon-craft", query: { tab: "puzzles" } } },
+
+    // Trap detail
     {
       path: "/traps/new",
       name: "trap-new",
@@ -322,13 +327,7 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Trap" },
     },
 
-    // Dungeon Craft (dungeon features)
-    {
-      path: "/dungeon-features",
-      name: "dungeon-features",
-      component: () => import("@/views/dungeon-features/DungeonFeaturesView.vue"),
-      meta: { requiresAuth: true, title: "Dungeon Craft" },
-    },
+    // Dungeon feature detail
     {
       path: "/dungeon-features/new",
       name: "dungeon-feature-new",
@@ -342,13 +341,7 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Dungeon Feature" },
     },
 
-    // Puzzles (Enigmarium)
-    {
-      path: "/puzzles",
-      name: "puzzles",
-      component: () => import("@/views/puzzles/PuzzlesView.vue"),
-      meta: { requiresAuth: true, title: "Enigmarium" },
-    },
+    // Puzzle detail
     {
       path: "/puzzles/new",
       name: "puzzle-new",

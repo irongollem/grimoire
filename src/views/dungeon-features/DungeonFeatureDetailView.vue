@@ -275,7 +275,7 @@ async function save() {
     } else {
       await updateMut.mutateAsync({ id: id.value, update: { ...form.value } });
     }
-    router.push("/dungeon-features");
+    router.push("/dungeon-craft");
   } finally {
     saving.value = false;
   }
@@ -288,6 +288,6 @@ async function deleteFeature() {
   );
   if (!ok) return;
   await deleteMut.mutateAsync(id.value);
-  router.push("/dungeon-features");
+  router.push("/dungeon-craft");
 }
 </script>

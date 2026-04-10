@@ -83,11 +83,13 @@
           <!-- Alignment -->
           <div class="space-y-1">
             <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Alignment</label>
-            <input
+            <select
               v-model="form.alignment"
-              type="text"
               class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-            />
+            >
+              <option :value="null">—</option>
+              <option v-for="a in ALIGNMENTS" :key="a" :value="a">{{ a }}</option>
+            </select>
           </div>
 
           <!-- Occupation -->
@@ -127,13 +129,7 @@
           <!-- Tags -->
           <div class="space-y-1">
             <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Tags</label>
-            <input
-              :value="form.tags.join(', ')"
-              type="text"
-              placeholder="comma separated"
-              class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-              @input="form.tags = ($event.target as HTMLInputElement).value.split(',').map(t => t.trim()).filter(Boolean)"
-            />
+            <TagInput v-model="form.tags" />
           </div>
         </div>
 
@@ -173,7 +169,14 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import TagInput from "@/components/common/TagInput.vue";
 import type { HallOfHeroInsert } from "@/types/npc.types";
+
+const ALIGNMENTS = [
+  "Lawful Good", "Neutral Good", "Chaotic Good",
+  "Lawful Neutral", "True Neutral", "Chaotic Neutral",
+  "Lawful Evil", "Neutral Evil", "Chaotic Evil", "Unaligned",
+] as const;
 
 const SETTINGS = [
   { value: "faerun",      label: "Faerûn"      },

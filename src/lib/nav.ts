@@ -16,8 +16,6 @@ import {
   Hammer,
   Library,
   Landmark,
-  Crosshair,
-  Puzzle,
   Crown,
   DoorOpen,
 } from "lucide-vue-next";
@@ -145,22 +143,10 @@ export const NAV_GROUPS: NavGroup[] = [
         description: "Equipment & magic items",
       },
       {
-        label: "Traproom",
-        to: "/traps",
-        icon: Crosshair,
-        description: "Traps, hazards & dungeon dangers",
-      },
-      {
-        label: "Enigmarium",
-        to: "/puzzles",
-        icon: Puzzle,
-        description: "Puzzle rooms, riddles & conundrums",
-      },
-      {
         label: "Dungeon Craft",
-        to: "/dungeon-features",
+        to: "/dungeon-craft",
         icon: DoorOpen,
-        description: "Secret doors, hidden passages & concealed treasures",
+        description: "Secret doors, traps, hazards & dungeon enigmas",
       },
       {
         label: "Hall of Heroes",

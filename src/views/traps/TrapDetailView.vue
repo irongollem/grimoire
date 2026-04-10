@@ -853,7 +853,7 @@ async function save() {
     } else {
       await updateMut.mutateAsync({ id: id.value, update: payload });
     }
-    router.push("/traps");
+    router.push({ path: "/dungeon-craft", query: { tab: "traps" } });
   } finally {
     saving.value = false;
   }
@@ -870,6 +870,6 @@ async function deleteTrap() {
   );
   if (!ok) return;
   await deleteMut.mutateAsync(id.value);
-  router.push("/traps");
+  router.push({ path: "/dungeon-craft", query: { tab: "traps" } });
 }
 </script>

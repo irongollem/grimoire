@@ -653,7 +653,7 @@ async function save() {
     };
     if (isNew.value) {
       await createMutation.mutateAsync({ ...payload, campaign_id: null, is_shared: false, shared_hints: [], read_aloud: null });
-      router.push("/puzzles");
+      router.push({ path: "/dungeon-craft", query: { tab: "puzzles" } });
     } else {
       await updateMutation.mutateAsync({ id: id.value!, update: payload });
       mode.value = "view";
@@ -667,6 +667,6 @@ async function handleDelete() {
   if (!id.value) return;
   if (!confirm(`Delete "${form.name}"? This cannot be undone.`)) return;
   await deleteMutation.mutateAsync(id.value);
-  router.push("/puzzles");
+  router.push({ path: "/dungeon-craft", query: { tab: "puzzles" } });
 }
 </script>
