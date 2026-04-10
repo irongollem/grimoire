@@ -9,8 +9,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from "vue";
-import { useRoute } from "vue-router";
+import { computed, onMounted, onUnmounted, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AuthLayout from "@/layouts/AuthLayout.vue";
@@ -22,8 +22,22 @@ import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/auth";
 
 const auth = useAuthStore();
+const router = useRouter();
 
 useTheme().initTheme();
+
+// When the Supabase session expires mid-session (refresh token exhausted or
+// network failure), onAuthStateChange emits SIGNED_OUT and sets user to null.
+// The router guard only runs on navigation, so without this watcher the user
+// would stay on the current page with buttons silently failing (401s).
+watch(
+  () => auth.isAuthenticated,
+  (authenticated) => {
+    if (!authenticated && route.meta.requiresAuth) {
+      router.push({ name: "login", query: { redirect: route.fullPath } });
+    }
+  },
+);
 
 // refetchOnWindowFocus is disabled globally (main.ts) to prevent TanStack Query
 // from independently queuing DB calls behind the navigator.locks auth refresh on
