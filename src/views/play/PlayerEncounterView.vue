@@ -62,6 +62,87 @@
           </div>
         </div>
 
+        <!-- Wild Shape -->
+        <template v-if="isDruid || myPlayer?.wildshape">
+          <div class="rounded-lg border border-border bg-card overflow-hidden">
+            <!-- Active form banner -->
+            <template v-if="myPlayer?.wildshape">
+              <div class="flex items-center justify-between px-3 py-2 bg-primary/10 border-b border-border">
+                <span class="font-cinzel text-sm font-bold text-primary">🐺 {{ myPlayer.wildshape.beast_name }}</span>
+                <button
+                  type="button"
+                  class="font-cinzel text-[10px] px-2 py-1 rounded border border-border hover:border-destructive hover:text-destructive transition-colors"
+                  @click="doRevertWildshape"
+                >Revert Form</button>
+              </div>
+              <template v-if="wildshapeMonster">
+                <div class="flex gap-4 px-3 py-2">
+                  <div class="text-center">
+                    <p class="font-cinzel text-[9px] text-muted-foreground tracking-wider">AC</p>
+                    <p class="font-cinzel text-sm font-bold">{{ wildshapeMonster.stat_block?.armor_class }}</p>
+                  </div>
+                  <div class="text-center">
+                    <p class="font-cinzel text-[9px] text-muted-foreground tracking-wider">SPEED</p>
+                    <p class="font-cinzel text-sm font-bold">{{ wildshapeMonster.stat_block?.speed }}</p>
+                  </div>
+                </div>
+                <template v-for="section in wildshapeTraitSections" :key="section.label">
+                  <template v-if="section.traits?.length">
+                    <div class="border-t border-border px-3 py-2">
+                      <p class="font-cinzel text-[9px] tracking-wider text-muted-foreground mb-1.5">{{ section.label.toUpperCase() }}</p>
+                      <div v-for="t in section.traits" :key="t.name" class="mb-2 last:mb-0">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                          <span class="font-cinzel text-[10px] font-semibold">{{ t.name }}.</span>
+                          <button
+                            v-if="parseWsAttackBonus(t.description) !== null"
+                            type="button"
+                            class="font-cinzel text-[9px] px-1.5 py-0.5 rounded border border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition-colors"
+                          >⚔ {{ (parseWsAttackBonus(t.description) ?? 0) >= 0 ? '+' : '' }}{{ parseWsAttackBonus(t.description) ?? 0 }}</button>
+                        </div>
+                        <p class="font-fell text-[11px] text-muted-foreground leading-relaxed mt-0.5">{{ t.description }}</p>
+                      </div>
+                    </div>
+                  </template>
+                </template>
+              </template>
+            </template>
+
+            <!-- Picker (not currently wildshaped) -->
+            <template v-else-if="isDruid">
+              <div class="flex items-center justify-between px-3 py-2">
+                <div class="flex items-center gap-2">
+                  <span class="font-cinzel text-xs font-semibold">Wild Shape</span>
+                  <span class="font-fell text-[10px] text-muted-foreground">Max CR {{ wildshapeCrDisplay }}</span>
+                  <span v-if="isCircleOfMoon" class="font-cinzel text-[9px] tracking-wider px-1 py-0.5 rounded border border-primary/40 text-primary bg-primary/10">MOON</span>
+                </div>
+                <button
+                  type="button"
+                  class="font-cinzel text-[10px] px-2 py-1 rounded border border-border hover:border-primary hover:text-primary transition-colors"
+                  @click="showWildshapePicker = !showWildshapePicker"
+                >{{ showWildshapePicker ? 'Cancel' : '🐺 Choose Form' }}</button>
+              </div>
+              <template v-if="showWildshapePicker">
+                <p v-if="!wildshapeForms.length" class="font-fell text-xs text-muted-foreground italic px-3 pb-2">
+                  No eligible forms — discover beasts or ask your DM to pin forms.
+                </p>
+                <div v-else class="border-t border-border">
+                  <button
+                    v-for="m in wildshapeForms"
+                    :key="m.id"
+                    type="button"
+                    class="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-muted/30 transition-colors border-b border-border/50 last:border-0"
+                    @click="handleWildshape(m)"
+                  >
+                    <span class="font-cinzel text-xs font-semibold flex-1 min-w-0 truncate">{{ m.name }}</span>
+                    <span class="font-fell text-[10px] text-muted-foreground shrink-0">CR {{ m.stat_block?.challenge_rating }}</span>
+                    <span class="font-fell text-[10px] text-muted-foreground shrink-0">AC {{ m.stat_block?.armor_class }}</span>
+                  </button>
+                </div>
+              </template>
+            </template>
+          </div>
+        </template>
+
         <!-- Combatant list -->
         <div class="rounded-lg border border-border bg-card overflow-hidden">
           <template
@@ -252,17 +333,23 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { Swords } from "lucide-vue-next";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { liveState } from "@/composables/useEncounterLive";
 import type { RunCombatant, HealthVisibility } from "@/types/encounter.types";
+import type { Monster } from "@/types/monster.types";
 import PlayerCharacterView from "@/views/play/PlayerCharacterView.vue";
 import { usePlayerCombatPrefs } from "@/composables/usePlayerCombatPrefs";
 import { useTurnChime } from "@/composables/useTurnChime";
 import { useScreenShake } from "@/composables/useScreenShake";
+import { useAllMonsters } from "@/composables/useMonsters";
+import { useParty } from "@/composables/useParty";
+import { usePlayerDiscoveries } from "@/composables/useDiscoveredMonsters";
+import { usePinnedForms } from "@/composables/usePinnedForms";
+import { useEncounterRunStore } from "@/stores/encounterRun";
 
 const campaign = useCampaignStore();
 const auth = useAuthStore();
@@ -351,6 +438,119 @@ function hpLabel(c: RunCombatant): string {
   if (pct <= 0.5) return "Wounded";
   if (pct <= 0.75) return "Hurt";
   return "Healthy";
+}
+
+// ── Wild Shape ────────────────────────────────────────────────────────────────
+
+const runStore = useEncounterRunStore();
+const { data: allMonsters } = useAllMonsters();
+const { data: partyMembers } = useParty();
+const { data: discoveries } = usePlayerDiscoveries();
+const { data: pinnedForms } = usePinnedForms();
+
+const myMember = computed(() =>
+  partyMembers.value?.find((m) => m.id === myMemberId.value) ?? null,
+);
+
+const isDruid = computed(() =>
+  (myMember.value?.["class"] as string | null)?.toLowerCase().includes("druid") ?? false,
+);
+
+const isCircleOfMoon = computed(() =>
+  myMember.value?.subclass?.toLowerCase().includes("moon") ?? false,
+);
+
+function parseCr(cr: string | null | undefined): number {
+  if (!cr || cr === "0") return 0;
+  if (cr.includes("/")) {
+    const [n, d] = cr.split("/");
+    return Number(n) / Number(d);
+  }
+  return parseFloat(cr) || 0;
+}
+
+const wildshapeMaxCr = computed(() => {
+  const level = myMember.value?.level ?? 1;
+  if (isCircleOfMoon.value) return Math.max(1, Math.floor(level / 3));
+  return Math.max(0.125, Math.floor(level / 2) * 0.5);
+});
+
+const wildshapeCrDisplay = computed(() => {
+  const cr = wildshapeMaxCr.value;
+  if (cr === 0.125) return "1/8";
+  if (cr === 0.25) return "1/4";
+  if (cr === 0.5) return "1/2";
+  return String(cr);
+});
+
+const showWildshapePicker = ref(false);
+
+const wildshapeForms = computed<Monster[]>(() => {
+  if (!isDruid.value) return [];
+  const level = myMember.value?.level ?? 1;
+  const maxCr = wildshapeMaxCr.value;
+  const discoveredKeys = new Set<string>(
+    (discoveries.value ?? []).flatMap((d) => [d.monster_id, d.srd_slug].filter(Boolean) as string[]),
+  );
+  const pinnedKeys = new Set<string>(
+    (pinnedForms.value ?? []).map((p) => p.monster_id ?? p.srd_slug ?? "").filter(Boolean),
+  );
+  return (allMonsters.value ?? [])
+    .filter((m) => {
+      if (!discoveredKeys.has(m.id) && !pinnedKeys.has(m.id)) return false;
+      if ((m.monster_type ?? "").toLowerCase() !== "beast") return false;
+      if (parseCr(m.stat_block?.challenge_rating) > maxCr) return false;
+      if (level < 8) {
+        const speed = (m.stat_block?.speed ?? "").toLowerCase();
+        if (speed.includes("fly") || speed.includes("swim")) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => parseCr(a.stat_block?.challenge_rating) - parseCr(b.stat_block?.challenge_rating));
+});
+
+const wildshapeMonster = computed<Monster | null>(() => {
+  const ws = myPlayer.value?.wildshape;
+  if (!ws) return null;
+  return allMonsters.value?.find((m) => m.id === ws.monster_id) ?? null;
+});
+
+const wildshapeTraitSections = computed(() => {
+  const sb = wildshapeMonster.value?.stat_block;
+  if (!sb) return [];
+  return [
+    { label: "Special Abilities", traits: sb.special_abilities },
+    { label: "Actions", traits: sb.actions },
+    { label: "Bonus Actions", traits: sb.bonus_actions },
+    { label: "Reactions", traits: sb.reactions },
+  ].filter((s) => s.traits?.length);
+});
+
+function parseWsAttackBonus(desc: string): number | null {
+  const m = desc.match(/\+(\d+)\s+to\s+hit/i);
+  if (m) return parseInt(m[1], 10);
+  const m2 = desc.match(/-(\d+)\s+to\s+hit/i);
+  if (m2) return -parseInt(m2[1], 10);
+  return null;
+}
+
+function handleWildshape(monster: Monster) {
+  if (!myPlayer.value) return;
+  const sb = monster.stat_block;
+  const maxHp = parseInt(String(sb?.hit_points ?? "1").split(" ")[0], 10) || 1;
+  const ac = String(sb?.armor_class ?? "10");
+  runStore.enterWildshape(myPlayer.value.instance_id, {
+    id: monster.id,
+    name: monster.name,
+    max_hp: maxHp,
+    ac,
+  });
+  showWildshapePicker.value = false;
+}
+
+function doRevertWildshape() {
+  if (!myPlayer.value) return;
+  runStore.revertWildshape(myPlayer.value.instance_id);
 }
 </script>
 
