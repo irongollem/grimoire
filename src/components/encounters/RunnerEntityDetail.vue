@@ -1290,7 +1290,7 @@ function renderTraitDesc(desc: string): string {
 }
 
 .detail-portrait {
-  @apply w-full rounded-md object-cover mb-1;
+  @apply w-full rounded-md object-cover mb-1 overflow-hidden;
   max-height: 200px;
 }
 

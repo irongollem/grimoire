@@ -89,7 +89,7 @@
           >
             <span class="font-fell text-sm text-foreground">{{ monster.name }}</span>
             <span class="font-cinzel text-[10px] text-muted-foreground">
-              CR {{ monster.stat_block.challenge_rating }}
+              CR {{ monster.stat_block.challenge_rating }} · AC {{ monster.stat_block.armor_class }} · {{ monster.stat_block.speed }}
             </span>
           </button>
           <button
@@ -124,9 +124,17 @@
             <span class="font-cinzel text-sm font-semibold text-foreground line-clamp-1">
               {{ combatantLabel(entry) }}
             </span>
-            <span class="ml-2 font-cinzel text-[10px] text-muted-foreground">
-              {{ combatantCrLine(entry) }}
-            </span>
+            <div class="flex flex-wrap gap-x-2 gap-y-0">
+              <span class="font-cinzel text-[10px] text-muted-foreground">
+                {{ combatantCrLine(entry) }}
+              </span>
+              <span v-if="combatantAc(entry)" class="font-cinzel text-[10px] text-muted-foreground">
+                AC {{ combatantAc(entry) }}
+              </span>
+              <span v-if="combatantSpeed(entry)" class="font-cinzel text-[10px] text-muted-foreground">
+                {{ combatantSpeed(entry) }}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -273,6 +281,16 @@ function combatantCrLine(entry: CombatantDef): string {
   const cr = monsterCr(entry.monster_id);
   const xp = crXp(entry.monster_id) * entry.count;
   return `CR ${cr} · ${xp} XP`;
+}
+
+function combatantAc(entry: CombatantDef): number | null {
+  if (entry.npc_id) return npcMap.value.get(entry.npc_id)?.stat_block?.armor_class ?? null;
+  return monsterMap.value.get(entry.monster_id ?? "")?.stat_block?.armor_class ?? null;
+}
+
+function combatantSpeed(entry: CombatantDef): string | null {
+  if (entry.npc_id) return npcMap.value.get(entry.npc_id)?.stat_block?.speed ?? null;
+  return monsterMap.value.get(entry.monster_id ?? "")?.stat_block?.speed ?? null;
 }
 
 function factionColor(factionId: string): string {

@@ -8,6 +8,8 @@
 
 - [x] Campaign Dashboard — live stat cards, active quests, party at a glance (HP bars, passive scores, conditions/curses), pinned + recent notes
 - [x] PWA install support — `vite-plugin-pwa` generates a Workbox service worker; dashboard shows a dismissible install banner when the browser fires `beforeinstallprompt` (Chrome/Edge); event captured in `main.ts` before Vue mounts to avoid missing the early-fire
+- [x] PWA auto-reload on service worker update — `controllerchange` listener in `main.ts` reloads the page when a new SW takes control, so installed PWA users always run the latest version without manual reinstall
+- [x] Pull-to-refresh for iOS PWA — `usePullToRefresh` composable detects downward touch drag on any scroll-container-at-top, shows a themed indicator pill, and reloads on release past threshold; wired globally in `App.vue`; player settings also has an explicit "Reload app" button as fallback
 - [x] DM Notes tracker (Tiptap editor, categories, tags, pinning)
 - [x] Faerûn Calendar / timeline (Calendar of Harptos, adapter pattern for future settings)
 
@@ -64,7 +66,7 @@
 
 ### Encounters & Combat
 
-- [x] Encounters — builder (combatants + NPC combatants, factions, XP difficulty calculator with ally offset)
+- [x] Encounters — builder (combatants + NPC combatants, factions, XP difficulty calculator with ally offset); combatant entries and monster search results now show AC and Speed alongside CR/XP
 - [x] Encounter Runner — live combat with initiative, HP, conditions, death saves
 - [x] Encounter Runner — spawn monsters/NPCs mid-encounter via ⚔ SPAWN panel (EntityCombobox + faction + count, stacked with traps in shared sidebar column)
 - [x] Named curses in encounter runner (separate from flat conditions, syncs back to party on end combat)

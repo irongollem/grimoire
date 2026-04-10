@@ -123,7 +123,6 @@
           :to="item.to"
           class="sm:hidden flex flex-col items-center justify-center gap-0.5 flex-1 py-2.5 transition-colors"
           :class="isActive(item.to) ? 'text-primary' : 'text-muted-foreground'"
-          @click="trackNav(item.to)"
         >
           <component :is="item.icon" class="h-5 w-5 shrink-0" />
           <span class="font-cinzel text-[9px] tracking-wider">{{ item.label }}</span>
@@ -136,7 +135,6 @@
           :to="item.to"
           class="hidden sm:flex flex-col items-center justify-center gap-0.5 flex-1 py-3 transition-colors"
           :class="isActive(item.to) ? 'text-primary' : 'text-muted-foreground'"
-          @click="trackNav(item.to)"
         >
           <component :is="item.icon" class="h-5 w-5 shrink-0" />
           <span class="font-cinzel text-[9px] tracking-wider">{{ item.label }}</span>
@@ -178,7 +176,7 @@
               :class="isActive(item.to)
                 ? 'bg-primary/15 text-primary'
                 : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'"
-              @click="trackNav(item.to); showMore = false"
+              @click="showMore = false"
             >
               <component :is="item.icon" class="h-5 w-5 shrink-0" />
               <span class="font-cinzel text-[9px] tracking-wider text-center leading-tight">{{ item.label }}</span>
@@ -266,7 +264,7 @@ const characterName = computed(() => {
   return partyMembers.value.find((m) => m.id === auth.linkedPartyMemberId)?.name ?? null;
 });
 
-const { sortedNav, trackNav } = usePlayerNavPrefs();
+const { sortedNav } = usePlayerNavPrefs();
 
 // Always keep Settings reachable in the quick bar — if it was dragged out of
 // the visible slots in custom mode, replace the last slot with it.

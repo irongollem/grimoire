@@ -26,6 +26,8 @@
 
 - [x] Chat message deletes not propagated in real-time — realtime subscription only registered `INSERT` and `UPDATE` handlers; `DELETE` events were ignored so other clients only saw deletions after a manual refresh; fixed by adding a `DELETE` postgres_changes handler that filters the message out of the local array (`src/composables/useCampaignMessages.ts`)
 
+- [x] Encounter runner monster stat block (AC, HP, Speed, CR) hidden behind portrait — `FocalImage` in clipped mode renders the `<img>` at natural height and relies on the caller to supply `overflow: hidden`; `.detail-portrait` was missing it so the image overflowed its 200px box and buried the stats grid; fixed by adding `overflow-hidden` to `.detail-portrait` in `RunnerEntityDetail.vue`
+
 - [x] Session expiry mid-session caused buttons to silently fail — when a player stayed on one page long enough for the Supabase refresh token to expire, `onAuthStateChange` emitted `SIGNED_OUT` and set `user` to null, but the router guard only runs on navigation so no redirect happened and subsequent button clicks failed silently with 401s; fixed by watching `auth.isAuthenticated` in `App.vue` and pushing to `/login?redirect=...` immediately when it drops on a protected route
 
 - [x] `encounter_state` live updates never reached player browsers — table was missing from the `supabase_realtime` publication (only `campaign_messages` had been added), so all UPDATE events (turn advance, HP change, visibility reveal) were silently dropped; fixed by adding the table to the publication and setting `REPLICA IDENTITY FULL` (migration `20260409000085_encounter_state_realtime.sql`)

@@ -11,6 +11,12 @@ import { onWakeLockVisibilityChange } from "./composables/useWakeLock";
 window.addEventListener("beforeinstallprompt", captureInstallPrompt, { once: true });
 document.addEventListener("visibilitychange", onWakeLockVisibilityChange);
 
+// When the service worker updates (autoUpdate mode), the new SW calls skipWaiting()
+// and fires controllerchange. Reload to pick up the new cached assets.
+navigator.serviceWorker?.addEventListener("controllerchange", () => {
+  window.location.reload();
+});
+
 // networkMode: 'always' prevents TanStack Query from pausing mutations/queries
 // when the browser briefly reports "offline" on tab focus after sleep/switch.
 //

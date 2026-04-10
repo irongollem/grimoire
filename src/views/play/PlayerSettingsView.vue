@@ -222,71 +222,36 @@
       <div>
         <h2 class="font-cinzel text-sm font-semibold text-foreground tracking-wide">Navigation</h2>
         <p class="font-fell text-xs text-muted-foreground italic mt-1">
-          Control which icons appear in your quick-access bar.
-        </p>
-      </div>
-
-      <!-- Mode toggle -->
-      <div class="flex items-center gap-3">
-        <button
-          type="button"
-          class="flex-1 rounded-md px-3 py-2 font-cinzel text-xs tracking-wider border transition-colors"
-          :class="navMode === 'dynamic'
-            ? 'border-primary/50 bg-primary/10 text-primary'
-            : 'border-border text-muted-foreground hover:border-primary/30'"
-          @click="setNavMode('dynamic')"
-        >
-          Dynamic
-        </button>
-        <button
-          type="button"
-          class="flex-1 rounded-md px-3 py-2 font-cinzel text-xs tracking-wider border transition-colors"
-          :class="navMode === 'custom'
-            ? 'border-primary/50 bg-primary/10 text-primary'
-            : 'border-border text-muted-foreground hover:border-primary/30'"
-          @click="setNavMode('custom')"
-        >
-          Custom
-        </button>
-      </div>
-
-      <p v-if="navMode === 'dynamic'" class="font-fell text-xs text-muted-foreground italic">
-        Your most-visited sections rise to the top. Needs roughly twice the visits to advance — small diffs won't shuffle icons around.
-      </p>
-
-      <!-- Custom order: drag-to-reorder list -->
-      <div v-else>
-        <p class="font-fell text-xs text-muted-foreground italic mb-3">
           Drag to reorder. The first 4 (or 7 on tablet) appear in the quick bar.
         </p>
-
-        <ol ref="dragListRef" class="space-y-1">
-          <li
-            v-for="(item, i) in sortedNav"
-            :key="item.to"
-            class="flex items-center gap-3 rounded-md border px-3 py-2 bg-card select-none transition-colors"
-            :class="{
-              'opacity-40': draggingIdx === i,
-              'border-primary/50': overIdx === i && draggingIdx !== null && draggingIdx !== i,
-              'border-border': !(overIdx === i && draggingIdx !== null && draggingIdx !== i),
-            }"
-          >
-            <!-- Drag handle -->
-            <span
-              class="cursor-grab active:cursor-grabbing text-muted-foreground touch-none"
-              @pointerdown.prevent="onHandlePointerDown(i, $event)"
-            >
-              <GripVertical class="h-4 w-4 shrink-0" />
-            </span>
-            <component :is="item.icon" class="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span class="font-cinzel text-xs tracking-wider flex-1">{{ item.label }}</span>
-            <span
-              v-if="i < MOBILE_NAV_SLOTS"
-              class="font-cinzel text-[9px] tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary shrink-0"
-            >bar</span>
-          </li>
-        </ol>
       </div>
+
+      <ol ref="dragListRef" class="space-y-1">
+        <li
+          v-for="(item, i) in sortedNav"
+          :key="item.to"
+          class="flex items-center gap-3 rounded-md border px-3 py-2 bg-card select-none transition-colors"
+          :class="{
+            'opacity-40': draggingIdx === i,
+            'border-primary/50': overIdx === i && draggingIdx !== null && draggingIdx !== i,
+            'border-border': !(overIdx === i && draggingIdx !== null && draggingIdx !== i),
+          }"
+        >
+          <!-- Drag handle -->
+          <span
+            class="cursor-grab active:cursor-grabbing text-muted-foreground touch-none"
+            @pointerdown.prevent="onHandlePointerDown(i, $event)"
+          >
+            <GripVertical class="h-4 w-4 shrink-0" />
+          </span>
+          <component :is="item.icon" class="h-4 w-4 shrink-0 text-muted-foreground" />
+          <span class="font-cinzel text-xs tracking-wider flex-1">{{ item.label }}</span>
+          <span
+            v-if="i < MOBILE_NAV_SLOTS"
+            class="font-cinzel text-[9px] tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary shrink-0"
+          >bar</span>
+        </li>
+      </ol>
     </section>
 
     <!-- Combat notifications -->
@@ -319,7 +284,7 @@
     </section>
 
     <!-- Keep screen awake -->
-    <section v-if="wakeLockSupported" class="rounded-lg border border-border bg-card p-5 space-y-4">
+    <section class="rounded-lg border border-border bg-card p-5 space-y-4">
       <div>
         <h2 class="font-cinzel text-sm font-semibold text-foreground tracking-wide">Screen</h2>
         <p class="font-fell text-xs text-muted-foreground italic mt-1">
@@ -329,9 +294,13 @@
       <div class="flex items-center justify-between">
         <div>
           <p class="font-cinzel text-xs text-foreground tracking-wide">Keep screen awake</p>
-          <p class="font-fell text-xs text-muted-foreground italic">Prevents your device from sleeping while this page is open.</p>
+          <p class="font-fell text-xs text-muted-foreground italic">
+            <template v-if="wakeLockSupported">Prevents your device from sleeping while this page is open.</template>
+            <template v-else>Not supported on this browser. Try Chrome or Safari 16.4+.</template>
+          </p>
         </div>
         <button
+          v-if="wakeLockSupported"
           type="button"
           class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200"
           :class="wakeLockEnabled ? 'bg-primary' : 'bg-muted'"
@@ -344,7 +313,28 @@
             :class="wakeLockEnabled ? 'translate-x-5' : 'translate-x-0'"
           />
         </button>
+        <span v-else class="font-cinzel text-[10px] text-muted-foreground tracking-wider px-2 py-1 rounded border border-border">
+          Unavailable
+        </span>
       </div>
+    </section>
+
+    <!-- Reload app -->
+    <section class="rounded-lg border border-border bg-card p-5 space-y-4">
+      <div>
+        <h2 class="font-cinzel text-sm font-semibold text-foreground tracking-wide">App</h2>
+        <p class="font-fell text-xs text-muted-foreground italic mt-1">
+          If something looks stuck or out of date, a full reload fixes it.
+        </p>
+      </div>
+      <button
+        type="button"
+        class="inline-flex items-center gap-1.5 rounded-md border border-border px-4 py-2 font-cinzel text-xs font-semibold text-foreground hover:border-primary/50 transition-colors"
+        @click="reloadApp"
+      >
+        <RotateCcw class="h-3.5 w-3.5" />
+        Reload app
+      </button>
     </section>
 
     <!-- Account info (read-only) -->
@@ -368,7 +358,7 @@
 <script setup lang="ts">
 import { ref, computed, onBeforeUnmount } from "vue";
 import { RouterLink } from "vue-router";
-import { CalendarCheck, Check, Download, GripVertical, Save, User, X } from "lucide-vue-next";
+import { CalendarCheck, Check, Download, GripVertical, RotateCcw, Save, User, X } from "lucide-vue-next";
 import { usePwaInstall } from "@/composables/usePwaInstall";
 import { useWakeLock } from "@/composables/useWakeLock";
 
@@ -389,7 +379,7 @@ import type { SessionProposal } from "@/types/scheduling.types";
 const auth = useAuthStore();
 
 // ── Navigation preferences ─────────────────────────────────────────────────────
-const { navMode, sortedNav, setNavMode, setNavOrder } = usePlayerNavPrefs();
+const { sortedNav, setNavOrder } = usePlayerNavPrefs();
 
 // ── Combat preferences ────────────────────────────────────────────────────────
 const { turnAudioEnabled, setTurnAudio } = usePlayerCombatPrefs();
@@ -534,6 +524,8 @@ function formatSessionDate(date: string, time: string | null): string {
   t.setHours(Number(h), Number(m));
   return `${dateStr} · ${t.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`;
 }
+
+function reloadApp() { window.location.reload(); }
 
 async function claimCharacter() {
   if (!auth.membership?.id || !claimTarget.value) return;

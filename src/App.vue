@@ -6,6 +6,19 @@
     </component>
     <ConfirmDialog />
   </template>
+
+  <!-- Pull-to-refresh indicator (touch devices only) -->
+  <Transition name="ptr-fade">
+    <div
+      v-if="pullPx > 0"
+      class="ptr-indicator"
+      :style="{ '--pull': pullPx + 'px' }"
+      :class="{ 'ptr-ready': readyToReload }"
+    >
+      <span class="ptr-arrow">{{ readyToReload ? '↑' : '↓' }}</span>
+      <span class="ptr-label">{{ readyToReload ? 'Release to reload' : 'Pull to reload' }}</span>
+    </div>
+  </Transition>
 </template>
 
 <script setup lang="ts">
@@ -20,9 +33,11 @@ import LoadingScreen from "@/components/auth/LoadingScreen.vue";
 import { useTheme } from "@/composables/useTheme";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/auth";
+import { usePullToRefresh } from "@/composables/usePullToRefresh";
 
 const auth = useAuthStore();
 const router = useRouter();
+const { pullPx, readyToReload } = usePullToRefresh();
 
 useTheme().initTheme();
 
@@ -95,3 +110,51 @@ const layout = computed(() => {
   return DefaultLayout;
 });
 </script>
+
+<style scoped>
+.ptr-indicator {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%) translateY(calc(var(--pull) - 100%));
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 0 0 10px 10px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.ptr-indicator.ptr-ready {
+  background: hsl(var(--primary) / 0.85);
+}
+
+.ptr-arrow {
+  font-size: 14px;
+  transition: transform 0.15s ease;
+}
+
+.ptr-ready .ptr-arrow {
+  transform: rotate(180deg);
+}
+
+.ptr-label {
+  font-family: var(--font-cinzel, sans-serif);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ptr-fade-enter-active,
+.ptr-fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+.ptr-fade-enter-from,
+.ptr-fade-leave-to {
+  opacity: 0;
+}
+</style>
