@@ -268,8 +268,17 @@ const characterName = computed(() => {
 
 const { sortedNav, trackNav } = usePlayerNavPrefs();
 
-const mobileNav = computed(() => sortedNav.value.slice(0, MOBILE_NAV_SLOTS));
-const tabletNav = computed(() => sortedNav.value.slice(0, TABLET_NAV_SLOTS));
+// Always keep Settings reachable in the quick bar — if it was dragged out of
+// the visible slots in custom mode, replace the last slot with it.
+function ensureSettings(items: typeof sortedNav.value, slots: number) {
+  const slice = items.slice(0, slots);
+  const settingsItem = items.find((i) => i.to === "/play/settings");
+  if (!settingsItem || slice.some((i) => i.to === "/play/settings")) return slice;
+  return [...slice.slice(0, slots - 1), settingsItem];
+}
+
+const mobileNav = computed(() => ensureSettings(sortedNav.value, MOBILE_NAV_SLOTS));
+const tabletNav = computed(() => ensureSettings(sortedNav.value, TABLET_NAV_SLOTS));
 
 const showMore = ref(false);
 
