@@ -7,6 +7,7 @@
 ### Campaign Management
 
 - [x] Campaign Dashboard — live stat cards, active quests, party at a glance (HP bars, passive scores, conditions/curses), pinned + recent notes
+- [x] PWA install support — `vite-plugin-pwa` generates a Workbox service worker; dashboard shows a dismissible install banner when the browser fires `beforeinstallprompt` (Chrome/Edge); event captured in `main.ts` before Vue mounts to avoid missing the early-fire
 - [x] DM Notes tracker (Tiptap editor, categories, tags, pinning)
 - [x] Faerûn Calendar / timeline (Calendar of Harptos, adapter pattern for future settings)
 
