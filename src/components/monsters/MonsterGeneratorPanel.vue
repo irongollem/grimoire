@@ -183,7 +183,6 @@ const { mutateAsync: createMonster } = useCreateMonster();
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useMonsterGeneration();
 
 const aiApiKey = computed(() => campaign.decryptedApiKey);
-const aiSettingPrompt = computed(() => campaign.activeCampaign?.ai_setting_prompt ?? "");
 
 const concept = ref("");
 const constraints = reactive({ challenge_rating: "", monster_type: "", size: "" });
@@ -194,8 +193,6 @@ async function generateAndCreate() {
   clearCompleted();
 
   const result = await generate(
-    aiApiKey.value,
-    aiSettingPrompt.value,
     concept.value.trim(),
     {
       challenge_rating: constraints.challenge_rating.trim() || undefined,

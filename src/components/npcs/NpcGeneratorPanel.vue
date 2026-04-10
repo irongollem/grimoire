@@ -216,7 +216,7 @@
         <!-- Alter ego toggle -->
         <div v-if="aiApiKey" class="rounded-md border border-border bg-muted/30 px-3 py-2.5 flex flex-col gap-1.5">
           <label class="flex items-center gap-2.5 cursor-pointer">
-            <input type="checkbox" v-model="generateAlterEgo" class="rounded accent-primary" />
+            <input type="checkbox" v-model="generateAlterEgo" :disabled="!generateImage" class="rounded accent-primary" />
             <span class="font-cinzel text-[11px] font-semibold tracking-wider text-foreground">Generate Alter Ego</span>
           </label>
           <p v-if="generateAlterEgo" class="font-fell text-[11px] text-amber-500 italic">
@@ -225,6 +225,22 @@
           <p v-else class="font-fell text-[11px] text-muted-foreground italic">
             Also generate a disguised identity (name + portrait) for this NPC.
           </p>
+        </div>
+
+        <!-- Image toggle -->
+        <div v-if="aiApiKey" class="flex items-center justify-between">
+          <span class="font-fell text-xs text-muted-foreground">Generate portrait art</span>
+          <button
+            type="button"
+            class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
+            :class="generateImage ? 'bg-primary' : 'bg-muted border border-border'"
+            @click="generateImage = !generateImage"
+          >
+            <span
+              class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow-sm"
+              :class="generateImage ? 'translate-x-4.5' : 'translate-x-0.5'"
+            />
+          </button>
         </div>
 
         <!-- No API key nudge -->
@@ -401,9 +417,6 @@ const { data: npcs } = useNpcs();
 const { mutateAsync: createNpcRelation } = useCreateNpcRelation();
 
 const aiApiKey = computed(() => campaign.decryptedApiKey);
-const aiSettingPrompt = computed(
-  () => campaign.activeCampaign?.ai_setting_prompt ?? "",
-);
 
 function openAiSettings() {
   ui.npcGeneratorOpen = false;
@@ -467,10 +480,8 @@ async function generateAndCreate() {
   clearCompleted();
 
   const result = await generate(
-    aiApiKey.value,
-    aiSettingPrompt.value,
     buildAiPrompt(),
-    { generateAlterEgo: generateAlterEgo.value },
+    { generateAlterEgo: generateAlterEgo.value, generateImage: generateImage.value },
   );
   if (!result) return;
 
@@ -521,6 +532,7 @@ async function generateAndCreate() {
 
 const concept = ref("");
 const generateAlterEgo = ref(false);
+const generateImage = ref(true);
 const quickForm = reactive({
   name: "",
   race: "",

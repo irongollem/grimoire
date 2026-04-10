@@ -15,22 +15,14 @@ Generate a detailed NPC based on the dungeon master's description. Return a sing
   "status": "One of: alive, dead, missing, unknown",
   "relationship": "One of: ally, neutral, enemy, unknown",
   "tags": ["3 to 5 short descriptive tags"],
-  "image_prompt": "A concise portrait description for image generation. Describe the subject only: physical features, expression, pose, clothing, and immediate environment. No style or art direction."
+  "true_portrait_prompt": "A concise single-subject portrait description. Describe only the person: physical features, expression, pose, clothing, and the immediate 1–2 metre environment around them. No scenery, no wide shots, no other characters. No style or art direction.",
+  "disguise_name": "If this NPC has a disguise identity: a plausible false name — full first and last name, matching their species and setting. If no disguise: null",
+  "disguise_image_prompt": "If this NPC has a disguise identity: portrait edit instructions describing only what changes from the true form — hairstyle, colour, clothing, accessories, expression. Write as change instructions, not a fresh description. Do NOT redescribe fixed features. Example: 'Change hair to short brown, add wool cap, replace armour with plain merchant clothing.' If no disguise: null"
 }
 
-Return only the JSON object. No markdown fences, no explanation.`;
+Return only the JSON object. No markdown fences, no explanation.
 
-/**
- * Appended to NPC_SYSTEM_PROMPT when the DM requests alter ego generation.
- * Instructs the model to add two extra fields describing the disguise identity.
- */
-export const ALTER_EGO_PROMPT_ADDON = `
-
-Additionally, this NPC has a disguise — a false identity they present to the world. Add two extra fields to your JSON:
-
-"disguise_name": "A plausible false name used in disguise — full first and last name, matching the species and setting",
-"disguise_image_prompt": "How this NPC looks while in disguise. Same format as image_prompt but describe the altered appearance: different clothing, hairstyle, colour, accessories — but keep underlying bone structure and facial proportions consistent so the same face is recognisable under different styling. The subject should look believably unrelated to their true form at a glance."`;
-
+Whether a disguise is requested is indicated in the user's prompt. Set disguise_name and disguise_image_prompt to null when no disguise is requested.`;
 export const MONSTER_SYSTEM_PROMPT = `You are a creative assistant for Dungeons & Dragons 5e campaign management.
 
 Generate a detailed monster stat block based on the dungeon master's description. Return a single JSON object with exactly these fields:

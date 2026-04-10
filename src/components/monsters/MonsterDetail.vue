@@ -417,8 +417,6 @@
   <!-- AI generation dialog -->
   <MonsterGenerateDialog
     v-if="showGenerateDialog && aiApiKey"
-    :api-key="aiApiKey"
-    :setting-prompt="aiSettingPrompt"
     @close="showGenerateDialog = false"
     @generated="onAiGenerated"
   />
@@ -626,7 +624,6 @@ function onCardArtFocalUpdate(pt: { x: number; y: number } | null) {
 // AI generation
 const campaignStore = useCampaignStore();
 const aiApiKey = computed(() => campaignStore.decryptedApiKey);
-const aiSettingPrompt = computed(() => campaignStore.activeCampaign?.ai_setting_prompt ?? "");
 const showGenerateDialog = ref(false);
 
 function onAiGenerated(result: MonsterAiGenerated) {

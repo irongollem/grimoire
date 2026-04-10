@@ -303,6 +303,7 @@ BYOK (Bring Your Own Key) — DM enters their OpenAI key in Campaign Settings �
 ### Image generation — OpenAI gpt-image-1.5
 
 - [x] **NPC portrait generation** — auto-generated as part of NPC generation; uploaded to `npc-portraits` Supabase Storage bucket.
+- [x] **AI provider abstraction** — extracted all hardcoded OpenAI fetch calls into `TextProvider`/`ImageProvider` interfaces with `getTextProvider()`/`getImageProvider()` factories in `src/ai/providers/`. Generators read API key and campaign setting from stores internally; zero params needed at call sites. `b64ToBlob` shared utility in `src/ai/utils.ts`. NPC generation gains alter ego toggle (disguise name + inpainted portrait), image-skip toggle, and always-present `disguise_name`/`disguise_image_prompt` schema fields (null when not requested).
 
 **Cost estimates (approximate):**
 
@@ -474,3 +475,5 @@ Keep the core DM tooling free forever (open source). Gate AI features, advanced 
 - [x] **NPC list: filter by party member connection** (irongollem/grimoire#109) — added "Connected to…" combobox filter to NPC list; `npc_pc_notes` rows are the connection signal; filter state in `useUiStore` (`npcsFilterPartyMember`); client-side filtering via new `useNpcPcNotesByPartyMember` composable
 
 - [x] **Encounter runner: damage flash + debounced HP buttons** (irongollem/grimoire#106) — +/- buttons debounce 500ms and accumulate delta before calling `adjustHp`; a 10s CSS animation badge (red for damage, green for healing) floats above the HP cell showing the total delta; `setHp` (text input) cancels any pending debounce and shows delta immediately
+
+- [x] **AI provider abstraction layer** (irongollem/grimoire#113) — extracted hardcoded OpenAI fetch calls into `src/ai/providers/` (`types.ts` with `TextProvider`/`ImageProvider` interfaces, `openai.ts` implementation, `index.ts` factories); all 4 generation composables now construct providers from the apiKey instead of calling fetch directly; `imageProvider.edit?` guards the NPC alter-ego disguise flow

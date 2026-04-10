@@ -17,9 +17,9 @@ export interface NpcAiResult {
   status: NpcStatus;
   relationship: NpcRelationship;
   tags: string[];
-  /** NPC-specific subject description for image generation */
-  image_prompt: string;
-  /** Populated when alter ego was requested — describes the disguise appearance */
+  /** Single-subject portrait description for image generation */
+  true_portrait_prompt: string;
+  /** Populated when alter ego was requested — edit instructions for the disguise portrait */
   disguise_image_prompt?: string;
   /** AI-suggested name for the NPC's disguise */
   disguise_name?: string;

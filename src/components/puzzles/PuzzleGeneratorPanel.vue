@@ -167,8 +167,7 @@ const campaign = useCampaignStore();
 const { mutateAsync: createPuzzle } = useCreatePuzzle();
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = usePuzzleGeneration();
 
-const aiApiKey        = computed(() => campaign.decryptedApiKey);
-const aiSettingPrompt = computed(() => campaign.activeCampaign?.ai_setting_prompt ?? "");
+const aiApiKey = computed(() => campaign.decryptedApiKey);
 
 const concept       = ref("");
 const constraints   = reactive({ puzzle_type: "", difficulty: "" });
@@ -179,8 +178,6 @@ async function generateAndCreate() {
   clearCompleted();
 
   const result = await generate(
-    aiApiKey.value,
-    aiSettingPrompt.value,
     concept.value.trim(),
     {
       puzzle_type:   constraints.puzzle_type || undefined,

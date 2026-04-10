@@ -1,10 +1,6 @@
 import { useAuthStore } from "@/stores/auth";
 import { supabase } from "@/lib/supabase";
-import {
-  NPC_SYSTEM_PROMPT,
-  ALTER_EGO_PROMPT_ADDON,
-  IMAGE_BASE_PROMPT,
-} from "./prompts";
+import { NPC_SYSTEM_PROMPT, IMAGE_BASE_PROMPT } from "./prompts";
 import type { NpcAiResult, NpcAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -13,17 +9,9 @@ import {
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useUiStore } from "@/stores/ui";
-
-const CHAT_URL = "https://api.openai.com/v1/chat/completions";
-const IMAGE_URL = "https://api.openai.com/v1/images/generations";
-const EDIT_URL = "https://api.openai.com/v1/images/edits";
-
-function b64ToBlob(b64: string): Blob {
-  const chars = atob(b64);
-  const bytes = new Uint8Array(chars.length);
-  for (let i = 0; i < chars.length; i++) bytes[i] = chars.charCodeAt(i);
-  return new Blob([bytes], { type: "image/webp" });
-}
+import { getTextProvider, getImageProvider } from "./providers";
+import { b64ToBlob } from "./utils";
+import { useCampaignStore } from "@/stores/campaign";
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
@@ -98,154 +86,114 @@ export function toTiptapJson(text: string): string {
 
 export function useNpcGeneration() {
   const auth = useAuthStore();
+  const campaign = useCampaignStore();
 
   async function generate(
-    apiKey: string,
-    settingPrompt: string,
     userPrompt: string,
-    options?: { generateAlterEgo?: boolean },
+    options?: { generateAlterEgo?: boolean; generateImage?: boolean },
   ): Promise<NpcAiGenerated | null> {
     if (isAnyAiGenerating.value) return null;
     _state.isGenerating.value = true;
     _state.error.value = null;
     startAiQuotes();
 
+    const settingPrompt = campaign.activeCampaign?.ai_setting_prompt ?? "";
+
     try {
+      const textProvider = getTextProvider();
+      const imageProvider = getImageProvider();
+
       // ── 1. Generate NPC text data ──────────────────────────────────
       let systemContent = settingPrompt
         ? `${NPC_SYSTEM_PROMPT}\n\nCampaign setting context provided by the DM:\n${settingPrompt}`
         : NPC_SYSTEM_PROMPT;
-      if (options?.generateAlterEgo) systemContent += ALTER_EGO_PROMPT_ADDON;
 
-      const chatRes = await fetch(CHAT_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          response_format: { type: "json_object" },
-          messages: [
-            { role: "system", content: systemContent },
-            { role: "user", content: userPrompt },
-          ],
-        }),
-      });
+      const fullPrompt = options?.generateAlterEgo
+        ? `${userPrompt}\n\nThis NPC has a disguise identity — populate disguise_name and disguise_image_prompt.`
+        : userPrompt;
 
-      if (!chatRes.ok) {
-        const body = await chatRes.json().catch(() => ({}));
-        throw new Error(
-          body?.error?.message ?? `OpenAI error ${chatRes.status}`,
-        );
-      }
-
-      const chatData = await chatRes.json();
       const npcData = JSON.parse(
-        chatData.choices[0].message.content,
+        await textProvider.complete(systemContent, fullPrompt),
       ) as NpcAiResult;
 
-      // ── 2. Generate true portrait ──────────────────────────────────
-      startAiQuotes("image");
-      const imagePrompt = [
-        `Style: ${IMAGE_BASE_PROMPT}`,
-        settingPrompt ? `Setting: ${settingPrompt}` : null,
-        `Subject: ${npcData.image_prompt}`,
-      ]
-        .filter(Boolean)
-        .join("\n");
-
-      const imgRes = await fetch(IMAGE_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: "gpt-image-1.5",
-          prompt: imagePrompt,
-          size: "1024x1536",
-          output_format: "webp",
-        }),
-      });
-
-      if (!imgRes.ok) {
-        const body = await imgRes.json().catch(() => ({}));
-        throw new Error(
-          body?.error?.message ?? `Image generation error ${imgRes.status}`,
-        );
+      if (options?.generateAlterEgo && (!npcData.disguise_name || !npcData.disguise_image_prompt)) {
+        throw new Error("AI response was missing disguise fields — please try again.");
       }
 
-      const imgData = await imgRes.json();
-      const b64 = imgData.data?.[0]?.b64_json as string | undefined;
-
-      // ── 3 & 4. Upload true portrait + generate disguise in parallel ──
+      // ── 2–4. Image generation (skipped when generateImage === false) ──
       let portrait_url: string | null = null;
       let disguise_portrait_url: string | null = null;
-      const truePortraitBlob = b64 ? b64ToBlob(b64) : null;
 
-      const uploadTrue = async () => {
-        if (!truePortraitBlob || !auth.user) return;
-        const path = `${auth.user.id}/${crypto.randomUUID()}.webp`;
-        const { error } = await supabase.storage
-          .from("npc-portraits")
-          .upload(path, truePortraitBlob, { contentType: "image/webp" });
-        if (!error) {
-          portrait_url = supabase.storage
-            .from("npc-portraits")
-            .getPublicUrl(path).data.publicUrl;
+      if (options?.generateImage !== false) {
+        if (!npcData.true_portrait_prompt) {
+          throw new Error("AI response missing portrait description (true_portrait_prompt)");
         }
-      };
-
-      const generateDisguise = async () => {
-        if (
-          !options?.generateAlterEgo ||
-          !npcData.disguise_image_prompt ||
-          !truePortraitBlob ||
-          !auth.user
-        )
-          return;
-        const disguisePrompt = [
-          IMAGE_BASE_PROMPT,
-          settingPrompt,
-          npcData.disguise_image_prompt,
+        startAiQuotes("image");
+        const imagePrompt = [
+          `Style: ${IMAGE_BASE_PROMPT}`,
+          settingPrompt ? `Setting: ${settingPrompt}` : null,
+          `Subject: ${npcData.true_portrait_prompt}`,
         ]
           .filter(Boolean)
-          .join(" — ");
-        const editForm = new FormData();
-        editForm.append("model", "gpt-image-1.5");
-        editForm.append(
-          "image[]",
-          new File([truePortraitBlob], "portrait.webp", { type: "image/webp" }),
-        );
-        editForm.append("prompt", disguisePrompt);
-        editForm.append("size", "1024x1536");
-        editForm.append("output_format", "webp");
-        editForm.append("n", "1");
-        const editRes = await fetch(EDIT_URL, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${apiKey}` },
-          body: editForm,
-        });
-        if (!editRes.ok) return; // non-fatal
-        const disguiseB64 = (await editRes.json()).data?.[0]?.b64_json as
-          | string
-          | undefined;
-        if (!disguiseB64) return;
-        const disguisePath = `${auth.user.id}/${crypto.randomUUID()}.webp`;
-        const { error } = await supabase.storage
-          .from("npc-portraits")
-          .upload(disguisePath, b64ToBlob(disguiseB64), {
-            contentType: "image/webp",
-          });
-        if (!error) {
-          disguise_portrait_url = supabase.storage
-            .from("npc-portraits")
-            .getPublicUrl(disguisePath).data.publicUrl;
-        }
-      };
+          .join("\n");
 
-      await Promise.all([uploadTrue(), generateDisguise()]);
+        const b64 = await imageProvider.generate(imagePrompt, "1024x1536");
+        const truePortraitBlob = b64 ? b64ToBlob(b64) : null;
+
+        const uploadTrue = async () => {
+          if (!truePortraitBlob || !auth.user) return;
+          const path = `${auth.user.id}/${crypto.randomUUID()}.webp`;
+          const { error } = await supabase.storage
+            .from("npc-portraits")
+            .upload(path, truePortraitBlob, { contentType: "image/webp" });
+          if (!error) {
+            portrait_url = supabase.storage
+              .from("npc-portraits")
+              .getPublicUrl(path).data.publicUrl;
+          }
+        };
+
+        const generateDisguise = async () => {
+          if (
+            !options?.generateAlterEgo ||
+            !npcData.disguise_image_prompt ||
+            !truePortraitBlob ||
+            !auth.user ||
+            !imageProvider.edit
+          )
+            return;
+          const disguisePrompt = [
+            IMAGE_BASE_PROMPT,
+            settingPrompt,
+            npcData.disguise_image_prompt,
+          ]
+            .filter(Boolean)
+            .join(" — ");
+          try {
+            const disguiseB64 = await imageProvider.edit(
+              truePortraitBlob,
+              disguisePrompt,
+              "1024x1536",
+            );
+            if (!disguiseB64) return;
+            const disguisePath = `${auth.user.id}/${crypto.randomUUID()}.webp`;
+            const { error } = await supabase.storage
+              .from("npc-portraits")
+              .upload(disguisePath, b64ToBlob(disguiseB64), {
+                contentType: "image/webp",
+              });
+            if (!error) {
+              disguise_portrait_url = supabase.storage
+                .from("npc-portraits")
+                .getPublicUrl(disguisePath).data.publicUrl;
+            }
+          } catch {
+            // non-fatal — disguise generation failure does not block NPC save
+          }
+        };
+
+        await Promise.all([uploadTrue(), generateDisguise()]);
+      }
 
       return { ...npcData, portrait_url, disguise_portrait_url };
     } catch (e) {

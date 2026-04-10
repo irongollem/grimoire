@@ -228,9 +228,6 @@ const { mutateAsync: createItem } = useCreateItem();
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useItemGeneration();
 
 const aiApiKey = computed(() => campaign.decryptedApiKey);
-const aiSettingPrompt = computed(
-  () => campaign.activeCampaign?.ai_setting_prompt ?? "",
-);
 
 const concept = ref("");
 const constraints = reactive({ item_type: "", rarity: "" });
@@ -242,8 +239,6 @@ async function generateAndCreate() {
   clearCompleted();
 
   const result = await generate(
-    aiApiKey.value,
-    aiSettingPrompt.value,
     concept.value.trim(),
     {
       item_type: constraints.item_type || undefined,

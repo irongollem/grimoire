@@ -9,9 +9,9 @@ import {
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useUiStore } from "@/stores/ui";
-
-const CHAT_URL = "https://api.openai.com/v1/chat/completions";
-const IMAGE_URL = "https://api.openai.com/v1/images/generations";
+import { getTextProvider, getImageProvider } from "./providers";
+import { b64ToBlob } from "./utils";
+import { useCampaignStore } from "@/stores/campaign";
 
 export interface MonsterGenerationOptions {
   challenge_rating?: string;
@@ -36,10 +36,9 @@ registerAiGenerator({
 
 export function useMonsterGeneration() {
   const auth = useAuthStore();
+  const campaign = useCampaignStore();
 
   async function generate(
-    apiKey: string,
-    settingPrompt: string,
     userPrompt: string,
     options?: MonsterGenerationOptions,
   ): Promise<MonsterAiGenerated | null> {
@@ -48,7 +47,11 @@ export function useMonsterGeneration() {
     _state.error.value = null;
     startAiQuotes();
 
+    const settingPrompt = campaign.activeCampaign?.ai_setting_prompt ?? "";
+
     try {
+      const textProvider = getTextProvider();
+      const imageProvider = getImageProvider();
       // ── 1. Generate stat block text ───────────────────────────────────
       const systemContent = settingPrompt
         ? `${MONSTER_SYSTEM_PROMPT}\n\nCampaign setting context provided by the DM:\n${settingPrompt}`
@@ -63,29 +66,9 @@ export function useMonsterGeneration() {
         ? `${userPrompt}\n\n[Constraints — use exactly these values in the stat block: ${constraints.join(", ")}]`
         : userPrompt;
 
-      const chatRes = await fetch(CHAT_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          response_format: { type: "json_object" },
-          messages: [
-            { role: "system", content: systemContent },
-            { role: "user", content: fullPrompt },
-          ],
-        }),
-      });
-
-      if (!chatRes.ok) {
-        const body = await chatRes.json().catch(() => ({}));
-        throw new Error(body?.error?.message ?? `OpenAI error ${chatRes.status}`);
-      }
-
-      const chatData = await chatRes.json();
-      const result = JSON.parse(chatData.choices[0].message.content) as MonsterAiResult;
+      const result = JSON.parse(
+        await textProvider.complete(systemContent, fullPrompt),
+      ) as MonsterAiResult;
 
       // Honour explicit user overrides
       if (options?.challenge_rating) result.stat_block.challenge_rating = options.challenge_rating;
@@ -102,34 +85,11 @@ export function useMonsterGeneration() {
           .filter(Boolean)
           .join(" — ");
 
-        const imgRes = await fetch(IMAGE_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model: "gpt-image-1.5",
-            prompt: imagePrompt,
-            size: "1024x1536",
-            output_format: "webp",
-          }),
-        });
-
-        if (!imgRes.ok) {
-          const body = await imgRes.json().catch(() => ({}));
-          throw new Error(body?.error?.message ?? `Image generation error ${imgRes.status}`);
-        }
-
-        const imgData = await imgRes.json();
-        const b64 = imgData.data?.[0]?.b64_json as string | undefined;
+        const b64 = await imageProvider.generate(imagePrompt, "1024x1536");
 
         // ── 3. Upload to Supabase storage ─────────────────────────────
         if (b64 && auth.user) {
-          const byteChars = atob(b64);
-          const bytes = new Uint8Array(byteChars.length);
-          for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
-          const blob = new Blob([bytes], { type: "image/webp" });
+          const blob = b64ToBlob(b64);
           const path = `${auth.user.id}/${crypto.randomUUID()}.webp`;
           const { error: uploadErr } = await supabase.storage
             .from("asset-images")

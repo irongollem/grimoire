@@ -423,8 +423,6 @@
 
   <NpcGenerateDialog
     v-if="showGenerateDialog"
-    :api-key="aiApiKey"
-    :setting-prompt="aiSettingPrompt"
     @close="showGenerateDialog = false"
     @generated="onAiGenerated"
   />
@@ -527,7 +525,6 @@ const artTab = ref<'true-form' | 'alter-ego'>(
 )
 
 const aiApiKey = computed(() => campaign.decryptedApiKey)
-const aiSettingPrompt = computed(() => campaign.activeCampaign?.ai_setting_prompt ?? '')
 
 function onAiGenerated(result: NpcAiGenerated) {
   showGenerateDialog.value = false

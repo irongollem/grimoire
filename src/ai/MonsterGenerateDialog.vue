@@ -127,11 +127,6 @@ const MONSTER_TYPES: MonsterType[] = [
 ];
 const SIZES: MonsterSize[] = ["tiny", "small", "medium", "large", "huge", "gargantuan"];
 
-const props = defineProps<{
-  apiKey: string;
-  settingPrompt: string;
-}>();
-
 const emit = defineEmits<{
   close: [];
   generated: [result: MonsterAiGenerated];
@@ -145,8 +140,6 @@ const { isGenerating, error, generate } = useMonsterGeneration();
 async function run() {
   if (!prompt.value.trim()) return;
   const result = await generate(
-    props.apiKey,
-    props.settingPrompt,
     prompt.value.trim(),
     {
       challenge_rating: options.challenge_rating.trim() || undefined,
