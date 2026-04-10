@@ -5,6 +5,7 @@ import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
 import type { ScriptoriumDocType } from "@/types/scriptorium.types";
 import type { ItemType, ItemRarity } from "@/types/item.types";
 import type { CraftingDiscipline } from "@/types/crafting.types";
+import type { SoundCategory } from "@/types/sound.types";
 
 export const useUiStore = defineStore("ui", () => {
   // Notes UI state
@@ -137,6 +138,18 @@ export const useUiStore = defineStore("ui", () => {
     encountersSearch.value = "";
     encountersHideFinished.value = true;
     encountersFilterQuestId.value = "all";
+  }
+
+  // Soundboard UI state
+  const soundboardFilterCategory = ref<SoundCategory | "all">("all");
+  const soundboardSearchQuery = ref("");
+  const soundboardHasActiveFilters = computed(
+    () => soundboardFilterCategory.value !== "all" || soundboardSearchQuery.value !== "",
+  );
+
+  function resetSoundboardFilters() {
+    soundboardFilterCategory.value = "all";
+    soundboardSearchQuery.value = "";
   }
 
   // Player spell accordion — which levels are expanded (cantrips = 0, open by default)
@@ -304,5 +317,11 @@ export const useUiStore = defineStore("ui", () => {
     dmPreviewPartyMemberId,
     enterDmPreview,
     exitDmPreview,
+
+    // Soundboard
+    soundboardFilterCategory,
+    soundboardSearchQuery,
+    soundboardHasActiveFilters,
+    resetSoundboardFilters,
   };
 });

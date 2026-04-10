@@ -14,6 +14,7 @@
       <Search class="h-5 w-5" />
     </button>
 
+    <SoundboardWidgetToggle class="px-1.5! py-1!" />
     <DiceRoller />
 
     <!-- Mobile nav FAB — bottom-left, thumb-friendly -->
@@ -94,6 +95,7 @@ import { useRoute } from "vue-router";
 import { Menu, Search, X, Loader2 } from "lucide-vue-next";
 import { useUiStore } from "@/stores/ui";
 import DiceRoller from "@/components/common/DiceRoller.vue";
+import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
 import { useGlobalSearch } from "@/composables/useGlobalSearch";
 
 const route = useRoute();

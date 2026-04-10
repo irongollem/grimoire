@@ -59,6 +59,7 @@
     <!-- User section -->
     <div class="px-3 py-4 space-y-1">
       <AppInvitePanel v-if="auth.isAppAdmin" />
+      <SoundboardWidgetToggle />
       <button
         v-if="auth.isDM"
         class="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
@@ -129,6 +130,7 @@ import NavItem from "./NavItem.vue";
 import CampaignSwitcher from "./CampaignSwitcher.vue";
 import GlobalSearch from "./GlobalSearch.vue";
 import AppInvitePanel from "@/components/admin/AppInvitePanel.vue";
+import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
 
 const auth = useAuthStore();
 const ui = useUiStore();

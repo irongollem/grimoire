@@ -507,6 +507,14 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Edit Rule" },
     },
 
+    // Soundboard
+    {
+      path: "/soundboard",
+      name: "soundboard",
+      component: () => import("@/views/soundboard/SoundboardView.vue"),
+      meta: { requiresAuth: true, title: "Soundboard" },
+    },
+
     // Card Forge
     {
       path: "/forge",

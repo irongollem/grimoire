@@ -18,6 +18,7 @@ import {
   Landmark,
   Crown,
   DoorOpen,
+  Music2,
 } from "lucide-vue-next";
 import type { Component } from "vue";
 
@@ -106,6 +107,13 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/crafting",
         icon: Hammer,
         description: "Recipes & player crafting",
+        requiresCampaign: true,
+      },
+      {
+        label: "Soundboard",
+        to: "/soundboard",
+        icon: Music2,
+        description: "Ambient sounds & music",
         requiresCampaign: true,
       },
     ],

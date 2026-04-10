@@ -27,6 +27,9 @@
 
     <!-- Shows a pill for every active/completed/errored AI generation -->
     <AiGenerationBadge />
+
+    <!-- Soundboard floating widget — always mounted so audio survives navigation -->
+    <SoundboardWidget />
   </div>
 </template>
 
@@ -40,6 +43,7 @@ import MonsterGeneratorPanel from "@/components/monsters/MonsterGeneratorPanel.v
 import ItemGeneratorPanel from "@/components/items/ItemGeneratorPanel.vue";
 import PuzzleGeneratorPanel from "@/components/puzzles/PuzzleGeneratorPanel.vue";
 import AiGenerationBadge from "@/components/common/AiGenerationBadge.vue";
+import SoundboardWidget from "@/components/soundboard/SoundboardWidget.vue";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
 
 useCampaignPresence();
