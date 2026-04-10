@@ -40,7 +40,9 @@
           Add Grimoire to your home screen for quick access between sessions.
         </p>
       </div>
+      <!-- Native install prompt available (Chrome/Edge) -->
       <button
+        v-if="hasNativePrompt"
         type="button"
         class="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity cursor-pointer"
         @click="install"
@@ -48,6 +50,16 @@
         <Download class="h-3.5 w-3.5" />
         Install
       </button>
+      <!-- Fallback: manual instructions -->
+      <div v-else class="space-y-1.5">
+        <p class="font-cinzel text-xs text-muted-foreground tracking-wide">To install manually:</p>
+        <p class="font-fell text-sm text-foreground">
+          Android Chrome — tap the <span class="font-cinzel text-xs">⋮</span> menu → <em>Add to Home screen</em>
+        </p>
+        <p class="font-fell text-sm text-foreground">
+          iOS Safari — tap <span class="font-cinzel text-xs">⎋</span> Share → <em>Add to Home Screen</em>
+        </p>
+      </div>
     </section>
 
     <!-- Character claim -->
@@ -330,7 +342,7 @@ import { RouterLink } from "vue-router";
 import { CalendarCheck, Check, Download, GripVertical, Save, User, X } from "lucide-vue-next";
 import { usePwaInstall } from "@/composables/usePwaInstall";
 
-const { canInstall, install } = usePwaInstall();
+const { canInstall, hasNativePrompt, install } = usePwaInstall();
 import { usePlayerNavPrefs } from "@/composables/usePlayerNavPrefs";
 import { usePlayerCombatPrefs } from "@/composables/usePlayerCombatPrefs";
 import { MOBILE_NAV_SLOTS } from "@/lib/playerNav";

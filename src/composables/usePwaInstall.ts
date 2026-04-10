@@ -6,7 +6,6 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const deferredPrompt = ref<BeforeInstallPromptEvent | null>(null);
-const dismissed = ref(false);
 
 // Called from main.ts before Vue mounts so we never miss the early-fire event.
 export function captureInstallPrompt(e: Event) {
@@ -15,18 +14,26 @@ export function captureInstallPrompt(e: Event) {
 }
 
 export function usePwaInstall() {
-  const canInstall = computed(() => deferredPrompt.value !== null && !dismissed.value);
+  // True when already running as an installed PWA (standalone/fullscreen).
+  const isInstalled = computed(() =>
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.matchMedia("(display-mode: fullscreen)").matches ||
+    ("standalone" in navigator && (navigator as { standalone?: boolean }).standalone === true)
+  );
+
+  // Native prompt is available — Chrome/Edge fired beforeinstallprompt.
+  const hasNativePrompt = computed(() => deferredPrompt.value !== null);
+
+  // Show install UI whenever not already installed.
+  const canInstall = computed(() => !isInstalled.value);
 
   async function install() {
-    if (!deferredPrompt.value) return;
-    await deferredPrompt.value.prompt();
-    await deferredPrompt.value.userChoice;
-    deferredPrompt.value = null;
+    if (deferredPrompt.value) {
+      await deferredPrompt.value.prompt();
+      await deferredPrompt.value.userChoice;
+      deferredPrompt.value = null;
+    }
   }
 
-  function dismiss() {
-    dismissed.value = true;
-  }
-
-  return { canInstall, install, dismiss };
+  return { canInstall, hasNativePrompt, install };
 }
