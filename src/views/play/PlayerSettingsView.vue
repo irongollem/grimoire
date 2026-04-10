@@ -32,6 +32,24 @@
       <p v-if="nameError" class="font-fell text-xs text-destructive">{{ nameError }}</p>
     </section>
 
+    <!-- Install app -->
+    <section v-if="canInstall" class="rounded-lg border border-primary/30 bg-primary/5 p-5 space-y-3">
+      <div>
+        <h2 class="font-cinzel text-sm font-semibold text-foreground tracking-wide">Install App</h2>
+        <p class="font-fell text-sm text-muted-foreground italic mt-1">
+          Add Grimoire to your home screen for quick access between sessions.
+        </p>
+      </div>
+      <button
+        type="button"
+        class="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity cursor-pointer"
+        @click="install"
+      >
+        <Download class="h-3.5 w-3.5" />
+        Install
+      </button>
+    </section>
+
     <!-- Character claim -->
     <section class="rounded-lg border border-border bg-card p-5 space-y-4">
       <h2 class="font-cinzel text-sm font-semibold text-foreground tracking-wide">My Character</h2>
@@ -309,7 +327,10 @@
 <script setup lang="ts">
 import { ref, computed, onBeforeUnmount } from "vue";
 import { RouterLink } from "vue-router";
-import { CalendarCheck, Check, GripVertical, Save, User, X } from "lucide-vue-next";
+import { CalendarCheck, Check, Download, GripVertical, Save, User, X } from "lucide-vue-next";
+import { usePwaInstall } from "@/composables/usePwaInstall";
+
+const { canInstall, install } = usePwaInstall();
 import { usePlayerNavPrefs } from "@/composables/usePlayerNavPrefs";
 import { usePlayerCombatPrefs } from "@/composables/usePlayerCombatPrefs";
 import { MOBILE_NAV_SLOTS } from "@/lib/playerNav";
