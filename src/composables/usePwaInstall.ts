@@ -1,4 +1,4 @@
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed } from "vue";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -8,15 +8,13 @@ interface BeforeInstallPromptEvent extends Event {
 const deferredPrompt = ref<BeforeInstallPromptEvent | null>(null);
 const dismissed = ref(false);
 
+// Called from main.ts before Vue mounts so we never miss the early-fire event.
+export function captureInstallPrompt(e: Event) {
+  e.preventDefault();
+  deferredPrompt.value = e as BeforeInstallPromptEvent;
+}
+
 export function usePwaInstall() {
-  function onBeforeInstallPrompt(e: Event) {
-    e.preventDefault();
-    deferredPrompt.value = e as BeforeInstallPromptEvent;
-  }
-
-  onMounted(() => window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt));
-  onUnmounted(() => window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt));
-
   const canInstall = computed(() => deferredPrompt.value !== null && !dismissed.value);
 
   async function install() {
