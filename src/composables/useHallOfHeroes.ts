@@ -3,6 +3,7 @@ import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { listSettings } from "@/settings/index";
 import type { HallOfHero, HallOfHeroInsert, HallOfHeroUpdate, NpcInsert } from "@/types/npc.types";
 
 const QUERY_KEY = "hall-of-heroes";
@@ -140,5 +141,111 @@ export function useImportHero() {
   return useMutation({
     mutationFn: (hero: HallOfHero) => importHero(hero, campaign.activeCampaignId!),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["npcs"] }),
+  });
+}
+
+// ── Populate Hall of Heroes from all settings ─────────────────────────────────
+
+function normaliseHeroName(name: string): string {
+  return name.toLowerCase().replace(/['\u2018\u2019`\-_.,"!?]/g, "").replace(/\s+/g, " ").trim();
+}
+
+function toTiptap(text: string): string {
+  return JSON.stringify({
+    type: "doc",
+    content: [{ type: "paragraph", content: [{ type: "text", text }] }],
+  });
+}
+
+/** Sync all setting heroes into hall_of_heroes.
+ *  - New entries are inserted.
+ *  - Existing entries get all fields refreshed EXCEPT portrait_url / card_art_url
+ *    / focal_point (art is preserved so you can add images without them being overwritten).
+ *  Returns { inserted, updated }. */
+export function usePopulateAllSettingHeroes() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<{ inserted: number; updated: number }> => {
+      const user = getCurrentUser();
+      const settings = listSettings();
+
+      const { data: existing, error: fetchError } = await supabase
+        .from("hall_of_heroes")
+        .select("id, name, setting, portrait_url, card_art_url");
+      if (fetchError) throw fetchError;
+
+      // Key: "setting:normalised_name"
+      type ExistingRow = { id: string; name: string; setting: string; portrait_url: string | null; card_art_url: string | null };
+      const existingMap = new Map<string, ExistingRow>(
+        (existing ?? []).map((r: ExistingRow) => [
+          `${r.setting}:${normaliseHeroName(r.name)}`,
+          r,
+        ]),
+      );
+
+      const toInsert: (HallOfHeroInsert & { user_id: string })[] = [];
+      const toUpdate: { id: string; update: Partial<HallOfHeroInsert> }[] = [];
+
+      for (const setting of settings) {
+        for (const h of setting.heroes) {
+          const key = `${setting.id}:${normaliseHeroName(h.name)}`;
+          const existing = existingMap.get(key);
+
+          const fields = {
+            name: h.name,
+            setting: setting.id,
+            race: h.race,
+            alignment: h.alignment,
+            age: null,
+            occupation: h.occupation,
+            appearance: null,
+            personality: h.personality ? toTiptap(h.personality) : null,
+            backstory: h.backstory ? toTiptap(h.backstory) : null,
+            notes: null,
+            status: h.status,
+            relationship: h.relationship,
+            tags: h.tags,
+            stat_block: null,
+            is_revealed: true,
+            disguise_name: null,
+            disguise_portrait_url: null,
+            disguise_portrait_focal_point: null,
+            portrait_focal_point: null,
+          };
+
+          if (!existing) {
+            toInsert.push({
+              ...fields,
+              portrait_url: h.portrait_url,
+              card_art_url: null,
+              user_id: user!.id,
+            });
+          } else {
+            // Refresh all data fields; only fill in portrait/card_art if the DB row still has none
+            const update: Partial<HallOfHeroInsert> = { ...fields };
+            if (!existing.portrait_url && h.portrait_url) update.portrait_url = h.portrait_url;
+            if (!existing.card_art_url) update.card_art_url = null;
+            toUpdate.push({ id: existing.id, update });
+          }
+        }
+      }
+
+      const [insertResult] = await Promise.all([
+        toInsert.length
+          ? supabase.from("hall_of_heroes").insert(toInsert).select("id")
+          : Promise.resolve({ data: [], error: null }),
+        ...toUpdate.map(({ id, update }) =>
+          supabase.from("hall_of_heroes").update(update).eq("id", id),
+        ),
+      ]);
+
+      if (insertResult.error) throw insertResult.error;
+
+      return {
+        inserted: (insertResult.data ?? []).length,
+        updated: toUpdate.length,
+      };
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }

@@ -1,6 +1,17 @@
 <template>
   <PageHeader title="Factions" description="Guilds, cults, governments, and other organisations">
     <template #actions>
+      <button
+        v-if="hasSetting"
+        type="button"
+        :disabled="populateMutation.isPending.value"
+        class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 disabled:opacity-50 transition-colors"
+        :title="populateStatusLabel"
+        @click="handlePopulate"
+      >
+        <Sparkles class="h-3.5 w-3.5" />
+        {{ populateStatusLabel }}
+      </button>
       <RouterLink
         to="/factions/new"
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
@@ -88,17 +99,22 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
-import { Plus, Shield, ChevronRight, Eye, Search } from "lucide-vue-next";
-import { useAllFactions } from "@/composables/useFactions";
+import { ref, computed } from "vue";
+import { Plus, Shield, ChevronRight, Eye, Search, Sparkles } from "lucide-vue-next";
+import { useAllFactions, usePopulateFactions } from "@/composables/useFactions";
 import { FACTION_TYPES } from "@/types/faction.types";
 import { useUiStore } from "@/stores/ui";
+import { useCampaignStore } from "@/stores/campaign";
+import { getSetting } from "@/settings/index";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 
 const ui = useUiStore();
+const campaign = useCampaignStore();
 const { data: factions, isLoading } = useAllFactions();
+
+const hasSetting = computed(() => !!getSetting(campaign.activeCampaign?.calendar_id ?? ""));
 
 const filtered = computed(() => {
   const q = ui.factionsSearch.trim().toLowerCase();
@@ -108,4 +124,29 @@ const filtered = computed(() => {
     return true;
   });
 });
+
+const populateMutation = usePopulateFactions();
+const populateStatus = ref<"idle" | "done" | "uptodate">("idle");
+const populatedCount = ref(0);
+const populateError = ref<string | null>(null);
+
+const populateStatusLabel = computed(() => {
+  if (populateMutation.isPending.value) return "Populating…";
+  if (populateError.value) return `Error: ${populateError.value}`;
+  if (populateStatus.value === "done") return `Added ${populatedCount.value} faction${populatedCount.value !== 1 ? "s" : ""}`;
+  if (populateStatus.value === "uptodate") return "Already up to date";
+  return "Populate Setting";
+});
+
+async function handlePopulate() {
+  populateStatus.value = "idle";
+  populateError.value = null;
+  try {
+    const count = await populateMutation.mutateAsync();
+    populatedCount.value = count;
+    populateStatus.value = count === 0 ? "uptodate" : "done";
+  } catch (e) {
+    populateError.value = e instanceof Error ? e.message : "Unknown error";
+  }
+}
 </script>

@@ -353,6 +353,40 @@
             </div>
           </div>
 
+          <!-- Populate from Setting — only when editing the active campaign -->
+          <div
+            v-if="editing && isEditingActiveCampaign && populateSetting"
+            class="rounded-md border border-border bg-muted/40 px-3 py-3 space-y-2"
+          >
+            <div class="flex items-center justify-between gap-2">
+              <div class="min-w-0">
+                <p class="font-cinzel text-xs font-semibold tracking-wider text-foreground">
+                  POPULATE FROM {{ populateSetting.label.toUpperCase() }}
+                </p>
+                <p class="font-fell text-xs text-muted-foreground mt-0.5">
+                  Seeds locations, notable NPCs, and factions. Skips existing entries.
+                </p>
+              </div>
+              <button
+                type="button"
+                :disabled="isPopulating"
+                class="shrink-0 flex items-center gap-1.5 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+                @click="doPopulate"
+              >
+                <Sparkles class="h-3 w-3" />
+                {{ isPopulating ? "Populating…" : "Populate" }}
+              </button>
+            </div>
+            <p v-if="populateError" class="font-fell text-xs text-destructive">
+              {{ populateError }}
+            </p>
+            <p v-else-if="populateResult" class="font-fell text-xs text-muted-foreground">
+              Added {{ populateResult.locations }} location<span v-if="populateResult.locations !== 1">s</span>,
+              {{ populateResult.npcs }} NPC<span v-if="populateResult.npcs !== 1">s</span>,
+              {{ populateResult.factions }} faction<span v-if="populateResult.factions !== 1">s</span>.
+            </p>
+          </div>
+
           <div>
             <label
               class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2"
@@ -533,6 +567,7 @@ import {
   Download,
   Pencil,
   Plus,
+  Sparkles,
 } from "lucide-vue-next";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
 import { useTheme } from "@/composables/useTheme";
@@ -546,6 +581,10 @@ import {
 } from "@/composables/useCampaigns";
 import { useCampaignStore } from "@/stores/campaign";
 import { listCalendarAdapters, getCalendarAdapter } from "@/calendars/index";
+import { getSetting, listSettings } from "@/settings/index";
+import { usePopulateLocations } from "@/composables/useLocations";
+import { usePopulateFactions } from "@/composables/useFactions";
+import { usePopulateSettingNpcs } from "@/composables/useNpcs";
 import type { Campaign } from "@/types/campaign.types";
 import MembersTab from "@/components/campaign/MembersTab.vue";
 import InvitesTab from "@/components/campaign/InvitesTab.vue";
@@ -703,11 +742,16 @@ function closeModal() {
 }
 
 function onCalendarChange() {
+  const adapter = getCalendarAdapter(form.value.calendar_id);
   // Only reset year when creating — don't clobber user's campaign year when editing
   if (!editing.value) {
-    form.value.current_year = getCalendarAdapter(
-      form.value.calendar_id,
-    ).defaultYear;
+    form.value.current_year = adapter.defaultYear;
+  }
+  // Auto-fill WORLD when blank or when it still matches a known setting's label
+  const newLabel = getSetting(form.value.calendar_id)?.label ?? "";
+  const knownLabels = new Set(listSettings().map((s) => s.label));
+  if (newLabel && (!form.value.setting || knownLabels.has(form.value.setting))) {
+    form.value.setting = newLabel;
   }
 }
 
@@ -769,5 +813,39 @@ async function claimForActive() {
   if (!campaignStore.activeCampaignId) return;
   await claimOrphans(campaignStore.activeCampaignId);
   open.value = false;
+}
+
+// ── Populate from setting ──────────────────────────────────────────────────────
+
+const { mutateAsync: populateLocations, isPending: isPopulatingLocations } = usePopulateLocations();
+const { mutateAsync: populateFactions, isPending: isPopulatingFactions } = usePopulateFactions();
+const { mutateAsync: populateNpcs, isPending: isPopulatingNpcs } = usePopulateSettingNpcs();
+
+const isPopulating = computed(
+  () => isPopulatingLocations.value || isPopulatingFactions.value || isPopulatingNpcs.value,
+);
+
+// Only show when editing the active campaign and a known setting is selected.
+const isEditingActiveCampaign = computed(
+  () => editing.value?.id === campaignStore.activeCampaignId,
+);
+const populateSetting = computed(() => getSetting(form.value.calendar_id));
+
+const populateResult = ref<{ locations: number; factions: number; npcs: number } | null>(null);
+const populateError = ref<string | null>(null);
+
+async function doPopulate() {
+  populateResult.value = null;
+  populateError.value = null;
+  try {
+    const [locations, factions, npcs] = await Promise.all([
+      populateLocations(),
+      populateFactions(),
+      populateNpcs(),
+    ]);
+    populateResult.value = { locations, factions, npcs };
+  } catch (e) {
+    populateError.value = e instanceof Error ? e.message : "Unknown error";
+  }
 }
 </script>

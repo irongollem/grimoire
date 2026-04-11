@@ -140,6 +140,19 @@ export const useUiStore = defineStore("ui", () => {
     encountersFilterQuestId.value = "all";
   }
 
+  // Hall of Heroes UI state
+  const hallOfHeroesSearch = ref("");
+  const hallOfHeroesFilterSetting = ref("all");
+
+  const hallOfHeroesHasActiveFilters = computed(
+    () => hallOfHeroesSearch.value.trim() !== "" || hallOfHeroesFilterSetting.value !== "all",
+  );
+
+  function resetHallOfHeroesFilters() {
+    hallOfHeroesSearch.value = "";
+    hallOfHeroesFilterSetting.value = "all";
+  }
+
   // Soundboard UI state
   const soundboardFilterCategory = ref<SoundCategory | "all">("all");
   const soundboardSearchQuery = ref("");
@@ -317,6 +330,12 @@ export const useUiStore = defineStore("ui", () => {
     dmPreviewPartyMemberId,
     enterDmPreview,
     exitDmPreview,
+
+    // Hall of Heroes
+    hallOfHeroesSearch,
+    hallOfHeroesFilterSetting,
+    hallOfHeroesHasActiveFilters,
+    resetHallOfHeroesFilters,
 
     // Soundboard
     soundboardFilterCategory,

@@ -1,14 +1,24 @@
 <template>
   <PageHeader title="Hall of Heroes" description="Iconic characters importable into any campaign">
     <template #actions>
-      <RouterLink
-        v-if="isAppAdmin"
-        to="/hall-of-heroes/new"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold tracking-wider text-primary-foreground hover:opacity-90 transition-opacity"
-      >
-        <Plus class="h-3.5 w-3.5" />
-        New Hero
-      </RouterLink>
+      <template v-if="isAppAdmin">
+        <button
+          type="button"
+          :disabled="populateMutation.isPending.value"
+          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 disabled:opacity-50 transition-colors"
+          @click="handlePopulate"
+        >
+          <Sparkles class="h-3.5 w-3.5" />
+          {{ populateLabel }}
+        </button>
+        <RouterLink
+          to="/hall-of-heroes/new"
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold tracking-wider text-primary-foreground hover:opacity-90 transition-opacity"
+        >
+          <Plus class="h-3.5 w-3.5" />
+          New Hero
+        </RouterLink>
+      </template>
     </template>
 
     <template #sticky>
@@ -159,10 +169,11 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { Plus, Pencil, Trash2 } from "lucide-vue-next";
-import { useHallOfHeroes, useDeleteHero, useImportHero } from "@/composables/useHallOfHeroes";
+import { Plus, Pencil, Trash2, Sparkles } from "lucide-vue-next";
+import { useHallOfHeroes, useDeleteHero, useImportHero, usePopulateAllSettingHeroes } from "@/composables/useHallOfHeroes";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
+import { useUiStore } from "@/stores/ui";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
@@ -182,24 +193,49 @@ function settingLabel(val: string) {
 const router = useRouter();
 const auth = useAuthStore();
 const campaign = useCampaignStore();
+const ui = useUiStore();
 
 const isAppAdmin = computed(() => auth.isAppAdmin);
 const hasCampaign = computed(() => !!campaign.activeCampaignId);
 const campaignSetting = computed(() => campaign.activeCampaign?.calendar_id ?? null);
 
-const search = ref("");
-const settingFilter = ref("all");
-const hasActiveFilters = computed(() => !!search.value.trim() || settingFilter.value !== "all");
+const search = computed({
+  get: () => ui.hallOfHeroesSearch,
+  set: (v) => { ui.hallOfHeroesSearch = v; },
+});
+const settingFilter = computed({
+  get: () => ui.hallOfHeroesFilterSetting,
+  set: (v) => { ui.hallOfHeroesFilterSetting = v; },
+});
+const hasActiveFilters = computed(() => ui.hallOfHeroesHasActiveFilters);
 
 function clearFilters() {
-  search.value = "";
-  settingFilter.value = "all";
+  ui.resetHallOfHeroesFilters();
 }
 
 const { data: heroes, isLoading } = useHallOfHeroes();
 const { mutate: deleteHero } = useDeleteHero();
 const { mutate: importHero } = useImportHero();
 const isImporting = ref<string | null>(null);
+
+const populateMutation = usePopulateAllSettingHeroes();
+const populateResult = ref<{ inserted: number; updated: number } | null>(null);
+
+const populateLabel = computed(() => {
+  if (populateMutation.isPending.value) return "Syncing…";
+  if (populateMutation.error.value) return `Error: ${populateMutation.error.value.message}`;
+  if (populateResult.value) return `+${populateResult.value.inserted} / ↻${populateResult.value.updated}`;
+  return "Sync All Settings";
+});
+
+async function handlePopulate() {
+  populateResult.value = null;
+  try {
+    populateResult.value = await populateMutation.mutateAsync();
+  } catch {
+    // error tracked by populateMutation.error
+  }
+}
 
 const filtered = computed(() => {
   let list = heroes.value ?? [];

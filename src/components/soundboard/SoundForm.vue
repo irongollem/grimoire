@@ -85,7 +85,7 @@
           </span>
           <input
             type="file"
-            accept="audio/*"
+            accept="audio/mpeg,audio/ogg,audio/wav,audio/flac,audio/aac,audio/webm,audio/x-m4a,.mp3,.ogg,.wav,.flac,.aac,.webm,.m4a"
             class="hidden"
             @change="handleFileChange"
           />
@@ -143,10 +143,21 @@ const form = ref<{
 const selectedFile = ref<File | null>(null);
 const uploadError = ref("");
 
+const MAX_FILE_SIZE_MB = 20;
+
 function handleFileChange(e: Event) {
   const input = e.target as HTMLInputElement;
-  selectedFile.value = input.files?.[0] ?? null;
+  const file = input.files?.[0] ?? null;
   uploadError.value = "";
+
+  if (file && file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+    uploadError.value = `File too large — maximum ${MAX_FILE_SIZE_MB} MB.`;
+    input.value = "";
+    selectedFile.value = null;
+    return;
+  }
+
+  selectedFile.value = file;
 }
 
 async function handleSubmit() {

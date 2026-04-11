@@ -6,6 +6,16 @@
     <template #actions>
       <div class="flex gap-2">
         <button
+          v-if="hasSetting"
+          type="button"
+          :disabled="populateMutation.isPending.value"
+          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 disabled:opacity-50 transition-colors"
+          @click="handlePopulate"
+        >
+          <Sparkles class="h-3.5 w-3.5" />
+          {{ populateStatusLabel }}
+        </button>
+        <button
           class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-foreground tracking-wider hover:bg-accent hover:text-accent-foreground transition-colors"
           @click="ui.npcGeneratorOpen = true"
         >
@@ -119,19 +129,50 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { ref, computed } from "vue";
 import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
-import { Plus, Wand2, Search } from "lucide-vue-next";
+import { Plus, Wand2, Search, Sparkles } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import NpcList from "@/components/npcs/NpcList.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useLocationTree } from "@/composables/useLocations";
 import { useParty } from "@/composables/useParty";
 import { useUiStore } from "@/stores/ui";
+import { useCampaignStore } from "@/stores/campaign";
+import { getSetting } from "@/settings/index";
+import { usePopulateSettingNpcs } from "@/composables/useNpcs";
 
 const ui = useUiStore();
+const campaign = useCampaignStore();
 const { locationOptions } = useLocationTree();
 const { data: party } = useParty();
+
+const hasSetting = computed(() => !!getSetting(campaign.activeCampaign?.calendar_id ?? ""));
+
+const populateMutation = usePopulateSettingNpcs();
+const populateStatus = ref<"idle" | "done" | "uptodate">("idle");
+const populatedCount = ref(0);
+const populateError = ref<string | null>(null);
+
+const populateStatusLabel = computed(() => {
+  if (populateMutation.isPending.value) return "Populating…";
+  if (populateError.value) return `Error: ${populateError.value}`;
+  if (populateStatus.value === "done") return `Added ${populatedCount.value} NPC${populatedCount.value !== 1 ? "s" : ""}`;
+  if (populateStatus.value === "uptodate") return "Already up to date";
+  return "Populate Setting";
+});
+
+async function handlePopulate() {
+  populateStatus.value = "idle";
+  populateError.value = null;
+  try {
+    const count = await populateMutation.mutateAsync();
+    populatedCount.value = count;
+    populateStatus.value = count === 0 ? "uptodate" : "done";
+  } catch (e) {
+    populateError.value = e instanceof Error ? e.message : "Unknown error";
+  }
+}
 
 const STATUS_OPTIONS = [
   { value: "all", label: "All" },

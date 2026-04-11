@@ -67,6 +67,19 @@ export interface SettingLocationDef {
   tags: string[];
 }
 
+// ── Factions ─────────────────────────────────────────────────────────────────
+
+export interface SettingFactionDef {
+  name: string;
+  /** Plain text — wrapped in Tiptap JSON on insert. */
+  description: string;
+  /** Must match a value from FACTION_TYPES in faction.types.ts. */
+  faction_type: string | null;
+  /** Must match a value from FACTION_ALIGNMENTS in faction.types.ts. */
+  alignment: string | null;
+  tags: string[];
+}
+
 // ── Hall of Heroes seed entries ──────────────────────────────────────────────
 
 export interface SettingHeroDef {
@@ -93,6 +106,7 @@ export interface DndSettingDef {
   defaultAiPrompt: string;
   calendar: SettingCalendarDef;
   locations: SettingLocationDef[];
+  factions: SettingFactionDef[];
   heroes: SettingHeroDef[];
 }
 

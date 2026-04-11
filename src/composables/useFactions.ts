@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { computed, type Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { getSetting } from "@/settings/index";
 import type {
   Faction,
   FactionNpc,
@@ -619,5 +620,69 @@ export function useRemoveFactionPartyMember() {
       qc.invalidateQueries({ queryKey: ["faction-party-members", vars.faction_id] });
       qc.invalidateQueries({ queryKey: ["party-member-factions", vars.party_member_id] });
     },
+  });
+}
+
+// ── Populate from setting ──────────────────────────────────────────────────────
+
+/** Bulk-insert seed factions for the active campaign's setting. Returns inserted count.
+ *  Deduplicates by name (case-insensitive). */
+export function usePopulateFactions() {
+  const qc = useQueryClient();
+  const campaign = useCampaignStore();
+  return useMutation({
+    mutationFn: async (): Promise<number> => {
+      const campaignId = campaign.activeCampaignId;
+      if (!campaignId) throw new Error("No active campaign");
+
+      const { data: campaignRow, error: campaignError } = await supabase
+        .from("campaigns")
+        .select("calendar_id")
+        .eq("id", campaignId)
+        .single();
+      if (campaignError) throw campaignError;
+
+      const calendarId: string = campaignRow?.calendar_id ?? "faerun";
+      const setting = getSetting(calendarId);
+      if (!setting?.factions.length) return 0;
+
+      const user = getCurrentUser();
+
+      const { data: existing, error: fetchError } = await supabase
+        .from("factions")
+        .select("id, name");
+      if (fetchError) throw fetchError;
+
+      const existingNames = new Set(
+        (existing ?? []).map((f: { name: string }) => f.name.toLowerCase()),
+      );
+
+      const toInsert = setting.factions
+        .filter((f) => !existingNames.has(f.name.toLowerCase()))
+        .map((f) => ({
+          name: f.name,
+          description: f.description
+            ? JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: f.description }] }] })
+            : null,
+          faction_type: f.faction_type,
+          alignment: f.alignment,
+          tags: f.tags,
+          emblem_url: null,
+          shared_with_players: false,
+          player_visible_to: null,
+          user_id: user!.id,
+        }));
+
+      if (!toInsert.length) return 0;
+
+      const { data: inserted, error: insertError } = await supabase
+        .from("factions")
+        .insert(toInsert)
+        .select("id");
+      if (insertError) throw insertError;
+
+      return (inserted ?? []).length;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["factions"] }),
   });
 }

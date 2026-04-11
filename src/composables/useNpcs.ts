@@ -3,6 +3,7 @@ import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { getSetting } from "@/settings/index";
 import type { Npc, NpcInsert, NpcUpdate } from "@/types/npc.types";
 
 const QUERY_KEY = "npcs";
@@ -205,6 +206,118 @@ export function useUpsertNpcPlayerNotes(npcId: string) {
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [NOTES_KEY, npcId] }),
+  });
+}
+
+// ── Populate from setting ──────────────────────────────────────────────────────
+
+/** Normalise a name for fuzzy dedup: lowercase + strip punctuation/symbols. */
+function normaliseName(name: string): string {
+  return name.toLowerCase().replace(/['\u2018\u2019`\-_.,"!?]/g, "").replace(/\s+/g, " ").trim();
+}
+
+function plainTextToTiptap(text: string): string {
+  return JSON.stringify({
+    type: "doc",
+    content: [{ type: "paragraph", content: [{ type: "text", text }] }],
+  });
+}
+
+/** Bulk-insert seed NPCs (Hall of Heroes) for the active campaign's setting.
+ *  Returns inserted count. Deduplicates by name (case-insensitive). */
+export function usePopulateSettingNpcs() {
+  const queryClient = useQueryClient();
+  const campaign = useCampaignStore();
+  return useMutation({
+    mutationFn: async (): Promise<number> => {
+      const campaignId = campaign.activeCampaignId;
+      if (!campaignId) throw new Error("No active campaign");
+
+      const { data: campaignRow, error: campaignError } = await supabase
+        .from("campaigns")
+        .select("calendar_id")
+        .eq("id", campaignId)
+        .single();
+      if (campaignError) throw campaignError;
+
+      const calendarId: string = campaignRow?.calendar_id ?? "faerun";
+      const setting = getSetting(calendarId);
+      if (!setting?.heroes.length) return 0;
+
+      const user = getCurrentUser();
+
+      const { data: existing, error: fetchError } = await supabase
+        .from("npcs")
+        .select("id, name, portrait_url")
+        .eq("campaign_id", campaignId);
+      if (fetchError) throw fetchError;
+
+      const existingMap = new Map(
+        (existing ?? []).map((n: { id: string; name: string; portrait_url: string | null }) => [
+          normaliseName(n.name),
+          n,
+        ]),
+      );
+
+      // Update portrait_url for existing NPCs that still have none but the setting now has one
+      const portraitUpdates = setting.heroes.filter((h) => {
+        if (!h.portrait_url) return false;
+        const match = existingMap.get(normaliseName(h.name));
+        return match && !match.portrait_url;
+      });
+
+      if (portraitUpdates.length) {
+        await Promise.all(
+          portraitUpdates.map((h) =>
+            supabase
+              .from("npcs")
+              .update({ portrait_url: h.portrait_url })
+              .eq("id", existingMap.get(normaliseName(h.name))!.id),
+          ),
+        );
+      }
+
+      const toInsert: NpcInsert[] = setting.heroes
+        .filter((h) => !existingMap.has(normaliseName(h.name)))
+        .map((h) => ({
+          campaign_id: campaignId,
+          name: h.name,
+          race: h.race,
+          alignment: h.alignment,
+          age: null,
+          occupation: h.occupation,
+          appearance: null,
+          personality: h.personality ? plainTextToTiptap(h.personality) : null,
+          backstory: h.backstory ? plainTextToTiptap(h.backstory) : null,
+          notes: null,
+          status: h.status,
+          relationship: h.relationship,
+          portrait_url: h.portrait_url,
+          card_art_url: null,
+          portrait_focal_point: null,
+          disguise_name: null,
+          disguise_portrait_url: null,
+          disguise_portrait_focal_point: null,
+          is_revealed: true,
+          tags: h.tags,
+          stat_block: null,
+          scriptorium_doc_id: null,
+          shared_with_players: false,
+          player_visible_fields: [],
+        }));
+
+      if (!toInsert.length) return portraitUpdates.length > 0 ? 0 : 0;
+
+      const { data: inserted, error: insertError } = await supabase
+        .from("npcs")
+        .insert(toInsert.map((n) => ({ ...n, user_id: user!.id })))
+        .select("id");
+      if (insertError) throw insertError;
+
+      return (inserted ?? []).length;
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, campaign.activeCampaignId] }),
   });
 }
 
