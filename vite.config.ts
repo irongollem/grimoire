@@ -13,9 +13,8 @@ export default defineConfig({
       // Use the existing manifest.webmanifest in public/
       manifest: false,
       workbox: {
-        // Only precache app shell; large asset images are fetched at runtime
-        globPatterns: ["**/*.{js,css,html,ico,svg,webmanifest}"],
-        globIgnores: ["assets/**"],
+        // Precache app shell + all assets (images are now WebP, largest ~640KB)
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,webmanifest}"],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       },
     }),

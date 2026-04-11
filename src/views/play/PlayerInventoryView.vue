@@ -15,8 +15,8 @@
             <img
               :src="
                 slotItem('clothes')
-                  ? '/assets/dressed.png'
-                  : '/assets/naked.png'
+                  ? '/assets/dressed.webp'
+                  : '/assets/naked.webp'
               "
               alt="Character"
               class="w-full h-full object-contain object-center transition-opacity duration-200"
@@ -909,22 +909,22 @@ const BURDEN_META: Record<
 > = {
   unencumbered: {
     label: "Unencumbered",
-    img: "/assets/unencumbered.png",
+    img: "/assets/unencumbered.webp",
     color: "text-muted-foreground/60",
   },
   encumbered: {
     label: "Encumbered",
-    img: "/assets/encumbered.png",
+    img: "/assets/encumbered.webp",
     color: "text-amber-400",
   },
   heavily_encumbered: {
     label: "Heavily Encumbered",
-    img: "/assets/heavily_encumbered.png",
+    img: "/assets/heavily_encumbered.webp",
     color: "text-orange-500",
   },
   over_encumbered: {
     label: "Over Encumbered",
-    img: "/assets/over_encumbered.png",
+    img: "/assets/over_encumbered.webp",
     color: "text-destructive",
   },
 };

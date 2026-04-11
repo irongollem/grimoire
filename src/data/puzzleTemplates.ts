@@ -4,7 +4,7 @@ import type { PuzzleInsert } from "@/types/puzzle.types";
 export const PUZZLE_TEMPLATES: Omit<PuzzleInsert, "image_focal_point" | "campaign_id" | "is_shared" | "shared_hints" | "read_aloud">[] = [
   {
     name: "The Three Doors",
-    image_url: "/assets/puzzles/three-doors.png",
+    image_url: "/assets/puzzles/three-doors.webp",
     puzzle_type: "Logic",
     difficulty: "Medium",
     description:
@@ -42,7 +42,7 @@ export const PUZZLE_TEMPLATES: Omit<PuzzleInsert, "image_focal_point" | "campaig
 
   {
     name: "The Celestial Orrery",
-    image_url: "/assets/puzzles/arcane-library.png",
+    image_url: "/assets/puzzles/arcane-library.webp",
     puzzle_type: "Arcane",
     difficulty: "Hard",
     description:
@@ -80,7 +80,7 @@ export const PUZZLE_TEMPLATES: Omit<PuzzleInsert, "image_focal_point" | "campaig
 
   {
     name: "The Waterway Vault",
-    image_url: "/assets/puzzles/waterway-vault.png",
+    image_url: "/assets/puzzles/waterway-vault.webp",
     puzzle_type: "Physical",
     difficulty: "Easy",
     description:

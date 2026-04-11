@@ -15,7 +15,7 @@
       />
       <img
         v-else-if="!npc.player_visible_fields.includes('portrait') && displayPortrait"
-        src="/assets/npcs/mystery-figure.png"
+        src="/assets/npcs/mystery-figure.webp"
         alt="Identity hidden"
         class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
       />

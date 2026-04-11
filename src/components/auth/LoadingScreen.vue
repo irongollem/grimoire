@@ -1,6 +1,6 @@
 <template>
   <div class="loading-screen">
-    <img src="/logo.png" alt="Dungeon Grimoire" class="loading-logo" />
+    <img src="/logo.webp" alt="Dungeon Grimoire" class="loading-logo" />
     <div class="loading-spinner" aria-label="Loading…" />
   </div>
 </template>

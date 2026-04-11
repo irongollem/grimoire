@@ -728,7 +728,7 @@ onUnmounted(() => editor.value?.destroy());
   width: 100%;
   max-width: 680px;
   min-height: 961px; /* 680px × (297/210) = A4 aspect ratio */
-  background: url("/assets/scriptorium/page-background.png") center / cover no-repeat;
+  background: url("/assets/scriptorium/page-background.webp") center / cover no-repeat;
   padding: 2.5rem 2.5rem 2rem;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
   font-family: Georgia, "Times New Roman", serif;
