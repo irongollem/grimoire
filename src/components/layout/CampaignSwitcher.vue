@@ -1,7 +1,8 @@
 <template>
   <div class="px-3 py-3 border-b border-border">
-    <!-- Active campaign + switcher -->
-    <div v-if="campaigns.length > 0" class="relative">
+    <!-- Active campaign + switcher — show immediately if we have a stored campaign ID,
+         even before the campaigns list finishes loading -->
+    <div v-if="campaigns.length > 0 || campaignStore.activeCampaignId" class="relative">
       <button
         class="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-accent transition-colors text-left"
         @click="open = !open"
@@ -11,10 +12,10 @@
         </div>
         <div class="flex-1 min-w-0">
           <p class="font-cinzel text-xs font-bold text-foreground truncate leading-tight">
-            {{ activeCampaign?.name ?? "Select Campaign" }}
+            {{ activeCampaign?.name ?? (campaignsLoading ? 'Loading…' : 'Select Campaign') }}
           </p>
           <p class="font-fell text-[10px] text-muted-foreground italic truncate leading-tight flex items-center gap-1.5">
-            {{ activeCampaign?.setting ?? "No campaign active" }}
+            {{ activeCampaign?.setting ?? (campaignsLoading ? '' : 'No campaign active') }}
             <span v-if="onlineCount > 0" class="inline-flex items-center gap-0.5 not-italic">
               <span class="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
               <span class="font-cinzel text-[9px] text-green-500 tracking-wider">{{ onlineCount }}</span>
@@ -90,8 +91,8 @@
       </div>
     </div>
 
-    <!-- No campaigns yet -->
-    <div v-else class="px-2 py-1">
+    <!-- No campaigns yet — only show after loading confirms there are truly none -->
+    <div v-else-if="!campaignsLoading" class="px-2 py-1">
       <p class="font-fell text-xs text-muted-foreground italic mb-2">No campaigns yet.</p>
       <button
         class="w-full flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
@@ -402,7 +403,7 @@ const onlineCount = computed(() => {
   const others = onlineUsers.value.filter((u) => u.user_id !== auth.user?.id);
   return new Set(others.map((u) => u.user_id)).size;
 });
-const { data: campaignList } = useCampaigns();
+const { data: campaignList, isLoading: campaignsLoading } = useCampaigns();
 const { mutateAsync: createCampaign, isPending: isCreating } = useCreateCampaign();
 const { mutateAsync: updateCampaign, isPending: isUpdating } = useUpdateCampaign();
 const { mutateAsync: deleteCampaign, isPending: isDeleting } = useDeleteCampaign();

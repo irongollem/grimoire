@@ -1,5 +1,5 @@
 <template>
-  <LoadingScreen v-if="!auth.initialized" />
+  <LoadingScreen v-if="showLoading" />
   <template v-else>
     <component :is="layout">
       <RouterView />
@@ -33,9 +33,50 @@ import LoadingScreen from "@/components/auth/LoadingScreen.vue";
 import { useTheme } from "@/composables/useTheme";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/auth";
+import { useCampaignStore } from "@/stores/campaign";
+import { useCampaignById } from "@/composables/useCampaigns";
 import { usePullToRefresh } from "@/composables/usePullToRefresh";
 
 const auth = useAuthStore();
+const campaignStore = useCampaignStore();
+
+// Eagerly fetch the active campaign so it's hydrated before the app renders.
+// Without this, DefaultLayout mounts and CampaignSwitcher/nav queries fire
+// before activeCampaign is set, producing a visible "Create your first campaign"
+// flash for DMs and missing-data states for players.
+const campaignIdToFetch = computed<string | null>(() => {
+  if (!auth.initialized) return null;
+  return (
+    campaignStore.activeCampaignId ??
+    auth.membership?.campaign_id ??
+    null
+  );
+});
+
+const { data: earlyCampaign, isLoading: campaignFetching } = useCampaignById(
+  () => campaignIdToFetch.value,
+);
+
+// Hold the loading screen until auth is ready AND the active campaign has been
+// fetched (if one is expected). This prevents the "Create your first campaign"
+// flash that occurs when components mount before activeCampaign is hydrated.
+const showLoading = computed(
+  () =>
+    !auth.initialized ||
+    (!!campaignIdToFetch.value &&
+      !campaignStore.activeCampaign &&
+      campaignFetching.value),
+);
+
+watch(
+  earlyCampaign,
+  (c) => {
+    if (!c) return;
+    if (!campaignStore.activeCampaignId) campaignStore.activeCampaignId = c.id;
+    if (!campaignStore.activeCampaign) campaignStore.switchToCampaign(c);
+  },
+  { immediate: true },
+);
 const router = useRouter();
 const { pullPx, readyToReload } = usePullToRefresh();
 
