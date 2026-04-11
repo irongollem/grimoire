@@ -1,10 +1,10 @@
 <template>
   <!-- Wide screens: character (left) | encounter (right, sticky)
        Narrow screens: encounter (top) then character (bottom) -->
-  <div class="flex flex-col xl:flex-row gap-6 items-start pb-8" :class="{ shake: isShaking }">
-    <!-- Encounter panel — top on mobile, sticky right column on xl -->
+  <div class="flex flex-col lg:flex-row gap-6 items-start pb-8" :class="{ shake: isShaking }">
+    <!-- Encounter panel — top on mobile, sticky right column on lg+ -->
     <div
-      class="w-full xl:w-112.5 xl:shrink-0 xl:order-2 xl:sticky xl:top-6 space-y-4"
+      class="w-full lg:w-80 xl:w-112.5 lg:shrink-0 lg:order-2 lg:sticky lg:top-6 space-y-4"
     >
       <h2 class="font-cinzel text-xl font-bold text-foreground">
         Live Encounter
@@ -196,8 +196,11 @@
               :class="
                 isActive(combatant)
                   ? 'bg-primary/8 ring-1 ring-inset ring-primary/20'
+                  : combatant.instance_id === myPlayer?.instance_id
+                  ? 'hover:bg-muted/20 cursor-pointer'
                   : 'hover:bg-muted/20'
               "
+              @click="combatant.instance_id === myPlayer?.instance_id && toggleHpPanel()"
             >
               <div class="portrait-cell">
                 <div
@@ -321,12 +324,32 @@
               </div>
             </div>
           </template>
+
+          <!-- HP adjustment panel — own row only -->
+          <div
+            v-if="showHpPanel && myPlayer"
+            class="hp-panel"
+            @click.stop
+          >
+            <input
+              v-model.number="hpAmount"
+              type="number"
+              min="0"
+              placeholder="0"
+              class="hp-panel-input"
+              @keydown.enter="applyDamage"
+            />
+            <button type="button" class="hp-panel-btn hp-dmg" @click="applyDamage">Dmg</button>
+            <button type="button" class="hp-panel-btn hp-heal" @click="applyHeal">Heal</button>
+            <button type="button" class="hp-panel-btn hp-temp" @click="applyTemp">+Temp</button>
+            <span v-if="myPlayer.temp_hp" class="hp-temp-display">{{ myPlayer.temp_hp }} tmp</span>
+          </div>
         </div>
       </template>
     </div>
 
-    <!-- Character sheet — below on mobile, left column on xl -->
-    <div class="w-full xl:flex-1 xl:min-w-0 xl:order-1">
+    <!-- Character sheet — below on mobile, left column on lg+ -->
+    <div class="w-full lg:flex-1 lg:min-w-0 lg:order-1">
       <PlayerCharacterView />
     </div>
   </div>
@@ -552,6 +575,34 @@ function doRevertWildshape() {
   if (!myPlayer.value) return;
   runStore.revertWildshape(myPlayer.value.instance_id);
 }
+
+// ── HP panel ──────────────────────────────────────────────────────────────────
+
+const showHpPanel = ref(false);
+const hpAmount = ref<number | null>(null);
+
+function toggleHpPanel() {
+  showHpPanel.value = !showHpPanel.value;
+  hpAmount.value = null;
+}
+
+function applyDamage() {
+  if (!myPlayer.value || !hpAmount.value) return;
+  runStore.adjustHp(myPlayer.value.instance_id, -hpAmount.value);
+  hpAmount.value = null;
+}
+
+function applyHeal() {
+  if (!myPlayer.value || !hpAmount.value) return;
+  runStore.adjustHp(myPlayer.value.instance_id, hpAmount.value);
+  hpAmount.value = null;
+}
+
+function applyTemp() {
+  if (!myPlayer.value || !hpAmount.value) return;
+  runStore.setTempHp(myPlayer.value.instance_id, hpAmount.value);
+  hpAmount.value = null;
+}
 </script>
 
 <style scoped>
@@ -607,5 +658,78 @@ function doRevertWildshape() {
   font-family: var(--font-cinzel, serif);
   font-size: 11px;
   font-weight: 700;
+}
+
+.hp-panel {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid theme(colors.border / 60%);
+  background: theme(colors.muted / 20%);
+}
+
+.hp-panel-input {
+  width: 4rem;
+  background: theme(colors.background);
+  border: 1px solid theme(colors.border);
+  border-radius: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  font-family: var(--font-cinzel, serif);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  color: theme(colors.foreground);
+  outline: none;
+}
+.hp-panel-input:focus {
+  border-color: theme(colors.ring);
+}
+.hp-panel-input::-webkit-inner-spin-button,
+.hp-panel-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
+
+.hp-panel-btn {
+  padding: 0.25rem 0.625rem;
+  border-radius: 0.25rem;
+  font-family: var(--font-cinzel, serif);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border: 1px solid;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.hp-dmg {
+  border-color: theme(colors.rose.500 / 40%);
+  color: theme(colors.rose.500);
+}
+.hp-dmg:hover {
+  background: theme(colors.rose.500 / 15%);
+}
+
+.hp-heal {
+  border-color: theme(colors.green.500 / 40%);
+  color: theme(colors.green.500);
+}
+.hp-heal:hover {
+  background: theme(colors.green.500 / 15%);
+}
+
+.hp-temp {
+  border-color: theme(colors.sky.400 / 40%);
+  color: theme(colors.sky.400);
+}
+.hp-temp:hover {
+  background: theme(colors.sky.400 / 15%);
+}
+
+.hp-temp-display {
+  margin-left: auto;
+  font-family: var(--font-cinzel, serif);
+  font-size: 10px;
+  font-weight: 700;
+  color: theme(colors.sky.400);
 }
 </style>
