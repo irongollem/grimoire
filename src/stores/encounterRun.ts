@@ -113,9 +113,22 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   function adjustHp(instanceId: string, delta: number) {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c) return;
+    if (delta < 0 && c.temp_hp) {
+      const absorbed = Math.min(c.temp_hp, -delta);
+      c.temp_hp = c.temp_hp - absorbed;
+      delta = delta + absorbed;
+      if (c.temp_hp === 0) c.temp_hp = undefined;
+    }
     c.hp = Math.min(c.max_hp, Math.max(0, c.hp + delta));
     if (c.hp === 0 && c.wildshape) revertWildshape(instanceId);
     checkEvents();
+  }
+
+  function setTempHp(instanceId: string, value: number) {
+    const c = combatants.value.find((x) => x.instance_id === instanceId);
+    if (!c) return;
+    // Temp HP doesn't stack — take the higher value
+    c.temp_hp = Math.max(c.temp_hp ?? 0, value) || undefined;
   }
 
   function setHp(instanceId: string, value: number) {
@@ -365,6 +378,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     prevTurn,
     adjustHp,
     setHp,
+    setTempHp,
     toggleCondition,
     addCurse,
     removeCurse,

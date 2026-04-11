@@ -13,6 +13,9 @@
   <div
     v-for="combatant in store.sortedCombatants"
     :key="combatant.instance_id"
+    class="combatant-wrap"
+  >
+  <div
     class="combatant-row"
     :class="{
       'is-active': store.started && combatant.instance_id === store.activeCombatant?.instance_id,
@@ -124,6 +127,28 @@
     </div>
   </div>
 
+  <!-- Quick HP panel — shown when row is selected -->
+  <div
+    v-if="combatant.instance_id === props.selectedId"
+    class="hp-quick-panel"
+    @click.stop
+  >
+    <input
+      v-model.number="quickAmounts[combatant.instance_id]"
+      type="number"
+      min="0"
+      placeholder="amt"
+      class="quick-input"
+      @keydown.enter="quickDamage(combatant.instance_id)"
+    />
+    <button type="button" class="quick-btn quick-dmg" @click="quickDamage(combatant.instance_id)">Dmg</button>
+    <button type="button" class="quick-btn quick-heal" @click="quickHeal(combatant.instance_id)">Heal</button>
+    <button type="button" class="quick-btn quick-temp" @click="quickTemp(combatant.instance_id)">+Temp</button>
+    <span v-if="combatant.temp_hp" class="quick-temp-display">{{ combatant.temp_hp }} tmp</span>
+  </div>
+
+  </div><!-- /combatant-wrap -->
+
   <p v-if="!store.sortedCombatants.length" class="empty-runner">
     No combatants. Go back to the builder to add monsters and party members.
   </p>
@@ -147,6 +172,7 @@ const emit = defineEmits<{
 
 const store = useEncounterRunStore();
 const addingCondFor = ref<string | null>(null);
+const quickAmounts = ref<Record<string, number | null>>({});
 
 // Debounce state for HP +/- buttons
 const pendingDeltas = new Map<string, number>();
@@ -228,6 +254,29 @@ function revealBtnTitle(state: RevealState | undefined) {
   if (state === "revealed") return "Revealed — click to hide";
   if (state === "unseen")   return "Unseen — click to reveal";
   return "Hidden — click to show slot";
+}
+
+function quickDamage(instanceId: string) {
+  const amt = quickAmounts.value[instanceId];
+  if (!amt) return;
+  store.adjustHp(instanceId, -amt);
+  showFlash(instanceId, -amt);
+  quickAmounts.value[instanceId] = null;
+}
+
+function quickHeal(instanceId: string) {
+  const amt = quickAmounts.value[instanceId];
+  if (!amt) return;
+  store.adjustHp(instanceId, amt);
+  showFlash(instanceId, amt);
+  quickAmounts.value[instanceId] = null;
+}
+
+function quickTemp(instanceId: string) {
+  const amt = quickAmounts.value[instanceId];
+  if (!amt) return;
+  store.setTempHp(instanceId, amt);
+  quickAmounts.value[instanceId] = null;
 }
 </script>
 
@@ -439,6 +488,66 @@ function revealBtnTitle(state: RevealState | undefined) {
 
 .empty-runner {
   @apply text-center font-fell text-sm text-muted-foreground italic py-16;
+}
+
+.combatant-wrap {
+  border-bottom: 1px solid theme(colors.border / 50%);
+}
+
+.combatant-wrap .combatant-row {
+  border-bottom: none;
+}
+
+.hp-quick-panel {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem 0.375rem 3rem;
+  background: theme(colors.muted / 15%);
+  border-top: 1px solid theme(colors.border / 40%);
+}
+
+.quick-input {
+  width: 3.5rem;
+  background: theme(colors.background);
+  border: 1px solid theme(colors.border);
+  border-radius: 0.25rem;
+  padding: 0.2rem 0.4rem;
+  font-family: var(--font-cinzel, serif);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  color: theme(colors.foreground);
+  outline: none;
+}
+.quick-input:focus { border-color: theme(colors.ring); }
+.quick-input::-webkit-inner-spin-button,
+.quick-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+.quick-btn {
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.25rem;
+  font-family: var(--font-cinzel, serif);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border: 1px solid;
+  transition: background-color 0.15s;
+}
+
+.quick-dmg  { border-color: theme(colors.rose.500 / 40%); color: theme(colors.rose.500); }
+.quick-dmg:hover  { background: theme(colors.rose.500 / 15%); }
+.quick-heal { border-color: theme(colors.green.500 / 40%); color: theme(colors.green.500); }
+.quick-heal:hover { background: theme(colors.green.500 / 15%); }
+.quick-temp { border-color: theme(colors.sky.400 / 40%); color: theme(colors.sky.400); }
+.quick-temp:hover { background: theme(colors.sky.400 / 15%); }
+
+.quick-temp-display {
+  margin-left: auto;
+  font-family: var(--font-cinzel, serif);
+  font-size: 10px;
+  font-weight: 700;
+  color: theme(colors.sky.400);
 }
 
 /* ── Mobile: drop CONDITIONS column, compact HP ───────────────────────────── */

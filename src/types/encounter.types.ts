@@ -128,6 +128,8 @@ export interface RunCombatant {
   reveal_state?: RevealState;
   // wildshape — only set for player combatants currently wildshaped
   wildshape?: WildshapeState;
+  // temp HP — absorbs damage first, doesn't stack with healing
+  temp_hp?: number;
 }
 
 // ── XP / CR tables (D&D 5e) ──────────────────────────────────────────────────
