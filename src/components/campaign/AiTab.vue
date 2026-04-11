@@ -65,8 +65,16 @@
 
     <!-- Setting prompt -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="px-4 py-3 border-b border-border bg-muted/20">
+      <div class="px-4 py-3 border-b border-border bg-muted/20 flex items-center justify-between">
         <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Campaign Setting Prompt</span>
+        <button
+          v-if="settingDefaultPrompt"
+          type="button"
+          class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors"
+          @click="form.ai_setting_prompt = settingDefaultPrompt"
+        >
+          Load {{ settingLabel }} Defaults
+        </button>
       </div>
       <div class="p-4 flex flex-col gap-3">
         <p class="font-fell text-xs text-muted-foreground italic">
@@ -75,7 +83,7 @@
         <textarea
           v-model="form.ai_setting_prompt"
           rows="6"
-          placeholder="e.g. Dark gothic fantasy set in a crumbling empire. Think corrupted nobility, ancient undead, and flickering candlelight. Visuals should feel like 19th century European oil paintings with a brooding, melancholic atmosphere…"
+          placeholder="Describe the visual tone of your world — palette, materials, lighting, atmosphere, and character style. e.g. Frozen northern survival fantasy. Favour cold blues, greys, bone tones, weathered leather and fur. Use blizzard haze, moonlit ice, and dim firelight to support the subject. Characters wear practical cold-weather gear with cultural details through scars, markings, and trophies. Keep the mood solemn, hardy, and world-consistent."
           class="field-input resize-none"
         />
       </div>
@@ -95,11 +103,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, computed, watch } from "vue";
 import { Eye, EyeOff } from "lucide-vue-next";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/useCampaigns";
 import { encryptApiKey } from "@/lib/apiKeyVault";
+import { getSetting } from "@/settings/index";
 
 const LOCAL_MODE_KEY = "grimoire_openai_key_mode";
 const LOCAL_KEY_STORAGE = "grimoire_openai_key";
@@ -115,6 +124,10 @@ const form = ref({
 const showKey = ref(false);
 const isSaving = ref(false);
 const localModeEnabled = ref(localStorage.getItem(LOCAL_MODE_KEY) === "local");
+
+const activeSetting = computed(() => getSetting(campaign.activeCampaign?.calendar_id ?? ""));
+const settingDefaultPrompt = computed(() => activeSetting.value?.defaultAiPrompt ?? "");
+const settingLabel = computed(() => activeSetting.value?.label ?? "Setting");
 
 // Sync if the active campaign switches
 watch(
