@@ -2,23 +2,44 @@
   <div class="px-3 py-3 border-b border-border">
     <!-- Active campaign + switcher — show immediately if we have a stored campaign ID,
          even before the campaigns list finishes loading -->
-    <div v-if="campaigns.length > 0 || campaignStore.activeCampaignId" class="relative">
+    <div
+      v-if="campaigns.length > 0 || campaignStore.activeCampaignId"
+      class="relative"
+    >
       <button
         class="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-accent transition-colors text-left"
         @click="open = !open"
       >
-        <div class="h-7 w-7 rounded-md bg-primary/20 flex items-center justify-center shrink-0">
+        <div
+          class="h-7 w-7 rounded-md bg-primary/20 flex items-center justify-center shrink-0"
+        >
           <BookOpen class="h-3.5 w-3.5 text-primary" />
         </div>
         <div class="flex-1 min-w-0">
-          <p class="font-cinzel text-xs font-bold text-foreground truncate leading-tight">
-            {{ activeCampaign?.name ?? (campaignsLoading ? 'Loading…' : 'Select Campaign') }}
+          <p
+            class="font-cinzel text-xs font-bold text-foreground truncate leading-tight"
+          >
+            {{
+              activeCampaign?.name ??
+              (campaignsLoading ? "Loading…" : "Select Campaign")
+            }}
           </p>
-          <p class="font-fell text-[10px] text-muted-foreground italic truncate leading-tight flex items-center gap-1.5">
-            {{ activeCampaign?.setting ?? (campaignsLoading ? '' : 'No campaign active') }}
-            <span v-if="onlineCount > 0" class="inline-flex items-center gap-0.5 not-italic">
+          <p
+            class="font-fell text-[10px] text-muted-foreground italic truncate leading-tight flex items-center gap-1.5"
+          >
+            {{
+              activeCampaign?.setting ??
+              (campaignsLoading ? "" : "No campaign active")
+            }}
+            <span
+              v-if="onlineCount > 0"
+              class="inline-flex items-center gap-0.5 not-italic"
+            >
               <span class="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
-              <span class="font-cinzel text-[9px] text-green-500 tracking-wider">{{ onlineCount }}</span>
+              <span
+                class="font-cinzel text-[9px] text-green-500 tracking-wider"
+                >{{ onlineCount }}</span
+              >
             </span>
           </p>
         </div>
@@ -44,20 +65,36 @@
             :class="c.id === activeCampaign?.id ? 'bg-navy-800' : ''"
           >
             <!-- Campaign select area -->
-            <button class="flex items-center gap-2 flex-1 min-w-0 text-left" @click="select(c)">
+            <button
+              class="flex items-center gap-2 flex-1 min-w-0 text-left"
+              @click="select(c)"
+            >
               <span
                 class="h-1.5 w-1.5 rounded-full shrink-0"
-                :class="c.id === activeCampaign?.id ? 'bg-primary' : 'bg-muted-foreground/30'"
+                :class="
+                  c.id === activeCampaign?.id
+                    ? 'bg-primary'
+                    : 'bg-muted-foreground/30'
+                "
               />
               <div class="flex-1 min-w-0">
-                <p class="font-cinzel text-xs font-semibold text-foreground truncate">{{ c.name }}</p>
-                <p class="font-fell text-[10px] text-muted-foreground italic truncate">
-                  {{ c.setting }} · {{ c.current_year }} {{ calendarEpoch(c.calendar_id) }}
+                <p
+                  class="font-cinzel text-xs font-semibold text-foreground truncate"
+                >
+                  {{ c.name }}
+                </p>
+                <p
+                  class="font-fell text-[10px] text-muted-foreground italic truncate"
+                >
+                  {{ c.setting }} · {{ c.current_year }}
+                  {{ calendarEpoch(c.calendar_id) }}
                 </p>
               </div>
             </button>
             <!-- Edit icon — visible on row hover -->
-            <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+            <div
+              class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+            >
               <button
                 class="p-1 rounded hover:bg-background text-muted-foreground hover:text-foreground transition-colors"
                 title="Edit campaign"
@@ -85,7 +122,9 @@
             @click="startCreate"
           >
             <Plus class="h-3.5 w-3.5 text-muted-foreground" />
-            <span class="font-cinzel text-xs text-muted-foreground">New Campaign</span>
+            <span class="font-cinzel text-xs text-muted-foreground"
+              >New Campaign</span
+            >
           </button>
         </div>
       </div>
@@ -93,7 +132,9 @@
 
     <!-- No campaigns yet — only show after loading confirms there are truly none -->
     <div v-else-if="!campaignsLoading" class="px-2 py-1">
-      <p class="font-fell text-xs text-muted-foreground italic mb-2">No campaigns yet.</p>
+      <p class="font-fell text-xs text-muted-foreground italic mb-2">
+        No campaigns yet.
+      </p>
       <button
         class="w-full flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
         @click="startCreate"
@@ -113,9 +154,17 @@
     >
       <div
         class="bg-card border border-border rounded-lg w-full shadow-xl transition-all"
-        :class="editing && activeModalTab === 'scheduling' ? 'max-w-2xl' : editing && activeModalTab !== 'details' ? 'max-w-xl' : 'max-w-md'"
+        :class="
+          editing && activeModalTab === 'scheduling'
+            ? 'max-w-2xl'
+            : editing && activeModalTab !== 'details'
+              ? 'max-w-xl'
+              : 'max-w-md'
+        "
       >
-        <div class="flex items-center justify-between px-5 py-4 border-b border-border">
+        <div
+          class="flex items-center justify-between px-5 py-4 border-b border-border"
+        >
           <h2 class="font-cinzel text-lg font-bold text-foreground">
             {{ editing ? "Edit Campaign" : "New Campaign" }}
           </h2>
@@ -133,9 +182,15 @@
             v-for="tab in modalTabs"
             :key="tab.id"
             class="px-3 py-1.5 rounded text-xs font-cinzel tracking-wide transition-colors"
-            :class="tab.id === 'danger'
-              ? activeModalTab === 'danger' ? 'bg-destructive/10 text-destructive' : 'text-destructive/60 hover:text-destructive'
-              : activeModalTab === tab.id ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'"
+            :class="
+              tab.id === 'danger'
+                ? activeModalTab === 'danger'
+                  ? 'bg-destructive/10 text-destructive'
+                  : 'text-destructive/60 hover:text-destructive'
+                : activeModalTab === tab.id
+                  ? 'bg-muted text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+            "
             @click="activeModalTab = tab.id"
           >
             {{ tab.label }}
@@ -143,35 +198,62 @@
         </div>
 
         <!-- Members tab -->
-        <div v-if="editing && activeModalTab === 'members'" class="px-5 py-4 max-h-[60vh] overflow-y-auto">
+        <div
+          v-if="editing && activeModalTab === 'members'"
+          class="px-5 py-4 max-h-[60vh] overflow-y-auto"
+        >
           <MembersTab @switch-tab="activeModalTab = $event as ModalTab" />
         </div>
 
         <!-- Invites tab -->
-        <div v-else-if="editing && activeModalTab === 'invites'" class="px-5 py-4 max-h-[60vh] overflow-y-auto">
+        <div
+          v-else-if="editing && activeModalTab === 'invites'"
+          class="px-5 py-4 max-h-[60vh] overflow-y-auto"
+        >
           <InvitesTab />
         </div>
 
         <!-- Scheduling tab -->
-        <div v-else-if="editing && activeModalTab === 'scheduling'" class="px-5 py-4 max-h-[70vh] overflow-y-auto">
+        <div
+          v-else-if="editing && activeModalTab === 'scheduling'"
+          class="px-5 py-4 max-h-[70vh] overflow-y-auto"
+        >
           <SchedulingTab />
         </div>
 
         <!-- AI Assistant tab -->
-        <div v-else-if="editing && activeModalTab === 'ai'" class="px-5 py-4 max-h-[60vh] overflow-y-auto">
+        <div
+          v-else-if="editing && activeModalTab === 'ai'"
+          class="px-5 py-4 max-h-[60vh] overflow-y-auto"
+        >
           <AiTab />
         </div>
 
         <!-- Danger Zone tab -->
-        <div v-else-if="editing && activeModalTab === 'danger'" class="px-5 py-6 space-y-4">
+        <div
+          v-else-if="editing && activeModalTab === 'danger'"
+          class="px-5 py-6 space-y-4"
+        >
           <div class="border border-destructive/40 rounded-lg p-4 space-y-3">
-            <p class="font-cinzel text-xs font-semibold tracking-wider text-destructive">DELETE CAMPAIGN</p>
-            <p class="font-fell text-sm text-muted-foreground">
-              This permanently deletes <span class="text-foreground font-semibold">{{ editing.name }}</span>.
-              Your notes, NPCs, party members, calendar events, and encounters will have their campaign link removed but will not be deleted.
+            <p
+              class="font-cinzel text-xs font-semibold tracking-wider text-destructive"
+            >
+              DELETE CAMPAIGN
             </p>
-            <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">
-              TYPE <span class="text-foreground">{{ editing.name }}</span> TO CONFIRM
+            <p class="font-fell text-sm text-muted-foreground">
+              This permanently deletes
+              <span class="text-foreground font-semibold">{{
+                editing.name
+              }}</span
+              >. Your notes, NPCs, party members, calendar events, and
+              encounters will have their campaign link removed but will not be
+              deleted.
+            </p>
+            <p
+              class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground"
+            >
+              TYPE <span class="text-foreground">{{ editing.name }}</span> TO
+              CONFIRM
             </p>
             <input
               v-model="deleteConfirmInput"
@@ -194,7 +276,9 @@
         <!-- Details tab (default, and only content when creating) -->
         <form v-else class="px-5 py-4 space-y-4" @submit.prevent="submitForm">
           <div>
-            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">
+            <label
+              class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1"
+            >
               NAME
             </label>
             <input
@@ -207,20 +291,37 @@
           </div>
 
           <div>
-            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">
+            <label
+              class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1"
+            >
               WORLD
             </label>
             <input
               v-model="form.setting"
+              list="campaign-settings-list"
               type="text"
-              placeholder="Faerûn, Eberron, Homebrew…"
+              placeholder="Forgotten Realms, Eberron, Homebrew…"
               class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
+            <datalist id="campaign-settings-list">
+              <option value="Forgotten Realms" />
+              <option value="Eberron" />
+              <option value="Ravenloft" />
+              <option value="Dragonlance" />
+              <option value="Greyhawk" />
+              <option value="Planescape" />
+              <option value="Spelljammer" />
+              <option value="Dark Sun" />
+              <option value="Mystara" />
+              <option value="Homebrew" />
+            </datalist>
           </div>
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">
+              <label
+                class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1"
+              >
                 SETTING
               </label>
               <select
@@ -228,13 +329,19 @@
                 class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 @change="onCalendarChange"
               >
-                <option v-for="cal in availableCalendars" :key="cal.id" :value="cal.id">
+                <option
+                  v-for="cal in availableCalendars"
+                  :key="cal.id"
+                  :value="cal.id"
+                >
                   {{ cal.name }}
                 </option>
               </select>
             </div>
             <div>
-              <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">
+              <label
+                class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1"
+              >
                 CURRENT YEAR
               </label>
               <input
@@ -247,7 +354,9 @@
           </div>
 
           <div>
-            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">
+            <label
+              class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2"
+            >
               THEME
             </label>
             <div class="flex flex-col gap-1.5">
@@ -256,24 +365,43 @@
                 :key="theme.id"
                 type="button"
                 class="flex items-center gap-3 rounded-md border px-3 py-2 transition-colors text-left"
-                :class="form.theme === theme.id
-                  ? 'border-primary bg-primary/10'
-                  : 'border-border hover:border-border/80 hover:bg-muted/40'"
+                :class="
+                  form.theme === theme.id
+                    ? 'border-primary bg-primary/10'
+                    : 'border-border hover:border-border/80 hover:bg-muted/40'
+                "
                 @click="form.theme = theme.id"
               >
                 <div class="shrink-0 flex gap-1">
-                  <span class="block h-4 w-4 rounded-full border border-black/10" :style="{ background: theme.vars['--background'] }" />
-                  <span class="block h-4 w-4 rounded-full border border-black/10" :style="{ background: theme.vars['--primary'] }" />
-                  <span class="block h-4 w-4 rounded-full border border-black/10" :style="{ background: theme.vars['--card'] }" />
+                  <span
+                    class="block h-4 w-4 rounded-full border border-black/10"
+                    :style="{ background: theme.vars['--background'] }"
+                  />
+                  <span
+                    class="block h-4 w-4 rounded-full border border-black/10"
+                    :style="{ background: theme.vars['--primary'] }"
+                  />
+                  <span
+                    class="block h-4 w-4 rounded-full border border-black/10"
+                    :style="{ background: theme.vars['--card'] }"
+                  />
                 </div>
-                <span class="flex-1 font-cinzel text-xs font-semibold text-foreground tracking-wide">{{ theme.label }}</span>
-                <Check v-if="form.theme === theme.id" class="h-3.5 w-3.5 text-primary shrink-0" />
+                <span
+                  class="flex-1 font-cinzel text-xs font-semibold text-foreground tracking-wide"
+                  >{{ theme.label }}</span
+                >
+                <Check
+                  v-if="form.theme === theme.id"
+                  class="h-3.5 w-3.5 text-primary shrink-0"
+                />
               </button>
             </div>
           </div>
 
           <div>
-            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">
+            <label
+              class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2"
+            >
               HEALTH VISIBILITY
             </label>
             <div class="flex flex-col gap-1.5">
@@ -282,45 +410,72 @@
                 :key="opt.value"
                 type="button"
                 class="flex items-center gap-3 rounded-md border px-3 py-2 transition-colors text-left"
-                :class="form.health_visibility === opt.value
-                  ? 'border-primary bg-primary/10'
-                  : 'border-border hover:border-border/80 hover:bg-muted/40'"
+                :class="
+                  form.health_visibility === opt.value
+                    ? 'border-primary bg-primary/10'
+                    : 'border-border hover:border-border/80 hover:bg-muted/40'
+                "
                 @click="form.health_visibility = opt.value"
               >
                 <div class="flex-1 min-w-0">
-                  <span class="font-cinzel text-xs font-semibold text-foreground tracking-wide">{{ opt.label }}</span>
-                  <p class="font-fell text-xs text-muted-foreground mt-0.5">{{ opt.desc }}</p>
+                  <span
+                    class="font-cinzel text-xs font-semibold text-foreground tracking-wide"
+                    >{{ opt.label }}</span
+                  >
+                  <p class="font-fell text-xs text-muted-foreground mt-0.5">
+                    {{ opt.desc }}
+                  </p>
                 </div>
-                <Check v-if="form.health_visibility === opt.value" class="h-3.5 w-3.5 text-primary shrink-0" />
+                <Check
+                  v-if="form.health_visibility === opt.value"
+                  class="h-3.5 w-3.5 text-primary shrink-0"
+                />
               </button>
             </div>
           </div>
 
           <!-- Immersive Rolls -->
           <div>
-            <label class="flex items-start gap-3 cursor-pointer" @click="form.immersive_rolls = !form.immersive_rolls">
+            <label
+              class="flex items-start gap-3 cursor-pointer"
+              @click="form.immersive_rolls = !form.immersive_rolls"
+            >
               <div class="shrink-0 mt-0.5">
                 <div
                   class="h-5 w-9 rounded-full border-2 transition-colors relative"
-                  :class="form.immersive_rolls ? 'bg-primary border-primary' : 'bg-muted border-border'"
+                  :class="
+                    form.immersive_rolls
+                      ? 'bg-primary border-primary'
+                      : 'bg-muted border-border'
+                  "
                 >
                   <div
                     class="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform"
-                    :class="form.immersive_rolls ? 'translate-x-4' : 'translate-x-0.5'"
+                    :class="
+                      form.immersive_rolls ? 'translate-x-4' : 'translate-x-0.5'
+                    "
                   />
                 </div>
               </div>
               <div class="flex-1 min-w-0">
-                <span class="font-cinzel text-xs font-semibold text-foreground tracking-wide">Immersive Rolls</span>
+                <span
+                  class="font-cinzel text-xs font-semibold text-foreground tracking-wide"
+                  >Immersive Rolls</span
+                >
                 <p class="font-fell text-xs text-muted-foreground mt-0.5">
-                  Stealth, knowledge and insight checks show only flavor text in chat. Full result whispered to DM only — player does not see their dice outcome.
+                  Stealth, knowledge and insight checks show only flavor text in
+                  chat. Full result whispered to DM only — player does not see
+                  their dice outcome.
                 </p>
               </div>
             </label>
           </div>
 
           <!-- Claim existing data — only shown when creating the first campaign -->
-          <div v-if="isFirstCampaign && !editing" class="rounded-md border border-border bg-muted/50 px-3 py-2.5">
+          <div
+            v-if="isFirstCampaign && !editing"
+            class="rounded-md border border-border bg-muted/50 px-3 py-2.5"
+          >
             <label class="flex items-start gap-2.5 cursor-pointer">
               <input
                 v-model="claimExisting"
@@ -328,9 +483,14 @@
                 class="mt-0.5 w-4 h-4 rounded border-border accent-primary shrink-0"
               />
               <div>
-                <span class="font-fell text-sm text-foreground">Import existing data</span>
-                <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
-                  Assign your existing notes, NPCs, party members, calendar events, and encounters to this campaign.
+                <span class="font-fell text-sm text-foreground"
+                  >Import existing data</span
+                >
+                <p
+                  class="font-fell text-xs text-muted-foreground italic mt-0.5"
+                >
+                  Assign your existing notes, NPCs, party members, calendar
+                  events, and encounters to this campaign.
                 </p>
               </div>
             </label>
@@ -349,20 +509,31 @@
               :disabled="isSaving"
               class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
-              {{ isSaving ? "Saving…" : editing ? "Save Changes" : "Create Campaign" }}
+              {{
+                isSaving
+                  ? "Saving…"
+                  : editing
+                    ? "Save Changes"
+                    : "Create Campaign"
+              }}
             </button>
           </div>
-
         </form>
       </div>
     </div>
-
   </Teleport>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { BookOpen, ChevronDown, Check, Download, Pencil, Plus } from "lucide-vue-next";
+import {
+  BookOpen,
+  ChevronDown,
+  Check,
+  Download,
+  Pencil,
+  Plus,
+} from "lucide-vue-next";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
 import { useTheme } from "@/composables/useTheme";
 import { useAuthStore } from "@/stores/auth";
@@ -381,15 +552,21 @@ import InvitesTab from "@/components/campaign/InvitesTab.vue";
 import SchedulingTab from "@/components/campaign/SchedulingTab.vue";
 import AiTab from "@/components/campaign/AiTab.vue";
 
-type ModalTab = "details" | "members" | "invites" | "scheduling" | "ai" | "danger";
+type ModalTab =
+  | "details"
+  | "members"
+  | "invites"
+  | "scheduling"
+  | "ai"
+  | "danger";
 
 const modalTabs: { id: ModalTab; label: string }[] = [
-  { id: "details",    label: "Details" },
-  { id: "members",    label: "Members" },
-  { id: "invites",    label: "Invite Links" },
+  { id: "details", label: "Details" },
+  { id: "members", label: "Members" },
+  { id: "invites", label: "Invite Links" },
   { id: "scheduling", label: "Scheduling" },
-  { id: "ai",         label: "AI Assistant" },
-  { id: "danger",     label: "Danger Zone" },
+  { id: "ai", label: "AI Assistant" },
+  { id: "danger", label: "Danger Zone" },
 ];
 
 const activeModalTab = ref<ModalTab>("details");
@@ -404,10 +581,14 @@ const onlineCount = computed(() => {
   return new Set(others.map((u) => u.user_id)).size;
 });
 const { data: campaignList, isLoading: campaignsLoading } = useCampaigns();
-const { mutateAsync: createCampaign, isPending: isCreating } = useCreateCampaign();
-const { mutateAsync: updateCampaign, isPending: isUpdating } = useUpdateCampaign();
-const { mutateAsync: deleteCampaign, isPending: isDeleting } = useDeleteCampaign();
-const { mutateAsync: claimOrphans, isPending: isClaiming } = useClaimOrphanedData();
+const { mutateAsync: createCampaign, isPending: isCreating } =
+  useCreateCampaign();
+const { mutateAsync: updateCampaign, isPending: isUpdating } =
+  useUpdateCampaign();
+const { mutateAsync: deleteCampaign, isPending: isDeleting } =
+  useDeleteCampaign();
+const { mutateAsync: claimOrphans, isPending: isClaiming } =
+  useClaimOrphanedData();
 
 const campaigns = computed(() => campaignList.value ?? []);
 const activeCampaign = computed(() => campaignStore.activeCampaign);
@@ -435,23 +616,42 @@ const form = ref({
 });
 
 const HEALTH_VIS_OPTIONS = [
-  { value: "strategic" as const, label: "Strategic", desc: "HP bars + labels for all. Exact numbers for PCs only." },
-  { value: "immersive" as const, label: "Immersive", desc: "PCs show bar only (no numbers). Monsters show status words only." },
-  { value: "unknown" as const,   label: "Unknown",   desc: "No health info shown for non-PCs." },
+  {
+    value: "strategic" as const,
+    label: "Strategic",
+    desc: "HP bars + labels for all. Exact numbers for PCs only.",
+  },
+  {
+    value: "immersive" as const,
+    label: "Immersive",
+    desc: "PCs show bar only (no numbers). Monsters show status words only.",
+  },
+  {
+    value: "unknown" as const,
+    label: "Unknown",
+    desc: "No health info shown for non-PCs.",
+  },
 ];
 
 const showModal = ref(false);
 
 // Auto-select first campaign on load if none is active
-watch(campaigns, (list) => {
-  if (list.length > 0 && !campaignStore.activeCampaignId) {
-    const first = list[0];
-    campaignStore.switchToCampaign(first);
-  } else if (campaignStore.activeCampaignId && !campaignStore.activeCampaign) {
-    const found = list.find((c) => c.id === campaignStore.activeCampaignId);
-    if (found) campaignStore.switchToCampaign(found);
-  }
-}, { immediate: true });
+watch(
+  campaigns,
+  (list) => {
+    if (list.length > 0 && !campaignStore.activeCampaignId) {
+      const first = list[0];
+      campaignStore.switchToCampaign(first);
+    } else if (
+      campaignStore.activeCampaignId &&
+      !campaignStore.activeCampaign
+    ) {
+      const found = list.find((c) => c.id === campaignStore.activeCampaignId);
+      if (found) campaignStore.switchToCampaign(found);
+    }
+  },
+  { immediate: true },
+);
 
 function calendarEpoch(calendarId: string): string {
   return getCalendarAdapter(calendarId).epochName;
@@ -486,7 +686,9 @@ function startEdit(campaign: Campaign) {
     calendar_id: campaign.calendar_id,
     current_year: campaign.current_year,
     theme: campaign.theme ?? "grimoire",
-    health_visibility: (campaign.health_visibility as "strategic" | "immersive" | "unknown") ?? "strategic",
+    health_visibility:
+      (campaign.health_visibility as "strategic" | "immersive" | "unknown") ??
+      "strategic",
     immersive_rolls: campaign.immersive_rolls ?? false,
   };
   showModal.value = true;
@@ -503,7 +705,9 @@ function closeModal() {
 function onCalendarChange() {
   // Only reset year when creating — don't clobber user's campaign year when editing
   if (!editing.value) {
-    form.value.current_year = getCalendarAdapter(form.value.calendar_id).defaultYear;
+    form.value.current_year = getCalendarAdapter(
+      form.value.calendar_id,
+    ).defaultYear;
   }
 }
 
