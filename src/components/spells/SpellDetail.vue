@@ -1038,7 +1038,6 @@ import { ref, computed, reactive, watch } from "vue";
 import { useRouter } from "vue-router";
 import { Save, Trash2, ScrollText, Lightbulb, ChevronDown } from "lucide-vue-next";
 import ImageUpload from "@/components/common/ImageUpload.vue";
-import { useImageUpload } from "@/composables/useImageUpload";
 import DiceInput from "@/components/common/DiceInput.vue";
 import DamageRollsInput from "@/components/common/DamageRollsInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
@@ -1329,15 +1328,12 @@ async function save() {
   }
 }
 
-const { remove: removeImage } = useImageUpload('asset-images');
-
 async function confirmDelete() {
   if (!props.spell || !confirm(`Delete "${props.spell.name}"? This cannot be undone.`)) return;
   isDeleting.value = true;
   try {
     router.push("/spells");
-    if (props.spell.image_url) removeImage(props.spell.image_url);
-    await deleteSpell(props.spell.id);
+    await deleteSpell(props.spell);
   } finally {
     isDeleting.value = false;
   }

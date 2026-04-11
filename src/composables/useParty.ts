@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type { PartyMember, PartyMemberInsert, PartyMemberUpdate } from "@/types/party.types";
+import { removeStorageImages } from "@/composables/useImageUpload";
 
 const QUERY_KEY = "party";
 
@@ -38,9 +39,10 @@ async function updatePartyMember(id: string, update: PartyMemberUpdate): Promise
   return data as PartyMember;
 }
 
-async function deletePartyMember(id: string): Promise<void> {
-  const { error } = await supabase.from("party_members").delete().eq("id", id);
+async function deletePartyMember(member: PartyMember): Promise<void> {
+  const { error } = await supabase.from("party_members").delete().eq("id", member.id);
   if (error) throw error;
+  await removeStorageImages("asset-images", member.portrait_url, member.card_art_url);
 }
 
 export function useParty() {

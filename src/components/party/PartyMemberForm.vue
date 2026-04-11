@@ -769,7 +769,7 @@ async function save() {
 async function remove() {
   if (!props.member) return;
   if (!await confirm(`Remove ${props.member.name} from the party?`)) return;
-  await del(props.member.id);
+  await del(props.member);
   emit("close");
 }
 </script>

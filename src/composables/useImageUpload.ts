@@ -4,6 +4,20 @@ import { useAuthStore } from "@/stores/auth";
 import { toWebP } from "@/lib/mediaConvert";
 
 /**
+ * Remove one or more files from a storage bucket given their public URLs.
+ * Silently no-ops on null/undefined/external URLs that don't match the bucket.
+ * Ignores storage errors (e.g. file not found, permission denied for shared images).
+ */
+export async function removeStorageImages(bucket: string, ...urls: (string | null | undefined)[]): Promise<void> {
+  const marker = `/object/public/${bucket}/`;
+  const paths = urls
+    .filter((u): u is string => !!u && u.includes(marker))
+    .map((u) => decodeURIComponent(u.slice(u.indexOf(marker) + marker.length)));
+  if (paths.length === 0) return;
+  await supabase.storage.from(bucket).remove(paths);
+}
+
+/**
  * Reusable image upload composable.
  *
  * Usage:

@@ -2,6 +2,8 @@
 
 ## Done
 
+- [x] Entity deletions left orphaned images in Supabase Storage — delete functions for NPCs, monsters, items, spells, party members, companions, Hall of Heroes, traps, puzzles, and dungeon features only removed the DB row; fixed by changing each `deleteX(id)` to accept the full entity, then calling `removeStorageImages('asset-images', ...imageFields)` after the DB delete; added standalone `removeStorageImages` utility to `useImageUpload.ts`; also removed duplicate manual image-removal code that had existed in `MonsterDetail.vue` and `SpellDetail.vue`; SRD/external URLs are silently skipped (no `/object/public/asset-images/` marker match)
+
 - [x] Mundane items displayed magic-only fields in the item editor — Linked Spells, Curse, and Recharge were only gated on `!isArtObject`, not `isMagic`; fixed by adding `isMagic &&` to those `v-if` conditions in `ItemDetail.vue`; Charges/Quantity and Arcane Focus remain visible for mundane items (ammunition needs a count; a plain crystal/rod/staff is a valid arcane focus per PHB)
 
 - [x] Player portal showed NPCs' true identity instead of their disguise — `PlayerNpcCard`, `PlayerLocationsView`, `PlayerFactionsView`, and `PlayerPartyView` all used `npc.name` / `npc.portrait_url` directly without checking the alter ego fields; fixed by resolving `displayName`, `displayPortrait`, and `displayFocalPoint` from `disguise_name` / `disguise_portrait_url` when `is_revealed = false`; faction Supabase query also updated to select the three disguise columns it was missing

@@ -576,7 +576,7 @@ async function confirmDelete() {
   if (!await confirm(`Delete "${props.item.name}"? This cannot be undone.`)) return;
   isDeleting.value = true;
   try {
-    await deleteItem(props.item.id);
+    await deleteItem(props.item);
     router.push("/vault");
   } catch {
     notify("Failed to delete item. Please try again.");

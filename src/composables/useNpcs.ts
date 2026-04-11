@@ -5,6 +5,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { getSetting } from "@/settings/index";
 import type { Npc, NpcInsert, NpcUpdate } from "@/types/npc.types";
+import { removeStorageImages } from "@/composables/useImageUpload";
 
 const QUERY_KEY = "npcs";
 
@@ -41,9 +42,10 @@ async function updateNpc(id: string, update: NpcUpdate): Promise<Npc> {
   return data as Npc;
 }
 
-async function deleteNpc(id: string): Promise<void> {
-  const { error } = await supabase.from("npcs").delete().eq("id", id);
+async function deleteNpc(npc: Npc): Promise<void> {
+  const { error } = await supabase.from("npcs").delete().eq("id", npc.id);
   if (error) throw error;
+  await removeStorageImages("asset-images", npc.portrait_url, npc.card_art_url, npc.disguise_portrait_url);
 }
 
 export function useNpcs() {

@@ -1023,7 +1023,7 @@ function openCompanionForm(companion: Companion | null, ownerMemberId?: string) 
 
 async function deleteCompanion(companion: Companion) {
   if (!await confirm(`Remove "${companion.name || "this companion"}"?`)) return;
-  await deleteComp(companion.id);
+  await deleteComp(companion);
 }
 
 const router = useRouter();

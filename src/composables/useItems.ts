@@ -3,6 +3,7 @@ import type { Ref, ComputedRef } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Item, ItemInsert, ItemUpdate } from "@/types/item.types";
+import { removeStorageImages } from "@/composables/useImageUpload";
 import { useSrdArtDefaults } from "@/composables/useSrdArtDefaults";
 
 interface ItemSource {
@@ -58,9 +59,10 @@ async function updateItem(id: string, update: ItemUpdate): Promise<Item> {
   return data as Item;
 }
 
-async function deleteItem(id: string): Promise<void> {
-  const { error } = await supabase.from("items").delete().eq("id", id);
+async function deleteItem(item: Item): Promise<void> {
+  const { error } = await supabase.from("items").delete().eq("id", item.id);
   if (error) throw error;
+  await removeStorageImages("asset-images", item.image_url, item.mundane_image_url);
 }
 
 async function fetchItemSources(): Promise<ItemSource[]> {

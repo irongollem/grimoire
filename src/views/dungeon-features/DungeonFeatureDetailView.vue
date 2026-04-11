@@ -287,7 +287,7 @@ async function deleteFeature() {
     { title: "Delete Feature", confirmLabel: "Delete", danger: true },
   );
   if (!ok) return;
-  await deleteMut.mutateAsync(id.value);
+  await deleteMut.mutateAsync(feature.value!);
   router.push("/dungeon-craft");
 }
 </script>

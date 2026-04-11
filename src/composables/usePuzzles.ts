@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { PuzzleRoom, PuzzleInsert, PuzzleUpdate } from "@/types/puzzle.types";
+import { removeStorageImages } from "@/composables/useImageUpload";
 import { PUZZLE_TEMPLATES } from "@/data/puzzleTemplates";
 import type { Ref } from "vue";
 import { computed, isRef, onUnmounted, ref, watch } from "vue";
@@ -49,9 +50,10 @@ async function updatePuzzle(id: string, update: PuzzleUpdate): Promise<PuzzleRoo
   return data as PuzzleRoom;
 }
 
-async function deletePuzzle(id: string): Promise<void> {
-  const { error } = await supabase.from("puzzle_rooms").delete().eq("id", id);
+async function deletePuzzle(puzzle: PuzzleRoom): Promise<void> {
+  const { error } = await supabase.from("puzzle_rooms").delete().eq("id", puzzle.id);
   if (error) throw error;
+  await removeStorageImages("asset-images", puzzle.image_url);
 }
 
 export function usePuzzles() {

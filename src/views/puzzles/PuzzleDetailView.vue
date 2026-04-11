@@ -666,7 +666,7 @@ async function save() {
 async function handleDelete() {
   if (!id.value) return;
   if (!confirm(`Delete "${form.name}"? This cannot be undone.`)) return;
-  await deleteMutation.mutateAsync(id.value);
+  await deleteMutation.mutateAsync(puzzle.value!);
   router.push({ path: "/dungeon-craft", query: { tab: "puzzles" } });
 }
 </script>

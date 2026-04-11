@@ -284,6 +284,6 @@ function handleImport(hero: HallOfHero) {
 
 function handleDelete(hero: HallOfHero) {
   if (!confirm(`Delete "${hero.name}" from the Hall of Heroes?`)) return;
-  deleteHero(hero.id);
+  deleteHero(hero);
 }
 </script>

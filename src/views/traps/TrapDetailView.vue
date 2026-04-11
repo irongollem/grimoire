@@ -869,7 +869,7 @@ async function deleteTrap() {
     },
   );
   if (!ok) return;
-  await deleteMut.mutateAsync(id.value);
+  await deleteMut.mutateAsync(trap.value!);
   router.push({ path: "/dungeon-craft", query: { tab: "traps" } });
 }
 </script>

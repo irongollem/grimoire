@@ -840,7 +840,7 @@ async function confirmDelete() {
   if (!props.npc?.id) return
   if (!await confirm(`Delete ${props.npc.name}? This cannot be undone.`)) return
   try {
-    await deleteNpc(props.npc.id)
+    await deleteNpc(props.npc)
     router.push('/npcs')
   } catch {
     notify('Failed to delete NPC. Please try again.')

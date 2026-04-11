@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { DungeonFeature, DungeonFeatureInsert, DungeonFeatureUpdate } from "@/types/dungeonFeature.types";
+import { removeStorageImages } from "@/composables/useImageUpload";
 import { DUNGEON_FEATURE_TEMPLATES } from "@/data/dungeonFeatureTemplates";
 import type { Ref } from "vue";
 import { computed, isRef, ref } from "vue";
@@ -48,9 +49,10 @@ async function updateDungeonFeature(id: string, update: DungeonFeatureUpdate): P
   return data as DungeonFeature;
 }
 
-async function deleteDungeonFeature(id: string): Promise<void> {
-  const { error } = await supabase.from("dungeon_features").delete().eq("id", id);
+async function deleteDungeonFeature(feature: DungeonFeature): Promise<void> {
+  const { error } = await supabase.from("dungeon_features").delete().eq("id", feature.id);
   if (error) throw error;
+  await removeStorageImages("asset-images", feature.image_url);
 }
 
 export function useDungeonFeatures() {

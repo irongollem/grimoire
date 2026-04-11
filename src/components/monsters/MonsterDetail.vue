@@ -435,7 +435,6 @@ import type { MonsterAiGenerated } from "@/ai/types";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
-import { useImageUpload } from "@/composables/useImageUpload";
 import DiceExprInput from "@/components/common/DiceExprInput.vue";
 import {
   useCreateMonster,
@@ -715,16 +714,12 @@ async function save() {
   }
 }
 
-const { remove: removeImage } = useImageUpload('asset-images');
-
 async function remove() {
   if (!props.monster) return;
   if (!(await confirm(`Delete ${props.monster.name}? This cannot be undone.`)))
     return;
   router.push("/monsters");
-  if (props.monster.image_url) removeImage(props.monster.image_url);
-  if (props.monster.card_art_url) removeImage(props.monster.card_art_url);
-  await del(props.monster.id);
+  await del(props.monster);
 }
 </script>
 

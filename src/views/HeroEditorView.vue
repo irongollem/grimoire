@@ -269,6 +269,6 @@ function save() {
 
 function handleDelete() {
   if (!hero.value || !confirm(`Delete "${hero.value.name}" from the Hall of Heroes?`)) return;
-  deleteHero(hero.value.id, { onSuccess: () => router.push("/hall-of-heroes") });
+  deleteHero(hero.value, { onSuccess: () => router.push("/hall-of-heroes") });
 }
 </script>
