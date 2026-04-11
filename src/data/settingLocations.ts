@@ -223,10 +223,102 @@ export const PLANAR_LOCATIONS: LocationPreset[] = [
   { name: "Sigil",           location_type: "city",  notes: "The City of Doors — a planar metropolis at the top of the Spire in the Outlands, accessible from any plane via portals. Governed by the inscrutable Lady of Pain.", tags: ["outlands", "lady of pain", "portals", "planar hub"] },
 ];
 
+// ── Ravenloft (Domains of Dread) ──────────────────────────────────────────────
+
+const RAVENLOFT_LOCATIONS: LocationPreset[] = [
+  { name: "The Mists",          location_type: "plane",     parent: undefined,          notes: "The supernatural fog that surrounds and separates the Domains of Dread. Travellers who enter without invitation rarely find their way out on their own terms.", tags: ["mists", "demiplane", "prison"] },
+  { name: "Demiplane of Dread", location_type: "plane",     parent: "The Mists",        notes: "The patchwork pocket dimension created and governed by the Dark Powers — a collection of domains, each a perfect prison for its Darklord.", tags: ["dark powers", "prison plane", "domains"] },
+  { name: "Barovia",            location_type: "region",    parent: "Demiplane of Dread", notes: "The oldest and most famous Domain of Dread. A gloomy valley of superstitious villages, dark forests, and Castle Ravenloft looming over all. Darklord: Strahd von Zarovich.", tags: ["strahd", "curse of strahd", "gothic", "vampires"] },
+  { name: "Castle Ravenloft",   location_type: "dungeon",   parent: "Barovia",          notes: "The ancestral home of Strahd von Zarovich, perched on a basalt crag above the village of Barovia. A maze of crypts, towers, and dark magic.", tags: ["strahd", "castle", "dungeon", "vampires"] },
+  { name: "Village of Barovia", location_type: "village",   parent: "Barovia",          notes: "A desolate, fog-choked village of frightened peasants, cowering beneath Castle Ravenloft's shadow. Home to Ireena Kolyana and Ismark the Lesser.", tags: ["strahd", "ireena", "ismark"] },
+  { name: "Vallaki",            location_type: "town",      parent: "Barovia",          notes: "A walled town ruled by the self-declared Baron Vargas Vallakovich, who forces his citizens to attend mandatory 'festivals' to maintain an illusion of happiness.", tags: ["vallakovich", "festivals", "walled town"] },
+  { name: "Krezk",              location_type: "town",      parent: "Barovia",          notes: "A small fortified village at the edge of Barovia, ruled by the Krezkov family. Its holy pool is said to grant visions.", tags: ["krezkov", "holy pool", "abbey"] },
+  { name: "Darkon",             location_type: "region",    parent: "Demiplane of Dread", notes: "Once one of the largest domains in the Demiplane, ruled by the lich Azalin Rex. After the Grand Conjunction its capital became the Necropolis — a city of the undead.", tags: ["azalin rex", "lich", "necropolis", "undead"] },
+  { name: "Necropolis of Il Aluk", location_type: "city",   parent: "Darkon",           notes: "Once a living city, now populated entirely by the undead after Azalin's ill-fated ritual. Living souls who enter are rapidly transformed.", tags: ["undead", "azalin rex", "city of death"] },
+  { name: "Falkovnia",          location_type: "region",    parent: "Demiplane of Dread", notes: "A militaristic, tyrannical domain ruled by the brutal warlord Vlad Drakov. Falkovnians live in constant fear of press gangs and public executions.", tags: ["vlad drakov", "military", "tyranny"] },
+  { name: "Lamordia",          location_type: "region",    parent: "Demiplane of Dread", notes: "A cold, industrialised domain of gothic science-horror. Darklord: Dr. Viktra Mordenheim, who created the Flesh Golem Adam in pursuit of immortality.", tags: ["mordenheim", "flesh golem", "gothic science", "cold"] },
+  { name: "Mordent",           location_type: "region",    parent: "Demiplane of Dread", notes: "A fog-drenched coastal domain of haunted manor houses and restless spirits. Darklord: Wilfred Godefroy, a ghost bound to Mordentshire.", tags: ["ghosts", "haunted", "fog", "manor houses"] },
+  { name: "Borca",             location_type: "region",    parent: "Demiplane of Dread", notes: "A wealthy domain of political intrigue and poison. Darklords: siblings Ivana Boritsi and Ivan Dilisnya, each poisoner and victim of the other in an eternal curse.", tags: ["poison", "intrigue", "boritsi", "wealth"] },
+  { name: "The Shadowfell",    location_type: "plane",     parent: undefined,           notes: "The Plane of Shadow — a dark reflection of the Material Plane. Many Domains of Dread are believed to float in or near the Shadowfell.", tags: ["shadowfell", "shadow", "raven queen"] },
+];
+
+// ── Planescape (Sigil & the Outer Planes) ─────────────────────────────────────
+
+const PLANESCAPE_LOCATIONS: LocationPreset[] = [
+  { name: "The Outlands",       location_type: "plane",     parent: undefined,          notes: "The Great Wheel's hub — a ring-shaped outer plane of perfect neutral balance, with the Spire rising from its centre above which sits Sigil.", tags: ["outer planes", "true neutral", "the spire"] },
+  { name: "Sigil",              location_type: "city",      parent: "The Outlands",     notes: "The City of Doors — a torus-shaped city atop the Spire, accessible from any plane via portals. Governed by the inscrutable Lady of Pain. Home to all 15 great factions.", tags: ["city of doors", "lady of pain", "portals", "factions"] },
+  { name: "The Great Bazaar",   location_type: "district",  parent: "Sigil",            notes: "Sigil's largest market, where merchants from across the multiverse buy and sell everything from spell components to bottled demons.", tags: ["market", "trade", "merchants"] },
+  { name: "The Cage",           location_type: "district",  parent: "Sigil",            notes: "Street slang for Sigil itself — the city that traps even gods. No deity can enter Sigil; the Lady of Pain keeps them out.", tags: ["sigil", "slang", "no gods"] },
+  { name: "Faction War Ruins",  location_type: "district",  parent: "Sigil",            notes: "Districts still bearing the scars of the great Faction War that decimated many of the city's major power blocs.", tags: ["faction war", "ruins", "history"] },
+  { name: "The Spire",          location_type: "wilderness", parent: "The Outlands",    notes: "An impossibly tall pillar rising from the centre of the Outlands, atop which sits Sigil. Magic weakens the closer one climbs to its peak.", tags: ["spire", "antimagic", "outlands"] },
+  { name: "Tradegate",          location_type: "city",      parent: "The Outlands",     notes: "A gate-town to Mechanus on the Outlands, known for its honest merchants and the Great Wheel trading guilds headquartered here.", tags: ["gate-town", "mechanus", "trade"] },
+  { name: "Plague-Mort",        location_type: "town",      parent: "The Outlands",     notes: "The gate-town to the Abyss — a chaotic, violent settlement constantly on the verge of being pulled into the lower planes.", tags: ["gate-town", "abyss", "chaotic evil"] },
+  { name: "Ribcage",            location_type: "city",      parent: "The Outlands",     notes: "The gate-town to Baator (Nine Hells) — a heavily fortified city-state ruled by iron-fisted lawful-evil overlords.", tags: ["gate-town", "nine hells", "lawful evil"] },
+  ...PLANAR_LOCATIONS,
+];
+
+// ── Spelljammer (Wildspace) ───────────────────────────────────────────────────
+
+const SPELLJAMMER_LOCATIONS: LocationPreset[] = [
+  { name: "Wildspace",          location_type: "plane",     parent: undefined,          notes: "The void between worlds within a crystal sphere — breathable air, minimal gravity, and the endless dark between planets and moons.", tags: ["void", "crystal sphere", "space"] },
+  { name: "The Astral Sea",     location_type: "plane",     parent: undefined,          notes: "The silvery sea between crystal spheres, navigated by Spelljammer ships. Githyanki patrol these waters from their silver citadels.", tags: ["astral", "githyanki", "between spheres"] },
+  { name: "Rock of Bral",       location_type: "city",      parent: "Wildspace",        notes: "The most famous asteroid city in the known spheres — a neutral port city, pirate haven, and the great crossroads of Spelljammer trade.", tags: ["asteroid", "port", "pirates", "neutral"] },
+  { name: "Realmspace",         location_type: "plane",     parent: "Wildspace",        notes: "The crystal sphere containing Toril (Forgotten Realms), the sun, and several other worlds and moons.", tags: ["crystal sphere", "toril", "forgotten realms"] },
+  { name: "Toril",              location_type: "world",     parent: "Realmspace",       notes: "The Forgotten Realms world — Faerûn, Kara-Tur, Maztica. A major source of spelljammer crew and a favoured destination.", tags: ["forgotten realms", "faerun"] },
+  { name: "Greyspace",          location_type: "plane",     parent: "Wildspace",        notes: "The crystal sphere containing Oerth (Greyhawk). A sphere known for its amber sun and many inhabited moons.", tags: ["crystal sphere", "oerth", "greyhawk"] },
+  { name: "Oerth",              location_type: "world",     parent: "Greyspace",        notes: "The world of Greyhawk — Mordenkainen, Bigby, and the Flanaess. A world with a rich tradition of arcane magic and a long history of wars.", tags: ["greyhawk", "flanaess", "mordenkainen"] },
+  { name: "Krynnspace",         location_type: "plane",     parent: "Wildspace",        notes: "The crystal sphere containing Krynn (Dragonlance). Unusual for its three moons — Solinari, Lunitari, and Nuitari — which fuel the magic of Krynn's wizards.", tags: ["crystal sphere", "krynn", "dragonlance", "three moons"] },
+  { name: "Krynn",              location_type: "world",     parent: "Krynnspace",       notes: "The Dragonlance world — Ansalon, the War of the Lance, the Conclave of Wizards. Somewhat suspicious of off-world visitors.", tags: ["dragonlance", "ansalon", "war of the lance"] },
+  { name: "Radiant Citadel",    location_type: "city",      parent: "The Astral Sea",   notes: "A city built on a shard of a long-dead civilization in the Ethereal Plane, acting as a meeting point for many cultures that have no other common ground.", tags: ["radiant citadel", "ethereal plane", "cultures", "neutral"] },
+  { name: "Spelljammer Academy", location_type: "building", parent: "Rock of Bral",     notes: "The foremost school for spelljammer pilots and crew — recruits are tested in void simulations and live-fire asteroid navigation drills.", tags: ["academy", "training", "pilots"] },
+  { name: "The Void",           location_type: "wilderness", parent: "Wildspace",       notes: "Open Wildspace between stars and crystal spheres — the breathable-but-cold empty space that Spelljammer vessels sail through.", tags: ["open space", "navigation", "danger"] },
+];
+
+// ── Dark Sun (Athas) ─────────────────────────────────────────────────────────
+
+const DARKSUN_LOCATIONS: LocationPreset[] = [
+  { name: "Athas",              location_type: "world",     parent: undefined,          notes: "A dying world stripped of life by reckless use of defiling magic. No gods answer prayers here; psionics and primal power fill the void. The sun burns crimson and the sea is a vast salt flat.", tags: ["dying world", "defiling magic", "dark sun", "crimson sun"] },
+  { name: "The Tablelands",     location_type: "region",    parent: "Athas",            notes: "The primary region of Athas — a rocky plateau dominated by the seven City-States of the sorcerer-kings, separated by vast desert wastelands.", tags: ["city-states", "sorcerer-kings", "plateau"] },
+  { name: "Tyr",                location_type: "city",      parent: "The Tablelands",   notes: "The City of Freedom — the only city-state on Athas where the sorcerer-king Kalak was slain. Tyr is struggling to maintain a fragile republic amid external threats and internal power struggles.", tags: ["freedom", "kalak dead", "republic", "gladiators"] },
+  { name: "Urik",               location_type: "city",      parent: "The Tablelands",   notes: "The City of Lions — ruled by the calculating sorcerer-king Hamanu. Urik is the most militaristic of the city-states, disciplined, efficient, and expansionist.", tags: ["hamanu", "military", "lions", "obsidian"] },
+  { name: "Nibenay",            location_type: "city",      parent: "The Tablelands",   notes: "The City of Spires — ruled by the enigmatic sorcerer-king Nibenay (the Shadow King). A city of intrigue, beautiful temples, and strict gender roles.", tags: ["nibenay", "shadow king", "spires", "templars"] },
+  { name: "Gulg",               location_type: "city",      parent: "The Tablelands",   notes: "The Forest City — an unusual city of wooden huts within a small forest preserve, ruled by the primal sorcerer-queen Lalali-Puy (the Oba). One of the most spiritual city-states.", tags: ["lalali-puy", "oba", "forest", "primal"] },
+  { name: "Balic",              location_type: "city",      parent: "The Tablelands",   notes: "The City of Sails — a coastal city on the Sea of Silt ruled by Andropinis. Known for its Senate (largely ceremonial), its merchant wealth, and its powerful fleet of silt skimmers.", tags: ["andropinis", "senate", "silt skimmers", "trade"] },
+  { name: "Raam",               location_type: "city",      parent: "The Tablelands",   notes: "The City of Unrest — once ruled by Abalach-Re, now in chaos after her death. Gang wars, slave uprisings, and power struggles tear the city apart.", tags: ["abalach-re", "chaos", "raam", "unrest"] },
+  { name: "Sea of Silt",        location_type: "wilderness", parent: "Athas",           notes: "An enormous desert of grey powdery silt stretching for hundreds of miles. Navigation is treacherous — silt storms can bury ships whole, and strange creatures lurk beneath the surface.", tags: ["silt", "desert sea", "silt skimmers", "hazard"] },
+  { name: "Ringing Mountains",  location_type: "wilderness", parent: "Athas",           notes: "A vast mountain range encircling much of the Tablelands, home to rogue tribes, abandoned dwarven fortresses, and creatures too dangerous for even the city-states to control.", tags: ["mountains", "frontier", "dwarves", "dangerous"] },
+  { name: "The Obsidian Wastes", location_type: "wilderness", parent: "Athas",          notes: "A vast plain of black volcanic glass beyond the Ringing Mountains. Almost nothing lives here — it is one of the most desolate regions on an already dying world.", tags: ["obsidian", "desolate", "volcanic", "wasteland"] },
+  { name: "The Deadlands",      location_type: "wilderness", parent: "Athas",           notes: "A blasted region of utter devastation, believed to be where the Dragon first tested the art of mass defiling. Utterly lifeless; even the psionic background radiation is disturbed here.", tags: ["dragon", "defiled", "lifeless", "history"] },
+  { name: "Draj",               location_type: "city",      parent: "The Tablelands",   notes: "The City of the Moons — a Mesoamerican-influenced city ruled by Tectuktitlay, who demands blood sacrifice at his twin pyramids to 'feed' the crimson sun.", tags: ["tectuktitlay", "sacrifice", "pyramids", "moons"] },
+];
+
+// ── Mystara (Known World) ─────────────────────────────────────────────────────
+
+const MYSTARA_LOCATIONS: LocationPreset[] = [
+  { name: "Mystara",            location_type: "world",     parent: undefined,          notes: "A hollow world with an inner sun — the outer surface hosts the Known World and other continents; the Hollow World exists inside the planet's shell, preserving lost civilizations.", tags: ["hollow world", "inner sun", "known world"] },
+  { name: "Known World",        location_type: "continent", parent: "Mystara",          notes: "The primary continent of Mystara's outer surface — a densely packed collection of rival kingdoms, empires, and city-states drawing on a broad range of historical cultures.", tags: ["outer surface", "known world", "kingdoms"] },
+  { name: "Thyatis Empire",     location_type: "country",   parent: "Known World",      notes: "The dominant empire of the Known World, modelled on ancient Rome. Controls much of the eastern sea and maintains garrisons across the continent.", tags: ["empire", "roman", "military", "senate"] },
+  { name: "Thyatis City",       location_type: "city",      parent: "Thyatis Empire",   notes: "The capital of the Thyatian Empire — a grand metropolis of coliseums, forums, and marble temples. Political intrigue and gladiatorial games are equally popular entertainment.", tags: ["capital", "coliseum", "politics", "roman"] },
+  { name: "Grand Duchy of Karameikos", location_type: "country", parent: "Known World", notes: "A frontier duchy ruled by Duke Stefan Karameikos, who colonised the land from the native Traladarans. Adventurers find opportunity here; the wilderness is full of dungeons and ruins.", tags: ["frontier", "karameikos", "stefan", "traldar"] },
+  { name: "Specularum",         location_type: "city",      parent: "Grand Duchy of Karameikos", notes: "The capital of Karameikos (later renamed Mirros). A busy port city where Thyatian colonists and native Traladarans coexist in uneasy proximity.", tags: ["capital", "port", "traldar", "thyatian"] },
+  { name: "Glantri",            location_type: "country",   parent: "Known World",      notes: "A principality ruled by a Council of Princes — all of whom are wizards. Clerics are outlawed. A land of magical research, political scheming, and arcane excess.", tags: ["wizards", "no clerics", "magic", "princes"] },
+  { name: "Glantri City",       location_type: "city",      parent: "Glantri",          notes: "The capital of Glantri — built over a network of magical canals, with a grand Wizard's Tower at its heart. The Great School of Magic draws students from across the Known World.", tags: ["wizards", "canals", "great school", "magic"] },
+  { name: "Rockhome",           location_type: "country",   parent: "Known World",      notes: "The dwarven nation — a heavily fortified mountain kingdom of clan halls, forge-temples, and ancient grudges. The dwarves here are among the finest smiths in the Known World.", tags: ["dwarves", "mountains", "clans", "smithing"] },
+  { name: "Alfheim",            location_type: "country",   parent: "Known World",      notes: "The elven nation — a forested land of ancient trees and elven clans, protected by the Tree of Life. Relations with Glantri and other human realms are cautiously diplomatic.", tags: ["elves", "forest", "tree of life", "clans"] },
+  { name: "Ierendi",            location_type: "country",   parent: "Known World",      notes: "An island nation south of Karameikos — nominally a constitutional monarchy where the king and queen are chosen by tournament. In practice a trade hub and haven for adventurers.", tags: ["islands", "tournament", "trade", "adventurers"] },
+  { name: "Darokin",            location_type: "country",   parent: "Known World",      notes: "A merchant republic with no hereditary nobility — wealth is rank. The Darokin Diplomatic Corps maintains relations with virtually every nation in the Known World.", tags: ["merchants", "republic", "diplomacy", "wealth"] },
+  { name: "The Hollow World",   location_type: "plane",     parent: "Mystara",          notes: "The inner surface of Mystara — a vast continent lit by an inner sun, where the Immortals preserve civilizations that have been erased from the outer world.", tags: ["hollow world", "immortals", "preserved civilizations", "inner sun"] },
+];
+
 /** Preset locations keyed by CalendarAdapter ID (matches SETTING_BUNDLES registry). */
 export const SETTING_LOCATIONS: Record<string, LocationPreset[]> = {
   faerun:      FAERUN_LOCATIONS,
   greyhawk:    GREYHAWK_LOCATIONS,
   eberron:     EBERRON_LOCATIONS,
   dragonlance: DRAGONLANCE_LOCATIONS,
+  ravenloft:   RAVENLOFT_LOCATIONS,
+  planescape:  PLANESCAPE_LOCATIONS,
+  spelljammer: SPELLJAMMER_LOCATIONS,
+  darksun:     DARKSUN_LOCATIONS,
+  mystara:     MYSTARA_LOCATIONS,
 };

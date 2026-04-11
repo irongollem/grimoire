@@ -171,6 +171,7 @@ import ImageUpload from "@/components/common/ImageUpload.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import type { HallOfHeroInsert } from "@/types/npc.types";
+import { DND_SETTINGS } from "@/data/dndSettings";
 
 const ALIGNMENTS = [
   "Lawful Good", "Neutral Good", "Chaotic Good",
@@ -178,13 +179,7 @@ const ALIGNMENTS = [
   "Lawful Evil", "Neutral Evil", "Chaotic Evil", "Unaligned",
 ] as const;
 
-const SETTINGS = [
-  { value: "faerun",      label: "Faerûn"      },
-  { value: "eberron",     label: "Eberron"      },
-  { value: "greyhawk",    label: "Greyhawk"     },
-  { value: "dragonlance", label: "Dragonlance"  },
-  { value: "other",       label: "Other"        },
-] as const;
+const SETTINGS = DND_SETTINGS;
 
 const route = useRoute();
 const router = useRouter();

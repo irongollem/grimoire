@@ -6,6 +6,8 @@
 
 ### Campaign Management
 
+- [x] Campaign setting field — datalist with canonical D&D settings (Forgotten Realms, Eberron, Ravenloft, Dragonlance, Greyhawk, Planescape, Spelljammer, Dark Sun, Mystara, Homebrew) for quick selection while still allowing free-text custom worlds; `src/data/dndSettings.ts` shared across HeroEditor, HeroDetail, HallOfHeroes
+- [x] Calendar adapters — added Ravenloft (BC), Planescape (PCR), Spelljammer (SY), Dark Sun (FY/Athas tenday), Mystara (AC/Thyatian) to the calendar registry; all settings now have a matching atlas location bundle in `settingLocations.ts`
 - [x] Campaign Dashboard — live stat cards, active quests, party at a glance (HP bars, passive scores, conditions/curses), pinned + recent notes
 - [x] PWA install support — `vite-plugin-pwa` generates a Workbox service worker; dashboard shows a dismissible install banner when the browser fires `beforeinstallprompt` (Chrome/Edge); event captured in `main.ts` before Vue mounts to avoid missing the early-fire
 - [x] PWA auto-reload on service worker update — `controllerchange` listener in `main.ts` reloads the page when a new SW takes control, so installed PWA users always run the latest version without manual reinstall

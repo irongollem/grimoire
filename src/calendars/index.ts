@@ -4,14 +4,24 @@ import { gregorianAdapter } from "./gregorian";
 import { greyhawkAdapter } from "./greyhawk";
 import { eberronAdapter } from "./eberron";
 import { dragonlanceAdapter } from "./dragonlance";
+import { ravenloftAdapter } from "./ravenloft";
+import { planescapeAdapter } from "./planescape";
+import { spelljammerAdapter } from "./spelljammer";
+import { darksunAdapter } from "./darksun";
+import { mystaraAdapter } from "./mystara";
 
 // Registry — add new adapters here. The key must match CalendarAdapter.id.
 export const CALENDAR_REGISTRY: Record<string, CalendarAdapter> = {
-  faerun: faerunAdapter,
-  gregorian: gregorianAdapter,
-  greyhawk: greyhawkAdapter,
-  eberron: eberronAdapter,
+  faerun:      faerunAdapter,
+  gregorian:   gregorianAdapter,
+  greyhawk:    greyhawkAdapter,
+  eberron:     eberronAdapter,
   dragonlance: dragonlanceAdapter,
+  ravenloft:   ravenloftAdapter,
+  planescape:  planescapeAdapter,
+  spelljammer: spelljammerAdapter,
+  darksun:     darksunAdapter,
+  mystara:     mystaraAdapter,
 };
 
 export function getCalendarAdapter(id: string): CalendarAdapter {

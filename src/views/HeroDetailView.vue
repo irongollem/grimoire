@@ -133,6 +133,7 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import { DND_SETTINGS } from "@/data/dndSettings";
 
 const STATUS_COLORS: Record<string, string> = {
   alive:   "#22c55e",
@@ -141,14 +142,7 @@ const STATUS_COLORS: Record<string, string> = {
   unknown: "#6b7280",
 };
 
-const SETTINGS = [
-  { value: "faerun",      label: "Faerûn"      },
-  { value: "eberron",     label: "Eberron"      },
-  { value: "greyhawk",    label: "Greyhawk"     },
-  { value: "dragonlance", label: "Dragonlance"  },
-  { value: "other",       label: "Other"        },
-] as const;
-const settingLabelMap = Object.fromEntries(SETTINGS.map((s) => [s.value, s.label]));
+const settingLabelMap = Object.fromEntries(DND_SETTINGS.map((s) => [s.value, s.label]));
 function settingLabel(val: string) { return settingLabelMap[val] ?? val; }
 
 const route = useRoute();
