@@ -21,9 +21,9 @@
       </div>
 
       <template v-else>
-        <!-- Your Turn! banner -->
+        <!-- Your Turn! banner — only in active combat -->
         <div
-          v-if="isMyTurn"
+          v-if="isMyTurn && !isInLobby"
           class="flex items-center justify-center gap-2 rounded-lg border border-primary bg-primary/10 px-4 py-3 animate-pulse"
         >
           <Swords class="h-4 w-4 text-primary shrink-0" />
@@ -34,8 +34,19 @@
           <Swords class="h-4 w-4 text-primary shrink-0" />
         </div>
 
-        <!-- Round + active turn header -->
+        <!-- Lobby header -->
         <div
+          v-if="isInLobby"
+          class="flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3"
+        >
+          <Swords class="h-4 w-4 text-amber-500/60 shrink-0" />
+          <span class="font-cinzel text-sm font-semibold text-amber-500/80 tracking-wider">Gathering Party…</span>
+          <span class="font-fell text-xs text-muted-foreground italic ml-auto">DM is preparing</span>
+        </div>
+
+        <!-- Round + active turn header — only in active combat -->
+        <div
+          v-else
           class="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3"
         >
           <div
@@ -418,8 +429,10 @@ const myPlayer = computed(
     ) ?? null,
 );
 
+const isInLobby = computed(() => (liveState.value?.current_round ?? 1) === 0);
+
 const isMyTurn = computed(() => {
-  if (!myPlayer.value || !liveState.value) return false;
+  if (!myPlayer.value || !liveState.value || isInLobby.value) return false;
   const active = sortedCombatants.value[liveState.value.active_combatant_index];
   return active?.instance_id === myPlayer.value.instance_id;
 });
@@ -432,6 +445,7 @@ watch(isMyTurn, (now, prev) => {
 });
 
 function isActive(combatant: RunCombatant): boolean {
+  if (isInLobby.value) return false;
   const fullIdx = sortedCombatants.value.findIndex(
     (c) => c.instance_id === combatant.instance_id,
   );

@@ -7,15 +7,22 @@
       </RouterLink>
 
       <div class="round-controls">
-        <button @click="store.prevTurn()" :disabled="!store.started" class="prev-btn">‹</button>
-        <span class="round-label">Round {{ store.round }}</span>
-        <button @click="store.nextTurn()" :disabled="!store.started" class="next-btn">Next Turn ›</button>
+        <button @click="store.prevTurn()" :disabled="store.round === 0" class="prev-btn">‹</button>
+        <span class="round-label">{{ store.round === 0 ? 'Pre-Combat' : 'Round ' + store.round }}</span>
+        <button @click="store.nextTurn()" :disabled="store.round === 0" class="next-btn">Next Turn ›</button>
       </div>
 
       <div class="top-right">
         <span class="encounter-name">{{ store.encounterName }}</span>
         <button v-if="!store.started" @click="store.rollAllInitiatives()" class="roll-btn">
           ⚄ Roll Initiative
+        </button>
+        <button
+          v-if="isLive && store.round === 0"
+          @click="handleStartCombat"
+          class="start-combat-btn"
+        >
+          ⚔ Start Combat
         </button>
         <DiceRoller />
         <button
@@ -94,6 +101,10 @@ const { mutateAsync: autoDiscover } = useAutoDiscoverMonsters();
 
 const selectedId = ref<string | null>(null);
 const selectedTrapId = ref<string | null>(null);
+
+function handleStartCombat() {
+  store.startCombat();
+}
 
 async function handleGoLive() {
   if (isLive.value) {
@@ -304,6 +315,10 @@ async function handleEndCombat() {
 
 .end-btn {
   @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-destructive/40 text-destructive font-cinzel text-xs font-semibold hover:bg-destructive/10 transition-colors;
+}
+
+.start-combat-btn {
+  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-green-600 text-white font-cinzel text-xs font-semibold hover:opacity-90 transition-opacity;
 }
 
 .go-live-btn {

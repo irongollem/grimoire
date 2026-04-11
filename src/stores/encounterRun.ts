@@ -45,6 +45,10 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
       c.initiative = Math.floor(Math.random() * 20) + 1 + c.dex_mod;
     }
     started.value = true;
+  }
+
+  function startCombat() {
+    if (!started.value) rollAllInitiatives();
     activeIndex.value = 0;
     round.value = 1;
   }
@@ -319,7 +323,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   function reset() {
     encounterId.value = null;
     encounterName.value = "";
-    round.value = 1;
+    round.value = 0;
     activeIndex.value = 0;
     combatants.value = [];
     factions.value = [];
@@ -349,7 +353,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     combatants.value = state.combatants_live;
     round.value = state.current_round;
     activeIndex.value = state.active_combatant_index;
-    started.value = true;
+    started.value = state.current_round > 0;
     if (state.events) events.value = state.events;
     if (state.events_fired) eventsFired.value = state.events_fired;
     if (state.traps) traps.value = state.traps;
@@ -373,6 +377,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     activeCombatant,
     rollInitiative,
     rollAllInitiatives,
+    startCombat,
     setInitiative,
     nextTurn,
     prevTurn,
