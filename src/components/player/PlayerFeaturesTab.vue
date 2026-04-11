@@ -136,6 +136,42 @@
       </div>
     </div>
 
+    <!-- ── Racial traits ─────────────────────────────────────────────────────── -->
+    <div v-if="linkedSpecies && linkedSpecies.traits?.length" class="rounded-lg border border-border bg-card overflow-hidden">
+      <div class="px-4 py-2.5 border-b border-border">
+        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
+          Racial Traits
+          <span class="normal-case font-fell font-normal tracking-normal ml-1 text-muted-foreground/70">({{ linkedSpecies.name }})</span>
+        </p>
+      </div>
+      <div class="divide-y divide-border">
+        <div
+          v-for="trait in linkedSpecies.traits"
+          :key="trait.name"
+          class="px-4 py-2.5"
+        >
+          <button
+            class="w-full text-left flex items-center gap-2"
+            :class="trait.description ? 'cursor-pointer' : 'cursor-default'"
+            @click="trait.description && toggleExpanded(`racial-${trait.name}`)"
+          >
+            <span class="font-fell text-sm text-foreground flex-1">{{ trait.name }}</span>
+            <ChevronDown
+              v-if="trait.description"
+              class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
+              :class="expanded.has(`racial-${trait.name}`) ? 'rotate-180' : ''"
+            />
+          </button>
+          <div
+            v-if="trait.description && expanded.has(`racial-${trait.name}`)"
+            class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2"
+          >
+            <p class="font-fell text-sm text-muted-foreground leading-relaxed">{{ trait.description }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Class choices ───────────────────────────────────────────────────── -->
     <div v-if="choiceEntries.length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-2.5 border-b border-border">
@@ -171,6 +207,7 @@ import { getCharacterFeatures } from "@/levelup/classFeatures";
 import { featureName, featureDescription } from "@/levelup/types";
 import { getDefaultSpellSlots, getSlotRecovery } from "@/types/spell.types";
 import { useUpdatePartyMember } from "@/composables/useParty";
+import { useAllSpecies } from "@/composables/useSpecies";
 import { useConfirm } from "@/composables/useConfirm";
 import type { PartyMember, SpellSlotEntry } from "@/types/party.types";
 
@@ -178,6 +215,12 @@ const props = defineProps<{ member: PartyMember; showRestButtons?: boolean }>();
 
 const { mutate: updateMember } = useUpdatePartyMember();
 const { confirm } = useConfirm();
+const { data: allSpecies } = useAllSpecies();
+const linkedSpecies = computed(() =>
+  props.member.race
+    ? (allSpecies.value ?? []).find((s) => s.id === props.member.race) ?? null
+    : null,
+);
 
 // ── Local optimistic state ────────────────────────────────────────────────────
 

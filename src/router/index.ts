@@ -355,6 +355,26 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Puzzle" },
     },
 
+    // Species
+    {
+      path: "/species",
+      name: "species",
+      component: () => import("@/views/species/SpeciesView.vue"),
+      meta: { requiresAuth: true, title: "Species" },
+    },
+    {
+      path: "/species/new",
+      name: "species-new",
+      component: () => import("@/views/species/SpeciesDetailView.vue"),
+      meta: { requiresAuth: true, title: "New Species" },
+    },
+    {
+      path: "/species/:id",
+      name: "species-detail",
+      component: () => import("@/views/species/SpeciesDetailView.vue"),
+      meta: { requiresAuth: true, title: "Species" },
+    },
+
     // Hall of Heroes
     {
       path: "/hall-of-heroes",

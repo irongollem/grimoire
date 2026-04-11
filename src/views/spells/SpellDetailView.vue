@@ -65,7 +65,7 @@ function stopEditing() {
   router.replace({ query: q });
 }
 
-const { data: spell, isLoading, error } = useSpell(isNew.value ? "" : (id.value ?? ""));
+const { data: spell, isLoading, error } = useSpell(computed(() => isNew.value ? "" : (id.value ?? "")));
 
 const subtitle = computed(() => {
   const s = spell.value;

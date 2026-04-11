@@ -1,4 +1,4 @@
-import { computed } from "vue";
+import { computed, ref, isRef } from "vue";
 import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
@@ -173,11 +173,12 @@ export function useSpells() {
   return { ...spellsQuery, data };
 }
 
-export function useSpell(id: string) {
+export function useSpell(id: string | Ref<string>) {
+  const idRef = isRef(id) ? id : ref(id);
   return useQuery({
-    queryKey: [QUERY_KEY, id],
-    queryFn: () => fetchSpell(id),
-    enabled: !!id,
+    queryKey: computed(() => [QUERY_KEY, idRef.value]),
+    queryFn: () => fetchSpell(idRef.value),
+    enabled: computed(() => !!idRef.value),
   });
 }
 

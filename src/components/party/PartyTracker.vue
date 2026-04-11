@@ -91,7 +91,7 @@
               <p class="font-fell text-xs text-muted-foreground italic">
                 {{
                   [
-                    member.race,
+                    member.race ? (speciesNameMap.get(member.race) ?? member.race) : null,
                     member.class,
                     member.level ? `Lv${member.level}` : "",
                   ]
@@ -697,6 +697,7 @@ import { useItems } from "@/composables/useItems";
 import type { Item } from "@/types/item.types";
 import { ITEM_TYPE_LABELS, RARITY_COLORS } from "@/types/item.types";
 import { useCompanions, useDeleteCompanion } from "@/composables/useCompanions";
+import { useAllSpecies } from "@/composables/useSpecies";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useNpcs } from "@/composables/useNpcs";
 import { useCampaignStore } from "@/stores/campaign";
@@ -722,6 +723,13 @@ const { data: allLocations } = useAllLocations();
 const locationNameMap = computed(() => {
   const m = new Map<string, string>();
   for (const l of allLocations.value ?? []) m.set(l.id, l.name);
+  return m;
+});
+
+const { data: allSpecies } = useAllSpecies();
+const speciesNameMap = computed(() => {
+  const m = new Map<string, string>();
+  for (const s of allSpecies.value ?? []) m.set(s.id, s.name);
   return m;
 });
 

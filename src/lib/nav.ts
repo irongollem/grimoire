@@ -19,6 +19,7 @@ import {
   Crown,
   DoorOpen,
   Music2,
+  Dna,
 } from "lucide-vue-next";
 import type { Component } from "vue";
 
@@ -155,6 +156,12 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/dungeon-craft",
         icon: DoorOpen,
         description: "Secret doors, traps, hazards & dungeon enigmas",
+      },
+      {
+        label: "Species",
+        to: "/species",
+        icon: Dna,
+        description: "Playable species & subspecies compendium",
       },
       {
         label: "Hall of Heroes",

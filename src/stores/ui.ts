@@ -153,6 +153,22 @@ export const useUiStore = defineStore("ui", () => {
     hallOfHeroesFilterSetting.value = "all";
   }
 
+  // Species UI state
+  const speciesSearch = ref("");
+  const speciesFilterSize = ref("all");
+  const speciesFilterSource = ref("all");
+  const speciesOpen5ePanelOpen = ref(false);
+
+  const speciesHasActiveFilters = computed(
+    () => speciesSearch.value !== "" || speciesFilterSize.value !== "all" || speciesFilterSource.value !== "all",
+  );
+
+  function resetSpeciesFilters() {
+    speciesSearch.value = "";
+    speciesFilterSize.value = "all";
+    speciesFilterSource.value = "all";
+  }
+
   // Soundboard UI state
   const soundboardFilterCategory = ref<SoundCategory | "all">("all");
   const soundboardSearchQuery = ref("");
@@ -342,5 +358,13 @@ export const useUiStore = defineStore("ui", () => {
     soundboardSearchQuery,
     soundboardHasActiveFilters,
     resetSoundboardFilters,
+
+    // Species
+    speciesSearch,
+    speciesFilterSize,
+    speciesFilterSource,
+    speciesOpen5ePanelOpen,
+    speciesHasActiveFilters,
+    resetSpeciesFilters,
   };
 });

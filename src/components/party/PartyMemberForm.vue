@@ -98,14 +98,15 @@
           </div>
 
           <div class="grid grid-cols-2 gap-3">
-            <label class="block">
-              <span class="field-label">Race</span>
-              <input
-                v-model="f.race"
-                class="field-input w-full"
-                placeholder="Human"
+            <div class="block">
+              <span class="field-label">Species</span>
+              <EntityCombobox
+                :model-value="f.race ?? ''"
+                :options="speciesOptions"
+                placeholder="Select species…"
+                @update:model-value="f.race = $event || null"
               />
-            </label>
+            </div>
             <label class="block">
               <span class="field-label">Class</span>
               <select v-model="f.class" class="field-input w-full">
@@ -462,6 +463,8 @@ const { confirm } = useConfirm();
 import { ref, reactive, computed, watch } from "vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
+import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import { useAllSpecies } from "@/composables/useSpecies";
 import {
   useCreatePartyMember,
   useUpdatePartyMember,
@@ -515,6 +518,11 @@ const PROF_LEVELS: { value: SkillProfLevel; label: string }[] = [
 
 const props = defineProps<{ member: PartyMember | null }>();
 const emit = defineEmits<{ close: [] }>();
+
+const { data: allSpecies } = useAllSpecies();
+const speciesOptions = computed(() =>
+  (allSpecies.value ?? []).map((s) => ({ id: s.id, name: s.name })),
+);
 
 const activeTab = ref<"identity" | "stats" | "profs">("identity");
 
