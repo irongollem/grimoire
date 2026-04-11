@@ -59,7 +59,7 @@
             <Trash2 class="h-3.5 w-3.5 text-destructive" />
           </button>
         </template>
-        <button type="button" title="Upload image" :class="tbCls(false)" :disabled="uploadingImage" @click="insertImage">
+        <button v-if="allowUpload" type="button" title="Upload image" :class="tbCls(false)" :disabled="uploadingImage" @click="insertImage">
           <ImageIcon class="h-3.5 w-3.5" :class="uploadingImage ? 'animate-pulse' : ''" />
         </button>
         <div class="w-px h-5 bg-border mx-0.5" />
@@ -119,6 +119,7 @@ const props = defineProps<{
   modelValue: string | null;
   placeholder?: string;
   minHeight?: string;
+  allowUpload?: boolean;
 }>();
 
 const emit = defineEmits<{

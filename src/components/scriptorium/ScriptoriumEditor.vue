@@ -434,6 +434,7 @@ import {
   useUpdateScriptoriumDocument,
   useDeleteScriptoriumDocument,
 } from "@/composables/useScriptorium";
+import { removeRichTextImages, cleanupRemovedRichTextImages } from "@/composables/useImageUpload";
 import { useScriptoriumPdf } from "@/composables/useScriptoriumPdf";
 import type {
   ScriptoriumDocument,
@@ -596,8 +597,10 @@ async function destroy() {
   if (!(await confirm(`Delete "${props.doc.title}"? This cannot be undone.`)))
     return;
   isDeleting.value = true;
+  const oldContent = props.doc.content;
   try {
     await deleteDoc(props.doc.id);
+    removeRichTextImages(oldContent);
     router.replace("/scriptorium");
   } catch (e: unknown) {
     saveError.value = e instanceof Error ? e.message : "Failed to delete";
@@ -620,7 +623,9 @@ async function save() {
       word_count: wordCount.value,
     };
     if (props.doc) {
+      const oldContent = props.doc.content;
       await update({ id: props.doc.id, update: payload });
+      cleanupRemovedRichTextImages(oldContent, payload.content);
     } else {
       const created = await create(payload);
       router.replace(`/scriptorium/${created.id}`);

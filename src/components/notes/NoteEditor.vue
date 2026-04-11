@@ -88,7 +88,7 @@
     </p>
 
     <!-- Tiptap editor -->
-    <RichTextEditor v-model="body" placeholder="Write your note here…" />
+    <RichTextEditor v-model="body" placeholder="Write your note here…" allow-upload />
   </div>
 </template>
 
@@ -106,6 +106,7 @@ import {
   useUpdateNote,
   useDeleteNote,
 } from "@/composables/useNotes";
+import { removeRichTextImages, cleanupRemovedRichTextImages } from "@/composables/useImageUpload";
 import type { Note, NoteCategory } from "@/types/notes.types";
 import { useCampaignStore } from "@/stores/campaign";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
@@ -167,7 +168,9 @@ async function save() {
   const justShared = nowShared && !wasShared;
   try {
     if (props.note) {
+      const oldContent = props.note.content;
       await update({ id: props.note.id, update: buildPayload() });
+      cleanupRemovedRichTextImages(oldContent, body.value);
       if (justShared && activeCampaignId.value)
         void sendCampaignAnnouncement(
           activeCampaignId.value,
@@ -194,7 +197,9 @@ async function remove() {
   if (!props.note) return;
   if (!(await confirm(`Delete "${props.note.title}"? This cannot be undone.`)))
     return;
+  const oldContent = props.note.content;
   await del(props.note.id);
+  removeRichTextImages(oldContent);
   router.push("/notes");
 }
 </script>

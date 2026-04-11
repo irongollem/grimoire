@@ -17,6 +17,47 @@ export async function removeStorageImages(bucket: string, ...urls: (string | nul
   await supabase.storage.from(bucket).remove(paths);
 }
 
+export const ASSET_IMAGES_BUCKET = "asset-images";
+const RTE_IMAGE_MARKER = `/object/public/${ASSET_IMAGES_BUCKET}/`;
+
+/**
+ * Walk a serialised Tiptap JSON string and return all asset-images URLs
+ * that are embedded as image nodes. Safe to call with null/invalid JSON.
+ */
+export function extractRichTextImageUrls(json: string | null | undefined): string[] {
+  if (!json) return [];
+  let doc: Record<string, unknown>;
+  try { doc = JSON.parse(json) as Record<string, unknown>; } catch { return []; }
+  const urls: string[] = [];
+  function walk(node: Record<string, unknown>) {
+    if (node.type === "image" && node.attrs) {
+      const src = (node.attrs as Record<string, unknown>).src;
+      if (typeof src === "string" && src.includes(RTE_IMAGE_MARKER)) urls.push(src);
+    }
+    if (Array.isArray(node.content)) {
+      (node.content as Record<string, unknown>[]).forEach(walk);
+    }
+  }
+  walk(doc);
+  return urls;
+}
+
+/** Fire-and-forget: delete all storage images embedded in a rich-text JSON blob. */
+export function removeRichTextImages(json: string | null | undefined): void {
+  void removeStorageImages(ASSET_IMAGES_BUCKET, ...extractRichTextImageUrls(json));
+}
+
+/** Fire-and-forget: delete storage images that were removed between two versions of a rich-text blob. */
+export function cleanupRemovedRichTextImages(
+  oldJson: string | null | undefined,
+  newJson: string | null | undefined,
+): void {
+  const oldUrls = new Set(extractRichTextImageUrls(oldJson));
+  const newUrls = new Set(extractRichTextImageUrls(newJson));
+  const removed = [...oldUrls].filter((u) => !newUrls.has(u));
+  void removeStorageImages(ASSET_IMAGES_BUCKET, ...removed);
+}
+
 /**
  * Reusable image upload composable.
  *

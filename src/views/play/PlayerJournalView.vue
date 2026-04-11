@@ -39,7 +39,7 @@
         </div>
 
         <!-- Content -->
-        <RichTextEditor v-model="formContent" placeholder="Write your entry…" min-height="140px" />
+        <RichTextEditor v-model="formContent" placeholder="Write your entry…" min-height="140px" allow-upload />
 
         <!-- Context link row -->
         <div class="flex flex-wrap items-center gap-2">
@@ -238,7 +238,7 @@
               <button
                 type="button"
                 class="font-cinzel text-[11px] text-muted-foreground/60 tracking-wider hover:text-destructive transition-colors"
-                @click="removeEntry(entry.id)"
+                @click="removeEntry(entry)"
               >Delete</button>
               <button
                 type="button"
@@ -269,7 +269,7 @@
                 class="flex-1 min-w-32 bg-transparent border-b border-border px-1 py-1 font-cinzel text-sm font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
               />
             </div>
-            <RichTextEditor v-model="editForm.content" min-height="160px" />
+            <RichTextEditor v-model="editForm.content" min-height="160px" allow-upload />
             <div class="flex items-center justify-between gap-2">
               <button
                 type="button"
@@ -332,6 +332,7 @@ import { useEncounters } from "@/composables/useEncounters";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import { removeRichTextImages, cleanupRemovedRichTextImages } from "@/composables/useImageUpload";
 
 // ── Data ───────────────────────────────────────────────────────────────────────
 const { data: myEntries,     isLoading: loadingMine }   = useMyJournalEntries();
@@ -469,8 +470,10 @@ const editForm = ref({
   category:   "adventure" as JournalCategory,
   is_private: true,
 });
+const editOriginalContent = ref<string>("");
 
 function startEdit(entry: PlayerJournalEntry) {
+  editOriginalContent.value = entry.content;
   editForm.value = {
     title:      entry.title,
     content:    entry.content,
@@ -482,11 +485,13 @@ function startEdit(entry: PlayerJournalEntry) {
 
 function cancelEdit() {
   editingId.value = null;
+  editOriginalContent.value = "";
 }
 
 async function submitEdit() {
   if (!editingId.value || isRteEmpty(editForm.value.content)) return;
   saving.value = true;
+  const oldContent = editOriginalContent.value;
   try {
     await update({
       id: editingId.value,
@@ -497,6 +502,7 @@ async function submitEdit() {
         is_private: editForm.value.is_private,
       },
     });
+    cleanupRemovedRichTextImages(oldContent, editForm.value.content);
     editingId.value = null;
   } finally {
     saving.value = false;
@@ -507,10 +513,11 @@ async function togglePrivacy(entry: PlayerJournalEntry) {
   await update({ id: entry.id, update: { is_private: !entry.is_private } });
 }
 
-async function removeEntry(id: string) {
+async function removeEntry(entry: PlayerJournalEntry) {
   if (!await confirm("Delete this journal entry?")) return;
-  if (expanded.value === id) expanded.value = null;
-  await del(id);
+  if (expanded.value === entry.id) expanded.value = null;
+  await del(entry.id);
+  removeRichTextImages(entry.content);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
