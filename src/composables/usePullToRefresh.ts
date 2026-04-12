@@ -1,7 +1,8 @@
 import { onMounted, onUnmounted, ref } from "vue";
 
-const THRESHOLD = 72;   // px of pull needed to trigger reload
-const MAX_PULL  = 96;   // max visual travel of the indicator
+const THRESHOLD     = 72;   // px of pull needed to trigger reload
+const MAX_PULL      = 96;   // max visual travel of the indicator
+const TOP_ZONE      = 64;   // touch must start within this many px of the top of the screen
 
 // Walk up the DOM to find the first element that actually scrolls.
 function scrollableAncestor(el: Element | null): Element {
@@ -18,20 +19,25 @@ export function usePullToRefresh() {
   const readyToReload = ref(false);
 
   let startY    = 0;
+  let eligible  = false;   // true only when touch started in the top zone at scrollTop 0
   let pulling   = false;
   let container: Element | null = null;
 
   function onTouchStart(e: TouchEvent) {
+    const touchY = e.touches[0].clientY;
     container = scrollableAncestor(e.target as Element);
-    if (container.scrollTop > 2) return;          // not at the top — ignore
-    startY  = e.touches[0].clientY;
+    // Only arm pull-to-refresh when the finger starts at the very top of the screen
+    // AND the scrollable container is already at the top.
+    eligible = touchY <= TOP_ZONE && container.scrollTop <= 2;
+    if (!eligible) return;
+    startY  = touchY;
     pulling = false;
     pullPx.value = 0;
     readyToReload.value = false;
   }
 
   function onTouchMove(e: TouchEvent) {
-    if (!container || container.scrollTop > 2) return;
+    if (!eligible || !container || container.scrollTop > 2) return;
     const delta = e.touches[0].clientY - startY;
     if (delta <= 4) return;
 
@@ -50,6 +56,7 @@ export function usePullToRefresh() {
       window.location.reload();
       return;
     }
+    eligible = false;
     pulling = false;
     pullPx.value = 0;
     readyToReload.value = false;
