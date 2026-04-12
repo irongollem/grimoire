@@ -40,9 +40,8 @@
         <!--
           Title + description hidden on <md. AppTopBar renders the page
           title on mobile, so repeating a big h1 here duplicates the label
-          and eats ~70px of vertical space right above the action row.
-          Desktop is unchanged — `md:block md:flex-1 md:min-w-0` makes
-          the wrapper a proper flex item at ≥md.
+          and eats ~70px of vertical space right above the action row that
+          users would rather spend on the list itself.
         -->
         <div class="hidden md:block md:min-w-0 md:flex-1">
           <h1

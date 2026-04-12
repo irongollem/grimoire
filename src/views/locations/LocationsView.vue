@@ -1,66 +1,50 @@
 <template>
-  <PageHeader
+  <ListPageLayout
     title="Atlas"
     description="Continents, cities, dungeons, and every place in between"
   >
     <template #actions>
-      <button
-        type="button"
+      <ListActionButton
+        :icon="planarMutation.isPending.value ? Loader2 : Globe"
+        :label="planarStatusLabel"
         :disabled="planarMutation.isPending.value"
-        class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
         @click="handlePopulatePlanes"
-      >
-        <Loader2 v-if="planarMutation.isPending.value" class="size-3.5 animate-spin shrink-0" />
-        <Globe v-else class="size-3.5 shrink-0" />
-        {{ planarStatusLabel }}
-      </button>
-      <button
-        type="button"
+      />
+      <ListActionButton
+        :icon="populateMutation.isPending.value ? Loader2 : MapPin"
+        :label="populateStatusLabel"
         :disabled="populateMutation.isPending.value"
-        class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
         @click="handlePopulate"
-      >
-        <Loader2 v-if="populateMutation.isPending.value" class="size-3.5 animate-spin shrink-0" />
-        <MapPin v-else class="size-3.5 shrink-0" />
-        {{ populateStatusLabel }}
-      </button>
-      <RouterLink
+      />
+      <ListActionButton
+        :icon="Plus"
+        label="New Location"
+        variant="primary"
         to="/locations/new"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
-      >
-        <Plus class="h-3.5 w-3.5" />
-        New Location
-      </RouterLink>
+      />
     </template>
 
-    <template #sticky>
-      <div class="flex items-center gap-2">
-        <div class="relative flex-1 min-w-48">
-          <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <input
-            v-model="search"
-            type="text"
-            placeholder="Search locations…"
-            class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-        </div>
-        <select
-          v-model="typeFilter"
-          class="bg-card border border-border rounded-md px-2 py-1.5 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+    <template #filters>
+      <ListFilterBar>
+        <ListSearchInput v-model="search" placeholder="Search locations…" />
+        <ListFilterSelect v-model="typeFilter" aria-label="Location type filter">
           <option v-for="opt in TYPE_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-        </select>
-      </div>
+        </ListFilterSelect>
+      </ListFilterBar>
     </template>
 
     <LocationList :search="search" :type-filter="typeFilter" />
-  </PageHeader>
+  </ListPageLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Plus, Loader2, MapPin, Globe, Search } from "lucide-vue-next";
-import PageHeader from "@/components/common/PageHeader.vue";
+import { Plus, Loader2, MapPin, Globe } from "lucide-vue-next";
+import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
+import ListFilterBar from "@/components/common/ListFilterBar.vue";
+import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
+import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import LocationList from "@/components/locations/LocationList.vue";
 import { usePopulateLocations, usePopulatePlanarLocations } from "@/composables/useLocations";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";

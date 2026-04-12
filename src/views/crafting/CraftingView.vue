@@ -1,31 +1,27 @@
 <template>
-  <PageHeader
+  <ListPageLayout
     title="Workshop"
     description="Create recipes and share them with your players"
   >
     <template #actions>
-      <button
+      <ListActionButton
+        :icon="importMutation.isPending.value ? Loader2 : Download"
+        :label="importStatusLabel"
         :disabled="importMutation.isPending.value"
-        class="inline-flex items-center gap-1.5 rounded-md bg-muted border border-border px-4 py-2 font-cinzel text-xs font-semibold text-muted-foreground tracking-wider hover:text-foreground hover:border-border/80 disabled:opacity-50 transition-colors"
-        :title="importStatusLabel"
         @click="handleImport"
-      >
-        <Download class="h-3.5 w-3.5" />
-        {{ importStatusLabel }}
-      </button>
-      <button
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
-        @click="$router.push('/crafting/new')"
-      >
-        <Plus class="h-3.5 w-3.5" />
-        New Recipe
-      </button>
+      />
+      <ListActionButton
+        :icon="Plus"
+        label="New Recipe"
+        variant="primary"
+        to="/crafting/new"
+      />
     </template>
 
-    <!-- Discipline tabs -->
-    <div class="flex flex-wrap gap-1 mb-6 rounded-md border border-border p-1 bg-muted w-fit">
+    <!-- Discipline tabs (body content) -->
+    <div class="flex flex-wrap gap-1 mb-6 rounded-md border border-border p-1 bg-muted w-fit max-w-full overflow-x-auto">
       <button
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-cinzel tracking-wide transition-colors"
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-cinzel tracking-wide transition-colors shrink-0"
         :class="ui.workshopActiveTab === 'all'
           ? 'bg-card text-foreground shadow-sm'
           : 'text-muted-foreground hover:text-foreground'"
@@ -37,7 +33,7 @@
       <button
         v-for="d in CRAFTING_DISCIPLINES"
         :key="d.id"
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-cinzel tracking-wide transition-colors"
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-cinzel tracking-wide transition-colors shrink-0"
         :class="ui.workshopActiveTab === d.id
           ? 'bg-card text-foreground shadow-sm'
           : 'text-muted-foreground hover:text-foreground'"
@@ -69,31 +65,57 @@
       </div>
 
       <div v-else class="grid gap-3">
+        <!--
+          Recipe card restructured so it can't grow wider than its
+          container. Previously the name + tag pills sat in a single flex
+          row with no wrap: enough tags (discipline + PROF + TOOLS)
+          pushed the whole card past the viewport on mobile.
+
+          New layout: name on its own line (truncates), tags wrap onto a
+          second line, meta (DC + time) on a third. On mobile the tag
+          labels collapse to their icons via `max-sm:hidden` so a recipe
+          with all three tags still fits on one row below the name.
+        -->
         <div
           v-for="recipe in disciplineRecipes"
           :key="recipe.id"
-          class="rounded-lg border border-border bg-card px-4 py-3 flex items-center gap-3 hover:border-border/80 transition-colors"
+          class="rounded-lg border border-border bg-card px-4 py-3 flex items-start gap-3 hover:border-border/80 transition-colors"
         >
-          <!-- Left: name + meta -->
+          <!-- Left: name + tags + meta -->
           <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 mb-0.5">
-              <p class="font-cinzel text-sm font-bold text-foreground truncate">{{ recipe.name }}</p>
+            <p class="font-cinzel text-sm font-bold text-foreground truncate">{{ recipe.name }}</p>
+
+            <div
+              v-if="!activeDiscipline || recipe.requires_proficiency || recipe.requires_tools"
+              class="flex flex-wrap items-center gap-1.5 mt-1"
+            >
               <span
                 v-if="!activeDiscipline"
-                class="shrink-0 font-cinzel text-[10px] tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
-              >{{ getDiscipline(recipe.discipline).label }}</span>
+                class="inline-flex items-center gap-1 shrink-0 font-cinzel text-[10px] tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
+                :title="getDiscipline(recipe.discipline).label"
+              >
+                <component :is="getDiscipline(recipe.discipline).icon" class="h-3 w-3" />
+                <span class="max-sm:hidden">{{ getDiscipline(recipe.discipline).label }}</span>
+              </span>
               <span
                 v-if="recipe.requires_proficiency"
-                class="shrink-0 font-cinzel text-[10px] tracking-wider px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
+                class="inline-flex items-center gap-1 shrink-0 font-cinzel text-[10px] tracking-wider px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
                 title="Requires tool proficiency"
-              >PROF</span>
+              >
+                <Award class="h-3 w-3" />
+                <span class="max-sm:hidden">PROF</span>
+              </span>
               <span
                 v-if="recipe.requires_tools"
-                class="shrink-0 font-cinzel text-[10px] tracking-wider px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
+                class="inline-flex items-center gap-1 shrink-0 font-cinzel text-[10px] tracking-wider px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
                 title="Requires physical tools"
-              >TOOLS</span>
+              >
+                <Wrench class="h-3 w-3" />
+                <span class="max-sm:hidden">TOOLS</span>
+              </span>
             </div>
-            <p class="font-fell text-xs text-muted-foreground">
+
+            <p class="font-fell text-xs text-muted-foreground mt-1">
               DC {{ recipe.dc }} · {{ recipe.crafting_time }} {{ recipe.crafting_time !== 1 ? recipe.crafting_time_unit : recipe.crafting_time_unit.replace(/s$/, '') }}
             </p>
           </div>
@@ -118,14 +140,15 @@
         </div>
       </div>
     </div>
-  </PageHeader>
+  </ListPageLayout>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
 
-import { Download, LayoutList, Pencil, Plus, Trash2 } from "lucide-vue-next";
-import PageHeader from "@/components/common/PageHeader.vue";
+import { Award, Download, LayoutList, Loader2, Pencil, Plus, Trash2, Wrench } from "lucide-vue-next";
+import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting-disciplines";
 import { useCraftingRecipes, useDeleteRecipe, useImportStarterRecipes } from "@/composables/useCrafting";
 import { useConfirm } from "@/composables/useConfirm";

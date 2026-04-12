@@ -1,84 +1,58 @@
 <template>
-  <PageHeader title="Vault" description="Your mundane equipment and magic items">
+  <ListPageLayout title="Vault" description="Your mundane equipment and magic items">
     <template #actions>
-      <button
-        type="button"
+      <ListActionButton
+        :icon="importMutation.isPending.value ? Loader2 : Download"
+        :label="importStatusLabel"
         :disabled="importMutation.isPending.value"
-        class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
         @click="handleImport"
-      >
-        <Loader2 v-if="importMutation.isPending.value" class="size-3.5 animate-spin shrink-0" />
-        <Download v-else class="size-3.5 shrink-0" />
-        {{ importStatusLabel }}
-      </button>
-      <button
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+      />
+      <ListActionButton
+        :icon="Sparkles"
+        label="Generate"
         @click="ui.itemGeneratorOpen = true"
-      >
-        <Sparkles class="size-3.5 shrink-0" />
-        Generate
-      </button>
-      <RouterLink
+      />
+      <ListActionButton
+        :icon="Plus"
+        label="New Item"
+        variant="primary"
         to="/vault/new"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
-      >
-        + New Item
-      </RouterLink>
+      />
     </template>
 
-    <template #sticky>
-      <div class="flex items-center gap-2 flex-wrap">
-        <div class="relative flex-1 min-w-40">
-          <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <input
-            v-model="search"
-            type="text"
-            placeholder="Search items…"
-            class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-        </div>
-        <select
-          v-model="typeFilter"
-          class="bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+    <template #filters>
+      <ListFilterBar
+        :has-active-filters="hasActiveFilters"
+        @clear="clearFilters"
+      >
+        <ListSearchInput v-model="search" placeholder="Search items…" />
+        <ListFilterSelect v-model="typeFilter" aria-label="Item type filter">
           <option value="">All types</option>
           <option v-for="t in ITEM_TYPES" :key="t" :value="t">{{ ITEM_TYPE_LABELS[t] }}</option>
-        </select>
-        <select
-          v-model="rarityFilter"
-          class="bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+        </ListFilterSelect>
+        <ListFilterSelect v-model="rarityFilter" aria-label="Rarity filter">
           <option value="">All rarities</option>
           <option v-for="r in ITEM_RARITIES" :key="r" :value="r">{{ ITEM_RARITY_LABELS[r] }}</option>
-        </select>
-        <select
-          v-if="sources?.length"
-          v-model="sourceFilter"
-          class="bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+        </ListFilterSelect>
+        <ListFilterSelect v-if="sources?.length" v-model="sourceFilter" aria-label="Source filter">
           <option value="">All sources</option>
           <option v-for="s in sources" :key="s.slug" :value="s.slug">{{ itemSourceLabel(s.slug, s.title) }}</option>
-        </select>
-        <button
-          v-if="hasActiveFilters"
-          type="button"
-          class="px-2.5 py-1.5 rounded-md border border-border bg-card font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
-          @click="clearFilters"
-        >
-          Clear
-        </button>
-      </div>
+        </ListFilterSelect>
+      </ListFilterBar>
     </template>
 
     <ItemList :search="search" :type-filter="typeFilter" :rarity-filter="rarityFilter" :source-filter="sourceFilter" />
-  </PageHeader>
+  </ListPageLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Loader2, Download, Search, Sparkles } from "lucide-vue-next";
-import PageHeader from "@/components/common/PageHeader.vue";
+import { Plus, Loader2, Download, Sparkles } from "lucide-vue-next";
+import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
+import ListFilterBar from "@/components/common/ListFilterBar.vue";
+import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
+import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import ItemList from "@/components/items/ItemList.vue";
 import { useImportSrdItems, useItemSources } from "@/composables/useItems";
 import { ITEM_TYPES, ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS, itemSourceLabel } from "@/types/item.types";

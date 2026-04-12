@@ -17,8 +17,8 @@
     :type="rootTag === 'button' ? 'button' : undefined"
     :disabled="rootTag === 'button' ? disabled : undefined"
     :class="buttonClass"
-    :title="label"
-    :aria-label="label"
+    :title="tooltip ?? label"
+    :aria-label="tooltip ?? label"
     @click="onClick"
   >
     <component
@@ -29,9 +29,11 @@
     />
     <!--
       Label rendered via v-if/v-else so the class string is a static literal
-      Tailwind picks up verbatim. `max-sm:hidden` resolves to a single
-      media-query-wrapped rule with no cascading between `.hidden` and
-      `.sm:inline`.
+      Tailwind picks up verbatim. Previously used a computed `labelClass`
+      returning "hidden sm:inline"; at least one browser was failing to
+      collapse the label at runtime. `max-sm:hidden` is a single utility
+      that resolves to one media-query-wrapped rule — no cascading / order
+      dependency between `hidden` and `sm:inline`.
     -->
     <span v-if="shouldCollapse" class="max-sm:hidden">{{ label }}</span>
     <span v-else>{{ label }}</span>
@@ -62,6 +64,12 @@ const props = withDefaults(
      * where the icon alone is ambiguous.
      */
     collapseOnMobile?: boolean;
+    /**
+     * Override for the `title` / `aria-label`. Use when the visible label
+     * describes state ("Kanban") but the tooltip should describe action
+     * ("Switch to list view"). Defaults to `label`.
+     */
+    tooltip?: string;
   }>(),
   {
     variant: "secondary",
@@ -120,5 +128,4 @@ const shouldCollapse = computed(() => {
   // label space stops action rows from overflowing on narrow screens.
   return true;
 });
-
 </script>

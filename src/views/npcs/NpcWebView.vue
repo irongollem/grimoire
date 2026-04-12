@@ -87,7 +87,7 @@
         :edges="graphEdges"
         :configs="graphConfigs"
         :event-handlers="eventHandlers"
-        class="w-full h-full select-none"
+        class="w-full h-full select-none touch-none"
       />
 
       <!-- Link mode hint -->
