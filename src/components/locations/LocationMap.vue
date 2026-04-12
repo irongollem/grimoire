@@ -32,8 +32,8 @@
             isHovered(pin.child_location_id) ? 'z-20' : 'z-10',
           ]"
           :style="pinStyle(pin, isHovered(pin.child_location_id), pinnedPinId === pin.child_location_id)"
-          @pointerenter="onPinEnter(pin.child_location_id)"
-          @pointerleave="onPinLeave"
+          @pointerenter="onPinEnter($event, pin.child_location_id)"
+          @pointerleave="onPinLeave($event)"
           @pointerdown="mode === 'edit' ? onPinPointerDown($event, pin.child_location_id) : undefined"
           @click.stop="mode !== 'edit' ? onPinClick(pin.child_location_id) : undefined"
         >
@@ -213,7 +213,13 @@ function isHovered(childId: string) {
   return hoveredPinId.value === childId || pinnedPinId.value === childId;
 }
 
-function onPinEnter(childId: string) {
+function onPinEnter(e: PointerEvent, childId: string) {
+  // Hover-to-expand is a mouse-only UX. On touch the pointerenter fires at
+  // touchstart, which used to snap the pill open *under* the finger before
+  // the tap-handler could lift it. We now route touch entirely through
+  // pointer-/click → onPinClick → pinnedPinId, which positions above the
+  // finger.
+  if (e.pointerType !== "mouse") return;
   if (leaveTimer) { clearTimeout(leaveTimer); leaveTimer = null; }
   hoveredPinId.value = childId;
   // Dismiss any pinned pill from a different pin when hovering with a cursor.
@@ -222,7 +228,8 @@ function onPinEnter(childId: string) {
   }
 }
 
-function onPinLeave() {
+function onPinLeave(e: PointerEvent) {
+  if (e.pointerType !== "mouse") return;
   leaveTimer = setTimeout(() => { hoveredPinId.value = null; }, 80);
 }
 
@@ -251,9 +258,11 @@ function pinStyle(pin: MapPinType, hovered: boolean, pinned: boolean): Record<st
   }
   let ty: string;
   if (pinned) {
-    // Touch-opened: park the pill above the finger (or below if too close to the top)
-    // so the Go/Watch buttons aren't covered by the hand that just tapped.
-    ty = pin.y < 0.25 ? "calc(100% + 6px)" : "calc(-100% - 6px)";
+    // Touch-opened: park the pill clearly above (or below) the finger so the
+    // Go/Watch buttons aren't under the hand that just tapped. 6px was too
+    // tight for real finger widths; 24px gives comfortable clearance for the
+    // average fingertip (~18-20px) plus a small gap.
+    ty = pin.y < 0.25 ? "calc(100% + 24px)" : "calc(-100% - 24px)";
   } else {
     ty = pin.y < 0.15 ? "0%" : pin.y > 0.85 ? "-100%" : "-50%";
   }
