@@ -27,7 +27,14 @@
       class="h-3.5 w-3.5 shrink-0"
       aria-hidden="true"
     />
-    <span :class="labelClass">{{ label }}</span>
+    <!--
+      Label rendered via v-if/v-else so the class string is a static literal
+      Tailwind picks up verbatim. `max-sm:hidden` resolves to a single
+      media-query-wrapped rule with no cascading between `.hidden` and
+      `.sm:inline`.
+    -->
+    <span v-if="shouldCollapse" class="max-sm:hidden">{{ label }}</span>
+    <span v-else>{{ label }}</span>
   </component>
 </template>
 
@@ -114,5 +121,4 @@ const shouldCollapse = computed(() => {
   return true;
 });
 
-const labelClass = computed(() => (shouldCollapse.value ? "hidden sm:inline" : "inline"));
 </script>
