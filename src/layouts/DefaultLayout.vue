@@ -1,5 +1,8 @@
 <template>
-  <div class="flex h-screen overflow-hidden bg-background">
+  <!-- h-dvh (dynamic viewport height) tracks mobile browser chrome as it
+       shows/hides, preventing the bottom of the layout from being hidden
+       below Safari's URL bar. h-screen would overflow on mobile Safari. -->
+  <div class="flex h-dvh overflow-hidden bg-background">
     <AppSidebar />
     <AppMobileNav />
 

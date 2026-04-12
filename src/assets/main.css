@@ -1,4 +1,9 @@
-@import "./fonts.css";
+/* Google Fonts — inlined rather than @import'd from a sub-file so the @import
+   stays at the very top of the resolved stylesheet. Browsers warn ("Define
+   @import rules at the top of the stylesheet") if any CSS rule precedes an
+   @import, and Vite's dev-mode CSS loading can cause the nested fonts.css
+   @import to appear out of order in the cascade. */
+@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600;1,700&family=Inter:wght@400;500;600;700&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap");
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -240,6 +245,25 @@
   .pager-btn {
     @apply min-w-8 h-7 px-1.5 rounded border border-border bg-card font-cinzel text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground hover:border-primary/50 disabled:opacity-40 disabled:cursor-not-allowed;
   }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Safe-area utilities — register as Tailwind v4 utilities so they compose with
+   variants (`sm:pb-safe`) and arbitrary modifiers where needed. The numeric
+   helpers add a fixed amount *on top of* the inset, which is the common case
+   for content sitting above a fixed bottom nav on notched phones.
+───────────────────────────────────────────────────────────────────────────── */
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+@utility pl-safe {
+  padding-left: env(safe-area-inset-left);
+}
+@utility pr-safe {
+  padding-right: env(safe-area-inset-right);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

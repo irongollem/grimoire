@@ -14,15 +14,23 @@
 
       <div class="top-right">
         <span class="encounter-name">{{ store.encounterName }}</span>
-        <button v-if="!store.started" @click="store.rollAllInitiatives()" class="roll-btn">
-          ⚄ Roll Initiative
+        <button
+          v-if="!store.started"
+          @click="store.rollAllInitiatives()"
+          class="roll-btn"
+          title="Roll Initiative"
+        >
+          <Dices class="h-3.5 w-3.5" />
+          <span class="btn-label">Roll Initiative</span>
         </button>
         <button
           v-if="isLive && store.round === 0"
           @click="handleStartCombat"
           class="start-combat-btn"
+          title="Start Combat"
         >
-          ⚔ Start Combat
+          <Swords class="h-3.5 w-3.5" />
+          <span class="btn-label">Start Combat</span>
         </button>
         <DiceRoller />
         <button
@@ -30,13 +38,24 @@
           class="go-live-btn"
           :class="isLive ? 'live-active' : ''"
           :disabled="goingLive"
+          :title="isLive ? 'Live' : 'Go Live'"
           @click="handleGoLive"
         >
           <Radio class="h-3.5 w-3.5" />
-          {{ goingLive ? 'Starting…' : isLive ? '● Live' : 'Go Live' }}
+          <span class="btn-label">{{ goingLive ? 'Starting…' : isLive ? '● Live' : 'Go Live' }}</span>
         </button>
-        <button @click="handleAbandon" class="abandon-btn" title="End run without syncing HP or discovering monsters">Abandon</button>
-        <button @click="handleEndCombat" class="end-btn">End Combat</button>
+        <button
+          @click="handleAbandon"
+          class="abandon-btn"
+          title="Abandon — end run without syncing HP or discovering monsters"
+        >
+          <DoorOpen class="h-3.5 w-3.5" />
+          <span class="btn-label">Abandon</span>
+        </button>
+        <button @click="handleEndCombat" class="end-btn" title="End Combat">
+          <Flag class="h-3.5 w-3.5" />
+          <span class="btn-label">End Combat</span>
+        </button>
       </div>
     </div>
 
@@ -71,7 +90,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm, notify } = useConfirm();
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { Radio } from "lucide-vue-next";
+import { Radio, Dices, Swords, DoorOpen, Flag } from "lucide-vue-next";
 import { supabase } from "@/lib/supabase";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useAllMonsters } from "@/composables/useMonsters";
@@ -303,6 +322,15 @@ async function handleEndCombat() {
 
 .encounter-name {
   @apply font-cinzel text-sm font-bold text-foreground hidden sm:block;
+}
+
+/*
+ * On small screens (<sm) action buttons collapse to icon-only to stop the top
+ * bar overflowing the viewport. The title="" attribute on each button keeps
+ * hover/long-press context intact.
+ */
+.btn-label {
+  @apply hidden sm:inline;
 }
 
 .roll-btn {
