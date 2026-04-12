@@ -149,8 +149,7 @@ export interface Npc {
   stat_block: StatBlock | null;
   linked_monster_id: string | null; // links to a Bestiary monster (monstrous NPC)
   scriptorium_doc_id: string | null; // links to a ScriptoriumDocument (e.g. stat block sheet)
-  shared_with_players: boolean;
-  player_visible_to: string[] | null; // null = whole party (when shared_with_players=true); uuid[] = specific party_member_ids
+  player_visible_to: string[]; // [] = hidden; uuid[] = visible to those party_member_ids
   player_visible_fields: string[]; // subset of: portrait | name | status | race | occupation | relationship
   created_at: string;
   updated_at: string;
@@ -158,8 +157,8 @@ export interface Npc {
 
 export type NpcInsert = Omit<
   Npc,
-  "id" | "user_id" | "created_at" | "updated_at" | "location_id" | "linked_monster_id" | "player_visible_to"
-> & { location_id?: string | null; linked_monster_id?: string | null; player_visible_to?: string[] | null };
+  "id" | "user_id" | "created_at" | "updated_at" | "location_id" | "linked_monster_id"
+> & { location_id?: string | null; linked_monster_id?: string | null };
 export type NpcUpdate = Partial<NpcInsert>;
 
 // ── Per-PC relation notes ─────────────────────────────────────────────────────

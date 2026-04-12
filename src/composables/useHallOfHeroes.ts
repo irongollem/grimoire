@@ -81,11 +81,10 @@ async function importHero(hero: HallOfHero, campaignId: string): Promise<void> {
     is_revealed: hero.is_revealed,
     tags: hero.tags,
     stat_block: hero.stat_block,
-    shared_with_players: false,
+    player_visible_to: [],
     player_visible_fields: [],
     scriptorium_doc_id: null,
     linked_monster_id: null,
-    player_visible_to: null,
   };
   const { error } = await supabase.from("npcs").insert(npc);
   if (error) throw error;

@@ -349,7 +349,7 @@ function statusColor(s: NpcStatus) {
 // ── Sharing ───────────────────────────────────────────────────────────────────
 
 function isShared(npc: Npc): boolean {
-  return Array.isArray(npc.player_visible_to) && npc.player_visible_to.length > 0;
+  return (npc.player_visible_to?.length ?? 0) > 0;
 }
 
 const popover = reactive<{ npcId: string | null; style: string }>({
@@ -391,16 +391,16 @@ function setWholeParty() {
 function toggleMember(memberId: string) {
   const npc = popoverNpc.value;
   if (!npc) return;
-  const current = [...(npc.player_visible_to ?? [])];
+  const current = [...npc.player_visible_to];
   const idx = current.indexOf(memberId);
   const next = idx === -1 ? [...current, memberId] : current.filter((id) => id !== memberId);
-  updateNpc({ id: npc.id, update: { player_visible_to: next.length === 0 ? null : next } });
+  updateNpc({ id: npc.id, update: { player_visible_to: next } });
 }
 
 function unshare() {
   const npc = popoverNpc.value;
   if (!npc) return;
-  updateNpc({ id: npc.id, update: { player_visible_to: null } });
+  updateNpc({ id: npc.id, update: { player_visible_to: [] } });
   closePopover();
 }
 </script>

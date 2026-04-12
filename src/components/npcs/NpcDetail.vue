@@ -27,9 +27,7 @@
         <!-- Player visibility toggle -->
         <PlayerVisibilityToggle
           v-if="npc?.id"
-          :shared-with-all="form.shared_with_players"
-          :visible-to="form.player_visible_to ?? null"
-          @update:shared-with-all="form.shared_with_players = $event"
+          :visible-to="form.player_visible_to"
           @update:visible-to="form.player_visible_to = $event"
         />
         <!-- Reveal / Conceal alter ego toggle -->
@@ -63,7 +61,7 @@
 
     <!-- Reveal fields (visible when NPC is shared with anyone) -->
     <div
-      v-if="npc?.id && (form.shared_with_players || (form.player_visible_to?.length ?? 0) > 0)"
+      v-if="npc?.id && form.player_visible_to.length > 0"
       class="mb-4 border border-primary/20 rounded-lg px-4 py-3 bg-primary/5 space-y-3"
     >
       <p class="font-cinzel text-[10px] font-semibold tracking-widest text-muted-foreground">REVEALED FIELDS</p>
@@ -672,17 +670,13 @@ const form = reactive<NpcInsert>({
   campaign_id: campaign.activeCampaignId,
   card_art_url: props.npc?.card_art_url ?? null,
   portrait_focal_point: props.npc?.portrait_focal_point ?? null,
-  shared_with_players: props.npc?.shared_with_players ?? false,
   player_visible_fields: [...(props.npc?.player_visible_fields ?? [])],
-  player_visible_to: props.npc?.player_visible_to ?? null,
+  player_visible_to: props.npc?.player_visible_to ?? [],
 })
 
 // Sync sharing fields if the prop updates after mount (e.g. list popover saved first)
 watch(() => props.npc?.player_visible_to, (val) => {
-  form.player_visible_to = val ?? null
-})
-watch(() => props.npc?.shared_with_players, (val) => {
-  form.shared_with_players = val ?? false
+  form.player_visible_to = val ?? []
 })
 
 function toggleVisibleField(key: string) {
@@ -816,8 +810,7 @@ async function save() {
     backstory: form.backstory || null,
     notes: form.notes || null,
     stat_block: buildStatBlock(),
-    shared_with_players: form.shared_with_players,
-    player_visible_to: (form.player_visible_to?.length ?? 0) > 0 ? form.player_visible_to : null,
+    player_visible_to: form.player_visible_to,
   }
   try {
     if (props.npc?.id) {
