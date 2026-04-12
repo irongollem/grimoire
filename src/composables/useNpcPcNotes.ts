@@ -3,10 +3,17 @@ import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
-import type { NpcPcNote, NpcPcNoteUpsert } from "@/types/npc.types";
-
+import type { NpcPcNote, NpcPcNoteUpsert, NpcRelationshipType } from "@/types/npc.types";
 
 const QUERY_KEY = "npc_pc_notes";
+
+async function performUpsert(payload: NpcPcNoteUpsert) {
+  const user = getCurrentUser();
+  const { error } = await supabase
+    .from("npc_pc_notes")
+    .upsert({ ...payload, user_id: user!.id }, { onConflict: "npc_id,party_member_id" });
+  if (error) throw error;
+}
 
 // ── DM: fetch all PC notes for an NPC ────────────────────────────────────────
 
@@ -27,39 +34,61 @@ export function useNpcPcNotes(npcId: string | Ref<string>) {
   });
 }
 
-// ── DM: upsert a note for one party member ───────────────────────────────────
+// ── DM: upsert a note for one party member (npcId fixed at hook call time) ───
 
 export function useUpsertNpcPcNote(npcId: string) {
   const queryClient = useQueryClient();
   const campaign = useCampaignStore();
   return useMutation({
-    mutationFn: async ({ partyMemberId, notes }: { partyMemberId: string; notes: string }) => {
-      const user = getCurrentUser();
-      const payload: NpcPcNoteUpsert = {
-        campaign_id: campaign.activeCampaignId!,
-        npc_id: npcId,
-        party_member_id: partyMemberId,
-        notes,
-      };
-      const { error } = await supabase
-        .from("npc_pc_notes")
-        .upsert({ ...payload, user_id: user!.id }, { onConflict: "npc_id,party_member_id" });
-      if (error) throw error;
-    },
+    mutationFn: ({ partyMemberId, relationshipType, notes }: { partyMemberId: string; relationshipType: NpcRelationshipType; notes: string }) =>
+      performUpsert({ campaign_id: campaign.activeCampaignId!, npc_id: npcId, party_member_id: partyMemberId, relationship_type: relationshipType, notes }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY, npcId] }),
   });
 }
 
-// ── DM: delete a note ────────────────────────────────────────────────────────
+// ── DM: upsert from graph (both IDs supplied at call time) ───────────────────
 
-export function useDeleteNpcPcNote(npcId: string) {
+export function useUpsertNpcPcNoteDirect() {
+  const queryClient = useQueryClient();
+  const campaign = useCampaignStore();
+  return useMutation({
+    mutationFn: ({ npcId, partyMemberId, relationshipType, notes }: { npcId: string; partyMemberId: string; relationshipType: NpcRelationshipType; notes: string }) =>
+      performUpsert({ campaign_id: campaign.activeCampaignId!, npc_id: npcId, party_member_id: partyMemberId, relationship_type: relationshipType, notes }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}
+
+// ── DM: delete a note ────────────────────────────────────────────────────────
+// Pass npcId to scope cache invalidation to one NPC; omit to invalidate all.
+
+export function useDeleteNpcPcNote(npcId?: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("npc_pc_notes").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY, npcId] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: npcId ? [QUERY_KEY, npcId] : [QUERY_KEY] }),
+  });
+}
+
+// ── DM: fetch ALL npc_pc_notes for the campaign (used by relationship graph) ──
+
+export function useAllNpcPcNotes() {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, "all", campaignId.value]),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("npc_pc_notes")
+        .select("id, npc_id, party_member_id, relationship_type, notes")
+        .eq("campaign_id", campaignId.value!)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data as { id: string; npc_id: string; party_member_id: string; relationship_type: NpcRelationshipType; notes: string }[];
+    },
+    enabled: () => !!campaignId.value,
   });
 }
 

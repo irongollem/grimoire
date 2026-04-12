@@ -170,12 +170,13 @@ export interface NpcPcNote {
   campaign_id: string;
   npc_id: string;
   party_member_id: string;
+  relationship_type: NpcRelationshipType;
   notes: string;
   created_at: string;
   updated_at: string;
 }
 
-export type NpcPcNoteUpsert = Pick<NpcPcNote, "campaign_id" | "npc_id" | "party_member_id" | "notes">;
+export type NpcPcNoteUpsert = Pick<NpcPcNote, "campaign_id" | "npc_id" | "party_member_id" | "relationship_type" | "notes">;
 
 // ── Hall of Heroes ─────────────────────────────────────────────────────────────
 

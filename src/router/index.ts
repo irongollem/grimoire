@@ -222,6 +222,12 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "New NPC" },
     },
     {
+      path: "/npcs/web",
+      name: "npc-web",
+      component: () => import("@/views/npcs/NpcWebView.vue"),
+      meta: { requiresAuth: true, title: "Relationship Web" },
+    },
+    {
       path: "/npcs/:id",
       name: "npc-detail",
       component: () => import("@/views/npcs/NpcDetailView.vue"),

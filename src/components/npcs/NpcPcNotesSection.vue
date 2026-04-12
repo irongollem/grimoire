@@ -32,6 +32,12 @@
           <template #toolbar-end>
             <div class="ml-auto flex items-center gap-2 pl-1">
               <div class="w-px h-5 bg-border" />
+              <select
+                v-model="editRelType"
+                class="h-6.5 px-1.5 rounded font-cinzel text-[10px] font-semibold tracking-wider bg-muted text-muted-foreground hover:text-foreground border border-border focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+              >
+                <option v-for="[k, label] in typeOptions" :key="k" :value="k">{{ label }}</option>
+              </select>
               <span class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">
                 {{ memberName(note.party_member_id) }}
               </span>
@@ -58,6 +64,12 @@
         <template #toolbar-end>
           <div class="ml-auto flex items-center gap-2 pl-1">
             <div class="w-px h-5 bg-border" />
+            <select
+              v-model="newRelType"
+              class="h-6.5 px-1.5 rounded font-cinzel text-[10px] font-semibold tracking-wider bg-muted text-muted-foreground hover:text-foreground border border-border focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+            >
+              <option v-for="[k, label] in typeOptions" :key="k" :value="k">{{ label }}</option>
+            </select>
             <select
               v-model="newMemberId"
               class="h-6.5 px-1.5 rounded font-cinzel text-[10px] font-semibold tracking-wider bg-muted text-muted-foreground hover:text-foreground border border-border focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
@@ -102,7 +114,10 @@ import { useParty } from "@/composables/useParty";
 import { useNpcPcNotes, useUpsertNpcPcNote, useDeleteNpcPcNote } from "@/composables/useNpcPcNotes";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import type { NpcPcNote } from "@/types/npc.types";
+import { NPC_RELATIONSHIP_TYPE_LABELS } from "@/types/npc.types";
+import type { NpcPcNote, NpcRelationshipType } from "@/types/npc.types";
+
+const typeOptions = Object.entries(NPC_RELATIONSHIP_TYPE_LABELS) as [NpcRelationshipType, string][];
 
 const props = defineProps<{ npcId: string }>();
 
@@ -125,27 +140,31 @@ function memberName(partyMemberId: string) {
 // ── Add ───────────────────────────────────────────────────────────────────────
 const showForm = ref(false);
 const newMemberId = ref("");
+const newRelType = ref<NpcRelationshipType>("contact");
 const newText = ref<string | null>(null);
 
 function cancelAdd() {
   showForm.value = false;
   newMemberId.value = "";
+  newRelType.value = "contact";
   newText.value = null;
 }
 
 async function addNote() {
   if (!newMemberId.value || !newText.value) return;
-  await upsertMut.mutateAsync({ partyMemberId: newMemberId.value, notes: newText.value });
+  await upsertMut.mutateAsync({ partyMemberId: newMemberId.value, relationshipType: newRelType.value, notes: newText.value });
   cancelAdd();
 }
 
 // ── Edit ──────────────────────────────────────────────────────────────────────
 const editingId = ref<string | null>(null);
 const editText = ref<string | null>(null);
+const editRelType = ref<NpcRelationshipType>("contact");
 
 function startEdit(note: NpcPcNote) {
   editingId.value = note.id;
   editText.value = note.notes;
+  editRelType.value = note.relationship_type;
 }
 
 function cancelEdit() {
@@ -155,7 +174,7 @@ function cancelEdit() {
 
 async function saveEdit(note: NpcPcNote) {
   if (!editText.value) return;
-  await upsertMut.mutateAsync({ partyMemberId: note.party_member_id, notes: editText.value });
+  await upsertMut.mutateAsync({ partyMemberId: note.party_member_id, relationshipType: editRelType.value, notes: editText.value });
   cancelEdit();
 }
 

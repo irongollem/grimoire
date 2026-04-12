@@ -6,6 +6,26 @@ import type { NpcRelation, NpcRelationInsert, NpcRelationUpdate } from "@/types/
 
 const KEY = "npc_relationships";
 
+async function fetchAllRelations(campaignId: string): Promise<NpcRelation[]> {
+  const { data, error } = await supabase
+    .from("npc_relationships")
+    .select("*")
+    .eq("campaign_id", campaignId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data as NpcRelation[];
+}
+
+export function useAllNpcRelations() {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  return useQuery({
+    queryKey: computed(() => [KEY, "all", campaignId.value]),
+    queryFn: () => fetchAllRelations(campaignId.value!),
+    enabled: () => !!campaignId.value,
+  });
+}
+
 async function fetchRelations(npcId: string): Promise<NpcRelation[]> {
   const { data, error } = await supabase
     .from("npc_relationships")

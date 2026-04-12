@@ -5,6 +5,13 @@
   >
     <template #actions>
       <div class="flex gap-2">
+        <RouterLink
+          to="/npcs/web"
+          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-foreground tracking-wider hover:bg-accent hover:text-accent-foreground transition-colors"
+        >
+          <Network class="h-3.5 w-3.5" />
+          Web
+        </RouterLink>
         <button
           v-if="hasSetting"
           type="button"
@@ -131,7 +138,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
-import { Plus, Wand2, Search, Sparkles } from "lucide-vue-next";
+import { Plus, Wand2, Search, Sparkles, Network } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import NpcList from "@/components/npcs/NpcList.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
