@@ -1,21 +1,21 @@
 <template>
-  <PageHeader title="Campaign Notes" description="Session logs, lore, and secrets of the realm">
+  <ListPageLayout title="Campaign Notes" description="Session logs, lore, and secrets of the realm">
     <template #actions>
-      <RouterLink
+      <ListActionButton
+        :icon="Plus"
+        label="New Note"
+        variant="primary"
         to="/notes/new"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
-      >
-        <Plus class="h-3.5 w-3.5" />
-        New Note
-      </RouterLink>
+      />
     </template>
 
     <NotesList />
-  </PageHeader>
+  </ListPageLayout>
 </template>
 
 <script setup lang="ts">
 import { Plus } from "lucide-vue-next";
-import PageHeader from "@/components/common/PageHeader.vue";
+import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
 import NotesList from "@/components/notes/NotesList.vue";
 </script>

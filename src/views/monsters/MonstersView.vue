@@ -1,26 +1,21 @@
 <template>
-  <PageHeader title="Bestiary" description="Your custom monster compendium">
+  <ListPageLayout title="Bestiary" description="Your custom monster compendium">
     <template #actions>
-      <div class="flex gap-2">
-        <button
-          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-foreground tracking-wider hover:bg-accent hover:text-accent-foreground transition-colors"
-          @click="ui.monsterGeneratorOpen = true"
-        >
-          <Wand2 class="h-3.5 w-3.5" />
-          Generate
-        </button>
-        <RouterLink
-          to="/monsters/new"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
-        >
-          <Plus class="h-3.5 w-3.5" />
-          New Monster
-        </RouterLink>
-      </div>
+      <ListActionButton
+        :icon="Wand2"
+        label="Generate"
+        @click="ui.monsterGeneratorOpen = true"
+      />
+      <ListActionButton
+        :icon="Plus"
+        label="New Monster"
+        variant="primary"
+        to="/monsters/new"
+      />
     </template>
 
-    <template #sticky>
-      <div class="flex flex-wrap items-center gap-2">
+    <template #filters>
+      <div class="flex flex-wrap items-center gap-2 min-w-max md:min-w-0">
         <div class="relative flex-1 min-w-48">
           <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <input
@@ -31,7 +26,7 @@
           />
         </div>
 
-        <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
+        <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider shrink-0">
           <button
             v-for="s in SOURCE_OPTIONS"
             :key="s.value"
@@ -43,7 +38,7 @@
           </button>
         </div>
 
-        <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
+        <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider shrink-0">
           <button
             v-for="t in TYPE_OPTIONS"
             :key="t.value"
@@ -55,24 +50,24 @@
           </button>
         </div>
 
-        <button
+        <ListActionButton
           v-if="ui.monstersHasActiveFilters"
-          type="button"
-          class="px-2.5 py-1.5 rounded-md border border-border bg-card font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+          label="Clear"
+          variant="ghost"
+          :collapse-on-mobile="false"
           @click="ui.resetMonstersFilters()"
-        >
-          Clear
-        </button>
+        />
       </div>
     </template>
 
     <MonsterList />
-  </PageHeader>
+  </ListPageLayout>
 </template>
 
 <script setup lang="ts">
 import { Plus, Search, Wand2 } from "lucide-vue-next";
-import PageHeader from "@/components/common/PageHeader.vue";
+import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
 import MonsterList from "@/components/monsters/MonsterList.vue";
 import { useUiStore } from "@/stores/ui";
 
