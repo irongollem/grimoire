@@ -15,49 +15,38 @@
     </template>
 
     <template #filters>
-      <div class="flex flex-wrap items-center gap-2 min-w-max md:min-w-0">
-        <div class="relative flex-1 min-w-48">
-          <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <input
-            v-model="ui.monstersSearch"
-            type="text"
-            placeholder="Search monsters…"
-            class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      <ListFilterBar
+        :has-active-filters="ui.monstersHasActiveFilters"
+        @clear="ui.resetMonstersFilters()"
+      >
+        <ListSearchInput v-model="ui.monstersSearch" placeholder="Search monsters…" />
+        <!--
+          Source pill group is desktop-only: on mobile the row has to fit
+          search + type dropdown + Clear inside the viewport, and SRD-vs-
+          Custom is a rare filter that mobile DMs can surface from desktop
+          when they actually need it. `md:contents` keeps the group
+          transparent to the flex layout at md+ so nothing changes there.
+        -->
+        <div class="hidden md:contents">
+          <ListFilterGroup
+            v-model="ui.monstersFilterSource"
+            :options="SOURCE_OPTIONS"
+            aria-label="Source filter"
           />
         </div>
-
-        <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider shrink-0">
-          <button
-            v-for="s in SOURCE_OPTIONS"
-            :key="s.value"
-            class="px-2.5 py-1.5 transition-colors"
-            :class="ui.monstersFilterSource === s.value ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-            @click="ui.monstersFilterSource = s.value"
-          >
-            {{ s.label }}
-          </button>
-        </div>
-
-        <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider shrink-0">
-          <button
-            v-for="t in TYPE_OPTIONS"
-            :key="t.value"
-            class="px-2.5 py-1.5 transition-colors"
-            :class="ui.monstersFilterType === t.value ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-            @click="ui.monstersFilterType = t.value"
-          >
-            {{ t.label }}
-          </button>
-        </div>
-
-        <ListActionButton
-          v-if="ui.monstersHasActiveFilters"
-          label="Clear"
-          variant="ghost"
-          :collapse-on-mobile="false"
-          @click="ui.resetMonstersFilters()"
-        />
-      </div>
+        <!--
+          Type covers all 14 standard D&D creature types — too many to sit as
+          a button row without causing weird widths and wrap on mobile. A
+          native select lists them compactly and uses the OS picker on
+          touch devices (keeps iOS wheel / Android bottom-sheet).
+        -->
+        <ListFilterSelect
+          v-model="ui.monstersFilterType"
+          aria-label="Monster type filter"
+        >
+          <option v-for="opt in TYPE_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+        </ListFilterSelect>
+      </ListFilterBar>
     </template>
 
     <MonsterList />
@@ -65,9 +54,13 @@
 </template>
 
 <script setup lang="ts">
-import { Plus, Search, Wand2 } from "lucide-vue-next";
+import { Plus, Wand2 } from "lucide-vue-next";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
+import ListFilterBar from "@/components/common/ListFilterBar.vue";
+import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
+import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
+import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import MonsterList from "@/components/monsters/MonsterList.vue";
 import { useUiStore } from "@/stores/ui";
 
@@ -77,16 +70,25 @@ const SOURCE_OPTIONS = [
   { value: "all", label: "All" },
   { value: "srd", label: "SRD" },
   { value: "custom", label: "Custom" },
-];
+] as const;
 
+// All 14 standard D&D 5e creature types. Keeping in alphabetical order after
+// "All" so the picker reads predictably on both mobile wheels and desktop.
 const TYPE_OPTIONS = [
-  { value: "all", label: "All" },
+  { value: "all", label: "All types" },
+  { value: "aberration", label: "Aberration" },
   { value: "beast", label: "Beast" },
-  { value: "humanoid", label: "Humanoid" },
-  { value: "undead", label: "Undead" },
-  { value: "fiend", label: "Fiend" },
+  { value: "celestial", label: "Celestial" },
+  { value: "construct", label: "Construct" },
   { value: "dragon", label: "Dragon" },
+  { value: "elemental", label: "Elemental" },
+  { value: "fey", label: "Fey" },
+  { value: "fiend", label: "Fiend" },
   { value: "giant", label: "Giant" },
+  { value: "humanoid", label: "Humanoid" },
   { value: "monstrosity", label: "Monstrosity" },
-];
+  { value: "ooze", label: "Ooze" },
+  { value: "plant", label: "Plant" },
+  { value: "undead", label: "Undead" },
+] as const;
 </script>

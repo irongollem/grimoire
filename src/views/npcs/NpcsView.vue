@@ -1,127 +1,82 @@
 <template>
-  <PageHeader
+  <ListPageLayout
     title="NPC Tracker"
     description="The denizens of your realm — allies, enemies, and unknowns"
   >
     <template #actions>
-      <div class="flex gap-2">
-        <RouterLink
-          to="/npcs/web"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-foreground tracking-wider hover:bg-accent hover:text-accent-foreground transition-colors"
-        >
-          <Network class="h-3.5 w-3.5" />
-          Web
-        </RouterLink>
-        <button
-          v-if="hasSetting"
-          type="button"
-          :disabled="populateMutation.isPending.value"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 disabled:opacity-50 transition-colors"
-          @click="handlePopulate"
-        >
-          <Sparkles class="h-3.5 w-3.5" />
-          {{ populateStatusLabel }}
-        </button>
-        <button
-          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-foreground tracking-wider hover:bg-accent hover:text-accent-foreground transition-colors"
-          @click="ui.npcGeneratorOpen = true"
-        >
-          <Wand2 class="h-3.5 w-3.5" />
-          Generate
-        </button>
-        <RouterLink
-          to="/npcs/new"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
-        >
-          <Plus class="h-3.5 w-3.5" />
-          New NPC
-        </RouterLink>
-      </div>
+      <ListActionButton :icon="Network" label="Web" to="/npcs/web" />
+      <ListActionButton
+        v-if="hasSetting"
+        :icon="Sparkles"
+        :label="populateStatusLabel"
+        :disabled="populateMutation.isPending.value"
+        @click="handlePopulate"
+      />
+      <ListActionButton
+        :icon="Wand2"
+        label="Generate"
+        @click="ui.npcGeneratorOpen = true"
+      />
+      <ListActionButton
+        :icon="Plus"
+        label="New NPC"
+        variant="primary"
+        to="/npcs/new"
+      />
     </template>
 
-    <template #sticky>
-      <div class="flex flex-col gap-2">
+    <template #filters>
+      <ListFilterBar
+        :has-active-filters="hasActiveFilters"
+        @clear="clearFilters"
+      >
         <!-- Row 1: search (full width) -->
-        <div class="relative w-full">
-          <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <input
+        <template #above>
+          <ListSearchInput
             v-model="search"
-            type="text"
             placeholder="Search NPCs…"
-            class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            :inline="false"
           />
-        </div>
+        </template>
 
-        <!-- Row 2: filters + sort -->
-        <div class="flex flex-wrap items-center gap-2">
-          <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
-            <button
-              v-for="s in STATUS_OPTIONS"
-              :key="s.value"
-              class="px-2.5 py-1.5 transition-colors"
-              :class="statusFilter === s.value
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-card text-muted-foreground hover:text-foreground'"
-              @click="statusFilter = s.value"
-            >
-              {{ s.label }}
-            </button>
-          </div>
+        <!-- Row 2: filters + sort (rendered inside the flex-wrap row) -->
+        <ListFilterGroup
+          v-model="statusFilter"
+          :options="STATUS_OPTIONS"
+          aria-label="Status filter"
+        />
+        <ListFilterGroup
+          v-model="relFilter"
+          :options="REL_OPTIONS"
+          aria-label="Relationship filter"
+        />
 
-          <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
-            <button
-              v-for="r in REL_OPTIONS"
-              :key="r.value"
-              class="px-2.5 py-1.5 transition-colors"
-              :class="relFilter === r.value
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-card text-muted-foreground hover:text-foreground'"
-              @click="relFilter = r.value"
-            >
-              {{ r.label }}
-            </button>
-          </div>
+        <EntityCombobox
+          :model-value="locationFilter"
+          :options="locationOptions"
+          placeholder="All locations"
+          class="flex-1 min-w-36"
+          @update:model-value="locationFilter = $event"
+        >
+          <template #option="{ opt }">
+            <span :style="{ paddingLeft: `${(opt as LocationOption).depth * 12}px` }">{{ opt.name }}</span>
+          </template>
+        </EntityCombobox>
 
-          <EntityCombobox
-            :model-value="locationFilter"
-            :options="locationOptions"
-            placeholder="All locations"
-            class="flex-1 min-w-36"
-            @update:model-value="locationFilter = $event"
-          >
-            <template #option="{ opt }">
-              <span :style="{ paddingLeft: `${(opt as any).depth * 12}px` }">{{ opt.name }}</span>
-            </template>
-          </EntityCombobox>
+        <EntityCombobox
+          :model-value="partyMemberFilter"
+          :options="partyOptions"
+          placeholder="Connected to…"
+          class="flex-1 min-w-36"
+          @update:model-value="partyMemberFilter = $event"
+        />
 
-          <EntityCombobox
-            :model-value="partyMemberFilter"
-            :options="partyOptions"
-            placeholder="Connected to…"
-            class="flex-1 min-w-36"
-            @update:model-value="partyMemberFilter = $event"
-          />
-
-          <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
-            <button
-              v-for="opt in ([{ value: 'name', label: 'Name' }, { value: 'location', label: 'Location' }] as const)"
-              :key="opt.value"
-              class="px-2.5 py-1.5 transition-colors"
-              :class="sortBy === opt.value ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-              @click="sortBy = opt.value"
-            >{{ opt.label }}</button>
-          </div>
-
-          <button
-            v-if="hasActiveFilters"
-            type="button"
-            class="px-2.5 py-1.5 rounded-md border border-border bg-card font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
-            @click="clearFilters"
-          >
-            Clear
-          </button>
-        </div>
-      </div>
+        <ListFilterGroup
+          v-model="sortBy"
+          :options="SORT_OPTIONS"
+          aria-label="Sort by"
+        />
+      </ListFilterBar>
     </template>
 
     <NpcList
@@ -132,14 +87,18 @@
       :party-member-filter="partyMemberFilter"
       :sort-by="sortBy"
     />
-  </PageHeader>
+  </ListPageLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
-import { Plus, Wand2, Search, Sparkles, Network } from "lucide-vue-next";
-import PageHeader from "@/components/common/PageHeader.vue";
+import { Plus, Wand2, Sparkles, Network } from "lucide-vue-next";
+import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
+import ListFilterBar from "@/components/common/ListFilterBar.vue";
+import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
+import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import NpcList from "@/components/npcs/NpcList.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useLocationTree } from "@/composables/useLocations";
@@ -148,6 +107,8 @@ import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { getSetting } from "@/settings/index";
 import { usePopulateSettingNpcs } from "@/composables/useNpcs";
+
+type LocationOption = { id: string; name: string; depth: number };
 
 const ui = useUiStore();
 const campaign = useCampaignStore();
@@ -187,14 +148,19 @@ const STATUS_OPTIONS = [
   { value: "dead", label: "Dead" },
   { value: "missing", label: "Missing" },
   { value: "unknown", label: "?" },
-] as const;
+] as const satisfies ReadonlyArray<{ value: NpcStatus | "all"; label: string }>;
 
 const REL_OPTIONS = [
   { value: "all", label: "All" },
   { value: "ally", label: "Ally" },
   { value: "neutral", label: "Neutral" },
   { value: "enemy", label: "Enemy" },
-] as const;
+] as const satisfies ReadonlyArray<{ value: NpcRelationship | "all"; label: string }>;
+
+const SORT_OPTIONS = [
+  { value: "name", label: "Name" },
+  { value: "location", label: "Location" },
+] as const satisfies ReadonlyArray<{ value: "name" | "location"; label: string }>;
 
 const search = computed({ get: () => ui.npcsSearchQuery, set: (v) => { ui.npcsSearchQuery = v; } });
 const statusFilter = computed({ get: () => ui.npcsFilterStatus, set: (v: NpcStatus | "all") => { ui.npcsFilterStatus = v; } });

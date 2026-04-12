@@ -47,9 +47,12 @@ const props = withDefaults(
     href?: string;
     disabled?: boolean;
     /**
-     * Whether the label text collapses on mobile. Defaults to true for
-     * secondary/ghost variants (icon-only on <sm) and false for primary
-     * (the CTA like "New NPC" always stays visible).
+     * Whether the label text collapses on mobile (<sm). Defaults to `true`
+     * for every variant — on a list page, an icon plus its context (e.g. `+`
+     * on the Bestiary = "new monster", `wand` on NPCs = "generate NPC") is
+     * unambiguous and keeps the action row from overflowing. Pass `false`
+     * to force the label visible for toggle-state buttons like Kanban/List
+     * where the icon alone is ambiguous.
      */
     collapseOnMobile?: boolean;
   }>(),
@@ -105,8 +108,10 @@ const buttonClass = computed(() => [base, variantClass.value]);
 
 const shouldCollapse = computed(() => {
   if (props.collapseOnMobile !== undefined) return props.collapseOnMobile;
-  // Default: primary stays visible, others collapse to icon on <sm.
-  return props.variant !== "primary";
+  // Default: collapse for every variant on <sm. An icon + its page context
+  // is self-evident ("+ on Bestiary" = create monster), and freeing the
+  // label space stops action rows from overflowing on narrow screens.
+  return true;
 });
 
 const labelClass = computed(() => (shouldCollapse.value ? "hidden sm:inline" : "inline"));
