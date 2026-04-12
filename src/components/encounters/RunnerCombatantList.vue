@@ -1,4 +1,15 @@
 <template>
+  <!--
+    Two completely different UIs:
+    - Desktop (≥md): grid table with narrow INIT/HP/AC columns. Runs along
+      the existing code path — this is a DM's full-combat view at a glance.
+    - Mobile (<md): vertically stacked card per combatant. Preserves all
+      controls (init, HP, +/-, quick Dmg/Heal, conditions) but lays them
+      on 3-4 rows so HP management never overlaps the name.
+
+    Same script drives both layouts — only the template branches.
+  -->
+  <template v-if="!isMobile">
   <!-- Column headers -->
   <div class="combatant-header">
     <span></span>
@@ -148,6 +159,155 @@
   </div>
 
   </div><!-- /combatant-wrap -->
+  </template>
+
+  <!-- ─────────────────────────────────────────────────────────────────────
+       Mobile: stacked card per combatant. One vertical column, wide tap
+       targets, HP controls on their own row so they can never overlap the
+       name.
+       ───────────────────────────────────────────────────────────────────── -->
+  <template v-else>
+    <div
+      v-for="combatant in store.sortedCombatants"
+      :key="combatant.instance_id"
+      class="mc-card"
+      :class="{
+        'is-active': store.started && combatant.instance_id === store.activeCombatant?.instance_id,
+        'is-dead': combatant.type === 'monster' && combatant.hp === 0,
+        'is-selected': combatant.instance_id === props.selectedId,
+      }"
+      :style="{ '--faction-color': factionColor(combatant.faction_id) }"
+      @click="toggleDetail(combatant.instance_id)"
+    >
+      <!-- Row 1: avatar + name + type badge -->
+      <div class="mc-head">
+        <div class="mc-avatar" @click.stop="toggleDetail(combatant.instance_id)">
+          <div
+            class="avatar-inner"
+            :class="store.started && combatant.instance_id === store.activeCombatant?.instance_id ? 'avatar-active' : ''"
+          >
+            <FocalImage
+              v-if="combatant.portrait_url"
+              :src="combatant.portrait_url"
+              :alt="combatant.name"
+              :focal-point="combatant.portrait_focal_point ?? null"
+              format="square"
+            />
+            <div v-else class="avatar-initials" :style="{ backgroundColor: factionColor(combatant.faction_id) + '44', color: factionColor(combatant.faction_id) }">
+              {{ combatantInitials(combatant) }}
+            </div>
+            <button
+              v-if="combatant.type === 'monster'"
+              type="button"
+              class="reveal-btn"
+              :class="revealBtnClass(combatant.reveal_state)"
+              :title="revealBtnTitle(combatant.reveal_state)"
+              @click.stop="store.cycleRevealState(combatant.instance_id)"
+            >
+              <EyeOff v-if="combatant.reveal_state === 'hidden'" class="h-2.5 w-2.5" />
+              <Eye v-else-if="combatant.reveal_state === 'unseen'" class="h-2.5 w-2.5" />
+              <Eye v-else class="h-2.5 w-2.5" />
+            </button>
+          </div>
+        </div>
+        <div class="mc-identity">
+          <span class="combatant-name">{{ combatant.name }}</span>
+          <div class="mc-badges">
+            <span class="type-badge" :class="combatant.type">{{ combatant.type === 'player' ? 'PC' : combatant.npc_id ? 'NPC' : 'Monster' }}</span>
+            <span v-if="combatant.wildshape" class="wildshape-row-badge" title="Wildshaping">🐺 {{ combatant.wildshape.beast_name }}</span>
+            <span v-if="combatant.hp === 0 && combatant.type === 'monster'" class="dead-badge">☠</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2: stats (init input + HP / max + AC) -->
+      <div class="mc-stats" @click.stop>
+        <label class="mc-stat-init">
+          <span class="mc-stat-label">INIT</span>
+          <input
+            type="number"
+            :value="combatant.initiative ?? ''"
+            placeholder="—"
+            class="init-input"
+            @change="(e) => store.setInitiative(combatant.instance_id, Number((e.target as HTMLInputElement).value))"
+          />
+        </label>
+        <div class="mc-stat-hp">
+          <span class="mc-stat-label">HP</span>
+          <span class="mc-stat-value">{{ combatant.hp }}<span class="mc-stat-sep">/</span>{{ combatant.max_hp }}</span>
+          <span v-if="combatant.temp_hp" class="mc-stat-temp">+{{ combatant.temp_hp }} tmp</span>
+        </div>
+        <div class="mc-stat-ac">
+          <span class="mc-stat-label">AC</span>
+          <span class="mc-stat-value">{{ combatant.ac }}</span>
+        </div>
+      </div>
+
+      <!-- Row 3: HP adjust controls -->
+      <div class="mc-hp-controls" @click.stop>
+        <button class="hp-btn hp-btn-lg" @click="handleAdjustHp(combatant.instance_id, -1)">−</button>
+        <input
+          type="number"
+          :value="combatant.hp"
+          min="0"
+          :max="combatant.max_hp"
+          class="hp-input hp-input-lg"
+          @change="(e) => handleSetHp(combatant.instance_id, Number((e.target as HTMLInputElement).value))"
+        />
+        <button class="hp-btn hp-btn-lg" @click="handleAdjustHp(combatant.instance_id, 1)">+</button>
+        <span
+          v-if="flashState[combatant.instance_id]"
+          :key="flashState[combatant.instance_id]!.id"
+          class="damage-flash"
+          :class="flashState[combatant.instance_id]!.delta < 0 ? 'is-damage' : 'is-heal'"
+          @animationend="clearFlash(combatant.instance_id)"
+        >{{ flashState[combatant.instance_id]!.delta > 0 ? '+' : '' }}{{ flashState[combatant.instance_id]!.delta }}</span>
+      </div>
+
+      <!-- Row 4: quick Dmg/Heal/Temp (visible when card is selected) -->
+      <div
+        v-if="combatant.instance_id === props.selectedId"
+        class="mc-quick"
+        @click.stop
+      >
+        <input
+          v-model.number="quickAmounts[combatant.instance_id]"
+          type="number"
+          min="0"
+          placeholder="amt"
+          class="quick-input"
+          @keydown.enter="quickDamage(combatant.instance_id)"
+        />
+        <button type="button" class="quick-btn quick-dmg" @click="quickDamage(combatant.instance_id)">Dmg</button>
+        <button type="button" class="quick-btn quick-heal" @click="quickHeal(combatant.instance_id)">Heal</button>
+        <button type="button" class="quick-btn quick-temp" @click="quickTemp(combatant.instance_id)">+Temp</button>
+      </div>
+
+      <!-- Row 5: conditions (wraps) -->
+      <div class="mc-conditions" @click.stop>
+        <span
+          v-for="cond in combatant.conditions"
+          :key="cond"
+          class="cond-badge"
+          @click="store.toggleCondition(combatant.instance_id, cond)"
+          title="Tap to remove"
+        >{{ cond }} ×</span>
+        <div v-if="addingCondFor !== combatant.instance_id" class="relative">
+          <button class="add-cond-btn" @click="addingCondFor = combatant.instance_id">+</button>
+        </div>
+        <div v-else class="cond-picker">
+          <select
+            size="5"
+            class="cond-select"
+            @change="(e) => { store.toggleCondition(combatant.instance_id, (e.target as HTMLSelectElement).value); addingCondFor = null }"
+            @blur="addingCondFor = null"
+          >
+            <option v-for="c in availableConditions(combatant)" :key="c" :value="c">{{ c }}</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </template>
 
   <p v-if="!store.sortedCombatants.length" class="empty-runner">
     No combatants. Go back to the builder to add monsters and party members.
@@ -159,8 +319,13 @@ import { ref } from "vue";
 import { Eye, EyeOff } from "lucide-vue-next";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
+import { useIsMobile } from "@/composables/useBreakpoint";
 import { CONDITIONS } from "@/types/party.types";
 import type { RunCombatant, RevealState } from "@/types/encounter.types";
+
+// Drives the mobile card vs. desktop table switch below. Reactive, so rotating
+// a phone/tablet updates in real time.
+const isMobile = useIsMobile();
 
 const props = defineProps<{
   selectedId: string | null;
@@ -550,39 +715,142 @@ function quickTemp(instanceId: string) {
   color: theme(colors.sky.400);
 }
 
-/* ── Mobile: drop CONDITIONS column, compact HP ───────────────────────────── */
-@media (max-width: 639px) {
-  .combatant-header,
-  .combatant-row {
-    grid-template-columns: 2rem 2.5rem 1fr 7rem 2rem;
-  }
+/* ── Mobile: card per combatant (separate template path) ──────────────────── */
+.mc-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid theme(colors.border / 50%);
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
 
-  /* Hide the CONDITIONS header (6th span) and conditions cells */
-  .combatant-header span:nth-child(6),
-  .conditions-cell {
-    display: none;
-  }
+.mc-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background-color: var(--faction-color);
+}
 
-  /* Hide "/ max_hp" text to keep HP cell tight */
-  .hp-max {
-    display: none;
-  }
+.mc-card.is-active {
+  @apply bg-primary/10 ring-1 ring-primary/20 ring-inset;
+}
 
-  /* Compact HP buttons */
-  .hp-btn {
-    @apply w-5 h-5 text-xs;
-  }
+.mc-card.is-dead {
+  @apply opacity-40;
+}
 
-  /* Compact init input */
-  .init-input {
-    @apply w-8 text-xs;
-  }
+.mc-card.is-selected {
+  @apply bg-muted/40;
+}
 
-  /* Compact avatar */
-  .avatar-cell,
-  .avatar-inner {
-    width: 2rem;
-    height: 2rem;
-  }
+.mc-head {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.mc-avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  overflow: hidden;
+  display: flex;
+}
+
+.mc-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.mc-identity .combatant-name {
+  @apply font-cinzel text-sm font-semibold text-foreground;
+  /* Keep on one line — badges move to their own row below */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mc-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  align-items: center;
+}
+
+.mc-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  /* Indent so the stats visually align past the avatar */
+  padding-left: 3.125rem;
+  font-family: var(--font-cinzel, serif);
+  font-size: 12px;
+}
+
+.mc-stat-init,
+.mc-stat-hp,
+.mc-stat-ac {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.mc-stat-label {
+  @apply font-cinzel text-[10px] tracking-wider text-muted-foreground;
+}
+
+.mc-stat-value {
+  @apply font-cinzel text-sm font-bold text-foreground;
+}
+
+.mc-stat-sep {
+  @apply text-muted-foreground font-normal mx-0.5;
+}
+
+.mc-stat-temp {
+  @apply font-cinzel text-[10px] font-bold text-sky-400;
+}
+
+.mc-hp-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-left: 3.125rem;
+  position: relative;
+}
+
+.hp-btn-lg {
+  @apply w-8 h-8 text-base;
+}
+
+.hp-input-lg {
+  @apply w-16 h-8 text-base;
+}
+
+.mc-quick {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding-left: 3.125rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid theme(colors.border / 30%);
+}
+
+.mc-conditions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  padding-left: 3.125rem;
 }
 </style>

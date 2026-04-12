@@ -142,11 +142,25 @@ function onPointerMove(e: PointerEvent) {
 function onPointerUp(e: PointerEvent) {
   if (!dragState.value) return;
   const delta = Math.abs(e.clientY - dragState.value.startY);
-  if (delta < 6) ui.toggleChat();
+  const wasTap = delta < 6;
   localStorage.setItem(CHAT_TAB_TOP_KEY, String(tabTop.value));
   dragState.value = null;
   window.removeEventListener("pointermove", onPointerMove);
   window.removeEventListener("pointerup", onPointerUp);
+  if (wasTap) {
+    // Touch browsers fire a synthetic `click` event after pointerup. Because
+    // the tab is draggable, the tab button itself doesn't handle the click —
+    // the click fires at the touch-release coordinates, which is exactly
+    // where the newly-rendered mobile backdrop lives (same Y as the tab). The
+    // backdrop's @click would immediately close the chat we just opened, so
+    // we swallow the next click once.
+    window.addEventListener(
+      "click",
+      (ce) => { ce.stopImmediatePropagation(); ce.preventDefault(); },
+      { once: true, capture: true },
+    );
+    ui.toggleChat();
+  }
 }
 
 onUnmounted(() => {

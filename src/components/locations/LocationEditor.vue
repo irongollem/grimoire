@@ -66,10 +66,17 @@
       </button>
     </div>
 
-    <!-- Sigil + identity fields -->
-    <div class="flex gap-5">
+    <!--
+      Sigil + identity fields.
+      Mobile: stack vertically — sigil on top (capped to avoid eating the
+      viewport), then Parent / Child / Tags / Calendar pins below at full
+      viewport width. Gives the children list + comboboxes the whole screen
+      to wrap in.
+      Desktop (md+): original side-by-side layout, 12rem sigil on the left.
+    -->
+    <div class="flex flex-col gap-3 md:flex-row md:gap-5">
       <!-- Sigil -->
-      <div class="shrink-0 w-48">
+      <div class="w-full max-w-48 mx-auto md:mx-0 md:w-48 md:shrink-0">
         <ImageUpload
           :model-value="imageUrl"
           aspect="auto"
@@ -133,7 +140,7 @@
               v-for="child in children"
               :key="child.id"
               :to="`/locations/${child.id}`"
-              class="inline-flex items-center gap-1.5 rounded border border-border bg-muted/50 hover:border-primary/50 hover:bg-muted transition-colors px-2 py-0.5"
+              class="inline-flex items-center gap-1.5 rounded border border-border bg-muted/50 hover:border-primary/50 hover:bg-muted transition-colors px-2 py-0.5 max-w-full min-w-0"
             >
               <span
                 class="h-1.5 w-1.5 rounded-full shrink-0"
@@ -141,7 +148,7 @@
                   backgroundColor: LOCATION_TYPE_COLORS[child.location_type],
                 }"
               />
-              <span class="font-cinzel text-xs font-semibold text-foreground">{{
+              <span class="font-cinzel text-xs font-semibold text-foreground truncate">{{
                 child.name
               }}</span>
             </RouterLink>
