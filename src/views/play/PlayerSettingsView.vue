@@ -217,6 +217,46 @@
       </div>
     </section>
 
+    <!-- Calendar subscription -->
+    <section v-if="icalFeedUrl" class="rounded-lg border border-border bg-card p-5 space-y-4">
+      <div>
+        <h2 class="font-cinzel text-sm font-semibold text-foreground tracking-wide">Calendar Subscription</h2>
+        <p class="font-fell text-xs text-muted-foreground italic mt-1">
+          Subscribe once and your calendar app will automatically receive future session updates.
+        </p>
+      </div>
+
+      <!-- URL field + copy -->
+      <div class="flex items-center gap-2">
+        <input
+          :value="icalFeedUrl"
+          readonly
+          class="flex-1 bg-background border border-border rounded-md px-3 py-1.5 font-mono text-xs text-muted-foreground select-all focus:outline-none focus:ring-1 focus:ring-ring truncate"
+          @click="($event.target as HTMLInputElement).select()"
+        />
+        <button
+          class="shrink-0 inline-flex items-center gap-1 font-cinzel text-[10px] tracking-wider px-2.5 py-1.5 rounded border border-border hover:bg-muted transition-colors"
+          :title="calCopied ? 'Copied!' : 'Copy URL'"
+          @click="copyFeedUrl"
+        >
+          <CheckIcon v-if="calCopied" class="h-3 w-3 text-elven-green" />
+          <Copy v-else class="h-3 w-3" />
+          {{ calCopied ? 'Copied' : 'Copy' }}
+        </button>
+      </div>
+
+      <!-- Subscribe button -->
+      <div>
+        <a
+          :href="webcalUrl"
+          class="inline-flex items-center gap-1.5 font-cinzel text-[10px] tracking-wider px-3 py-1.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+        >
+          <CalendarPlus class="h-3 w-3" />
+          Subscribe in Calendar App
+        </a>
+      </div>
+    </section>
+
     <!-- Navigation preference -->
     <section class="rounded-lg border border-border bg-card p-5 space-y-4">
       <div>
@@ -377,7 +417,8 @@
 <script setup lang="ts">
 import { ref, computed, onBeforeUnmount } from "vue";
 import { RouterLink } from "vue-router";
-import { CalendarCheck, Check, Download, GripVertical, RotateCcw, Save, User, X } from "lucide-vue-next";
+import { CalendarCheck, CalendarPlus, Check, Copy, Download, GripVertical, RotateCcw, Save, User, X } from "lucide-vue-next";
+const CheckIcon = Check;
 import { usePwaInstall } from "@/composables/usePwaInstall";
 import { useWakeLock } from "@/composables/useWakeLock";
 
@@ -392,6 +433,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useParty } from "@/composables/useParty";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import { useSessionProposals, useAllSessionAvailability, useUpsertAvailability } from "@/composables/useScheduling";
+import { useCampaignById } from "@/composables/useCampaigns";
 import { useCampaignStore } from "@/stores/campaign";
 import { supabase } from "@/lib/supabase";
 import type { SessionProposal } from "@/types/scheduling.types";
@@ -450,6 +492,7 @@ onBeforeUnmount(() => {
   if (activeUp)   window.removeEventListener("pointerup", activeUp);
 });
 const campaign = useCampaignStore();
+const { data: campaignData } = useCampaignById(() => campaign.activeCampaignId);
 const { data: partyMembers } = useParty();
 const { data: campaignMembers } = useCampaignMembers();
 const { data: proposals } = useSessionProposals();
@@ -544,6 +587,28 @@ function formatSessionDate(date: string, time: string | null): string {
   const t = new Date();
   t.setHours(Number(h), Number(m));
   return `${dateStr} · ${t.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`;
+}
+
+// ── Calendar subscription ─────────────────────────────────────────────────────
+
+const icalFeedUrl = computed(() => {
+  const token = campaignData.value?.ical_token;
+  if (!token) return null;
+  const base = import.meta.env.VITE_SUPABASE_URL as string;
+  return `${base}/functions/v1/ical-feed/${token}`;
+});
+
+const webcalUrl = computed(() =>
+  icalFeedUrl.value?.replace(/^https?:\/\//, "webcal://") ?? undefined
+);
+
+const calCopied = ref(false);
+
+async function copyFeedUrl() {
+  if (!icalFeedUrl.value) return;
+  await navigator.clipboard.writeText(icalFeedUrl.value);
+  calCopied.value = true;
+  setTimeout(() => { calCopied.value = false; }, 2000);
 }
 
 function reloadApp() { window.location.reload(); }
