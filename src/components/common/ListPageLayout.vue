@@ -65,7 +65,15 @@
           class="flex items-center gap-2 shrink-0 -mr-4 pr-4 md:mr-0 md:pr-0 max-w-[70%] md:max-w-none overflow-x-auto md:overflow-visible list-actions-row"
         >
           <slot name="actions" />
-          <DiceRoller v-if="showDiceRoller" />
+          <!--
+            DiceRoller hidden on <md — AppTopBar already mounts one on mobile
+            (and AppTopBar itself is md:hidden), so letting this one render
+            produces a duplicate and eats action-row space. On desktop
+            AppTopBar isn't shown, so this is the only copy.
+          -->
+          <div v-if="showDiceRoller" class="hidden md:block">
+            <DiceRoller />
+          </div>
         </div>
       </div>
 
