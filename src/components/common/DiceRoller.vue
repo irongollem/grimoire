@@ -6,7 +6,7 @@
       class="dice-trigger"
       :class="{ 'is-open': isOpen }"
       title="Dice Roller"
-      @click="isOpen = !isOpen"
+      @click="isOpen = !isOpen; primeDiceAudio()"
     >
       <Dices class="h-4 w-4" />
     </button>
@@ -113,8 +113,13 @@
         <!-- Result -->
         <Transition name="result-fade">
           <div v-if="result" class="result-panel">
-            <div class="result-total" :class="resultClass">
-              {{ result.total }}
+            <div class="result-total">
+              <DiceResult
+                :value="result.total"
+                :is-crit="result.isCrit"
+                :is-fumble="result.isFumble"
+                :max-random="maxResultRandom"
+              />
             </div>
             <div
               class="result-label font-cinzel text-[10px] text-muted-foreground tracking-wider text-center"
@@ -150,9 +155,10 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
 import { Dices } from "lucide-vue-next";
-
-type DieSize = 4 | 6 | 8 | 10 | 12 | 20 | 100;
-type RollMode = "normal" | "advantage" | "disadvantage";
+import DiceResult from "@/components/common/DiceResult.vue";
+import { primeDiceAudio } from "@/lib/diceAudio";
+import { rollDice } from "@/lib/roller";
+import type { DieSize, RollMode, RollResult } from "@/lib/roller";
 
 const DICE: { sides: DieSize; icon: string }[] = [
   { sides: 4, icon: "▲" },
@@ -172,34 +178,13 @@ const MODES: { value: RollMode; label: string; cls: string }[] = [
 
 const isOpen = ref(false);
 const counts = reactive<Record<DieSize, number>>({
-  4: 0,
-  6: 0,
-  8: 0,
-  10: 0,
-  12: 0,
-  20: 1,
-  100: 0,
+  4: 0, 6: 0, 8: 0, 10: 0, 12: 0, 20: 1, 100: 0,
 });
 const modifier = ref(0);
 const mode = ref<RollMode>("normal");
-
-interface DieResult {
-  val: number;
-  dropped: boolean;
-}
-interface RollResult {
-  total: number;
-  label: string;
-  modifier: number;
-  breakdown: DieResult[];
-  isCrit: boolean;
-  isFumble: boolean;
-}
 const result = ref<RollResult | null>(null);
 
-const totalDice = computed(() =>
-  Object.values(counts).reduce((s, c) => s + c, 0),
-);
+const totalDice = computed(() => Object.values(counts).reduce((s, c) => s + c, 0));
 
 const rollLabel = computed(() => {
   const parts: string[] = [];
@@ -211,73 +196,21 @@ const rollLabel = computed(() => {
   return parts.join(" + ") || "—";
 });
 
-const resultClass = computed(() => {
-  if (!result.value) return "";
-  if (result.value.isCrit) return "result-crit";
-  if (result.value.isFumble) return "result-fumble";
-  return "";
+/** Upper bound for scramble range — highest die currently selected, or 20. */
+const maxResultRandom = computed(() => {
+  let max = 0;
+  for (const d of DICE) {
+    if (counts[d.sides] > 0 && d.sides > max) max = d.sides;
+  }
+  return max || 20;
 });
 
-function toggleDie(sides: DieSize) {
-  counts[sides] = counts[sides] > 0 ? 0 : 1;
-}
-function increment(sides: DieSize) {
-  counts[sides] = Math.min(counts[sides] + 1, 9);
-}
-function decrement(sides: DieSize) {
-  counts[sides] = Math.max(counts[sides] - 1, 0);
-}
-
-function rollDie(sides: number): number {
-  return Math.floor(Math.random() * sides) + 1;
-}
+function toggleDie(sides: DieSize) { counts[sides] = counts[sides] > 0 ? 0 : 1; }
+function increment(sides: DieSize) { counts[sides] = Math.min(counts[sides] + 1, 9); }
+function decrement(sides: DieSize) { counts[sides] = Math.max(counts[sides] - 1, 0); }
 
 function roll() {
-  const breakdown: DieResult[] = [];
-  let sum = 0;
-  let isCrit = false;
-  let isFumble = false;
-
-  for (const d of DICE) {
-    const n = counts[d.sides];
-    if (n === 0) continue;
-    for (let i = 0; i < n; i++) {
-      if (d.sides === 20 && n === 1 && mode.value !== "normal") {
-        // Advantage / disadvantage: roll twice, keep one
-        const r1 = rollDie(20);
-        const r2 = rollDie(20);
-        const keep =
-          mode.value === "advantage" ? Math.max(r1, r2) : Math.min(r1, r2);
-        const drop =
-          mode.value === "advantage" ? Math.min(r1, r2) : Math.max(r1, r2);
-        breakdown.push({ val: keep, dropped: false });
-        breakdown.push({ val: drop, dropped: true });
-        sum += keep;
-        if (keep === 20) isCrit = true;
-        if (keep === 1) isFumble = true;
-      } else {
-        const r = rollDie(d.sides);
-        breakdown.push({ val: r, dropped: false });
-        sum += r;
-        if (d.sides === 20 && r === 20) isCrit = true;
-        if (d.sides === 20 && r === 1) isFumble = true;
-      }
-    }
-  }
-
-  const total = sum + modifier.value;
-  const modeLabel =
-    counts[20] > 0 && mode.value !== "normal"
-      ? ` (${mode.value === "advantage" ? "Adv" : "Dis"})`
-      : "";
-  result.value = {
-    total,
-    label: rollLabel.value + modeLabel,
-    modifier: modifier.value,
-    breakdown,
-    isCrit,
-    isFumble,
-  };
+  result.value = rollDice(counts, modifier.value, mode.value);
 }
 
 function clearAll() {

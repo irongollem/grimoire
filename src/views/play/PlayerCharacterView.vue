@@ -87,35 +87,15 @@
       />
     </template>
 
-    <!-- Roll toast (shared across all child rolls + ability/save rolls) -->
-    <Transition name="toast">
-      <div
-        v-if="rollToast"
-        class="fixed bottom-6 right-6 z-50 rounded-lg border border-primary/40 bg-card shadow-lg px-4 py-3 min-w-56 max-w-72"
-      >
-        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-0.5">{{ rollToast.label }}</p>
-        <div class="flex items-baseline gap-2">
-          <span class="font-cinzel text-3xl font-bold text-foreground">{{ rollToast.total }}</span>
-          <span class="font-fell text-sm text-muted-foreground">
-            d20 ({{ rollToast.dice }})
-            <template v-if="rollToast.modifier !== 0">
-              {{ rollToast.modifier >= 0 ? "+" : "" }}{{ rollToast.modifier }}
-            </template>
-          </span>
-        </div>
-        <div class="h-1 w-full rounded-full bg-muted mt-2 overflow-hidden">
-          <div class="h-full bg-primary rounded-full animate-[shrink_3s_linear_forwards]" />
-        </div>
-      </div>
-    </Transition>
+    <RollToast :result="lastRoll" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onBeforeUnmount } from "vue";
+import { ref, computed } from "vue";
 import { RouterLink } from "vue-router";
-import { rollDice } from "@/lib/dice";
-import type { RollMode } from "@/lib/dice";
+import { rollDice } from "@/lib/roller";
+import type { RollMode } from "@/lib/roller";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/useParty";
@@ -124,6 +104,8 @@ import { getCasterType, getDefaultSpellSlots, getMaxPrepared } from "@/types/spe
 import { ATTACK_DIS_CONDITIONS, CHECK_DIS_CONDITIONS } from "@/types/party.types";
 import type { SpellSlotEntry, PartyMember } from "@/types/party.types";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
+import RollToast from "@/components/common/RollToast.vue";
+import type { RollResult } from "@/components/common/RollToast.vue";
 import PlayerCharacterHeader from "@/components/player/PlayerCharacterHeader.vue";
 import PlayerConditions from "@/components/player/PlayerConditions.vue";
 import PlayerSkillsTab from "@/components/player/PlayerSkillsTab.vue";
@@ -216,25 +198,16 @@ const spellAttackBonus = computed(() => {
 });
 
 // ── Roll toast (shared across all rolling children) ───────────────────────────
-interface RollToast { label: string; dice: number; modifier: number; total: number; }
-const rollToast = ref<RollToast | null>(null);
-let rollTimer: ReturnType<typeof setTimeout> | null = null;
-onBeforeUnmount(() => { if (rollTimer) clearTimeout(rollTimer); });
+const lastRoll = ref<RollResult | null>(null);
 
-function showToast(result: RollToast) {
-  rollToast.value = result;
-  if (rollTimer) clearTimeout(rollTimer);
-  rollTimer = setTimeout(() => { rollToast.value = null; }, 3000);
-}
-
-function onChildRoll(result: RollToast) { showToast(result); }
+function onChildRoll(result: RollResult) { lastRoll.value = { ...result }; }
 
 function doRoll(label: string, modifier: number, mode: RollMode = "normal") {
   const modeTag = mode === "advantage" ? " (Adv)" : mode === "disadvantage" ? " (Dis)" : "";
   const result = rollDice({ 20: 1 }, modifier, mode);
   const kept = result.breakdown.find(d => !d.dropped)!;
   const fullLabel = label + modeTag;
-  showToast({ label: fullLabel, dice: kept.val, modifier, total: result.total });
+  lastRoll.value = { label: fullLabel, dice: kept.val, modifier, total: result.total };
   void sendRoll({ ...result, label: fullLabel });
 }
 
@@ -247,9 +220,3 @@ function onRollSave(_key: string, label: string, bonus: number) {
 
 </script>
 
-<style scoped>
-.toast-enter-active { transition: all 0.2s ease-out; }
-.toast-leave-active { transition: all 0.15s ease-in; }
-.toast-enter-from   { opacity: 0; transform: translateY(8px) scale(0.95); }
-.toast-leave-to     { opacity: 0; transform: translateY(4px) scale(0.97); }
-</style>

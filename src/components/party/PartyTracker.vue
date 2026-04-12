@@ -687,6 +687,7 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
+import { rollDice } from "@/lib/roller";
 import { ref, computed, reactive, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import { Plus, Dices, RotateCcw, Pencil, Sparkles, Backpack, Trash2, ExternalLink, ArrowUpFromLine, MapPin } from "lucide-vue-next";
@@ -746,13 +747,9 @@ const sortedMembers = computed(() => {
   return [...members].sort((a, b) => a.sort_order - b.sort_order);
 });
 
-function d20() {
-  return Math.floor(Math.random() * 20) + 1;
-}
-
 async function rollInitiative(member: PartyMember) {
-  const roll = d20() + member.initiative_bonus;
-  await updateMember({ id: member.id, update: { current_initiative: roll } });
+  const r = rollDice({ 20: 1 }, member.initiative_bonus);
+  await updateMember({ id: member.id, update: { current_initiative: r.total } });
 }
 async function rollAllInitiative() {
   await Promise.all((party.value ?? []).map((member) => rollInitiative(member)));

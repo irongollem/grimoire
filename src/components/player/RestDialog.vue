@@ -162,6 +162,7 @@ import { Moon, Sun } from "lucide-vue-next";
 import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
 import { getSlotRecovery, getHitDie } from "@/types/spell.types";
 import { abilityModifier } from "@/lib/utils";
+import { rollParsed } from "@/lib/roller";
 
 const props = defineProps<{
   member: PartyMember;
@@ -201,7 +202,7 @@ const remainingAfterSpend = computed(
 );
 
 function rollHitDie() {
-  const roll = Math.floor(Math.random() * hitDie.value) + 1;
+  const { total: roll } = rollParsed({ terms: [{ count: 1, sides: hitDie.value }], modifier: 0 });
   const healed = Math.max(1, roll + conMod.value);
   rolls.value.push(healed);
 }

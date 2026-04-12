@@ -251,9 +251,9 @@ import { useAllMonsters } from "@/composables/useMonsters";
 import { useParty } from "@/composables/useParty";
 import { useUiStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
-import { useCampaignStore } from "@/stores/campaign";
-import { supabase } from "@/lib/supabase";
-import { parseExpression, rollDie } from "@/lib/dice";
+import { useCampaignMessages } from "@/composables/useCampaignMessages";
+import { parseExpression } from "@/lib/dice";
+import { rollDice, rollParsed } from "@/lib/roller";
 import type { DiscoveredMonster, Monster } from "@/types/monster.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -267,7 +267,7 @@ interface FormEntry { monster: Monster; name: string; imageUrl: string | null }
 
 const ui = useUiStore();
 const auth = useAuthStore();
-const campaign = useCampaignStore();
+const { sendRoll } = useCampaignMessages();
 const { data: discoveries, isLoading: isLoadingDiscoveries } = usePlayerDiscoveries();
 const { data: allMonsters } = useAllMonsters();
 const { data: partyMembers } = useParty();
@@ -485,45 +485,20 @@ function actionDiceLabel(desc: string): string {
   return diceStr + (mod > 0 ? `+${mod}` : mod < 0 ? `${mod}` : "");
 }
 
-async function postRollToChat(label: string, total: number, breakdown: { val: number; dropped: boolean }[], modifier: number) {
-  if (!campaign.activeCampaignId || !auth.user?.id) return;
-  try {
-    await supabase.from("campaign_messages").insert({
-      campaign_id: campaign.activeCampaignId,
-      user_id: auth.user.id,
-      recipient_user_id: null,
-      sender_name: member.value?.name ?? "Player",
-      message: `rolled ${label} = ${total}`,
-      type: "roll",
-      metadata: { label, total, breakdown, modifier, isCrit: false, isFumble: false },
-    });
-  } catch (e) {
-  }
-}
-
 function rollAttack(attackBonus: number, actionName: string) {
-  const d20 = Math.floor(Math.random() * 20) + 1;
-  const total = d20 + attackBonus;
+  const result = rollDice({ 20: 1 }, attackBonus);
   const label = `${actionName} Attack`;
-  lastRoll.value = { label, total };
-  void postRollToChat(label, total, [{ val: d20, dropped: false }], attackBonus);
+  lastRoll.value = { label, total: result.total };
+  void sendRoll({ ...result, label }, null, member.value?.name);
 }
 
 function rollActionDamage(desc: string, actionName: string) {
   const parsed = parseExpression(desc);
   if (!parsed || !parsed.terms.length) return;
-  const breakdown: { val: number; dropped: boolean }[] = [];
-  let total = parsed.modifier;
-  for (const term of parsed.terms) {
-    for (let i = 0; i < term.count; i++) {
-      const val = rollDie(term.sides);
-      total += val;
-      breakdown.push({ val, dropped: false });
-    }
-  }
+  const { total, breakdown } = rollParsed(parsed);
   const label = `${actionName} (${actionDiceLabel(desc)})`;
   lastRoll.value = { label, total };
-  void postRollToChat(label, total, breakdown, parsed.modifier);
+  void sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false }, null, member.value?.name);
 }
 
 const lightboxScores = computed(() => {

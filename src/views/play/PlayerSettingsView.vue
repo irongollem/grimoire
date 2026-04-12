@@ -281,6 +281,25 @@
           />
         </button>
       </div>
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="font-cinzel text-xs text-foreground tracking-wide">Dice roll sounds</p>
+          <p class="font-fell text-xs text-muted-foreground italic">A clack plays on every roll. Crits and fumbles have distinct sounds.</p>
+        </div>
+        <button
+          type="button"
+          class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200"
+          :class="diceAudioEnabled ? 'bg-primary' : 'bg-muted'"
+          role="switch"
+          :aria-checked="diceAudioEnabled"
+          @click="setDiceAudio(!diceAudioEnabled)"
+        >
+          <span
+            class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200"
+            :class="diceAudioEnabled ? 'translate-x-5' : 'translate-x-0'"
+          />
+        </button>
+      </div>
     </section>
 
     <!-- Keep screen awake -->
@@ -366,6 +385,7 @@ const { canInstall, hasNativePrompt, install } = usePwaInstall();
 const { enabled: wakeLockEnabled, isSupported: wakeLockSupported, toggle: toggleWakeLock } = useWakeLock();
 import { usePlayerNavPrefs } from "@/composables/usePlayerNavPrefs";
 import { usePlayerCombatPrefs } from "@/composables/usePlayerCombatPrefs";
+import { useDicePrefs } from "@/composables/useDicePrefs";
 import { MOBILE_NAV_SLOTS } from "@/lib/playerNav";
 import PageHeader from "@/components/common/PageHeader.vue";
 import { useAuthStore } from "@/stores/auth";
@@ -383,6 +403,7 @@ const { sortedNav, setNavOrder } = usePlayerNavPrefs();
 
 // ── Combat preferences ────────────────────────────────────────────────────────
 const { turnAudioEnabled, setTurnAudio } = usePlayerCombatPrefs();
+const { diceAudioEnabled, setDiceAudio } = useDicePrefs();
 
 const dragListRef = ref<HTMLElement | null>(null);
 const draggingIdx = ref<number | null>(null);

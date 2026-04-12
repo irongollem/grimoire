@@ -757,7 +757,8 @@ import {
   ChevronDown,
 } from "lucide-vue-next";
 import ChatItemDropDetails from "@/components/chat/ChatItemDropDetails.vue";
-import { rollDice, ALL_DICE } from "@/lib/dice";
+import { rollDice } from "@/lib/roller";
+import { ALL_DICE } from "@/lib/dice";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import type {

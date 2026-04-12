@@ -11,7 +11,9 @@
     <!-- Roll result banner -->
     <Transition name="roll-fade">
       <div v-if="lastCheck" class="roll-result-banner" :class="rollResultClass">
-        <div class="roll-result-total">{{ lastCheck.total }}</div>
+        <div class="roll-result-total">
+          <DiceResult :value="lastCheck.total" :is-crit="lastCheck.isCrit" :is-fumble="lastCheck.isFumble" />
+        </div>
         <div class="roll-result-info">
           <span class="roll-result-label">{{ lastCheck.label }}</span>
           <span class="roll-result-breakdown">
@@ -639,6 +641,7 @@ import { supabase } from "@/lib/supabase";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import SpellcastingList from "@/components/common/SpellcastingList.vue";
+import DiceResult from "@/components/common/DiceResult.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useAllMonsters } from "@/composables/useMonsters";
 import type { Monster } from "@/types/monster.types";
@@ -650,7 +653,8 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useDiscoveredKeys } from "@/composables/useDiscoveredMonsters";
 import { useDmPinnedForms } from "@/composables/usePinnedForms";
 import { useCompanions } from "@/composables/useCompanions";
-import { parseExpression, rollDie } from "@/lib/dice";
+import { parseExpression } from "@/lib/dice";
+import { rollDice, rollParsed } from "@/lib/roller";
 import type { Spell as SpellType } from "@/types/spell.types";
 import { getCasterType } from "@/types/spell.types";
 import { useCharacterSpellsWithDetails } from "@/composables/useCharacterSpells";
@@ -717,35 +721,19 @@ const rollResultClass = computed(() => {
   return "";
 });
 
-function rollD20(): number {
-  return Math.floor(Math.random() * 20) + 1;
-}
-
 function performCheck(modifier: number, label: string) {
-  const r1 = rollD20();
-  if (rollMode.value === "normal") {
-    lastCheck.value = {
-      total: r1 + modifier,
-      label,
-      modifier,
-      d20: r1,
-      isCrit: r1 === 20,
-      isFumble: r1 === 1,
-    };
-  } else {
-    const r2 = rollD20();
-    const keep = rollMode.value === "advantage" ? Math.max(r1, r2) : Math.min(r1, r2);
-    const drop = rollMode.value === "advantage" ? Math.min(r1, r2) : Math.max(r1, r2);
-    lastCheck.value = {
-      total: keep + modifier,
-      label,
-      modifier,
-      d20: keep,
-      dropped: drop,
-      isCrit: keep === 20,
-      isFumble: keep === 1,
-    };
-  }
+  const r = rollDice({ 20: 1 }, modifier, rollMode.value);
+  const kept = r.breakdown.find((d) => !d.dropped)!;
+  const dropped = r.breakdown.find((d) => d.dropped);
+  lastCheck.value = {
+    total: r.total,
+    label,
+    modifier,
+    d20: kept.val,
+    dropped: dropped?.val,
+    isCrit: r.isCrit,
+    isFumble: r.isFumble,
+  };
 }
 
 // ── Action roll helpers ───────────────────────────────────────────────────────
@@ -807,15 +795,7 @@ function rollAttack(attackBonus: number, actionName: string) {
 function rollActionDamage(desc: string, actionName: string) {
   const parsed = parseExpression(desc);
   if (!parsed || !parsed.terms.length) return;
-  const breakdown: { val: number; dropped: boolean }[] = [];
-  let total = parsed.modifier;
-  for (const term of parsed.terms) {
-    for (let i = 0; i < term.count; i++) {
-      const val = rollDie(term.sides);
-      total += val;
-      breakdown.push({ val, dropped: false });
-    }
-  }
+  const { total, breakdown } = rollParsed(parsed);
   const label = `${actionName} (${actionDiceLabel(desc)})`;
   lastCheck.value = { total, label, modifier: parsed.modifier, d20: breakdown[0]?.val ?? total, isCrit: false, isFumble: false };
   void postRollToChat(label, total, breakdown, parsed.modifier, false, false, selectedCombatant.value?.name ?? "Encounter");
@@ -824,21 +804,16 @@ function rollActionDamage(desc: string, actionName: string) {
 function rollSpellDamage(spell: SpellType) {
   const rolls = spell.damage_rolls;
   if (!rolls?.length) return;
-  const breakdown: { val: number; dropped: boolean }[] = [];
-  let total = 0;
-  for (const roll of rolls) {
-    const parsed = parseExpression(roll.dice);
-    if (parsed) {
-      for (const term of parsed.terms) {
-        for (let i = 0; i < term.count; i++) {
-          const val = rollDie(term.sides);
-          total += val;
-          breakdown.push({ val, dropped: false });
-        }
-      }
-      total += parsed.modifier;
-    }
-  }
+  // Combine all damage terms (multi-type spells) into one roll event for a single sound
+  const combined = rolls.reduce<{ terms: { count: number; sides: number }[]; modifier: number }>(
+    (acc, roll) => {
+      const parsed = parseExpression(roll.dice);
+      if (parsed) { acc.terms.push(...parsed.terms); acc.modifier += parsed.modifier; }
+      return acc;
+    },
+    { terms: [], modifier: 0 },
+  );
+  const { total, breakdown } = rollParsed(combined);
   const diceLabel = rolls.map((r) => `${r.dice}${r.type ? " " + r.type : ""}`).join(" + ");
   const label = `${spell.name} (${diceLabel})`;
   lastCheck.value = { total, label, modifier: 0, d20: breakdown[0]?.val ?? total, isCrit: false, isFumble: false };

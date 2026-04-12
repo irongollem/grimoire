@@ -217,7 +217,7 @@ function makeForm(s?: Species | null) {
     notes: s?.notes ?? "",
     size: (s?.size ?? "") as SpeciesSize | "",
     speed: { ...s?.speed } as Partial<Record<typeof SPEED_TYPES[number], number>>,
-    asiDescription: asiToString(s?.ability_score_increases),
+    asiDescription: asiToString(s?.ability_score_increases ?? null),
     traits: (s?.traits ?? []).map((t) => ({ ...t })),
     languages: [...(s?.languages ?? [])],
     tags: [...(s?.tags ?? [])],

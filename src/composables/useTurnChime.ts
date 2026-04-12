@@ -1,31 +1,18 @@
 import { onMounted, onUnmounted } from "vue";
-
-let _audioCtx: AudioContext | null = null;
-
-function primeAudioCtx() {
-  try {
-    const Ctor =
-      window.AudioContext ??
-      (window as unknown as { webkitAudioContext?: typeof AudioContext })
-        .webkitAudioContext;
-    if (!Ctor) return;
-    if (!_audioCtx) _audioCtx = new Ctor();
-    if (_audioCtx.state === "suspended") void _audioCtx.resume();
-  } catch { /* unsupported */ }
-}
+import { getAudioContext, primeAudioContext } from "@/lib/audioContext";
 
 export function useTurnChime() {
   onMounted(() => {
-    window.addEventListener("pointerdown", primeAudioCtx, { passive: true });
-    window.addEventListener("keydown", primeAudioCtx, { passive: true });
+    window.addEventListener("pointerdown", primeAudioContext, { passive: true });
+    window.addEventListener("keydown", primeAudioContext, { passive: true });
   });
   onUnmounted(() => {
-    window.removeEventListener("pointerdown", primeAudioCtx);
-    window.removeEventListener("keydown", primeAudioCtx);
+    window.removeEventListener("pointerdown", primeAudioContext);
+    window.removeEventListener("keydown", primeAudioContext);
   });
 
   function playTurnChime() {
-    const ctx = _audioCtx;
+    const ctx = getAudioContext();
     if (!ctx || ctx.state !== "running") return;
     try {
       // Two-note ascending chime: C5 → G5

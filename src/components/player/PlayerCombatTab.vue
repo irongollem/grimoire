@@ -90,8 +90,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { Sword, Zap } from "lucide-vue-next";
-import { rollDice } from "@/lib/dice";
-import type { RollMode } from "@/lib/dice";
+import { rollDice, rollParsed } from "@/lib/roller";
+import type { RollMode } from "@/lib/roller";
+import { parseExpression } from "@/lib/dice";
 import { usePartyInventory } from "@/composables/usePartyInventory";
 import { useItems } from "@/composables/useItems";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
@@ -147,18 +148,6 @@ function modeTag(mode: RollMode) {
   return mode === "advantage" ? " (Adv)" : mode === "disadvantage" ? " (Dis)" : "";
 }
 
-function rollDiceExpression(expr: string): { total: number; breakdown: { val: number; dropped: boolean }[] } {
-  const m = expr.match(/^(\d+)d(\d+)$/);
-  if (!m) return { total: 0, breakdown: [] };
-  const count = parseInt(m[1]);
-  const sides = parseInt(m[2]);
-  const breakdown = Array.from({ length: count }, () => ({
-    val: Math.floor(Math.random() * sides) + 1,
-    dropped: false,
-  }));
-  return { total: breakdown.reduce((s, d) => s + d.val, 0), breakdown };
-}
-
 function rollUnarmedAttack() {
   const mod = unarmedAttackMod.value;
   const mode: RollMode = props.attackDisadvantage ? "disadvantage" : "normal";
@@ -181,7 +170,7 @@ function rollImprovisedAttack() {
 
 function rollImprovisedDamage() {
   const mod = improvisedAttackMod.value;
-  const { total: diceTotal, breakdown } = rollDiceExpression("1d4");
+  const { total: diceTotal, breakdown } = rollParsed({ terms: [{ count: 1, sides: 4 }], modifier: 0 });
   const total = diceTotal + mod;
   const label = `Improvised Weapon — Damage`;
   emit("roll", { label, dice: diceTotal, modifier: mod, total });
@@ -201,7 +190,8 @@ function rollWeaponAttack(inv: PartyInventoryItem, item: Item) {
 function rollWeaponDamage(inv: PartyInventoryItem, item: Item) {
   if (!item.damage_rolls?.length) return;
   const abilMod = weaponAbilityMod(item);
-  const { total: diceTotal, breakdown } = rollDiceExpression(item.damage_rolls[0].dice);
+  const parsed = parseExpression(item.damage_rolls[0].dice);
+  const { total: diceTotal, breakdown } = parsed ? rollParsed(parsed) : { total: 0, breakdown: [] };
   const total = diceTotal + abilMod;
   const label = `${inv.name} — Damage (${item.damage_rolls[0].type})`;
   emit("roll", { label, dice: diceTotal, modifier: abilMod, total });

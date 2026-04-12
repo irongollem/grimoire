@@ -15,6 +15,7 @@ import type {
   CraftingAttemptResult,
 } from "@/types/crafting.types";
 import type { PartyInventoryInsert } from "@/types/inventory.types";
+import { rollDice } from "@/lib/roller";
 
 const RECIPES_KEY    = "crafting-recipes";
 const INGREDIENTS_KEY = "crafting-ingredients";
@@ -314,9 +315,12 @@ export function useAttemptCraft() {
       } = params;
 
       // 1. Roll — disadvantage if no physical tool
-      const roll1 = Math.ceil(Math.random() * 20);
-      const roll2 = hasTools ? undefined : Math.ceil(Math.random() * 20);
-      const roll = hasTools ? roll1 : Math.min(roll1, roll2!);
+      const mode: "normal" | "disadvantage" = hasTools ? "normal" : "disadvantage";
+      const rollResult = rollDice({ 20: 1 }, 0, mode);
+      const kept = rollResult.breakdown.find((d) => !d.dropped)!;
+      const dropped = rollResult.breakdown.find((d) => d.dropped);
+      const roll = kept.val;
+      const roll2 = dropped?.val;
 
       const modSum = modifierBonuses.reduce((a, b) => a + b, 0);
       const total = roll + abilityMod + profBonus + modSum;

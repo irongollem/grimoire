@@ -69,6 +69,7 @@
 <script setup lang="ts">
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
+import { rollDice } from "@/lib/roller";
 import { patchLiveCombatantConditions } from "@/composables/useEncounterLive";
 import type { PartyMember } from "@/types/party.types";
 
@@ -118,7 +119,8 @@ async function toggleDeathSave(type: "success" | "failure", pip: number) {
 }
 
 async function rollDeathSave() {
-  const d = Math.floor(Math.random() * 20) + 1;
+  const r = rollDice({ 20: 1 }, 0);
+  const d = r.breakdown[0].val;
   const name = props.member.name;
   let update: Partial<{ current_hp: number; death_save_successes: number; death_save_failures: number }>;
   let outcome: string;
@@ -140,6 +142,6 @@ async function rollDeathSave() {
   await updateMember({ id: props.member.id, update });
   const label = `${name} — Death Save (${outcome})`;
   emit("roll", { label, dice: d, modifier: 0, total: d });
-  void sendRoll({ total: d, label, modifier: 0, breakdown: [{ val: d, dropped: false }], isCrit: d === 20, isFumble: d === 1 });
+  void sendRoll({ ...r, label });
 }
 </script>

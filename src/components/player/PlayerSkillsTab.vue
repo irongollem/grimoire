@@ -72,8 +72,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { ChevronRight } from "lucide-vue-next";
-import { rollDice } from "@/lib/dice";
-import type { RollMode } from "@/lib/dice";
+import { rollDice } from "@/lib/roller";
+import type { RollMode } from "@/lib/roller";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import { useCampaignStore } from "@/stores/campaign";
