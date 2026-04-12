@@ -65,7 +65,7 @@
             mode === 'edit' ? 'cursor-grab' : 'cursor-pointer',
             isHovered(pin.child_location_id) ? 'z-20' : 'z-10',
           ]"
-          :style="pinStyle(pin, isHovered(pin.child_location_id), pinnedPinId === pin.child_location_id)"
+          :style="pinStyle(pin, isHovered(pin.child_location_id), pinnedPinId === pin.child_location_id, scale)"
           @pointerenter="onPinEnter($event, pin.child_location_id)"
           @pointerleave="onPinLeave($event)"
           @pointerdown="mode === 'edit' ? onPinPointerDown($event, pin.child_location_id) : undefined"
@@ -386,15 +386,14 @@ function onFramePointerUp(e: PointerEvent) {
   activePointers.delete(e.pointerId);
   if (activePointers.size < 2) pinchStart = null;
 
-  // If this gesture moved the map (pinch or drag-pan), the browser will still
-  // fire a synthetic click on the release point. Swallow it so we don't
-  // accidentally toggle a pin or drop a placement pin.
+  // If this gesture moved the map (pinch or drag-pan), the browser MAY fire
+  // a synthetic click on the release point. Swallow it so we don't
+  // accidentally toggle a pin or drop a placement pin. Use a named handler
+  // with a timeout cleanup — `{ once: true }` would persist forever if the
+  // click never fires (common for multi-touch gestures), eating the user's
+  // next tap hours later. 300ms is well past any plausible synthetic click.
   if ((didMultiPointerGesture || dragStart?.moved) && activePointers.size === 0) {
-    window.addEventListener(
-      "click",
-      (ce) => { ce.stopImmediatePropagation(); ce.preventDefault(); },
-      { once: true, capture: true },
-    );
+    installClickSwallow();
   }
 
   if (activePointers.size === 0) {
@@ -406,6 +405,18 @@ function onFramePointerUp(e: PointerEvent) {
     tx.value = clamped.tx;
     ty.value = clamped.ty;
   }
+}
+
+function installClickSwallow() {
+  const handler = (ce: Event) => {
+    ce.stopImmediatePropagation();
+    ce.preventDefault();
+    window.removeEventListener("click", handler, true);
+  };
+  window.addEventListener("click", handler, true);
+  // If no click arrives within 300ms, tear the listener down so it doesn't
+  // persist and eat an unrelated later click.
+  setTimeout(() => window.removeEventListener("click", handler, true), 300);
 }
 
 function zoomAt(factor: number, anchorX: number, anchorY: number) {
@@ -437,6 +448,11 @@ function onFrameWheel(e: WheelEvent) {
   // ignored so normal page scrolling still works when the user's cursor
   // happens to be over the map.
   if (!e.ctrlKey && !e.metaKey) return;
+  // CRITICAL: prevent the browser's default viewport-zoom for this gesture.
+  // Without this, Mac Chrome zooms BOTH the map (via our handler) and the
+  // page (via Chrome's built-in trackpad-pinch-to-zoom). Only prevent when
+  // we're actually handling the event, so plain wheel scrolls still work.
+  e.preventDefault();
   const rect = frame.getBoundingClientRect();
   const anchorX = e.clientX - rect.left;
   const anchorY = e.clientY - rect.top;
@@ -499,33 +515,64 @@ function getChildType(pin: MapPinType): LocationType {
 // When hovered (expanded pill): anchor at the dot position so the pill grows
 // away from the cursor rather than centering on it. Near the right edge the
 // pill grows left so it never clips.
-// When collapsed (dot): center the dot on the pin coords as before.
+// When collapsed (dot): center the dot on the pin coords.
 // When pinned (tap-opened on touch): lift the pill above the pin so the action
 // buttons don't land under the user's finger. Falls back to downward placement
 // for pins near the top of the map.
-function pinStyle(pin: MapPinType, hovered: boolean, pinned: boolean): Record<string, string> {
+//
+// The `scale` argument is the map's current zoom. We counter-scale the pin
+// box (scale(1/S)) so pins visually stay at their natural size + natural
+// offset from the pin point regardless of how far the user has zoomed in.
+// transform-origin is aligned to the pin-anchor edge so scaling doesn't
+// drift the attachment point.
+//
+// Math:
+//   transform: scale(1/S) translate(tx, ty)   with origin at the anchor.
+// Parent (mapContainer) has scale(S). The composition (parent * child) is
+// scale(1) translate(tx, ty) — a pure natural-unit translation. So percent
+// and px translates behave the same as if the map weren't zoomed.
+function pinStyle(pin: MapPinType, hovered: boolean, pinned: boolean, mapScale: number): Record<string, string> {
   let tx: string;
+  let originX: string;
   if (hovered) {
-    // Overlap the dot by 6px (half dot width) so the pill always covers the hover zone,
-    // preventing flutter when the cursor entered from the far side of the dot.
-    tx = pin.x > 0.5 ? "calc(-100% + 6px)" : "-6px";
+    // Overlap the dot by 6px (half dot width) so the pill covers the hover
+    // zone, preventing flutter when the cursor entered from the far side.
+    if (pin.x > 0.5) {
+      tx = "calc(-100% + 6px)";
+      originX = "right";
+    } else {
+      tx = "-6px";
+      originX = "left";
+    }
   } else {
-    tx = pin.x < 0.2 ? "0%" : pin.x > 0.8 ? "-100%" : "-50%";
+    if (pin.x < 0.2) { tx = "0%"; originX = "left"; }
+    else if (pin.x > 0.8) { tx = "-100%"; originX = "right"; }
+    else { tx = "-50%"; originX = "center"; }
   }
+
   let ty: string;
+  let originY: string;
   if (pinned) {
     // Touch-opened: park the pill clearly above (or below) the finger so the
-    // Go/Watch buttons aren't under the hand that just tapped. 6px was too
-    // tight for real finger widths; 24px gives comfortable clearance for the
-    // average fingertip (~18-20px) plus a small gap.
-    ty = pin.y < 0.25 ? "calc(100% + 24px)" : "calc(-100% - 24px)";
+    // Go/Watch buttons aren't under the hand that just tapped.
+    if (pin.y < 0.25) {
+      ty = "calc(100% + 24px)";
+      originY = "top";
+    } else {
+      ty = "calc(-100% - 24px)";
+      originY = "bottom";
+    }
   } else {
-    ty = pin.y < 0.15 ? "0%" : pin.y > 0.85 ? "-100%" : "-50%";
+    if (pin.y < 0.15) { ty = "0%"; originY = "top"; }
+    else if (pin.y > 0.85) { ty = "-100%"; originY = "bottom"; }
+    else { ty = "-50%"; originY = "center"; }
   }
+
   return {
     left: `${pin.x * 100}%`,
     top: `${pin.y * 100}%`,
-    transform: `translate(${tx}, ${ty})`,
+    transform: `scale(${1 / mapScale}) translate(${tx}, ${ty})`,
+    transformOrigin: `${originX} ${originY}`,
   };
 }
 
