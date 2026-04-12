@@ -17,8 +17,8 @@
     :type="rootTag === 'button' ? 'button' : undefined"
     :disabled="rootTag === 'button' ? disabled : undefined"
     :class="buttonClass"
-    :title="label"
-    :aria-label="label"
+    :title="tooltip ?? label"
+    :aria-label="tooltip ?? label"
     @click="onClick"
   >
     <component
@@ -62,6 +62,12 @@ const props = withDefaults(
      * where the icon alone is ambiguous.
      */
     collapseOnMobile?: boolean;
+    /**
+     * Override for the `title` / `aria-label`. Use when the visible label
+     * describes state ("Kanban") but the tooltip should describe action
+     * ("Switch to list view"). Defaults to `label`.
+     */
+    tooltip?: string;
   }>(),
   {
     variant: "secondary",

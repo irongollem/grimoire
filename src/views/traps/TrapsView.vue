@@ -1,22 +1,31 @@
 <template>
-  <PageHeader title="Traproom" description="Traps, hazards & dungeon dangers">
+  <ListPageLayout title="Traproom" description="Traps, hazards & dungeon dangers">
     <template #actions>
-      <button
-        type="button"
+      <ListActionButton
+        :icon="populateMutation.isPending.value ? Loader2 : BookOpen"
+        :label="populateStatusLabel"
         :disabled="populateMutation.isPending.value"
-        class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
         @click="handlePopulate"
-      >
-        <Loader2 v-if="populateMutation.isPending.value" class="size-3.5 animate-spin shrink-0" />
-        <BookOpen v-else class="size-3.5 shrink-0" />
-        {{ populateStatusLabel }}
-      </button>
-      <button
-        class="font-cinzel text-xs font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+      />
+      <ListActionButton
+        label="New Trap"
+        variant="primary"
         @click="router.push('/traps/new')"
-      >
-        New Trap
-      </button>
+      />
+    </template>
+
+    <!--
+      Filters moved into the sticky slot so they don't scroll away with the
+      grid. Previously they lived inside the default slot above the grid.
+    -->
+    <template v-if="traps?.length" #filters>
+      <ListFilterBar>
+        <ListSearchInput v-model="search" placeholder="Search traps…" />
+        <ListFilterSelect v-model="typeFilter" aria-label="Trap type filter">
+          <option value="">All Types</option>
+          <option v-for="t in TRAP_TYPES" :key="t" :value="t">{{ t }}</option>
+        </ListFilterSelect>
+      </ListFilterBar>
     </template>
 
     <div v-if="isLoading" class="flex justify-center py-16">
@@ -24,28 +33,10 @@
     </div>
 
     <template v-else-if="traps?.length">
-      <!-- Filters -->
-      <div class="flex flex-wrap items-center gap-2 mb-4">
-        <input
-          v-model="search"
-          type="search"
-          placeholder="Search traps…"
-          class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
-        <select
-          v-model="typeFilter"
-          class="bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
-          <option value="">All Types</option>
-          <option v-for="t in TRAP_TYPES" :key="t" :value="t">{{ t }}</option>
-        </select>
-      </div>
-
       <p v-if="!filtered.length" class="text-center font-fell text-sm text-muted-foreground italic py-8">
         No traps match your filter.
       </p>
 
-      <!-- Grid -->
       <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         <RouterLink
           v-for="trap in filtered"
@@ -53,7 +44,6 @@
           :to="`/traps/${trap.id}`"
           class="flex flex-col rounded-lg border border-border bg-card overflow-hidden hover:border-primary/50 transition-colors group"
         >
-          <!-- Image / placeholder -->
           <div class="relative aspect-square bg-muted overflow-hidden shrink-0">
             <FocalImage
               v-if="trap.image_url"
@@ -66,14 +56,12 @@
             <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/20">
               <CrosshairIcon class="h-10 w-10" />
             </div>
-            <!-- Type badge -->
             <span
               class="absolute top-2 left-2 font-cinzel text-[9px] px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
               :style="{ backgroundColor: TRAP_TYPE_COLORS[trap.trap_type] + 'DD' }"
             >{{ trap.trap_type }}</span>
           </div>
 
-          <!-- Info -->
           <div class="p-2.5 flex flex-col gap-0.5">
             <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ trap.name }}</h3>
             <div class="flex items-center gap-2">
@@ -97,7 +85,7 @@
       action-label="New Trap"
       @action="router.push('/traps/new')"
     />
-  </PageHeader>
+  </ListPageLayout>
 </template>
 
 <script setup lang="ts">
@@ -106,7 +94,11 @@ import { RouterLink, useRouter } from "vue-router";
 import { Crosshair as CrosshairIcon, Loader2, BookOpen } from "lucide-vue-next";
 import { useTraps, usePopulateTraps } from "@/composables/useTraps";
 import { TRAP_TYPES, TRAP_TYPE_COLORS } from "@/types/trap.types";
-import PageHeader from "@/components/common/PageHeader.vue";
+import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
+import ListFilterBar from "@/components/common/ListFilterBar.vue";
+import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
+import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import EmptyState from "@/components/common/EmptyState.vue";

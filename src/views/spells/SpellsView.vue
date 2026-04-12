@@ -1,11 +1,14 @@
 <template>
-  <PageHeader title="Spellbook" description="Your custom spell compendium">
+  <ListPageLayout title="Spellbook" description="Your custom spell compendium">
     <template #actions>
-      <!-- Source picker popover -->
-      <div ref="sourcePickerRef" class="relative">
+      <!--
+        Source picker popover — custom UI, not a simple button. Kept inline
+        because its anchored popover doesn't fit ListActionButton's model.
+      -->
+      <div ref="sourcePickerRef" class="relative shrink-0">
         <button
           type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors shrink-0"
           :title="selectedSources.length === 0 ? 'All sources selected' : `${selectedSources.length} source(s) selected`"
           @click="showSourcePicker = !showSourcePicker"
         >
@@ -49,76 +52,45 @@
           </div>
         </div>
       </div>
-      <button
-        type="button"
+
+      <ListActionButton
+        :icon="importMutation.isPending.value ? Loader2 : Download"
+        :label="importStatusLabel"
         :disabled="importMutation.isPending.value"
-        class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
         @click="handleImport"
-      >
-        <Loader2 v-if="importMutation.isPending.value" class="size-3.5 animate-spin shrink-0" />
-        <Download v-else class="size-3.5 shrink-0" />
-        {{ importStatusLabel }}
-      </button>
-      <RouterLink
+      />
+      <ListActionButton
+        :icon="Plus"
+        label="New Spell"
+        variant="primary"
         to="/spells/new"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
-      >
-        <Plus class="h-3.5 w-3.5" />
-        New Spell
-      </RouterLink>
+      />
     </template>
 
-    <template #sticky>
-      <div class="flex flex-wrap items-center gap-2">
-        <!-- Search -->
-        <div class="relative flex-1 min-w-48">
-          <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <input
-            v-model="searchInput"
-            type="text"
-            placeholder="Search by name…"
-            class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-        </div>
-        <!-- Level -->
-        <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
-          <button
-            v-for="lvl in LEVEL_FILTERS"
-            :key="lvl.value"
-            class="px-2.5 py-1.5 transition-colors"
-            :class="levelFilter === lvl.value ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-            @click="setLevelFilter(lvl.value)"
-          >
-            {{ lvl.label }}
-          </button>
-        </div>
-        <!-- School -->
-        <select
-          v-model="schoolFilter"
-          class="bg-card border border-border rounded-md px-3 py-1.5 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+    <template #filters>
+      <ListFilterBar>
+        <ListSearchInput v-model="searchInput" placeholder="Search by name…" />
+        <ListFilterGroup
+          :model-value="levelFilter"
+          :options="LEVEL_FILTERS"
+          aria-label="Spell level filter"
+          @update:model-value="setLevelFilter"
+        />
+        <ListFilterSelect v-model="schoolFilter" aria-label="School filter">
           <option value="">All Schools</option>
           <option v-for="s in SPELL_SCHOOLS" :key="s" :value="s" class="capitalize">{{ s }}</option>
-        </select>
-        <!-- Class -->
-        <select
-          v-model="classFilter"
-          class="bg-card border border-border rounded-md px-3 py-1.5 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+        </ListFilterSelect>
+        <ListFilterSelect v-model="classFilter" aria-label="Class filter">
           <option value="">All Classes</option>
           <option v-for="c in SPELL_CLASSES" :key="c" :value="c">{{ c }}</option>
-        </select>
-        <!-- Source -->
-        <select
-          v-model="sourceFilter"
-          class="bg-card border border-border rounded-md px-3 py-1.5 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+        </ListFilterSelect>
+        <ListFilterSelect v-model="sourceFilter" aria-label="Source filter">
           <option value="">All Sources</option>
           <option v-for="s in sources" :key="s.slug" :value="s.slug">
             {{ spellSourceLabel(s.slug, s.title) }}
           </option>
-        </select>
-      </div>
+        </ListFilterSelect>
+      </ListFilterBar>
     </template>
 
     <SpellList
@@ -130,14 +102,20 @@
       :page="page"
       @update:page="page = $event"
     />
-  </PageHeader>
+  </ListPageLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, watch } from "vue";
+import { computed } from "vue";
 import { refDebounced, useLocalStorage, onClickOutside } from "@vueuse/core";
-import { Plus, Loader2, Download, Search, Settings2 } from "lucide-vue-next";
-import PageHeader from "@/components/common/PageHeader.vue";
+import { Plus, Loader2, Download, Settings2 } from "lucide-vue-next";
+import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
+import ListFilterBar from "@/components/common/ListFilterBar.vue";
+import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
+import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
+import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import SpellList from "@/components/spells/SpellList.vue";
 import { useImportSrdSpells, useSpellSources, useOpen5eDocuments } from "@/composables/useSpells";
 import { SPELL_SCHOOLS, SPELL_CLASSES, spellSourceLabel } from "@/types/spell.types";
@@ -149,7 +127,7 @@ const LEVEL_FILTERS = [
   { value: "1", label: "1" }, { value: "2", label: "2" }, { value: "3", label: "3" },
   { value: "4", label: "4" }, { value: "5", label: "5" }, { value: "6", label: "6" },
   { value: "7", label: "7" }, { value: "8", label: "8" }, { value: "9", label: "9" },
-];
+] as const;
 
 const searchInput = ref("");
 const search = refDebounced(searchInput, 400);

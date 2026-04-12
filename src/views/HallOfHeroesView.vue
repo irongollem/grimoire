@@ -1,50 +1,31 @@
 <template>
-  <PageHeader title="Hall of Heroes" description="Iconic characters importable into any campaign">
-    <template #actions>
-      <template v-if="isAppAdmin">
-        <button
-          type="button"
-          :disabled="populateMutation.isPending.value"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 disabled:opacity-50 transition-colors"
-          @click="handlePopulate"
-        >
-          <Sparkles class="h-3.5 w-3.5" />
-          {{ populateLabel }}
-        </button>
-        <RouterLink
-          to="/hall-of-heroes/new"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold tracking-wider text-primary-foreground hover:opacity-90 transition-opacity"
-        >
-          <Plus class="h-3.5 w-3.5" />
-          New Hero
-        </RouterLink>
-      </template>
+  <ListPageLayout title="Hall of Heroes" description="Iconic characters importable into any campaign">
+    <template v-if="isAppAdmin" #actions>
+      <ListActionButton
+        :icon="Sparkles"
+        :label="populateLabel"
+        :disabled="populateMutation.isPending.value"
+        @click="handlePopulate"
+      />
+      <ListActionButton
+        :icon="Plus"
+        label="New Hero"
+        variant="primary"
+        to="/hall-of-heroes/new"
+      />
     </template>
 
-    <template #sticky>
-      <div class="flex gap-2 flex-wrap">
-        <input
-          v-model="search"
-          type="search"
-          placeholder="Search heroes…"
-          class="h-8 flex-1 min-w-40 rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-        />
-        <select
-          v-model="settingFilter"
-          class="h-8 rounded-md border border-border bg-background px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+    <template #filters>
+      <ListFilterBar
+        :has-active-filters="hasActiveFilters"
+        @clear="clearFilters"
+      >
+        <ListSearchInput v-model="search" placeholder="Search heroes…" />
+        <ListFilterSelect v-model="settingFilter" aria-label="Setting filter">
           <option value="all">All Settings</option>
           <option v-for="s in SETTINGS" :key="s.value" :value="s.value">{{ s.label }}</option>
-        </select>
-        <button
-          v-if="hasActiveFilters"
-          type="button"
-          class="h-8 rounded-md border border-border px-3 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
-          @click="clearFilters"
-        >
-          Clear
-        </button>
-      </div>
+        </ListFilterSelect>
+      </ListFilterBar>
     </template>
 
     <div v-if="isLoading" class="flex justify-center py-16">
@@ -76,7 +57,6 @@
         :key="hero.id"
         class="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card transition-shadow hover:shadow-md"
       >
-        <!-- Portrait + Info (clickable) -->
         <RouterLink :to="`/hall-of-heroes/${hero.id}`" class="flex flex-1 flex-col">
           <div class="relative h-36 shrink-0 overflow-hidden bg-muted">
             <FocalImage
@@ -94,14 +74,12 @@
               {{ hero.name.charAt(0) }}
             </div>
 
-            <!-- Setting badge -->
             <span
               class="absolute top-2 left-2 rounded-full bg-black/60 px-2 py-0.5 font-cinzel text-[10px] font-semibold tracking-wider text-white uppercase backdrop-blur-sm"
             >
               {{ settingLabel(hero.setting) }}
             </span>
 
-            <!-- Campaign-match indicator -->
             <span
               v-if="campaignSetting && hero.setting === campaignSetting"
               class="absolute top-2 right-2 rounded-full bg-primary/80 px-1.5 py-0.5 font-cinzel text-[9px] font-semibold tracking-wider text-primary-foreground uppercase backdrop-blur-sm"
@@ -127,7 +105,6 @@
           </div>
         </RouterLink>
 
-        <!-- Actions -->
         <div class="flex items-center gap-2 border-t border-border px-3 py-2">
           <button
             type="button"
@@ -160,10 +137,12 @@
       </div>
     </div>
 
-    <p v-if="filtered.length" class="mt-4 text-center font-fell text-xs text-muted-foreground">
-      {{ filtered.length }} of {{ heroes?.length ?? 0 }} heroes
-    </p>
-  </PageHeader>
+    <template v-if="filtered.length" #footer>
+      <p class="text-center font-fell text-xs text-muted-foreground">
+        {{ filtered.length }} of {{ heroes?.length ?? 0 }} heroes
+      </p>
+    </template>
+  </ListPageLayout>
 </template>
 
 <script setup lang="ts">
@@ -174,7 +153,11 @@ import { useHallOfHeroes, useDeleteHero, useImportHero, usePopulateAllSettingHer
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
-import PageHeader from "@/components/common/PageHeader.vue";
+import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
+import ListFilterBar from "@/components/common/ListFilterBar.vue";
+import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
+import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
@@ -255,7 +238,6 @@ const filtered = computed(() => {
     list = list.filter((h) => h.setting === settingFilter.value);
   }
 
-  // Sort: campaign-setting matches first, then alphabetical
   const cs = campaignSetting.value;
   if (cs) {
     list = [...list].sort((a, b) => {
