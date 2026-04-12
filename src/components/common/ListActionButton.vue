@@ -29,9 +29,11 @@
     />
     <!--
       Label rendered via v-if/v-else so the class string is a static literal
-      Tailwind picks up verbatim. `max-sm:hidden` resolves to a single
-      media-query-wrapped rule with no cascading between `.hidden` and
-      `.sm:inline`.
+      Tailwind picks up verbatim. Previously used a computed `labelClass`
+      returning "hidden sm:inline"; at least one browser was failing to
+      collapse the label at runtime. `max-sm:hidden` is a single utility
+      that resolves to one media-query-wrapped rule — no cascading / order
+      dependency between `hidden` and `sm:inline`.
     -->
     <span v-if="shouldCollapse" class="max-sm:hidden">{{ label }}</span>
     <span v-else>{{ label }}</span>
@@ -126,5 +128,4 @@ const shouldCollapse = computed(() => {
   // label space stops action rows from overflowing on narrow screens.
   return true;
 });
-
 </script>
