@@ -20,12 +20,20 @@
         @clear="ui.resetMonstersFilters()"
       >
         <ListSearchInput v-model="ui.monstersSearch" placeholder="Search monsters…" />
-        <!-- Source has 3 options → a segmented pill group fits naturally. -->
-        <ListFilterGroup
-          v-model="ui.monstersFilterSource"
-          :options="SOURCE_OPTIONS"
-          aria-label="Source filter"
-        />
+        <!--
+          Source pill group is desktop-only: on mobile the row has to fit
+          search + type dropdown + Clear inside the viewport, and SRD-vs-
+          Custom is a rare filter that mobile DMs can surface from desktop
+          when they actually need it. `md:contents` keeps the group
+          transparent to the flex layout at md+ so nothing changes there.
+        -->
+        <div class="hidden md:contents">
+          <ListFilterGroup
+            v-model="ui.monstersFilterSource"
+            :options="SOURCE_OPTIONS"
+            aria-label="Source filter"
+          />
+        </div>
         <!--
           Type covers all 14 standard D&D creature types — too many to sit as
           a button row without causing weird widths and wrap on mobile. A
