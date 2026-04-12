@@ -64,7 +64,7 @@
     <Transition name="toast">
       <div
         v-if="encounterLiveToast"
-        class="fixed top-16 right-4 z-50 w-full max-w-sm"
+        class="fixed top-16 right-4 z-50 w-full max-w-sm pr-safe"
       >
         <RouterLink
           :to="{ name: 'player-encounter' }"
@@ -87,7 +87,7 @@
     <Transition name="toast">
       <div
         v-if="latestMessage"
-        class="fixed top-16 right-4 z-50 w-full max-w-sm"
+        class="fixed top-16 right-4 z-50 w-full max-w-sm pr-safe"
       >
         <div class="rounded-lg border border-primary/30 bg-card shadow-gold-glow px-4 py-3 flex items-start gap-3">
           <Megaphone class="h-4 w-4 text-primary shrink-0 mt-0.5" />
@@ -102,8 +102,10 @@
       </div>
     </Transition>
 
-    <!-- Content + chat side panel — pb-16 reserves space above the fixed bottom nav -->
-    <div class="flex-1 min-h-0 flex overflow-hidden pb-16">
+    <!-- Content + chat side panel — reserve space above the fixed bottom nav,
+         extending into the home-indicator safe area so the nav and gesture bar
+         don't both land on top of the last row of content on notched phones. -->
+    <div class="flex-1 min-h-0 flex overflow-hidden pb-[calc(4rem+env(safe-area-inset-bottom))]">
       <main class="flex-1 overflow-y-auto">
         <div class="px-4 py-6">
           <RouterView />
@@ -113,7 +115,9 @@
     </div>
 
     <!-- ── Bottom navigation bar ──────────────────────────────────────────── -->
-    <nav class="fixed bottom-0 inset-x-0 z-40 bg-card border-t border-border">
+    <!-- pb-safe pushes the nav's inner content above the iOS home indicator;
+         pl-safe / pr-safe keep the edge buttons off landscape notches. -->
+    <nav class="fixed bottom-0 inset-x-0 z-40 bg-card border-t border-border pb-safe pl-safe pr-safe">
       <div class="flex items-stretch justify-around">
 
         <!-- Mobile (< sm): 4 pinned items -->
@@ -164,7 +168,7 @@
       >
         <div class="absolute inset-0 bg-black/50" @click="showMore = false" />
 
-        <div class="relative bg-card border-t border-border rounded-t-2xl px-5 pt-4 pb-8 shadow-xl">
+        <div class="relative bg-card border-t border-border rounded-t-2xl px-5 pt-4 pb-[calc(2rem+env(safe-area-inset-bottom))] shadow-xl">
           <div class="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto mb-5" />
 
           <div class="grid grid-cols-4 sm:grid-cols-7 gap-1">

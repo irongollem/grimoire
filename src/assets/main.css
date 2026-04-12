@@ -243,6 +243,25 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   Safe-area utilities — register as Tailwind v4 utilities so they compose with
+   variants (`sm:pb-safe`) and arbitrary modifiers where needed. The numeric
+   helpers add a fixed amount *on top of* the inset, which is the common case
+   for content sitting above a fixed bottom nav on notched phones.
+───────────────────────────────────────────────────────────────────────────── */
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+@utility pl-safe {
+  padding-left: env(safe-area-inset-left);
+}
+@utility pr-safe {
+  padding-right: env(safe-area-inset-right);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    Hide number input spinners globally
 ───────────────────────────────────────────────────────────────────────────── */
 input[type="number"]::-webkit-inner-spin-button,

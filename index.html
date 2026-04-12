@@ -8,7 +8,10 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#0b1525" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover lets the app extend into the notch / home-indicator
+         safe areas; individual components opt in via pt-safe / pb-safe /
+         pr-safe / pl-safe utilities (see main.css). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Dungeon Grimoire</title>
     <meta name="description" content="D&D campaign manager for Dungeon Masters and players" />
     <!-- @page must be in the static HTML head — Safari ignores @page rules

@@ -17,10 +17,12 @@
     <SoundboardWidgetToggle class="px-1.5! py-1!" />
     <DiceRoller />
 
-    <!-- Mobile nav FAB — bottom-left, thumb-friendly -->
+    <!-- Mobile nav FAB — bottom-left, thumb-friendly.
+         Bottom/left offsets include env(safe-area-inset-*) so the FAB clears
+         both the home-indicator and landscape notches. -->
     <Teleport to="body">
       <button
-        class="md:hidden fixed bottom-5 left-4 z-40 flex items-center justify-center w-12 h-12 rounded-full bg-card border border-border shadow-lg text-muted-foreground hover:text-foreground active:scale-95 transition-all"
+        class="md:hidden fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] left-[calc(1rem+env(safe-area-inset-left))] z-40 flex items-center justify-center w-12 h-12 rounded-full bg-card border border-border shadow-lg text-muted-foreground hover:text-foreground active:scale-95 transition-all"
         aria-label="Open navigation"
         @click="ui.toggleMobileNav()"
       >
