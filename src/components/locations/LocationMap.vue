@@ -31,7 +31,7 @@
             mode === 'edit' ? 'cursor-grab' : 'cursor-pointer',
             isHovered(pin.child_location_id) ? 'z-20' : 'z-10',
           ]"
-          :style="pinStyle(pin, isHovered(pin.child_location_id))"
+          :style="pinStyle(pin, isHovered(pin.child_location_id), pinnedPinId === pin.child_location_id)"
           @pointerenter="onPinEnter(pin.child_location_id)"
           @pointerleave="onPinLeave"
           @pointerdown="mode === 'edit' ? onPinPointerDown($event, pin.child_location_id) : undefined"
@@ -237,7 +237,10 @@ function getChildType(pin: MapPinType): LocationType {
 // away from the cursor rather than centering on it. Near the right edge the
 // pill grows left so it never clips.
 // When collapsed (dot): center the dot on the pin coords as before.
-function pinStyle(pin: MapPinType, hovered: boolean): Record<string, string> {
+// When pinned (tap-opened on touch): lift the pill above the pin so the action
+// buttons don't land under the user's finger. Falls back to downward placement
+// for pins near the top of the map.
+function pinStyle(pin: MapPinType, hovered: boolean, pinned: boolean): Record<string, string> {
   let tx: string;
   if (hovered) {
     // Overlap the dot by 6px (half dot width) so the pill always covers the hover zone,
@@ -246,7 +249,14 @@ function pinStyle(pin: MapPinType, hovered: boolean): Record<string, string> {
   } else {
     tx = pin.x < 0.2 ? "0%" : pin.x > 0.8 ? "-100%" : "-50%";
   }
-  const ty = pin.y < 0.15 ? "0%" : pin.y > 0.85 ? "-100%" : "-50%";
+  let ty: string;
+  if (pinned) {
+    // Touch-opened: park the pill above the finger (or below if too close to the top)
+    // so the Go/Watch buttons aren't covered by the hand that just tapped.
+    ty = pin.y < 0.25 ? "calc(100% + 6px)" : "calc(-100% - 6px)";
+  } else {
+    ty = pin.y < 0.15 ? "0%" : pin.y > 0.85 ? "-100%" : "-50%";
+  }
   return {
     left: `${pin.x * 100}%`,
     top: `${pin.y * 100}%`,

@@ -70,17 +70,27 @@
     </p>
 
     <!-- Editor / Preview split -->
+    <!--
+      Mobile: no min-height so the page scrolls naturally and both panes sit in
+      the document flow. Desktop: fixed 620px pane height with internal scroll.
+    -->
     <div
-      class="grid grid-cols-1 lg:grid-cols-2 gap-3"
-      style="min-height: 620px"
+      class="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:min-h-[620px]"
     >
       <!-- Editor pane -->
+      <!--
+        overflow-hidden only kicks in at lg: so the mobile layout doesn't clip the
+        toolbar's horizontal scroll or trap the editor inside a nested scroller.
+      -->
       <div
-        class="flex flex-col rounded-lg border border-border bg-card overflow-hidden"
+        class="flex flex-col rounded-lg border border-border bg-card lg:overflow-hidden"
       >
-        <!-- Toolbar -->
+        <!--
+          Toolbar — on mobile: single horizontally-scrollable row so all icon
+          buttons stay reachable without wrapping into 3+ rows. Desktop: wrap.
+        -->
         <div
-          class="flex flex-wrap items-center gap-0.5 p-1.5 border-b border-border bg-muted/30 shrink-0"
+          class="flex flex-nowrap items-center gap-0.5 p-1.5 border-b border-border bg-muted/30 shrink-0 overflow-x-auto scriptorium-toolbar lg:flex-wrap lg:overflow-visible"
         >
           <template v-if="editor">
             <!-- Inline -->
@@ -327,7 +337,12 @@
         </div>
 
         <!-- Tiptap content -->
-        <div class="flex-1 overflow-auto p-4">
+        <!--
+          Mobile: content grows with the document and the page scrolls — no
+          nested scroll trap. Desktop: flex-1 + overflow-auto so the 620px pane
+          owns its own scroll like before.
+        -->
+        <div class="p-4 lg:flex-1 lg:overflow-auto lg:min-h-0">
           <EditorContent :editor="editor" class="phb-editor h-full" />
         </div>
 
@@ -343,7 +358,7 @@
 
       <!-- Preview pane -->
       <div
-        class="flex flex-col rounded-lg border border-border overflow-hidden"
+        class="flex flex-col rounded-lg border border-border lg:overflow-hidden"
       >
         <div
           class="flex items-center justify-between px-4 py-2 border-b border-border bg-card shrink-0"
@@ -376,7 +391,7 @@
             </button>
           </div>
         </div>
-        <div class="flex-1 overflow-auto phb-bg">
+        <div class="phb-bg lg:flex-1 lg:overflow-auto lg:min-h-0">
           <div
             v-for="(pageHtml, pageIndex) in pages"
             :key="pageIndex"
@@ -659,6 +674,11 @@ onUnmounted(() => editor.value?.destroy());
 
 <style scoped>
 @reference "@/assets/main.css";
+
+/* Keep toolbar children at natural size in the nowrap scroll row on mobile */
+.scriptorium-toolbar > * {
+  flex-shrink: 0;
+}
 
 /* ── Editor (dark app theme) ──────────────────────────────────── */
 .phb-editor :deep(.ProseMirror) {

@@ -1,10 +1,14 @@
 <template>
   <div
-    class="rich-editor flex flex-col rounded-lg border border-border bg-card overflow-hidden"
+    class="rich-editor flex flex-col rounded-lg border border-border bg-card lg:overflow-hidden"
     :style="{ minHeight: minHeight ?? '180px' }"
   >
-    <!-- Toolbar -->
-    <div class="flex flex-wrap items-center gap-0.5 p-1.5 border-b border-border bg-muted/30 shrink-0">
+    <!--
+      Toolbar — on mobile: single horizontally-scrollable row so all icon
+      buttons stay reachable without wrapping into 2-3 rows and eating the
+      editor viewport. Desktop: wrap as before.
+    -->
+    <div class="flex flex-nowrap items-center gap-0.5 p-1.5 border-b border-border bg-muted/30 shrink-0 overflow-x-auto rte-toolbar lg:flex-wrap lg:overflow-visible">
       <template v-if="editor">
         <button type="button" title="Bold" :class="tbCls(editor.isActive('bold'))" @click="editor.chain().focus().toggleBold().run()">
           <strong class="text-[11px] leading-none">B</strong>
@@ -78,7 +82,12 @@
     </div>
 
     <!-- Content area -->
-    <div class="flex-1 overflow-auto p-3">
+    <!--
+      Mobile: let the surrounding page scroll — nested overflow-auto causes
+      scroll traps on touch. Desktop: keep internal scroll so the editor can
+      sit at a fixed height in dense forms.
+    -->
+    <div class="p-3 lg:flex-1 lg:overflow-auto lg:min-h-0">
       <EditorContent :editor="editor" :class="['rte-content h-full', twoColumn ? 'rte-two-col' : '']" />
     </div>
 
@@ -228,6 +237,11 @@ function tbCls(active: boolean) {
 
 <style scoped>
 @reference "@/assets/main.css";
+
+/* Keep toolbar children at natural size in the nowrap scroll row on mobile */
+.rte-toolbar > * {
+  flex-shrink: 0;
+}
 
 .rte-content :deep(.ProseMirror) {
   @apply font-fell text-sm text-foreground outline-none;
