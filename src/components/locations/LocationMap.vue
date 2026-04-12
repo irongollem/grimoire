@@ -1,12 +1,36 @@
 <template>
   <div class="flex flex-col gap-3">
-    <!-- Map image + pin overlay -->
+    <!--
+      Map frame: clipped viewport that the inner map transforms inside of.
+      `touch-action: none` lets us capture multi-finger pinch gestures
+      locally instead of the browser zooming the whole viewport. Single-
+      finger drag is handled manually (only when zoomed in) so regular taps
+      still reach pins. When `scale === 1`, touch-action is relaxed to
+      `pan-y` so users can still scroll the page by swiping through the
+      map area.
+    -->
     <div
-      class="rounded-lg border border-border select-none bg-muted/30"
+      ref="mapFrame"
+      class="relative rounded-lg border border-border select-none bg-muted/30 overflow-hidden"
       :class="placingChildId ? 'cursor-crosshair' : ''"
+      :style="{ touchAction: scale > 1.01 ? 'none' : 'pan-y' }"
+      @pointerdown="onFramePointerDown"
+      @pointermove="onFramePointerMove"
+      @pointerup="onFramePointerUp"
+      @pointercancel="onFramePointerUp"
     >
-      <!-- Inner div sizes to image natural width; mx-auto centers it -->
-      <div ref="mapContainer" class="relative w-fit max-w-full mx-auto" @click="pinnedPinId = null">
+      <!-- Inner div sizes to image natural width; mx-auto centers it.
+           Zoom/pan applied via translate + scale around origin (0,0). -->
+      <div
+        ref="mapContainer"
+        class="relative w-fit max-w-full mx-auto"
+        :style="{
+          transform: `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`,
+          transformOrigin: '0 0',
+          transition: isGesturing ? 'none' : 'transform 0.2s ease-out',
+        }"
+        @click="pinnedPinId = null"
+      >
         <img
           :src="mapUrl"
           class="block max-w-full h-auto rounded-lg pointer-events-none"
@@ -125,6 +149,33 @@
           </div>
         </div>
       </div>
+
+      <!-- Zoom controls overlay (always-reachable; keyboard-accessible) -->
+      <div class="absolute bottom-2 right-2 z-30 flex flex-col gap-1">
+        <button
+          type="button"
+          class="w-8 h-8 rounded-md bg-card/90 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground transition-colors shadow-lg font-cinzel text-sm font-bold"
+          :disabled="scale >= MAX_SCALE - 0.01"
+          title="Zoom in"
+          @click.stop="zoomBy(1.5)"
+        >+</button>
+        <button
+          type="button"
+          class="w-8 h-8 rounded-md bg-card/90 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground transition-colors shadow-lg font-cinzel text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+          :disabled="scale <= 1.01"
+          title="Zoom out"
+          @click.stop="zoomBy(1 / 1.5)"
+        >−</button>
+        <button
+          v-if="scale > 1.01"
+          type="button"
+          class="w-8 h-8 rounded-md bg-card/90 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground transition-colors shadow-lg"
+          title="Reset zoom"
+          @click.stop="resetZoom"
+        >
+          <span class="block text-xs leading-none">↺</span>
+        </button>
+      </div>
     </div>
 
     <!-- Edit mode: placing indicator or unplaced children -->
@@ -195,6 +246,183 @@ const emit = defineEmits<{
 }>();
 
 const mapContainer = ref<HTMLElement | null>(null);
+const mapFrame = ref<HTMLElement | null>(null);
+
+// ── Pinch-zoom + pan ──────────────────────────────────────────────────────────
+// Transform state: mapContainer is translated then scaled around origin (0,0).
+// The frame clips with overflow-hidden so zooming stays inside the card.
+const scale = ref(1);
+const tx = ref(0);
+const ty = ref(0);
+const MIN_SCALE = 1;
+const MAX_SCALE = 4;
+
+// Active pointers on the map frame. Pinch needs 2, pan-drag uses 1.
+const activePointers = new Map<number, { x: number; y: number }>();
+
+// Baseline captured at the moment a 2-finger gesture starts. Pinch math
+// anchors the pinch midpoint to its original map-space position so zoom
+// feels natural (doesn't drift toward a corner).
+let pinchStart: {
+  dist: number;
+  midX: number;
+  midY: number;
+  scale: number;
+  tx: number;
+  ty: number;
+} | null = null;
+
+// Baseline for 1-finger drag-to-pan (only allowed when zoomed in).
+let dragStart: { x: number; y: number; tx: number; ty: number; moved: boolean } | null = null;
+
+// True while the user is actively mid-gesture — suppresses the transform
+// transition so the map tracks the finger 1:1 instead of lagging behind.
+const isGesturing = ref(false);
+
+// Set when a pinch happened during the current gesture; used to swallow the
+// ensuing synthetic click so we don't toggle a pin or drop a placement pin.
+let didMultiPointerGesture = false;
+
+function clampTranslate(scaleV: number, txV: number, tyV: number) {
+  const frame = mapFrame.value;
+  const container = mapContainer.value;
+  if (!frame || !container || scaleV <= 1) return { tx: 0, ty: 0 };
+  const frameRect = frame.getBoundingClientRect();
+  const contentW = container.offsetWidth * scaleV;
+  const contentH = container.offsetHeight * scaleV;
+  // Don't let the map edges retreat past the opposite edge of the frame.
+  const minX = frameRect.width - contentW;
+  const minY = frameRect.height - contentH;
+  return {
+    tx: Math.max(minX, Math.min(0, txV)),
+    ty: Math.max(minY, Math.min(0, tyV)),
+  };
+}
+
+function pointerMidpointInFrame(): { x: number; y: number } {
+  const frameRect = mapFrame.value!.getBoundingClientRect();
+  const [a, b] = [...activePointers.values()];
+  return { x: (a.x + b.x) / 2 - frameRect.left, y: (a.y + b.y) / 2 - frameRect.top };
+}
+
+function pointerDistance(): number {
+  const [a, b] = [...activePointers.values()];
+  return Math.hypot(b.x - a.x, b.y - a.y);
+}
+
+function onFramePointerDown(e: PointerEvent) {
+  // Mouse users get the +/− buttons; we only install gesture handlers for
+  // touch and pen pointers to avoid interfering with desktop drag-select.
+  if (e.pointerType === "mouse") return;
+
+  activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  mapFrame.value?.setPointerCapture?.(e.pointerId);
+
+  if (activePointers.size === 2) {
+    // Start of a pinch — capture baseline.
+    const mid = pointerMidpointInFrame();
+    pinchStart = {
+      dist: pointerDistance(),
+      midX: mid.x,
+      midY: mid.y,
+      scale: scale.value,
+      tx: tx.value,
+      ty: ty.value,
+    };
+    dragStart = null;
+    didMultiPointerGesture = true;
+    isGesturing.value = true;
+  } else if (activePointers.size === 1 && scale.value > 1.01) {
+    // Single-finger pan only when zoomed in — otherwise a tap on empty map
+    // would start a drag and eat the click that closes the pinned pin pill.
+    dragStart = { x: e.clientX, y: e.clientY, tx: tx.value, ty: ty.value, moved: false };
+  }
+}
+
+function onFramePointerMove(e: PointerEvent) {
+  if (e.pointerType === "mouse") return;
+  if (!activePointers.has(e.pointerId)) return;
+  activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+  if (activePointers.size === 2 && pinchStart) {
+    const dist = pointerDistance();
+    const mid = pointerMidpointInFrame();
+    const newScale = Math.max(
+      MIN_SCALE,
+      Math.min(MAX_SCALE, (pinchStart.scale * dist) / pinchStart.dist),
+    );
+    // Keep the initial pinch midpoint's *map-space* position anchored under
+    // wherever the current midpoint has moved to. (midX/Y in frame coords.)
+    const newTx = mid.x - (pinchStart.midX - pinchStart.tx) * (newScale / pinchStart.scale);
+    const newTy = mid.y - (pinchStart.midY - pinchStart.ty) * (newScale / pinchStart.scale);
+    const clamped = clampTranslate(newScale, newTx, newTy);
+    scale.value = newScale;
+    tx.value = clamped.tx;
+    ty.value = clamped.ty;
+  } else if (activePointers.size === 1 && dragStart) {
+    const dx = e.clientX - dragStart.x;
+    const dy = e.clientY - dragStart.y;
+    if (!dragStart.moved && Math.hypot(dx, dy) > 6) {
+      dragStart.moved = true;
+      isGesturing.value = true;
+    }
+    if (dragStart.moved) {
+      const clamped = clampTranslate(scale.value, dragStart.tx + dx, dragStart.ty + dy);
+      tx.value = clamped.tx;
+      ty.value = clamped.ty;
+    }
+  }
+}
+
+function onFramePointerUp(e: PointerEvent) {
+  if (e.pointerType === "mouse") return;
+  activePointers.delete(e.pointerId);
+  if (activePointers.size < 2) pinchStart = null;
+
+  // If this gesture moved the map (pinch or drag-pan), the browser will still
+  // fire a synthetic click on the release point. Swallow it so we don't
+  // accidentally toggle a pin or drop a placement pin.
+  if ((didMultiPointerGesture || dragStart?.moved) && activePointers.size === 0) {
+    window.addEventListener(
+      "click",
+      (ce) => { ce.stopImmediatePropagation(); ce.preventDefault(); },
+      { once: true, capture: true },
+    );
+  }
+
+  if (activePointers.size === 0) {
+    dragStart = null;
+    didMultiPointerGesture = false;
+    isGesturing.value = false;
+    // Clamp once more in case release left us off-bounds.
+    const clamped = clampTranslate(scale.value, tx.value, ty.value);
+    tx.value = clamped.tx;
+    ty.value = clamped.ty;
+  }
+}
+
+function zoomBy(factor: number) {
+  const frame = mapFrame.value;
+  if (!frame) return;
+  const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale.value * factor));
+  // Anchor the zoom on the centre of the frame so +/− feels like it's
+  // zooming into what the user is looking at.
+  const rect = frame.getBoundingClientRect();
+  const cx = rect.width / 2;
+  const cy = rect.height / 2;
+  const newTx = cx - ((cx - tx.value) * newScale) / scale.value;
+  const newTy = cy - ((cy - ty.value) * newScale) / scale.value;
+  const clamped = clampTranslate(newScale, newTx, newTy);
+  scale.value = newScale;
+  tx.value = clamped.tx;
+  ty.value = clamped.ty;
+}
+
+function resetZoom() {
+  scale.value = 1;
+  tx.value = 0;
+  ty.value = 0;
+}
 
 // ── Pin visibility ─────────────────────────────────────────────────────────────
 const visiblePins = computed(() =>
