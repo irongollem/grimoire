@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Location, LocationInsert, LocationUpdate } from "@/types/location.types";
-import { SETTING_LOCATIONS } from "@/data/settingLocations";
+import { SETTING_LOCATIONS, PLANAR_LOCATIONS } from "@/data/settingLocations";
 
 const QUERY_KEY = "locations";
 
@@ -217,6 +217,77 @@ export function useDeleteLocation() {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: ["quests"] });
     },
+  });
+}
+
+/** Bulk-insert the 21 standard D&D planes into the active campaign. Returns inserted count.
+ *  Two-pass: inserts all new planes first, then resolves parent_id links by name. */
+export function usePopulatePlanarLocations() {
+  const queryClient = useQueryClient();
+  const campaign = useCampaignStore();
+  return useMutation({
+    mutationFn: async (): Promise<number> => {
+      const campaignId = campaign.activeCampaignId;
+      if (!campaignId) throw new Error("No active campaign");
+
+      const user = getCurrentUser();
+
+      const { data: existing, error: fetchError } = await supabase
+        .from("locations")
+        .select("id, name")
+        .eq("campaign_id", campaignId);
+      if (fetchError) throw fetchError;
+
+      const existingNameToId = new Map(
+        (existing ?? []).map((l: { id: string; name: string }) => [l.name.toLowerCase(), l.id]),
+      );
+
+      const toInsert = PLANAR_LOCATIONS
+        .filter((p) => !existingNameToId.has(p.name.toLowerCase()))
+        .map(({ parent: _parent, ...p }) => ({
+          ...p,
+          campaign_id: campaignId,
+          user_id: user!.id,
+          parent_id: null as string | null,
+          description: null,
+          image_url: null,
+        }));
+
+      if (!toInsert.length) return 0;
+
+      const { data: inserted, error: insertError } = await supabase
+        .from("locations")
+        .insert(toInsert)
+        .select("id, name");
+      if (insertError) throw insertError;
+
+      const nameToId = new Map(existingNameToId);
+      for (const loc of inserted ?? []) {
+        nameToId.set(loc.name.toLowerCase(), loc.id);
+      }
+
+      const insertedNameToId = new Map(
+        (inserted ?? []).map((l: { id: string; name: string }) => [l.name.toLowerCase(), l.id]),
+      );
+      const parentUpdates = PLANAR_LOCATIONS
+        .filter((p) => p.parent && insertedNameToId.has(p.name.toLowerCase()))
+        .map((p) => ({
+          id: insertedNameToId.get(p.name.toLowerCase())!,
+          parent_id: nameToId.get(p.parent!.toLowerCase()),
+        }))
+        .filter((u): u is { id: string; parent_id: string } => !!(u.id && u.parent_id));
+
+      if (parentUpdates.length) {
+        await Promise.all(
+          parentUpdates.map((u) =>
+            supabase.from("locations").update({ parent_id: u.parent_id }).eq("id", u.id),
+          ),
+        );
+      }
+
+      return (inserted ?? []).length;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }
 

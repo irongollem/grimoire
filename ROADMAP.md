@@ -259,6 +259,7 @@
 - [x] **Full location sharing** — DM can set a player summary (always visible), share the full Tiptap description, and share linked player-visible NPCs per location; three new DB columns + editor toggles; player atlas renders each section when enabled (issue #34)
 - [x] **PlayerVisibilityToggle component** — reusable eye-icon button in action bars opening a popover with "All players" toggle + individual party member checkboxes; used in LocationEditor and NpcDetail (replacing the old Players foldout); locations get new `shared_with_players` + `player_visible_to` columns matching the NPC pattern
 - [x] **Player notes UX overhaul** — `PlayerNotesWidget` now shows two independent boxes: "My Private Notes" (is_private=true, only author sees) and "My Party Notes" (is_private=false, full party sees); "From the Party" section shows all other members' shared notes; RLS updated so players can see each other's non-private notes (previously only DM↔player was symmetric)
+- [x] **Populate Planes button** — "Populate Planes" button in Atlas header seeds the 21 standard D&D planes (transitive, inner, outer, and Sigil) via `usePopulatePlanarLocations`; two-pass insert resolves parent links (Avernus → Nine Hells); idempotent — skips already-existing planes
 
 ### Rules reliquary
 
