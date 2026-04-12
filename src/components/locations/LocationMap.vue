@@ -9,15 +9,25 @@
       `pan-y` so users can still scroll the page by swiping through the
       map area.
     -->
+    <!--
+      `touch-action: none` applies unconditionally: the browser's default
+      pinch-to-zoom on `pan-y` isn't reliably disabled on all engines, so we
+      have to opt out entirely for pinch to reach our handlers. Users can
+      still scroll the page by swiping around the map card.
+    -->
     <div
       ref="mapFrame"
       class="relative rounded-lg border border-border select-none bg-muted/30 overflow-hidden"
-      :class="placingChildId ? 'cursor-crosshair' : ''"
-      :style="{ touchAction: scale > 1.01 ? 'none' : 'pan-y' }"
+      :class="[
+        placingChildId ? 'cursor-crosshair' : '',
+        scale > 1.01 && !placingChildId ? (isGesturing ? 'cursor-grabbing' : 'cursor-grab') : '',
+      ]"
+      style="touch-action: none;"
       @pointerdown="onFramePointerDown"
       @pointermove="onFramePointerMove"
       @pointerup="onFramePointerUp"
       @pointercancel="onFramePointerUp"
+      @wheel="onFrameWheel"
     >
       <!-- Inner div sizes to image natural width; mx-auto centers it.
            Zoom/pan applied via translate + scale around origin (0,0). -->
@@ -311,10 +321,9 @@ function pointerDistance(): number {
 }
 
 function onFramePointerDown(e: PointerEvent) {
-  // Mouse users get the +/− buttons; we only install gesture handlers for
-  // touch and pen pointers to avoid interfering with desktop drag-select.
-  if (e.pointerType === "mouse") return;
-
+  // Accept all pointer types (touch, pen, mouse). Desktop mouse drag pans
+  // when zoomed in, and DevTools mobile emulation / touch-simulation can
+  // report either "mouse" or "touch" depending on the toolbar setting.
   activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   mapFrame.value?.setPointerCapture?.(e.pointerId);
 
@@ -340,7 +349,6 @@ function onFramePointerDown(e: PointerEvent) {
 }
 
 function onFramePointerMove(e: PointerEvent) {
-  if (e.pointerType === "mouse") return;
   if (!activePointers.has(e.pointerId)) return;
   activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
@@ -375,7 +383,6 @@ function onFramePointerMove(e: PointerEvent) {
 }
 
 function onFramePointerUp(e: PointerEvent) {
-  if (e.pointerType === "mouse") return;
   activePointers.delete(e.pointerId);
   if (activePointers.size < 2) pinchStart = null;
 
@@ -401,21 +408,42 @@ function onFramePointerUp(e: PointerEvent) {
   }
 }
 
-function zoomBy(factor: number) {
-  const frame = mapFrame.value;
-  if (!frame) return;
+function zoomAt(factor: number, anchorX: number, anchorY: number) {
   const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale.value * factor));
-  // Anchor the zoom on the centre of the frame so +/− feels like it's
-  // zooming into what the user is looking at.
-  const rect = frame.getBoundingClientRect();
-  const cx = rect.width / 2;
-  const cy = rect.height / 2;
-  const newTx = cx - ((cx - tx.value) * newScale) / scale.value;
-  const newTy = cy - ((cy - ty.value) * newScale) / scale.value;
+  // Keep the point under (anchorX, anchorY) — in frame coords — fixed on
+  // screen while the scale changes. Same math as the pinch-midpoint anchor.
+  const newTx = anchorX - ((anchorX - tx.value) * newScale) / scale.value;
+  const newTy = anchorY - ((anchorY - ty.value) * newScale) / scale.value;
   const clamped = clampTranslate(newScale, newTx, newTy);
   scale.value = newScale;
   tx.value = clamped.tx;
   ty.value = clamped.ty;
+}
+
+function zoomBy(factor: number) {
+  const frame = mapFrame.value;
+  if (!frame) return;
+  // +/- buttons zoom toward the frame's visible centre.
+  const rect = frame.getBoundingClientRect();
+  zoomAt(factor, rect.width / 2, rect.height / 2);
+}
+
+function onFrameWheel(e: WheelEvent) {
+  const frame = mapFrame.value;
+  if (!frame) return;
+  // Trackpad pinch-zoom arrives as a `wheel` event with `ctrlKey === true`
+  // (a browser convention, fired even if no physical Ctrl is pressed).
+  // Desktop users can also hold Ctrl/Cmd and scroll to zoom. Plain wheel is
+  // ignored so normal page scrolling still works when the user's cursor
+  // happens to be over the map.
+  if (!e.ctrlKey && !e.metaKey) return;
+  const rect = frame.getBoundingClientRect();
+  const anchorX = e.clientX - rect.left;
+  const anchorY = e.clientY - rect.top;
+  // deltaY > 0 means scroll down (zoom out); negate and exponent-scale so
+  // big deltas don't over-zoom on a single wheel tick.
+  const factor = Math.exp(-e.deltaY * 0.01);
+  zoomAt(factor, anchorX, anchorY);
 }
 
 function resetZoom() {
@@ -582,7 +610,18 @@ function onDragMove(e: PointerEvent) {
 function onDragEnd() {
   window.removeEventListener("pointermove", onDragMove);
   if (!hasMoved && draggingId) {
-    emit("pin-click", draggingId);
+    // On mouse, the pill was already visible via hover (hoveredPinId is set
+    // on pointerenter for pointerType === "mouse" only). A click with the
+    // pill visible is an intent to "accept" → emit pin-click so the parent
+    // (LocationEditor) can navigate. On touch there's no hover step, so the
+    // first tap promotes the pin to pinnedPinId — the pill shows with its
+    // action buttons (visibility toggle, remove). A second tap on the same
+    // pin closes the pill again.
+    if (hoveredPinId.value === draggingId) {
+      emit("pin-click", draggingId);
+    } else {
+      pinnedPinId.value = pinnedPinId.value === draggingId ? null : draggingId;
+    }
   }
   draggingId = null;
 }
