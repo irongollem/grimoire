@@ -37,7 +37,14 @@
     <div class="sticky top-0 z-20 bg-background px-4 pt-3 md:px-6 md:pt-6">
       <!-- Title + actions row -->
       <div class="flex items-start justify-between gap-3 md:gap-4">
-        <div class="min-w-0 flex-1">
+        <!--
+          Title + description hidden on <md. AppTopBar renders the page
+          title on mobile, so repeating a big h1 here duplicates the label
+          and eats ~70px of vertical space right above the action row.
+          Desktop is unchanged — `md:block md:flex-1 md:min-w-0` makes
+          the wrapper a proper flex item at ≥md.
+        -->
+        <div class="hidden md:block md:min-w-0 md:flex-1">
           <h1
             class="font-cinzel text-xl md:text-3xl font-bold text-foreground tracking-wide truncate"
           >
@@ -62,7 +69,7 @@
         -->
         <div
           v-if="hasActions || showDiceRoller"
-          class="flex items-center gap-2 shrink-0 -mr-4 pr-4 md:mr-0 md:pr-0 max-w-[70%] md:max-w-none overflow-x-auto md:overflow-visible list-actions-row"
+          class="flex items-center gap-2 shrink-0 -mr-4 pr-4 md:mr-0 md:pr-0 max-w-full md:max-w-none overflow-x-auto md:overflow-visible list-actions-row"
         >
           <slot name="actions" />
           <!--
