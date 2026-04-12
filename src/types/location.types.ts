@@ -18,46 +18,50 @@ export type LocationType =
   | "other";
 
 /** Location types that can hold a store inventory. */
-export const STORE_LOCATION_TYPES = new Set<LocationType>(["store", "tavern", "inn"]);
+export const STORE_LOCATION_TYPES = new Set<LocationType>([
+  "store",
+  "tavern",
+  "inn",
+]);
 
 export const LOCATION_TYPE_LABELS: Record<LocationType, string> = {
-  world:      "World",
-  plane:      "Plane",
-  continent:  "Continent",
-  region:     "Region",
-  country:    "Country",
-  city:       "City",
-  town:       "Town",
-  village:    "Village",
-  district:   "District",
-  building:   "Building",
-  store:      "Store",
-  tavern:     "Tavern",
-  inn:        "Inn",
-  room:       "Room",
-  dungeon:    "Dungeon",
+  world: "World",
+  plane: "Plane",
+  continent: "Continent",
+  region: "Region",
+  country: "Country",
+  city: "City",
+  town: "Town",
+  village: "Village",
+  district: "District",
+  building: "Building",
+  store: "Store",
+  tavern: "Tavern",
+  inn: "Inn",
+  room: "Room",
+  dungeon: "Dungeon",
   wilderness: "Wilderness",
-  other:      "Other",
+  other: "Other",
 };
 
 export const LOCATION_TYPE_COLORS: Record<LocationType, string> = {
-  world:      "#0f172a",
-  plane:      "#4c1d95",
-  continent:  "#1d4ed8",
-  region:     "#0369a1",
-  country:    "#0891b2",
-  city:       "#7c3aed",
-  town:       "#6d28d9",
-  village:    "#9333ea",
-  district:   "#c026d3",
-  building:   "#b45309",
-  store:      "#d97706",
-  tavern:     "#b45309",
-  inn:        "#92400e",
-  room:       "#92400e",
-  dungeon:    "#991b1b",
+  world: "#0f172a",
+  plane: "#4c1d95",
+  continent: "#1d4ed8",
+  region: "#0369a1",
+  country: "#0891b2",
+  city: "#7c3aed",
+  town: "#6d28d9",
+  village: "#9333ea",
+  district: "#c026d3",
+  building: "#b45309",
+  store: "#d97706",
+  tavern: "#b45309",
+  inn: "#92400e",
+  room: "#92400e",
+  dungeon: "#991b1b",
   wilderness: "#15803d",
-  other:      "#6b7280",
+  other: "#6b7280",
 };
 
 /** A pin placed on a location's map, pointing to one of its direct children. */
@@ -89,8 +93,7 @@ export interface Location {
   map_url: string | null;
   map_pins: MapPin[];
   is_map_shared: boolean;
-  shared_with_players: boolean;
-  player_visible_to: string[] | null;
+  player_visible_to: string[];
   player_summary: string | null;
   is_description_shared: boolean;
   is_npcs_shared: boolean;
@@ -100,5 +103,8 @@ export interface Location {
   updated_at: string;
 }
 
-export type LocationInsert = Omit<Location, "id" | "user_id" | "created_at" | "updated_at">;
+export type LocationInsert = Omit<
+  Location,
+  "id" | "user_id" | "created_at" | "updated_at"
+>;
 export type LocationUpdate = Partial<LocationInsert>;

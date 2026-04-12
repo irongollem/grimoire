@@ -23,9 +23,7 @@
 
       <!-- Player visibility toggle -->
       <PlayerVisibilityToggle
-        :shared-with-all="sharedWithPlayers"
         :visible-to="playerVisibleTo"
-        @update:shared-with-all="sharedWithPlayers = $event"
         @update:visible-to="playerVisibleTo = $event"
       />
 
@@ -746,7 +744,6 @@
           </div>
         </div>
 
-
         <!-- Calendar Pins -->
         <EntityCalendarSection
           entity-type="quest"
@@ -924,8 +921,7 @@ const locationId = ref(props.quest?.location_id ?? "");
 const parentQuestId = ref(props.quest?.parent_quest_id ?? props.parentId ?? "");
 const rewards = ref(props.quest?.rewards ?? "");
 const tags = ref<string[]>(props.quest?.tags ? [...props.quest.tags] : []);
-const sharedWithPlayers = ref(props.quest?.shared_with_players ?? false);
-const playerVisibleTo   = ref<string[] | null>(props.quest?.player_visible_to ?? null);
+const playerVisibleTo = ref<string[]>(props.quest?.player_visible_to ?? []);
 const saving = ref(false);
 const saveError = ref("");
 
@@ -974,7 +970,6 @@ function buildPayload() {
     tags: tags.value,
     description: description.value || null,
     notes: notes.value || null,
-    shared_with_players: sharedWithPlayers.value,
     player_visible_to: playerVisibleTo.value,
     started_at: props.quest?.started_at ?? null,
     resolved_at: props.quest?.resolved_at ?? null,
@@ -999,7 +994,8 @@ async function save() {
   if (!title.value.trim()) return;
   saving.value = true;
   saveError.value = "";
-  const justShared = sharedWithPlayers.value && !props.quest?.shared_with_players;
+  const justShared =
+    playerVisibleTo.value.length > 0 && !(props.quest?.player_visible_to?.length ?? 0);
   try {
     if (props.quest) {
       await update({ id: props.quest.id, update: buildPayload() });
@@ -1011,7 +1007,7 @@ async function save() {
       router.push("/quests");
     } else {
       const created = await create(buildPayload());
-      if (sharedWithPlayers.value && campaign.activeCampaignId)
+      if (playerVisibleTo.value.length > 0 && campaign.activeCampaignId)
         void sendCampaignAnnouncement(
           campaign.activeCampaignId,
           `📋 Quest shared: "${created.title}"`,
@@ -1131,7 +1127,6 @@ const COIN_TYPES = [
   { key: "sp", label: "SP", color: "#9ca3af", model: rewardSp },
   { key: "cp", label: "CP", color: "#b45309", model: rewardCp },
 ];
-
 
 async function addEncounterRef() {
   if (!selectedEncounterId.value || !props.quest) return;

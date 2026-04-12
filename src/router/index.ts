@@ -381,6 +381,26 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Species" },
     },
 
+    // Class Features (Abilities)
+    {
+      path: "/features",
+      name: "features",
+      component: () => import("@/views/features/FeaturesView.vue"),
+      meta: { requiresAuth: true, title: "Abilities" },
+    },
+    {
+      path: "/features/new",
+      name: "feature-new",
+      component: () => import("@/views/features/FeatureDetailView.vue"),
+      meta: { requiresAuth: true, title: "New Ability" },
+    },
+    {
+      path: "/features/:id",
+      name: "feature-detail",
+      component: () => import("@/views/features/FeatureDetailView.vue"),
+      meta: { requiresAuth: true, title: "Ability" },
+    },
+
     // Hall of Heroes
     {
       path: "/hall-of-heroes",

@@ -14,7 +14,7 @@
     </div>
 
     <div
-      v-else-if="!quest || !quest.shared_with_players"
+      v-else-if="!quest || !quest.player_visible_to?.length"
       class="text-center py-16 space-y-3"
     >
       <ScrollText class="h-10 w-10 text-muted-foreground/30 mx-auto" />
