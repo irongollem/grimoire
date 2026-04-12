@@ -22,9 +22,11 @@
         </button>
       </div>
 
-      <!-- Navigation -->
+      <!-- Navigation — `desktopOnly` groups (e.g. "Publish") are filtered
+           out because their tools target letter/A4 output that's unusable
+           on a phone. The desktop sidebar still shows them. -->
       <nav class="flex-1 overflow-y-auto px-2 py-4">
-        <template v-for="group in NAV_GROUPS" :key="group.label">
+        <template v-for="group in mobileNavGroups" :key="group.label">
           <p
             class="px-2 pt-4 pb-1 font-cinzel text-[10px] font-bold tracking-widest text-muted-foreground/60 uppercase first:pt-0"
           >
@@ -77,6 +79,8 @@ const router = useRouter();
 
 const userEmail = computed(() => auth.userEmail ?? "");
 const userInitial = computed(() => userEmail.value.charAt(0).toUpperCase() || "?");
+
+const mobileNavGroups = computed(() => NAV_GROUPS.filter((g) => !g.desktopOnly));
 
 async function handleSignOut() {
   ui.toggleMobileNav();

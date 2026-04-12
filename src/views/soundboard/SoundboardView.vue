@@ -1,40 +1,22 @@
 <template>
-  <PageHeader title="Soundboard" description="Ambient sounds & music for your sessions">
+  <ListPageLayout title="Soundboard" description="Ambient sounds & music for your sessions">
     <template #actions>
-      <button
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-gold-500/20 border border-gold-500/40 text-xs font-cinzel text-gold-300 hover:bg-gold-500/30 transition-colors"
+      <ListActionButton
+        :icon="Plus"
+        label="Add Sound"
+        variant="primary"
         @click="showForm = !showForm"
-      >
-        <Plus class="h-3.5 w-3.5" />
-        Add Sound
-      </button>
+      />
     </template>
 
-    <template #sticky>
-      <div class="flex flex-wrap items-center gap-3">
-        <!-- Search -->
-        <div class="relative">
-          <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-          <input
-            v-model="ui.soundboardSearchQuery"
-            type="text"
-            placeholder="Search sounds…"
-            class="pl-8 pr-3 py-1.5 rounded-md border border-border bg-background text-sm font-fell text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-gold-500 w-48"
-          />
-        </div>
-
-        <!-- Category filter -->
+    <template #filters>
+      <ListFilterBar
+        :has-active-filters="ui.soundboardHasActiveFilters"
+        @clear="ui.resetSoundboardFilters()"
+      >
+        <ListSearchInput v-model="ui.soundboardSearchQuery" placeholder="Search sounds…" />
         <SoundCategoryFilter v-model="ui.soundboardFilterCategory" />
-
-        <!-- Clear -->
-        <button
-          v-if="ui.soundboardHasActiveFilters"
-          class="font-fell text-xs text-muted-foreground hover:text-foreground transition-colors"
-          @click="ui.resetSoundboardFilters()"
-        >
-          Clear
-        </button>
-      </div>
+      </ListFilterBar>
     </template>
 
     <!-- Add form (inline) -->
@@ -72,17 +54,20 @@
         @delete="handleDelete"
       />
     </div>
-  </PageHeader>
+  </ListPageLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Plus, Search } from "lucide-vue-next";
+import { Plus } from "lucide-vue-next";
 import { useSounds, useDeleteSound } from "@/composables/useSounds";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useUiStore } from "@/stores/ui";
 import type { Sound } from "@/types/sound.types";
-import PageHeader from "@/components/common/PageHeader.vue";
+import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
+import ListFilterBar from "@/components/common/ListFilterBar.vue";
+import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import SoundCard from "@/components/soundboard/SoundCard.vue";

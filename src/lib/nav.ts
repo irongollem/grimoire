@@ -35,6 +35,12 @@ export interface NavItem {
 export interface NavGroup {
   label: string;
   items: NavItem[];
+  /**
+   * Hide this group on mobile (<md). Use for tools that target letter/A4
+   * output (Scriptorium, Card Forge, The Mint) where the editing surface
+   * is impractical on a phone-sized viewport.
+   */
+  desktopOnly?: boolean;
 }
 
 export const NAV_GROUPS: NavGroup[] = [
@@ -173,6 +179,7 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "Publish",
+    desktopOnly: true, // A4/letter-output tools — unusable on phone-sized viewports
     items: [
       {
         label: "Scriptorium",
