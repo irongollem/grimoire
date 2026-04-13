@@ -4,7 +4,54 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Location, LocationInsert, LocationUpdate } from "@/types/location.types";
+import { VAGUE_LOCATION_TYPES } from "@/types/location.types";
 import { SETTING_LOCATIONS, PLANAR_LOCATIONS } from "@/data/settingLocations";
+
+/** A location enriched with the chain of vague-container names we traversed
+ *  to reach it, starting with the outermost region and ending with the
+ *  direct parent. Empty when the entry is a direct child of the map owner. */
+export type PinnableDescendant = Location & { parent_chain: string[] };
+
+/**
+ * Walks the location tree below `rootId` to find pins the DM could place on
+ * `rootId`'s map. Vague container types (`region`, `continent`, …) aren't
+ * themselves useful as map points, so we recurse *through* them to surface
+ * their concrete descendants. A vague container with no children is kept as
+ * a leaf fallback so an empty region still shows up.
+ *
+ * `parent_chain` lets the UI display a breadcrumb like "Bryn Shander · Ten
+ * Towns" so the DM can tell which region a surfaced location came from.
+ */
+export function getPinnableDescendants(
+  rootId: string,
+  locations: Location[],
+): PinnableDescendant[] {
+  const byParent = new Map<string, Location[]>();
+  for (const loc of locations) {
+    if (!loc.parent_id) continue;
+    const arr = byParent.get(loc.parent_id) ?? [];
+    arr.push(loc);
+    byParent.set(loc.parent_id, arr);
+  }
+
+  const result: PinnableDescendant[] = [];
+
+  function walk(parentId: string, chain: string[]) {
+    const children = byParent.get(parentId) ?? [];
+    for (const child of children) {
+      const isVague = VAGUE_LOCATION_TYPES.has(child.location_type);
+      const grandchildren = byParent.get(child.id) ?? [];
+      if (isVague && grandchildren.length > 0) {
+        walk(child.id, [...chain, child.name]);
+      } else {
+        result.push({ ...child, parent_chain: chain });
+      }
+    }
+  }
+
+  walk(rootId, []);
+  return result;
+}
 
 const QUERY_KEY = "locations";
 

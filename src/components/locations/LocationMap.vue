@@ -215,6 +215,7 @@
           :key="child.id"
           type="button"
           class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-dashed border-border hover:border-primary/50 hover:bg-muted/50 transition-colors"
+          :title="child.parent_chain?.length ? `In ${child.parent_chain.join(' › ')}` : undefined"
           @click="startPlacing(child.id)"
         >
           <span
@@ -222,6 +223,12 @@
             :style="{ backgroundColor: LOCATION_TYPE_COLORS[child.location_type] }"
           />
           <span class="font-cinzel text-xs text-foreground">{{ child.name }}</span>
+          <span
+            v-if="child.parent_chain?.length"
+            class="font-fell text-[10px] text-muted-foreground italic"
+          >
+            · {{ child.parent_chain.join(" › ") }}
+          </span>
         </button>
       </div>
     </template>
@@ -237,8 +244,18 @@ import type { MapPin as MapPinType, LocationType } from "@/types/location.types"
 const props = defineProps<{
   mapUrl: string;
   pins: MapPinType[];
-  /** All direct children of this location (edit mode: unplaced list + pin data population). */
-  children: Array<{ id: string; name: string; location_type: LocationType; image_url?: string | null }>;
+  /** Candidate pin targets (edit mode: unplaced list + pin data population).
+   *  Usually direct children, but callers can also pass descendants that were
+   *  surfaced through vague container types (regions / continents / …) — in
+   *  that case `parent_chain` names the intermediate containers for the
+   *  unplaced-list breadcrumb. */
+  children: Array<{
+    id: string;
+    name: string;
+    location_type: LocationType;
+    image_url?: string | null;
+    parent_chain?: string[];
+  }>;
   mode: "edit" | "view";
   /** DM sees all pins; players only see visible_to_players ones (caller filters before passing). */
   showHiddenPins?: boolean;

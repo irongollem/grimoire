@@ -545,7 +545,7 @@
           v-if="!isNew && children"
           :map-url="mapUrl"
           :pins="mapPins"
-          :children="children as Location[]"
+          :children="mapPinnableChildren"
           mode="edit"
           :show-hidden-pins="true"
           :compact="mapCompact"
@@ -622,6 +622,7 @@ import {
   useCreateLocation,
   useUpdateLocation,
   useDeleteLocation,
+  getPinnableDescendants,
 } from "@/composables/useLocations";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import {
@@ -682,6 +683,15 @@ const parentOptions = computed(() =>
 const { data: children, isLoading: childrenLoading } = props.location
   ? useLocations(props.location.id)
   : { data: ref([]), isLoading: ref(false) };
+
+// ── Pinnable descendants for the map's "Unplaced" picker ──────────────────────
+// Recurses through vague container types (region / continent / country …) so
+// the DM can place individual towns onto a regional map without having to
+// flatten their hierarchy. See getPinnableDescendants() for the rules.
+const mapPinnableChildren = computed(() => {
+  if (!props.location || !allLocations.value?.length) return [];
+  return getPinnableDescendants(props.location.id, allLocations.value);
+});
 
 // ── Child combobox ─────────────────────────────────────────────────────────────
 const { mutateAsync: reparent } = useUpdateLocation();
