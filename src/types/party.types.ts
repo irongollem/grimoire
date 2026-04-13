@@ -60,6 +60,9 @@ export interface PartyMember {
   level: number;
   race: string | null;
   subrace: string | null;
+  species_id: string | null;
+  background: string | null;
+  background_id: string | null;
   max_hp: number;
   current_hp: number;
   temp_hp: number;

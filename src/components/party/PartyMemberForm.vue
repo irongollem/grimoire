@@ -610,6 +610,9 @@ const f = reactive<
   carry_capacity_override: props.member?.carry_capacity_override ?? null,
   class_resources: props.member?.class_resources ?? {},
   class_choices: props.member?.class_choices ?? {},
+  species_id: props.member?.species_id ?? null,
+  background: props.member?.background ?? null,
+  background_id: props.member?.background_id ?? null,
 });
 
 // Spell slot max per level (index 0 = level 1, ..., index 8 = level 9)
