@@ -401,6 +401,26 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Ability" },
     },
 
+    // Archetypes (Custom Subclasses)
+    {
+      path: "/levelup/custom",
+      name: "archetypes",
+      component: () => import("@/views/levelup/CustomSubclassListView.vue"),
+      meta: { requiresAuth: true, title: "Archetypes" },
+    },
+    {
+      path: "/levelup/custom/new",
+      name: "archetype-new",
+      component: () => import("@/views/levelup/CustomSubclassEditorView.vue"),
+      meta: { requiresAuth: true, title: "New Archetype" },
+    },
+    {
+      path: "/levelup/custom/:id",
+      name: "archetype-detail",
+      component: () => import("@/views/levelup/CustomSubclassEditorView.vue"),
+      meta: { requiresAuth: true, title: "Archetype" },
+    },
+
     // Hall of Heroes
     {
       path: "/hall-of-heroes",

@@ -20,15 +20,23 @@
       <div class="rounded-lg border border-border bg-card p-4 space-y-3">
         <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">Features Gained</h3>
 
-        <template v-if="levelData && levelData.features.length > 0">
+        <template v-if="(levelData && levelData.features.length > 0) || customFeaturesForLevel.length > 0">
           <ul class="space-y-1">
             <li
-              v-for="feat in levelData.features"
+              v-for="feat in levelData?.features ?? []"
               :key="featureName(feat)"
               class="flex items-start gap-2 font-fell text-sm text-foreground"
             >
               <span class="text-primary mt-0.5">✦</span>
               <span>{{ featureName(feat) }}</span>
+            </li>
+            <li
+              v-for="feat in customFeaturesForLevel"
+              :key="feat"
+              class="flex items-start gap-2 font-fell text-sm text-foreground"
+            >
+              <span class="text-primary mt-0.5">✦</span>
+              <span>{{ feat }}</span>
             </li>
           </ul>
         </template>
@@ -247,11 +255,13 @@
 import { ref, computed } from "vue";
 import { useRouter, RouterLink } from "vue-router";
 import { useUpdatePartyMember } from "@/composables/useParty";
+import { useAllCustomSubclasses, useCustomSubclassByClassAndSubclass } from "@/composables/useCustomSubclasses";
+import { useAllFeatures } from "@/composables/useFeatures";
 import { getLevelData, proficiencyBonusForLevel, getClassSteps, getClassResources } from "./classFeatures";
 import { getDefaultSpellSlots } from "@/types/spell.types";
 import type { PartyMember, PartyMemberUpdate, SpellSlotEntry } from "@/types/party.types";
 import { featureName } from "./types";
-import type { AbilityKey, AsiMode, ClassStep } from "./types";
+import type { AbilityKey, AsiMode, ClassStep, ClassResourceDef } from "./types";
 import { RANGER_SUBCLASSES }    from "./classes/ranger";
 import { ARTIFICER_SUBCLASSES } from "./classes/artificer";
 import { SORCERER_SUBCLASSES }  from "./classes/sorcerer";
@@ -270,6 +280,24 @@ const props = defineProps<{ member: PartyMember }>();
 
 const router = useRouter();
 const { mutateAsync: updateMember, isPending } = useUpdatePartyMember();
+
+// ── Custom subclass data ───────────────────────────────────────────────────────
+const memberClass    = computed(() => props.member.class ?? "");
+const memberSubclass = computed(() => props.member.subclass ?? "");
+
+// Fetch the custom subclass definition that matches this member's current subclass
+const { data: customSubclass } = useCustomSubclassByClassAndSubclass(memberClass, memberSubclass);
+
+// Feature compendium — needed to resolve UUIDs stored in customSubclass.features to names
+const { data: allFeatures } = useAllFeatures();
+
+// Fetch all custom subclasses so we can extend the subclass picker
+const { data: allCustomSubclasses } = useAllCustomSubclasses();
+const customSubclassNamesForClass = computed<string[]>(() =>
+  (allCustomSubclasses.value ?? [])
+    .filter(cs => cs.class_name === memberClass.value)
+    .map(cs => cs.subclass_name),
+);
 
 // ── Derived ────────────────────────────────────────────────────────────────────
 const nextLevel    = computed(() => props.member.level + 1);
@@ -295,7 +323,10 @@ const SUBCLASS_OPTIONS: Record<string, readonly string[]> = {
   Warlock:   WARLOCK_SUBCLASSES,
   Wizard:    WIZARD_SUBCLASSES,
 };
-const subclassOptions = computed(() => SUBCLASS_OPTIONS[props.member.class ?? ""] ?? []);
+const subclassOptions = computed(() => [
+  ...(SUBCLASS_OPTIONS[props.member.class ?? ""] ?? []),
+  ...customSubclassNamesForClass.value,
+]);
 
 // Spell slot change summary
 const prevSpellSlots = computed<SpellSlotEntry[]>(() =>
@@ -334,8 +365,29 @@ const spellsKnownGain = computed(() => {
   return Math.max(0, cur - prev);
 });
 
+// Custom features granted at this level — resolve UUIDs to display names
+const customFeaturesForLevel = computed<string[]>(() => {
+  const ids = customSubclass.value?.features[nextLevel.value.toString()] ?? [];
+  const featureMap = new Map((allFeatures.value ?? []).map(f => [f.id, f.name]));
+  return ids.map(id => featureMap.get(id) ?? id);
+});
+
 // Class resource change notices (e.g. Sorcery Points)
-const classDefs = computed(() => getClassResources(props.member.class ?? "", nextLevel.value));
+const classDefs = computed<ClassResourceDef[]>(() => {
+  const srdDefs = getClassResources(props.member.class ?? "", nextLevel.value);
+  const customDefs: ClassResourceDef[] = (customSubclass.value?.resources ?? []).map(r => ({
+    key: r.key,
+    label: r.label,
+    rest: r.rest,
+    maxAtLevel: (level: number) => {
+      if (r.scaling === "fixed") return r.fixed_value ?? 0;
+      if (r.scaling === "per_level") return level;
+      if (r.scaling === "table" && r.table_values) return r.table_values[Math.min(level, 20) - 1] ?? 0;
+      return 0;
+    },
+  }));
+  return [...srdDefs, ...customDefs];
+});
 const resourceNotices = computed(() => {
   return classDefs.value.flatMap(def => {
     const newMax = def.maxAtLevel(nextLevel.value);
@@ -372,10 +424,14 @@ const asiPreview = computed(() => {
 // ── Subclass ───────────────────────────────────────────────────────────────────
 const subclassInput = ref("");
 
-// ── Class-specific steps ───────────────────────────────────────────────────────
-const classSteps = computed<ClassStep[]>(() =>
-  getClassSteps(props.member.class ?? "", nextLevel.value),
-);
+// ── Class-specific steps (SRD + custom) ───────────────────────────────────────
+const classSteps = computed<ClassStep[]>(() => {
+  const srd = getClassSteps(props.member.class ?? "", nextLevel.value);
+  const custom: ClassStep[] = (customSubclass.value?.steps ?? [])
+    .filter(s => s.level === nextLevel.value)
+    .map(({ level: _level, ...rest }) => rest);
+  return [...srd, ...custom];
+});
 
 // Single-pick steps (count === 1 or undefined)
 const stepValues = ref<Record<string, string>>({});

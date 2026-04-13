@@ -182,6 +182,19 @@ export const useUiStore = defineStore("ui", () => {
     featuresFilterType.value = "all";
   }
 
+  // Archetypes (Custom Subclasses) UI state
+  const archetypesSearch = ref("");
+  const archetypesFilterClass = ref("all");
+
+  const archetypesHasActiveFilters = computed(
+    () => archetypesSearch.value !== "" || archetypesFilterClass.value !== "all",
+  );
+
+  function resetArchetypesFilters() {
+    archetypesSearch.value = "";
+    archetypesFilterClass.value = "all";
+  }
+
   // Soundboard UI state
   const soundboardFilterCategory = ref<SoundCategory | "all">("all");
   const soundboardSearchQuery = ref("");
@@ -385,5 +398,11 @@ export const useUiStore = defineStore("ui", () => {
     featuresFilterType,
     featuresHasActiveFilters,
     resetFeaturesFilters,
+
+    // Archetypes (Custom Subclasses)
+    archetypesSearch,
+    archetypesFilterClass,
+    archetypesHasActiveFilters,
+    resetArchetypesFilters,
   };
 });
