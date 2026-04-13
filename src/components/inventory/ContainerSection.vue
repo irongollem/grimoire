@@ -10,6 +10,12 @@
         </span>
       </button>
       <button
+        v-if="container"
+        class="text-muted-foreground/60 hover:text-foreground transition-colors p-0.5"
+        title="View item details"
+        @click.stop="$emit('open-detail', container)"
+      ><Info class="h-3 w-3" /></button>
+      <button
         class="font-cinzel text-[10px] text-muted-foreground hover:text-foreground transition-colors"
         @click="showAdd = !showAdd"
       >+ Add</button>
@@ -80,7 +86,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { ChevronRight } from "lucide-vue-next";
+import { ChevronRight, Info } from "lucide-vue-next";
 import { VueDraggable } from "vue-draggable-plus";
 import type { PartyInventoryItem, InventoryLocation } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
@@ -93,6 +99,7 @@ const props = defineProps<{
   allContainers: PartyInventoryItem[];
   allItems: Item[];
   resolvedMemberId: string | null;
+  container?: PartyInventoryItem;
   containerId?: string;
   isDefault?: boolean;
   removable?: boolean;

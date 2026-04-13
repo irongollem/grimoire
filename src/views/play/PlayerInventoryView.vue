@@ -142,16 +142,29 @@
 
         <!-- Attunement slots -->
         <div v-if="member" class="mt-2 flex items-center justify-between gap-2">
-          <span class="font-cinzel text-[9px] text-muted-foreground/50 tracking-wider">ATTUNEMENT</span>
+          <span
+            class="font-cinzel text-[9px] text-muted-foreground/50 tracking-wider"
+            >ATTUNEMENT</span
+          >
           <div class="flex items-center gap-1.5">
             <div
               v-for="n in 3"
               :key="n"
               class="h-2 w-2 rounded-full border transition-colors"
-              :class="n <= attunedItems.length ? 'bg-primary border-primary' : 'bg-muted border-border'"
-              :title="n <= attunedItems.length ? attunedItems[n - 1]?.name : 'Empty slot'"
+              :class="
+                n <= attunedItems.length
+                  ? 'bg-primary border-primary'
+                  : 'bg-muted border-border'
+              "
+              :title="
+                n <= attunedItems.length
+                  ? attunedItems[n - 1]?.name
+                  : 'Empty slot'
+              "
             />
-            <span class="font-cinzel text-[9px] text-muted-foreground/50">{{ attunedItems.length }}/3</span>
+            <span class="font-cinzel text-[9px] text-muted-foreground/50"
+              >{{ attunedItems.length }}/3</span
+            >
           </div>
         </div>
 
@@ -466,6 +479,7 @@
         v-for="c in customContainers"
         :key="c.id"
         :label="c.name"
+        :container="c"
         :container-id="c.id"
         :sellable="true"
         :items="itemsInContainer(c.id)"
@@ -797,9 +811,7 @@ const backpackItems = computed(() =>
 const storedItems = computed(() =>
   myItems.value.filter((i) => i.location === "stored" && !i.is_container),
 );
-const attunedItems = computed(() =>
-  myItems.value.filter((i) => i.is_attuned),
-);
+const attunedItems = computed(() => myItems.value.filter((i) => i.is_attuned));
 const customContainers = computed(() =>
   myItems.value.filter((i) => i.is_container),
 );
@@ -850,7 +862,10 @@ const backpackWeight = computed(() => sumWeight(backpackItems.value));
 const containerWeightMap = computed((): Map<string, number> => {
   const m = new Map<string, number>();
   for (const c of customContainers.value) {
-    m.set(c.id, sumWeight(itemsInContainer(c.id)));
+    const vaultItem = allItems.value?.find((it) => it.id === c.item_id);
+    const isExtradimensional =
+      vaultItem?.tags.includes("extradimensional") ?? false;
+    m.set(c.id, isExtradimensional ? 0 : sumWeight(itemsInContainer(c.id)));
   }
   return m;
 });
@@ -1157,12 +1172,14 @@ async function adjustQty(item: PartyInventoryItem, delta: number) {
 
 async function moveItem(
   item: PartyInventoryItem,
-  toLocation: InventoryLocation | 'stash',
+  toLocation: InventoryLocation | "stash",
   containerId: string | null,
 ) {
   // 'stash' is a UI-only virtual location meaning carried_by=null, defaulting to backpack
-  const location: InventoryLocation = toLocation === 'stash' ? 'backpack' : toLocation;
-  const carriedBy = toLocation === 'stash' ? null : resolvedMemberId.value ?? null;
+  const location: InventoryLocation =
+    toLocation === "stash" ? "backpack" : toLocation;
+  const carriedBy =
+    toLocation === "stash" ? null : (resolvedMemberId.value ?? null);
   await updateInventoryItem({
     id: item.id,
     update: {
