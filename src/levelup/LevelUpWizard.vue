@@ -114,7 +114,7 @@
       </div>
 
       <!-- ASI picker -->
-      <div v-if="levelData?.asi" class="rounded-lg border border-border bg-card p-4 space-y-4">
+      <div v-if="grantsAsi" class="rounded-lg border border-border bg-card p-4 space-y-4">
         <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">Ability Score Improvement</h3>
         <p class="font-fell text-sm text-muted-foreground">Choose how to apply your improvement.</p>
 
@@ -256,6 +256,7 @@ import { ref, computed } from "vue";
 import { useRouter, RouterLink } from "vue-router";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useAllCustomSubclasses, useCustomSubclassByClassAndSubclass } from "@/composables/useCustomSubclasses";
+import { useCustomClassByName } from "@/composables/useCustomClasses";
 import { useAllFeatures } from "@/composables/useFeatures";
 import { getLevelData, proficiencyBonusForLevel, getClassSteps, getClassResources } from "./classFeatures";
 import { getDefaultSpellSlots } from "@/types/spell.types";
@@ -288,7 +289,10 @@ const memberSubclass = computed(() => props.member.subclass ?? "");
 // Fetch the custom subclass definition that matches this member's current subclass
 const { data: customSubclass } = useCustomSubclassByClassAndSubclass(memberClass, memberSubclass);
 
-// Feature compendium — needed to resolve UUIDs stored in customSubclass.features to names
+// Fetch the custom class definition — used when no SRD class matches (fully homebrew class)
+const { data: customClass } = useCustomClassByName(memberClass);
+
+// Feature compendium — needed to resolve UUIDs stored in features to names
 const { data: allFeatures } = useAllFeatures();
 
 // Fetch all custom subclasses so we can extend the subclass picker
@@ -304,9 +308,18 @@ const nextLevel    = computed(() => props.member.level + 1);
 const levelData    = computed(() => getLevelData(props.member.class ?? "", nextLevel.value));
 const newProfBonus = computed(() => proficiencyBonusForLevel(nextLevel.value));
 
-const needsSubclassChoice = computed(() =>
-  !!levelData.value?.subclass_feature && !props.member.subclass,
+// True when this level grants an ASI — from SRD data or from custom class's asi_levels
+const grantsAsi = computed(() =>
+  !!levelData.value?.asi ||
+  (!!customClass.value && customClass.value.asi_levels.includes(nextLevel.value)),
 );
+
+const needsSubclassChoice = computed(() => {
+  if (levelData.value?.subclass_feature && !props.member.subclass) return true;
+  // Custom class: trigger subclass choice at the configured level
+  if (!levelData.value && customClass.value && nextLevel.value === customClass.value.subclass_level && !props.member.subclass) return true;
+  return false;
+});
 
 const SUBCLASS_OPTIONS: Record<string, readonly string[]> = {
   Artificer: ARTIFICER_SUBCLASSES,
@@ -365,9 +378,10 @@ const spellsKnownGain = computed(() => {
   return Math.max(0, cur - prev);
 });
 
-// Custom features granted at this level — resolve UUIDs to display names
+// Custom features granted at this level — from subclass or (for homebrew classes) from the class itself
 const customFeaturesForLevel = computed<string[]>(() => {
-  const ids = customSubclass.value?.features[nextLevel.value.toString()] ?? [];
+  const lvlKey = nextLevel.value.toString();
+  const ids = customSubclass.value?.features[lvlKey] ?? customClass.value?.features[lvlKey] ?? [];
   const featureMap = new Map((allFeatures.value ?? []).map(f => [f.id, f.name]));
   return ids.map(id => featureMap.get(id) ?? id);
 });
@@ -375,7 +389,12 @@ const customFeaturesForLevel = computed<string[]>(() => {
 // Class resource change notices (e.g. Sorcery Points)
 const classDefs = computed<ClassResourceDef[]>(() => {
   const srdDefs = getClassResources(props.member.class ?? "", nextLevel.value);
-  const customDefs: ClassResourceDef[] = (customSubclass.value?.resources ?? []).map(r => ({
+  // Merge resources from both custom class and custom subclass (subclass takes priority on key collision)
+  const resourceSources = [...(customClass.value?.resources ?? []), ...(customSubclass.value?.resources ?? [])];
+  const seenKeys = new Set<string>();
+  const customDefs: ClassResourceDef[] = resourceSources
+    .filter(r => { if (seenKeys.has(r.key)) return false; seenKeys.add(r.key); return true; })
+    .map(r => ({
     key: r.key,
     label: r.label,
     rest: r.rest,
@@ -424,13 +443,16 @@ const asiPreview = computed(() => {
 // ── Subclass ───────────────────────────────────────────────────────────────────
 const subclassInput = ref("");
 
-// ── Class-specific steps (SRD + custom) ───────────────────────────────────────
+// ── Class-specific steps (SRD + custom class + custom subclass) ───────────────
 const classSteps = computed<ClassStep[]>(() => {
   const srd = getClassSteps(props.member.class ?? "", nextLevel.value);
-  const custom: ClassStep[] = (customSubclass.value?.steps ?? [])
+  const fromClass: ClassStep[] = (customClass.value?.steps ?? [])
     .filter(s => s.level === nextLevel.value)
     .map(({ level: _level, ...rest }) => rest);
-  return [...srd, ...custom];
+  const fromSubclass: ClassStep[] = (customSubclass.value?.steps ?? [])
+    .filter(s => s.level === nextLevel.value)
+    .map(({ level: _level, ...rest }) => rest);
+  return [...srd, ...fromClass, ...fromSubclass];
 });
 
 // Single-pick steps (count === 1 or undefined)
@@ -456,7 +478,7 @@ const error = ref("");
 
 const canConfirm = computed(() => {
   if (nextLevel.value > 20) return false;
-  if (levelData.value?.asi) {
+  if (grantsAsi.value) {
     if (!asiPrimary.value) return false;
     if (asiMode.value === "plus1plus1" && (!asiSecondary.value || asiSecondary.value === asiPrimary.value)) return false;
   }
@@ -491,7 +513,7 @@ async function confirm() {
   }
 
   // ASI
-  if (levelData.value?.asi && asiPrimary.value) {
+  if (grantsAsi.value && asiPrimary.value) {
     const bonus = asiMode.value === "plus2" ? 2 : 1;
     update[asiPrimary.value] = (props.member[asiPrimary.value as keyof PartyMember] as number) + bonus;
     if (asiMode.value === "plus1plus1" && asiSecondary.value) {

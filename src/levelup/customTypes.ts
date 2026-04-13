@@ -47,3 +47,37 @@ export interface CustomSubclass {
 
 export type CustomSubclassInsert = Omit<CustomSubclass, "id" | "user_id" | "created_at" | "updated_at">;
 export type CustomSubclassUpdate = Partial<CustomSubclassInsert>;
+
+export type HitDie = 6 | 8 | 10 | 12;
+
+export interface CustomClass {
+  id: string;
+  user_id: string;
+  campaign_id: string | null;
+  class_name: string;
+
+  hit_die: HitDie;
+  primary_ability: string | null;
+  saving_throws: string[];
+  armor_proficiencies: string[];
+  weapon_proficiencies: string[];
+  subclass_level: number;
+
+  /** Feature UUIDs grouped by level: { "1": ["<uuid>"], "3": ["<uuid>"] } */
+  features: CustomFeatures;
+
+  /** Levels that grant an ASI, default [4,8,12,16,19] */
+  asi_levels: number[];
+
+  /** null = non-spellcaster */
+  spell_slots: null;
+
+  steps: CustomStep[];
+  resources: CustomResource[];
+
+  created_at: string;
+  updated_at: string;
+}
+
+export type CustomClassInsert = Omit<CustomClass, "id" | "user_id" | "created_at" | "updated_at">;
+export type CustomClassUpdate = Partial<CustomClassInsert>;

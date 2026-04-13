@@ -189,6 +189,12 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: GraduationCap,
         description: "Custom subclasses & class variants",
       },
+      {
+        label: "Classes",
+        to: "/levelup/classes",
+        icon: BookOpen,
+        description: "Custom primary classes",
+      },
     ],
   },
   {

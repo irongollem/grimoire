@@ -195,6 +195,15 @@ export const useUiStore = defineStore("ui", () => {
     archetypesFilterClass.value = "all";
   }
 
+  // Custom Classes UI state
+  const customClassesSearch = ref("");
+
+  const customClassesHasActiveFilters = computed(() => customClassesSearch.value !== "");
+
+  function resetCustomClassesFilters() {
+    customClassesSearch.value = "";
+  }
+
   // Soundboard UI state
   const soundboardFilterCategory = ref<SoundCategory | "all">("all");
   const soundboardSearchQuery = ref("");
@@ -404,5 +413,10 @@ export const useUiStore = defineStore("ui", () => {
     archetypesFilterClass,
     archetypesHasActiveFilters,
     resetArchetypesFilters,
+
+    // Custom Classes
+    customClassesSearch,
+    customClassesHasActiveFilters,
+    resetCustomClassesFilters,
   };
 });

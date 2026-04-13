@@ -421,6 +421,26 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Archetype" },
     },
 
+    // Custom Classes
+    {
+      path: "/levelup/classes",
+      name: "custom-classes",
+      component: () => import("@/views/levelup/CustomClassListView.vue"),
+      meta: { requiresAuth: true, title: "Classes" },
+    },
+    {
+      path: "/levelup/classes/new",
+      name: "custom-class-new",
+      component: () => import("@/views/levelup/CustomClassEditorView.vue"),
+      meta: { requiresAuth: true, title: "New Class" },
+    },
+    {
+      path: "/levelup/classes/:id",
+      name: "custom-class-detail",
+      component: () => import("@/views/levelup/CustomClassEditorView.vue"),
+      meta: { requiresAuth: true, title: "Class" },
+    },
+
     // Hall of Heroes
     {
       path: "/hall-of-heroes",
