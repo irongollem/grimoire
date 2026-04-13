@@ -84,6 +84,7 @@ export function useRemoveInventoryItem() {
 export function useInventoryLive() {
   const campaign = useCampaignStore();
   const queryClient = useQueryClient();
+  const uid = Math.random().toString(36).slice(2, 8);
   let channel: ReturnType<typeof supabase.channel> | null = null;
 
   watch(
@@ -92,7 +93,7 @@ export function useInventoryLive() {
       if (channel) { supabase.removeChannel(channel); channel = null; }
       if (!campaignId) return;
       channel = supabase
-        .channel(`party_inventory_live:${campaignId}`)
+        .channel(`party_inventory_live:${campaignId}:${uid}`)
         .on("postgres_changes", { event: "*", schema: "public", table: "party_inventory",
           filter: `campaign_id=eq.${campaignId}` },
           () => { void queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }); },

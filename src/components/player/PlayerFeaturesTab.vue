@@ -166,8 +166,7 @@
             v-if="trait.description && expanded.has(`racial-${trait.name}`)"
             class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 font-fell text-sm text-muted-foreground leading-relaxed"
           >
-            <RichTextViewer v-if="isRichText(trait.description)" :content="trait.description" />
-            <span v-else>{{ trait.description }}</span>
+            <RichTextViewer :content="trait.description" />
           </div>
         </div>
       </div>
@@ -203,8 +202,7 @@
             v-if="trait.description && expanded.has(`subrace-${trait.name}`)"
             class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 font-fell text-sm text-muted-foreground leading-relaxed"
           >
-            <RichTextViewer v-if="isRichText(trait.description)" :content="trait.description" />
-            <span v-else>{{ trait.description }}</span>
+            <RichTextViewer :content="trait.description" />
           </div>
         </div>
       </div>
@@ -433,10 +431,6 @@ const featuresByLevel = computed((): Record<number, string[]> => {
   }
   return result;
 });
-
-function isRichText(value: string): boolean {
-  try { JSON.parse(value); return true; } catch { return false; }
-}
 
 const expanded = ref(new Set<string>());
 function toggleExpanded(name: string) {

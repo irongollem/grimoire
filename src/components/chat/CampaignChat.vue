@@ -235,7 +235,7 @@ async function handleClaim({ messageId, intoStash }: { messageId: string; intoSt
     carried_by: partyMemberId,
     location: 'backpack',
     slot: null,
-    is_container: false,
+    is_container: claimedVaultItem?.tags.includes("container") ?? false,
     container_id: null,
     is_ruined: false,
     is_attuned: false,
