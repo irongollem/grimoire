@@ -6,6 +6,7 @@ import type {
   CustomSubclassInsert,
   CustomSubclassUpdate,
 } from "@/levelup/customTypes";
+import { fetchOpen5eSubclasses, subclassToInsert } from "@/lib/open5eClassImport";
 
 const QUERY_KEY = "custom_subclasses";
 
@@ -117,10 +118,45 @@ export function useUpdateCustomSubclass() {
   });
 }
 
+export interface SubclassImportResult { inserted: number; skipped: number }
+
+export function useImportOpen5eSubclasses() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<SubclassImportResult> => {
+      const user = getCurrentUser();
+      const previews = await fetchOpen5eSubclasses();
+
+      const { data: existing } = await supabase
+        .from("custom_subclasses")
+        .select("class_name, subclass_name")
+        .eq("user_id", user!.id);
+      const existingKeys = new Set(
+        (existing ?? []).map(r => `${r.class_name}::${r.subclass_name}`),
+      );
+
+      const toInsert = previews
+        .filter(p => !existingKeys.has(`${p.parentClassName}::${p.name}`))
+        .map(p => ({ ...subclassToInsert(p), user_id: user!.id }));
+
+      if (toInsert.length > 0) {
+        const { error } = await supabase.from("custom_subclasses").insert(toInsert);
+        if (error) throw error;
+      }
+
+      return { inserted: toInsert.length, skipped: previews.length - toInsert.length };
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}
+
 export function useDeleteCustomSubclass() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteCustomSubclass,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onSuccess: (_data, id) => {
+      queryClient.removeQueries({ queryKey: [QUERY_KEY, id] });
+      void queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+    },
   });
 }

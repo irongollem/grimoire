@@ -1,6 +1,12 @@
 <template>
   <ListPageLayout title="Archetypes" description="Custom subclasses & class variants">
     <template #actions>
+      <ListActionButton
+        :icon="importMutation.isPending.value ? Loader2 : Download"
+        :label="importLabel"
+        :disabled="importMutation.isPending.value"
+        @click="handleImport"
+      />
       <ListActionButton :icon="Plus" label="New Archetype" variant="primary" to="/levelup/custom/new" />
     </template>
 
@@ -123,9 +129,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onBeforeUnmount } from "vue";
 import { RouterLink } from "vue-router";
-import { Plus, ChevronRight, BookOpen } from "lucide-vue-next";
+import { Plus, ChevronRight, BookOpen, Download, Loader2 } from "lucide-vue-next";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
@@ -134,17 +140,54 @@ import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import { useUiStore } from "@/stores/ui";
-import { useAllCustomSubclasses, useCreateCustomSubclass } from "@/composables/useCustomSubclasses";
+import { useAllCustomSubclasses, useCreateCustomSubclass, useImportOpen5eSubclasses } from "@/composables/useCustomSubclasses";
+import { useAllCustomClasses, useAllSystemClasses } from "@/composables/useCustomClasses";
 import { useCreateFeature } from "@/composables/useFeatures";
-import { CLASS_FEATURES } from "@/levelup/classFeatures";
 import type { CustomSubclass } from "@/levelup/customTypes";
 
 const ui = useUiStore();
 const { data: all, isLoading } = useAllCustomSubclasses();
 const { mutateAsync: create } = useCreateCustomSubclass();
 const { mutateAsync: createFeature } = useCreateFeature();
+const importMutation = useImportOpen5eSubclasses();
 
-const CLASS_NAMES = Object.keys(CLASS_FEATURES) as string[];
+// Build class name list from system + custom classes instead of static CLASS_FEATURES
+const { data: systemClasses } = useAllSystemClasses();
+const { data: customClasses } = useAllCustomClasses();
+const CLASS_NAMES = computed(() => {
+  const srd = (systemClasses.value ?? []).map(c => c.class_name);
+  const custom = (customClasses.value ?? []).map(c => c.class_name);
+  return [...new Set([...srd, ...custom])].sort();
+});
+
+// ── Import ─────────────────────────────────────────────────────────────────────
+const importStatus = ref<"idle" | "done">("idle");
+const importError = ref<string | null>(null);
+let resetTimer: ReturnType<typeof setTimeout> | null = null;
+onBeforeUnmount(() => { if (resetTimer) clearTimeout(resetTimer); });
+
+const importLabel = computed(() => {
+  if (importMutation.isPending.value) return "Importing…";
+  if (importError.value) return "Import failed";
+  if (importStatus.value === "done") {
+    const r = importMutation.data.value;
+    if (!r || r.inserted === 0) return "Already up to date";
+    return `${r.inserted} imported`;
+  }
+  return "Import from Open5e";
+});
+
+async function handleImport() {
+  importStatus.value = "idle";
+  importError.value = null;
+  try {
+    await importMutation.mutateAsync();
+    importStatus.value = "done";
+  } catch (e) {
+    importError.value = e instanceof Error ? e.message : String(e);
+  }
+  resetTimer = setTimeout(() => { importStatus.value = "idle"; importError.value = null; }, 8000);
+}
 
 // ── Example seed ──────────────────────────────────────────────────────────────
 // A generic "Example Subclass" that demonstrates every section of the editor:

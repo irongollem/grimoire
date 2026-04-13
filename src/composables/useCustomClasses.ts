@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { computed, type Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
-import type { CustomClass, CustomClassInsert, CustomClassUpdate } from "@/levelup/customTypes";
+import type { CustomClass, CustomClassInsert, CustomClassUpdate, SystemClass } from "@/levelup/customTypes";
+import { fetchOpen5eBaseClasses, baseClassToInsert } from "@/lib/open5eClassImport";
 
 const QUERY_KEY = "custom_classes";
 
@@ -102,10 +103,62 @@ export function useUpdateCustomClass() {
   });
 }
 
+export function useAllSystemClasses() {
+  return useQuery({
+    queryKey: ["system_classes"],
+    queryFn: async (): Promise<SystemClass[]> => {
+      const { data, error } = await supabase
+        .from("system_classes")
+        .select("*")
+        .order("class_name", { ascending: true });
+      if (error) throw error;
+      return data as SystemClass[];
+    },
+    staleTime: Infinity,
+  });
+}
+
+export interface ClassImportResult { inserted: number; skipped: number }
+
+export function useImportOpen5eClasses() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<ClassImportResult> => {
+      const user = getCurrentUser();
+      const previews = await fetchOpen5eBaseClasses();
+
+      // Load existing names to deduplicate
+      const { data: existing } = await supabase
+        .from("custom_classes")
+        .select("class_name")
+        .eq("user_id", user!.id);
+      const existingNames = new Set((existing ?? []).map(r => r.class_name));
+
+      const toInsert = previews
+        .filter(p => !existingNames.has(p.name))
+        .map(p => ({ ...baseClassToInsert(p), user_id: user!.id }));
+
+      if (toInsert.length > 0) {
+        const { error } = await supabase.from("custom_classes").insert(toInsert);
+        if (error) throw error;
+      }
+
+      return { inserted: toInsert.length, skipped: previews.length - toInsert.length };
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}
+
 export function useDeleteCustomClass() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteCustomClass,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onSuccess: (_data, id) => {
+      // Remove the detail entry immediately so the still-mounted editor doesn't
+      // re-fetch a now-deleted row (causing 406s). Invalidate only the list.
+      queryClient.removeQueries({ queryKey: [QUERY_KEY, id] });
+      queryClient.removeQueries({ queryKey: [QUERY_KEY, "by-name"] });
+      void queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+    },
   });
 }

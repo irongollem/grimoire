@@ -256,7 +256,7 @@ import { ref, computed } from "vue";
 import { useRouter, RouterLink } from "vue-router";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useAllCustomSubclasses, useCustomSubclassByClassAndSubclass } from "@/composables/useCustomSubclasses";
-import { useCustomClassByName } from "@/composables/useCustomClasses";
+import { useCustomClassByName, useAllSystemClasses } from "@/composables/useCustomClasses";
 import { useAllFeatures } from "@/composables/useFeatures";
 import { getLevelData, proficiencyBonusForLevel, getClassSteps, getClassResources } from "./classFeatures";
 import { getDefaultSpellSlots } from "@/types/spell.types";
@@ -291,6 +291,10 @@ const { data: customSubclass } = useCustomSubclassByClassAndSubclass(memberClass
 
 // Fetch the custom class definition — used when no SRD class matches (fully homebrew class)
 const { data: customClass } = useCustomClassByName(memberClass);
+
+// Fetch system class — used to resolve SRD feature UUIDs for the level-up summary
+const { data: allSystemClasses } = useAllSystemClasses();
+const systemClass = computed(() => (allSystemClasses.value ?? []).find(c => c.class_name === memberClass.value));
 
 // Feature compendium — needed to resolve UUIDs stored in features to names
 const { data: allFeatures } = useAllFeatures();
@@ -398,7 +402,7 @@ const spellsKnownGain = computed(() => {
 // Custom features granted at this level — from subclass or (for homebrew classes) from the class itself
 const customFeaturesForLevel = computed<string[]>(() => {
   const lvlKey = nextLevel.value.toString();
-  const ids = customSubclass.value?.features[lvlKey] ?? customClass.value?.features[lvlKey] ?? [];
+  const ids = customSubclass.value?.features[lvlKey] ?? customClass.value?.features[lvlKey] ?? systemClass.value?.features[lvlKey] ?? [];
   const featureMap = new Map((allFeatures.value ?? []).map(f => [f.id, f.name]));
   return ids.map(id => featureMap.get(id) ?? id);
 });

@@ -501,12 +501,12 @@ const { mutateAsync: update } = useUpdateCustomClass();
 const { mutateAsync: del } = useDeleteCustomClass();
 
 const SAVE_KEYS = [
-  { key: "str", label: "STR" },
-  { key: "dex", label: "DEX" },
-  { key: "con", label: "CON" },
-  { key: "int", label: "INT" },
-  { key: "wis", label: "WIS" },
-  { key: "cha", label: "CHA" },
+  { key: "Strength",     label: "STR" },
+  { key: "Dexterity",   label: "DEX" },
+  { key: "Constitution", label: "CON" },
+  { key: "Intelligence", label: "INT" },
+  { key: "Wisdom",       label: "WIS" },
+  { key: "Charisma",     label: "CHA" },
 ] as const;
 
 // ── Feature lookup helpers ────────────────────────────────────────────────────

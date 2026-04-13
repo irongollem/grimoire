@@ -111,7 +111,7 @@
               <span class="field-label">Class</span>
               <select v-model="f.class" class="field-input w-full">
                 <option value="">— None —</option>
-                <option v-for="c in PARTY_CLASSES" :key="c" :value="c">{{ c }}</option>
+                <option v-for="c in allClassNames" :key="c" :value="c">{{ c }}</option>
               </select>
             </label>
             <label class="block">
@@ -474,7 +474,8 @@ import {
   useCampaignMembers,
   useUpdateCampaignMember,
 } from "@/composables/useCampaignMembers";
-import { SKILLS, PARTY_CLASSES } from "@/types/party.types";
+import { SKILLS } from "@/types/party.types";
+import { useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
 import TagPickerInput from "@/components/common/TagPickerInput.vue";
 import type {
@@ -518,6 +519,15 @@ const PROF_LEVELS: { value: SkillProfLevel; label: string }[] = [
 
 const props = defineProps<{ member: PartyMember | null }>();
 const emit = defineEmits<{ close: [] }>();
+
+const { data: systemClasses } = useAllSystemClasses();
+const { data: customClasses } = useAllCustomClasses();
+
+const allClassNames = computed<string[]>(() => {
+  const srd = (systemClasses.value ?? []).map(c => c.class_name);
+  const custom = (customClasses.value ?? []).map(c => c.class_name);
+  return [...new Set([...srd, ...custom])].sort();
+});
 
 const { data: allSpecies } = useAllSpecies();
 const speciesOptions = computed(() =>
@@ -588,10 +598,18 @@ function buildSlotMaxes(
   level: number,
 ): number[] {
   if (existing && existing.length > 0) {
-    // Use existing configured values
     return Array.from({ length: 9 }, (_, i) => existing.find((s) => s.level === i + 1)?.max ?? 0);
   }
-  // No config yet — seed from 5e rules
+  const lvlIdx = Math.max(0, Math.min(19, Math.round(level) - 1));
+  // Check custom/system class slot grid first
+  const dbClass =
+    (customClasses.value ?? []).find(c => c.class_name === cls) ??
+    (systemClasses.value ?? []).find(c => c.class_name === cls);
+  if (dbClass?.spell_slots) {
+    const row = dbClass.spell_slots[lvlIdx] ?? [];
+    return Array.from({ length: 9 }, (_, i) => row[i] ?? 0);
+  }
+  // Fall back to SRD static table
   const defaults = getDefaultSpellSlots(cls || null, level);
   return Array.from({ length: 9 }, (_, i) => defaults.find((s) => s.level === i + 1)?.max ?? 0);
 }

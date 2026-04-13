@@ -94,3 +94,24 @@ export interface CustomClass {
 
 export type CustomClassInsert = Omit<CustomClass, "id" | "user_id" | "created_at" | "updated_at">;
 export type CustomClassUpdate = Partial<CustomClassInsert>;
+
+/** Read-only SRD class template — stored in system_classes, visible to all users. */
+export interface SystemClass {
+  id: string;
+  class_name: string;
+  hit_die: HitDie;
+  primary_ability: string | null;
+  saving_throws: string[];
+  armor_proficiencies: string[];
+  weapon_proficiencies: string[];
+  subclass_level: number;
+  features: CustomFeatures;
+  asi_levels: number[];
+  spell_slots: number[][] | null;
+  spells_known: number[] | null;
+  slot_recovery: "short" | "long";
+  steps: CustomStep[];
+  resources: CustomResource[];
+  created_at: string;
+  updated_at: string;
+}
