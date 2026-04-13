@@ -56,7 +56,9 @@ export interface Monster {
   size: MonsterSize;
   alignment: string;
   habitat: string | null;
-  source: string | null;
+  source: string | null;       // Open5e document slug when imported, or free text
+  source_title?: string | null; // Open5e document full title
+  source_url?: string | null;   // Open5e document URL
   tags: string[];
   stat_block: MonsterStatBlock;
   description?: string | null;
@@ -67,7 +69,8 @@ export interface Monster {
   card_art_focal_point?: { x: number; y: number } | null;
   created_at: string;
   updated_at: string;
-  is_srd?: boolean;            // true for read-only SRD reference monsters
+  is_srd?: boolean;            // true for read-only SRD reference monsters (static file + wotc-srd imports)
+  open5e_import?: boolean;     // true when the row was upserted by Open5e sync
 }
 
 export type MonsterInsert = Omit<Monster, "id" | "user_id" | "created_at" | "updated_at">;
