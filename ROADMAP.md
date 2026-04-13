@@ -116,6 +116,7 @@
 - [x] Mundane artwork — `mundane_image_url` + `mundane_image_focal_point` fields on items; vault editor shows Identified/Mundane art tabs; vault sheet shows tabbed art preview when both images present; item detail panel in player inventory shows mundane art (falling back to identified art) while unidentified
 - [x] Inventory realtime sync — `useInventoryLive` subscribes to all `party_inventory` INSERT/UPDATE/DELETE events per campaign; all players (including DM dashboard unidentified-items panel) see changes instantly without reload
 - [x] Party stash move dropdown — "Party Stash" option added to every item row's location select; moving to stash sets `carried_by = null`; moving from stash to a personal location assigns `carried_by` to the acting player; `InventoryLocation` type enforced through the emit chain
+- [x] Extradimensional containers — vault items tagged `"extradimensional"` (e.g. Bag of Holding) have their contents excluded from carry weight; DM item-drop claim now correctly sets `is_container` from vault tags; container header gains an ⓘ button to open the item detail panel for the container itself
 - [x] RLS: campaign members can read vault items in party inventory — without this players saw `vaultItem = null` causing every item to show as "Art Object" with no artwork
 
 ### Layout & UX
