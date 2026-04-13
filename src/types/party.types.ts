@@ -59,6 +59,7 @@ export interface PartyMember {
   subclass: string | null;
   level: number;
   race: string | null;
+  subrace: string | null;
   max_hp: number;
   current_hp: number;
   temp_hp: number;

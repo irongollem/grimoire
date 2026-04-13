@@ -72,21 +72,46 @@
       </div>
 
       <div class="grid grid-cols-2 gap-3">
-        <label class="block">
-          <span class="field-label">Race</span>
-          <input v-model="f.race" class="field-input w-full" placeholder="Human" />
-        </label>
+        <div class="block">
+          <span class="field-label">Species</span>
+          <EntityCombobox
+            :model-value="f.race ?? ''"
+            :options="speciesOptions"
+            placeholder="Search species…"
+            @update:model-value="f.race = $event; f.subrace = ''"
+          />
+        </div>
+        <div v-if="subraceOptions.length > 0" class="block">
+          <span class="field-label">Variant</span>
+          <select v-model="f.subrace" class="field-input w-full">
+            <option value="">— None —</option>
+            <option v-for="sr in subraceOptions" :key="sr" :value="sr">{{ sr }}</option>
+          </select>
+        </div>
         <label class="block">
           <span class="field-label">Class</span>
-          <select v-model="f.class" class="field-input w-full">
+          <select v-model="f.class" class="field-input w-full" @change="f.subclass = ''">
             <option value="">— None —</option>
             <option v-for="c in PARTY_CLASSES" :key="c" :value="c">{{ c }}</option>
           </select>
         </label>
-        <label class="block">
+        <div class="block">
           <span class="field-label">Subclass</span>
-          <input v-model="f.subclass" class="field-input w-full" placeholder="Battle Master" />
-        </label>
+          <EntityCombobox
+            v-if="subclassOptions.length > 0"
+            :model-value="f.subclass ?? ''"
+            :options="subclassOptions.map((n: string) => ({ id: n, name: n }))"
+            placeholder="Choose subclass…"
+            @update:model-value="f.subclass = $event"
+          />
+          <input
+            v-else
+            v-model="f.subclass"
+            class="field-input w-full"
+            :placeholder="f.class ? 'No subclasses defined yet' : 'Choose a class first'"
+            :disabled="!f.class"
+          />
+        </div>
         <label class="block">
           <span class="field-label">Level</span>
           <input
@@ -300,7 +325,7 @@
       <button
         type="button"
         class="px-4 py-2 font-cinzel text-xs font-semibold text-muted-foreground border border-border rounded-md hover:text-foreground transition-colors"
-        @click="router.push('/play')"
+        @click="router.push(backRoute)"
       >
         Cancel
       </button>
@@ -324,11 +349,14 @@ import { useParty, useCreatePartyMember, useUpdatePartyMember } from "@/composab
 import { useCampaignMembers, useUpdateCampaignMember } from "@/composables/useCampaignMembers";
 import { SKILLS } from "@/types/party.types";
 import { useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
+import { useAllCustomSubclasses } from "@/composables/useCustomSubclasses";
+import { useAllSpecies } from "@/composables/useSpecies";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
 import { getDefaultSpellSlots } from "@/types/spell.types";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import TagPickerInput from "@/components/common/TagPickerInput.vue";
+import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import type { PartyMemberInsert, SkillProfLevel, SaveKey, SpellSlotEntry } from "@/types/party.types";
 
 const SLOT_LEVEL_LABELS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"] as const;
@@ -365,12 +393,26 @@ const router = useRouter();
 const route  = useRoute();
 const auth   = useAuthStore();
 
+const { data: allSpecies } = useAllSpecies();
+const speciesOptions = computed(() => (allSpecies.value ?? []).map(s => ({ id: s.id, name: s.name })));
+const selectedSpecies = computed(() => (allSpecies.value ?? []).find(s => s.id === f.race) ?? null);
+const subraceOptions  = computed(() => selectedSpecies.value?.subraces?.map(sr => sr.name) ?? []);
+
 const { data: systemClasses } = useAllSystemClasses();
 const { data: customClasses } = useAllCustomClasses();
+const { data: allSubclasses } = useAllCustomSubclasses();
 const PARTY_CLASSES = computed(() => {
   const srd    = (systemClasses.value ?? []).map(c => c.class_name);
   const custom = (customClasses.value ?? []).map(c => c.class_name);
   return [...new Set([...srd, ...custom])].sort();
+});
+
+const subclassOptions = computed(() => {
+  if (!f.class) return [];
+  return (allSubclasses.value ?? [])
+    .filter(sc => sc.class_name === f.class)
+    .map(sc => sc.subclass_name)
+    .sort();
 });
 
 const isEditMode = computed(() => route.name === "play-character-edit");
@@ -381,12 +423,19 @@ const { mutateAsync: create }              = useCreatePartyMember();
 const { mutateAsync: update }              = useUpdatePartyMember();
 const { mutateAsync: updateCampaignMember } = useUpdateCampaignMember();
 
-// The player's currently linked party member (used in edit mode)
+// memberId query param lets DM edit any party member; falls back to the player's own linked member
+const editMemberId = computed(() =>
+  (route.query.memberId as string | undefined) ?? auth.linkedPartyMemberId ?? null,
+);
+
 const existingMember = computed(() =>
-  auth.linkedPartyMemberId && partyMembers.value
-    ? (partyMembers.value.find((m) => m.id === auth.linkedPartyMemberId) ?? null)
+  editMemberId.value && partyMembers.value
+    ? (partyMembers.value.find((m) => m.id === editMemberId.value) ?? null)
     : null,
 );
+
+// Navigate back: DM (came with memberId param) → /party; player → /play
+const backRoute = (route.query.memberId as string | undefined) ? "/party" : "/play";
 
 const activeTab = ref<"identity" | "stats" | "profs">("identity");
 const saving    = ref(false);
@@ -409,6 +458,7 @@ const f = reactive<
   subclass:    m?.subclass ?? "",
   level:       m?.level ?? 1,
   race:        m?.race ?? "",
+  subrace:     m?.subrace ?? "",
   max_hp:      m?.max_hp ?? 10,
   current_hp:  m?.current_hp ?? 10,
   temp_hp:     m?.temp_hp ?? 0,
@@ -540,6 +590,7 @@ async function save() {
     class:       f.class || null,
     subclass:    f.subclass || null,
     race:        f.race || null,
+    subrace:     f.subrace || null,
     notes:       f.notes || null,
     portrait_url:        portraitUrl.value || null,
     portrait_focal_point: focalPoint.value,
@@ -562,7 +613,7 @@ async function save() {
   }
 
   saving.value = false;
-  router.push("/play");
+  router.push(backRoute);
 }
 </script>
 

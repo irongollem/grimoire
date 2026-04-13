@@ -241,7 +241,7 @@ import type { PartyMember, PartyMemberUpdate, SpellSlotEntry } from "@/types/par
 import type { AbilityKey, AsiMode, ClassStep, ClassResourceDef } from "./types";
 import type { CustomResource } from "@/levelup/customTypes";
 
-const props = defineProps<{ member: PartyMember }>();
+const props = defineProps<{ member: PartyMember; backRoute?: string }>();
 
 const router = useRouter();
 const { mutateAsync: updateMember, isPending } = useUpdatePartyMember();
@@ -535,7 +535,7 @@ async function confirm() {
 
   try {
     await updateMember({ id: props.member.id, update: update as PartyMemberUpdate });
-    void router.push("/play");
+    void router.push(props.backRoute ?? "/play");
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Failed to apply level up.";
   }

@@ -164,9 +164,75 @@
           </button>
           <div
             v-if="trait.description && expanded.has(`racial-${trait.name}`)"
-            class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2"
+            class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 font-fell text-sm text-muted-foreground leading-relaxed"
           >
-            <p class="font-fell text-sm text-muted-foreground leading-relaxed">{{ trait.description }}</p>
+            <RichTextViewer v-if="isRichText(trait.description)" :content="trait.description" />
+            <span v-else>{{ trait.description }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Subrace traits ─────────────────────────────────────────────────────── -->
+    <div v-if="linkedSubrace && linkedSubrace.traits?.length" class="rounded-lg border border-border bg-card overflow-hidden">
+      <div class="px-4 py-2.5 border-b border-border">
+        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
+          Variant Traits
+          <span class="normal-case font-fell font-normal tracking-normal ml-1 text-muted-foreground/70">({{ linkedSubrace.name }})</span>
+        </p>
+      </div>
+      <div class="divide-y divide-border">
+        <div
+          v-for="trait in linkedSubrace.traits"
+          :key="trait.name"
+          class="px-4 py-2.5"
+        >
+          <button
+            class="w-full text-left flex items-center gap-2"
+            :class="trait.description ? 'cursor-pointer' : 'cursor-default'"
+            @click="trait.description && toggleExpanded(`subrace-${trait.name}`)"
+          >
+            <span class="font-fell text-sm text-foreground flex-1">{{ trait.name }}</span>
+            <ChevronDown
+              v-if="trait.description"
+              class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
+              :class="expanded.has(`subrace-${trait.name}`) ? 'rotate-180' : ''"
+            />
+          </button>
+          <div
+            v-if="trait.description && expanded.has(`subrace-${trait.name}`)"
+            class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 font-fell text-sm text-muted-foreground leading-relaxed"
+          >
+            <RichTextViewer v-if="isRichText(trait.description)" :content="trait.description" />
+            <span v-else>{{ trait.description }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Subclass features ───────────────────────────────────────────────── -->
+    <div v-if="Object.keys(subclassFeaturesByLevel).length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
+      <div class="px-4 py-2.5 border-b border-border">
+        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
+          Subclass Features
+          <span class="normal-case font-fell font-normal tracking-normal ml-1 text-muted-foreground/70">({{ member.subclass }})</span>
+        </p>
+      </div>
+      <div class="divide-y divide-border">
+        <div
+          v-for="(features, lvl) in subclassFeaturesByLevel"
+          :key="lvl"
+          class="px-4 py-2.5"
+        >
+          <div class="flex gap-3">
+            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-12 shrink-0 pt-0.5">Lvl {{ lvl }}</span>
+            <div class="flex flex-wrap gap-1.5">
+              <span
+                v-for="feat in features"
+                :key="feat"
+                class="inline-flex items-center rounded-md border bg-muted/50 border-border px-2 py-0.5 font-fell text-sm text-foreground"
+              >{{ feat }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -203,10 +269,12 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { ChevronDown } from "lucide-vue-next";
+import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { featureName, featureDescription } from "@/levelup/types";
 import { useAllFeatures } from "@/composables/useFeatures";
 import { getDefaultSpellSlots, getSlotRecovery } from "@/types/spell.types";
 import { useClassByName } from "@/composables/useCustomClasses";
+import { useCustomSubclassByClassAndSubclass } from "@/composables/useCustomSubclasses";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useAllSpecies } from "@/composables/useSpecies";
 import { useConfirm } from "@/composables/useConfirm";
@@ -214,9 +282,11 @@ import type { PartyMember, SpellSlotEntry } from "@/types/party.types";
 
 const props = defineProps<{ member: PartyMember; showRestButtons?: boolean }>();
 
-const memberClassRef = computed(() => props.member.class ?? "");
+const memberClassRef    = computed(() => props.member.class ?? "");
+const memberSubclassRef = computed(() => props.member.subclass ?? "");
 const classData = useClassByName(memberClassRef);
 const { data: allFeatures } = useAllFeatures();
+const { data: customSubclass } = useCustomSubclassByClassAndSubclass(memberClassRef, memberSubclassRef);
 
 const { mutate: updateMember } = useUpdatePartyMember();
 const { confirm } = useConfirm();
@@ -226,6 +296,24 @@ const linkedSpecies = computed(() =>
     ? (allSpecies.value ?? []).find((s) => s.id === props.member.race) ?? null
     : null,
 );
+const linkedSubrace = computed(() =>
+  props.member.subrace && linkedSpecies.value?.subraces
+    ? (linkedSpecies.value.subraces.find(sr => sr.name === props.member.subrace) ?? null)
+    : null,
+);
+
+// Subclass features by level (from DB custom subclass definition)
+const subclassFeaturesByLevel = computed((): Record<number, string[]> => {
+  const sub = customSubclass.value;
+  if (!sub) return {};
+  const featureMap = new Map((allFeatures.value ?? []).map(f => [f.id, f.name]));
+  const result: Record<number, string[]> = {};
+  for (let lvl = 1; lvl <= props.member.level; lvl++) {
+    const names = (sub.features[lvl.toString()] ?? []).map(id => featureMap.get(id) ?? id);
+    if (names.length > 0) result[lvl] = names;
+  }
+  return result;
+});
 
 // ── Local optimistic state ────────────────────────────────────────────────────
 
@@ -345,6 +433,10 @@ const featuresByLevel = computed((): Record<number, string[]> => {
   }
   return result;
 });
+
+function isRichText(value: string): boolean {
+  try { JSON.parse(value); return true; } catch { return false; }
+}
 
 const expanded = ref(new Set<string>());
 function toggleExpanded(name: string) {

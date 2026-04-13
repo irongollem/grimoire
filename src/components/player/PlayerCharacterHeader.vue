@@ -31,18 +31,18 @@
               ><Star class="h-3.5 w-3.5" :class="member.inspiration ? 'fill-gold-500' : ''" /></button>
             </div>
             <p class="font-fell text-xs text-muted-foreground italic">
-              {{ [member.race, member.class, member.subclass].filter(Boolean).join(" · ") }}
+              {{ [speciesName, member.subrace, member.class, member.subclass].filter(Boolean).join(" · ") }}
               <span v-if="member.level" class="font-cinzel text-[10px] text-primary not-italic ml-1">Lv {{ member.level }}</span>
             </p>
           </div>
-          <div v-if="showControls" class="shrink-0 flex items-center gap-1 pt-0.5">
+          <div class="shrink-0 flex items-center gap-1 pt-0.5">
             <RouterLink
-              to="/play/character/levelup"
+              :to="`/play/character/levelup?memberId=${member.id}`"
               class="h-6 w-6 flex items-center justify-center rounded text-primary/60 hover:text-primary hover:bg-primary/10 transition-colors"
               title="Level Up"
             ><TrendingUp class="h-3.5 w-3.5" /></RouterLink>
             <RouterLink
-              to="/play/character/edit"
+              :to="`/play/character/edit?memberId=${member.id}`"
               class="h-6 w-6 flex items-center justify-center rounded text-muted-foreground/60 hover:text-foreground hover:bg-muted/50 transition-colors"
               title="Edit Character"
             ><Settings class="h-3.5 w-3.5" /></RouterLink>
@@ -142,10 +142,18 @@ import { patchLiveCombatantConditions } from "@/composables/useEncounterLive";
 import { CONDITIONS, ATTACK_DIS_CONDITIONS, CHECK_DIS_CONDITIONS } from "@/types/party.types";
 import type { PartyMember } from "@/types/party.types";
 import { abilityModifier } from "@/lib/utils";
+import { useAllSpecies } from "@/composables/useSpecies";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RestButtons from "@/components/player/RestButtons.vue";
 
-const props = defineProps<{ member: PartyMember; showControls?: boolean }>();
+const props = defineProps<{ member: PartyMember }>();
+
+const { data: allSpecies } = useAllSpecies();
+const speciesName = computed(() =>
+  props.member.race
+    ? (allSpecies.value ?? []).find(s => s.id === props.member.race)?.name ?? props.member.race
+    : null,
+);
 
 const { mutateAsync: updateMember } = useUpdatePartyMember();
 

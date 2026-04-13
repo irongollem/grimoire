@@ -9,14 +9,13 @@
         <PawPrint class="h-3.5 w-3.5" />
         Add Companion
       </button>
-      <button
-        type="button"
+      <RouterLink
+        to="/play/character/create"
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
-        @click="tracker?.openForm(null)"
       >
         <Plus class="h-3.5 w-3.5" />
         Add Hero
-      </button>
+      </RouterLink>
     </template>
 
     <PartyTracker ref="tracker" />
@@ -25,6 +24,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import { RouterLink } from "vue-router";
 import { Plus, PawPrint } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import PartyTracker from "@/components/party/PartyTracker.vue";
