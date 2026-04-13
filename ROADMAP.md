@@ -25,6 +25,7 @@
 - [x] Custom Rules — per-user CRUD with Tiptap editor, category, tags, search
 - [x] `sync-srd-rules` Supabase Edge Function — upserts Open5e v2 rules weekly (deployable via `supabase functions deploy`)
 - [x] add a player view version of the reliquary: `/play/rules` with Reference tab (full DM screen tables), Compendium tab (full SRD), House Rules tab (view-only custom rules where DM toggled "Visible to players"), Codex tab (species with artwork/traits/variants and classes with features-by-level/subclasses in read-only accordions); DM sets visibility per rule in rule editor; eye icon on DM rule cards
+- [x] Codex tab backgrounds — Species / Backgrounds / Classes sections in player Reliquary Codex tab; backgrounds show skill/tool proficiencies, languages, equipment, and background feature inline
 
 ### Content Creation & Homebrew
 
