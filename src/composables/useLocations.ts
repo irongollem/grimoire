@@ -3,6 +3,7 @@ import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { useAuthStore } from "@/stores/auth";
 import type { Location, LocationInsert, LocationUpdate } from "@/types/location.types";
 import { VAGUE_LOCATION_TYPES } from "@/types/location.types";
 import { SETTING_LOCATIONS, PLANAR_LOCATIONS } from "@/data/settingLocations";
@@ -35,13 +36,22 @@ export function getPinnableDescendants(
   }
 
   const result: PinnableDescendant[] = [];
+  const visited = new Set<string>();
+
+  // Safety cap: more than ~60 pins on a single map is unusable anyway.
+  const MAX_RESULTS = 60;
 
   function walk(parentId: string, chain: string[]) {
+    if (visited.has(parentId) || result.length >= MAX_RESULTS) return;
+    visited.add(parentId);
     const children = byParent.get(parentId) ?? [];
     for (const child of children) {
+      if (result.length >= MAX_RESULTS) break;
       const isVague = VAGUE_LOCATION_TYPES.has(child.location_type);
       const grandchildren = byParent.get(child.id) ?? [];
-      if (isVague && grandchildren.length > 0) {
+      // Only recurse through vague containers at most 3 levels deep to avoid
+      // traversing huge subtrees when a region accidentally sits under this location.
+      if (isVague && grandchildren.length > 0 && chain.length < 3) {
         walk(child.id, [...chain, child.name]);
       } else {
         result.push({ ...child, parent_chain: chain });
@@ -236,16 +246,27 @@ export function useUpdateLocation() {
 /** Locations shared with players (player_visible_to is non-empty). */
 export function useSharedLocations() {
   const campaign = useCampaignStore();
+  const auth = useAuthStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value, "shared"]),
+    queryKey: computed(() => [QUERY_KEY, campaignId.value, "shared", auth.linkedPartyMemberId]),
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("locations")
         .select("*")
         .eq("campaign_id", campaignId.value!)
-        .not("player_visible_to", "is", null)
         .order("name", { ascending: true });
+
+      const partyMemberId = auth.linkedPartyMemberId;
+      if (partyMemberId) {
+        // Real player: only locations where their party_member_id is in player_visible_to.
+        query = query.contains("player_visible_to", [partyMemberId]);
+      } else {
+        // DM previewing player portal: show locations shared with at least one player.
+        query = query.not("player_visible_to", "eq", "{}");
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data as Location[];
     },

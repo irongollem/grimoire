@@ -8,32 +8,74 @@
       buttons stay reachable without wrapping into 2-3 rows and eating the
       editor viewport. Desktop: wrap as before.
     -->
-    <div class="flex flex-nowrap items-center gap-0.5 p-1.5 border-b border-border bg-muted/30 shrink-0 overflow-x-auto rte-toolbar lg:flex-wrap lg:overflow-visible">
+    <div
+      class="flex flex-nowrap items-center gap-0.5 p-1.5 border-b border-border bg-muted/30 shrink-0 overflow-x-auto rte-toolbar lg:flex-wrap lg:overflow-visible"
+    >
       <template v-if="editor">
-        <button type="button" title="Bold" :class="tbCls(editor.isActive('bold'))" @click="editor.chain().focus().toggleBold().run()">
+        <button
+          type="button"
+          title="Bold"
+          :class="tbCls(editor.isActive('bold'))"
+          @click="editor.chain().focus().toggleBold().run()"
+        >
           <strong class="text-[11px] leading-none">B</strong>
         </button>
-        <button type="button" title="Italic" :class="tbCls(editor.isActive('italic'))" @click="editor.chain().focus().toggleItalic().run()">
+        <button
+          type="button"
+          title="Italic"
+          :class="tbCls(editor.isActive('italic'))"
+          @click="editor.chain().focus().toggleItalic().run()"
+        >
           <em class="text-[11px] leading-none">I</em>
         </button>
         <div class="w-px h-5 bg-border mx-0.5" />
-        <button type="button" title="Heading 1" :class="tbCls(editor.isActive('heading', { level: 1 }))" @click="editor.chain().focus().toggleHeading({ level: 1 }).run()">
+        <button
+          type="button"
+          title="Heading 1"
+          :class="tbCls(editor.isActive('heading', { level: 1 }))"
+          @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
+        >
           <span class="text-[10px] font-cinzel font-bold leading-none">H1</span>
         </button>
-        <button type="button" title="Heading 2" :class="tbCls(editor.isActive('heading', { level: 2 }))" @click="editor.chain().focus().toggleHeading({ level: 2 }).run()">
+        <button
+          type="button"
+          title="Heading 2"
+          :class="tbCls(editor.isActive('heading', { level: 2 }))"
+          @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
+        >
           <span class="text-[10px] font-cinzel font-bold leading-none">H2</span>
         </button>
-        <button type="button" title="Heading 3" :class="tbCls(editor.isActive('heading', { level: 3 }))" @click="editor.chain().focus().toggleHeading({ level: 3 }).run()">
+        <button
+          type="button"
+          title="Heading 3"
+          :class="tbCls(editor.isActive('heading', { level: 3 }))"
+          @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
+        >
           <span class="text-[10px] font-cinzel font-bold leading-none">H3</span>
         </button>
         <div class="w-px h-5 bg-border mx-0.5" />
-        <button type="button" title="Bullet list" :class="tbCls(editor.isActive('bulletList'))" @click="editor.chain().focus().toggleBulletList().run()">
+        <button
+          type="button"
+          title="Bullet list"
+          :class="tbCls(editor.isActive('bulletList'))"
+          @click="editor.chain().focus().toggleBulletList().run()"
+        >
           <List class="h-3.5 w-3.5" />
         </button>
-        <button type="button" title="Ordered list" :class="tbCls(editor.isActive('orderedList'))" @click="editor.chain().focus().toggleOrderedList().run()">
+        <button
+          type="button"
+          title="Ordered list"
+          :class="tbCls(editor.isActive('orderedList'))"
+          @click="editor.chain().focus().toggleOrderedList().run()"
+        >
           <ListOrdered class="h-3.5 w-3.5" />
         </button>
-        <button type="button" title="Blockquote" :class="tbCls(editor.isActive('blockquote'))" @click="editor.chain().focus().toggleBlockquote().run()">
+        <button
+          type="button"
+          title="Blockquote"
+          :class="tbCls(editor.isActive('blockquote'))"
+          @click="editor.chain().focus().toggleBlockquote().run()"
+        >
           <Quote class="h-3.5 w-3.5" />
         </button>
         <div class="w-px h-5 bg-border mx-0.5" />
@@ -42,39 +84,109 @@
           type="button"
           title="Insert table"
           :class="tbCls(editor.isActive('table'))"
-          @click="editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()"
+          @click="
+            editor
+              .chain()
+              .focus()
+              .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+              .run()
+          "
         >
           <TableIcon class="h-3.5 w-3.5" />
         </button>
         <template v-if="editor.isActive('table')">
-          <button type="button" title="Add column after" :class="tbCls(false)" @click="editor.chain().focus().addColumnAfter().run()">
+          <button
+            type="button"
+            title="Add column after"
+            :class="tbCls(false)"
+            @click="editor.chain().focus().addColumnAfter().run()"
+          >
             <BetweenVerticalEnd class="h-3.5 w-3.5" />
           </button>
-          <button type="button" title="Add row after" :class="tbCls(false)" @click="editor.chain().focus().addRowAfter().run()">
+          <button
+            type="button"
+            title="Add row after"
+            :class="tbCls(false)"
+            @click="editor.chain().focus().addRowAfter().run()"
+          >
             <BetweenHorizontalEnd class="h-3.5 w-3.5" />
           </button>
-          <button type="button" title="Delete column" :class="tbCls(false)" @click="editor.chain().focus().deleteColumn().run()">
-            <span class="text-[9px] font-cinzel font-bold leading-none text-destructive">−C</span>
+          <button
+            type="button"
+            title="Delete column"
+            :class="tbCls(false)"
+            @click="editor.chain().focus().deleteColumn().run()"
+          >
+            <span
+              class="text-[9px] font-cinzel font-bold leading-none text-destructive"
+              >−C</span
+            >
           </button>
-          <button type="button" title="Delete row" :class="tbCls(false)" @click="editor.chain().focus().deleteRow().run()">
-            <span class="text-[9px] font-cinzel font-bold leading-none text-destructive">−R</span>
+          <button
+            type="button"
+            title="Delete row"
+            :class="tbCls(false)"
+            @click="editor.chain().focus().deleteRow().run()"
+          >
+            <span
+              class="text-[9px] font-cinzel font-bold leading-none text-destructive"
+              >−R</span
+            >
           </button>
-          <button type="button" title="Delete table" :class="tbCls(false)" @click="editor.chain().focus().deleteTable().run()">
+          <button
+            type="button"
+            title="Delete table"
+            :class="tbCls(false)"
+            @click="editor.chain().focus().deleteTable().run()"
+          >
             <Trash2 class="h-3.5 w-3.5 text-destructive" />
           </button>
         </template>
-        <button v-if="allowUpload" type="button" title="Upload image" :class="tbCls(false)" :disabled="uploadingImage" @click="insertImage">
-          <ImageIcon class="h-3.5 w-3.5" :class="uploadingImage ? 'animate-pulse' : ''" />
+        <button
+          v-if="allowUpload"
+          type="button"
+          title="Upload image"
+          :class="tbCls(false)"
+          :disabled="uploadingImage"
+          @click="insertImage"
+        >
+          <ImageIcon
+            class="h-3.5 w-3.5"
+            :class="uploadingImage ? 'animate-pulse' : ''"
+          />
         </button>
         <div class="w-px h-5 bg-border mx-0.5" />
-        <button type="button" title="Undo" :class="tbCls(false)" :disabled="!editor.can().undo()" @click="editor.chain().focus().undo().run()">
+        <button
+          type="button"
+          title="Undo"
+          :class="tbCls(false)"
+          :disabled="!editor.can().undo()"
+          @click="editor.chain().focus().undo().run()"
+        >
           <Undo2 class="h-3.5 w-3.5" />
         </button>
-        <button type="button" title="Redo" :class="tbCls(false)" :disabled="!editor.can().redo()" @click="editor.chain().focus().redo().run()">
+        <button
+          type="button"
+          title="Redo"
+          :class="tbCls(false)"
+          :disabled="!editor.can().redo()"
+          @click="editor.chain().focus().redo().run()"
+        >
           <Redo2 class="h-3.5 w-3.5" />
         </button>
         <div class="w-px h-5 bg-border mx-0.5" />
-        <button type="button" title="Toggle two-column layout" :class="tbCls(twoColumn)" @click="editor.chain().focus().updateAttributes('doc', { twoColumn: !twoColumn }).run()">
+        <button
+          type="button"
+          title="Toggle two-column layout"
+          :class="tbCls(twoColumn)"
+          @click="
+            editor
+              .chain()
+              .focus()
+              .updateAttributes('doc', { twoColumn: !twoColumn })
+              .run()
+          "
+        >
           <Columns2 class="h-3.5 w-3.5" />
         </button>
       </template>
@@ -88,16 +200,25 @@
       sit at a fixed height in dense forms.
     -->
     <div class="p-3 lg:flex-1 lg:overflow-auto lg:min-h-0">
-      <EditorContent :editor="editor" :class="['rte-content h-full', twoColumn ? 'rte-two-col' : '']" />
+      <EditorContent
+        :editor="editor"
+        :class="['rte-content h-full', twoColumn ? 'rte-two-col' : '']"
+      />
     </div>
 
     <!-- Hidden file input for image upload -->
-    <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileSelected" />
+    <input
+      ref="fileInput"
+      type="file"
+      accept="image/*"
+      class="hidden"
+      @change="onFileSelected"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onUnmounted } from "vue";
+import { ref, onUnmounted } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { toWebP } from "@/lib/mediaConvert";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
@@ -111,7 +232,19 @@ import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
 import Image from "@tiptap/extension-image";
 import { parseMarkdown, looksLikeMarkdown } from "@/lib/markdownToTiptap";
-import { List, ListOrdered, Quote, Undo2, Redo2, Table as TableIcon, BetweenVerticalEnd, BetweenHorizontalEnd, Trash2, ImageIcon, Columns2 } from "lucide-vue-next";
+import {
+  List,
+  ListOrdered,
+  Quote,
+  Undo2,
+  Redo2,
+  Table as TableIcon,
+  BetweenVerticalEnd,
+  BetweenHorizontalEnd,
+  Trash2,
+  ImageIcon,
+  Columns2,
+} from "lucide-vue-next";
 
 const CustomDocument = Node.create({
   name: "doc",
@@ -135,10 +268,26 @@ const emit = defineEmits<{
   "update:modelValue": [value: string];
 }>();
 
+/** Recursively remove link marks from Tiptap JSON (from DnDBeyond-pasted content). */
+function stripLinkMarks(node: unknown): unknown {
+  if (!node || typeof node !== "object") return node;
+  if (Array.isArray(node)) return node.map(stripLinkMarks);
+  const obj = node as Record<string, unknown>;
+  const result: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries(obj)) {
+    if (key === "marks" && Array.isArray(val)) {
+      result[key] = (val as Array<{ type: string }>).filter((m) => m.type !== "link");
+    } else {
+      result[key] = stripLinkMarks(val);
+    }
+  }
+  return result;
+}
+
 function parseContent(value: string | null): object | string | undefined {
   if (!value) return undefined;
   try {
-    return JSON.parse(value);
+    return stripLinkMarks(JSON.parse(value)) as object;
   } catch {
     // Legacy plain text — Tiptap will wrap in a paragraph
     return value;
@@ -150,7 +299,9 @@ const editor = useEditor({
   extensions: [
     StarterKit.configure({ document: false }),
     CustomDocument,
-    Placeholder.configure({ placeholder: props.placeholder ?? "Write something…" }),
+    Placeholder.configure({
+      placeholder: props.placeholder ?? "Write something…",
+    }),
     Table.configure({ resizable: true }),
     TableRow,
     TableHeader,
@@ -171,6 +322,13 @@ const editor = useEditor({
       );
       return true;
     },
+    transformPastedHTML(html) {
+      // Strip <a> tags from pasted HTML (e.g. DnDBeyond links) — keep text content.
+      const div = document.createElement("div");
+      div.innerHTML = html;
+      div.querySelectorAll("a").forEach((a) => a.replaceWith(...a.childNodes));
+      return div.innerHTML;
+    },
   },
   onCreate() {
     twoColumn.value = editor.value?.getAttributes("doc").twoColumn ?? false;
@@ -180,20 +338,6 @@ const editor = useEditor({
   },
 });
 
-// Sync external content changes (e.g. form reset when a modal reopens)
-watch(
-  () => props.modelValue,
-  (val) => {
-    if (!editor.value) return;
-    const incoming = parseContent(val);
-    const incomingStr = JSON.stringify(incoming ?? {});
-    const currentStr = JSON.stringify(editor.value.getJSON());
-    if (incomingStr !== currentStr) {
-      editor.value.commands.setContent(incoming ?? "");
-      twoColumn.value = editor.value.getAttributes("doc").twoColumn ?? false;
-    }
-  },
-);
 
 onUnmounted(() => editor.value?.destroy());
 
@@ -215,7 +359,9 @@ async function onFileSelected(e: Event) {
     const user = getCurrentUser();
     const webpFile = await toWebP(file);
     const path = `${user!.id}/rte-${Date.now()}.webp`;
-    const { error } = await supabase.storage.from("asset-images").upload(path, webpFile, { contentType: "image/webp" });
+    const { error } = await supabase.storage
+      .from("asset-images")
+      .upload(path, webpFile, { contentType: "image/webp" });
     if (error) throw error;
     const { data } = supabase.storage.from("asset-images").getPublicUrl(path);
     editor.value.chain().focus().setImage({ src: data.publicUrl }).run();

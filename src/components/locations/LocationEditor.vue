@@ -732,11 +732,17 @@ function createChild() {
 }
 
 // ── NPCs + Encounters at this location (includes descendants) ──────────────────
-function collectDescendantIds(id: string, allLocs: Location[]): string[] {
+function collectDescendantIds(
+  id: string,
+  allLocs: Location[],
+  visited = new Set<string>(),
+): string[] {
+  if (visited.has(id)) return [];
+  visited.add(id);
   const result: string[] = [id];
   for (const loc of allLocs) {
     if (loc.parent_id === id)
-      result.push(...collectDescendantIds(loc.id, allLocs));
+      result.push(...collectDescendantIds(loc.id, allLocs, visited));
   }
   return result;
 }
