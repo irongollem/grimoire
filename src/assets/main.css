@@ -248,6 +248,78 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   Custom tooltip popover (see src/lib/tooltip.ts). One element appended to
+   <body> by the engine; styled here so it lives alongside the rest of the
+   app chrome. `opacity` transition gives a soft fade; `visibility` is
+   toggled via `is-visible` so the popover doesn't intercept pointer events
+   while hidden.
+───────────────────────────────────────────────────────────────────────────── */
+.tw-tooltip {
+  position: fixed;
+  z-index: 100;
+  max-width: min(20rem, calc(100vw - 1rem));
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  font-family: var(--font-fell, "Crimson Pro", Georgia, serif);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 120ms ease-out, visibility 120ms;
+  white-space: normal;
+  word-wrap: break-word;
+}
+.tw-tooltip.is-visible {
+  opacity: 1;
+  visibility: visible;
+}
+.tw-tooltip-arrow {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-style: solid;
+}
+/* Arrow placement encoded via data-attr so the engine can flip it without
+   touching CSS. `placement="top"` = popover sits below target, arrow points up. */
+.tw-tooltip-arrow[data-placement="top"] {
+  top: -5px;
+  border-width: 0 5px 5px 5px;
+  border-color: transparent transparent var(--border) transparent;
+}
+.tw-tooltip-arrow[data-placement="top"]::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: -4px;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 4px 4px 4px;
+  border-color: transparent transparent var(--popover) transparent;
+}
+.tw-tooltip-arrow[data-placement="bottom"] {
+  bottom: -5px;
+  border-width: 5px 5px 0 5px;
+  border-color: var(--border) transparent transparent transparent;
+}
+.tw-tooltip-arrow[data-placement="bottom"]::after {
+  content: "";
+  position: absolute;
+  bottom: 1px;
+  left: -4px;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 4px 4px 0 4px;
+  border-color: var(--popover) transparent transparent transparent;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    Safe-area utilities — register as Tailwind v4 utilities so they compose with
    variants (`sm:pb-safe`) and arbitrary modifiers where needed. The numeric
    helpers add a fixed amount *on top of* the inset, which is the common case
