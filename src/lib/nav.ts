@@ -166,10 +166,10 @@ export const NAV_GROUPS: NavGroup[] = [
         description: "Secret doors, traps, hazards & dungeon enigmas",
       },
       {
-        label: "Species",
-        to: "/species",
+        label: "Character Codex",
+        to: "/codex",
         icon: Dna,
-        description: "Playable species & subspecies compendium",
+        description: "Species, backgrounds & classes for your players",
       },
       {
         label: "Hall of Heroes",

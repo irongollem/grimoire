@@ -1,0 +1,227 @@
+<template>
+  <div class="flex flex-col gap-4">
+    <!-- Breadcrumb -->
+    <div class="flex flex-wrap items-center gap-1 text-xs font-fell text-muted-foreground">
+      <RouterLink to="/codex/backgrounds" class="hover:text-foreground transition-colors">Backgrounds</RouterLink>
+      <span class="opacity-40">/</span>
+      <span class="text-foreground">{{ isNew ? "New Background" : background?.name }}</span>
+    </div>
+
+    <!-- Action row -->
+    <div class="flex flex-wrap items-center gap-2 justify-end">
+      <button
+        type="button"
+        :disabled="saving || !form.name.trim()"
+        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+        @click="save"
+      >
+        <Save class="h-3.5 w-3.5" />
+        {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
+      </button>
+      <button
+        v-if="!isNew"
+        type="button"
+        class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
+        @click="remove"
+      >
+        <Trash2 class="h-3.5 w-3.5" />
+        Delete
+      </button>
+    </div>
+
+    <!--
+      Sigil + identity fields. Mirrors LocationEditor's mobile stack pattern
+      so long proficiency lists don't push the page sideways on phones.
+    -->
+    <div class="flex flex-col gap-3 md:flex-row md:gap-5">
+      <div class="w-full max-w-48 mx-auto md:mx-0 md:w-48 md:shrink-0">
+        <ImageUpload
+          :model-value="form.image_url"
+          aspect="auto"
+          placeholder="Portrait"
+          bucket="asset-images"
+          @update:model-value="form.image_url = $event"
+        />
+      </div>
+
+      <div class="flex-1 flex flex-col gap-3 min-w-0">
+        <input
+          v-model="form.name"
+          placeholder="Background name…"
+          class="w-full bg-card border border-border rounded-md px-3 py-2 font-cinzel text-lg font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+
+        <div
+          v-if="background?.open5e_import"
+          class="text-xs font-fell text-muted-foreground italic"
+        >
+          Imported from Open5e — {{ background?.source_title ?? background?.source }}. Edits stay local and won't be overwritten by re-sync unless Open5e changes the base fields.
+        </div>
+
+        <!-- Proficiency chips -->
+        <label class="flex flex-col gap-1">
+          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Skill proficiencies</span>
+          <TagInput v-model="form.skill_proficiencies" placeholder="Add a skill…" />
+        </label>
+
+        <label class="flex flex-col gap-1">
+          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Tool proficiencies</span>
+          <TagInput v-model="form.tool_proficiencies" placeholder="Add a tool…" />
+        </label>
+
+        <label class="flex flex-col gap-1">
+          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Languages</span>
+          <TagInput v-model="form.languages" placeholder="Add a language…" />
+        </label>
+
+        <label class="flex flex-col gap-1">
+          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Tags</span>
+          <TagInput v-model="form.tags" placeholder="Add a tag…" />
+        </label>
+      </div>
+    </div>
+
+    <p v-if="saveError" class="text-destructive font-fell text-sm">{{ saveError }}</p>
+
+    <!-- Description -->
+    <div class="flex flex-col gap-1">
+      <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Description</span>
+      <RichTextEditor
+        v-model="form.description"
+        placeholder="Describe the background's narrative hook…"
+        min-height="120px"
+      />
+    </div>
+
+    <!-- Equipment -->
+    <label class="flex flex-col gap-1">
+      <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Starting equipment</span>
+      <textarea
+        v-model="form.equipment"
+        placeholder="Items provided by the background, with any starting coin."
+        rows="3"
+        class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+      />
+    </label>
+
+    <!-- Feature -->
+    <div class="flex flex-col gap-2 rounded-lg border border-border bg-card/50 px-4 py-3">
+      <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Background feature</span>
+      <input
+        v-model="form.feature_name"
+        placeholder="Feature name (e.g. Shelter of the Faithful)"
+        class="w-full bg-background border border-border rounded-md px-3 py-2 font-cinzel text-sm font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      />
+      <textarea
+        v-model="form.feature_description"
+        placeholder="Describe what the feature does mechanically and in play."
+        rows="4"
+        class="w-full bg-background border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+      />
+    </div>
+
+    <!-- Suggested characteristics -->
+    <label class="flex flex-col gap-1">
+      <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Suggested characteristics</span>
+      <textarea
+        v-model="form.suggested_characteristics"
+        placeholder="Personality traits, ideals, bonds, and flaws to inspire players."
+        rows="5"
+        class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+      />
+    </label>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, ref, watch } from "vue";
+import { useRouter } from "vue-router";
+import { Save, Trash2 } from "lucide-vue-next";
+import ImageUpload from "@/components/common/ImageUpload.vue";
+import TagInput from "@/components/common/TagInput.vue";
+import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import { useConfirm } from "@/composables/useConfirm";
+import {
+  useCreateBackground,
+  useUpdateBackground,
+  useDeleteBackground,
+} from "@/composables/useBackgrounds";
+import type { Background, BackgroundInsert } from "@/types/background.types";
+
+const props = defineProps<{
+  background: Background | null;
+}>();
+
+const router = useRouter();
+const { confirm } = useConfirm();
+
+const isNew = computed(() => !props.background);
+
+function blankForm(): BackgroundInsert {
+  return {
+    name: "",
+    description: null,
+    skill_proficiencies: [],
+    tool_proficiencies: [],
+    languages: [],
+    equipment: null,
+    feature_name: null,
+    feature_description: null,
+    suggested_characteristics: null,
+    tags: [],
+    source: null,
+    source_title: null,
+    source_url: null,
+    open5e_import: false,
+    image_url: null,
+    focal_point: null,
+  };
+}
+
+function fromBackground(b: Background): BackgroundInsert {
+  const { id, user_id, created_at, updated_at, ...rest } = b;
+  void id; void user_id; void created_at; void updated_at;
+  return { ...rest };
+}
+
+const form = ref<BackgroundInsert>(props.background ? fromBackground(props.background) : blankForm());
+
+// Re-sync form when the parent's background prop changes (e.g. after save → refetch).
+watch(
+  () => props.background,
+  (b) => { form.value = b ? fromBackground(b) : blankForm(); },
+);
+
+const { mutateAsync: createBg } = useCreateBackground();
+const { mutateAsync: updateBg } = useUpdateBackground();
+const { mutateAsync: deleteBg } = useDeleteBackground();
+
+const saving = ref(false);
+const saveError = ref("");
+
+async function save() {
+  if (!form.value.name.trim()) return;
+  saving.value = true;
+  saveError.value = "";
+  try {
+    if (props.background) {
+      await updateBg({ id: props.background.id, update: form.value });
+    } else {
+      await createBg(form.value);
+    }
+    router.push("/codex/backgrounds");
+  } catch (e: unknown) {
+    saveError.value = e instanceof Error ? e.message : "Failed to save";
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function remove() {
+  if (!props.background) return;
+  const ok = await confirm(`Delete "${props.background.name}"? This cannot be undone.`);
+  if (!ok) return;
+  await deleteBg(props.background);
+  router.push("/codex/backgrounds");
+}
+</script>
