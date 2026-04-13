@@ -1,5 +1,5 @@
 import { useAuthStore } from "@/stores/auth";
-import { supabase } from "@/lib/supabase";
+import { BUCKETS, uploadToBucket } from "@/lib/storage";
 import { NPC_SYSTEM_PROMPT, IMAGE_BASE_PROMPT, buildCampaignContext } from "./prompts";
 import type { NpcAiResult, NpcAiGenerated } from "./types";
 import {
@@ -142,15 +142,11 @@ export function useNpcGeneration() {
 
         const uploadTrue = async () => {
           if (!truePortraitBlob || !auth.user) return;
-          const path = `${auth.user.id}/${crypto.randomUUID()}.webp`;
-          const { error } = await supabase.storage
-            .from("npc-portraits")
-            .upload(path, truePortraitBlob, { contentType: "image/webp" });
-          if (!error) {
-            portrait_url = supabase.storage
-              .from("npc-portraits")
-              .getPublicUrl(path).data.publicUrl;
-          }
+          portrait_url = await uploadToBucket(
+            BUCKETS.npcPortraits,
+            auth.user.id,
+            truePortraitBlob,
+          );
         };
 
         const generateDisguise = async () => {
@@ -175,18 +171,12 @@ export function useNpcGeneration() {
               disguisePrompt,
               "1024x1536",
             );
-            if (!disguiseB64) return;
-            const disguisePath = `${auth.user.id}/${crypto.randomUUID()}.webp`;
-            const { error } = await supabase.storage
-              .from("npc-portraits")
-              .upload(disguisePath, b64ToBlob(disguiseB64), {
-                contentType: "image/webp",
-              });
-            if (!error) {
-              disguise_portrait_url = supabase.storage
-                .from("npc-portraits")
-                .getPublicUrl(disguisePath).data.publicUrl;
-            }
+            if (!disguiseB64 || !auth.user) return;
+            disguise_portrait_url = await uploadToBucket(
+              BUCKETS.npcPortraits,
+              auth.user.id,
+              b64ToBlob(disguiseB64),
+            );
           } catch {
             // non-fatal — disguise generation failure does not block NPC save
           }
