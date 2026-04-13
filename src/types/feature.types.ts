@@ -24,7 +24,9 @@ export interface ClassFeature {
   description: string | null; // Tiptap JSON string
   feature_type: FeatureType;
   source: string | null;
+  prerequisite: string | null;
   tags: string[];
+  open5e_import: boolean;
   created_at: string;
   updated_at: string;
 }

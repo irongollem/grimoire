@@ -1,6 +1,12 @@
 <template>
   <ListPageLayout title="Abilities" description="Class features & ability compendium">
     <template #actions>
+      <ListActionButton
+        :icon="importMutation.isPending.value ? Loader2 : Download"
+        :label="importStatusLabel"
+        :disabled="importMutation.isPending.value"
+        @click="handleImport"
+      />
       <ListActionButton :icon="Plus" label="New Ability" variant="primary" to="/features/new" />
     </template>
 
@@ -77,9 +83,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { ref, computed, onBeforeUnmount } from "vue";
 import { RouterLink } from "vue-router";
-import { Plus, ChevronRight } from "lucide-vue-next";
+import { Plus, ChevronRight, Download, Loader2 } from "lucide-vue-next";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
@@ -88,11 +94,49 @@ import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import { useUiStore } from "@/stores/ui";
-import { useAllFeatures } from "@/composables/useFeatures";
+import { useAllFeatures, useImportSrdFeatures } from "@/composables/useFeatures";
+import type { ImportResult } from "@/composables/useFeatures";
 import { FEATURE_TYPES, FEATURE_TYPE_LABELS } from "@/types/feature.types";
 
 const ui = useUiStore();
 const { data: all, isLoading } = useAllFeatures();
+
+// ── Import ────────────────────────────────────────────────────────────────────
+const importMutation = useImportSrdFeatures();
+let resetTimer: ReturnType<typeof setTimeout> | null = null;
+onBeforeUnmount(() => { if (resetTimer) clearTimeout(resetTimer); });
+const importStatus = ref<"idle" | "done">("idle");
+const importResult = ref<ImportResult>({ inserted: 0, updated: 0 });
+const importError = ref<string | null>(null);
+
+const importStatusLabel = computed(() => {
+  if (importMutation.isPending.value) return "Syncing…";
+  if (importError.value) return `Error: ${importError.value}`;
+  if (importStatus.value === "done") {
+    const { inserted, updated } = importResult.value;
+    if (inserted === 0 && updated === 0) return "Already up to date";
+    const parts: string[] = [];
+    if (inserted > 0) parts.push(`${inserted} added`);
+    if (updated > 0) parts.push(`${updated} updated`);
+    return parts.join(", ");
+  }
+  return "Sync from Open5e";
+});
+
+async function handleImport() {
+  importStatus.value = "idle";
+  importError.value = null;
+  try {
+    importResult.value = await importMutation.mutateAsync();
+    importStatus.value = "done";
+  } catch (e) {
+    importError.value = e instanceof Error ? e.message : String(e);
+  }
+  resetTimer = setTimeout(() => {
+    importStatus.value = "idle";
+    importError.value = null;
+  }, 8000);
+}
 
 const filtered = computed(() => {
   const items = all.value ?? [];

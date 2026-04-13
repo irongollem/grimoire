@@ -75,6 +75,16 @@
       </div>
     </div>
 
+    <!-- Prerequisite -->
+    <div>
+      <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1.5">PREREQUISITE</label>
+      <input
+        v-model="form.prerequisite"
+        placeholder="e.g. Dexterity 13 or higher, Proficiency with a martial weapon…"
+        class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      />
+    </div>
+
     <!-- Tags -->
     <div>
       <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1.5">TAGS</label>
@@ -120,6 +130,7 @@ const form = ref({
   name: "",
   feature_type: "passive" as ClassFeature["feature_type"],
   source: "",
+  prerequisite: "",
   tags: [] as string[],
   description: null as string | null,
 });
@@ -134,6 +145,7 @@ watch(
       name: val.name,
       feature_type: val.feature_type,
       source: val.source ?? "",
+      prerequisite: val.prerequisite ?? "",
       tags: [...val.tags],
       description: val.description,
     };
@@ -155,9 +167,11 @@ async function save() {
     name: form.value.name.trim(),
     feature_type: form.value.feature_type,
     source: form.value.source.trim() || null,
+    prerequisite: form.value.prerequisite.trim() || null,
     tags: form.value.tags,
     description: form.value.description,
     campaign_id: campaignScope.value === "all" ? null : campaignScope.value,
+    open5e_import: props.feature?.open5e_import ?? false,
   };
   try {
     if (!props.feature) {
