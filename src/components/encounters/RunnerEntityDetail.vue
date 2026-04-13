@@ -358,6 +358,28 @@
             <div class="detail-trait-header">
               <strong>{{ atk.name }}.</strong>
               <div class="trait-roll-bar">
+                <!-- Self-charged weapon (laser rifle, etc.) -->
+              <template v-if="atk.ammoTag === null">
+                <button
+                  type="button"
+                  class="trait-roll-btn trait-atk-btn"
+                  :disabled="weaponSelfChargesRemaining(atk.weaponInvId, weaponMaxCharges(atk.weaponInvId)) <= 0"
+                  :title="weaponSelfChargesRemaining(atk.weaponInvId, weaponMaxCharges(atk.weaponInvId)) <= 0 ? 'No charges remaining' : undefined"
+                  @click.stop="fireRangedAttack(atk)"
+                >🏹 {{ atk.attackBonus >= 0 ? '+' : '' }}{{ atk.attackBonus }}</button>
+                <button
+                  v-if="atk.damageDice"
+                  type="button"
+                  class="trait-roll-btn trait-dmg-btn"
+                  @click.stop="rollActionDamage(atk.damageDice, atk.name)"
+                >🎲 {{ actionDiceLabel(atk.damageDice) }}</button>
+                <span
+                  class="font-cinzel text-[9px] whitespace-nowrap self-center"
+                  :class="weaponSelfChargesRemaining(atk.weaponInvId, weaponMaxCharges(atk.weaponInvId)) > 0 ? 'text-muted-foreground' : 'text-destructive'"
+                >⚡ {{ weaponSelfChargesRemaining(atk.weaponInvId, weaponMaxCharges(atk.weaponInvId)) }}</span>
+              </template>
+              <!-- External ammo weapon (bow, crossbow, etc.) -->
+              <template v-else>
                 <button
                   type="button"
                   class="trait-roll-btn trait-atk-btn"
@@ -379,6 +401,7 @@
                   v-else
                   class="font-cinzel text-[9px] text-destructive whitespace-nowrap self-center"
                 >— no ammo</span>
+              </template>
               </div>
             </div>
             <span class="detail-trait-desc">{{ atk.description }}</span>
@@ -996,7 +1019,8 @@ interface RangedAttack {
   attackBonus: number;
   damageDice: string | null;
   description: string;
-  ammoTag: string;
+  /** External ammo tag required (e.g. "arrow"). null = weapon has its own charges (laser rifle, etc.). */
+  ammoTag: string | null;
   weaponInvId: string;
 }
 
@@ -1096,8 +1120,11 @@ const playerRangedAttacks = computed<RangedAttack[]>(() => {
       if (!inv.item_id) return [];
       const item = vaultItemMap.value.get(inv.item_id);
       if (!item || !item.properties.includes("ammunition")) return [];
-      const ammoTag = weaponAmmoTag(item);
-      if (!ammoTag) return [];
+      // Self-charged weapons (laser rifle, etc.) carry their own ammo — no external stack needed
+      const isSelfCharged = item.charges !== null;
+      const ammoTag = isSelfCharged ? null : weaponAmmoTag(item);
+      // Skip weapons that need external ammo but have an unrecognised type
+      if (!isSelfCharged && !ammoTag) return [];
 
       // Finesse ranged weapons (thrown finesse) may use STR if higher
       const usesStr = item.properties.includes("finesse") && strMod > dexMod;
@@ -1142,9 +1169,34 @@ function consumeAmmo(ammoTag: string) {
   }
 }
 
+function weaponMaxCharges(weaponInvId: string): number {
+  const inv = memberInventory.value.find((i) => i.id === weaponInvId);
+  const vaultItem = inv?.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
+  return vaultItem?.charges ?? 0;
+}
+
+/** Remaining charges on a self-charged weapon (laser rifle, etc.). */
+function weaponSelfChargesRemaining(weaponInvId: string, maxCharges: number): number {
+  const inv = memberInventory.value.find((i) => i.id === weaponInvId);
+  if (!inv) return 0;
+  return inv.current_charges !== null ? inv.current_charges : maxCharges;
+}
+
+function consumeWeaponCharge(weaponInvId: string, maxCharges: number) {
+  const remaining = weaponSelfChargesRemaining(weaponInvId, maxCharges);
+  updateInventoryItem.mutate({ id: weaponInvId, update: { current_charges: Math.max(0, remaining - 1) } });
+}
+
 function fireRangedAttack(atk: RangedAttack) {
   rollAttack(atk.attackBonus, atk.name);
-  consumeAmmo(atk.ammoTag);
+  if (atk.ammoTag) {
+    consumeAmmo(atk.ammoTag);
+  } else {
+    // Self-charged: look up max charges from vault item
+    const inv = memberInventory.value.find((i) => i.id === atk.weaponInvId);
+    const vaultItem = inv?.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
+    if (vaultItem?.charges) consumeWeaponCharge(atk.weaponInvId, vaultItem.charges);
+  }
 }
 
 // ── Monster derived data ──────────────────────────────────────────────────────

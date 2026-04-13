@@ -337,7 +337,7 @@ export function useCharacterCreationForm() {
       await auth.refreshMembership();
       saving.value = false;
       if (f.level > 1) {
-        router.push("/play/character/levelup");
+        router.push(`/play/character/levelup?targetLevel=${f.level}`);
       } else {
         router.push(backRoute);
       }

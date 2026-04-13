@@ -69,7 +69,7 @@ export interface ClassChoices {
   [key: string]: unknown;
 }
 
-export type AsiMode = "plus2" | "plus1plus1";
+export type AsiMode = "plus2" | "plus1plus1" | "feat";
 
 export interface AsiChoice {
   mode: AsiMode;

@@ -3,7 +3,13 @@
     <div v-if="!member" class="text-center py-16">
       <p class="font-fell text-sm text-muted-foreground italic">No character linked.</p>
     </div>
-    <LevelUpWizard v-else :member="member" :back-route="backRoute" />
+    <LevelUpWizard
+      v-else
+      :key="member.level"
+      :member="member"
+      :target-level="targetLevel"
+      :back-route="backRoute"
+    />
   </div>
 </template>
 
@@ -27,6 +33,12 @@ const member = computed(() =>
     ? (partyMembers.value.find((m) => m.id === memberId.value) ?? null)
     : null,
 );
+
+const targetLevel = computed(() => {
+  const raw = route.query.targetLevel as string | undefined;
+  const n = raw ? parseInt(raw, 10) : NaN;
+  return isNaN(n) ? undefined : n;
+});
 
 const backRoute = (route.query.memberId as string | undefined) ? "/party" : "/play";
 </script>
