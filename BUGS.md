@@ -2,6 +2,8 @@
 
 ## Done
 
+- [x] Location map pin placement overlay clicks didn't register — two causes: (1) `setPointerCapture` on every pointerdown redirected the resulting `click` event to `mapFrame` instead of the placement overlay per the Pointer Events spec, so `onPlacePin` never fired; (2) hovered pins at `z-20` rendered on top of the overlay (also `z-20`) since they appear later in the DOM, so clicks over existing pips hit the pin handler instead; fixed by bailing out of `setPointerCapture` early when `placingChildId` is set, and raising the overlay to `z-30` (`src/components/locations/LocationMap.vue`)
+
 - [x] Entity deletions left orphaned images in Supabase Storage — delete functions for NPCs, monsters, items, spells, party members, companions, Hall of Heroes, traps, puzzles, and dungeon features only removed the DB row; fixed by changing each `deleteX(id)` to accept the full entity, then calling `removeStorageImages('asset-images', ...imageFields)` after the DB delete; added standalone `removeStorageImages` utility to `useImageUpload.ts`; also removed duplicate manual image-removal code that had existed in `MonsterDetail.vue` and `SpellDetail.vue`; SRD/external URLs are silently skipped (no `/object/public/asset-images/` marker match)
 
 - [x] Mundane items displayed magic-only fields in the item editor — Linked Spells, Curse, and Recharge were only gated on `!isArtObject`, not `isMagic`; fixed by adding `isMagic &&` to those `v-if` conditions in `ItemDetail.vue`; Charges/Quantity and Arcane Focus remain visible for mundane items (ammunition needs a count; a plain crystal/rod/staff is a valid arcane focus per PHB)

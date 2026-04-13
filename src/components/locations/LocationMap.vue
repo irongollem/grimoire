@@ -52,7 +52,7 @@
         <!-- Click-to-place overlay (sits above pins) -->
         <div
           v-if="mode === 'edit' && placingChildId"
-          class="absolute inset-0 z-20 cursor-crosshair"
+          class="absolute inset-0 z-30 cursor-crosshair"
           @click="onPlacePin"
         />
 
@@ -342,6 +342,12 @@ function onFramePointerDown(e: PointerEvent) {
   // when zoomed in, and DevTools mobile emulation / touch-simulation can
   // report either "mouse" or "touch" depending on the toolbar setting.
   activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+  // In pin-placement mode, skip pointer capture entirely. setPointerCapture
+  // causes the browser to redirect the resulting click event to mapFrame
+  // instead of the placement overlay, so onPlacePin would never fire.
+  if (placingChildId.value) return;
+
   mapFrame.value?.setPointerCapture?.(e.pointerId);
 
   if (activePointers.size === 2) {
