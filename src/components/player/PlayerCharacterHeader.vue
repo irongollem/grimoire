@@ -115,6 +115,7 @@
                         ? 'text-destructive/40 cursor-default'
                         : 'text-foreground hover:bg-amber-500/10 hover:text-amber-500'"
                       :disabled="hasCondition(cond)"
+                      :title="getConditionDescription(cond)"
                       @click="addCondition(cond)"
                     >{{ cond }}</button>
                   </div>
@@ -139,7 +140,7 @@ import { RouterLink } from "vue-router";
 import { Star, TrendingUp, Settings } from "lucide-vue-next";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { patchLiveCombatantConditions } from "@/composables/useEncounterLive";
-import { CONDITIONS, ATTACK_DIS_CONDITIONS, CHECK_DIS_CONDITIONS } from "@/types/party.types";
+import { CONDITIONS, ATTACK_DIS_CONDITIONS, CHECK_DIS_CONDITIONS, getConditionDescription } from "@/lib/conditions";
 import type { PartyMember } from "@/types/party.types";
 import { abilityModifier } from "@/lib/utils";
 import { useAllSpecies } from "@/composables/useSpecies";

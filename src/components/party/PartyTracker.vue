@@ -293,6 +293,7 @@
                 v-for="cond in member.conditions"
                 :key="cond"
                 class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-destructive/10 border border-destructive/30 font-cinzel text-[10px] font-semibold text-destructive"
+                :title="getConditionDescription(cond)"
               >
                 {{ cond }}
                 <button
@@ -363,6 +364,7 @@
                     :key="cond"
                     type="button"
                     class="w-full text-left px-2 py-1 rounded font-cinzel text-[11px] text-foreground hover:bg-muted transition-colors"
+                    :title="getConditionDescription(cond)"
                     @click="addCondition(member, cond)"
                   >
                     {{ cond }}
@@ -699,7 +701,7 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import CompanionCard from "./CompanionCard.vue";
 import CompanionForm from "./CompanionForm.vue";
-import { CONDITIONS } from "@/types/party.types";
+import { CONDITIONS, getConditionDescription } from "@/lib/conditions";
 import type { Companion } from "@/types/companion.types";
 import type {
   PartyMember,

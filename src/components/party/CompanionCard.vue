@@ -112,6 +112,7 @@
         v-for="cond in companion.conditions"
         :key="cond"
         class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-destructive/10 border border-destructive/20 font-cinzel text-[10px] text-destructive tracking-wider"
+        :title="getConditionDescription(cond)"
       >
         {{ cond }}
         <button type="button" class="leading-none hover:opacity-70" @click="removeCondition(cond)">×</button>
@@ -156,7 +157,7 @@
 import { ref, computed } from "vue";
 import { Pencil, X } from "lucide-vue-next";
 import { useUpdateCompanion } from "@/composables/useCompanions";
-import { CONDITIONS } from "@/types/party.types";
+import { CONDITIONS, getConditionDescription } from "@/lib/conditions";
 import {
   COMPANION_TYPE_LABELS,
   COMPANION_TYPE_COLORS,

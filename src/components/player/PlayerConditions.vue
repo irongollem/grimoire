@@ -10,7 +10,7 @@
     >
       <span
         class="font-cinzel text-[11px] text-destructive tracking-wider leading-none"
-        :title="CONDITION_DESCRIPTIONS[cond]"
+        :title="getConditionDescription(cond)"
       >{{ cond }}</span>
       <button
         class="flex items-center justify-center w-4 h-4 rounded-full text-destructive/50 hover:text-destructive hover:bg-destructive/20 transition-colors text-sm leading-none"
@@ -71,6 +71,7 @@ import { useUpdatePartyMember } from "@/composables/useParty";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { rollDice } from "@/lib/roller";
 import { patchLiveCombatantConditions } from "@/composables/useEncounterLive";
+import { getConditionDescription } from "@/lib/conditions";
 import type { PartyMember } from "@/types/party.types";
 
 const props = defineProps<{ member: PartyMember }>();
@@ -78,28 +79,6 @@ const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifie
 
 const { mutateAsync: updateMember } = useUpdatePartyMember();
 const { sendRoll } = useCampaignMessages();
-
-// ── Condition descriptions ────────────────────────────────────────────────────
-
-const CONDITION_DESCRIPTIONS: Record<string, string> = {
-  "Blinded":      "Can't see. Auto-fail sight checks. Your attacks have disadvantage; attacks against you have advantage.",
-  "Charmed":      "Can't attack or harm the charmer. Charmer has advantage on social interactions with you.",
-  "Deafened":     "Can't hear. Auto-fail hearing checks.",
-  "Exhausted 1":  "Disadvantage on ability checks.",
-  "Exhausted 2":  "Speed halved.",
-  "Exhausted 3":  "Disadvantage on attack rolls and saving throws.",
-  "Frightened":   "Disadvantage on ability checks and attacks while source is visible. Can't willingly move closer to it.",
-  "Grappled":     "Speed becomes 0. Ends if grappler is incapacitated or you are moved out of reach.",
-  "Incapacitated":"Can't take actions or reactions.",
-  "Invisible":    "Can't be seen without special senses. Your attacks have advantage; attacks against you have disadvantage.",
-  "Paralyzed":    "Incapacitated, can't move or speak. Auto-fail STR/DEX saves. Attacks have advantage and are auto-crits within 5 ft.",
-  "Petrified":    "Transformed to stone. Incapacitated, resistant to all damage. Auto-fail STR/DEX saves; attacks have advantage.",
-  "Poisoned":     "Disadvantage on attack rolls and ability checks.",
-  "Prone":        "Your attacks have disadvantage. Melee attacks against you within 5 ft have advantage; ranged attacks have disadvantage.",
-  "Restrained":   "Speed 0. Disadvantage on attacks and DEX saves. Attacks against you have advantage.",
-  "Stunned":      "Incapacitated, can't move. Auto-fail STR/DEX saves. Attacks against you have advantage.",
-  "Unconscious":  "Incapacitated, prone. Auto-fail STR/DEX saves. Attacks have advantage and are auto-crits within 5 ft.",
-};
 
 // ── Condition helpers ─────────────────────────────────────────────────────────
 

@@ -120,7 +120,7 @@
         :key="cond"
         class="cond-badge"
         @click="store.toggleCondition(combatant.instance_id, cond)"
-        title="Click to remove"
+        :title="`${cond} — click to remove\n\n${getConditionDescription(cond)}`"
       >{{ cond }} ×</span>
       <div class="relative" v-if="addingCondFor !== combatant.instance_id">
         <button class="add-cond-btn" @click="addingCondFor = combatant.instance_id">+</button>
@@ -290,7 +290,7 @@
           :key="cond"
           class="cond-badge"
           @click="store.toggleCondition(combatant.instance_id, cond)"
-          title="Tap to remove"
+          :title="`${cond} — tap to remove\n\n${getConditionDescription(cond)}`"
         >{{ cond }} ×</span>
         <div v-if="addingCondFor !== combatant.instance_id" class="relative">
           <button class="add-cond-btn" @click="addingCondFor = combatant.instance_id">+</button>
@@ -320,7 +320,7 @@ import { Eye, EyeOff } from "lucide-vue-next";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useIsMobile } from "@/composables/useBreakpoint";
-import { CONDITIONS } from "@/types/party.types";
+import { CONDITIONS, getConditionDescription } from "@/lib/conditions";
 import type { RunCombatant, RevealState } from "@/types/encounter.types";
 
 // Drives the mobile card vs. desktop table switch below. Reactive, so rotating
