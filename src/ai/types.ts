@@ -1,6 +1,7 @@
 import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
 import type { MonsterType, MonsterSize, MonsterStatBlock } from "@/types/monster.types";
 import type { ItemType, ItemRarity } from "@/types/item.types";
+import type { SpellSchool } from "@/types/spell.types";
 import type { DamageRoll } from "@/lib/dice";
 
 export interface NpcAiResult {
@@ -104,5 +105,54 @@ export interface PuzzleAiResult {
 }
 
 export interface PuzzleAiGenerated extends PuzzleAiResult {
+  image_url: string | null;
+}
+
+export interface SpellAiResult {
+  name: string;
+  level: number;
+  school: SpellSchool;
+  /** From CASTING_TIME_OPTIONS or "Special" */
+  casting_time: string;
+  /** Trigger text for Reaction, or full text if Special. Null otherwise. */
+  casting_time_custom: string | null;
+  /** From RANGE_OPTIONS or "Special" */
+  range: string;
+  range_custom: string | null;
+  /** Subset of ["V","S","M"] */
+  components: string[];
+  /** Material component description (no parens). Null when "M" not present. */
+  material: string | null;
+  /** From DURATION_OPTIONS or "Special" */
+  duration: string;
+  duration_custom: string | null;
+  concentration: boolean;
+  ritual: boolean;
+  /** ranged_spell | melee_spell | save | automatic | none */
+  attack_type: string | null;
+  /** STR | DEX | CON | INT | WIS | CHA — only when attack_type === "save" */
+  save_attribute: string | null;
+  /** half | negates | special — only when attack_type === "save" */
+  save_effect: string | null;
+  /** Per-instance damage rolls; null when the spell deals no damage */
+  damage_rolls: DamageRoll[] | null;
+  healing_dice: string | null;
+  target_description: string | null;
+  /** sphere | cone | line | cylinder | cube | emanation */
+  aoe_shape: string | null;
+  aoe_size: string | null;
+  /** Lowercase 5e condition name (e.g. "blinded") */
+  condition_inflicted: string | null;
+  /** Plain text — populated directly into the description field */
+  description: string;
+  /** Plain text "At Higher Levels" paragraph; null for cantrips/non-scaling */
+  higher_levels: string | null;
+  classes: string[];
+  tags: string[];
+  /** Effect-in-flight description for image generation */
+  image_prompt: string;
+}
+
+export interface SpellAiGenerated extends SpellAiResult {
   image_url: string | null;
 }

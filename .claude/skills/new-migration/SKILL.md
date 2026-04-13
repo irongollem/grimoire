@@ -30,14 +30,19 @@ This skill:
 
 ## Step 1 — Determine next sequence number
 
-Run this to find the highest existing sequence for today:
+Check both local files **and** `origin/main` to avoid branch divergence collisions:
 
 ```bash
 today=$(date +%Y%m%d)
-ls supabase/migrations/ | grep "^${today}" | sed "s/^${today}//" | cut -c1-6 | sort -n | tail -1
+# Local sequences for today
+local_max=$(ls supabase/migrations/ | grep "^${today}" | sed "s/^${today}//" | cut -c1-6 | sort -n | tail -1)
+# origin/main sequences for today (catches migrations merged to main while on a branch)
+main_max=$(git ls-tree -r origin/main --name-only -- supabase/migrations/ 2>/dev/null | grep "^supabase/migrations/${today}" | sed "s|supabase/migrations/${today}||" | cut -c1-6 | sort -n | tail -1)
+# Take the higher of the two
+echo -e "${local_max}\n${main_max}" | sort -n | tail -1
 ```
 
-If no files exist for today, the sequence starts at `000001`.
+If no files exist for today in either location, the sequence starts at `000001`.
 If the highest is e.g. `000003`, use `000004`.
 
 ## Step 2 — Construct filename

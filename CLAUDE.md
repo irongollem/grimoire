@@ -33,10 +33,15 @@ Migration files live in `supabase/migrations/` with timestamp prefix `YYYYMMDDNN
 
 NEVER use `mcp__supabase__apply_migration` for schema changes. It auto-generates its own timestamp that will never match the local file's timestamp, causing `supabase db push` to diverge every time.
 
+**CRITICAL — always use `/new-migration` to create migration files (prevents sequence collisions):**
+
+NEVER pick a migration sequence number manually. Always invoke the `/new-migration` skill first to get the correct next filename — it checks both local files and `origin/main` to avoid collisions when working on branches.
+
 Always follow this exact workflow:
 
-1. Write the SQL to `supabase/migrations/YYYYMMDDNNNNNN_name.sql` using the Write tool
-2. Apply it to the remote DB via Bash: `supabase db push`
+1. Invoke `/new-migration <name>` — this creates the file with the correct collision-free timestamp
+2. Write the SQL body into the created file
+3. Apply it to the remote DB via Bash: `supabase db push`
 
 This ensures a single timestamp (the filename) is used for both local tracking and remote history.
 

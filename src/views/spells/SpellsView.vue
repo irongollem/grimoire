@@ -60,6 +60,11 @@
         @click="handleImport"
       />
       <ListActionButton
+        :icon="Wand2"
+        label="Generate"
+        @click="ui.spellGeneratorOpen = true"
+      />
+      <ListActionButton
         :icon="Plus"
         label="New Spell"
         variant="primary"
@@ -109,7 +114,8 @@
 import { ref, watch } from "vue";
 import { computed } from "vue";
 import { refDebounced, useLocalStorage, onClickOutside } from "@vueuse/core";
-import { Plus, Loader2, Download, Settings2 } from "lucide-vue-next";
+import { Plus, Loader2, Download, Settings2, Wand2 } from "lucide-vue-next";
+import { useUiStore } from "@/stores/ui";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
@@ -118,6 +124,8 @@ import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import SpellList from "@/components/spells/SpellList.vue";
 import { useImportSrdSpells, useSpellSources, useOpen5eDocuments } from "@/composables/useSpells";
+
+const ui = useUiStore();
 import { SPELL_SCHOOLS, SPELL_CLASSES, spellSourceLabel } from "@/types/spell.types";
 import type { ImportResult } from "@/composables/useSpells";
 
