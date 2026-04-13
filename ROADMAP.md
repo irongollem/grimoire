@@ -24,7 +24,7 @@
 - [x] Compendium — 317 SRD 2024 rules synced from Open5e v2 into `srd_rules` table (shared, no user_id); searchable + tree-browsable
 - [x] Custom Rules — per-user CRUD with Tiptap editor, category, tags, search
 - [x] `sync-srd-rules` Supabase Edge Function — upserts Open5e v2 rules weekly (deployable via `supabase functions deploy`)
-- [x] add a player view version of the reliquary: `/play/rules` with Reference tab (full DM screen tables), Compendium tab (full SRD), House Rules tab (view-only custom rules where DM toggled "Visible to players"); DM sets visibility per rule in rule editor; eye icon on DM rule cards
+- [x] add a player view version of the reliquary: `/play/rules` with Reference tab (full DM screen tables), Compendium tab (full SRD), House Rules tab (view-only custom rules where DM toggled "Visible to players"), Codex tab (species with artwork/traits/variants and classes with features-by-level/subclasses in read-only accordions); DM sets visibility per rule in rule editor; eye icon on DM rule cards
 
 ### Content Creation & Homebrew
 
