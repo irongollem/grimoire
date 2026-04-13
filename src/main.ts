@@ -7,6 +7,8 @@ import App from "./App.vue";
 import "./assets/main.css";
 import { captureInstallPrompt } from "./composables/usePwaInstall";
 import { onWakeLockVisibilityChange } from "./composables/useWakeLock";
+import { installTooltipEngine } from "./lib/tooltip";
+import { tooltip as vTooltip } from "./directives/tooltip";
 
 window.addEventListener("beforeinstallprompt", captureInstallPrompt, { once: true });
 document.addEventListener("visibilitychange", onWakeLockVisibilityChange);
@@ -63,6 +65,14 @@ const app = createApp(App);
 app.use(createPinia());
 app.use(VueQueryPlugin, { queryClient });
 app.use(router);
+
+// Custom tooltip engine — replaces native `title` tooltips app-wide. Existing
+// `title="…"` attributes on every component are auto-promoted to the styled
+// popover; new code can also use the `v-tooltip="…"` directive registered
+// here for cases where the value is dynamic and we want to skip the native
+// tooltip flicker.
+app.directive("tooltip", vTooltip);
+installTooltipEngine();
 
 app.mount("#app");
 
