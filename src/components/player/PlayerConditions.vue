@@ -2,9 +2,16 @@
   <!-- Conditions row: chips + add button -->
   <div class="flex flex-wrap items-center gap-1.5 min-h-8">
 
-    <!-- Active condition chips -->
+    <!-- Exhaustion (single chip with pip levels) -->
+    <ExhaustionChip
+      v-if="exhaustionLevel > 0"
+      :level="exhaustionLevel"
+      @update="setExhaustion"
+    />
+
+    <!-- Other condition chips -->
     <div
-      v-for="cond in member.conditions"
+      v-for="cond in member.conditions.filter((c) => !isExhaustion(c))"
       :key="cond"
       class="flex items-center gap-1 rounded-full border border-destructive/40 bg-destructive/10 pl-2.5 pr-1 py-0.5"
     >
@@ -67,11 +74,18 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { rollDice } from "@/lib/roller";
 import { patchLiveCombatantConditions } from "@/composables/useEncounterLive";
-import { getConditionDescription } from "@/lib/conditions";
+import {
+  getConditionDescription,
+  getExhaustionLevel,
+  setExhaustionLevel,
+  isExhaustion,
+} from "@/lib/conditions";
+import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
 import type { PartyMember } from "@/types/party.types";
 
 const props = defineProps<{ member: PartyMember }>();
@@ -82,8 +96,16 @@ const { sendRoll } = useCampaignMessages();
 
 // ── Condition helpers ─────────────────────────────────────────────────────────
 
+const exhaustionLevel = computed(() => getExhaustionLevel(props.member.conditions ?? []));
+
 async function removeCondition(cond: string) {
   const updated = (props.member.conditions ?? []).filter(c => c !== cond);
+  await updateMember({ id: props.member.id, update: { conditions: updated } });
+  void patchLiveCombatantConditions(props.member.id, updated);
+}
+
+async function setExhaustion(level: number) {
+  const updated = setExhaustionLevel(props.member.conditions ?? [], level);
   await updateMember({ id: props.member.id, update: { conditions: updated } });
   void patchLiveCombatantConditions(props.member.id, updated);
 }

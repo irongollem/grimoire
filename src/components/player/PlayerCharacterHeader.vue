@@ -140,7 +140,14 @@ import { RouterLink } from "vue-router";
 import { Star, TrendingUp, Settings } from "lucide-vue-next";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { patchLiveCombatantConditions } from "@/composables/useEncounterLive";
-import { CONDITIONS, ATTACK_DIS_CONDITIONS, CHECK_DIS_CONDITIONS, getConditionDescription } from "@/lib/conditions";
+import {
+  CONDITIONS,
+  getConditionDescription,
+  getExhaustionLevel,
+  setExhaustionLevel,
+  hasAttackDisadvantage,
+  hasCheckDisadvantage,
+} from "@/lib/conditions";
 import type { PartyMember } from "@/types/party.types";
 import { abilityModifier } from "@/lib/utils";
 import { useAllSpecies } from "@/composables/useSpecies";
@@ -176,13 +183,23 @@ function openConditionPicker() {
 
 const filteredConditions = computed(() => {
   const q = conditionSearch.value.toLowerCase();
-  return CONDITIONS.filter(c => c.toLowerCase().includes(q));
+  const hasExhaustion = getExhaustionLevel(props.member.conditions ?? []) > 0;
+  return CONDITIONS.filter((c) => {
+    if (!c.toLowerCase().includes(q)) return false;
+    if (c === "Exhaustion") return !hasExhaustion;
+    return true;
+  });
 });
-function hasCondition(cond: string) { return props.member.conditions?.includes(cond) ?? false; }
+function hasCondition(cond: string) {
+  if (cond === "Exhaustion") return getExhaustionLevel(props.member.conditions ?? []) > 0;
+  return props.member.conditions?.includes(cond) ?? false;
+}
 async function addCondition(cond: string) {
   if (hasCondition(cond)) return;
   showConditionPicker.value = false;
-  const updated = [...(props.member.conditions ?? []), cond];
+  const updated = cond === "Exhaustion"
+    ? setExhaustionLevel(props.member.conditions ?? [], 1)
+    : [...(props.member.conditions ?? []), cond];
   await updateMember({ id: props.member.id, update: { conditions: updated } });
   void patchLiveCombatantConditions(props.member.id, updated);
 }
@@ -213,8 +230,8 @@ const hpBarColor = computed(() => {
   return "bg-elven-green";
 });
 
-const attackDisadvantage = computed(() => props.member.conditions?.some(c => ATTACK_DIS_CONDITIONS.has(c)) ?? false);
-const checkDisadvantage  = computed(() => props.member.conditions?.some(c => CHECK_DIS_CONDITIONS.has(c)) ?? false);
+const attackDisadvantage = computed(() => hasAttackDisadvantage(props.member.conditions ?? []));
+const checkDisadvantage  = computed(() => hasCheckDisadvantage(props.member.conditions ?? []));
 
 async function applyDamage() {
   if (hpInput.value <= 0) return;

@@ -288,9 +288,15 @@
 
             <!-- Conditions + Curses -->
             <div class="flex flex-wrap items-center gap-1.5">
-              <!-- Regular conditions -->
+              <!-- Exhaustion (single chip with pip levels) -->
+              <ExhaustionChip
+                v-if="getExhaustionLevel(member.conditions) > 0"
+                :level="getExhaustionLevel(member.conditions)"
+                @update="(lvl) => setExhaustion(member, lvl)"
+              />
+              <!-- Other conditions -->
               <span
-                v-for="cond in member.conditions"
+                v-for="cond in member.conditions.filter((c) => !isExhaustion(c))"
                 :key="cond"
                 class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-destructive/10 border border-destructive/30 font-cinzel text-[10px] font-semibold text-destructive"
                 :title="getConditionDescription(cond)"
@@ -701,7 +707,14 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import CompanionCard from "./CompanionCard.vue";
 import CompanionForm from "./CompanionForm.vue";
-import { CONDITIONS, getConditionDescription } from "@/lib/conditions";
+import {
+  CONDITIONS,
+  getConditionDescription,
+  getExhaustionLevel,
+  setExhaustionLevel,
+  isExhaustion,
+} from "@/lib/conditions";
+import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
 import type { Companion } from "@/types/companion.types";
 import type {
   PartyMember,
@@ -813,10 +826,21 @@ function toggleConditionDropdown(member: PartyMember, event: MouseEvent) {
 }
 
 function availableConditions(member: PartyMember) {
-  return CONDITIONS.filter((c) => !member.conditions.includes(c));
+  // Hide existing non-exhaustion conditions; hide the Exhaustion picker
+  // entry once the member has any exhaustion (the chip's pips control
+  // level instead).
+  const hasExhaustion = getExhaustionLevel(member.conditions) > 0;
+  return CONDITIONS.filter((c) => {
+    if (c === "Exhaustion") return !hasExhaustion;
+    return !member.conditions.includes(c);
+  });
 }
 async function addCondition(member: PartyMember, condition: string) {
   conditionOpen[member.id] = false;
+  if (condition === "Exhaustion") {
+    await setExhaustion(member, 1);
+    return;
+  }
   await updateMember({
     id: member.id,
     update: { conditions: [...member.conditions, condition] },
@@ -826,6 +850,13 @@ async function removeCondition(member: PartyMember, condition: string) {
   await updateMember({
     id: member.id,
     update: { conditions: member.conditions.filter((c) => c !== condition) },
+  });
+}
+
+async function setExhaustion(member: PartyMember, level: number) {
+  await updateMember({
+    id: member.id,
+    update: { conditions: setExhaustionLevel(member.conditions, level) },
   });
 }
 

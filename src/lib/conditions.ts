@@ -5,21 +5,18 @@ export { SRD_CONDITIONS };
 export type { Condition };
 
 /**
- * List of conditions the app accepts as values in a creature's `conditions`
- * array. Grimoire splits Exhaustion into three named levels
- * (`"Exhausted 1"` / `"Exhausted 2"` / `"Exhausted 3"`) so the UI chip
- * carries the current level without a separate numeric field. The SRD
- * itself treats exhaustion as one condition with six levels; the baked
- * static data reflects the SRD text but the picker/storage uses these
- * split names.
+ * Pickable conditions surfaced in the "+ Condition" dropdown. Just the
+ * canonical 15 SRD names — Exhaustion is a single entry, not split by
+ * level. Storage still uses `"Exhausted N"` so the level rides with the
+ * condition string, but the picker treats it as one option; the chip UI
+ * shows the current level with inline −/+ controls (see
+ * `getExhaustionLevel` / `setExhaustionLevel` below).
  */
 export const CONDITIONS = [
   "Blinded",
   "Charmed",
   "Deafened",
-  "Exhausted 1",
-  "Exhausted 2",
-  "Exhausted 3",
+  "Exhaustion",
   "Frightened",
   "Grappled",
   "Incapacitated",
@@ -35,6 +32,42 @@ export const CONDITIONS = [
 
 export type ConditionName = (typeof CONDITIONS)[number];
 
+/** Max exhaustion level per SRD — at 6 the character dies. */
+export const MAX_EXHAUSTION = 6;
+
+/** True when the stored string encodes any exhaustion level. */
+export function isExhaustion(condition: string): boolean {
+  return /^Exhaust(ed|ion)\s+\d$/i.test(condition);
+}
+
+/** Extract the level from a stored exhaustion string, or 0 if not present. */
+export function parseExhaustionLevel(condition: string): number {
+  const m = condition.match(/^Exhaust(?:ed|ion)\s+(\d)$/i);
+  return m ? parseInt(m[1], 10) : 0;
+}
+
+/** Current exhaustion level on a creature, or 0 if none. */
+export function getExhaustionLevel(conditions: string[]): number {
+  for (const c of conditions) {
+    const level = parseExhaustionLevel(c);
+    if (level > 0) return level;
+  }
+  return 0;
+}
+
+/**
+ * Returns a new conditions array with exhaustion set to `level`. `level=0`
+ * removes exhaustion entirely; values outside [0, MAX_EXHAUSTION] are
+ * clamped. Any existing exhaustion entries are replaced (there's never
+ * more than one active at a time).
+ */
+export function setExhaustionLevel(conditions: string[], level: number): string[] {
+  const without = conditions.filter((c) => !isExhaustion(c));
+  const clamped = Math.max(0, Math.min(MAX_EXHAUSTION, level));
+  if (clamped === 0) return without;
+  return [...without, `Exhausted ${clamped}`];
+}
+
 /** Conditions that impose disadvantage on attack rolls for the sufferer. */
 export const ATTACK_DIS_CONDITIONS = new Set<string>([
   "Blinded",
@@ -44,14 +77,28 @@ export const ATTACK_DIS_CONDITIONS = new Set<string>([
   "Restrained",
 ]);
 
-/** Conditions that impose disadvantage on ability checks for the sufferer. */
+/**
+ * Check-disadvantage raw name set — only non-exhaustion entries. Callers
+ * should use `hasCheckDisadvantage()` which also accounts for any
+ * exhaustion level (level 1+ gives disadvantage on ability checks per the
+ * SRD).
+ */
 export const CHECK_DIS_CONDITIONS = new Set<string>([
   "Frightened",
   "Poisoned",
-  "Exhausted 1",
-  "Exhausted 2",
-  "Exhausted 3",
 ]);
+
+/** Whether any of the given conditions impose disadvantage on attack rolls. */
+export function hasAttackDisadvantage(conditions: string[]): boolean {
+  return conditions.some((c) => ATTACK_DIS_CONDITIONS.has(c));
+}
+
+/** Whether any of the given conditions impose disadvantage on ability checks. */
+export function hasCheckDisadvantage(conditions: string[]): boolean {
+  if (conditions.some((c) => CHECK_DIS_CONDITIONS.has(c))) return true;
+  // Any exhaustion level ≥ 1 gives disadvantage on ability checks.
+  return getExhaustionLevel(conditions) >= 1;
+}
 
 // ── Lookups ───────────────────────────────────────────────────────────────────
 

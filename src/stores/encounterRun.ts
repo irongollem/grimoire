@@ -151,6 +151,14 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     else c.conditions.push(condition);
   }
 
+  /** Replace a combatant's full conditions array — used when several
+   *  entries change at once (e.g. exhaustion replacement). */
+  function setConditions(instanceId: string, conditions: string[]) {
+    const c = combatants.value.find((x) => x.instance_id === instanceId);
+    if (!c) return;
+    c.conditions = conditions;
+  }
+
   function addCurse(instanceId: string, curse: string) {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c || !curse.trim() || c.curses.includes(curse.trim())) return;
@@ -385,6 +393,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     setHp,
     setTempHp,
     toggleCondition,
+    setConditions,
     addCurse,
     removeCurse,
     setRevealState,
