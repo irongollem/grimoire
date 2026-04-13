@@ -115,12 +115,18 @@
 
     <!-- Conditions -->
     <div class="conditions-cell" @click.stop>
+      <ExhaustionChip
+        v-if="getExhaustionLevel(combatant.conditions) > 0"
+        variant="amber"
+        :level="getExhaustionLevel(combatant.conditions)"
+        @update="(lvl) => onExhaustionChange(combatant.instance_id, lvl)"
+      />
       <span
-        v-for="cond in combatant.conditions"
+        v-for="cond in nonExhaustion(combatant.conditions)"
         :key="cond"
         class="cond-badge"
         @click="store.toggleCondition(combatant.instance_id, cond)"
-        title="Click to remove"
+        :title="`${cond} — click to remove\n\n${getConditionDescription(cond)}`"
       >{{ cond }} ×</span>
       <div class="relative" v-if="addingCondFor !== combatant.instance_id">
         <button class="add-cond-btn" @click="addingCondFor = combatant.instance_id">+</button>
@@ -129,7 +135,7 @@
         <select
           size="5"
           class="cond-select"
-          @change="(e) => { store.toggleCondition(combatant.instance_id, (e.target as HTMLSelectElement).value); addingCondFor = null }"
+          @change="(e) => onPickCondition(combatant.instance_id, (e.target as HTMLSelectElement).value)"
           @blur="addingCondFor = null"
         >
           <option v-for="c in availableConditions(combatant)" :key="c" :value="c">{{ c }}</option>
@@ -285,12 +291,18 @@
 
       <!-- Row 5: conditions (wraps) -->
       <div class="mc-conditions" @click.stop>
+        <ExhaustionChip
+          v-if="getExhaustionLevel(combatant.conditions) > 0"
+          variant="amber"
+          :level="getExhaustionLevel(combatant.conditions)"
+          @update="(lvl) => onExhaustionChange(combatant.instance_id, lvl)"
+        />
         <span
-          v-for="cond in combatant.conditions"
+          v-for="cond in nonExhaustion(combatant.conditions)"
           :key="cond"
           class="cond-badge"
           @click="store.toggleCondition(combatant.instance_id, cond)"
-          title="Tap to remove"
+          :title="`${cond} — tap to remove\n\n${getConditionDescription(cond)}`"
         >{{ cond }} ×</span>
         <div v-if="addingCondFor !== combatant.instance_id" class="relative">
           <button class="add-cond-btn" @click="addingCondFor = combatant.instance_id">+</button>
@@ -299,7 +311,7 @@
           <select
             size="5"
             class="cond-select"
-            @change="(e) => { store.toggleCondition(combatant.instance_id, (e.target as HTMLSelectElement).value); addingCondFor = null }"
+            @change="(e) => onPickCondition(combatant.instance_id, (e.target as HTMLSelectElement).value)"
             @blur="addingCondFor = null"
           >
             <option v-for="c in availableConditions(combatant)" :key="c" :value="c">{{ c }}</option>
@@ -320,7 +332,14 @@ import { Eye, EyeOff } from "lucide-vue-next";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useIsMobile } from "@/composables/useBreakpoint";
-import { CONDITIONS } from "@/types/party.types";
+import {
+  CONDITIONS,
+  getConditionDescription,
+  getExhaustionLevel,
+  setExhaustionLevel,
+  isExhaustion,
+} from "@/lib/conditions";
+import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
 import type { RunCombatant, RevealState } from "@/types/encounter.types";
 
 // Drives the mobile card vs. desktop table switch below. Reactive, so rotating
@@ -402,7 +421,40 @@ function factionColor(factionId: string): string {
 }
 
 function availableConditions(c: RunCombatant): string[] {
-  return CONDITIONS.filter((cond) => !c.conditions.includes(cond));
+  // Hide non-exhaustion conditions the creature already has, and hide the
+  // single "Exhaustion" picker entry once they have any level of it (the
+  // chip's pips become the level control instead).
+  const hasExhaustion = getExhaustionLevel(c.conditions) > 0;
+  return CONDITIONS.filter((cond) => {
+    if (cond === "Exhaustion") return !hasExhaustion;
+    return !c.conditions.includes(cond);
+  });
+}
+
+function nonExhaustion(conditions: string[]): string[] {
+  return conditions.filter((c) => !isExhaustion(c));
+}
+
+/**
+ * Picker handler. Special-cased for "Exhaustion" — that selector adds level
+ * 1; any subsequent level changes happen via the chip's pips. Other names
+ * are stored as-is.
+ */
+function onPickCondition(instanceId: string, value: string) {
+  if (!value) { addingCondFor.value = null; return; }
+  if (value === "Exhaustion") {
+    onExhaustionChange(instanceId, 1);
+  } else {
+    store.toggleCondition(instanceId, value);
+  }
+  addingCondFor.value = null;
+}
+
+function onExhaustionChange(instanceId: string, newLevel: number) {
+  const combatant = store.sortedCombatants.find((c) => c.instance_id === instanceId);
+  if (!combatant) return;
+  const next = setExhaustionLevel(combatant.conditions, newLevel);
+  store.setConditions(instanceId, next);
 }
 
 function combatantInitials(c: RunCombatant): string {

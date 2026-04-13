@@ -361,13 +361,21 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Puzzle" },
     },
 
-    // Species
+    // Character Codex (Species / Backgrounds / Classes tabs)
     {
-      path: "/species",
-      name: "species",
-      component: () => import("@/views/species/SpeciesView.vue"),
-      meta: { requiresAuth: true, title: "Species" },
+      path: "/codex",
+      redirect: "/codex/species",
     },
+    {
+      path: "/codex/:tab(species|backgrounds|classes)",
+      name: "codex",
+      component: () => import("@/views/codex/CharacterCodexView.vue"),
+      meta: { requiresAuth: true, title: "Character Codex" },
+    },
+
+    // Legacy /species entry — redirect to the codex so existing bookmarks work.
+    { path: "/species", redirect: "/codex/species" },
+    // Species detail (editor) — kept at top-level for clean create/edit URLs.
     {
       path: "/species/new",
       name: "species-new",
@@ -439,6 +447,24 @@ const router = createRouter({
       name: "custom-class-detail",
       component: () => import("@/views/levelup/CustomClassEditorView.vue"),
       meta: { requiresAuth: true, title: "Class" },
+    },
+
+    // Backgrounds (compendium is under /codex/backgrounds; detail routes live here)
+    {
+      path: "/backgrounds",
+      redirect: "/codex/backgrounds",
+    },
+    {
+      path: "/backgrounds/new",
+      name: "background-new",
+      component: () => import("@/views/backgrounds/BackgroundDetailView.vue"),
+      meta: { requiresAuth: true, title: "New Background" },
+    },
+    {
+      path: "/backgrounds/:id",
+      name: "background-detail",
+      component: () => import("@/views/backgrounds/BackgroundDetailView.vue"),
+      meta: { requiresAuth: true, title: "Background" },
     },
 
     // Hall of Heroes
