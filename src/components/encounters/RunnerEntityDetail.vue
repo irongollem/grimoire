@@ -350,6 +350,40 @@
           </div>
           <span class="detail-trait-desc">{{ atk.description }}</span>
         </div>
+        <!-- Ranged Attacks -->
+        <template v-if="playerRangedAttacks.length">
+          <div class="detail-divider" />
+          <p class="detail-section-label">Ranged Attacks</p>
+          <div v-for="atk in playerRangedAttacks" :key="atk.weaponInvId" class="detail-trait">
+            <div class="detail-trait-header">
+              <strong>{{ atk.name }}.</strong>
+              <div class="trait-roll-bar">
+                <button
+                  type="button"
+                  class="trait-roll-btn trait-atk-btn"
+                  :disabled="!availableAmmoFor(atk.ammoTag)"
+                  :title="!availableAmmoFor(atk.ammoTag) ? 'No ammunition available' : undefined"
+                  @click.stop="fireRangedAttack(atk)"
+                >🏹 {{ atk.attackBonus >= 0 ? '+' : '' }}{{ atk.attackBonus }}</button>
+                <button
+                  v-if="atk.damageDice"
+                  type="button"
+                  class="trait-roll-btn trait-dmg-btn"
+                  @click.stop="rollActionDamage(atk.damageDice, atk.name)"
+                >🎲 {{ actionDiceLabel(atk.damageDice) }}</button>
+                <span
+                  v-if="availableAmmoFor(atk.ammoTag)"
+                  class="font-cinzel text-[9px] text-muted-foreground whitespace-nowrap self-center"
+                >× {{ ammoRemainingCount(availableAmmoFor(atk.ammoTag)) }}</span>
+                <span
+                  v-else
+                  class="font-cinzel text-[9px] text-destructive whitespace-nowrap self-center"
+                >— no ammo</span>
+              </div>
+            </div>
+            <span class="detail-trait-desc">{{ atk.description }}</span>
+          </div>
+        </template>
         <!-- Curses -->
         <div class="detail-divider" />
         <p class="detail-section-label">Curses</p>
@@ -662,6 +696,9 @@ import { useCharacterSpellsWithDetails } from "@/composables/useCharacterSpells"
 import { useAuthStore } from "@/stores/auth";
 import { generateHTML } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
+import { usePartyInventory, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
+import { useItems } from "@/composables/useItems";
+import type { Item } from "@/types/item.types";
 
 const props = defineProps<{
   selectedId: string | null;
@@ -678,6 +715,10 @@ const auth = useAuthStore();
 const { data: monsters } = useAllMonsters();
 const { data: party } = useParty();
 const { data: companions } = useCompanions();
+const { data: inventoryItems } = usePartyInventory();
+const { data: vaultItems } = useItems();
+const updateInventoryItem = useUpdateInventoryItem();
+const removeInventoryItem = useRemoveInventoryItem();
 
 const curseInput = ref("");
 
@@ -947,6 +988,164 @@ const playerMeleeAttacks = computed<MeleeAttack[]>(() => {
     },
   ];
 });
+
+// ── Ranged attacks + ammo consumption ────────────────────────────────────────
+
+interface RangedAttack {
+  name: string;
+  attackBonus: number;
+  damageDice: string | null;
+  description: string;
+  ammoTag: string;
+  weaponInvId: string;
+}
+
+/** Map a vault Item's subtype/tags to the ammo tag it requires. */
+function weaponAmmoTag(item: Item): string | null {
+  if (item.tags.includes("firearm")) return "firearm-bullet";
+  const sub = (item.subtype ?? "").toLowerCase();
+  if (sub.includes("shortbow") || sub.includes("longbow") || (sub.includes("bow") && !sub.includes("crossbow"))) return "arrow";
+  if (sub.includes("crossbow")) return "bolt";
+  if (sub === "sling") return "bullet";
+  if (sub.includes("blowgun")) return "needle";
+  if (sub.includes("dart")) return "dart";
+  // name-based fallback for unusual subtypes
+  const name = item.name.toLowerCase();
+  if (name.includes("longbow") || name.includes("shortbow") || (name.includes("bow") && !name.includes("crossbow"))) return "arrow";
+  if (name.includes("crossbow")) return "bolt";
+  if (name.includes("sling")) return "bullet";
+  if (name.includes("blowgun")) return "needle";
+  return null;
+}
+
+/** Determine ammo tag from inventory item name alone (fallback when item_id is null). */
+function ammoTagFromName(name: string): string | null {
+  const lower = name.toLowerCase();
+  if (lower.includes("arrow")) return "arrow";
+  if (lower.includes("bolt")) return "bolt";
+  if ((lower.includes("bullet") || lower.includes("shot")) && (lower.includes("firearm") || lower.includes("black powder") || lower.includes("pistol") || lower.includes("musket"))) return "firearm-bullet";
+  if (lower.includes("bullet")) return "bullet";
+  if (lower.includes("needle")) return "needle";
+  if (lower.includes("dart")) return "dart";
+  return null;
+}
+
+const vaultItemMap = computed<Map<string, Item>>(() => {
+  const map = new Map<string, Item>();
+  for (const item of vaultItems.value ?? []) map.set(item.id, item);
+  return map;
+});
+
+const memberInventory = computed(() => {
+  const mid = selectedMemberId.value;
+  if (!mid) return [];
+  return (inventoryItems.value ?? []).filter((i) => i.carried_by === mid);
+});
+
+// Set of container IDs that belong to this member (is_container=true items)
+const memberContainerIds = computed<Set<string>>(() => {
+  const s = new Set<string>();
+  for (const i of memberInventory.value) {
+    if (i.is_container) s.add(i.id);
+  }
+  return s;
+});
+
+/** Find the best available ammo stack for a given tag. Prefers container items; falls back to belt/backpack. */
+function availableAmmoFor(ammoTag: string) {
+  const candidates = memberInventory.value.filter((inv) => {
+    // Resolve ammo tag from vault or name
+    const vaultItem = inv.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
+    const tag = vaultItem ? (vaultItem.tags.includes("firearm") && ammoTag === "firearm-bullet" ? "firearm-bullet" : vaultItem.tags.find((t) => ["arrow", "bolt", "bullet", "needle", "dart"].includes(t)) ?? null) : ammoTagFromName(inv.name);
+    if (tag !== ammoTag) return false;
+    // Must have remaining charges or quantity
+    const maxCharges = vaultItem?.charges ?? null;
+    const remaining = inv.current_charges !== null ? inv.current_charges : maxCharges;
+    if (remaining !== null && remaining <= 0) return false;
+    if (remaining === null && inv.quantity <= 0) return false;
+    return true;
+  });
+
+  // Prefer items in containers (quiver/pouch), then belt, then backpack
+  const inContainer = candidates.filter((i) => i.location === "container" && memberContainerIds.value.has(i.container_id ?? ""));
+  const onBelt = candidates.filter((i) => i.location === "belt");
+  const inBackpack = candidates.filter((i) => i.location === "backpack");
+  return inContainer[0] ?? onBelt[0] ?? inBackpack[0] ?? null;
+}
+
+/** Returns the display count for an ammo inventory item. */
+function ammoRemainingCount(inv: ReturnType<typeof availableAmmoFor>): number {
+  if (!inv) return 0;
+  const vaultItem = inv.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
+  const maxCharges = vaultItem?.charges ?? null;
+  if (inv.current_charges !== null) return inv.current_charges;
+  if (maxCharges !== null) return maxCharges; // current_charges null means full pack
+  return inv.quantity;
+}
+
+const playerRangedAttacks = computed<RangedAttack[]>(() => {
+  const m = selectedMember.value;
+  if (!m) return [];
+  const dexMod = abilityMod(m.dex);
+  const strMod = abilityMod(m.str);
+  const prof = playerProfBonus.value;
+
+  return memberInventory.value
+    .filter((inv) => ["main_hand", "off_hand"].includes(inv.slot ?? ""))
+    .flatMap((inv) => {
+      if (!inv.item_id) return [];
+      const item = vaultItemMap.value.get(inv.item_id);
+      if (!item || !item.properties.includes("ammunition")) return [];
+      const ammoTag = weaponAmmoTag(item);
+      if (!ammoTag) return [];
+
+      // Finesse ranged weapons (thrown finesse) may use STR if higher
+      const usesStr = item.properties.includes("finesse") && strMod > dexMod;
+      const atkMod = (usesStr ? strMod : dexMod) + prof;
+      const dmgMod = usesStr ? strMod : dexMod;
+
+      let damageDice: string | null = null;
+      if (item.damage_rolls?.length) {
+        const base = item.damage_rolls[0];
+        damageDice = `${base.dice}${dmgMod >= 0 ? "+" : ""}${dmgMod}`;
+      }
+
+      const rangeStr = item.weapon_range ? ` (${item.weapon_range})` : "";
+      return [{
+        name: item.name,
+        attackBonus: atkMod,
+        damageDice,
+        description: `Ranged attack${rangeStr}. Hit: ${damageDice ?? "see item"} ${item.damage_rolls?.[0]?.type ?? "damage"}.`,
+        ammoTag,
+        weaponInvId: inv.id,
+      }] satisfies RangedAttack[];
+    });
+});
+
+function consumeAmmo(ammoTag: string) {
+  const inv = availableAmmoFor(ammoTag);
+  if (!inv) return;
+  const vaultItem = inv.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
+  const maxCharges = vaultItem?.charges ?? null;
+
+  if (maxCharges !== null) {
+    // Charge-tracked pack (e.g. Arrows (20))
+    const current = inv.current_charges !== null ? inv.current_charges : maxCharges;
+    updateInventoryItem.mutate({ id: inv.id, update: { current_charges: Math.max(0, current - 1) } });
+  } else {
+    // Quantity-tracked single ammo (e.g. Arrow, Silvered)
+    if (inv.quantity <= 1) {
+      removeInventoryItem.mutate(inv.id);
+    } else {
+      updateInventoryItem.mutate({ id: inv.id, update: { quantity: inv.quantity - 1 } });
+    }
+  }
+}
+
+function fireRangedAttack(atk: RangedAttack) {
+  rollAttack(atk.attackBonus, atk.name);
+  consumeAmmo(atk.ammoTag);
+}
 
 // ── Monster derived data ──────────────────────────────────────────────────────
 
