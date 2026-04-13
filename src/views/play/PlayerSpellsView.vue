@@ -17,7 +17,7 @@
             activeTab === tab.id ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground',
             tab.max != null && tab.count > tab.max ? 'bg-destructive/20! text-destructive!' : ''
           ]"
-        >{{ tab.count }}{{ tab.max != null ? ` / ${tab.max}` : '' }}</span>
+        >{{ tab.count }}{{ tab.max != null ? ` / ${tab.max}` : '' }}{{ tab.cantrips ? ` + ${tab.cantrips}C` : '' }}</span>
       </button>
     </div>
 
@@ -116,7 +116,7 @@ import { Search } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/useParty";
-import { useCharacterSpells } from "@/composables/useCharacterSpells";
+import { useCharacterSpells, useCharacterSpellsWithDetails } from "@/composables/useCharacterSpells";
 import SpellList from "@/components/spells/SpellList.vue";
 import PlayerMySpells from "@/components/spells/PlayerMySpells.vue";
 import { SPELL_SCHOOLS, SPELL_CLASSES, getCasterType, computeMaxPrepared, getDefaultSpellSlots } from "@/types/spell.types";
@@ -177,11 +177,15 @@ const spellSaveDc = computed(() => {
   return bonus !== null ? 8 + bonus : null;
 });
 
-// Character spells — used for button state in browse tab
-const { data: characterSpells } = useCharacterSpells(resolvedMemberId);
-const knownSpellIds  = computed(() => characterSpells.value?.map((cs) => cs.spell_id) ?? []);
+// Character spells — IDs used for button state in browse tab
+const { data: characterSpells }        = useCharacterSpells(resolvedMemberId);
+// Details (with spell level) used for accurate known/cantrip counts
+const { data: characterSpellsDetails } = useCharacterSpellsWithDetails(resolvedMemberId);
+const knownSpellIds    = computed(() => characterSpells.value?.map((cs) => cs.spell_id) ?? []);
 const preparedSpellIds = computed(() => characterSpells.value?.filter((cs) => cs.is_prepared).map((cs) => cs.spell_id) ?? []);
-const knownCount    = computed(() => characterSpells.value?.length ?? 0);
+// Cantrips and spells are separate pools — spells_known table never includes cantrips
+const knownCount    = computed(() => (characterSpellsDetails.value ?? []).filter(cs => cs.spell.level > 0).length);
+const cantripCount  = computed(() => (characterSpellsDetails.value ?? []).filter(cs => cs.spell.level === 0).length);
 const preparedCount = computed(() => preparedSpellIds.value.length);
 const maxKnown      = computed(() => {
   const m = member.value;
@@ -205,20 +209,20 @@ const tabs = computed(() => {
   const cls  = memberClass.value;
 
   if (type === "spellbook") return [
-    { id: "prepared" as TabId, label: "Prepared",  count: preparedCount.value, max: null },
-    { id: "spellbook" as TabId, label: "Spellbook", count: knownCount.value,   max: null },
-    { id: "browse" as TabId,   label: "All Spells", count: null,               max: null },
+    { id: "prepared" as TabId,  label: "Prepared",  count: preparedCount.value, max: null, cantrips: null },
+    { id: "spellbook" as TabId, label: "Spellbook", count: knownCount.value,    max: null, cantrips: null },
+    { id: "browse" as TabId,    label: "All Spells", count: null,               max: null, cantrips: null },
   ];
   if (type === "prepared") return [
-    { id: "prepared" as TabId, label: "Prepared",             count: preparedCount.value, max: null },
-    { id: "browse" as TabId,   label: allSpellsLabel.value,   count: null,               max: null },
+    { id: "prepared" as TabId, label: "Prepared",           count: preparedCount.value, max: null, cantrips: null },
+    { id: "browse" as TabId,   label: allSpellsLabel.value, count: null,               max: null, cantrips: null },
   ];
   if (type === "known") return [
-    { id: "spellbook" as TabId, label: `Known ${cls ? cls : ""}`.trim(), count: knownCount.value, max: maxKnown.value },
-    { id: "browse" as TabId,    label: allSpellsLabel.value,             count: null,              max: null },
+    { id: "spellbook" as TabId, label: `Known ${cls ? cls : ""}`.trim(), count: knownCount.value, max: maxKnown.value, cantrips: cantripCount.value },
+    { id: "browse" as TabId,    label: allSpellsLabel.value,             count: null,              max: null,          cantrips: null },
   ];
   // none — just browse
-  return [{ id: "browse" as TabId, label: "All Spells", count: null, max: null }];
+  return [{ id: "browse" as TabId, label: "All Spells", count: null, max: null, cantrips: null }];
 });
 
 const defaultTab = computed((): TabId => tabs.value[0].id);
