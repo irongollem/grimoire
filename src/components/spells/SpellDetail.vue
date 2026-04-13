@@ -312,6 +312,15 @@
       </RouterLink>
       <div class="flex items-center gap-2">
         <button
+          v-if="aiApiKey"
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-md border border-primary/40 px-3 py-2 font-cinzel text-xs font-semibold text-primary hover:bg-primary/10 transition-colors"
+          @click="showGenerateDialog = true"
+        >
+          <Sparkles class="h-3.5 w-3.5" />
+          Generate
+        </button>
+        <button
           v-if="spell"
           type="button"
           :disabled="isSendingToScriptorium"
@@ -1029,6 +1038,13 @@
       </div>
     </div>
   </div>
+
+  <!-- AI generation dialog -->
+  <SpellGenerateDialog
+    v-if="showGenerateDialog && aiApiKey"
+    @close="showGenerateDialog = false"
+    @generated="onAiGenerated"
+  />
 </template>
 
 <script setup lang="ts">
@@ -1036,7 +1052,11 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, reactive, watch } from "vue";
 import { useRouter } from "vue-router";
-import { Save, Trash2, ScrollText, Lightbulb, ChevronDown } from "lucide-vue-next";
+import { Save, Trash2, ScrollText, Lightbulb, ChevronDown, Sparkles } from "lucide-vue-next";
+import SpellGenerateDialog from "@/ai/SpellGenerateDialog.vue";
+import { spellInsertFromAi } from "@/ai/spellAiAdapter";
+import type { SpellAiGenerated } from "@/ai/types";
+import { useCampaignStore } from "@/stores/campaign";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import DiceInput from "@/components/common/DiceInput.vue";
 import DamageRollsInput from "@/components/common/DamageRollsInput.vue";
@@ -1337,6 +1357,51 @@ async function confirmDelete() {
   } finally {
     isDeleting.value = false;
   }
+}
+
+// ── AI generation ─────────────────────────────────────────────────────────────
+const campaignStore = useCampaignStore();
+const aiApiKey = computed(() => campaignStore.decryptedApiKey);
+const showGenerateDialog = ref(false);
+
+function onAiGenerated(result: SpellAiGenerated) {
+  showGenerateDialog.value = false;
+  // Reuse the adapter so dialog-fill matches what the side-panel "Generate
+  // and create" path produces — single source of truth for AI → Spell mapping.
+  const ins = spellInsertFromAi(result);
+  name.value                = ins.name;
+  level.value               = ins.level;
+  school.value              = ins.school;
+  castingTime.value         = ins.casting_time;
+  castingTimeCustom.value   = ins.casting_time_custom ?? "";
+  range.value               = ins.range;
+  rangeCustom.value         = ins.range_custom ?? "";
+  duration.value            = ins.duration;
+  durationCustom.value      = ins.duration_custom ?? "";
+  concentration.value       = ins.concentration;
+  ritual.value              = ins.ritual;
+  components.value          = [...ins.components];
+  material.value            = ins.material ?? "";
+  description.value         = ins.description;
+  higherLevels.value        = ins.higher_levels ?? "";
+  classes.value             = [...ins.classes];
+  source.value              = ins.source ?? "";
+  tags.value                = [...ins.tags];
+  attackType.value          = ins.attack_type ?? "";
+  saveAttribute.value       = ins.save_attribute ?? "";
+  saveEffect.value          = ins.save_effect ?? "";
+  damageRolls.value         = ins.damage_rolls ?? [];
+  healingDice.value         = ins.healing_dice ?? "";
+  targetDescription.value   = ins.target_description ?? "";
+  aoeShape.value            = ins.aoe_shape ?? "";
+  aoeSize.value             = ins.aoe_size ?? "";
+  conditionInflicted.value  = ins.condition_inflicted ?? "";
+  if (ins.image_url) {
+    imageUrl.value          = ins.image_url;
+    imageFocalPoint.value   = null;
+  }
+  // Skip the level advisor wizard when AI populated us — DM can re-open it.
+  advisorModalOpen.value = false;
 }
 
 // ── Send to Scriptorium ───────────────────────────────────────────────────────

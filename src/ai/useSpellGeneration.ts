@@ -1,7 +1,11 @@
 import { useAuthStore } from "@/stores/auth";
 import { supabase } from "@/lib/supabase";
-import { MONSTER_SYSTEM_PROMPT, IMAGE_BASE_PROMPT, buildCampaignContext } from "./prompts";
-import type { MonsterAiResult, MonsterAiGenerated } from "./types";
+import {
+  SPELL_SYSTEM_PROMPT,
+  IMAGE_BASE_PROMPT,
+  buildCampaignContext,
+} from "./prompts";
+import type { SpellAiResult, SpellAiGenerated } from "./types";
 import {
   createAiGenerationState,
   startAiQuotes,
@@ -12,11 +16,14 @@ import { useUiStore } from "@/stores/ui";
 import { getTextProvider, getImageProvider } from "./providers";
 import { b64ToBlob } from "./utils";
 import { useCampaignStore } from "@/stores/campaign";
+import type { SpellSchool } from "@/types/spell.types";
 
-export interface MonsterGenerationOptions {
-  challenge_rating?: string;
-  monster_type?: string;
-  size?: string;
+export interface SpellGenerationOptions {
+  /** Lock the spell level (0 = cantrip). AI fills the rest around it. */
+  level?: number;
+  /** Lock the school of magic. */
+  school?: SpellSchool;
+  /** Generate spell-effect art alongside the text. Defaults to true. */
   generateImage?: boolean;
 }
 
@@ -25,23 +32,23 @@ const _state = createAiGenerationState();
 
 registerAiGenerator({
   ..._state,
-  label: "Monster",
-  entityRoute: (id) => `/monsters/${id}`,
+  label: "Spell",
+  entityRoute: (id) => `/spells/${id}`,
   openPanel: () => {
-    useUiStore().monsterGeneratorOpen = true;
+    useUiStore().spellGeneratorOpen = true;
   },
 });
 
 // ────────────────────────────────────────────────────────────────────────────
 
-export function useMonsterGeneration() {
+export function useSpellGeneration() {
   const auth = useAuthStore();
   const campaign = useCampaignStore();
 
   async function generate(
     userPrompt: string,
-    options?: MonsterGenerationOptions,
-  ): Promise<MonsterAiGenerated | null> {
+    options?: SpellGenerationOptions,
+  ): Promise<SpellAiGenerated | null> {
     if (isAnyAiGenerating.value) return null;
     _state.isGenerating.value = true;
     _state.error.value = null;
@@ -52,42 +59,50 @@ export function useMonsterGeneration() {
     try {
       const textProvider = getTextProvider();
       const imageProvider = getImageProvider();
-      // ── 1. Generate stat block text ───────────────────────────────────
-      const systemContent = `${MONSTER_SYSTEM_PROMPT}${buildCampaignContext({
+
+      // ── 1. Generate spell text ────────────────────────────────────────
+      const systemContent = `${SPELL_SYSTEM_PROMPT}${buildCampaignContext({
         setting: settingPrompt,
       })}`;
 
       const constraints: string[] = [];
-      if (options?.challenge_rating) constraints.push(`Challenge Rating: ${options.challenge_rating}`);
-      if (options?.monster_type) constraints.push(`Type: ${options.monster_type}`);
-      if (options?.size) constraints.push(`Size: ${options.size}`);
+      if (options?.level !== undefined) {
+        constraints.push(
+          options.level === 0
+            ? "Level: 0 (cantrip — no spell slot, no higher_levels scaling)"
+            : `Level: ${options.level}`,
+        );
+      }
+      if (options?.school) constraints.push(`School: ${options.school}`);
 
       const fullPrompt = constraints.length
-        ? `${userPrompt}\n\n[Constraints — use exactly these values in the stat block: ${constraints.join(", ")}]`
+        ? `${userPrompt}\n\n[Constraints — use exactly these values: ${constraints.join(", ")}]`
         : userPrompt;
 
       const result = JSON.parse(
         await textProvider.complete(systemContent, fullPrompt),
-      ) as MonsterAiResult;
+      ) as SpellAiResult;
 
-      // Honour explicit user overrides
-      if (options?.challenge_rating) result.stat_block.challenge_rating = options.challenge_rating;
-      if (options?.monster_type) result.monster_type = options.monster_type as MonsterAiResult["monster_type"];
-      if (options?.size) result.size = options.size as MonsterAiResult["size"];
+      // Honour explicit overrides (in case the model drifts)
+      if (options?.level !== undefined) result.level = options.level;
+      if (options?.school) result.school = options.school;
 
-      // ── 2. Generate art (unless opted out) ───────────────────────────
+      // Cantrips never have higher_levels text
+      if (result.level === 0) result.higher_levels = null;
+
+      // ── 2. Generate art (unless opted out) ────────────────────────────
       const wantImage = options?.generateImage !== false;
       let image_url: string | null = null;
 
-      if (wantImage) {
+      if (wantImage && result.image_prompt) {
         startAiQuotes("image");
         const imagePrompt = [IMAGE_BASE_PROMPT, settingPrompt, result.image_prompt]
           .filter(Boolean)
           .join(" — ");
 
-        const b64 = await imageProvider.generate(imagePrompt, "1024x1536");
+        const b64 = await imageProvider.generate(imagePrompt, "1024x1024");
 
-        // ── 3. Upload to Supabase storage ─────────────────────────────
+        // ── 3. Upload to Supabase storage ───────────────────────────────
         if (b64 && auth.user) {
           const blob = b64ToBlob(b64);
           const path = `${auth.user.id}/${crypto.randomUUID()}.webp`;
@@ -95,7 +110,9 @@ export function useMonsterGeneration() {
             .from("asset-images")
             .upload(path, blob, { contentType: "image/webp" });
           if (!uploadErr) {
-            image_url = supabase.storage.from("asset-images").getPublicUrl(path).data.publicUrl;
+            image_url = supabase.storage
+              .from("asset-images")
+              .getPublicUrl(path).data.publicUrl;
           }
         }
       }

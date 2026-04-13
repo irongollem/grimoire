@@ -1,6 +1,6 @@
 import { useAuthStore } from "@/stores/auth";
 import { supabase } from "@/lib/supabase";
-import { PUZZLE_SYSTEM_PROMPT, IMAGE_BASE_PROMPT } from "./prompts";
+import { PUZZLE_SYSTEM_PROMPT, IMAGE_BASE_PROMPT, buildCampaignContext } from "./prompts";
 import type { PuzzleAiResult, PuzzleAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -52,9 +52,9 @@ export function usePuzzleGeneration() {
       const textProvider = getTextProvider();
       const imageProvider = getImageProvider();
       // ── 1. Generate puzzle text ───────────────────────────────────────
-      const systemContent = settingPrompt
-        ? `${PUZZLE_SYSTEM_PROMPT}\n\nCampaign setting context provided by the DM:\n${settingPrompt}`
-        : PUZZLE_SYSTEM_PROMPT;
+      const systemContent = `${PUZZLE_SYSTEM_PROMPT}${buildCampaignContext({
+        setting: settingPrompt,
+      })}`;
 
       const constraints: string[] = [];
       if (options?.puzzle_type) constraints.push(`Puzzle Type: ${options.puzzle_type}`);
