@@ -342,11 +342,23 @@ const subclassOptions = computed(() => [
 ]);
 
 // Spell slot change summary
+function customClassSlots(level: number): SpellSlotEntry[] {
+  const row = customClass.value?.spell_slots?.[Math.min(level, 20) - 1];
+  if (!row) return [];
+  return row
+    .map((max, i) => ({ level: i + 1, max, used: 0 }))
+    .filter(s => s.max > 0);
+}
+
 const prevSpellSlots = computed<SpellSlotEntry[]>(() =>
-  getDefaultSpellSlots(props.member.class, props.member.level),
+  customClass.value?.spell_slots
+    ? customClassSlots(props.member.level)
+    : getDefaultSpellSlots(props.member.class, props.member.level),
 );
 const newSpellSlots = computed<SpellSlotEntry[]>(() =>
-  getDefaultSpellSlots(props.member.class, nextLevel.value),
+  customClass.value?.spell_slots
+    ? customClassSlots(nextLevel.value)
+    : getDefaultSpellSlots(props.member.class, nextLevel.value),
 );
 const newSpellSlotSummary = computed(() => {
   const prev = prevSpellSlots.value;
@@ -372,6 +384,11 @@ const infusionsKnownGain = computed(() => {
 
 // Spells known gain
 const spellsKnownGain = computed(() => {
+  if (customClass.value?.spells_known) {
+    const cur  = customClass.value.spells_known[nextLevel.value - 1] ?? 0;
+    const prev = customClass.value.spells_known[props.member.level - 1] ?? 0;
+    return Math.max(0, cur - prev);
+  }
   const cur  = levelData.value?.spells_known;
   const prev = getLevelData(props.member.class ?? "", props.member.level)?.spells_known ?? 0;
   if (!cur) return 0;

@@ -221,7 +221,95 @@
       </div>
     </section>
 
-    <!-- ── Section 5: Wizard steps ────────────────────────────────────────── -->
+    <!-- ── Section 5: Spellcasting ──────────────────────────────────────────── -->
+    <section class="rounded-lg border border-border bg-card p-4 space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">Spellcasting</h2>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <span class="font-cinzel text-xs text-muted-foreground">{{ form.isSpellcaster ? 'On' : 'Off' }}</span>
+          <button
+            type="button"
+            class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
+            :class="form.isSpellcaster ? 'bg-primary' : 'bg-muted'"
+            @click="form.isSpellcaster = !form.isSpellcaster"
+          >
+            <span
+              class="inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform"
+              :class="form.isSpellcaster ? 'translate-x-4' : 'translate-x-0'"
+            />
+          </button>
+        </label>
+      </div>
+
+      <template v-if="form.isSpellcaster">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- Slot recovery -->
+          <div>
+            <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1.5">SLOT RECOVERY</label>
+            <div class="flex gap-3">
+              <label class="flex items-center gap-1.5 cursor-pointer font-fell text-sm text-foreground">
+                <input type="radio" v-model="form.slot_recovery" value="long" class="accent-primary" /> Long rest
+              </label>
+              <label class="flex items-center gap-1.5 cursor-pointer font-fell text-sm text-foreground">
+                <input type="radio" v-model="form.slot_recovery" value="short" class="accent-primary" /> Short rest
+              </label>
+            </div>
+          </div>
+
+          <!-- Spells known toggle -->
+          <div>
+            <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1.5">SPELLS KNOWN TABLE</label>
+            <label class="flex items-center gap-2 cursor-pointer font-fell text-sm text-foreground">
+              <input type="checkbox" v-model="hasSpellsKnown" class="accent-primary" />
+              Known caster (Bard, Ranger, Sorcerer, Warlock style)
+            </label>
+          </div>
+        </div>
+
+        <!-- Spell slot grid: 20 rows × 9 columns -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-center border-collapse">
+            <thead>
+              <tr>
+                <th class="font-cinzel text-[9px] tracking-widest text-muted-foreground pb-1.5 pr-2 text-left w-8">LVL</th>
+                <th v-for="sl in 9" :key="sl" class="font-cinzel text-[9px] tracking-widest text-muted-foreground pb-1.5 w-10">{{ sl }}</th>
+                <th v-if="hasSpellsKnown" class="font-cinzel text-[9px] tracking-widest text-muted-foreground pb-1.5 w-12 pl-2">KNOWN</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="lvl in 20" :key="lvl" class="border-t border-border/40">
+                <td class="font-cinzel text-[10px] text-primary pr-2 text-left py-0.5">{{ lvl }}</td>
+                <td v-for="sl in 9" :key="sl" class="py-0.5 px-0.5">
+                  <input
+                    :value="(form.spell_slots[lvl - 1] ?? [])[sl - 1] ?? 0"
+                    type="number"
+                    min="0"
+                    max="9"
+                    class="w-9 bg-muted/40 border border-border rounded px-1 py-0.5 font-fell text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                    @input="setSlot(lvl - 1, sl - 1, ($event.target as HTMLInputElement).valueAsNumber)"
+                  />
+                </td>
+                <td v-if="hasSpellsKnown" class="py-0.5 pl-2">
+                  <input
+                    :value="(form.spells_known ?? [])[lvl - 1] ?? 0"
+                    type="number"
+                    min="0"
+                    class="w-10 bg-muted/40 border border-border rounded px-1 py-0.5 font-fell text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                    @input="setSpellsKnown(lvl - 1, ($event.target as HTMLInputElement).valueAsNumber)"
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="font-fell text-xs text-muted-foreground">
+          Enter the number of spell slots per spell level (columns 1–9) at each class level (rows 1–20). Leave as 0 where none are granted.
+        </p>
+      </template>
+    </section>
+
+    <!-- ── Section 7: Wizard steps ────────────────────────────────────────── -->
     <section class="rounded-lg border border-border bg-card p-4 space-y-4">
       <div class="flex items-center justify-between">
         <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">Wizard Steps</h2>
@@ -311,7 +399,7 @@
       </div>
     </section>
 
-    <!-- ── Section 6: Resource pools ─────────────────────────────────────── -->
+    <!-- ── Section 8: Resource pools ─────────────────────────────────────── -->
     <section class="rounded-lg border border-border bg-card p-4 space-y-4">
       <div class="flex items-center justify-between">
         <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">Resource Pools</h2>
@@ -443,6 +531,10 @@ function availableOptionsForStep(stepIdx: number) {
 
 // ── Form state ────────────────────────────────────────────────────────────────
 
+function emptySlotGrid(): number[][] {
+  return Array.from({ length: 20 }, () => Array(9).fill(0));
+}
+
 interface FormState {
   class_name: string;
   hit_die: HitDie;
@@ -453,6 +545,10 @@ interface FormState {
   subclass_level: number;
   features: Record<string, string[]>;
   asi_levels: number[];
+  isSpellcaster: boolean;
+  spell_slots: number[][];
+  spells_known: number[] | null;
+  slot_recovery: "short" | "long";
   steps: CustomStep[];
   resources: CustomResource[];
 }
@@ -467,8 +563,17 @@ const form = ref<FormState>({
   subclass_level: 3,
   features: {},
   asi_levels: [4, 8, 12, 16, 19],
+  isSpellcaster: false,
+  spell_slots: emptySlotGrid(),
+  spells_known: null,
+  slot_recovery: "long",
   steps: [],
   resources: [],
+});
+
+const hasSpellsKnown = computed({
+  get: () => form.value.spells_known !== null,
+  set: (v) => { form.value.spells_known = v ? Array(20).fill(0) : null; },
 });
 
 const campaignScope = ref<string>("all");
@@ -476,6 +581,14 @@ const campaignScope = ref<string>("all");
 watch(existing, (val) => {
   if (!val) return;
   const raw = JSON.parse(JSON.stringify(val)) as typeof val;
+  // Normalise slot grid: ensure 20 rows × 9 columns even if DB had partial data
+  const rawSlots = (raw.spell_slots ?? null) as number[][] | null;
+  const slotGrid = rawSlots
+    ? Array.from({ length: 20 }, (_, i) => {
+        const row = rawSlots[i] ?? [];
+        return Array.from({ length: 9 }, (_, j) => row[j] ?? 0);
+      })
+    : emptySlotGrid();
   form.value = {
     class_name: raw.class_name,
     hit_die: raw.hit_die as HitDie,
@@ -486,6 +599,10 @@ watch(existing, (val) => {
     subclass_level: raw.subclass_level,
     features: raw.features,
     asi_levels: [...raw.asi_levels].sort((a, b) => a - b),
+    isSpellcaster: rawSlots !== null,
+    spell_slots: slotGrid,
+    spells_known: (raw.spells_known as number[] | null) ?? null,
+    slot_recovery: (raw.slot_recovery as "short" | "long") ?? "long",
     steps: raw.steps.map((s) => ({ ...s, step_type: s.step_type ?? "text_pick" })),
     resources: raw.resources,
   };
@@ -569,6 +686,21 @@ function removeOptionFromStep(stepIdx: number, featureId: string) {
   if (step) step.options = step.options.filter(id => id !== featureId);
 }
 
+// ── Spellcasting section ──────────────────────────────────────────────────
+
+function setSlot(levelIdx: number, slotLevelIdx: number, value: number) {
+  const grid = form.value.spell_slots.map(row => [...row]);
+  if (!grid[levelIdx]) grid[levelIdx] = Array(9).fill(0);
+  grid[levelIdx][slotLevelIdx] = isNaN(value) ? 0 : value;
+  form.value.spell_slots = grid;
+}
+
+function setSpellsKnown(levelIdx: number, value: number) {
+  const arr = [...(form.value.spells_known ?? Array(20).fill(0))];
+  arr[levelIdx] = isNaN(value) ? 0 : value;
+  form.value.spells_known = arr;
+}
+
 // ── Resources section ─────────────────────────────────────────────────────────
 
 function addResource() {
@@ -603,7 +735,9 @@ async function save() {
     subclass_level: form.value.subclass_level,
     features: form.value.features,
     asi_levels: form.value.asi_levels,
-    spell_slots: null,
+    spell_slots: form.value.isSpellcaster ? form.value.spell_slots : null,
+    spells_known: form.value.isSpellcaster ? (form.value.spells_known ?? null) : null,
+    slot_recovery: form.value.isSpellcaster ? form.value.slot_recovery : "long",
     steps: form.value.steps,
     resources: form.value.resources,
     campaign_id: campaignScope.value === "all" ? null : campaignScope.value,

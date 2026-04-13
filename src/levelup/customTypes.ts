@@ -69,8 +69,21 @@ export interface CustomClass {
   /** Levels that grant an ASI, default [4,8,12,16,19] */
   asi_levels: number[];
 
-  /** null = non-spellcaster */
-  spell_slots: null;
+  /**
+   * Spell slot table: 20-element outer array (index = class level - 1).
+   * Each inner array has exactly 9 numbers: slot counts for spell levels 1–9.
+   * null = non-spellcaster.
+   */
+  spell_slots: number[][] | null;
+
+  /**
+   * Total spells known at each class level (20-element array).
+   * null = prepared caster (no known limit) or non-spellcaster.
+   */
+  spells_known: number[] | null;
+
+  /** Whether spell slots recharge on short or long rest. */
+  slot_recovery: "short" | "long";
 
   steps: CustomStep[];
   resources: CustomResource[];
