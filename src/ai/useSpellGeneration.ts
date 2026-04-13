@@ -103,15 +103,17 @@ export function useSpellGeneration() {
         const b64 = await imageProvider.generate(imagePrompt, "1024x1024");
 
         // ── 3. Upload to Supabase storage ───────────────────────────────
+        // Spells get their own bucket so the DM can browse spell art in
+        // isolation later. See migration 20260413000003_spell_images_bucket.
         if (b64 && auth.user) {
           const blob = b64ToBlob(b64);
           const path = `${auth.user.id}/${crypto.randomUUID()}.webp`;
           const { error: uploadErr } = await supabase.storage
-            .from("asset-images")
+            .from("spell-images")
             .upload(path, blob, { contentType: "image/webp" });
           if (!uploadErr) {
             image_url = supabase.storage
-              .from("asset-images")
+              .from("spell-images")
               .getPublicUrl(path).data.publicUrl;
           }
         }
