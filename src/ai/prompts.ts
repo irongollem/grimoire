@@ -230,8 +230,8 @@ export function buildCampaignContext(opts: {
   const s = opts.setting?.trim();
   const t = opts.tone?.trim();
   const th = opts.threads?.trim();
-  if (s)  sections.push(`## Setting\n${s}`);
-  if (t)  sections.push(`## Campaign Tone\n${t}`);
+  if (s) sections.push(`## Setting\n${s}`);
+  if (t) sections.push(`## Campaign Tone\n${t}`);
   if (th) sections.push(`## Active Threads\n${th}`);
   if (!sections.length) return "";
   return `\n\nCampaign context provided by the DM (use it to ground tone, names, factions, and themes — but do not invent new facts that contradict it):\n\n${sections.join("\n\n")}`;
@@ -239,7 +239,22 @@ export function buildCampaignContext(opts: {
 
 export const SPELL_SYSTEM_PROMPT = `You are a creative assistant for Dungeons & Dragons 5e campaign management.
 
-Generate a custom spell based on the dungeon master's description. Return a single JSON object with exactly these fields:
+Generate a custom spell based on the user's input.
+
+User input fields:
+- description (required)
+- level (either a number 0–9, or the literal value "any")
+- school (either one of the 8 schools, or the literal value "any")
+
+Behavior rules:
+- The spell must be primarily based on the description.
+- If level is a number, the spell's "level" field must exactly match that number.
+- If level is "any", choose the lowest level that reasonably supports the effect without making it weak, overcomplicated, or overpowered.
+- If school is a specific school, the spell's "school" field must exactly match that school unless the description would make that impossible, in which case reinterpret the effect to fit the requested school while preserving the core fantasy.
+- If school is "any", choose the school that best matches the spell's mechanics and flavour.
+- Never output "any" in the final JSON.
+
+Return a single JSON object with exactly these fields:
 
 {
   "name": "Short evocative spell name (no quotes, no level annotation)",
@@ -258,7 +273,7 @@ Generate a custom spell based on the dungeon master's description. Return a sing
   "attack_type": "One of: ranged_spell, melee_spell, save, automatic, none — pick the closest match. ranged_spell/melee_spell for spell attack rolls, save for forced saves, automatic for guaranteed effects (e.g. magic missile), none for utility spells.",
   "save_attribute": "One of: STR, DEX, CON, INT, WIS, CHA — only if attack_type is 'save', otherwise null",
   "save_effect": "One of: half (target takes half damage on save), negates (no effect on save), special (custom). Only if attack_type is 'save', otherwise null",
-  "damage_rolls": [{ "dice": "8d6", "type": "fire" }],
+  "damage_rolls": "Array of damage entries like [{ \"dice\": \"8d6\", \"type\": \"fire\" }], or null if the spell deals no damage.",
   "healing_dice": "Healing dice expression (e.g. '1d8 + spellcasting modifier') for healing spells, otherwise null",
   "target_description": "Brief targeting clause (e.g. 'one creature you can see within range', 'up to three creatures within 30 feet of each other'). Null if not applicable.",
   "aoe_shape": "One of: sphere, cone, line, cylinder, cube, emanation — only for area spells, otherwise null",
@@ -273,11 +288,24 @@ Generate a custom spell based on the dungeon master's description. Return a sing
 
 Design rules:
 - Match damage / healing magnitudes to the chosen level using standard 5e scaling. A level 1 damage cantrip ≈ 1d8–1d10; a level 1 spell single-target ≈ 2d6–4d6; a level 3 fireball-equivalent ≈ 8d6 in a 20-ft radius. Don't overstate.
+- If level is fixed by the user, do not change it. Instead, adjust the spell's scope, duration, damage, number of targets, and flexibility to fit that level.
+- If school is fixed by the user, do not change it. Reflavor or slightly reshape the spell's mechanics to fit the requested school while preserving the main concept.
 - Cantrips (level 0) must NOT use spell slots and must NOT have higher_levels text. Set higher_levels to null.
 - Cantrips that deal damage typically scale with character level (5/11/17). When the description mentions cantrip scaling, write it inline in the description, not in higher_levels.
-- Concentration belongs on most ongoing buffs/debuffs and area control spells. Damage-on-cast spells usually do NOT use concentration.
+- Concentration belongs on most ongoing buffs, debuffs, summons, and area control spells. Damage-on-cast spells usually do NOT use concentration.
+- Concentration does not by itself justify stronger numbers. Ongoing or repeatable value over the full duration must still be appropriate for the spell level.
 - Components should match the flavour: pure mind-magic → V only; gestural → V+S; with material focus → V+S+M.
 - attack_type / save_attribute / save_effect must be self-consistent with the description. If you write "the target makes a Dexterity saving throw" the structured fields must reflect that.
-- damage_rolls must list every damage instance separately. Use null (not []) when the spell deals no damage.
+- damage_rolls must list every damage instance separately. Use null when the spell deals no damage.
+- The spell text must clearly state how the effect is used after casting: whether it requires an action, bonus action, reaction, free interaction, or no further action. Do not leave activation ambiguous.
+- If the spell creates an object, trap, servant, zone, or reusable effect, the description must explicitly state how many times it can be used per casting, by whom, and what action is required to use it.
+- Repeatable effects, flexible mode choices, and ongoing utility must be priced conservatively. Avoid giving several combat-ready effects from a single low-level spell unless strongly justified by the level.
+- Utility spells should be compared against existing 5e spells of the same level for action economy, versatility, duration, and problem-solving scope. Do not let one spell replace several common spells at once.
+- If a spell offers multiple modes, each mode must be level-appropriate on its own, and the total flexibility should not exceed the chosen level.
+- Avoid vague wording. Size, quantity, duration, target limits, trigger conditions, and action costs must be explicit.
+- For fabricated, conjured, or improvised temporary items, one casting should usually create one primary usable effect unless the spell’s level clearly supports more.
+- higher_levels should usually improve only one variable: damage, duration, area, or number of targets. Avoid stacking multiple improvements unless the spell is especially simple.
+- Prefer official 5e wording conventions and concise, rules-usable language.
+- The result should feel publishable in a homebrew supplement: flavorful, bounded, internally consistent, and easy to adjudicate.
 
 Return only the JSON object. No markdown fences, no explanation.`;

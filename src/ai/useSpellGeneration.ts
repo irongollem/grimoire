@@ -96,7 +96,7 @@ export function useSpellGeneration() {
 
       if (wantImage && result.image_prompt) {
         startAiQuotes("image");
-        const imagePrompt = [IMAGE_BASE_PROMPT, settingPrompt, result.image_prompt]
+        const imagePrompt = [IMAGE_BASE_PROMPT, result.image_prompt]
           .filter(Boolean)
           .join(" — ");
 
@@ -104,7 +104,7 @@ export function useSpellGeneration() {
 
         // ── 3. Upload to Supabase storage ───────────────────────────────
         // Spells get their own bucket so the DM can browse spell art in
-        // isolation later. See migration 20260413000003_spell_images_bucket.
+        // isolation later. See migration 20260413000014_spell_images_bucket.
         if (b64 && auth.user) {
           const blob = b64ToBlob(b64);
           const path = `${auth.user.id}/${crypto.randomUUID()}.webp`;
