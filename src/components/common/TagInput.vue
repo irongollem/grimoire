@@ -25,6 +25,7 @@
         class="bg-transparent border-none outline-none font-fell text-sm text-foreground placeholder:text-muted-foreground/60 min-w-24 flex-1"
         @keydown.enter.prevent="addFromInput"
         @keydown.comma.prevent="addFromInput"
+        @paste.prevent="handlePaste"
         @focus="onFocus"
         @blur="onBlur"
       />
@@ -116,6 +117,16 @@ function addTag(tag: string) {
   if (clean && !model.value.includes(clean)) {
     model.value = [...model.value, clean];
   }
+  inputVal.value = "";
+}
+
+function handlePaste(e: ClipboardEvent) {
+  const text = e.clipboardData?.getData("text") ?? "";
+  const newTags = text
+    .split(",")
+    .map((t) => t.trim())
+    .filter((t) => t && !model.value.includes(t));
+  if (newTags.length) model.value = [...model.value, ...newTags];
   inputVal.value = "";
 }
 

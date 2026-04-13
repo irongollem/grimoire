@@ -381,6 +381,66 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Species" },
     },
 
+    // Class Features (Abilities)
+    {
+      path: "/features",
+      name: "features",
+      component: () => import("@/views/features/FeaturesView.vue"),
+      meta: { requiresAuth: true, title: "Abilities" },
+    },
+    {
+      path: "/features/new",
+      name: "feature-new",
+      component: () => import("@/views/features/FeatureDetailView.vue"),
+      meta: { requiresAuth: true, title: "New Ability" },
+    },
+    {
+      path: "/features/:id",
+      name: "feature-detail",
+      component: () => import("@/views/features/FeatureDetailView.vue"),
+      meta: { requiresAuth: true, title: "Ability" },
+    },
+
+    // Archetypes (Custom Subclasses)
+    {
+      path: "/levelup/custom",
+      name: "archetypes",
+      component: () => import("@/views/levelup/CustomSubclassListView.vue"),
+      meta: { requiresAuth: true, title: "Archetypes" },
+    },
+    {
+      path: "/levelup/custom/new",
+      name: "archetype-new",
+      component: () => import("@/views/levelup/CustomSubclassEditorView.vue"),
+      meta: { requiresAuth: true, title: "New Archetype" },
+    },
+    {
+      path: "/levelup/custom/:id",
+      name: "archetype-detail",
+      component: () => import("@/views/levelup/CustomSubclassEditorView.vue"),
+      meta: { requiresAuth: true, title: "Archetype" },
+    },
+
+    // Custom Classes
+    {
+      path: "/levelup/classes",
+      name: "custom-classes",
+      component: () => import("@/views/levelup/CustomClassListView.vue"),
+      meta: { requiresAuth: true, title: "Classes" },
+    },
+    {
+      path: "/levelup/classes/new",
+      name: "custom-class-new",
+      component: () => import("@/views/levelup/CustomClassEditorView.vue"),
+      meta: { requiresAuth: true, title: "New Class" },
+    },
+    {
+      path: "/levelup/classes/:id",
+      name: "custom-class-detail",
+      component: () => import("@/views/levelup/CustomClassEditorView.vue"),
+      meta: { requiresAuth: true, title: "Class" },
+    },
+
     // Hall of Heroes
     {
       path: "/hall-of-heroes",

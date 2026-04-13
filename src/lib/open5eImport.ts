@@ -48,26 +48,7 @@ interface Open5eMagicItem {
   document__url: string;
 }
 
-interface Open5eListResponse<T> {
-  count: number;
-  next: string | null;
-  results: T[];
-}
-
-// ── Pagination fetch ──────────────────────────────────────────────────────────
-
-async function fetchAll<T>(baseUrl: string): Promise<T[]> {
-  const results: T[] = [];
-  let url: string | null = `${baseUrl}?limit=500&format=json`;
-  while (url) {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`open5e fetch failed: ${res.status} ${url}`);
-    const json: Open5eListResponse<T> = await res.json();
-    results.push(...json.results);
-    url = json.next;
-  }
-  return results;
-}
+import { fetchAll } from "@/lib/open5eApi";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

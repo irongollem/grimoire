@@ -20,19 +20,19 @@
       <div class="rounded-lg border border-border bg-card p-4 space-y-3">
         <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">Features Gained</h3>
 
-        <template v-if="levelData && levelData.features.length > 0">
+        <template v-if="customFeaturesForLevel.length > 0">
           <ul class="space-y-1">
             <li
-              v-for="feat in levelData.features"
-              :key="featureName(feat)"
+              v-for="feat in customFeaturesForLevel"
+              :key="feat"
               class="flex items-start gap-2 font-fell text-sm text-foreground"
             >
               <span class="text-primary mt-0.5">✦</span>
-              <span>{{ featureName(feat) }}</span>
+              <span>{{ feat }}</span>
             </li>
           </ul>
         </template>
-        <template v-else-if="levelData">
+        <template v-else-if="systemClass || customClass">
           <p class="font-fell text-sm text-muted-foreground italic">
             Class feature details coming soon — check the class description for level {{ nextLevel }} features.
           </p>
@@ -51,21 +51,8 @@
           <span class="font-cinzel text-xs text-primary tracking-wider">SPELLS</span>
           <span class="font-fell text-sm text-foreground">
             Spells known increases to
-            <strong class="font-cinzel">{{ levelData?.spells_known }}</strong>
+            <strong class="font-cinzel">{{ spellsKnownTotal }}</strong>
             — add {{ spellsKnownGain }} new spell{{ spellsKnownGain > 1 ? 's' : '' }} in your spell list.
-          </span>
-        </div>
-
-        <!-- Infusions known increase (Artificer) -->
-        <div
-          v-if="infusionsKnownGain > 0"
-          class="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/20 px-3 py-2"
-        >
-          <span class="font-cinzel text-xs text-primary tracking-wider">INFUSIONS</span>
-          <span class="font-fell text-sm text-foreground">
-            Infusions known increases to
-            <strong class="font-cinzel">{{ levelData?.infusions_known }}</strong>
-            — choose {{ infusionsKnownGain }} new infusion{{ infusionsKnownGain > 1 ? 's' : '' }} from your Artificer list.
           </span>
         </div>
 
@@ -106,7 +93,7 @@
       </div>
 
       <!-- ASI picker -->
-      <div v-if="levelData?.asi" class="rounded-lg border border-border bg-card p-4 space-y-4">
+      <div v-if="grantsAsi" class="rounded-lg border border-border bg-card p-4 space-y-4">
         <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">Ability Score Improvement</h3>
         <p class="font-fell text-sm text-muted-foreground">Choose how to apply your improvement.</p>
 
@@ -247,63 +234,74 @@
 import { ref, computed } from "vue";
 import { useRouter, RouterLink } from "vue-router";
 import { useUpdatePartyMember } from "@/composables/useParty";
-import { getLevelData, proficiencyBonusForLevel, getClassSteps, getClassResources } from "./classFeatures";
-import { getDefaultSpellSlots } from "@/types/spell.types";
+import { useAllCustomSubclasses, useCustomSubclassByClassAndSubclass } from "@/composables/useCustomSubclasses";
+import { useCustomClassByName, useAllSystemClasses } from "@/composables/useCustomClasses";
+import { useAllFeatures } from "@/composables/useFeatures";
 import type { PartyMember, PartyMemberUpdate, SpellSlotEntry } from "@/types/party.types";
-import { featureName } from "./types";
-import type { AbilityKey, AsiMode, ClassStep } from "./types";
-import { RANGER_SUBCLASSES }    from "./classes/ranger";
-import { ARTIFICER_SUBCLASSES } from "./classes/artificer";
-import { SORCERER_SUBCLASSES }  from "./classes/sorcerer";
-import { PALADIN_SUBCLASSES }   from "./classes/paladin";
-import { DRUID_SUBCLASSES }    from "./classes/druid";
-import { ROGUE_SUBCLASSES }    from "./classes/rogue";
-import { MONK_SUBCLASSES }    from "./classes/monk";
-import { CLERIC_SUBCLASSES }  from "./classes/cleric";
-import { BARD_SUBCLASSES }       from "./classes/bard";
-import { BARBARIAN_SUBCLASSES }  from "./classes/barbarian";
-import { WARLOCK_SUBCLASSES }    from "./classes/warlock";
-import { FIGHTER_SUBCLASSES }   from "./classes/fighter";
-import { WIZARD_SUBCLASSES }    from "./classes/wizard";
+import type { AbilityKey, AsiMode, ClassStep, ClassResourceDef } from "./types";
+import type { CustomResource } from "@/levelup/customTypes";
 
-const props = defineProps<{ member: PartyMember }>();
+const props = defineProps<{ member: PartyMember; backRoute?: string }>();
 
 const router = useRouter();
 const { mutateAsync: updateMember, isPending } = useUpdatePartyMember();
 
+// ── Custom subclass data ───────────────────────────────────────────────────────
+const memberClass    = computed(() => props.member.class ?? "");
+const memberSubclass = computed(() => props.member.subclass ?? "");
+
+// Fetch the custom subclass definition that matches this member's current subclass
+const { data: customSubclass } = useCustomSubclassByClassAndSubclass(memberClass, memberSubclass);
+
+// Fetch the custom class definition — used when no SRD class matches (fully homebrew class)
+const { data: customClass } = useCustomClassByName(memberClass);
+
+// Fetch system class — used to resolve SRD feature UUIDs for the level-up summary
+const { data: allSystemClasses } = useAllSystemClasses();
+const systemClass = computed(() => (allSystemClasses.value ?? []).find(c => c.class_name === memberClass.value));
+
+// Feature compendium — needed to resolve UUIDs stored in features to names
+const { data: allFeatures } = useAllFeatures();
+
+// Fetch all custom subclasses so we can extend the subclass picker
+const { data: allCustomSubclasses } = useAllCustomSubclasses();
+const customSubclassNamesForClass = computed<string[]>(() =>
+  (allCustomSubclasses.value ?? [])
+    .filter(cs => cs.class_name === memberClass.value)
+    .map(cs => cs.subclass_name),
+);
+
 // ── Derived ────────────────────────────────────────────────────────────────────
 const nextLevel    = computed(() => props.member.level + 1);
-const levelData    = computed(() => getLevelData(props.member.class ?? "", nextLevel.value));
-const newProfBonus = computed(() => proficiencyBonusForLevel(nextLevel.value));
+const newProfBonus = computed(() => 2 + Math.floor((nextLevel.value - 1) / 4));
 
-const needsSubclassChoice = computed(() =>
-  !!levelData.value?.subclass_feature && !props.member.subclass,
+// True when this level grants an ASI — from DB class data
+const grantsAsi = computed(() =>
+  systemClass.value?.asi_levels.includes(nextLevel.value) ||
+  customClass.value?.asi_levels.includes(nextLevel.value) ||
+  false,
 );
 
-const SUBCLASS_OPTIONS: Record<string, readonly string[]> = {
-  Artificer: ARTIFICER_SUBCLASSES,
-  Barbarian: BARBARIAN_SUBCLASSES,
-  Bard:      BARD_SUBCLASSES,
-  Cleric:    CLERIC_SUBCLASSES,
-  Druid:     DRUID_SUBCLASSES,
-  Fighter:   FIGHTER_SUBCLASSES,
-  Monk:      MONK_SUBCLASSES,
-  Paladin:   PALADIN_SUBCLASSES,
-  Ranger:    RANGER_SUBCLASSES,
-  Rogue:     ROGUE_SUBCLASSES,
-  Sorcerer:  SORCERER_SUBCLASSES,
-  Warlock:   WARLOCK_SUBCLASSES,
-  Wizard:    WIZARD_SUBCLASSES,
-};
-const subclassOptions = computed(() => SUBCLASS_OPTIONS[props.member.class ?? ""] ?? []);
+const needsSubclassChoice = computed(() => {
+  if (props.member.subclass) return false;
+  if (systemClass.value?.subclass_level === nextLevel.value) return true;
+  if (customClass.value?.subclass_level === nextLevel.value) return true;
+  return false;
+});
 
-// Spell slot change summary
-const prevSpellSlots = computed<SpellSlotEntry[]>(() =>
-  getDefaultSpellSlots(props.member.class, props.member.level),
-);
-const newSpellSlots = computed<SpellSlotEntry[]>(() =>
-  getDefaultSpellSlots(props.member.class, nextLevel.value),
-);
+// Subclass options come from DB custom subclasses only (SRD subclasses can be typed in free-text)
+const subclassOptions = computed(() => customSubclassNamesForClass.value);
+
+// Spell slot change summary — prefer custom class, fall back to system class
+function dbSlots(level: number): SpellSlotEntry[] {
+  const cls = customClass.value ?? systemClass.value;
+  const row = cls?.spell_slots?.[Math.min(level, 20) - 1];
+  if (!row) return [];
+  return row.map((max, i) => ({ level: i + 1, max, used: 0 })).filter(s => s.max > 0);
+}
+
+const prevSpellSlots = computed<SpellSlotEntry[]>(() => dbSlots(props.member.level));
+const newSpellSlots  = computed<SpellSlotEntry[]>(() => dbSlots(nextLevel.value));
 const newSpellSlotSummary = computed(() => {
   const prev = prevSpellSlots.value;
   const next = newSpellSlots.value;
@@ -318,24 +316,53 @@ const newSpellSlotSummary = computed(() => {
   return `Spell slots: ${gains.join(", ")}`;
 });
 
-// Infusions known gain (Artificer)
-const infusionsKnownGain = computed(() => {
-  const cur  = levelData.value?.infusions_known;
-  const prev = getLevelData(props.member.class ?? "", props.member.level)?.infusions_known ?? 0;
-  if (!cur) return 0;
-  return Math.max(0, cur - prev);
-});
-
-// Spells known gain
+// Spells known gain and total
 const spellsKnownGain = computed(() => {
-  const cur  = levelData.value?.spells_known;
-  const prev = getLevelData(props.member.class ?? "", props.member.level)?.spells_known ?? 0;
-  if (!cur) return 0;
+  const table = customClass.value?.spells_known ?? systemClass.value?.spells_known;
+  if (!table) return 0;
+  const cur  = table[nextLevel.value - 1] ?? 0;
+  const prev = table[props.member.level - 1] ?? 0;
   return Math.max(0, cur - prev);
 });
 
-// Class resource change notices (e.g. Sorcery Points)
-const classDefs = computed(() => getClassResources(props.member.class ?? "", nextLevel.value));
+const spellsKnownTotal = computed(() => {
+  const table = customClass.value?.spells_known ?? systemClass.value?.spells_known;
+  return table?.[nextLevel.value - 1] ?? 0;
+});
+
+// Custom features granted at this level — from subclass or (for homebrew classes) from the class itself
+const customFeaturesForLevel = computed<string[]>(() => {
+  const lvlKey = nextLevel.value.toString();
+  const ids = customSubclass.value?.features[lvlKey] ?? customClass.value?.features[lvlKey] ?? systemClass.value?.features[lvlKey] ?? [];
+  const featureMap = new Map((allFeatures.value ?? []).map(f => [f.id, f.name]));
+  return ids.map(id => featureMap.get(id) ?? id);
+});
+
+// Convert a CustomResource[] to ClassResourceDef[]
+function resourceDefsFrom(resources: CustomResource[]): ClassResourceDef[] {
+  return resources.map(r => ({
+    key: r.key,
+    label: r.label,
+    rest: r.rest,
+    maxAtLevel: (level: number) => {
+      if (r.scaling === "fixed") return r.fixed_value ?? 0;
+      if (r.scaling === "per_level") return level;
+      if (r.scaling === "table" && r.table_values) return r.table_values[Math.min(level, 20) - 1] ?? 0;
+      return 0;
+    },
+  }));
+}
+
+// Class resource change notices — system class + custom class + custom subclass (first-seen key wins)
+const classDefs = computed<ClassResourceDef[]>(() => {
+  const all = [
+    ...resourceDefsFrom(systemClass.value?.resources ?? []),
+    ...resourceDefsFrom(customClass.value?.resources ?? []),
+    ...resourceDefsFrom(customSubclass.value?.resources ?? []),
+  ];
+  const seenKeys = new Set<string>();
+  return all.filter(d => { if (seenKeys.has(d.key)) return false; seenKeys.add(d.key); return true; });
+});
 const resourceNotices = computed(() => {
   return classDefs.value.flatMap(def => {
     const newMax = def.maxAtLevel(nextLevel.value);
@@ -372,10 +399,19 @@ const asiPreview = computed(() => {
 // ── Subclass ───────────────────────────────────────────────────────────────────
 const subclassInput = ref("");
 
-// ── Class-specific steps ───────────────────────────────────────────────────────
-const classSteps = computed<ClassStep[]>(() =>
-  getClassSteps(props.member.class ?? "", nextLevel.value),
-);
+// ── Class-specific steps (system class + custom class + custom subclass) ───────
+const classSteps = computed<ClassStep[]>(() => {
+  function stepsAt(steps: { level: number; step_type: string; type: "select" | "append"; key: string; label: string; description?: string; options: string[]; count?: number }[]): ClassStep[] {
+    return steps
+      .filter(s => s.level === nextLevel.value)
+      .map(({ level: _l, step_type: _st, ...rest }) => rest);
+  }
+  return [
+    ...stepsAt(systemClass.value?.steps ?? []),
+    ...stepsAt(customClass.value?.steps ?? []),
+    ...stepsAt(customSubclass.value?.steps ?? []),
+  ];
+});
 
 // Single-pick steps (count === 1 or undefined)
 const stepValues = ref<Record<string, string>>({});
@@ -400,7 +436,7 @@ const error = ref("");
 
 const canConfirm = computed(() => {
   if (nextLevel.value > 20) return false;
-  if (levelData.value?.asi) {
+  if (grantsAsi.value) {
     if (!asiPrimary.value) return false;
     if (asiMode.value === "plus1plus1" && (!asiSecondary.value || asiSecondary.value === asiPrimary.value)) return false;
   }
@@ -435,7 +471,7 @@ async function confirm() {
   }
 
   // ASI
-  if (levelData.value?.asi && asiPrimary.value) {
+  if (grantsAsi.value && asiPrimary.value) {
     const bonus = asiMode.value === "plus2" ? 2 : 1;
     update[asiPrimary.value] = (props.member[asiPrimary.value as keyof PartyMember] as number) + bonus;
     if (asiMode.value === "plus1plus1" && asiSecondary.value) {
@@ -499,7 +535,7 @@ async function confirm() {
 
   try {
     await updateMember({ id: props.member.id, update: update as PartyMemberUpdate });
-    void router.push("/play");
+    void router.push(props.backRoute ?? "/play");
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Failed to apply level up.";
   }

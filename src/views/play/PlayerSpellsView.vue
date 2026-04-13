@@ -116,7 +116,8 @@ import { useParty } from "@/composables/useParty";
 import { useCharacterSpells } from "@/composables/useCharacterSpells";
 import SpellList from "@/components/spells/SpellList.vue";
 import PlayerMySpells from "@/components/spells/PlayerMySpells.vue";
-import { SPELL_SCHOOLS, SPELL_CLASSES, getCasterType, getMaxPrepared, getDefaultSpellSlots } from "@/types/spell.types";
+import { SPELL_SCHOOLS, SPELL_CLASSES, getCasterType, computeMaxPrepared, getDefaultSpellSlots } from "@/types/spell.types";
+import { useClassByName } from "@/composables/useCustomClasses";
 
 const LEVEL_FILTERS = [
   { value: "", label: "All" },
@@ -140,9 +141,10 @@ const memberClass = computed(() => {
   return partyMembers.value.find((m) => m.id === id)?.class ?? "";
 });
 
-const casterType  = computed(() => getCasterType(memberClass.value));
+const classData   = useClassByName(memberClass);
 const member      = computed(() => partyMembers.value?.find((m) => m.id === resolvedMemberId.value) ?? null);
-const maxPrepared = computed(() => getMaxPrepared(member.value, memberClass.value));
+const casterType  = computed(() => classData.value?.caster_type ?? getCasterType(memberClass.value));
+const maxPrepared = computed(() => computeMaxPrepared(member.value, classData.value, memberClass.value));
 const memberName  = computed(() => member.value?.name ?? "");
 
 // Effective spell slots — fall back to 5e defaults if none configured yet

@@ -24,13 +24,15 @@ export interface CraftingRecipe {
   crafting_time_unit: "minutes" | "hours" | "days";
   requires_proficiency: boolean;
   requires_tools: boolean;
-  shared_with_players: boolean;
-  player_visible_to: string[] | null;
+  player_visible_to: string[];
   created_at: string;
   updated_at: string;
 }
 
-export type CraftingRecipeInsert = Omit<CraftingRecipe, "id" | "user_id" | "created_at" | "updated_at">;
+export type CraftingRecipeInsert = Omit<
+  CraftingRecipe,
+  "id" | "user_id" | "created_at" | "updated_at"
+>;
 export type CraftingRecipeUpdate = Partial<CraftingRecipeInsert>;
 
 export interface CraftingOutput {

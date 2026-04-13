@@ -657,6 +657,7 @@ import { parseExpression } from "@/lib/dice";
 import { rollDice, rollParsed } from "@/lib/roller";
 import type { Spell as SpellType } from "@/types/spell.types";
 import { getCasterType } from "@/types/spell.types";
+import { useClassByName } from "@/composables/useCustomClasses";
 import { useCharacterSpellsWithDetails } from "@/composables/useCharacterSpells";
 import { useAuthStore } from "@/stores/auth";
 import { generateHTML } from "@tiptap/core";
@@ -890,7 +891,9 @@ const playerProfBonus = computed(() => {
 // ── Character spells for selected player ──────────────────────────────────────
 const selectedPlayerMemberId = computed(() => selectedMember.value?.id ?? null);
 const { data: selectedPlayerSpells } = useCharacterSpellsWithDetails(selectedPlayerMemberId);
-const selectedCasterType = computed(() => getCasterType(selectedMember.value?.class ?? null));
+const selectedClassRef = computed(() => selectedMember.value?.class ?? "");
+const selectedClassData = useClassByName(selectedClassRef);
+const selectedCasterType = computed(() => selectedClassData.value?.caster_type ?? getCasterType(selectedMember.value?.class ?? null));
 const preparedOrKnownSpells = computed(() => {
   const entries = selectedPlayerSpells.value ?? [];
   if (selectedCasterType.value === "none") return [];

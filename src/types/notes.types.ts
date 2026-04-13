@@ -1,4 +1,10 @@
-export type NoteCategory = "general" | "session" | "lore" | "location" | "quest" | "faction";
+export type NoteCategory =
+  | "general"
+  | "session"
+  | "lore"
+  | "location"
+  | "quest"
+  | "faction";
 
 export interface Note {
   id: string;
@@ -10,11 +16,13 @@ export interface Note {
   tags: string[];
   session_num: number | null;
   is_pinned: boolean;
-  shared_with_players: boolean;
-  player_visible_to: string[] | null; // null = whole party; uuid[] = specific party_member_ids
+  player_visible_to: string[];
   created_at: string;
   updated_at: string;
 }
 
-export type NoteInsert = Omit<Note, "id" | "user_id" | "created_at" | "updated_at">;
+export type NoteInsert = Omit<
+  Note,
+  "id" | "user_id" | "created_at" | "updated_at"
+>;
 export type NoteUpdate = Partial<NoteInsert>;

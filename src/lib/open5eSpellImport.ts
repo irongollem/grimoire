@@ -1,6 +1,7 @@
 import type { SpellInsert, SpellSchool } from "@/types/spell.types";
 import { SPELL_SCHOOLS, SPELL_CLASSES } from "@/types/spell.types";
 import { ARTIFICER_SPELL_DELTA } from "@/data/artificerSpellDelta";
+import { fetchAll } from "@/lib/open5eApi";
 
 // ── Open5e v1 API shapes ──────────────────────────────────────────────────────
 
@@ -10,41 +11,19 @@ interface Open5eSpell {
   desc: string;
   higher_level: string;
   range: string;
-  components: string;        // "V, S, M"
+  components: string; // "V, S, M"
   material: string;
-  ritual: string;            // "yes" | "no"
+  ritual: string; // "yes" | "no"
   duration: string;
-  concentration: string;     // "yes" | "no"
-  casting_time: string;      // "1 action", "1 bonus action", etc.
-  level: string;             // "Cantrip" | "1st-level" | "2nd-level" etc.
+  concentration: string; // "yes" | "no"
+  casting_time: string; // "1 action", "1 bonus action", etc.
+  level: string; // "Cantrip" | "1st-level" | "2nd-level" etc.
   level_int: number;
   school: { name: string } | string;
-  dnd_class: string;         // "Wizard, Sorcerer" (comma-separated)
+  dnd_class: string; // "Wizard, Sorcerer" (comma-separated)
   document__slug: string;
   document__title: string;
   document__url: string;
-}
-
-interface Open5eListResponse<T> {
-  count: number;
-  next: string | null;
-  results: T[];
-}
-
-// ── Pagination fetch ──────────────────────────────────────────────────────────
-
-async function fetchAll<T>(baseUrl: string): Promise<T[]> {
-  const results: T[] = [];
-  const sep = baseUrl.includes("?") ? "&" : "?";
-  let url: string | null = `${baseUrl}${sep}limit=500&format=json`;
-  while (url) {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`open5e fetch failed: ${res.status} ${url}`);
-    const json: Open5eListResponse<T> = await res.json();
-    results.push(...json.results);
-    url = json.next;
-  }
-  return results;
 }
 
 // ── Document list ─────────────────────────────────────────────────────────────
@@ -55,7 +34,9 @@ export interface Open5eDocument {
 }
 
 export async function fetchOpen5eDocuments(): Promise<Open5eDocument[]> {
-  const docs = await fetchAll<Open5eDocument>("https://api.open5e.com/v1/documents/");
+  const docs = await fetchAll<Open5eDocument>(
+    "https://api.open5e.com/v1/documents/",
+  );
   return docs.slice().sort((a, b) => a.title.localeCompare(b.title));
 }
 
@@ -85,17 +66,22 @@ const CASTING_TIME_MAP: Record<string, string> = {
   "24 hours": "24 Hours",
 };
 
-function normalizeCastingTime(raw: string): { casting_time: string; casting_time_custom: string | null } {
+function normalizeCastingTime(raw: string): {
+  casting_time: string;
+  casting_time_custom: string | null;
+} {
   const lower = raw.toLowerCase().trim();
   // Exact match first
-  if (CASTING_TIME_MAP[lower]) return { casting_time: CASTING_TIME_MAP[lower], casting_time_custom: null };
+  if (CASTING_TIME_MAP[lower])
+    return { casting_time: CASTING_TIME_MAP[lower], casting_time_custom: null };
   // Reaction with condition text
-  if (lower.startsWith("1 reaction")) return { casting_time: "Reaction", casting_time_custom: raw };
+  if (lower.startsWith("1 reaction"))
+    return { casting_time: "Reaction", casting_time_custom: raw };
   return { casting_time: "Special", casting_time_custom: raw };
 }
 
 const DURATION_MAP: Record<string, string> = {
-  "instantaneous": "Instantaneous",
+  instantaneous: "Instantaneous",
   "until dispelled": "Until Dispelled",
   "1 round": "1 Round",
   "concentration, up to 1 minute": "Concentration, up to 1 minute",
@@ -115,9 +101,13 @@ const DURATION_MAP: Record<string, string> = {
   "30 days": "30 Days",
 };
 
-function normalizeDuration(raw: string): { duration: string; duration_custom: string | null } {
+function normalizeDuration(raw: string): {
+  duration: string;
+  duration_custom: string | null;
+} {
   const lower = raw.toLowerCase().trim();
-  if (DURATION_MAP[lower]) return { duration: DURATION_MAP[lower], duration_custom: null };
+  if (DURATION_MAP[lower])
+    return { duration: DURATION_MAP[lower], duration_custom: null };
   return { duration: "Special", duration_custom: raw };
 }
 
@@ -133,10 +123,21 @@ const FEET_MAP: Record<string, string> = {
   "500 feet": "500 ft.",
 };
 
-function normalizeRange(raw: string): { range: string; range_custom: string | null } {
+function normalizeRange(raw: string): {
+  range: string;
+  range_custom: string | null;
+} {
   const lower = raw.toLowerCase().trim();
-  if (lower === "self" || lower === "touch" || lower === "sight" || lower === "unlimited") {
-    return { range: raw.charAt(0).toUpperCase() + raw.slice(1), range_custom: null };
+  if (
+    lower === "self" ||
+    lower === "touch" ||
+    lower === "sight" ||
+    lower === "unlimited"
+  ) {
+    return {
+      range: raw.charAt(0).toUpperCase() + raw.slice(1),
+      range_custom: null,
+    };
   }
   if (lower === "1 mile") return { range: "1 mile", range_custom: null };
   if (FEET_MAP[lower]) return { range: FEET_MAP[lower], range_custom: null };
@@ -147,7 +148,10 @@ const VALID_CLASSES = new Set<string>(SPELL_CLASSES);
 
 function normalizeClasses(raw: string, spellName: string): string[] {
   const classes = raw
-    ? raw.split(",").map((c) => c.trim()).filter((c) => VALID_CLASSES.has(c))
+    ? raw
+        .split(",")
+        .map((c) => c.trim())
+        .filter((c) => VALID_CLASSES.has(c))
     : [];
   if (ARTIFICER_SPELL_DELTA.has(spellName) && !classes.includes("Artificer")) {
     classes.push("Artificer");
@@ -166,7 +170,9 @@ function normalizeComponents(raw: string): string[] {
 // ── Mapper ────────────────────────────────────────────────────────────────────
 
 function mapSpell(spell: Open5eSpell): SpellInsert {
-  const { casting_time, casting_time_custom } = normalizeCastingTime(spell.casting_time);
+  const { casting_time, casting_time_custom } = normalizeCastingTime(
+    spell.casting_time,
+  );
   const { duration, duration_custom } = normalizeDuration(spell.duration);
   const { range, range_custom } = normalizeRange(spell.range);
   return {
@@ -206,26 +212,30 @@ function mapSpell(spell: Open5eSpell): SpellInsert {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-export async function fetchSrdSpells(sourceSlugs?: string[]): Promise<SpellInsert[]> {
+export async function fetchSrdSpells(
+  sourceSlugs?: string[],
+): Promise<SpellInsert[]> {
   let rawSpells: Open5eSpell[];
 
   if (sourceSlugs && sourceSlugs.length > 0) {
     const fetches = await Promise.all(
       sourceSlugs.map((slug) =>
-        fetchAll<Open5eSpell>(`https://api.open5e.com/v1/spells/?document__slug=${slug}`),
+        fetchAll<Open5eSpell>(
+          `https://api.open5e.com/v1/spells/?document__slug=${slug}`,
+        ),
       ),
     );
     rawSpells = fetches.flat();
   } else {
-    rawSpells = await fetchAll<Open5eSpell>("https://api.open5e.com/v1/spells/");
+    rawSpells = await fetchAll<Open5eSpell>(
+      "https://api.open5e.com/v1/spells/",
+    );
   }
 
   const seen = new Set<string>();
-  return rawSpells
-    .map(mapSpell)
-    .filter((s) => {
-      if (seen.has(s.name)) return false;
-      seen.add(s.name);
-      return true;
-    });
+  return rawSpells.map(mapSpell).filter((s) => {
+    if (seen.has(s.name)) return false;
+    seen.add(s.name);
+    return true;
+  });
 }

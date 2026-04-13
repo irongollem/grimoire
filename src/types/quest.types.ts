@@ -48,8 +48,7 @@ export interface Quest {
   tags: string[];
   description: string | null; // Tiptap JSON — full narrative
   notes: string | null; // Tiptap JSON — DM session notes
-  shared_with_players: boolean;
-  player_visible_to: string[] | null;
+  player_visible_to: string[];
   reward_item_ids: string[];
   reward_currency_pools: RewardCurrencyPool[];
   reward_art_objects?: import("@/types/encounter.types").ArtObject[];
@@ -89,11 +88,7 @@ export interface RewardCurrencyPool {
   cp: number;
 }
 
-export type QuestRefType =
-  | "npc"
-  | "location"
-  | "monster"
-  | "encounter";
+export type QuestRefType = "npc" | "location" | "monster" | "encounter";
 
 export const QUEST_REF_TYPE_LABELS: Record<QuestRefType, string> = {
   npc: "NPC",

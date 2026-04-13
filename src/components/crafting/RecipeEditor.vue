@@ -45,9 +45,7 @@
       </button>
 
       <PlayerVisibilityToggle
-        :shared-with-all="form.shared_with_players"
         :visible-to="form.player_visible_to"
-        @update:shared-with-all="form.shared_with_players = $event"
         @update:visible-to="form.player_visible_to = $event"
       />
 
@@ -251,8 +249,12 @@
             }}</span>
             <span v-else class="italic text-muted-foreground">
               any
-              <template v-if="ing.tags && ing.tags.length === 1">"{{ ing.tags[0] }}"</template>
-              <template v-else-if="ing.tags">{{ ing.tags.join(" + ") }}</template>
+              <template v-if="ing.tags && ing.tags.length === 1"
+                >"{{ ing.tags[0] }}"</template
+              >
+              <template v-else-if="ing.tags">{{
+                ing.tags.join(" + ")
+              }}</template>
             </span>
           </span>
           <input
@@ -460,8 +462,7 @@ const form = ref({
     | "days",
   requires_proficiency: props.recipe?.requires_proficiency ?? false,
   requires_tools: props.recipe?.requires_tools ?? false,
-  shared_with_players: props.recipe?.shared_with_players ?? false,
-  player_visible_to: props.recipe?.player_visible_to ?? null,
+  player_visible_to: props.recipe?.player_visible_to ?? [],
 });
 
 const ingredients = ref<
@@ -483,7 +484,6 @@ watch(
         crafting_time_unit: r.crafting_time_unit,
         requires_proficiency: r.requires_proficiency,
         requires_tools: r.requires_tools,
-        shared_with_players: r.shared_with_players,
         player_visible_to: r.player_visible_to,
       };
     }
@@ -591,7 +591,10 @@ function addIngredient(itemId: string) {
 function addTagIngredient() {
   const raw = tagIngredientInput.value.trim();
   if (!raw) return;
-  const tags = raw.split(/[,+]/).map((t) => t.trim()).filter(Boolean);
+  const tags = raw
+    .split(/[,+]/)
+    .map((t) => t.trim())
+    .filter(Boolean);
   if (tags.length === 0) return;
   const key = tags.join(",");
   const existing = ingredients.value.find(

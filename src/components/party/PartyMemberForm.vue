@@ -104,24 +104,36 @@
                 :model-value="f.race ?? ''"
                 :options="speciesOptions"
                 placeholder="Select species…"
-                @update:model-value="f.race = $event || null"
+                @update:model-value="f.race = $event || null; f.subrace = ''"
               />
+            </div>
+            <div v-if="subraceOptions.length > 0" class="block">
+              <span class="field-label">Variant</span>
+              <select v-model="f.subrace" class="field-input w-full">
+                <option value="">— None —</option>
+                <option v-for="sr in subraceOptions" :key="sr" :value="sr">{{ sr }}</option>
+              </select>
             </div>
             <label class="block">
               <span class="field-label">Class</span>
               <select v-model="f.class" class="field-input w-full">
                 <option value="">— None —</option>
-                <option v-for="c in PARTY_CLASSES" :key="c" :value="c">{{ c }}</option>
+                <option v-for="c in allClassNames" :key="c" :value="c">{{ c }}</option>
               </select>
             </label>
-            <label class="block">
+            <div class="block">
               <span class="field-label">Subclass</span>
+              <select v-if="subclassOptions.length > 0" v-model="f.subclass" class="field-input w-full">
+                <option value="">— None —</option>
+                <option v-for="sc in subclassOptions" :key="sc" :value="sc">{{ sc }}</option>
+              </select>
               <input
+                v-else
                 v-model="f.subclass"
                 class="field-input w-full"
                 placeholder="Battle Master"
               />
-            </label>
+            </div>
             <label class="block">
               <span class="field-label">Level</span>
               <input
@@ -474,7 +486,9 @@ import {
   useCampaignMembers,
   useUpdateCampaignMember,
 } from "@/composables/useCampaignMembers";
-import { SKILLS, PARTY_CLASSES } from "@/types/party.types";
+import { SKILLS } from "@/types/party.types";
+import { useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
+import { useAllCustomSubclasses } from "@/composables/useCustomSubclasses";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
 import TagPickerInput from "@/components/common/TagPickerInput.vue";
 import type {
@@ -519,9 +533,25 @@ const PROF_LEVELS: { value: SkillProfLevel; label: string }[] = [
 const props = defineProps<{ member: PartyMember | null }>();
 const emit = defineEmits<{ close: [] }>();
 
+const { data: systemClasses } = useAllSystemClasses();
+const { data: customClasses } = useAllCustomClasses();
+
+const allClassNames = computed<string[]>(() => {
+  const srd = (systemClasses.value ?? []).map(c => c.class_name);
+  const custom = (customClasses.value ?? []).map(c => c.class_name);
+  return [...new Set([...srd, ...custom])].sort();
+});
+
 const { data: allSpecies } = useAllSpecies();
-const speciesOptions = computed(() =>
-  (allSpecies.value ?? []).map((s) => ({ id: s.id, name: s.name })),
+const speciesOptions  = computed(() => (allSpecies.value ?? []).map(s => ({ id: s.id, name: s.name })));
+const selectedSpecies = computed(() => (allSpecies.value ?? []).find(s => s.id === f.race) ?? null);
+const subraceOptions  = computed(() => selectedSpecies.value?.subraces?.map(sr => sr.name) ?? []);
+
+const { data: allCustomSubclasses } = useAllCustomSubclasses();
+const subclassOptions = computed(() =>
+  (allCustomSubclasses.value ?? [])
+    .filter(sc => sc.class_name === f.class)
+    .map(sc => sc.subclass_name),
 );
 
 const activeTab = ref<"identity" | "stats" | "profs">("identity");
@@ -543,6 +573,7 @@ const f = reactive<
   subclass: props.member?.subclass ?? "",
   level: props.member?.level ?? 1,
   race: props.member?.race ?? "",
+  subrace: props.member?.subrace ?? "",
   max_hp: props.member?.max_hp ?? 10,
   current_hp: props.member?.current_hp ?? 10,
   temp_hp: props.member?.temp_hp ?? 0,
@@ -588,10 +619,18 @@ function buildSlotMaxes(
   level: number,
 ): number[] {
   if (existing && existing.length > 0) {
-    // Use existing configured values
     return Array.from({ length: 9 }, (_, i) => existing.find((s) => s.level === i + 1)?.max ?? 0);
   }
-  // No config yet — seed from 5e rules
+  const lvlIdx = Math.max(0, Math.min(19, Math.round(level) - 1));
+  // Check custom/system class slot grid first
+  const dbClass =
+    (customClasses.value ?? []).find(c => c.class_name === cls) ??
+    (systemClasses.value ?? []).find(c => c.class_name === cls);
+  if (dbClass?.spell_slots) {
+    const row = dbClass.spell_slots[lvlIdx] ?? [];
+    return Array.from({ length: 9 }, (_, i) => row[i] ?? 0);
+  }
+  // Fall back to SRD static table
   const defaults = getDefaultSpellSlots(cls || null, level);
   return Array.from({ length: 9 }, (_, i) => defaults.find((s) => s.level === i + 1)?.max ?? 0);
 }

@@ -41,9 +41,7 @@
       </select>
       <PlayerVisibilityToggle
         v-if="!isNew"
-        :shared-with-all="sharedWithPlayers"
         :visible-to="playerVisibleTo"
-        @update:shared-with-all="sharedWithPlayers = $event"
         @update:visible-to="playerVisibleTo = $event"
       />
       <button
@@ -148,9 +146,10 @@
                   backgroundColor: LOCATION_TYPE_COLORS[child.location_type],
                 }"
               />
-              <span class="font-cinzel text-xs font-semibold text-foreground truncate">{{
-                child.name
-              }}</span>
+              <span
+                class="font-cinzel text-xs font-semibold text-foreground truncate"
+                >{{ child.name }}</span
+              >
             </RouterLink>
             <!-- Inline child search -->
             <div class="relative ml-auto">
@@ -336,7 +335,9 @@
     <template v-if="!isNew && STORE_LOCATION_TYPES.has(locationType)">
       <!-- Owner NPC — used as the sender name on vendor offer messages -->
       <div class="flex items-center gap-3">
-        <span class="font-cinzel text-xs text-foreground shrink-0">Proprietor</span>
+        <span class="font-cinzel text-xs text-foreground shrink-0"
+          >Proprietor</span
+        >
         <EntityCombobox
           :model-value="npcOwnerId"
           :options="npcOptions"
@@ -442,8 +443,10 @@
       <div class="flex items-center justify-between mt-2">
         <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
           Currently Here
-          <span class="font-fell font-normal text-muted-foreground"
-            v-if="membersHere.length">({{ membersHere.length }})</span
+          <span
+            class="font-fell font-normal text-muted-foreground"
+            v-if="membersHere.length"
+            >({{ membersHere.length }})</span
           >
         </h2>
       </div>
@@ -460,16 +463,24 @@
           >
             {{ m.name }}
           </RouterLink>
-          <span v-if="m.class" class="font-fell text-[10px] text-muted-foreground italic">{{ m.class }}</span>
+          <span
+            v-if="m.class"
+            class="font-fell text-[10px] text-muted-foreground italic"
+            >{{ m.class }}</span
+          >
           <button
             type="button"
             class="text-muted-foreground hover:text-destructive transition-colors text-sm leading-none ml-1"
             title="Remove from this location"
             @click="removeMemberFromLocation(m.id)"
-          >×</button>
+          >
+            ×
+          </button>
         </div>
       </div>
-      <p v-else class="font-fell text-xs text-muted-foreground italic">No party members currently here.</p>
+      <p v-else class="font-fell text-xs text-muted-foreground italic">
+        No party members currently here.
+      </p>
 
       <!-- Add member to location -->
       <div class="flex items-center gap-2">
@@ -734,7 +745,8 @@ const { data: locationEncounters } = props.location
 
 // ── Party members currently at this location ───────────────────────────────────
 const { data: allPartyMembers } = useParty();
-const { mutateAsync: updatePartyMember, isPending: movingMember } = useUpdatePartyMember();
+const { mutateAsync: updatePartyMember, isPending: movingMember } =
+  useUpdatePartyMember();
 
 const membersHere = computed(() =>
   (allPartyMembers.value ?? []).filter(
@@ -760,7 +772,10 @@ async function addMemberToLocation() {
 }
 
 async function removeMemberFromLocation(memberId: string) {
-  await updatePartyMember({ id: memberId, update: { current_location_id: null } });
+  await updatePartyMember({
+    id: memberId,
+    update: { current_location_id: null },
+  });
 }
 
 // ── Form state ─────────────────────────────────────────────────────────────────
@@ -780,12 +795,7 @@ const npcsExpanded = ref(false);
 const description = ref<string>(props.location?.description ?? "");
 
 // ── Player sharing ─────────────────────────────────────────────────────────────
-const sharedWithPlayers = ref<boolean>(
-  props.location?.shared_with_players ?? false,
-);
-const playerVisibleTo = ref<string[] | null>(
-  props.location?.player_visible_to ?? null,
-);
+const playerVisibleTo = ref<string[]>(props.location?.player_visible_to ?? []);
 const playerSummary = ref<string>(props.location?.player_summary ?? "");
 const isDescriptionShared = ref<boolean>(
   props.location?.is_description_shared ?? false,
@@ -796,8 +806,12 @@ const isInventoryShared = ref<boolean>(
 );
 const npcOwnerId = ref<string>(props.location?.npc_owner_id ?? "");
 const { data: allNpcs } = useNpcs();
-const npcOptions = computed(() => (allNpcs.value ?? []).map(n => ({ id: n.id, name: n.name })));
-const ownerNpcName = computed(() => allNpcs.value?.find(n => n.id === npcOwnerId.value)?.name ?? null);
+const npcOptions = computed(() =>
+  (allNpcs.value ?? []).map((n) => ({ id: n.id, name: n.name })),
+);
+const ownerNpcName = computed(
+  () => allNpcs.value?.find((n) => n.id === npcOwnerId.value)?.name ?? null,
+);
 
 // ── Map ────────────────────────────────────────────────────────────────────────
 const mapUrl = ref<string | null>(props.location?.map_url ?? null);
@@ -872,7 +886,6 @@ function buildPayload() {
     map_url: mapUrl.value,
     map_pins: mapPins.value,
     is_map_shared: isMapShared.value,
-    shared_with_players: sharedWithPlayers.value,
     player_visible_to: playerVisibleTo.value,
     player_summary: playerSummary.value || null,
     is_description_shared: isDescriptionShared.value,

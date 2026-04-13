@@ -113,12 +113,7 @@
         <!-- Languages -->
         <div>
           <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">LANGUAGES</label>
-          <input
-            :value="form.languages.join(', ')"
-            placeholder="Common, Elvish…"
-            class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            @input="form.languages = ($event.target as HTMLInputElement).value.split(',').map((l) => l.trim()).filter(Boolean)"
-          />
+          <TagInput v-model="form.languages" placeholder="Common, Elvish…" />
         </div>
 
         <!-- Description -->

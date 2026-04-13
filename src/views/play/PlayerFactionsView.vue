@@ -181,17 +181,14 @@ const myFactionIds = computed(() =>
 
 // In DM preview the DM owns all rows so RLS returns everything — filter
 // client-side to match what a real player would see via the DB policies:
-// - direct faction member (regardless of shared_with_players), OR
-// - shared_with_players = true AND either visible to all (player_visible_to null)
-//   or this party member's id is in player_visible_to.
+// - direct faction member, OR
+// - this party member's id is in player_visible_to
 const visibleFactions = computed(() => {
   const all = factions.value ?? [];
   if (!ui.dmPreviewMode) return all;
   return all.filter((f) => {
     if (myFactionIds.value.has(f.id)) return true;
-    if (!f.shared_with_players) return false;
-    if (f.player_visible_to === null) return true;
-    return !!myMemberId.value && f.player_visible_to.includes(myMemberId.value);
+    return !!myMemberId.value && (f.player_visible_to ?? []).includes(myMemberId.value);
   });
 });
 

@@ -53,9 +53,7 @@
 
       <!-- Player visibility toggle -->
       <PlayerVisibilityToggle
-        :shared-with-all="sharedWithPlayers"
         :visible-to="playerVisibleTo"
-        @update:shared-with-all="sharedWithPlayers = $event"
         @update:visible-to="playerVisibleTo = $event"
       />
 
@@ -88,7 +86,11 @@
     </p>
 
     <!-- Tiptap editor -->
-    <RichTextEditor v-model="body" placeholder="Write your note here…" allow-upload />
+    <RichTextEditor
+      v-model="body"
+      placeholder="Write your note here…"
+      allow-upload
+    />
   </div>
 </template>
 
@@ -106,7 +108,10 @@ import {
   useUpdateNote,
   useDeleteNote,
 } from "@/composables/useNotes";
-import { removeRichTextImages, cleanupRemovedRichTextImages } from "@/composables/useImageUpload";
+import {
+  removeRichTextImages,
+  cleanupRemovedRichTextImages,
+} from "@/composables/useImageUpload";
 import type { Note, NoteCategory } from "@/types/notes.types";
 import { useCampaignStore } from "@/stores/campaign";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
@@ -130,8 +135,7 @@ const body = ref<string | null>(props.note?.content ?? null);
 const category = ref<NoteCategory>(props.note?.category ?? "general");
 const sessionNum = ref<number | null>(props.note?.session_num ?? null);
 const isPinned = ref(props.note?.is_pinned ?? false);
-const sharedWithPlayers = ref(props.note?.shared_with_players ?? false);
-const playerVisibleTo = ref<string[] | null>(props.note?.player_visible_to ?? null);
+const playerVisibleTo = ref<string[]>(props.note?.player_visible_to ?? []);
 const tags = ref<string[]>(props.note?.tags ? [...props.note.tags] : []);
 const saving = ref(false);
 const saveError = ref("");
@@ -149,7 +153,6 @@ function buildPayload() {
     session_num:
       category.value === "session" ? (sessionNum.value ?? null) : null,
     is_pinned: isPinned.value,
-    shared_with_players: sharedWithPlayers.value,
     player_visible_to: playerVisibleTo.value,
     tags: tags.value,
     content: body.value ?? null,
@@ -163,8 +166,8 @@ async function save() {
   if (!title.value.trim() && !body.value) return;
   saving.value = true;
   saveError.value = "";
-  const wasShared = props.note?.shared_with_players || (props.note?.player_visible_to?.length ?? 0) > 0;
-  const nowShared = sharedWithPlayers.value || (playerVisibleTo.value?.length ?? 0) > 0;
+  const wasShared = (props.note?.player_visible_to?.length ?? 0) > 0;
+  const nowShared = playerVisibleTo.value.length > 0;
   const justShared = nowShared && !wasShared;
   try {
     if (props.note) {

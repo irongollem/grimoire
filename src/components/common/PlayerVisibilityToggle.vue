@@ -29,7 +29,7 @@
         <button
           type="button"
           class="w-full flex items-center gap-2 rounded-md px-2.5 py-1.5 mb-1 font-cinzel text-xs font-semibold tracking-wider transition-colors border"
-          :class="sharedWithAll
+          :class="allSelected
             ? 'bg-primary/15 border-primary/40 text-primary'
             : 'border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'"
           @click="toggleAll"
@@ -37,7 +37,7 @@
           <Users class="h-3.5 w-3.5 shrink-0" />
           All players
           <span
-            v-if="sharedWithAll"
+            v-if="allSelected"
             class="ml-auto font-fell text-[10px] font-normal normal-case text-primary/70"
           >on</span>
         </button>
@@ -86,13 +86,11 @@ import { Eye, EyeOff, Users, Check } from "lucide-vue-next";
 import { useParty } from "@/composables/useParty";
 
 const props = defineProps<{
-  sharedWithAll: boolean;
-  visibleTo: string[] | null;
+  visibleTo: string[];
 }>();
 
 const emit = defineEmits<{
-  "update:sharedWithAll": [val: boolean];
-  "update:visibleTo": [val: string[] | null];
+  "update:visibleTo": [val: string[]];
 }>();
 
 const { data: partyData } = useParty();
@@ -101,10 +99,7 @@ const party = computed(() => partyData.value ?? []);
 const open = ref(false);
 const containerRef = ref<HTMLElement | null>(null);
 
-// Edge-aware positioning: computed when the popover opens.
-// POPOVER_W must match the w-56 (224px) class on the popover div.
 const POPOVER_W = 224;
-// Rough estimate: header + "All players" btn + up-to-6 members + hide btn
 const POPOVER_H_EST = 280;
 const openUpward = ref(false);
 const openLeftward = ref(false);
@@ -124,51 +119,42 @@ function toggleOpen() {
   open.value = !open.value;
 }
 
-const isShared = computed(
-  () => props.sharedWithAll || (props.visibleTo !== null && props.visibleTo.length > 0),
+const isShared = computed(() => props.visibleTo.length > 0);
+
+const allSelected = computed(
+  () => party.value.length > 0 && party.value.every((m) => props.visibleTo.includes(m.id)),
 );
 
 const label = computed(() => {
-  if (props.sharedWithAll) return "Visible to all players";
-  if (props.visibleTo?.length) return `Visible to ${props.visibleTo.length} player(s)`;
+  if (allSelected.value) return "Visible to all players";
+  if (props.visibleTo.length) return `Visible to ${props.visibleTo.length} player(s)`;
   return "Hidden from players";
 });
 
 function isMemberSelected(id: string): boolean {
-  return (props.visibleTo ?? []).includes(id);
+  return props.visibleTo.includes(id);
 }
 
 function toggleAll() {
-  if (props.sharedWithAll) {
-    emit("update:sharedWithAll", false);
+  if (allSelected.value) {
+    emit("update:visibleTo", []);
   } else {
-    emit("update:sharedWithAll", true);
-    emit("update:visibleTo", null);
+    emit("update:visibleTo", party.value.map((m) => m.id));
   }
 }
 
 function toggleMember(id: string) {
-  // Switching to per-member mode clears the "all" flag
-  if (props.sharedWithAll) {
-    emit("update:sharedWithAll", false);
-    // Start with everyone except this one (deselect this person from "all")
-    const next = party.value.map((m) => m.id).filter((mid) => mid !== id);
-    emit("update:visibleTo", next.length ? next : null);
-    return;
-  }
-  const current = [...(props.visibleTo ?? [])];
-  const idx = current.indexOf(id);
-  const next = idx === -1 ? [...current, id] : current.filter((mid) => mid !== id);
-  emit("update:visibleTo", next.length ? next : null);
+  const next = props.visibleTo.includes(id)
+    ? props.visibleTo.filter((mid) => mid !== id)
+    : [...props.visibleTo, id];
+  emit("update:visibleTo", next);
 }
 
 function hide() {
-  emit("update:sharedWithAll", false);
-  emit("update:visibleTo", null);
+  emit("update:visibleTo", []);
   open.value = false;
 }
 
-// Close on outside click
 function onOutsideClick(e: MouseEvent) {
   if (containerRef.value && !containerRef.value.contains(e.target as Node)) {
     open.value = false;

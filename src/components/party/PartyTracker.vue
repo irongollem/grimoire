@@ -31,13 +31,12 @@
       description="Add your players' characters to track their HP, initiative, and passive skills."
     >
       <template #action>
-        <button
-          type="button"
+        <RouterLink
+          to="/play/character/create"
           class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-sm font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
-          @click="openForm(null)"
         >
           Add first hero
-        </button>
+        </RouterLink>
       </template>
     </EmptyState>
 
@@ -79,14 +78,13 @@
                 >
                   {{ member.name }}
                 </RouterLink>
-                <button
-                  type="button"
+                <RouterLink
+                  :to="`/play/character/edit?memberId=${member.id}`"
                   class="md:hidden w-6 h-6 flex items-center justify-center text-muted-foreground/40 hover:text-foreground transition-colors shrink-0"
                   title="Edit character"
-                  @click="openForm(member)"
                 >
                   <Pencil class="h-3.5 w-3.5" />
-                </button>
+                </RouterLink>
               </div>
               <p class="font-fell text-xs text-muted-foreground italic">
                 {{
@@ -154,14 +152,13 @@
                 >
                   <Sparkles class="h-3.5 w-3.5" />
                 </button>
-                <button
-                  type="button"
+                <RouterLink
+                  :to="`/play/character/edit?memberId=${member.id}`"
                   class="hidden md:flex w-7 h-7 rounded-full items-center justify-center text-muted-foreground/40 hover:text-foreground transition-colors shrink-0"
                   title="Edit character"
-                  @click="openForm(member)"
                 >
                   <Pencil class="h-3.5 w-3.5" />
-                </button>
+                </RouterLink>
               </div>
 
               <!-- HP bar -->
@@ -666,13 +663,6 @@
       </form>
     </div>
 
-    <!-- Member form modal -->
-    <PartyMemberForm
-      v-if="formOpen"
-      :member="editingMember"
-      @close="formOpen = false"
-    />
-
     <!-- Companion form modal -->
     <CompanionForm
       v-if="companionFormOpen"
@@ -707,7 +697,6 @@ import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
-import PartyMemberForm from "./PartyMemberForm.vue";
 import CompanionCard from "./CompanionCard.vue";
 import CompanionForm from "./CompanionForm.vue";
 import { CONDITIONS } from "@/types/party.types";
@@ -977,15 +966,6 @@ function hpBarColor(current: number, max: number) {
   return "bg-green-500";
 }
 
-// Form
-const formOpen = ref(false);
-const editingMember = ref<PartyMember | null>(null);
-
-function openForm(member: PartyMember | null) {
-  editingMember.value = member;
-  formOpen.value = true;
-}
-
 // Companions
 const { data: companions }       = useCompanions();
 const { data: allMonsters }      = useAllMonsters();
@@ -1150,7 +1130,7 @@ async function dropNewItemToChat() {
   newItem.name = ''; newItem.quantity = 1; newItem.carried_by = ''; newItem.notes = ''; newItem.selectedItemId = '';
 }
 
-defineExpose({ openForm, openCompanionForm });
+defineExpose({ openCompanionForm });
 </script>
 
 <style scoped>

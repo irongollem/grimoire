@@ -169,6 +169,41 @@ export const useUiStore = defineStore("ui", () => {
     speciesFilterSource.value = "all";
   }
 
+  // Class Features (Abilities) UI state
+  const featuresSearch = ref("");
+  const featuresFilterType = ref("all");
+
+  const featuresHasActiveFilters = computed(
+    () => featuresSearch.value !== "" || featuresFilterType.value !== "all",
+  );
+
+  function resetFeaturesFilters() {
+    featuresSearch.value = "";
+    featuresFilterType.value = "all";
+  }
+
+  // Archetypes (Custom Subclasses) UI state
+  const archetypesSearch = ref("");
+  const archetypesFilterClass = ref("all");
+
+  const archetypesHasActiveFilters = computed(
+    () => archetypesSearch.value !== "" || archetypesFilterClass.value !== "all",
+  );
+
+  function resetArchetypesFilters() {
+    archetypesSearch.value = "";
+    archetypesFilterClass.value = "all";
+  }
+
+  // Custom Classes UI state
+  const customClassesSearch = ref("");
+
+  const customClassesHasActiveFilters = computed(() => customClassesSearch.value !== "");
+
+  function resetCustomClassesFilters() {
+    customClassesSearch.value = "";
+  }
+
   // Soundboard UI state
   const soundboardFilterCategory = ref<SoundCategory | "all">("all");
   const soundboardSearchQuery = ref("");
@@ -366,5 +401,22 @@ export const useUiStore = defineStore("ui", () => {
     speciesOpen5ePanelOpen,
     speciesHasActiveFilters,
     resetSpeciesFilters,
+
+    // Class Features (Abilities)
+    featuresSearch,
+    featuresFilterType,
+    featuresHasActiveFilters,
+    resetFeaturesFilters,
+
+    // Archetypes (Custom Subclasses)
+    archetypesSearch,
+    archetypesFilterClass,
+    archetypesHasActiveFilters,
+    resetArchetypesFilters,
+
+    // Custom Classes
+    customClassesSearch,
+    customClassesHasActiveFilters,
+    resetCustomClassesFilters,
   };
 });

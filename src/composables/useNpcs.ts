@@ -169,7 +169,7 @@ export function useSharedNpcsByLocations(locationIds: Ref<string[]>) {
         .from("npcs")
         .select("*")
         .in("location_id", locationIds.value)
-        .or("shared_with_players.eq.true,player_visible_to.not.is.null")
+        .or("player_visible_to.not.is.null,player_visible_to.neq.{}")
         .order("name", { ascending: true });
       if (error) throw error;
       return data as Npc[];
@@ -304,7 +304,7 @@ export function usePopulateSettingNpcs() {
           tags: h.tags,
           stat_block: null,
           scriptorium_doc_id: null,
-          shared_with_players: false,
+          player_visible_to: [],
           player_visible_fields: [],
         }));
 

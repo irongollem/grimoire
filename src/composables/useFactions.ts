@@ -546,12 +546,12 @@ export function usePartyMemberFactions(partyMemberId: string | Ref<string>) {
       const pid = typeof id === "string" ? id : id.value;
       const { data, error } = await supabase
         .from("faction_party_members")
-        .select("*, faction:factions(id, name, faction_type, emblem_url, shared_with_players)")
+        .select("*, faction:factions(id, name, faction_type, emblem_url, player_visible_to)")
         .eq("party_member_id", pid)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return data as (FactionPartyMember & {
-        faction: Pick<Faction, "id" | "name" | "faction_type" | "emblem_url" | "shared_with_players">;
+        faction: Pick<Faction, "id" | "name" | "faction_type" | "emblem_url" | "player_visible_to">;
       })[];
     },
     enabled: computed(() => !!(typeof id === "string" ? id : id.value)),
@@ -668,8 +668,7 @@ export function usePopulateFactions() {
           alignment: f.alignment,
           tags: f.tags,
           emblem_url: null,
-          shared_with_players: false,
-          player_visible_to: null,
+          player_visible_to: [],
           user_id: user!.id,
         }));
 

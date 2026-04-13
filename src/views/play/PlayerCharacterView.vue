@@ -24,7 +24,6 @@
       <div class="flex flex-col gap-3 md:flex-row md:items-stretch md:gap-0">
         <PlayerCharacterHeader
           :member="member"
-          :show-controls="!ui.dmPreviewMode"
           class="md:flex-1 md:rounded-r-none md:border-r-0"
         />
         <div class="md:w-72 md:shrink-0 md:border md:border-l-0 md:border-border md:bg-card md:rounded-r-lg md:overflow-hidden md:flex md:flex-col md:justify-center md:gap-3 md:px-3 md:py-3">
@@ -100,7 +99,8 @@ import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/useParty";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
-import { getCasterType, getDefaultSpellSlots, getMaxPrepared } from "@/types/spell.types";
+import { getCasterType, getDefaultSpellSlots, computeMaxPrepared } from "@/types/spell.types";
+import { useClassByName } from "@/composables/useCustomClasses";
 import { ATTACK_DIS_CONDITIONS, CHECK_DIS_CONDITIONS } from "@/types/party.types";
 import type { SpellSlotEntry, PartyMember } from "@/types/party.types";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
@@ -170,7 +170,9 @@ const checkDisadvantage = computed(() =>
 );
 
 // ── Spells ─────────────────────────────────────────────────────────────────────
-const casterType = computed(() => getCasterType(member.value?.class ?? null));
+const memberClassRef = computed(() => member.value?.class ?? "");
+const classData = useClassByName(memberClassRef);
+const casterType = computed(() => classData.value?.caster_type ?? getCasterType(member.value?.class ?? null));
 
 const effectiveSpellSlots = computed<SpellSlotEntry[]>(() => {
   const m = member.value;
@@ -179,7 +181,7 @@ const effectiveSpellSlots = computed<SpellSlotEntry[]>(() => {
   return getDefaultSpellSlots(m.class, m.level);
 });
 
-const maxPrepared = computed(() => getMaxPrepared(member.value, member.value?.class ?? ""));
+const maxPrepared = computed(() => computeMaxPrepared(member.value, classData.value, member.value?.class ?? ""));
 
 const spellSaveDc = computed(() => {
   const m = member.value;

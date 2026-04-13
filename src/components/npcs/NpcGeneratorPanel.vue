@@ -513,7 +513,7 @@ async function generateAndCreate() {
     stat_block: tpl?.stat_block ?? null,
     location_id: quickForm.location_id,
     scriptorium_doc_id: null,
-    shared_with_players: false,
+    player_visible_to: [],
     player_visible_fields: [],
   };
 
@@ -589,7 +589,7 @@ async function quickCreate() {
     disguise_portrait_url: null,
     disguise_portrait_focal_point: null,
     is_revealed: false,
-    shared_with_players: false,
+    player_visible_to: [],
     player_visible_fields: [],
   };
 
