@@ -208,3 +208,76 @@ Return only the JSON object. No markdown fences, no explanation.`;
 export const IMAGE_BASE_PROMPT =
   // "Semi-realistic painterly fantasy portrait. Oil painting with visible brushwork. Dramatic chiaroscuro lighting, rich saturated colours. Highly detailed face and costume. Classic fantasy illustration in the tradition of Howard Lyon and Tyler Jacobson.";
   "Refined semi-realistic painterly fantasy illustration. Clearly illustrated, polished, and non-photographic. Controlled brushwork, clean shape design, clear form modeling, readable anatomy, expressive faces, strong silhouettes, atmospheric depth, restrained texture, and a cohesive finished surface. Favor stronger value separation, firmer structure, cleaner edge control, sharper facial planes, and clearer focal hierarchy. Keep colors tasteful and moderately muted with selective accents for clarity and emphasis. Prioritize readability, subject clarity, and elegant painterly fantasy over spectacle or realism. Avoid photorealism, cinematic or camera-driven aesthetics, glossy realism, lens blur, pores, oversharpening, noisy micro-detail, muddy rendering, excessive grit, rough sketchiness, cartoon stylization, anime stylization, overly soft diffusion, fuzzy texture overload, and cluttered ornamental detail that weakens the silhouette or focal read.";
+
+/**
+ * Build a structured campaign-context block to append to a system prompt.
+ *
+ * Each non-empty field becomes its own `## Heading` section, mirroring the
+ * `## Trait / ## Ideal / ## Bond / ## Flaw` style used inside `NPC_SYSTEM_PROMPT`.
+ * Empty / missing fields are skipped so token cost scales with how much the DM
+ * has actually filled in — most generators only consume `setting + tone`,
+ * `threads` is opt-in (quest hooks).
+ *
+ * Returns the empty string if no sections are set, so callers can safely do:
+ *   const system = `${SYSTEM}${buildCampaignContext({ setting, tone })}`;
+ */
+export function buildCampaignContext(opts: {
+  setting?: string | null;
+  tone?: string | null;
+  threads?: string | null;
+}): string {
+  const sections: string[] = [];
+  const s = opts.setting?.trim();
+  const t = opts.tone?.trim();
+  const th = opts.threads?.trim();
+  if (s)  sections.push(`## Setting\n${s}`);
+  if (t)  sections.push(`## Campaign Tone\n${t}`);
+  if (th) sections.push(`## Active Threads\n${th}`);
+  if (!sections.length) return "";
+  return `\n\nCampaign context provided by the DM (use it to ground tone, names, factions, and themes — but do not invent new facts that contradict it):\n\n${sections.join("\n\n")}`;
+}
+
+export const SPELL_SYSTEM_PROMPT = `You are a creative assistant for Dungeons & Dragons 5e campaign management.
+
+Generate a custom spell based on the dungeon master's description. Return a single JSON object with exactly these fields:
+
+{
+  "name": "Short evocative spell name (no quotes, no level annotation)",
+  "level": <number 0-9, where 0 = cantrip>,
+  "school": "One of: abjuration, conjuration, divination, enchantment, evocation, illusion, necromancy, transmutation",
+  "casting_time": "One of: Action, Bonus Action, Reaction, 1 Minute, 10 Minutes, 1 Hour, 8 Hours, 24 Hours, Special",
+  "casting_time_custom": "Trigger description if Reaction (e.g. 'which you take when you see a creature within 60 feet casting a spell'), or full custom text if Special. Otherwise null.",
+  "range": "One of: Self, Touch, 5 ft., 10 ft., 30 ft., 60 ft., 90 ft., 120 ft., 150 ft., 300 ft., 500 ft., 1 mile, Sight, Unlimited, Special",
+  "range_custom": "Custom range description if range is Special, otherwise null",
+  "components": ["array — any subset of 'V', 'S', 'M'"],
+  "material": "Material component description WITHOUT the parentheses, including any cost or consumption note (e.g. 'a tiny ball of bat guano and sulfur'). Null if 'M' is not in components.",
+  "duration": "One of: Instantaneous, Until Dispelled, 1 Round, Concentration, up to 1 minute, Concentration, up to 10 minutes, Concentration, up to 1 hour, Concentration, up to 8 hours, 1 Minute, 10 Minutes, 1 Hour, 8 Hours, 24 Hours, 7 Days, 30 Days, Special",
+  "duration_custom": "Custom duration description if Special, otherwise null",
+  "concentration": "true if duration starts with 'Concentration', false otherwise",
+  "ritual": "true only if the spell can be cast as a ritual",
+  "attack_type": "One of: ranged_spell, melee_spell, save, automatic, none — pick the closest match. ranged_spell/melee_spell for spell attack rolls, save for forced saves, automatic for guaranteed effects (e.g. magic missile), none for utility spells.",
+  "save_attribute": "One of: STR, DEX, CON, INT, WIS, CHA — only if attack_type is 'save', otherwise null",
+  "save_effect": "One of: half (target takes half damage on save), negates (no effect on save), special (custom). Only if attack_type is 'save', otherwise null",
+  "damage_rolls": [{ "dice": "8d6", "type": "fire" }],
+  "healing_dice": "Healing dice expression (e.g. '1d8 + spellcasting modifier') for healing spells, otherwise null",
+  "target_description": "Brief targeting clause (e.g. 'one creature you can see within range', 'up to three creatures within 30 feet of each other'). Null if not applicable.",
+  "aoe_shape": "One of: sphere, cone, line, cylinder, cube, emanation — only for area spells, otherwise null",
+  "aoe_size": "AoE size (e.g. '20-foot radius', '60-foot line that is 5 feet wide'). Null if not an AoE.",
+  "condition_inflicted": "Lowercase condition name if the spell can inflict one (e.g. 'blinded', 'restrained'). Null otherwise.",
+  "description": "2–4 paragraphs of full spell text WITHOUT any leading 'Casting Time / Range / …' header — only the rules text and flavour. Plain text, separate paragraphs with a blank line.",
+  "higher_levels": "Single paragraph describing what changes when cast at higher levels, written in standard 5e form (e.g. 'When you cast this spell using a spell slot of 4th level or higher, the damage increases by 1d6 for each slot level above 3rd.'). Null for cantrips and spells that do not scale.",
+  "classes": ["array of class names from: Artificer, Bard, Cleric, Druid, Paladin, Ranger, Sorcerer, Warlock, Wizard, Fighter (Eldritch Knight), Rogue (Arcane Trickster). Pick 1-3 that best fit the spell's flavour."],
+  "tags": ["3 to 5 short descriptive tags"],
+  "image_prompt": "A concise illustration description for image generation. Describe the spell effect in flight: visual phenomenon, colour palette, motion, environment hint. No caster figure required. No style or art direction."
+}
+
+Design rules:
+- Match damage / healing magnitudes to the chosen level using standard 5e scaling. A level 1 damage cantrip ≈ 1d8–1d10; a level 1 spell single-target ≈ 2d6–4d6; a level 3 fireball-equivalent ≈ 8d6 in a 20-ft radius. Don't overstate.
+- Cantrips (level 0) must NOT use spell slots and must NOT have higher_levels text. Set higher_levels to null.
+- Cantrips that deal damage typically scale with character level (5/11/17). When the description mentions cantrip scaling, write it inline in the description, not in higher_levels.
+- Concentration belongs on most ongoing buffs/debuffs and area control spells. Damage-on-cast spells usually do NOT use concentration.
+- Components should match the flavour: pure mind-magic → V only; gestural → V+S; with material focus → V+S+M.
+- attack_type / save_attribute / save_effect must be self-consistent with the description. If you write "the target makes a Dexterity saving throw" the structured fields must reflect that.
+- damage_rolls must list every damage instance separately. Use null (not []) when the spell deals no damage.
+
+Return only the JSON object. No markdown fences, no explanation.`;

@@ -1,6 +1,6 @@
 import { useAuthStore } from "@/stores/auth";
 import { supabase } from "@/lib/supabase";
-import { NPC_SYSTEM_PROMPT, IMAGE_BASE_PROMPT } from "./prompts";
+import { NPC_SYSTEM_PROMPT, IMAGE_BASE_PROMPT, buildCampaignContext } from "./prompts";
 import type { NpcAiResult, NpcAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -104,9 +104,9 @@ export function useNpcGeneration() {
       const imageProvider = getImageProvider();
 
       // ── 1. Generate NPC text data ──────────────────────────────────
-      let systemContent = settingPrompt
-        ? `${NPC_SYSTEM_PROMPT}\n\nCampaign setting context provided by the DM:\n${settingPrompt}`
-        : NPC_SYSTEM_PROMPT;
+      let systemContent = `${NPC_SYSTEM_PROMPT}${buildCampaignContext({
+        setting: settingPrompt,
+      })}`;
 
       const fullPrompt = options?.generateAlterEgo
         ? `${userPrompt}\n\nThis NPC has a disguise identity — populate disguise_name and disguise_image_prompt.`

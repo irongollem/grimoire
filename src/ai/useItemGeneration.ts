@@ -1,6 +1,6 @@
 import { useAuthStore } from "@/stores/auth";
 import { supabase } from "@/lib/supabase";
-import { ITEM_SYSTEM_PROMPT, IMAGE_BASE_PROMPT } from "./prompts";
+import { ITEM_SYSTEM_PROMPT, IMAGE_BASE_PROMPT, buildCampaignContext } from "./prompts";
 import type { ItemAiResult, ItemAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -53,9 +53,9 @@ export function useItemGeneration() {
       const textProvider = getTextProvider();
       const imageProvider = getImageProvider();
       // ── 1. Generate item text ─────────────────────────────────────────────
-      const systemContent = settingPrompt
-        ? `${ITEM_SYSTEM_PROMPT}\n\nCampaign setting context provided by the DM:\n${settingPrompt}`
-        : ITEM_SYSTEM_PROMPT;
+      const systemContent = `${ITEM_SYSTEM_PROMPT}${buildCampaignContext({
+        setting: settingPrompt,
+      })}`;
 
       const constraints: string[] = [];
       if (options?.item_type) constraints.push(`Item Type: ${options.item_type}`);
