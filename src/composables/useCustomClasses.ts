@@ -149,6 +149,23 @@ export function useImportOpen5eClasses() {
   });
 }
 
+/**
+ * Reactive lookup: returns the custom class (user-defined) or system class (SRD)
+ * matching the given class name, or null if not found.
+ * Custom classes take priority over system classes so user overrides win.
+ */
+export function useClassByName(className: Ref<string>) {
+  const { data: systemClasses } = useAllSystemClasses();
+  const { data: customClasses } = useAllCustomClasses();
+  return computed(() => {
+    const name = className.value;
+    if (!name) return null;
+    return (customClasses.value ?? []).find(c => c.class_name === name)
+      ?? (systemClasses.value ?? []).find(c => c.class_name === name)
+      ?? null;
+  });
+}
+
 export function useDeleteCustomClass() {
   const queryClient = useQueryClient();
   return useMutation({

@@ -228,6 +228,9 @@ async function duplicate(cls: SystemClass) {
       spell_slots: cls.spell_slots,
       spells_known: cls.spells_known,
       slot_recovery: cls.slot_recovery,
+      caster_type: cls.caster_type,
+      prepared_ability: cls.prepared_ability,
+      prepared_divisor: cls.prepared_divisor,
       steps: cls.steps,
       resources: cls.resources,
     });

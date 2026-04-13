@@ -161,6 +161,7 @@ import { ref, computed } from "vue";
 import { Moon, Sun } from "lucide-vue-next";
 import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
 import { getSlotRecovery, getHitDie } from "@/types/spell.types";
+import { useClassByName } from "@/composables/useCustomClasses";
 import { abilityModifier } from "@/lib/utils";
 import { rollParsed } from "@/lib/roller";
 
@@ -175,9 +176,12 @@ const emit = defineEmits<{
   confirm: [update: PartyMemberUpdate];
 }>();
 
+const memberClassRef = computed(() => props.member.class ?? "");
+const classData = useClassByName(memberClassRef);
+
 // ── Hit dice ──────────────────────────────────────────────────────────────────
 
-const hitDie = computed(() => getHitDie(props.member.class));
+const hitDie = computed(() => classData.value?.hit_die ?? getHitDie(props.member.class));
 const conMod = computed(() => Math.floor((props.member.con - 10) / 2));
 const hitDiceRemaining = computed(
   () => props.member.hit_dice_remaining ?? props.member.level,
@@ -283,7 +287,7 @@ function confirm() {
       update.class_resources = updatedResources;
 
     // Warlock pact slot recovery
-    if (getSlotRecovery(props.member.class) === "short") {
+    if ((classData.value?.slot_recovery ?? getSlotRecovery(props.member.class)) === "short") {
       update.spell_slots = props.effectiveSpellSlots.map((s) => ({
         ...s,
         used: 0,

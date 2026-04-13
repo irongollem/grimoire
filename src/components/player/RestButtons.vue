@@ -29,6 +29,7 @@ import { Moon, Sun } from "lucide-vue-next";
 import RestDialog from "@/components/player/RestDialog.vue";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { getCasterType, getDefaultSpellSlots } from "@/types/spell.types";
+import { useClassByName } from "@/composables/useCustomClasses";
 import type { SpellSlotEntry, PartyMember, PartyMemberUpdate } from "@/types/party.types";
 
 const props = defineProps<{ member: PartyMember }>();
@@ -37,7 +38,9 @@ const { mutateAsync: updateMember } = useUpdatePartyMember();
 const resting = ref(false);
 const restDialog = ref<"short" | "long" | null>(null);
 
-const casterType = computed(() => getCasterType(props.member.class));
+const memberClassRef = computed(() => props.member.class ?? "");
+const classData = useClassByName(memberClassRef);
+const casterType = computed(() => classData.value?.caster_type ?? getCasterType(props.member.class));
 const effectiveSpellSlots = computed<SpellSlotEntry[]>(() => {
   if (casterType.value === "none") return [];
   if (props.member.spell_slots?.length) return props.member.spell_slots;

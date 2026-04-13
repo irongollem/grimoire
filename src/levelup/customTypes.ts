@@ -1,6 +1,10 @@
 // Types for DM-defined custom subclasses and class variants.
 // These live alongside the SRD class types in src/levelup/ to keep the domain self-contained.
 
+export type CasterType = "prepared" | "known" | "spellbook" | "none";
+/** Ability scores that can feed max-prepared calculations. */
+export type PreparedAbility = "wis" | "int" | "cha";
+
 export type ResourceScaling = "fixed" | "per_level" | "table";
 
 export interface CustomResource {
@@ -85,6 +89,13 @@ export interface CustomClass {
   /** Whether spell slots recharge on short or long rest. */
   slot_recovery: "short" | "long";
 
+  /** Caster type — drives prepared spell logic and slot display. */
+  caster_type: CasterType;
+  /** Ability score for max-prepared calculation. null for known/none casters. */
+  prepared_ability: PreparedAbility | null;
+  /** Divisor for level in max-prepared formula: 1 = full caster, 2 = half-caster. null for known/none. */
+  prepared_divisor: number | null;
+
   steps: CustomStep[];
   resources: CustomResource[];
 
@@ -110,6 +121,9 @@ export interface SystemClass {
   spell_slots: number[][] | null;
   spells_known: number[] | null;
   slot_recovery: "short" | "long";
+  caster_type: CasterType;
+  prepared_ability: PreparedAbility | null;
+  prepared_divisor: number | null;
   steps: CustomStep[];
   resources: CustomResource[];
   created_at: string;

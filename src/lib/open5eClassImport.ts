@@ -85,6 +85,9 @@ export function baseClassToInsert(preview: Open5eClassPreview): CustomClassInser
     spell_slots: null,
     spells_known: null,
     slot_recovery: "long",
+    caster_type: "none",
+    prepared_ability: null,
+    prepared_divisor: null,
     steps: [],
     resources: [],
   };

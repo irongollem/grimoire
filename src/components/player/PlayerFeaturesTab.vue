@@ -206,12 +206,16 @@ import { ChevronDown } from "lucide-vue-next";
 import { getCharacterFeatures } from "@/levelup/classFeatures";
 import { featureName, featureDescription } from "@/levelup/types";
 import { getDefaultSpellSlots, getSlotRecovery } from "@/types/spell.types";
+import { useClassByName } from "@/composables/useCustomClasses";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useAllSpecies } from "@/composables/useSpecies";
 import { useConfirm } from "@/composables/useConfirm";
 import type { PartyMember, SpellSlotEntry } from "@/types/party.types";
 
 const props = defineProps<{ member: PartyMember; showRestButtons?: boolean }>();
+
+const memberClassRef = computed(() => props.member.class ?? "");
+const classData = useClassByName(memberClassRef);
 
 const { mutate: updateMember } = useUpdatePartyMember();
 const { confirm } = useConfirm();
@@ -307,7 +311,7 @@ function shortRest() {
   persistResources();
 
   // Restore spell slots if class recharges on short rest (Warlock pact magic)
-  if (getSlotRecovery(props.member.class) === "short") {
+  if ((classData.value?.slot_recovery ?? getSlotRecovery(props.member.class)) === "short") {
     for (const s of localSlots.value) s.used = 0;
     persistSlots();
   }

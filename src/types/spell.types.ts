@@ -186,6 +186,23 @@ export type SpellInsert = Omit<Spell, "id" | "user_id" | "created_at" | "updated
 export type SpellUpdate = Partial<SpellInsert>;
 
 // ── Max prepared spells ───────────────────────────────────────────────────────
+/**
+ * DB-driven max prepared calculation using class data from system_classes / custom_classes.
+ * Falls back to the static getMaxPrepared() when classData is unavailable.
+ */
+export function computeMaxPrepared(
+  member: { level: number; int: number; wis: number; cha: number } | null,
+  classData: { caster_type: string; prepared_ability: string | null; prepared_divisor: number | null } | null,
+  fallbackCls: string,
+): number | null {
+  if (!member) return null;
+  if (classData && (classData.caster_type === "prepared" || classData.caster_type === "spellbook") && classData.prepared_ability && classData.prepared_divisor) {
+    const score = member[classData.prepared_ability as "int" | "wis" | "cha"];
+    return Math.max(1, Math.floor((score - 10) / 2) + Math.floor(member.level / classData.prepared_divisor));
+  }
+  return getMaxPrepared(member, fallbackCls);
+}
+
 /** Returns the maximum number of spells a character can have prepared, or null for known casters. */
 export function getMaxPrepared(
   member: { level: number; int: number; wis: number; cha: number } | null,

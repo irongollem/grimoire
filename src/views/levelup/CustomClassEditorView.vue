@@ -243,6 +243,16 @@
 
       <template v-if="form.isSpellcaster">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- Caster type -->
+          <div>
+            <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1.5">CASTER TYPE</label>
+            <div class="flex flex-wrap gap-3">
+              <label v-for="opt in CASTER_TYPE_OPTIONS" :key="opt.value" class="flex items-center gap-1.5 cursor-pointer font-fell text-sm text-foreground">
+                <input type="radio" v-model="form.caster_type" :value="opt.value" class="accent-primary" /> {{ opt.label }}
+              </label>
+            </div>
+          </div>
+
           <!-- Slot recovery -->
           <div>
             <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1.5">SLOT RECOVERY</label>
@@ -264,6 +274,29 @@
               Known caster (Bard, Ranger, Sorcerer, Warlock style)
             </label>
           </div>
+
+          <!-- Prepared spell formula (only for prepared/spellbook) -->
+          <template v-if="form.caster_type === 'prepared' || form.caster_type === 'spellbook'">
+            <div>
+              <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1.5">PREPARED SPELL ABILITY</label>
+              <div class="flex gap-3">
+                <label v-for="ab in PREPARED_ABILITY_OPTIONS" :key="ab.value" class="flex items-center gap-1.5 cursor-pointer font-fell text-sm text-foreground">
+                  <input type="radio" v-model="form.prepared_ability" :value="ab.value" class="accent-primary" /> {{ ab.label }}
+                </label>
+              </div>
+            </div>
+            <div>
+              <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1.5">PREPARED SPELL SCALING</label>
+              <div class="flex gap-3">
+                <label class="flex items-center gap-1.5 cursor-pointer font-fell text-sm text-foreground">
+                  <input type="radio" v-model="form.prepared_divisor" :value="1" class="accent-primary" /> Full level (Cleric, Druid, Wizard)
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer font-fell text-sm text-foreground">
+                  <input type="radio" v-model="form.prepared_divisor" :value="2" class="accent-primary" /> Half level (Paladin, Artificer)
+                </label>
+              </div>
+            </div>
+          </template>
         </div>
 
         <!-- Spell slot grid: 20 rows × 9 columns -->
@@ -483,7 +516,19 @@ import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useCustomClass, useCreateCustomClass, useUpdateCustomClass, useDeleteCustomClass } from "@/composables/useCustomClasses";
 import { useAllFeatures } from "@/composables/useFeatures";
 import { useCampaigns } from "@/composables/useCampaigns";
-import type { CustomStep, CustomResource, HitDie } from "@/levelup/customTypes";
+import type { CustomStep, CustomResource, HitDie, CasterType, PreparedAbility } from "@/levelup/customTypes";
+
+const CASTER_TYPE_OPTIONS = [
+  { value: "prepared" as const, label: "Prepared (Cleric, Druid)" },
+  { value: "spellbook" as const, label: "Spellbook (Wizard)" },
+  { value: "known"    as const, label: "Known (Bard, Sorcerer, Warlock)" },
+] as const;
+
+const PREPARED_ABILITY_OPTIONS = [
+  { value: "wis", label: "Wisdom" },
+  { value: "int", label: "Intelligence" },
+  { value: "cha", label: "Charisma" },
+] as const;
 
 const route = useRoute();
 const router = useRouter();
@@ -549,6 +594,9 @@ interface FormState {
   spell_slots: number[][];
   spells_known: number[] | null;
   slot_recovery: "short" | "long";
+  caster_type: CasterType;
+  prepared_ability: PreparedAbility | null;
+  prepared_divisor: number | null;
   steps: CustomStep[];
   resources: CustomResource[];
 }
@@ -567,6 +615,9 @@ const form = ref<FormState>({
   spell_slots: emptySlotGrid(),
   spells_known: null,
   slot_recovery: "long",
+  caster_type: "none",
+  prepared_ability: "wis",
+  prepared_divisor: 1,
   steps: [],
   resources: [],
 });
@@ -603,6 +654,9 @@ watch(existing, (val) => {
     spell_slots: slotGrid,
     spells_known: (raw.spells_known as number[] | null) ?? null,
     slot_recovery: (raw.slot_recovery as "short" | "long") ?? "long",
+    caster_type: (raw.caster_type as CasterType) !== "none" ? (raw.caster_type as CasterType) : rawSlots !== null ? "prepared" : "none",
+    prepared_ability: raw.prepared_ability ?? "wis",
+    prepared_divisor: raw.prepared_divisor ?? 1,
     steps: raw.steps.map((s) => ({ ...s, step_type: s.step_type ?? "text_pick" })),
     resources: raw.resources,
   };
@@ -738,6 +792,9 @@ async function save() {
     spell_slots: form.value.isSpellcaster ? form.value.spell_slots : null,
     spells_known: form.value.isSpellcaster ? (form.value.spells_known ?? null) : null,
     slot_recovery: form.value.isSpellcaster ? form.value.slot_recovery : "long",
+    caster_type: form.value.isSpellcaster ? form.value.caster_type : "none",
+    prepared_ability: form.value.isSpellcaster && form.value.caster_type !== "known" ? form.value.prepared_ability : null,
+    prepared_divisor: form.value.isSpellcaster && form.value.caster_type !== "known" ? form.value.prepared_divisor : null,
     steps: form.value.steps,
     resources: form.value.resources,
     campaign_id: campaignScope.value === "all" ? null : campaignScope.value,
