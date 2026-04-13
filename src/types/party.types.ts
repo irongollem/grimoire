@@ -1,21 +1,3 @@
-export const PARTY_CLASSES = [
-  "Artificer",
-  "Barbarian",
-  "Bard",
-  "Cleric",
-  "Druid",
-  "Fighter",
-  "Monk",
-  "Paladin",
-  "Ranger",
-  "Rogue",
-  "Sorcerer",
-  "Warlock",
-  "Wizard",
-] as const;
-
-export type PartyClass = (typeof PARTY_CLASSES)[number];
-
 export type SkillProfLevel = "none" | "proficient" | "expertise";
 export type SaveKey = "str" | "dex" | "con" | "int" | "wis" | "cha";
 

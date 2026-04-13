@@ -322,7 +322,8 @@ import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useParty, useCreatePartyMember, useUpdatePartyMember } from "@/composables/useParty";
 import { useCampaignMembers, useUpdateCampaignMember } from "@/composables/useCampaignMembers";
-import { SKILLS, PARTY_CLASSES } from "@/types/party.types";
+import { SKILLS } from "@/types/party.types";
+import { useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
 import { getDefaultSpellSlots } from "@/types/spell.types";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
@@ -363,6 +364,14 @@ const PROF_LEVELS: { value: SkillProfLevel; label: string }[] = [
 const router = useRouter();
 const route  = useRoute();
 const auth   = useAuthStore();
+
+const { data: systemClasses } = useAllSystemClasses();
+const { data: customClasses } = useAllCustomClasses();
+const PARTY_CLASSES = computed(() => {
+  const srd    = (systemClasses.value ?? []).map(c => c.class_name);
+  const custom = (customClasses.value ?? []).map(c => c.class_name);
+  return [...new Set([...srd, ...custom])].sort();
+});
 
 const isEditMode = computed(() => route.name === "play-character-edit");
 

@@ -389,7 +389,7 @@ import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useCustomSubclass, useCreateCustomSubclass, useUpdateCustomSubclass, useDeleteCustomSubclass } from "@/composables/useCustomSubclasses";
 import { useAllFeatures } from "@/composables/useFeatures";
 import { useCampaigns } from "@/composables/useCampaigns";
-import { CLASS_FEATURES } from "@/levelup/classFeatures";
+import { useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
 import type { CustomStep, CustomResource } from "@/levelup/customTypes";
 
 const route = useRoute();
@@ -407,7 +407,13 @@ const { mutateAsync: create } = useCreateCustomSubclass();
 const { mutateAsync: update } = useUpdateCustomSubclass();
 const { mutateAsync: del } = useDeleteCustomSubclass();
 
-const CLASS_NAMES = Object.keys(CLASS_FEATURES) as string[];
+const { data: systemClasses } = useAllSystemClasses();
+const { data: customClasses } = useAllCustomClasses();
+const CLASS_NAMES = computed(() => {
+  const srd    = (systemClasses.value ?? []).map(c => c.class_name);
+  const custom = (customClasses.value ?? []).map(c => c.class_name);
+  return [...new Set([...srd, ...custom])].sort();
+});
 
 // ── Feature lookup helpers ────────────────────────────────────────────────────
 

@@ -203,8 +203,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { ChevronDown } from "lucide-vue-next";
-import { getCharacterFeatures } from "@/levelup/classFeatures";
 import { featureName, featureDescription } from "@/levelup/types";
+import { useAllFeatures } from "@/composables/useFeatures";
 import { getDefaultSpellSlots, getSlotRecovery } from "@/types/spell.types";
 import { useClassByName } from "@/composables/useCustomClasses";
 import { useUpdatePartyMember } from "@/composables/useParty";
@@ -216,6 +216,7 @@ const props = defineProps<{ member: PartyMember; showRestButtons?: boolean }>();
 
 const memberClassRef = computed(() => props.member.class ?? "");
 const classData = useClassByName(memberClassRef);
+const { data: allFeatures } = useAllFeatures();
 
 const { mutate: updateMember } = useUpdatePartyMember();
 const { confirm } = useConfirm();
@@ -333,9 +334,17 @@ async function longRest() {
 
 // ── Features (read-only, expandable) ─────────────────────────────────────────
 
-const featuresByLevel = computed(() =>
-  getCharacterFeatures(props.member.class ?? "", props.member.level),
-);
+const featuresByLevel = computed((): Record<number, string[]> => {
+  const cls = classData.value;
+  if (!cls) return {};
+  const featureMap = new Map((allFeatures.value ?? []).map(f => [f.id, f.name]));
+  const result: Record<number, string[]> = {};
+  for (let lvl = 1; lvl <= props.member.level; lvl++) {
+    const names = (cls.features[lvl.toString()] ?? []).map(id => featureMap.get(id) ?? id);
+    if (names.length > 0) result[lvl] = names;
+  }
+  return result;
+});
 
 const expanded = ref(new Set<string>());
 function toggleExpanded(name: string) {
