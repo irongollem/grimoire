@@ -3,8 +3,65 @@ import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { useAuthStore } from "@/stores/auth";
 import type { Location, LocationInsert, LocationUpdate } from "@/types/location.types";
+import { VAGUE_LOCATION_TYPES } from "@/types/location.types";
 import { SETTING_LOCATIONS, PLANAR_LOCATIONS } from "@/data/settingLocations";
+
+/** A location enriched with the chain of vague-container names we traversed
+ *  to reach it, starting with the outermost region and ending with the
+ *  direct parent. Empty when the entry is a direct child of the map owner. */
+export type PinnableDescendant = Location & { parent_chain: string[] };
+
+/**
+ * Walks the location tree below `rootId` to find pins the DM could place on
+ * `rootId`'s map. Vague container types (`region`, `continent`, …) aren't
+ * themselves useful as map points, so we recurse *through* them to surface
+ * their concrete descendants. A vague container with no children is kept as
+ * a leaf fallback so an empty region still shows up.
+ *
+ * `parent_chain` lets the UI display a breadcrumb like "Bryn Shander · Ten
+ * Towns" so the DM can tell which region a surfaced location came from.
+ */
+export function getPinnableDescendants(
+  rootId: string,
+  locations: Location[],
+): PinnableDescendant[] {
+  const byParent = new Map<string, Location[]>();
+  for (const loc of locations) {
+    if (!loc.parent_id) continue;
+    const arr = byParent.get(loc.parent_id) ?? [];
+    arr.push(loc);
+    byParent.set(loc.parent_id, arr);
+  }
+
+  const result: PinnableDescendant[] = [];
+  const visited = new Set<string>();
+
+  // Safety cap: more than ~60 pins on a single map is unusable anyway.
+  const MAX_RESULTS = 60;
+
+  function walk(parentId: string, chain: string[]) {
+    if (visited.has(parentId) || result.length >= MAX_RESULTS) return;
+    visited.add(parentId);
+    const children = byParent.get(parentId) ?? [];
+    for (const child of children) {
+      if (result.length >= MAX_RESULTS) break;
+      const isVague = VAGUE_LOCATION_TYPES.has(child.location_type);
+      const grandchildren = byParent.get(child.id) ?? [];
+      // Only recurse through vague containers at most 3 levels deep to avoid
+      // traversing huge subtrees when a region accidentally sits under this location.
+      if (isVague && grandchildren.length > 0 && chain.length < 3) {
+        walk(child.id, [...chain, child.name]);
+      } else {
+        result.push({ ...child, parent_chain: chain });
+      }
+    }
+  }
+
+  walk(rootId, []);
+  return result;
+}
 
 const QUERY_KEY = "locations";
 
@@ -189,16 +246,27 @@ export function useUpdateLocation() {
 /** Locations shared with players (player_visible_to is non-empty). */
 export function useSharedLocations() {
   const campaign = useCampaignStore();
+  const auth = useAuthStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value, "shared"]),
+    queryKey: computed(() => [QUERY_KEY, campaignId.value, "shared", auth.linkedPartyMemberId]),
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("locations")
         .select("*")
         .eq("campaign_id", campaignId.value!)
-        .not("player_visible_to", "is", null)
         .order("name", { ascending: true });
+
+      const partyMemberId = auth.linkedPartyMemberId;
+      if (partyMemberId) {
+        // Real player: only locations where their party_member_id is in player_visible_to.
+        query = query.contains("player_visible_to", [partyMemberId]);
+      } else {
+        // DM previewing player portal: show locations shared with at least one player.
+        query = query.not("player_visible_to", "eq", "{}");
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data as Location[];
     },

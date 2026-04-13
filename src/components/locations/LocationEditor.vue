@@ -545,7 +545,7 @@
           v-if="!isNew && children"
           :map-url="mapUrl"
           :pins="mapPins"
-          :children="children as Location[]"
+          :children="mapPinnableChildren"
           mode="edit"
           :show-hidden-pins="true"
           :compact="mapCompact"
@@ -622,6 +622,7 @@ import {
   useCreateLocation,
   useUpdateLocation,
   useDeleteLocation,
+  getPinnableDescendants,
 } from "@/composables/useLocations";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import {
@@ -683,6 +684,15 @@ const { data: children, isLoading: childrenLoading } = props.location
   ? useLocations(props.location.id)
   : { data: ref([]), isLoading: ref(false) };
 
+// ── Pinnable descendants for the map's "Unplaced" picker ──────────────────────
+// Recurses through vague container types (region / continent / country …) so
+// the DM can place individual towns onto a regional map without having to
+// flatten their hierarchy. See getPinnableDescendants() for the rules.
+const mapPinnableChildren = computed(() => {
+  if (!props.location || !allLocations.value?.length) return [];
+  return getPinnableDescendants(props.location.id, allLocations.value);
+});
+
 // ── Child combobox ─────────────────────────────────────────────────────────────
 const { mutateAsync: reparent } = useUpdateLocation();
 const childSearch = ref("");
@@ -722,11 +732,17 @@ function createChild() {
 }
 
 // ── NPCs + Encounters at this location (includes descendants) ──────────────────
-function collectDescendantIds(id: string, allLocs: Location[]): string[] {
+function collectDescendantIds(
+  id: string,
+  allLocs: Location[],
+  visited = new Set<string>(),
+): string[] {
+  if (visited.has(id)) return [];
+  visited.add(id);
   const result: string[] = [id];
   for (const loc of allLocs) {
     if (loc.parent_id === id)
-      result.push(...collectDescendantIds(loc.id, allLocs));
+      result.push(...collectDescendantIds(loc.id, allLocs, visited));
   }
   return result;
 }

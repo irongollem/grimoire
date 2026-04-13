@@ -262,6 +262,7 @@
 - [x] **Player notes UX overhaul** — `PlayerNotesWidget` now shows two independent boxes: "My Private Notes" (is_private=true, only author sees) and "My Party Notes" (is_private=false, full party sees); "From the Party" section shows all other members' shared notes; RLS updated so players can see each other's non-private notes (previously only DM↔player was symmetric)
 - [x] **Populate Planes button** — "Populate Planes" button in Atlas header seeds the 21 standard D&D planes (transitive, inner, outer, and Sigil) via `usePopulatePlanarLocations`; two-pass insert resolves parent links (Avernus → Nine Hells); idempotent — skips already-existing planes
 - [x] **Atlas type filter dropdown** — replaced pill-button type filters with a compact `<select>` dropdown in the Atlas header, matching the encounters view layout
+- [x] **Pin through vague regions** — the map editor's Unplaced picker now recurses through container types (world / plane / continent / region / country) to surface concrete descendants, so a map of Icewind Dale can pin the individual Ten Towns without first flattening the hierarchy. Each surfaced entry shows a breadcrumb (`· Ten Towns`) so the DM can tell which region it came from. (issue #139)
 
 ### Rules reliquary
 

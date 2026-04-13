@@ -24,6 +24,21 @@ export const STORE_LOCATION_TYPES = new Set<LocationType>([
   "inn",
 ]);
 
+/**
+ * "Vague container" types that represent an area rather than a single mappable
+ * point. When the DM picks pins for a location's map we recurse *through* these
+ * to find more concrete descendants to offer (e.g. a "Ten Towns" region under
+ * an "Icewind Dale" map surfaces the individual towns, not the region itself).
+ * Leaf vague containers (no children) are still offered as a fallback.
+ */
+export const VAGUE_LOCATION_TYPES = new Set<LocationType>([
+  "world",
+  "plane",
+  "continent",
+  "region",
+  "country",
+]);
+
 export const LOCATION_TYPE_LABELS: Record<LocationType, string> = {
   world: "World",
   plane: "Plane",
