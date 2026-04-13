@@ -315,6 +315,77 @@
       </div>
     </div>
 
+    <!-- ── Backgrounds ── -->
+    <div v-else-if="codexSection === 'backgrounds'">
+      <div v-if="!allBackgrounds?.length" class="text-center py-12">
+        <p class="font-fell text-sm text-muted-foreground italic">
+          No backgrounds in the campaign yet.
+        </p>
+      </div>
+      <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-2 items-start">
+        <div
+          v-for="bg in allBackgrounds"
+          :key="bg.id"
+          class="rounded-lg border border-border bg-card overflow-hidden"
+        >
+          <button
+            type="button"
+            class="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
+            @click="toggle(`bg:${bg.id}`)"
+          >
+            <ChevronRight
+              class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200"
+              :class="open.has(`bg:${bg.id}`) ? 'rotate-90' : ''"
+            />
+            <span class="font-cinzel text-sm font-bold text-foreground flex-1">{{ bg.name }}</span>
+            <span v-if="bg.source_title" class="shrink-0 font-cinzel text-[10px] text-muted-foreground/60">{{ bg.source_title }}</span>
+          </button>
+
+          <div v-if="open.has(`bg:${bg.id}`)" class="border-t border-border flex flex-col">
+            <div v-if="bg.image_url" class="h-40 w-full overflow-hidden bg-muted">
+              <FocalImage :src="bg.image_url" :alt="bg.name" format="landscape" :focal-point="bg.focal_point ?? null" />
+            </div>
+            <div class="px-4 py-4 flex flex-col gap-4">
+              <RichTextViewer v-if="isRichText(bg.description)" :content="bg.description!" />
+              <p v-else-if="bg.description" class="font-fell text-sm text-muted-foreground">{{ bg.description }}</p>
+
+              <div v-if="bg.skill_proficiencies?.length">
+                <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5">SKILL PROFICIENCIES</p>
+                <div class="flex flex-wrap gap-1.5">
+                  <span v-for="s in bg.skill_proficiencies" :key="s" class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-[11px] text-primary">{{ s }}</span>
+                </div>
+              </div>
+
+              <div v-if="bg.tool_proficiencies?.length">
+                <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5">TOOL PROFICIENCIES</p>
+                <div class="flex flex-wrap gap-1.5">
+                  <span v-for="t in bg.tool_proficiencies" :key="t" class="px-2 py-0.5 rounded bg-muted font-fell text-xs text-muted-foreground">{{ t }}</span>
+                </div>
+              </div>
+
+              <div v-if="bg.languages?.length">
+                <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5">LANGUAGES</p>
+                <div class="flex flex-wrap gap-1.5">
+                  <span v-for="l in bg.languages" :key="l" class="px-2 py-0.5 rounded bg-muted font-fell text-xs text-muted-foreground">{{ l }}</span>
+                </div>
+              </div>
+
+              <div v-if="bg.equipment">
+                <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5">EQUIPMENT</p>
+                <p class="font-fell text-sm text-muted-foreground">{{ bg.equipment }}</p>
+              </div>
+
+              <div v-if="bg.feature_name">
+                <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5">FEATURE</p>
+                <p class="font-cinzel text-xs font-semibold text-foreground mb-1">{{ bg.feature_name }}</p>
+                <p v-if="bg.feature_description" class="font-fell text-sm text-muted-foreground">{{ bg.feature_description }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Classes ── -->
     <div v-else-if="codexSection === 'classes'">
       <div v-if="!mergedClasses.length" class="text-center py-12">
@@ -529,6 +600,7 @@ import { ChevronRight } from "lucide-vue-next";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { useAllSpecies } from "@/composables/useSpecies";
+import { useBackgrounds } from "@/composables/useBackgrounds";
 import {
   useAllSystemClasses,
   useAllCustomClasses,
@@ -538,13 +610,15 @@ import { useAllFeatures } from "@/composables/useFeatures";
 import type { CustomFeatures } from "@/levelup/customTypes";
 
 const codexSections = [
-  { id: "species", label: "Species" },
-  { id: "classes", label: "Classes" },
+  { id: "species",     label: "Species" },
+  { id: "backgrounds", label: "Backgrounds" },
+  { id: "classes",     label: "Classes" },
 ] as const;
 type CodexSection = (typeof codexSections)[number]["id"];
 const codexSection = ref<CodexSection>("species");
 
 const { data: allSpecies } = useAllSpecies();
+const { data: allBackgrounds } = useBackgrounds();
 const { data: systemClasses } = useAllSystemClasses();
 const { data: customClasses } = useAllCustomClasses();
 const { data: allCustomSubclasses } = useAllCustomSubclasses();
