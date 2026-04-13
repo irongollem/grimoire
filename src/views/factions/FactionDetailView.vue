@@ -125,8 +125,8 @@
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { Shield } from "lucide-vue-next";
-import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useConfirm } from "@/composables/useConfirm";
+import { useImageUpload } from "@/composables/useImageUpload";
 import { useFaction, useCreateFaction, useUpdateFaction, useDeleteFaction } from "@/composables/useFactions";
 import { FACTION_TYPES, FACTION_ALIGNMENTS } from "@/types/faction.types";
 import PageHeader from "@/components/common/PageHeader.vue";
@@ -227,19 +227,18 @@ async function handleDelete() {
   router.push("/factions");
 }
 
+// Faction emblems route through useImageUpload so they're auto-converted to
+// WebP — the asset-images bucket is webp-only as of migration 20260413000004.
+const { upload: uploadEmblem } = useImageUpload("asset-images");
+
 async function onFileSelected(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (!file) return;
   (e.target as HTMLInputElement).value = "";
   uploading.value = true;
   try {
-    const user = getCurrentUser();
-    const ext  = file.name.split(".").pop() ?? "png";
-    const path = `${user!.id}/faction-${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("asset-images").upload(path, file);
-    if (error) throw error;
-    const { data } = supabase.storage.from("asset-images").getPublicUrl(path);
-    form.value.emblem_url = data.publicUrl;
+    const url = await uploadEmblem(file);
+    if (url) form.value.emblem_url = url;
   } finally {
     uploading.value = false;
   }

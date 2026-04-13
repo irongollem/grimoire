@@ -1,5 +1,5 @@
 import { useAuthStore } from "@/stores/auth";
-import { supabase } from "@/lib/supabase";
+import { BUCKETS, uploadToBucket } from "@/lib/storage";
 import { PUZZLE_SYSTEM_PROMPT, IMAGE_BASE_PROMPT, buildCampaignContext } from "./prompts";
 import type { PuzzleAiResult, PuzzleAiGenerated } from "./types";
 import {
@@ -85,16 +85,11 @@ export function usePuzzleGeneration() {
           const b64 = await imageProvider.generate(imagePrompt, "1024x1536");
 
           if (b64) {
-            const blob = b64ToBlob(b64);
-            const path = `${auth.user.id}/${crypto.randomUUID()}.webp`;
-            const { error: uploadErr } = await supabase.storage
-              .from("puzzle-images")
-              .upload(path, blob, { contentType: "image/webp" });
-            if (!uploadErr) {
-              image_url = supabase.storage
-                .from("puzzle-images")
-                .getPublicUrl(path).data.publicUrl;
-            }
+            image_url = await uploadToBucket(
+              BUCKETS.puzzleImages,
+              auth.user.id,
+              b64ToBlob(b64),
+            );
           }
         } catch {
           // image generation failure is non-fatal for puzzles

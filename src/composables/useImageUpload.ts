@@ -1,7 +1,21 @@
 import { ref } from "vue";
-import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/auth";
 import { toWebP } from "@/lib/mediaConvert";
+import {
+  BUCKETS,
+  uploadToBucket,
+  removeByPublicUrl,
+  type BucketConfig,
+} from "@/lib/storage";
+
+/** Look up a BucketConfig by string id; defaults to assetImages on miss so
+ *  legacy callers that pass `"asset-images"` keep working unchanged. */
+function resolveBucket(bucketId: string): BucketConfig {
+  for (const b of Object.values(BUCKETS)) {
+    if (b.id === bucketId) return b;
+  }
+  return BUCKETS.assetImages;
+}
 
 /**
  * Remove one or more files from a storage bucket given their public URLs.
@@ -9,12 +23,7 @@ import { toWebP } from "@/lib/mediaConvert";
  * Ignores storage errors (e.g. file not found, permission denied for shared images).
  */
 export async function removeStorageImages(bucket: string, ...urls: (string | null | undefined)[]): Promise<void> {
-  const marker = `/object/public/${bucket}/`;
-  const paths = urls
-    .filter((u): u is string => !!u && u.includes(marker))
-    .map((u) => decodeURIComponent(u.slice(u.indexOf(marker) + marker.length)));
-  if (paths.length === 0) return;
-  await supabase.storage.from(bucket).remove(paths);
+  await removeByPublicUrl(resolveBucket(bucket), ...urls);
 }
 
 export const ASSET_IMAGES_BUCKET = "asset-images";
@@ -71,17 +80,16 @@ export function cleanupRemovedRichTextImages(
 export function useImageUpload(bucket: string) {
   const auth = useAuthStore();
   const isUploading = ref(false);
+  const cfg = resolveBucket(bucket);
 
   async function upload(file: File): Promise<string | null> {
     if (!auth.user) return null;
     isUploading.value = true;
     try {
       const webpFile = await toWebP(file);
-      const path = `${auth.user.id}/${crypto.randomUUID()}.webp`;
-      const { error } = await supabase.storage.from(bucket).upload(path, webpFile, { contentType: "image/webp" });
-      if (error) throw error;
-      const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-      return data.publicUrl;
+      return await uploadToBucket(cfg, auth.user.id, webpFile, {
+        contentType: "image/webp",
+      });
     } catch {
       return null;
     } finally {
@@ -92,12 +100,7 @@ export function useImageUpload(bucket: string) {
   /** Delete a file from the bucket given its public URL. Silently no-ops on bad URLs. */
   async function remove(publicUrl: string): Promise<void> {
     if (!publicUrl) return;
-    // Extract path after /public/{bucket}/
-    const marker = `/object/public/${bucket}/`;
-    const idx = publicUrl.indexOf(marker);
-    if (idx === -1) return;
-    const path = publicUrl.slice(idx + marker.length);
-    await supabase.storage.from(bucket).remove([decodeURIComponent(path)]);
+    await removeByPublicUrl(cfg, publicUrl);
   }
 
   return { isUploading, upload, remove };
