@@ -50,7 +50,7 @@
           @click="createExample"
         >
           <BookOpen class="h-3.5 w-3.5" />
-          {{ loadingExample ? "Creating…" : "Load example (Gloom Stalker)" }}
+          {{ loadingExample ? "Creating…" : "Load example" }}
         </button>
       </div>
 
@@ -147,55 +147,51 @@ const { mutateAsync: createFeature } = useCreateFeature();
 const CLASS_NAMES = Object.keys(CLASS_FEATURES) as string[];
 
 // ── Example seed ──────────────────────────────────────────────────────────────
-// The Gloom Stalker (Ranger) from Xanathar's Guide to Everything.
-// Shows every section: features per level, a wizard step, and a resource pool.
-// The DM can edit or delete it after creation.
+// A generic "Example Subclass" that demonstrates every section of the editor:
+// features per level, a wizard step, and a resource pool. Pure placeholder —
+// rename and edit it to create your own subclass.
 
 const loadingExample = ref(false);
 
 async function createExample() {
   loadingExample.value = true;
   try {
-    // Create the features in the Abilities compendium first, then reference by UUID.
-    const source = "Gloom Stalker (Ranger)";
-    const [dreadAmbusher, umbralSight, gloomMagic, ironMind, flurry, shadowDodge] =
-      await Promise.all([
-        createFeature({ name: "Dread Ambusher", feature_type: "passive", source, tags: [], description: null, campaign_id: null, open5e_import: false, prerequisite: null }),
-        createFeature({ name: "Umbral Sight", feature_type: "passive", source, tags: [], description: null, campaign_id: null, open5e_import: false, prerequisite: null }),
-        createFeature({ name: "Gloom Stalker Magic", feature_type: "passive", source, tags: [], description: null, campaign_id: null, open5e_import: false, prerequisite: null }),
-        createFeature({ name: "Iron Mind", feature_type: "passive", source, tags: [], description: null, campaign_id: null, open5e_import: false, prerequisite: null }),
-        createFeature({ name: "Stalker's Flurry", feature_type: "active", source, tags: [], description: null, campaign_id: null, open5e_import: false, prerequisite: null }),
-        createFeature({ name: "Shadowy Dodge", feature_type: "reaction", source, tags: [], description: null, campaign_id: null, open5e_import: false, prerequisite: null }),
-      ]);
+    // Create placeholder features in the Abilities compendium first, then link by UUID.
+    const source = "Example Subclass";
+    const [featureA, featureB, featureC] = await Promise.all([
+      createFeature({ name: "Example Feature (Passive)", feature_type: "passive", source, tags: ["example"], description: null, campaign_id: null, open5e_import: false, prerequisite: null }),
+      createFeature({ name: "Example Feature (Active)", feature_type: "active", source, tags: ["example"], description: null, campaign_id: null, open5e_import: false, prerequisite: null }),
+      createFeature({ name: "Example Feature (Reaction)", feature_type: "reaction", source, tags: ["example"], description: null, campaign_id: null, open5e_import: false, prerequisite: null }),
+    ]);
 
     await create({
-      class_name: "Ranger",
-      subclass_name: "Gloom Stalker",
+      class_name: "Fighter",
+      subclass_name: "Example Subclass",
       campaign_id: null,
       features: {
-        "3":  [dreadAmbusher.id, umbralSight.id, gloomMagic.id],
-        "7":  [ironMind.id],
-        "11": [flurry.id],
-        "15": [shadowDodge.id],
+        "3":  [featureA.id],
+        "7":  [featureB.id],
+        "10": [featureC.id],
       },
       steps: [
         {
           level: 3,
           type: "select",
-          step_type: "spell_pick",
-          key: "gloom_stalker_bonus_spell",
-          label: "Choose Gloom Stalker Bonus Spell",
-          description: "You learn an additional spell from the Gloom Stalker list, which doesn't count against your spells known.",
-          options: ["Disguise Self", "Rope Trick", "Fear", "Greater Invisibility", "Seeming"],
+          step_type: "text_pick",
+          key: "example_choice",
+          label: "Example Wizard Step",
+          description: "This is a choice shown to the player during level-up. Replace the options with whatever fits your subclass.",
+          options: ["Option A", "Option B", "Option C"],
+          count: 1,
         },
       ],
       resources: [
         {
-          key: "stalkers_eye",
-          label: "Stalker's Eye",
+          key: "example_uses",
+          label: "Example Uses",
           rest: "long",
           scaling: "fixed",
-          fixed_value: 1,
+          fixed_value: 3,
         },
       ],
     });
