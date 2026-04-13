@@ -277,7 +277,9 @@ function stripLinkMarks(node: unknown): unknown {
   const result: Record<string, unknown> = {};
   for (const [key, val] of Object.entries(obj)) {
     if (key === "marks" && Array.isArray(val)) {
-      result[key] = (val as Array<{ type: string }>).filter((m) => m.type !== "link");
+      result[key] = (val as Array<{ type: string }>).filter(
+        (m) => m.type !== "link",
+      );
     } else {
       result[key] = stripLinkMarks(val);
     }
@@ -339,7 +341,6 @@ const editor = useEditor({
   },
 });
 
-
 onUnmounted(() => editor.value?.destroy());
 
 const twoColumn = ref(false);
@@ -376,7 +377,7 @@ async function onFileSelected(e: Event) {
 
 function tbCls(active: boolean) {
   return [
-    "p-1 rounded min-w-[26px] h-[26px] flex items-center justify-center transition-colors disabled:opacity-40",
+    "p-1 rounded min-w-6.5 h-6.5 flex items-center justify-center transition-colors disabled:opacity-40",
     active
       ? "bg-primary/20 text-primary"
       : "text-muted-foreground hover:text-foreground hover:bg-muted",

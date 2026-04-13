@@ -273,7 +273,7 @@ Return a single JSON object with exactly these fields:
   "attack_type": "One of: ranged_spell, melee_spell, save, automatic, none — pick the closest match. ranged_spell/melee_spell for spell attack rolls, save for forced saves, automatic for guaranteed effects (e.g. magic missile), none for utility spells.",
   "save_attribute": "One of: STR, DEX, CON, INT, WIS, CHA — only if attack_type is 'save', otherwise null",
   "save_effect": "One of: half (target takes half damage on save), negates (no effect on save), special (custom). Only if attack_type is 'save', otherwise null",
-  "damage_rolls": "Array of damage entries like [{ \"dice\": \"8d6\", \"type\": \"fire\" }], or null if the spell deals no damage.",
+  "damage_rolls": "Array of damage entries like [{ "dice": "8d6", "type": "fire" }], or null if the spell deals no damage.",
   "healing_dice": "Healing dice expression (e.g. '1d8 + spellcasting modifier') for healing spells, otherwise null",
   "target_description": "Brief targeting clause (e.g. 'one creature you can see within range', 'up to three creatures within 30 feet of each other'). Null if not applicable.",
   "aoe_shape": "One of: sphere, cone, line, cylinder, cube, emanation — only for area spells, otherwise null",
