@@ -217,6 +217,14 @@
           <SchedulingTab />
         </div>
 
+        <!-- Rules tab -->
+        <div
+          v-else-if="editing && activeModalTab === 'rules'"
+          class="px-5 py-4 max-h-[60vh] overflow-y-auto"
+        >
+          <RulesTab />
+        </div>
+
         <!-- AI Assistant tab -->
         <div
           v-else-if="editing && activeModalTab === 'ai'"
@@ -613,6 +621,7 @@ import type { Campaign } from "@/types/campaign.types";
 import MembersTab from "@/components/campaign/MembersTab.vue";
 import InvitesTab from "@/components/campaign/InvitesTab.vue";
 import SchedulingTab from "@/components/campaign/SchedulingTab.vue";
+import RulesTab from "@/components/campaign/RulesTab.vue";
 import AiTab from "@/components/campaign/AiTab.vue";
 import { useAllSystemClasses } from "@/composables/useCustomClasses";
 
@@ -620,6 +629,7 @@ type ModalTab =
   | "details"
   | "members"
   | "scheduling"
+  | "rules"
   | "ai"
   | "danger";
 
@@ -627,6 +637,7 @@ const modalTabs: { id: ModalTab; label: string }[] = [
   { id: "details", label: "Details" },
   { id: "members", label: "Members & Invites" },
   { id: "scheduling", label: "Scheduling" },
+  { id: "rules", label: "Rules" },
   { id: "ai", label: "AI Assistant" },
   { id: "danger", label: "Danger Zone" },
 ];

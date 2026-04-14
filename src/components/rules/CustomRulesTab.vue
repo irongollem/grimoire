@@ -21,6 +21,36 @@
       </select>
     </div>
 
+    <!-- ── Active built-in optional rules ──────────────────────────────── -->
+    <div v-if="enabledBuiltIns.length" class="mb-6 space-y-2">
+      <p class="font-cinzel text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">Active Optional Rules</p>
+      <div class="flex flex-col gap-1">
+        <div
+          v-for="def in enabledBuiltIns"
+          :key="def.key"
+          class="rounded-lg border border-border bg-card overflow-hidden"
+        >
+          <button
+            type="button"
+            class="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
+            @click="toggleBuiltIn(def.key)"
+          >
+            <ChevronRight
+              class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200"
+              :class="openBuiltIns.has(def.key) ? 'rotate-90' : ''"
+            />
+            <span class="font-cinzel text-sm font-bold text-foreground flex-1">{{ def.name }}</span>
+            <span class="shrink-0 px-1.5 py-0.5 rounded bg-emerald-500/10 font-cinzel text-[10px] text-emerald-400 tracking-wider">active</span>
+          </button>
+          <div v-if="openBuiltIns.has(def.key)" class="px-4 pb-4 border-t border-border">
+            <p class="font-fell text-xs text-muted-foreground italic mt-3 mb-2">{{ def.summary }}</p>
+            <!-- eslint-disable-next-line vue/no-v-html -->
+            <div class="prose-grimoire" v-html="renderMarkdown(def.description)" />
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
@@ -93,16 +123,43 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import { Search, Eye } from "lucide-vue-next";
+import { ref, computed, shallowRef } from "vue";
+import { Search, Eye, ChevronRight } from "lucide-vue-next";
 import { useRules } from "@/composables/useRules";
 import { RULE_CATEGORIES } from "@/types/rule.types";
+import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
+import { listOptionalRules } from "@/rules/optionalRules";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 
 const { data: rules, isLoading } = useRules();
+const { data: campaignRules } = useOptionalRules();
 const search = ref("");
 const categoryFilter = ref("");
+
+const enabledBuiltIns = computed(() =>
+  listOptionalRules().filter((def) => isRuleEffectivelyEnabled(campaignRules.value, def.key)),
+);
+
+const openBuiltIns = shallowRef(new Set<string>());
+function toggleBuiltIn(key: string) {
+  const next = new Set(openBuiltIns.value);
+  if (next.has(key)) { next.delete(key); } else { next.add(key); }
+  openBuiltIns.value = next;
+}
+
+function renderMarkdown(text: string): string {
+  return text
+    .split(/\n\n+/)
+    .map((para) =>
+      `<p>${para
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*(.+?)\*/g, "<em>$1</em>")
+        .replace(/\n/g, "<br>")
+      }</p>`,
+    )
+    .join("");
+}
 
 const filtered = computed(() => {
   let list = rules.value ?? [];

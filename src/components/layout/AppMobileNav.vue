@@ -71,6 +71,7 @@ import { X, LogOut } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { NAV_GROUPS } from "@/lib/nav";
+import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
 import NavItem from "./NavItem.vue";
 
 const auth = useAuthStore();
@@ -80,7 +81,18 @@ const router = useRouter();
 const userEmail = computed(() => auth.userEmail ?? "");
 const userInitial = computed(() => userEmail.value.charAt(0).toUpperCase() || "?");
 
-const mobileNavGroups = computed(() => NAV_GROUPS.filter((g) => !g.desktopOnly));
+const { data: campaignRules } = useOptionalRules();
+const mobileNavGroups = computed(() =>
+  NAV_GROUPS
+    .filter((g) => !g.desktopOnly)
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) =>
+        !item.ruleKey || isRuleEffectivelyEnabled(campaignRules.value, item.ruleKey),
+      ),
+    }))
+    .filter((group) => group.items.length > 0),
+);
 
 async function handleSignOut() {
   ui.toggleMobileNav();

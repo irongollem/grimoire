@@ -18,6 +18,19 @@ export function getOptionalRule(key: string): OptionalRuleDef | undefined {
   return REGISTRY.get(key);
 }
 
+// ── Crafting (Workshop) ───────────────────────────────────────────────────────
+registerOptionalRule({
+  key: "crafting",
+  name: "Crafting",
+  summary:
+    "Players can craft items, consumables, and equipment between sessions using recipes.",
+  description: `The Workshop lets players gather recipes, manage crafting queues, and track material costs between sessions.\n\n
+    Your DM controls which recipes are available and can set custom material requirements. Crafting time, tool requirements, and costs follow the Workshop recipes.\n\n
+    Head to the **Workshop** tab in the sidebar to browse recipes and start crafting.`,
+  dmOnly: false,
+  defaultEnabled: true,
+});
+
 // ── Encumbrance ───────────────────────────────────────────────────────────────
 registerOptionalRule({
   key: "encumbrance",
@@ -36,7 +49,8 @@ registerOptionalRule({
 registerOptionalRule({
   key: "flanking",
   name: "Flanking",
-  summary: "Two allies threatening the same enemy from opposite sides grant advantage.",
+  summary:
+    "Two allies threatening the same enemy from opposite sides grant advantage.",
   description:
     "When a creature and at least one of its allies are adjacent to an enemy and on opposite sides or corners of the enemy's space, they are **flanking** that enemy.\n\n" +
     "A creature can't flank an enemy that it can't see. A creature also can't flank while it is incapacitated. Large or larger creatures occupy multiple squares — use DM discretion for flanking angles.",
@@ -58,7 +72,8 @@ registerOptionalRule({
 registerOptionalRule({
   key: "morale",
   name: "Morale",
-  summary: "NPCs and monsters may flee or surrender when things go badly for them.",
+  summary:
+    "NPCs and monsters may flee or surrender when things go badly for them.",
   description:
     "Whenever a significant threat occurs — a monster's ally is slain, the monster drops below half HP, or the situation clearly turns against it — the DM may call for a **DC 10 Wisdom saving throw**.\n\n" +
     "On a failure the creature attempts to flee, surrenders, or becomes frightened at DM discretion. Mindless creatures, undead, and creatures immune to the frightened condition are unaffected.",
@@ -80,7 +95,8 @@ registerOptionalRule({
 registerOptionalRule({
   key: "slow_natural_healing",
   name: "Slow Natural Healing",
-  summary: "Characters don't regain HP at the end of a long rest without spending Hit Dice.",
+  summary:
+    "Characters don't regain HP at the end of a long rest without spending Hit Dice.",
   description:
     "With this rule, characters regain Hit Dice (not hit points) at the end of a long rest. To regain hit points, a character must spend Hit Dice during or after a long rest — the normal benefit of rolling them during a short rest.\n\n" +
     "This makes healing resources more precious and encourages players to seek out healers, potions, and safe resting places.",

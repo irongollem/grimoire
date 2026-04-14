@@ -30,6 +30,8 @@ export interface NavItem {
   description: string;
   /** If true, item is dimmed and non-navigable when no campaign is active */
   requiresCampaign?: boolean;
+  /** If set, item is hidden when this built-in optional rule is disabled for the active campaign */
+  ruleKey?: string;
 }
 
 export interface NavGroup {
@@ -115,6 +117,7 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Hammer,
         description: "Recipes & player crafting",
         requiresCampaign: true,
+        ruleKey: "crafting",
       },
       {
         label: "Soundboard",

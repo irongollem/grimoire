@@ -38,6 +38,13 @@
         </div>
       </div>
 
+      <!-- Tracks (custom + built-in rule trackers) -->
+      <PlayerTracksSection
+        v-if="resolvedMemberId"
+        :member-id="resolvedMemberId"
+        :custom-trackers="customTrackers"
+      />
+
       <!-- ── Tabs ───────────────────────────────────────────── -->
       <div class="flex rounded-md border border-border overflow-hidden w-fit text-xs font-cinzel font-semibold tracking-wider">
         <button
@@ -103,11 +110,13 @@ import { getCasterType, getDefaultSpellSlots, computeMaxPrepared } from "@/types
 import { useClassByName } from "@/composables/useCustomClasses";
 import { hasAttackDisadvantage, hasCheckDisadvantage } from "@/lib/conditions";
 import type { SpellSlotEntry, PartyMember } from "@/types/party.types";
+import { useRules, usePlayerVisibleRules } from "@/composables/useRules";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import RollToast from "@/components/common/RollToast.vue";
 import type { RollResult } from "@/components/common/RollToast.vue";
 import PlayerCharacterHeader from "@/components/player/PlayerCharacterHeader.vue";
 import PlayerConditions from "@/components/player/PlayerConditions.vue";
+import PlayerTracksSection from "@/components/player/PlayerTracksSection.vue";
 import PlayerSkillsTab from "@/components/player/PlayerSkillsTab.vue";
 import PlayerCombatTab from "@/components/player/PlayerCombatTab.vue";
 import PlayerFeaturesTab from "@/components/player/PlayerFeaturesTab.vue";
@@ -117,6 +126,16 @@ const props = defineProps<{ memberId?: string }>();
 
 const auth = useAuthStore();
 const ui = useUiStore();
+
+// DM preview gets all rules; players get only player-visible ones.
+const { data: dmRules }     = useRules();
+const { data: playerRules } = usePlayerVisibleRules();
+const customTrackers = computed(() => {
+  const rules = ui.dmPreviewMode ? (dmRules.value ?? []) : (playerRules.value ?? []);
+  return rules
+    .filter((r) => r.tracker !== null)
+    .map((r) => ({ ruleId: r.id, def: r.tracker! }));
+});
 const { data: partyMembers } = useParty();
 const { sendRoll } = useCampaignMessages();
 

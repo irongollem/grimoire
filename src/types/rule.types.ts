@@ -114,5 +114,7 @@ export interface OptionalRuleDef {
   summary: string;           // one-liner for the toggle list
   description: string;       // full text shown in Reliquary
   dmOnly: boolean;
+  /** When true, treat the rule as enabled if no campaign_rules row exists (opt-out model). */
+  defaultEnabled?: boolean;
   tracker?: Omit<TrackerDef, "dmButtons">;  // pre-configured tracker; dmButtons fixed per module
 }

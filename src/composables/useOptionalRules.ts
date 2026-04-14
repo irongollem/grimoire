@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type { CampaignRule } from "@/types/rule.types";
+import { getOptionalRule } from "@/rules/optionalRules";
 
 const KEY = "campaign_rules";
 
@@ -36,12 +37,22 @@ export function useOptionalRules() {
   });
 }
 
-/** Returns true if a built-in rule is enabled for the active campaign. */
+/** Returns true if a built-in rule is enabled for the active campaign.
+ *  Respects `defaultEnabled` — if no row exists and the rule defaults to on, returns true. */
 export function useIsRuleEnabled(ruleKey: string) {
   const { data } = useOptionalRules();
-  return computed(() =>
-    data.value?.find((r) => r.rule_key === ruleKey)?.enabled ?? false,
-  );
+  return computed(() => isRuleEffectivelyEnabled(data.value, ruleKey));
+}
+
+/** Checks whether a rule key is effectively enabled given loaded campaign rows.
+ *  Falls back to the rule's `defaultEnabled` when no DB row exists. */
+export function isRuleEffectivelyEnabled(
+  campaignRows: CampaignRule[] | undefined,
+  ruleKey: string,
+): boolean {
+  const row = (campaignRows ?? []).find((r) => r.rule_key === ruleKey);
+  if (row) return row.enabled;
+  return getOptionalRule(ruleKey)?.defaultEnabled ?? false;
 }
 
 /** Toggle a built-in optional rule on/off. */

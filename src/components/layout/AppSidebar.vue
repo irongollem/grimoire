@@ -43,7 +43,7 @@
 
     <!-- Navigation -->
     <nav class="flex-1 overflow-y-auto px-2 py-4">
-      <template v-for="group in NAV_GROUPS" :key="group.label">
+      <template v-for="group in visibleNavGroups" :key="group.label">
         <p
           class="px-2 pt-4 pb-1 font-cinzel text-[10px] font-bold tracking-widest text-muted-foreground/60 uppercase first:pt-0"
         >
@@ -126,6 +126,7 @@ import { useUiStore } from "@/stores/ui";
 import { useUpdateCampaignMember } from "@/composables/useCampaignMembers";
 import { NAV_GROUPS } from "@/lib/nav";
 import { useRunningEncounters } from "@/composables/useEncounterLive";
+import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
 import NavItem from "./NavItem.vue";
 import CampaignSwitcher from "./CampaignSwitcher.vue";
 import GlobalSearch from "./GlobalSearch.vue";
@@ -136,6 +137,16 @@ const auth = useAuthStore();
 const ui = useUiStore();
 const router = useRouter();
 const { anyRunning, firstRunning } = useRunningEncounters();
+
+const { data: campaignRules } = useOptionalRules();
+const visibleNavGroups = computed(() =>
+  NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) =>
+      !item.ruleKey || isRuleEffectivelyEnabled(campaignRules.value, item.ruleKey),
+    ),
+  })).filter((group) => group.items.length > 0),
+);
 const activeGenerator = computed(() =>
   getAiGeneratorRegistry().find((e) => e.isGenerating.value) ?? null,
 );
