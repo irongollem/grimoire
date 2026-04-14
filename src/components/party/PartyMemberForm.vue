@@ -101,10 +101,10 @@
             <div class="block">
               <span class="field-label">Species</span>
               <EntityCombobox
-                :model-value="f.race ?? ''"
+                :model-value="f.species_id ?? ''"
                 :options="speciesOptions"
                 placeholder="Select species…"
-                @update:model-value="f.race = $event || null; f.subrace = ''"
+                @update:model-value="onSpeciesSelected"
               />
             </div>
             <div v-if="subraceOptions.length > 0" class="block">
@@ -547,8 +547,42 @@ const allClassNames = computed<string[]>(() => {
 
 const { data: allSpecies } = useAllSpecies();
 const speciesOptions  = computed(() => (allSpecies.value ?? []).map(s => ({ id: s.id, name: s.name })));
-const selectedSpecies = computed(() => (allSpecies.value ?? []).find(s => s.id === f.race) ?? null);
+// f.race stores the denormalised species *name* (readable everywhere — dashboard,
+// NPC-by-race, etc.). f.species_id stores the FK to the species table, which is
+// what the combobox binds to. When the DM picks a species we write both.
+const selectedSpecies = computed(() => (allSpecies.value ?? []).find(s => s.id === f.species_id) ?? null);
 const subraceOptions  = computed(() => selectedSpecies.value?.subraces?.map(sr => sr.name) ?? []);
+
+function onSpeciesSelected(id: string) {
+  const sp = (allSpecies.value ?? []).find(s => s.id === id);
+  f.species_id = id || null;
+  f.race       = sp?.name ?? null;
+  f.subrace    = "";
+}
+
+// Legacy rows may have `race` set (by name) but no `species_id` — backfill the id
+// on load so the combobox pre-selects correctly. Also self-heals rows damaged by
+// the previous version of this form that wrote the species UUID into `race`: if
+// `race` looks like a UUID, resolve it via allSpecies.
+watch([allSpecies, () => f.species_id, () => f.race], ([list]) => {
+  const species = list ?? [];
+  if (!species.length) return;
+  // Case A: no species_id yet but race matches a species by name — backfill id
+  if (!f.species_id && f.race) {
+    const byName = species.find(s => s.name === f.race);
+    if (byName) f.species_id = byName.id;
+  }
+  // Case B: race got a UUID written into it (old bug) — resolve to the name
+  const looksLikeUuid = typeof f.race === "string"
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(f.race);
+  if (looksLikeUuid) {
+    const byId = species.find(s => s.id === f.race);
+    if (byId) {
+      f.species_id = byId.id;
+      f.race       = byId.name;
+    }
+  }
+}, { immediate: true });
 
 const { data: allCustomSubclasses } = useAllCustomSubclasses();
 const subclassOptions = computed(() =>
