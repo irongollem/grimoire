@@ -41,6 +41,26 @@
         </button>
       </template>
 
+      <!-- Roll Tables tab actions -->
+      <template v-else-if="activeTab === 'roll-tables'">
+        <button
+          type="button"
+          :disabled="rollTablesPopulate.isPending.value"
+          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
+          @click="handleRollTablesPopulate"
+        >
+          <Loader2 v-if="rollTablesPopulate.isPending.value" class="size-3.5 animate-spin shrink-0" />
+          <BookOpen v-else class="size-3.5 shrink-0" />
+          {{ rollTablesPopulateLabel }}
+        </button>
+        <button
+          class="font-cinzel text-xs font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+          @click="router.push('/roll-tables/new')"
+        >
+          New Roll Table
+        </button>
+      </template>
+
       <!-- Puzzles tab actions -->
       <template v-else>
         <button
@@ -225,6 +245,56 @@
       />
     </template>
 
+    <!-- ── Roll Tables tab ───────────────────────────────────────────────── -->
+    <template v-else-if="activeTab === 'roll-tables'">
+      <div v-if="rollTablesLoading" class="flex justify-center py-16">
+        <LoadingSpinner />
+      </div>
+      <template v-else-if="rollTables?.length">
+        <div class="flex flex-wrap items-center gap-2 mb-4">
+          <input
+            v-model="rollTablesSearch"
+            type="search"
+            placeholder="Search roll tables…"
+            class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+          <select
+            v-model="rollTablesDieFilter"
+            class="bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="">All Dice</option>
+            <option v-for="d in ROLL_TABLE_DICE" :key="d" :value="d">{{ d }}</option>
+          </select>
+        </div>
+        <p v-if="!filteredRollTables.length" class="text-center font-fell text-sm text-muted-foreground italic py-8">
+          No roll tables match your filter.
+        </p>
+        <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          <RouterLink
+            v-for="t in filteredRollTables"
+            :key="t.id"
+            :to="`/roll-tables/${t.id}`"
+            class="flex flex-col rounded-lg border border-border bg-card p-3 hover:border-primary/50 transition-colors"
+          >
+            <div class="flex items-start justify-between gap-2 mb-1">
+              <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ t.name }}</h3>
+              <span class="font-cinzel text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold tracking-wider shrink-0">{{ t.dice }}</span>
+            </div>
+            <p v-if="t.description" class="font-fell text-xs text-muted-foreground italic line-clamp-2">{{ t.description }}</p>
+            <p class="font-fell text-[10px] text-muted-foreground mt-2">{{ t.entries.length }} {{ t.entries.length === 1 ? "entry" : "entries" }}</p>
+          </RouterLink>
+        </div>
+      </template>
+      <EmptyState
+        v-else
+        icon="Dices"
+        title="No roll tables yet"
+        description="Build a wandering monster table or two — the DM rolls live during play to surface what shows up."
+        action-label="New Roll Table"
+        @action="router.push('/roll-tables/new')"
+      />
+    </template>
+
     <!-- ── Puzzles tab ───────────────────────────────────────────────────── -->
     <template v-else>
       <div v-if="puzzlesLoading" class="flex justify-center py-16">
@@ -331,6 +401,9 @@ import { TRAP_TYPES, TRAP_TYPE_COLORS } from "@/types/trap.types";
 import { usePuzzles, usePopulatePuzzles } from "@/composables/usePuzzles";
 import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES, PUZZLE_TYPE_COLORS, PUZZLE_DIFFICULTY_COLORS } from "@/types/puzzle.types";
 
+import { useRollTables, usePopulateRollTables } from "@/composables/useRollTables";
+import { ROLL_TABLE_DICE } from "@/types/rollTable.types";
+
 import { useUiStore } from "@/stores/ui";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -341,16 +414,18 @@ const route  = useRoute();
 const router = useRouter();
 const ui     = useUiStore();
 
-type Tab = "features" | "traps" | "puzzles";
+type Tab = "features" | "traps" | "puzzles" | "roll-tables";
 const TABS: { id: Tab; label: string }[] = [
-  { id: "features", label: "Features" },
-  { id: "traps",    label: "Traproom" },
-  { id: "puzzles",  label: "Enigmarium" },
+  { id: "features",    label: "Features" },
+  { id: "traps",       label: "Traproom" },
+  { id: "puzzles",     label: "Enigmarium" },
+  { id: "roll-tables", label: "Roll Tables" },
 ];
 
 const rawTab = route.query.tab as string | undefined;
+const VALID_TABS: Tab[] = ["features", "traps", "puzzles", "roll-tables"];
 const activeTab = ref<Tab>(
-  rawTab === "traps" || rawTab === "puzzles" ? rawTab : "features",
+  VALID_TABS.includes(rawTab as Tab) ? (rawTab as Tab) : "features",
 );
 
 // ── Features ─────────────────────────────────────────────────────────────────
@@ -481,5 +556,48 @@ async function handlePuzzlesPopulate() {
     puzzlesPopulateError.value = e instanceof Error ? e.message : String(e);
   }
   setTimeout(() => { puzzlesPopulateStatus.value = "idle"; puzzlesPopulateError.value = null; }, 8000);
+}
+
+// ── Roll Tables ──────────────────────────────────────────────────────────────
+const { data: rollTables, isLoading: rollTablesLoading } = useRollTables();
+const rollTablesSearch    = ref("");
+const rollTablesDieFilter = ref("");
+
+const filteredRollTables = computed(() => {
+  let list = rollTables.value ?? [];
+  if (rollTablesDieFilter.value) list = list.filter((t) => t.dice === rollTablesDieFilter.value);
+  const q = rollTablesSearch.value.toLowerCase().trim();
+  if (q) list = list.filter((t) =>
+    t.name.toLowerCase().includes(q) ||
+    (t.description ?? "").toLowerCase().includes(q) ||
+    t.tags.some((tag) => tag.toLowerCase().includes(q)),
+  );
+  return list;
+});
+
+const rollTablesPopulate       = usePopulateRollTables();
+const rollTablesPopulateStatus = ref<"idle" | "done" | "uptodate">("idle");
+const rollTablesPopulatedCount = ref(0);
+const rollTablesPopulateError  = ref<string | null>(null);
+
+const rollTablesPopulateLabel = computed(() => {
+  if (rollTablesPopulate.isPending.value) return "Populating…";
+  if (rollTablesPopulateError.value) return `Error: ${rollTablesPopulateError.value}`;
+  if (rollTablesPopulateStatus.value === "done") return `Added ${rollTablesPopulatedCount.value} tables`;
+  if (rollTablesPopulateStatus.value === "uptodate") return "Already up to date";
+  return "Populate Examples";
+});
+
+async function handleRollTablesPopulate() {
+  rollTablesPopulateStatus.value = "idle";
+  rollTablesPopulateError.value  = null;
+  try {
+    const count = await rollTablesPopulate.mutateAsync();
+    rollTablesPopulatedCount.value = count;
+    rollTablesPopulateStatus.value = count === 0 ? "uptodate" : "done";
+  } catch (e) {
+    rollTablesPopulateError.value = e instanceof Error ? e.message : String(e);
+  }
+  setTimeout(() => { rollTablesPopulateStatus.value = "idle"; rollTablesPopulateError.value = null; }, 8000);
 }
 </script>
