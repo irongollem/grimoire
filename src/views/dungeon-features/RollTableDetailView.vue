@@ -122,14 +122,6 @@
                 />
               </div>
 
-              <!-- Count -->
-              <input
-                :value="entry.count ?? ''"
-                placeholder="Count (1d4, 2…)"
-                class="w-full bg-muted border border-border rounded px-2 py-1 font-fell text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                @input="(e) => (entry.count = (e.target as HTMLInputElement).value || null)"
-              />
-
               <!-- Actions -->
               <div class="flex items-center gap-1">
                 <button
@@ -201,7 +193,6 @@
             </div>
             <template v-if="lastRoll.entry">
               <div class="font-cinzel text-sm text-foreground font-bold">{{ lastRoll.entry.label }}</div>
-              <div v-if="lastRoll.entry.count" class="font-fell text-xs text-muted-foreground">Count: {{ lastRoll.entry.count }}</div>
               <RouterLink
                 v-if="lastRoll.entry.encounter_id"
                 :to="`/encounters/${lastRoll.entry.encounter_id}`"
@@ -311,7 +302,6 @@ function addEntry() {
     max: start,
     label: "",
     encounter_id: null,
-    count: null,
     notes: null,
   };
   form.value.entries.push(e);
