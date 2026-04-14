@@ -78,13 +78,6 @@
               >
                 <Plus class="size-3" />Currency
               </button>
-              <button
-                type="button"
-                class="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1.5 font-cinzel text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
-                @click="addEntry('art_object')"
-              >
-                <Plus class="size-3" />Art
-              </button>
             </div>
           </div>
 
@@ -166,37 +159,6 @@
                 </div>
               </template>
 
-              <!-- ── Art object entry ─────────────────────────────────── -->
-              <template v-else-if="entry.type === 'art_object'">
-                <div class="grid grid-cols-[1fr_90px_120px_auto] gap-2 items-center">
-                  <input
-                    v-model="entry.art_name"
-                    placeholder="Art object name"
-                    class="w-full bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                  />
-                  <div class="flex items-center gap-1">
-                    <input
-                      v-model.number="entry.drop_chance"
-                      type="number" min="1" max="100"
-                      class="w-14 bg-muted border border-border rounded px-1.5 py-1 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
-                    />
-                    <span class="font-fell text-xs text-muted-foreground">%</span>
-                  </div>
-                  <div class="flex items-center gap-1">
-                    <input
-                      v-model.number="entry.value_gp"
-                      type="number" min="0"
-                      placeholder="0"
-                      class="w-full bg-muted border border-border rounded px-1.5 py-1 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
-                    />
-                    <span class="font-fell text-xs text-muted-foreground">GP</span>
-                  </div>
-                  <button type="button" class="text-muted-foreground hover:text-destructive transition-colors p-1" @click="removeEntry(idx)">
-                    <Trash2 class="size-3.5" />
-                  </button>
-                </div>
-              </template>
-
               <!-- ── Notes row (all types) ────────────────────────────── -->
               <textarea
                 v-if="entry.notes !== null && entry.notes !== undefined"
@@ -261,10 +223,6 @@
                   <span class="font-fell text-sm text-foreground truncate">
                     {{ r.currency_label ? r.currency_label + ': ' : '' }}{{ formatCoinParts(r.pp, r.gp, r.ep, r.sp, r.cp).join(', ') || '0 GP' }}
                   </span>
-                </template>
-                <template v-else>
-                  <span class="font-cinzel text-sm font-bold text-primary shrink-0 w-7 text-right">✦</span>
-                  <span class="font-fell text-sm text-foreground truncate">{{ r.art_name }} ({{ r.value_gp }} GP)</span>
                 </template>
               </li>
             </ul>
@@ -377,7 +335,7 @@
                   <template v-else-if="atom.type === 'currency'">
                     💰 {{ atom.currency_label ? atom.currency_label + ': ' : '' }}{{ formatCoinParts(atom.pp ?? 0, atom.gp ?? 0, atom.ep ?? 0, atom.sp ?? 0, atom.cp ?? 0).join(', ') || '0 GP' }}
                   </template>
-                  <template v-else>✦ {{ atom.art_name }} ({{ atom.value_gp }} GP)</template>
+                  <template v-else>· {{ atom.item_name }}</template>
                 </li>
               </ul>
               <p v-else class="font-fell text-xs text-muted-foreground italic">Nothing rolled — chest will be empty.</p>
@@ -499,10 +457,8 @@ function addEntry(type: LootEntryType) {
   const base = { id: crypto.randomUUID(), type, drop_chance: 100, notes: null };
   if (type === "item") {
     form.value.entries.push({ ...base, item_id: "", dice: null, fixed_qty: 1 });
-  } else if (type === "currency") {
-    form.value.entries.push({ ...base, currency_label: null, pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
   } else {
-    form.value.entries.push({ ...base, art_name: "", value_gp: 0 });
+    form.value.entries.push({ ...base, currency_label: null, pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
   }
 }
 
@@ -645,20 +601,12 @@ const dropPreviewAtoms = computed<LootChestAtom[]>(() => {
           item_rarity:    item?.rarity ?? null,
         });
       }
-    } else if (r.type === "currency") {
+    } else {
       atoms.push({
         atom_id:        crypto.randomUUID(),
         type:           "currency",
         currency_label: r.currency_label ?? null,
         pp: r.pp, gp: r.gp, ep: r.ep, sp: r.sp, cp: r.cp,
-      });
-    } else {
-      atoms.push({
-        atom_id:       crypto.randomUUID(),
-        type:          "art_object",
-        art_name:      r.art_name,
-        value_gp:      r.value_gp,
-        art_image_url: r.art_image_url ?? null,
       });
     }
   }

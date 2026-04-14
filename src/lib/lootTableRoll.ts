@@ -2,14 +2,13 @@
  * Rolling a loot table.
  *
  * Walks each entry, rolls its drop_chance (1d100 ≤ chance), and for hits
- * resolves the entry into one or more RolledLootEntry records.
+ * resolves the entry into a RolledLootEntry record.
  *
  * Entry types:
- *   "item"       — rolls quantity (dice or fixed), one hit per qty unit
- *   "currency"   — no quantity roll; whole coin pool hits as one result
- *   "art_object" — drops as one result per hit
+ *   "item"     — rolls quantity (dice or fixed); one result per hit
+ *   "currency" — no quantity roll; whole coin pool drops as one result
  *
- * Returns RolledLootEntry[] — only the entries that actually hit.
+ * Art objects are vault items of type "art_object" — use item entries.
  */
 
 import { rollDie } from "@/lib/dice";
@@ -43,15 +42,7 @@ export interface RolledCurrencyEntry extends RolledBase {
   cp: number;
 }
 
-export interface RolledArtEntry extends RolledBase {
-  type: "art_object";
-  art_name: string;
-  value_gp: number;
-  art_image_url?: string | null;
-  art_description?: string | null;
-}
-
-export type RolledLootEntry = RolledItemEntry | RolledCurrencyEntry | RolledArtEntry;
+export type RolledLootEntry = RolledItemEntry | RolledCurrencyEntry;
 
 // ── Core roller ───────────────────────────────────────────────────────────────
 
@@ -80,7 +71,8 @@ export function rollLootTable(
         qty,
         notes: entry.notes ?? null,
       });
-    } else if (type === "currency") {
+    } else {
+      // currency
       results.push({
         type: "currency",
         entry_id: entry.id,
@@ -92,18 +84,6 @@ export function rollLootTable(
         cp: entry.cp ?? 0,
         notes: entry.notes ?? null,
       });
-    } else {
-      // art_object
-      if (!entry.art_name) continue;
-      results.push({
-        type: "art_object",
-        entry_id: entry.id,
-        art_name: entry.art_name,
-        value_gp: entry.value_gp ?? 0,
-        art_image_url: entry.art_image_url ?? null,
-        art_description: entry.art_description ?? null,
-        notes: entry.notes ?? null,
-      });
     }
   }
 
@@ -113,7 +93,6 @@ export function rollLootTable(
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function entryHits(entry: LootEntry): boolean {
-  // Always-true entries skip the d100 roll (and avoid a wasted dice sound).
   if (entry.drop_chance >= 100) return true;
   return rollDie(100) <= entry.drop_chance;
 }

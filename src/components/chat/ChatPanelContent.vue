@@ -351,21 +351,12 @@
                     </div>
                   </template>
 
-                  <!-- Art object atom -->
+                  <!-- Fallback (unknown future atom types) -->
                   <template v-else>
-                    <img
-                      v-if="atom.art_image_url"
-                      :src="atom.art_image_url"
-                      :alt="atom.art_name"
-                      class="w-7 h-7 rounded object-cover shrink-0"
-                    />
-                    <span v-else class="w-5 h-5 flex items-center justify-center text-primary shrink-0 text-sm">✦</span>
+                    <Package class="w-5 h-5 text-muted-foreground shrink-0" />
                     <div class="flex-1 min-w-0">
-                      <div class="flex items-baseline gap-2">
-                        <span class="font-fell text-sm font-semibold text-foreground truncate">{{ atom.art_name }}</span>
-                        <span class="font-cinzel text-[9px] uppercase tracking-wider text-muted-foreground shrink-0">{{ atom.value_gp }} GP</span>
-                      </div>
-                      <span v-if="atomClaim(msg.metadata as LootChestMetadata, atom.atom_id)" class="font-fell text-[10px] text-muted-foreground italic">
+                      <span class="font-fell text-sm font-semibold text-foreground truncate">{{ atom.item_name }}</span>
+                      <span v-if="atomClaim(msg.metadata as LootChestMetadata, atom.atom_id)" class="font-fell text-[10px] text-muted-foreground italic block">
                         claimed by {{ atomClaim(msg.metadata as LootChestMetadata, atom.atom_id)!.claimed_by_name }}
                       </span>
                     </div>

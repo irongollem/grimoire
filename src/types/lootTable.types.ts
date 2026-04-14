@@ -1,16 +1,17 @@
 // ── Loot tables (issue #121) ─────────────────────────────────────────────────
 //
-// Each entry can be one of three kinds:
-//   "item"       — FK into the Item Vault; qty is dice-rolled or fixed.
-//   "currency"   — Flat coin amounts (PP/GP/EP/SP/CP); whole pool drops at once.
-//   "art_object" — Inline named art object with a gold value; drops as a single atom.
+// Each entry can be one of two kinds:
+//   "item"     — FK into the Item Vault; qty is dice-rolled or fixed.
+//                Art objects are just vault items of type "art_object".
+//   "currency" — Flat coin amounts (PP/GP/EP/SP/CP); the whole pool drops as
+//                one claimable atom.
 //
 // All entries share drop_chance (1–100) and an optional DM note.
 // Rolling logic: src/lib/lootTableRoll.ts.
 
 export const LOOT_CR_TIERS = ["any", "0-4", "5-10", "11-16", "17+"] as const;
 export type LootCrTier = (typeof LOOT_CR_TIERS)[number];
-export type LootEntryType = "item" | "currency" | "art_object";
+export type LootEntryType = "item" | "currency";
 
 export const LOOT_CR_TIER_LABELS: Record<LootCrTier, string> = {
   "any":   "Any tier",
@@ -31,7 +32,8 @@ export interface LootEntry {
   notes?: string | null;
 
   // ── Item fields (type === "item") ──────────────────────────────────────────
-  /** FK into `items`. Required when type = "item". */
+  /** FK into `items`. Required when type = "item". Art objects are vault items
+   *  of type "art_object" — no separate inline struct needed. */
   item_id?: string;
   /** Quantity dice expression (e.g. "3d6", "1d4+1"). */
   dice?: string | null;
@@ -46,14 +48,6 @@ export interface LootEntry {
   ep?: number;
   sp?: number;
   cp?: number;
-
-  // ── Art object fields (type === "art_object") ──────────────────────────────
-  /** Display name. Required when type = "art_object". */
-  art_name?: string;
-  /** Estimated value in gold pieces. */
-  value_gp?: number;
-  art_image_url?: string | null;
-  art_description?: string | null;
 }
 
 export interface LootTable {
@@ -90,10 +84,8 @@ export function validateEntries(entries: LootEntry[]): string | null {
       if (e.fixed_qty !== null && e.fixed_qty !== undefined && (!Number.isInteger(e.fixed_qty) || e.fixed_qty < 0)) {
         return "Fixed quantity must be a non-negative integer.";
       }
-    } else if (type === "art_object") {
-      if (!e.art_name?.trim()) return "Art object entries must have a name.";
     }
-    // currency entries are always valid as long as drop_chance is valid
+    // currency entries are valid as long as drop_chance is in range
   }
   return null;
 }
