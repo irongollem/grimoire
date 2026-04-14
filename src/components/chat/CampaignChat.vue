@@ -20,6 +20,7 @@
         @claim="handleClaim"
         @claim-currency="handleClaimCurrency"
         @claim-to-npc="handleClaimToNpc"
+        @claim-loot-chest="handleClaimLootChest"
         @pay-vendor-offer="handlePayVendorOffer"
         @send-vendor-offer="handleSendVendorOffer"
         @buy-player-offer="handleBuyPlayerOffer"
@@ -75,6 +76,7 @@
         @claim="handleClaim"
         @claim-currency="handleClaimCurrency"
         @claim-to-npc="handleClaimToNpc"
+        @claim-loot-chest="handleClaimLootChest"
         @pay-vendor-offer="handlePayVendorOffer"
         @send-vendor-offer="handleSendVendorOffer"
         @buy-player-offer="handleBuyPlayerOffer"
@@ -98,7 +100,7 @@ import { useNpcs } from "@/composables/useNpcs";
 import { useAddNpcInventoryItem } from "@/composables/useNpcInventory";
 import ChatPanelContent from "./ChatPanelContent.vue";
 import type { RollResult } from "@/lib/dice";
-import type { ItemDropMetadata, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata } from "@/types/chat.types";
+import type { ItemDropMetadata, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, LootChestMetadata } from "@/types/chat.types";
 import { toCP, fromCP } from "@/lib/currency";
 
 const props = withDefaults(defineProps<{ contained?: boolean }>(), { contained: false });
@@ -170,7 +172,7 @@ onUnmounted(() => {
 
 const ui = useUiStore();
 const auth = useAuthStore();
-const { messages, loading, sendMessage, sendRoll, claimItemDrop, claimCurrencyDrop, sendVendorOffer, claimVendorOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId } =
+const { messages, loading, sendMessage, sendRoll, claimItemDrop, claimCurrencyDrop, claimLootChestAtom, sendVendorOffer, claimVendorOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId } =
   useCampaignMessages();
 const { data: members } = useCampaignMembers();
 const { data: party }    = useParty();
@@ -367,6 +369,55 @@ async function handleRoll({
   recipientUserId: string | null;
 }) {
   await sendRoll(result, recipientUserId);
+}
+
+async function handleClaimLootChest({ messageId, atomId }: { messageId: string; atomId: string }) {
+  // The RPC handles all of: row lock, member check, empty check, "already
+  // claimed" check, and atomic claim append. We just need to surface a name
+  // for the chest log + add the claimed item to the player's inventory.
+  const msg = messages.value.find(m => m.id === messageId);
+  if (!msg || msg.type !== 'loot_chest') return;
+  const meta = msg.metadata as LootChestMetadata;
+  const atom = meta.rolled_atoms?.find(a => a.atom_id === atomId);
+  if (!atom) return;
+
+  const partyMemberId = auth.linkedPartyMemberId ?? null;
+  const claimerName =
+    (members.value ?? []).find(m => m.user_id === auth.user?.id)?.display_name
+    || (party.value ?? []).find(p => p.id === partyMemberId)?.name
+    || "Someone";
+
+  try {
+    await claimLootChestAtom(messageId, atomId, claimerName);
+  } catch (e) {
+    // Lost the race / chest empty / item already claimed — surfaced as a
+    // toast would be nicer; for now console + bail. The chest UI re-renders
+    // from realtime so the user sees the new state immediately.
+    console.warn("Loot chest claim failed:", e);
+    return;
+  }
+
+  // Add the item to the claimer's party inventory if they have one linked.
+  // Mirrors the item_drop claim path (Vault ref optional, container flag from
+  // tags, identified state inferred from rarity).
+  if (partyMemberId) {
+    const vaultItem = (allItems.value ?? []).find(i => i.id === atom.item_id);
+    await addInventoryItem({
+      name: atom.item_name,
+      quantity: 1,
+      item_id: atom.item_id,
+      carried_by: partyMemberId,
+      location: 'backpack',
+      slot: null,
+      is_container: vaultItem?.tags.includes("container") ?? false,
+      container_id: null,
+      is_attuned: false,
+      is_equipped: false,
+      notes: null,
+      is_ruined: false,
+      is_identified: !vaultItem || vaultItem.rarity === 'mundane',
+    });
+  }
 }
 
 async function handleClaimToNpc({ messageId, npcId, npcName }: { messageId: string; npcId: string; npcName: string }) {
