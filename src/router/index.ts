@@ -319,10 +319,25 @@ const router = createRouter({
     { path: "/traps",            redirect: { path: "/dungeon-craft", query: { tab: "traps" } } },
     { path: "/puzzles",          redirect: { path: "/dungeon-craft", query: { tab: "puzzles" } } },
     { path: "/roll-tables",      redirect: { path: "/dungeon-craft", query: { tab: "roll-tables" } } },
+    { path: "/loot-tables",      redirect: { path: "/dungeon-craft", query: { tab: "loot-tables" } } },
 
     // Roll tables live inside the Dungeon Craft tab — redirect direct links
     { path: "/roll-tables/new", redirect: { path: "/dungeon-craft", query: { tab: "roll-tables" } } },
     { path: "/roll-tables/:id", redirect: { path: "/dungeon-craft", query: { tab: "roll-tables" } } },
+
+    // Loot table detail
+    {
+      path: "/loot-tables/new",
+      name: "loot-table-new",
+      component: () => import("@/views/dungeon-features/LootTableDetailView.vue"),
+      meta: { requiresAuth: true, title: "New Loot Table" },
+    },
+    {
+      path: "/loot-tables/:id",
+      name: "loot-table-detail",
+      component: () => import("@/views/dungeon-features/LootTableDetailView.vue"),
+      meta: { requiresAuth: true, title: "Loot Table" },
+    },
 
     // Trap detail
     {
