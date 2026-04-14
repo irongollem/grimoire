@@ -402,9 +402,9 @@ async function handleClaimLootChest({ messageId, atomId }: { messageId: string; 
   if (partyMemberId) {
     const vaultItem = (allItems.value ?? []).find(i => i.id === atom.item_id);
     await addInventoryItem({
-      name: atom.item_name,
+      name: atom.item_name ?? "",
       quantity: 1,
-      item_id: atom.item_id,
+      item_id: atom.item_id ?? null,
       carried_by: partyMemberId,
       location: 'backpack',
       slot: null,

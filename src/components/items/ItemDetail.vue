@@ -164,6 +164,7 @@
               placeholder="e.g. 50 gp"
               class="bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
+            <span v-if="rarityPriceHint" class="font-fell text-[11px] text-muted-foreground/60 italic">{{ rarityPriceHint }}</span>
           </label>
         </div>
 
@@ -502,6 +503,16 @@ const selectedSpells = computed(
 const isWeapon = computed(() => isWeaponType(itemType.value));
 const isArmor = computed(() => isArmorType(itemType.value));
 const isMagic = computed(() => rarity.value !== "mundane");
+
+const RARITY_PRICE_HINTS: Partial<Record<ItemRarity, string>> = {
+  common:    "~50–100 gp (DMG guideline)",
+  uncommon:  "~101–500 gp (DMG guideline)",
+  rare:      "~501–5,000 gp (DMG guideline)",
+  very_rare: "~5,001–50,000 gp (DMG guideline)",
+  legendary: "50,000+ gp (DMG guideline)",
+  artifact:  "Priceless / not for sale",
+};
+const rarityPriceHint = computed(() => RARITY_PRICE_HINTS[rarity.value] ?? "");
 const isArtObject = computed(() => itemType.value === "art_object");
 const rarityColor = computed(() => RARITY_COLORS[rarity.value] ?? "#888888");
 

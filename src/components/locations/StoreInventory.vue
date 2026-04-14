@@ -24,14 +24,18 @@
             <EyeOff v-else class="h-3.5 w-3.5 opacity-40" />
           </button>
 
-          <!-- Item name + type -->
-          <div class="flex-1 min-w-0">
+          <!-- Item name + type (tap to preview) -->
+          <button
+            type="button"
+            class="flex-1 min-w-0 text-left hover:opacity-80 transition-opacity"
+            @click="selected = si"
+          >
             <span class="font-cinzel text-xs font-semibold text-foreground truncate block">{{ si.item.name }}</span>
             <span class="font-fell text-[10px] text-muted-foreground italic">
               {{ ITEM_TYPE_LABELS[si.item.item_type] }}
               <span v-if="!si.visible" class="text-amber-500/70"> · under the counter</span>
             </span>
-          </div>
+          </button>
 
           <!-- Price -->
           <div class="flex items-center gap-1 shrink-0">
@@ -39,6 +43,7 @@
               :value="si.price_override ?? si.item.cost ?? ''"
               type="text"
               placeholder="Price…"
+              :title="rarityPriceHint(si.item.rarity)"
               class="w-20 bg-background border border-border rounded px-2 py-0.5 font-fell text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring text-right"
               @blur="onPriceBlur(si, $event)"
               @keydown.enter="($event.target as HTMLInputElement).blur()"
@@ -106,7 +111,7 @@
 
     <p v-else class="font-fell text-xs text-muted-foreground italic">No items yet.</p>
 
-    <!-- Add item -->
+    <!-- Manual add (search) -->
     <div class="relative">
       <div class="flex items-center gap-2 rounded-md border border-dashed border-border bg-background px-3 py-2">
         <Plus class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -116,7 +121,7 @@
           placeholder="Add item to inventory…"
           class="flex-1 bg-transparent font-fell text-xs text-foreground placeholder:text-muted-foreground focus:outline-none"
           @focus="dropdownOpen = true"
-        @input="dropdownOpen = true"
+          @input="dropdownOpen = true"
           @blur="onSearchBlur"
           @keydown.escape="dropdownOpen = false"
         />
@@ -138,12 +143,81 @@
         </button>
       </div>
     </div>
+
+    <!-- Quick fill -->
+    <div class="flex items-center gap-1.5 flex-wrap">
+      <input
+        v-model.number="fillCount"
+        type="number"
+        min="1"
+        max="20"
+        class="w-10 bg-muted border border-border rounded px-1.5 py-1 font-fell text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+      />
+      <span class="font-fell text-xs text-muted-foreground">×</span>
+      <select
+        v-model="fillRarity"
+        class="bg-muted border border-border rounded px-2 py-1 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      >
+        <option v-for="r in ITEM_RARITIES" :key="r" :value="r">{{ ITEM_RARITY_LABELS[r] }}</option>
+      </select>
+      <select
+        v-model="fillType"
+        class="bg-muted border border-border rounded px-2 py-1 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      >
+        <option value="">any type</option>
+        <option v-for="t in ITEM_TYPES" :key="t" :value="t">{{ ITEM_TYPE_LABELS[t] }}</option>
+      </select>
+      <button
+        type="button"
+        :disabled="fillPoolSize === 0"
+        class="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 font-cinzel text-[11px] font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-40"
+        @click="quickFill"
+      >
+        <Shuffle class="size-3" />
+        Fill
+      </button>
+      <span class="font-fell text-[10px] text-muted-foreground italic">
+        {{ fillPoolSize }} available
+      </span>
+    </div>
   </div>
+
+  <!-- Item detail modal -->
+  <Teleport to="body">
+    <div
+      v-if="selected"
+      class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4"
+      @click.self="selected = null"
+      @keydown.escape="selected = null"
+    >
+      <div class="w-full sm:max-w-2xl bg-card border border-border rounded-t-2xl sm:rounded-xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+        <div class="flex items-center gap-3 px-4 py-3 border-b border-border shrink-0">
+          <h2 class="font-cinzel text-sm font-semibold text-foreground flex-1 truncate">
+            {{ selected.item.name }}
+          </h2>
+          <span class="font-fell text-xs text-muted-foreground shrink-0">
+            {{ selected.price_override ?? selected.item.cost ?? '—' }}
+          </span>
+          <button
+            type="button"
+            class="text-muted-foreground hover:text-foreground transition-colors ml-1 shrink-0"
+            @click="selected = null"
+          >
+            <X class="h-4 w-4" />
+          </button>
+        </div>
+        <div class="flex-1 overflow-y-auto px-4 py-4">
+          <ItemSheet :item="selected.item" :price-override="selected.price_override" />
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, reactive } from "vue";
-import { Eye, EyeOff, Plus, X, ShoppingBag } from "lucide-vue-next";
+import { Eye, EyeOff, Plus, X, ShoppingBag, Shuffle } from "lucide-vue-next";
+import ItemSheet from "@/components/items/ItemSheet.vue";
 import { useItems } from "@/composables/useItems";
 import {
   useStoreItems,
@@ -153,7 +227,7 @@ import {
 } from "@/composables/useStoreItems";
 import type { StoreItem } from "@/composables/useStoreItems";
 import type { Item } from "@/types/item.types";
-import { ITEM_TYPE_LABELS } from "@/types/item.types";
+import { ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS, ITEM_TYPES } from "@/types/item.types";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { COINS, type CoinKey, parseCoinText } from "@/lib/currency";
 
@@ -210,7 +284,56 @@ function remove(id: string) {
   removeItem(id);
 }
 
+// ── Rarity price hints (DMG Table 7-1) ─────────────────────────────────────────
+const RARITY_PRICE_HINTS: Record<string, string> = {
+  mundane:   "Mundane — market price",
+  common:    "Common — ~50–100 gp",
+  uncommon:  "Uncommon — ~101–500 gp",
+  rare:      "Rare — ~501–5,000 gp",
+  very_rare: "Very Rare — ~5,001–50,000 gp",
+  legendary: "Legendary — 50,000+ gp",
+  artifact:  "Artifact — priceless",
+};
+
+function rarityPriceHint(rarity: string | null | undefined): string {
+  return RARITY_PRICE_HINTS[rarity ?? ""] ?? "";
+}
+
+// ── Quick fill ──────────────────────────────────────────────────────────────────
+const fillCount  = ref(3);
+const fillRarity = ref("uncommon");
+const fillType   = ref("");
+
+const fillPoolSize = computed(() => {
+  return (allItems.value ?? []).filter(
+    (i) =>
+      !existingItemIds.value.has(i.id) &&
+      i.rarity === fillRarity.value &&
+      (fillType.value === "" || i.item_type === fillType.value),
+  ).length;
+});
+
+function quickFill() {
+  const pool = (allItems.value ?? []).filter(
+    (i) =>
+      !existingItemIds.value.has(i.id) &&
+      i.rarity === fillRarity.value &&
+      (fillType.value === "" || i.item_type === fillType.value),
+  );
+  // Fisher-Yates shuffle then take fillCount
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const picks = pool.slice(0, fillCount.value);
+  for (const item of picks) {
+    add({ location_id: props.locationId, item_id: item.id });
+  }
+}
+
 // ── Vendor offer form ───────────────────────────────────────────────────────────
+
+const selected = ref<StoreItem | null>(null);
 
 const offeringId  = ref<string | null>(null);
 const offerDesc   = ref("");
