@@ -361,7 +361,7 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Puzzle" },
     },
 
-    // Character Codex (Species / Backgrounds / Classes / Archetypes tabs)
+    // Character Codex (Species / Backgrounds / Classes / Archetypes / Abilities tabs)
     {
       path: "/codex",
       redirect: "/codex/species",
