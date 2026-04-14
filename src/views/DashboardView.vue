@@ -184,6 +184,13 @@
                   Cursed: {{ curse }}
                 </span>
               </div>
+
+              <!-- DM rule tracker buttons -->
+              <DmTrackerButtons
+                v-if="authStore.isDM && campaignStore.activeCampaignId"
+                :party-member-id="member.id"
+                :campaign-id="campaignStore.activeCampaignId"
+              />
             </div>
           </div>
         </div>
@@ -323,9 +330,15 @@ import { useEncounters } from "@/composables/useEncounters";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
 import { usePartyInventory, useUpdateInventoryItem, useInventoryLive } from "@/composables/usePartyInventory";
+import { useAuthStore } from "@/stores/auth";
+import { useCampaignStore } from "@/stores/campaign";
+import DmTrackerButtons from "@/components/rules/DmTrackerButtons.vue";
 import type { Note } from "@/types/notes.types";
 import type { Quest } from "@/types/quest.types";
 import type { PartyMember } from "@/types/party.types";
+
+const authStore    = useAuthStore();
+const campaignStore = useCampaignStore();
 
 const { data: allQuests,  isLoading: questsLoading } = useAllQuests();
 const { data: party,      isLoading: partyLoading }  = useParty();
