@@ -129,7 +129,7 @@
               class="mt-2 ml-15 rounded-md bg-muted/30 border border-border/60 px-3 py-2"
             >
               <p class="font-cinzel text-[10px] text-primary tracking-wider mb-1">{{ featureName(feat) }}</p>
-              <p class="font-fell text-sm text-muted-foreground leading-relaxed">{{ featureDescription(feat) }}</p>
+              <RichTextViewer :content="featureDescription(feat)!" />
             </div>
           </template>
         </div>
@@ -225,13 +225,34 @@
           <div class="flex gap-3">
             <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-12 shrink-0 pt-0.5">Lvl {{ lvl }}</span>
             <div class="flex flex-wrap gap-1.5">
-              <span
+              <button
                 v-for="feat in features"
-                :key="feat"
-                class="inline-flex items-center rounded-md border bg-muted/50 border-border px-2 py-0.5 font-fell text-sm text-foreground"
-              >{{ feat }}</span>
+                :key="featureName(feat)"
+                class="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 font-fell text-sm text-foreground transition-colors"
+                :class="featureDescription(feat)
+                  ? 'bg-muted/50 border-border hover:border-primary/40 hover:bg-primary/5 cursor-pointer'
+                  : 'bg-muted/50 border-border cursor-default'"
+                @click="featureDescription(feat) && toggleExpanded(`sub-${featureName(feat)}`)"
+              >
+                {{ featureName(feat) }}
+                <ChevronDown
+                  v-if="featureDescription(feat)"
+                  class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
+                  :class="expanded.has(`sub-${featureName(feat)}`) ? 'rotate-180' : ''"
+                />
+              </button>
             </div>
           </div>
+          <!-- Expanded descriptions -->
+          <template v-for="feat in features" :key="`subdesc-${featureName(feat)}`">
+            <div
+              v-if="featureDescription(feat) && expanded.has(`sub-${featureName(feat)}`)"
+              class="mt-2 ml-15 rounded-md bg-muted/30 border border-border/60 px-3 py-2"
+            >
+              <p class="font-cinzel text-[10px] text-primary tracking-wider mb-1">{{ featureName(feat) }}</p>
+              <RichTextViewer :content="featureDescription(feat)!" />
+            </div>
+          </template>
         </div>
       </div>
     </div>
@@ -268,7 +289,7 @@
 import { ref, computed, watch } from "vue";
 import { ChevronDown } from "lucide-vue-next";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import { featureName, featureDescription } from "@/levelup/types";
+import { featureName, featureDescription, mapFeatureIds, type FeatureEntry } from "@/levelup/types";
 import { useAllFeatures } from "@/composables/useFeatures";
 import { getDefaultSpellSlots, getSlotRecovery } from "@/types/spell.types";
 import { useClassByName } from "@/composables/useCustomClasses";
@@ -300,15 +321,16 @@ const linkedSubrace = computed(() =>
     : null,
 );
 
+const featureObjectMap = computed(() => new Map((allFeatures.value ?? []).map(f => [f.id, f])));
+
 // Subclass features by level (from DB custom subclass definition)
-const subclassFeaturesByLevel = computed((): Record<number, string[]> => {
+const subclassFeaturesByLevel = computed((): Record<number, FeatureEntry[]> => {
   const sub = customSubclass.value;
   if (!sub) return {};
-  const featureMap = new Map((allFeatures.value ?? []).map(f => [f.id, f.name]));
-  const result: Record<number, string[]> = {};
+  const result: Record<number, FeatureEntry[]> = {};
   for (let lvl = 1; lvl <= props.member.level; lvl++) {
-    const names = (sub.features[lvl.toString()] ?? []).map(id => featureMap.get(id) ?? id);
-    if (names.length > 0) result[lvl] = names;
+    const entries = mapFeatureIds(sub.features[lvl.toString()] ?? [], featureObjectMap.value);
+    if (entries.length > 0) result[lvl] = entries;
   }
   return result;
 });
@@ -420,14 +442,13 @@ async function longRest() {
 
 // ── Features (read-only, expandable) ─────────────────────────────────────────
 
-const featuresByLevel = computed((): Record<number, string[]> => {
+const featuresByLevel = computed((): Record<number, FeatureEntry[]> => {
   const cls = classData.value;
   if (!cls) return {};
-  const featureMap = new Map((allFeatures.value ?? []).map(f => [f.id, f.name]));
-  const result: Record<number, string[]> = {};
+  const result: Record<number, FeatureEntry[]> = {};
   for (let lvl = 1; lvl <= props.member.level; lvl++) {
-    const names = (cls.features[lvl.toString()] ?? []).map(id => featureMap.get(id) ?? id);
-    if (names.length > 0) result[lvl] = names;
+    const entries = mapFeatureIds(cls.features[lvl.toString()] ?? [], featureObjectMap.value);
+    if (entries.length > 0) result[lvl] = entries;
   }
   return result;
 });

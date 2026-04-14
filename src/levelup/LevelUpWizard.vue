@@ -33,10 +33,26 @@
 
         <template v-if="customFeaturesForLevel.length > 0">
           <ul class="space-y-1">
-            <li v-for="feat in customFeaturesForLevel" :key="feat"
-              class="flex items-start gap-2 font-fell text-sm text-foreground">
-              <span class="text-primary mt-0.5">✦</span>
-              <span>{{ feat }}</span>
+            <li v-for="feat in customFeaturesForLevel" :key="featureName(feat)" class="space-y-1">
+              <button
+                class="flex items-start gap-2 font-fell text-sm text-foreground w-full text-left"
+                :class="featureDescription(feat) ? 'cursor-pointer' : 'cursor-default'"
+                @click="featureDescription(feat) && toggleWizardFeature(featureName(feat))"
+              >
+                <span class="text-primary mt-0.5 shrink-0">✦</span>
+                <span class="flex-1">{{ featureName(feat) }}</span>
+                <ChevronDown
+                  v-if="featureDescription(feat)"
+                  class="h-3 w-3 text-muted-foreground/60 mt-0.5 transition-transform shrink-0"
+                  :class="wizardExpandedFeatures.has(featureName(feat)) ? 'rotate-180' : ''"
+                />
+              </button>
+              <div
+                v-if="featureDescription(feat) && wizardExpandedFeatures.has(featureName(feat))"
+                class="ml-4 rounded-md bg-muted/30 border border-border/60 px-3 py-2"
+              >
+                <RichTextViewer :content="featureDescription(feat)!" />
+              </div>
             </li>
           </ul>
         </template>
@@ -321,6 +337,8 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter, RouterLink } from "vue-router";
+import { ChevronDown } from "lucide-vue-next";
+import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useAllCustomSubclasses, useCustomSubclassByClassAndSubclass } from "@/composables/useCustomSubclasses";
 import { useCustomClassByName, useAllSystemClasses } from "@/composables/useCustomClasses";
@@ -328,7 +346,8 @@ import { useAllFeatures } from "@/composables/useFeatures";
 import { useCharacterSpells, useAddCharacterSpell } from "@/composables/useCharacterSpells";
 import { useSpellsPage } from "@/composables/useSpells";
 import type { PartyMember, PartyMemberUpdate, SpellSlotEntry } from "@/types/party.types";
-import type { AbilityKey, AsiMode, ClassStep, ClassResourceDef } from "./types";
+import type { AbilityKey, AsiMode, ClassStep, ClassResourceDef, FeatureEntry } from "./types";
+import { featureName, featureDescription, mapFeatureIds } from "./types";
 import type { CustomResource } from "@/levelup/customTypes";
 
 const props = defineProps<{
@@ -431,11 +450,19 @@ const maxCastableLevel = computed(() => {
   return Math.max(...slots.map(s => s.level));
 });
 
-const customFeaturesForLevel = computed<string[]>(() => {
+const wizardExpandedFeatures = ref(new Set<string>());
+function toggleWizardFeature(name: string) {
+  if (wizardExpandedFeatures.value.has(name)) wizardExpandedFeatures.value.delete(name);
+  else wizardExpandedFeatures.value.add(name);
+  wizardExpandedFeatures.value = new Set(wizardExpandedFeatures.value);
+}
+
+const featureObjectMap = computed(() => new Map((allFeatures.value ?? []).map(f => [f.id, f])));
+
+const customFeaturesForLevel = computed<FeatureEntry[]>(() => {
   const lvlKey = nextLevel.value.toString();
   const ids = customSubclass.value?.features[lvlKey] ?? customClass.value?.features[lvlKey] ?? systemClass.value?.features[lvlKey] ?? [];
-  const featureMap = new Map((allFeatures.value ?? []).map(f => [f.id, f.name]));
-  return ids.map(id => featureMap.get(id) ?? id);
+  return mapFeatureIds(ids, featureObjectMap.value);
 });
 
 function resourceDefsFrom(resources: CustomResource[]): ClassResourceDef[] {

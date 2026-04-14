@@ -1,4 +1,5 @@
 import type { SpellSlotEntry, SaveKey } from "@/types/party.types";
+import type { ClassFeature } from "@/types/feature.types";
 
 export type AbilityKey = SaveKey;
 
@@ -38,6 +39,15 @@ export function featureName(e: FeatureEntry): string {
 /** Returns the description for a FeatureEntry, or null if none. */
 export function featureDescription(e: FeatureEntry): string | null {
   return typeof e === "string" ? null : e.description;
+}
+
+/** Maps an array of feature IDs to FeatureEntry values using a pre-built feature lookup. */
+export function mapFeatureIds(ids: string[], featureMap: Map<string, ClassFeature>): FeatureEntry[] {
+  return ids.map(id => {
+    const f = featureMap.get(id);
+    if (!f) return id;
+    return f.description ? { name: f.name, description: f.description } : f.name;
+  });
 }
 
 export interface ClassLevelData {

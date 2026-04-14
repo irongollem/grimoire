@@ -36,7 +36,7 @@
         <div class="rounded-lg border border-border bg-card p-3 space-y-1">
           <p class="font-cinzel text-[10px] tracking-widest uppercase text-primary">Feature Progression</p>
           <p class="font-fell text-xs text-muted-foreground">
-            Link abilities from the compendium to each level, define ASI levels, and add wizard steps for player choices.
+            Link abilities from the compendium to each level, define Ability Score Increase levels, and add wizard steps for player choices.
           </p>
         </div>
         <div class="rounded-lg border border-border bg-card p-3 space-y-1">

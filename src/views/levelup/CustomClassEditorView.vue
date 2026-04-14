@@ -183,7 +183,7 @@
 
     <!-- ── Section 4: ASI levels ──────────────────────────────────────────── -->
     <section class="rounded-lg border border-border bg-card p-4 space-y-4">
-      <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">ASI Levels</h2>
+      <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">Ability Score Increase Levels</h2>
       <p class="font-fell text-sm text-muted-foreground">Levels at which this class gains an Ability Score Improvement.</p>
 
       <div class="flex flex-wrap gap-1.5">
@@ -216,7 +216,7 @@
           @click="addAsi"
         >
           <Plus class="h-3 w-3" />
-          Add ASI level
+          Add Ability Score Increase level
         </button>
       </div>
     </section>
