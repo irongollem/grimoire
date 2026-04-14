@@ -831,6 +831,7 @@ async function save() {
     prepared_divisor: form.value.isSpellcaster && form.value.caster_type !== "known" ? form.value.prepared_divisor : null,
     steps: form.value.steps,
     resources: form.value.resources,
+    source: null,
     campaign_id: campaignScope.value === "all" ? null : campaignScope.value,
   };
   try {

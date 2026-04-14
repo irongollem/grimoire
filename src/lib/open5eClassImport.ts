@@ -3,16 +3,28 @@ import type { CustomClassInsert, CustomSubclassInsert, HitDie } from "@/levelup/
 
 // ── Open5e v2 API shape ───────────────────────────────────────────────────────
 
+interface Open5eV2ClassFeature {
+  key: string;
+  name: string;
+  desc: string;
+  feature_type: string;
+  /** Levels at which this feature is gained — each entry is {level, detail} */
+  gained_at: { level: number; detail: string | null }[];
+}
+
 interface Open5eV2Class {
   key: string;
   name: string;
+  desc: string;
   /** "D10", "D8" etc, or null for subclasses that inherit from parent */
   hit_dice: string | null;
   /** "NONE", "FULL", "HALF", "THIRD", "WARLOCK" */
   caster_type: string;
-  saving_throws: string[];
+  /** API returns objects with name+url, not plain strings */
+  saving_throws: { name: string; url: string }[];
   subclass_of: { key: string; name: string } | null;
   document: { key: string; name: string };
+  features: Open5eV2ClassFeature[];
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -34,38 +46,70 @@ export interface Open5eClassPreview {
   source: string;
   hitDie: HitDie;
   savingThrows: string[];
+  /** Feature names grouped by the first level they're gained at (CLASS_LEVEL_FEATURE only) */
+  featureNamesByLevel: Record<string, string[]>;
 }
 
 export interface Open5eSubclassPreview {
   key: string;
   name: string;
+  desc: string;
   source: string;
   parentClassName: string;
+  /** Feature names grouped by the first level they're gained at */
+  featureNamesByLevel: Record<string, string[]>;
 }
 
 export async function fetchOpen5eBaseClasses(): Promise<Open5eClassPreview[]> {
   const raw = await fetchAll<Open5eV2Class>(V2_BASE);
+
   return raw
     .filter(c => c.hit_dice !== null && c.subclass_of === null)
-    .map(c => ({
-      key: c.key,
-      name: c.name,
-      source: c.document?.name ?? "",
-      hitDie: parseHitDie(c.hit_dice),
-      savingThrows: c.saving_throws ?? [],
-    }));
+    .map(c => {
+      const featureNamesByLevel: Record<string, string[]> = {};
+      for (const feat of c.features ?? []) {
+        if (feat.feature_type !== "CLASS_LEVEL_FEATURE") continue;
+        const level = feat.gained_at?.[0]?.level;
+        if (!level) continue;
+        const key = String(level);
+        if (!featureNamesByLevel[key]) featureNamesByLevel[key] = [];
+        featureNamesByLevel[key].push(feat.name);
+      }
+      return {
+        key: c.key,
+        name: c.name,
+        source: c.document?.name ?? "",
+        hitDie: parseHitDie(c.hit_dice),
+        savingThrows: (c.saving_throws ?? []).map(s => s.name),
+        featureNamesByLevel,
+      };
+    });
 }
 
 export async function fetchOpen5eSubclasses(): Promise<Open5eSubclassPreview[]> {
   const raw = await fetchAll<Open5eV2Class>(V2_BASE);
   return raw
     .filter(c => c.subclass_of !== null)
-    .map(c => ({
-      key: c.key,
-      name: c.name,
-      source: c.document?.name ?? "",
-      parentClassName: c.subclass_of!.name,
-    }));
+    .map(c => {
+      // Group feature names by level (use the first level in gained_at as the key)
+      const featureNamesByLevel: Record<string, string[]> = {};
+      for (const feat of c.features ?? []) {
+        if (feat.feature_type !== "CLASS_LEVEL_FEATURE") continue;
+        const level = feat.gained_at?.[0]?.level;
+        if (!level) continue;
+        const key = String(level);
+        if (!featureNamesByLevel[key]) featureNamesByLevel[key] = [];
+        featureNamesByLevel[key].push(feat.name);
+      }
+      return {
+        key: c.key,
+        name: c.name,
+        desc: c.desc ?? "",
+        source: c.document?.name ?? "",
+        parentClassName: c.subclass_of!.name,
+        featureNamesByLevel,
+      };
+    });
 }
 
 // ── Mappers ───────────────────────────────────────────────────────────────────
@@ -73,6 +117,7 @@ export async function fetchOpen5eSubclasses(): Promise<Open5eSubclassPreview[]> 
 export function baseClassToInsert(preview: Open5eClassPreview): CustomClassInsert {
   return {
     class_name: preview.name,
+    source: preview.source || null,
     campaign_id: null,
     hit_die: preview.hitDie,
     primary_ability: null,
@@ -98,6 +143,8 @@ export function subclassToInsert(preview: Open5eSubclassPreview): CustomSubclass
   return {
     class_name: preview.parentClassName,
     subclass_name: preview.name,
+    source: preview.source || null,
+    description: preview.desc || null,
     campaign_id: null,
     features: {},
     steps: [],

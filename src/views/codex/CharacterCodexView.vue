@@ -106,6 +106,17 @@
         />
         <ListActionButton :icon="Plus" label="New Archetype" variant="primary" to="/levelup/custom/new" />
       </template>
+
+      <!-- Abilities tab -->
+      <template v-if="activeTab === 'abilities'">
+        <ListActionButton
+          :icon="abilityImportMutation.isPending.value ? Loader2 : Download"
+          :label="abilityImportLabel"
+          :disabled="abilityImportMutation.isPending.value"
+          @click="handleAbilityImport"
+        />
+        <ListActionButton :icon="Plus" label="New Ability" variant="primary" to="/features/new" />
+      </template>
     </template>
 
     <template v-if="activeTab === 'species'" #filters>
@@ -154,6 +165,18 @@
         </ListFilterSelect>
       </ListFilterBar>
     </template>
+    <template v-if="activeTab === 'abilities'" #filters>
+      <ListFilterBar
+        :has-active-filters="ui.featuresHasActiveFilters"
+        @clear="ui.resetFeaturesFilters()"
+      >
+        <ListSearchInput v-model="ui.featuresSearch" placeholder="Search abilities…" />
+        <ListFilterSelect v-model="ui.featuresFilterType">
+          <option value="all">All types</option>
+          <option v-for="t in FEATURE_TYPES" :key="t" :value="t">{{ FEATURE_TYPE_LABELS[t] }}</option>
+        </ListFilterSelect>
+      </ListFilterBar>
+    </template>
 
     <!-- Tab bar -->
     <div class="flex gap-1 mb-6 border-b border-border overflow-x-auto">
@@ -175,6 +198,7 @@
     <BackgroundList v-else-if="activeTab === 'backgrounds'" />
     <ClassList v-else-if="activeTab === 'classes'" />
     <ArchetypeList v-else-if="activeTab === 'archetypes'" ref="archetypeListRef" />
+    <AbilityList v-else-if="activeTab === 'abilities'" />
 
     <!-- Species import panel -->
     <SpeciesOpen5ePanel v-if="activeTab === 'species'" />
@@ -318,8 +342,11 @@ const classImportLabel = computed(() => {
   if (classImportError.value) return "Import failed";
   if (classImportStatus.value === "done") {
     const r = classImportMutation.data.value;
-    if (!r || r.inserted === 0) return "Already up to date";
-    return `${r.inserted} imported`;
+    if (!r || (r.inserted === 0 && r.updated === 0)) return "Already up to date";
+    const parts: string[] = [];
+    if (r.inserted > 0) parts.push(`${r.inserted} added`);
+    if (r.updated > 0) parts.push(`${r.updated} updated`);
+    return parts.join(", ");
   }
   return "Import from Open5e";
 });
@@ -336,6 +363,40 @@ async function handleClassImport() {
   classResetTimer = setTimeout(() => { classImportStatus.value = "idle"; classImportError.value = null; }, 8000);
 }
 
+// ── Abilities: import ─────────────────────────────────────────────────────────
+const abilityImportMutation = useImportSrdFeatures();
+const abilityImportStatus = ref<"idle" | "done">("idle");
+const abilityImportResult = ref<ImportResult>({ inserted: 0, updated: 0 });
+const abilityImportError = ref<string | null>(null);
+let abilityResetTimer: ReturnType<typeof setTimeout> | null = null;
+onBeforeUnmount(() => { if (abilityResetTimer) clearTimeout(abilityResetTimer); });
+
+const abilityImportLabel = computed(() => {
+  if (abilityImportMutation.isPending.value) return "Syncing…";
+  if (abilityImportError.value) return `Error: ${abilityImportError.value}`;
+  if (abilityImportStatus.value === "done") {
+    const { inserted, updated } = abilityImportResult.value;
+    if (inserted === 0 && updated === 0) return "Already up to date";
+    const parts: string[] = [];
+    if (inserted > 0) parts.push(`${inserted} added`);
+    if (updated > 0) parts.push(`${updated} updated`);
+    return parts.join(", ");
+  }
+  return "Sync from Open5e";
+});
+
+async function handleAbilityImport() {
+  abilityImportStatus.value = "idle";
+  abilityImportError.value = null;
+  try {
+    abilityImportResult.value = await abilityImportMutation.mutateAsync();
+    abilityImportStatus.value = "done";
+  } catch (e) {
+    abilityImportError.value = e instanceof Error ? e.message : String(e);
+  }
+  abilityResetTimer = setTimeout(() => { abilityImportStatus.value = "idle"; abilityImportError.value = null; }, 8000);
+}
+
 // ── Archetypes: import ────────────────────────────────────────────────────────
 const archetypeImportMutation = useImportOpen5eSubclasses();
 const archetypeImportStatus = ref<"idle" | "done">("idle");
@@ -348,8 +409,11 @@ const archetypeImportLabel = computed(() => {
   if (archetypeImportError.value) return "Import failed";
   if (archetypeImportStatus.value === "done") {
     const r = archetypeImportMutation.data.value;
-    if (!r || r.inserted === 0) return "Already up to date";
-    return `${r.inserted} imported`;
+    if (!r || (r.inserted === 0 && r.updated === 0)) return "Already up to date";
+    const parts: string[] = [];
+    if (r.inserted > 0) parts.push(`${r.inserted} added`);
+    if (r.updated > 0) parts.push(`${r.updated} updated`);
+    return parts.join(", ");
   }
   return "Import from Open5e";
 });

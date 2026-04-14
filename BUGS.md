@@ -36,6 +36,8 @@
 
 - [x] Wares don't render for players — `items` table had no campaign-member RLS policy, so the `items(*)` join in `fetchStoreItems` returned nothing for players even though `store_items` RLS was correct; added `items_campaign_member_select` policy allowing campaign members to read items that appear as visible wares in a shared location (irongollem/grimoire#69)
 
+- [x] Known-caster spell tab badge counted cantrips toward the spells-known max — `knownCount` was computed from all `character_spells` rows regardless of spell level, so picking cantrips reduced the displayed remaining slots in the "Known Bard 2/5" badge; fixed by switching to `useCharacterSpellsWithDetails` (returns full spell rows with level) and filtering: `knownCount` = level > 0 spells, `cantripCount` = level === 0 spells; badge now reads `2/5 + 1/4C` (spells/max + cantrips/max) when `cantrips_known` table is populated (`src/views/play/PlayerSpellsView.vue`)
+
 - [x] Spell list empty for players, and "Add your first spell" button shown to players — `spells` RLS used a single `FOR ALL` policy (`auth.uid() = user_id`) so players (different auth.uid()) saw zero results; split into separate policies: SELECT allows campaign members to read spells owned by anyone in their campaign, INSERT/UPDATE/DELETE remain owner-only; also gated the empty-state CTA in `SpellList.vue` behind `!playerMemberId` (irongollem/grimoire#67)
 
 - [x] Chat message deletes not propagated in real-time — realtime subscription only registered `INSERT` and `UPDATE` handlers; `DELETE` events were ignored so other clients only saw deletions after a manual refresh; fixed by adding a `DELETE` postgres_changes handler that filters the message out of the local array (`src/composables/useCampaignMessages.ts`)

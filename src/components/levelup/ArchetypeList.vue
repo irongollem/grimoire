@@ -81,10 +81,17 @@
         >
           <div class="flex-1 min-w-0">
             <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ sc.subclass_name }}</p>
+            <p v-if="sc.description" class="font-fell text-xs text-muted-foreground mt-0.5 line-clamp-2">{{ sc.description }}</p>
             <p class="font-fell text-xs text-muted-foreground mt-0.5">
-              {{ featureLevelCount(sc) }} feature level{{ featureLevelCount(sc) !== 1 ? 's' : '' }}
-              <span v-if="sc.steps.length > 0"> · {{ sc.steps.length }} wizard step{{ sc.steps.length !== 1 ? 's' : '' }}</span>
-              <span v-if="sc.resources.length > 0"> · {{ sc.resources.length }} resource pool{{ sc.resources.length !== 1 ? 's' : '' }}</span>
+              <template v-if="featureLevelCount(sc) === 0 && sc.steps.length === 0 && sc.resources.length === 0">
+                <span class="italic">No features defined</span>
+              </template>
+              <template v-else>
+                {{ featureLevelCount(sc) }} feature level{{ featureLevelCount(sc) !== 1 ? 's' : '' }}
+                <span v-if="sc.steps.length > 0"> · {{ sc.steps.length }} wizard step{{ sc.steps.length !== 1 ? 's' : '' }}</span>
+                <span v-if="sc.resources.length > 0"> · {{ sc.resources.length }} resource pool{{ sc.resources.length !== 1 ? 's' : '' }}</span>
+              </template>
+              <span v-if="sc.source" class="ml-1 text-primary/60"> · {{ sc.source }}</span>
               <span v-if="sc.campaign_id" class="ml-1 text-primary/70"> · campaign only</span>
             </p>
           </div>
@@ -142,6 +149,8 @@ async function createExample() {
     await create({
       class_name: "Fighter",
       subclass_name: "Example Subclass",
+      source: null,
+      description: null,
       campaign_id: null,
       features: { "3": [featureA.id], "7": [featureB.id], "10": [featureC.id] },
       steps: [{

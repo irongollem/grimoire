@@ -39,6 +39,16 @@
     <section class="rounded-lg border border-border bg-card p-4 space-y-4">
       <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">Identity</h2>
 
+      <div>
+        <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1.5">DESCRIPTION</label>
+        <textarea
+          v-model="form.description"
+          rows="3"
+          placeholder="Flavour text describing this archetype…"
+          class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+        />
+      </div>
+
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1.5">BASE CLASS</label>
@@ -440,6 +450,7 @@ function availableOptionsForStep(stepIdx: number) {
 interface FormState {
   class_name: string;
   subclass_name: string;
+  description: string;
   features: Record<string, string[]>;
   steps: CustomStep[];
   resources: CustomResource[];
@@ -448,6 +459,7 @@ interface FormState {
 const form = ref<FormState>({
   class_name: "",
   subclass_name: "",
+  description: "",
   features: {},
   steps: [],
   resources: [],
@@ -461,6 +473,7 @@ watch(existing, (val) => {
   form.value = {
     class_name: raw.class_name,
     subclass_name: raw.subclass_name,
+    description: raw.description ?? "",
     features: raw.features,
     steps: raw.steps.map((s) => ({
       ...s,
@@ -577,6 +590,8 @@ async function save() {
   const payload = {
     class_name: form.value.class_name,
     subclass_name: form.value.subclass_name,
+    source: null,
+    description: form.value.description.trim() || null,
     features: form.value.features,
     steps: form.value.steps,
     resources: form.value.resources,

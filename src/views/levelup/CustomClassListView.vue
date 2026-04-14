@@ -234,6 +234,7 @@ async function duplicate(cls: SystemClass) {
       prepared_divisor: cls.prepared_divisor,
       steps: cls.steps,
       resources: cls.resources,
+      source: null,
     });
     router.push(`/levelup/classes/${created.id}`);
   } finally {

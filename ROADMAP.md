@@ -248,6 +248,18 @@
 
 - [x] Prepared spells accessible from encounter runner player detail panel with 🎲 roll + DC badge
 
+#### Player Spells — Phase 5: Known-caster spell count + cantrips
+
+- [x] **Cantrips/spells separate pools** — `cantrips_known integer[]` column added to `custom_classes` + `system_classes`; class editor gains a CANTRIPS toggle + column in the spell slot grid (alongside existing KNOWN column); `PlayerSpellsView` Known tab badge now shows `X/Y + Z/WC` (spells known/max + cantrips/max) using `cantrips_known` from class table; cantrip count no longer bleeds into the spells-known max
+- [x] **Level-up cantrip picker** — when `cantripsKnownGain > 0` at a level-up, a dedicated cantrip picker section appears (filtered to level-0 spells for the character's class); separate from the spell picker; selected cantrips saved to `character_spells` on confirm; banner in Features Gained announces the cantrips total
+- [x] **Spell picker max-slot filter** — level-up spell picker filters out spells above the character's max castable slot level (e.g. a Warlock with only level-2 slots won't see 5th-level spells in the picker)
+
+### Character Creation & Level-Up
+
+- [x] **Guided character creation wizard** — 8-step wizard (Identity→Species→Class→Background→Abilities→Combat→Proficiencies→Review) with point-buy ability score system; species/background/class all DB-linked; form state extracted into `useCharacterCreationForm` composable + `CHARACTER_FORM_KEY` injection; shell view `PlayerCharacterCreateView` is 12 lines; wizard and edit-tabs are separate focused components
+- [x] **Multi-level loop** — creating or importing a character above level 1 routes through the level-up wizard in a loop (`?targetLevel=N`); wizard keyed on `member.level` so it remounts after each DB update; progress indicator in header shows remaining levels
+- [x] **Feat-instead-of-ASI** — at ASI levels players can pick "+2 to one / +1/+1 / Feat"; feat mode shows a searchable list of all features from the DB; selection saved to `class_choices.feats[]`
+
 ### Atlas / Locations
 
 - [x] **NPC location filter includes child locations** — selecting a city shows NPCs in all sub-locations; `useLocationTree` composable (with `getDescendantIds` + tree-sorted combobox options) shared across modules

@@ -210,6 +210,8 @@ async function createExample() {
     await create({
       class_name: "Fighter",
       subclass_name: "Example Subclass",
+      source: null,
+      description: null,
       campaign_id: null,
       features: {
         "3":  [featureA.id],

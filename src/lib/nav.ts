@@ -20,7 +20,6 @@ import {
   DoorOpen,
   Music2,
   Dna,
-  Zap,
 } from "lucide-vue-next";
 import type { Component } from "vue";
 
@@ -175,12 +174,6 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/hall-of-heroes",
         icon: Crown,
         description: "Iconic characters importable into any campaign",
-      },
-      {
-        label: "Abilities",
-        to: "/features",
-        icon: Zap,
-        description: "Class features & ability compendium",
       },
     ],
   },

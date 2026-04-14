@@ -42,6 +42,8 @@ export interface CustomSubclass {
   campaign_id: string | null;
   class_name: string;
   subclass_name: string;
+  source: string | null;
+  description: string | null;
   features: CustomFeatures;
   steps: CustomStep[];
   resources: CustomResource[];
@@ -59,6 +61,7 @@ export interface CustomClass {
   user_id: string;
   campaign_id: string | null;
   class_name: string;
+  source: string | null;
 
   hit_die: HitDie;
   primary_ability: string | null;

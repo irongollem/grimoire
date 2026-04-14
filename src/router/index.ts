@@ -367,7 +367,7 @@ const router = createRouter({
       redirect: "/codex/species",
     },
     {
-      path: "/codex/:tab(species|backgrounds|classes|archetypes)",
+      path: "/codex/:tab(species|backgrounds|classes|archetypes|abilities)",
       name: "codex",
       component: () => import("@/views/codex/CharacterCodexView.vue"),
       meta: { requiresAuth: true, title: "Character Codex" },
@@ -389,13 +389,8 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Species" },
     },
 
-    // Class Features (Abilities)
-    {
-      path: "/features",
-      name: "features",
-      component: () => import("@/views/features/FeaturesView.vue"),
-      meta: { requiresAuth: true, title: "Abilities" },
-    },
+    // Class Features (Abilities) — list lives in the Codex; redirect old entry
+    { path: "/features", redirect: "/codex/abilities" },
     {
       path: "/features/new",
       name: "feature-new",

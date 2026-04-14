@@ -70,6 +70,7 @@
               <span v-if="cls.saving_throws.length > 0"> · {{ cls.saving_throws.join(', ') }} saves</span>
               <span v-if="featureLevelCount(cls) > 0"> · {{ featureLevelCount(cls) }} feature level{{ featureLevelCount(cls) !== 1 ? 's' : '' }}</span>
               <span v-if="cls.resources.length > 0"> · {{ cls.resources.length }} resource pool{{ cls.resources.length !== 1 ? 's' : '' }}</span>
+              <span v-if="cls.source" class="ml-1 text-primary/60"> · {{ cls.source }}</span>
               <span v-if="cls.campaign_id" class="ml-1 text-primary/70"> · campaign only</span>
             </p>
           </div>
@@ -172,6 +173,7 @@ async function duplicate(cls: SystemClass) {
       prepared_divisor: cls.prepared_divisor,
       steps: cls.steps,
       resources: cls.resources,
+      source: null,
     });
     router.push(`/levelup/classes/${created.id}`);
   } finally {
