@@ -1,8 +1,5 @@
 <template>
-  <PageHeader
-    :title="displayName"
-    :description="hero ? subtitle : ''"
-  >
+  <PageHeader :title="displayName" :description="hero ? subtitle : ''">
     <template v-if="hero" #actions>
       <RouterLink
         v-if="isAppAdmin"
@@ -20,7 +17,7 @@
         @click="handleImport"
       >
         <Plus class="h-3.5 w-3.5" />
-        {{ isImporting ? 'Adding…' : 'Add to Campaign' }}
+        {{ isImporting ? "Adding…" : "Add to Campaign" }}
       </button>
     </template>
 
@@ -44,7 +41,7 @@
             />
             <div
               v-else
-              class="flex aspect-[2/3] w-full items-center justify-center bg-muted text-4xl font-cinzel font-bold text-muted-foreground/30"
+              class="flex aspect-2/3 w-full items-center justify-center bg-muted text-4xl font-cinzel font-bold text-muted-foreground/30"
             >
               {{ hero.name.charAt(0) }}
             </div>
@@ -53,27 +50,56 @@
           <!-- Identity fields -->
           <dl class="space-y-2 text-sm">
             <div v-if="hero.race">
-              <dt class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Race</dt>
+              <dt
+                class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
+              >
+                Race
+              </dt>
               <dd class="font-fell">{{ hero.race }}</dd>
             </div>
             <div v-if="hero.alignment">
-              <dt class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Alignment</dt>
+              <dt
+                class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
+              >
+                Alignment
+              </dt>
               <dd class="font-fell">{{ hero.alignment }}</dd>
             </div>
             <div v-if="hero.occupation">
-              <dt class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Occupation</dt>
+              <dt
+                class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
+              >
+                Occupation
+              </dt>
               <dd class="font-fell">{{ hero.occupation }}</dd>
             </div>
             <div v-if="hero.age">
-              <dt class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Age</dt>
+              <dt
+                class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
+              >
+                Age
+              </dt>
               <dd class="font-fell">{{ hero.age }}</dd>
             </div>
             <div>
-              <dt class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Status</dt>
-              <dd class="font-fell capitalize" :style="{ color: STATUS_COLORS[hero.status] }">{{ hero.status }}</dd>
+              <dt
+                class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
+              >
+                Status
+              </dt>
+              <dd
+                class="font-fell capitalize"
+                :style="{ color: STATUS_COLORS[hero.status] }"
+              >
+                {{ hero.status }}
+              </dd>
             </div>
             <div>
-              <dt class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Setting</dt>
+              <dt
+                class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
+              >
+                Setting
+              </dt>
               <dd class="font-fell">{{ settingLabel(hero.setting) }}</dd>
             </div>
           </dl>
@@ -84,29 +110,46 @@
               v-for="tag in hero.tags"
               :key="tag"
               class="rounded-full bg-muted px-2 py-0.5 font-fell text-xs text-muted-foreground"
-            >{{ tag }}</span>
+              >{{ tag }}</span
+            >
           </div>
         </div>
 
         <!-- Right column: lore -->
         <div class="space-y-6">
           <section v-if="hero.appearance">
-            <h3 class="mb-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase">Appearance</h3>
+            <h3
+              class="mb-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+            >
+              Appearance
+            </h3>
             <RichTextViewer :content="hero.appearance" />
           </section>
 
           <section v-if="hero.personality">
-            <h3 class="mb-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase">Personality</h3>
+            <h3
+              class="mb-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+            >
+              Personality
+            </h3>
             <RichTextViewer :content="hero.personality" />
           </section>
 
           <section v-if="hero.backstory">
-            <h3 class="mb-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase">Backstory</h3>
+            <h3
+              class="mb-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+            >
+              Backstory
+            </h3>
             <RichTextViewer :content="hero.backstory" />
           </section>
 
           <section v-if="hero.notes && isAppAdmin">
-            <h3 class="mb-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase">DM Notes</h3>
+            <h3
+              class="mb-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+            >
+              DM Notes
+            </h3>
             <RichTextViewer :content="hero.notes" />
           </section>
 
@@ -136,14 +179,18 @@ import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { DND_SETTINGS } from "@/data/dndSettings";
 
 const STATUS_COLORS: Record<string, string> = {
-  alive:   "#22c55e",
-  dead:    "#ef4444",
+  alive: "#22c55e",
+  dead: "#ef4444",
   missing: "#f59e0b",
   unknown: "#6b7280",
 };
 
-const settingLabelMap = Object.fromEntries(DND_SETTINGS.map((s) => [s.value, s.label]));
-function settingLabel(val: string) { return settingLabelMap[val] ?? val; }
+const settingLabelMap = Object.fromEntries(
+  DND_SETTINGS.map((s) => [s.value, s.label]),
+);
+function settingLabel(val: string) {
+  return settingLabelMap[val] ?? val;
+}
 
 const route = useRoute();
 const router = useRouter();
@@ -169,7 +216,9 @@ function handleImport() {
   isImporting.value = true;
   importHero(hero.value, {
     onSuccess: () => router.push("/npcs"),
-    onError:   () => { isImporting.value = false; },
+    onError: () => {
+      isImporting.value = false;
+    },
   });
 }
 </script>
