@@ -71,6 +71,26 @@ export function rollLootTable(
         qty,
         notes: entry.notes ?? null,
       });
+    } else if (type === "random") {
+      // Build a pool of matching vault items then pick one at random.
+      const pool = [...itemsById.values()].filter(
+        (it) =>
+          it.rarity === entry.rarity &&
+          (!entry.item_type_filter || it.item_type === entry.item_type_filter),
+      );
+      if (pool.length === 0) continue; // vault has no matching items — skip
+      const item = pool[Math.floor(Math.random() * pool.length)];
+      const qty = rollQuantity(entry);
+      if (qty <= 0) continue;
+      results.push({
+        type: "item",
+        entry_id: entry.id,
+        item_id: item.id,
+        item_name: item.name,
+        item_image_url: item.image_url,
+        qty,
+        notes: entry.notes ?? null,
+      });
     } else {
       // currency
       results.push({

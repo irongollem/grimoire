@@ -78,6 +78,13 @@
               >
                 <Plus class="size-3" />Currency
               </button>
+              <button
+                type="button"
+                class="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1.5 font-cinzel text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+                @click="addEntry('random')"
+              >
+                <Plus class="size-3" />Random
+              </button>
             </div>
           </div>
 
@@ -157,6 +164,52 @@
                     />
                   </div>
                 </div>
+              </template>
+
+              <!-- ── Random-pick entry ───────────────────────────────── -->
+              <template v-else-if="entry.type === 'random'">
+                <div class="grid grid-cols-[1fr_90px_120px_auto] gap-2 items-center">
+                  <!-- Rarity + type filter -->
+                  <div class="flex gap-1.5">
+                    <select
+                      v-model="entry.rarity"
+                      class="flex-1 min-w-0 bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    >
+                      <option value="">— rarity —</option>
+                      <option v-for="r in ITEM_RARITIES" :key="r" :value="r">{{ ITEM_RARITY_LABELS[r] }}</option>
+                    </select>
+                    <select
+                      v-model="entry.item_type_filter"
+                      class="flex-1 min-w-0 bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    >
+                      <option :value="null">any type</option>
+                      <option v-for="t in ITEM_TYPES" :key="t" :value="t">{{ ITEM_TYPE_LABELS[t] }}</option>
+                    </select>
+                  </div>
+                  <!-- Drop chance -->
+                  <div class="flex items-center gap-1">
+                    <input
+                      v-model.number="entry.drop_chance"
+                      type="number" min="1" max="100"
+                      class="w-14 bg-muted border border-border rounded px-1.5 py-1 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                    />
+                    <span class="font-fell text-xs text-muted-foreground">%</span>
+                  </div>
+                  <!-- Qty -->
+                  <input
+                    :value="entry.dice ?? ''"
+                    placeholder="2d4 or 1"
+                    class="w-full bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    @input="(e) => onQuantityInput(entry, (e.target as HTMLInputElement).value)"
+                  />
+                  <button type="button" class="text-muted-foreground hover:text-destructive transition-colors p-1" @click="removeEntry(idx)">
+                    <Trash2 class="size-3.5" />
+                  </button>
+                </div>
+                <!-- Pool size hint -->
+                <p class="font-fell text-[10px] text-muted-foreground italic">
+                  {{ randomPoolSize(entry) }} matching item{{ randomPoolSize(entry) === 1 ? '' : 's' }} in vault
+                </p>
               </template>
 
               <!-- ── Notes row (all types) ────────────────────────────── -->
@@ -389,6 +442,12 @@ import {
   type LootEntryType,
   type LootTableInsert,
 } from "@/types/lootTable.types";
+import {
+  ITEM_TYPES,
+  ITEM_TYPE_LABELS,
+  ITEM_RARITIES,
+  ITEM_RARITY_LABELS,
+} from "@/types/item.types";
 import { COINS, formatCoinParts, type CoinKey } from "@/lib/currency";
 import type { LootChestAtom, LootChestMetadata } from "@/types/chat.types";
 import { rollLootTable, type RolledLootEntry } from "@/lib/lootTableRoll";
@@ -453,12 +512,22 @@ const summaryDropPercent = computed(() => {
   return Math.round(sum / form.value.entries.length);
 });
 
+function randomPoolSize(entry: LootEntry): number {
+  return [...itemsById.value.values()].filter(
+    (it) =>
+      it.rarity === entry.rarity &&
+      (!entry.item_type_filter || it.item_type === entry.item_type_filter),
+  ).length;
+}
+
 function addEntry(type: LootEntryType) {
   const base = { id: crypto.randomUUID(), type, drop_chance: 100, notes: null };
   if (type === "item") {
     form.value.entries.push({ ...base, item_id: "", dice: null, fixed_qty: 1 });
-  } else {
+  } else if (type === "currency") {
     form.value.entries.push({ ...base, currency_label: null, pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
+  } else {
+    form.value.entries.push({ ...base, rarity: "common", item_type_filter: null, dice: null, fixed_qty: 1 });
   }
 }
 

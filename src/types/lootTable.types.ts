@@ -11,7 +11,7 @@
 
 export const LOOT_CR_TIERS = ["any", "0-4", "5-10", "11-16", "17+"] as const;
 export type LootCrTier = (typeof LOOT_CR_TIERS)[number];
-export type LootEntryType = "item" | "currency";
+export type LootEntryType = "item" | "currency" | "random";
 
 export const LOOT_CR_TIER_LABELS: Record<LootCrTier, string> = {
   "any":   "Any tier",
@@ -35,10 +35,16 @@ export interface LootEntry {
   /** FK into `items`. Required when type = "item". Art objects are vault items
    *  of type "art_object" — no separate inline struct needed. */
   item_id?: string;
-  /** Quantity dice expression (e.g. "3d6", "1d4+1"). */
+  /** Quantity dice expression (e.g. "3d6", "1d4+1"). Also used by "random". */
   dice?: string | null;
-  /** Fixed quantity fallback when `dice` is null/empty. Defaults to 1. */
+  /** Fixed quantity fallback when `dice` is null/empty. Also used by "random". */
   fixed_qty?: number | null;
+
+  // ── Random-pick fields (type === "random") ─────────────────────────────────
+  /** Required rarity filter — only vault items of this rarity are eligible. */
+  rarity?: string;
+  /** Optional item-type filter — narrows the pool further (e.g. "potion"). */
+  item_type_filter?: string | null;
 
   // ── Currency fields (type === "currency") ──────────────────────────────────
   /** Optional label shown in chat (e.g. "Belt pouch"). */
@@ -84,6 +90,8 @@ export function validateEntries(entries: LootEntry[]): string | null {
       if (e.fixed_qty !== null && e.fixed_qty !== undefined && (!Number.isInteger(e.fixed_qty) || e.fixed_qty < 0)) {
         return "Fixed quantity must be a non-negative integer.";
       }
+    } else if (type === "random") {
+      if (!e.rarity) return "Random entries must have a rarity selected.";
     }
     // currency entries are valid as long as drop_chance is in range
   }
