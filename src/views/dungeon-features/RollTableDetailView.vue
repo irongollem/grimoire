@@ -312,13 +312,26 @@ function removeEntry(idx: number) {
 }
 
 function onDieChange() {
-  // Clamp any out-of-range entries to the new die's max so a downsize doesn't
-  // silently leave entries that can never roll.
+  const max = dieMax.value;
+  // First pass: clamp each entry to the new die's range.
   for (const e of form.value.entries) {
-    if (e.min > dieMax.value) e.min = dieMax.value;
-    if (e.max > dieMax.value) e.max = dieMax.value;
+    e.min = Math.min(e.min, max);
+    e.max = Math.min(e.max, max);
     if (e.max < e.min) e.max = e.min;
   }
+  // Second pass: sort by min, then push overlapping entries forward so they
+  // don't cause validation errors after a die downsize.
+  form.value.entries.sort((a, b) => a.min - b.min);
+  for (let i = 1; i < form.value.entries.length; i++) {
+    const prev = form.value.entries[i - 1];
+    const curr = form.value.entries[i];
+    if (curr.min <= prev.max) {
+      curr.min = Math.min(prev.max + 1, max);
+      curr.max = Math.max(curr.min, Math.min(curr.max, max));
+    }
+  }
+  // Drop any entries that no longer fit (min > max of die).
+  form.value.entries = form.value.entries.filter(e => e.min <= max);
 }
 
 // ── Roll panel ─────────────────────────────────────────────────────────────
