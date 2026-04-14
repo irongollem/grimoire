@@ -318,6 +318,21 @@ const router = createRouter({
     { path: "/dungeon-features", redirect: "/dungeon-craft" },
     { path: "/traps",            redirect: { path: "/dungeon-craft", query: { tab: "traps" } } },
     { path: "/puzzles",          redirect: { path: "/dungeon-craft", query: { tab: "puzzles" } } },
+    { path: "/roll-tables",      redirect: { path: "/dungeon-craft", query: { tab: "roll-tables" } } },
+
+    // Roll table detail
+    {
+      path: "/roll-tables/new",
+      name: "roll-table-new",
+      component: () => import("@/views/dungeon-features/RollTableDetailView.vue"),
+      meta: { requiresAuth: true, title: "New Roll Table" },
+    },
+    {
+      path: "/roll-tables/:id",
+      name: "roll-table-detail",
+      component: () => import("@/views/dungeon-features/RollTableDetailView.vue"),
+      meta: { requiresAuth: true, title: "Roll Table" },
+    },
 
     // Trap detail
     {

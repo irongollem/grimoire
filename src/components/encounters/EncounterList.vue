@@ -123,6 +123,7 @@ import {
 import type { Encounter } from "@/types/encounter.types";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useEncounterQuestLinks } from "@/composables/useQuests";
+import { useEncountersInRollTables } from "@/composables/useRollTables";
 import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
@@ -136,9 +137,16 @@ const { data: encounters, isLoading } = useEncounters();
 const { data: monsters } = useAllMonsters();
 const { data: questLinks } = useEncounterQuestLinks();
 const { isEncounterRunning } = useRunningEncounters();
+const rollTableEncounterIds = useEncountersInRollTables();
 
-// Set of encounter IDs that are linked to at least one quest
-const linkedEncounterIds = computed(() => new Set((questLinks.value ?? []).map(l => l.encounterId)));
+// "Assigned" = linked to at least one quest OR cited by at least one roll table.
+// The Unassigned filter hides any encounter that's claimed by either, so a DM
+// only sees orphans they still need to slot somewhere.
+const linkedEncounterIds = computed(() => {
+  const ids = new Set<string>(rollTableEncounterIds.value);
+  for (const link of questLinks.value ?? []) ids.add(link.encounterId);
+  return ids;
+});
 
 // Map from questId → Set of encounter IDs
 const questEncounterMap = computed(() => {
