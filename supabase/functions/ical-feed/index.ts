@@ -1,5 +1,14 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// This function is public — calendar clients (Google / Apple / Outlook) can't
+// attach a Supabase JWT when subscribing to an ICS URL. JWT verification is
+// turned off at the gateway via `[functions.ical-feed] verify_jwt = false`
+// in `supabase/config.toml` (per-function `config.toml` files inside the
+// function directory are NOT read by `supabase functions deploy`). Security
+// is enforced by the random per-campaign `ical_token` in the URL path —
+// we only return CONFIRMED sessions to holders of the right token, and we
+// never leak draft / private scheduling state.
+
 // Max line length per RFC 5545 §3.1 (75 octets, not chars — close enough for ASCII)
 const LINE_MAX = 75;
 

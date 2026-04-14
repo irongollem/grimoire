@@ -43,21 +43,41 @@
 
       <!-- Roll Tables tab actions -->
       <template v-else-if="activeTab === 'roll-tables'">
+        <template v-if="!selectedRollTableId && !inlineNewRollTable">
+          <button
+            type="button"
+            :disabled="rollTablesPopulate.isPending.value"
+            class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
+            @click="handleRollTablesPopulate"
+          >
+            <Loader2 v-if="rollTablesPopulate.isPending.value" class="size-3.5 animate-spin shrink-0" />
+            <BookOpen v-else class="size-3.5 shrink-0" />
+            {{ rollTablesPopulateLabel }}
+          </button>
+          <button
+            class="font-cinzel text-xs font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+            @click="inlineNewRollTable = true"
+          >
+            New Roll Table
+          </button>
+        </template>
         <button
+          v-else
           type="button"
-          :disabled="rollTablesPopulate.isPending.value"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
-          @click="handleRollTablesPopulate"
+          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+          @click="closeInlineRollTable"
         >
-          <Loader2 v-if="rollTablesPopulate.isPending.value" class="size-3.5 animate-spin shrink-0" />
-          <BookOpen v-else class="size-3.5 shrink-0" />
-          {{ rollTablesPopulateLabel }}
+          ← All Tables
         </button>
+      </template>
+
+      <!-- Loot Tables tab actions -->
+      <template v-else-if="activeTab === 'loot-tables'">
         <button
           class="font-cinzel text-xs font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
-          @click="router.push('/roll-tables/new')"
+          @click="router.push('/loot-tables/new')"
         >
-          New Roll Table
+          New Loot Table
         </button>
       </template>
 
@@ -109,7 +129,7 @@
         :class="activeTab === tab.id
           ? 'border-primary text-foreground'
           : 'border-transparent text-muted-foreground hover:text-foreground'"
-        @click="activeTab = tab.id"
+        @click="activeTab = tab.id; closeInlineRollTable()"
       >
         {{ tab.label }}
       </button>
@@ -257,51 +277,113 @@
 
     <!-- ── Roll Tables tab ───────────────────────────────────────────────── -->
     <template v-else-if="activeTab === 'roll-tables'">
-      <div v-if="rollTablesLoading" class="flex justify-center py-16">
+      <!-- Inline detail: editing or creating a table -->
+      <RollTableDetailView
+        v-if="selectedRollTableId || inlineNewRollTable"
+        :inline-id="selectedRollTableId ?? undefined"
+        :inline-new="inlineNewRollTable"
+        @done="closeInlineRollTable"
+      />
+
+      <!-- List -->
+      <template v-else>
+        <div v-if="rollTablesLoading" class="flex justify-center py-16">
+          <LoadingSpinner />
+        </div>
+        <template v-else-if="rollTables?.length">
+          <div class="flex flex-wrap items-center gap-2 mb-4">
+            <input
+              v-model="rollTablesSearch"
+              type="search"
+              placeholder="Search roll tables…"
+              class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+            <select
+              v-model="rollTablesDieFilter"
+              class="bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="">All Dice</option>
+              <option v-for="d in ROLL_TABLE_DICE" :key="d" :value="d">{{ d }}</option>
+            </select>
+          </div>
+          <p v-if="!filteredRollTables.length" class="text-center font-fell text-sm text-muted-foreground italic py-8">
+            No roll tables match your filter.
+          </p>
+          <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <button
+              v-for="t in filteredRollTables"
+              :key="t.id"
+              type="button"
+              class="flex flex-col rounded-lg border border-border bg-card p-3 hover:border-primary/50 transition-colors text-left"
+              @click="selectedRollTableId = t.id"
+            >
+              <div class="flex items-start justify-between gap-2 mb-1">
+                <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ t.name }}</h3>
+                <span class="font-cinzel text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold tracking-wider shrink-0">{{ t.dice }}</span>
+              </div>
+              <p v-if="t.description" class="font-fell text-xs text-muted-foreground italic line-clamp-2">{{ t.description }}</p>
+              <p class="font-fell text-[10px] text-muted-foreground mt-2">{{ t.entries.length }} {{ t.entries.length === 1 ? "entry" : "entries" }}</p>
+            </button>
+          </div>
+        </template>
+        <EmptyState
+          v-else
+          icon="Dices"
+          title="No roll tables yet"
+          description="Build a wandering monster table or two — the DM rolls live during play to surface what shows up."
+          action-label="New Roll Table"
+          @action="inlineNewRollTable = true"
+        />
+      </template>
+    </template>
+
+    <!-- ── Loot Tables tab ───────────────────────────────────────────────── -->
+    <template v-else-if="activeTab === 'loot-tables'">
+      <div v-if="lootTablesLoading" class="flex justify-center py-16">
         <LoadingSpinner />
       </div>
-      <template v-else-if="rollTables?.length">
+      <template v-else-if="lootTables?.length">
         <div class="flex flex-wrap items-center gap-2 mb-4">
           <input
-            v-model="rollTablesSearch"
+            v-model="lootTablesSearch"
             type="search"
-            placeholder="Search roll tables…"
+            placeholder="Search loot tables…"
             class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
           <select
-            v-model="rollTablesDieFilter"
+            v-model="lootTablesTierFilter"
             class="bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           >
-            <option value="">All Dice</option>
-            <option v-for="d in ROLL_TABLE_DICE" :key="d" :value="d">{{ d }}</option>
+            <option value="">All Tiers</option>
+            <option v-for="t in LOOT_CR_TIERS" :key="t" :value="t">{{ LOOT_CR_TIER_LABELS[t] }}</option>
           </select>
         </div>
-        <p v-if="!filteredRollTables.length" class="text-center font-fell text-sm text-muted-foreground italic py-8">
-          No roll tables match your filter.
+        <p v-if="!filteredLootTables.length" class="text-center font-fell text-sm text-muted-foreground italic py-8">
+          No loot tables match your filter.
         </p>
         <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           <RouterLink
-            v-for="t in filteredRollTables"
+            v-for="t in filteredLootTables"
             :key="t.id"
-            :to="`/roll-tables/${t.id}`"
+            :to="`/loot-tables/${t.id}`"
             class="flex flex-col rounded-lg border border-border bg-card p-3 hover:border-primary/50 transition-colors"
           >
             <div class="flex items-start justify-between gap-2 mb-1">
               <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ t.name }}</h3>
-              <span class="font-cinzel text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold tracking-wider shrink-0">{{ t.dice }}</span>
+              <span v-if="t.cr_tier !== 'any'" class="font-cinzel text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold tracking-wider shrink-0">{{ LOOT_CR_TIER_LABELS[t.cr_tier] }}</span>
             </div>
             <p v-if="t.description" class="font-fell text-xs text-muted-foreground italic line-clamp-2">{{ t.description }}</p>
-            <p class="font-fell text-[10px] text-muted-foreground mt-2">{{ t.entries.length }} {{ t.entries.length === 1 ? "entry" : "entries" }}</p>
+            <p class="font-fell text-[10px] text-muted-foreground mt-2">{{ t.entries.length }} {{ t.entries.length === 1 ? "item" : "items" }}</p>
           </RouterLink>
         </div>
       </template>
       <EmptyState
         v-else
-        icon="Dices"
-        title="No roll tables yet"
-        description="Build a wandering monster table or two — the DM rolls live during play to surface what shows up."
-        action-label="New Roll Table"
-        @action="router.push('/roll-tables/new')"
+        icon="Coins"
+        title="No loot tables yet"
+        description="Build your first hoard — add Vault items with their own drop chances and quantities."
+        action-label="New Loot Table"
+        @action="router.push('/loot-tables/new')"
       />
     </template>
 
@@ -472,6 +554,7 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import RollTableDetailView from "@/views/dungeon-features/RollTableDetailView.vue";
 
 const route  = useRoute();
 const router = useRouter();
@@ -623,6 +706,15 @@ async function handlePuzzlesPopulate() {
 }
 
 // ── Roll Tables ──────────────────────────────────────────────────────────────
+// Inline detail state — null/false = show list, otherwise show editor inside tab
+const selectedRollTableId = ref<string | null>(null);
+const inlineNewRollTable  = ref(false);
+
+function closeInlineRollTable() {
+  selectedRollTableId.value = null;
+  inlineNewRollTable.value  = false;
+}
+
 const { data: rollTables, isLoading: rollTablesLoading } = useRollTables();
 const rollTablesSearch    = ref("");
 const rollTablesDieFilter = ref("");

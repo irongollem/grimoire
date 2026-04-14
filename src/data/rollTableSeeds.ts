@@ -11,7 +11,6 @@ function entry(min: number, max: number, label: string, notes?: string): RollTab
     max,
     label,
     encounter_id: null,
-    count: null,
     notes: notes ?? null,
   };
 }
