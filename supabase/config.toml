@@ -1,0 +1,41 @@
+# Grimoire — Supabase project config
+#
+# Only the bits the repo needs to track are declared here. Everything else
+# (db ports, studio, auth defaults, storage defaults) is left to the CLI's
+# built-in defaults + whatever is configured on the hosted project via the
+# Supabase dashboard.
+#
+# Per-function `supabase/functions/<name>/config.toml` files are NOT read
+# by `supabase functions deploy` — those must be declared here at the root.
+
+# `supabase functions deploy <name>` needs a project_id (or a --project-ref
+# override). Set this to the linked Supabase project's ref. Left as a
+# placeholder so a fresh clone doesn't accidentally target a stranger's
+# project; each maintainer links locally with
+#   supabase link --project-ref <your-ref>
+# which updates .supabase/config (gitignored) and lets the CLI resolve
+# commands without this string.
+project_id = "grimoire"
+
+# ── Edge Functions ───────────────────────────────────────────────────────────
+
+# Public ICS feed consumed by players' calendar apps (Google / Apple / Outlook).
+# Those clients can't attach a Supabase JWT, so the function has to accept
+# unauthenticated requests. Security is enforced by a random per-campaign
+# `ical_token` in the URL path (see `ical-feed/index.ts`): the function
+# validates the token and only returns CONFIRMED sessions, never private
+# DM notes or draft scheduling state.
+[functions.ical-feed]
+verify_jwt = false
+
+# API key vault decryption endpoint — called by the browser with the user's
+# access token via the client SDK, not via `fetch(authorization:...)`, so we
+# have to turn off the gateway check and rely on the function's own
+# `auth.uid()` lookup to scope the read.
+[functions.api-key-vault]
+verify_jwt = false
+
+# Shared SRD rules sync — triggered by an admin / cron with the service-role
+# key, so the gateway check can stay on.
+# [functions.sync-srd-rules]
+# verify_jwt = true  (default)
