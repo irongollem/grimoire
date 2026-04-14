@@ -71,6 +71,16 @@
         </button>
       </template>
 
+      <!-- Loot Tables tab actions -->
+      <template v-else-if="activeTab === 'loot-tables'">
+        <button
+          class="font-cinzel text-xs font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+          @click="router.push('/loot-tables/new')"
+        >
+          New Loot Table
+        </button>
+      </template>
+
       <!-- Puzzles tab actions -->
       <template v-else>
         <button
@@ -317,6 +327,56 @@
       </template>
     </template>
 
+    <!-- ── Loot Tables tab ───────────────────────────────────────────────── -->
+    <template v-else-if="activeTab === 'loot-tables'">
+      <div v-if="lootTablesLoading" class="flex justify-center py-16">
+        <LoadingSpinner />
+      </div>
+      <template v-else-if="lootTables?.length">
+        <div class="flex flex-wrap items-center gap-2 mb-4">
+          <input
+            v-model="lootTablesSearch"
+            type="search"
+            placeholder="Search loot tables…"
+            class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+          <select
+            v-model="lootTablesTierFilter"
+            class="bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="">All Tiers</option>
+            <option v-for="t in LOOT_CR_TIERS" :key="t" :value="t">{{ LOOT_CR_TIER_LABELS[t] }}</option>
+          </select>
+        </div>
+        <p v-if="!filteredLootTables.length" class="text-center font-fell text-sm text-muted-foreground italic py-8">
+          No loot tables match your filter.
+        </p>
+        <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          <RouterLink
+            v-for="t in filteredLootTables"
+            :key="t.id"
+            :to="`/loot-tables/${t.id}`"
+            class="flex flex-col rounded-lg border border-border bg-card p-3 hover:border-primary/50 transition-colors"
+          >
+            <div class="flex items-start justify-between gap-2 mb-1">
+              <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ t.name }}</h3>
+              <span v-if="t.cr_tier !== 'any'" class="font-cinzel text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold tracking-wider shrink-0">{{ LOOT_CR_TIER_LABELS[t.cr_tier] }}</span>
+            </div>
+            <p v-if="t.description" class="font-fell text-xs text-muted-foreground italic line-clamp-2">{{ t.description }}</p>
+            <p class="font-fell text-[10px] text-muted-foreground mt-2">{{ t.entries.length }} {{ t.entries.length === 1 ? "item" : "items" }}</p>
+          </RouterLink>
+        </div>
+      </template>
+      <EmptyState
+        v-else
+        icon="Coins"
+        title="No loot tables yet"
+        description="Build your first hoard — add Vault items with their own drop chances and quantities."
+        action-label="New Loot Table"
+        @action="router.push('/loot-tables/new')"
+      />
+    </template>
+
     <!-- ── Puzzles tab ───────────────────────────────────────────────────── -->
     <template v-else>
       <div v-if="puzzlesLoading" class="flex justify-center py-16">
@@ -426,6 +486,9 @@ import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES, PUZZLE_TYPE_COLORS, PUZZLE_DIFFICULT
 import { useRollTables, usePopulateRollTables } from "@/composables/useRollTables";
 import { ROLL_TABLE_DICE } from "@/types/rollTable.types";
 
+import { useLootTables } from "@/composables/useLootTables";
+import { LOOT_CR_TIERS, LOOT_CR_TIER_LABELS } from "@/types/lootTable.types";
+
 import { useUiStore } from "@/stores/ui";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -437,16 +500,17 @@ const route  = useRoute();
 const router = useRouter();
 const ui     = useUiStore();
 
-type Tab = "features" | "traps" | "puzzles" | "roll-tables";
+type Tab = "features" | "traps" | "puzzles" | "roll-tables" | "loot-tables";
 const TABS: { id: Tab; label: string }[] = [
   { id: "features",    label: "Features" },
   { id: "traps",       label: "Traproom" },
   { id: "puzzles",     label: "Enigmarium" },
   { id: "roll-tables", label: "Roll Tables" },
+  { id: "loot-tables", label: "Loot Tables" },
 ];
 
 const rawTab = route.query.tab as string | undefined;
-const VALID_TABS: Tab[] = ["features", "traps", "puzzles", "roll-tables"];
+const VALID_TABS: Tab[] = ["features", "traps", "puzzles", "roll-tables", "loot-tables"];
 const activeTab = ref<Tab>(
   VALID_TABS.includes(rawTab as Tab) ? (rawTab as Tab) : "features",
 );
@@ -632,4 +696,21 @@ async function handleRollTablesPopulate() {
   }
   setTimeout(() => { rollTablesPopulateStatus.value = "idle"; rollTablesPopulateError.value = null; }, 8000);
 }
+
+// ── Loot Tables ──────────────────────────────────────────────────────────────
+const { data: lootTables, isLoading: lootTablesLoading } = useLootTables();
+const lootTablesSearch     = ref("");
+const lootTablesTierFilter = ref("");
+
+const filteredLootTables = computed(() => {
+  let list = lootTables.value ?? [];
+  if (lootTablesTierFilter.value) list = list.filter((t) => t.cr_tier === lootTablesTierFilter.value);
+  const q = lootTablesSearch.value.toLowerCase().trim();
+  if (q) list = list.filter((t) =>
+    t.name.toLowerCase().includes(q) ||
+    (t.description ?? "").toLowerCase().includes(q) ||
+    t.tags.some((tag) => tag.toLowerCase().includes(q)),
+  );
+  return list;
+});
 </script>
