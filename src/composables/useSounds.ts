@@ -2,6 +2,7 @@ import { computed, ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { storeToRefs } from "pinia";
 import { supabase } from "@/lib/supabase";
+import { uploadToBucket, deleteFromBucket } from "@/lib/storage";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { toOpus } from "@/lib/mediaConvert";
@@ -46,7 +47,7 @@ async function deleteSound(sound: Sound): Promise<void> {
   const { error } = await supabase.from("sounds").delete().eq("id", sound.id);
   if (error) throw error;
   if (sound.storage_path) {
-    await supabase.storage.from("sounds").remove([sound.storage_path]);
+    await deleteFromBucket("sounds", [sound.storage_path]);
   }
 }
 
@@ -134,13 +135,10 @@ export function useSoundUpload() {
     isUploading.value = true;
     try {
       const ext = processed.name.split(".").pop() ?? "mp3";
-      const path = `${auth.user.id}/${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage
-        .from("sounds")
-        .upload(path, processed, { contentType: processed.type });
-      if (error) throw error;
-      const { data } = supabase.storage.from("sounds").getPublicUrl(path);
-      return { file_url: data.publicUrl, storage_path: path };
+      const storagePath = `${auth.user.id}/${crypto.randomUUID()}.${ext}`;
+      const fileUrl = await uploadToBucket({ bucket: "sounds", blob: processed, path: storagePath, contentType: processed.type });
+      if (!fileUrl) return null;
+      return { file_url: fileUrl, storage_path: storagePath };
     } catch {
       return null;
     } finally {
@@ -149,7 +147,7 @@ export function useSoundUpload() {
   }
 
   async function remove(storagePath: string): Promise<void> {
-    await supabase.storage.from("sounds").remove([storagePath]);
+    await deleteFromBucket("sounds", [storagePath]);
   }
 
   return { isBusy, statusText, isConverting, isUploading, upload, remove };

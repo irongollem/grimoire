@@ -5,16 +5,16 @@ import {
   BUCKETS,
   uploadToBucket,
   removeByPublicUrl,
-  type BucketConfig,
+  type BucketKey,
 } from "@/lib/storage";
 
-/** Look up a BucketConfig by string id; defaults to assetImages on miss so
- *  legacy callers that pass `"asset-images"` keep working unchanged. */
-function resolveBucket(bucketId: string): BucketConfig {
-  for (const b of Object.values(BUCKETS)) {
-    if (b.id === bucketId) return b;
+/** Map a bucket ID string (e.g. "asset-images") to its BucketKey ("assetImages").
+ *  Falls back to "assetImages" for unknown ids so legacy callers keep working. */
+function resolveBucketKey(bucketId: string): BucketKey {
+  for (const [key, cfg] of Object.entries(BUCKETS)) {
+    if (cfg.id === bucketId) return key as BucketKey;
   }
-  return BUCKETS.assetImages;
+  return "assetImages";
 }
 
 /**
@@ -23,7 +23,7 @@ function resolveBucket(bucketId: string): BucketConfig {
  * Ignores storage errors (e.g. file not found, permission denied for shared images).
  */
 export async function removeStorageImages(bucket: string, ...urls: (string | null | undefined)[]): Promise<void> {
-  await removeByPublicUrl(resolveBucket(bucket), ...urls);
+  await removeByPublicUrl(resolveBucketKey(bucket), ...urls);
 }
 
 export const ASSET_IMAGES_BUCKET = "asset-images";
@@ -80,16 +80,14 @@ export function cleanupRemovedRichTextImages(
 export function useImageUpload(bucket: string) {
   const auth = useAuthStore();
   const isUploading = ref(false);
-  const cfg = resolveBucket(bucket);
+  const key = resolveBucketKey(bucket);
 
   async function upload(file: File): Promise<string | null> {
     if (!auth.user) return null;
     isUploading.value = true;
     try {
       const webpFile = await toWebP(file);
-      return await uploadToBucket(cfg, auth.user.id, webpFile, {
-        contentType: "image/webp",
-      });
+      return await uploadToBucket({ bucket: key, userId: auth.user.id, blob: webpFile, contentType: "image/webp" });
     } catch {
       return null;
     } finally {
@@ -100,7 +98,7 @@ export function useImageUpload(bucket: string) {
   /** Delete a file from the bucket given its public URL. Silently no-ops on bad URLs. */
   async function remove(publicUrl: string): Promise<void> {
     if (!publicUrl) return;
-    await removeByPublicUrl(cfg, publicUrl);
+    await removeByPublicUrl(key, publicUrl);
   }
 
   return { isUploading, upload, remove };

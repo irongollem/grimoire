@@ -221,7 +221,7 @@
 import { ref, onUnmounted } from "vue";
 import { getCurrentUser } from "@/lib/supabase";
 import { toWebP } from "@/lib/mediaConvert";
-import { BUCKETS, uploadToBucket } from "@/lib/storage";
+import { uploadToBucket } from "@/lib/storage";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import { Node } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
@@ -363,10 +363,7 @@ async function onFileSelected(e: Event) {
     // Custom path keeps the `rte-` prefix so we can later distinguish embedded
     // images from entity uploads when scanning the bucket. The asset-images
     // bucket is webp-only as of migration 20260413000004.
-    const url = await uploadToBucket(BUCKETS.assetImages, user!.id, webpFile, {
-      path: `${user!.id}/rte-${Date.now()}.webp`,
-      contentType: "image/webp",
-    });
+    const url = await uploadToBucket({ bucket: "assetImages", blob: webpFile, path: `${user!.id}/rte-${Date.now()}.webp`, contentType: "image/webp" });
     if (!url) throw new Error("upload failed");
     editor.value.chain().focus().setImage({ src: url }).run();
   } catch {

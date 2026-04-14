@@ -1,5 +1,5 @@
 import { useAuthStore } from "@/stores/auth";
-import { BUCKETS, uploadToBucket } from "@/lib/storage";
+import { uploadToBucket } from "@/lib/storage";
 import { NPC_SYSTEM_PROMPT, IMAGE_BASE_PROMPT, buildCampaignContext } from "./prompts";
 import type { NpcAiResult, NpcAiGenerated } from "./types";
 import {
@@ -142,11 +142,7 @@ export function useNpcGeneration() {
 
         const uploadTrue = async () => {
           if (!truePortraitBlob || !auth.user) return;
-          portrait_url = await uploadToBucket(
-            BUCKETS.npcPortraits,
-            auth.user.id,
-            truePortraitBlob,
-          );
+          portrait_url = await uploadToBucket({ bucket: "npcPortraits", userId: auth.user.id, blob: truePortraitBlob });
         };
 
         const generateDisguise = async () => {
@@ -172,11 +168,7 @@ export function useNpcGeneration() {
               "1024x1536",
             );
             if (!disguiseB64 || !auth.user) return;
-            disguise_portrait_url = await uploadToBucket(
-              BUCKETS.npcPortraits,
-              auth.user.id,
-              b64ToBlob(disguiseB64),
-            );
+            disguise_portrait_url = await uploadToBucket({ bucket: "npcPortraits", userId: auth.user.id, blob: b64ToBlob(disguiseB64) });
           } catch {
             // non-fatal — disguise generation failure does not block NPC save
           }

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Trap, TrapInsert, TrapUpdate } from "@/types/trap.types";
-import { removeStorageImages } from "@/composables/useImageUpload";
+import { deleteByPublicUrl } from "@/lib/storage";
 import { TRAP_TEMPLATES } from "@/data/trapTemplates";
 import type { Ref } from "vue";
 import { computed, isRef, ref } from "vue";
@@ -43,7 +43,7 @@ async function updateTrap(id: string, update: TrapUpdate): Promise<Trap> {
 async function deleteTrap(trap: Trap): Promise<void> {
   const { error } = await supabase.from("traps").delete().eq("id", trap.id);
   if (error) throw error;
-  await removeStorageImages("asset-images", trap.image_url);
+  await deleteByPublicUrl(trap.image_url);
 }
 
 export function useTraps() {

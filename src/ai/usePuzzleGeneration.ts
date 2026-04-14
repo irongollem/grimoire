@@ -1,6 +1,10 @@
 import { useAuthStore } from "@/stores/auth";
-import { BUCKETS, uploadToBucket } from "@/lib/storage";
-import { PUZZLE_SYSTEM_PROMPT, IMAGE_BASE_PROMPT, buildCampaignContext } from "./prompts";
+import { uploadToBucket } from "@/lib/storage";
+import {
+  PUZZLE_SYSTEM_PROMPT,
+  IMAGE_BASE_PROMPT,
+  buildCampaignContext,
+} from "./prompts";
 import type { PuzzleAiResult, PuzzleAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -57,8 +61,10 @@ export function usePuzzleGeneration() {
       })}`;
 
       const constraints: string[] = [];
-      if (options?.puzzle_type) constraints.push(`Puzzle Type: ${options.puzzle_type}`);
-      if (options?.difficulty) constraints.push(`Difficulty: ${options.difficulty}`);
+      if (options?.puzzle_type)
+        constraints.push(`Puzzle Type: ${options.puzzle_type}`);
+      if (options?.difficulty)
+        constraints.push(`Difficulty: ${options.difficulty}`);
 
       const userContent = constraints.length
         ? `${userPrompt}\n\nConstraints:\n${constraints.join("\n")}`
@@ -85,11 +91,11 @@ export function usePuzzleGeneration() {
           const b64 = await imageProvider.generate(imagePrompt, "1024x1536");
 
           if (b64) {
-            image_url = await uploadToBucket(
-              BUCKETS.puzzleImages,
-              auth.user.id,
-              b64ToBlob(b64),
-            );
+            image_url = await uploadToBucket({
+              bucket: "puzzleImages",
+              userId: auth.user.id,
+              blob: b64ToBlob(b64),
+            });
           }
         } catch {
           // image generation failure is non-fatal for puzzles

@@ -4,7 +4,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { SRD_MONSTERS, getSrdMonster } from "@/data/srdMonsters";
 import { useSrdMonsterArt } from "@/composables/useSrdMonsterArt";
 import type { Monster, MonsterInsert, MonsterUpdate } from "@/types/monster.types";
-import { removeStorageImages } from "@/composables/useImageUpload";
+import { deleteByPublicUrl } from "@/lib/storage";
 
 export { getSrdMonster };
 
@@ -61,7 +61,7 @@ async function updateMonster(id: string, update: MonsterUpdate): Promise<Monster
 async function deleteMonster(monster: Monster): Promise<void> {
   const { error } = await supabase.from("monsters").delete().eq("id", monster.id);
   if (error) throw error;
-  await removeStorageImages("asset-images", monster.image_url, monster.card_art_url);
+  await deleteByPublicUrl(monster.image_url, monster.card_art_url);
 }
 
 export function useMonsters() {

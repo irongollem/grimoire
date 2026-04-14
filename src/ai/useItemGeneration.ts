@@ -1,5 +1,5 @@
 import { useAuthStore } from "@/stores/auth";
-import { BUCKETS, uploadToBucket } from "@/lib/storage";
+import { uploadToBucket } from "@/lib/storage";
 import { ITEM_SYSTEM_PROMPT, IMAGE_BASE_PROMPT, buildCampaignContext } from "./prompts";
 import type { ItemAiResult, ItemAiGenerated } from "./types";
 import {
@@ -93,11 +93,7 @@ export function useItemGeneration() {
 
         // ── 3. Upload to Supabase storage ─────────────────────────────────
         if (b64 && auth.user) {
-          image_url = await uploadToBucket(
-            BUCKETS.assetImages,
-            auth.user.id,
-            b64ToBlob(b64),
-          );
+          image_url = await uploadToBucket({ bucket: "itemImages", userId: auth.user.id, blob: b64ToBlob(b64) });
         }
       }
 

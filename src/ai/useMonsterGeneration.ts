@@ -1,5 +1,5 @@
 import { useAuthStore } from "@/stores/auth";
-import { BUCKETS, uploadToBucket } from "@/lib/storage";
+import { uploadToBucket } from "@/lib/storage";
 import { MONSTER_SYSTEM_PROMPT, IMAGE_BASE_PROMPT, buildCampaignContext } from "./prompts";
 import type { MonsterAiResult, MonsterAiGenerated } from "./types";
 import {
@@ -89,11 +89,7 @@ export function useMonsterGeneration() {
 
         // ── 3. Upload to Supabase storage ─────────────────────────────
         if (b64 && auth.user) {
-          image_url = await uploadToBucket(
-            BUCKETS.assetImages,
-            auth.user.id,
-            b64ToBlob(b64),
-          );
+          image_url = await uploadToBucket({ bucket: "monsterImages", userId: auth.user.id, blob: b64ToBlob(b64) });
         }
       }
 

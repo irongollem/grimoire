@@ -35,7 +35,7 @@ export interface BucketConfig {
   readonly public: boolean;
 }
 
-const TEN_MB    = 10 * 1024 * 1024;
+const THREE_MB  =  3 * 1024 * 1024;
 const TWENTY_MB = 20 * 1024 * 1024;
 
 const WEBP_ONLY = ["image/webp"] as const;
@@ -54,25 +54,49 @@ const AUDIO_MIMES = [
 export const BUCKETS = {
   npcPortraits: {
     id: "npc-portraits",
-    maxBytes: TEN_MB,
+    maxBytes: THREE_MB,
     mimeTypes: WEBP_ONLY,
     public: true,
   },
   assetImages: {
     id: "asset-images",
-    maxBytes: TEN_MB,
+    maxBytes: THREE_MB,
     mimeTypes: WEBP_ONLY,
     public: true,
   },
   spellImages: {
     id: "spell-images",
-    maxBytes: TEN_MB,
+    maxBytes: THREE_MB,
     mimeTypes: WEBP_ONLY,
     public: true,
   },
   puzzleImages: {
     id: "puzzle-images",
-    maxBytes: TEN_MB,
+    maxBytes: THREE_MB,
+    mimeTypes: WEBP_ONLY,
+    public: true,
+  },
+  itemImages: {
+    id: "item-images",
+    maxBytes: THREE_MB,
+    mimeTypes: WEBP_ONLY,
+    public: true,
+  },
+  monsterImages: {
+    id: "monster-images",
+    maxBytes: THREE_MB,
+    mimeTypes: WEBP_ONLY,
+    public: true,
+  },
+  trapImages: {
+    id: "trap-images",
+    maxBytes: THREE_MB,
+    mimeTypes: WEBP_ONLY,
+    public: true,
+  },
+  locationImages: {
+    id: "location-images",
+    maxBytes: THREE_MB,
     mimeTypes: WEBP_ONLY,
     public: true,
   },
@@ -88,12 +112,19 @@ export type BucketKey = keyof typeof BUCKETS;
 
 // ── Upload / read / delete ────────────────────────────────────────────────
 
-export interface UploadOptions {
-  /** Override the auto-generated `<userId>/<uuid>.<ext>` path. */
+export interface UploadParams {
+  bucket: BucketKey;
+  blob: Blob;
+  /**
+   * Required when `path` is not provided — used to construct the
+   * auto-generated `<userId>/<uuid>.<ext>` storage path.
+   */
+  userId?: string;
+  /** Explicit storage path; skips auto-generation and makes `userId` optional. */
   path?: string;
-  /** File extension when generating a path; default "webp". */
+  /** File extension for auto-generated path; default "webp". */
   ext?: string;
-  /** Override the MIME type sent in the upload (defaults to blob.type). */
+  /** MIME type sent in the upload; defaults to blob.type. */
   contentType?: string;
 }
 
@@ -107,46 +138,46 @@ export interface UploadOptions {
  * For non-public buckets the storage path is returned in place of a URL —
  * callers can resolve a signed URL separately.
  */
-export async function uploadToBucket(
-  bucket: BucketConfig,
-  userId: string,
-  blob: Blob,
-  options: UploadOptions = {},
-): Promise<string | null> {
-  if (blob.size > bucket.maxBytes) {
+export async function uploadToBucket({
+  bucket,
+  blob,
+  userId,
+  path,
+  ext,
+  contentType,
+}: UploadParams): Promise<string | null> {
+  const cfg = BUCKETS[bucket];
+  if (blob.size > cfg.maxBytes) {
     throw new Error(
-      `${bucket.id}: file is ${(blob.size / 1024 / 1024).toFixed(1)} MB, max ${(bucket.maxBytes / 1024 / 1024).toFixed(0)} MB`,
+      `${cfg.id}: file is ${(blob.size / 1024 / 1024).toFixed(1)} MB, max ${(cfg.maxBytes / 1024 / 1024).toFixed(0)} MB`,
     );
   }
-  const contentType = options.contentType ?? blob.type ?? "application/octet-stream";
-  if (!bucket.mimeTypes.includes(contentType)) {
+  const mime = contentType ?? blob.type ?? "application/octet-stream";
+  if (!(cfg.mimeTypes as readonly string[]).includes(mime)) {
     throw new Error(
-      `${bucket.id}: ${contentType} is not allowed (accepts ${bucket.mimeTypes.join(", ")})`,
+      `${cfg.id}: ${mime} is not allowed (accepts ${cfg.mimeTypes.join(", ")})`,
     );
   }
 
-  const path = options.path ?? `${userId}/${crypto.randomUUID()}.${options.ext ?? "webp"}`;
+  const storagePath = path ?? `${userId}/${crypto.randomUUID()}.${ext ?? "webp"}`;
   const { error } = await supabase.storage
-    .from(bucket.id)
-    .upload(path, blob, { contentType });
+    .from(cfg.id)
+    .upload(storagePath, blob, { contentType: mime });
   if (error) return null;
 
-  if (!bucket.public) return path;
-  return supabase.storage.from(bucket.id).getPublicUrl(path).data.publicUrl;
+  if (!cfg.public) return storagePath;
+  return supabase.storage.from(cfg.id).getPublicUrl(storagePath).data.publicUrl;
 }
 
 /** Get a public URL for an existing object (no fetch — pure URL builder). */
-export function getPublicUrl(bucket: BucketConfig, path: string): string {
-  return supabase.storage.from(bucket.id).getPublicUrl(path).data.publicUrl;
+export function getPublicUrl(bucket: BucketKey, path: string): string {
+  return supabase.storage.from(BUCKETS[bucket].id).getPublicUrl(path).data.publicUrl;
 }
 
 /** Remove one or more objects by storage path. */
-export async function deleteFromBucket(
-  bucket: BucketConfig,
-  paths: string[],
-): Promise<void> {
+export async function deleteFromBucket(bucket: BucketKey, paths: string[]): Promise<void> {
   if (!paths.length) return;
-  await supabase.storage.from(bucket.id).remove(paths);
+  await supabase.storage.from(BUCKETS[bucket].id).remove(paths);
 }
 
 /**
@@ -155,12 +186,28 @@ export async function deleteFromBucket(
  * documents that may reference external images alongside ours.
  */
 export async function removeByPublicUrl(
-  bucket: BucketConfig,
+  bucket: BucketKey,
   ...urls: (string | null | undefined)[]
 ): Promise<void> {
-  const marker = `/object/public/${bucket.id}/`;
+  const bucketId = BUCKETS[bucket].id;
+  const marker = `/object/public/${bucketId}/`;
   const paths = urls
     .filter((u): u is string => !!u && u.includes(marker))
     .map((u) => decodeURIComponent(u.slice(u.indexOf(marker) + marker.length)));
   await deleteFromBucket(bucket, paths);
+}
+
+/**
+ * Delete storage objects given their public URLs, auto-detecting the bucket
+ * from the URL itself. Works across all registered buckets — safe to call
+ * when a record may have URLs in different buckets (e.g. after a bucket rename).
+ */
+export async function deleteByPublicUrl(...urls: (string | null | undefined)[]): Promise<void> {
+  for (const [key, cfg] of Object.entries(BUCKETS) as [BucketKey, BucketConfig][]) {
+    const marker = `/object/public/${cfg.id}/`;
+    const paths = urls
+      .filter((u): u is string => !!u && u.includes(marker))
+      .map((u) => decodeURIComponent(u.slice(u.indexOf(marker) + marker.length)));
+    if (paths.length) await deleteFromBucket(key, paths);
+  }
 }

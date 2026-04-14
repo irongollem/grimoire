@@ -5,6 +5,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import type { Location, LocationInsert, LocationUpdate } from "@/types/location.types";
+import { deleteByPublicUrl } from "@/lib/storage";
 import { VAGUE_LOCATION_TYPES } from "@/types/location.types";
 import { SETTING_LOCATIONS, PLANAR_LOCATIONS } from "@/data/settingLocations";
 
@@ -126,8 +127,10 @@ async function deleteLocation(id: string): Promise<void> {
   await supabase.from("quest_refs").delete().eq("ref_type", "location").eq("ref_id", id);
   // Null out quests that have this location set as their primary location
   await supabase.from("quests").update({ location_id: null }).eq("location_id", id);
+  const { data: loc } = await supabase.from("locations").select("image_url, map_url").eq("id", id).single();
   const { error } = await supabase.from("locations").delete().eq("id", id);
   if (error) throw error;
+  if (loc) await deleteByPublicUrl(loc.image_url, loc.map_url);
 }
 
 // ── Public composables ─────────────────────────────────────────────────────────
