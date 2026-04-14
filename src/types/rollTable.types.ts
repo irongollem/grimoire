@@ -37,9 +37,6 @@ export interface RollTableEntry {
   /** Optional FK into `encounters` — we never JOIN on this server-side,
    *  the client resolves it via `useEncounters()` for display + navigation. */
   encounter_id?: string | null;
-  /** Optional creature count expression (e.g. "1d4", "2", "1d6+2") — purely
-   *  for display, not auto-rolled. The encounter sets its own monster counts. */
-  count?: string | null;
   /** Free-form DM note shown alongside the rolled entry. */
   notes?: string | null;
 }
