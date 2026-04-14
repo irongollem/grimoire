@@ -65,7 +65,7 @@ export function validateEntries(entries: LootEntry[]): string | null {
     } else if (typeof e.dice !== "string") {
       return "Quantity dice must be a string like '2d4' or '3d6 + 2'.";
     }
-    if (e.fixed_qty != null && (!Number.isInteger(e.fixed_qty) || e.fixed_qty < 0)) {
+    if (e.fixed_qty !== null && e.fixed_qty !== undefined && (!Number.isInteger(e.fixed_qty) || e.fixed_qty < 0)) {
       return "Fixed quantity must be a non-negative integer.";
     }
   }

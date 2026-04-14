@@ -390,10 +390,9 @@ async function handleClaimLootChest({ messageId, atomId }: { messageId: string; 
   try {
     await claimLootChestAtom(messageId, atomId, claimerName);
   } catch (e) {
-    // Lost the race / chest empty / item already claimed — surfaced as a
-    // toast would be nicer; for now console + bail. The chest UI re-renders
-    // from realtime so the user sees the new state immediately.
-    console.warn("Loot chest claim failed:", e);
+    // Lost the race / chest empty / item already claimed.
+    // The chest UI re-renders from realtime so the user sees the new state immediately.
+    // TODO: surface this as a toast notification.
     return;
   }
 

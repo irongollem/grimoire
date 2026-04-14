@@ -69,7 +69,7 @@ create policy "campaign_rules_delete" on campaign_rules
 --     { "label": "Warm Up",      "delta": -1 }
 --   ]
 -- }
-alter table custom_rules add column if not exists tracker jsonb;
+alter table rules add column if not exists tracker jsonb;
 
 
 -- ── 3. Per-character tracker state ───────────────────────────────────────────
@@ -80,7 +80,7 @@ create table party_member_tracker_state (
   party_member_id uuid not null references party_members(id) on delete cascade,
   campaign_id     uuid not null references campaigns(id) on delete cascade,
   rule_key        text,       -- set for built-in rules
-  rule_id         uuid references custom_rules(id) on delete cascade,  -- set for custom rules
+  rule_id         uuid references rules(id) on delete cascade,  -- set for custom rules
   value           int not null default 0,
   updated_at      timestamptz not null default now(),
   -- enforce exactly-one-source constraint

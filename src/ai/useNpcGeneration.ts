@@ -104,7 +104,7 @@ export function useNpcGeneration() {
       const imageProvider = getImageProvider();
 
       // ── 1. Generate NPC text data ──────────────────────────────────
-      let systemContent = `${NPC_SYSTEM_PROMPT}${buildCampaignContext({
+      const systemContent = `${NPC_SYSTEM_PROMPT}${buildCampaignContext({
         setting: settingPrompt,
       })}`;
 

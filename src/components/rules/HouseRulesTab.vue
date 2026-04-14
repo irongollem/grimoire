@@ -116,7 +116,7 @@ const filteredRules = computed(() => {
 const openRules = shallowRef(new Set<string>());
 function toggleRule(id: string) {
   const next = new Set(openRules.value);
-  next.has(id) ? next.delete(id) : next.add(id);
+  if (next.has(id)) { next.delete(id); } else { next.add(id); }
   openRules.value = next;
 }
 </script>

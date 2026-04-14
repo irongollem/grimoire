@@ -349,13 +349,13 @@ function toggleMapSize(id: string) {
 
 function toggleDetail(id: string) {
   const s = new Set(detailOpen.value);
-  s.has(id) ? s.delete(id) : s.add(id);
+  if (s.has(id)) { s.delete(id); } else { s.add(id); }
   detailOpen.value = s;
 }
 
 function toggleChildren(id: string) {
   const s = new Set(childrenOpen.value);
-  s.has(id) ? s.delete(id) : s.add(id);
+  if (s.has(id)) { s.delete(id); } else { s.add(id); }
   childrenOpen.value = s;
 }
 

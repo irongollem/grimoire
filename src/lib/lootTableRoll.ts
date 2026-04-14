@@ -65,6 +65,6 @@ function rollQuantity(entry: LootEntry): number {
       return Math.max(0, Math.floor(total));
     }
   }
-  if (entry.fixed_qty != null && entry.fixed_qty > 0) return entry.fixed_qty;
+  if (entry.fixed_qty !== null && entry.fixed_qty !== undefined && entry.fixed_qty > 0) return entry.fixed_qty;
   return 1;
 }

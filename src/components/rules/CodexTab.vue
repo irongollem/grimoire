@@ -683,7 +683,7 @@ function isRichText(value: string | null | undefined): boolean {
 const open = shallowRef(new Set<string>());
 function toggle(key: string) {
   const next = new Set(open.value);
-  next.has(key) ? next.delete(key) : next.add(key);
+  if (next.has(key)) { next.delete(key); } else { next.add(key); }
   open.value = next;
 }
 </script>

@@ -112,7 +112,6 @@
                 :value="entry.dice ?? ''"
                 placeholder="2d4 or 3"
                 class="w-full bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                title="Dice expression (3d6, 1d4+1) or empty for the fixed quantity below"
                 @input="(e) => onQuantityInput(entry, (e.target as HTMLInputElement).value)"
               />
 
@@ -303,12 +302,12 @@
             </button>
             <button
               type="button"
-              :disabled="dropping || !dropPreviewAtoms.length || claimsTotal === null"
+              :disabled="dropping || !dropPreviewAtoms.length || claimsRolled === null"
               class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
               @click="onDrop"
             >
               <PackageOpen class="size-3.5" />
-              {{ dropping ? "Dropping…" : `Drop chest (${claimsTotal} ${claimsTotal === 1 ? 'claim' : 'claims'})` }}
+              {{ dropping ? "Dropping…" : `Drop chest (${claimsRolled} ${claimsRolled === 1 ? 'claim' : 'claims'})` }}
             </button>
           </div>
         </div>
@@ -489,17 +488,31 @@ async function onDelete() {
 }
 
 // ── Drop-in-chat dialog ─────────────────────────────────────────────────────
-const dropDialogOpen   = ref(false);
-const claimsDice       = ref("1");
-const chestImageUrl    = ref<string | null>(null);
-const dropping         = ref(false);
+const dropDialogOpen    = ref(false);
+const claimsDice        = ref("1");
+const claimsRolled      = ref<number | null>(1);
+const chestImageUrl     = ref<string | null>(null);
+const dropping          = ref(false);
 const uploadingChestImg = ref(false);
 
-// Re-roll the table whenever the dialog opens so the DM gets a fresh preview.
+function rollClaims() {
+  const raw = claimsDice.value.trim();
+  if (!raw) { claimsRolled.value = null; return; }
+  const n = Number(raw);
+  if (Number.isInteger(n) && n >= 0) { claimsRolled.value = n; return; }
+  const parsed = parseExpression(raw);
+  if (!parsed) { claimsRolled.value = null; return; }
+  claimsRolled.value = Math.max(0, Math.floor(rollExpression(parsed)));
+}
+
+// Re-roll the table (and claims) whenever the dialog opens so the DM gets a fresh preview.
 const dropPreview = ref<RolledLootEntry[]>([]);
 watch(dropDialogOpen, (open) => {
   if (open) reroll();
 });
+
+// Re-roll claims whenever the dice expression changes.
+watch(claimsDice, rollClaims);
 
 function reroll() {
   const transient = {
@@ -510,6 +523,7 @@ function reroll() {
     created_at: "", updated_at: "",
   };
   dropPreview.value = rollLootTable(transient, itemsById.value);
+  rollClaims();
 }
 
 // Expand each rolled entry into per-quantity atoms (qty 2 → two atoms with
@@ -531,23 +545,6 @@ const dropPreviewAtoms = computed<LootChestAtom[]>(() => {
   return atoms;
 });
 
-// Roll the claims dice expression at preview time so the button label can
-// show the cap. Returns null while the input is empty / unparseable.
-const claimsTotal = computed<number | null>(() => {
-  const raw = claimsDice.value.trim();
-  if (!raw) return null;
-  const n = Number(raw);
-  if (Number.isInteger(n) && n >= 0) return n;
-  // Re-roll on every keystroke would be confusing — instead derive a
-  // deterministic average so the label stays steady, then re-roll the actual
-  // value at drop time below.
-  const parsed = parseExpression(raw);
-  if (!parsed) return null;
-  // Show worst-case ceiling = sum of (count * sides) + modifier — gives the
-  // DM a feel for "how many at most" without spoiling the actual roll.
-  const max = parsed.terms.reduce((s, t) => s + t.count * t.sides, 0) + parsed.modifier;
-  return Math.max(0, Math.floor(max));
-});
 
 function onChestFileChange(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0];
@@ -570,18 +567,10 @@ function closeDropDialog() {
 const { sendLootChest } = useCampaignMessages();
 
 async function onDrop() {
-  const raw = claimsDice.value.trim() || "1";
-  let claimsRolled = 1;
-  const n = Number(raw);
-  if (Number.isInteger(n) && n >= 0) {
-    claimsRolled = n;
-  } else {
-    const parsed = parseExpression(raw);
-    if (parsed) claimsRolled = Math.max(0, Math.floor(rollExpression(parsed)));
-  }
+  if (claimsRolled.value === null) return;
   // Cap at the number of rolled atoms — no point promising 5 claims when only
   // 3 items dropped. Players will see "3 of 3 claimed" once the chest is empty.
-  const cap = Math.min(claimsRolled, dropPreviewAtoms.value.length);
+  const cap = Math.min(claimsRolled.value, dropPreviewAtoms.value.length);
   if (cap <= 0) return;
 
   const metadata: LootChestMetadata = {

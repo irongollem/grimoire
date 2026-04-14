@@ -134,8 +134,8 @@ const CLASS_NAMES = computed(() => {
 defineExpose({ CLASS_NAMES });
 
 const loadingExample = ref(false);
-let resetTimer: ReturnType<typeof setTimeout> | null = null;
-onBeforeUnmount(() => { if (resetTimer) clearTimeout(resetTimer); });
+const resetTimer = { current: null as ReturnType<typeof setTimeout> | null };
+onBeforeUnmount(() => { if (resetTimer.current) clearTimeout(resetTimer.current); });
 
 async function createExample() {
   loadingExample.value = true;
