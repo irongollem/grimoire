@@ -219,7 +219,7 @@ export const useUiStore = defineStore("ui", () => {
   }
 
   // Character Codex — active tab in the consolidated player-options page.
-  const codexActiveTab = ref<"species" | "backgrounds" | "classes">("species");
+  const codexActiveTab = ref<"species" | "backgrounds" | "classes" | "archetypes">("species");
 
   // Soundboard UI state
   const soundboardFilterCategory = ref<SoundCategory | "all">("all");

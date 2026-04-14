@@ -17,7 +17,7 @@
             activeTab === tab.id ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground',
             tab.max != null && tab.count > tab.max ? 'bg-destructive/20! text-destructive!' : ''
           ]"
-        >{{ tab.count }}{{ tab.max != null ? ` / ${tab.max}` : '' }}{{ tab.cantrips ? ` + ${tab.cantrips}C` : '' }}</span>
+        >{{ tab.count }}{{ tab.max != null ? ` / ${tab.max}` : '' }}{{ tab.cantrips != null ? ` + ${tab.cantrips}${tab.maxCantrips != null ? `/${tab.maxCantrips}` : ''}C` : '' }}</span>
       </button>
     </div>
 
@@ -194,6 +194,13 @@ const maxKnown      = computed(() => {
   if (!table) return null;
   return table[Math.min(m.level, 20) - 1] ?? null;
 });
+const maxCantrips   = computed(() => {
+  const m = member.value;
+  if (!m) return null;
+  const table = classData.value?.cantrips_known;
+  if (!table) return null;
+  return table[Math.min(m.level, 20) - 1] ?? null;
+});
 
 // ── Tabs ───────────────────────────────────────────────────────────────────────
 type TabId = "prepared" | "spellbook" | "browse";
@@ -209,20 +216,20 @@ const tabs = computed(() => {
   const cls  = memberClass.value;
 
   if (type === "spellbook") return [
-    { id: "prepared" as TabId,  label: "Prepared",  count: preparedCount.value, max: null, cantrips: null },
-    { id: "spellbook" as TabId, label: "Spellbook", count: knownCount.value,    max: null, cantrips: null },
-    { id: "browse" as TabId,    label: "All Spells", count: null,               max: null, cantrips: null },
+    { id: "prepared" as TabId,  label: "Prepared",  count: preparedCount.value, max: null, cantrips: null, maxCantrips: null },
+    { id: "spellbook" as TabId, label: "Spellbook", count: knownCount.value,    max: null, cantrips: null, maxCantrips: null },
+    { id: "browse" as TabId,    label: "All Spells", count: null,               max: null, cantrips: null, maxCantrips: null },
   ];
   if (type === "prepared") return [
-    { id: "prepared" as TabId, label: "Prepared",           count: preparedCount.value, max: null, cantrips: null },
-    { id: "browse" as TabId,   label: allSpellsLabel.value, count: null,               max: null, cantrips: null },
+    { id: "prepared" as TabId, label: "Prepared",           count: preparedCount.value, max: null, cantrips: null, maxCantrips: null },
+    { id: "browse" as TabId,   label: allSpellsLabel.value, count: null,               max: null, cantrips: null, maxCantrips: null },
   ];
   if (type === "known") return [
-    { id: "spellbook" as TabId, label: `Known ${cls ? cls : ""}`.trim(), count: knownCount.value, max: maxKnown.value, cantrips: cantripCount.value },
-    { id: "browse" as TabId,    label: allSpellsLabel.value,             count: null,              max: null,          cantrips: null },
+    { id: "spellbook" as TabId, label: `Known ${cls ? cls : ""}`.trim(), count: knownCount.value, max: maxKnown.value, cantrips: cantripCount.value, maxCantrips: maxCantrips.value },
+    { id: "browse" as TabId,    label: allSpellsLabel.value,             count: null,              max: null,          cantrips: null,               maxCantrips: null },
   ];
   // none — just browse
-  return [{ id: "browse" as TabId, label: "All Spells", count: null, max: null, cantrips: null }];
+  return [{ id: "browse" as TabId, label: "All Spells", count: null, max: null, cantrips: null, maxCantrips: null }];
 });
 
 const defaultTab = computed((): TabId => tabs.value[0].id);

@@ -227,6 +227,7 @@ async function duplicate(cls: SystemClass) {
       asi_levels: cls.asi_levels,
       spell_slots: cls.spell_slots,
       spells_known: cls.spells_known,
+      cantrips_known: cls.cantrips_known,
       slot_recovery: cls.slot_recovery,
       caster_type: cls.caster_type,
       prepared_ability: cls.prepared_ability,

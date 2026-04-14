@@ -51,6 +51,16 @@
           </p>
         </template>
 
+        <!-- Cantrips known increase -->
+        <div v-if="cantripsKnownGain > 0"
+          class="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/20 px-3 py-2">
+          <span class="font-cinzel text-xs text-primary tracking-wider">CANTRIPS</span>
+          <span class="font-fell text-sm text-foreground">
+            Cantrips known increases to <strong class="font-cinzel">{{ cantripsKnownTotal }}</strong>
+            — pick {{ cantripsKnownGain }} new cantrip{{ cantripsKnownGain > 1 ? 's' : '' }} below.
+          </span>
+        </div>
+
         <!-- Spells known increase -->
         <div v-if="spellsKnownGain > 0"
           class="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/20 px-3 py-2">
@@ -213,12 +223,12 @@
           class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
 
         <div class="max-h-64 overflow-y-auto rounded border border-border divide-y divide-border">
-          <div v-if="!spellPageData?.spells.length" class="px-3 py-4 text-center">
+          <div v-if="!filteredSpells.length" class="px-3 py-4 text-center">
             <p class="font-fell text-sm text-muted-foreground italic">
               {{ spellSearch ? 'No spells match your search.' : 'No spells found for this class.' }}
             </p>
           </div>
-          <button v-for="spell in spellPageData?.spells" :key="spell.id" type="button"
+          <button v-for="spell in filteredSpells" :key="spell.id" type="button"
             class="w-full text-left px-3 py-2 transition-colors flex items-center gap-3"
             :class="[
               alreadyKnownIds.has(spell.id) ? 'opacity-40 cursor-not-allowed' :
@@ -240,6 +250,51 @@
 
         <p v-if="selectedSpellIds.size < spellsKnownGain" class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
           You can also add spells later from your Spellbook tab.
+        </p>
+      </div>
+
+      <!-- Cantrip picker (known casters gaining cantrips) -->
+      <div v-if="cantripsKnownGain > 0" class="rounded-lg border border-border bg-card p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">Choose New Cantrips</h3>
+          <span class="font-cinzel text-xs font-bold"
+            :class="selectedCantripIds.size === cantripsKnownGain ? 'text-green-500' : 'text-primary'">
+            {{ selectedCantripIds.size }} / {{ cantripsKnownGain }}
+          </span>
+        </div>
+        <p class="font-fell text-sm text-muted-foreground">
+          Pick {{ cantripsKnownGain }} new cantrip{{ cantripsKnownGain > 1 ? 's' : '' }} to learn.
+        </p>
+
+        <input v-model="cantripSearch" type="text" placeholder="Search cantrips…"
+          class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+
+        <div class="max-h-64 overflow-y-auto rounded border border-border divide-y divide-border">
+          <div v-if="!cantripPageData?.spells.length" class="px-3 py-4 text-center">
+            <p class="font-fell text-sm text-muted-foreground italic">
+              {{ cantripSearch ? 'No cantrips match your search.' : 'No cantrips found for this class.' }}
+            </p>
+          </div>
+          <button v-for="spell in cantripPageData?.spells" :key="spell.id" type="button"
+            class="w-full text-left px-3 py-2 transition-colors flex items-center gap-3"
+            :class="[
+              alreadyKnownIds.has(spell.id) ? 'opacity-40 cursor-not-allowed' :
+              selectedCantripIds.has(spell.id) ? 'bg-primary/10 text-primary' :
+              selectedCantripIds.size >= cantripsKnownGain ? 'opacity-50 cursor-not-allowed' : 'bg-card text-foreground hover:bg-muted/40'
+            ]"
+            :disabled="alreadyKnownIds.has(spell.id) || (!selectedCantripIds.has(spell.id) && selectedCantripIds.size >= cantripsKnownGain)"
+            @click="toggleCantrip(spell.id)">
+            <div class="flex-1 min-w-0">
+              <p class="font-cinzel text-xs font-semibold">{{ spell.name }}</p>
+              <p class="font-fell text-[11px] text-muted-foreground">Cantrip · {{ spell.school }}</p>
+            </div>
+            <span v-if="alreadyKnownIds.has(spell.id)" class="font-cinzel text-[10px] text-muted-foreground shrink-0">known</span>
+            <span v-else-if="selectedCantripIds.has(spell.id)" class="font-cinzel text-[10px] text-primary shrink-0">✓</span>
+          </button>
+        </div>
+
+        <p v-if="selectedCantripIds.size < cantripsKnownGain" class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
+          You can also add cantrips later from your Spellbook tab.
         </p>
       </div>
 
@@ -354,6 +409,26 @@ const spellsKnownGain = computed(() => {
 const spellsKnownTotal = computed(() => {
   const table = customClass.value?.spells_known ?? systemClass.value?.spells_known;
   return table?.[nextLevel.value - 1] ?? 0;
+});
+
+const cantripsKnownGain = computed(() => {
+  const table = customClass.value?.cantrips_known ?? systemClass.value?.cantrips_known;
+  if (!table) return 0;
+  const cur  = table[nextLevel.value - 1] ?? 0;
+  const prev = table[props.member.level - 1] ?? 0;
+  return Math.max(0, cur - prev);
+});
+
+const cantripsKnownTotal = computed(() => {
+  const table = customClass.value?.cantrips_known ?? systemClass.value?.cantrips_known;
+  return table?.[nextLevel.value - 1] ?? 0;
+});
+
+/** Highest spell slot level available at nextLevel — caps what spells can be learned. */
+const maxCastableLevel = computed(() => {
+  const slots = newSpellSlots.value;
+  if (slots.length === 0) return 9; // no slot data → no restriction
+  return Math.max(...slots.map(s => s.level));
 });
 
 const customFeaturesForLevel = computed<string[]>(() => {
@@ -473,6 +548,10 @@ const spellFilters = computed(() => ({
 }));
 const spellPage = ref(0);
 const { data: spellPageData } = useSpellsPage(spellFilters, spellPage);
+/** Only show spells the character can actually cast (level ≤ max slot level). */
+const filteredSpells = computed(() =>
+  (spellPageData.value?.spells ?? []).filter(s => s.level > 0 && s.level <= maxCastableLevel.value),
+);
 
 const { data: characterSpells } = useCharacterSpells(computed(() => props.member.id));
 const alreadyKnownIds = computed(() => new Set((characterSpells.value ?? []).map(s => s.spell_id)));
@@ -487,6 +566,30 @@ function toggleSpell(id: string) {
     selectedSpellIds.value = next;
   } else if (selectedSpellIds.value.size < spellsKnownGain.value) {
     selectedSpellIds.value = new Set([...selectedSpellIds.value, id]);
+  }
+}
+
+// ── Cantrip picker ─────────────────────────────────────────────────────────────
+const cantripSearch = ref("");
+const cantripFilters = computed(() => ({
+  search: cantripSearch.value,
+  level: "0",
+  school: "",
+  class: memberClass.value,
+  source: "",
+}));
+const cantripPage = ref(0);
+const { data: cantripPageData } = useSpellsPage(cantripFilters, cantripPage);
+
+const selectedCantripIds = ref(new Set<string>());
+function toggleCantrip(id: string) {
+  if (alreadyKnownIds.value.has(id)) return;
+  if (selectedCantripIds.value.has(id)) {
+    const next = new Set(selectedCantripIds.value);
+    next.delete(id);
+    selectedCantripIds.value = next;
+  } else if (selectedCantripIds.value.size < cantripsKnownGain.value) {
+    selectedCantripIds.value = new Set([...selectedCantripIds.value, id]);
   }
 }
 
@@ -604,8 +707,11 @@ async function confirm() {
   try {
     await updateMember({ id: props.member.id, update: update as PartyMemberUpdate });
 
-    // Add selected spells to character_spells
+    // Add selected spells and cantrips to character_spells
     for (const spellId of selectedSpellIds.value) {
+      await addSpell({ partyMemberId: props.member.id, spellId, isPrepared: false });
+    }
+    for (const spellId of selectedCantripIds.value) {
       await addSpell({ partyMemberId: props.member.id, spellId, isPrepared: false });
     }
 

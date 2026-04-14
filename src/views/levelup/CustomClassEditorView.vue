@@ -275,6 +275,15 @@
             </label>
           </div>
 
+          <!-- Cantrips known toggle -->
+          <div>
+            <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1.5">CANTRIPS KNOWN TABLE</label>
+            <label class="flex items-center gap-2 cursor-pointer font-fell text-sm text-foreground">
+              <input type="checkbox" v-model="hasCantripsKnown" class="accent-primary" />
+              Track cantrips known per level
+            </label>
+          </div>
+
           <!-- Prepared spell formula (only for prepared/spellbook) -->
           <template v-if="form.caster_type === 'prepared' || form.caster_type === 'spellbook'">
             <div>
@@ -307,6 +316,7 @@
                 <th class="font-cinzel text-[9px] tracking-widest text-muted-foreground pb-1.5 pr-2 text-left w-8">LVL</th>
                 <th v-for="sl in 9" :key="sl" class="font-cinzel text-[9px] tracking-widest text-muted-foreground pb-1.5 w-10">{{ sl }}</th>
                 <th v-if="hasSpellsKnown" class="font-cinzel text-[9px] tracking-widest text-muted-foreground pb-1.5 w-12 pl-2">KNOWN</th>
+                <th v-if="hasCantripsKnown" class="font-cinzel text-[9px] tracking-widest text-muted-foreground pb-1.5 w-12 pl-2">CANTRIPS</th>
               </tr>
             </thead>
             <tbody>
@@ -329,6 +339,15 @@
                     min="0"
                     class="w-10 bg-muted/40 border border-border rounded px-1 py-0.5 font-fell text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
                     @input="setSpellsKnown(lvl - 1, ($event.target as HTMLInputElement).valueAsNumber)"
+                  />
+                </td>
+                <td v-if="hasCantripsKnown" class="py-0.5 pl-2">
+                  <input
+                    :value="(form.cantrips_known ?? [])[lvl - 1] ?? 0"
+                    type="number"
+                    min="0"
+                    class="w-10 bg-muted/40 border border-border rounded px-1 py-0.5 font-fell text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                    @input="setCantripsKnown(lvl - 1, ($event.target as HTMLInputElement).valueAsNumber)"
                   />
                 </td>
               </tr>
@@ -593,6 +612,7 @@ interface FormState {
   isSpellcaster: boolean;
   spell_slots: number[][];
   spells_known: number[] | null;
+  cantrips_known: number[] | null;
   slot_recovery: "short" | "long";
   caster_type: CasterType;
   prepared_ability: PreparedAbility | null;
@@ -614,6 +634,7 @@ const form = ref<FormState>({
   isSpellcaster: false,
   spell_slots: emptySlotGrid(),
   spells_known: null,
+  cantrips_known: null,
   slot_recovery: "long",
   caster_type: "none",
   prepared_ability: "wis",
@@ -625,6 +646,11 @@ const form = ref<FormState>({
 const hasSpellsKnown = computed({
   get: () => form.value.spells_known !== null,
   set: (v) => { form.value.spells_known = v ? Array(20).fill(0) : null; },
+});
+
+const hasCantripsKnown = computed({
+  get: () => form.value.cantrips_known !== null,
+  set: (v) => { form.value.cantrips_known = v ? Array(20).fill(0) : null; },
 });
 
 const campaignScope = ref<string>("all");
@@ -653,6 +679,7 @@ watch(existing, (val) => {
     isSpellcaster: rawSlots !== null,
     spell_slots: slotGrid,
     spells_known: (raw.spells_known as number[] | null) ?? null,
+    cantrips_known: (raw.cantrips_known as number[] | null) ?? null,
     slot_recovery: (raw.slot_recovery as "short" | "long") ?? "long",
     caster_type: (raw.caster_type as CasterType) !== "none" ? (raw.caster_type as CasterType) : rawSlots !== null ? "prepared" : "none",
     prepared_ability: raw.prepared_ability ?? "wis",
@@ -755,6 +782,12 @@ function setSpellsKnown(levelIdx: number, value: number) {
   form.value.spells_known = arr;
 }
 
+function setCantripsKnown(levelIdx: number, value: number) {
+  const arr = [...(form.value.cantrips_known ?? Array(20).fill(0))];
+  arr[levelIdx] = isNaN(value) ? 0 : value;
+  form.value.cantrips_known = arr;
+}
+
 // ── Resources section ─────────────────────────────────────────────────────────
 
 function addResource() {
@@ -791,6 +824,7 @@ async function save() {
     asi_levels: form.value.asi_levels,
     spell_slots: form.value.isSpellcaster ? form.value.spell_slots : null,
     spells_known: form.value.isSpellcaster ? (form.value.spells_known ?? null) : null,
+    cantrips_known: form.value.isSpellcaster ? (form.value.cantrips_known ?? null) : null,
     slot_recovery: form.value.isSpellcaster ? form.value.slot_recovery : "long",
     caster_type: form.value.isSpellcaster ? form.value.caster_type : "none",
     prepared_ability: form.value.isSpellcaster && form.value.caster_type !== "known" ? form.value.prepared_ability : null,

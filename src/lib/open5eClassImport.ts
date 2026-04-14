@@ -84,6 +84,7 @@ export function baseClassToInsert(preview: Open5eClassPreview): CustomClassInser
     asi_levels: [4, 8, 12, 16, 19],
     spell_slots: null,
     spells_known: null,
+    cantrips_known: null,
     slot_recovery: "long",
     caster_type: "none",
     prepared_ability: null,

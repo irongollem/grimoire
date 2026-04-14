@@ -361,13 +361,13 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Puzzle" },
     },
 
-    // Character Codex (Species / Backgrounds / Classes tabs)
+    // Character Codex (Species / Backgrounds / Classes / Archetypes tabs)
     {
       path: "/codex",
       redirect: "/codex/species",
     },
     {
-      path: "/codex/:tab(species|backgrounds|classes)",
+      path: "/codex/:tab(species|backgrounds|classes|archetypes)",
       name: "codex",
       component: () => import("@/views/codex/CharacterCodexView.vue"),
       meta: { requiresAuth: true, title: "Character Codex" },
@@ -409,13 +409,8 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Ability" },
     },
 
-    // Archetypes (Custom Subclasses)
-    {
-      path: "/levelup/custom",
-      name: "archetypes",
-      component: () => import("@/views/levelup/CustomSubclassListView.vue"),
-      meta: { requiresAuth: true, title: "Archetypes" },
-    },
+    // Archetypes (Custom Subclasses) — list lives in the Codex; redirect old entry
+    { path: "/levelup/custom", redirect: "/codex/archetypes" },
     {
       path: "/levelup/custom/new",
       name: "archetype-new",
@@ -429,13 +424,8 @@ const router = createRouter({
       meta: { requiresAuth: true, title: "Archetype" },
     },
 
-    // Custom Classes
-    {
-      path: "/levelup/classes",
-      name: "custom-classes",
-      component: () => import("@/views/levelup/CustomClassListView.vue"),
-      meta: { requiresAuth: true, title: "Classes" },
-    },
+    // Custom Classes — list lives in the Codex; redirect old entry
+    { path: "/levelup/classes", redirect: "/codex/classes" },
     {
       path: "/levelup/classes/new",
       name: "custom-class-new",

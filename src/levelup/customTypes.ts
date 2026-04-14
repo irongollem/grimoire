@@ -86,6 +86,12 @@ export interface CustomClass {
    */
   spells_known: number[] | null;
 
+  /**
+   * Total cantrips known at each class level (20-element array).
+   * null = no cantrip progression defined.
+   */
+  cantrips_known: number[] | null;
+
   /** Whether spell slots recharge on short or long rest. */
   slot_recovery: "short" | "long";
 
@@ -120,6 +126,7 @@ export interface SystemClass {
   asi_levels: number[];
   spell_slots: number[][] | null;
   spells_known: number[] | null;
+  cantrips_known: number[] | null;
   slot_recovery: "short" | "long";
   caster_type: CasterType;
   prepared_ability: PreparedAbility | null;

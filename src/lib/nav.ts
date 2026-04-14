@@ -21,7 +21,6 @@ import {
   Music2,
   Dna,
   Zap,
-  GraduationCap,
 } from "lucide-vue-next";
 import type { Component } from "vue";
 
@@ -169,7 +168,7 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Character Codex",
         to: "/codex",
         icon: Dna,
-        description: "Species, backgrounds & classes for your players",
+        description: "Species, backgrounds, classes & archetypes for your players",
       },
       {
         label: "Hall of Heroes",
@@ -182,18 +181,6 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/features",
         icon: Zap,
         description: "Class features & ability compendium",
-      },
-      {
-        label: "Archetypes",
-        to: "/levelup/custom",
-        icon: GraduationCap,
-        description: "Custom subclasses & class variants",
-      },
-      {
-        label: "Classes",
-        to: "/levelup/classes",
-        icon: BookOpen,
-        description: "Custom primary classes",
       },
     ],
   },

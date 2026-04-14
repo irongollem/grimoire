@@ -1,7 +1,7 @@
 <template>
   <!--
     Consolidated compendium for player character options — Species,
-    Backgrounds, and (eventually) Classes. Same tabbed shell as the Rules
+    Backgrounds, Classes, and Archetypes. Same tabbed shell as the Rules
     Reliquary, with each tab a self-contained list + import flow.
 
     Tab state is kept in `useUiStore.codexActiveTab` so navigating away and
@@ -10,9 +10,9 @@
     sync the tab ref to it on mount + watch, and each tab click pushes a
     new route so deep links like `/codex/backgrounds` work directly.
   -->
-  <ListPageLayout title="Character Codex" description="Species, backgrounds, and classes for your players">
+  <ListPageLayout title="Character Codex" description="Species, backgrounds, classes & archetypes for your players">
     <template #actions>
-      <!-- Species tab: Import Open5e panel trigger -->
+      <!-- Species tab -->
       <ListActionButton
         v-if="activeTab === 'species'"
         :icon="Download"
@@ -27,7 +27,7 @@
         to="/species/new"
       />
 
-      <!-- Backgrounds tab: Open5e sync + New -->
+      <!-- Backgrounds tab -->
       <template v-if="activeTab === 'backgrounds'">
         <div ref="sourcePickerRef" class="relative shrink-0">
           <button
@@ -72,10 +72,10 @@
           </div>
         </div>
         <ListActionButton
-          :icon="importMutation.isPending.value ? Loader2 : Download"
-          :label="importStatusLabel"
-          :disabled="importMutation.isPending.value"
-          @click="handleImport"
+          :icon="bgImportMutation.isPending.value ? Loader2 : Download"
+          :label="bgImportStatusLabel"
+          :disabled="bgImportMutation.isPending.value"
+          @click="handleBgImport"
         />
         <ListActionButton
           :icon="Plus"
@@ -83,6 +83,28 @@
           variant="primary"
           to="/backgrounds/new"
         />
+      </template>
+
+      <!-- Classes tab -->
+      <template v-if="activeTab === 'classes'">
+        <ListActionButton
+          :icon="classImportMutation.isPending.value ? Loader2 : Download"
+          :label="classImportLabel"
+          :disabled="classImportMutation.isPending.value"
+          @click="handleClassImport"
+        />
+        <ListActionButton :icon="Plus" label="New Class" variant="primary" to="/levelup/classes/new" />
+      </template>
+
+      <!-- Archetypes tab -->
+      <template v-if="activeTab === 'archetypes'">
+        <ListActionButton
+          :icon="archetypeImportMutation.isPending.value ? Loader2 : Download"
+          :label="archetypeImportLabel"
+          :disabled="archetypeImportMutation.isPending.value"
+          @click="handleArchetypeImport"
+        />
+        <ListActionButton :icon="Plus" label="New Archetype" variant="primary" to="/levelup/custom/new" />
       </template>
     </template>
 
@@ -112,18 +134,36 @@
         />
       </ListFilterBar>
     </template>
+    <template v-if="activeTab === 'classes'" #filters>
+      <ListFilterBar
+        :has-active-filters="ui.customClassesHasActiveFilters"
+        @clear="ui.resetCustomClassesFilters()"
+      >
+        <ListSearchInput v-model="ui.customClassesSearch" placeholder="Search classes…" />
+      </ListFilterBar>
+    </template>
+    <template v-if="activeTab === 'archetypes'" #filters>
+      <ListFilterBar
+        :has-active-filters="ui.archetypesHasActiveFilters"
+        @clear="ui.resetArchetypesFilters()"
+      >
+        <ListSearchInput v-model="ui.archetypesSearch" placeholder="Search archetypes…" />
+        <ListFilterSelect v-model="ui.archetypesFilterClass">
+          <option value="all">All classes</option>
+          <option v-for="cls in archetypeClassNames" :key="cls" :value="cls">{{ cls }}</option>
+        </ListFilterSelect>
+      </ListFilterBar>
+    </template>
 
-    <!-- Tab bar (body content, mirrors the RulesView pattern) -->
+    <!-- Tab bar -->
     <div class="flex gap-1 mb-6 border-b border-border overflow-x-auto">
       <button
         v-for="tab in TABS"
         :key="tab.id"
-        class="flex items-center gap-1.5 px-4 py-2.5 font-cinzel text-xs font-semibold tracking-wider border-b-2 -mb-px transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+        class="flex items-center gap-1.5 px-4 py-2.5 font-cinzel text-xs font-semibold tracking-wider border-b-2 -mb-px transition-colors shrink-0"
         :class="activeTab === tab.id
           ? 'border-primary text-primary'
           : 'border-transparent text-muted-foreground hover:text-foreground'"
-        :disabled="tab.disabled"
-        :title="tab.disabled ? 'Coming soon' : undefined"
         @click="selectTab(tab.id)"
       >
         <component :is="tab.icon" class="h-3.5 w-3.5" />
@@ -133,47 +173,51 @@
 
     <SpeciesList v-if="activeTab === 'species'" />
     <BackgroundList v-else-if="activeTab === 'backgrounds'" />
-    <div v-else-if="activeTab === 'classes'" class="rounded-lg border border-border border-dashed px-6 py-16 text-center">
-      <GraduationCap class="h-10 w-10 text-muted-foreground/40 mx-auto mb-4" />
-      <p class="font-cinzel text-sm font-semibold text-muted-foreground">Classes & subclasses</p>
-      <p class="font-fell text-xs text-muted-foreground/70 italic mt-2">
-        Coming soon — the custom classes feature is queued up; this tab will surface it
-        alongside the Open5e class chassis data.
-      </p>
-    </div>
+    <ClassList v-else-if="activeTab === 'classes'" />
+    <ArchetypeList v-else-if="activeTab === 'archetypes'" ref="archetypeListRef" />
 
-    <!-- Species import panel (existing component, mounted at this level so it
-         can open from either the top button or the empty-state) -->
+    <!-- Species import panel -->
     <SpeciesOpen5ePanel v-if="activeTab === 'species'" />
   </ListPageLayout>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onMounted } from "vue";
+import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useLocalStorage, onClickOutside } from "@vueuse/core";
-import { Dna, BookUser, GraduationCap, Download, Plus, Settings2, Loader2 } from "lucide-vue-next";
+import { Dna, BookUser, GraduationCap, BookOpen, Zap, Download, Plus, Settings2, Loader2 } from "lucide-vue-next";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
+import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import SpeciesList from "@/components/species/SpeciesList.vue";
 import SpeciesOpen5ePanel from "@/components/species/SpeciesOpen5ePanel.vue";
 import BackgroundList from "@/components/backgrounds/BackgroundList.vue";
+import ClassList from "@/components/levelup/ClassList.vue";
+import ArchetypeList from "@/components/levelup/ArchetypeList.vue";
+import AbilityList from "@/components/features/AbilityList.vue";
 import { useUiStore } from "@/stores/ui";
 import {
   useImportBackgrounds,
   useOpen5eBackgroundDocuments,
   type BackgroundImportResult,
 } from "@/composables/useBackgrounds";
+import { useImportOpen5eClasses, useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
+import { useImportOpen5eSubclasses } from "@/composables/useCustomSubclasses";
+import { useImportSrdFeatures } from "@/composables/useFeatures";
+import type { ImportResult } from "@/composables/useFeatures";
+import { FEATURE_TYPES, FEATURE_TYPE_LABELS } from "@/types/feature.types";
 
-type TabId = "species" | "backgrounds" | "classes";
+type TabId = "species" | "backgrounds" | "classes" | "archetypes" | "abilities";
 
-const TABS: Array<{ id: TabId; label: string; icon: typeof Dna; disabled?: boolean }> = [
+const TABS: Array<{ id: TabId; label: string; icon: typeof Dna }> = [
   { id: "species",     label: "Species",     icon: Dna },
   { id: "backgrounds", label: "Backgrounds", icon: BookUser },
-  { id: "classes",     label: "Classes",     icon: GraduationCap, disabled: true },
+  { id: "classes",     label: "Classes",     icon: BookOpen },
+  { id: "archetypes",  label: "Archetypes",  icon: GraduationCap },
+  { id: "abilities",   label: "Abilities",   icon: Zap },
 ];
 
 const SIZE_OPTIONS = [
@@ -194,49 +238,53 @@ const ui = useUiStore();
 const route = useRoute();
 const router = useRouter();
 
-const activeTab = computed<TabId>(() => ui.codexActiveTab);
+const activeTab = computed<TabId>(() => ui.codexActiveTab as TabId);
 
-// Sync tab ↔ URL. URL is the source of truth on navigation; the UI store
-// retains the last-visited tab across sessions for users hitting /codex bare.
 function tabFromRoute(): TabId {
   const p = (route.params.tab as string | undefined) ?? ui.codexActiveTab;
-  return (p === "species" || p === "backgrounds" || p === "classes") ? p : "species";
+  return (["species", "backgrounds", "classes", "archetypes", "abilities"] as TabId[]).includes(p as TabId)
+    ? (p as TabId)
+    : "species";
 }
 
-onMounted(() => {
-  ui.codexActiveTab = tabFromRoute();
-});
-
-watch(
-  () => route.params.tab,
-  () => { ui.codexActiveTab = tabFromRoute(); },
-);
+onMounted(() => { ui.codexActiveTab = tabFromRoute(); });
+watch(() => route.params.tab, () => { ui.codexActiveTab = tabFromRoute(); });
 
 function selectTab(id: TabId) {
   if (id === activeTab.value) return;
   router.push(`/codex/${id}`);
 }
 
+// ── Archetypes: class name list for filter select ─────────────────────────────
+const { data: systemClasses } = useAllSystemClasses();
+const { data: customClasses } = useAllCustomClasses();
+const archetypeClassNames = computed(() => {
+  const srd = (systemClasses.value ?? []).map(c => c.class_name);
+  const custom = (customClasses.value ?? []).map(c => c.class_name);
+  return [...new Set([...srd, ...custom])].sort();
+});
+const archetypeListRef = ref<InstanceType<typeof ArchetypeList> | null>(null);
+
 // ── Backgrounds: Open5e source picker ────────────────────────────────────────
 const selectedSources = useLocalStorage<string[]>("grimoire:background-import-sources", []);
 const showSourcePicker = ref(false);
 const sourcePickerRef = ref<HTMLElement | null>(null);
-
 onClickOutside(sourcePickerRef, () => { showSourcePicker.value = false; });
-
 const { data: open5eDocs, isLoading: docsLoading } = useOpen5eBackgroundDocuments(showSourcePicker);
 
 // ── Backgrounds: import ──────────────────────────────────────────────────────
-const importMutation = useImportBackgrounds();
-const importStatus = ref<"idle" | "done" | "uptodate">("idle");
-const importResult = ref<BackgroundImportResult>({ inserted: 0, updated: 0 });
-const importError = ref<string | null>(null);
+const bgImportMutation = useImportBackgrounds();
+const bgImportStatus = ref<"idle" | "done" | "uptodate">("idle");
+const bgImportResult = ref<BackgroundImportResult>({ inserted: 0, updated: 0 });
+const bgImportError = ref<string | null>(null);
+let bgResetTimer: ReturnType<typeof setTimeout> | null = null;
+onBeforeUnmount(() => { if (bgResetTimer) clearTimeout(bgResetTimer); });
 
-const importStatusLabel = computed(() => {
-  if (importMutation.isPending.value) return "Syncing…";
-  if (importError.value) return `Error: ${importError.value}`;
-  if (importStatus.value === "done") {
-    const { inserted, updated } = importResult.value;
+const bgImportStatusLabel = computed(() => {
+  if (bgImportMutation.isPending.value) return "Syncing…";
+  if (bgImportError.value) return `Error: ${bgImportError.value}`;
+  if (bgImportStatus.value === "done") {
+    const { inserted, updated } = bgImportResult.value;
     if (inserted === 0 && updated === 0) return "Already up to date";
     const parts: string[] = [];
     if (inserted > 0) parts.push(`${inserted} added`);
@@ -246,18 +294,75 @@ const importStatusLabel = computed(() => {
   return "Sync from Open5e";
 });
 
-async function handleImport() {
-  importStatus.value = "idle";
-  importError.value = null;
+async function handleBgImport() {
+  bgImportStatus.value = "idle";
+  bgImportError.value = null;
   try {
-    importResult.value = await importMutation.mutateAsync(selectedSources.value);
-    importStatus.value = "done";
+    bgImportResult.value = await bgImportMutation.mutateAsync(selectedSources.value);
+    bgImportStatus.value = "done";
   } catch (e) {
-    importError.value = e instanceof Error ? e.message : String(e);
+    bgImportError.value = e instanceof Error ? e.message : String(e);
   }
-  setTimeout(() => {
-    importStatus.value = "idle";
-    importError.value = null;
-  }, 8000);
+  bgResetTimer = setTimeout(() => { bgImportStatus.value = "idle"; bgImportError.value = null; }, 8000);
+}
+
+// ── Classes: import ───────────────────────────────────────────────────────────
+const classImportMutation = useImportOpen5eClasses();
+const classImportStatus = ref<"idle" | "done">("idle");
+const classImportError = ref<string | null>(null);
+let classResetTimer: ReturnType<typeof setTimeout> | null = null;
+onBeforeUnmount(() => { if (classResetTimer) clearTimeout(classResetTimer); });
+
+const classImportLabel = computed(() => {
+  if (classImportMutation.isPending.value) return "Importing…";
+  if (classImportError.value) return "Import failed";
+  if (classImportStatus.value === "done") {
+    const r = classImportMutation.data.value;
+    if (!r || r.inserted === 0) return "Already up to date";
+    return `${r.inserted} imported`;
+  }
+  return "Import from Open5e";
+});
+
+async function handleClassImport() {
+  classImportStatus.value = "idle";
+  classImportError.value = null;
+  try {
+    await classImportMutation.mutateAsync();
+    classImportStatus.value = "done";
+  } catch (e) {
+    classImportError.value = e instanceof Error ? e.message : String(e);
+  }
+  classResetTimer = setTimeout(() => { classImportStatus.value = "idle"; classImportError.value = null; }, 8000);
+}
+
+// ── Archetypes: import ────────────────────────────────────────────────────────
+const archetypeImportMutation = useImportOpen5eSubclasses();
+const archetypeImportStatus = ref<"idle" | "done">("idle");
+const archetypeImportError = ref<string | null>(null);
+let archetypeResetTimer: ReturnType<typeof setTimeout> | null = null;
+onBeforeUnmount(() => { if (archetypeResetTimer) clearTimeout(archetypeResetTimer); });
+
+const archetypeImportLabel = computed(() => {
+  if (archetypeImportMutation.isPending.value) return "Importing…";
+  if (archetypeImportError.value) return "Import failed";
+  if (archetypeImportStatus.value === "done") {
+    const r = archetypeImportMutation.data.value;
+    if (!r || r.inserted === 0) return "Already up to date";
+    return `${r.inserted} imported`;
+  }
+  return "Import from Open5e";
+});
+
+async function handleArchetypeImport() {
+  archetypeImportStatus.value = "idle";
+  archetypeImportError.value = null;
+  try {
+    await archetypeImportMutation.mutateAsync();
+    archetypeImportStatus.value = "done";
+  } catch (e) {
+    archetypeImportError.value = e instanceof Error ? e.message : String(e);
+  }
+  archetypeResetTimer = setTimeout(() => { archetypeImportStatus.value = "idle"; archetypeImportError.value = null; }, 8000);
 }
 </script>
