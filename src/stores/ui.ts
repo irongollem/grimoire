@@ -205,6 +205,22 @@ export const useUiStore = defineStore("ui", () => {
     customClassesSearch.value = "";
   }
 
+  // Backgrounds UI state
+  const backgroundsSearch = ref("");
+  const backgroundsFilterSource = ref<"all" | "custom" | "open5e">("all");
+
+  const backgroundsHasActiveFilters = computed(
+    () => backgroundsSearch.value !== "" || backgroundsFilterSource.value !== "all",
+  );
+
+  function resetBackgroundsFilters() {
+    backgroundsSearch.value = "";
+    backgroundsFilterSource.value = "all";
+  }
+
+  // Character Codex — active tab in the consolidated player-options page.
+  const codexActiveTab = ref<"species" | "backgrounds" | "classes" | "archetypes" | "abilities">("species");
+
   // Soundboard UI state
   const soundboardFilterCategory = ref<SoundCategory | "all">("all");
   const soundboardSearchQuery = ref("");
@@ -420,5 +436,14 @@ export const useUiStore = defineStore("ui", () => {
     customClassesSearch,
     customClassesHasActiveFilters,
     resetCustomClassesFilters,
+
+    // Backgrounds
+    backgroundsSearch,
+    backgroundsFilterSource,
+    backgroundsHasActiveFilters,
+    resetBackgroundsFilters,
+
+    // Character Codex
+    codexActiveTab,
   };
 });

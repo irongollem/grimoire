@@ -8,6 +8,17 @@
         <span class="text-muted-foreground">→ Level {{ nextLevel }}</span>
       </h2>
       <p v-if="member.class" class="font-fell text-sm text-muted-foreground italic">{{ member.class }}</p>
+      <!-- Multi-level progress indicator -->
+      <div v-if="targetLevel && targetLevel > nextLevel" class="flex items-center justify-center gap-1 mt-2 flex-wrap">
+        <template v-for="lvl in (targetLevel - member.level)" :key="lvl">
+          <span class="font-cinzel text-[10px] px-1.5 py-0.5 rounded"
+            :class="lvl === 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'">
+            {{ member.level + lvl }}
+          </span>
+          <span v-if="lvl < (targetLevel - member.level)" class="text-muted-foreground/40 text-xs">→</span>
+        </template>
+        <span class="font-cinzel text-[10px] text-muted-foreground ml-1">({{ nextLevel - member.level }} of {{ targetLevel - member.level }})</span>
+      </div>
     </div>
 
     <!-- Max level guard -->
@@ -22,11 +33,8 @@
 
         <template v-if="customFeaturesForLevel.length > 0">
           <ul class="space-y-1">
-            <li
-              v-for="feat in customFeaturesForLevel"
-              :key="feat"
-              class="flex items-start gap-2 font-fell text-sm text-foreground"
-            >
+            <li v-for="feat in customFeaturesForLevel" :key="feat"
+              class="flex items-start gap-2 font-fell text-sm text-foreground">
               <span class="text-primary mt-0.5">✦</span>
               <span>{{ feat }}</span>
             </li>
@@ -43,170 +51,251 @@
           </p>
         </template>
 
-        <!-- Spells known increase -->
-        <div
-          v-if="spellsKnownGain > 0"
-          class="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/20 px-3 py-2"
-        >
-          <span class="font-cinzel text-xs text-primary tracking-wider">SPELLS</span>
+        <!-- Cantrips known increase -->
+        <div v-if="cantripsKnownGain > 0"
+          class="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/20 px-3 py-2">
+          <span class="font-cinzel text-xs text-primary tracking-wider">CANTRIPS</span>
           <span class="font-fell text-sm text-foreground">
-            Spells known increases to
-            <strong class="font-cinzel">{{ spellsKnownTotal }}</strong>
-            — add {{ spellsKnownGain }} new spell{{ spellsKnownGain > 1 ? 's' : '' }} in your spell list.
+            Cantrips known increases to <strong class="font-cinzel">{{ cantripsKnownTotal }}</strong>
+            — pick {{ cantripsKnownGain }} new cantrip{{ cantripsKnownGain > 1 ? 's' : '' }} below.
           </span>
         </div>
 
-        <!-- Class resource updates (e.g. Sorcery Points) -->
-        <div
-          v-for="res in resourceNotices"
-          :key="res.key"
-          class="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/20 px-3 py-2"
-        >
+        <!-- Spells known increase -->
+        <div v-if="spellsKnownGain > 0"
+          class="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/20 px-3 py-2">
+          <span class="font-cinzel text-xs text-primary tracking-wider">SPELLS</span>
+          <span class="font-fell text-sm text-foreground">
+            Spells known increases to <strong class="font-cinzel">{{ spellsKnownTotal }}</strong>
+            — pick {{ spellsKnownGain }} new spell{{ spellsKnownGain > 1 ? 's' : '' }} below.
+          </span>
+        </div>
+
+        <!-- Class resource updates -->
+        <div v-for="res in resourceNotices" :key="res.key"
+          class="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/20 px-3 py-2">
           <span class="font-cinzel text-xs text-primary tracking-wider uppercase">{{ res.key.replace('_', ' ') }}</span>
           <span class="font-fell text-sm text-foreground">
             {{ res.label }} maximum:
-            <strong class="font-cinzel">{{ res.oldMax }}</strong>
-            → <strong class="font-cinzel">{{ res.newMax }}</strong>
+            <strong class="font-cinzel">{{ res.oldMax }}</strong> → <strong class="font-cinzel">{{ res.newMax }}</strong>
           </span>
         </div>
 
         <!-- Proficiency bonus bump -->
-        <div
-          v-if="newProfBonus !== member.proficiency_bonus"
-          class="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/20 px-3 py-2"
-        >
+        <div v-if="newProfBonus !== member.proficiency_bonus"
+          class="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/20 px-3 py-2">
           <span class="font-cinzel text-xs text-primary tracking-wider">PROF</span>
           <span class="font-fell text-sm text-foreground">
-            Proficiency bonus increases to
-            <strong class="font-cinzel">+{{ newProfBonus }}</strong>
+            Proficiency bonus increases to <strong class="font-cinzel">+{{ newProfBonus }}</strong>
           </span>
         </div>
 
         <!-- Spell slot change -->
-        <div
-          v-if="newSpellSlotSummary"
-          class="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/20 px-3 py-2"
-        >
+        <div v-if="newSpellSlotSummary"
+          class="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/20 px-3 py-2">
           <span class="font-cinzel text-xs text-primary tracking-wider">SLOTS</span>
           <span class="font-fell text-sm text-foreground">{{ newSpellSlotSummary }}</span>
         </div>
       </div>
 
-      <!-- ASI picker -->
+      <!-- ASI / Feat picker -->
       <div v-if="grantsAsi" class="rounded-lg border border-border bg-card p-4 space-y-4">
-        <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">Ability Score Improvement</h3>
+        <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">Ability Score Improvement or Feat</h3>
         <p class="font-fell text-sm text-muted-foreground">Choose how to apply your improvement.</p>
 
         <div class="flex rounded-md border border-border overflow-hidden w-fit font-cinzel text-xs tracking-wider">
-          <button
-            class="px-3 py-1.5 transition-colors"
+          <button class="px-3 py-1.5 transition-colors"
             :class="asiMode === 'plus2' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-            @click="asiMode = 'plus2'"
-          >+2 to one</button>
-          <button
-            class="px-3 py-1.5 transition-colors"
+            @click="asiMode = 'plus2'">+2 to one</button>
+          <button class="px-3 py-1.5 transition-colors"
             :class="asiMode === 'plus1plus1' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-            @click="asiMode = 'plus1plus1'"
-          >+1 / +1</button>
+            @click="asiMode = 'plus1plus1'">+1 / +1</button>
+          <button class="px-3 py-1.5 transition-colors"
+            :class="asiMode === 'feat' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
+            @click="asiMode = 'feat'">Feat</button>
         </div>
 
-        <div class="flex flex-wrap gap-3">
-          <div class="space-y-1">
-            <label class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
-              {{ asiMode === 'plus2' ? '+2 Ability' : '+1 First Ability' }}
-            </label>
-            <select
-              v-model="asiPrimary"
-              class="rounded border border-border bg-muted/40 px-2 py-1.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="" disabled>Select…</option>
-              <option v-for="ab in ABILITY_OPTIONS" :key="ab.key" :value="ab.key">{{ ab.label }}</option>
-            </select>
+        <!-- ASI mode -->
+        <template v-if="asiMode !== 'feat'">
+          <div class="flex flex-wrap gap-3">
+            <div class="space-y-1">
+              <label class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
+                {{ asiMode === 'plus2' ? '+2 Ability' : '+1 First Ability' }}
+              </label>
+              <select v-model="asiPrimary"
+                class="rounded border border-border bg-muted/40 px-2 py-1.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+                <option value="" disabled>Select…</option>
+                <option v-for="ab in ABILITY_OPTIONS" :key="ab.key" :value="ab.key">{{ ab.label }}</option>
+              </select>
+            </div>
+            <div v-if="asiMode === 'plus1plus1'" class="space-y-1">
+              <label class="font-cinzel text-[10px] text-muted-foreground tracking-wider">+1 Second Ability</label>
+              <select v-model="asiSecondary"
+                class="rounded border border-border bg-muted/40 px-2 py-1.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+                <option value="" disabled>Select…</option>
+                <option v-for="ab in ABILITY_OPTIONS" :key="ab.key" :value="ab.key">{{ ab.label }}</option>
+              </select>
+            </div>
           </div>
-
-          <div v-if="asiMode === 'plus1plus1'" class="space-y-1">
-            <label class="font-cinzel text-[10px] text-muted-foreground tracking-wider">+1 Second Ability</label>
-            <select
-              v-model="asiSecondary"
-              class="rounded border border-border bg-muted/40 px-2 py-1.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="" disabled>Select…</option>
-              <option v-for="ab in ABILITY_OPTIONS" :key="ab.key" :value="ab.key">{{ ab.label }}</option>
-            </select>
+          <div v-if="asiPreview.length > 0" class="font-fell text-sm text-muted-foreground">
+            <span v-for="(line, i) in asiPreview" :key="i" class="mr-3">{{ line }}</span>
           </div>
-        </div>
+        </template>
 
-        <div v-if="asiPreview.length > 0" class="font-fell text-sm text-muted-foreground">
-          <span v-for="(line, i) in asiPreview" :key="i" class="mr-3">{{ line }}</span>
-        </div>
+        <!-- Feat mode -->
+        <template v-else>
+          <div class="space-y-2">
+            <input v-model="featSearch" type="text" placeholder="Search feats…"
+              class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <div v-if="allFeatures && filteredFeats.length > 0"
+              class="max-h-48 overflow-y-auto rounded border border-border divide-y divide-border">
+              <button v-for="f in filteredFeats" :key="f.id" type="button"
+                class="w-full text-left px-3 py-2 transition-colors"
+                :class="featId === f.id ? 'bg-primary/10 text-primary' : 'bg-card text-foreground hover:bg-muted/40'"
+                @click="featId = featId === f.id ? '' : f.id">
+                <p class="font-cinzel text-xs font-semibold">{{ f.name }}</p>
+                <p v-if="f.description" class="font-fell text-[11px] text-muted-foreground line-clamp-1 mt-0.5">{{ f.description }}</p>
+              </button>
+            </div>
+            <p v-else-if="featSearch && allFeatures" class="font-fell text-sm text-muted-foreground italic">No matching features found.</p>
+            <p v-if="featId" class="font-cinzel text-xs text-primary tracking-wider">✓ {{ selectedFeatName }}</p>
+          </div>
+        </template>
       </div>
 
-      <!-- Subclass choice (first unlock, no subclass yet) -->
+      <!-- Subclass choice -->
       <div v-if="needsSubclassChoice" class="rounded-lg border border-border bg-card p-4 space-y-3">
         <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">Choose Subclass</h3>
         <p class="font-fell text-sm text-muted-foreground">
           At level {{ nextLevel }}, {{ member.class }} characters choose their specialisation.
         </p>
-        <select
-          v-if="subclassOptions.length > 0"
-          v-model="subclassInput"
-          class="w-full rounded border border-border bg-muted/40 px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+        <select v-if="subclassOptions.length > 0" v-model="subclassInput"
+          class="w-full rounded border border-border bg-muted/40 px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
           <option value="" disabled>Select subclass…</option>
           <option v-for="sc in subclassOptions" :key="sc" :value="sc">{{ sc }}</option>
         </select>
-        <input
-          v-else
-          v-model="subclassInput"
-          type="text"
-          placeholder="e.g. Circle of the Moon"
-          class="w-full rounded border border-border bg-muted/40 px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
+        <input v-else v-model="subclassInput" type="text" placeholder="e.g. Circle of the Moon"
+          class="w-full rounded border border-border bg-muted/40 px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
       </div>
 
-      <!-- Class-specific steps (single or multi-pick) -->
-      <div
-        v-for="step in classSteps"
-        :key="step.key"
-        class="rounded-lg border border-border bg-card p-4 space-y-3"
-      >
+      <!-- Class-specific steps -->
+      <div v-for="step in classSteps" :key="step.key"
+        class="rounded-lg border border-border bg-card p-4 space-y-3">
         <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">{{ step.label }}</h3>
         <p v-if="step.description" class="font-fell text-sm text-muted-foreground">{{ step.description }}</p>
 
-        <!-- Multi-pick: render N selects -->
         <template v-if="(step.count ?? 1) > 1">
-          <div
-            v-for="pickIdx in (step.count ?? 1)"
-            :key="pickIdx"
-            class="space-y-1"
-          >
+          <div v-for="pickIdx in (step.count ?? 1)" :key="pickIdx" class="space-y-1">
             <label class="font-cinzel text-[10px] text-muted-foreground tracking-wider">Choice {{ pickIdx }}</label>
             <select
               :value="(stepMultiValues[step.key] ?? [])[pickIdx - 1] ?? ''"
               class="w-full rounded border border-border bg-muted/40 px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              @change="onMultiStepChange(step, pickIdx - 1, ($event.target as HTMLSelectElement).value)"
-            >
+              @change="onMultiStepChange(step, pickIdx - 1, ($event.target as HTMLSelectElement).value)">
               <option value="" disabled>Select…</option>
-              <option
-                v-for="opt in step.options"
-                :key="opt"
-                :value="opt"
-                :disabled="isMultiPickTaken(step, pickIdx - 1, opt)"
-              >{{ opt }}</option>
+              <option v-for="opt in step.options" :key="opt" :value="opt"
+                :disabled="isMultiPickTaken(step, pickIdx - 1, opt)">{{ opt }}</option>
             </select>
           </div>
         </template>
 
-        <!-- Single-pick -->
-        <select
-          v-else
-          :value="stepValues[step.key] ?? ''"
+        <select v-else :value="stepValues[step.key] ?? ''"
           class="w-full rounded border border-border bg-muted/40 px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @change="onStepChange(step, ($event.target as HTMLSelectElement).value)"
-        >
+          @change="onStepChange(step, ($event.target as HTMLSelectElement).value)">
           <option value="" disabled>Select…</option>
           <option v-for="opt in step.options" :key="opt" :value="opt">{{ opt }}</option>
         </select>
+      </div>
+
+      <!-- Spell picker (known casters gaining spells) -->
+      <div v-if="spellsKnownGain > 0" class="rounded-lg border border-border bg-card p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">Choose New Spells</h3>
+          <span class="font-cinzel text-xs font-bold"
+            :class="selectedSpellIds.size === spellsKnownGain ? 'text-green-500' : 'text-primary'">
+            {{ selectedSpellIds.size }} / {{ spellsKnownGain }}
+          </span>
+        </div>
+        <p class="font-fell text-sm text-muted-foreground">
+          Pick {{ spellsKnownGain }} new spell{{ spellsKnownGain > 1 ? 's' : '' }} to learn.
+        </p>
+
+        <input v-model="spellSearch" type="text" placeholder="Search spells…"
+          class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+
+        <div class="max-h-64 overflow-y-auto rounded border border-border divide-y divide-border">
+          <div v-if="!filteredSpells.length" class="px-3 py-4 text-center">
+            <p class="font-fell text-sm text-muted-foreground italic">
+              {{ spellSearch ? 'No spells match your search.' : 'No spells found for this class.' }}
+            </p>
+          </div>
+          <button v-for="spell in filteredSpells" :key="spell.id" type="button"
+            class="w-full text-left px-3 py-2 transition-colors flex items-center gap-3"
+            :class="[
+              alreadyKnownIds.has(spell.id) ? 'opacity-40 cursor-not-allowed' :
+              selectedSpellIds.has(spell.id) ? 'bg-primary/10 text-primary' :
+              selectedSpellIds.size >= spellsKnownGain ? 'opacity-50 cursor-not-allowed' : 'bg-card text-foreground hover:bg-muted/40'
+            ]"
+            :disabled="alreadyKnownIds.has(spell.id) || (!selectedSpellIds.has(spell.id) && selectedSpellIds.size >= spellsKnownGain)"
+            @click="toggleSpell(spell.id)">
+            <div class="flex-1 min-w-0">
+              <p class="font-cinzel text-xs font-semibold">{{ spell.name }}</p>
+              <p class="font-fell text-[11px] text-muted-foreground">
+                {{ spell.level === 0 ? 'Cantrip' : `Level ${spell.level}` }} · {{ spell.school }}
+              </p>
+            </div>
+            <span v-if="alreadyKnownIds.has(spell.id)" class="font-cinzel text-[10px] text-muted-foreground shrink-0">known</span>
+            <span v-else-if="selectedSpellIds.has(spell.id)" class="font-cinzel text-[10px] text-primary shrink-0">✓</span>
+          </button>
+        </div>
+
+        <p v-if="selectedSpellIds.size < spellsKnownGain" class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
+          You can also add spells later from your Spellbook tab.
+        </p>
+      </div>
+
+      <!-- Cantrip picker (known casters gaining cantrips) -->
+      <div v-if="cantripsKnownGain > 0" class="rounded-lg border border-border bg-card p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">Choose New Cantrips</h3>
+          <span class="font-cinzel text-xs font-bold"
+            :class="selectedCantripIds.size === cantripsKnownGain ? 'text-green-500' : 'text-primary'">
+            {{ selectedCantripIds.size }} / {{ cantripsKnownGain }}
+          </span>
+        </div>
+        <p class="font-fell text-sm text-muted-foreground">
+          Pick {{ cantripsKnownGain }} new cantrip{{ cantripsKnownGain > 1 ? 's' : '' }} to learn.
+        </p>
+
+        <input v-model="cantripSearch" type="text" placeholder="Search cantrips…"
+          class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+
+        <div class="max-h-64 overflow-y-auto rounded border border-border divide-y divide-border">
+          <div v-if="!cantripPageData?.spells.length" class="px-3 py-4 text-center">
+            <p class="font-fell text-sm text-muted-foreground italic">
+              {{ cantripSearch ? 'No cantrips match your search.' : 'No cantrips found for this class.' }}
+            </p>
+          </div>
+          <button v-for="spell in cantripPageData?.spells" :key="spell.id" type="button"
+            class="w-full text-left px-3 py-2 transition-colors flex items-center gap-3"
+            :class="[
+              alreadyKnownIds.has(spell.id) ? 'opacity-40 cursor-not-allowed' :
+              selectedCantripIds.has(spell.id) ? 'bg-primary/10 text-primary' :
+              selectedCantripIds.size >= cantripsKnownGain ? 'opacity-50 cursor-not-allowed' : 'bg-card text-foreground hover:bg-muted/40'
+            ]"
+            :disabled="alreadyKnownIds.has(spell.id) || (!selectedCantripIds.has(spell.id) && selectedCantripIds.size >= cantripsKnownGain)"
+            @click="toggleCantrip(spell.id)">
+            <div class="flex-1 min-w-0">
+              <p class="font-cinzel text-xs font-semibold">{{ spell.name }}</p>
+              <p class="font-fell text-[11px] text-muted-foreground">Cantrip · {{ spell.school }}</p>
+            </div>
+            <span v-if="alreadyKnownIds.has(spell.id)" class="font-cinzel text-[10px] text-muted-foreground shrink-0">known</span>
+            <span v-else-if="selectedCantripIds.has(spell.id)" class="font-cinzel text-[10px] text-primary shrink-0">✓</span>
+          </button>
+        </div>
+
+        <p v-if="selectedCantripIds.size < cantripsKnownGain" class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
+          You can also add cantrips later from your Spellbook tab.
+        </p>
       </div>
 
       <!-- Error -->
@@ -214,15 +303,14 @@
 
       <!-- Confirm / Cancel -->
       <div class="flex gap-3">
-        <RouterLink
-          to="/play"
-          class="flex-1 rounded-md border border-border px-4 py-2 font-cinzel text-xs text-muted-foreground text-center tracking-wider hover:text-foreground hover:border-primary/40 transition-colors"
-        >Cancel</RouterLink>
+        <RouterLink :to="backRoute ?? '/play'"
+          class="flex-1 rounded-md border border-border px-4 py-2 font-cinzel text-xs text-muted-foreground text-center tracking-wider hover:text-foreground hover:border-primary/40 transition-colors">
+          Cancel
+        </RouterLink>
         <button
           class="flex-1 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
           :disabled="isPending || !canConfirm"
-          @click="confirm"
-        >
+          @click="confirm">
           {{ isPending ? "Applying…" : `Confirm Level ${nextLevel}` }}
         </button>
       </div>
@@ -237,33 +325,30 @@ import { useUpdatePartyMember } from "@/composables/useParty";
 import { useAllCustomSubclasses, useCustomSubclassByClassAndSubclass } from "@/composables/useCustomSubclasses";
 import { useCustomClassByName, useAllSystemClasses } from "@/composables/useCustomClasses";
 import { useAllFeatures } from "@/composables/useFeatures";
+import { useCharacterSpells, useAddCharacterSpell } from "@/composables/useCharacterSpells";
+import { useSpellsPage } from "@/composables/useSpells";
 import type { PartyMember, PartyMemberUpdate, SpellSlotEntry } from "@/types/party.types";
 import type { AbilityKey, AsiMode, ClassStep, ClassResourceDef } from "./types";
 import type { CustomResource } from "@/levelup/customTypes";
 
-const props = defineProps<{ member: PartyMember; backRoute?: string }>();
+const props = defineProps<{
+  member: PartyMember;
+  targetLevel?: number;
+  backRoute?: string;
+}>();
 
 const router = useRouter();
 const { mutateAsync: updateMember, isPending } = useUpdatePartyMember();
 
-// ── Custom subclass data ───────────────────────────────────────────────────────
+// ── Class data ─────────────────────────────────────────────────────────────────
 const memberClass    = computed(() => props.member.class ?? "");
 const memberSubclass = computed(() => props.member.subclass ?? "");
 
-// Fetch the custom subclass definition that matches this member's current subclass
 const { data: customSubclass } = useCustomSubclassByClassAndSubclass(memberClass, memberSubclass);
-
-// Fetch the custom class definition — used when no SRD class matches (fully homebrew class)
-const { data: customClass } = useCustomClassByName(memberClass);
-
-// Fetch system class — used to resolve SRD feature UUIDs for the level-up summary
+const { data: customClass }    = useCustomClassByName(memberClass);
 const { data: allSystemClasses } = useAllSystemClasses();
 const systemClass = computed(() => (allSystemClasses.value ?? []).find(c => c.class_name === memberClass.value));
-
-// Feature compendium — needed to resolve UUIDs stored in features to names
-const { data: allFeatures } = useAllFeatures();
-
-// Fetch all custom subclasses so we can extend the subclass picker
+const { data: allFeatures }   = useAllFeatures();
 const { data: allCustomSubclasses } = useAllCustomSubclasses();
 const customSubclassNamesForClass = computed<string[]>(() =>
   (allCustomSubclasses.value ?? [])
@@ -275,7 +360,6 @@ const customSubclassNamesForClass = computed<string[]>(() =>
 const nextLevel    = computed(() => props.member.level + 1);
 const newProfBonus = computed(() => 2 + Math.floor((nextLevel.value - 1) / 4));
 
-// True when this level grants an ASI — from DB class data
 const grantsAsi = computed(() =>
   systemClass.value?.asi_levels.includes(nextLevel.value) ||
   customClass.value?.asi_levels.includes(nextLevel.value) ||
@@ -289,10 +373,8 @@ const needsSubclassChoice = computed(() => {
   return false;
 });
 
-// Subclass options come from DB custom subclasses only (SRD subclasses can be typed in free-text)
 const subclassOptions = computed(() => customSubclassNamesForClass.value);
 
-// Spell slot change summary — prefer custom class, fall back to system class
 function dbSlots(level: number): SpellSlotEntry[] {
   const cls = customClass.value ?? systemClass.value;
   const row = cls?.spell_slots?.[Math.min(level, 20) - 1];
@@ -316,7 +398,6 @@ const newSpellSlotSummary = computed(() => {
   return `Spell slots: ${gains.join(", ")}`;
 });
 
-// Spells known gain and total
 const spellsKnownGain = computed(() => {
   const table = customClass.value?.spells_known ?? systemClass.value?.spells_known;
   if (!table) return 0;
@@ -330,7 +411,26 @@ const spellsKnownTotal = computed(() => {
   return table?.[nextLevel.value - 1] ?? 0;
 });
 
-// Custom features granted at this level — from subclass or (for homebrew classes) from the class itself
+const cantripsKnownGain = computed(() => {
+  const table = customClass.value?.cantrips_known ?? systemClass.value?.cantrips_known;
+  if (!table) return 0;
+  const cur  = table[nextLevel.value - 1] ?? 0;
+  const prev = table[props.member.level - 1] ?? 0;
+  return Math.max(0, cur - prev);
+});
+
+const cantripsKnownTotal = computed(() => {
+  const table = customClass.value?.cantrips_known ?? systemClass.value?.cantrips_known;
+  return table?.[nextLevel.value - 1] ?? 0;
+});
+
+/** Highest spell slot level available at nextLevel — caps what spells can be learned. */
+const maxCastableLevel = computed(() => {
+  const slots = newSpellSlots.value;
+  if (slots.length === 0) return 9; // no slot data → no restriction
+  return Math.max(...slots.map(s => s.level));
+});
+
 const customFeaturesForLevel = computed<string[]>(() => {
   const lvlKey = nextLevel.value.toString();
   const ids = customSubclass.value?.features[lvlKey] ?? customClass.value?.features[lvlKey] ?? systemClass.value?.features[lvlKey] ?? [];
@@ -338,7 +438,6 @@ const customFeaturesForLevel = computed<string[]>(() => {
   return ids.map(id => featureMap.get(id) ?? id);
 });
 
-// Convert a CustomResource[] to ClassResourceDef[]
 function resourceDefsFrom(resources: CustomResource[]): ClassResourceDef[] {
   return resources.map(r => ({
     key: r.key,
@@ -353,7 +452,6 @@ function resourceDefsFrom(resources: CustomResource[]): ClassResourceDef[] {
   }));
 }
 
-// Class resource change notices — system class + custom class + custom subclass (first-seen key wins)
 const classDefs = computed<ClassResourceDef[]>(() => {
   const all = [
     ...resourceDefsFrom(systemClass.value?.resources ?? []),
@@ -363,14 +461,15 @@ const classDefs = computed<ClassResourceDef[]>(() => {
   const seenKeys = new Set<string>();
   return all.filter(d => { if (seenKeys.has(d.key)) return false; seenKeys.add(d.key); return true; });
 });
-const resourceNotices = computed(() => {
-  return classDefs.value.flatMap(def => {
+
+const resourceNotices = computed(() =>
+  classDefs.value.flatMap(def => {
     const newMax = def.maxAtLevel(nextLevel.value);
     const oldMax = def.maxAtLevel(props.member.level);
     if (newMax === oldMax) return [];
     return [{ key: def.key, label: def.label, oldMax, newMax }];
-  });
-});
+  }),
+);
 
 // ── ASI ────────────────────────────────────────────────────────────────────────
 const ABILITY_LABEL: Record<AbilityKey, string> = {
@@ -396,10 +495,19 @@ const asiPreview = computed(() => {
   return lines;
 });
 
+// ── Feat picker ────────────────────────────────────────────────────────────────
+const featSearch = ref("");
+const featId     = ref("");
+const filteredFeats = computed(() => {
+  const term = featSearch.value.toLowerCase().trim();
+  return (allFeatures.value ?? []).filter(f => !term || f.name.toLowerCase().includes(term));
+});
+const selectedFeatName = computed(() => allFeatures.value?.find(f => f.id === featId.value)?.name ?? "");
+
 // ── Subclass ───────────────────────────────────────────────────────────────────
 const subclassInput = ref("");
 
-// ── Class-specific steps (system class + custom class + custom subclass) ───────
+// ── Class-specific steps ───────────────────────────────────────────────────────
 const classSteps = computed<ClassStep[]>(() => {
   function stepsAt(steps: { level: number; step_type: string; type: "select" | "append"; key: string; label: string; description?: string; options: string[]; count?: number }[]): ClassStep[] {
     return steps
@@ -413,13 +521,11 @@ const classSteps = computed<ClassStep[]>(() => {
   ];
 });
 
-// Single-pick steps (count === 1 or undefined)
 const stepValues = ref<Record<string, string>>({});
 function onStepChange(step: ClassStep, value: string) {
   stepValues.value = { ...stepValues.value, [step.key]: value };
 }
 
-// Multi-pick steps (count > 1) — stored as string[] per key
 const stepMultiValues = ref<Record<string, string[]>>({});
 function onMultiStepChange(step: ClassStep, idx: number, value: string) {
   const cur = [...(stepMultiValues.value[step.key] ?? [])];
@@ -431,21 +537,77 @@ function isMultiPickTaken(step: ClassStep, ownIdx: number, opt: string): boolean
   return picks.some((v, i) => i !== ownIdx && v === opt);
 }
 
+// ── Spell picker ───────────────────────────────────────────────────────────────
+const spellSearch = ref("");
+const spellFilters = computed(() => ({
+  search: spellSearch.value,
+  level: "",
+  school: "",
+  class: memberClass.value,
+  source: "",
+}));
+const spellPage = ref(0);
+const { data: spellPageData } = useSpellsPage(spellFilters, spellPage);
+/** Only show spells the character can actually cast (level ≤ max slot level). */
+const filteredSpells = computed(() =>
+  (spellPageData.value?.spells ?? []).filter(s => s.level > 0 && s.level <= maxCastableLevel.value),
+);
+
+const { data: characterSpells } = useCharacterSpells(computed(() => props.member.id));
+const alreadyKnownIds = computed(() => new Set((characterSpells.value ?? []).map(s => s.spell_id)));
+const { mutateAsync: addSpell } = useAddCharacterSpell();
+
+const selectedSpellIds = ref(new Set<string>());
+function toggleSpell(id: string) {
+  if (alreadyKnownIds.value.has(id)) return;
+  if (selectedSpellIds.value.has(id)) {
+    const next = new Set(selectedSpellIds.value);
+    next.delete(id);
+    selectedSpellIds.value = next;
+  } else if (selectedSpellIds.value.size < spellsKnownGain.value) {
+    selectedSpellIds.value = new Set([...selectedSpellIds.value, id]);
+  }
+}
+
+// ── Cantrip picker ─────────────────────────────────────────────────────────────
+const cantripSearch = ref("");
+const cantripFilters = computed(() => ({
+  search: cantripSearch.value,
+  level: "0",
+  school: "",
+  class: memberClass.value,
+  source: "",
+}));
+const cantripPage = ref(0);
+const { data: cantripPageData } = useSpellsPage(cantripFilters, cantripPage);
+
+const selectedCantripIds = ref(new Set<string>());
+function toggleCantrip(id: string) {
+  if (alreadyKnownIds.value.has(id)) return;
+  if (selectedCantripIds.value.has(id)) {
+    const next = new Set(selectedCantripIds.value);
+    next.delete(id);
+    selectedCantripIds.value = next;
+  } else if (selectedCantripIds.value.size < cantripsKnownGain.value) {
+    selectedCantripIds.value = new Set([...selectedCantripIds.value, id]);
+  }
+}
+
 // ── Validation ─────────────────────────────────────────────────────────────────
 const error = ref("");
 
 const canConfirm = computed(() => {
   if (nextLevel.value > 20) return false;
   if (grantsAsi.value) {
-    if (!asiPrimary.value) return false;
-    if (asiMode.value === "plus1plus1" && (!asiSecondary.value || asiSecondary.value === asiPrimary.value)) return false;
+    if (asiMode.value === "plus2" && !asiPrimary.value) return false;
+    if (asiMode.value === "plus1plus1" && (!asiPrimary.value || !asiSecondary.value || asiSecondary.value === asiPrimary.value)) return false;
+    if (asiMode.value === "feat" && !featId.value) return false;
   }
   if (needsSubclassChoice.value && !subclassInput.value.trim()) return false;
   for (const step of classSteps.value) {
     const count = step.count ?? 1;
     if (count > 1) {
-      const picks = stepMultiValues.value[step.key] ?? [];
-      if (picks.filter(Boolean).length < count) return false;
+      if ((stepMultiValues.value[step.key] ?? []).filter(Boolean).length < count) return false;
     } else {
       if (!stepValues.value[step.key]) return false;
     }
@@ -461,7 +623,7 @@ async function confirm() {
     proficiency_bonus: newProfBonus.value,
   };
 
-  // Spell slots — always sync to class defaults on level-up
+  // Spell slots
   if (newSpellSlots.value.length > 0) {
     const existing = props.member.spell_slots ?? [];
     update.spell_slots = newSpellSlots.value.map(s => ({
@@ -470,16 +632,18 @@ async function confirm() {
     }));
   }
 
-  // ASI
-  if (grantsAsi.value && asiPrimary.value) {
-    const bonus = asiMode.value === "plus2" ? 2 : 1;
-    update[asiPrimary.value] = (props.member[asiPrimary.value as keyof PartyMember] as number) + bonus;
-    if (asiMode.value === "plus1plus1" && asiSecondary.value) {
-      update[asiSecondary.value] = (props.member[asiSecondary.value as keyof PartyMember] as number) + 1;
+  // ASI or feat
+  if (grantsAsi.value) {
+    if (asiMode.value === "plus2" && asiPrimary.value) {
+      update[asiPrimary.value] = (props.member[asiPrimary.value as keyof PartyMember] as number) + 2;
+    } else if (asiMode.value === "plus1plus1") {
+      if (asiPrimary.value) update[asiPrimary.value] = (props.member[asiPrimary.value as keyof PartyMember] as number) + 1;
+      if (asiSecondary.value) update[asiSecondary.value] = (props.member[asiSecondary.value as keyof PartyMember] as number) + 1;
     }
+    // feat: saved in class_choices below
   }
 
-  // Class resources (e.g. Sorcery Points)
+  // Class resources
   const defs = classDefs.value;
   if (defs.length > 0) {
     const newResources = { ...props.member.class_resources };
@@ -502,6 +666,12 @@ async function confirm() {
   if (needsSubclassChoice.value && subclass) {
     update.subclass = subclass;
     newChoices.subclass = subclass;
+  }
+
+  // Feat choice
+  if (grantsAsi.value && asiMode.value === "feat" && featId.value) {
+    const existing = Array.isArray(newChoices.feats) ? (newChoices.feats as string[]) : [];
+    newChoices.feats = [...existing, featId.value];
   }
 
   // Class-specific step values
@@ -529,13 +699,28 @@ async function confirm() {
   }
 
   if (Object.keys(newChoices).length > Object.keys(props.member.class_choices).length
-    || classSteps.value.length > 0 || (needsSubclassChoice.value && subclass)) {
+    || classSteps.value.length > 0 || (needsSubclassChoice.value && subclass)
+    || (grantsAsi.value && asiMode.value === "feat" && featId.value)) {
     update.class_choices = newChoices;
   }
 
   try {
     await updateMember({ id: props.member.id, update: update as PartyMemberUpdate });
-    void router.push(props.backRoute ?? "/play");
+
+    // Add selected spells and cantrips to character_spells
+    for (const spellId of selectedSpellIds.value) {
+      await addSpell({ partyMemberId: props.member.id, spellId, isPrepared: false });
+    }
+    for (const spellId of selectedCantripIds.value) {
+      await addSpell({ partyMemberId: props.member.id, spellId, isPrepared: false });
+    }
+
+    // Multi-level loop: keep going if we haven't reached targetLevel yet
+    if (props.targetLevel && nextLevel.value < props.targetLevel) {
+      void router.push(`/play/character/levelup?targetLevel=${props.targetLevel}`);
+    } else {
+      void router.push(props.backRoute ?? "/play");
+    }
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Failed to apply level up.";
   }

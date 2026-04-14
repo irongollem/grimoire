@@ -7,6 +7,7 @@ import type {
   CustomSubclassUpdate,
 } from "@/levelup/customTypes";
 import { fetchOpen5eSubclasses, subclassToInsert } from "@/lib/open5eClassImport";
+import { ensureClassFeatures, collectFeatureNames } from "@/lib/classFeatureSync";
 
 const QUERY_KEY = "custom_subclasses";
 
@@ -118,33 +119,59 @@ export function useUpdateCustomSubclass() {
   });
 }
 
-export interface SubclassImportResult { inserted: number; skipped: number }
+export interface SubclassImportResult { inserted: number; updated: number }
 
 export function useImportOpen5eSubclasses() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (): Promise<SubclassImportResult> => {
       const user = getCurrentUser();
+
       const previews = await fetchOpen5eSubclasses();
+
+      // Ensure all referenced class features exist, creating missing ones automatically
+      const featureNameToId = await ensureClassFeatures(collectFeatureNames(previews));
+
+      // Resolve features for every preview
+      function resolveFeatures(p: typeof previews[number]): Record<string, string[]> {
+        const features: Record<string, string[]> = {};
+        for (const [level, names] of Object.entries(p.featureNamesByLevel)) {
+          const uuids = names
+            .map(n => featureNameToId.get(n.toLowerCase()))
+            .filter((id): id is string => !!id);
+          if (uuids.length) features[level] = uuids;
+        }
+        return features;
+      }
 
       const { data: existing } = await supabase
         .from("custom_subclasses")
-        .select("class_name, subclass_name")
+        .select("id, class_name, subclass_name")
         .eq("user_id", user!.id);
-      const existingKeys = new Set(
-        (existing ?? []).map(r => `${r.class_name}::${r.subclass_name}`),
+
+      const existingMap = new Map(
+        (existing ?? []).map(r => [`${r.class_name}::${r.subclass_name}`, r.id]),
       );
 
-      const toInsert = previews
-        .filter(p => !existingKeys.has(`${p.parentClassName}::${p.name}`))
-        .map(p => ({ ...subclassToInsert(p), user_id: user!.id }));
+      const toInsert = previews.filter(p => !existingMap.has(`${p.parentClassName}::${p.name}`));
+      const toUpdate = previews.filter(p => existingMap.has(`${p.parentClassName}::${p.name}`));
 
       if (toInsert.length > 0) {
-        const { error } = await supabase.from("custom_subclasses").insert(toInsert);
+        const rows = toInsert.map(p => ({ ...subclassToInsert(p), features: resolveFeatures(p), user_id: user!.id }));
+        const { error } = await supabase.from("custom_subclasses").insert(rows);
         if (error) throw error;
       }
 
-      return { inserted: toInsert.length, skipped: previews.length - toInsert.length };
+      for (const p of toUpdate) {
+        const id = existingMap.get(`${p.parentClassName}::${p.name}`)!;
+        const { error } = await supabase
+          .from("custom_subclasses")
+          .update({ features: resolveFeatures(p), description: p.desc || null, source: p.source || null })
+          .eq("id", id);
+        if (error) throw error;
+      }
+
+      return { inserted: toInsert.length, updated: toUpdate.length };
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });

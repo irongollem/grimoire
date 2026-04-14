@@ -42,6 +42,8 @@ export interface CustomSubclass {
   campaign_id: string | null;
   class_name: string;
   subclass_name: string;
+  source: string | null;
+  description: string | null;
   features: CustomFeatures;
   steps: CustomStep[];
   resources: CustomResource[];
@@ -59,6 +61,7 @@ export interface CustomClass {
   user_id: string;
   campaign_id: string | null;
   class_name: string;
+  source: string | null;
 
   hit_die: HitDie;
   primary_ability: string | null;
@@ -85,6 +88,12 @@ export interface CustomClass {
    * null = prepared caster (no known limit) or non-spellcaster.
    */
   spells_known: number[] | null;
+
+  /**
+   * Total cantrips known at each class level (20-element array).
+   * null = no cantrip progression defined.
+   */
+  cantrips_known: number[] | null;
 
   /** Whether spell slots recharge on short or long rest. */
   slot_recovery: "short" | "long";
@@ -120,6 +129,7 @@ export interface SystemClass {
   asi_levels: number[];
   spell_slots: number[][] | null;
   spells_known: number[] | null;
+  cantrips_known: number[] | null;
   slot_recovery: "short" | "long";
   caster_type: CasterType;
   prepared_ability: PreparedAbility | null;

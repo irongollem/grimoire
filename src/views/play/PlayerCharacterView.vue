@@ -101,7 +101,7 @@ import { useParty } from "@/composables/useParty";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { getCasterType, getDefaultSpellSlots, computeMaxPrepared } from "@/types/spell.types";
 import { useClassByName } from "@/composables/useCustomClasses";
-import { ATTACK_DIS_CONDITIONS, CHECK_DIS_CONDITIONS } from "@/types/party.types";
+import { hasAttackDisadvantage, hasCheckDisadvantage } from "@/lib/conditions";
 import type { SpellSlotEntry, PartyMember } from "@/types/party.types";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import RollToast from "@/components/common/RollToast.vue";
@@ -162,12 +162,8 @@ const memberSaves = computed(() => {
 });
 
 // ── Conditions (needed as props for child components) ──────────────────────────
-const attackDisadvantage = computed(() =>
-  member.value?.conditions?.some(c => ATTACK_DIS_CONDITIONS.has(c)) ?? false,
-);
-const checkDisadvantage = computed(() =>
-  member.value?.conditions?.some(c => CHECK_DIS_CONDITIONS.has(c)) ?? false,
-);
+const attackDisadvantage = computed(() => hasAttackDisadvantage(member.value?.conditions ?? []));
+const checkDisadvantage = computed(() => hasCheckDisadvantage(member.value?.conditions ?? []));
 
 // ── Spells ─────────────────────────────────────────────────────────────────────
 const memberClassRef = computed(() => member.value?.class ?? "");

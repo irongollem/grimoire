@@ -60,6 +60,9 @@ export interface PartyMember {
   level: number;
   race: string | null;
   subrace: string | null;
+  species_id: string | null;
+  background: string | null;
+  background_id: string | null;
   max_hp: number;
   current_hp: number;
   temp_hp: number;
@@ -108,25 +111,6 @@ export interface PartyMember {
 export type PartyMemberInsert = Omit<PartyMember, "id" | "user_id" | "created_at" | "updated_at">;
 export type PartyMemberUpdate = Partial<PartyMemberInsert>;
 
-export const CONDITIONS = [
-  "Blinded",
-  "Charmed",
-  "Deafened",
-  "Exhausted 1",
-  "Exhausted 2",
-  "Exhausted 3",
-  "Frightened",
-  "Grappled",
-  "Incapacitated",
-  "Invisible",
-  "Paralyzed",
-  "Petrified",
-  "Poisoned",
-  "Prone",
-  "Restrained",
-  "Stunned",
-  "Unconscious",
-];
-
-export const ATTACK_DIS_CONDITIONS = new Set(["Blinded", "Frightened", "Poisoned", "Prone", "Restrained"]);
-export const CHECK_DIS_CONDITIONS  = new Set(["Frightened", "Poisoned", "Exhausted 1", "Exhausted 2", "Exhausted 3"]);
+// Conditions + helpers now live in `@/lib/conditions`. Re-exported here so
+// existing imports from `@/types/party.types` keep working.
+export { CONDITIONS, ATTACK_DIS_CONDITIONS, CHECK_DIS_CONDITIONS } from "@/lib/conditions";

@@ -108,10 +108,16 @@
 
     <!-- Conditions -->
     <div v-if="companion.conditions.length" class="flex flex-wrap gap-1">
+      <ExhaustionChip
+        v-if="getExhaustionLevel(companion.conditions) > 0"
+        :level="getExhaustionLevel(companion.conditions)"
+        @update="setExhaustion"
+      />
       <span
-        v-for="cond in companion.conditions"
+        v-for="cond in companion.conditions.filter((c) => !isExhaustion(c))"
         :key="cond"
         class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-destructive/10 border border-destructive/20 font-cinzel text-[10px] text-destructive tracking-wider"
+        :title="getConditionDescription(cond)"
       >
         {{ cond }}
         <button type="button" class="leading-none hover:opacity-70" @click="removeCondition(cond)">×</button>
@@ -156,7 +162,14 @@
 import { ref, computed } from "vue";
 import { Pencil, X } from "lucide-vue-next";
 import { useUpdateCompanion } from "@/composables/useCompanions";
-import { CONDITIONS } from "@/types/party.types";
+import {
+  CONDITIONS,
+  getConditionDescription,
+  getExhaustionLevel,
+  setExhaustionLevel,
+  isExhaustion,
+} from "@/lib/conditions";
+import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
 import {
   COMPANION_TYPE_LABELS,
   COMPANION_TYPE_COLORS,
@@ -203,9 +216,13 @@ const hpBarColor = computed(() => {
   return "bg-green-500";
 });
 
-const availableConditions = computed(() =>
-  CONDITIONS.filter((c) => !props.companion.conditions.includes(c)),
-);
+const availableConditions = computed(() => {
+  const hasExhaustion = getExhaustionLevel(props.companion.conditions) > 0;
+  return CONDITIONS.filter((c) => {
+    if (c === "Exhaustion") return !hasExhaustion;
+    return !props.companion.conditions.includes(c);
+  });
+});
 
 async function damage() {
   const amount = hpAmount.value;
@@ -225,14 +242,23 @@ async function heal() {
 
 async function addCondition() {
   if (!newCondition.value) return;
-  const updated = [...props.companion.conditions, newCondition.value];
-  await updateCompanion({ id: props.companion.id, update: { conditions: updated } });
+  if (newCondition.value === "Exhaustion") {
+    await setExhaustion(1);
+  } else {
+    const updated = [...props.companion.conditions, newCondition.value];
+    await updateCompanion({ id: props.companion.id, update: { conditions: updated } });
+  }
   newCondition.value = "";
   addingCondition.value = false;
 }
 
 async function removeCondition(cond: string) {
   const updated = props.companion.conditions.filter((c) => c !== cond);
+  await updateCompanion({ id: props.companion.id, update: { conditions: updated } });
+}
+
+async function setExhaustion(level: number) {
+  const updated = setExhaustionLevel(props.companion.conditions, level);
   await updateCompanion({ id: props.companion.id, update: { conditions: updated } });
 }
 </script>

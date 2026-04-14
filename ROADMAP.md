@@ -25,6 +25,7 @@
 - [x] Custom Rules — per-user CRUD with Tiptap editor, category, tags, search
 - [x] `sync-srd-rules` Supabase Edge Function — upserts Open5e v2 rules weekly (deployable via `supabase functions deploy`)
 - [x] add a player view version of the reliquary: `/play/rules` with Reference tab (full DM screen tables), Compendium tab (full SRD), House Rules tab (view-only custom rules where DM toggled "Visible to players"), Codex tab (species with artwork/traits/variants and classes with features-by-level/subclasses in read-only accordions); DM sets visibility per rule in rule editor; eye icon on DM rule cards
+- [x] Codex tab backgrounds — Species / Backgrounds / Classes sections in player Reliquary Codex tab; backgrounds show skill/tool proficiencies, languages, equipment, and background feature inline
 
 ### Content Creation & Homebrew
 
@@ -246,6 +247,18 @@
 #### Player Spells — Phase 4: Click-to-Cast in Encounter
 
 - [x] Prepared spells accessible from encounter runner player detail panel with 🎲 roll + DC badge
+
+#### Player Spells — Phase 5: Known-caster spell count + cantrips
+
+- [x] **Cantrips/spells separate pools** — `cantrips_known integer[]` column added to `custom_classes` + `system_classes`; class editor gains a CANTRIPS toggle + column in the spell slot grid (alongside existing KNOWN column); `PlayerSpellsView` Known tab badge now shows `X/Y + Z/WC` (spells known/max + cantrips/max) using `cantrips_known` from class table; cantrip count no longer bleeds into the spells-known max
+- [x] **Level-up cantrip picker** — when `cantripsKnownGain > 0` at a level-up, a dedicated cantrip picker section appears (filtered to level-0 spells for the character's class); separate from the spell picker; selected cantrips saved to `character_spells` on confirm; banner in Features Gained announces the cantrips total
+- [x] **Spell picker max-slot filter** — level-up spell picker filters out spells above the character's max castable slot level (e.g. a Warlock with only level-2 slots won't see 5th-level spells in the picker)
+
+### Character Creation & Level-Up
+
+- [x] **Guided character creation wizard** — 8-step wizard (Identity→Species→Class→Background→Abilities→Combat→Proficiencies→Review) with point-buy ability score system; species/background/class all DB-linked; form state extracted into `useCharacterCreationForm` composable + `CHARACTER_FORM_KEY` injection; shell view `PlayerCharacterCreateView` is 12 lines; wizard and edit-tabs are separate focused components
+- [x] **Multi-level loop** — creating or importing a character above level 1 routes through the level-up wizard in a loop (`?targetLevel=N`); wizard keyed on `member.level` so it remounts after each DB update; progress indicator in header shows remaining levels
+- [x] **Feat-instead-of-ASI** — at ASI levels players can pick "+2 to one / +1/+1 / Feat"; feat mode shows a searchable list of all features from the DB; selection saved to `class_choices.feats[]`
 
 ### Atlas / Locations
 
@@ -526,3 +539,5 @@ Keep the core DM tooling free forever (open source). Gate AI features, advanced 
 - [x] **Classes: DB-driven caster_type** (irongollem/grimoire#152) — added `caster_type`, `prepared_ability`, `prepared_divisor` columns to `system_classes` and `custom_classes`; seeded all 13 SRD classes with correct values; `useClassByName()` composable returns system-or-custom class by name; replaced `getCasterType`/`getMaxPrepared`/`getSlotRecovery`/`getHitDie` static calls in PlayerSpellsView, PlayerCharacterView, RestButtons, RestDialog, PlayerFeaturesTab, RunnerEntityDetail with DB-driven fallbacks; CustomClassEditor gains caster_type + prepared_ability + prepared_divisor UI in Spellcasting section
 
 - [x] **Classes: Delete static TS class files** (irongollem/grimoire#153) — removed all 13 `src/levelup/classes/*.ts` files and `classFeatures.ts`; LevelUpWizard now derives ASI levels, subclass level, spell slots, resources, and steps from `systemClass`/`customClass` DB data; `PARTY_CLASSES`/`PartyClass` removed from `party.types.ts`; PlayerCharacterCreateView and CustomSubclassEditorView now build class name lists from DB; PlayerFeaturesTab now resolves feature UUIDs via `useAllFeatures` instead of static table
+
+- [x] **Encounter runner: ranged attacks consume ammunition** (irongollem/grimoire#158) — "Ranged Attacks" section added below Melee Attacks in `RunnerEntityDetail.vue` for player combatants; shows any weapon equipped in main/off-hand that has the `"ammunition"` property (bows, crossbows, slings, blowguns, firearms, etc.); weapon→ammo tag mapping (arrow/bolt/bullet/needle/dart/firearm-bullet) resolves via vault item subtype/tags with name-pattern fallback; on attack roll, one unit of ammo is consumed — charge-tracked packs (e.g. Arrows (20)) decrement `current_charges`, single ammo decrements `quantity` and auto-removes at 0; attack button disabled with "— no ammo" label when no compatible ammo found in player's inventory containers/belt/backpack; ammo count badge shows remaining shots

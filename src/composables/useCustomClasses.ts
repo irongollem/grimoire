@@ -3,6 +3,7 @@ import { computed, type Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { CustomClass, CustomClassInsert, CustomClassUpdate, SystemClass } from "@/levelup/customTypes";
 import { fetchOpen5eBaseClasses, baseClassToInsert } from "@/lib/open5eClassImport";
+import { ensureClassFeatures, collectFeatureNames } from "@/lib/classFeatureSync";
 
 const QUERY_KEY = "custom_classes";
 
@@ -118,32 +119,67 @@ export function useAllSystemClasses() {
   });
 }
 
-export interface ClassImportResult { inserted: number; skipped: number }
+export interface ClassImportResult { inserted: number; updated: number }
 
 export function useImportOpen5eClasses() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (): Promise<ClassImportResult> => {
       const user = getCurrentUser();
-      const previews = await fetchOpen5eBaseClasses();
 
-      // Load existing names to deduplicate
-      const { data: existing } = await supabase
-        .from("custom_classes")
-        .select("class_name")
-        .eq("user_id", user!.id);
-      const existingNames = new Set((existing ?? []).map(r => r.class_name));
+      // Load Open5e base classes and existing system class names in parallel
+      const [previews, systemResult, existingResult] = await Promise.all([
+        fetchOpen5eBaseClasses(),
+        supabase.from("system_classes").select("class_name"),
+        supabase.from("custom_classes").select("id, class_name").eq("user_id", user!.id),
+      ]);
 
-      const toInsert = previews
-        .filter(p => !existingNames.has(p.name))
-        .map(p => ({ ...baseClassToInsert(p), user_id: user!.id }));
+      // Filter out any class whose name matches an existing system class
+      const systemNames = new Set((systemResult.data ?? []).map(r => r.class_name));
+      const filtered = previews.filter(p => !systemNames.has(p.name));
+
+      // Clean up any previously imported custom_classes that duplicate system classes
+      const staleIds = (existingResult.data ?? [])
+        .filter(r => systemNames.has(r.class_name))
+        .map(r => r.id);
+      if (staleIds.length > 0) {
+        await supabase.from("custom_classes").delete().in("id", staleIds);
+      }
+
+      // Ensure all referenced class features exist in class_features table
+      const featureNameToId = await ensureClassFeatures(collectFeatureNames(filtered));
+
+      function resolveFeatures(p: typeof filtered[number]): Record<string, string[]> {
+        const features: Record<string, string[]> = {};
+        for (const [level, names] of Object.entries(p.featureNamesByLevel)) {
+          const uuids = names
+            .map(n => featureNameToId.get(n.toLowerCase()))
+            .filter((id): id is string => !!id);
+          if (uuids.length) features[level] = uuids;
+        }
+        return features;
+      }
+
+      const existingMap = new Map((existingResult.data ?? []).map(r => [r.class_name, r.id]));
+      const toInsert = filtered.filter(p => !existingMap.has(p.name));
+      const toUpdate = filtered.filter(p => existingMap.has(p.name));
 
       if (toInsert.length > 0) {
-        const { error } = await supabase.from("custom_classes").insert(toInsert);
+        const rows = toInsert.map(p => ({ ...baseClassToInsert(p), features: resolveFeatures(p), user_id: user!.id }));
+        const { error } = await supabase.from("custom_classes").insert(rows);
         if (error) throw error;
       }
 
-      return { inserted: toInsert.length, skipped: previews.length - toInsert.length };
+      for (const p of toUpdate) {
+        const id = existingMap.get(p.name)!;
+        const { error } = await supabase
+          .from("custom_classes")
+          .update({ features: resolveFeatures(p), saving_throws: p.savingThrows })
+          .eq("id", id);
+        if (error) throw error;
+      }
+
+      return { inserted: toInsert.length, updated: toUpdate.length };
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
