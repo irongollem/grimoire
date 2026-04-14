@@ -316,33 +316,60 @@
                       : 'bg-muted/20 hover:bg-muted/40'
                   "
                 >
-                  <img
-                    v-if="atom.item_image_url"
-                    :src="atom.item_image_url"
-                    :alt="atom.item_name"
-                    class="w-7 h-7 rounded object-cover shrink-0"
-                  />
-                  <Package v-else class="w-5 h-5 text-muted-foreground shrink-0" />
-
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-baseline gap-2">
-                      <span class="font-fell text-sm font-semibold text-foreground truncate">
-                        {{ atom.item_name }}
-                      </span>
-                      <span
-                        v-if="atom.item_rarity"
-                        class="font-cinzel text-[9px] uppercase tracking-wider text-muted-foreground shrink-0"
-                      >
-                        {{ atom.item_rarity }}
+                  <!-- Item atom -->
+                  <template v-if="(atom.type ?? 'item') === 'item'">
+                    <img
+                      v-if="atom.item_image_url"
+                      :src="atom.item_image_url"
+                      :alt="atom.item_name"
+                      class="w-7 h-7 rounded object-cover shrink-0"
+                    />
+                    <Package v-else class="w-5 h-5 text-muted-foreground shrink-0" />
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-baseline gap-2">
+                        <span class="font-fell text-sm font-semibold text-foreground truncate">{{ atom.item_name }}</span>
+                        <span v-if="atom.item_rarity" class="font-cinzel text-[9px] uppercase tracking-wider text-muted-foreground shrink-0">{{ atom.item_rarity }}</span>
+                      </div>
+                      <span v-if="atomClaim(msg.metadata as LootChestMetadata, atom.atom_id)" class="font-fell text-[10px] text-muted-foreground italic">
+                        claimed by {{ atomClaim(msg.metadata as LootChestMetadata, atom.atom_id)!.claimed_by_name }}
                       </span>
                     </div>
-                    <span
-                      v-if="atomClaim(msg.metadata as LootChestMetadata, atom.atom_id)"
-                      class="font-fell text-[10px] text-muted-foreground italic"
-                    >
-                      claimed by {{ atomClaim(msg.metadata as LootChestMetadata, atom.atom_id)!.claimed_by_name }}
-                    </span>
-                  </div>
+                  </template>
+
+                  <!-- Currency atom -->
+                  <template v-else-if="atom.type === 'currency'">
+                    <Coins class="w-5 h-5 text-amber-400 shrink-0" />
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-baseline gap-2">
+                        <span class="font-fell text-sm font-semibold text-foreground truncate">
+                          {{ atom.currency_label ? atom.currency_label + ': ' : '' }}{{ formatCoinParts(atom.pp ?? 0, atom.gp ?? 0, atom.ep ?? 0, atom.sp ?? 0, atom.cp ?? 0).join(', ') || '0 GP' }}
+                        </span>
+                      </div>
+                      <span v-if="atomClaim(msg.metadata as LootChestMetadata, atom.atom_id)" class="font-fell text-[10px] text-muted-foreground italic">
+                        claimed by {{ atomClaim(msg.metadata as LootChestMetadata, atom.atom_id)!.claimed_by_name }}
+                      </span>
+                    </div>
+                  </template>
+
+                  <!-- Art object atom -->
+                  <template v-else>
+                    <img
+                      v-if="atom.art_image_url"
+                      :src="atom.art_image_url"
+                      :alt="atom.art_name"
+                      class="w-7 h-7 rounded object-cover shrink-0"
+                    />
+                    <span v-else class="w-5 h-5 flex items-center justify-center text-primary shrink-0 text-sm">✦</span>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-baseline gap-2">
+                        <span class="font-fell text-sm font-semibold text-foreground truncate">{{ atom.art_name }}</span>
+                        <span class="font-cinzel text-[9px] uppercase tracking-wider text-muted-foreground shrink-0">{{ atom.value_gp }} GP</span>
+                      </div>
+                      <span v-if="atomClaim(msg.metadata as LootChestMetadata, atom.atom_id)" class="font-fell text-[10px] text-muted-foreground italic">
+                        claimed by {{ atomClaim(msg.metadata as LootChestMetadata, atom.atom_id)!.claimed_by_name }}
+                      </span>
+                    </div>
+                  </template>
 
                   <button
                     v-if="!atomClaim(msg.metadata as LootChestMetadata, atom.atom_id) && !chestEmpty(msg.metadata as LootChestMetadata)"
@@ -848,6 +875,7 @@ import {
 import ChatItemDropDetails from "@/components/chat/ChatItemDropDetails.vue";
 import { rollDice } from "@/lib/roller";
 import { ALL_DICE } from "@/lib/dice";
+import { formatCoinParts } from "@/lib/currency";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import type {

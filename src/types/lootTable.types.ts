@@ -1,15 +1,16 @@
 // ── Loot tables (issue #121) ─────────────────────────────────────────────────
 //
-// Every entry references an Item Vault row — no free-text loot. The item is
-// the source of truth for name, rarity, image, and full detail. Coin/gems/
-// consumables should already exist as Items (e.g. "Gold Piece", "Ruby").
+// Each entry can be one of three kinds:
+//   "item"       — FK into the Item Vault; qty is dice-rolled or fixed.
+//   "currency"   — Flat coin amounts (PP/GP/EP/SP/CP); whole pool drops at once.
+//   "art_object" — Inline named art object with a gold value; drops as a single atom.
 //
-// Each entry has a per-item drop chance (videogame-style loot rarity) and a
-// quantity expression. Rolling the table walks each entry, rolls the chance,
-// then rolls the quantity for hits — see `src/lib/lootTableRoll.ts`.
+// All entries share drop_chance (1–100) and an optional DM note.
+// Rolling logic: src/lib/lootTableRoll.ts.
 
 export const LOOT_CR_TIERS = ["any", "0-4", "5-10", "11-16", "17+"] as const;
 export type LootCrTier = (typeof LOOT_CR_TIERS)[number];
+export type LootEntryType = "item" | "currency" | "art_object";
 
 export const LOOT_CR_TIER_LABELS: Record<LootCrTier, string> = {
   "any":   "Any tier",
@@ -22,16 +23,37 @@ export const LOOT_CR_TIER_LABELS: Record<LootCrTier, string> = {
 export interface LootEntry {
   /** Stable client-side uuid for v-for keying + reorder safety. */
   id: string;
-  /** Required FK into `items`. Display name resolved by the editor / roller. */
-  item_id: string;
+  /** Entry kind. Absent in legacy entries → treated as "item". */
+  type: LootEntryType;
   /** 1–100 — chance this entry appears in a single roll. 100 = always. */
   drop_chance: number;
-  /** Quantity dice expression (e.g. "3d6", "1d4 + 1") — preferred when set. */
-  dice?: string | null;
-  /** Fixed quantity fallback (used when `dice` is null/empty). Defaults to 1. */
-  fixed_qty?: number | null;
-  /** Free-form DM note shown in the editor only — not in the roll output. */
+  /** Free-form DM note — editor-only, not shown to players. */
   notes?: string | null;
+
+  // ── Item fields (type === "item") ──────────────────────────────────────────
+  /** FK into `items`. Required when type = "item". */
+  item_id?: string;
+  /** Quantity dice expression (e.g. "3d6", "1d4+1"). */
+  dice?: string | null;
+  /** Fixed quantity fallback when `dice` is null/empty. Defaults to 1. */
+  fixed_qty?: number | null;
+
+  // ── Currency fields (type === "currency") ──────────────────────────────────
+  /** Optional label shown in chat (e.g. "Belt pouch"). */
+  currency_label?: string | null;
+  pp?: number;
+  gp?: number;
+  ep?: number;
+  sp?: number;
+  cp?: number;
+
+  // ── Art object fields (type === "art_object") ──────────────────────────────
+  /** Display name. Required when type = "art_object". */
+  art_name?: string;
+  /** Estimated value in gold pieces. */
+  value_gp?: number;
+  art_image_url?: string | null;
+  art_description?: string | null;
 }
 
 export interface LootTable {
@@ -56,18 +78,22 @@ export type LootTableUpdate = Partial<LootTableInsert>;
 /** Returns a human-readable error message if any entry is malformed, or null. */
 export function validateEntries(entries: LootEntry[]): string | null {
   for (const e of entries) {
-    if (!e.item_id) return "Every loot entry must reference an item from the Vault.";
     if (!Number.isFinite(e.drop_chance) || e.drop_chance < 1 || e.drop_chance > 100) {
       return "Drop chance must be between 1 and 100.";
     }
-    if (e.dice === null || e.dice === undefined || e.dice === "") {
-      // OK — fixed_qty path
-    } else if (typeof e.dice !== "string") {
-      return "Quantity dice must be a string like '2d4' or '3d6 + 2'.";
+    const type = e.type ?? "item";
+    if (type === "item") {
+      if (!e.item_id) return "Every item entry must reference an item from the Vault.";
+      if (e.dice !== null && e.dice !== undefined && e.dice !== "" && typeof e.dice !== "string") {
+        return "Quantity dice must be a string like '2d4' or '3d6+2'.";
+      }
+      if (e.fixed_qty !== null && e.fixed_qty !== undefined && (!Number.isInteger(e.fixed_qty) || e.fixed_qty < 0)) {
+        return "Fixed quantity must be a non-negative integer.";
+      }
+    } else if (type === "art_object") {
+      if (!e.art_name?.trim()) return "Art object entries must have a name.";
     }
-    if (e.fixed_qty !== null && e.fixed_qty !== undefined && (!Number.isInteger(e.fixed_qty) || e.fixed_qty < 0)) {
-      return "Fixed quantity must be a non-negative integer.";
-    }
+    // currency entries are always valid as long as drop_chance is valid
   }
   return null;
 }

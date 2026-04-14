@@ -79,13 +79,32 @@ export interface FlavorMetadata {
 // (migration 20260414000012) takes a row lock so concurrent clicks
 // serialise. Once `claims.length === claims_total` the chest is empty.
 
+export type LootChestAtomType = "item" | "currency" | "art_object";
+
 export interface LootChestAtom {
   /** Stable client uuid — primary key when racing to claim. */
   atom_id: string;
-  item_id: string | null;
-  item_name: string;
+  /** Missing in legacy chests — treat as "item". */
+  type?: LootChestAtomType;
+
+  // ── Item fields (type === "item") ──────────────────────────────────────────
+  item_id?: string | null;
+  item_name?: string;
   item_image_url?: string | null;
   item_rarity?: string | null;
+
+  // ── Currency fields (type === "currency") ──────────────────────────────────
+  currency_label?: string | null;
+  pp?: number;
+  gp?: number;
+  ep?: number;
+  sp?: number;
+  cp?: number;
+
+  // ── Art object fields (type === "art_object") ──────────────────────────────
+  art_name?: string;
+  value_gp?: number;
+  art_image_url?: string | null;
 }
 
 export interface LootChestClaim {
