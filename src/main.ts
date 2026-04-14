@@ -13,11 +13,21 @@ import { tooltip as vTooltip } from "./directives/tooltip";
 window.addEventListener("beforeinstallprompt", captureInstallPrompt, { once: true });
 document.addEventListener("visibilitychange", onWakeLockVisibilityChange);
 
-// When the service worker updates (autoUpdate mode), the new SW calls skipWaiting()
-// and fires controllerchange. Reload to pick up the new cached assets.
-navigator.serviceWorker?.addEventListener("controllerchange", () => {
-  window.location.reload();
-});
+// Service worker — hand-rolled at build time by `swPlugin` in vite.config.ts.
+// Registered in production only; dev runs with no SW so HMR isn't fighting a
+// cache-first fetch handler. The SW calls skipWaiting() + clients.claim() on
+// activate (see scripts/sw-template.js), which fires controllerchange and
+// triggers the reload below so users pick up the new cached assets.
+if ("serviceWorker" in navigator && import.meta.env.PROD) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {
+      // Silent — SW registration is non-critical for app functionality.
+    });
+  });
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    window.location.reload();
+  });
+}
 
 // networkMode: 'always' prevents TanStack Query from pausing mutations/queries
 // when the browser briefly reports "offline" on tab focus after sleep/switch.
