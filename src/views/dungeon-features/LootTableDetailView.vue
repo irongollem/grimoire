@@ -208,7 +208,7 @@
                 </div>
                 <!-- Pool size hint -->
                 <p class="font-fell text-[10px] text-muted-foreground italic">
-                  {{ randomPoolSize(entry) }} matching item{{ randomPoolSize(entry) === 1 ? '' : 's' }} in vault
+                  {{ randomPoolSizes.get(entry.id) ?? 0 }} matching item{{ randomPoolSizes.get(entry.id) === 1 ? '' : 's' }} in vault
                 </p>
               </template>
 
@@ -512,13 +512,19 @@ const summaryDropPercent = computed(() => {
   return Math.round(sum / form.value.entries.length);
 });
 
-function randomPoolSize(entry: LootEntry): number {
-  return [...itemsById.value.values()].filter(
-    (it) =>
-      it.rarity === entry.rarity &&
-      (!entry.item_type_filter || it.item_type === entry.item_type_filter),
-  ).length;
-}
+const randomPoolSizes = computed(() => {
+  const map = new Map<string, number>();
+  for (const entry of form.value.entries) {
+    if ((entry.type ?? "item") !== "random") continue;
+    const count = [...itemsById.value.values()].filter(
+      (it) =>
+        it.rarity === entry.rarity &&
+        (!entry.item_type_filter || it.item_type === entry.item_type_filter),
+    ).length;
+    map.set(entry.id, count);
+  }
+  return map;
+});
 
 function addEntry(type: LootEntryType) {
   const base = { id: crypto.randomUUID(), type, drop_chance: 100, notes: null };

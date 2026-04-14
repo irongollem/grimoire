@@ -77,6 +77,17 @@ export const ITEM_RARITY_LABELS: Record<ItemRarity, string> = {
   artifact: "Artifact",
 };
 
+/** DMG Table 7-1 price guidance, keyed by rarity — used in tooltips and hints. */
+export const RARITY_PRICE_HINTS: Partial<Record<ItemRarity, string>> = {
+  mundane:   "Mundane — market price",
+  common:    "Common — ~50–100 gp",
+  uncommon:  "Uncommon — ~101–500 gp",
+  rare:      "Rare — ~501–5,000 gp",
+  very_rare: "Very Rare — ~5,001–50,000 gp",
+  legendary: "Legendary — 50,000+ gp",
+  artifact:  "Artifact — priceless",
+};
+
 /** Frame colours for card printing, keyed by rarity */
 export const RARITY_COLORS: Record<ItemRarity, string> = {
   mundane: "#3D3D3D",

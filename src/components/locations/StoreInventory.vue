@@ -227,7 +227,7 @@ import {
 } from "@/composables/useStoreItems";
 import type { StoreItem } from "@/composables/useStoreItems";
 import type { Item } from "@/types/item.types";
-import { ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS, ITEM_TYPES } from "@/types/item.types";
+import { ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS, ITEM_TYPES, RARITY_PRICE_HINTS } from "@/types/item.types";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { COINS, type CoinKey, parseCoinText } from "@/lib/currency";
 
@@ -284,19 +284,8 @@ function remove(id: string) {
   removeItem(id);
 }
 
-// ── Rarity price hints (DMG Table 7-1) ─────────────────────────────────────────
-const RARITY_PRICE_HINTS: Record<string, string> = {
-  mundane:   "Mundane — market price",
-  common:    "Common — ~50–100 gp",
-  uncommon:  "Uncommon — ~101–500 gp",
-  rare:      "Rare — ~501–5,000 gp",
-  very_rare: "Very Rare — ~5,001–50,000 gp",
-  legendary: "Legendary — 50,000+ gp",
-  artifact:  "Artifact — priceless",
-};
-
 function rarityPriceHint(rarity: string | null | undefined): string {
-  return RARITY_PRICE_HINTS[rarity ?? ""] ?? "";
+  return RARITY_PRICE_HINTS[(rarity ?? "") as keyof typeof RARITY_PRICE_HINTS] ?? "";
 }
 
 // ── Quick fill ──────────────────────────────────────────────────────────────────
@@ -304,22 +293,18 @@ const fillCount  = ref(3);
 const fillRarity = ref("uncommon");
 const fillType   = ref("");
 
-const fillPoolSize = computed(() => {
-  return (allItems.value ?? []).filter(
+const fillPool = computed(() =>
+  (allItems.value ?? []).filter(
     (i) =>
       !existingItemIds.value.has(i.id) &&
       i.rarity === fillRarity.value &&
       (fillType.value === "" || i.item_type === fillType.value),
-  ).length;
-});
+  ),
+);
+const fillPoolSize = computed(() => fillPool.value.length);
 
 function quickFill() {
-  const pool = (allItems.value ?? []).filter(
-    (i) =>
-      !existingItemIds.value.has(i.id) &&
-      i.rarity === fillRarity.value &&
-      (fillType.value === "" || i.item_type === fillType.value),
-  );
+  const pool = [...fillPool.value];
   // Fisher-Yates shuffle then take fillCount
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));

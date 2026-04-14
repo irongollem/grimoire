@@ -25,7 +25,7 @@ export interface LootEntry {
   /** Stable client-side uuid for v-for keying + reorder safety. */
   id: string;
   /** Entry kind. Absent in legacy entries → treated as "item". */
-  type: LootEntryType;
+  type?: LootEntryType;
   /** 1–100 — chance this entry appears in a single roll. 100 = always. */
   drop_chance: number;
   /** Free-form DM note — editor-only, not shown to players. */

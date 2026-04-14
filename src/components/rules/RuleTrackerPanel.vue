@@ -68,27 +68,20 @@ const activeEffects = computed<TrackerEffect[]>(() => {
   return currentLevel.value.effects;
 });
 
+const LEVEL_COLORS: Record<string, { badge: string; bar: string }> = {
+  green:  { badge: "bg-green-500/20 text-green-400",   bar: "bg-green-500" },
+  yellow: { badge: "bg-yellow-500/20 text-yellow-400", bar: "bg-yellow-500" },
+  orange: { badge: "bg-orange-500/20 text-orange-400", bar: "bg-orange-500" },
+  red:    { badge: "bg-red-500/20 text-red-400",       bar: "bg-red-500" },
+  blue:   { badge: "bg-blue-500/20 text-blue-400",     bar: "bg-blue-500" },
+  purple: { badge: "bg-purple-500/20 text-purple-400", bar: "bg-purple-500" },
+};
+
 function levelColorClass(color?: string): string {
-  const map: Record<string, string> = {
-    green:  "bg-green-500/20 text-green-400",
-    yellow: "bg-yellow-500/20 text-yellow-400",
-    orange: "bg-orange-500/20 text-orange-400",
-    red:    "bg-red-500/20 text-red-400",
-    blue:   "bg-blue-500/20 text-blue-400",
-    purple: "bg-purple-500/20 text-purple-400",
-  };
-  return map[color ?? ""] ?? "bg-muted text-muted-foreground";
+  return LEVEL_COLORS[color ?? ""]?.badge ?? "bg-muted text-muted-foreground";
 }
 
 function levelBarColorClass(color?: string): string {
-  const map: Record<string, string> = {
-    green:  "bg-green-500",
-    yellow: "bg-yellow-500",
-    orange: "bg-orange-500",
-    red:    "bg-red-500",
-    blue:   "bg-blue-500",
-    purple: "bg-purple-500",
-  };
-  return map[color ?? ""] ?? "bg-primary";
+  return LEVEL_COLORS[color ?? ""]?.bar ?? "bg-primary";
 }
 </script>

@@ -422,6 +422,7 @@ import {
   ITEM_RARITY_LABELS,
   WEAPON_PROPERTIES,
   RARITY_COLORS,
+  RARITY_PRICE_HINTS,
   isWeaponType,
   isArmorType,
   itemSourceLabel,
@@ -504,14 +505,6 @@ const isWeapon = computed(() => isWeaponType(itemType.value));
 const isArmor = computed(() => isArmorType(itemType.value));
 const isMagic = computed(() => rarity.value !== "mundane");
 
-const RARITY_PRICE_HINTS: Partial<Record<ItemRarity, string>> = {
-  common:    "~50–100 gp (DMG guideline)",
-  uncommon:  "~101–500 gp (DMG guideline)",
-  rare:      "~501–5,000 gp (DMG guideline)",
-  very_rare: "~5,001–50,000 gp (DMG guideline)",
-  legendary: "50,000+ gp (DMG guideline)",
-  artifact:  "Priceless / not for sale",
-};
 const rarityPriceHint = computed(() => RARITY_PRICE_HINTS[rarity.value] ?? "");
 const isArtObject = computed(() => itemType.value === "art_object");
 const rarityColor = computed(() => RARITY_COLORS[rarity.value] ?? "#888888");

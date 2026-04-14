@@ -40,6 +40,17 @@ export function useTrackerStates() {
   });
 }
 
+function findTrackerRow(
+  rows: TrackerState[],
+  partyMemberId: string,
+  ruleKey?: string | null,
+  ruleId?: string | null,
+): TrackerState | undefined {
+  return ruleKey
+    ? rows.find((r) => r.party_member_id === partyMemberId && r.rule_key === ruleKey)
+    : rows.find((r) => r.party_member_id === partyMemberId && r.rule_id === ruleId);
+}
+
 /**
  * Returns the current tracker value for a specific party member + rule.
  * Pass either ruleKey (built-in) or ruleId (custom), not both.
@@ -47,10 +58,7 @@ export function useTrackerStates() {
 export function useTrackerValue(partyMemberId: string, ruleKey?: string, ruleId?: string) {
   const { data } = useTrackerStates();
   return computed(() => {
-    const rows = data.value ?? [];
-    const row = ruleKey
-      ? rows.find((r) => r.party_member_id === partyMemberId && r.rule_key === ruleKey)
-      : rows.find((r) => r.party_member_id === partyMemberId && r.rule_id === ruleId);
+    const row = findTrackerRow(data.value ?? [], partyMemberId, ruleKey, ruleId);
     return row?.value ?? 0;
   });
 }
@@ -81,9 +89,7 @@ export function useApplyTrackerDelta() {
     max: number;
   }) => {
     const rows = data.value ?? [];
-    const current = opts.ruleKey
-      ? (rows.find((r) => r.party_member_id === opts.partyMemberId && r.rule_key === opts.ruleKey)?.value ?? 0)
-      : (rows.find((r) => r.party_member_id === opts.partyMemberId && r.rule_id === opts.ruleId)?.value ?? 0);
+    const current = findTrackerRow(rows, opts.partyMemberId, opts.ruleKey, opts.ruleId)?.value ?? 0;
 
     const clamped = Math.max(opts.min, Math.min(opts.max, current + opts.delta));
     await set({
