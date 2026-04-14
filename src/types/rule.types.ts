@@ -29,14 +29,21 @@ export type RuleCategory = (typeof RULE_CATEGORIES)[number];
 // ── Tracker bolt-on for custom rules ─────────────────────────────────────────
 
 export interface TrackerEffect {
-  type: "speed" | "disadvantage_checks" | "disadvantage_saves" | "exhaustion" | "note";
-  value?: number;     // e.g. -10 for speed
-  scope?: string;     // e.g. "STR,DEX" for specific check types
-  label: string;      // human-readable: "Frozen (−10 ft speed)"
+  type: "speed" | "disadvantage_checks" | "disadvantage_saves" | "exhaustion" | "note" | "save";
+  value?: number;          // speed penalty value or exhaustion level
+  scope?: string;          // ability check/save scope, e.g. "STR,DEX"
+  label: string;           // human-readable label shown on player sheet
+  // "save" type only
+  ability?: string;        // ability used for the save: CON, DEX, STR, INT, WIS, CHA
+  dcBase?: number;         // fixed DC component
+  dcAddTracker?: boolean;  // if true, DC = dcBase + current tracker value
 }
 
+/** Ability code for ability-relative thresholds, e.g. "CON" = CON modifier. */
+export type AbilityCode = "STR" | "DEX" | "CON" | "INT" | "WIS" | "CHA";
+
 export interface TrackerLevel {
-  value: number;
+  value: number | AbilityCode;  // fixed number OR ability modifier used as threshold
   label: string;      // "Unaffected", "Chilled", "Frozen", "Hypothermic"
   color?: string;     // tailwind color name, e.g. "blue", "red"
   effects?: TrackerEffect[];

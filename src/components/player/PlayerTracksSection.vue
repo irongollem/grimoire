@@ -7,6 +7,7 @@
         :key="t.key"
         :tracker="t.def"
         :value="t.value"
+        :ability-scores="abilityScores"
       />
     </div>
   </div>
@@ -17,6 +18,7 @@ import { computed } from "vue";
 import RuleTrackerPanel from "@/components/rules/RuleTrackerPanel.vue";
 import { useTrackerStates } from "@/composables/useTrackerState";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
+import { useParty } from "@/composables/useParty";
 import { listOptionalRules } from "@/rules/optionalRules";
 import type { TrackerDef, TrackerState } from "@/types/rule.types";
 
@@ -28,6 +30,13 @@ const props = defineProps<{
 
 const { data: campaignRules } = useOptionalRules();
 const { data: trackerStates } = useTrackerStates();
+const { data: party } = useParty();
+
+const abilityScores = computed(() => {
+  const m = party.value?.find((p) => p.id === props.memberId);
+  if (!m) return undefined;
+  return { str: m.str, dex: m.dex, con: m.con, int: m.int, wis: m.wis, cha: m.cha };
+});
 
 // Built-in optional rules that are enabled for this campaign and carry a tracker.
 const enabledBuiltInTrackers = computed(() =>

@@ -2,6 +2,7 @@ import { computed, watch, onUnmounted } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { useAuthStore } from "@/stores/auth";
 import type { PartyMember, PartyMemberInsert, PartyMemberUpdate } from "@/types/party.types";
 import { removeStorageImages } from "@/composables/useImageUpload";
 
@@ -53,6 +54,15 @@ export function useParty() {
     queryFn: () => fetchParty(campaignId.value!),
     enabled: () => !!campaignId.value,
   });
+}
+
+/** Returns the party member linked to the current logged-in user, or undefined. */
+export function useMe() {
+  const auth = useAuthStore();
+  const { data: party } = useParty();
+  return computed<PartyMember | undefined>(
+    () => party.value?.find((m) => m.id === auth.linkedPartyMemberId) ?? undefined,
+  );
 }
 
 export function useCreatePartyMember() {

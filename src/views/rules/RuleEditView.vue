@@ -157,9 +157,12 @@
                 <div class="flex flex-col items-center gap-0.5 shrink-0">
                   <span class="font-cinzel text-[9px] text-muted-foreground">VAL</span>
                   <input
-                    v-model.number="lvl.value"
-                    type="number"
+                    :value="lvl.value"
+                    type="text"
+                    placeholder="0"
+                    title="Number (e.g. 3) or ability modifier (STR, DEX, CON, INT, WIS, CHA)"
                     class="w-12 bg-muted border border-border rounded px-1.5 py-1 font-cinzel text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                    @change="lvl.value = parseLevelValue(($event.target as HTMLInputElement).value)"
                   />
                 </div>
                 <input
@@ -200,6 +203,7 @@
                     <option value="disadvantage_checks">Disadv. ability checks</option>
                     <option value="disadvantage_saves">Disadv. saving throws</option>
                     <option value="exhaustion">Exhaustion level</option>
+                    <option value="save">Saving throw</option>
                   </select>
                   <input
                     v-if="fx.type === 'speed'"
@@ -224,7 +228,31 @@
                     placeholder="STR,DEX (blank = all)"
                     class="w-36 bg-muted border border-border rounded px-1.5 py-0.5 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                   />
+                  <!-- Save type: ability + DC formula -->
+                  <template v-if="fx.type === 'save'">
+                    <select
+                      v-model="fx.ability"
+                      class="w-16 bg-muted border border-border rounded px-1.5 py-0.5 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    >
+                      <option value="">Ability</option>
+                      <option v-for="ab in SAVE_ABILITIES" :key="ab.value" :value="ab.value">{{ ab.label }}</option>
+                    </select>
+                    <span class="font-cinzel text-[9px] text-muted-foreground shrink-0">DC</span>
+                    <input
+                      v-model.number="fx.dcBase"
+                      type="number"
+                      min="1"
+                      placeholder="10"
+                      title="Base DC value"
+                      class="w-14 bg-muted border border-border rounded px-1.5 py-0.5 font-fell text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                    />
+                    <label class="flex items-center gap-1 shrink-0 cursor-pointer" title="Add current tracker value to DC">
+                      <input type="checkbox" v-model="fx.dcAddTracker" class="rounded" />
+                      <span class="font-cinzel text-[9px] text-muted-foreground">+VAL</span>
+                    </label>
+                  </template>
                   <input
+                    v-if="fx.type !== 'save'"
                     v-model="fx.label"
                     type="text"
                     placeholder="Shown on player sheet"
@@ -340,11 +368,20 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useRoute, useRouter } from "vue-router";
 import { useRule, useCreateRule, useUpdateRule, useDeleteRule } from "@/composables/useRules";
 import { RULE_CATEGORIES } from "@/types/rule.types";
-import type { TrackerDef, TrackerLevel, DmButton } from "@/types/rule.types";
+import type { TrackerDef, TrackerLevel, DmButton, AbilityCode } from "@/types/rule.types";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagInput from "@/components/common/TagInput.vue";
+
+const SAVE_ABILITIES = [
+  { value: "STR", label: "STR" },
+  { value: "DEX", label: "DEX" },
+  { value: "CON", label: "CON" },
+  { value: "INT", label: "INT" },
+  { value: "WIS", label: "WIS" },
+  { value: "CHA", label: "CHA" },
+] as const;
 
 const LEVEL_COLORS = [
   { value: "green",  label: "Green"  },
@@ -415,12 +452,22 @@ function onTypeChange() {
   }
 }
 
+const ABILITY_CODES = new Set(["STR", "DEX", "CON", "INT", "WIS", "CHA"]);
+
+function parseLevelValue(raw: string): number | AbilityCode {
+  const upper = raw.trim().toUpperCase();
+  if (ABILITY_CODES.has(upper)) return upper as AbilityCode;
+  const n = Number(raw);
+  return isNaN(n) ? 0 : n;
+}
+
 function addLevel() {
   if (!tracker.value) return;
   tracker.value.levels ??= [];
-  const nextVal = tracker.value.levels.length
-    ? Math.max(...tracker.value.levels.map((l) => l.value)) + 1
-    : tracker.value.min;
+  const numericVals = tracker.value.levels
+    .map((l) => l.value)
+    .filter((v): v is number => typeof v === "number");
+  const nextVal = numericVals.length ? Math.max(...numericVals) + 1 : tracker.value.min;
   tracker.value.levels.push({ value: nextVal, label: "", color: undefined, effects: [] });
 }
 
