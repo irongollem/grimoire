@@ -277,6 +277,93 @@
             </div>
           </div>
 
+          <!-- Loot chest message -->
+          <div
+            v-else-if="msg.type === 'loot_chest'"
+            class="max-w-[90%] rounded-lg border overflow-hidden"
+            :class="
+              chestEmpty(msg.metadata as LootChestMetadata)
+                ? 'border-border bg-muted/40'
+                : 'border-amber-500/30 bg-amber-500/5'
+            "
+          >
+            <div class="px-3 py-2 border-b border-border/50 flex items-center gap-2">
+              <PackageOpen class="h-3.5 w-3.5 text-amber-400 shrink-0" />
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider flex-1 truncate">
+                {{ msg.sender_name }} dropped {{ (msg.metadata as LootChestMetadata)?.loot_table_name }}
+              </span>
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider shrink-0">
+                {{ (msg.metadata as LootChestMetadata)?.claims?.length ?? 0 }} / {{ (msg.metadata as LootChestMetadata)?.claims_total ?? 0 }}
+              </span>
+            </div>
+
+            <div class="px-3 py-2.5 flex flex-col gap-2.5">
+              <img
+                v-if="(msg.metadata as LootChestMetadata)?.chest_image_url"
+                :src="(msg.metadata as LootChestMetadata).chest_image_url!"
+                alt="Chest"
+                class="w-full rounded object-cover max-h-40"
+              />
+
+              <ul class="flex flex-col gap-1.5">
+                <li
+                  v-for="atom in (msg.metadata as LootChestMetadata)?.rolled_atoms ?? []"
+                  :key="atom.atom_id"
+                  class="flex items-center gap-2 rounded px-2 py-1.5 transition-colors"
+                  :class="
+                    atomClaim(msg.metadata as LootChestMetadata, atom.atom_id)
+                      ? 'bg-muted/40 opacity-70'
+                      : 'bg-muted/20 hover:bg-muted/40'
+                  "
+                >
+                  <img
+                    v-if="atom.item_image_url"
+                    :src="atom.item_image_url"
+                    :alt="atom.item_name"
+                    class="w-7 h-7 rounded object-cover shrink-0"
+                  />
+                  <Package v-else class="w-5 h-5 text-muted-foreground shrink-0" />
+
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-baseline gap-2">
+                      <span class="font-fell text-sm font-semibold text-foreground truncate">
+                        {{ atom.item_name }}
+                      </span>
+                      <span
+                        v-if="atom.item_rarity"
+                        class="font-cinzel text-[9px] uppercase tracking-wider text-muted-foreground shrink-0"
+                      >
+                        {{ atom.item_rarity }}
+                      </span>
+                    </div>
+                    <span
+                      v-if="atomClaim(msg.metadata as LootChestMetadata, atom.atom_id)"
+                      class="font-fell text-[10px] text-muted-foreground italic"
+                    >
+                      claimed by {{ atomClaim(msg.metadata as LootChestMetadata, atom.atom_id)!.claimed_by_name }}
+                    </span>
+                  </div>
+
+                  <button
+                    v-if="!atomClaim(msg.metadata as LootChestMetadata, atom.atom_id) && !chestEmpty(msg.metadata as LootChestMetadata)"
+                    type="button"
+                    class="font-cinzel text-[11px] font-semibold tracking-wider px-2.5 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 transition-opacity shrink-0"
+                    @click="emit('claim-loot-chest', { messageId: msg.id, atomId: atom.atom_id })"
+                  >
+                    Claim
+                  </button>
+                </li>
+              </ul>
+
+              <p
+                v-if="chestEmpty(msg.metadata as LootChestMetadata)"
+                class="font-fell text-[11px] text-muted-foreground italic text-center"
+              >
+                Chest is empty.
+              </p>
+            </div>
+          </div>
+
           <!-- Currency drop message -->
           <div
             v-else-if="msg.type === 'currency_drop'"
@@ -755,6 +842,8 @@ import {
   ShoppingBag,
   Tag,
   ChevronDown,
+  Package,
+  PackageOpen,
 } from "lucide-vue-next";
 import ChatItemDropDetails from "@/components/chat/ChatItemDropDetails.vue";
 import { rollDice } from "@/lib/roller";
@@ -769,10 +858,22 @@ import type {
   PlayerOfferMetadata,
   FlavorMetadata,
   RollMetadata,
+  LootChestMetadata,
+  LootChestClaim,
 } from "@/types/chat.types";
 
 function asRoll(m: CampaignMessage["metadata"]): RollMetadata {
   return m as RollMetadata;
+}
+
+// Loot chest helpers — null-safe accessors so v-if/v-for in the template stay
+// terse and don't have to repeat the cast + optional chains.
+function chestEmpty(meta: LootChestMetadata | null | undefined): boolean {
+  if (!meta) return true;
+  return (meta.claims?.length ?? 0) >= (meta.claims_total ?? 0);
+}
+function atomClaim(meta: LootChestMetadata | null | undefined, atomId: string): LootChestClaim | null {
+  return meta?.claims?.find(c => c.atom_id === atomId) ?? null;
 }
 import type { CampaignMember } from "@/types/campaign.types";
 import type { PartyMember } from "@/types/party.types";
@@ -810,6 +911,7 @@ const emit = defineEmits<{
   "pay-vendor-offer": [payload: { messageId: string }];
   "send-vendor-offer": [payload: { description: string; itemName: string | null; itemId: string | null; pp: number; gp: number; ep: number; sp: number; cp: number }];
   "buy-player-offer": [payload: { messageId: string }];
+  "claim-loot-chest": [payload: { messageId: string; atomId: string }];
 }>();
 
 const npcSelectState = reactive<Record<string, string>>({});

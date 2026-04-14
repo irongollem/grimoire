@@ -5,7 +5,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/useParty";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
-import type { CampaignMessage, CampaignMessageInsert, ItemDropMetadata, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, FlavorMetadata } from "@/types/chat.types";
+import type { CampaignMessage, CampaignMessageInsert, ItemDropMetadata, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, FlavorMetadata, LootChestMetadata } from "@/types/chat.types";
 import { formatCoinParts } from "@/lib/currency";
 import type { RollResult } from "@/lib/dice";
 
@@ -368,6 +368,42 @@ export function useCampaignMessages() {
     if (idx >= 0) messages.value[idx] = { ...messages.value[idx], metadata: newMeta };
   }
 
+  // ── Loot chest (issue #121, part B) ──────────────────────────────────────
+  // sendLootChest just inserts the message — the table is already rolled
+  // client-side and handed in via `metadata`. claimLootChestAtom delegates
+  // to a Postgres RPC so concurrent clicks serialise on a row lock.
+
+  async function sendLootChest(metadata: LootChestMetadata, senderName?: string) {
+    const cid = campaign.activeCampaignId;
+    if (!cid || !auth.user?.id) return;
+    const insert: CampaignMessageInsert = {
+      campaign_id: cid,
+      user_id: auth.user.id,
+      recipient_user_id: null,
+      sender_name: senderName ?? getSenderName(),
+      message: `dropped a chest from ${metadata.loot_table_name}`,
+      type: "loot_chest",
+      metadata,
+    };
+    const { data } = await supabase.from("campaign_messages").insert(insert).select().single();
+    if (data) _optimisticPush(data as CampaignMessage);
+  }
+
+  async function claimLootChestAtom(messageId: string, atomId: string, claimerName: string) {
+    const { data, error } = await supabase.rpc("claim_loot_chest_atom", {
+      p_message_id: messageId,
+      p_atom_id: atomId,
+      p_claimer_name: claimerName,
+    });
+    if (error) throw error;
+    // RPC returns the new metadata blob — patch local state so the chest
+    // updates without waiting for the realtime subscription.
+    const idx = messages.value.findIndex(m => m.id === messageId);
+    if (idx >= 0 && data) {
+      messages.value[idx] = { ...messages.value[idx], metadata: data as LootChestMetadata };
+    }
+  }
+
   async function deleteMessage(id: string) {
     await supabase.from("campaign_messages").delete().eq("id", id);
     messages.value = messages.value.filter(m => m.id !== id);
@@ -428,5 +464,5 @@ export function useCampaignMessages() {
     if (idx >= 0) messages.value[idx] = { ...messages.value[idx], metadata: newMeta };
   }
 
-  return { messages: visibleMessages, loading, sendMessage, sendFlavorMessage, sendRoll, sendItemDrop, claimItemDrop, sendCurrencyDrop, claimCurrencyDrop, sendVendorOffer, claimVendorOffer, sendPlayerOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId };
+  return { messages: visibleMessages, loading, sendMessage, sendFlavorMessage, sendRoll, sendItemDrop, claimItemDrop, sendCurrencyDrop, claimCurrencyDrop, sendLootChest, claimLootChestAtom, sendVendorOffer, claimVendorOffer, sendPlayerOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId };
 }
