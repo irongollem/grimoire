@@ -488,6 +488,7 @@ import {
 } from "@/composables/useCampaignMembers";
 import { SKILLS } from "@/types/party.types";
 import { useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
+import { useCampaignStore } from "@/stores/campaign";
 import { useAllCustomSubclasses } from "@/composables/useCustomSubclasses";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
 import TagPickerInput from "@/components/common/TagPickerInput.vue";
@@ -533,11 +534,13 @@ const PROF_LEVELS: { value: SkillProfLevel; label: string }[] = [
 const props = defineProps<{ member: PartyMember | null }>();
 const emit = defineEmits<{ close: [] }>();
 
+const campaignStore = useCampaignStore();
 const { data: systemClasses } = useAllSystemClasses();
 const { data: customClasses } = useAllCustomClasses();
 
 const allClassNames = computed<string[]>(() => {
-  const srd = (systemClasses.value ?? []).map(c => c.class_name);
+  const disabledSet = new Set(campaignStore.activeCampaign?.disabled_class_names ?? []);
+  const srd = (systemClasses.value ?? []).map(c => c.class_name).filter(n => !disabledSet.has(n));
   const custom = (customClasses.value ?? []).map(c => c.class_name);
   return [...new Set([...srd, ...custom])].sort();
 });

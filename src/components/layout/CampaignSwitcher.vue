@@ -197,20 +197,16 @@
           </button>
         </div>
 
-        <!-- Members tab -->
+        <!-- Members & Invites tab -->
         <div
           v-if="editing && activeModalTab === 'members'"
-          class="px-5 py-4 max-h-[60vh] overflow-y-auto"
+          class="px-5 py-4 max-h-[60vh] overflow-y-auto space-y-6"
         >
-          <MembersTab @switch-tab="activeModalTab = $event as ModalTab" />
-        </div>
-
-        <!-- Invites tab -->
-        <div
-          v-else-if="editing && activeModalTab === 'invites'"
-          class="px-5 py-4 max-h-[60vh] overflow-y-auto"
-        >
-          <InvitesTab />
+          <MembersTab @switch-tab="" />
+          <div>
+            <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase mb-3">Invite Links</p>
+            <InvitesTab />
+          </div>
         </div>
 
         <!-- Scheduling tab -->
@@ -274,7 +270,7 @@
         </div>
 
         <!-- Details tab (default, and only content when creating) -->
-        <form v-else class="px-5 py-4 space-y-4" @submit.prevent="submitForm">
+        <form v-else class="px-5 py-4 space-y-4 max-h-[70vh] overflow-y-auto" @submit.prevent="submitForm">
           <div>
             <label
               class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1"
@@ -530,6 +526,34 @@
             </label>
           </div>
 
+          <!-- Available Classes collapsible — only when editing -->
+          <div v-if="editing" class="rounded-md border border-border overflow-hidden">
+            <button
+              type="button"
+              class="flex w-full items-center justify-between px-3 py-2.5 bg-muted/20 hover:bg-muted/40 transition-colors"
+              @click="classesOpen = !classesOpen"
+            >
+              <span class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">AVAILABLE CLASSES</span>
+              <ChevronDown class="h-3.5 w-3.5 text-muted-foreground transition-transform" :class="classesOpen ? 'rotate-180' : ''" />
+            </button>
+            <div v-if="classesOpen" class="divide-y divide-border">
+              <label
+                v-for="cls in systemClasses"
+                :key="cls.class_name"
+                class="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted/20 transition-colors"
+              >
+                <input
+                  type="checkbox"
+                  :checked="!disabledClasses.has(cls.class_name)"
+                  class="h-4 w-4 rounded border-border bg-background shrink-0"
+                  @change="toggleClass(cls.class_name)"
+                />
+                <span class="font-fell text-sm text-foreground flex-1">{{ cls.class_name }}</span>
+                <span v-if="disabledClasses.has(cls.class_name)" class="font-cinzel text-[10px] text-muted-foreground/60 shrink-0">hidden</span>
+              </label>
+            </div>
+          </div>
+
           <div class="flex justify-end gap-2 pt-1">
             <button
               type="button"
@@ -590,19 +614,18 @@ import MembersTab from "@/components/campaign/MembersTab.vue";
 import InvitesTab from "@/components/campaign/InvitesTab.vue";
 import SchedulingTab from "@/components/campaign/SchedulingTab.vue";
 import AiTab from "@/components/campaign/AiTab.vue";
+import { useAllSystemClasses } from "@/composables/useCustomClasses";
 
 type ModalTab =
   | "details"
   | "members"
-  | "invites"
   | "scheduling"
   | "ai"
   | "danger";
 
 const modalTabs: { id: ModalTab; label: string }[] = [
   { id: "details", label: "Details" },
-  { id: "members", label: "Members" },
-  { id: "invites", label: "Invite Links" },
+  { id: "members", label: "Members & Invites" },
   { id: "scheduling", label: "Scheduling" },
   { id: "ai", label: "AI Assistant" },
   { id: "danger", label: "Danger Zone" },
@@ -632,6 +655,24 @@ const { mutateAsync: claimOrphans, isPending: isClaiming } =
 const campaigns = computed(() => campaignList.value ?? []);
 const activeCampaign = computed(() => campaignStore.activeCampaign);
 const isSaving = computed(() => isCreating.value || isUpdating.value);
+
+// ── Available classes (inline collapsible in Details tab) ─────────────────────
+const { data: systemClasses } = useAllSystemClasses();
+const classesOpen = ref(false);
+const disabledClasses = ref(new Set<string>(campaignStore.activeCampaign?.disabled_class_names ?? []));
+
+watch(
+  () => campaignStore.activeCampaign?.disabled_class_names,
+  (val) => { disabledClasses.value = new Set(val ?? []); },
+);
+
+function toggleClass(className: string) {
+  if (disabledClasses.value.has(className)) disabledClasses.value.delete(className);
+  else disabledClasses.value.add(className);
+  disabledClasses.value = new Set(disabledClasses.value);
+  if (!campaignStore.activeCampaignId) return;
+  updateCampaign({ id: campaignStore.activeCampaignId, update: { disabled_class_names: [...disabledClasses.value] } });
+}
 
 const open = ref(false);
 const editing = ref<Campaign | null>(null);
