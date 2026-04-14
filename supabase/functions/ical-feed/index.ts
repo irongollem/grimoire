@@ -40,8 +40,9 @@ interface SessionRow {
   id: string;
   title: string;
   notes: string | null;
-  proposed_date: string; // YYYY-MM-DD
-  proposed_time: string | null; // HH:mm or null
+  proposed_date: string;
+  proposed_time: string | null;
+  duration_minutes: number;
   updated_at: string;
 }
 
@@ -80,12 +81,14 @@ Deno.serve(async (req: Request) => {
     return new Response("Not Found", { status: 404 });
   }
 
-  // Fetch confirmed sessions
+  // Fetch confirmed sessions — only future ones (today inclusive)
+  const todayIso = new Date().toISOString().slice(0, 10);
   const { data: sessions, error: sessErr } = await supabase
     .from("session_proposals")
-    .select("id, title, notes, proposed_date, proposed_time, updated_at")
+    .select("id, title, notes, proposed_date, proposed_time, duration_minutes, updated_at")
     .eq("campaign_id", campaign.id)
     .eq("status", "confirmed")
+    .gte("proposed_date", todayIso)
     .order("proposed_date", { ascending: true });
 
   if (sessErr) {
@@ -127,13 +130,14 @@ Deno.serve(async (req: Request) => {
     if (s.proposed_time) {
       const timeStr = s.proposed_time.replace(/:/g, "").slice(0, 4) + "00";
       dtstart = `DTSTART:${dateStr}T${timeStr}`;
-      // Default session length: 4 hours
+      // Default session length: 4 hours — endDate may roll over to next calendar day
       const [h, m] = s.proposed_time.split(":").map(Number);
       const endDate = new Date(`${s.proposed_date}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`);
-      endDate.setHours(endDate.getHours() + 4);
-      const endTimeStr = String(endDate.getHours()).padStart(2, "0") +
-        String(endDate.getMinutes()).padStart(2, "0") + "00";
-      dtend = `DTEND:${dateStr}T${endTimeStr}`;
+      endDate.setMinutes(endDate.getMinutes() + (s.duration_minutes ?? 240));
+      const pad2 = (n: number) => String(n).padStart(2, "0");
+      const endDateStr = `${endDate.getFullYear()}${pad2(endDate.getMonth() + 1)}${pad2(endDate.getDate())}`;
+      const endTimeStr = `${pad2(endDate.getHours())}${pad2(endDate.getMinutes())}00`;
+      dtend = `DTEND:${endDateStr}T${endTimeStr}`;
     } else {
       dtstart = `DTSTART;VALUE=DATE:${dateStr}`;
       // All-day: end is next calendar day
@@ -149,7 +153,7 @@ Deno.serve(async (req: Request) => {
       `DTSTAMP:${dtstamp}`,
       dtstart,
       dtend,
-      foldLine(`SUMMARY:${escapeText(s.title)}`),
+      foldLine(`SUMMARY:${escapeText(campaign.name)} — ${escapeText(s.title)}`),
       ...(s.notes ? [foldLine(`DESCRIPTION:${escapeText(s.notes)}`)] : []),
       "STATUS:CONFIRMED",
       "END:VEVENT",

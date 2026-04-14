@@ -10,6 +10,7 @@ export interface SessionProposal {
   notes: string | null;
   status: SessionStatus;
   min_attendance: number;
+  duration_minutes: number;
   created_at: string;
   updated_at: string;
 }

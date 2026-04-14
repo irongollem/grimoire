@@ -78,13 +78,6 @@
                 >
                   {{ member.name }}
                 </RouterLink>
-                <RouterLink
-                  :to="`/play/character/edit?memberId=${member.id}`"
-                  class="md:hidden w-6 h-6 flex items-center justify-center text-muted-foreground/40 hover:text-foreground transition-colors shrink-0"
-                  title="Edit character"
-                >
-                  <Pencil class="h-3.5 w-3.5" />
-                </RouterLink>
               </div>
               <p class="font-fell text-xs text-muted-foreground italic">
                 {{
@@ -152,13 +145,6 @@
                 >
                   <Sparkles class="h-3.5 w-3.5" />
                 </button>
-                <RouterLink
-                  :to="`/play/character/edit?memberId=${member.id}`"
-                  class="hidden md:flex w-7 h-7 rounded-full items-center justify-center text-muted-foreground/40 hover:text-foreground transition-colors shrink-0"
-                  title="Edit character"
-                >
-                  <Pencil class="h-3.5 w-3.5" />
-                </RouterLink>
               </div>
 
               <!-- HP bar -->
@@ -688,7 +674,7 @@ const { confirm } = useConfirm();
 import { rollDice } from "@/lib/roller";
 import { ref, computed, reactive, nextTick } from "vue";
 import { useRouter } from "vue-router";
-import { Plus, Dices, RotateCcw, Pencil, Sparkles, Backpack, Trash2, ExternalLink, ArrowUpFromLine, MapPin } from "lucide-vue-next";
+import { Plus, Dices, RotateCcw, Sparkles, Backpack, Trash2, ExternalLink, ArrowUpFromLine, MapPin } from "lucide-vue-next";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import { useAllLocations } from "@/composables/useLocations";
 import { usePartyInventory, useAddInventoryItem, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
