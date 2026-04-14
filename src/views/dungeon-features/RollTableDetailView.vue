@@ -1,25 +1,31 @@
 <template>
-  <PageHeader :title="isNew ? 'New Roll Table' : (table?.name ?? 'Loading…')">
-    <template #actions>
-      <button
-        v-if="!isNew"
-        type="button"
-        :disabled="isDeleting"
-        class="font-fell text-sm text-destructive hover:opacity-70 transition-opacity disabled:opacity-50"
-        @click="onDelete"
-      >
-        Delete
-      </button>
-      <button
-        type="button"
-        :disabled="saving || !form.name.trim() || rangeError !== null"
-        :title="rangeError ?? undefined"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
-        @click="onSave"
-      >
-        {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
-      </button>
-    </template>
+  <div>
+    <!-- Action bar -->
+    <div class="flex items-center justify-between gap-2 mb-4">
+      <h2 class="font-cinzel text-lg font-bold text-foreground">
+        {{ isNew ? "New Roll Table" : form.name || "Loading…" }}
+      </h2>
+      <div class="flex items-center gap-2">
+        <button
+          v-if="!isNew"
+          type="button"
+          :disabled="isDeleting"
+          class="font-fell text-sm text-destructive hover:opacity-70 transition-opacity disabled:opacity-50"
+          @click="onDelete"
+        >
+          Delete
+        </button>
+        <button
+          type="button"
+          :disabled="saving || !form.name.trim() || rangeError !== null"
+          :title="rangeError ?? undefined"
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+          @click="onSave"
+        >
+          {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
+        </button>
+      </div>
+    </div>
 
     <div v-if="loading" class="flex justify-center py-16">
       <LoadingSpinner />
@@ -86,7 +92,7 @@
             <div
               v-for="(entry, idx) in form.entries"
               :key="entry.id"
-              class="grid grid-cols-[80px_1fr_140px_auto] gap-2 items-start rounded-md border border-border bg-card p-2"
+              class="grid grid-cols-[80px_1fr_auto] gap-2 items-start rounded-md border border-border bg-card p-2"
             >
               <!-- Range -->
               <div class="flex items-center gap-1">
@@ -122,17 +128,15 @@
                 />
               </div>
 
-              <!-- Actions -->
-              <div class="flex items-center gap-1">
-                <button
-                  type="button"
-                  class="text-muted-foreground hover:text-destructive transition-colors p-1"
-                  title="Remove entry"
-                  @click="removeEntry(idx)"
-                >
-                  <Trash2 class="size-3.5" />
-                </button>
-              </div>
+              <!-- Remove -->
+              <button
+                type="button"
+                class="text-muted-foreground hover:text-destructive transition-colors p-1 mt-0.5"
+                title="Remove entry"
+                @click="removeEntry(idx)"
+              >
+                <Trash2 class="size-3.5" />
+              </button>
 
               <!-- Notes (full row, collapsible) -->
               <textarea
@@ -140,12 +144,12 @@
                 v-model="entry.notes"
                 rows="1"
                 placeholder="Notes (optional)"
-                class="col-span-4 w-full bg-muted border border-border rounded px-2 py-1 font-fell text-xs text-muted-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+                class="col-span-3 w-full bg-muted border border-border rounded px-2 py-1 font-fell text-xs text-muted-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
               />
               <button
                 v-else
                 type="button"
-                class="col-span-4 text-left font-fell text-[10px] text-muted-foreground hover:text-foreground italic"
+                class="col-span-3 text-left font-fell text-[10px] text-muted-foreground hover:text-foreground italic"
                 @click="entry.notes = ''"
               >
                 + add note
@@ -215,7 +219,7 @@
         </div>
       </div>
     </div>
-  </PageHeader>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -239,22 +243,34 @@ import {
   type RollTableInsert,
 } from "@/types/rollTable.types";
 import { rollOnTable, type RollTableRollResult } from "@/lib/rollTableRoll";
-import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import TagInput from "@/components/common/TagInput.vue";
+
+const props = defineProps<{
+  /** ID of an existing table to edit. Omit for new-table mode. */
+  inlineId?: string;
+  /** True when creating a new table inline. */
+  inlineNew?: boolean;
+}>();
+const emit = defineEmits<{ done: [] }>();
 
 const route   = useRoute();
 const router  = useRouter();
 const { confirm } = useConfirm();
 
-const id      = computed(() => (route.params.id as string | undefined) ?? "");
-const isNew   = computed(() => route.name === "roll-table-new");
+// Support both inline (prop-driven) and standalone (route-driven) modes.
+const id    = computed(() =>
+  props.inlineId ?? (route.params.id as string | undefined) ?? "",
+);
+const isNew = computed(() =>
+  props.inlineNew ?? route.name === "roll-table-new",
+);
 
 // Detail query — disabled when creating
 const tableQuery = useRollTable(id);
-const table     = computed(() => tableQuery.data.value ?? null);
-const loading   = computed(() => !isNew.value && tableQuery.isLoading.value);
+const table      = computed(() => tableQuery.data.value ?? null);
+const loading    = computed(() => !isNew.value && tableQuery.isLoading.value);
 
 // ── Form state ─────────────────────────────────────────────────────────────
 const form = ref<RollTableInsert>({
@@ -288,14 +304,12 @@ const encounterOptions = computed(() =>
 );
 
 // ── Die / entries ──────────────────────────────────────────────────────────
-const dieMax = computed(() => ROLL_TABLE_DIE_MAX[form.value.dice]);
+const dieMax     = computed(() => ROLL_TABLE_DIE_MAX[form.value.dice]);
 const rangeError = computed(() => validateEntryRanges(form.value.entries, form.value.dice));
 
 function addEntry() {
-  // Sensible default: append at next free face after the highest current max,
-  // or 1 if the list is empty.
   const lastMax = form.value.entries.reduce((max, e) => Math.max(max, e.max), 0);
-  const start = Math.min(dieMax.value, lastMax + 1);
+  const start   = Math.min(dieMax.value, lastMax + 1);
   const e: RollTableEntry = {
     id: crypto.randomUUID(),
     min: start,
@@ -313,14 +327,11 @@ function removeEntry(idx: number) {
 
 function onDieChange() {
   const max = dieMax.value;
-  // First pass: clamp each entry to the new die's range.
   for (const e of form.value.entries) {
     e.min = Math.min(e.min, max);
     e.max = Math.min(e.max, max);
     if (e.max < e.min) e.max = e.min;
   }
-  // Second pass: sort by min, then push overlapping entries forward so they
-  // don't cause validation errors after a die downsize.
   form.value.entries.sort((a, b) => a.min - b.min);
   for (let i = 1; i < form.value.entries.length; i++) {
     const prev = form.value.entries[i - 1];
@@ -330,15 +341,12 @@ function onDieChange() {
       curr.max = Math.max(curr.min, Math.min(curr.max, max));
     }
   }
-  // Drop any entries that no longer fit (min > max of die).
   form.value.entries = form.value.entries.filter(e => e.min <= max);
 }
 
 // ── Roll panel ─────────────────────────────────────────────────────────────
 const lastRoll = ref<RollTableRollResult | null>(null);
 function onRoll() {
-  // Build a transient table from current form state so the user can roll
-  // before saving.
   lastRoll.value = rollOnTable({
     id: id.value,
     user_id: "",
@@ -358,8 +366,18 @@ function onRoll() {
 const { mutateAsync: createTable } = useCreateRollTable();
 const { mutateAsync: updateTable } = useUpdateRollTable();
 const { mutateAsync: removeTable } = useDeleteRollTable();
-const saving = ref(false);
+const saving     = ref(false);
 const isDeleting = ref(false);
+
+const isInline = computed(() => props.inlineId !== undefined || props.inlineNew === true);
+
+function navigateBack() {
+  if (isInline.value) {
+    emit("done");
+  } else {
+    router.push("/dungeon-craft?tab=roll-tables");
+  }
+}
 
 async function onSave() {
   if (!form.value.name.trim() || rangeError.value) return;
@@ -370,7 +388,7 @@ async function onSave() {
     } else {
       await updateTable({ id: id.value, update: { ...form.value } });
     }
-    router.push("/dungeon-craft?tab=roll-tables");
+    navigateBack();
   } finally {
     saving.value = false;
   }
@@ -380,7 +398,7 @@ async function onDelete() {
   if (!await confirm(`Delete "${form.value.name}"? This cannot be undone.`)) return;
   isDeleting.value = true;
   try {
-    router.push("/dungeon-craft?tab=roll-tables");
+    navigateBack();
     await removeTable(id.value);
   } finally {
     isDeleting.value = false;
