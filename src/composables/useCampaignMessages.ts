@@ -233,6 +233,29 @@ export function useCampaignMessages() {
     if (data) _optimisticPush(data as CampaignMessage);
   }
 
+  /**
+   * Narrative system event — used by the DM Prep/Play mode (#133) to announce
+   * entity reveals into chat. Posts as a `system` message with no sender name
+   * so it renders as a campaign event rather than a person talking. MVP emits
+   * plain text ("You encounter Alice."); a later iteration can swap in a
+   * structured metadata shape + a renderer that resolves the entity link.
+   */
+  async function sendNarrativeEvent(text: string) {
+    const cid = campaign.activeCampaignId;
+    if (!cid || !auth.user?.id || !text.trim()) return;
+    const insert: CampaignMessageInsert = {
+      campaign_id: cid,
+      user_id: auth.user.id,
+      recipient_user_id: null,
+      sender_name: null,
+      message: text.trim(),
+      type: "system",
+      metadata: null,
+    };
+    const { data } = await supabase.from("campaign_messages").insert(insert).select().single();
+    if (data) _optimisticPush(data as CampaignMessage);
+  }
+
   async function sendRoll(result: RollResult, recipientUserId: string | null = null, senderName?: string) {
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id) return;
@@ -497,5 +520,5 @@ export function useCampaignMessages() {
     if (idx >= 0) messages.value[idx] = { ...messages.value[idx], metadata: newMeta };
   }
 
-  return { messages: visibleMessages, loading, sendMessage, sendFlavorMessage, sendRoll, sendItemDrop, claimItemDrop, grabItemDrop, sendCurrencyDrop, claimCurrencyDrop, sendLootChest, claimLootChestAtom, sendVendorOffer, claimVendorOffer, sendPlayerOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId };
+  return { messages: visibleMessages, loading, sendMessage, sendFlavorMessage, sendNarrativeEvent, sendRoll, sendItemDrop, claimItemDrop, grabItemDrop, sendCurrencyDrop, claimCurrencyDrop, sendLootChest, claimLootChestAtom, sendVendorOffer, claimVendorOffer, sendPlayerOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId };
 }

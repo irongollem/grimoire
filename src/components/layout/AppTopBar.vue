@@ -14,6 +14,21 @@
       <Search class="h-5 w-5" />
     </button>
 
+    <!-- DM Prep/Play toggle (#133) — mirrors the sidebar pill for mobile. -->
+    <button
+      v-if="isDm"
+      type="button"
+      :title="ui.dmMode === 'play' ? 'Play mode — click to stop broadcasting' : 'Prep mode — click to broadcast'"
+      class="flex items-center gap-0.5 rounded border px-1 py-0.5 font-cinzel text-[9px] tracking-widest font-bold transition-colors shrink-0"
+      :class="ui.dmMode === 'play'
+        ? 'border-primary/60 bg-primary/15 text-primary'
+        : 'border-border text-muted-foreground'"
+      @click="ui.toggleDmMode()"
+    >
+      <span class="px-1" :class="ui.dmMode === 'prep' ? '' : 'opacity-50'">PREP</span>
+      <span class="px-1" :class="ui.dmMode === 'play' ? '' : 'opacity-50'">PLAY</span>
+    </button>
+
     <SoundboardWidgetToggle class="px-1.5! py-1!" />
     <DiceRoller />
 
@@ -95,6 +110,7 @@
 import { ref, computed, watch, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { Menu, Search, X, Loader2 } from "lucide-vue-next";
+import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import DiceRoller from "@/components/common/DiceRoller.vue";
 import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
@@ -102,6 +118,8 @@ import { useGlobalSearch } from "@/composables/useGlobalSearch";
 
 const route = useRoute();
 const ui = useUiStore();
+const auth = useAuthStore();
+const isDm = computed(() => auth.currentRole === "dm");
 
 const pageTitle = computed(() => (route.meta.title as string | undefined) ?? "Grimoire");
 
