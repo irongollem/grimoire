@@ -1,0 +1,403 @@
+<template>
+  <div class="flex flex-col gap-5">
+    <!-- Action bar: Edit + Delete. Matches the NPC / Location / Monster
+         sheet convention (#168). -->
+    <div class="flex flex-wrap items-center justify-end gap-2">
+      <span
+        class="font-cinzel text-[10px] tracking-wider rounded px-2 py-0.5 font-semibold text-white"
+        :style="{ backgroundColor: QUEST_STATUS_COLORS[quest.status] }"
+      >{{ QUEST_STATUS_LABELS[quest.status] }}</span>
+      <button
+        type="button"
+        :disabled="isDeleting"
+        class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+        @click="onDelete"
+      >
+        <Trash2 class="h-3.5 w-3.5" />
+        Delete
+      </button>
+      <button
+        type="button"
+        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+        @click="router.push({ query: { ...route.query, edit: 'true' } })"
+      >
+        <Pencil class="h-3.5 w-3.5" />
+        Edit
+      </button>
+    </div>
+
+    <!-- Summary -->
+    <p
+      v-if="quest.summary"
+      class="font-fell text-base text-foreground leading-snug"
+    >{{ quest.summary }}</p>
+
+    <!-- Meta row: giver / location / parent -->
+    <div
+      v-if="quest.giver_npc_id || quest.location_id || quest.parent_quest_id || quest.tags?.length"
+      class="flex flex-wrap items-center gap-2"
+    >
+      <RouterLink
+        v-if="giverNpc"
+        :to="`/npcs/${giverNpc.id}`"
+        class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
+      >
+        <UserRound class="h-3.5 w-3.5 text-muted-foreground" />
+        <span class="font-fell text-xs text-foreground">{{ giverNpc.name }}</span>
+      </RouterLink>
+      <RouterLink
+        v-if="questLocation"
+        :to="`/locations/${questLocation.id}`"
+        class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
+      >
+        <MapPinIcon class="h-3.5 w-3.5 text-muted-foreground" />
+        <span class="font-fell text-xs text-foreground">{{ questLocation.name }}</span>
+      </RouterLink>
+      <RouterLink
+        v-if="parentQuest"
+        :to="`/quests/${parentQuest.id}`"
+        class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
+      >
+        <ScrollText class="h-3.5 w-3.5 text-muted-foreground" />
+        <span class="font-fell text-xs text-foreground">Part of: {{ parentQuest.title }}</span>
+      </RouterLink>
+      <span
+        v-for="tag in quest.tags"
+        :key="tag"
+        class="font-cinzel text-[10px] tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5"
+      >{{ tag }}</span>
+    </div>
+
+    <!-- Description -->
+    <section v-if="hasDescription" class="flex flex-col gap-2">
+      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Description</h2>
+      <RichTextViewer :content="quest.description" />
+    </section>
+
+    <!-- DM Notes -->
+    <section v-if="hasNotes" class="flex flex-col gap-2">
+      <h2 class="font-cinzel text-sm font-bold tracking-wide text-muted-foreground">DM Notes</h2>
+      <RichTextViewer :content="quest.notes" />
+    </section>
+
+    <!-- Objectives — interactive. Check/uncheck + per-objective visibility
+         are running-state toggles; the DM uses them in-session without
+         flipping to edit mode. Creating / renaming objectives stays in
+         the editor. -->
+    <section v-if="objectives?.length" class="flex flex-col gap-2">
+      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
+        Objectives
+        <span class="font-fell font-normal text-muted-foreground">({{ doneCount }}/{{ objectives.length }})</span>
+      </h2>
+      <div class="rounded-lg border border-border bg-card overflow-hidden">
+        <div class="p-2 flex flex-col gap-1">
+          <div
+            v-for="obj in objectives"
+            :key="obj.id"
+            class="flex items-start gap-2 group rounded px-2 py-1.5 hover:bg-muted/40 transition-colors"
+          >
+            <button
+              type="button"
+              class="mt-0.5 shrink-0 h-4 w-4 rounded border flex items-center justify-center transition-colors"
+              :class="obj.is_done
+                ? 'bg-primary border-primary text-primary-foreground'
+                : 'border-border hover:border-primary'"
+              @click="toggleObjective(obj)"
+            >
+              <Check v-if="obj.is_done" class="h-2.5 w-2.5" />
+            </button>
+            <span
+              class="font-fell text-sm flex-1 leading-snug transition-colors"
+              :class="obj.is_done ? 'text-muted-foreground line-through' : 'text-foreground'"
+            >{{ obj.description }}</span>
+            <button
+              type="button"
+              :title="obj.is_player_visible ? 'Visible to players — click to hide' : 'Hidden — click to reveal'"
+              class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+              :class="obj.is_player_visible ? 'text-elven-green' : 'text-muted-foreground hover:text-foreground'"
+              @click="toggleObjectiveVisibility(obj)"
+            >
+              <Eye v-if="obj.is_player_visible" class="h-3.5 w-3.5" />
+              <EyeOff v-else class="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Rewards: currency + item cards (read-only). Full loot management
+         stays in the editor (EncounterLoot-style editor). -->
+    <section v-if="hasRewards" class="flex flex-col gap-2">
+      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Rewards</h2>
+
+      <p
+        v-if="rewardCoinsText"
+        class="font-fell text-sm text-foreground"
+      >{{ rewardCoinsText }}</p>
+
+      <div v-if="rewardItems.length" class="flex flex-wrap gap-2">
+        <RouterLink
+          v-for="it in rewardItems"
+          :key="it.id"
+          :to="`/items/${it.id}`"
+          class="inline-flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
+        >
+          <Package class="h-3.5 w-3.5 text-muted-foreground" />
+          <span class="font-fell text-xs text-foreground">{{ it.name }}</span>
+        </RouterLink>
+      </div>
+
+      <p
+        v-if="quest.rewards"
+        class="font-fell text-sm text-muted-foreground italic"
+      >{{ quest.rewards }}</p>
+    </section>
+
+    <!-- Linked entities (via quest_refs), grouped by type. -->
+    <section v-if="linkedEncounters.length" class="flex flex-col gap-2">
+      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
+        Encounters
+        <span class="font-fell font-normal text-muted-foreground">({{ linkedEncounters.length }})</span>
+      </h2>
+      <div class="flex flex-col gap-2">
+        <RouterLink
+          v-for="enc in linkedEncounters"
+          :key="enc.id"
+          :to="`/encounters/${enc.id}`"
+          class="group flex items-center gap-3 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors px-4 py-3"
+        >
+          <Swords class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <span class="flex-1 font-cinzel text-sm font-semibold text-foreground truncate">{{ enc.name }}</span>
+          <span v-if="enc.is_finished" class="font-cinzel text-[10px] text-muted-foreground tracking-wider">Done</span>
+          <ChevronRight class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+        </RouterLink>
+      </div>
+    </section>
+
+    <section v-if="linkedNpcs.length" class="flex flex-col gap-2">
+      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
+        Key NPCs
+        <span class="font-fell font-normal text-muted-foreground">({{ linkedNpcs.length }})</span>
+      </h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+        <RouterLink
+          v-for="npc in linkedNpcs"
+          :key="npc.id"
+          :to="`/npcs/${npc.id}`"
+          class="group flex items-center gap-3 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors p-3"
+        >
+          <UserRound class="h-4 w-4 text-muted-foreground shrink-0" />
+          <div class="flex-1 min-w-0">
+            <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ npc.name }}</p>
+            <p
+              v-if="npc.occupation || npc.race"
+              class="font-fell text-xs text-muted-foreground italic truncate"
+            >{{ [npc.race, npc.occupation].filter(Boolean).join(" · ") }}</p>
+          </div>
+        </RouterLink>
+      </div>
+    </section>
+
+    <section v-if="linkedLocations.length" class="flex flex-col gap-2">
+      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
+        Key Locations
+        <span class="font-fell font-normal text-muted-foreground">({{ linkedLocations.length }})</span>
+      </h2>
+      <div class="flex flex-wrap gap-2">
+        <RouterLink
+          v-for="loc in linkedLocations"
+          :key="loc.id"
+          :to="`/locations/${loc.id}`"
+          class="inline-flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
+        >
+          <MapPinIcon class="h-3.5 w-3.5 text-muted-foreground" />
+          <span class="font-fell text-xs text-foreground truncate max-w-48">{{ loc.name }}</span>
+        </RouterLink>
+      </div>
+    </section>
+
+    <section v-if="linkedMonsters.length" class="flex flex-col gap-2">
+      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
+        Creatures
+        <span class="font-fell font-normal text-muted-foreground">({{ linkedMonsters.length }})</span>
+      </h2>
+      <div class="flex flex-wrap gap-2">
+        <RouterLink
+          v-for="m in linkedMonsters"
+          :key="m.id"
+          :to="`/monsters/${m.id}`"
+          class="inline-flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
+        >
+          <Skull class="h-3.5 w-3.5 text-muted-foreground" />
+          <span class="font-fell text-xs text-foreground truncate max-w-48">{{ m.name }}</span>
+        </RouterLink>
+      </div>
+    </section>
+
+    <section v-if="subQuests?.length" class="flex flex-col gap-2">
+      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
+        Sub-quests
+        <span class="font-fell font-normal text-muted-foreground">({{ subQuests.length }})</span>
+      </h2>
+      <div class="flex flex-col gap-2">
+        <RouterLink
+          v-for="sub in subQuests"
+          :key="sub.id"
+          :to="`/quests/${sub.id}`"
+          class="group flex items-center gap-3 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors px-4 py-3"
+        >
+          <ScrollText class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <span class="flex-1 font-cinzel text-sm font-semibold text-foreground truncate">{{ sub.title }}</span>
+          <span
+            class="font-cinzel text-[10px] tracking-wider rounded px-1.5 py-0.5 text-white"
+            :style="{ backgroundColor: QUEST_STATUS_COLORS[sub.status] }"
+          >{{ QUEST_STATUS_LABELS[sub.status] }}</span>
+          <ChevronRight class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+        </RouterLink>
+      </div>
+    </section>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, ref } from "vue";
+import { useRoute, useRouter, RouterLink } from "vue-router";
+import {
+  Pencil, Trash2, Check, Eye, EyeOff, ChevronRight,
+  UserRound, MapPin as MapPinIcon, ScrollText,
+  Swords, Skull, Package,
+} from "lucide-vue-next";
+import { useConfirm } from "@/composables/useConfirm";
+import {
+  useQuestObjectives,
+  useUpdateObjective,
+  useQuestRefs,
+  useSubQuests,
+  useQuests,
+  useDeleteQuest,
+} from "@/composables/useQuests";
+import { useNpcs } from "@/composables/useNpcs";
+import { useAllLocations } from "@/composables/useLocations";
+import { useMonsters } from "@/composables/useMonsters";
+import { useItems } from "@/composables/useItems";
+import { useEncounters } from "@/composables/useEncounters";
+import {
+  QUEST_STATUS_LABELS,
+  QUEST_STATUS_COLORS,
+  type Quest,
+  type QuestObjective,
+} from "@/types/quest.types";
+import { formatCoinParts } from "@/lib/currency";
+import RichTextViewer from "@/components/common/RichTextViewer.vue";
+
+const props = defineProps<{ quest: Quest }>();
+const route  = useRoute();
+const router = useRouter();
+const { confirm } = useConfirm();
+
+const questId = computed(() => props.quest.id);
+
+// ── Linked data ─────────────────────────────────────────────────────────────
+const { data: npcs }       = useNpcs();
+const { data: allLocs }    = useAllLocations();
+const { data: allMonsters } = useMonsters();
+const { data: allItems }   = useItems();
+const { data: allEncs }    = useEncounters();
+const { data: allQuests }  = useQuests();
+
+const giverNpc      = computed(() => (npcs.value ?? []).find((n) => n.id === props.quest.giver_npc_id) ?? null);
+const questLocation = computed(() => (allLocs.value ?? []).find((l) => l.id === props.quest.location_id) ?? null);
+const parentQuest   = computed(() => (allQuests.value ?? []).find((q) => q.id === props.quest.parent_quest_id) ?? null);
+
+// ── Rewards ─────────────────────────────────────────────────────────────────
+const rewardItems = computed(() =>
+  (props.quest.reward_item_ids ?? [])
+    .map((id) => (allItems.value ?? []).find((it) => it.id === id))
+    .filter((it): it is NonNullable<typeof it> => !!it),
+);
+
+const rewardCoinsText = computed(() => {
+  const { reward_pp, reward_gp, reward_ep, reward_sp, reward_cp } = props.quest;
+  const parts = formatCoinParts(reward_pp, reward_gp, reward_ep, reward_sp, reward_cp);
+  return parts.length ? parts.join(" ") : "";
+});
+
+const hasRewards = computed(() =>
+  !!rewardCoinsText.value || rewardItems.value.length > 0 || !!props.quest.rewards?.trim(),
+);
+
+// ── Objectives (interactive in view mode) ───────────────────────────────────
+const { data: objectives } = useQuestObjectives(questId);
+const { mutateAsync: updateObjective } = useUpdateObjective();
+
+const doneCount = computed(
+  () => (objectives.value ?? []).filter((o) => o.is_done).length,
+);
+
+async function toggleObjective(obj: QuestObjective) {
+  await updateObjective({ id: obj.id, questId: obj.quest_id, update: { is_done: !obj.is_done } });
+}
+
+async function toggleObjectiveVisibility(obj: QuestObjective) {
+  await updateObjective({ id: obj.id, questId: obj.quest_id, update: { is_player_visible: !obj.is_player_visible } });
+}
+
+// ── Refs grouped by type ────────────────────────────────────────────────────
+const { data: refs } = useQuestRefs(questId);
+const { data: subQuests } = useSubQuests(questId);
+
+function refIds(type: "npc" | "location" | "monster" | "encounter"): string[] {
+  return (refs.value ?? []).filter((r) => r.ref_type === type).map((r) => r.ref_id);
+}
+
+const linkedNpcs = computed(() => {
+  const ids = new Set(refIds("npc"));
+  return (npcs.value ?? []).filter((n) => ids.has(n.id));
+});
+const linkedLocations = computed(() => {
+  const ids = new Set(refIds("location"));
+  return (allLocs.value ?? []).filter((l) => ids.has(l.id));
+});
+const linkedMonsters = computed(() => {
+  const ids = new Set(refIds("monster"));
+  return (allMonsters.value ?? []).filter((m) => ids.has(m.id));
+});
+const linkedEncounters = computed(() => {
+  const ids = new Set(refIds("encounter"));
+  return (allEncs.value ?? []).filter((e) => ids.has(e.id));
+});
+
+// ── Tiptap emptiness guard (shared with LocationSheet — same pattern) ──────
+function tiptapHasContent(raw: string | null): boolean {
+  if (!raw) return false;
+  try {
+    const doc = JSON.parse(raw);
+    const texts: string[] = [];
+    function walk(n: { text?: string; content?: unknown[] }) {
+      if (n.text) texts.push(n.text);
+      (n.content as typeof n[] | undefined)?.forEach(walk);
+    }
+    walk(doc);
+    return texts.join("").trim().length > 0;
+  } catch {
+    return String(raw).trim().length > 0;
+  }
+}
+const hasDescription = computed(() => tiptapHasContent(props.quest.description));
+const hasNotes       = computed(() => tiptapHasContent(props.quest.notes));
+
+// ── Delete ──────────────────────────────────────────────────────────────────
+const { mutateAsync: deleteQuest } = useDeleteQuest();
+const isDeleting = ref(false);
+
+async function onDelete() {
+  if (!(await confirm(`Delete "${props.quest.title}"? This cannot be undone.`))) return;
+  isDeleting.value = true;
+  try {
+    router.push("/quests");
+    await deleteQuest(props.quest.id);
+  } finally {
+    isDeleting.value = false;
+  }
+}
+</script>
