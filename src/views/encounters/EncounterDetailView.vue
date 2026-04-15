@@ -3,7 +3,18 @@
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
-    <EncounterDetail v-else :encounter="encounter ?? null" />
+
+    <!-- Matches the #168 sheet/editor convention: new encounter or
+         `?edit=true` → full editor, otherwise → read-only sheet. -->
+    <EncounterDetail
+      v-else-if="isNew || isEditing"
+      :encounter="encounter ?? null"
+    />
+    <EncounterSheet
+      v-else-if="encounter"
+      :key="encounter.id"
+      :encounter="encounter"
+    />
   </div>
 </template>
 
@@ -12,9 +23,14 @@ import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { useEncounter } from "@/composables/useEncounters";
 import EncounterDetail from "@/components/encounters/EncounterDetail.vue";
+import EncounterSheet from "@/components/encounters/EncounterSheet.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 
-const route = useRoute();
-const id = computed(() => route.params.id as string);
-const { data: encounter, isLoading } = useEncounter(id);
+const route     = useRoute();
+const isNew     = computed(() => route.name === "encounter-new");
+const isEditing = computed(() => route.query.edit === "true");
+const id        = computed(() => (isNew.value ? "" : (route.params.id as string)));
+
+const { data: encounter, isLoading: encounterLoading } = useEncounter(id);
+const isLoading = computed(() => !isNew.value && encounterLoading.value);
 </script>
