@@ -305,6 +305,8 @@
 
 - [x] **Recipe visibility toggle on Workshop list** — added `PlayerVisibilityToggle` directly to each recipe row's action cluster (next to Edit + Delete) so the DM can flip a recipe's per-player visibility without entering the editor. Uses the existing `useUpdateRecipe` mutation; row click is `@click.stop`-guarded so clicking the toggle's popover doesn't navigate to the detail page.
 
+- [x] **EncounterDetailView — view/edit split** (irongollem/grimoire#168) — DM encounter detail now renders a read-only sheet by default (In-Progress badge + Mark Done / Reopen + Run / Resume / Restart / Stop + name + location chip + description + linked quests + factions + party & companions with faction badges + combatants grouped with CR + loot coin summary + item cards + trap cards) with **Edit** flipping into the existing `EncounterDetail` form via `?edit=true`. Editor gains a **Cancel** button. Live-encounter controls (Run/Resume/Restart/Stop/Mark Done) are mirrored on the sheet since they're running-state actions used mid-session without needing the form open.
+
 ---
 
 ## AI Features

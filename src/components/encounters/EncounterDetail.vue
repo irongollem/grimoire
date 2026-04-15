@@ -46,6 +46,14 @@
           Delete
         </button>
         <button
+          v-if="props.encounter"
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
+          @click="onCancel"
+        >
+          Cancel
+        </button>
+        <button
           type="button"
           class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-foreground hover:border-primary/50 transition-colors"
           :disabled="isSaving"
@@ -414,7 +422,7 @@
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { computed, reactive, watch } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import {
   ChevronLeft,
   X,
@@ -471,6 +479,14 @@ const props = defineProps<{
 }>();
 
 const router = useRouter();
+const route  = useRoute();
+
+// Cancel strips ?edit=true to flip back to the sheet; preserves other
+// query params.
+function onCancel() {
+  const { edit: _edit, ...rest } = route.query;
+  router.push({ query: rest });
+}
 const campaign = useCampaignStore();
 const { data: monsters } = useAllMonsters();
 const { data: party, isLoading: partyLoading } = useParty();
