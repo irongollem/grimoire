@@ -199,7 +199,7 @@
       scroll traps on touch. Desktop: keep internal scroll so the editor can
       sit at a fixed height in dense forms.
     -->
-    <div class="p-3 lg:flex-1 lg:overflow-auto lg:min-h-0">
+    <div class="p-3 lg:flex-1 lg:overflow-auto lg:min-h-0 cursor-text" @click="onContentAreaClick">
       <EditorContent
         :editor="editor"
         :class="['rte-content h-full', twoColumn ? 'rte-two-col' : '']"
@@ -402,6 +402,12 @@ async function onFileSelected(e: Event) {
   } finally {
     uploadingImage.value = false;
   }
+}
+
+function onContentAreaClick(e: MouseEvent) {
+  if (!editor.value) return;
+  if (editor.value.view.dom.contains(e.target as unknown as globalThis.Node)) return;
+  editor.value.commands.focus("end");
 }
 
 function tbCls(active: boolean) {
