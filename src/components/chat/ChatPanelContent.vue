@@ -97,6 +97,10 @@
                       ? `${(msg.metadata as ItemDropMetadata).quantity}× `
                       : ""
                   }}{{ (msg.metadata as ItemDropMetadata)?.item_name }}
+                  <span
+                    v-if="(msg.metadata as ItemDropMetadata)?.quantity_remaining !== undefined && (msg.metadata as ItemDropMetadata).quantity > 1 && (msg.metadata as ItemDropMetadata).quantity_remaining! < (msg.metadata as ItemDropMetadata).quantity"
+                    class="font-cinzel text-[10px] text-amber-400/70 ml-1"
+                  >({{ (msg.metadata as ItemDropMetadata).quantity_remaining }} left)</span>
                 </span>
                 <span
                   v-if="(msg.metadata as ItemDropMetadata)?.item_rarity"
@@ -127,49 +131,101 @@
                 v-if="expandedItems.has(msg.id)"
                 :item-id="(msg.metadata as ItemDropMetadata).item_id!"
               />
-              <!-- Claimed state -->
-              <div
-                v-if="(msg.metadata as ItemDropMetadata)?.claimed_by_user_id"
-                class="font-fell text-xs text-muted-foreground italic"
-              >
-                Claimed by
-                {{ (msg.metadata as ItemDropMetadata)?.claimed_by_name }}
-                <span
-                  v-if="
-                    !(msg.metadata as ItemDropMetadata)?.claimed_party_member_id &&
-                    !(msg.metadata as ItemDropMetadata)?.npc_id
-                  "
+              <!-- ── Stacked drop: remaining count + grab buttons ───────── -->
+              <template v-if="(msg.metadata as ItemDropMetadata)?.claims !== undefined">
+                <!-- All claimed -->
+                <div
+                  v-if="(msg.metadata as ItemDropMetadata).quantity_remaining === 0"
+                  class="font-fell text-xs text-muted-foreground italic mt-1"
                 >
-                  (party stash)</span
-                >
-              </div>
-              <!-- Claim buttons (only if unclaimed and not the sender) -->
-              <div v-else class="flex flex-wrap gap-1.5 mt-2">
-                <template v-if="auth.linkedPartyMemberId">
-                  <button
-                    type="button"
-                    class="px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/40 font-cinzel text-[10px] text-amber-400 hover:bg-amber-500/30 transition-colors tracking-wider"
-                    @click="$emit('claim', { messageId: msg.id, intoStash: false })"
-                  >
-                    Claim
-                  </button>
-                  <button
-                    type="button"
-                    class="px-2.5 py-1 rounded border border-border font-cinzel text-[10px] text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors tracking-wider"
-                    @click="$emit('claim', { messageId: msg.id, intoStash: true })"
-                  >
-                    To Stash
-                  </button>
-                </template>
-                <div v-if="auth.isDM && props.npcs.length > 0" class="w-36">
-                  <EntityCombobox
-                    :model-value="npcSelectState[msg.id] ?? ''"
-                    :options="props.npcs"
-                    placeholder="To NPC…"
-                    @update:model-value="onClaimToNpc(msg.id, $event)"
-                  />
+                  All claimed
+                  <span v-if="(msg.metadata as ItemDropMetadata).claims?.length">
+                    — by {{ (msg.metadata as ItemDropMetadata).claims!.map(c => c.name).join(', ') }}
+                  </span>
                 </div>
-              </div>
+                <!-- Still available -->
+                <template v-else>
+                  <p class="font-cinzel text-[10px] text-amber-400/80 mt-1">
+                    {{ (msg.metadata as ItemDropMetadata).quantity_remaining }} remaining
+                  </p>
+                  <div class="flex flex-wrap gap-1.5 mt-1.5">
+                    <template v-if="auth.linkedPartyMemberId">
+                      <button
+                        v-if="(msg.metadata as ItemDropMetadata).quantity! > 1"
+                        type="button"
+                        class="px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/40 font-cinzel text-[10px] text-amber-400 hover:bg-amber-500/30 transition-colors tracking-wider"
+                        @click="$emit('grab', { messageId: msg.id, qty: 1, intoStash: false })"
+                      >
+                        Grab 1
+                      </button>
+                      <button
+                        type="button"
+                        class="px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/40 font-cinzel text-[10px] text-amber-400 hover:bg-amber-500/30 transition-colors tracking-wider"
+                        @click="$emit('grab', { messageId: msg.id, qty: -1, intoStash: false })"
+                      >
+                        {{ (msg.metadata as ItemDropMetadata).quantity! > 1 ? 'Grab All' : 'Grab' }}
+                      </button>
+                      <button
+                        type="button"
+                        class="px-2.5 py-1 rounded border border-border font-cinzel text-[10px] text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors tracking-wider"
+                        @click="$emit('grab', { messageId: msg.id, qty: -1, intoStash: true })"
+                      >
+                        To Stash
+                      </button>
+                    </template>
+                    <div v-if="auth.isDM && props.npcs.length > 0" class="w-36">
+                      <EntityCombobox
+                        :model-value="npcSelectState[msg.id] ?? ''"
+                        :options="props.npcs"
+                        placeholder="To NPC…"
+                        @update:model-value="onClaimToNpc(msg.id, $event)"
+                      />
+                    </div>
+                  </div>
+                </template>
+              </template>
+
+              <!-- ── Legacy single-claim (messages without claims array) ─── -->
+              <template v-else>
+                <div
+                  v-if="(msg.metadata as ItemDropMetadata)?.claimed_by_user_id"
+                  class="font-fell text-xs text-muted-foreground italic"
+                >
+                  Claimed by {{ (msg.metadata as ItemDropMetadata)?.claimed_by_name }}
+                  <span
+                    v-if="
+                      !(msg.metadata as ItemDropMetadata)?.claimed_party_member_id &&
+                      !(msg.metadata as ItemDropMetadata)?.npc_id
+                    "
+                  >(party stash)</span>
+                </div>
+                <div v-else class="flex flex-wrap gap-1.5 mt-2">
+                  <template v-if="auth.linkedPartyMemberId">
+                    <button
+                      type="button"
+                      class="px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/40 font-cinzel text-[10px] text-amber-400 hover:bg-amber-500/30 transition-colors tracking-wider"
+                      @click="$emit('claim', { messageId: msg.id, intoStash: false })"
+                    >
+                      Claim
+                    </button>
+                    <button
+                      type="button"
+                      class="px-2.5 py-1 rounded border border-border font-cinzel text-[10px] text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors tracking-wider"
+                      @click="$emit('claim', { messageId: msg.id, intoStash: true })"
+                    >
+                      To Stash
+                    </button>
+                  </template>
+                  <div v-if="auth.isDM && props.npcs.length > 0" class="w-36">
+                    <EntityCombobox
+                      :model-value="npcSelectState[msg.id] ?? ''"
+                      :options="props.npcs"
+                      placeholder="To NPC…"
+                      @update:model-value="onClaimToNpc(msg.id, $event)"
+                    />
+                  </div>
+                </div>
+              </template>
               <p class="font-fell text-[10px] text-muted-foreground/50 mt-1.5">
                 {{ timeLabel(msg.created_at) }}
               </p>
@@ -925,6 +981,7 @@ const emit = defineEmits<{
   delete: [id: string];
   "delete-all": [];
   claim: [payload: { messageId: string; intoStash: boolean }];
+  grab: [payload: { messageId: string; qty: number; intoStash: boolean }];
   "claim-currency": [payload: { messageId: string }];
   "claim-to-npc": [payload: { messageId: string; npcId: string; npcName: string }];
   "pay-vendor-offer": [payload: { messageId: string }];

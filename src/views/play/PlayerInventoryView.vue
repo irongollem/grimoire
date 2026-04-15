@@ -449,6 +449,7 @@
         @remove="removeItem"
         @adjust-qty="adjustQty"
         @drop-to-chat="dropItemToChat"
+        @split-stack="splitStack"
         @open-detail="openDetail"
         @sell-item="openDetailWithSell"
         @reorder="handleReorder"
@@ -469,6 +470,7 @@
         @remove="removeItem"
         @adjust-qty="adjustQty"
         @drop-to-chat="dropItemToChat"
+        @split-stack="splitStack"
         @open-detail="openDetail"
         @sell-item="openDetailWithSell"
         @reorder="handleReorder"
@@ -495,6 +497,7 @@
         @remove-container="removeItem(c.id)"
         @adjust-qty="adjustQty"
         @drop-to-chat="dropItemToChat"
+        @split-stack="splitStack"
         @open-detail="openDetail"
         @sell-item="openDetailWithSell"
         @reorder="handleReorder"
@@ -522,6 +525,7 @@
           @remove="removeItem"
           @adjust-qty="adjustQty"
           @drop-to-chat="dropItemToChat"
+          @split-stack="splitStack"
           @open-detail="openDetail"
           @sell-item="openDetailWithSell"
         />
@@ -558,6 +562,7 @@
           @remove="removeItem"
           @adjust-qty="adjustQty"
           @drop-to-chat="dropItemToChat"
+          @split-stack="splitStack"
           @open-detail="openDetail"
         />
       </div>
@@ -1219,6 +1224,38 @@ async function dropItemToChat(inv: PartyInventoryItem) {
     linkedItem?.rarity ?? null,
   );
   await removeInventoryItem(inv.id);
+}
+
+async function splitStack(inv: PartyInventoryItem) {
+  const raw = window.prompt(
+    `Split "${inv.name}" — how many to split off? (1–${inv.quantity - 1})`,
+    "1",
+  );
+  if (raw === null) return;
+  const n = parseInt(raw, 10);
+  if (!Number.isInteger(n) || n < 1 || n >= inv.quantity) {
+    window.alert(`Enter a number between 1 and ${inv.quantity - 1}.`);
+    return;
+  }
+  await updateInventoryItem({
+    id: inv.id,
+    update: { quantity: inv.quantity - n },
+  });
+  await addInventoryItem({
+    name: inv.name,
+    quantity: n,
+    item_id: inv.item_id,
+    carried_by: inv.carried_by,
+    location: inv.location,
+    slot: inv.slot,
+    is_container: inv.is_container,
+    container_id: inv.container_id,
+    is_ruined: inv.is_ruined,
+    is_attuned: false,
+    is_equipped: inv.is_equipped,
+    notes: inv.notes,
+    is_identified: inv.is_identified,
+  });
 }
 
 // ── Add container picker ───────────────────────────────────────────────────────

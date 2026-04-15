@@ -18,6 +18,7 @@
         @delete="deleteMessage"
         @delete-all="handleDeleteAll"
         @claim="handleClaim"
+        @grab="handleGrab"
         @claim-currency="handleClaimCurrency"
         @claim-to-npc="handleClaimToNpc"
         @claim-loot-chest="handleClaimLootChest"
@@ -74,6 +75,7 @@
         @delete="deleteMessage"
         @delete-all="handleDeleteAll"
         @claim="handleClaim"
+        @grab="handleGrab"
         @claim-currency="handleClaimCurrency"
         @claim-to-npc="handleClaimToNpc"
         @claim-loot-chest="handleClaimLootChest"
@@ -93,7 +95,7 @@ import { useUiStore } from "@/stores/ui";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import { useAuthStore } from "@/stores/auth";
-import { useAddInventoryItem, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
+import { usePartyInventory, useAddInventoryItem, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
 import { useItems } from "@/composables/useItems";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import { useNpcs } from "@/composables/useNpcs";
@@ -172,8 +174,9 @@ onUnmounted(() => {
 
 const ui = useUiStore();
 const auth = useAuthStore();
-const { messages, loading, sendMessage, sendRoll, claimItemDrop, claimCurrencyDrop, claimLootChestAtom, sendVendorOffer, claimVendorOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId } =
+const { messages, loading, sendMessage, sendRoll, claimItemDrop, grabItemDrop, claimCurrencyDrop, claimLootChestAtom, sendVendorOffer, claimVendorOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId } =
   useCampaignMessages();
+const { data: partyInventory } = usePartyInventory();
 const { data: members } = useCampaignMembers();
 const { data: party }    = useParty();
 const { data: allItems } = useItems();
@@ -233,6 +236,51 @@ async function handleClaim({ messageId, intoStash }: { messageId: string; intoSt
   await addInventoryItem({
     name: meta.item_name,
     quantity: meta.quantity,
+    item_id: meta.item_id,
+    carried_by: partyMemberId,
+    location: 'backpack',
+    slot: null,
+    is_container: claimedVaultItem?.tags.includes("container") ?? false,
+    container_id: null,
+    is_ruined: false,
+    is_attuned: false,
+    is_equipped: false,
+    notes: null,
+    is_identified: !claimedVaultItem || claimedVaultItem.rarity === 'mundane',
+  });
+}
+
+async function handleGrab({ messageId, qty, intoStash }: { messageId: string; qty: number; intoStash: boolean }) {
+  const msg = messages.value.find(m => m.id === messageId);
+  if (!msg || msg.type !== 'item_drop') return;
+  const meta = msg.metadata as ItemDropMetadata;
+
+  const partyMemberId = intoStash ? null : (auth.linkedPartyMemberId ?? null);
+  const claimerName = resolveClaimerName();
+
+  let qtyGrabbed: number;
+  try {
+    const result = await grabItemDrop(messageId, qty, claimerName, partyMemberId);
+    qtyGrabbed = result.qty_grabbed;
+  } catch {
+    return; // stack exhausted or RLS denied — don't add to inventory
+  }
+
+  // Auto-stack: if same item_id + carried_by already exists, increment rather than insert
+  if (meta.item_id) {
+    const existing = (partyInventory.value ?? []).find(
+      inv => inv.item_id === meta.item_id && inv.carried_by === partyMemberId && inv.container_id === null,
+    );
+    if (existing) {
+      await updateInventoryItem({ id: existing.id, update: { quantity: existing.quantity + qtyGrabbed } });
+      return;
+    }
+  }
+
+  const claimedVaultItem = (allItems.value ?? []).find(i => i.id === meta.item_id);
+  await addInventoryItem({
+    name: meta.item_name,
+    quantity: qtyGrabbed,
     item_id: meta.item_id,
     carried_by: partyMemberId,
     location: 'backpack',

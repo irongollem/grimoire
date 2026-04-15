@@ -9,13 +9,26 @@ export interface RollMetadata {
   isFumble: boolean;
 }
 
+export interface ItemDropClaim {
+  user_id: string;
+  name: string;
+  party_member_id: string | null;
+  qty: number;
+  at: string; // ISO timestamp
+}
+
 export interface ItemDropMetadata {
   item_id: string | null;
   item_name: string;
   item_rarity: string | null;
   quantity: number;
+  /** Remaining stock after partial grabs. Absent on legacy messages — treat as quantity. */
+  quantity_remaining?: number;
+  /** All grabs so far (new stacked drop format). Absent on legacy messages. */
+  claims?: ItemDropClaim[];
   image_url?: string | null;
   description?: string | null;
+  /** Legacy single-claim fields — set on old messages and when remaining hits 0. */
   claimed_by_user_id: string | null;
   claimed_by_name: string | null;
   claimed_party_member_id: string | null; // null when claimed to stash or NPC inventory

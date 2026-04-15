@@ -254,6 +254,8 @@ export function useCampaignMessages() {
     if (!cid || !auth.user?.id) return;
     const metadata: ItemDropMetadata = {
       item_id: itemId, item_name: itemName, item_rarity: rarity, quantity,
+      quantity_remaining: quantity,
+      claims: [],
       image_url: imageUrl ?? null,
       description: description ?? null,
       claimed_by_user_id: null, claimed_by_name: null, claimed_party_member_id: null,
@@ -368,6 +370,37 @@ export function useCampaignMessages() {
     if (idx >= 0) messages.value[idx] = { ...messages.value[idx], metadata: newMeta };
   }
 
+  // ── Stacked item grab (issue #126) ───────────────────────────────────────
+  // Delegates to the grab_item_drop RPC which takes a FOR UPDATE row lock so
+  // concurrent player clicks serialise without over-claiming.
+  // qty = -1 means "grab all remaining".
+  // Returns { qty_grabbed, quantity_remaining } on success, throws on failure.
+  async function grabItemDrop(messageId: string, qty: number, claimerName: string, partyMemberId: string | null): Promise<{ qty_grabbed: number; quantity_remaining: number }> {
+    const { data, error } = await supabase.rpc("grab_item_drop", {
+      p_message_id:      messageId,
+      p_qty:             qty,
+      p_claimer_user_id: auth.user!.id,
+      p_claimer_name:    claimerName,
+      p_party_member_id: partyMemberId,
+    });
+    if (error) throw error;
+    const result = data as { qty_grabbed: number; quantity_remaining: number };
+    // Optimistically patch local message so the UI updates immediately
+    const idx = messages.value.findIndex(m => m.id === messageId);
+    if (idx >= 0) {
+      const existing = messages.value[idx].metadata as ItemDropMetadata;
+      const updatedClaims = [
+        ...(existing.claims ?? []),
+        { user_id: auth.user!.id, name: claimerName, party_member_id: partyMemberId, qty: result.qty_grabbed, at: new Date().toISOString() },
+      ];
+      messages.value[idx] = {
+        ...messages.value[idx],
+        metadata: { ...existing, quantity_remaining: result.quantity_remaining, claims: updatedClaims },
+      };
+    }
+    return result;
+  }
+
   // ── Loot chest (issue #121, part B) ──────────────────────────────────────
   // sendLootChest just inserts the message — the table is already rolled
   // client-side and handed in via `metadata`. claimLootChestAtom delegates
@@ -464,5 +497,5 @@ export function useCampaignMessages() {
     if (idx >= 0) messages.value[idx] = { ...messages.value[idx], metadata: newMeta };
   }
 
-  return { messages: visibleMessages, loading, sendMessage, sendFlavorMessage, sendRoll, sendItemDrop, claimItemDrop, sendCurrencyDrop, claimCurrencyDrop, sendLootChest, claimLootChestAtom, sendVendorOffer, claimVendorOffer, sendPlayerOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId };
+  return { messages: visibleMessages, loading, sendMessage, sendFlavorMessage, sendRoll, sendItemDrop, claimItemDrop, grabItemDrop, sendCurrencyDrop, claimCurrencyDrop, sendLootChest, claimLootChestAtom, sendVendorOffer, claimVendorOffer, sendPlayerOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId };
 }
