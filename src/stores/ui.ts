@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
+import { useLocalStorage } from "@vueuse/core";
 import type { NoteCategory } from "@/types/notes.types";
 import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
 import type { ScriptoriumDocType } from "@/types/scriptorium.types";
@@ -275,6 +276,17 @@ export const useUiStore = defineStore("ui", () => {
   const dmPreviewMode = ref(false);
   const dmPreviewPartyMemberId = ref<string | null>(null);
 
+  // DM Prep/Play mode (issue #133) — `play` triggers auto-broadcast of
+  // entity visibility changes into campaign chat; `prep` is silent. Mode
+  // persists in localStorage so a mid-session reload doesn't silently drop
+  // a DM back into prep and swallow the next reveal. This is Phase 1
+  // (local only) per the issue — a future Phase 2 persists to
+  // `campaigns.dm_mode` for cross-device consistency.
+  const dmMode = useLocalStorage<"prep" | "play">("grimoire:dm-mode", "prep");
+  function toggleDmMode() {
+    dmMode.value = dmMode.value === "prep" ? "play" : "prep";
+  }
+
   function enterDmPreview(partyMemberId?: string) {
     dmPreviewPartyMemberId.value = partyMemberId ?? null;
     dmPreviewMode.value = true;
@@ -399,6 +411,10 @@ export const useUiStore = defineStore("ui", () => {
     dmPreviewPartyMemberId,
     enterDmPreview,
     exitDmPreview,
+
+    // DM Prep/Play mode (#133)
+    dmMode,
+    toggleDmMode,
 
     // Hall of Heroes
     hallOfHeroesSearch,

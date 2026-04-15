@@ -10,6 +10,26 @@
           <p class="font-fell text-xs text-muted-foreground italic mt-0.5">Campaign Companion</p>
         </RouterLink>
         <div class="flex items-center gap-1.5 shrink-0">
+          <!-- DM Prep/Play mode toggle (issue #133) — DM-only segmented pill.
+               In Play mode, flipping an entity's visibility-to-player auto-
+               broadcasts a narrative chat event. In Prep mode (default) that
+               side-effect is silent so the DM can set up sessions freely. -->
+          <button
+            v-if="isDm"
+            type="button"
+            :title="ui.dmMode === 'play'
+              ? 'Play mode — visibility changes broadcast to chat. Click to stop broadcasting.'
+              : 'Prep mode — visibility changes are silent. Click to start broadcasting.'"
+            class="flex items-center gap-0.5 rounded border px-1 py-0.5 font-cinzel text-[9px] tracking-widest font-bold transition-colors"
+            :class="ui.dmMode === 'play'
+              ? 'border-primary/60 bg-primary/15 text-primary hover:bg-primary/25'
+              : 'border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground/50'"
+            @click="ui.toggleDmMode()"
+          >
+            <span class="px-1" :class="ui.dmMode === 'prep' ? '' : 'opacity-50'">PREP</span>
+            <span class="px-1" :class="ui.dmMode === 'play' ? '' : 'opacity-50'">PLAY</span>
+          </button>
+
           <!-- AI generation in-progress spinner -->
           <button
             v-if="isAnyAiGenerating && activeGenerator"
@@ -136,6 +156,9 @@ import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetTogg
 const auth = useAuthStore();
 const ui = useUiStore();
 const router = useRouter();
+// DM detection — the prep/play toggle is the only DM-only sidebar control
+// so far; gate its visibility so players never see it (issue #133 acceptance).
+const isDm = computed(() => auth.currentRole === "dm");
 const { anyRunning, firstRunning } = useRunningEncounters();
 
 const { data: campaignRules } = useOptionalRules();

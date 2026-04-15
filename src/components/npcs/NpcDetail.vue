@@ -438,6 +438,8 @@ import { toTiptapJson } from '@/ai/useNpcGeneration'
 import type { NpcAiGenerated } from '@/ai/types'
 import ImageUpload from '@/components/common/ImageUpload.vue'
 import { useCreateNpc, useUpdateNpc, useDeleteNpc } from '@/composables/useNpcs'
+import { useCampaignMessages } from '@/composables/useCampaignMessages'
+import { useUiStore } from '@/stores/ui'
 import { useLocationTree } from '@/composables/useLocations'
 import { useAllMonsters, useCreateMonster } from '@/composables/useMonsters'
 import { useCreateScriptoriumDocument } from '@/composables/useScriptorium'
@@ -508,6 +510,8 @@ const { mutateAsync: createNpc, isPending: isCreating } = useCreateNpc()
 const { mutateAsync: updateNpc, isPending: isUpdating } = useUpdateNpc()
 const { mutateAsync: deleteNpc } = useDeleteNpc()
 const { mutateAsync: createMonster } = useCreateMonster()
+const ui = useUiStore()
+const { sendNarrativeEvent } = useCampaignMessages()
 const isPromoting = ref(false)
 const { mutateAsync: createScriptoriumDoc } = useCreateScriptoriumDocument()
 const campaign = useCampaignStore()
@@ -813,17 +817,33 @@ async function save() {
     player_visible_to: form.player_visible_to,
   }
   try {
+    // DM Prep/Play mode (#133): detect a "reveal" — NPC goes from unseen by
+    // any player to visible to at least one. Fire the narrative event AFTER
+    // the save succeeds so players don't see a ghost entry on network error.
+    // Transition rule: old count 0 → new count ≥ 1 triggers; adding more
+    // players to an already-visible NPC is silent (they already know it
+    // exists).
+    const wasHidden = (props.npc?.player_visible_to?.length ?? 0) === 0;
+    const isNowVisible = form.player_visible_to.length > 0;
+    const becameVisible = wasHidden && isNowVisible;
+
     if (props.npc?.id) {
       // Exclude campaign_id: it must not be overwritten on update (could be null
       // if activeCampaignId hasn't loaded yet, severing the campaign link).
       const { campaign_id: _cid, ...updatePayload } = payload;
       await updateNpc({ id: props.npc.id, update: updatePayload })
-      router.push('/npcs')
     } else {
       const created = await createNpc(payload)
       // Stay on the detail page after create so faction/relation links can be added immediately
       router.push(`/npcs/${created.id}`)
     }
+
+    if (becameVisible && ui.dmMode === 'play' && form.name.trim()) {
+      // Fire-and-forget — chat failure must not block the save navigation.
+      void sendNarrativeEvent(`You encounter ${form.name.trim()}.`)
+    }
+
+    if (props.npc?.id) router.push('/npcs')
   } catch {
     notify('Failed to save NPC. Please try again.')
   }
