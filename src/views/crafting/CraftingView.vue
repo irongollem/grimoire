@@ -121,7 +121,11 @@
           </div>
 
           <!-- Actions -->
-          <div class="flex items-center gap-1 shrink-0">
+          <div class="flex items-center gap-1 shrink-0" @click.stop>
+            <PlayerVisibilityToggle
+              :visible-to="recipe.player_visible_to"
+              @update:visible-to="onVisibilityChange(recipe, $event)"
+            />
             <button
               class="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               title="Edit recipe"
@@ -149,8 +153,9 @@ import { computed, ref } from "vue";
 import { Award, Download, LayoutList, Loader2, Pencil, Plus, Trash2, Wrench } from "lucide-vue-next";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
+import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting-disciplines";
-import { useCraftingRecipes, useDeleteRecipe, useImportStarterRecipes } from "@/composables/useCrafting";
+import { useCraftingRecipes, useDeleteRecipe, useImportStarterRecipes, useUpdateRecipe } from "@/composables/useCrafting";
 import { useConfirm } from "@/composables/useConfirm";
 import { useUiStore } from "@/stores/ui";
 import type { CraftingRecipe } from "@/types/crafting.types";
@@ -163,7 +168,15 @@ const activeDiscipline = computed(() =>
 
 const { data: recipes, isLoading } = useCraftingRecipes();
 const { mutateAsync: deleteRecipe } = useDeleteRecipe();
+const { mutateAsync: updateRecipe } = useUpdateRecipe();
 const { confirm } = useConfirm();
+
+// Persist a visibility change from the list row. The toggle is wrapped in
+// `@click.stop` above so clicking inside the popover doesn't navigate to
+// the editor.
+async function onVisibilityChange(recipe: CraftingRecipe, visibleTo: string[]) {
+  await updateRecipe({ id: recipe.id, update: { player_visible_to: visibleTo } });
+}
 
 const importMutation = useImportStarterRecipes();
 const importStatus = ref<"idle" | "done" | "uptodate">("idle");
