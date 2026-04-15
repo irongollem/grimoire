@@ -305,6 +305,8 @@
 
 - [x] **Recipe visibility toggle on Workshop list** — added `PlayerVisibilityToggle` directly to each recipe row's action cluster (next to Edit + Delete) so the DM can flip a recipe's per-player visibility without entering the editor. Uses the existing `useUpdateRecipe` mutation; row click is `@click.stop`-guarded so clicking the toggle's popover doesn't navigate to the detail page.
 
+- [x] **FactionDetailView — view/edit split** (irongollem/grimoire#168) — extracted the monolithic `FactionDetailView` into `FactionEditor` (form) + `FactionSheet` (read-only DM view: emblem via `FocalImage`, name, type / alignment / tags blocks, Tiptap description via `RichTextViewer`) with a `?edit=true` toggle. Shared sub-sections (members / party members / relations / locations / items / notes) stay rendered once in the view wrapper below the sheet/editor — they're self-managing CRUD panels equally useful in both modes. Editor gains a **Cancel** button that strips the flag.
+
 ---
 
 ## AI Features
