@@ -232,7 +232,7 @@ import TableRow from "@tiptap/extension-table-row";
 import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
 import Image from "@tiptap/extension-image";
-import { parseMarkdown, looksLikeMarkdown } from "@/lib/markdownToTiptap";
+import { parseMarkdown, looksLikeMarkdown, sanitizePasteText } from "@/lib/markdownToTiptap";
 import {
   List,
   ListOrdered,
@@ -313,16 +313,24 @@ const editor = useEditor({
   ],
   editorProps: {
     handlePaste(view, event) {
-      const text = event.clipboardData?.getData("text/plain") ?? "";
+      const raw = event.clipboardData?.getData("text/plain") ?? "";
+      const text = sanitizePasteText(raw);
       if (!looksLikeMarkdown(text)) return false;
       event.preventDefault();
-      const content = parseMarkdown(text);
-      view.dispatch(
-        view.state.tr.replaceSelectionWith(
-          view.state.schema.nodeFromJSON({ type: "doc", content }),
-          false,
-        ),
-      );
+      try {
+        const content = parseMarkdown(text);
+        view.dispatch(
+          view.state.tr.replaceSelectionWith(
+            view.state.schema.nodeFromJSON({ type: "doc", content }),
+            false,
+          ),
+        );
+      } catch {
+        // Markdown parse or schema error — fall back to plain text insert
+        view.dispatch(
+          view.state.tr.insertText(text),
+        );
+      }
       return true;
     },
     transformPastedHTML(html) {

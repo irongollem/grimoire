@@ -8,12 +8,30 @@ type TiptapNode = Record<string, unknown>;
 type TiptapMark = { type: string };
 type TiptapText = { type: "text"; text: string; marks?: TiptapMark[] };
 
-/** Returns true if the text contains markdown block-level patterns worth converting. */
+/** Strip invisible/special characters that PDFs embed (soft hyphens, zero-width spaces, etc.) */
+export function sanitizePasteText(text: string): string {
+  return text
+    .replace(/\u00AD/g, "")    // soft hyphen
+    .replace(/\u200B/g, "")    // zero-width space
+    .replace(/\u200C/g, "")    // zero-width non-joiner
+    .replace(/\u200D/g, "")    // zero-width joiner
+    .replace(/\uFEFF/g, "")    // BOM / zero-width no-break space
+    .replace(/\u00A0/g, " ");  // non-breaking space → regular space
+}
+
+/** Returns true if the text contains markdown block-level patterns worth converting.
+ *  Requires at least 2 matching lines or a heading to avoid treating normal prose
+ *  (e.g. a sentence that happens to start with "15.") as markdown. */
 export function looksLikeMarkdown(text: string): boolean {
-  return /^#{1,6} .+/m.test(text) ||
-    /^[-*] .+/m.test(text) ||
-    /^\d+\. .+/m.test(text) ||
-    /^> .+/m.test(text);
+  if (/^#{1,6} .+/m.test(text)) return true;  // any heading = intentional markdown
+  if (/^> .+/m.test(text)) return true;         // blockquote = intentional markdown
+
+  // Lists only count if there are at least 2 consecutive list items —
+  // avoids treating "15. On a success…" (PDF line-break mid-sentence) as a list.
+  if (/^[-*] .+\n[-*] .+/m.test(text)) return true;
+  if (/^\d+\. .+\n\d+\. .+/m.test(text)) return true;
+
+  return false;
 }
 
 function inlineContent(text: string): TiptapText[] {
@@ -98,15 +116,20 @@ export function parseMarkdown(text: string): TiptapNode[] {
     }
 
     // Paragraph — collect until blank line or block element
+    // NOTE: all patterns must be anchored with ^ to match the outer if-branches,
+    // otherwise a mid-line "15." stops collection but i never advances → infinite loop.
     const paraLines: string[] = [];
     while (
       i < lines.length &&
       lines[i].trim() !== "" &&
-      !/^#{1,6} |^[-*] |\d+\. |^> /.test(lines[i])
+      !/^#{1,6} |^[-*] |^\d+\. |^> /.test(lines[i])
     ) {
       paraLines.push(lines[i]);
       i++;
     }
+    // Safety: if nothing was collected and i didn't advance, force progress to
+    // avoid an infinite loop on lines that don't match any branch.
+    if (!paraLines.length) { i++; continue; }
     if (paraLines.length) {
       nodes.push(paragraph(paraLines.join(" ")));
     }
