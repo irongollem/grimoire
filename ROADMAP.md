@@ -301,6 +301,8 @@
 - [x] **Crafting open to non-proficient players** — disciplines no longer fully locked; players without tool proficiency can still attempt (no proficiency bonus), with "NO PROF" badge on tab; standard workspace bonus and poor-ingredient penalty modifiers added to all attempt dialogs
 - [x] **Recipe player visibility** — replaced dedicated GrantRecipeDialog with unified PlayerVisibilityToggle component; recipes now use `shared_with_players` + `player_visible_to` columns matching NPC/quest/location pattern
 
+- [x] **Recipe visibility toggle on Workshop list** — added `PlayerVisibilityToggle` directly to each recipe row's action cluster (next to Edit + Delete) so the DM can flip a recipe's per-player visibility without entering the editor. Uses the existing `useUpdateRecipe` mutation; row click is `@click.stop`-guarded so clicking the toggle's popover doesn't navigate to the detail page.
+
 ---
 
 ## AI Features
