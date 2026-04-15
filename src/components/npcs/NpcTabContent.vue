@@ -54,6 +54,16 @@
       <NpcInventorySection :npc-id="npc.id" :npc-name="npc.name" />
     </div>
 
+    <!-- Relations tab -->
+    <!-- Surfacing NpcRelationsSection here so DMs can see (and tweak)
+         relations from the view mode sheet — previously relations were only
+         visible after clicking into the edit form. See #168. The component
+         handles its own CRUD so embedding it here doesn't require flipping
+         the sheet into "edit mode". -->
+    <div v-else-if="activeTab === 'relations'">
+      <NpcRelationsSection :npc-id="npc.id" />
+    </div>
+
     <!-- Combat tab -->
     <div v-else-if="activeTab === 'combat'" class="space-y-4">
       <template v-if="npc.stat_block">
@@ -75,6 +85,7 @@ import StatBlockPanel from "@/components/common/StatBlockPanel.vue";
 import TraitList from "@/components/common/TraitList.vue";
 import SpellcastingList from "@/components/common/SpellcastingList.vue";
 import NpcInventorySection from "@/components/npcs/NpcInventorySection.vue";
+import NpcRelationsSection from "@/components/npcs/NpcRelationsSection.vue";
 import type { Npc } from "@/types/npc.types";
 
 defineProps<{ npc: Npc }>();
@@ -82,6 +93,7 @@ defineProps<{ npc: Npc }>();
 const TABS = [
   { key: 'lore',      label: 'Lore' },
   { key: 'inventory', label: 'Inventory' },
+  { key: 'relations', label: 'Relations' },
   { key: 'combat',    label: 'Combat' },
 ] as const;
 type TabKey = typeof TABS[number]['key'];
