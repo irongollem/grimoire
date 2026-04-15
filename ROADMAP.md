@@ -305,6 +305,8 @@
 
 - [x] **Recipe visibility toggle on Workshop list** — added `PlayerVisibilityToggle` directly to each recipe row's action cluster (next to Edit + Delete) so the DM can flip a recipe's per-player visibility without entering the editor. Uses the existing `useUpdateRecipe` mutation; row click is `@click.stop`-guarded so clicking the toggle's popover doesn't navigate to the detail page.
 
+- [x] **QuestDetailView — view/edit split** (irongollem/grimoire#168) — DM quest detail now renders a read-only sheet by default (status chip + giver / location / parent-quest chips + summary + Tiptap description + DM notes + interactive objectives + reward coin summary + reward item cards + linked encounters / NPCs / locations / monsters / sub-quests via `quest_refs`) with **Edit** flipping into `QuestEditor` via `?edit=true`. Editor gains a **Cancel** button that strips the flag (preserves `?parent=` etc.). Objectives stay interactive in view mode (check/uncheck + player-visibility toggle) since those are running-state during play; create / rename / re-order stays in the editor.
+
 ---
 
 ## AI Features
