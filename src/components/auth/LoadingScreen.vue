@@ -14,7 +14,7 @@
   align-items: center;
   justify-content: center;
   gap: 2rem;
-  background-color: #0b1525;
+  background-color: var(--background);
   z-index: 9999;
 }
 
@@ -26,8 +26,8 @@
 .loading-spinner {
   width: 2.5rem;
   height: 2.5rem;
-  border: 3px solid rgba(255 255 255 / 0.15);
-  border-top-color: rgba(255 255 255 / 0.7);
+  border: 3px solid color-mix(in oklch, var(--primary) 25%, transparent);
+  border-top-color: var(--primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }

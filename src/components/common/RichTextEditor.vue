@@ -326,10 +326,29 @@ const editor = useEditor({
       return true;
     },
     transformPastedHTML(html) {
-      // Strip <a> tags from pasted HTML (e.g. DnDBeyond links) — keep text content.
+      // Strip <a> tags and font-family styles from pasted HTML
       const div = document.createElement("div");
       div.innerHTML = html;
+      // Remove links but keep content
       div.querySelectorAll("a").forEach((a) => a.replaceWith(...a.childNodes));
+      // Strip font-family from all style attributes
+      div.querySelectorAll("[style]").forEach((el) => {
+        const style = el.getAttribute("style") ?? "";
+        // Remove font-family and plain font properties
+        const cleaned = style
+          .split(";")
+          .filter((prop) => {
+            const key = prop.split(":")[0]?.trim().toLowerCase();
+            return key && !key.match(/^font(-family)?$/);
+          })
+          .join(";")
+          .trim();
+        if (cleaned) {
+          el.setAttribute("style", cleaned);
+        } else {
+          el.removeAttribute("style");
+        }
+      });
       return div.innerHTML;
     },
   },
@@ -363,7 +382,12 @@ async function onFileSelected(e: Event) {
     // Custom path keeps the `rte-` prefix so we can later distinguish embedded
     // images from entity uploads when scanning the bucket. The asset-images
     // bucket is webp-only as of migration 20260413000004.
-    const url = await uploadToBucket({ bucket: "assetImages", blob: webpFile, path: `${user!.id}/rte-${Date.now()}.webp`, contentType: "image/webp" });
+    const url = await uploadToBucket({
+      bucket: "assetImages",
+      blob: webpFile,
+      path: `${user!.id}/rte-${Date.now()}.webp`,
+      contentType: "image/webp",
+    });
     if (!url) throw new Error("upload failed");
     editor.value.chain().focus().setImage({ src: url }).run();
   } catch {

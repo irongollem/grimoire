@@ -77,6 +77,7 @@ export function relationMeta(type: string) {
 export interface Faction {
   id: string;
   user_id: string;
+  campaign_id: string;
   name: string;
   faction_type: string | null;
   description: string | null;

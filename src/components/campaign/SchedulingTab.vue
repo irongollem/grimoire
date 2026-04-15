@@ -151,7 +151,7 @@
         >
         <VueDatePicker
           v-model="form.proposed_datetime"
-          :dark="true"
+          :dark="isDark"
           :enable-time-picker="true"
           :teleport="true"
           :min-date="new Date()"
@@ -312,6 +312,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { VueDatePicker } from "@vuepic/vue-datepicker";
+import { useTheme } from "@/composables/useTheme";
 import {
   Calendar,
   CalendarCheck,
@@ -341,6 +342,9 @@ import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import type { SessionProposal } from "@/types/scheduling.types";
+
+const { activeThemeId } = useTheme();
+const isDark = computed(() => activeThemeId.value === "grimoire");
 
 const campaign = useCampaignStore();
 const auth = useAuthStore();
@@ -568,30 +572,30 @@ function formatDate(date: string, time: string | null): string {
 </script>
 
 <style>
-/* Override vue-datepicker vars to match the Grimoire dark theme.
-   Not scoped — the menu teleports to <body>, so deep selectors won't reach it. */
-.grimoire-datepicker {
-  --dp-background-color: hsl(222 40% 10%);
-  --dp-text-color: hsl(38 60% 88%);
-  --dp-hover-color: hsl(222 30% 15%);
-  --dp-hover-text-color: hsl(38 60% 88%);
-  --dp-hover-icon-color: hsl(38 60% 88%);
-  --dp-primary-color: hsl(42 90% 42%);
-  --dp-primary-disabled-color: hsl(42 90% 42% / 0.4);
-  --dp-primary-text-color: hsl(222 47% 7%);
-  --dp-secondary-color: hsl(222 30% 15%);
-  --dp-border-color: hsl(222 30% 18%);
-  --dp-menu-border-color: hsl(222 30% 18%);
-  --dp-border-color-hover: hsl(42 90% 42%);
-  --dp-border-color-focus: hsl(42 90% 42%);
-  --dp-disabled-color: hsl(222 30% 20%);
-  --dp-disabled-color-text: hsl(38 30% 40%);
-  --dp-scroll-bar-background: hsl(222 30% 15%);
-  --dp-scroll-bar-color: hsl(222 30% 25%);
+/* Override vue-datepicker vars using the app's theme CSS vars.
+   Not scoped — the menu teleports to <body>. Using :root so vars cascade there too. */
+:root {
+  --dp-background-color: var(--card);
+  --dp-text-color: var(--card-foreground);
+  --dp-hover-color: var(--muted);
+  --dp-hover-text-color: var(--foreground);
+  --dp-hover-icon-color: var(--foreground);
+  --dp-primary-color: var(--primary);
+  --dp-primary-disabled-color: color-mix(in oklch, var(--primary) 40%, transparent);
+  --dp-primary-text-color: var(--primary-foreground);
+  --dp-secondary-color: var(--muted);
+  --dp-border-color: var(--border);
+  --dp-menu-border-color: var(--border);
+  --dp-border-color-hover: var(--ring);
+  --dp-border-color-focus: var(--ring);
+  --dp-disabled-color: var(--muted);
+  --dp-disabled-color-text: var(--muted-foreground);
+  --dp-scroll-bar-background: var(--muted);
+  --dp-scroll-bar-color: var(--border);
   --dp-success-color: hsl(142 60% 40%);
-  --dp-icon-color: hsl(38 30% 65%);
-  --dp-danger-color: hsl(0 72% 51%);
-  --dp-highlight-color: hsl(42 90% 42% / 0.15);
+  --dp-icon-color: var(--muted-foreground);
+  --dp-danger-color: var(--destructive);
+  --dp-highlight-color: color-mix(in oklch, var(--primary) 15%, transparent);
   --dp-font-family: "Crimson Pro", Georgia, serif;
   --dp-font-size: 0.875rem;
   --dp-border-radius: 0.375rem;
@@ -600,104 +604,97 @@ function formatDate(date: string, time: string | null): string {
 
 /* ── Input field ───────────────────────────────────────────────────────── */
 .grimoire-datepicker .dp__input {
-  background-color: hsl(222 47% 7%) !important;
-  border-color: hsl(222 30% 18%) !important;
-  color: hsl(38 60% 88%) !important;
+  background-color: var(--background) !important;
+  border-color: var(--border) !important;
+  color: var(--foreground) !important;
   font-family: "Crimson Pro", Georgia, serif !important;
   font-size: 0.875rem !important;
   border-radius: 0.375rem !important;
-  padding: 0.5rem 0.75rem 0.5rem 2.25rem !important; /* left room for icon */
+  padding: 0.5rem 0.75rem 0.5rem 2.25rem !important;
   height: auto !important;
 }
 .grimoire-datepicker .dp__input:hover,
 .grimoire-datepicker .dp__input_focus {
-  border-color: hsl(42 90% 42%) !important;
-  box-shadow: 0 0 0 1px hsl(42 90% 42%) !important;
+  border-color: var(--ring) !important;
+  box-shadow: 0 0 0 1px var(--ring) !important;
 }
 .grimoire-datepicker .dp__input_icon {
-  color: hsl(38 30% 65%) !important;
+  color: var(--muted-foreground) !important;
 }
 .grimoire-datepicker .dp__input_wrap {
   border-radius: 0.375rem;
 }
 
-/* ── Teleported calendar menu ──────────────────────────────────────────── */
-.dp__theme_dark.dp__menu,
-.dp__theme_dark .dp__menu_inner {
-  background-color: hsl(222 40% 10%) !important;
-  border-color: hsl(222 30% 18%) !important;
-  color: hsl(38 60% 88%) !important;
+/* ── Teleported calendar menu — theme-agnostic, driven by --dp-* vars ─── */
+.dp__menu,
+.dp__menu_inner {
+  background-color: var(--card) !important;
+  border-color: var(--border) !important;
+  color: var(--card-foreground) !important;
   font-family: "Crimson Pro", Georgia, serif !important;
 }
-.dp__theme_dark .dp__calendar_header_item,
-.dp__theme_dark .dp__cell_inner,
-.dp__theme_dark .dp__month_year_select {
-  color: hsl(38 60% 88%) !important;
+.dp__calendar_header_item,
+.dp__cell_inner,
+.dp__month_year_select {
+  color: var(--foreground) !important;
   font-family: "Crimson Pro", Georgia, serif !important;
 }
-/* Today outline → gold */
-.dp__theme_dark .dp__today {
-  border-color: hsl(42 90% 42%) !important;
+.dp__today {
+  border-color: var(--primary) !important;
 }
-/* Selected / active → gold fill */
-.dp__theme_dark .dp__active_date,
-.dp__theme_dark .dp__overlay_cell_active {
-  background: hsl(42 90% 42%) !important;
-  color: hsl(222 47% 7%) !important;
+.dp__active_date,
+.dp__overlay_cell_active {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
 }
-/* Hover → navy muted */
-.dp__theme_dark .dp__date_hover:hover,
-.dp__theme_dark .dp__date_hover_start:hover,
-.dp__theme_dark .dp__date_hover_end:hover,
-.dp__theme_dark .dp__overlay_cell:hover {
-  background: hsl(222 30% 15%) !important;
-  color: hsl(38 60% 88%) !important;
+.dp__date_hover:hover,
+.dp__date_hover_start:hover,
+.dp__date_hover_end:hover,
+.dp__overlay_cell:hover {
+  background: var(--muted) !important;
+  color: var(--foreground) !important;
 }
-/* Past / disabled → dimmed */
-.dp__theme_dark .dp__cell_disabled {
-  color: hsl(38 30% 35%) !important;
+.dp__cell_disabled {
+  color: var(--muted-foreground) !important;
+  opacity: 0.5;
 }
-/* Header nav arrows */
-.dp__theme_dark .dp__nav_btn,
-.dp__theme_dark .dp__inner_nav {
-  color: hsl(38 30% 65%) !important;
+.dp__nav_btn,
+.dp__inner_nav {
+  color: var(--muted-foreground) !important;
 }
-.dp__theme_dark .dp__nav_btn:hover {
-  background: hsl(222 30% 15%) !important;
+.dp__nav_btn:hover {
+  background: var(--muted) !important;
 }
-/* Month/year overlay */
-.dp__theme_dark .dp__overlay {
-  background-color: hsl(222 40% 10%) !important;
-  border-color: hsl(222 30% 18%) !important;
+.dp__overlay {
+  background-color: var(--card) !important;
+  border-color: var(--border) !important;
 }
-/* Time picker */
-.dp__theme_dark .dp__time_col,
-.dp__theme_dark .dp__time_display {
-  color: hsl(38 60% 88%) !important;
+.dp__time_col,
+.dp__time_display {
+  color: var(--foreground) !important;
 }
-.dp__theme_dark .dp__time_col_btn:hover {
-  background: hsl(222 30% 15%) !important;
+.dp__time_col_btn:hover {
+  background: var(--muted) !important;
 }
-/* Action buttons */
-.dp__theme_dark .dp__action_select {
-  background: hsl(42 90% 42%) !important;
-  color: hsl(222 47% 7%) !important;
+.dp__action_select {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
   border-radius: 0.375rem !important;
   font-family: "Cinzel", Georgia, serif !important;
   font-size: 0.7rem !important;
   letter-spacing: 0.05em !important;
 }
-.dp__theme_dark .dp__action_cancel {
-  color: hsl(38 30% 65%) !important;
-  border-color: hsl(222 30% 18%) !important;
+.dp__action_cancel {
+  color: var(--muted-foreground) !important;
+  border-color: var(--border) !important;
   background: transparent !important;
   border-radius: 0.375rem !important;
   font-family: "Cinzel", Georgia, serif !important;
   font-size: 0.7rem !important;
   letter-spacing: 0.05em !important;
 }
-.dp__theme_dark .dp__action_cancel:hover {
-  color: hsl(38 60% 88%) !important;
-  border-color: hsl(38 60% 88% / 0.4) !important;
+.dp__action_cancel:hover {
+  color: var(--foreground) !important;
+  border-color: var(--ring) !important;
 }
 </style>

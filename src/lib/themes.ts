@@ -76,4 +76,4 @@ export const THEMES: GrimoireTheme[] = [
   // Add new themes here — no CSS changes needed, just a new entry.
 ];
 
-export const DEFAULT_THEME_ID = "grimoire";
+export const DEFAULT_THEME_ID = "tome";

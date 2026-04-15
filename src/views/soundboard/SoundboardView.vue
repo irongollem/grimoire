@@ -1,6 +1,33 @@
 <template>
   <ListPageLayout title="Soundboard" description="Ambient sounds & music for your sessions">
     <template #actions>
+      <!-- Spotify connect/disconnect (only for the owner user) -->
+      <template v-if="spotifyStore.isEnabled">
+        <button
+          v-if="spotifyStore.isConnected"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-cinzel tracking-wide transition-colors"
+          :class="
+            spotifyStore.isReady
+              ? 'border-green-500/40 text-green-400 hover:text-green-300 hover:border-green-500/60'
+              : 'border-border text-muted-foreground'
+          "
+          :title="spotifyStore.isReady ? 'Spotify connected — click to disconnect' : 'Connecting to Spotify…'"
+          @click="spotifyStore.isReady ? spotifyStore.disconnect() : undefined"
+        >
+          <Music2 class="h-3.5 w-3.5 shrink-0" />
+          {{ spotifyStore.isReady ? "Spotify" : "Connecting…" }}
+        </button>
+        <button
+          v-else
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-xs font-cinzel tracking-wide text-muted-foreground hover:text-foreground transition-colors"
+          title="Connect your Spotify account"
+          @click="spotifyStore.connect()"
+        >
+          <Music2 class="h-3.5 w-3.5 shrink-0" />
+          Connect Spotify
+        </button>
+      </template>
+
       <ListActionButton
         :icon="Plus"
         label="Add Sound"
@@ -45,23 +72,51 @@
     </div>
 
     <!-- Sound grid -->
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-      <SoundCard
-        v-for="sound in filtered"
-        :key="sound.id"
-        :sound="sound"
-        :show-delete="true"
-        @delete="handleDelete"
-      />
-    </div>
+    <template v-else>
+      <!-- Drag hint when filters are active -->
+      <p
+        v-if="ui.soundboardHasActiveFilters"
+        class="mb-2 font-fell text-xs text-muted-foreground italic"
+      >
+        Clear filters to reorder cards.
+      </p>
+
+      <VueDraggable
+        v-model="orderedSounds"
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
+        :disabled="ui.soundboardHasActiveFilters"
+        handle=".drag-handle"
+        :animation="150"
+        ghost-class="opacity-40"
+        @end="persistOrder"
+      >
+        <div v-for="sound in orderedSounds" :key="sound.id" class="group relative">
+          <!-- Drag handle — only visible when not filtered -->
+          <div
+            v-if="!ui.soundboardHasActiveFilters"
+            class="drag-handle absolute top-2 left-2 z-10 cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors opacity-0 group-hover:opacity-100"
+            title="Drag to reorder"
+          >
+            <GripVertical class="h-3.5 w-3.5" />
+          </div>
+          <SoundCard
+            :sound="sound"
+            :show-delete="true"
+            @delete="handleDelete"
+          />
+        </div>
+      </VueDraggable>
+    </template>
   </ListPageLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import { Plus } from "lucide-vue-next";
-import { useSounds, useDeleteSound } from "@/composables/useSounds";
+import { ref, computed, watch, onMounted } from "vue";
+import { Plus, GripVertical, Music2 } from "lucide-vue-next";
+import { VueDraggable } from "vue-draggable-plus";
+import { useSounds, useDeleteSound, useReorderSounds } from "@/composables/useSounds";
 import { useSoundboardStore } from "@/stores/soundboard";
+import { useSpotifyStore } from "@/stores/spotify";
 import { useUiStore } from "@/stores/ui";
 import type { Sound } from "@/types/sound.types";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
@@ -76,10 +131,17 @@ import SoundCategoryFilter from "@/components/soundboard/SoundCategoryFilter.vue
 
 const ui = useUiStore();
 const soundboardStore = useSoundboardStore();
+const spotifyStore = useSpotifyStore();
+
+// Initialise the Spotify SDK as soon as the soundboard mounts (if connected).
+onMounted(() => spotifyStore.initSDK());
 const { data: sounds, isPending } = useSounds();
 const { mutateAsync: deleteSound } = useDeleteSound();
+const { mutate: reorderSounds } = useReorderSounds();
 
 const showForm = ref(false);
+
+// ── Filtering ─────────────────────────────────────────────────────────────
 
 const filtered = computed(() => {
   let list = sounds.value ?? [];
@@ -95,6 +157,28 @@ const filtered = computed(() => {
 
   return list;
 });
+
+// ── Drag-drop ordering ────────────────────────────────────────────────────
+//
+// orderedSounds is a local copy of filtered used as the v-model for
+// VueDraggable. It stays in sync with the server list unless the user
+// is actively reordering (filters off). After a drag we fire persistOrder.
+
+const orderedSounds = ref<Sound[]>([]);
+
+watch(
+  filtered,
+  (newList) => {
+    orderedSounds.value = [...newList];
+  },
+  { immediate: true },
+);
+
+function persistOrder() {
+  reorderSounds(orderedSounds.value.map((s) => s.id));
+}
+
+// ── Delete ────────────────────────────────────────────────────────────────
 
 async function handleDelete(sound: Sound) {
   await deleteSound(sound);

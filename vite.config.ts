@@ -80,6 +80,12 @@ export default defineConfig({
     tailwindcss(),
     swPlugin(),
   ],
+  server: {
+    // Portless injects PORT so its proxy can reach the dev server.
+    // Falls back to 5173 for plain `npm run dev`.
+    port: parseInt(process.env.PORT ?? "5173"),
+    strictPort: true,
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

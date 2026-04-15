@@ -10,6 +10,7 @@ const CAMPAIGN_SCOPED_TABLES = [
   "party_members",
   "encounters",
   "npcs",
+  "factions",
 ] as const;
 
 const QUERY_KEY = "campaigns";
@@ -134,6 +135,7 @@ export function useClaimOrphanedData() {
       queryClient.invalidateQueries({ queryKey: ["party"] });
       queryClient.invalidateQueries({ queryKey: ["encounters"] });
       queryClient.invalidateQueries({ queryKey: ["npcs"] });
+      queryClient.invalidateQueries({ queryKey: ["factions"] });
     },
   });
 }

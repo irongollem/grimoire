@@ -13,9 +13,11 @@
       :src="displaySrc"
       :alt="alt ?? ''"
       :class="isClipped ? 'w-full' : 'w-full h-full object-cover'"
-      :style="isClipped
-        ? { transform: `translateY(${clippedTranslateY}px)` }
-        : { objectPosition }"
+      :style="
+        isClipped
+          ? { transform: `translateY(${clippedTranslateY}px)` }
+          : { objectPosition }
+      "
       loading="lazy"
       @load="onLoad"
     />
@@ -155,7 +157,10 @@ function applyFocalPoint(img: HTMLImageElement, fp: { x: number; y: number }) {
   if (containerH > 0 && renderedH > containerH + 2) {
     isClipped.value = true;
     const focusY = (fp.y / 100) * renderedH;
-    const offset = Math.max(0, Math.min(renderedH - containerH, focusY - containerH / 2));
+    const offset = Math.max(
+      0,
+      Math.min(renderedH - containerH, focusY - containerH / 2),
+    );
     clippedTranslateY.value = -offset;
   } else {
     isClipped.value = false;

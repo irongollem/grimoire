@@ -20,17 +20,19 @@ import type { Item } from "@/types/item.types";
 
 export function useAllFactions() {
   const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: ["factions"],
+    queryKey: computed(() => ["factions", campaignId.value]),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("factions")
         .select("*")
+        .eq("campaign_id", campaignId.value!)
         .order("name", { ascending: true });
       if (error) throw error;
       return data as Faction[];
     },
-    enabled: !!campaign.activeCampaignId,
+    enabled: computed(() => !!campaignId.value),
   });
 }
 
@@ -51,40 +53,46 @@ export function useFaction(id: string) {
 }
 
 export function usePlayerVisibleFactions() {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: ["factions", "player-visible"],
+    queryKey: computed(() => ["factions", campaignId.value, "player-visible"]),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("factions")
         .select("*")
+        .eq("campaign_id", campaignId.value!)
         .order("name", { ascending: true });
       if (error) throw error;
       return data as Faction[];
     },
+    enabled: computed(() => !!campaignId.value),
   });
 }
 
 export function useCreateFaction() {
   const qc = useQueryClient();
+  const campaign = useCampaignStore();
   return useMutation({
     mutationFn: async (
-      payload: Omit<Faction, "id" | "user_id" | "created_at" | "updated_at">,
+      payload: Omit<Faction, "id" | "user_id" | "campaign_id" | "created_at" | "updated_at">,
     ) => {
       const user = getCurrentUser();
       const { data, error } = await supabase
         .from("factions")
-        .insert({ ...payload, user_id: user!.id })
+        .insert({ ...payload, user_id: user!.id, campaign_id: campaign.activeCampaignId! })
         .select()
         .single();
       if (error) throw error;
       return data as Faction;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["factions"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["factions", campaign.activeCampaignId] }),
   });
 }
 
 export function useUpdateFaction() {
   const qc = useQueryClient();
+  const campaign = useCampaignStore();
   return useMutation({
     mutationFn: async ({
       id,
@@ -99,18 +107,19 @@ export function useUpdateFaction() {
         .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["factions"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["factions", campaign.activeCampaignId] }),
   });
 }
 
 export function useDeleteFaction() {
   const qc = useQueryClient();
+  const campaign = useCampaignStore();
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("factions").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["factions"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["factions", campaign.activeCampaignId] }),
   });
 }
 
@@ -650,7 +659,8 @@ export function usePopulateFactions() {
 
       const { data: existing, error: fetchError } = await supabase
         .from("factions")
-        .select("id, name");
+        .select("id, name")
+        .eq("campaign_id", campaignId);
       if (fetchError) throw fetchError;
 
       const existingNames = new Set(
@@ -670,6 +680,7 @@ export function usePopulateFactions() {
           emblem_url: null,
           player_visible_to: [],
           user_id: user!.id,
+          campaign_id: campaignId,
         }));
 
       if (!toInsert.length) return 0;

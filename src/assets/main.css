@@ -88,33 +88,33 @@
    Do NOT edit colors here; edit themes.ts instead.
 ───────────────────────────────────────────────────────────────────────────── */
 :root {
-  --background: hsl(222 47% 7%);
-  --foreground: hsl(38 60% 88%);
+  --background: hsl(40 30% 95%);
+  --foreground: hsl(222 40% 14%);
 
-  --card: hsl(222 40% 10%);
-  --card-foreground: hsl(38 60% 88%);
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(222 40% 14%);
 
-  --popover: hsl(222 40% 10%);
-  --popover-foreground: hsl(38 60% 88%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(222 40% 14%);
 
-  --primary: hsl(42 90% 42%);
-  --primary-foreground: hsl(222 47% 7%);
+  --primary: hsl(42 90% 35%);
+  --primary-foreground: hsl(0 0% 100%);
 
-  --secondary: hsl(340 50% 18%);
-  --secondary-foreground: hsl(38 60% 88%);
+  --secondary: hsl(340 30% 88%);
+  --secondary-foreground: hsl(222 40% 14%);
 
-  --muted: hsl(222 30% 15%);
-  --muted-foreground: hsl(38 30% 65%);
+  --muted: hsl(38 15% 90%);
+  --muted-foreground: hsl(222 20% 42%);
 
-  --accent: hsl(42 90% 42%);
-  --accent-foreground: hsl(222 47% 7%);
+  --accent: hsl(42 90% 35%);
+  --accent-foreground: hsl(0 0% 100%);
 
-  --destructive: hsl(0 72% 51%);
-  --destructive-foreground: hsl(38 60% 88%);
+  --destructive: hsl(0 72% 45%);
+  --destructive-foreground: hsl(0 0% 100%);
 
-  --border: hsl(222 30% 18%);
-  --input: hsl(222 30% 18%);
-  --ring: hsl(42 90% 42%);
+  --border: hsl(38 15% 78%);
+  --input: hsl(38 15% 78%);
+  --ring: hsl(42 90% 35%);
 
   --radius: 0.5rem;
 }
@@ -164,9 +164,9 @@
   }
 
   .nav-link-active {
-    color: #e8b422;
-    border-left: 2px solid #c9920a;
-    background-color: #111f38;
+    color: var(--primary);
+    border-left: 2px solid var(--primary);
+    background-color: color-mix(in oklch, var(--primary) 12%, var(--background));
     padding-left: 0.75rem;
   }
 
