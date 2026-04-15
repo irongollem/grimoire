@@ -159,6 +159,12 @@ const router = createRouter({
       component: () => import("@/views/DashboardView.vue"),
       meta: { requiresAuth: true, title: "Campaign Dashboard" },
     },
+    {
+      path: "/campaign/settings",
+      name: "campaign-settings",
+      component: () => import("@/views/campaign/CampaignSettingsView.vue"),
+      meta: { requiresAuth: true, title: "Campaign Settings" },
+    },
 
     // Notes
     {
@@ -630,6 +636,13 @@ const router = createRouter({
       name: "soundboard",
       component: () => import("@/views/soundboard/SoundboardView.vue"),
       meta: { requiresAuth: true, title: "Soundboard" },
+    },
+    // Spotify OAuth callback — no auth required (user may not be logged in yet during the redirect)
+    {
+      path: "/spotify/callback",
+      name: "spotify-callback",
+      component: () => import("@/views/soundboard/SpotifyCallbackView.vue"),
+      meta: { layout: "auth" },
     },
 
     // Card Forge

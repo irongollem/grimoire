@@ -20,6 +20,7 @@ import {
   DoorOpen,
   Music2,
   Dna,
+  Settings,
 } from "lucide-vue-next";
 import type { Component } from "vue";
 
@@ -124,6 +125,13 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/soundboard",
         icon: Music2,
         description: "Ambient sounds & music",
+        requiresCampaign: true,
+      },
+      {
+        label: "Settings",
+        to: "/campaign/settings",
+        icon: Settings,
+        description: "Campaign configuration",
         requiresCampaign: true,
       },
     ],
