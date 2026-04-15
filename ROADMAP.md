@@ -305,6 +305,8 @@
 
 - [x] **Recipe visibility toggle on Workshop list** — added `PlayerVisibilityToggle` directly to each recipe row's action cluster (next to Edit + Delete) so the DM can flip a recipe's per-player visibility without entering the editor. Uses the existing `useUpdateRecipe` mutation; row click is `@click.stop`-guarded so clicking the toggle's popover doesn't navigate to the detail page.
 
+- [x] **PartyMemberView — Edit button wires up PartyMemberForm** (irongollem/grimoire#168) — the DM-side party member detail already rendered a read-only character sheet via `PlayerCharacterView`; the gap was just a DM-side path into full-character editing. Wired the previously-orphaned `PartyMemberForm` (side-sheet modal covering identity / stats / profs) to an **Edit** button on `PartyMemberView`. No route change; `useParty` cache is shared so the form picks up the existing member from `/party` without a re-fetch.
+
 ---
 
 ## AI Features
