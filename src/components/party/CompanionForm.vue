@@ -416,12 +416,12 @@ function onNpcSelected() {
 async function onFileSelected(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (!file) return;
+  if (fileInput.value) fileInput.value.value = "";
   const url = await upload(file);
   if (url) {
     portraitUrl.value = url;
     focalPoint.value  = null; // clear focal point for new upload
   }
-  if (fileInput.value) fileInput.value.value = "";
 }
 
 async function save() {

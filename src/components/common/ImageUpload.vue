@@ -146,8 +146,8 @@ async function handleFile(file: File) {
 async function onFileSelected(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (!file) return;
-  await handleFile(file);
   if (fileInput.value) fileInput.value.value = "";
+  await handleFile(file);
 }
 
 async function onDrop(e: DragEvent) {
