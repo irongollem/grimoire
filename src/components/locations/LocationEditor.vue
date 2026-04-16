@@ -45,6 +45,14 @@
         @update:visible-to="playerVisibleTo = $event"
       />
       <button
+        v-if="!isNew"
+        type="button"
+        class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
+        @click="onCancel"
+      >
+        Cancel
+      </button>
+      <button
         type="button"
         :disabled="saving || !name.trim()"
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
@@ -595,7 +603,7 @@
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, watch } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import {
   Save,
   Trash2,
@@ -643,6 +651,14 @@ const props = defineProps<{
 }>();
 
 const router = useRouter();
+
+// Drop the `?edit=true` flag so Cancel takes the DM back to the sheet view,
+// preserving any other query params (e.g. ?parent=xxx for nested creates).
+const route = useRoute();
+function onCancel() {
+  const { edit: _edit, ...rest } = route.query;
+  router.push({ query: rest });
+}
 const isNew = computed(() => !props.location);
 
 // ── All locations (for parent picker) ─────────────────────────────────────────

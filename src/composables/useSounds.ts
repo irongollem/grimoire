@@ -17,7 +17,8 @@ async function fetchSounds(campaignId: string): Promise<Sound[]> {
     .from("sounds")
     .select("*")
     .eq("campaign_id", campaignId)
-    .order("name");
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
   if (error) throw error;
   return data as Sound[];
 }
@@ -100,6 +101,24 @@ export function useDeleteSound() {
 
   return useMutation({
     mutationFn: (sound: Sound) => deleteSound(sound),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QUERY_KEY, activeCampaignId.value] });
+    },
+  });
+}
+
+export function useReorderSounds() {
+  const qc = useQueryClient();
+  const { activeCampaignId } = storeToRefs(useCampaignStore());
+
+  return useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      // Upsert sort_order for each id in the new order
+      const updates = orderedIds.map((id, index) =>
+        supabase.from("sounds").update({ sort_order: index }).eq("id", id),
+      );
+      await Promise.all(updates);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY, activeCampaignId.value] });
     },

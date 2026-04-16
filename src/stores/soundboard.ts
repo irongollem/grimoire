@@ -43,7 +43,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
 
   function getState(soundId: string): SoundPlaybackState {
     if (!playbackStates.value[soundId]) {
-      playbackStates.value[soundId] = { isPlaying: false, volume: 0.8, isLooping: false };
+      playbackStates.value[soundId] = { isPlaying: false, volume: 0.8, isLooping: false, currentTime: 0, duration: 0 };
     }
     return playbackStates.value[soundId];
   }
@@ -58,9 +58,17 @@ export const useSoundboardStore = defineStore("soundboard", () => {
       // "stopped" state so the user can retry.
     });
     state.isPlaying = true;
+    audio.ontimeupdate = () => {
+      const s = playbackStates.value[soundId];
+      if (s) {
+        s.currentTime = audio.currentTime;
+        s.duration = isFinite(audio.duration) ? audio.duration : 0;
+      }
+    };
     audio.onended = () => {
       if (playbackStates.value[soundId]) {
         playbackStates.value[soundId].isPlaying = false;
+        playbackStates.value[soundId].currentTime = 0;
       }
     };
   }
@@ -73,6 +81,17 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     }
     if (playbackStates.value[soundId]) {
       playbackStates.value[soundId].isPlaying = false;
+      playbackStates.value[soundId].currentTime = 0;
+    }
+  }
+
+  function seek(soundId: string, time: number): void {
+    const audio = audioInstances.get(soundId);
+    if (audio) {
+      audio.currentTime = Math.max(0, Math.min(time, audio.duration || 0));
+    }
+    if (playbackStates.value[soundId]) {
+      playbackStates.value[soundId].currentTime = audio?.currentTime ?? 0;
     }
   }
 
@@ -117,6 +136,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     getState,
     play,
     stop,
+    seek,
     setVolume,
     toggleLoop,
     stopAll,

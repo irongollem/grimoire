@@ -43,6 +43,12 @@ export const useCampaignStore = defineStore("campaign", () => {
       decryptedApiKey.value = "";
     }
 
+    // Reload the user's membership for the new campaign so role-based guards
+    // (isDM / isPlayer) reflect the active campaign, not a stale earlier one.
+    import("@/stores/auth").then(({ useAuthStore }) => {
+      useAuthStore().refreshMembership(campaign.id);
+    });
+
     // Sync calendar system and current in-game year from campaign
     import("@/stores/calendar").then(({ useCalendarStore }) => {
       const calendarStore = useCalendarStore();

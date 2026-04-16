@@ -19,14 +19,19 @@ export const useAuthStore = defineStore("auth", () => {
   const isPlayer = computed(() => currentRole.value === "player");
   const linkedPartyMemberId = computed(() => membership.value?.party_member_id ?? null);
 
-  async function loadMembership(userId: string) {
-    const { data } = await supabase
+  async function loadMembership(userId: string, campaignId?: string) {
+    let query = supabase
       .from("campaign_members")
       .select("*")
-      .eq("user_id", userId)
-      .order("joined_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
+      .eq("user_id", userId);
+
+    if (campaignId) {
+      query = query.eq("campaign_id", campaignId);
+    } else {
+      query = query.order("joined_at", { ascending: true }).limit(1);
+    }
+
+    const { data } = await query.maybeSingle();
     membership.value = data ?? null;
 
     // Backfill display_name on first login: prefer the username stored in
@@ -142,9 +147,10 @@ export const useAuthStore = defineStore("auth", () => {
     setCachedUser(null);
   }
 
-  // Called after a player successfully joins via invite, to refresh membership state
-  async function refreshMembership() {
-    if (user.value) await loadMembership(user.value.id);
+  // Called after a player successfully joins via invite, or when the active campaign
+  // changes, to refresh membership state for the correct campaign.
+  async function refreshMembership(campaignId?: string) {
+    if (user.value) await loadMembership(user.value.id, campaignId);
   }
 
   // Ensure the current JWT is fresh before making DB calls. Called from the router

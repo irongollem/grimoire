@@ -1,8 +1,8 @@
 <template>
   <div>
     <!-- Month navigation -->
-    <div class="flex items-center justify-between mb-4">
-      <div class="flex items-center gap-1">
+    <div class="flex items-center justify-between mb-4 gap-2">
+      <div class="flex items-center gap-1 shrink-0">
         <button
           title="Previous year"
           class="rounded-md border border-border px-2 py-1.5 font-fell text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
@@ -11,39 +11,39 @@
           ◀◀
         </button>
         <button
-          class="rounded-md border border-border px-3 py-1.5 font-fell text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          class="rounded-md border border-border px-2 py-1.5 font-fell text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
           @click="calendar.prevMonth()"
         >
-          ← Previous
+          ← <span class="hidden sm:inline">Previous</span>
         </button>
       </div>
 
-      <div class="text-center">
-        <p class="font-cinzel text-xl font-semibold text-foreground">
+      <div class="text-center min-w-0 flex-1">
+        <p class="font-cinzel text-lg md:text-xl font-semibold text-foreground truncate">
           {{ currentMonth.name }}
         </p>
-        <div class="flex items-center justify-center gap-1 mt-0.5">
-          <p v-if="currentMonth.alias" class="font-fell text-sm text-muted-foreground italic">
+        <div class="flex items-center justify-center gap-1 mt-0.5 flex-wrap">
+          <p v-if="currentMonth.alias" class="font-fell text-xs md:text-sm text-muted-foreground italic">
             {{ currentMonth.alias }} ·
           </p>
           <input
             :value="calendar.currentYear"
             type="number"
-            class="w-20 bg-transparent border-b border-border text-center font-fell text-sm text-muted-foreground italic focus:outline-none focus:border-primary"
+            class="w-16 md:w-20 bg-transparent border-b border-border text-center font-fell text-xs md:text-sm text-muted-foreground italic focus:outline-none focus:border-primary"
             @change="onYearInput"
           />
-          <p class="font-fell text-sm text-muted-foreground italic">
+          <p class="font-fell text-xs md:text-sm text-muted-foreground italic">
             {{ calendar.adapter.epochName }}
           </p>
         </div>
       </div>
 
-      <div class="flex items-center gap-1">
+      <div class="flex items-center gap-1 shrink-0">
         <button
-          class="rounded-md border border-border px-3 py-1.5 font-fell text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          class="rounded-md border border-border px-2 py-1.5 font-fell text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
           @click="calendar.nextMonth()"
         >
-          Next →
+          <span class="hidden sm:inline">Next</span> →
         </button>
         <button
           title="Next year"
@@ -169,11 +169,11 @@
               v-if="entityIcon(event)"
               class="h-3.5 w-3.5 text-muted-foreground shrink-0"
             />
-            <span class="font-fell text-sm text-foreground flex-1">{{ event.title }}</span>
-            <span class="font-fell text-xs text-muted-foreground italic">
+            <span class="font-fell text-sm text-foreground flex-1 truncate">{{ event.title }}</span>
+            <span class="font-fell text-xs text-muted-foreground italic shrink-0">
               {{ formatEventDate(event) }}
             </span>
-            <span class="font-cinzel text-xs text-muted-foreground/40 uppercase tracking-wider">
+            <span class="hidden md:inline font-cinzel text-xs text-muted-foreground/40 uppercase tracking-wider shrink-0">
               {{ event.event_type }}
             </span>
           </component>
@@ -215,9 +215,11 @@ const currentMonth = computed(
     calendar.adapter.months[0],
 );
 
-// Dynamic Tailwind grid class based on week size
+// Dynamic Tailwind grid class based on week size.
+// 10-day (Harptos) tendays show 5 columns on mobile so each tenday
+// wraps into two rows of 5 instead of squashing 10 cells onto a phone screen.
 const gridColsClass = computed(() =>
-  calendar.adapter.weekSize === 7 ? "grid-cols-7" : "grid-cols-10",
+  calendar.adapter.weekSize === 7 ? "grid-cols-7" : "grid-cols-5 md:grid-cols-10",
 );
 
 // Build grid rows: each row is an array of day numbers (or null for empty offset cells).
@@ -249,7 +251,8 @@ const gridRows = computed(() => {
 function weekRowLabel(rowIdx: number): string {
   const names = calendar.adapter.weekRowNames;
   if (names && names[rowIdx]) return names[rowIdx];
-  return `Week ${rowIdx + 1}`;
+  const unit = calendar.adapter.weekSize === 10 ? "Tenday" : "Week";
+  return `${unit} ${rowIdx + 1}`;
 }
 
 // Festival days that fall right after the current month

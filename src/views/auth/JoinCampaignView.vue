@@ -132,7 +132,7 @@ async function attemptJoin() {
   joinError.value = "";
   try {
     const campaignId = await joinCampaignViaInvite(token);
-    await auth.refreshMembership();
+    await auth.refreshMembership(campaignId);
 
     // Activate the campaign they just joined and redirect to player portal
     campaign.activeCampaignId = campaignId;

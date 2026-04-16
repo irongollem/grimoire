@@ -16,7 +16,7 @@
     :to="item.to"
     class="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-fell transition-colors duration-150"
     :class="
-      isActive ? 'nav-link-active' : 'text-muted-foreground hover:text-foreground hover:bg-navy-800'
+      isActive ? 'nav-link-active' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
     "
     @click="emit('navigate')"
   >

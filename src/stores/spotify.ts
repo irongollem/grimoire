@@ -1,0 +1,315 @@
+// Spotify Web Playback SDK store.
+//
+// The SDK registers "Grimoire Soundboard" as a Spotify Connect device in the
+// user's browser. Playback is fully programmatic — play/pause/seek/volume all
+// go through the SDK rather than an iframe. Requires a Spotify Premium account.
+//
+// Module-level vars hold the non-reactive SDK objects (same pattern as
+// soundboard.ts for HTMLAudioElement).
+
+import { defineStore } from "pinia";
+import { ref, computed } from "vue";
+import { useAuthStore } from "@/stores/auth";
+import { useCampaignStore } from "@/stores/campaign";
+import {
+  getValidToken,
+  buildAuthUrl,
+  clearTokens,
+  getStoredTokens,
+  urlToUri,
+  isContextUri,
+} from "@/lib/spotifyAuth";
+
+// ── SDK type declarations (no npm package) ────────────────────────────────
+
+declare global {
+  interface Window {
+    onSpotifyWebPlaybackSDKReady: () => void;
+    Spotify: SpotifySDK;
+  }
+}
+
+interface SpotifySDK {
+  Player: new (options: SpotifyPlayerInit) => SpotifyPlayer;
+}
+
+interface SpotifyPlayerInit {
+  name: string;
+  getOAuthToken: (cb: (token: string) => void) => void;
+  volume?: number;
+}
+
+interface SpotifyPlayer {
+  connect(): Promise<boolean>;
+  disconnect(): void;
+  addListener(event: "ready", cb: (data: { device_id: string }) => void): void;
+  addListener(event: "not_ready", cb: (data: { device_id: string }) => void): void;
+  addListener(event: "player_state_changed", cb: (state: SpotifyState | null) => void): void;
+  addListener(event: "authentication_error", cb: (data: { message: string }) => void): void;
+  addListener(event: string, cb: (data: unknown) => void): void;
+  getCurrentState(): Promise<SpotifyState | null>;
+  setVolume(volume: number): Promise<void>;
+  pause(): Promise<void>;
+  resume(): Promise<void>;
+  seek(position_ms: number): Promise<void>;
+  nextTrack(): Promise<void>;
+  previousTrack(): Promise<void>;
+}
+
+interface SpotifyState {
+  paused: boolean;
+  position: number;
+  duration: number;
+  track_window: {
+    current_track: SpotifyTrack;
+  };
+}
+
+interface SpotifyTrack {
+  id: string;
+  uri: string;
+  name: string;
+  artists: Array<{ name: string }>;
+  album: {
+    name: string;
+    images: Array<{ url: string; width: number; height: number }>;
+  };
+}
+
+// ── Module-level (never reactive) ─────────────────────────────────────────
+let sdkPlayer: SpotifyPlayer | null = null;
+let positionTick: ReturnType<typeof setInterval> | null = null;
+
+// ─────────────────────────────────────────────────────────────────────────
+
+export const useSpotifyStore = defineStore("spotify", () => {
+  // Client ID comes from the campaign's spotify_client_id (BYOK).
+  // Stored in the campaign settings by the DM.
+  const clientId = computed(() => useCampaignStore().activeCampaign?.spotify_client_id ?? "");
+
+  // Visible only to DMs who have configured a Client ID for this campaign.
+  const isEnabled = computed(() => {
+    if (!clientId.value) return false;
+    const auth = useAuthStore();
+    return auth.isDM;
+  });
+
+  // Token is stored in localStorage — persists across page reloads
+  const isConnected = ref(!!getStoredTokens());
+
+  // SDK player is initialised and device ID is registered with Spotify
+  const isReady = ref(false);
+  const deviceId = ref<string | null>(null);
+
+  // Current playback
+  const isPlaying = ref(false);
+  const positionMs = ref(0);
+  const durationMs = ref(0);
+  const currentUri = ref<string | null>(null); // spotify:track:xxx of the currently playing track
+  const lastPlayedUrl = ref<string | null>(null); // the file_url of the last Sound card activated
+  const trackName = ref("");
+  const artistName = ref("");
+  const albumArtUrl = ref("");
+  const volume = ref(0.8);
+
+  // ── Auth ───────────────────────────────────────────────────────────────
+
+  async function connect() {
+    if (!clientId.value) return;
+    const url = await buildAuthUrl(clientId.value);
+    window.location.href = url;
+  }
+
+  function disconnect() {
+    clearTokens();
+    isConnected.value = false;
+    isReady.value = false;
+    deviceId.value = null;
+    isPlaying.value = false;
+    currentUri.value = null;
+    lastPlayedUrl.value = null;
+    _stopTick();
+    sdkPlayer?.disconnect();
+    sdkPlayer = null;
+  }
+
+  // ── SDK lifecycle ──────────────────────────────────────────────────────
+
+  /** Call this once when the soundboard mounts and a token exists. */
+  function initSDK() {
+    if (sdkPlayer || !isConnected.value) return;
+
+    window.onSpotifyWebPlaybackSDKReady = _createPlayer;
+
+    if (!document.getElementById("spotify-sdk-script")) {
+      const script = document.createElement("script");
+      script.id = "spotify-sdk-script";
+      script.src = "https://sdk.scdn.co/spotify-player.js";
+      document.head.appendChild(script);
+    } else {
+      // Script already loaded (hot reload / already initialised)
+      _createPlayer();
+    }
+  }
+
+  function _createPlayer() {
+    sdkPlayer = new window.Spotify.Player({
+      name: "Grimoire Soundboard",
+      getOAuthToken: async (cb) => {
+        const token = await getValidToken(clientId.value);
+        if (token) {
+          cb(token);
+        } else {
+          // Token gone — force re-auth
+          disconnect();
+        }
+      },
+      volume: volume.value,
+    });
+
+    sdkPlayer.addListener("ready", ({ device_id }) => {
+      deviceId.value = device_id;
+      isReady.value = true;
+    });
+
+    sdkPlayer.addListener("not_ready", () => {
+      isReady.value = false;
+    });
+
+    sdkPlayer.addListener("player_state_changed", (state) => {
+      _applyState(state);
+    });
+
+    sdkPlayer.addListener("authentication_error", () => {
+      disconnect();
+    });
+
+    sdkPlayer.connect();
+  }
+
+  function _applyState(state: SpotifyState | null) {
+    if (!state) {
+      isPlaying.value = false;
+      _stopTick();
+      return;
+    }
+
+    isPlaying.value = !state.paused;
+    positionMs.value = state.position;
+    durationMs.value = state.duration;
+
+    const track = state.track_window.current_track;
+    currentUri.value = track.uri;
+    trackName.value = track.name;
+    artistName.value = track.artists.map((a) => a.name).join(", ");
+    albumArtUrl.value = track.album.images[0]?.url ?? "";
+
+    if (!state.paused) {
+      _startTick();
+    } else {
+      _stopTick();
+    }
+  }
+
+  // Increment positionMs every 500 ms while playing so the progress bar
+  // moves smoothly without hammering the SDK with getCurrentState() calls.
+  function _startTick() {
+    if (positionTick) return;
+    positionTick = setInterval(() => {
+      positionMs.value = Math.min(positionMs.value + 500, durationMs.value);
+    }, 500);
+  }
+
+  function _stopTick() {
+    if (positionTick) {
+      clearInterval(positionTick);
+      positionTick = null;
+    }
+  }
+
+  // ── Playback controls ──────────────────────────────────────────────────
+
+  /** Play a sound card's file_url (open.spotify.com URL or spotify: URI). */
+  async function play(fileUrl: string) {
+    if (!deviceId.value) return;
+
+    const uri = urlToUri(fileUrl) ?? fileUrl;
+    const token = await getValidToken(clientId.value);
+    if (!token) return;
+
+    lastPlayedUrl.value = fileUrl;
+
+    const body = isContextUri(uri)
+      ? { context_uri: uri }
+      : { uris: [uri] };
+
+    await fetch(
+      `https://api.spotify.com/v1/me/player/play?device_id=${deviceId.value}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      },
+    );
+  }
+
+  async function pause() {
+    await sdkPlayer?.pause();
+    isPlaying.value = false;
+    _stopTick();
+  }
+
+  async function resume() {
+    await sdkPlayer?.resume();
+    isPlaying.value = true;
+    _startTick();
+  }
+
+  async function seek(ms: number) {
+    await sdkPlayer?.seek(ms);
+    positionMs.value = ms;
+  }
+
+  async function setVolume(v: number) {
+    volume.value = v;
+    await sdkPlayer?.setVolume(v);
+  }
+
+  async function nextTrack() {
+    await sdkPlayer?.nextTrack();
+  }
+
+  async function previousTrack() {
+    await sdkPlayer?.previousTrack();
+  }
+
+  return {
+    clientId,
+    isEnabled,
+    isConnected,
+    isReady,
+    deviceId,
+    isPlaying,
+    positionMs,
+    durationMs,
+    currentUri,
+    lastPlayedUrl,
+    trackName,
+    artistName,
+    albumArtUrl,
+    volume,
+    connect,
+    disconnect,
+    initSDK,
+    play,
+    pause,
+    resume,
+    seek,
+    setVolume,
+    nextTrack,
+    previousTrack,
+  };
+});

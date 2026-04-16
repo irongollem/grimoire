@@ -49,9 +49,7 @@ onUnmounted(() => editor.value?.destroy());
 @reference "@/assets/main.css";
 
 .rte-content :deep(.ProseMirror) {
-  font-family: var(--font-stat);
-  font-size: 15px;
-  @apply text-foreground outline-none;
+  @apply font-fell text-sm text-foreground outline-none;
 }
 .rte-content :deep(.ProseMirror p) {
   @apply mb-3 leading-relaxed last:mb-0;
