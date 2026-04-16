@@ -67,6 +67,7 @@
       <ListActionButton
         :icon="Plus"
         label="New Spell"
+        mobile-label="Spell"
         variant="primary"
         to="/spells/new"
       />

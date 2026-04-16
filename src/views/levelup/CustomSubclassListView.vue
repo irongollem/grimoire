@@ -7,7 +7,7 @@
         :disabled="importMutation.isPending.value"
         @click="handleImport"
       />
-      <ListActionButton :icon="Plus" label="New Archetype" variant="primary" to="/levelup/custom/new" />
+      <ListActionButton :icon="Plus" label="New Archetype" mobile-label="Archetype" variant="primary" to="/levelup/custom/new" />
     </template>
 
     <template #filters>

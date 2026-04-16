@@ -10,6 +10,7 @@
       <ListActionButton
         :icon="Plus"
         label="New Hero"
+        mobile-label="Hero"
         variant="primary"
         to="/hall-of-heroes/new"
       />

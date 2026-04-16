@@ -13,7 +13,9 @@
         @click="ui.puzzleGeneratorOpen = true"
       />
       <ListActionButton
+        :icon="Plus"
         label="New Puzzle"
+        mobile-label="Puzzle"
         variant="primary"
         @click="router.push('/puzzles/new')"
       />
@@ -100,7 +102,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
-import { Puzzle as PuzzleIcon, Loader2, BookOpen, Sparkles } from "lucide-vue-next";
+import { Puzzle as PuzzleIcon, Loader2, BookOpen, Sparkles, Plus } from "lucide-vue-next";
 import { usePuzzles, usePopulatePuzzles } from "@/composables/usePuzzles";
 import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES, PUZZLE_TYPE_COLORS, PUZZLE_DIFFICULTY_COLORS } from "@/types/puzzle.types";
 import { useUiStore } from "@/stores/ui";

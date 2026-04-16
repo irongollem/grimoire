@@ -3,109 +3,94 @@
     <template #actions>
       <!-- Features tab actions -->
       <template v-if="activeTab === 'features'">
-        <button
-          type="button"
+        <ListActionButton
+          :icon="featuresPopulate.isPending.value ? Loader2 : BookOpen"
+          :label="featuresPopulateLabel"
           :disabled="featuresPopulate.isPending.value"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
           @click="handleFeaturesPopulate"
-        >
-          <Loader2 v-if="featuresPopulate.isPending.value" class="size-3.5 animate-spin shrink-0" />
-          <BookOpen v-else class="size-3.5 shrink-0" />
-          {{ featuresPopulateLabel }}
-        </button>
-        <button
-          class="font-cinzel text-xs font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+        />
+        <ListActionButton
+          :icon="Plus"
+          label="New Feature"
+          mobile-label="Feature"
+          variant="primary"
           @click="router.push('/dungeon-features/new')"
-        >
-          New Feature
-        </button>
+        />
       </template>
 
       <!-- Traps tab actions -->
       <template v-else-if="activeTab === 'traps'">
-        <button
-          type="button"
+        <ListActionButton
+          :icon="trapsPopulate.isPending.value ? Loader2 : BookOpen"
+          :label="trapsPopulateLabel"
           :disabled="trapsPopulate.isPending.value"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
           @click="handleTrapsPopulate"
-        >
-          <Loader2 v-if="trapsPopulate.isPending.value" class="size-3.5 animate-spin shrink-0" />
-          <BookOpen v-else class="size-3.5 shrink-0" />
-          {{ trapsPopulateLabel }}
-        </button>
-        <button
-          class="font-cinzel text-xs font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+        />
+        <ListActionButton
+          :icon="Plus"
+          label="New Trap"
+          mobile-label="Trap"
+          variant="primary"
           @click="router.push('/traps/new')"
-        >
-          New Trap
-        </button>
+        />
       </template>
 
       <!-- Roll Tables tab actions -->
       <template v-else-if="activeTab === 'roll-tables'">
         <template v-if="!selectedRollTableId && !inlineNewRollTable">
-          <button
-            type="button"
+          <ListActionButton
+            :icon="rollTablesPopulate.isPending.value ? Loader2 : BookOpen"
+            :label="rollTablesPopulateLabel"
             :disabled="rollTablesPopulate.isPending.value"
-            class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
             @click="handleRollTablesPopulate"
-          >
-            <Loader2 v-if="rollTablesPopulate.isPending.value" class="size-3.5 animate-spin shrink-0" />
-            <BookOpen v-else class="size-3.5 shrink-0" />
-            {{ rollTablesPopulateLabel }}
-          </button>
-          <button
-            class="font-cinzel text-xs font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+          />
+          <ListActionButton
+            :icon="Plus"
+            label="New Roll Table"
+            mobile-label="Roll Table"
+            variant="primary"
             @click="inlineNewRollTable = true"
-          >
-            New Roll Table
-          </button>
+          />
         </template>
-        <button
+        <ListActionButton
           v-else
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+          label="← All Tables"
+          :collapse-on-mobile="false"
           @click="closeInlineRollTable"
-        >
-          ← All Tables
-        </button>
+        />
       </template>
 
       <!-- Loot Tables tab actions -->
       <template v-else-if="activeTab === 'loot-tables'">
-        <button
-          class="font-cinzel text-xs font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+        <ListActionButton
+          :icon="Plus"
+          label="New Loot Table"
+          mobile-label="Loot Table"
+          variant="primary"
           @click="router.push('/loot-tables/new')"
-        >
-          New Loot Table
-        </button>
+        />
       </template>
 
       <!-- Puzzles tab actions -->
       <template v-else>
-        <button
-          type="button"
+        <ListActionButton
+          :icon="puzzlesPopulate.isPending.value ? Loader2 : BookOpen"
+          :label="puzzlesPopulateLabel"
           :disabled="puzzlesPopulate.isPending.value"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
           @click="handlePuzzlesPopulate"
-        >
-          <Loader2 v-if="puzzlesPopulate.isPending.value" class="size-3.5 animate-spin shrink-0" />
-          <BookOpen v-else class="size-3.5 shrink-0" />
-          {{ puzzlesPopulateLabel }}
-        </button>
-        <button
-          class="inline-flex items-center gap-1.5 font-cinzel text-xs font-semibold px-3 py-1.5 rounded-md border border-border bg-card text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+        />
+        <ListActionButton
+          :icon="Sparkles"
+          label="Generate"
           @click="ui.puzzleGeneratorOpen = true"
-        >
-          <Sparkles class="size-3.5 shrink-0" />
-          Generate
-        </button>
-        <button
-          class="font-cinzel text-xs font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+        />
+        <ListActionButton
+          :icon="Plus"
+          label="New Puzzle"
+          mobile-label="Puzzle"
+          variant="primary"
           @click="router.push('/puzzles/new')"
-        >
-          New Puzzle
-        </button>
+        />
       </template>
     </template>
 
@@ -472,6 +457,7 @@ import {
   Loader2,
   BookOpen,
   Sparkles,
+  Plus,
 } from "lucide-vue-next";
 
 import { useDungeonFeatures, usePopulateDungeonFeatures } from "@/composables/useDungeonFeatures";
@@ -494,6 +480,7 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
 import RollTableDetailView from "@/views/dungeon-features/RollTableDetailView.vue";
 
 const route  = useRoute();

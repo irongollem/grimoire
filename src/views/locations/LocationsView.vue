@@ -19,6 +19,7 @@
       <ListActionButton
         :icon="Plus"
         label="New Location"
+        mobile-label="Location"
         variant="primary"
         to="/locations/new"
       />

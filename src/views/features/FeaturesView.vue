@@ -7,7 +7,7 @@
         :disabled="importMutation.isPending.value"
         @click="handleImport"
       />
-      <ListActionButton :icon="Plus" label="New Ability" variant="primary" to="/features/new" />
+      <ListActionButton :icon="Plus" label="New Ability" mobile-label="Ability" variant="primary" to="/features/new" />
     </template>
 
     <template #filters>

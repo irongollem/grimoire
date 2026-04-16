@@ -7,7 +7,7 @@
         :disabled="importMutation.isPending.value"
         @click="handleImport"
       />
-      <ListActionButton :icon="Plus" label="New Class" variant="primary" to="/levelup/classes/new" />
+      <ListActionButton :icon="Plus" label="New Class" mobile-label="Class" variant="primary" to="/levelup/classes/new" />
     </template>
 
     <template #filters>

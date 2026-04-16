@@ -71,6 +71,7 @@
       <ListActionButton
         :icon="Plus"
         label="New Monster"
+        mobile-label="Monster"
         variant="primary"
         to="/monsters/new"
       />

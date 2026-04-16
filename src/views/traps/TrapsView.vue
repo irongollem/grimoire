@@ -1,5 +1,8 @@
 <template>
-  <ListPageLayout title="Traproom" description="Traps, hazards & dungeon dangers">
+  <ListPageLayout
+    title="Traproom"
+    description="Traps, hazards & dungeon dangers"
+  >
     <template #actions>
       <ListActionButton
         :icon="populateMutation.isPending.value ? Loader2 : BookOpen"
@@ -8,7 +11,9 @@
         @click="handlePopulate"
       />
       <ListActionButton
+        :icon="Plus"
         label="New Trap"
+        mobile-label="Trap"
         variant="primary"
         @click="router.push('/traps/new')"
       />
@@ -33,11 +38,17 @@
     </div>
 
     <template v-else-if="traps?.length">
-      <p v-if="!filtered.length" class="text-center font-fell text-sm text-muted-foreground italic py-8">
+      <p
+        v-if="!filtered.length"
+        class="text-center font-fell text-sm text-muted-foreground italic py-8"
+      >
         No traps match your filter.
       </p>
 
-      <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      <div
+        v-else
+        class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
+      >
         <RouterLink
           v-for="trap in filtered"
           :key="trap.id"
@@ -53,22 +64,38 @@
               :focal-point="trap.image_focal_point"
               class="group-hover:scale-105 transition-transform duration-300"
             />
-            <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/20">
+            <div
+              v-else
+              class="w-full h-full flex items-center justify-center text-muted-foreground/20"
+            >
               <CrosshairIcon class="h-10 w-10" />
             </div>
             <span
               class="absolute top-2 left-2 font-cinzel text-[9px] px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
-              :style="{ backgroundColor: TRAP_TYPE_COLORS[trap.trap_type] + 'DD' }"
-            >{{ trap.trap_type }}</span>
+              :style="{
+                backgroundColor: TRAP_TYPE_COLORS[trap.trap_type] + 'DD',
+              }"
+              >{{ trap.trap_type }}</span
+            >
           </div>
 
           <div class="p-2.5 flex flex-col gap-0.5">
-            <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ trap.name }}</h3>
+            <h3
+              class="font-cinzel text-sm font-bold text-foreground leading-tight truncate"
+            >
+              {{ trap.name }}
+            </h3>
             <div class="flex items-center gap-2">
-              <span v-if="trap.cr" class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
+              <span
+                v-if="trap.cr"
+                class="font-cinzel text-[10px] text-muted-foreground tracking-wider"
+              >
                 CR {{ trap.cr }}
               </span>
-              <span v-if="trap.trigger_type" class="font-fell text-[10px] text-muted-foreground italic truncate">
+              <span
+                v-if="trap.trigger_type"
+                class="font-fell text-[10px] text-muted-foreground italic truncate"
+              >
                 {{ trap.trigger_type }}
               </span>
             </div>
@@ -91,7 +118,12 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
-import { Crosshair as CrosshairIcon, Loader2, BookOpen } from "lucide-vue-next";
+import {
+  Crosshair as CrosshairIcon,
+  Loader2,
+  BookOpen,
+  Plus,
+} from "lucide-vue-next";
 import { useTraps, usePopulateTraps } from "@/composables/useTraps";
 import { TRAP_TYPES, TRAP_TYPE_COLORS } from "@/types/trap.types";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
@@ -106,18 +138,21 @@ import EmptyState from "@/components/common/EmptyState.vue";
 const router = useRouter();
 const { data: traps, isLoading } = useTraps();
 
-const search     = ref("");
+const search = ref("");
 const typeFilter = ref("");
 
 const filtered = computed(() => {
   let list = traps.value ?? [];
-  if (typeFilter.value) list = list.filter((t) => t.trap_type === typeFilter.value);
+  if (typeFilter.value)
+    list = list.filter((t) => t.trap_type === typeFilter.value);
   const q = search.value.toLowerCase().trim();
-  if (q) list = list.filter((t) =>
-    t.name.toLowerCase().includes(q) ||
-    (t.trigger_type ?? "").toLowerCase().includes(q) ||
-    t.tags.some((tag) => tag.toLowerCase().includes(q)),
-  );
+  if (q)
+    list = list.filter(
+      (t) =>
+        t.name.toLowerCase().includes(q) ||
+        (t.trigger_type ?? "").toLowerCase().includes(q) ||
+        t.tags.some((tag) => tag.toLowerCase().includes(q)),
+    );
   return list;
 });
 
@@ -129,7 +164,8 @@ const populateError = ref<string | null>(null);
 const populateStatusLabel = computed(() => {
   if (populateMutation.isPending.value) return "Populating…";
   if (populateError.value) return `Error: ${populateError.value}`;
-  if (populateStatus.value === "done") return `Added ${populatedCount.value} traps`;
+  if (populateStatus.value === "done")
+    return `Added ${populatedCount.value} traps`;
   if (populateStatus.value === "uptodate") return "Already up to date";
   return "Populate Traproom";
 });

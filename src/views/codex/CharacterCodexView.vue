@@ -23,6 +23,7 @@
         v-if="activeTab === 'species'"
         :icon="Plus"
         label="New Species"
+        mobile-label="Species"
         variant="primary"
         to="/species/new"
       />
@@ -80,6 +81,7 @@
         <ListActionButton
           :icon="Plus"
           label="New Background"
+          mobile-label="Background"
           variant="primary"
           to="/backgrounds/new"
         />
@@ -93,7 +95,7 @@
           :disabled="classImportMutation.isPending.value"
           @click="handleClassImport"
         />
-        <ListActionButton :icon="Plus" label="New Class" variant="primary" to="/levelup/classes/new" />
+        <ListActionButton :icon="Plus" label="New Class" mobile-label="Class" variant="primary" to="/levelup/classes/new" />
       </template>
 
       <!-- Archetypes tab -->
@@ -104,7 +106,7 @@
           :disabled="archetypeImportMutation.isPending.value"
           @click="handleArchetypeImport"
         />
-        <ListActionButton :icon="Plus" label="New Archetype" variant="primary" to="/levelup/custom/new" />
+        <ListActionButton :icon="Plus" label="New Archetype" mobile-label="Archetype" variant="primary" to="/levelup/custom/new" />
       </template>
 
       <!-- Abilities tab -->
@@ -115,7 +117,7 @@
           :disabled="abilityImportMutation.isPending.value"
           @click="handleAbilityImport"
         />
-        <ListActionButton :icon="Plus" label="New Ability" variant="primary" to="/features/new" />
+        <ListActionButton :icon="Plus" label="New Ability" mobile-label="Ability" variant="primary" to="/features/new" />
       </template>
     </template>
 

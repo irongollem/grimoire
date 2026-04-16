@@ -15,6 +15,7 @@
       <ListActionButton
         :icon="Plus"
         label="New Item"
+        mobile-label="Item"
         variant="primary"
         to="/vault/new"
       />

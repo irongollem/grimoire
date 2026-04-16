@@ -11,6 +11,7 @@
       <ListActionButton
         :icon="Plus"
         label="New Faction"
+        mobile-label="Faction"
         variant="primary"
         to="/factions/new"
       />

@@ -1,9 +1,13 @@
 <template>
-  <ListPageLayout title="Quest Log" description="Track active quests, side jobs, and completed adventures">
+  <ListPageLayout
+    title="Quest Log"
+    description="Track active quests, side jobs, and completed adventures"
+  >
     <template #actions>
       <ListActionButton
         :icon="Plus"
         label="New Quest"
+        mobile-label="Quest"
         variant="primary"
         to="/quests/new"
       />
@@ -14,7 +18,10 @@
         :has-active-filters="ui.questsHasActiveFilters"
         @clear="ui.resetQuestsFilters()"
       >
-        <ListSearchInput v-model="ui.questsSearch" placeholder="Search quests…" />
+        <ListSearchInput
+          v-model="ui.questsSearch"
+          placeholder="Search quests…"
+        />
         <!--
           View-toggle — reuses ListActionButton for consistent styling. Label
           stays visible on mobile because it complements the icon (without
@@ -25,7 +32,9 @@
           :label="ui.questsIsKanban ? 'Kanban' : 'List'"
           :collapse-on-mobile="false"
           variant="ghost"
-          :tooltip="ui.questsIsKanban ? 'Switch to list view' : 'Switch to kanban view'"
+          :tooltip="
+            ui.questsIsKanban ? 'Switch to list view' : 'Switch to kanban view'
+          "
           @click="ui.questsIsKanban = !ui.questsIsKanban"
         />
       </ListFilterBar>

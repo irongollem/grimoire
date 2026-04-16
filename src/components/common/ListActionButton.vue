@@ -28,14 +28,17 @@
       aria-hidden="true"
     />
     <!--
-      Label rendered via v-if/v-else so the class string is a static literal
-      Tailwind picks up verbatim. Previously used a computed `labelClass`
-      returning "hidden sm:inline"; at least one browser was failing to
-      collapse the label at runtime. `max-sm:hidden` is a single utility
-      that resolves to one media-query-wrapped rule — no cascading / order
-      dependency between `hidden` and `sm:inline`.
+      Label rendering strategy:
+      - `mobileLabel` set + `shouldCollapse`: show full label on sm+, short label on <sm
+      - `shouldCollapse` only: show label on sm+, icon-only on <sm
+      - neither: always show full label
+      Class strings are static literals so Tailwind picks them up verbatim.
     -->
-    <span v-if="shouldCollapse" class="max-sm:hidden">{{ label }}</span>
+    <template v-if="mobileLabel && shouldCollapse">
+      <span class="max-sm:hidden">{{ label }}</span>
+      <span class="sm:hidden">{{ mobileLabel }}</span>
+    </template>
+    <span v-else-if="shouldCollapse" class="max-sm:hidden">{{ label }}</span>
     <span v-else>{{ label }}</span>
   </component>
 </template>
@@ -64,6 +67,13 @@ const props = withDefaults(
      * where the icon alone is ambiguous.
      */
     collapseOnMobile?: boolean;
+    /**
+     * Short label shown on mobile (<sm) instead of hiding the label entirely.
+     * Use for primary "New X" buttons: `mobileLabel="+Monster"` shows "+Monster"
+     * on narrow screens while the full label ("New Monster") shows on sm+.
+     * Only takes effect when `shouldCollapse` is true (the default).
+     */
+    mobileLabel?: string;
     /**
      * Override for the `title` / `aria-label`. Use when the visible label
      * describes state ("Kanban") but the tooltip should describe action

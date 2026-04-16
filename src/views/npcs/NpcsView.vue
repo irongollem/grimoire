@@ -20,6 +20,7 @@
       <ListActionButton
         :icon="Plus"
         label="New NPC"
+        mobile-label="NPC"
         variant="primary"
         to="/npcs/new"
       />

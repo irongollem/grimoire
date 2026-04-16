@@ -4,6 +4,7 @@
       <ListActionButton
         :icon="Plus"
         label="New Encounter"
+        mobile-label="Encounter"
         variant="primary"
         to="/encounters/new"
       />
