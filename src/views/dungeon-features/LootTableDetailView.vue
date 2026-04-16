@@ -1,24 +1,41 @@
 <template>
   <PageHeader :title="isNew ? 'New Loot Table' : (table?.name ?? 'Loading…')">
     <template #actions>
-      <button
-        v-if="!isNew"
-        type="button"
-        :disabled="isDeleting"
-        class="font-fell text-sm text-destructive hover:opacity-70 transition-opacity disabled:opacity-50"
-        @click="onDelete"
-      >
-        Delete
-      </button>
-      <button
-        type="button"
-        :disabled="saving || !form.name.trim() || entriesError !== null"
-        :title="entriesError ?? undefined"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
-        @click="onSave"
-      >
-        {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
-      </button>
+      <!-- View mode -->
+      <template v-if="!isNew && !isEditing">
+        <button
+          type="button"
+          :disabled="isDeleting"
+          class="font-fell text-sm text-destructive hover:opacity-70 transition-opacity disabled:opacity-50"
+          @click="onDelete"
+        >Delete</button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+          @click="isEditing = true"
+        >
+          <Pencil class="h-3.5 w-3.5" />
+          Edit
+        </button>
+      </template>
+      <!-- Edit / new mode -->
+      <template v-else>
+        <button
+          v-if="!isNew"
+          type="button"
+          class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors px-2"
+          @click="isEditing = false"
+        >Cancel</button>
+        <button
+          type="button"
+          :disabled="saving || !form.name.trim() || entriesError !== null"
+          :title="entriesError ?? undefined"
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+          @click="onSave"
+        >
+          {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
+        </button>
+      </template>
     </template>
 
     <div v-if="loading" class="flex justify-center py-16">
@@ -28,6 +45,77 @@
     <div v-else class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
       <!-- ── Left: identity + entries ─────────────────────────────────────── -->
       <div class="flex flex-col gap-4">
+
+        <!-- ── VIEW MODE ──────────────────────────────────────────────────── -->
+        <template v-if="!isNew && !isEditing && table">
+          <!-- Description -->
+          <p v-if="table.description" class="font-fell text-sm text-muted-foreground italic">{{ table.description }}</p>
+
+          <!-- CR tier chip -->
+          <div class="flex items-center gap-2">
+            <span class="font-cinzel text-[10px] font-semibold tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5">
+              {{ LOOT_CR_TIER_LABELS[table.cr_tier] }}
+            </span>
+            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">{{ table.entries.length }} entries · {{ summaryDropPercent }}% expected hit rate</span>
+          </div>
+
+          <!-- Read-only entry list -->
+          <div class="space-y-1.5">
+            <h3 class="font-cinzel text-sm font-bold text-foreground">Entries</h3>
+            <div v-if="!table.entries.length" class="rounded-md border border-dashed border-border px-4 py-6 text-center font-fell text-sm text-muted-foreground italic">
+              No entries yet.
+            </div>
+            <div v-else class="flex flex-col gap-1.5">
+              <div
+                v-for="entry in table.entries"
+                :key="entry.id"
+                class="rounded-md border border-border bg-card px-3 py-2 flex items-center gap-3"
+              >
+                <!-- drop % badge -->
+                <span class="shrink-0 font-cinzel text-[10px] font-semibold tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5">{{ entry.drop_chance ?? 100 }}%</span>
+                <template v-if="(entry.type ?? 'item') === 'item'">
+                  <span class="font-fell text-sm text-foreground flex-1 truncate">
+                    {{ itemsById.get(entry.item_id ?? '')?.name ?? entry.item_id ?? '—' }}
+                  </span>
+                  <span class="font-cinzel text-[10px] text-muted-foreground shrink-0">
+                    {{ entry.dice ?? entry.fixed_qty ?? 1 }}×
+                  </span>
+                </template>
+                <template v-else-if="entry.type === 'currency'">
+                  <span class="font-fell text-sm text-foreground flex-1 truncate">
+                    {{ entry.currency_label || 'Currency' }}
+                  </span>
+                  <span class="font-cinzel text-[10px] text-amber-400 shrink-0">
+                    {{ formatCoinParts(entry.pp ?? 0, entry.gp ?? 0, entry.ep ?? 0, entry.sp ?? 0, entry.cp ?? 0).join(', ') || '—' }}
+                  </span>
+                </template>
+                <template v-else>
+                  <span class="font-fell text-sm text-foreground flex-1 truncate">
+                    Random {{ entry.rarity ? ITEM_RARITY_LABELS[entry.rarity as keyof typeof ITEM_RARITY_LABELS] : '' }}{{ entry.item_type_filter ? ` ${ITEM_TYPE_LABELS[entry.item_type_filter as keyof typeof ITEM_TYPE_LABELS]}` : '' }}
+                  </span>
+                  <span class="font-cinzel text-[10px] text-muted-foreground shrink-0">
+                    {{ entry.dice ?? entry.fixed_qty ?? 1 }}×
+                  </span>
+                </template>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tags -->
+          <div v-if="table.tags.length" class="flex flex-wrap gap-1">
+            <span
+              v-for="tag in table.tags"
+              :key="tag"
+              class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+            >{{ tag }}</span>
+          </div>
+
+          <!-- DM notes -->
+          <p v-if="table.notes" class="font-fell text-sm text-muted-foreground italic border-t border-border pt-3">{{ table.notes }}</p>
+        </template>
+
+        <!-- ── EDIT MODE ───────────────────────────────────────────────── -->
+        <template v-else>
         <div class="grid grid-cols-1 md:grid-cols-[1fr_180px] gap-3">
           <div class="space-y-1.5">
             <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Name</label>
@@ -246,6 +334,7 @@
             class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
           />
         </div>
+        </template><!-- end edit mode -->
       </div>
 
       <!-- ── Right: roll panel ────────────────────────────────────────────── -->
@@ -422,7 +511,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { Plus, Trash2, Dices, PackageOpen, X } from "lucide-vue-next";
+import { Plus, Trash2, Dices, PackageOpen, X, Pencil } from "lucide-vue-next";
 import { useConfirm } from "@/composables/useConfirm";
 import {
   useLootTable,
@@ -461,8 +550,9 @@ const route   = useRoute();
 const router  = useRouter();
 const { confirm } = useConfirm();
 
-const id    = computed(() => (route.params.id as string | undefined) ?? "");
-const isNew = computed(() => route.name === "loot-table-new");
+const id        = computed(() => (route.params.id as string | undefined) ?? "");
+const isNew     = computed(() => route.name === "loot-table-new");
+const isEditing = ref(false);
 
 const tableQuery = useLootTable(id);
 const table     = computed(() => tableQuery.data.value ?? null);
@@ -599,10 +689,11 @@ async function onSave() {
   try {
     if (isNew.value) {
       await createTable({ ...form.value });
+      router.push("/dungeon-craft?tab=loot-tables");
     } else {
       await updateTable({ id: id.value, update: { ...form.value } });
+      isEditing.value = false;
     }
-    router.push("/dungeon-craft?tab=loot-tables");
   } finally {
     saving.value = false;
   }
