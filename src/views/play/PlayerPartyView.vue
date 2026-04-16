@@ -12,117 +12,115 @@
         No party members yet.
       </p>
       <div v-else class="flex flex-wrap gap-4">
-        <!-- Party members -->
-        <div
-          v-for="m in members"
-          :key="m.id"
-          class="flex flex-col rounded-lg border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors shrink-0 w-50"
-          :class="m.id === auth.linkedPartyMemberId ? 'border-primary/40' : 'border-border'"
-          @click="openMember(m)"
-        >
-          <div class="relative aspect-3/4 bg-muted overflow-hidden shrink-0 group">
-            <FocalImage
-              v-if="m.portrait_url"
-              :src="m.portrait_url"
-              :alt="m.name"
-              format="portrait"
-              :focal-point="m.portrait_focal_point ?? null"
-              class="group-hover:scale-105 transition-transform duration-300"
-            />
-            <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
-              <UserIcon class="h-10 w-10" />
-            </div>
-            <span
-              v-if="m.id === auth.linkedPartyMemberId"
-              class="absolute top-2 left-2 font-cinzel text-[10px] px-1.5 py-0.5 rounded bg-primary text-primary-foreground tracking-wider"
-            >You</span>
-          </div>
-
-          <div class="p-2.5 flex flex-col gap-1.5">
-            <div>
-              <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ m.name }}</h3>
-              <p class="font-fell text-xs text-muted-foreground italic truncate">
-                {{ [getDisplayRace(m, viewerMemberId), m.class].filter(Boolean).join(' ') }}
-                <span v-if="m.level" class="font-cinzel not-italic text-primary ml-1">Lv{{ m.level }}</span>
-              </p>
-            </div>
-            <div>
-              <div class="flex items-center justify-between mb-0.5">
-                <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">HP</span>
-                <span class="font-cinzel text-[10px]" :class="hpColor(m)">{{ m.current_hp }} / {{ m.max_hp }}</span>
+        <template v-for="entry in sortedParty" :key="entry.data.id">
+          <!-- Party member card -->
+          <div
+            v-if="entry.kind === 'member'"
+            class="flex flex-col rounded-lg border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors shrink-0 w-50"
+            :class="entry.data.id === auth.linkedPartyMemberId ? 'border-primary/40' : 'border-border'"
+            @click="openMember(entry.data)"
+          >
+            <div class="relative aspect-3/4 bg-muted overflow-hidden shrink-0 group">
+              <FocalImage
+                v-if="entry.data.portrait_url"
+                :src="entry.data.portrait_url"
+                :alt="entry.data.name"
+                format="portrait"
+                :focal-point="entry.data.portrait_focal_point ?? null"
+                class="group-hover:scale-105 transition-transform duration-300"
+              />
+              <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
+                <UserIcon class="h-10 w-10" />
               </div>
-              <div class="h-1.5 rounded-full bg-muted overflow-hidden">
-                <div class="h-full rounded-full transition-all" :class="hpBarColor(m)"
-                  :style="{ width: `${Math.max(0, Math.min(100, (m.current_hp / m.max_hp) * 100))}%` }" />
-              </div>
-            </div>
-            <div class="flex items-center gap-2 flex-wrap">
-              <span class="flex items-center gap-1">
-                <Shield class="h-3 w-3 text-muted-foreground shrink-0" />
-                <span class="font-cinzel text-xs font-bold text-foreground">{{ m.ac }}</span>
-              </span>
               <span
-                v-for="cond in (m.conditions ?? []).slice(0, 2)" :key="cond"
-                class="font-cinzel text-[10px] px-1 py-0.5 rounded bg-destructive/10 text-destructive tracking-wider"
-              >{{ cond }}</span>
-              <span v-if="(m.conditions?.length ?? 0) > 2" class="font-fell text-[10px] text-muted-foreground italic">
-                +{{ (m.conditions?.length ?? 0) - 2 }}
-              </span>
+                v-if="entry.data.id === auth.linkedPartyMemberId"
+                class="absolute top-2 left-2 font-cinzel text-[10px] px-1.5 py-0.5 rounded bg-primary text-primary-foreground tracking-wider"
+              >You</span>
             </div>
-          </div>
-        </div>
-
-        <!-- Companions -->
-        <div
-          v-for="c in companions"
-          :key="c.id"
-          class="flex flex-col rounded-lg border border-border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors shrink-0 w-50"
-          @click="openCompanion(c)"
-        >
-          <div class="relative aspect-3/4 bg-muted overflow-hidden shrink-0">
-            <FocalImage
-              v-if="c.portrait_url"
-              :src="c.portrait_url"
-              :alt="c.name"
-              format="portrait"
-              :focal-point="c.portrait_focal_point ?? null"
-            />
-            <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
-              <UserIcon class="h-10 w-10" />
-            </div>
-            <span
-              class="absolute top-2 right-2 font-cinzel text-[10px] px-1.5 py-0.5 rounded tracking-wider text-white"
-              :style="{ backgroundColor: COMPANION_TYPE_COLORS[c.companion_type] + 'CC' }"
-            >{{ COMPANION_TYPE_LABELS[c.companion_type] }}</span>
-          </div>
-
-          <div class="p-2.5 flex flex-col gap-1.5">
-            <div>
-              <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ c.name }}</h3>
-              <p class="font-fell text-xs text-muted-foreground italic truncate">{{ ownerName(c) || 'Party companion' }}</p>
-            </div>
-            <div>
-              <div class="flex items-center justify-between mb-0.5">
-                <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">HP</span>
-                <span class="font-cinzel text-[10px]" :class="companionHpColor(c)">{{ c.current_hp }} / {{ c.max_hp }}</span>
+            <div class="p-2.5 flex flex-col gap-1.5">
+              <div>
+                <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ entry.data.name }}</h3>
+                <p class="font-fell text-xs text-muted-foreground italic truncate">
+                  {{ [getDisplayRace(entry.data, viewerMemberId), entry.data.class].filter(Boolean).join(' ') }}
+                  <span v-if="entry.data.level" class="font-cinzel not-italic text-primary ml-1">Lv{{ entry.data.level }}</span>
+                </p>
               </div>
-              <div class="h-1.5 rounded-full bg-muted overflow-hidden">
-                <div class="h-full rounded-full transition-all" :class="companionHpBarColor(c)"
-                  :style="{ width: `${Math.max(0, Math.min(100, (c.current_hp / c.max_hp) * 100))}%` }" />
+              <div>
+                <div class="flex items-center justify-between mb-0.5">
+                  <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">HP</span>
+                  <span class="font-cinzel text-[10px]" :class="hpColor(entry.data)">{{ entry.data.current_hp }} / {{ entry.data.max_hp }}</span>
+                </div>
+                <div class="h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div class="h-full rounded-full transition-all" :class="hpBarColor(entry.data)"
+                    :style="{ width: `${Math.max(0, Math.min(100, (entry.data.current_hp / entry.data.max_hp) * 100))}%` }" />
+                </div>
+              </div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="flex items-center gap-1">
+                  <Shield class="h-3 w-3 text-muted-foreground shrink-0" />
+                  <span class="font-cinzel text-xs font-bold text-foreground">{{ entry.data.ac }}</span>
+                </span>
+                <span
+                  v-for="cond in (entry.data.conditions ?? []).slice(0, 2)" :key="cond"
+                  class="font-cinzel text-[10px] px-1 py-0.5 rounded bg-destructive/10 text-destructive tracking-wider"
+                >{{ cond }}</span>
+                <span v-if="(entry.data.conditions?.length ?? 0) > 2" class="font-fell text-[10px] text-muted-foreground italic">
+                  +{{ (entry.data.conditions?.length ?? 0) - 2 }}
+                </span>
               </div>
             </div>
-            <div class="flex items-center gap-2 flex-wrap">
-              <span class="flex items-center gap-1">
-                <Shield class="h-3 w-3 text-muted-foreground shrink-0" />
-                <span class="font-cinzel text-xs font-bold text-foreground">{{ c.ac }}</span>
-              </span>
+          </div>
+
+          <!-- Companion card -->
+          <div
+            v-else
+            class="flex flex-col rounded-lg border border-border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors shrink-0 w-50"
+            @click="openCompanion(entry.data)"
+          >
+            <div class="relative aspect-3/4 bg-muted overflow-hidden shrink-0">
+              <FocalImage
+                v-if="entry.data.portrait_url"
+                :src="entry.data.portrait_url"
+                :alt="entry.data.name"
+                format="portrait"
+                :focal-point="entry.data.portrait_focal_point ?? null"
+              />
+              <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
+                <UserIcon class="h-10 w-10" />
+              </div>
               <span
-                v-for="cond in (c.conditions ?? []).slice(0, 2)" :key="cond"
-                class="font-cinzel text-[10px] px-1 py-0.5 rounded bg-destructive/10 text-destructive tracking-wider"
-              >{{ cond }}</span>
+                class="absolute top-2 right-2 font-cinzel text-[10px] px-1.5 py-0.5 rounded tracking-wider text-white"
+                :style="{ backgroundColor: COMPANION_TYPE_COLORS[entry.data.companion_type] + 'CC' }"
+              >{{ COMPANION_TYPE_LABELS[entry.data.companion_type] }}</span>
+            </div>
+            <div class="p-2.5 flex flex-col gap-1.5">
+              <div>
+                <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ entry.data.name }}</h3>
+                <p class="font-fell text-xs text-muted-foreground italic truncate">{{ ownerName(entry.data) || 'Party companion' }}</p>
+              </div>
+              <div>
+                <div class="flex items-center justify-between mb-0.5">
+                  <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">HP</span>
+                  <span class="font-cinzel text-[10px]" :class="companionHpColor(entry.data)">{{ entry.data.current_hp }} / {{ entry.data.max_hp }}</span>
+                </div>
+                <div class="h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div class="h-full rounded-full transition-all" :class="companionHpBarColor(entry.data)"
+                    :style="{ width: `${Math.max(0, Math.min(100, (entry.data.current_hp / entry.data.max_hp) * 100))}%` }" />
+                </div>
+              </div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="flex items-center gap-1">
+                  <Shield class="h-3 w-3 text-muted-foreground shrink-0" />
+                  <span class="font-cinzel text-xs font-bold text-foreground">{{ entry.data.ac }}</span>
+                </span>
+                <span
+                  v-for="cond in (entry.data.conditions ?? []).slice(0, 2)" :key="cond"
+                  class="font-cinzel text-[10px] px-1 py-0.5 rounded bg-destructive/10 text-destructive tracking-wider"
+                >{{ cond }}</span>
+              </div>
             </div>
           </div>
-        </div>
+        </template>
       </div>
     </section>
 
@@ -265,7 +263,7 @@
               <div v-if="displaySpecies.traits?.length" class="space-y-2">
                 <div v-for="trait in displaySpecies.traits" :key="trait.name">
                   <p class="font-cinzel text-xs font-semibold text-foreground">{{ trait.name }}</p>
-                  <p class="font-fell text-xs text-muted-foreground">{{ trait.description }}</p>
+                  <RichTextViewer :content="trait.description" class="font-fell text-xs text-muted-foreground" />
                 </div>
               </div>
             </div>
@@ -461,19 +459,68 @@ function resolvedLocation(npc: { location_id: string | null }) {
   return npc.location_id ? (locationMap.value.get(npc.location_id) ?? "") : "";
 }
 
+// ── Party + companion sort ────────────────────────────────────────────────────
+type PartyEntry =
+  | { kind: "member"; data: PartyMember }
+  | { kind: "companion"; data: Companion };
+
+const sortedParty = computed((): PartyEntry[] => {
+  const myId = viewerMemberId.value;
+  const allMembers = members.value ?? [];
+  const allCompanions = companions.value ?? [];
+
+  // Self first, then rest alphabetically
+  const orderedMembers = [...allMembers].sort((a, b) => {
+    if (a.id === myId) return -1;
+    if (b.id === myId) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  // Group personal companions by owner once; avoid O(companions × members) filter-in-loop
+  const byOwner = new Map<string, Companion[]>();
+  const groupCompanions: Companion[] = [];
+  for (const c of allCompanions) {
+    if (c.owner_party_member_id) {
+      const bucket = byOwner.get(c.owner_party_member_id) ?? [];
+      bucket.push(c);
+      byOwner.set(c.owner_party_member_id, bucket);
+    } else {
+      groupCompanions.push(c);
+    }
+  }
+  for (const bucket of byOwner.values()) bucket.sort((a, b) => a.name.localeCompare(b.name));
+  groupCompanions.sort((a, b) => a.name.localeCompare(b.name));
+
+  const result: PartyEntry[] = [];
+  for (const member of orderedMembers) {
+    result.push({ kind: "member", data: member });
+    for (const comp of byOwner.get(member.id) ?? []) {
+      result.push({ kind: "companion", data: comp });
+    }
+  }
+  for (const comp of groupCompanions) {
+    result.push({ kind: "companion", data: comp });
+  }
+  return result;
+});
+
 const { getRating, setRating, ratingMap, ratingTick } = usePlayerNpcRatings(() => npcs.value ?? []);
 
 const sortedNpcs = computed(() => {
   void ratingTick.value;
   return [...(npcs.value ?? [])].sort((a, b) => {
+    // 1. Stars first (higher rating first)
     const ra = getRating(a.id);
     const rb = getRating(b.id);
     if (ra !== rb) return rb - ra;
+    // 2. Location (with-location before none, then alphabetically by location name)
     const locA = resolvedLocation(a).toLowerCase();
     const locB = resolvedLocation(b).toLowerCase();
     if (locA && !locB) return -1;
     if (!locA && locB) return 1;
-    return locA.localeCompare(locB);
+    if (locA !== locB) return locA.localeCompare(locB);
+    // 3. Alphabetically by display name
+    return getNpcDisplayName(a).toLowerCase().localeCompare(getNpcDisplayName(b).toLowerCase());
   });
 });
 

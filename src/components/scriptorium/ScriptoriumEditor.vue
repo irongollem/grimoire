@@ -74,7 +74,7 @@
       Mobile: no min-height so the page scrolls naturally and both panes sit in
       the document flow. Desktop: fixed 620px pane height with internal scroll.
     -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:min-h-[620px]">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:min-h-155">
       <!-- Editor pane -->
       <!--
         overflow-hidden only kicks in at lg: so the mobile layout doesn't clip the

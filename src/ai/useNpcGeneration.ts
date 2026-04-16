@@ -29,8 +29,9 @@ registerAiGenerator({
 
 /**
  * Convert plain text (with optional markdown headings) to a minimal Tiptap JSON string.
- * Lines starting with "# " become level-1, "## " level-2, etc. Everything else is a paragraph.
- * Double newlines separate blocks.
+ * Lines starting with "# " become level-1, "## " level-2, etc.
+ * Everything else is a paragraph. Double newlines separate blocks.
+ * (AI generators don't emit markdown tables; use markdownToTiptapJson for that.)
  */
 export function toTiptapJson(text: string): string {
   const blocks = text

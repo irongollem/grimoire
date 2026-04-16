@@ -59,6 +59,25 @@ function paragraph(text: string): TiptapNode {
   return { type: "paragraph", content: inlineContent(text) };
 }
 
+function isSeparator(line: string): boolean {
+  return /^\|[\s\-:|]+\|$/.test(line.trim());
+}
+
+function splitCells(line: string): string[] {
+  return line.replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+}
+
+function tableRow(cells: string[], isHeader: boolean): TiptapNode {
+  return {
+    type: "tableRow",
+    content: cells.map((cell) => ({
+      type: isHeader ? "tableHeader" : "tableCell",
+      attrs: { colspan: 1, rowspan: 1, colwidth: null },
+      content: [{ type: "paragraph", content: inlineContent(cell) }],
+    })),
+  };
+}
+
 /** Parse markdown text into a Tiptap content array (children of a doc node). */
 export function parseMarkdown(text: string): TiptapNode[] {
   const lines = text.split("\n");
@@ -84,6 +103,23 @@ export function parseMarkdown(text: string): TiptapNode[] {
     if (line.startsWith("> ")) {
       nodes.push({ type: "blockquote", content: [paragraph(line.slice(2))] });
       i++;
+      continue;
+    }
+
+    // Markdown table — a line starting with | that isn't a separator-only line
+    if (line.startsWith("|") && !isSeparator(line)) {
+      // Header row
+      const headers = splitCells(line);
+      i++;
+      // Skip separator row
+      if (i < lines.length && isSeparator(lines[i])) i++;
+      // Data rows
+      const rows: TiptapNode[] = [tableRow(headers, true)];
+      while (i < lines.length && lines[i].startsWith("|") && !isSeparator(lines[i])) {
+        rows.push(tableRow(splitCells(lines[i]), false));
+        i++;
+      }
+      nodes.push({ type: "table", content: rows });
       continue;
     }
 
@@ -122,7 +158,7 @@ export function parseMarkdown(text: string): TiptapNode[] {
     while (
       i < lines.length &&
       lines[i].trim() !== "" &&
-      !/^#{1,6} |^[-*] |^\d+\. |^> /.test(lines[i])
+      !/^#{1,6} |^[-*] |^\d+\. |^> |^\|/.test(lines[i])
     ) {
       paraLines.push(lines[i]);
       i++;
@@ -136,4 +172,15 @@ export function parseMarkdown(text: string): TiptapNode[] {
   }
 
   return nodes.length ? nodes : [{ type: "paragraph" }];
+}
+
+/**
+ * Convert a markdown string to a Tiptap JSON string ({"type":"doc",...}).
+ * Handles headings, paragraphs, lists, blockquotes, and markdown tables.
+ */
+export function markdownToTiptapJson(text: string): string {
+  return JSON.stringify({
+    type: "doc",
+    content: parseMarkdown(text),
+  });
 }

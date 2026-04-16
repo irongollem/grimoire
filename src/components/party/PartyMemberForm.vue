@@ -114,11 +114,39 @@
                 <option v-for="sr in subraceOptions" :key="sr" :value="sr">{{ sr }}</option>
               </select>
             </div>
-            <p v-if="props.member?.disguise_race" class="col-span-2 font-fell text-xs text-muted-foreground/70 italic">
-              Currently appearing as
-              <span class="text-foreground not-italic">{{ props.member.disguise_race }}</span>
-              — player controls this from their character sheet.
-            </p>
+            <!-- Disguise species (shapeshifter) -->
+            <div v-if="f.species_id" class="col-span-2 rounded-md border border-border/60 bg-muted/20 p-3 flex flex-col gap-3">
+              <div class="flex items-center justify-between">
+                <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">Disguise</span>
+                <button
+                  v-if="f.disguise_species_id"
+                  type="button"
+                  class="font-fell text-xs text-muted-foreground hover:text-destructive transition-colors italic"
+                  @click="clearDisguise"
+                >Clear disguise</button>
+              </div>
+              <p class="font-fell text-xs text-muted-foreground/70 italic -mt-1">
+                Other players will see this species' full entry instead of the true race.
+              </p>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <span class="field-label">Appears as</span>
+                  <EntityCombobox
+                    :model-value="f.disguise_species_id ?? ''"
+                    :options="speciesOptions"
+                    placeholder="Select disguise species…"
+                    @update:model-value="onDisguiseSpeciesSelected"
+                  />
+                </div>
+                <div v-if="disguiseSubraceOptions.length > 0">
+                  <span class="field-label">Disguise Variant</span>
+                  <select v-model="f.disguise_subrace" class="field-input w-full">
+                    <option value="">— None —</option>
+                    <option v-for="sr in disguiseSubraceOptions" :key="sr" :value="sr">{{ sr }}</option>
+                  </select>
+                </div>
+              </div>
+            </div>
 
             <label class="block">
               <span class="field-label">Class</span>
@@ -559,6 +587,22 @@ const speciesOptions  = computed(() => (allSpecies.value ?? []).map(s => ({ id: 
 const selectedSpecies = computed(() => (allSpecies.value ?? []).find(s => s.id === f.species_id) ?? null);
 const subraceOptions  = computed(() => selectedSpecies.value?.subraces?.map(sr => sr.name) ?? []);
 
+const selectedDisguiseSpecies = computed(() => (allSpecies.value ?? []).find(s => s.id === f.disguise_species_id) ?? null);
+const disguiseSubraceOptions  = computed(() => selectedDisguiseSpecies.value?.subraces?.map(sr => sr.name) ?? []);
+
+function onDisguiseSpeciesSelected(id: string) {
+  const sp = (allSpecies.value ?? []).find(s => s.id === id);
+  f.disguise_species_id = id || null;
+  f.disguise_race       = sp?.name ?? null;
+  f.disguise_subrace    = null;
+}
+
+function clearDisguise() {
+  f.disguise_species_id = null;
+  f.disguise_race       = null;
+  f.disguise_subrace    = null;
+}
+
 function onSpeciesSelected(id: string) {
   const sp = (allSpecies.value ?? []).find(s => s.id === id);
   f.species_id = id || null;
@@ -566,29 +610,6 @@ function onSpeciesSelected(id: string) {
   f.subrace    = "";
 }
 
-// Legacy rows may have `race` set (by name) but no `species_id` — backfill the id
-// on load so the combobox pre-selects correctly. Also self-heals rows damaged by
-// the previous version of this form that wrote the species UUID into `race`: if
-// `race` looks like a UUID, resolve it via allSpecies.
-watch([allSpecies, () => f.species_id, () => f.race], ([list]) => {
-  const species = list ?? [];
-  if (!species.length) return;
-  // Case A: no species_id yet but race matches a species by name — backfill id
-  if (!f.species_id && f.race) {
-    const byName = species.find(s => s.name === f.race);
-    if (byName) f.species_id = byName.id;
-  }
-  // Case B: race got a UUID written into it (old bug) — resolve to the name
-  const looksLikeUuid = typeof f.race === "string"
-    && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(f.race);
-  if (looksLikeUuid) {
-    const byId = species.find(s => s.id === f.race);
-    if (byId) {
-      f.species_id = byId.id;
-      f.race       = byId.name;
-    }
-  }
-}, { immediate: true });
 
 const { data: allCustomSubclasses } = useAllCustomSubclasses();
 const subclassOptions = computed(() =>
@@ -660,6 +681,30 @@ const f = reactive<
   background: props.member?.background ?? null,
   background_id: props.member?.background_id ?? null,
 });
+
+// Legacy rows may have `race` set (by name) but no `species_id` — backfill the id
+// on load so the combobox pre-selects correctly. Also self-heals rows damaged by
+// the previous version of this form that wrote the species UUID into `race`: if
+// `race` looks like a UUID, resolve it via allSpecies.
+watch([allSpecies, () => f.species_id, () => f.race], ([list]) => {
+  const species = list ?? [];
+  if (!species.length) return;
+  // Case A: no species_id yet but race matches a species by name — backfill id
+  if (!f.species_id && f.race) {
+    const byName = species.find(s => s.name === f.race);
+    if (byName) f.species_id = byName.id;
+  }
+  // Case B: race got a UUID written into it (old bug) — resolve to the name
+  const looksLikeUuid = typeof f.race === "string"
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(f.race);
+  if (looksLikeUuid) {
+    const byId = species.find(s => s.id === f.race);
+    if (byId) {
+      f.species_id = byId.id;
+      f.race       = byId.name;
+    }
+  }
+}, { immediate: true });
 
 // Spell slot max per level (index 0 = level 1, ..., index 8 = level 9)
 function buildSlotMaxes(

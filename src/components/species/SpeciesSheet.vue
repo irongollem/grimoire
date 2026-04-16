@@ -94,7 +94,7 @@
           <span class="inline-block font-cinzel text-[10px] font-semibold tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5 mb-1">
             {{ trait.name }}
           </span>
-          <p class="font-fell text-sm text-foreground">{{ trait.description }}</p>
+          <RichTextViewer :content="trait.description" class="font-fell text-sm" />
         </div>
       </div>
     </div>
@@ -113,7 +113,7 @@
               <span class="inline-block font-cinzel text-[10px] font-semibold tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5 mb-0.5">
                 {{ trait.name }}
               </span>
-              <p class="font-fell text-sm text-foreground">{{ trait.description }}</p>
+              <RichTextViewer :content="trait.description" class="font-fell text-sm" />
             </div>
           </div>
         </div>

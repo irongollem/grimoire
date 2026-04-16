@@ -3,7 +3,7 @@
     <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">
       {{ label.toUpperCase() }}
     </p>
-    <div v-for="(entry, i) in props.modelValue ?? []" :key="i" class="flex gap-2 mb-2 items-start">
+    <div v-for="(entry, i) in props.modelValue ?? []" :key="keys[i]" class="flex gap-2 mb-2 items-start">
       <div class="flex-1 space-y-1">
         <label class="block">
           <span class="sr-only">{{ label }} name</span>
@@ -39,6 +39,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref, watch, nextTick } from "vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 
 const props = defineProps<{
@@ -50,14 +51,44 @@ const emit = defineEmits<{
   "update:modelValue": [value: Array<{ name: string; description: string }>];
 }>();
 
+/**
+ * Stable per-item keys so Vue never reuses a Tiptap editor instance for a
+ * different item when an item is deleted. Using index as key caused the first
+ * item's name to disappear and the last item's description to vanish on delete.
+ */
+let _counter = 0;
+const nextKey = () => ++_counter;
+
+const keys = ref<number[]>([]);
+
+// Flag to suppress the watch when WE are the ones emitting (avoids key reset
+// on every keystroke that bounces back through the parent).
+let emitting = false;
+
+watch(
+  () => props.modelValue,
+  (val) => {
+    if (emitting) return;
+    // External change (form reset, species navigation) — rebuild keys
+    keys.value = (val ?? []).map(() => nextKey());
+  },
+  { immediate: true },
+);
+
 function add() {
+  keys.value.push(nextKey());
+  emitting = true;
   emit("update:modelValue", [...(props.modelValue ?? []), { name: "", description: "" }]);
+  nextTick(() => { emitting = false; });
 }
 
 function remove(i: number) {
+  keys.value.splice(i, 1); // remove key BEFORE emitting so the watch length check aligns
   const arr = [...(props.modelValue ?? [])];
   arr.splice(i, 1);
+  emitting = true;
   emit("update:modelValue", arr);
+  nextTick(() => { emitting = false; });
 }
 
 function update(i: number, key: "name" | "description", value: string) {

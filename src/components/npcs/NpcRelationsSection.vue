@@ -106,7 +106,7 @@
           </RouterLink>
           <p
             v-if="rel.notes"
-            class="font-fell text-xs text-muted-foreground mt-0.5 break-words whitespace-normal"
+            class="font-fell text-xs text-muted-foreground mt-0.5 wrap-break-word whitespace-normal"
           >
             {{ rel.notes }}
           </p>

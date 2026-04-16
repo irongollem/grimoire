@@ -101,6 +101,7 @@ import { X, Search, Download, LibraryBig } from "lucide-vue-next";
 import { useUiStore } from "@/stores/ui";
 import { useCreateSpecies, useAllSpecies } from "@/composables/useSpecies";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
+import { markdownToTiptapJson } from "@/lib/markdownToTiptap";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import type { SpeciesSize } from "@/types/species.types";
 
@@ -249,33 +250,45 @@ function parseAsi(asi: Open5eAsi[] | undefined): Record<string, number | string>
  * Splits an Open5e traits string (blocks separated by \n\n, each starting with
  * **_Name._** description…) into [{name, description}] pairs.
  *
- * Blocks that don't start with a **_Name._** header (e.g. markdown tables that
- * follow a trait paragraph) are merged into the preceding trait rather than
- * becoming a nameless "Trait" entry. Descriptions are stored as Tiptap JSON.
+ * Open5e sometimes puts a table BEFORE the first **_Name._** trait block (e.g.
+ * dragonborn: the ancestry table precedes "**_Draconic Ancestry._**"). Those
+ * table blocks are buffered and prepended to the next named trait's description.
+ * Non-table pre-trait blocks (plain bold headings) are discarded. Continuation
+ * blocks after a named trait are merged into that trait.
+ * Descriptions are stored as Tiptap JSON.
  */
 function parseTraits(raw: string | undefined): Array<{ name: string; description: string }> {
   if (!raw?.trim()) return [];
 
   const blocks = raw.split(/\n\n+/).map((b) => b.trim()).filter(Boolean);
   const traits: Array<{ name: string; descParts: string[] }> = [];
+  // Table blocks that appear before the first **_Name._** trait (e.g. dragonborn
+  // ancestry table). They get attached to the next named trait encountered.
+  const pendingTables: string[] = [];
 
   for (const block of blocks) {
     const match = block.match(/^\*\*_(.+?)\._\*\*\s*([\s\S]*)/);
     if (match) {
       const desc = match[2].trim();
-      traits.push({ name: match[1].trim(), descParts: desc ? [desc] : [] });
+      // Desc first, then any table that preceded this trait (e.g. ancestry table)
+      const descParts = desc ? [desc, ...pendingTables] : [...pendingTables];
+      traits.push({ name: match[1].trim(), descParts });
+      pendingTables.length = 0;
     } else if (traits.length > 0) {
-      // Continuation block (e.g. a table after the intro paragraph) — attach to previous trait
+      // Continuation block after a named trait — attach to it
       traits[traits.length - 1].descParts.push(block);
+    } else if (block.startsWith("|")) {
+      // Table before the first named trait — buffer it
+      pendingTables.push(block);
     }
-    // Blocks before any named trait are discarded
+    // Other pre-trait blocks (plain bold headings like "**Draconic Ancestry**") are discarded
   }
 
   return traits
     .filter((t) => t.descParts.length > 0)
     .map((t) => ({
       name: t.name,
-      description: toTiptapJson(t.descParts.join("\n\n")),
+      description: markdownToTiptapJson(t.descParts.join("\n\n")),
     }));
 }
 
