@@ -35,7 +35,7 @@ export interface BucketConfig {
   readonly public: boolean;
 }
 
-const THREE_MB  =  3 * 1024 * 1024;
+const FIVE_MB   =  5 * 1024 * 1024;
 const TWENTY_MB = 20 * 1024 * 1024;
 
 const IMAGE_MIMES = ["image/webp", "image/jpeg"] as const;
@@ -54,49 +54,49 @@ const AUDIO_MIMES = [
 export const BUCKETS = {
   npcPortraits: {
     id: "npc-portraits",
-    maxBytes: THREE_MB,
+    maxBytes: FIVE_MB,
     mimeTypes: IMAGE_MIMES,
     public: true,
   },
   assetImages: {
     id: "asset-images",
-    maxBytes: THREE_MB,
+    maxBytes: FIVE_MB,
     mimeTypes: IMAGE_MIMES,
     public: true,
   },
   spellImages: {
     id: "spell-images",
-    maxBytes: THREE_MB,
+    maxBytes: FIVE_MB,
     mimeTypes: IMAGE_MIMES,
     public: true,
   },
   puzzleImages: {
     id: "puzzle-images",
-    maxBytes: THREE_MB,
+    maxBytes: FIVE_MB,
     mimeTypes: IMAGE_MIMES,
     public: true,
   },
   itemImages: {
     id: "item-images",
-    maxBytes: THREE_MB,
+    maxBytes: FIVE_MB,
     mimeTypes: IMAGE_MIMES,
     public: true,
   },
   monsterImages: {
     id: "monster-images",
-    maxBytes: THREE_MB,
+    maxBytes: FIVE_MB,
     mimeTypes: IMAGE_MIMES,
     public: true,
   },
   trapImages: {
     id: "trap-images",
-    maxBytes: THREE_MB,
+    maxBytes: FIVE_MB,
     mimeTypes: IMAGE_MIMES,
     public: true,
   },
   locationImages: {
     id: "location-images",
-    maxBytes: THREE_MB,
+    maxBytes: FIVE_MB,
     mimeTypes: IMAGE_MIMES,
     public: true,
   },
