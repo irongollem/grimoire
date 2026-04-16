@@ -106,3 +106,13 @@ export function useLootTablesByItem(itemId: MaybeRefOrGetter<string>) {
     );
   });
 }
+
+/** Returns loot tables that reference a given monster in their monster_ids array. */
+export function useMonsterLootTables(monsterId: MaybeRefOrGetter<string>) {
+  const { data: tables } = useLootTables();
+  return computed(() => {
+    const id = toValue(monsterId);
+    if (!id) return [] as LootTable[];
+    return (tables.value ?? []).filter((t) => t.monster_ids?.includes(id));
+  });
+}

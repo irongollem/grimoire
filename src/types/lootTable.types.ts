@@ -66,6 +66,7 @@ export interface LootTable {
   entries: LootEntry[];
   tags: string[];
   notes: string | null;
+  monster_ids: string[];
   created_at: string;
   updated_at: string;
 }

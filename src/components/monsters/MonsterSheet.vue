@@ -101,22 +101,41 @@
         </RouterLink>
       </div>
     </div>
+
+    <!-- Loot tables -->
+    <div v-if="lootTables.length" class="flex flex-col gap-2">
+      <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">
+        Loot Tables
+      </h3>
+      <div class="flex flex-wrap gap-1.5">
+        <RouterLink
+          v-for="lt in lootTables"
+          :key="lt.id"
+          :to="`/loot-tables/${lt.id}`"
+          class="inline-flex items-center gap-1 font-cinzel text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+        >
+          <Package class="h-2.5 w-2.5 shrink-0" />{{ lt.name }}
+        </RouterLink>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
-import { Swords } from "lucide-vue-next";
+import { Swords, Package } from "lucide-vue-next";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import StatBlockPanel from "@/components/common/StatBlockPanel.vue";
 import TraitList from "@/components/common/TraitList.vue";
 import SpellcastingList from "@/components/common/SpellcastingList.vue";
 import { useEncountersByMonster } from "@/composables/useEncounters";
+import { useMonsterLootTables } from "@/composables/useLootTables";
 import type { Monster, MonsterStatBlock } from "@/types/monster.types";
 
 const props = defineProps<{ monster: Monster }>();
 
 const featuredIn = useEncountersByMonster(computed(() => props.monster.id));
+const lootTables = useMonsterLootTables(computed(() => props.monster.id));
 </script>

@@ -230,6 +230,26 @@
       </div>
     </div>
 
+    <!-- Held by NPCs / party / shops (DM only) -->
+    <div v-if="!playerView && holders?.length" class="flex flex-col gap-2">
+      <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">
+        Held By
+      </h3>
+      <div class="flex flex-wrap gap-1.5">
+        <RouterLink
+          v-for="h in holders"
+          :key="`${h.type}-${h.id}`"
+          :to="h.to"
+          class="inline-flex items-center gap-1 font-cinzel text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+        >
+          <User v-if="h.type === 'npc'" class="h-2.5 w-2.5 shrink-0" />
+          <Users v-else-if="h.type === 'party_member'" class="h-2.5 w-2.5 shrink-0" />
+          <ShoppingBag v-else class="h-2.5 w-2.5 shrink-0" />
+          {{ h.name }}<span v-if="h.quantity > 1" class="ml-0.5 text-muted-foreground/60">×{{ h.quantity }}</span>
+        </RouterLink>
+      </div>
+    </div>
+
     <!-- Contained in loot tables (DM only) -->
     <div v-if="!playerView && containedIn.length" class="flex flex-col gap-2">
       <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">
@@ -251,12 +271,13 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Eye, EyeOff, Package } from "lucide-vue-next";
+import { Eye, EyeOff, Package, User, Users, ShoppingBag } from "lucide-vue-next";
 import { RouterLink } from "vue-router";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { useUpdateItem } from "@/composables/useItems";
 import { useLootTablesByItem } from "@/composables/useLootTables";
+import { useItemHolders } from "@/composables/useItemHolders";
 import {
   ITEM_TYPE_LABELS,
   ITEM_RARITY_LABELS,
@@ -273,6 +294,7 @@ const props = defineProps<{
 }>();
 
 const containedIn = useLootTablesByItem(computed(() => props.item.id));
+const { data: holders } = useItemHolders(computed(() => props.item.id));
 
 const sheetArtTab = ref<'identified' | 'mundane'>('identified');
 

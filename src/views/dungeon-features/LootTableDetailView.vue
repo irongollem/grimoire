@@ -110,6 +110,21 @@
             >{{ tag }}</span>
           </div>
 
+          <!-- Linked monsters -->
+          <div v-if="table.monster_ids?.length" class="flex flex-col gap-1.5">
+            <h3 class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Linked Monsters</h3>
+            <div class="flex flex-wrap gap-1.5">
+              <RouterLink
+                v-for="mid in table.monster_ids"
+                :key="mid"
+                :to="`/monsters/${mid}`"
+                class="inline-flex items-center gap-1 font-cinzel text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+              >
+                <Skull class="h-2.5 w-2.5 shrink-0" />{{ monstersById.get(mid)?.name ?? mid }}
+              </RouterLink>
+            </div>
+          </div>
+
           <!-- DM notes -->
           <p v-if="table.notes" class="font-fell text-sm text-muted-foreground italic border-t border-border pt-3">{{ table.notes }}</p>
         </template>
@@ -326,6 +341,28 @@
         </div>
 
         <div class="space-y-1.5">
+          <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Linked Monsters</label>
+          <div v-if="form.monster_ids.length" class="flex flex-wrap gap-1.5">
+            <span
+              v-for="mid in form.monster_ids"
+              :key="mid"
+              class="inline-flex items-center gap-1 font-cinzel text-[10px] bg-muted/60 text-muted-foreground rounded px-2 py-0.5"
+            >
+              <Skull class="h-2.5 w-2.5 shrink-0" />{{ monstersById.get(mid)?.name ?? mid }}
+              <button type="button" class="ml-0.5 hover:text-destructive transition-colors" @click="removeMonster(mid)">
+                <X class="h-2.5 w-2.5" />
+              </button>
+            </span>
+          </div>
+          <EntityCombobox
+            model-value=""
+            :options="availableMonsterOptions"
+            placeholder="Link a monster…"
+            @update:model-value="addMonster($event)"
+          />
+        </div>
+
+        <div class="space-y-1.5">
           <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">DM Notes</label>
           <textarea
             v-model="form.notes"
@@ -511,7 +548,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { Plus, Trash2, Dices, PackageOpen, X, Pencil } from "lucide-vue-next";
+import { RouterLink } from "vue-router";
+import { Plus, Trash2, Dices, PackageOpen, X, Pencil, Skull } from "lucide-vue-next";
 import { useConfirm } from "@/composables/useConfirm";
 import {
   useLootTable,
@@ -520,6 +558,7 @@ import {
   useDeleteLootTable,
 } from "@/composables/useLootTables";
 import { useItems } from "@/composables/useItems";
+import { useMonsters } from "@/composables/useMonsters";
 import { useImageUpload } from "@/composables/useImageUpload";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import {
@@ -567,6 +606,7 @@ const form = ref<LootTableInsert>({
   entries: [],
   tags: [],
   notes: null,
+  monster_ids: [],
 });
 
 watch(table, (t) => {
@@ -579,6 +619,7 @@ watch(table, (t) => {
     entries:     t.entries.map((e) => ({ ...e })),
     tags:        [...t.tags],
     notes:       t.notes,
+    monster_ids: [...(t.monster_ids ?? [])],
   };
 }, { immediate: true });
 
@@ -592,6 +633,26 @@ const itemsById = computed(() => {
 const itemOptions = computed(() =>
   (itemsQuery.data.value ?? []).map((it) => ({ id: it.id, name: it.name })),
 );
+
+// ── Monsters ───────────────────────────────────────────────────────────────
+const monstersQuery = useMonsters();
+const monstersById = computed(() => {
+  const m = new Map<string, NonNullable<typeof monstersQuery.data.value>[number]>();
+  for (const mo of monstersQuery.data.value ?? []) m.set(mo.id, mo);
+  return m;
+});
+const availableMonsterOptions = computed(() =>
+  (monstersQuery.data.value ?? [])
+    .filter((mo) => !form.value.monster_ids.includes(mo.id))
+    .map((mo) => ({ id: mo.id, name: mo.name })),
+);
+function addMonster(monsterId: string) {
+  if (!monsterId || form.value.monster_ids.includes(monsterId)) return;
+  form.value.monster_ids = [...form.value.monster_ids, monsterId];
+}
+function removeMonster(monsterId: string) {
+  form.value.monster_ids = form.value.monster_ids.filter((mid) => mid !== monsterId);
+}
 
 // ── Entries ────────────────────────────────────────────────────────────────
 const entriesError = computed(() => validateEntries(form.value.entries));
@@ -669,6 +730,7 @@ function onRoll() {
       entries: form.value.entries,
       tags: form.value.tags,
       notes: form.value.notes,
+      monster_ids: form.value.monster_ids,
       created_at: "",
       updated_at: "",
     },
@@ -743,6 +805,7 @@ function reroll() {
     name: form.value.name, description: form.value.description,
     cr_tier: form.value.cr_tier, entries: form.value.entries,
     tags: form.value.tags, notes: form.value.notes,
+    monster_ids: form.value.monster_ids,
     created_at: "", updated_at: "",
   };
   dropPreview.value = rollLootTable(transient, itemsById.value);
