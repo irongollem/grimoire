@@ -387,14 +387,12 @@ async function onFileSelected(e: Event) {
   try {
     const user = getCurrentUser();
     const webpFile = await toWebP(file);
-    // Custom path keeps the `rte-` prefix so we can later distinguish embedded
-    // images from entity uploads when scanning the bucket. The asset-images
-    // bucket is webp-only as of migration 20260413000004.
+    const ext = webpFile.type === "image/jpeg" ? "jpeg" : "webp";
     const url = await uploadToBucket({
       bucket: "assetImages",
       blob: webpFile,
-      path: `${user!.id}/rte-${Date.now()}.webp`,
-      contentType: "image/webp",
+      path: `${user!.id}/rte-${Date.now()}.${ext}`,
+      contentType: webpFile.type,
     });
     if (!url) throw new Error("upload failed");
     editor.value.chain().focus().setImage({ src: url }).run();

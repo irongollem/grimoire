@@ -28,10 +28,18 @@ export async function toWebP(file: File, maxPx = 1920, quality = 0.85): Promise<
       canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
       canvas.toBlob(
         (blob) => {
-          if (blob) {
+          if (blob && blob.type === "image/webp") {
             resolve(new File([blob], file.name.replace(/\.[^.]+$/, ".webp"), { type: "image/webp" }));
           } else {
-            resolve(file);
+            // WebP encoding not supported (Safari < 16.1 returns PNG) — fall back to JPEG
+            canvas.toBlob(
+              (jpegBlob) => {
+                if (jpegBlob) resolve(new File([jpegBlob], file.name.replace(/\.[^.]+$/, ".jpeg"), { type: "image/jpeg" }));
+                else resolve(file);
+              },
+              "image/jpeg",
+              quality,
+            );
           }
         },
         "image/webp",

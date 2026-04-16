@@ -86,7 +86,7 @@
           </p>
         </div>
       </div>
-      <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileSelected" />
+      <input ref="fileInput" type="file" accept="image/*" class="sr-only" @change="onFileSelected" />
 
       <!-- Stats form -->
       <div class="grid grid-cols-2 gap-3">
@@ -416,12 +416,15 @@ function onNpcSelected() {
 async function onFileSelected(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (!file) return;
-  const url = await upload(file);
-  if (url) {
-    portraitUrl.value = url;
-    focalPoint.value  = null; // clear focal point for new upload
+  try {
+    const url = await upload(file);
+    if (url) {
+      portraitUrl.value = url;
+      focalPoint.value  = null;
+    }
+  } finally {
+    if (fileInput.value) fileInput.value.value = "";
   }
-  if (fileInput.value) fileInput.value.value = "";
 }
 
 async function save() {

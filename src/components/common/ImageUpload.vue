@@ -1,26 +1,26 @@
 <template>
   <div>
-    <!-- No image: dashed drop zone -->
-    <div
+    <!-- No image: dashed drop zone — label activates file input natively (iOS-safe) -->
+    <label
       v-if="!modelValue"
-      class="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed cursor-pointer transition-colors"
+      :for="inputId"
+      class="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed transition-colors"
       :class="[
         aspectClass,
         dragOver
           ? 'border-primary/70 bg-primary/5 text-primary'
           : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground',
-        isUploading ? 'opacity-50 pointer-events-none' : '',
+        isUploading ? 'opacity-50 pointer-events-none cursor-default' : 'cursor-pointer',
       ]"
       @dragover.prevent="dragOver = true"
       @dragleave.self="dragOver = false"
       @drop.prevent="onDrop"
-      @click="fileInput?.click()"
     >
       <ImagePlus class="h-7 w-7" />
       <span class="font-fell text-xs italic text-center px-2">
         {{ isUploading ? "Uploading…" : placeholder }}
       </span>
-    </div>
+    </label>
 
     <!-- Image + focal point picker -->
     <template v-else-if="showFocalPoint">
@@ -35,15 +35,16 @@
         @dragleave.self="dragOver = false"
         @drop.prevent="onDrop"
       >
-        <button
-          type="button"
+        <label
+          :for="inputId"
           class="font-cinzel text-[10px] tracking-wider transition-colors"
-          :class="dragOver ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
-          :disabled="isUploading"
-          @click="fileInput?.click()"
+          :class="[
+            isUploading ? 'opacity-50 pointer-events-none cursor-default' : 'cursor-pointer',
+            dragOver ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+          ]"
         >
           {{ isUploading ? "Uploading…" : "Change image" }}
-        </button>
+        </label>
         <span class="text-muted-foreground/40 text-xs">·</span>
         <button
           type="button"
@@ -55,10 +56,10 @@
       </div>
     </template>
 
-    <!-- Image, no focal point: thumbnail with drag-drop -->
+    <!-- Image, no focal point: overlay label on thumbnail -->
     <template v-else>
       <div
-        class="relative rounded-lg border overflow-hidden cursor-pointer group transition-colors"
+        class="relative rounded-lg border overflow-hidden group transition-colors"
         :class="[
           aspect !== 'auto' ? aspectClass : '',
           dragOver ? 'border-primary/70' : 'border-border hover:border-primary/50',
@@ -66,15 +67,17 @@
         @dragover.prevent="dragOver = true"
         @dragleave.self="dragOver = false"
         @drop.prevent="onDrop"
-        @click="fileInput?.click()"
       >
         <img :src="modelValue" alt="" :class="aspect === 'auto' ? 'w-full h-auto block' : 'w-full h-full object-cover'" />
-        <div
-          class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+        <label
+          v-if="!isUploading"
+          :for="inputId"
+          class="absolute inset-0 cursor-pointer bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
         >
-          <span class="font-fell text-white text-xs italic">
-            {{ isUploading ? "Uploading…" : "Change" }}
-          </span>
+          <span class="font-fell text-white text-xs italic">Change</span>
+        </label>
+        <div v-else class="absolute inset-0 bg-black/50 flex items-center justify-center">
+          <span class="font-fell text-white text-xs italic">Uploading…</span>
         </div>
       </div>
       <button
@@ -86,18 +89,22 @@
       </button>
     </template>
 
+    <p v-if="uploadError" class="text-destructive font-fell text-xs mt-1">{{ uploadError }}</p>
+
     <input
+      :id="inputId"
       ref="fileInput"
       type="file"
       accept="image/*"
-      class="hidden"
+      class="sr-only"
+      :disabled="isUploading"
       @change="onFileSelected"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, useId } from "vue";
 import { ImagePlus } from "lucide-vue-next";
 import { useImageUpload } from "@/composables/useImageUpload";
 import FocalPointPicker from "./FocalPointPicker.vue";
@@ -125,9 +132,10 @@ const emit = defineEmits<{
   "update:focalPoint": [value: { x: number; y: number } | null];
 }>();
 
+const inputId = useId();
 const fileInput = ref<HTMLInputElement | null>(null);
 const dragOver = ref(false);
-const { isUploading, upload, remove } = useImageUpload(props.bucket);
+const { isUploading, uploadError, upload, remove } = useImageUpload(props.bucket);
 
 const aspectClass = computed(() => {
   const map = { portrait: "aspect-3/4", landscape: "aspect-video", square: "aspect-square", auto: "min-h-24" } as const;
@@ -146,8 +154,11 @@ async function handleFile(file: File) {
 async function onFileSelected(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (!file) return;
-  await handleFile(file);
-  if (fileInput.value) fileInput.value.value = "";
+  try {
+    await handleFile(file);
+  } finally {
+    if (fileInput.value) fileInput.value.value = "";
+  }
 }
 
 async function onDrop(e: DragEvent) {

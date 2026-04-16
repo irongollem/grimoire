@@ -1,14 +1,14 @@
 <template>
   <div class="flex flex-col gap-6">
     <!-- Header actions -->
-    <div class="flex items-center justify-between gap-3 flex-wrap">
+    <div class="flex flex-wrap items-center gap-2">
       <RouterLink
         to="/vault"
         class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors tracking-wider"
       >
         ← Vault
       </RouterLink>
-      <div class="flex items-center gap-2">
+      <div class="ml-auto flex flex-wrap items-center gap-2">
         <button
           v-if="item"
           type="button"

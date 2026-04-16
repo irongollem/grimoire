@@ -116,7 +116,7 @@
           <input
             type="file"
             accept="audio/mpeg,audio/ogg,audio/wav,audio/flac,audio/aac,audio/webm,audio/x-m4a,.mp3,.ogg,.wav,.flac,.aac,.webm,.m4a"
-            class="hidden"
+            class="sr-only"
             @change="handleFileChange"
           />
         </label>

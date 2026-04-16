@@ -80,15 +80,23 @@ export function cleanupRemovedRichTextImages(
 export function useImageUpload(bucket: string) {
   const auth = useAuthStore();
   const isUploading = ref(false);
+  const uploadError = ref<string | null>(null);
   const key = resolveBucketKey(bucket);
 
   async function upload(file: File): Promise<string | null> {
-    if (!auth.user) return null;
+    if (!auth.user) {
+      uploadError.value = "Not signed in";
+      return null;
+    }
     isUploading.value = true;
+    uploadError.value = null;
     try {
       const webpFile = await toWebP(file);
-      return await uploadToBucket({ bucket: key, userId: auth.user.id, blob: webpFile, contentType: "image/webp" });
-    } catch {
+      const url = await uploadToBucket({ bucket: key, userId: auth.user.id, blob: webpFile, contentType: webpFile.type});
+      if (!url) uploadError.value = "Upload failed";
+      return url;
+    } catch (e) {
+      uploadError.value = e instanceof Error ? e.message : "Upload failed";
       return null;
     } finally {
       isUploading.value = false;
@@ -101,5 +109,5 @@ export function useImageUpload(bucket: string) {
     await removeByPublicUrl(key, publicUrl);
   }
 
-  return { isUploading, upload, remove };
+  return { isUploading, uploadError, upload, remove };
 }
