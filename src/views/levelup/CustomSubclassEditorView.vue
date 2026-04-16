@@ -3,7 +3,15 @@
     :title="isNew ? 'New Archetype' : (form.subclass_name || 'Custom Archetype')"
     description="Define a subclass — features, resources, and progression for your custom class"
   >
-    <template #actions>
+    <template v-if="isNew || isEditing" #actions>
+      <button
+        v-if="!isNew"
+        type="button"
+        class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
+        @click="onCancel"
+      >
+        Cancel
+      </button>
       <button
         v-if="!isNew"
         type="button"
@@ -24,7 +32,9 @@
       </button>
     </template>
 
-    <div class="max-w-2xl mx-auto space-y-6">
+    <CustomSubclassSheet v-if="!isNew && !isEditing && existing" :sub="existing" />
+
+    <div v-else class="max-w-2xl mx-auto space-y-6">
       <p v-if="saveError" class="font-fell text-sm text-destructive">{{ saveError }}</p>
 
       <!-- ── Section 1: Identity ────────────────────────────────────────────── -->
@@ -391,6 +401,7 @@ import { Save, Trash2, Plus, X } from "lucide-vue-next";
 import TagInput from "@/components/common/TagInput.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useCustomSubclass, useCreateCustomSubclass, useUpdateCustomSubclass, useDeleteCustomSubclass } from "@/composables/useCustomSubclasses";
+import CustomSubclassSheet from "@/components/levelup/CustomSubclassSheet.vue";
 import { useAllFeatures } from "@/composables/useFeatures";
 import { useCampaigns } from "@/composables/useCampaigns";
 import { useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
@@ -400,7 +411,14 @@ const route = useRoute();
 const router = useRouter();
 
 const isNew = computed(() => route.name === "archetype-new");
+const isEditing = computed(() => route.query.edit === "true");
 const id = computed(() => (isNew.value ? "" : (route.params.id as string)));
+
+function onCancel() {
+  const q = { ...route.query };
+  delete q.edit;
+  router.push({ query: q });
+}
 
 const { data: existing } = useCustomSubclass(id);
 const { data: campaignList } = useCampaigns();

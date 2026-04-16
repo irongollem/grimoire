@@ -3,7 +3,15 @@
     :title="isNew ? 'New Class' : (form.class_name || 'Custom Class')"
     description="Design your custom class — features, proficiencies, and level progression"
   >
-    <template #actions>
+    <template v-if="isNew || isEditing" #actions>
+      <button
+        v-if="!isNew"
+        type="button"
+        class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
+        @click="onCancel"
+      >
+        Cancel
+      </button>
       <button
         v-if="!isNew"
         type="button"
@@ -24,7 +32,9 @@
       </button>
     </template>
 
-    <div class="max-w-2xl mx-auto space-y-6">
+    <CustomClassSheet v-if="!isNew && !isEditing && existing" :cls="existing" />
+
+    <div v-else class="max-w-2xl mx-auto space-y-6">
       <p v-if="saveError" class="font-fell text-sm text-destructive">{{ saveError }}</p>
 
       <!-- ── Section 1: Identity ────────────────────────────────────────────── -->
@@ -527,6 +537,7 @@ import { Save, Trash2, Plus, X } from "lucide-vue-next";
 import TagInput from "@/components/common/TagInput.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useCustomClass, useCreateCustomClass, useUpdateCustomClass, useDeleteCustomClass } from "@/composables/useCustomClasses";
+import CustomClassSheet from "@/components/levelup/CustomClassSheet.vue";
 import { useAllFeatures } from "@/composables/useFeatures";
 import { useCampaigns } from "@/composables/useCampaigns";
 import type { CustomStep, CustomResource, HitDie, CasterType, PreparedAbility } from "@/levelup/customTypes";
@@ -547,7 +558,14 @@ const route = useRoute();
 const router = useRouter();
 
 const isNew = computed(() => route.name === "custom-class-new");
+const isEditing = computed(() => route.query.edit === "true");
 const id = computed(() => (isNew.value ? "" : (route.params.id as string)));
+
+function onCancel() {
+  const q = { ...route.query };
+  delete q.edit;
+  router.push({ query: q });
+}
 
 const { data: existing } = useCustomClass(id);
 const { data: campaignList } = useCampaigns();
