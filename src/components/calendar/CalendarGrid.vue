@@ -61,59 +61,54 @@
     </div>
 
     <template v-else>
-      <!-- Grid: scrollable on mobile for wide calendars (10-col Harptos) -->
-      <div class="-mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto calendar-grid-scroll">
-        <div :class="gridMinWidthClass">
-          <!-- Optional day-of-week column headers (Gregorian, Greyhawk, etc.) -->
-          <div
-            v-if="calendar.adapter.dayLabels"
-            :class="gridColsClass"
-            class="grid gap-1 mb-1 px-0"
-          >
-            <div
-              v-for="label in calendar.adapter.dayLabels"
-              :key="label"
-              class="text-center font-cinzel text-xs font-semibold tracking-wider text-muted-foreground py-1"
-            >
-              {{ label.slice(0, 3) }}
-            </div>
-          </div>
+      <!-- Optional day-of-week column headers (Gregorian, Greyhawk, etc.) -->
+      <div
+        v-if="calendar.adapter.dayLabels"
+        :class="gridColsClass"
+        class="grid gap-1 mb-1 px-0"
+      >
+        <div
+          v-for="label in calendar.adapter.dayLabels"
+          :key="label"
+          class="text-center font-cinzel text-xs font-semibold tracking-wider text-muted-foreground py-1"
+        >
+          {{ label.slice(0, 3) }}
+        </div>
+      </div>
 
-          <!-- Week rows -->
-          <div v-for="(row, rowIdx) in gridRows" :key="rowIdx" class="mb-4">
-            <p class="font-cinzel text-xs font-semibold tracking-widest text-muted-foreground mb-2">
-              {{ weekRowLabel(rowIdx) }}
-            </p>
-            <div :class="gridColsClass" class="grid gap-1">
-              <div
-                v-for="(day, colIdx) in row"
-                :key="colIdx"
-                class="relative rounded-md border min-h-14 p-1.5 flex flex-col transition-colors"
-                :class="[
-                  day !== null
-                    ? 'border-border bg-card hover:border-primary/50 cursor-pointer'
-                    : 'border-transparent bg-transparent',
-                  day !== null && hasEvents(day) ? 'ring-1 ring-primary/40' : '',
-                ]"
-                @click="day !== null && emit('create-event', day)"
-              >
-                <span
-                  v-if="day !== null"
-                  class="font-cinzel text-xs font-semibold text-muted-foreground leading-none"
-                >
-                  {{ day }}
-                </span>
-                <!-- Event dots -->
-                <div v-if="day !== null" class="flex flex-wrap gap-0.5 mt-auto pt-1">
-                  <span
-                    v-for="event in eventsForDay(day)"
-                    :key="event.id"
-                    :title="event.title"
-                    :style="{ backgroundColor: event.color }"
-                    class="w-1.5 h-1.5 rounded-full"
-                  />
-                </div>
-              </div>
+      <!-- Week rows -->
+      <div v-for="(row, rowIdx) in gridRows" :key="rowIdx" class="mb-4">
+        <p class="font-cinzel text-xs font-semibold tracking-widest text-muted-foreground mb-2">
+          {{ weekRowLabel(rowIdx) }}
+        </p>
+        <div :class="gridColsClass" class="grid gap-1">
+          <div
+            v-for="(day, colIdx) in row"
+            :key="colIdx"
+            class="relative rounded-md border min-h-14 p-1.5 flex flex-col transition-colors"
+            :class="[
+              day !== null
+                ? 'border-border bg-card hover:border-primary/50 cursor-pointer'
+                : 'border-transparent bg-transparent',
+              day !== null && hasEvents(day) ? 'ring-1 ring-primary/40' : '',
+            ]"
+            @click="day !== null && emit('create-event', day)"
+          >
+            <span
+              v-if="day !== null"
+              class="font-cinzel text-xs font-semibold text-muted-foreground leading-none"
+            >
+              {{ day }}
+            </span>
+            <!-- Event dots -->
+            <div v-if="day !== null" class="flex flex-wrap gap-0.5 mt-auto pt-1">
+              <span
+                v-for="event in eventsForDay(day)"
+                :key="event.id"
+                :title="event.title"
+                :style="{ backgroundColor: event.color }"
+                class="w-1.5 h-1.5 rounded-full"
+              />
             </div>
           </div>
         </div>
@@ -220,15 +215,11 @@ const currentMonth = computed(
     calendar.adapter.months[0],
 );
 
-// Dynamic Tailwind grid class based on week size
+// Dynamic Tailwind grid class based on week size.
+// 10-day (Harptos) tendays show 5 columns on mobile so each tenday
+// wraps into two rows of 5 instead of squashing 10 cells onto a phone screen.
 const gridColsClass = computed(() =>
-  calendar.adapter.weekSize === 7 ? "grid-cols-7" : "grid-cols-10",
-);
-
-// Minimum width for the scroll container — prevents 10-col grids from
-// squashing day cells below a usable tap target on narrow screens.
-const gridMinWidthClass = computed(() =>
-  calendar.adapter.weekSize === 10 ? "min-w-[480px]" : "min-w-[300px]",
+  calendar.adapter.weekSize === 7 ? "grid-cols-7" : "grid-cols-5 md:grid-cols-10",
 );
 
 // Build grid rows: each row is an array of day numbers (or null for empty offset cells).
@@ -348,12 +339,3 @@ function entityIcon(event: CalendarEvent) {
   return null;
 }
 </script>
-
-<style scoped>
-.calendar-grid-scroll {
-  scrollbar-width: none;
-}
-.calendar-grid-scroll::-webkit-scrollbar {
-  display: none;
-}
-</style>
