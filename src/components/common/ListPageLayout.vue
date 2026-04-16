@@ -32,8 +32,13 @@
       - default    — list body
       - `footer`   — optional; rendered below the body (e.g. "N of M" counts)
   -->
-  <div>
-    <!-- Sticky header region -->
+  <!--
+    On desktop: <main> is overflow-hidden flex-col. This component takes flex-1,
+    placing the sticky header above a flex-1 overflow-y-auto body scroll container.
+    On mobile: the sticky header sticks to <main overflow-y-auto> as before.
+  -->
+  <div class="lg:flex lg:flex-col lg:flex-1 lg:min-h-0">
+    <!-- Sticky header region — sticky on mobile, static on desktop -->
     <div class="sticky top-0 z-20 bg-background px-4 pt-3 md:px-6 md:pt-6">
       <!-- Title + actions row -->
       <div class="flex items-start justify-between gap-3 md:gap-4">
@@ -95,13 +100,13 @@
       <div v-else class="pb-3 md:pb-4" />
     </div>
 
-    <!-- Body -->
-    <div class="px-4 pb-4 md:px-6 md:pb-6">
+    <!-- Body — scrolls independently on desktop -->
+    <div class="px-4 pb-4 md:px-6 md:pb-6 lg:flex-1 lg:overflow-y-auto lg:min-h-0">
       <slot />
     </div>
 
     <!-- Optional footer (e.g. item counts, pagination) -->
-    <div v-if="hasFooter" class="px-4 pb-4 md:px-6 md:pb-6">
+    <div v-if="hasFooter" class="px-4 pb-4 md:px-6 md:pb-6 lg:shrink-0">
       <slot name="footer" />
     </div>
   </div>

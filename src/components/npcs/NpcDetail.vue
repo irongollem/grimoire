@@ -1,63 +1,5 @@
 <template>
-  <form @submit.prevent="save">
-    <!-- ── Top action bar ───────────────────────────────────────────── -->
-    <div class="flex items-center justify-between mb-2 gap-4">
-      <RouterLink to="/npcs" class="font-fell text-sm text-muted-foreground hover:text-foreground transition-colors">
-        ← All NPCs
-      </RouterLink>
-      <div class="flex items-center gap-2">
-        <button
-          v-if="npc?.id"
-          type="button"
-          class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 transition-colors"
-          @click="confirmDelete"
-        >
-          Delete
-        </button>
-        <button
-          v-if="npc?.id"
-          type="button"
-          :disabled="isSendingToScriptorium"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-50"
-          @click="sendToScriptorium"
-        >
-          <ScrollText class="h-3.5 w-3.5" />
-          {{ isSendingToScriptorium ? 'Exporting…' : 'Scriptorium' }}
-        </button>
-        <!-- Player visibility toggle -->
-        <PlayerVisibilityToggle
-          v-if="npc?.id"
-          :visible-to="form.player_visible_to"
-          @update:visible-to="form.player_visible_to = $event"
-        />
-        <!-- Reveal / Conceal alter ego toggle -->
-        <button
-          v-if="npc?.id && (form.disguise_name || form.disguise_portrait_url)"
-          type="button"
-          class="flex items-center gap-1.5 px-2.5 py-1.5 font-cinzel text-[10px] font-semibold tracking-wider rounded border transition-colors"
-          :class="form.is_revealed
-            ? 'border-amber-500/50 text-amber-500 bg-amber-500/10 hover:bg-amber-500/20'
-            : 'border-border text-muted-foreground hover:border-foreground/40'"
-          @click="form.is_revealed = !form.is_revealed"
-        >{{ form.is_revealed ? '✦ Revealed' : '◈ Concealed' }}</button>
-        <button
-          v-if="aiApiKey"
-          type="button"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-primary/40 text-primary rounded-md hover:bg-primary/10 transition-colors"
-          @click="showGenerateDialog = true"
-        >
-          <Sparkles class="h-3.5 w-3.5" />
-          Generate
-        </button>
-        <button
-          type="submit"
-          :disabled="isSaving"
-          class="px-4 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-        >
-          {{ isSaving ? 'Saving…' : (npc?.id ? 'Save Changes' : 'Create NPC') }}
-        </button>
-      </div>
-    </div>
+  <form id="npc-detail-form" @submit.prevent="save">
 
     <!-- Reveal fields (visible when NPC is shared with anyone) -->
     <div
@@ -91,9 +33,9 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6 lg:items-start">
       <!-- ── Left: portrait + meta ────────────────────────────────── -->
-      <div class="space-y-4">
+      <div class="space-y-4 lg:sticky lg:top-0 lg:pb-4">
         <!-- Portrait (tabbed: True Form / Alter Ego) -->
         <div class="flex flex-col gap-0">
           <div class="flex border-b border-border">
@@ -185,7 +127,7 @@
               />
             </div>
             <div>
-              <label class="field-label">Race</label>
+              <label class="field-label">Species</label>
               <input v-model="form.race" placeholder="Human, Elf, Tiefling…" class="field-input" />
             </div>
             <div>
@@ -432,7 +374,6 @@ import { ref, reactive, computed, watch } from 'vue'
 import RichTextEditor from '@/components/common/RichTextEditor.vue'
 import TagInput from '@/components/common/TagInput.vue'
 import { useRouter } from 'vue-router'
-import { ScrollText, Sparkles } from 'lucide-vue-next'
 import NpcGenerateDialog from '@/ai/NpcGenerateDialog.vue'
 import { toTiptapJson } from '@/ai/useNpcGeneration'
 import type { NpcAiGenerated } from '@/ai/types'
@@ -455,7 +396,6 @@ import type { Npc, NpcInsert, NpcStatus, NpcRelationship, StatBlock } from '@/ty
 import { useCampaignStore } from '@/stores/campaign'
 import EntityCombobox from '@/components/common/EntityCombobox.vue'
 import PlayerNotesWidget from '@/components/common/PlayerNotesWidget.vue'
-import PlayerVisibilityToggle from '@/components/common/PlayerVisibilityToggle.vue'
 import { STAT_BLOCK_ABILITIES, abilityModifier, skillsToString, skillsToRecord } from '@/lib/utils'
 
 const { confirm, notify } = useConfirm();
@@ -491,7 +431,7 @@ const PLAYER_FIELDS = [
   { key: 'portrait',     label: 'Portrait' },
   { key: 'name',         label: 'Name' },
   { key: 'status',       label: 'Alive / Dead status' },
-  { key: 'race',         label: 'Race' },
+  { key: 'race',         label: 'Species' },
   { key: 'occupation',   label: 'Occupation' },
   { key: 'relationship', label: 'Relationship (ally/enemy…)' },
   { key: 'location',     label: 'Location' },
@@ -859,6 +799,16 @@ async function confirmDelete() {
     notify('Failed to delete NPC. Please try again.')
   }
 }
+
+defineExpose({
+  isSaving,
+  isSendingToScriptorium,
+  aiApiKey,
+  showGenerateDialog,
+  form,
+  sendToScriptorium,
+  confirmDelete,
+})
 </script>
 
 <style scoped>

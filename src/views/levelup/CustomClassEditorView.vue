@@ -1,28 +1,9 @@
 <template>
-  <div class="max-w-2xl mx-auto px-4 py-6 space-y-6">
-    <!-- Back + header -->
-    <div class="flex items-center gap-3">
-      <RouterLink
-        to="/levelup/classes"
-        class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors tracking-wider"
-      >← Classes</RouterLink>
-    </div>
-
-    <div class="flex flex-wrap items-center gap-2">
-      <input
-        v-model="form.class_name"
-        placeholder="Class name…"
-        class="flex-1 min-w-48 bg-card border border-border rounded-md px-3 py-2 font-cinzel text-lg font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      />
-      <button
-        type="button"
-        :disabled="saving || !canSave"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
-        @click="save"
-      >
-        <Save class="h-3.5 w-3.5" />
-        {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
-      </button>
+  <PageHeader
+    :title="isNew ? 'New Class' : (form.class_name || 'Custom Class')"
+    description="Design your custom class — features, proficiencies, and level progression"
+  >
+    <template #actions>
       <button
         v-if="!isNew"
         type="button"
@@ -32,10 +13,21 @@
         <Trash2 class="h-3.5 w-3.5" />
         Delete
       </button>
-    </div>
-    <p v-if="saveError" class="font-fell text-sm text-destructive">{{ saveError }}</p>
+      <button
+        type="button"
+        :disabled="saving || !canSave"
+        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+        @click="save"
+      >
+        <Save class="h-3.5 w-3.5" />
+        {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
+      </button>
+    </template>
 
-    <!-- ── Section 1: Identity ────────────────────────────────────────────── -->
+    <div class="max-w-2xl mx-auto space-y-6">
+      <p v-if="saveError" class="font-fell text-sm text-destructive">{{ saveError }}</p>
+
+      <!-- ── Section 1: Identity ────────────────────────────────────────────── -->
     <section class="rounded-lg border border-border bg-card p-4 space-y-4">
       <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">Identity</h2>
 
@@ -523,12 +515,14 @@
         </div>
       </div>
     </section>
-  </div>
+    </div>
+  </PageHeader>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { useRoute, useRouter, RouterLink } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
+import PageHeader from "@/components/common/PageHeader.vue";
 import { Save, Trash2, Plus, X } from "lucide-vue-next";
 import TagInput from "@/components/common/TagInput.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";

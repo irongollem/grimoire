@@ -1,17 +1,23 @@
 <template>
   <Teleport to="body">
     <Transition
-      enter-active-class="transition-all duration-200 ease-out"
-      leave-active-class="transition-all duration-150 ease-in"
-      enter-from-class="opacity-0 translate-y-2"
-      leave-to-class="opacity-0 translate-y-2"
+      enter-active-class="transition-opacity duration-200 ease-out"
+      leave-active-class="transition-opacity duration-150 ease-in"
+      enter-from-class="opacity-0"
+      leave-to-class="opacity-0"
     >
       <div
         v-if="store.widgetOpen"
-        class="fixed bottom-16 right-4 z-50 w-72 rounded-lg border border-border bg-card shadow-xl"
+        ref="widgetEl"
+        class="fixed z-50 w-72 rounded-lg border border-border bg-card shadow-xl"
+        :style="posStyle"
+        :class="dragging ? 'select-none' : ''"
       >
-        <!-- Header -->
-        <div class="flex items-center gap-2 px-3 py-2 border-b border-border">
+        <!-- Header — drag handle -->
+        <div
+          class="flex items-center gap-2 px-3 py-2 border-b border-border cursor-grab active:cursor-grabbing"
+          @pointerdown="startDrag"
+        >
           <Music2 class="h-3.5 w-3.5 text-gold-400 shrink-0" />
           <span class="font-cinzel text-xs font-semibold text-foreground flex-1 tracking-wide">Soundboard</span>
           <button
@@ -157,7 +163,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, onMounted, nextTick } from "vue";
 import { Music2, X, Square, Pause, SkipBack, SkipForward, VolumeX } from "lucide-vue-next";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
@@ -166,6 +172,57 @@ import { useSounds } from "@/composables/useSounds";
 const store = useSoundboardStore();
 const spotifyStore = useSpotifyStore();
 const { data: sounds } = useSounds();
+
+// ── Draggable position ────────────────────────────────────────────────────────
+
+const widgetEl = ref<HTMLElement | null>(null);
+const pos = ref<{ x: number; y: number } | null>(null);
+const dragging = ref(false);
+
+// The component only exists when widgetOpen is true (v-if), so onMounted
+// fires exactly when the widget first appears — initialize position then.
+onMounted(async () => {
+  await nextTick();
+  const h = widgetEl.value?.offsetHeight ?? 320;
+  pos.value = {
+    x: window.innerWidth - 288 - 16,
+    y: window.innerHeight - h - 64,
+  };
+});
+
+const posStyle = computed(() =>
+  pos.value
+    ? { left: `${pos.value.x}px`, top: `${pos.value.y}px` }
+    : { right: "1rem", bottom: "4rem" },
+);
+
+let dragOffset = { x: 0, y: 0 };
+
+function startDrag(e: PointerEvent) {
+  if (!pos.value) return;
+  e.preventDefault();
+  dragging.value = true;
+  document.body.style.userSelect = "none";
+  dragOffset = { x: e.clientX - pos.value.x, y: e.clientY - pos.value.y };
+  window.addEventListener("pointermove", onDrag);
+  window.addEventListener("pointerup", stopDrag, { once: true });
+}
+
+function onDrag(e: PointerEvent) {
+  if (!pos.value) return;
+  const w = widgetEl.value?.offsetWidth ?? 288;
+  const h = widgetEl.value?.offsetHeight ?? 320;
+  pos.value = {
+    x: Math.max(0, Math.min(window.innerWidth - w, e.clientX - dragOffset.x)),
+    y: Math.max(0, Math.min(window.innerHeight - h, e.clientY - dragOffset.y)),
+  };
+}
+
+function stopDrag() {
+  dragging.value = false;
+  document.body.style.userSelect = "";
+  window.removeEventListener("pointermove", onDrag);
+}
 
 const playingSounds = computed(() =>
   (sounds.value ?? []).filter(

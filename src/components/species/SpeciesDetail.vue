@@ -1,36 +1,14 @@
 <template>
   <div class="flex flex-col gap-5">
-    <!-- Top bar -->
-    <div class="flex flex-wrap items-center gap-2">
-      <label class="flex-1 min-w-48">
-        <span class="sr-only">Species name</span>
-        <input
-          v-model="form.name"
-          placeholder="Species name…"
-          class="w-full bg-card border border-border rounded-md px-3 py-2 font-cinzel text-lg font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
-      </label>
-
-      <button
-        type="button"
-        :disabled="saving || !form.name.trim()"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
-        @click="save"
-      >
-        <Save class="h-3.5 w-3.5" />
-        {{ saving ? "Saving…" : props.species ? "Save" : "Create" }}
-      </button>
-
-      <button
-        v-if="props.species"
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
-        @click="remove"
-      >
-        <Trash2 class="h-3.5 w-3.5" />
-        Delete
-      </button>
-    </div>
+    <!-- Name input -->
+    <label>
+      <span class="sr-only">Species name</span>
+      <input
+        v-model="form.name"
+        placeholder="Species name…"
+        class="w-full bg-card border border-border rounded-md px-3 py-2 font-cinzel text-lg font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      />
+    </label>
 
     <p v-if="saveError" class="text-destructive font-fell text-sm">{{ saveError }}</p>
 
@@ -170,9 +148,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from "vue";
+import { ref, reactive, watch, computed } from "vue";
 import { useRouter } from "vue-router";
-import { Save, Trash2 } from "lucide-vue-next";
 import { useCreateSpecies, useUpdateSpecies, useDeleteSpecies } from "@/composables/useSpecies";
 import { useConfirm } from "@/composables/useConfirm";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
@@ -291,4 +268,11 @@ async function remove() {
   router.push("/species");
   deleteSpecies(props.species);
 }
+
+defineExpose({
+  saving,
+  canSave: computed(() => !saving.value && !!form.name.trim()),
+  save,
+  remove,
+})
 </script>

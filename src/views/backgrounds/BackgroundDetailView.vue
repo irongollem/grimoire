@@ -1,19 +1,26 @@
 <template>
   <PageHeader :title="pageTitle" :description="pageDescription">
+    <template #actions>
+      <DetailActions :detail-ref="detailRef" :exists="!!background" />
+    </template>
+
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
-    <BackgroundDetail v-else :background="background ?? null" />
+    <BackgroundDetail v-else ref="detailRef" :background="background ?? null" />
   </PageHeader>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { ref, computed } from "vue";
 import { useRoute } from "vue-router";
 import { useBackground } from "@/composables/useBackgrounds";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import DetailActions from "@/components/common/DetailActions.vue";
 import BackgroundDetail from "@/components/backgrounds/BackgroundDetail.vue";
+
+const detailRef = ref<InstanceType<typeof BackgroundDetail> | null>(null);
 
 const route = useRoute();
 

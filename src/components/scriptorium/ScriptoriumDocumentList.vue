@@ -57,82 +57,85 @@
       No documents match your filters.
     </p>
 
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-      <div
-        v-for="doc in filtered"
-        :key="doc.id"
-        class="relative group"
-      >
-      <RouterLink
-        :to="`/scriptorium/${doc.id}`"
-        class="flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
-      >
-        <!-- Type colour bar -->
-        <div class="h-1 w-full shrink-0" :style="{ backgroundColor: typeColor(doc.doc_type) }" />
+    <div
+      v-else
+      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
+    >
+      <div v-for="doc in filtered" :key="doc.id" class="relative group">
+        <RouterLink
+          :to="`/scriptorium/${doc.id}`"
+          class="flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
+        >
+          <!-- Type colour bar -->
+          <div
+            class="h-1 w-full shrink-0"
+            :style="{ backgroundColor: typeColor(doc.doc_type) }"
+          />
 
-        <div class="p-4 flex flex-col gap-2 flex-1">
-          <!-- Header row -->
-          <div class="flex items-start justify-between gap-2">
-            <h3
-              class="font-cinzel text-sm font-bold text-foreground leading-tight line-clamp-2 flex-1"
-            >
-              {{ doc.title }}
-            </h3>
-            <span
-              class="shrink-0 px-1.5 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider uppercase"
-              :style="{
-                backgroundColor: typeColor(doc.doc_type) + '22',
-                color: typeColor(doc.doc_type),
-              }"
-            >
-              {{ DOC_TYPE_LABELS[doc.doc_type] }}
-            </span>
-          </div>
+          <div class="p-4 flex flex-col gap-2 flex-1">
+            <!-- Header row -->
+            <div class="flex items-start justify-between gap-2">
+              <h3
+                class="font-cinzel text-sm font-bold text-foreground leading-tight line-clamp-2 flex-1"
+              >
+                {{ doc.title }}
+              </h3>
+              <span
+                class="shrink-0 px-1.5 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider uppercase"
+                :style="{
+                  backgroundColor: typeColor(doc.doc_type) + '22',
+                  color: typeColor(doc.doc_type),
+                }"
+              >
+                {{ DOC_TYPE_LABELS[doc.doc_type] }}
+              </span>
+            </div>
 
-          <!-- Tags -->
-          <div v-if="doc.tags.length" class="flex flex-wrap gap-1">
-            <span
-              v-for="tag in doc.tags.slice(0, 3)"
-              :key="tag"
-              class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider"
-            >
-              {{ tag }}
-            </span>
-            <span
-              v-if="doc.tags.length > 3"
-              class="font-fell text-[10px] text-muted-foreground italic self-center"
-            >
-              +{{ doc.tags.length - 3 }}
-            </span>
-          </div>
+            <!-- Tags -->
+            <div v-if="doc.tags.length" class="flex flex-wrap gap-1">
+              <span
+                v-for="tag in doc.tags.slice(0, 3)"
+                :key="tag"
+                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider"
+              >
+                {{ tag }}
+              </span>
+              <span
+                v-if="doc.tags.length > 3"
+                class="font-fell text-[10px] text-muted-foreground italic self-center"
+              >
+                +{{ doc.tags.length - 3 }}
+              </span>
+            </div>
 
-          <!-- Footer -->
-          <div class="flex items-center justify-between mt-auto pt-1">
-            <span class="font-fell text-[11px] text-muted-foreground italic">
-              {{ doc.word_count }} words
-            </span>
-            <span class="font-fell text-[11px] text-muted-foreground">
-              {{ formatDate(doc.updated_at) }}
-            </span>
-          </div>
+            <!-- Footer -->
+            <div class="flex items-center justify-between mt-auto pt-1">
+              <span class="font-fell text-[11px] text-muted-foreground italic">
+                {{ doc.word_count }} words
+              </span>
+              <span class="font-fell text-[11px] text-muted-foreground">
+                {{ formatDate(doc.updated_at) }}
+              </span>
+            </div>
 
-          <!-- Published badge -->
-          <div v-if="doc.is_published" class="flex items-center gap-1">
-            <Globe class="h-3 w-3 text-green-500" />
-            <span class="font-cinzel text-[10px] text-green-500 font-semibold tracking-wider"
-              >Published</span
-            >
+            <!-- Published badge -->
+            <div v-if="doc.is_published" class="flex items-center gap-1">
+              <Globe class="h-3 w-3 text-green-500" />
+              <span
+                class="font-cinzel text-[10px] text-green-500 font-semibold tracking-wider"
+                >Published</span
+              >
+            </div>
           </div>
-        </div>
-      </RouterLink>
-      <button
-        type="button"
-        class="absolute top-2 right-2 w-6 h-6 rounded flex items-center justify-center bg-card/80 border border-border text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-all"
-        title="Delete document"
-        @click.prevent="confirmDelete(doc.id, doc.title)"
-      >
-        <Trash2 class="h-3 w-3" />
-      </button>
+        </RouterLink>
+        <button
+          type="button"
+          class="absolute top-2 right-2 w-6 h-6 rounded flex items-center justify-center bg-card/80 border border-border text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-all"
+          title="Delete document"
+          @click.prevent="confirmDelete(doc.id, doc.title)"
+        >
+          <Trash2 class="h-3 w-3" />
+        </button>
       </div>
     </div>
 
@@ -150,7 +153,10 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed } from "vue";
 import { Search, Globe, Trash2 } from "lucide-vue-next";
-import { useScriptoriumDocuments, useDeleteScriptoriumDocument } from "@/composables/useScriptorium";
+import {
+  useScriptoriumDocuments,
+  useDeleteScriptoriumDocument,
+} from "@/composables/useScriptorium";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import type { ScriptoriumDocType } from "@/types/scriptorium.types";
@@ -175,7 +181,7 @@ const DOC_TYPE_LABELS: Record<ScriptoriumDocType, string> = {
   item: "Item",
   class: "Class",
   subclass: "Subclass",
-  race: "Race",
+  race: "Species",
   background: "Background",
   adventure: "Adventure",
   "npc-sheet": "NPC Sheet",
@@ -205,7 +211,7 @@ const { data: docs, isLoading } = useScriptoriumDocuments();
 const { mutateAsync: deleteDoc } = useDeleteScriptoriumDocument();
 
 async function confirmDelete(id: string, title: string) {
-  if (!await confirm(`Delete "${title}"? This cannot be undone.`)) return;
+  if (!(await confirm(`Delete "${title}"? This cannot be undone.`))) return;
   await deleteDoc(id);
 }
 
@@ -214,10 +220,13 @@ const filtered = computed(() => {
   if (search.value.trim()) {
     const q = search.value.trim().toLowerCase();
     list = list.filter(
-      (d) => d.title.toLowerCase().includes(q) || d.tags.some((t) => t.toLowerCase().includes(q)),
+      (d) =>
+        d.title.toLowerCase().includes(q) ||
+        d.tags.some((t) => t.toLowerCase().includes(q)),
     );
   }
-  if (typeFilter.value !== "all") list = list.filter((d) => d.doc_type === typeFilter.value);
+  if (typeFilter.value !== "all")
+    list = list.filter((d) => d.doc_type === typeFilter.value);
   return list;
 });
 

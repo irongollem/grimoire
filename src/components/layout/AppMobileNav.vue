@@ -22,6 +22,9 @@
         </button>
       </div>
 
+      <!-- Campaign switcher -->
+      <CampaignSwitcher />
+
       <!-- Navigation — `desktopOnly` groups (e.g. "Publish") are filtered
            out because their tools target letter/A4 output that's unusable
            on a phone. The desktop sidebar still shows them. -->
@@ -65,18 +68,23 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
-import { useRouter } from "vue-router";
+import { computed, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { X, LogOut } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { NAV_GROUPS } from "@/lib/nav";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
 import NavItem from "./NavItem.vue";
+import CampaignSwitcher from "./CampaignSwitcher.vue";
 
 const auth = useAuthStore();
 const ui = useUiStore();
 const router = useRouter();
+const route = useRoute();
+
+// Close drawer on any navigation (handles campaign switcher, settings link, etc.)
+watch(() => route.path, () => { if (ui.mobileNavOpen) ui.toggleMobileNav(); });
 
 const userEmail = computed(() => auth.userEmail ?? "");
 const userInitial = computed(() => userEmail.value.charAt(0).toUpperCase() || "?");
