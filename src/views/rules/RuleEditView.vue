@@ -3,9 +3,22 @@
     :title="isNew ? 'New Rule' : (rule?.title || 'Loading…')"
     description="Custom rule, system, or table"
   >
+    <template v-if="isNew || isEditing" #actions>
+      <button
+        v-if="!isNew"
+        type="button"
+        class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
+        @click="onCancel"
+      >
+        Cancel
+      </button>
+    </template>
+
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
+
+    <RuleSheet v-else-if="!isNew && !isEditing && rule" :rule="rule" />
 
     <form v-else class="max-w-3xl space-y-5" @submit.prevent="handleSave">
       <!-- Title -->
@@ -367,6 +380,7 @@ import { Plus, X } from "lucide-vue-next";
 import { useConfirm } from "@/composables/useConfirm";
 import { useRoute, useRouter } from "vue-router";
 import { useRule, useCreateRule, useUpdateRule, useDeleteRule } from "@/composables/useRules";
+import RuleSheet from "@/components/rules/RuleSheet.vue";
 import { RULE_CATEGORIES } from "@/types/rule.types";
 import type { TrackerDef, TrackerLevel, DmButton, AbilityCode } from "@/types/rule.types";
 import PageHeader from "@/components/common/PageHeader.vue";
@@ -395,7 +409,14 @@ const LEVEL_COLORS = [
 const route  = useRoute();
 const router = useRouter();
 const isNew  = computed(() => route.name === "rule-new");
+const isEditing = computed(() => route.query.edit === "true");
 const id     = computed(() => (isNew.value ? "" : (route.params.id as string)));
+
+function onCancel() {
+  const q = { ...route.query };
+  delete q.edit;
+  router.push({ query: q });
+}
 
 const { data: rule, isLoading: ruleLoading } = useRule(id.value);
 const isLoading = computed(() => !isNew.value && ruleLoading.value);
