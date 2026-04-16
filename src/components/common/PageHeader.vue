@@ -1,6 +1,21 @@
 <template>
-  <div>
-    <!-- Sticky section: title + actions + optional extra content -->
+  <!--
+    On mobile: sits inside <main overflow-y-auto>; the sticky header sticks to
+    the top of <main> as the user scrolls.
+
+    On desktop: <main> is overflow-hidden flex-col. This component takes flex-1
+    (when it has body content), dividing itself into:
+      • a non-scrolling header section (title, actions, divider, optional sticky slot)
+      • a flex-1 overflow-y-auto body — the real scroll container for page content
+
+    The NpcDetail left-column sticky trick works because sticky top-0 inside
+    the body div sticks to the top of *this* scroll container, not the page.
+
+    The optional `sidebar` slot (desktop only) renders to the right of the body
+    in its own overflow-y-auto column. On mobile it stacks below the body.
+  -->
+  <div :class="['lg:flex lg:flex-col lg:min-h-0', $slots.default ? 'lg:flex-1' : '']">
+    <!-- Header section — sticky on mobile, static on desktop -->
     <div class="sticky top-0 z-20 bg-background px-4 pt-4 md:px-6 md:pt-6">
       <div class="flex items-start justify-between gap-4">
         <div>
@@ -23,9 +38,19 @@
       <div v-else class="pb-4" />
     </div>
 
-    <!-- Page body -->
-    <div class="px-4 pb-4 md:px-6 md:pb-6">
-      <slot />
+    <!-- Body + optional sidebar (only rendered when default slot has content) -->
+    <div v-if="$slots.default" class="lg:flex lg:flex-1 lg:overflow-hidden lg:min-h-0">
+      <!-- Scrollable body -->
+      <div class="px-4 pb-4 md:px-6 md:pb-6 lg:flex-1 lg:overflow-y-auto lg:min-h-0">
+        <slot />
+      </div>
+      <!-- Optional sidebar — desktop only; stacks below body on mobile -->
+      <aside
+        v-if="$slots.sidebar"
+        class="px-4 pb-4 md:px-6 md:pb-6 lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-l lg:border-border lg:px-4 lg:py-4"
+      >
+        <slot name="sidebar" />
+      </aside>
     </div>
   </div>
 </template>
