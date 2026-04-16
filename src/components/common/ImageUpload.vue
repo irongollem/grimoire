@@ -90,7 +90,7 @@
       ref="fileInput"
       type="file"
       accept="image/*"
-      class="hidden"
+      class="sr-only"
       @change="onFileSelected"
     />
   </div>
@@ -146,8 +146,11 @@ async function handleFile(file: File) {
 async function onFileSelected(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (!file) return;
-  if (fileInput.value) fileInput.value.value = "";
-  await handleFile(file);
+  try {
+    await handleFile(file);
+  } finally {
+    if (fileInput.value) fileInput.value.value = "";
+  }
 }
 
 async function onDrop(e: DragEvent) {

@@ -65,7 +65,7 @@
               ref="fileInput"
               type="file"
               accept="image/*"
-              class="hidden"
+              class="sr-only"
               @change="onFileSelected"
             />
             <button

@@ -590,7 +590,7 @@
             ref="mapFileInput"
             type="file"
             accept="image/*"
-            class="hidden"
+            class="sr-only"
             @change="onMapFileChange"
           />
         </div>
