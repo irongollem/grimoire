@@ -91,7 +91,7 @@ export function useImageUpload(bucket: string) {
     isUploading.value = true;
     uploadError.value = null;
     try {
-      const webpFile = await toWebP(file);
+      const webpFile = await toWebP(file, 1280);
       const url = await uploadToBucket({ bucket: key, userId: auth.user.id, blob: webpFile, contentType: webpFile.type || "image/webp" });
       if (!url) uploadError.value = "Upload failed";
       return url;
