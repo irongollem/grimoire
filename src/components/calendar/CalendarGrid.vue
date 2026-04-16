@@ -1,8 +1,8 @@
 <template>
   <div>
     <!-- Month navigation -->
-    <div class="flex items-center justify-between mb-4">
-      <div class="flex items-center gap-1">
+    <div class="flex items-center justify-between mb-4 gap-2">
+      <div class="flex items-center gap-1 shrink-0">
         <button
           title="Previous year"
           class="rounded-md border border-border px-2 py-1.5 font-fell text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
@@ -11,39 +11,39 @@
           ◀◀
         </button>
         <button
-          class="rounded-md border border-border px-3 py-1.5 font-fell text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          class="rounded-md border border-border px-2 py-1.5 font-fell text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
           @click="calendar.prevMonth()"
         >
-          ← Previous
+          ← <span class="hidden sm:inline">Previous</span>
         </button>
       </div>
 
-      <div class="text-center">
-        <p class="font-cinzel text-xl font-semibold text-foreground">
+      <div class="text-center min-w-0 flex-1">
+        <p class="font-cinzel text-lg md:text-xl font-semibold text-foreground truncate">
           {{ currentMonth.name }}
         </p>
-        <div class="flex items-center justify-center gap-1 mt-0.5">
-          <p v-if="currentMonth.alias" class="font-fell text-sm text-muted-foreground italic">
+        <div class="flex items-center justify-center gap-1 mt-0.5 flex-wrap">
+          <p v-if="currentMonth.alias" class="font-fell text-xs md:text-sm text-muted-foreground italic">
             {{ currentMonth.alias }} ·
           </p>
           <input
             :value="calendar.currentYear"
             type="number"
-            class="w-20 bg-transparent border-b border-border text-center font-fell text-sm text-muted-foreground italic focus:outline-none focus:border-primary"
+            class="w-16 md:w-20 bg-transparent border-b border-border text-center font-fell text-xs md:text-sm text-muted-foreground italic focus:outline-none focus:border-primary"
             @change="onYearInput"
           />
-          <p class="font-fell text-sm text-muted-foreground italic">
+          <p class="font-fell text-xs md:text-sm text-muted-foreground italic">
             {{ calendar.adapter.epochName }}
           </p>
         </div>
       </div>
 
-      <div class="flex items-center gap-1">
+      <div class="flex items-center gap-1 shrink-0">
         <button
-          class="rounded-md border border-border px-3 py-1.5 font-fell text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          class="rounded-md border border-border px-2 py-1.5 font-fell text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
           @click="calendar.nextMonth()"
         >
-          Next →
+          <span class="hidden sm:inline">Next</span> →
         </button>
         <button
           title="Next year"
@@ -61,54 +61,59 @@
     </div>
 
     <template v-else>
-      <!-- Optional day-of-week column headers (Gregorian, Greyhawk, etc.) -->
-      <div
-        v-if="calendar.adapter.dayLabels"
-        :class="gridColsClass"
-        class="grid gap-1 mb-1 px-0"
-      >
-        <div
-          v-for="label in calendar.adapter.dayLabels"
-          :key="label"
-          class="text-center font-cinzel text-xs font-semibold tracking-wider text-muted-foreground py-1"
-        >
-          {{ label.slice(0, 3) }}
-        </div>
-      </div>
-
-      <!-- Week rows -->
-      <div v-for="(row, rowIdx) in gridRows" :key="rowIdx" class="mb-4">
-        <p class="font-cinzel text-xs font-semibold tracking-widest text-muted-foreground mb-2">
-          {{ weekRowLabel(rowIdx) }}
-        </p>
-        <div :class="gridColsClass" class="grid gap-1">
+      <!-- Grid: scrollable on mobile for wide calendars (10-col Harptos) -->
+      <div class="-mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto calendar-grid-scroll">
+        <div :class="gridMinWidthClass">
+          <!-- Optional day-of-week column headers (Gregorian, Greyhawk, etc.) -->
           <div
-            v-for="(day, colIdx) in row"
-            :key="colIdx"
-            class="relative rounded-md border min-h-14 p-1.5 flex flex-col transition-colors"
-            :class="[
-              day !== null
-                ? 'border-border bg-card hover:border-primary/50 cursor-pointer'
-                : 'border-transparent bg-transparent',
-              day !== null && hasEvents(day) ? 'ring-1 ring-primary/40' : '',
-            ]"
-            @click="day !== null && emit('create-event', day)"
+            v-if="calendar.adapter.dayLabels"
+            :class="gridColsClass"
+            class="grid gap-1 mb-1 px-0"
           >
-            <span
-              v-if="day !== null"
-              class="font-cinzel text-xs font-semibold text-muted-foreground leading-none"
+            <div
+              v-for="label in calendar.adapter.dayLabels"
+              :key="label"
+              class="text-center font-cinzel text-xs font-semibold tracking-wider text-muted-foreground py-1"
             >
-              {{ day }}
-            </span>
-            <!-- Event dots -->
-            <div v-if="day !== null" class="flex flex-wrap gap-0.5 mt-auto pt-1">
-              <span
-                v-for="event in eventsForDay(day)"
-                :key="event.id"
-                :title="event.title"
-                :style="{ backgroundColor: event.color }"
-                class="w-1.5 h-1.5 rounded-full"
-              />
+              {{ label.slice(0, 3) }}
+            </div>
+          </div>
+
+          <!-- Week rows -->
+          <div v-for="(row, rowIdx) in gridRows" :key="rowIdx" class="mb-4">
+            <p class="font-cinzel text-xs font-semibold tracking-widest text-muted-foreground mb-2">
+              {{ weekRowLabel(rowIdx) }}
+            </p>
+            <div :class="gridColsClass" class="grid gap-1">
+              <div
+                v-for="(day, colIdx) in row"
+                :key="colIdx"
+                class="relative rounded-md border min-h-14 p-1.5 flex flex-col transition-colors"
+                :class="[
+                  day !== null
+                    ? 'border-border bg-card hover:border-primary/50 cursor-pointer'
+                    : 'border-transparent bg-transparent',
+                  day !== null && hasEvents(day) ? 'ring-1 ring-primary/40' : '',
+                ]"
+                @click="day !== null && emit('create-event', day)"
+              >
+                <span
+                  v-if="day !== null"
+                  class="font-cinzel text-xs font-semibold text-muted-foreground leading-none"
+                >
+                  {{ day }}
+                </span>
+                <!-- Event dots -->
+                <div v-if="day !== null" class="flex flex-wrap gap-0.5 mt-auto pt-1">
+                  <span
+                    v-for="event in eventsForDay(day)"
+                    :key="event.id"
+                    :title="event.title"
+                    :style="{ backgroundColor: event.color }"
+                    class="w-1.5 h-1.5 rounded-full"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -169,11 +174,11 @@
               v-if="entityIcon(event)"
               class="h-3.5 w-3.5 text-muted-foreground shrink-0"
             />
-            <span class="font-fell text-sm text-foreground flex-1">{{ event.title }}</span>
-            <span class="font-fell text-xs text-muted-foreground italic">
+            <span class="font-fell text-sm text-foreground flex-1 truncate">{{ event.title }}</span>
+            <span class="font-fell text-xs text-muted-foreground italic shrink-0">
               {{ formatEventDate(event) }}
             </span>
-            <span class="font-cinzel text-xs text-muted-foreground/40 uppercase tracking-wider">
+            <span class="hidden md:inline font-cinzel text-xs text-muted-foreground/40 uppercase tracking-wider shrink-0">
               {{ event.event_type }}
             </span>
           </component>
@@ -218,6 +223,12 @@ const currentMonth = computed(
 // Dynamic Tailwind grid class based on week size
 const gridColsClass = computed(() =>
   calendar.adapter.weekSize === 7 ? "grid-cols-7" : "grid-cols-10",
+);
+
+// Minimum width for the scroll container — prevents 10-col grids from
+// squashing day cells below a usable tap target on narrow screens.
+const gridMinWidthClass = computed(() =>
+  calendar.adapter.weekSize === 10 ? "min-w-[480px]" : "min-w-[300px]",
 );
 
 // Build grid rows: each row is an array of day numbers (or null for empty offset cells).
@@ -337,3 +348,12 @@ function entityIcon(event: CalendarEvent) {
   return null;
 }
 </script>
+
+<style scoped>
+.calendar-grid-scroll {
+  scrollbar-width: none;
+}
+.calendar-grid-scroll::-webkit-scrollbar {
+  display: none;
+}
+</style>
