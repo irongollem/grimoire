@@ -152,6 +152,24 @@
           >{{ spellSourceLabel(spell.source, spell.source_title) }}</a>
           <span v-else>{{ spellSourceLabel(spell.source, spell.source_title) }}</span>
         </div>
+
+        <!-- Known by party members -->
+        <div v-if="knowers?.length" class="flex flex-col gap-2">
+          <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">
+            Known By
+          </h3>
+          <div class="flex flex-wrap gap-1.5">
+            <span
+              v-for="k in knowers"
+              :key="k.party_member_id"
+              class="inline-flex items-center gap-1 font-cinzel text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground"
+            >
+              <Users class="h-2.5 w-2.5 shrink-0" />
+              {{ k.name }}
+              <span v-if="k.is_prepared" class="text-primary">· prepared</span>
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -159,12 +177,16 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { Users } from "lucide-vue-next";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import { useSpellKnowers } from "@/composables/useCharacterSpells";
 import { SCHOOL_COLORS, ATTACK_TYPES, spellSourceLabel } from "@/types/spell.types";
 import type { Spell } from "@/types/spell.types";
 
 const props = defineProps<{ spell: Spell }>();
+
+const { data: knowers } = useSpellKnowers(computed(() => props.spell.id));
 
 const LEVEL_SUFFIXES = ["", "st", "nd", "rd"];
 const levelSuffix = computed(() =>

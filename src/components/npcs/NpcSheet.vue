@@ -17,6 +17,21 @@
         <span v-for="tag in npc.tags" :key="tag" class="font-cinzel text-[10px] tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5">{{ tag }}</span>
       </div>
 
+      <!-- Factions -->
+      <div v-if="npcFactions?.length" class="pt-1 border-t border-border/50">
+        <p class="font-cinzel text-[10px] tracking-widest text-muted-foreground mb-1.5">FACTIONS</p>
+        <div class="flex flex-wrap gap-1">
+          <RouterLink
+            v-for="row in npcFactions"
+            :key="row.faction.id"
+            :to="`/factions/${row.faction.id}`"
+            class="font-cinzel text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+          >
+            {{ row.faction.name }}
+          </RouterLink>
+        </div>
+      </div>
+
       <!-- Alter ego reveal control (DM only — always visible in the sheet) -->
       <div v-if="hasDisguise" class="pt-1 border-t border-border/50">
         <p class="font-cinzel text-[10px] tracking-widest text-muted-foreground mb-1.5">ALTER EGO</p>
@@ -48,13 +63,17 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { RouterLink } from "vue-router";
 import FocalImage from "@/components/common/FocalImage.vue";
 import NpcTabContent from "@/components/npcs/NpcTabContent.vue";
 import { useUpdateNpc } from "@/composables/useNpcs";
+import { useNpcFactions } from "@/composables/useFactions";
 import { getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
 import type { Npc } from "@/types/npc.types";
 
 const props = defineProps<{ npc: Npc }>();
+
+const { data: npcFactions } = useNpcFactions(props.npc.id);
 
 const hasDisguise = computed(() =>
   !!(props.npc.disguise_name || props.npc.disguise_portrait_url)

@@ -229,15 +229,34 @@
         </div>
       </div>
     </div>
+
+    <!-- Contained in loot tables (DM only) -->
+    <div v-if="!playerView && containedIn.length" class="flex flex-col gap-2">
+      <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">
+        Contained In
+      </h3>
+      <div class="flex flex-wrap gap-1.5">
+        <RouterLink
+          v-for="table in containedIn"
+          :key="table.id"
+          :to="`/loot-tables/${table.id}`"
+          class="inline-flex items-center gap-1 font-cinzel text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+        >
+          <Package class="h-2.5 w-2.5 shrink-0" />{{ table.name }}
+        </RouterLink>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Eye, EyeOff } from "lucide-vue-next";
+import { Eye, EyeOff, Package } from "lucide-vue-next";
+import { RouterLink } from "vue-router";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { useUpdateItem } from "@/composables/useItems";
+import { useLootTablesByItem } from "@/composables/useLootTables";
 import {
   ITEM_TYPE_LABELS,
   ITEM_RARITY_LABELS,
@@ -252,6 +271,8 @@ const props = defineProps<{
   playerView?: boolean;
   priceOverride?: string | null;
 }>();
+
+const containedIn = useLootTablesByItem(computed(() => props.item.id));
 
 const sheetArtTab = ref<'identified' | 'mundane'>('identified');
 

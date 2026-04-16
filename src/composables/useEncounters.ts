@@ -1,4 +1,4 @@
-import { computed, ref } from "vue";
+import { computed, ref, toValue, type MaybeRefOrGetter } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
@@ -120,5 +120,29 @@ export function useDeleteEncounter() {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: ["quests"] });
     },
+  });
+}
+
+/** Returns encounters that reference a given monster in their combatants list. */
+export function useEncountersByMonster(monsterId: MaybeRefOrGetter<string>) {
+  const { data: encounters } = useEncounters();
+  return computed(() => {
+    const id = toValue(monsterId);
+    if (!id) return [] as Encounter[];
+    return (encounters.value ?? []).filter((e) =>
+      e.combatants.some((c) => c.monster_id === id),
+    );
+  });
+}
+
+/** Returns encounters that reference a given NPC in their combatants list. */
+export function useEncountersByNpc(npcId: MaybeRefOrGetter<string>) {
+  const { data: encounters } = useEncounters();
+  return computed(() => {
+    const id = toValue(npcId);
+    if (!id) return [] as Encounter[];
+    return (encounters.value ?? []).filter((e) =>
+      e.combatants.some((c) => c.npc_id === id),
+    );
   });
 }

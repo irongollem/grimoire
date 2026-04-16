@@ -1,7 +1,13 @@
-import { computed, toValue, type MaybeRef } from "vue";
+import { computed, toValue, type MaybeRef, type MaybeRefOrGetter } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import type { CharacterSpell, CharacterSpellEntry } from "@/types/spell.types";
+
+export interface SpellKnower {
+  party_member_id: string;
+  name: string;
+  is_prepared: boolean;
+}
 
 const queryKey = (partyMemberId: MaybeRef<string | null>) =>
   computed(() => ["characterSpells", toValue(partyMemberId)]);
@@ -113,5 +119,27 @@ export function useTogglePrepared() {
       qc.invalidateQueries({ queryKey: ["characterSpells", partyMemberId] });
       qc.invalidateQueries({ queryKey: ["characterSpellsDetails", partyMemberId] });
     },
+  });
+}
+
+/** Returns party members who know (or have prepared) a given spell. */
+export function useSpellKnowers(spellId: MaybeRefOrGetter<string>) {
+  return useQuery({
+    queryKey: computed(() => ["spellKnowers", toValue(spellId)]),
+    queryFn: async (): Promise<SpellKnower[]> => {
+      const id = toValue(spellId);
+      if (!id) return [];
+      const { data, error } = await supabase
+        .from("character_spells")
+        .select("party_member_id, is_prepared, party_member:party_members(id, name)")
+        .eq("spell_id", id);
+      if (error) throw error;
+      return (data ?? []).map((row) => ({
+        party_member_id: row.party_member_id,
+        name: (row.party_member as unknown as { name: string } | null)?.name ?? "Unknown",
+        is_prepared: row.is_prepared,
+      }));
+    },
+    enabled: computed(() => !!toValue(spellId)),
   });
 }

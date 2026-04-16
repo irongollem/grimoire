@@ -1,4 +1,4 @@
-import { computed, type Ref } from "vue";
+import { computed, toValue, type Ref, type MaybeRefOrGetter } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
@@ -92,5 +92,17 @@ export function useDeleteLootTable() {
   return useMutation({
     mutationFn: deleteLootTable,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}
+
+/** Returns loot tables whose entries include a given item. */
+export function useLootTablesByItem(itemId: MaybeRefOrGetter<string>) {
+  const { data: tables } = useLootTables();
+  return computed(() => {
+    const id = toValue(itemId);
+    if (!id) return [] as LootTable[];
+    return (tables.value ?? []).filter((t) =>
+      t.entries.some((e) => e.item_id === id),
+    );
   });
 }
