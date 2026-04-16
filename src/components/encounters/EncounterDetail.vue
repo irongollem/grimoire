@@ -57,7 +57,7 @@
           type="button"
           class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-foreground hover:border-primary/50 transition-colors"
           :disabled="isSaving"
-          @click="handleSave"
+          @click="handleSaveAndReturn"
         >
           <span v-if="isSaving">Saving…</span>
           <span v-else>Save</span>
@@ -895,6 +895,12 @@ async function handleSave(): Promise<string | null> {
       throw e;
     }
   }
+}
+
+// Save button: save then return to view mode (strip ?edit=true)
+async function handleSaveAndReturn() {
+  const id = await handleSave();
+  if (props.encounter && id) onCancel();
 }
 
 async function handleRunEncounter() {

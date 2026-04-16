@@ -29,6 +29,7 @@
             :wildshape="activeWildshape ?? undefined"
             :hide-player-actions="hidePlayerActions"
             class="md:flex-1"
+            @level-up="emit('level-up')"
           />
           <div class="md:w-72 md:shrink-0 md:border-l md:border-border md:bg-card md:flex md:flex-col">
             <!-- Ability scores: vertical single-table, flush against card edges -->
@@ -350,6 +351,7 @@ import PlayerLoreTab from "@/components/player/PlayerLoreTab.vue";
 import { useSpecies } from "@/composables/useSpecies";
 
 const props = defineProps<{ memberId?: string; hidePlayerActions?: boolean }>();
+const emit = defineEmits<{ (e: "level-up"): void }>();
 
 const auth = useAuthStore();
 const ui = useUiStore();

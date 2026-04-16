@@ -23,7 +23,11 @@
       </button>
     </div>
 
-    <PlayerCharacterView :member-id="id" hide-player-actions />
+    <PlayerCharacterView
+      :member-id="id"
+      hide-player-actions
+      @level-up="editOpen = true"
+    />
 
     <PartyMemberForm
       v-if="editOpen && member"
