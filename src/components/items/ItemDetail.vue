@@ -1,56 +1,5 @@
 <template>
   <div class="flex flex-col gap-6">
-    <!-- Header actions -->
-    <div class="flex flex-wrap items-center gap-2">
-      <RouterLink
-        to="/vault"
-        class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors tracking-wider"
-      >
-        ← Vault
-      </RouterLink>
-      <div class="ml-auto flex flex-wrap items-center gap-2">
-        <button
-          v-if="item"
-          type="button"
-          :disabled="isSendingToScriptorium"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors disabled:opacity-50"
-          @click="sendToScriptorium"
-        >
-          <ScrollText class="h-3.5 w-3.5" />
-          {{ isSendingToScriptorium ? "Sending…" : "Send to Scriptorium" }}
-        </button>
-        <button
-          v-if="item"
-          type="button"
-          :disabled="isCloning"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors disabled:opacity-50"
-          @click="cloneItem"
-        >
-          <Copy class="h-3.5 w-3.5" />
-          {{ isCloning ? "Cloning…" : "Clone" }}
-        </button>
-        <button
-          v-if="item"
-          type="button"
-          :disabled="isDeleting"
-          class="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors disabled:opacity-50"
-          @click="confirmDelete"
-        >
-          <Trash2 class="h-3.5 w-3.5" />
-          {{ isDeleting ? "Deleting…" : "Delete" }}
-        </button>
-        <button
-          type="button"
-          :disabled="isSaving || !name.trim()"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
-          @click="save"
-        >
-          <Save class="h-3.5 w-3.5" />
-          {{ isSaving ? "Saving…" : item ? "Save" : "Create" }}
-        </button>
-      </div>
-    </div>
-
     <p v-if="saveError" class="text-destructive font-fell text-sm">{{ saveError }}</p>
 
     <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
@@ -406,7 +355,6 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm, notify } = useConfirm();
 import { ref, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { Save, Trash2, ScrollText, Copy } from "lucide-vue-next";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import { useCreateItem, useUpdateItem, useDeleteItem } from "@/composables/useItems";
 import { useSpells } from "@/composables/useSpells";
@@ -622,4 +570,16 @@ async function sendToScriptorium() {
     isSendingToScriptorium.value = false;
   }
 }
+
+defineExpose({
+  isSaving,
+  isDeleting,
+  isCloning,
+  isSendingToScriptorium,
+  canSave: computed(() => !!name.value.trim()),
+  save,
+  confirmDelete,
+  cloneItem,
+  sendToScriptorium,
+})
 </script>
