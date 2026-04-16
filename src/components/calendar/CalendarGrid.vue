@@ -251,7 +251,8 @@ const gridRows = computed(() => {
 function weekRowLabel(rowIdx: number): string {
   const names = calendar.adapter.weekRowNames;
   if (names && names[rowIdx]) return names[rowIdx];
-  return `Week ${rowIdx + 1}`;
+  const unit = calendar.adapter.weekSize === 10 ? "Tenday" : "Week";
+  return `${unit} ${rowIdx + 1}`;
 }
 
 // Festival days that fall right after the current month
