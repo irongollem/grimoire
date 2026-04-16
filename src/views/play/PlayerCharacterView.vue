@@ -24,6 +24,7 @@
       <div class="flex flex-col gap-3 md:flex-row md:items-stretch md:gap-0">
         <PlayerCharacterHeader
           :member="member"
+          :hide-player-actions="hidePlayerActions"
           class="md:flex-1 md:rounded-r-none md:border-r-0"
         />
         <div class="md:w-72 md:shrink-0 md:border md:border-l-0 md:border-border md:bg-card md:rounded-r-lg md:overflow-hidden md:flex md:flex-col md:justify-center md:gap-3 md:px-3 md:py-3">
@@ -122,7 +123,7 @@ import PlayerCombatTab from "@/components/player/PlayerCombatTab.vue";
 import PlayerFeaturesTab from "@/components/player/PlayerFeaturesTab.vue";
 import PlayerMySpells from "@/components/spells/PlayerMySpells.vue";
 
-const props = defineProps<{ memberId?: string }>();
+const props = defineProps<{ memberId?: string; hidePlayerActions?: boolean }>();
 
 const auth = useAuthStore();
 const ui = useUiStore();

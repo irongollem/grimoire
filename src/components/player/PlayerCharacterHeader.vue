@@ -35,7 +35,7 @@
               <span v-if="member.level" class="font-cinzel text-[10px] text-primary not-italic ml-1">Lv {{ member.level }}</span>
             </p>
           </div>
-          <div class="shrink-0 flex items-center gap-1 pt-0.5">
+          <div v-if="!hidePlayerActions" class="shrink-0 flex items-center gap-1 pt-0.5">
             <RouterLink
               :to="`/play/character/levelup?memberId=${member.id}`"
               class="h-6 w-6 flex items-center justify-center rounded text-primary/60 hover:text-primary hover:bg-primary/10 transition-colors"
@@ -154,7 +154,7 @@ import { useAllSpecies } from "@/composables/useSpecies";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RestButtons from "@/components/player/RestButtons.vue";
 
-const props = defineProps<{ member: PartyMember }>();
+const props = defineProps<{ member: PartyMember; hidePlayerActions?: boolean }>();
 
 const { data: allSpecies } = useAllSpecies();
 const speciesName = computed(() =>

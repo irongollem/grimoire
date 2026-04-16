@@ -23,7 +23,7 @@
       </button>
     </div>
 
-    <PlayerCharacterView :member-id="id" />
+    <PlayerCharacterView :member-id="id" hide-player-actions />
 
     <PartyMemberForm
       v-if="editOpen && member"
@@ -34,12 +34,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, defineAsyncComponent } from "vue";
 import { useRoute } from "vue-router";
 import { Pencil } from "lucide-vue-next";
 import { useParty } from "@/composables/useParty";
 import PlayerCharacterView from "@/views/play/PlayerCharacterView.vue";
-import PartyMemberForm from "@/components/party/PartyMemberForm.vue";
+
+// Lazy-load to avoid pulling Tiptap into the same chunk (prevents TDZ init error)
+const PartyMemberForm = defineAsyncComponent(
+  () => import("@/components/party/PartyMemberForm.vue"),
+);
 
 const route = useRoute();
 const id = computed(() => route.params.id as string);
