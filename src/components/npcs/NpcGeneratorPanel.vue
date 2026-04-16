@@ -71,7 +71,7 @@
 
           <div>
             <label class="block font-fell text-xs text-muted-foreground mb-1"
-              >Race</label
+              >Species</label
             >
             <select
               v-model="quickForm.race"
@@ -136,7 +136,9 @@
               v-model="quickForm.faction_role"
               class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             >
-              <option v-for="r in NPC_FACTION_ROLES" :key="r" :value="r">{{ r }}</option>
+              <option v-for="r in NPC_FACTION_ROLES" :key="r" :value="r">
+                {{ r }}
+              </option>
             </select>
           </div>
 
@@ -205,22 +207,41 @@
               class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option
-                v-for="[type, label] in Object.entries(NPC_RELATIONSHIP_TYPE_LABELS)"
+                v-for="[type, label] in Object.entries(
+                  NPC_RELATIONSHIP_TYPE_LABELS,
+                )"
                 :key="type"
                 :value="type"
-              >{{ label }}</option>
+              >
+                {{ label }}
+              </option>
             </select>
           </div>
         </div>
 
         <!-- Alter ego toggle -->
-        <div v-if="aiApiKey" class="rounded-md border border-border bg-muted/30 px-3 py-2.5 flex flex-col gap-1.5">
+        <div
+          v-if="aiApiKey"
+          class="rounded-md border border-border bg-muted/30 px-3 py-2.5 flex flex-col gap-1.5"
+        >
           <label class="flex items-center gap-2.5 cursor-pointer">
-            <input type="checkbox" v-model="generateAlterEgo" :disabled="!generateImage" class="rounded accent-primary" />
-            <span class="font-cinzel text-[11px] font-semibold tracking-wider text-foreground">Generate Alter Ego</span>
+            <input
+              type="checkbox"
+              v-model="generateAlterEgo"
+              :disabled="!generateImage"
+              class="rounded accent-primary"
+            />
+            <span
+              class="font-cinzel text-[11px] font-semibold tracking-wider text-foreground"
+              >Generate Alter Ego</span
+            >
           </label>
-          <p v-if="generateAlterEgo" class="font-fell text-[11px] text-amber-500 italic">
-            ⚠ Uses 2× generation credits — a true-form portrait is generated first, then used as seed for the disguise portrait.
+          <p
+            v-if="generateAlterEgo"
+            class="font-fell text-[11px] text-amber-500 italic"
+          >
+            ⚠ Uses 2× generation credits — a true-form portrait is generated
+            first, then used as seed for the disguise portrait.
           </p>
           <p v-else class="font-fell text-[11px] text-muted-foreground italic">
             Also generate a disguised identity (name + portrait) for this NPC.
@@ -229,11 +250,15 @@
 
         <!-- Image toggle -->
         <div v-if="aiApiKey" class="flex items-center justify-between">
-          <span class="font-fell text-xs text-muted-foreground">Generate portrait art</span>
+          <span class="font-fell text-xs text-muted-foreground"
+            >Generate portrait art</span
+          >
           <button
             type="button"
             class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
-            :class="generateImage ? 'bg-primary' : 'bg-muted border border-border'"
+            :class="
+              generateImage ? 'bg-primary' : 'bg-muted border border-border'
+            "
             @click="generateImage = !generateImage"
           >
             <span
@@ -296,7 +321,11 @@
           v-if="aiApiKey"
           type="button"
           :disabled="isAnyAiGenerating || !concept.trim()"
-          :title="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
+          :title="
+            isAnyAiGenerating && !isGenerating
+              ? 'Another generation is already in progress'
+              : undefined
+          "
           class="w-full inline-flex items-center justify-center gap-1.5 py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
           @click="generateAndCreate"
         >
@@ -327,7 +356,11 @@ import {
   NPC_TEMPLATE_CATEGORIES,
   getNpcTemplate,
 } from "@/data/npcTemplates";
-import type { NpcInsert, NpcRelationship, NpcRelationshipType } from "@/types/npc.types";
+import type {
+  NpcInsert,
+  NpcRelationship,
+  NpcRelationshipType,
+} from "@/types/npc.types";
 import { NPC_RELATIONSHIP_TYPE_LABELS } from "@/types/npc.types";
 import { useCampaignStore } from "@/stores/campaign";
 import { useNpcGeneration, toTiptapJson } from "@/ai/useNpcGeneration";
@@ -409,7 +442,14 @@ const ui = useUiStore();
 const router = useRouter();
 const { mutateAsync: createNpc, isPending: isCreating } = useCreateNpc();
 const campaign = useCampaignStore();
-const { isGenerating, error: genError, concept: genConcept, completedEntityId: completedNpcId, clearCompleted, generate } = useNpcGeneration();
+const {
+  isGenerating,
+  error: genError,
+  concept: genConcept,
+  completedEntityId: completedNpcId,
+  clearCompleted,
+  generate,
+} = useNpcGeneration();
 const { locationOptions } = useLocationTree();
 const { data: factions } = useAllFactions();
 const { mutateAsync: addFactionNpc } = useAddFactionNpc();
@@ -454,14 +494,19 @@ function buildAiPrompt(): string {
   if (quickForm.faction_id) {
     const faction = factions.value?.find((f) => f.id === quickForm.faction_id);
     if (faction) {
-      const typeLabel = faction.faction_type ? ` (${faction.faction_type})` : "";
-      constraints.push(`Faction: ${faction.name}${typeLabel}, Role: ${quickForm.faction_role}`);
+      const typeLabel = faction.faction_type
+        ? ` (${faction.faction_type})`
+        : "";
+      constraints.push(
+        `Faction: ${faction.name}${typeLabel}, Role: ${quickForm.faction_role}`,
+      );
     }
   }
   if (quickForm.related_npc_id) {
     const npc = npcs.value?.find((n) => n.id === quickForm.related_npc_id);
     if (npc) {
-      const relLabel = NPC_RELATIONSHIP_TYPE_LABELS[quickForm.related_npc_relationship];
+      const relLabel =
+        NPC_RELATIONSHIP_TYPE_LABELS[quickForm.related_npc_relationship];
       constraints.push(`Known associate: ${npc.name} (${relLabel})`);
     }
   }
@@ -479,10 +524,10 @@ async function generateAndCreate() {
   genConcept.value = concept.value.trim();
   clearCompleted();
 
-  const result = await generate(
-    buildAiPrompt(),
-    { generateAlterEgo: generateAlterEgo.value, generateImage: generateImage.value },
-  );
+  const result = await generate(buildAiPrompt(), {
+    generateAlterEgo: generateAlterEgo.value,
+    generateImage: generateImage.value,
+  });
   if (!result) return;
 
   const tpl = quickForm.templateId
@@ -553,10 +598,19 @@ function templatesByCategory(cat: string) {
 
 async function applyPostCreate(npcId: string) {
   if (quickForm.faction_id) {
-    await addFactionNpc({ faction_id: quickForm.faction_id, npc_id: npcId, role: quickForm.faction_role });
+    await addFactionNpc({
+      faction_id: quickForm.faction_id,
+      npc_id: npcId,
+      role: quickForm.faction_role,
+    });
   }
   if (quickForm.related_npc_id) {
-    await createNpcRelation({ npc_id: npcId, related_npc_id: quickForm.related_npc_id, relationship_type: quickForm.related_npc_relationship, notes: null });
+    await createNpcRelation({
+      npc_id: npcId,
+      related_npc_id: quickForm.related_npc_id,
+      relationship_type: quickForm.related_npc_relationship,
+      notes: null,
+    });
   }
 }
 

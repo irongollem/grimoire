@@ -127,7 +127,7 @@
               />
             </div>
             <div>
-              <label class="field-label">Race</label>
+              <label class="field-label">Species</label>
               <input v-model="form.race" placeholder="Human, Elf, Tiefling…" class="field-input" />
             </div>
             <div>
@@ -431,7 +431,7 @@ const PLAYER_FIELDS = [
   { key: 'portrait',     label: 'Portrait' },
   { key: 'name',         label: 'Name' },
   { key: 'status',       label: 'Alive / Dead status' },
-  { key: 'race',         label: 'Race' },
+  { key: 'race',         label: 'Species' },
   { key: 'occupation',   label: 'Occupation' },
   { key: 'relationship', label: 'Relationship (ally/enemy…)' },
   { key: 'location',     label: 'Location' },

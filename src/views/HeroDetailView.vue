@@ -53,7 +53,7 @@
               <dt
                 class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
               >
-                Race
+                Species
               </dt>
               <dd class="font-fell">{{ hero.race }}</dd>
             </div>

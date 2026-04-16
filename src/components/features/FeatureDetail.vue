@@ -1,44 +1,14 @@
 <template>
   <div class="flex flex-col gap-5 max-w-2xl">
-    <!-- Back -->
-    <div>
-      <RouterLink
-        to="/features"
-        class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors tracking-wider"
-      >← Abilities</RouterLink>
-    </div>
-
-    <!-- Top bar: name + actions -->
-    <div class="flex flex-wrap items-center gap-2">
-      <label class="flex-1 min-w-48">
-        <span class="sr-only">Ability name</span>
-        <input
-          v-model="form.name"
-          placeholder="Ability name…"
-          class="w-full bg-card border border-border rounded-md px-3 py-2 font-cinzel text-lg font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
-      </label>
-
-      <button
-        type="button"
-        :disabled="saving || !form.name.trim()"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
-        @click="save"
-      >
-        <Save class="h-3.5 w-3.5" />
-        {{ saving ? "Saving…" : props.feature ? "Save" : "Create" }}
-      </button>
-
-      <button
-        v-if="props.feature"
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
-        @click="remove"
-      >
-        <Trash2 class="h-3.5 w-3.5" />
-        Delete
-      </button>
-    </div>
+    <!-- Name input -->
+    <label>
+      <span class="sr-only">Ability name</span>
+      <input
+        v-model="form.name"
+        placeholder="Ability name…"
+        class="w-full bg-card border border-border rounded-md px-3 py-2 font-cinzel text-lg font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      />
+    </label>
 
     <p v-if="saveError" class="font-fell text-sm text-destructive">{{ saveError }}</p>
 
@@ -105,8 +75,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { useRouter, RouterLink } from "vue-router";
-import { Save, Trash2 } from "lucide-vue-next";
+import { useRouter } from "vue-router";
 import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import { useCreateFeature, useUpdateFeature, useDeleteFeature } from "@/composables/useFeatures";
@@ -197,4 +166,11 @@ async function remove() {
     saveError.value = e instanceof Error ? e.message : "Failed to delete.";
   }
 }
+
+defineExpose({
+  saving,
+  canSave: computed(() => !saving.value && !!form.value.name.trim()),
+  save,
+  remove,
+})
 </script>

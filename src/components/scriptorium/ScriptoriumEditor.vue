@@ -74,9 +74,7 @@
       Mobile: no min-height so the page scrolls naturally and both panes sit in
       the document flow. Desktop: fixed 620px pane height with internal scroll.
     -->
-    <div
-      class="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:min-h-[620px]"
-    >
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:min-h-[620px]">
       <!-- Editor pane -->
       <!--
         overflow-hidden only kicks in at lg: so the mobile layout doesn't clip the
@@ -449,7 +447,10 @@ import {
   useUpdateScriptoriumDocument,
   useDeleteScriptoriumDocument,
 } from "@/composables/useScriptorium";
-import { removeRichTextImages, cleanupRemovedRichTextImages } from "@/composables/useImageUpload";
+import {
+  removeRichTextImages,
+  cleanupRemovedRichTextImages,
+} from "@/composables/useImageUpload";
 import { useScriptoriumPdf } from "@/composables/useScriptoriumPdf";
 import type {
   ScriptoriumDocument,
@@ -473,7 +474,7 @@ const DOC_TYPES: { value: ScriptoriumDocType; label: string }[] = [
   { value: "item", label: "Item" },
   { value: "class", label: "Class" },
   { value: "subclass", label: "Subclass" },
-  { value: "race", label: "Race/Species" },
+  { value: "race", label: "Species" },
   { value: "background", label: "Background" },
   { value: "adventure", label: "Adventure" },
   { value: "npc-sheet", label: "NPC Sheet" },
@@ -487,7 +488,7 @@ const DOC_TYPE_LABELS: Record<ScriptoriumDocType, string> = {
   item: "Item",
   class: "Class",
   subclass: "Subclass",
-  race: "Race",
+  race: "Species",
   background: "Background",
   adventure: "Adventure",
   "npc-sheet": "NPC Sheet",
@@ -753,7 +754,8 @@ onUnmounted(() => editor.value?.destroy());
   width: 100%;
   max-width: 680px;
   min-height: 961px; /* 680px × (297/210) = A4 aspect ratio */
-  background: url("/assets/scriptorium/page-background.webp") center / cover no-repeat;
+  background: url("/assets/scriptorium/page-background.webp") center / cover
+    no-repeat;
   padding: 2.5rem 2.5rem 2rem;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
   font-family: Georgia, "Times New Roman", serif;

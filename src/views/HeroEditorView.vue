@@ -1,9 +1,14 @@
 <template>
   <PageHeader
     :title="isNew ? 'New Hero' : (hero?.name ?? 'Edit Hero')"
-    :description="isNew ? 'Add a hero to the Hall of Heroes' : 'Edit hero details'"
+    :description="
+      isNew ? 'Add a hero to the Hall of Heroes' : 'Edit hero details'
+    "
   >
-    <div v-if="!isAppAdmin" class="py-16 text-center font-fell text-muted-foreground">
+    <div
+      v-if="!isAppAdmin"
+      class="py-16 text-center font-fell text-muted-foreground"
+    >
       You don't have permission to access this page.
     </div>
 
@@ -14,7 +19,10 @@
     <form v-else @submit.prevent="save" class="space-y-8 pb-16">
       <!-- Top action bar -->
       <div class="flex items-center justify-between gap-4">
-        <RouterLink to="/hall-of-heroes" class="font-fell text-sm text-muted-foreground hover:text-foreground transition-colors">
+        <RouterLink
+          to="/hall-of-heroes"
+          class="font-fell text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
           ← Hall of Heroes
         </RouterLink>
         <div class="flex items-center gap-2">
@@ -31,7 +39,7 @@
             :disabled="isSaving"
             class="px-4 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
           >
-            {{ isSaving ? 'Saving…' : (isNew ? 'Create Hero' : 'Save Changes') }}
+            {{ isSaving ? "Saving…" : isNew ? "Create Hero" : "Save Changes" }}
           </button>
         </div>
       </div>
@@ -50,18 +58,26 @@
 
           <!-- Setting -->
           <div class="space-y-1">
-            <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Setting</label>
+            <label
+              class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+              >Setting</label
+            >
             <select
               v-model="form.setting"
               class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
             >
-              <option v-for="s in SETTINGS" :key="s.value" :value="s.value">{{ s.label }}</option>
+              <option v-for="s in SETTINGS" :key="s.value" :value="s.value">
+                {{ s.label }}
+              </option>
             </select>
           </div>
 
           <!-- Name -->
           <div class="space-y-1">
-            <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Name *</label>
+            <label
+              class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+              >Name *</label
+            >
             <input
               v-model="form.name"
               required
@@ -70,9 +86,12 @@
             />
           </div>
 
-          <!-- Race -->
+          <!-- Species -->
           <div class="space-y-1">
-            <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Race</label>
+            <label
+              class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+              >Species
+            </label>
             <input
               v-model="form.race"
               type="text"
@@ -82,19 +101,27 @@
 
           <!-- Alignment -->
           <div class="space-y-1">
-            <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Alignment</label>
+            <label
+              class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+              >Alignment</label
+            >
             <select
               v-model="form.alignment"
               class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option :value="null">—</option>
-              <option v-for="a in ALIGNMENTS" :key="a" :value="a">{{ a }}</option>
+              <option v-for="a in ALIGNMENTS" :key="a" :value="a">
+                {{ a }}
+              </option>
             </select>
           </div>
 
           <!-- Occupation -->
           <div class="space-y-1">
-            <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Occupation</label>
+            <label
+              class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+              >Occupation</label
+            >
             <input
               v-model="form.occupation"
               type="text"
@@ -104,7 +131,10 @@
 
           <!-- Age -->
           <div class="space-y-1">
-            <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Age</label>
+            <label
+              class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+              >Age</label
+            >
             <input
               v-model="form.age"
               type="text"
@@ -114,7 +144,10 @@
 
           <!-- Status -->
           <div class="space-y-1">
-            <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Status</label>
+            <label
+              class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+              >Status</label
+            >
             <select
               v-model="form.status"
               class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
@@ -128,7 +161,10 @@
 
           <!-- Tags -->
           <div class="space-y-1">
-            <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Tags</label>
+            <label
+              class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+              >Tags</label
+            >
             <TagInput v-model="form.tags" />
           </div>
         </div>
@@ -136,23 +172,51 @@
         <!-- Right: rich text fields -->
         <div class="space-y-6">
           <div class="space-y-1">
-            <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Appearance</label>
-            <RichTextEditor v-model="form.appearance" placeholder="Describe how this character looks…" min-height="6rem" />
+            <label
+              class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+              >Appearance</label
+            >
+            <RichTextEditor
+              v-model="form.appearance"
+              placeholder="Describe how this character looks…"
+              min-height="6rem"
+            />
           </div>
 
           <div class="space-y-1">
-            <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Personality</label>
-            <RichTextEditor v-model="form.personality" placeholder="Their traits, ideals, and mannerisms…" min-height="6rem" />
+            <label
+              class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+              >Personality</label
+            >
+            <RichTextEditor
+              v-model="form.personality"
+              placeholder="Their traits, ideals, and mannerisms…"
+              min-height="6rem"
+            />
           </div>
 
           <div class="space-y-1">
-            <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Backstory</label>
-            <RichTextEditor v-model="form.backstory" placeholder="Their history and origins…" min-height="10rem" />
+            <label
+              class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+              >Backstory</label
+            >
+            <RichTextEditor
+              v-model="form.backstory"
+              placeholder="Their history and origins…"
+              min-height="10rem"
+            />
           </div>
 
           <div class="space-y-1">
-            <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">DM Notes</label>
-            <RichTextEditor v-model="form.notes" placeholder="Private notes…" min-height="6rem" />
+            <label
+              class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+              >DM Notes</label
+            >
+            <RichTextEditor
+              v-model="form.notes"
+              placeholder="Private notes…"
+              min-height="6rem"
+            />
           </div>
         </div>
       </div>
@@ -163,7 +227,12 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useHallOfHero, useCreateHero, useUpdateHero, useDeleteHero } from "@/composables/useHallOfHeroes";
+import {
+  useHallOfHero,
+  useCreateHero,
+  useUpdateHero,
+  useDeleteHero,
+} from "@/composables/useHallOfHeroes";
 import { useAuthStore } from "@/stores/auth";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -174,9 +243,16 @@ import type { HallOfHeroInsert } from "@/types/npc.types";
 import { DND_SETTINGS } from "@/data/dndSettings";
 
 const ALIGNMENTS = [
-  "Lawful Good", "Neutral Good", "Chaotic Good",
-  "Lawful Neutral", "True Neutral", "Chaotic Neutral",
-  "Lawful Evil", "Neutral Evil", "Chaotic Evil", "Unaligned",
+  "Lawful Good",
+  "Neutral Good",
+  "Chaotic Good",
+  "Lawful Neutral",
+  "True Neutral",
+  "Chaotic Neutral",
+  "Lawful Evil",
+  "Neutral Evil",
+  "Chaotic Evil",
+  "Unaligned",
 ] as const;
 
 const SETTINGS = DND_SETTINGS;
@@ -258,7 +334,10 @@ watch(
 
 function save() {
   if (isNew.value) {
-    createHero({ ...form }, { onSuccess: () => router.push("/hall-of-heroes") });
+    createHero(
+      { ...form },
+      { onSuccess: () => router.push("/hall-of-heroes") },
+    );
   } else {
     updateHero(
       { id: heroId.value, update: { ...form } },
@@ -268,7 +347,11 @@ function save() {
 }
 
 function handleDelete() {
-  if (!hero.value || !confirm(`Delete "${hero.value.name}" from the Hall of Heroes?`)) return;
+  if (
+    !hero.value ||
+    !confirm(`Delete "${hero.value.name}" from the Hall of Heroes?`)
+  )
+    return;
   deleteHero(hero.value, { onSuccess: () => router.push("/hall-of-heroes") });
 }
 </script>
