@@ -90,6 +90,11 @@
                     .join(" · ")
                 }}
               </p>
+              <span
+                v-if="isInDisguise(member)"
+                class="inline-flex items-center gap-1 font-cinzel text-[10px] text-amber-500/80 tracking-wider"
+                title="Currently in disguise"
+              >◈ disguised</span>
               <p v-if="member.player_name" class="font-fell text-[11px] text-muted-foreground">
                 {{ member.player_name }}
               </p>
@@ -683,6 +688,7 @@ import type { Item } from "@/types/item.types";
 import { ITEM_TYPE_LABELS, RARITY_COLORS } from "@/types/item.types";
 import { useCompanions, useDeleteCompanion } from "@/composables/useCompanions";
 import { useAllSpecies } from "@/composables/useSpecies";
+import { isInDisguise } from "@/lib/partyMemberDisplay";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useNpcs } from "@/composables/useNpcs";
 import { useCampaignStore } from "@/stores/campaign";

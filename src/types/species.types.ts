@@ -35,6 +35,7 @@ export interface Species {
   subraces: SpeciesSubrace[] | null;
   image_url: string | null;
   focal_point: { x: number; y: number } | null;
+  is_shapeshifter: boolean;
   created_at: string;
   updated_at: string;
 }

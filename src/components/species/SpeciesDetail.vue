@@ -33,6 +33,12 @@
           </label>
           <TagInput v-model="form.tags" placeholder="humanoid, fey, undead…" />
         </div>
+
+        <!-- Shapeshifter flag -->
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" v-model="form.is_shapeshifter" class="rounded" />
+          <span class="font-fell text-sm text-muted-foreground italic">Shapeshifter (player can polymorph)</span>
+        </label>
       </div>
 
       <!-- Right: Fields -->
@@ -200,6 +206,7 @@ function makeForm(s?: Species | null) {
     })) as SpeciesSubrace[],
     image_url: s?.image_url ?? "",
     focal_point: s?.focal_point ?? null,
+    is_shapeshifter: s?.is_shapeshifter ?? false,
   };
 }
 
@@ -246,6 +253,7 @@ async function save() {
       subraces: form.subraces.length ? form.subraces : null,
       image_url: form.image_url || null,
       focal_point: form.focal_point,
+      is_shapeshifter: form.is_shapeshifter,
     };
 
     if (props.species) {

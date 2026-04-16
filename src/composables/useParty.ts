@@ -120,3 +120,30 @@ export function useDeletePartyMember() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }
+
+export function useSetShapeshifterAppearance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ memberId, speciesId }: { memberId: string; speciesId: string }) => {
+      const { error } = await supabase.rpc("set_shapeshifter_appearance", {
+        member_id: memberId,
+        target_species: speciesId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}
+
+export function useClearShapeshifterAppearance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (memberId: string) => {
+      const { error } = await supabase.rpc("clear_shapeshifter_appearance", {
+        member_id: memberId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}

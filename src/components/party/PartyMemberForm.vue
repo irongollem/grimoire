@@ -114,6 +114,12 @@
                 <option v-for="sr in subraceOptions" :key="sr" :value="sr">{{ sr }}</option>
               </select>
             </div>
+            <p v-if="props.member?.disguise_race" class="col-span-2 font-fell text-xs text-muted-foreground/70 italic">
+              Currently appearing as
+              <span class="text-foreground not-italic">{{ props.member.disguise_race }}</span>
+              — player controls this from their character sheet.
+            </p>
+
             <label class="block">
               <span class="field-label">Class</span>
               <select v-model="f.class" class="field-input w-full">
@@ -648,6 +654,9 @@ const f = reactive<
   class_resources: props.member?.class_resources ?? {},
   class_choices: props.member?.class_choices ?? {},
   species_id: props.member?.species_id ?? null,
+  disguise_species_id: props.member?.disguise_species_id ?? null,
+  disguise_race: props.member?.disguise_race ?? null,
+  disguise_subrace: props.member?.disguise_subrace ?? null,
   background: props.member?.background ?? null,
   background_id: props.member?.background_id ?? null,
 });

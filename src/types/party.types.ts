@@ -61,6 +61,9 @@ export interface PartyMember {
   race: string | null;
   subrace: string | null;
   species_id: string | null;
+  disguise_species_id: string | null;
+  disguise_race: string | null;
+  disguise_subrace: string | null;
   background: string | null;
   background_id: string | null;
   max_hp: number;

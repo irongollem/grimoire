@@ -248,19 +248,35 @@ function parseAsi(asi: Open5eAsi[] | undefined): Record<string, number | string>
 /**
  * Splits an Open5e traits string (blocks separated by \n\n, each starting with
  * **_Name._** description…) into [{name, description}] pairs.
+ *
+ * Blocks that don't start with a **_Name._** header (e.g. markdown tables that
+ * follow a trait paragraph) are merged into the preceding trait rather than
+ * becoming a nameless "Trait" entry. Descriptions are stored as Tiptap JSON.
  */
 function parseTraits(raw: string | undefined): Array<{ name: string; description: string }> {
   if (!raw?.trim()) return [];
-  return raw
-    .split(/\n\n+/)
-    .map((block) => {
-      const match = block.match(/^\*\*_(.+?)\._\*\*\s*([\s\S]*)/);
-      if (match) {
-        return { name: match[1].trim(), description: match[2].trim() };
-      }
-      return { name: "Trait", description: block.trim() };
-    })
-    .filter((t) => t.description);
+
+  const blocks = raw.split(/\n\n+/).map((b) => b.trim()).filter(Boolean);
+  const traits: Array<{ name: string; descParts: string[] }> = [];
+
+  for (const block of blocks) {
+    const match = block.match(/^\*\*_(.+?)\._\*\*\s*([\s\S]*)/);
+    if (match) {
+      const desc = match[2].trim();
+      traits.push({ name: match[1].trim(), descParts: desc ? [desc] : [] });
+    } else if (traits.length > 0) {
+      // Continuation block (e.g. a table after the intro paragraph) — attach to previous trait
+      traits[traits.length - 1].descParts.push(block);
+    }
+    // Blocks before any named trait are discarded
+  }
+
+  return traits
+    .filter((t) => t.descParts.length > 0)
+    .map((t) => ({
+      name: t.name,
+      description: toTiptapJson(t.descParts.join("\n\n")),
+    }));
 }
 
 async function seedCoreRaces() {
@@ -309,6 +325,7 @@ async function buildAndCreate(race: Open5eRace) {
       : null,
     image_url: null,
     focal_point: null,
+    is_shapeshifter: false,
   });
 }
 

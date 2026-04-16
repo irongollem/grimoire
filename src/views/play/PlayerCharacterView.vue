@@ -46,6 +46,12 @@
         :custom-trackers="customTrackers"
       />
 
+      <!-- Shapeshifter appearance controls (only visible to the player themselves) -->
+      <PlayerAppearanceSection
+        v-if="canShapeshift && member"
+        :member="member"
+      />
+
       <!-- ── Tabs ───────────────────────────────────────────── -->
       <div class="flex rounded-md border border-border overflow-hidden w-fit text-xs font-cinzel font-semibold tracking-wider">
         <button
@@ -122,6 +128,8 @@ import PlayerSkillsTab from "@/components/player/PlayerSkillsTab.vue";
 import PlayerCombatTab from "@/components/player/PlayerCombatTab.vue";
 import PlayerFeaturesTab from "@/components/player/PlayerFeaturesTab.vue";
 import PlayerMySpells from "@/components/spells/PlayerMySpells.vue";
+import PlayerAppearanceSection from "@/components/player/PlayerAppearanceSection.vue";
+import { useSpecies } from "@/composables/useSpecies";
 
 const props = defineProps<{ memberId?: string; hidePlayerActions?: boolean }>();
 
@@ -148,6 +156,13 @@ const member = computed<PartyMember | null>(() =>
   resolvedMemberId.value && partyMembers.value
     ? (partyMembers.value.find((m) => m.id === resolvedMemberId.value) ?? null)
     : null,
+);
+
+// ── Shapeshifter ───────────────────────────────────────────────────────────────
+const trueSpeciesId = computed(() => member.value?.species_id ?? "");
+const { data: trueSpecies } = useSpecies(trueSpeciesId);
+const canShapeshift = computed(
+  () => !ui.dmPreviewMode && !!trueSpecies.value?.is_shapeshifter,
 );
 
 // ── Tabs ───────────────────────────────────────────────────────────────────────
