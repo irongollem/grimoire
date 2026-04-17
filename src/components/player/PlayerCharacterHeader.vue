@@ -227,6 +227,38 @@ const memberIdRef = computed(() => props.member.id);
 const { data: characterClasses } = useCharacterClasses(memberIdRef);
 
 /**
+ * Hit dice composition by die size. For a single-class character this is
+ * always `[{ die: 10, count: 5 }]`. A Fighter 5 / Wizard 3 returns
+ * `[{ die: 10, count: 5 }, { die: 6, count: 3 }]`.
+ */
+const hitDicePool = computed<{ die: number; count: number }[]>(() => {
+  const list = characterClasses.value ?? [];
+  if (list.length === 0) {
+    return [{ die: hitDie.value, count: props.member.level }];
+  }
+  const byDie = new Map<number, number>();
+  for (const c of list) {
+    const d = getHitDie(c.class_name);
+    byDie.set(d, (byDie.get(d) ?? 0) + c.levels);
+  }
+  return Array.from(byDie.entries())
+    .map(([die, count]) => ({ die, count }))
+    .sort((a, b) => b.die - a.die);
+});
+
+/**
+ * Compact label for the HD chip. Single-class shows the bare die size
+ * ("d10") so the count can be read from the HD chip value. Multiclass
+ * shows the full heterogeneous pool ("5d10+3d6") since the single count
+ * no longer tells the full story.
+ */
+const hitDicePoolLabel = computed(() => {
+  const pool = hitDicePool.value;
+  if (pool.length <= 1) return `d${pool[0]?.die ?? hitDie.value}`;
+  return pool.map((p) => `${p.count}d${p.die}`).join("+");
+});
+
+/**
  * Total character level. Sum of `character_classes` rows if populated;
  * otherwise falls back to the legacy single `party_members.level`.
  */
@@ -259,7 +291,7 @@ const combatStats = computed(() => [
   { label: "SPD",  value: props.member.speed, suffix: "ft" },
   { label: "INIT", value: abilityModifier(props.member.dex), suffix: "" },
   { label: "PROF", value: `+${props.member.proficiency_bonus}`, suffix: "" },
-  { label: "HD",   value: `${hitDiceRemaining.value}/${memberTotalLevel.value}`, suffix: `d${hitDie.value}` },
+  { label: "HD",   value: `${hitDiceRemaining.value}/${memberTotalLevel.value}`, suffix: hitDicePoolLabel.value },
 ]);
 
 const hpPct = computed(() => {

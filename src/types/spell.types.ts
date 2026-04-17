@@ -245,6 +245,8 @@ export interface CharacterSpell {
   spell_id: string;
   is_known: boolean;
   is_prepared: boolean;
+  /** FK to character_classes — which class granted this spell. Null for legacy rows. */
+  source_class_id: string | null;
   created_at: string;
   updated_at: string;
 }

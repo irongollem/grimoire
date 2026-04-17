@@ -81,6 +81,7 @@
         :spell-slots="effectiveSpellSlots"
         :spell-attack-bonus="spellAttackBonus"
         :spell-save-dc="spellSaveDc"
+        :spellcasting-by-class="spellcastingByClass"
         :max-prepared="maxPrepared"
         :view-mode="casterType === 'known' ? 'spellbook' : 'prepared'"
       />
@@ -115,6 +116,7 @@ import { useParty } from "@/composables/useParty";
 import { getCasterType, getDefaultSpellSlots, getMulticlassSpellSlots, computeMaxPrepared } from "@/types/spell.types";
 import { useClassByName } from "@/composables/useCustomClasses";
 import { useCharacterClasses } from "@/composables/useCharacterClasses";
+import { computeSpellcastingPerClass } from "@/types/multiclass.types";
 import { hasAttackDisadvantage, hasCheckDisadvantage } from "@/lib/conditions";
 import type { SpellSlotEntry, PartyMember } from "@/types/party.types";
 import { useRules, usePlayerVisibleRules } from "@/composables/useRules";
@@ -235,6 +237,19 @@ const spellSaveDc = computed(() => {
 const spellAttackBonus = computed(() => {
   const dc = spellSaveDc.value;
   return dc !== null ? dc - 8 : null;
+});
+
+/**
+ * Per-class spellcasting stats for the current member. Multiclass casters
+ * get one entry per casting class — PlayerMySpells uses `source_class_id`
+ * on each spell entry to show the correct DC / attack.
+ */
+const spellcastingByClass = computed(() => {
+  const m = member.value;
+  if (!m) return [];
+  const list = characterClasses.value ?? [];
+  if (list.length === 0) return [];
+  return computeSpellcastingPerClass(m, list);
 });
 
 // ── Roll toast (shared across all rolling children) ───────────────────────────

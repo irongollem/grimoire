@@ -113,15 +113,15 @@
               class="shrink-0 font-cinzel text-[10px] tracking-wider text-primary/70 border border-primary/30 rounded px-1"
             >C</span>
 
-            <!-- Attack / save info -->
+            <!-- Attack / save info (multiclass-aware via source class) -->
             <span
-              v-if="isCastable(entry) && spellAttackBonus !== null && (entry.spell.attack_type === 'ranged_spell' || entry.spell.attack_type === 'melee_spell')"
+              v-if="isCastable(entry) && attackBonusFor(entry) !== null && (entry.spell.attack_type === 'ranged_spell' || entry.spell.attack_type === 'melee_spell')"
               class="shrink-0 font-cinzel text-[10px] text-muted-foreground"
-            >Atk {{ signedNum(spellAttackBonus) }}</span>
+            >Atk {{ signedNum(attackBonusFor(entry)!) }}</span>
             <span
-              v-else-if="isCastable(entry) && spellSaveDc !== null && entry.spell.attack_type === 'save'"
+              v-else-if="isCastable(entry) && saveDcFor(entry) !== null && entry.spell.attack_type === 'save'"
               class="shrink-0 font-cinzel text-[10px] text-muted-foreground"
-            >DC {{ spellSaveDc }}</span>
+            >DC {{ saveDcFor(entry) }}</span>
 
             <!-- Cast button (castable spells) -->
             <button
@@ -196,6 +196,7 @@ import { useUiStore } from "@/stores/ui";
 import { SCHOOL_COLORS } from "@/types/spell.types";
 import type { CasterType, CharacterSpellEntry, Spell } from "@/types/spell.types";
 import type { SpellSlotEntry } from "@/types/party.types";
+import { pickSpellcastingStats, type SpellcastingClassStats } from "@/types/multiclass.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
 
@@ -209,6 +210,12 @@ const props = defineProps<{
   spellSlots: SpellSlotEntry[];
   spellAttackBonus: number | null;
   spellSaveDc: number | null;
+  /**
+   * Per-class spellcasting stats. Each spell entry picks the stats for its
+   * source class (falling back to the first entry). Empty array → fall
+   * back to the single-class spellAttackBonus / spellSaveDc props.
+   */
+  spellcastingByClass?: SpellcastingClassStats[];
   /**
    * "spellbook" — show all character_spells (Wizard spellbook tab + Known tab for known casters)
    * "prepared"  — show only is_prepared = true (Wizard/Cleric/etc. prepared tab)
@@ -284,6 +291,17 @@ function castButtonTitle(entry: CharacterSpellEntry): string {
   const slot = slotForLevel(entry.spell.level);
   if (slot && slot.used >= slot.max) return "No slots remaining";
   return `Cast — spend one ${SLOT_LEVEL_LABELS[entry.spell.level - 1]}-level slot`;
+}
+
+/** Pick spellcasting stats for a spell entry — multiclass-aware via source_class_id. */
+function statsFor(entry: CharacterSpellEntry): SpellcastingClassStats | null {
+  return pickSpellcastingStats(props.spellcastingByClass ?? [], entry.source_class_id);
+}
+function attackBonusFor(entry: CharacterSpellEntry): number | null {
+  return statsFor(entry)?.attack ?? props.spellAttackBonus;
+}
+function saveDcFor(entry: CharacterSpellEntry): number | null {
+  return statsFor(entry)?.dc ?? props.spellSaveDc;
 }
 
 function signedNum(n: number): string {

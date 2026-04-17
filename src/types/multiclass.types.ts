@@ -96,6 +96,67 @@ export function totalLevel(classes: CharacterClass[]): number {
   return classes.reduce((s, c) => s + c.levels, 0);
 }
 
+/**
+ * Per-class spellcasting stats (DC and attack bonus). A multiclass character
+ * has one entry per casting class — e.g. a Paladin 3 / Wizard 5 casts Paladin
+ * spells off CHA and Wizard spells off INT, so each spell uses its own
+ * class's DC.
+ */
+export interface SpellcastingClassStats {
+  /** character_classes row id — matches character_spells.source_class_id */
+  classId: string;
+  className: string;
+  castingAbility: "int" | "wis" | "cha";
+  dc: number;
+  attack: number;
+}
+
+import { getCastingAbility } from "@/types/spell.types";
+
+/**
+ * Compute per-class spell DC and attack bonus from a character's ability
+ * scores + classes. Non-casters are omitted. Proficiency bonus comes from
+ * the character (single value, shared across classes per 5e RAW).
+ */
+export function computeSpellcastingPerClass(
+  member: AbilityScores & { proficiency_bonus: number },
+  classes: CharacterClass[],
+): SpellcastingClassStats[] {
+  const out: SpellcastingClassStats[] = [];
+  for (const c of classes) {
+    const ability = getCastingAbility(c.class_name);
+    if (!ability) continue;
+    const mod = Math.floor((member[ability] - 10) / 2);
+    const dc = 8 + member.proficiency_bonus + mod;
+    out.push({
+      classId: c.id,
+      className: c.class_name,
+      castingAbility: ability,
+      dc,
+      attack: dc - 8,
+    });
+  }
+  return out;
+}
+
+/**
+ * Pick the spellcasting stats for a specific spell entry. Uses
+ * `source_class_id` when present; falls back to the first caster class,
+ * which gracefully handles pre-backfill characters and spells the player
+ * learned before source-class tracking landed.
+ */
+export function pickSpellcastingStats(
+  entries: SpellcastingClassStats[],
+  sourceClassId: string | null | undefined,
+): SpellcastingClassStats | null {
+  if (entries.length === 0) return null;
+  if (sourceClassId) {
+    const match = entries.find((e) => e.classId === sourceClassId);
+    if (match) return match;
+  }
+  return entries[0];
+}
+
 /** Returns the primary class entry, or null if none marked. */
 export function primaryClass(classes: CharacterClass[]): CharacterClass | null {
   return classes.find((c) => c.is_primary) ?? classes[0] ?? null;
