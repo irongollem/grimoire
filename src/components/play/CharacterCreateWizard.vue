@@ -51,6 +51,51 @@
         <span class="field-label">Card Art <span class="font-fell normal-case font-normal italic text-muted-foreground">(landscape, for card printing)</span></span>
         <ImageUpload :model-value="cardArtUrl || null" aspect="landscape" placeholder="Drop card art or click to upload" @update:model-value="cardArtUrl = $event ?? ''" />
       </div>
+
+      <!-- Alignment + deity (optional, inline) -->
+      <div class="grid grid-cols-2 gap-3">
+        <label class="block">
+          <span class="field-label">Alignment</span>
+          <select v-model="f.alignment" class="field-input w-full">
+            <option value="">—</option>
+            <option v-for="a in ALIGNMENT_OPTIONS" :key="a" :value="a">{{ a }}</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="field-label">Deity <span class="font-fell normal-case font-normal italic text-muted-foreground">(if any)</span></span>
+          <input v-model="f.deity" class="field-input w-full" placeholder="Tyr, Mielikki, none…" />
+        </label>
+      </div>
+
+      <!-- Personality block (collapsible) -->
+      <div class="rounded-lg border border-border bg-card">
+        <button
+          type="button"
+          class="w-full flex items-center justify-between px-3 py-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+          @click="showPersonality = !showPersonality"
+        >
+          <span>PERSONALITY · IDEALS · BONDS · FLAWS</span>
+          <span class="text-base" :class="showPersonality ? '' : 'rotate-[-90deg]'">▾</span>
+        </button>
+        <div v-if="showPersonality" class="px-3 pb-3 space-y-2">
+          <label class="block">
+            <span class="field-label">Personality Traits</span>
+            <textarea v-model="f.personality_traits" rows="2" class="field-input w-full resize-y" placeholder="Two short traits that shape their behaviour." />
+          </label>
+          <label class="block">
+            <span class="field-label">Ideals</span>
+            <textarea v-model="f.ideals" rows="2" class="field-input w-full resize-y" placeholder="What drives them — justice, freedom, knowledge…" />
+          </label>
+          <label class="block">
+            <span class="field-label">Bonds</span>
+            <textarea v-model="f.bonds" rows="2" class="field-input w-full resize-y" placeholder="People, places, or artifacts they'd die for." />
+          </label>
+          <label class="block">
+            <span class="field-label">Flaws</span>
+            <textarea v-model="f.flaws" rows="2" class="field-input w-full resize-y" placeholder="One clear weakness that gets them in trouble." />
+          </label>
+        </div>
+      </div>
     </div>
 
     <!-- Step 1: Species -->
@@ -172,11 +217,11 @@
 
     <!-- Step 4: Ability Scores -->
     <div v-else-if="wizardStep === 4" class="space-y-4">
-      <div class="flex items-center gap-2 p-1 rounded-lg bg-muted w-fit">
+      <div class="flex items-center gap-2 p-1 rounded-lg bg-muted w-fit flex-wrap">
         <button type="button" v-for="mode in SCORE_MODES" :key="mode.id"
           class="px-3 py-1.5 rounded-md font-cinzel text-xs font-semibold transition-colors"
           :class="scoreMode === mode.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
-          @click="scoreMode = mode.id">
+          @click="onScoreModeChange(mode.id)">
           {{ mode.label }}
         </button>
       </div>
@@ -211,6 +256,67 @@
               {{ mod(f[stat.key]) >= 0 ? "+" : "" }}{{ mod(f[stat.key]) }}
             </span>
             <span class="font-cinzel text-[9px] text-muted-foreground">{{ POINT_BUY_COSTS[f[stat.key]] ?? 0 }} pts</span>
+          </div>
+        </div>
+
+        <div v-if="selectedSpecies?.ability_score_increases && Object.keys(selectedSpecies.ability_score_increases).length"
+          class="rounded-lg border border-primary/20 bg-primary/5 p-3">
+          <p class="font-cinzel text-[10px] font-semibold text-primary tracking-wider mb-1.5">{{ selectedSpecies.name.toUpperCase() }} BONUSES (applied at creation)</p>
+          <div class="flex flex-wrap gap-1.5">
+            <span v-for="(val, key) in selectedSpecies.ability_score_increases" :key="key"
+              class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-[11px] text-primary uppercase">
+              {{ key }} +{{ val }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Standard Array / 4d6 pool-assignment -->
+      <div v-else-if="scoreMode === 'array' || scoreMode === 'roll'" class="space-y-3">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <p class="font-fell text-sm text-muted-foreground italic">
+            <template v-if="scoreMode === 'array'">
+              Assign the standard array (15, 14, 13, 12, 10, 8) to your abilities.
+            </template>
+            <template v-else>
+              Each score is 4d6 with the lowest die dropped. Reroll until you like the pool, then assign.
+            </template>
+          </p>
+          <button
+            v-if="scoreMode === 'roll'"
+            type="button"
+            class="px-3 py-1.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs font-semibold tracking-wider hover:opacity-90 transition-opacity"
+            @click="rollAbilityScores"
+          >Reroll Pool</button>
+        </div>
+
+        <div class="flex items-center gap-1.5 flex-wrap rounded-md border border-border bg-card px-3 py-2">
+          <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider mr-1">POOL</span>
+          <span
+            v-for="(val, idx) in scorePool"
+            :key="idx"
+            class="w-9 h-9 rounded-md border font-cinzel text-sm font-bold flex items-center justify-center transition-colors"
+            :class="Object.values(scoreAssignment).includes(idx)
+              ? 'border-primary/30 bg-primary/10 text-primary/60 line-through'
+              : 'border-border bg-muted/50 text-foreground'"
+          >{{ val }}</span>
+          <span v-if="scorePool.length === 0" class="font-fell text-xs text-muted-foreground italic">No pool loaded.</span>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div v-for="stat in ABILITY_STATS" :key="stat.key" class="rounded-lg border border-border bg-card p-3 flex flex-col items-center gap-2">
+            <span class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</span>
+            <select
+              :value="scoreAssignment[stat.key] ?? ''"
+              class="field-input w-full text-center"
+              @change="onPoolPick(stat.key, ($event.target as HTMLSelectElement).value)"
+            >
+              <option value="">—</option>
+              <option v-for="opt in availableForAbility(stat.key)" :key="opt.idx" :value="opt.idx">{{ opt.val }}</option>
+            </select>
+            <span class="font-cinzel text-xs font-bold" :class="mod(f[stat.key]) >= 0 ? 'text-green-500' : 'text-destructive'">
+              {{ mod(f[stat.key]) >= 0 ? "+" : "" }}{{ mod(f[stat.key]) }}
+            </span>
           </div>
         </div>
 
@@ -393,8 +499,8 @@
 </template>
 
 <script setup lang="ts">
-import { inject } from "vue";
-import { CHARACTER_FORM_KEY, WIZARD_STEPS, ABILITY_STATS, SAVE_STATS, PROF_LEVELS, SCORE_MODES, SLOT_LEVEL_LABELS, POINT_BUY_COSTS } from "@/composables/useCharacterCreationForm";
+import { inject, ref, reactive } from "vue";
+import { CHARACTER_FORM_KEY, WIZARD_STEPS, ABILITY_STATS, SAVE_STATS, PROF_LEVELS, SCORE_MODES, SLOT_LEVEL_LABELS, POINT_BUY_COSTS, STANDARD_ARRAY, roll4d6DropLowest } from "@/composables/useCharacterCreationForm";
 import { SKILLS } from "@/types/party.types";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
 import ImageUpload from "@/components/common/ImageUpload.vue";
@@ -416,6 +522,69 @@ const {
   resetSlotsToDefault, onSpeciesSelect, onClassSelect, onBackgroundSelect,
   save,
 } = form;
+
+// ── Identity extras ──────────────────────────────────────────────────────────
+const showPersonality = ref(false);
+
+const ALIGNMENT_OPTIONS = [
+  "Lawful Good",    "Neutral Good",    "Chaotic Good",
+  "Lawful Neutral", "True Neutral",    "Chaotic Neutral",
+  "Lawful Evil",    "Neutral Evil",    "Chaotic Evil",
+  "Unaligned",
+] as const;
+
+// ── Ability score assignment: standard array + 4d6 ───────────────────────────
+type AbilityKey = "str" | "dex" | "con" | "int" | "wis" | "cha";
+
+/** The immutable pool of six values for the current mode (standard array or roll). */
+const scorePool = ref<number[]>([]);
+
+/** Which pool index is assigned to each ability. null = unassigned. */
+const scoreAssignment = reactive<Record<AbilityKey, number | null>>({
+  str: null, dex: null, con: null, int: null, wis: null, cha: null,
+});
+
+function resetPool(values: readonly number[]) {
+  scorePool.value = [...values];
+  for (const k of Object.keys(scoreAssignment) as AbilityKey[]) {
+    scoreAssignment[k] = null;
+    f[k] = 8;
+  }
+}
+
+function loadStandardArray() { resetPool(STANDARD_ARRAY); }
+
+function rollAbilityScores() {
+  const rolled = Array.from({ length: 6 }, () => roll4d6DropLowest()).sort((a, b) => b - a);
+  resetPool(rolled);
+}
+
+function availableForAbility(abilityKey: AbilityKey): { idx: number; val: number }[] {
+  const takenIdxs = new Set<number>();
+  for (const k of Object.keys(scoreAssignment) as AbilityKey[]) {
+    if (k !== abilityKey && scoreAssignment[k] !== null) takenIdxs.add(scoreAssignment[k]!);
+  }
+  return scorePool.value
+    .map((val, idx) => ({ idx, val }))
+    .filter((e) => !takenIdxs.has(e.idx));
+}
+
+function onPoolPick(abilityKey: AbilityKey, poolIdxStr: string) {
+  if (poolIdxStr === "") {
+    scoreAssignment[abilityKey] = null;
+    f[abilityKey] = 8;
+    return;
+  }
+  const idx = Number(poolIdxStr);
+  scoreAssignment[abilityKey] = idx;
+  f[abilityKey] = scorePool.value[idx] ?? 8;
+}
+
+function onScoreModeChange(mode: typeof SCORE_MODES[number]["id"]) {
+  scoreMode.value = mode;
+  if (mode === "array" && scorePool.value.length === 0) loadStandardArray();
+  if (mode === "roll" && scorePool.value.length === 0) rollAbilityScores();
+}
 </script>
 
 <style scoped>
