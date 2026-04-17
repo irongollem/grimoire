@@ -114,6 +114,84 @@
         </div>
       </div>
 
+      <!-- Hit Points -->
+      <div class="rounded-lg border border-border bg-card p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">Hit Points</h3>
+          <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
+            d{{ hitDie }} · CON {{ conMod >= 0 ? '+' : '' }}{{ conMod }}
+          </span>
+        </div>
+
+        <!-- Mode picker -->
+        <div class="flex rounded-md border border-border overflow-hidden w-fit font-cinzel text-xs tracking-wider">
+          <button
+            class="px-3 py-1.5 transition-colors"
+            :class="hpMode === 'average' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
+            @click="setHpMode('average')"
+          >Average</button>
+          <button
+            class="px-3 py-1.5 transition-colors"
+            :class="hpMode === 'roll' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
+            @click="setHpMode('roll')"
+          >Roll</button>
+          <button
+            class="px-3 py-1.5 transition-colors"
+            :class="hpMode === 'max' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
+            title="House rule — take the hit die's maximum."
+            @click="setHpMode('max')"
+          >Max</button>
+        </div>
+
+        <!-- Mode body -->
+        <template v-if="hpMode === 'roll'">
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              class="rounded-md border border-border bg-muted/40 px-3 py-1.5 font-cinzel text-xs text-foreground hover:border-primary/40 hover:text-primary transition-colors disabled:opacity-50"
+              :disabled="rolledHp !== null"
+              @click="rollHp"
+            >Roll d{{ hitDie }}</button>
+            <span v-if="rolledHp !== null" class="font-fell text-sm text-foreground">
+              Rolled <strong class="font-cinzel">{{ rolledHp }}</strong>
+              <span class="text-muted-foreground"> + CON {{ conMod >= 0 ? '+' : '' }}{{ conMod }} = </span>
+              <strong class="font-cinzel text-primary">{{ Math.max(1, rolledHp + conMod) }}</strong> HP
+            </span>
+            <span v-else class="font-fell text-xs text-muted-foreground italic">
+              Roll once. Minimum 1 HP per level.
+            </span>
+          </div>
+        </template>
+
+        <p v-else class="font-fell text-sm text-muted-foreground">
+          <template v-if="hpMode === 'average'">
+            Take the average: <strong class="font-cinzel text-foreground">{{ hpAverageValue }}</strong>
+            (½ hit die rounded up, +1) + CON {{ conMod >= 0 ? '+' : '' }}{{ conMod }}
+            = <strong class="font-cinzel text-primary">{{ Math.max(1, hpAverageValue + conMod) }}</strong> HP
+          </template>
+          <template v-else>
+            Take the maximum: <strong class="font-cinzel text-foreground">{{ hitDie }}</strong>
+            + CON {{ conMod >= 0 ? '+' : '' }}{{ conMod }}
+            = <strong class="font-cinzel text-primary">{{ Math.max(1, hitDie + conMod) }}</strong> HP
+          </template>
+        </p>
+
+        <!-- Projected total + hit dice change -->
+        <div class="flex items-center justify-between rounded-md bg-muted/30 border border-border/60 px-3 py-2">
+          <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">MAX HP</span>
+          <span class="font-fell text-sm text-foreground">
+            {{ member.max_hp }} → <strong class="font-cinzel text-primary">{{ member.max_hp + hpGain }}</strong>
+            <span class="text-muted-foreground ml-1">(+{{ hpGain }})</span>
+          </span>
+        </div>
+        <div class="flex items-center justify-between rounded-md bg-muted/30 border border-border/60 px-3 py-2">
+          <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">HIT DICE</span>
+          <span class="font-fell text-sm text-foreground">
+            {{ currentHitDice }}d{{ hitDie }} → <strong class="font-cinzel text-primary">{{ newHitDiceCount }}d{{ hitDie }}</strong>
+          </span>
+        </div>
+      </div>
+
       <!-- ASI / Feat picker -->
       <div v-if="grantsAsi" class="rounded-lg border border-border bg-card p-4 space-y-4">
         <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">Ability Score Improvement or Feat</h3>
@@ -342,6 +420,8 @@ import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useAllCustomSubclasses, useCustomSubclassByClassAndSubclass } from "@/composables/useCustomSubclasses";
 import { useCustomClassByName, useAllSystemClasses } from "@/composables/useCustomClasses";
+import { getHitDie } from "@/types/spell.types";
+import { rollDie } from "@/lib/dice";
 import { useAllFeatures } from "@/composables/useFeatures";
 import { useCharacterSpells, useAddCharacterSpell } from "@/composables/useCharacterSpells";
 import { useSpellsPage } from "@/composables/useSpells";
@@ -378,6 +458,45 @@ const customSubclassNamesForClass = computed<string[]>(() =>
 // ── Derived ────────────────────────────────────────────────────────────────────
 const nextLevel    = computed(() => props.member.level + 1);
 const newProfBonus = computed(() => 2 + Math.floor((nextLevel.value - 1) / 4));
+
+// ── Hit points + hit dice ──────────────────────────────────────────────────────
+const hitDie = computed<number>(() => {
+  const cls = customClass.value ?? systemClass.value;
+  return cls?.hit_die ?? getHitDie(memberClass.value);
+});
+const conMod = computed(() => Math.floor((props.member.con - 10) / 2));
+const hpAverageValue = computed(() => Math.ceil(hitDie.value / 2) + 1);
+
+type HpMode = "average" | "roll" | "max";
+const hpMode = ref<HpMode>("average");
+const rolledHp = ref<number | null>(null);
+
+function setHpMode(mode: HpMode) {
+  if (hpMode.value === mode) return;
+  hpMode.value = mode;
+  // Clear any locked roll so switching to "roll" re-exposes the button.
+  rolledHp.value = null;
+}
+
+function rollHp() {
+  if (rolledHp.value !== null) return;
+  rolledHp.value = rollDie(hitDie.value);
+}
+
+/** HP gained at this level-up. Minimum 1 per 5e guidance (no negative levels). */
+const hpGain = computed(() => {
+  if (hpMode.value === "roll") {
+    if (rolledHp.value === null) return 0;
+    return Math.max(1, rolledHp.value + conMod.value);
+  }
+  if (hpMode.value === "max") return Math.max(1, hitDie.value + conMod.value);
+  return Math.max(1, hpAverageValue.value + conMod.value);
+});
+
+const currentHitDice = computed(() =>
+  Math.min(props.member.level, props.member.hit_dice_remaining ?? props.member.level),
+);
+const newHitDiceCount = computed(() => Math.min(nextLevel.value, currentHitDice.value + 1));
 
 const grantsAsi = computed(() =>
   systemClass.value?.asi_levels.includes(nextLevel.value) ||
@@ -625,6 +744,7 @@ const error = ref("");
 
 const canConfirm = computed(() => {
   if (nextLevel.value > 20) return false;
+  if (hpMode.value === "roll" && rolledHp.value === null) return false;
   if (grantsAsi.value) {
     if (asiMode.value === "plus2" && !asiPrimary.value) return false;
     if (asiMode.value === "plus1plus1" && (!asiPrimary.value || !asiSecondary.value || asiSecondary.value === asiPrimary.value)) return false;
@@ -648,6 +768,9 @@ async function confirm() {
   const update: Record<string, unknown> = {
     level: nextLevel.value,
     proficiency_bonus: newProfBonus.value,
+    max_hp: props.member.max_hp + hpGain.value,
+    current_hp: props.member.current_hp + hpGain.value,
+    hit_dice_remaining: newHitDiceCount.value,
   };
 
   // Spell slots

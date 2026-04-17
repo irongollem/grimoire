@@ -324,6 +324,9 @@ export function useCharacterCreationForm() {
       proficiency_bonus:    profBonus.value,
       spell_slots:          spellSlots,
       current_hp:           f.max_hp,
+      // Hit dice pool — starts at 1 per level so level-ups can decrement correctly
+      // and the rest dialog doesn't have to guess.
+      hit_dice_remaining:   f.level,
     };
 
     if (isEditMode.value && existingMember.value) {
