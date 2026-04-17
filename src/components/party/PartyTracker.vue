@@ -83,8 +83,8 @@
                 {{
                   [
                     member.race ? (speciesNameMap.get(member.race) ?? member.race) : null,
-                    member.class,
-                    member.level ? `Lv${member.level}` : "",
+                    memberClassLabel(member.id, member.class),
+                    memberLevelDisplay(member.id, member.level) ? `Lv${memberLevelDisplay(member.id, member.level)}` : "",
                   ]
                     .filter(Boolean)
                     .join(" · ")
@@ -688,6 +688,9 @@ import type { Item } from "@/types/item.types";
 import { ITEM_TYPE_LABELS, RARITY_COLORS } from "@/types/item.types";
 import { useCompanions, useDeleteCompanion } from "@/composables/useCompanions";
 import { useAllSpecies } from "@/composables/useSpecies";
+import { useAllCampaignCharacterClasses } from "@/composables/useCharacterClasses";
+import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
+import type { CharacterClass } from "@/types/multiclass.types";
 import { isInDisguise } from "@/lib/partyMemberDisplay";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useNpcs } from "@/composables/useNpcs";
@@ -729,6 +732,29 @@ const speciesNameMap = computed(() => {
   for (const s of allSpecies.value ?? []) m.set(s.id, s.name);
   return m;
 });
+
+const { data: allCharacterClasses } = useAllCampaignCharacterClasses();
+const classesByMember = computed(() => {
+  const m = new Map<string, CharacterClass[]>();
+  for (const cc of allCharacterClasses.value ?? []) {
+    const list = m.get(cc.party_member_id) ?? [];
+    list.push(cc);
+    m.set(cc.party_member_id, list);
+  }
+  return m;
+});
+
+function memberClassLabel(memberId: string, legacyClass: string | null): string {
+  const list = classesByMember.value.get(memberId) ?? [];
+  if (list.length > 1) return formatMulticlassLabel(list);
+  if (list.length === 1) return list[0].class_name;
+  return legacyClass ?? "";
+}
+
+function memberLevelDisplay(memberId: string, legacyLevel: number): number {
+  const list = classesByMember.value.get(memberId) ?? [];
+  return list.length > 0 ? totalLevel(list) : legacyLevel;
+}
 
 // Initiative
 const sortedMembers = computed(() => {

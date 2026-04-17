@@ -206,8 +206,8 @@
                   {{
                     [
                       member.race,
-                      member.class,
-                      member.level ? `Lv${member.level}` : "",
+                      memberClassLabel(member.id, member.class),
+                      memberLevelDisplay(member.id, member.level) ? `Lv${memberLevelDisplay(member.id, member.level)}` : "",
                     ]
                       .filter(Boolean)
                       .join(" · ")
@@ -217,7 +217,7 @@
               <span
                 class="font-cinzel text-[10px] text-muted-foreground shrink-0"
               >
-                Lv {{ member.level }}
+                Lv {{ memberLevelDisplay(member.id, member.level) }}
               </span>
               <select
                 v-if="form.party_member_ids.includes(member.id)"
@@ -434,6 +434,9 @@ import {
 } from "lucide-vue-next";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useParty } from "@/composables/useParty";
+import { useAllCampaignCharacterClasses } from "@/composables/useCharacterClasses";
+import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
+import type { CharacterClass } from "@/types/multiclass.types";
 import { useCompanions } from "@/composables/useCompanions";
 import { useNpcs } from "@/composables/useNpcs";
 import { useItems } from "@/composables/useItems";
@@ -675,11 +678,36 @@ const enemyEntries = computed(() =>
     })),
 );
 
+const { data: allCharacterClasses } = useAllCampaignCharacterClasses();
+const classesByMember = computed(() => {
+  const m = new Map<string, CharacterClass[]>();
+  for (const cc of allCharacterClasses.value ?? []) {
+    const list = m.get(cc.party_member_id) ?? [];
+    list.push(cc);
+    m.set(cc.party_member_id, list);
+  }
+  return m;
+});
+
+function memberClassLabel(memberId: string, legacyClass: string | null): string {
+  const list = classesByMember.value.get(memberId) ?? [];
+  if (list.length > 1) return formatMulticlassLabel(list);
+  if (list.length === 1) return list[0].class_name;
+  return legacyClass ?? "";
+}
+
+function memberLevelDisplay(memberId: string, legacyLevel: number): number {
+  const list = classesByMember.value.get(memberId) ?? [];
+  return list.length > 0 ? totalLevel(list) : legacyLevel;
+}
+
 const partyLevels = computed(() => {
   const members = party.value ?? [];
-  return form.party_member_ids.map(
-    (id) => members.find((m) => m.id === id)?.level ?? 1,
-  );
+  return form.party_member_ids.map((id) => {
+    const m = members.find((mem) => mem.id === id);
+    if (!m) return 1;
+    return memberLevelDisplay(m.id, m.level);
+  });
 });
 
 const allyFactionIds = computed(() => {

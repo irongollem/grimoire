@@ -20,8 +20,8 @@
           <span class="font-cinzel text-xs font-semibold text-foreground truncate block">
             {{ m.party_member.name }}
           </span>
-          <p v-if="m.party_member.race || m.party_member.class" class="font-fell text-[11px] text-muted-foreground italic truncate">
-            {{ [m.party_member.race, m.party_member.class, m.party_member.level ? `Lv${m.party_member.level}` : ''].filter(Boolean).join(' · ') }}
+          <p v-if="m.party_member.race || memberClassLabel(m.party_member.id, m.party_member.class)" class="font-fell text-[11px] text-muted-foreground italic truncate">
+            {{ [m.party_member.race, memberClassLabel(m.party_member.id, m.party_member.class), memberLevelDisplay(m.party_member.id, m.party_member.level) ? `Lv${memberLevelDisplay(m.party_member.id, m.party_member.level)}` : ''].filter(Boolean).join(' · ') }}
           </p>
         </div>
 
@@ -127,6 +127,9 @@ import {
   type FactionPartyMemberWithMember,
 } from "@/composables/useFactions";
 import { useParty } from "@/composables/useParty";
+import { useAllCampaignCharacterClasses } from "@/composables/useCharacterClasses";
+import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
+import type { CharacterClass } from "@/types/multiclass.types";
 import { NPC_FACTION_ROLES, NPC_FACTION_STATUSES, NPC_FACTION_STATUS_COLORS, type NpcFactionStatus } from "@/types/faction.types";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 
@@ -134,6 +137,26 @@ const props = defineProps<{ factionId: string }>();
 
 const { data: members }     = useFactionPartyMembers(props.factionId);
 const { data: allMembers }  = useParty();
+const { data: allCharacterClasses } = useAllCampaignCharacterClasses();
+const classesByMember = computed(() => {
+  const m = new Map<string, CharacterClass[]>();
+  for (const cc of allCharacterClasses.value ?? []) {
+    const list = m.get(cc.party_member_id) ?? [];
+    list.push(cc);
+    m.set(cc.party_member_id, list);
+  }
+  return m;
+});
+function memberClassLabel(memberId: string, legacyClass: string | null): string {
+  const list = classesByMember.value.get(memberId) ?? [];
+  if (list.length > 1) return formatMulticlassLabel(list);
+  if (list.length === 1) return list[0].class_name;
+  return legacyClass ?? "";
+}
+function memberLevelDisplay(memberId: string, legacyLevel: number): number {
+  const list = classesByMember.value.get(memberId) ?? [];
+  return list.length > 0 ? totalLevel(list) : legacyLevel;
+}
 const addMut          = useAddFactionPartyMember();
 const updateRoleMut   = useUpdateFactionPartyMemberRole();
 const updateStatusMut = useUpdateFactionPartyMemberStatus();
