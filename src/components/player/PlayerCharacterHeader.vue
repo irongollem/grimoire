@@ -139,6 +139,8 @@ import { ref, computed, nextTick } from "vue";
 import { RouterLink } from "vue-router";
 import { Star, TrendingUp, Settings } from "lucide-vue-next";
 import { useUpdatePartyMember } from "@/composables/useParty";
+import { useClassByName } from "@/composables/useCustomClasses";
+import { getHitDie } from "@/types/spell.types";
 import { patchLiveCombatantConditions } from "@/composables/useEncounterLive";
 import {
   CONDITIONS,
@@ -204,11 +206,19 @@ async function addCondition(cond: string) {
   void patchLiveCombatantConditions(props.member.id, updated);
 }
 
+const classNameRef = computed(() => props.member.class ?? "");
+const classData = useClassByName(classNameRef);
+const hitDie = computed<number>(() => classData.value?.hit_die ?? getHitDie(classNameRef.value));
+const hitDiceRemaining = computed(() =>
+  Math.min(props.member.level, props.member.hit_dice_remaining ?? props.member.level),
+);
+
 const combatStats = computed(() => [
   { label: "AC",   value: props.member.ac,    suffix: "" },
   { label: "SPD",  value: props.member.speed, suffix: "ft" },
   { label: "INIT", value: abilityModifier(props.member.dex), suffix: "" },
   { label: "PROF", value: `+${props.member.proficiency_bonus}`, suffix: "" },
+  { label: "HD",   value: `${hitDiceRemaining.value}/${props.member.level}`, suffix: `d${hitDie.value}` },
 ]);
 
 const hpPct = computed(() => {
