@@ -819,8 +819,12 @@ async function performCheck(modifier: number, label: string): Promise<RollResult
 // ── Action roll helpers ───────────────────────────────────────────────────────
 
 function parseAttackBonus(desc: string): number | null {
+  // Standard format: "+5 to hit"
   const m = desc.match(/([+-]\d+)\s+to\s+hit/i);
-  return m ? parseInt(m[1]) : null;
+  if (m) return parseInt(m[1]);
+  // Compact format: leading "+5" or "-1" before a space (e.g. "+5 2d6+3 slashing")
+  const m2 = desc.match(/^([+-]\d+)\s/);
+  return m2 ? parseInt(m2[1]) : null;
 }
 
 function hasRollableDice(desc: string): boolean {

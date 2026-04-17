@@ -204,14 +204,15 @@
             <div
               v-else
               class="player-row"
-              :class="
+              :class="[
                 isActive(combatant)
                   ? 'bg-primary/8 ring-1 ring-inset ring-primary/20'
-                  : combatant.instance_id === myPlayer?.instance_id
-                  ? 'hover:bg-muted/20 cursor-pointer'
-                  : 'hover:bg-muted/20'
-              "
-              @click="combatant.instance_id === myPlayer?.instance_id && toggleHpPanel()"
+                  : 'hover:bg-muted/20',
+                (combatant.instance_id === myPlayer?.instance_id || combatant.npc_id)
+                  ? 'cursor-pointer'
+                  : '',
+              ]"
+              @click="onCombatantClick(combatant)"
             >
               <div class="portrait-cell">
                 <div
@@ -363,27 +364,101 @@
     <div class="w-full lg:flex-1 lg:min-w-0 lg:order-1">
       <PlayerCharacterView />
     </div>
+    <!-- NPC lightbox -->
+    <Transition name="fade">
+      <div v-if="selectedNpc" class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" @click.self="closeNpc">
+        <div class="bg-card rounded-xl border border-border w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+          <div class="relative shrink-0">
+            <div v-if="selectedNpc.player_visible_fields.includes('portrait') && selectedNpcDisplay.portrait" class="w-full h-72 overflow-hidden">
+              <FocalImage
+                :src="selectedNpcDisplay.portrait!"
+                :alt="selectedNpc.player_visible_fields.includes('name') ? selectedNpcDisplay.name : '???'"
+                format="portrait"
+                :focal-point="selectedNpcDisplay.focalPoint"
+              />
+            </div>
+            <button class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors" @click="closeNpc">
+              <XIcon class="h-4 w-4" />
+            </button>
+          </div>
+          <div class="p-4 overflow-y-auto space-y-4">
+            <div>
+              <div class="flex items-start justify-between gap-3">
+                <h2 class="font-cinzel text-lg font-bold text-foreground">
+                  {{ selectedNpc.player_visible_fields.includes('name') ? selectedNpcDisplay.name : '???' }}
+                </h2>
+                <div class="flex items-center gap-0.5 shrink-0 pt-1" @click.stop>
+                  <button
+                    v-for="n in [1,2,3,4,5]"
+                    :key="n"
+                    type="button"
+                    class="text-lg leading-none transition-colors"
+                    :class="n <= (getRating(selectedNpc.id)) ? 'text-yellow-400' : 'text-muted-foreground/25 hover:text-yellow-400/60'"
+                    :title="n === 1 ? 'Not relevant' : n === 5 ? 'Very relevant' : `Relevance ${n}`"
+                    @click="setRating(selectedNpc.id, n)"
+                  >★</button>
+                </div>
+              </div>
+              <div class="flex flex-wrap gap-2 mt-1">
+                <span v-if="selectedNpc.player_visible_fields.includes('relationship')"
+                  class="px-2 py-0.5 rounded text-[11px] font-cinzel font-bold tracking-wider uppercase text-white"
+                  :style="{ backgroundColor: relColor(selectedNpc.relationship) + 'CC' }">
+                  {{ selectedNpc.relationship }}
+                </span>
+                <span v-if="selectedNpc.player_visible_fields.includes('status')"
+                  class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-muted font-cinzel text-[11px] tracking-wider">
+                  <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: statusColor(selectedNpc.status) }" />
+                  {{ selectedNpc.status }}
+                </span>
+              </div>
+              <p v-if="selectedNpc.player_visible_fields.includes('race') && selectedNpc.race"
+                class="mt-1 font-fell text-sm text-muted-foreground italic">
+                {{ selectedNpc.race }}
+              </p>
+              <p v-if="selectedNpc.player_visible_fields.includes('occupation') && selectedNpc.occupation"
+                class="font-fell text-sm text-muted-foreground">{{ selectedNpc.occupation }}</p>
+            </div>
+            <div v-if="myNpcPcNote" class="rounded-lg border border-primary/20 bg-primary/5 overflow-hidden">
+              <div class="px-3 py-2 border-b border-primary/20">
+                <p class="font-cinzel text-[10px] font-semibold tracking-widest text-primary/70">YOUR CONNECTION</p>
+              </div>
+              <div class="px-3 py-2.5">
+                <RichTextViewer :content="myNpcPcNote" />
+              </div>
+            </div>
+            <PlayerNotesWidget entity-type="npc" :entity-id="selectedNpc.id" placeholder="Your observations about this character…" />
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { Swords } from "lucide-vue-next";
+import { Swords, X as XIcon } from "lucide-vue-next";
 import FocalImage from "@/components/common/FocalImage.vue";
+import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { liveState } from "@/composables/useEncounterLive";
 import type { RunCombatant, HealthVisibility } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
+import type { Npc, NpcRelationship, NpcStatus } from "@/types/npc.types";
 import PlayerCharacterView from "@/views/play/PlayerCharacterView.vue";
+import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import { usePlayerCombatPrefs } from "@/composables/usePlayerCombatPrefs";
 import { useTurnChime } from "@/composables/useTurnChime";
 import { useScreenShake } from "@/composables/useScreenShake";
 import { useAllMonsters } from "@/composables/useMonsters";
+import { useNpcs } from "@/composables/useNpcs";
 import { useParty } from "@/composables/useParty";
 import { usePlayerDiscoveries } from "@/composables/useDiscoveredMonsters";
 import { usePinnedForms } from "@/composables/usePinnedForms";
 import { useEncounterRunStore } from "@/stores/encounterRun";
+import { usePlayerNpcRatings } from "@/composables/usePlayerNpcRatings";
+import { useMyNpcPcNote } from "@/composables/useNpcPcNotes";
+import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
 
 const campaign = useCampaignStore();
 const auth = useAuthStore();
@@ -590,6 +665,41 @@ function doRevertWildshape() {
   runStore.revertWildshape(myPlayer.value.instance_id);
 }
 
+// ── NPC lightbox ──────────────────────────────────────────────────────────────
+
+const { data: allNpcs } = useNpcs();
+const { getRating, setRating } = usePlayerNpcRatings();
+
+const selectedNpc = ref<Npc | null>(null);
+const selectedNpcId = computed(() => selectedNpc.value?.id ?? "");
+const selectedNpcDisplay = computed(() => ({
+  name:       selectedNpc.value ? getNpcDisplayName(selectedNpc.value)       : "???",
+  portrait:   selectedNpc.value ? getNpcDisplayPortrait(selectedNpc.value)   : null,
+  focalPoint: selectedNpc.value ? getNpcDisplayFocalPoint(selectedNpc.value) : null,
+}));
+const { data: myNpcPcNote } = useMyNpcPcNote(selectedNpcId);
+
+function openNpc(npc: Npc) { selectedNpc.value = npc; }
+function closeNpc()        { selectedNpc.value = null; }
+
+function onCombatantClick(combatant: RunCombatant) {
+  if (combatant.npc_id) {
+    const npc = allNpcs.value?.find((n) => n.id === combatant.npc_id);
+    if (npc) openNpc(npc);
+    return;
+  }
+  if (combatant.instance_id === myPlayer.value?.instance_id) toggleHpPanel();
+}
+
+const REL_COLORS: Record<NpcRelationship, string> = {
+  ally: "#2563eb", neutral: "#6b7280", enemy: "#dc2626", unknown: "#9333ea",
+};
+const STATUS_COLORS: Record<NpcStatus, string> = {
+  alive: "#22c55e", dead: "#ef4444", missing: "#f59e0b", unknown: "#6b7280",
+};
+function relColor(rel: NpcRelationship) { return REL_COLORS[rel] ?? "#6b7280"; }
+function statusColor(s: NpcStatus)      { return STATUS_COLORS[s] ?? "#6b7280"; }
+
 // ── HP panel ──────────────────────────────────────────────────────────────────
 
 const showHpPanel = ref(false);
@@ -746,4 +856,9 @@ function applyTemp() {
   font-weight: 700;
   color: theme(colors.sky.400);
 }
+
+.fade-enter-active,
+.fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from,
+.fade-leave-to    { opacity: 0; }
 </style>

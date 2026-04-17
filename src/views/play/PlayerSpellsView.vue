@@ -104,9 +104,12 @@
         :known-spell-ids="knownSpellIds"
         :prepared-spell-ids="preparedSpellIds"
         @update:page="page = $event"
+        @spell-click="selectedSpell = $event"
       />
     </template>
   </div>
+
+  <PlayerSpellModal :spell="selectedSpell" @close="selectedSpell = null" />
 </template>
 
 <script setup lang="ts">
@@ -119,9 +122,13 @@ import { useParty } from "@/composables/useParty";
 import { useCharacterSpells, useCharacterSpellsWithDetails } from "@/composables/useCharacterSpells";
 import SpellList from "@/components/spells/SpellList.vue";
 import PlayerMySpells from "@/components/spells/PlayerMySpells.vue";
+import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
+import type { Spell } from "@/types/spell.types";
 import { SPELL_SCHOOLS, SPELL_CLASSES, getCasterType, computeMaxPrepared, getDefaultSpellSlots, getMulticlassSpellSlots } from "@/types/spell.types";
 import { useCharacterClasses } from "@/composables/useCharacterClasses";
 import { useClassByName } from "@/composables/useCustomClasses";
+
+const selectedSpell = ref<Spell | null>(null);
 
 const LEVEL_FILTERS = [
   { value: "", label: "All" },

@@ -36,8 +36,13 @@
           :key="spell.id"
           class="group relative flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
         >
-          <!-- Card link overlay -->
-          <RouterLink :to="`/spells/${spell.id}`" class="absolute inset-0 z-2" />
+          <!-- Card overlay: navigate in DM mode, open modal in player mode -->
+          <button
+            v-if="props.playerMemberId"
+            class="absolute inset-0 z-2"
+            @click="emit('spell-click', spell)"
+          />
+          <RouterLink v-else :to="`/spells/${spell.id}`" class="absolute inset-0 z-2" />
 
           <!-- School colour bar -->
           <div
@@ -198,7 +203,7 @@ import { useSpellsPage, SPELLS_PAGE_SIZE } from "@/composables/useSpells";
 import type { SpellFilters } from "@/composables/useSpells";
 import { useAddCharacterSpell, useRemoveCharacterSpell } from "@/composables/useCharacterSpells";
 import { SCHOOL_COLORS, spellLevelLabel } from "@/types/spell.types";
-import type { CasterType } from "@/types/spell.types";
+import type { CasterType, Spell } from "@/types/spell.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 
@@ -219,7 +224,10 @@ const props = defineProps<{
   preparedSpellIds?: string[];
 }>();
 
-const emit = defineEmits<{ (e: "update:page", page: number): void }>();
+const emit = defineEmits<{
+  (e: "update:page", page: number): void;
+  (e: "spell-click", spell: Spell): void;
+}>();
 
 const { mutate: addSpell, isPending: isAdding } = useAddCharacterSpell();
 const { mutate: removeSpell, isPending: isRemoving } = useRemoveCharacterSpell();
