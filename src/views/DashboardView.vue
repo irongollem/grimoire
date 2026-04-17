@@ -128,7 +128,7 @@
                     {{ member.name }}
                   </p>
                   <p class="font-fell text-[11px] text-muted-foreground italic truncate leading-tight">
-                    {{ [member.race, member.class, member.level ? `Lvl ${member.level}` : null].filter(Boolean).join(" · ") || "—" }}
+                    {{ [member.race, memberClassLabel(member.id, member.class), memberLevelDisplay(member.id, member.level) ? `Lvl ${memberLevelDisplay(member.id, member.level)}` : null].filter(Boolean).join(" · ") || "—" }}
                   </p>
                 </div>
                 <!-- HP -->
@@ -323,6 +323,9 @@ import StatCard from "@/components/common/StatCard.vue";
 import { extractTiptapText } from "@/lib/utils";
 import { useAllQuests } from "@/composables/useQuests";
 import { useParty } from "@/composables/useParty";
+import { useAllCampaignCharacterClasses } from "@/composables/useCharacterClasses";
+import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
+import type { CharacterClass } from "@/types/multiclass.types";
 import { useNotes } from "@/composables/useNotes";
 import { useNpcs } from "@/composables/useNpcs";
 import { useAllLocations } from "@/composables/useLocations";
@@ -342,6 +345,26 @@ const campaignStore = useCampaignStore();
 
 const { data: allQuests,  isLoading: questsLoading } = useAllQuests();
 const { data: party,      isLoading: partyLoading }  = useParty();
+const { data: allCharacterClasses } = useAllCampaignCharacterClasses();
+const classesByMember = computed(() => {
+  const m = new Map<string, CharacterClass[]>();
+  for (const cc of allCharacterClasses.value ?? []) {
+    const list = m.get(cc.party_member_id) ?? [];
+    list.push(cc);
+    m.set(cc.party_member_id, list);
+  }
+  return m;
+});
+function memberClassLabel(memberId: string, legacyClass: string | null): string {
+  const list = classesByMember.value.get(memberId) ?? [];
+  if (list.length > 1) return formatMulticlassLabel(list);
+  if (list.length === 1) return list[0].class_name;
+  return legacyClass ?? "";
+}
+function memberLevelDisplay(memberId: string, legacyLevel: number): number {
+  const list = classesByMember.value.get(memberId) ?? [];
+  return list.length > 0 ? totalLevel(list) : legacyLevel;
+}
 const { data: notes,      isLoading: notesLoading }  = useNotes();
 const { data: npcs }      = useNpcs();
 const { data: locations } = useAllLocations();

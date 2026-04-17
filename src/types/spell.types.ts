@@ -413,6 +413,123 @@ export function getSlotRecovery(cls: string | null | undefined): "short" | "long
   return cls === "Warlock" ? "short" : "long";
 }
 
+/**
+ * How a class contributes to the multiclass caster-level sum (PHB page 164).
+ *
+ * - `full`       — full caster: +1 caster level per class level (Bard, Cleric, Druid, Sorcerer, Wizard)
+ * - `half_down`  — half caster (round down): Paladin, Ranger
+ * - `half_up`    — half caster (round up): Artificer
+ * - `third`      — third caster: Eldritch Knight, Arcane Trickster
+ * - `pact`       — warlock pact magic — tracked separately, not part of the sum
+ * - `none`       — non-caster
+ */
+export type CasterCategory = "full" | "half_down" | "half_up" | "third" | "pact" | "none";
+
+export function getCasterCategory(cls: string | null | undefined): CasterCategory {
+  switch (cls) {
+    case "Bard":
+    case "Cleric":
+    case "Druid":
+    case "Sorcerer":
+    case "Wizard":
+      return "full";
+    case "Paladin":
+    case "Ranger":
+      return "half_down";
+    case "Artificer":
+      return "half_up";
+    case "Fighter (Eldritch Knight)":
+    case "Rogue (Arcane Trickster)":
+      return "third";
+    case "Warlock":
+      return "pact";
+    default:
+      return "none";
+  }
+}
+
+/** The ability score a class uses for spell attack / save DC, or null if non-caster. */
+export function getCastingAbility(cls: string | null | undefined): "int" | "wis" | "cha" | null {
+  switch (cls) {
+    case "Cleric":
+    case "Druid":
+    case "Ranger":
+      return "wis";
+    case "Wizard":
+    case "Artificer":
+    case "Fighter (Eldritch Knight)":
+    case "Rogue (Arcane Trickster)":
+      return "int";
+    case "Bard":
+    case "Paladin":
+    case "Sorcerer":
+    case "Warlock":
+      return "cha";
+    default:
+      return null;
+  }
+}
+
+/**
+ * Multiclass caster level per PHB: full = 1x, half_down = floor(L/2),
+ * half_up = ceil(L/2), third = floor(L/3). Pact and non-casters don't count.
+ */
+export function multiclassCasterLevel(
+  classes: { class_name: string; levels: number }[],
+): number {
+  let sum = 0;
+  for (const c of classes) {
+    const cat = getCasterCategory(c.class_name);
+    if (cat === "full") sum += c.levels;
+    else if (cat === "half_down") sum += Math.floor(c.levels / 2);
+    else if (cat === "half_up") sum += Math.ceil(c.levels / 2);
+    else if (cat === "third") sum += Math.floor(c.levels / 3);
+  }
+  return Math.min(20, sum);
+}
+
+/**
+ * Slot layout for a multiclass character. Combines classes into a single set
+ * of leveled slots from the full-caster table, plus separate pact slots from
+ * the warlock table (if the character has warlock levels).
+ *
+ * Falls back to `getDefaultSpellSlots(class, level)` for single-class
+ * characters so single-class casters keep their class-specific progression
+ * (Artificer's round-up half-caster table, etc.).
+ */
+export function getMulticlassSpellSlots(
+  classes: { class_name: string; levels: number }[],
+): import("@/types/party.types").SpellSlotEntry[] {
+  if (classes.length === 0) return [];
+  if (classes.length === 1) {
+    return getDefaultSpellSlots(classes[0].class_name, classes[0].levels);
+  }
+
+  const out: import("@/types/party.types").SpellSlotEntry[] = [];
+
+  const casterLevel = multiclassCasterLevel(classes);
+  if (casterLevel > 0) {
+    out.push(...slotsFromRow(FULL_CASTER_SLOTS[casterLevel - 1]));
+  }
+
+  const warlock = classes.find((c) => c.class_name === "Warlock");
+  if (warlock) {
+    const [slotLevel, count] = WARLOCK_PACT_SLOTS[Math.min(20, warlock.levels) - 1];
+    if (count > 0) {
+      // Keep pact slots as their own entry. If a leveled slot of the same
+      // level already exists from the multiclass sum, pact slots stack as a
+      // separate resource per RAW — but the UI currently renders a single
+      // entry per slot level, so we store them combined to avoid a regression.
+      // A follow-up PR will split them visually.
+      const existing = out.find((s) => s.level === slotLevel);
+      if (existing) existing.max += count;
+      else out.push({ level: slotLevel, max: count, used: 0 });
+    }
+  }
+
+  return out;
+}
+
 export function getHitDie(cls: string | null | undefined): number {
   const c = cls?.toLowerCase() ?? "";
   if (c === "barbarian") return 12;

@@ -119,7 +119,8 @@ import { useParty } from "@/composables/useParty";
 import { useCharacterSpells, useCharacterSpellsWithDetails } from "@/composables/useCharacterSpells";
 import SpellList from "@/components/spells/SpellList.vue";
 import PlayerMySpells from "@/components/spells/PlayerMySpells.vue";
-import { SPELL_SCHOOLS, SPELL_CLASSES, getCasterType, computeMaxPrepared, getDefaultSpellSlots } from "@/types/spell.types";
+import { SPELL_SCHOOLS, SPELL_CLASSES, getCasterType, computeMaxPrepared, getDefaultSpellSlots, getMulticlassSpellSlots } from "@/types/spell.types";
+import { useCharacterClasses } from "@/composables/useCharacterClasses";
 import { useClassByName } from "@/composables/useCustomClasses";
 
 const LEVEL_FILTERS = [
@@ -150,11 +151,17 @@ const casterType  = computed(() => classData.value?.caster_type ?? getCasterType
 const maxPrepared = computed(() => computeMaxPrepared(member.value, classData.value, memberClass.value));
 const memberName  = computed(() => member.value?.name ?? "");
 
-// Effective spell slots — fall back to 5e defaults if none configured yet
+const { data: characterClasses } = useCharacterClasses(resolvedMemberId);
+
+// Effective spell slots — multiclass-aware: combines class levels per PHB.
+// Falls back to per-class progression for single-class characters and to the
+// legacy default when no character_classes rows exist yet.
 const effectiveSpellSlots = computed(() => {
   const m = member.value;
   if (!m || casterType.value === "none") return [];
   if (m.spell_slots?.length) return m.spell_slots;
+  const list = (characterClasses.value ?? []).map((c) => ({ class_name: c.class_name, levels: c.levels }));
+  if (list.length > 0) return getMulticlassSpellSlots(list);
   return getDefaultSpellSlots(m.class, m.level);
 });
 

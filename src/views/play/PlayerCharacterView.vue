@@ -112,8 +112,9 @@ import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/useParty";
-import { getCasterType, getDefaultSpellSlots, computeMaxPrepared } from "@/types/spell.types";
+import { getCasterType, getDefaultSpellSlots, getMulticlassSpellSlots, computeMaxPrepared } from "@/types/spell.types";
 import { useClassByName } from "@/composables/useCustomClasses";
+import { useCharacterClasses } from "@/composables/useCharacterClasses";
 import { hasAttackDisadvantage, hasCheckDisadvantage } from "@/lib/conditions";
 import type { SpellSlotEntry, PartyMember } from "@/types/party.types";
 import { useRules, usePlayerVisibleRules } from "@/composables/useRules";
@@ -204,10 +205,17 @@ const memberClassRef = computed(() => member.value?.class ?? "");
 const classData = useClassByName(memberClassRef);
 const casterType = computed(() => classData.value?.caster_type ?? getCasterType(member.value?.class ?? null));
 
+const { data: characterClasses } = useCharacterClasses(resolvedMemberId);
+
 const effectiveSpellSlots = computed<SpellSlotEntry[]>(() => {
   const m = member.value;
   if (!m || casterType.value === "none") return [];
   if (m.spell_slots?.length) return m.spell_slots;
+  // Multiclass: combine class levels per PHB caster-level rules. Single-class
+  // characters (or pre-backfill legacy rows) fall back to per-class progression.
+  const list = (characterClasses.value ?? [])
+    .map((c) => ({ class_name: c.class_name, levels: c.levels }));
+  if (list.length > 0) return getMulticlassSpellSlots(list);
   return getDefaultSpellSlots(m.class, m.level);
 });
 
