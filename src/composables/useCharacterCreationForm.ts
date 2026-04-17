@@ -2,6 +2,7 @@ import { ref, reactive, computed, watch, type InjectionKey } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useParty, useCreatePartyMember, useUpdatePartyMember } from "@/composables/useParty";
+import { useAddCharacterClass } from "@/composables/useCharacterClasses";
 import { useCampaignMembers, useUpdateCampaignMember } from "@/composables/useCampaignMembers";
 import { SKILLS } from "@/types/party.types";
 import { useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
@@ -101,6 +102,7 @@ export function useCharacterCreationForm() {
   const { data: campaignMembers } = useCampaignMembers();
   const { mutateAsync: create }               = useCreatePartyMember();
   const { mutateAsync: update }               = useUpdatePartyMember();
+  const { mutateAsync: addCharacterClass }    = useAddCharacterClass();
   const { mutateAsync: updateCampaignMember } = useUpdateCampaignMember();
 
   const editMemberId = computed(() =>
@@ -339,6 +341,20 @@ export function useCharacterCreationForm() {
       const myMembership = (campaignMembers.value ?? []).find((cm) => cm.user_id === auth.user?.id);
       if (myMembership) {
         await updateCampaignMember({ id: myMembership.id, update: { party_member_id: created.id } });
+      }
+      // Seed the primary character_classes row. Characters above level 1
+      // immediately route to the level-up wizard, which increments from 1
+      // per-class-level for each remaining level.
+      if (f.class) {
+        await addCharacterClass({
+          party_member_id: created.id,
+          class_name:      f.class,
+          subclass_name:   f.subclass || null,
+          levels:          1,
+          is_primary:      true,
+          hit_dice_used:   0,
+          sort_order:      0,
+        });
       }
       await auth.refreshMembership();
       saving.value = false;

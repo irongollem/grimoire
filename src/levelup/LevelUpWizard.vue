@@ -27,6 +27,64 @@
     </div>
 
     <template v-else>
+      <!-- Class picker — choose which class gets this level. For single-class
+           characters this is the only option; for multiclass the player picks
+           between continuing an existing class or taking a new one. -->
+      <div class="rounded-lg border border-border bg-card p-4 space-y-3">
+        <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">Leveling in</h3>
+        <select
+          v-model="chosenClassSelector"
+          class="w-full rounded border border-border bg-muted/40 px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option v-for="entry in existingClassOptions" :key="entry.id" :value="entry.id">
+            {{ entry.class_name }}{{ entry.subclass_name ? ` (${entry.subclass_name})` : '' }}
+            — Level {{ entry.levels }} → {{ entry.levels + 1 }}
+          </option>
+          <option value="__new__">Take a level in a new class…</option>
+        </select>
+
+        <template v-if="isAddingNewClass">
+          <div class="space-y-2">
+            <label class="font-cinzel text-[10px] text-muted-foreground tracking-wider">New Class</label>
+            <select
+              v-model="newClassName"
+              class="w-full rounded border border-border bg-muted/40 px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="" disabled>Select…</option>
+              <option v-for="name in newClassCandidates" :key="name" :value="name">{{ name }}</option>
+            </select>
+          </div>
+          <!-- Prereq warning -->
+          <div
+            v-if="newClassName && !newClassPrereq.ok"
+            class="rounded-md px-3 py-2 flex items-start gap-2"
+            :class="ignoreMulticlassPrereqs
+              ? 'bg-amber-500/10 border border-amber-500/30 text-amber-400'
+              : 'bg-destructive/10 border border-destructive/30 text-destructive'"
+          >
+            <span class="font-cinzel text-[10px] tracking-wider shrink-0">{{ ignoreMulticlassPrereqs ? 'PREREQ IGNORED' : 'PREREQ' }}</span>
+            <span class="font-fell text-xs">
+              {{ newClassPrereq.reason }}.
+              <template v-if="ignoreMulticlassPrereqs">
+                Multiclass prereqs are disabled for this campaign.
+              </template>
+              <template v-else>
+                The DM can enable "Ignore multiclass prereqs" in Campaign Settings.
+              </template>
+            </span>
+          </div>
+          <div
+            v-if="newClassName && newClassProficiencyGrants.length > 0"
+            class="rounded-md bg-primary/10 border border-primary/20 px-3 py-2"
+          >
+            <p class="font-cinzel text-[10px] text-primary tracking-wider mb-1">Multiclass Proficiencies</p>
+            <p class="font-fell text-xs text-foreground">
+              You gain: {{ newClassProficiencyGrants.join(', ') }}
+            </p>
+          </div>
+        </template>
+      </div>
+
       <!-- Features gained -->
       <div class="rounded-lg border border-border bg-card p-4 space-y-3">
         <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">Features Gained</h3>
@@ -419,7 +477,16 @@ import { ChevronDown } from "lucide-vue-next";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useAllCustomSubclasses, useCustomSubclassByClassAndSubclass } from "@/composables/useCustomSubclasses";
-import { useCustomClassByName, useAllSystemClasses } from "@/composables/useCustomClasses";
+import { useCustomClassByName, useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
+import {
+  useCharacterClasses,
+  useMulticlassPrereqs,
+  useAddCharacterClass,
+  useUpdateCharacterClass,
+} from "@/composables/useCharacterClasses";
+import { useCampaignStore } from "@/stores/campaign";
+import { meetsMulticlassPrereq } from "@/types/multiclass.types";
+import type { CharacterClass } from "@/types/multiclass.types";
 import { getHitDie } from "@/types/spell.types";
 import { rollDie } from "@/lib/dice";
 import { useAllFeatures } from "@/composables/useFeatures";
@@ -438,14 +505,82 @@ const props = defineProps<{
 
 const router = useRouter();
 const { mutateAsync: updateMember, isPending } = useUpdatePartyMember();
+const { mutateAsync: addCharacterClass } = useAddCharacterClass();
+const { mutateAsync: updateCharacterClass } = useUpdateCharacterClass();
+const campaign = useCampaignStore();
 
-// ── Class data ─────────────────────────────────────────────────────────────────
-const memberClass    = computed(() => props.member.class ?? "");
-const memberSubclass = computed(() => props.member.subclass ?? "");
+// ── Multiclass state ───────────────────────────────────────────────────────────
+const memberIdRef = computed(() => props.member.id);
+const { data: characterClasses } = useCharacterClasses(memberIdRef);
+const { data: multiclassPrereqs } = useMulticlassPrereqs();
+const { data: allCustomClasses } = useAllCustomClasses();
+const { data: allSystemClasses } = useAllSystemClasses();
+
+/** Synthetic fallback row for pre-multiclass characters (no character_classes yet). */
+const memberClassEntries = computed<CharacterClass[]>(() => {
+  const list = characterClasses.value ?? [];
+  if (list.length > 0) return list;
+  if (!props.member.class) return [];
+  return [{
+    id: "__legacy__",
+    party_member_id: props.member.id,
+    class_name: props.member.class,
+    subclass_name: props.member.subclass ?? null,
+    levels: props.member.level,
+    is_primary: true,
+    hit_dice_used: 0,
+    sort_order: 0,
+    created_at: props.member.created_at,
+    updated_at: props.member.updated_at,
+  }];
+});
+
+const existingClassOptions = computed(() => memberClassEntries.value);
+
+/** User's choice for this level-up: either an existing class entry or "__new__" */
+const chosenClassSelector = ref<string>("");
+
+/** When adding a new class, which class is being taken. */
+const newClassName = ref<string>("");
+
+// Seed the picker on mount / when member classes load.
+const initClassSelectorOnce = computed(() => {
+  if (chosenClassSelector.value) return true;
+  const primary = existingClassOptions.value.find(c => c.is_primary) ?? existingClassOptions.value[0];
+  if (primary) {
+    chosenClassSelector.value = primary.id;
+    return true;
+  }
+  return false;
+});
+// Touch the computed so it runs its seeding effect.
+void initClassSelectorOnce;
+
+const isAddingNewClass = computed(() => chosenClassSelector.value === "__new__");
+
+const chosenExistingEntry = computed<CharacterClass | null>(() => {
+  if (isAddingNewClass.value) return null;
+  return existingClassOptions.value.find(c => c.id === chosenClassSelector.value) ?? null;
+});
+
+/** The class name for this level-up — existing-class name or newly-picked class. */
+const memberClass = computed(() => {
+  if (isAddingNewClass.value) return newClassName.value;
+  return chosenExistingEntry.value?.class_name ?? props.member.class ?? "";
+});
+
+const memberSubclass = computed(() =>
+  chosenExistingEntry.value?.subclass_name ?? "",
+);
+
+/** Per-chosen-class level: the level *inside the chosen class* after this bump. */
+const levelInChosenClass = computed(() => {
+  if (isAddingNewClass.value) return 1;
+  return (chosenExistingEntry.value?.levels ?? 0) + 1;
+});
 
 const { data: customSubclass } = useCustomSubclassByClassAndSubclass(memberClass, memberSubclass);
 const { data: customClass }    = useCustomClassByName(memberClass);
-const { data: allSystemClasses } = useAllSystemClasses();
 const systemClass = computed(() => (allSystemClasses.value ?? []).find(c => c.class_name === memberClass.value));
 const { data: allFeatures }   = useAllFeatures();
 const { data: allCustomSubclasses } = useAllCustomSubclasses();
@@ -455,7 +590,42 @@ const customSubclassNamesForClass = computed<string[]>(() =>
     .map(cs => cs.subclass_name),
 );
 
+// Classes the character doesn't already have — candidates for a new level.
+const newClassCandidates = computed<string[]>(() => {
+  const existing = new Set(existingClassOptions.value.map(c => c.class_name));
+  const custom = (allCustomClasses.value ?? []).map(c => c.class_name);
+  const system = (allSystemClasses.value ?? []).map(c => c.class_name);
+  const all = Array.from(new Set([...custom, ...system]));
+  return all.filter(name => !existing.has(name)).sort();
+});
+
+const ignoreMulticlassPrereqs = computed<boolean>(() => {
+  const rules = (campaign.activeCampaign?.optional_rules ?? {}) as Record<string, unknown>;
+  return rules.ignore_multiclass_prereqs === true;
+});
+
+/** Prereq check for the currently-selected new class. */
+const newClassPrereq = computed(() => {
+  if (!isAddingNewClass.value || !newClassName.value) return { ok: true as const };
+  const prereq = (multiclassPrereqs.value ?? []).find(p => p.class_name === newClassName.value);
+  if (!prereq) return { ok: true as const };
+  return meetsMulticlassPrereq(prereq, {
+    str: props.member.str, dex: props.member.dex, con: props.member.con,
+    int: props.member.int, wis: props.member.wis, cha: props.member.cha,
+  });
+});
+
+const newClassProficiencyGrants = computed<string[]>(() => {
+  if (!isAddingNewClass.value || !newClassName.value) return [];
+  const prereq = (multiclassPrereqs.value ?? []).find(p => p.class_name === newClassName.value);
+  return prereq?.gained_proficiencies ?? [];
+});
+
 // ── Derived ────────────────────────────────────────────────────────────────────
+// `nextLevel` is the character's new TOTAL level — used for proficiency bonus.
+// `levelInChosenClass` (defined above) is the new level IN THE CLASS BEING
+// LEVELLED — used for features, ASI checks, subclass gates, hit die, and
+// class-specific spell/cantrip tables.
 const nextLevel    = computed(() => props.member.level + 1);
 const newProfBonus = computed(() => 2 + Math.floor((nextLevel.value - 1) / 4));
 
@@ -499,15 +669,15 @@ const currentHitDice = computed(() =>
 const newHitDiceCount = computed(() => Math.min(nextLevel.value, currentHitDice.value + 1));
 
 const grantsAsi = computed(() =>
-  systemClass.value?.asi_levels.includes(nextLevel.value) ||
-  customClass.value?.asi_levels.includes(nextLevel.value) ||
+  systemClass.value?.asi_levels.includes(levelInChosenClass.value) ||
+  customClass.value?.asi_levels.includes(levelInChosenClass.value) ||
   false,
 );
 
 const needsSubclassChoice = computed(() => {
-  if (props.member.subclass) return false;
-  if (systemClass.value?.subclass_level === nextLevel.value) return true;
-  if (customClass.value?.subclass_level === nextLevel.value) return true;
+  if (chosenExistingEntry.value?.subclass_name) return false;
+  if (systemClass.value?.subclass_level === levelInChosenClass.value) return true;
+  if (customClass.value?.subclass_level === levelInChosenClass.value) return true;
   return false;
 });
 
@@ -520,8 +690,9 @@ function dbSlots(level: number): SpellSlotEntry[] {
   return row.map((max, i) => ({ level: i + 1, max, used: 0 })).filter(s => s.max > 0);
 }
 
-const prevSpellSlots = computed<SpellSlotEntry[]>(() => dbSlots(props.member.level));
-const newSpellSlots  = computed<SpellSlotEntry[]>(() => dbSlots(nextLevel.value));
+const prevLevelInChosenClass = computed(() => Math.max(0, levelInChosenClass.value - 1));
+const prevSpellSlots = computed<SpellSlotEntry[]>(() => dbSlots(prevLevelInChosenClass.value));
+const newSpellSlots  = computed<SpellSlotEntry[]>(() => dbSlots(levelInChosenClass.value));
 const newSpellSlotSummary = computed(() => {
   const prev = prevSpellSlots.value;
   const next = newSpellSlots.value;
@@ -539,27 +710,27 @@ const newSpellSlotSummary = computed(() => {
 const spellsKnownGain = computed(() => {
   const table = customClass.value?.spells_known ?? systemClass.value?.spells_known;
   if (!table) return 0;
-  const cur  = table[nextLevel.value - 1] ?? 0;
-  const prev = table[props.member.level - 1] ?? 0;
+  const cur  = table[levelInChosenClass.value - 1] ?? 0;
+  const prev = table[prevLevelInChosenClass.value - 1] ?? 0;
   return Math.max(0, cur - prev);
 });
 
 const spellsKnownTotal = computed(() => {
   const table = customClass.value?.spells_known ?? systemClass.value?.spells_known;
-  return table?.[nextLevel.value - 1] ?? 0;
+  return table?.[levelInChosenClass.value - 1] ?? 0;
 });
 
 const cantripsKnownGain = computed(() => {
   const table = customClass.value?.cantrips_known ?? systemClass.value?.cantrips_known;
   if (!table) return 0;
-  const cur  = table[nextLevel.value - 1] ?? 0;
-  const prev = table[props.member.level - 1] ?? 0;
+  const cur  = table[levelInChosenClass.value - 1] ?? 0;
+  const prev = table[prevLevelInChosenClass.value - 1] ?? 0;
   return Math.max(0, cur - prev);
 });
 
 const cantripsKnownTotal = computed(() => {
   const table = customClass.value?.cantrips_known ?? systemClass.value?.cantrips_known;
-  return table?.[nextLevel.value - 1] ?? 0;
+  return table?.[levelInChosenClass.value - 1] ?? 0;
 });
 
 /** Highest spell slot level available at nextLevel — caps what spells can be learned. */
@@ -579,7 +750,8 @@ function toggleWizardFeature(name: string) {
 const featureObjectMap = computed(() => new Map((allFeatures.value ?? []).map(f => [f.id, f])));
 
 const customFeaturesForLevel = computed<FeatureEntry[]>(() => {
-  const lvlKey = nextLevel.value.toString();
+  // Features are indexed per-class-level, not per-total-level.
+  const lvlKey = levelInChosenClass.value.toString();
   const ids = customSubclass.value?.features[lvlKey] ?? customClass.value?.features[lvlKey] ?? systemClass.value?.features[lvlKey] ?? [];
   return mapFeatureIds(ids, featureObjectMap.value);
 });
@@ -610,8 +782,8 @@ const classDefs = computed<ClassResourceDef[]>(() => {
 
 const resourceNotices = computed(() =>
   classDefs.value.flatMap(def => {
-    const newMax = def.maxAtLevel(nextLevel.value);
-    const oldMax = def.maxAtLevel(props.member.level);
+    const newMax = def.maxAtLevel(levelInChosenClass.value);
+    const oldMax = def.maxAtLevel(prevLevelInChosenClass.value);
     if (newMax === oldMax) return [];
     return [{ key: def.key, label: def.label, oldMax, newMax }];
   }),
@@ -657,7 +829,7 @@ const subclassInput = ref("");
 const classSteps = computed<ClassStep[]>(() => {
   function stepsAt(steps: { level: number; step_type: string; type: "select" | "append"; key: string; label: string; description?: string; options: string[]; count?: number }[]): ClassStep[] {
     return steps
-      .filter(s => s.level === nextLevel.value)
+      .filter(s => s.level === levelInChosenClass.value)
       .map(({ level: _l, step_type: _st, ...rest }) => rest);
   }
   return [
@@ -744,6 +916,9 @@ const error = ref("");
 
 const canConfirm = computed(() => {
   if (nextLevel.value > 20) return false;
+  if (!memberClass.value) return false;
+  if (isAddingNewClass.value && !newClassName.value) return false;
+  if (isAddingNewClass.value && !ignoreMulticlassPrereqs.value && !newClassPrereq.value.ok) return false;
   if (hpMode.value === "roll" && rolledHp.value === null) return false;
   if (grantsAsi.value) {
     if (asiMode.value === "plus2" && !asiPrimary.value) return false;
@@ -798,7 +973,7 @@ async function confirm() {
   if (defs.length > 0) {
     const newResources = { ...props.member.class_resources };
     for (const def of defs) {
-      const newMax = def.maxAtLevel(nextLevel.value);
+      const newMax = def.maxAtLevel(levelInChosenClass.value);
       const existing = newResources[def.key];
       newResources[def.key] = {
         max:     newMax,
@@ -813,9 +988,23 @@ async function confirm() {
   const newChoices: Record<string, unknown> = { ...props.member.class_choices };
 
   const subclass = subclassInput.value.trim();
-  if (needsSubclassChoice.value && subclass) {
+  const leveledEntryIsPrimary = chosenExistingEntry.value?.is_primary ?? (isAddingNewClass.value && existingClassOptions.value.length === 0);
+  if (needsSubclassChoice.value && subclass && leveledEntryIsPrimary) {
+    // Keep the legacy column in sync only for the primary class; other
+    // classes' subclasses live on their character_classes row.
     update.subclass = subclass;
     newChoices.subclass = subclass;
+  }
+
+  // When taking a new class, persist the PHB multiclass proficiencies into
+  // the member's tool_proficiencies bag so the sheet reflects them. We
+  // intentionally keep them in tool_proficiencies (free-text) rather than
+  // trying to split by prof category — the grant list is freeform per PHB
+  // and not all entries are real tools.
+  if (isAddingNewClass.value && newClassProficiencyGrants.value.length > 0) {
+    const existingProfs = props.member.tool_proficiencies ?? [];
+    const merged = Array.from(new Set([...existingProfs, ...newClassProficiencyGrants.value]));
+    update.tool_proficiencies = merged;
   }
 
   // Feat choice
@@ -856,6 +1045,44 @@ async function confirm() {
 
   try {
     await updateMember({ id: props.member.id, update: update as PartyMemberUpdate });
+
+    // Persist to character_classes: insert a new row for a new class, or
+    // increment the levels on the existing row being leveled. Skip the
+    // synthetic "__legacy__" entry — those characters get a fresh row when
+    // the next level is taken (backfill migration should cover the rest).
+    if (isAddingNewClass.value && newClassName.value) {
+      await addCharacterClass({
+        party_member_id: props.member.id,
+        class_name: newClassName.value,
+        subclass_name: null,
+        levels: 1,
+        is_primary: existingClassOptions.value.length === 0,
+        hit_dice_used: 0,
+        sort_order: existingClassOptions.value.length,
+      });
+    } else if (chosenExistingEntry.value && chosenExistingEntry.value.id !== "__legacy__") {
+      const entry = chosenExistingEntry.value;
+      const patch: { levels: number; subclass_name?: string | null } = {
+        levels: entry.levels + 1,
+      };
+      if (needsSubclassChoice.value && subclass) {
+        patch.subclass_name = subclass;
+      }
+      await updateCharacterClass({ id: entry.id, update: patch });
+    } else if (chosenExistingEntry.value?.id === "__legacy__") {
+      // Pre-backfill character — create the primary row at its new level.
+      await addCharacterClass({
+        party_member_id: props.member.id,
+        class_name: chosenExistingEntry.value.class_name,
+        subclass_name: (needsSubclassChoice.value && subclass)
+          ? subclass
+          : (chosenExistingEntry.value.subclass_name ?? null),
+        levels: chosenExistingEntry.value.levels + 1,
+        is_primary: true,
+        hit_dice_used: 0,
+        sort_order: 0,
+      });
+    }
 
     // Add selected spells and cantrips to character_spells
     for (const spellId of selectedSpellIds.value) {

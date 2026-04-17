@@ -31,8 +31,8 @@
               ><Star class="h-3.5 w-3.5" :class="member.inspiration ? 'fill-gold-500' : ''" /></button>
             </div>
             <p class="font-fell text-xs text-muted-foreground italic">
-              {{ [speciesName, member.subrace, member.class, member.subclass].filter(Boolean).join(" · ") }}
-              <span v-if="member.level" class="font-cinzel text-[10px] text-primary not-italic ml-1">Lv {{ member.level }}</span>
+              {{ [speciesName, member.subrace, classLabel].filter(Boolean).join(" · ") }}
+              <span v-if="memberTotalLevel" class="font-cinzel text-[10px] text-primary not-italic ml-1">Lv {{ memberTotalLevel }}</span>
             </p>
           </div>
           <div v-if="!hidePlayerActions" class="shrink-0 flex items-center gap-1 pt-0.5">
@@ -149,6 +149,8 @@ import { RouterLink } from "vue-router";
 import { Star, TrendingUp, Settings } from "lucide-vue-next";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useClassByName } from "@/composables/useCustomClasses";
+import { useCharacterClasses } from "@/composables/useCharacterClasses";
+import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import { getHitDie } from "@/types/spell.types";
 import { useConcentration } from "@/composables/useConcentration";
 import { patchLiveCombatantConditions } from "@/composables/useEncounterLive";
@@ -220,8 +222,36 @@ async function addCondition(cond: string) {
 const classNameRef = computed(() => props.member.class ?? "");
 const classData = useClassByName(classNameRef);
 const hitDie = computed<number>(() => classData.value?.hit_die ?? getHitDie(classNameRef.value));
+
+const memberIdRef = computed(() => props.member.id);
+const { data: characterClasses } = useCharacterClasses(memberIdRef);
+
+/**
+ * Total character level. Sum of `character_classes` rows if populated;
+ * otherwise falls back to the legacy single `party_members.level`.
+ */
+const memberTotalLevel = computed(() => {
+  const list = characterClasses.value ?? [];
+  return list.length > 0 ? totalLevel(list) : props.member.level;
+});
+
+/**
+ * Label rendered next to the name: "Fighter 5 / Wizard 3" when multiclass,
+ * otherwise the single class from the legacy column.
+ */
+const classLabel = computed(() => {
+  const list = characterClasses.value ?? [];
+  if (list.length > 1) return formatMulticlassLabel(list);
+  if (list.length === 1) {
+    const only = list[0];
+    const parts = [only.class_name, only.subclass_name].filter(Boolean);
+    return parts.join(" · ");
+  }
+  return [props.member.class, props.member.subclass].filter(Boolean).join(" · ");
+});
+
 const hitDiceRemaining = computed(() =>
-  Math.min(props.member.level, props.member.hit_dice_remaining ?? props.member.level),
+  Math.min(memberTotalLevel.value, props.member.hit_dice_remaining ?? memberTotalLevel.value),
 );
 
 const combatStats = computed(() => [
@@ -229,7 +259,7 @@ const combatStats = computed(() => [
   { label: "SPD",  value: props.member.speed, suffix: "ft" },
   { label: "INIT", value: abilityModifier(props.member.dex), suffix: "" },
   { label: "PROF", value: `+${props.member.proficiency_bonus}`, suffix: "" },
-  { label: "HD",   value: `${hitDiceRemaining.value}/${props.member.level}`, suffix: `d${hitDie.value}` },
+  { label: "HD",   value: `${hitDiceRemaining.value}/${memberTotalLevel.value}`, suffix: `d${hitDie.value}` },
 ]);
 
 const hpPct = computed(() => {

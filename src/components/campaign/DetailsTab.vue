@@ -158,6 +158,30 @@
       </label>
     </div>
 
+    <!-- Optional rules -->
+    <div class="pt-2">
+      <p class="font-cinzel text-xs font-semibold text-foreground tracking-wide mb-2">Optional Rules</p>
+      <label class="flex items-start gap-3 cursor-pointer" @click="form.ignore_multiclass_prereqs = !form.ignore_multiclass_prereqs">
+        <div class="shrink-0 mt-0.5">
+          <div
+            class="h-5 w-9 rounded-full border-2 transition-colors relative"
+            :class="form.ignore_multiclass_prereqs ? 'bg-primary border-primary' : 'bg-muted border-border'"
+          >
+            <div
+              class="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform"
+              :class="form.ignore_multiclass_prereqs ? 'translate-x-4' : 'translate-x-0.5'"
+            />
+          </div>
+        </div>
+        <div class="flex-1 min-w-0">
+          <span class="font-cinzel text-xs font-semibold text-foreground tracking-wide">Ignore multiclass prereqs</span>
+          <p class="font-fell text-xs text-muted-foreground mt-0.5">
+            Waive the PHB ability-score thresholds for multiclassing. When off, players must meet the usual ability requirements (e.g. STR 13 to take a Fighter level).
+          </p>
+        </div>
+      </label>
+    </div>
+
     <!-- Save -->
     <div class="flex justify-end pt-1">
       <button
@@ -205,6 +229,7 @@ function buildForm(c: typeof campaign.value) {
     theme: c?.theme ?? "grimoire",
     health_visibility: (c?.health_visibility as "strategic" | "immersive" | "unknown") ?? "strategic",
     immersive_rolls: c?.immersive_rolls ?? false,
+    ignore_multiclass_prereqs: c?.optional_rules?.ignore_multiclass_prereqs ?? false,
   };
 }
 
@@ -237,6 +262,9 @@ async function submitForm() {
       theme: form.value.theme,
       health_visibility: form.value.health_visibility,
       immersive_rolls: form.value.immersive_rolls,
+      optional_rules: {
+        ignore_multiclass_prereqs: form.value.ignore_multiclass_prereqs,
+      },
     },
   });
   campaignStore.switchToCampaign(updated);

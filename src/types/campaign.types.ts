@@ -1,3 +1,9 @@
+/** Per-campaign house-rule toggles. Shape is open-ended; known keys are typed. */
+export interface CampaignOptionalRules {
+  /** PHB multiclass prereqs waived — any character can multiclass regardless of ability scores. */
+  ignore_multiclass_prereqs?: boolean;
+}
+
 export interface Campaign {
   id: string;
   user_id: string;
@@ -9,6 +15,7 @@ export interface Campaign {
   theme: string;        // references GrimoireTheme.id, defaults to 'grimoire'
   health_visibility: "strategic" | "immersive" | "unknown";
   immersive_rolls: boolean;
+  optional_rules: CampaignOptionalRules;
   excluded_monster_ids: string[];
   disabled_class_names: string[];
   openai_api_key: string | null;
@@ -19,7 +26,7 @@ export interface Campaign {
   updated_at: string;
 }
 
-export type CampaignInsert = Omit<Campaign, "id" | "user_id" | "created_at" | "updated_at" | "excluded_monster_ids" | "disabled_class_names" | "health_visibility" | "immersive_rolls" | "openai_api_key" | "ai_setting_prompt" | "ical_token"> & { excluded_monster_ids?: string[]; disabled_class_names?: string[]; health_visibility?: Campaign["health_visibility"]; immersive_rolls?: boolean; openai_api_key?: string | null; ai_setting_prompt?: string | null };
+export type CampaignInsert = Omit<Campaign, "id" | "user_id" | "created_at" | "updated_at" | "excluded_monster_ids" | "disabled_class_names" | "health_visibility" | "immersive_rolls" | "optional_rules" | "openai_api_key" | "ai_setting_prompt" | "ical_token"> & { excluded_monster_ids?: string[]; disabled_class_names?: string[]; health_visibility?: Campaign["health_visibility"]; immersive_rolls?: boolean; optional_rules?: CampaignOptionalRules; openai_api_key?: string | null; ai_setting_prompt?: string | null };
 export type CampaignUpdate = Partial<CampaignInsert> & { ical_token?: string; spotify_client_id?: string | null };
 
 export type CampaignRole = "dm" | "player";
