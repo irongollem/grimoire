@@ -96,6 +96,33 @@
           </label>
         </div>
       </div>
+
+      <!-- Identity extras (collapsible) -->
+      <details class="rounded-lg border border-border bg-card overflow-hidden">
+        <summary class="cursor-pointer px-3 py-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground transition-colors select-none">
+          Details — age, gender, pronouns, description
+        </summary>
+        <div class="p-3 space-y-2">
+          <div class="grid grid-cols-3 gap-2">
+            <label class="block">
+              <span class="field-label">Age</span>
+              <input v-model="f.age" class="field-input w-full" placeholder="47, ancient…" />
+            </label>
+            <label class="block">
+              <span class="field-label">Gender</span>
+              <input v-model="f.gender" class="field-input w-full" placeholder="" />
+            </label>
+            <label class="block">
+              <span class="field-label">Pronouns</span>
+              <input v-model="f.pronouns" class="field-input w-full" placeholder="she/her" />
+            </label>
+          </div>
+          <label class="block">
+            <span class="field-label">Physical Description</span>
+            <textarea v-model="f.physical_description" class="field-input w-full resize-y" rows="2" placeholder="Hair, build, scars, anything that helps the table picture them." />
+          </label>
+        </div>
+      </details>
     </div>
 
     <!-- Step 1: Species -->
@@ -208,6 +235,18 @@
           <p v-if="bg.feature_name" class="font-fell text-xs text-muted-foreground mt-1.5 italic">{{ bg.feature_name }}</p>
           <p v-if="bg.source_title" class="font-cinzel text-[9px] text-muted-foreground/50 mt-1">{{ bg.source_title }}</p>
         </button>
+      </div>
+
+      <!-- Selected background's equipment + import opt-in -->
+      <div v-if="selectedBackground?.equipment" class="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+        <p class="font-cinzel text-xs font-semibold text-primary tracking-wider">STARTING EQUIPMENT</p>
+        <p class="font-fell text-sm text-foreground whitespace-pre-wrap">{{ selectedBackground.equipment }}</p>
+        <label class="flex items-start gap-2 cursor-pointer pt-1">
+          <input type="checkbox" v-model="importBackgroundEquipment" class="mt-0.5 h-4 w-4 rounded border-border bg-muted" />
+          <span class="font-fell text-xs text-muted-foreground">
+            Add these to my inventory automatically. Each comma-separated entry becomes a freeform inventory row you can refine in <em>/play/inventory</em>.
+          </span>
+        </label>
       </div>
 
       <p v-if="f.background_id" class="font-cinzel text-xs text-primary/70 tracking-wider text-center">
@@ -499,7 +538,7 @@
 </template>
 
 <script setup lang="ts">
-import { inject, ref, reactive } from "vue";
+import { inject, ref, reactive, computed } from "vue";
 import { CHARACTER_FORM_KEY, WIZARD_STEPS, ABILITY_STATS, SAVE_STATS, PROF_LEVELS, SCORE_MODES, SLOT_LEVEL_LABELS, POINT_BUY_COSTS, STANDARD_ARRAY, roll4d6DropLowest } from "@/composables/useCharacterCreationForm";
 import { SKILLS } from "@/types/party.types";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
@@ -521,6 +560,7 @@ const {
   mod, setSkillProf, skillBonus, toggleSave, saveBonus,
   resetSlotsToDefault, onSpeciesSelect, onClassSelect, onBackgroundSelect,
   save,
+  importBackgroundEquipment,
 } = form;
 
 // ── Identity extras ──────────────────────────────────────────────────────────
@@ -532,6 +572,10 @@ const ALIGNMENT_OPTIONS = [
   "Lawful Evil",    "Neutral Evil",    "Chaotic Evil",
   "Unaligned",
 ] as const;
+
+const selectedBackground = computed(() =>
+  (allBackgrounds.value ?? []).find((b: { id: string }) => b.id === f.background_id) ?? null,
+);
 
 // ── Ability score assignment: standard array + 4d6 ───────────────────────────
 type AbilityKey = "str" | "dex" | "con" | "int" | "wis" | "cha";

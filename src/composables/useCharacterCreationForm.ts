@@ -3,6 +3,7 @@ import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useParty, useCreatePartyMember, useUpdatePartyMember } from "@/composables/useParty";
 import { useAddCharacterClass } from "@/composables/useCharacterClasses";
+import { useAddInventoryItem } from "@/composables/usePartyInventory";
 import { useCampaignMembers, useUpdateCampaignMember } from "@/composables/useCampaignMembers";
 import { SKILLS } from "@/types/party.types";
 import { useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
@@ -122,6 +123,7 @@ export function useCharacterCreationForm() {
   const { mutateAsync: create }               = useCreatePartyMember();
   const { mutateAsync: update }               = useUpdatePartyMember();
   const { mutateAsync: addCharacterClass }    = useAddCharacterClass();
+  const { mutateAsync: addInventoryItem }     = useAddInventoryItem();
   const { mutateAsync: updateCampaignMember } = useUpdateCampaignMember();
 
   const editMemberId = computed(() =>
@@ -200,7 +202,16 @@ export function useCharacterCreationForm() {
     flaws:              m?.flaws ?? "",
     deity:              m?.deity ?? "",
     experience_points:  m?.experience_points ?? 0,
+    age:                  m?.age ?? "",
+    gender:               m?.gender ?? "",
+    pronouns:             m?.pronouns ?? "",
+    physical_description: m?.physical_description ?? "",
   });
+
+  // Whether to import the chosen background's equipment text into inventory
+  // on creation. Defaults to true so new characters don't end up empty-handed;
+  // the player can untick it on the Background step.
+  const importBackgroundEquipment = ref(true);
 
   // ── Point buy ────────────────────────────────────────────────────────────────
 
@@ -352,6 +363,10 @@ export function useCharacterCreationForm() {
       bonds:                f.bonds || null,
       flaws:                f.flaws || null,
       deity:                f.deity || null,
+      age:                  f.age || null,
+      gender:               f.gender || null,
+      pronouns:             f.pronouns || null,
+      physical_description: f.physical_description || null,
       portrait_url:         portraitUrl.value || null,
       portrait_focal_point: focalPoint.value,
       card_art_url:         cardArtUrl.value || null,
@@ -388,6 +403,36 @@ export function useCharacterCreationForm() {
           sort_order:      0,
         });
       }
+
+      // Seed inventory from the chosen background's free-text equipment.
+      // Each comma- (or "and"-) separated entry becomes a freeform inventory
+      // row carried by the new character. Quantities embedded in entries
+      // (e.g. "10 gp", "two daggers") are kept verbatim — refining is the
+      // player's job in /play/inventory.
+      if (importBackgroundEquipment.value && f.background_id) {
+        const bg = (allBackgrounds.value ?? []).find((b) => b.id === f.background_id);
+        const entries = parseEquipmentList(bg?.equipment ?? "");
+        for (const entry of entries) {
+          await addInventoryItem({
+            item_id: null,
+            name: entry,
+            quantity: 1,
+            carried_by: created.id,
+            location: "backpack",
+            slot: null,
+            is_container: false,
+            container_id: null,
+            is_attuned: false,
+            is_equipped: false,
+            notes: null,
+            current_charges: null,
+            is_identified: true,
+            is_ruined: false,
+            sort_order: 0,
+          });
+        }
+      }
+
       await auth.refreshMembership();
       saving.value = false;
       if (f.level > 1) {
@@ -398,6 +443,20 @@ export function useCharacterCreationForm() {
     }
   }
 
+  /**
+   * Split a free-text equipment list into individual entries. Open5e ships
+   * background equipment as prose: "a holy symbol, a prayer book, vestments,
+   * a set of common clothes, and a belt pouch containing 15 gp".
+   * We split on commas + " and " (case-insensitive), trim, and drop empties.
+   */
+  function parseEquipmentList(prose: string): string[] {
+    if (!prose.trim()) return [];
+    return prose
+      .split(/,| and /i)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+  }
+
   return {
     // router
     router,
@@ -406,6 +465,7 @@ export function useCharacterCreationForm() {
     // form state
     f, activeTab, wizardStep, saving, scoreMode,
     portraitUrl, focalPoint, cardArtUrl, spellSlotMaxes,
+    importBackgroundEquipment,
     // computed
     isEditMode, existingMember, backRoute,
     allSpecies, allBackgrounds,
