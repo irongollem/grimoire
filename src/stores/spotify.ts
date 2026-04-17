@@ -60,6 +60,7 @@ interface SpotifyState {
   paused: boolean;
   position: number;
   duration: number;
+  repeat_mode: 0 | 1 | 2; // 0=off, 1=context, 2=track
   track_window: {
     current_track: SpotifyTrack;
   };
@@ -111,6 +112,7 @@ export const useSpotifyStore = defineStore("spotify", () => {
   const artistName = ref("");
   const albumArtUrl = ref("");
   const volume = ref(0.8);
+  const repeatMode = ref<0 | 1 | 2>(0); // 0=off, 1=context, 2=track
 
   // ── Auth ───────────────────────────────────────────────────────────────
 
@@ -203,6 +205,7 @@ export const useSpotifyStore = defineStore("spotify", () => {
     trackName.value = track.name;
     artistName.value = track.artists.map((a) => a.name).join(", ");
     albumArtUrl.value = track.album.images[0]?.url ?? "";
+    repeatMode.value = state.repeat_mode;
 
     if (!state.paused) {
       _startTick();
@@ -286,6 +289,18 @@ export const useSpotifyStore = defineStore("spotify", () => {
     await sdkPlayer?.previousTrack();
   }
 
+  async function setRepeat(mode: 0 | 1 | 2) {
+    if (!deviceId.value) return;
+    const token = await getValidToken(clientId.value);
+    if (!token) return;
+    const stateStr = mode === 2 ? "track" : mode === 1 ? "context" : "off";
+    await fetch(
+      `https://api.spotify.com/v1/me/player/repeat?state=${stateStr}&device_id=${deviceId.value}`,
+      { method: "PUT", headers: { Authorization: `Bearer ${token}` } },
+    );
+    repeatMode.value = mode;
+  }
+
   return {
     clientId,
     isEnabled,
@@ -311,5 +326,7 @@ export const useSpotifyStore = defineStore("spotify", () => {
     setVolume,
     nextTrack,
     previousTrack,
+    repeatMode,
+    setRepeat,
   };
 });

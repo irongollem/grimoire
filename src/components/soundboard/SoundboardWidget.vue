@@ -68,6 +68,16 @@
                 :value="spotifyStore.volume"
                 @input="spotifyStore.setVolume(+($event.target as HTMLInputElement).value)"
               />
+              <!-- Repeat -->
+              <button
+                class="shrink-0 transition-colors"
+                :class="spotifyStore.repeatMode > 0 ? 'text-green-500' : 'text-muted-foreground hover:text-foreground'"
+                :title="repeatTitle"
+                @click="cycleRepeat"
+              >
+                <Repeat1 v-if="spotifyStore.repeatMode === 2" class="h-3 w-3" />
+                <Repeat v-else class="h-3 w-3" />
+              </button>
               <!-- Prev / Pause / Next -->
               <button
                 class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
@@ -164,7 +174,7 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, nextTick } from "vue";
-import { Music2, X, Square, Pause, SkipBack, SkipForward, VolumeX } from "lucide-vue-next";
+import { Music2, X, Square, Pause, SkipBack, SkipForward, VolumeX, Repeat, Repeat1 } from "lucide-vue-next";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useSounds } from "@/composables/useSounds";
@@ -240,6 +250,17 @@ function formatSpotifyTime(ms: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
   return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+const repeatTitle = computed(() => {
+  if (spotifyStore.repeatMode === 2) return "Repeat: Track";
+  if (spotifyStore.repeatMode === 1) return "Repeat: Context";
+  return "Repeat: Off";
+});
+
+function cycleRepeat() {
+  const next = ((spotifyStore.repeatMode + 1) % 3) as 0 | 1 | 2;
+  spotifyStore.setRepeat(next);
 }
 
 function stopAll() {
