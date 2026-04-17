@@ -5,6 +5,7 @@
       <RouterView />
     </component>
     <ConfirmDialog />
+    <ManualRollPrompt />
   </template>
 
   <!-- Pull-to-refresh indicator (touch devices only) -->
@@ -29,6 +30,7 @@ import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AuthLayout from "@/layouts/AuthLayout.vue";
 import PlayerLayout from "@/layouts/PlayerLayout.vue";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
+import ManualRollPrompt from "@/components/common/ManualRollPrompt.vue";
 import LoadingScreen from "@/components/auth/LoadingScreen.vue";
 import { useTheme } from "@/composables/useTheme";
 import { supabase } from "@/lib/supabase";

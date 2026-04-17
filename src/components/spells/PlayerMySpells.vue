@@ -189,8 +189,9 @@ import {
   useRemoveCharacterSpell,
   useTogglePrepared,
 } from "@/composables/useCharacterSpells";
-import { useUpdatePartyMember } from "@/composables/useParty";
+import { useUpdatePartyMember, useParty } from "@/composables/useParty";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
+import { useConcentration } from "@/composables/useConcentration";
 import { useUiStore } from "@/stores/ui";
 import { SCHOOL_COLORS } from "@/types/spell.types";
 import type { CasterType, CharacterSpellEntry, Spell } from "@/types/spell.types";
@@ -224,6 +225,13 @@ const { mutate: removeSpell, isPending: isRemoving } = useRemoveCharacterSpell()
 const { mutate: togglePreparedMutation, isPending: isToggling } = useTogglePrepared();
 const { mutateAsync: updateMember } = useUpdatePartyMember();
 const { sendFlavorMessage } = useCampaignMessages();
+const { data: partyList } = useParty();
+const { startConcentration } = useConcentration();
+const thisMember = computed(() =>
+  props.partyMemberId && partyList.value
+    ? (partyList.value.find((m) => m.id === props.partyMemberId) ?? null)
+    : null,
+);
 const ui = useUiStore();
 
 // ── Modal ──────────────────────────────────────────────────────────────────────
@@ -287,6 +295,12 @@ async function castSpell(entry: CharacterSpellEntry) {
   isCasting.value = true;
   try {
     const level = entry.spell.level;
+
+    // Concentration guard: casting a new concentration spell ends the previous.
+    if (entry.spell.concentration && thisMember.value) {
+      const ok = await startConcentration(thisMember.value, entry.spell, { castAtLevel: level });
+      if (!ok) return;
+    }
 
     // Build flavor text
     let text = `${props.memberName} casts ${entry.spell.name}`;

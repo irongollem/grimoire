@@ -72,9 +72,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { ChevronRight } from "lucide-vue-next";
-import { rollDice } from "@/lib/roller";
 import type { RollMode } from "@/lib/roller";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
+import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import { useCampaignStore } from "@/stores/campaign";
 import { SKILLS } from "@/types/party.types";
@@ -83,7 +83,8 @@ import type { PartyMember, SkillProficiencies } from "@/types/party.types";
 const props = defineProps<{ member: PartyMember; checkDisadvantage: boolean }>();
 const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifier: number; total: number }] }>();
 
-const { sendRoll, sendFlavorMessage } = useCampaignMessages();
+const { sendFlavorMessage } = useCampaignMessages();
+const { promptRoll } = usePromptedRoll();
 const { data: campaignMembers } = useCampaignMembers();
 const campaignStore = useCampaignStore();
 const dmUserId = computed(() => campaignMembers.value?.find((m) => m.role === "dm")?.user_id ?? null);
@@ -143,24 +144,27 @@ function modeTag(mode: RollMode) {
 async function rollSkill(skill: (typeof SKILLS)[number]) {
   const isImmersive = campaignStore.activeCampaign?.immersive_rolls && IMMERSIVE_SKILL_KEYS.has(skill.key);
   const mode: RollMode = props.checkDisadvantage ? "disadvantage" : "normal";
+  const modifier = skillBonusValue(skill);
+  const name = props.member.name;
 
   if (isImmersive) {
-    const modifier = skillBonusValue(skill);
-    const result = rollDice({ 20: 1 }, modifier, mode);
-    const kept = result.breakdown.find(d => !d.dropped)!;
     const label = `${skill.label} Check`;
-    const name = props.member.name;
     await sendFlavorMessage(immersiveFlavor(label, name), skill.label);
-    if (dmUserId.value) await sendRoll({ ...result, label }, dmUserId.value, name);
-    void kept;
+    await promptRoll({
+      counts: { 20: 1 },
+      modifier,
+      label,
+      mode,
+      recipientUserId: dmUserId.value,
+      senderName: name,
+    });
     return;
   }
 
-  const modifier = skillBonusValue(skill);
-  const result = rollDice({ 20: 1 }, modifier, mode);
-  const kept = result.breakdown.find(d => !d.dropped)!;
   const fullLabel = `${skill.label} Check` + modeTag(mode);
+  const result = await promptRoll({ counts: { 20: 1 }, modifier, label: fullLabel, mode });
+  if (!result) return;
+  const kept = result.breakdown.find(d => !d.dropped)!;
   emit("roll", { label: fullLabel, dice: kept.val, modifier, total: result.total });
-  void sendRoll({ ...result, label: fullLabel });
 }
 </script>

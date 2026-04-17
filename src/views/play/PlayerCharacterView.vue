@@ -107,12 +107,11 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { RouterLink } from "vue-router";
-import { rollDice } from "@/lib/roller";
 import type { RollMode } from "@/lib/roller";
+import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/useParty";
-import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { getCasterType, getDefaultSpellSlots, computeMaxPrepared } from "@/types/spell.types";
 import { useClassByName } from "@/composables/useCustomClasses";
 import { hasAttackDisadvantage, hasCheckDisadvantage } from "@/lib/conditions";
@@ -146,7 +145,7 @@ const customTrackers = computed(() => {
     .map((r) => ({ ruleId: r.id, def: r.tracker! }));
 });
 const { data: partyMembers } = useParty();
-const { sendRoll } = useCampaignMessages();
+const { promptRoll } = usePromptedRoll();
 
 const resolvedMemberId = computed(() =>
   props.memberId ?? (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId),
@@ -235,13 +234,13 @@ const lastRoll = ref<RollResult | null>(null);
 
 function onChildRoll(result: RollResult) { lastRoll.value = { ...result }; }
 
-function doRoll(label: string, modifier: number, mode: RollMode = "normal") {
+async function doRoll(label: string, modifier: number, mode: RollMode = "normal") {
   const modeTag = mode === "advantage" ? " (Adv)" : mode === "disadvantage" ? " (Dis)" : "";
-  const result = rollDice({ 20: 1 }, modifier, mode);
-  const kept = result.breakdown.find(d => !d.dropped)!;
   const fullLabel = label + modeTag;
+  const result = await promptRoll({ counts: { 20: 1 }, modifier, label: fullLabel, mode });
+  if (!result) return;
+  const kept = result.breakdown.find(d => !d.dropped)!;
   lastRoll.value = { label: fullLabel, dice: kept.val, modifier, total: result.total };
-  void sendRoll({ ...result, label: fullLabel });
 }
 
 function onRollAbility(_key: string, label: string, mod: number) {

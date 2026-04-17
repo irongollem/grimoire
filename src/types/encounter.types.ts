@@ -130,6 +130,15 @@ export interface RunCombatant {
   wildshape?: WildshapeState;
   // temp HP — absorbs damage first, doesn't stack with healing
   temp_hp?: number;
+  // concentration — set when this combatant is concentrating on a spell.
+  // Mirrors ConcentrationState on party_members; cleared on short rest / encounter end for monsters.
+  concentration?: {
+    spellId: string | null;
+    spellName: string;
+    castAtLevel: number;
+    startedRound: number | null;
+    appliedEffectIds: string[];
+  } | null;
 }
 
 // ── XP / CR tables (D&D 5e) ──────────────────────────────────────────────────
