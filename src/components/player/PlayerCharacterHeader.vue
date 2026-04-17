@@ -34,6 +34,23 @@
               {{ [speciesName, member.subrace, classLabel].filter(Boolean).join(" · ") }}
               <span v-if="memberTotalLevel" class="font-cinzel text-[10px] text-primary not-italic ml-1">Lv {{ memberTotalLevel }}</span>
             </p>
+            <!-- XP progress (only when the campaign actually tracks XP) -->
+            <div v-if="(member.experience_points ?? 0) > 0 || readyToLevelUp" class="mt-1 flex items-center gap-1.5">
+              <span class="font-cinzel text-[9px] text-muted-foreground tracking-wider">XP</span>
+              <div class="flex-1 max-w-32 h-1 rounded-full bg-muted overflow-hidden">
+                <div class="h-full transition-all"
+                  :class="readyToLevelUp ? 'bg-primary' : 'bg-primary/50'"
+                  :style="{ width: `${xpPct}%` }" />
+              </div>
+              <span class="font-cinzel text-[9px] text-muted-foreground">
+                {{ member.experience_points ?? 0 }}<template v-if="xpToNext !== null"> / {{ xpToNext }}</template>
+              </span>
+              <RouterLink
+                v-if="readyToLevelUp && !hidePlayerActions"
+                :to="`/play/character/levelup?memberId=${member.id}`"
+                class="font-cinzel text-[9px] text-primary tracking-wider hover:opacity-80 ml-0.5"
+              >Ready ↑</RouterLink>
+            </div>
           </div>
           <div v-if="!hidePlayerActions" class="shrink-0 flex items-center gap-1 pt-0.5">
             <RouterLink
@@ -163,6 +180,7 @@ import {
   hasCheckDisadvantage,
 } from "@/lib/conditions";
 import type { PartyMember } from "@/types/party.types";
+import { xpForNextLevel, xpForLevel, levelForXp } from "@/types/party.types";
 import { abilityModifier } from "@/lib/utils";
 import { useAllSpecies } from "@/composables/useSpecies";
 import FocalImage from "@/components/common/FocalImage.vue";
@@ -265,6 +283,21 @@ const combatStats = computed(() => [
 const hpPct = computed(() => {
   if (props.member.max_hp === 0) return 0;
   return Math.max(0, Math.min(100, (props.member.current_hp / props.member.max_hp) * 100));
+});
+
+// XP progress — only meaningful when the campaign actually awards XP.
+const xpToNext = computed(() => xpForNextLevel(props.member.level));
+const xpPct = computed(() => {
+  const xp = props.member.experience_points ?? 0;
+  const floor = xpForLevel(props.member.level);
+  const next = xpToNext.value;
+  if (next === null) return 100; // Lv 20
+  if (next <= floor) return 0;
+  return Math.max(0, Math.min(100, ((xp - floor) / (next - floor)) * 100));
+});
+const readyToLevelUp = computed(() => {
+  const xp = props.member.experience_points ?? 0;
+  return levelForXp(xp) > props.member.level;
 });
 const hpColor = computed(() => {
   const p = hpPct.value;

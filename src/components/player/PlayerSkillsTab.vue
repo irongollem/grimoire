@@ -93,6 +93,23 @@
       </div>
     </div>
 
+    <!-- Identity (age / gender / pronouns / description) -->
+    <div v-if="hasIdentityExtras" class="rounded-lg border border-border bg-card p-4 space-y-2">
+      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Identity</p>
+      <div class="flex flex-wrap gap-1.5">
+        <span v-if="member.age" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">
+          Age {{ member.age }}
+        </span>
+        <span v-if="member.gender" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">
+          {{ member.gender }}
+        </span>
+        <span v-if="member.pronouns" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">
+          {{ member.pronouns }}
+        </span>
+      </div>
+      <p v-if="member.physical_description" class="font-fell text-sm text-foreground whitespace-pre-wrap">{{ member.physical_description }}</p>
+    </div>
+
     <!-- Notes -->
     <div v-if="member.notes" class="rounded-lg border border-border bg-card p-4">
       <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2">Notes</p>
@@ -154,6 +171,9 @@ const hasPersonality = computed(() =>
     || props.member.ideals
     || props.member.bonds
     || props.member.flaws),
+);
+const hasIdentityExtras = computed(() =>
+  !!(props.member.age || props.member.gender || props.member.pronouns || props.member.physical_description),
 );
 const passiveInsight      = computed(() => passiveScore("insight"));
 const passiveInvestigation = computed(() => passiveScore("investigation"));

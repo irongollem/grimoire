@@ -99,7 +99,12 @@ export interface PartyMember {
   bonds?: string | null;
   flaws?: string | null;
   deity?: string | null;
-  // Experience points (ignored when the campaign uses milestone levelling).
+  // Identity extras (optional — wizard collects these on the Identity step)
+  age?: string | null;
+  gender?: string | null;
+  pronouns?: string | null;
+  physical_description?: string | null;
+  // Experience points (optional — campaigns using milestone levelling leave it 0)
   experience_points?: number;
   // Currency
   cp: number;
@@ -135,3 +140,52 @@ export type PartyMemberUpdate = Partial<PartyMemberInsert>;
 // Conditions + helpers now live in `@/lib/conditions`. Re-exported here so
 // existing imports from `@/types/party.types` keep working.
 export { CONDITIONS, ATTACK_DIS_CONDITIONS, CHECK_DIS_CONDITIONS } from "@/lib/conditions";
+
+// ── XP-per-level table (D&D 5e PHB) ──────────────────────────────────────────
+// Total XP required to reach each level. Index 0 → Lv 1, index 19 → Lv 20.
+// At level N, you need LEVEL_XP_THRESHOLDS[N-1] total XP; the next level
+// unlocks at LEVEL_XP_THRESHOLDS[N].
+export const LEVEL_XP_THRESHOLDS: number[] = [
+  0,        // 1
+  300,      // 2
+  900,      // 3
+  2_700,    // 4
+  6_500,    // 5
+  14_000,   // 6
+  23_000,   // 7
+  34_000,   // 8
+  48_000,   // 9
+  64_000,   // 10
+  85_000,   // 11
+  100_000,  // 12
+  120_000,  // 13
+  140_000,  // 14
+  165_000,  // 15
+  195_000,  // 16
+  225_000,  // 17
+  265_000,  // 18
+  305_000,  // 19
+  355_000,  // 20
+];
+
+/** Highest level whose XP requirement <= the given total. */
+export function levelForXp(xp: number): number {
+  let lvl = 1;
+  for (let i = 0; i < LEVEL_XP_THRESHOLDS.length; i++) {
+    if (xp >= LEVEL_XP_THRESHOLDS[i]) lvl = i + 1;
+    else break;
+  }
+  return lvl;
+}
+
+/** XP required to reach the next level after the given total level. Null at 20. */
+export function xpForNextLevel(currentLevel: number): number | null {
+  if (currentLevel >= 20) return null;
+  return LEVEL_XP_THRESHOLDS[currentLevel] ?? null;
+}
+
+/** Total XP required to reach `level` (the floor of that level's bracket). */
+export function xpForLevel(level: number): number {
+  const idx = Math.max(1, Math.min(20, level)) - 1;
+  return LEVEL_XP_THRESHOLDS[idx];
+}
