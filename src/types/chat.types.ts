@@ -7,6 +7,7 @@ export interface RollMetadata {
   modifier: number;
   isCrit: boolean;
   isFumble: boolean;
+  manual?: boolean;
 }
 
 export interface ItemDropClaim {

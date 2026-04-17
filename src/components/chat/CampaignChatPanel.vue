@@ -60,6 +60,12 @@
               class="font-cinzel text-[10px] text-destructive tracking-wider"
               >NAT 1</span
             >
+            <span
+              v-if="(msg.metadata as RollMetadata).manual"
+              class="font-cinzel text-[10px] text-muted-foreground tracking-wider"
+              title="Entered from physical dice"
+              >MANUAL</span
+            >
           </div>
         </template>
 

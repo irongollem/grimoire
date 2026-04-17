@@ -90,12 +90,14 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { Sword, Zap } from "lucide-vue-next";
-import { rollDice, rollParsed } from "@/lib/roller";
-import type { RollMode } from "@/lib/roller";
+import { rollParsed } from "@/lib/roller";
+import type { RollMode, DieSize } from "@/lib/roller";
 import { parseExpression } from "@/lib/dice";
+import type { ParsedExpression } from "@/lib/dice";
 import { usePartyInventory } from "@/composables/usePartyInventory";
 import { useItems } from "@/composables/useItems";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
+import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import type { PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
@@ -106,6 +108,7 @@ const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifie
 const { data: inventory } = usePartyInventory();
 const { data: allItems } = useItems();
 const { sendRoll } = useCampaignMessages();
+const { promptRoll } = usePromptedRoll();
 
 function abilityMod(score: number) { return Math.floor((score - 10) / 2); }
 function signedNum(n: number) { return n >= 0 ? `+${n}` : `${n}`; }
@@ -148,53 +151,63 @@ function modeTag(mode: RollMode) {
   return mode === "advantage" ? " (Adv)" : mode === "disadvantage" ? " (Dis)" : "";
 }
 
-function rollUnarmedAttack() {
-  const mod = unarmedAttackMod.value;
+async function rollAttackWith(mod: number, baseLabel: string) {
   const mode: RollMode = props.attackDisadvantage ? "disadvantage" : "normal";
-  const result = rollDice({ 20: 1 }, mod, mode);
+  const fullLabel = `${baseLabel} — Attack` + modeTag(mode);
+  const result = await promptRoll({ counts: { 20: 1 }, modifier: mod, label: fullLabel, mode });
+  if (!result) return;
   const kept = result.breakdown.find(d => !d.dropped)!;
-  const fullLabel = `Unarmed Strike — Attack` + modeTag(mode);
   emit("roll", { label: fullLabel, dice: kept.val, modifier: mod, total: result.total });
-  void sendRoll({ ...result, label: fullLabel });
 }
 
-function rollImprovisedAttack() {
-  const mod = improvisedAttackMod.value;
-  const mode: RollMode = props.attackDisadvantage ? "disadvantage" : "normal";
-  const result = rollDice({ 20: 1 }, mod, mode);
-  const kept = result.breakdown.find(d => !d.dropped)!;
-  const fullLabel = `Improvised Weapon — Attack` + modeTag(mode);
-  emit("roll", { label: fullLabel, dice: kept.val, modifier: mod, total: result.total });
-  void sendRoll({ ...result, label: fullLabel });
+function rollUnarmedAttack() { return rollAttackWith(unarmedAttackMod.value, "Unarmed Strike"); }
+function rollImprovisedAttack() { return rollAttackWith(improvisedAttackMod.value, "Improvised Weapon"); }
+function rollWeaponAttack(inv: PartyInventoryItem, item: Item) {
+  void item;
+  return rollAttackWith(weaponAttackMod(item), inv.name);
+}
+
+function parsedToCounts(parsed: ParsedExpression): Partial<Record<DieSize, number>> {
+  const counts: Partial<Record<DieSize, number>> = {};
+  for (const t of parsed.terms) {
+    if ([4, 6, 8, 10, 12, 20, 100].includes(t.sides)) {
+      const k = t.sides as DieSize;
+      counts[k] = (counts[k] ?? 0) + t.count;
+    }
+  }
+  return counts;
+}
+
+async function rollDamageLabelled(parsed: ParsedExpression, mod: number, label: string) {
+  const counts = parsedToCounts(parsed);
+  if (Object.keys(counts).length === 0) {
+    // Flat damage — no prompt needed, just emit+post via rollParsed path.
+    const { total: diceTotal, breakdown } = rollParsed(parsed);
+    const total = diceTotal + mod;
+    emit("roll", { label, dice: diceTotal, modifier: mod, total });
+    void sendRoll({ total, label, modifier: mod, breakdown, isCrit: false, isFumble: false });
+    return;
+  }
+  const result = await promptRoll({ counts, modifier: mod + parsed.modifier, label });
+  if (!result) return;
+  const diceTotal = result.total - result.modifier;
+  emit("roll", { label, dice: diceTotal, modifier: result.modifier, total: result.total });
 }
 
 function rollImprovisedDamage() {
-  const mod = improvisedAttackMod.value;
-  const { total: diceTotal, breakdown } = rollParsed({ terms: [{ count: 1, sides: 4 }], modifier: 0 });
-  const total = diceTotal + mod;
-  const label = `Improvised Weapon — Damage`;
-  emit("roll", { label, dice: diceTotal, modifier: mod, total });
-  void sendRoll({ total, label, modifier: mod, breakdown, isCrit: false, isFumble: false });
-}
-
-function rollWeaponAttack(inv: PartyInventoryItem, item: Item) {
-  const mod = weaponAttackMod(item);
-  const mode: RollMode = props.attackDisadvantage ? "disadvantage" : "normal";
-  const result = rollDice({ 20: 1 }, mod, mode);
-  const kept = result.breakdown.find(d => !d.dropped)!;
-  const fullLabel = `${inv.name} — Attack` + modeTag(mode);
-  emit("roll", { label: fullLabel, dice: kept.val, modifier: mod, total: result.total });
-  void sendRoll({ ...result, label: fullLabel });
+  return rollDamageLabelled(
+    { terms: [{ count: 1, sides: 4 }], modifier: 0 },
+    improvisedAttackMod.value,
+    "Improvised Weapon — Damage",
+  );
 }
 
 function rollWeaponDamage(inv: PartyInventoryItem, item: Item) {
   if (!item.damage_rolls?.length) return;
   const abilMod = weaponAbilityMod(item);
   const parsed = parseExpression(item.damage_rolls[0].dice);
-  const { total: diceTotal, breakdown } = parsed ? rollParsed(parsed) : { total: 0, breakdown: [] };
-  const total = diceTotal + abilMod;
+  if (!parsed) return;
   const label = `${inv.name} — Damage (${item.damage_rolls[0].type})`;
-  emit("roll", { label, dice: diceTotal, modifier: abilMod, total });
-  void sendRoll({ total, label, modifier: abilMod, breakdown, isCrit: false, isFumble: false });
+  return rollDamageLabelled(parsed, abilMod, label);
 }
 </script>

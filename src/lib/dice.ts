@@ -54,6 +54,7 @@ export interface RollResult {
   breakdown: DieResult[];
   isCrit: boolean;
   isFumble: boolean;
+  manual?: boolean;
 }
 
 export const ALL_DICE: DieSize[] = [4, 6, 8, 10, 12, 20, 100];

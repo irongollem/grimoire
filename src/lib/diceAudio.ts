@@ -6,6 +6,9 @@ export { primeAudioContext as primeDiceAudio };
 // ── Sound preferences ───────────────────────────────────────────────────────
 
 const PREF_KEY = "grimoire_dice_sounds";
+const MODE_KEY = "grimoire_dice_mode";
+
+export type DiceMode = "tool" | "physical";
 
 export function getDiceAudioEnabled(): boolean {
   return localStorage.getItem(PREF_KEY) !== "false"; // default on
@@ -13,6 +16,14 @@ export function getDiceAudioEnabled(): boolean {
 
 export function setDiceAudioEnabled(enabled: boolean): void {
   localStorage.setItem(PREF_KEY, String(enabled));
+}
+
+export function getDiceMode(): DiceMode {
+  return localStorage.getItem(MODE_KEY) === "physical" ? "physical" : "tool";
+}
+
+export function setDiceModePref(mode: DiceMode): void {
+  localStorage.setItem(MODE_KEY, mode);
 }
 
 // ── Synthesis helpers ────────────────────────────────────────────────────────

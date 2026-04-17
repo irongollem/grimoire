@@ -64,12 +64,21 @@
         </div>
 
         <!-- HP readout -->
-        <div class="flex items-baseline gap-1.5 px-3">
+        <div class="flex items-baseline gap-1.5 px-3 flex-wrap">
           <span class="font-cinzel text-2xl font-bold" :class="hpColor">{{ member.current_hp }}</span>
           <span class="font-fell text-sm text-muted-foreground">/ {{ member.max_hp }}</span>
           <span v-if="member.temp_hp" class="font-cinzel text-[10px] text-blue-400 ml-1">+{{ member.temp_hp }} tmp</span>
           <span v-if="attackDisadvantage" class="font-cinzel text-[9px] text-amber-500 tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Disadvantage on attack rolls">⚔ Dis</span>
           <span v-if="checkDisadvantage"  class="font-cinzel text-[9px] text-amber-500 tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Disadvantage on ability checks">✦ Dis</span>
+          <button
+            v-if="member.concentration"
+            class="font-cinzel text-[9px] text-indigo-300 tracking-wider px-1.5 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/30 ml-1 hover:bg-indigo-500/20 transition-colors inline-flex items-center gap-1"
+            :title="`Concentrating on ${member.concentration.spellName} — click to drop`"
+            @click="dropConcentration"
+          >
+            ✦ Conc: {{ member.concentration.spellName }}
+            <span class="text-muted-foreground">×</span>
+          </button>
         </div>
 
         <!-- AC / SPD / INIT / PROF + condition picker -->
@@ -139,6 +148,7 @@ import { ref, computed, nextTick } from "vue";
 import { RouterLink } from "vue-router";
 import { Star, TrendingUp, Settings } from "lucide-vue-next";
 import { useUpdatePartyMember } from "@/composables/useParty";
+import { useConcentration } from "@/composables/useConcentration";
 import { patchLiveCombatantConditions } from "@/composables/useEncounterLive";
 import {
   CONDITIONS,
@@ -164,6 +174,7 @@ const speciesName = computed(() =>
 );
 
 const { mutateAsync: updateMember } = useUpdatePartyMember();
+const { rollConcentrationSave, endConcentration } = useConcentration();
 
 const hpInput = ref(0);
 
@@ -235,9 +246,17 @@ const checkDisadvantage  = computed(() => hasCheckDisadvantage(props.member.cond
 
 async function applyDamage() {
   if (hpInput.value <= 0) return;
-  const newHp = Math.max(0, props.member.current_hp - hpInput.value);
+  const dmg = hpInput.value;
+  const newHp = Math.max(0, props.member.current_hp - dmg);
   await updateMember({ id: props.member.id, update: { current_hp: newHp } });
   hpInput.value = 0;
+  if (props.member.concentration) {
+    if (newHp === 0) {
+      await endConcentration(props.member, { reason: "dropped to 0 HP" });
+    } else {
+      await rollConcentrationSave(props.member, dmg);
+    }
+  }
 }
 async function applyHeal() {
   if (hpInput.value <= 0) return;
@@ -253,5 +272,10 @@ async function applyTempHp() {
 
 async function toggleInspiration() {
   await updateMember({ id: props.member.id, update: { inspiration: !props.member.inspiration } });
+}
+
+async function dropConcentration() {
+  if (!props.member.concentration) return;
+  await endConcentration(props.member, { reason: "dropped" });
 }
 </script>

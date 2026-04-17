@@ -77,7 +77,7 @@
 import { computed } from "vue";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
-import { rollDice } from "@/lib/roller";
+import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { patchLiveCombatantConditions } from "@/composables/useEncounterLive";
 import {
   getConditionDescription,
@@ -93,6 +93,7 @@ const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifie
 
 const { mutateAsync: updateMember } = useUpdatePartyMember();
 const { sendRoll } = useCampaignMessages();
+const { promptRoll } = usePromptedRoll();
 
 // ── Condition helpers ─────────────────────────────────────────────────────────
 
@@ -120,9 +121,10 @@ async function toggleDeathSave(type: "success" | "failure", pip: number) {
 }
 
 async function rollDeathSave() {
-  const r = rollDice({ 20: 1 }, 0);
-  const d = r.breakdown[0].val;
   const name = props.member.name;
+  const r = await promptRoll({ counts: { 20: 1 }, modifier: 0, label: `${name} — Death Save`, silent: true });
+  if (!r) return;
+  const d = r.breakdown.find(b => !b.dropped)!.val;
   let update: Partial<{ current_hp: number; death_save_successes: number; death_save_failures: number }>;
   let outcome: string;
 
@@ -143,6 +145,6 @@ async function rollDeathSave() {
   await updateMember({ id: props.member.id, update });
   const label = `${name} — Death Save (${outcome})`;
   emit("roll", { label, dice: d, modifier: 0, total: d });
-  void sendRoll({ ...r, label });
+  await sendRoll({ ...r, label });
 }
 </script>

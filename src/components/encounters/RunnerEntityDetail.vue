@@ -711,7 +711,9 @@ import { useDiscoveredKeys } from "@/composables/useDiscoveredMonsters";
 import { useDmPinnedForms } from "@/composables/usePinnedForms";
 import { useCompanions } from "@/composables/useCompanions";
 import { parseExpression } from "@/lib/dice";
-import { rollDice, rollParsed } from "@/lib/roller";
+import { rollParsed } from "@/lib/roller";
+import type { DieSize, RollResult } from "@/lib/roller";
+import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import type { Spell as SpellType } from "@/types/spell.types";
 import { getCasterType } from "@/types/spell.types";
 import { useClassByName } from "@/composables/useCustomClasses";
@@ -786,8 +788,20 @@ const rollResultClass = computed(() => {
   return "";
 });
 
-function performCheck(modifier: number, label: string) {
-  const r = rollDice({ 20: 1 }, modifier, rollMode.value);
+const { promptRoll } = usePromptedRoll();
+
+async function performCheck(modifier: number, label: string): Promise<RollResult | null> {
+  const senderName = selectedCombatant.value?.name ?? "Encounter";
+  const silent = chatMode.value === "silent";
+  const r = await promptRoll({
+    counts: { 20: 1 },
+    modifier,
+    label,
+    mode: rollMode.value,
+    senderName,
+    silent,
+  });
+  if (!r) return null;
   const kept = r.breakdown.find((d) => !d.dropped)!;
   const dropped = r.breakdown.find((d) => d.dropped);
   lastCheck.value = {
@@ -799,6 +813,7 @@ function performCheck(modifier: number, label: string) {
     isCrit: r.isCrit,
     isFumble: r.isFumble,
   };
+  return r;
 }
 
 // ── Action roll helpers ───────────────────────────────────────────────────────
@@ -848,28 +863,39 @@ async function postRollToChat(
 }
 
 function rollAttack(attackBonus: number, actionName: string) {
-  performCheck(attackBonus, actionName + " Attack");
-  if (lastCheck.value) {
-    const lc = lastCheck.value;
-    const breakdown: { val: number; dropped: boolean }[] = [{ val: lc.d20, dropped: false }];
-    if (lc.dropped !== undefined) breakdown.push({ val: lc.dropped, dropped: true });
-    void postRollToChat(lc.label, lc.total, breakdown, lc.modifier, lc.isCrit, lc.isFumble, selectedCombatant.value?.name ?? "Encounter");
-  }
+  void performCheck(attackBonus, actionName + " Attack");
 }
 
-function rollActionDamage(desc: string, actionName: string) {
+function parsedTermsToCounts(terms: { count: number; sides: number }[]): Partial<Record<DieSize, number>> {
+  const counts: Partial<Record<DieSize, number>> = {};
+  for (const t of terms) {
+    if ([4, 6, 8, 10, 12, 20, 100].includes(t.sides)) {
+      const k = t.sides as DieSize;
+      counts[k] = (counts[k] ?? 0) + t.count;
+    }
+  }
+  return counts;
+}
+
+async function rollActionDamage(desc: string, actionName: string) {
   const parsed = parseExpression(desc);
   if (!parsed || !parsed.terms.length) return;
-  const { total, breakdown } = rollParsed(parsed);
   const label = `${actionName} (${actionDiceLabel(desc)})`;
-  lastCheck.value = { total, label, modifier: parsed.modifier, d20: breakdown[0]?.val ?? total, isCrit: false, isFumble: false };
-  void postRollToChat(label, total, breakdown, parsed.modifier, false, false, selectedCombatant.value?.name ?? "Encounter");
+  const counts = parsedTermsToCounts(parsed.terms);
+  const r = await promptRoll({
+    counts,
+    modifier: parsed.modifier,
+    label,
+    senderName: selectedCombatant.value?.name ?? "Encounter",
+    silent: chatMode.value === "silent",
+  });
+  if (!r) return;
+  lastCheck.value = { total: r.total, label, modifier: parsed.modifier, d20: r.breakdown[0]?.val ?? r.total, isCrit: false, isFumble: false };
 }
 
-function rollSpellDamage(spell: SpellType) {
+async function rollSpellDamage(spell: SpellType) {
   const rolls = spell.damage_rolls;
   if (!rolls?.length) return;
-  // Combine all damage terms (multi-type spells) into one roll event for a single sound
   const combined = rolls.reduce<{ terms: { count: number; sides: number }[]; modifier: number }>(
     (acc, roll) => {
       const parsed = parseExpression(roll.dice);
@@ -878,11 +904,24 @@ function rollSpellDamage(spell: SpellType) {
     },
     { terms: [], modifier: 0 },
   );
-  const { total, breakdown } = rollParsed(combined);
   const diceLabel = rolls.map((r) => `${r.dice}${r.type ? " " + r.type : ""}`).join(" + ");
   const label = `${spell.name} (${diceLabel})`;
-  lastCheck.value = { total, label, modifier: 0, d20: breakdown[0]?.val ?? total, isCrit: false, isFumble: false };
-  void postRollToChat(label, total, breakdown, 0, false, false, selectedMember.value?.name ?? "Player");
+  const counts = parsedTermsToCounts(combined.terms);
+  if (Object.keys(counts).length === 0) {
+    const { total, breakdown } = rollParsed(combined);
+    lastCheck.value = { total, label, modifier: 0, d20: breakdown[0]?.val ?? total, isCrit: false, isFumble: false };
+    void postRollToChat(label, total, breakdown, 0, false, false, selectedMember.value?.name ?? "Player");
+    return;
+  }
+  const r = await promptRoll({
+    counts,
+    modifier: combined.modifier,
+    label,
+    senderName: selectedMember.value?.name ?? "Player",
+    silent: chatMode.value === "silent",
+  });
+  if (!r) return;
+  lastCheck.value = { total: r.total, label, modifier: 0, d20: r.breakdown[0]?.val ?? r.total, isCrit: false, isFumble: false };
 }
 
 // ── Combatant selection ───────────────────────────────────────────────────────
