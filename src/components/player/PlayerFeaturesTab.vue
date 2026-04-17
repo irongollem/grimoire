@@ -257,6 +257,38 @@
       </div>
     </div>
 
+    <!-- ── Languages & Tool Proficiencies ───────────────────────────────────── -->
+    <div
+      v-if="member.languages?.length || member.tool_proficiencies?.length"
+      class="rounded-lg border border-border bg-card overflow-hidden"
+    >
+      <div class="px-4 py-2.5 border-b border-border">
+        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Proficiencies & Languages</p>
+      </div>
+      <div class="divide-y divide-border">
+        <div v-if="member.languages?.length" class="flex gap-3 px-4 py-2.5">
+          <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-32 shrink-0 pt-0.5">Languages</span>
+          <div class="flex flex-wrap gap-1.5">
+            <span
+              v-for="lang in member.languages"
+              :key="lang"
+              class="inline-flex items-center rounded-md bg-muted/50 border border-border px-2 py-0.5 font-fell text-sm text-foreground"
+            >{{ lang }}</span>
+          </div>
+        </div>
+        <div v-if="member.tool_proficiencies?.length" class="flex gap-3 px-4 py-2.5">
+          <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-32 shrink-0 pt-0.5">Tools</span>
+          <div class="flex flex-wrap gap-1.5">
+            <span
+              v-for="tool in member.tool_proficiencies"
+              :key="tool"
+              class="inline-flex items-center rounded-md bg-muted/50 border border-border px-2 py-0.5 font-fell text-sm text-foreground"
+            >{{ tool }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Class choices ───────────────────────────────────────────────────── -->
     <div v-if="choiceEntries.length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-2.5 border-b border-border">
