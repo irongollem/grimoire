@@ -340,6 +340,26 @@
           />
         </button>
       </div>
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="font-cinzel text-xs text-foreground tracking-wide">Dice source</p>
+          <p class="font-fell text-xs text-muted-foreground italic">Choose where rolls come from. Physical mode prompts you to enter the result of dice you rolled yourself.</p>
+        </div>
+        <div class="flex rounded-md border border-border overflow-hidden text-[10px] font-cinzel tracking-wider">
+          <button
+            type="button"
+            class="px-3 py-1 transition-colors"
+            :class="diceMode === 'tool' ? 'bg-primary text-primary-foreground' : 'bg-muted/40 text-muted-foreground hover:text-foreground'"
+            @click="setDiceMode('tool')"
+          >TOOL</button>
+          <button
+            type="button"
+            class="px-3 py-1 transition-colors border-l border-border"
+            :class="diceMode === 'physical' ? 'bg-primary text-primary-foreground' : 'bg-muted/40 text-muted-foreground hover:text-foreground'"
+            @click="setDiceMode('physical')"
+          >PHYSICAL</button>
+        </div>
+      </div>
     </section>
 
     <!-- Keep screen awake -->
@@ -445,7 +465,7 @@ const { sortedNav, setNavOrder } = usePlayerNavPrefs();
 
 // ── Combat preferences ────────────────────────────────────────────────────────
 const { turnAudioEnabled, setTurnAudio } = usePlayerCombatPrefs();
-const { diceAudioEnabled, setDiceAudio } = useDicePrefs();
+const { diceAudioEnabled, setDiceAudio, diceMode, setDiceMode } = useDicePrefs();
 
 const dragListRef = ref<HTMLElement | null>(null);
 const draggingIdx = ref<number | null>(null);

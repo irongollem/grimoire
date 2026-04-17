@@ -107,8 +107,17 @@ export interface PartyMember {
   hit_dice_remaining?: number | null;
   class_resources: Record<string, { current: number; max: number; rest: "short" | "long" }>;
   class_choices: Record<string, unknown>;
+  concentration?: ConcentrationState | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ConcentrationState {
+  spellId: string | null;
+  spellName: string;
+  castAtLevel: number;
+  startedRound: number | null;
+  appliedEffectIds: string[];
 }
 
 export type PartyMemberInsert = Omit<PartyMember, "id" | "user_id" | "created_at" | "updated_at">;

@@ -128,6 +128,12 @@
         @click="store.toggleCondition(combatant.instance_id, cond)"
         :title="`${cond} — click to remove\n\n${getConditionDescription(cond)}`"
       >{{ cond }} ×</span>
+      <span
+        v-if="pcConcentration(combatant)"
+        class="conc-chip"
+        :title="`Concentrating on ${pcConcentration(combatant)} — click to drop`"
+        @click="dropCombatantConcentration(combatant)"
+      >✦ {{ pcConcentration(combatant) }} ×</span>
       <div class="relative" v-if="addingCondFor !== combatant.instance_id">
         <button class="add-cond-btn" @click="addingCondFor = combatant.instance_id">+</button>
       </div>
@@ -332,6 +338,8 @@ import { Eye, EyeOff } from "lucide-vue-next";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useIsMobile } from "@/composables/useBreakpoint";
+import { useParty } from "@/composables/useParty";
+import { useConcentration } from "@/composables/useConcentration";
 import {
   CONDITIONS,
   getConditionDescription,
@@ -339,6 +347,7 @@ import {
   setExhaustionLevel,
   isExhaustion,
 } from "@/lib/conditions";
+import { CONCENTRATION_BREAKING_CONDITIONS } from "@/composables/useConcentration";
 import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
 import type { RunCombatant, RevealState } from "@/types/encounter.types";
 
@@ -355,6 +364,8 @@ const emit = defineEmits<{
 }>();
 
 const store = useEncounterRunStore();
+const { data: partyList } = useParty();
+const { rollConcentrationSave, endConcentration } = useConcentration();
 const addingCondFor = ref<string | null>(null);
 const quickAmounts = ref<Record<string, number | null>>({});
 
@@ -440,12 +451,22 @@ function nonExhaustion(conditions: string[]): string[] {
  * 1; any subsequent level changes happen via the chip's pips. Other names
  * are stored as-is.
  */
-function onPickCondition(instanceId: string, value: string) {
+async function onPickCondition(instanceId: string, value: string) {
   if (!value) { addingCondFor.value = null; return; }
   if (value === "Exhaustion") {
     onExhaustionChange(instanceId, 1);
   } else {
     store.toggleCondition(instanceId, value);
+    // Concentration-breaking conditions end concentration on PCs automatically.
+    if (CONCENTRATION_BREAKING_CONDITIONS.includes(value)) {
+      const c = store.sortedCombatants.find((x) => x.instance_id === instanceId);
+      const member = c?.party_member_id
+        ? partyList.value?.find((m) => m.id === c.party_member_id) ?? null
+        : null;
+      if (member?.concentration) {
+        await endConcentration(member, { reason: value.toLowerCase() });
+      }
+    }
   }
   addingCondFor.value = null;
 }
@@ -455,6 +476,19 @@ function onExhaustionChange(instanceId: string, newLevel: number) {
   if (!combatant) return;
   const next = setExhaustionLevel(combatant.conditions, newLevel);
   store.setConditions(instanceId, next);
+}
+
+function pcConcentration(c: RunCombatant): string | null {
+  if (!c.party_member_id) return null;
+  const m = partyList.value?.find((p) => p.id === c.party_member_id);
+  return m?.concentration?.spellName ?? null;
+}
+
+async function dropCombatantConcentration(c: RunCombatant) {
+  if (!c.party_member_id) return;
+  const member = partyList.value?.find((m) => m.id === c.party_member_id);
+  if (!member?.concentration) return;
+  await endConcentration(member, { reason: "dropped" });
 }
 
 function combatantInitials(c: RunCombatant): string {
@@ -473,12 +507,28 @@ function revealBtnTitle(state: RevealState | undefined) {
   return "Hidden — click to show slot";
 }
 
-function quickDamage(instanceId: string) {
+async function quickDamage(instanceId: string) {
   const amt = quickAmounts.value[instanceId];
   if (!amt) return;
+  const c = store.sortedCombatants.find((x) => x.instance_id === instanceId);
+  const memberId = c?.party_member_id;
+  const memberBefore = memberId ? partyList.value?.find((m) => m.id === memberId) ?? null : null;
+  const hpBefore = c?.hp ?? 0;
+
   store.adjustHp(instanceId, -amt);
   showFlash(instanceId, -amt);
   quickAmounts.value[instanceId] = null;
+
+  // Concentration check for PCs only — monsters/NPCs don't currently have
+  // concentration state on party_members, so there's nothing to roll against.
+  if (memberBefore?.concentration && amt > 0) {
+    const newHp = Math.max(0, hpBefore - amt);
+    if (newHp === 0) {
+      await endConcentration(memberBefore, { reason: "dropped to 0 HP" });
+    } else {
+      await rollConcentrationSave(memberBefore, amt);
+    }
+  }
 }
 
 function quickHeal(instanceId: string) {
@@ -686,6 +736,10 @@ function quickTemp(instanceId: string) {
 
 .cond-badge {
   @apply inline-flex items-center px-1.5 py-0.5 rounded font-cinzel text-[9px] font-semibold bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 cursor-pointer hover:bg-destructive/20 hover:text-destructive transition-colors;
+}
+
+.conc-chip {
+  @apply inline-flex items-center px-1.5 py-0.5 rounded font-cinzel text-[9px] font-semibold bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 cursor-pointer hover:bg-destructive/20 hover:text-destructive transition-colors;
 }
 
 .add-cond-btn {

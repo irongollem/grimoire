@@ -1,7 +1,14 @@
 import { ref } from "vue";
-import { getDiceAudioEnabled, setDiceAudioEnabled } from "@/lib/diceAudio";
+import {
+  getDiceAudioEnabled,
+  setDiceAudioEnabled,
+  getDiceMode,
+  setDiceModePref,
+  type DiceMode,
+} from "@/lib/diceAudio";
 
 const diceAudioEnabled = ref(getDiceAudioEnabled());
+const diceMode = ref<DiceMode>(getDiceMode());
 
 export function useDicePrefs() {
   function setDiceAudio(enabled: boolean) {
@@ -9,5 +16,12 @@ export function useDicePrefs() {
     setDiceAudioEnabled(enabled);
   }
 
-  return { diceAudioEnabled, setDiceAudio };
+  function setDiceMode(mode: DiceMode) {
+    diceMode.value = mode;
+    setDiceModePref(mode);
+  }
+
+  return { diceAudioEnabled, setDiceAudio, diceMode, setDiceMode };
 }
+
+export type { DiceMode };
