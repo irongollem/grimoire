@@ -20,6 +20,13 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   const availableNpcs = ref<Npc[]>([]);
   const pendingBroadcasts = ref<string[]>([]);
 
+  // Boss-fight mechanics state
+  const lairEnabled = ref(false);
+  /** instance_id of the combatant whose stat_block.lair_actions should fire at init 20. */
+  const lairOwnerInstanceId = ref<string | null>(null);
+  /** Rounds in which a lair action has already been used. Keyed by round number. */
+  const lairFiredRounds = ref<Set<number>>(new Set());
+
   // Sorted by initiative desc, dex_mod desc (tiebreaker: players first)
   const sortedCombatants = computed(() =>
     [...combatants.value].sort((a, b) => {
@@ -63,8 +70,13 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     const aliveSorted = sorted.filter((c) => c.hp > 0 || c.type === "player");
     if (!aliveSorted.length) return;
 
+    // Clear surprise on the combatant whose turn is ending — surprised creatures
+    // can't act on their first turn, but the flag lifts at its end per 5e RAW.
+    const endingCombatant = sorted[activeIndex.value];
+    if (endingCombatant?.surprised) endingCombatant.surprised = false;
+
     // Find current active in sorted list
-    const currentId = sorted[activeIndex.value]?.instance_id;
+    const currentId = endingCombatant?.instance_id;
     const currentPosInAlive = aliveSorted.findIndex((c) => c.instance_id === currentId);
     const nextInAlive = (currentPosInAlive + 1) % aliveSorted.length;
     const nextId = aliveSorted[nextInAlive].instance_id;
@@ -72,6 +84,12 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
 
     if (nextInAlive === 0) round.value++;
     activeIndex.value = nextIndexInSorted;
+
+    // Refresh legendary action pool at the start of that creature's turn.
+    const nextCombatant = sorted[nextIndexInSorted];
+    if (nextCombatant && typeof nextCombatant.legendary_action_cap === "number") {
+      nextCombatant.legendary_actions_remaining = nextCombatant.legendary_action_cap;
+    }
     checkEvents();
   }
 
@@ -342,6 +360,58 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     availableMonsters.value = [];
     availableNpcs.value = [];
     pendingBroadcasts.value = [];
+    lairEnabled.value = false;
+    lairOwnerInstanceId.value = null;
+    lairFiredRounds.value = new Set();
+  }
+
+  // ── Boss mechanics ───────────────────────────────────────────────────────────
+
+  function setBossMechanics(opts: { lairEnabled: boolean; lairOwnerInstanceId: string | null }) {
+    lairEnabled.value = opts.lairEnabled;
+    lairOwnerInstanceId.value = opts.lairOwnerInstanceId;
+  }
+
+  function toggleSurprised(instanceId: string) {
+    const c = combatants.value.find((x) => x.instance_id === instanceId);
+    if (!c) return;
+    c.surprised = !c.surprised;
+  }
+
+  /** Seed legendary-action state on every combatant whose monster has a
+   *  non-empty `legendary_actions` array. Called once at combat start after
+   *  monsters are loaded so the runner knows who gets a pool. */
+  function primeLegendaryActions(caps: Record<string, number>) {
+    // caps: instance_id → cap (typically 3). Missing entries get no pool.
+    for (const c of combatants.value) {
+      const cap = caps[c.instance_id];
+      if (cap && cap > 0) {
+        c.legendary_action_cap = cap;
+        c.legendary_actions_remaining = cap;
+      }
+    }
+  }
+
+  /** Spend N legendary actions from `instanceId` — clamped at zero. Returns
+   *  the actual amount spent (0 if there weren't enough). */
+  function spendLegendaryActions(instanceId: string, cost: number): number {
+    const c = combatants.value.find((x) => x.instance_id === instanceId);
+    if (!c || typeof c.legendary_actions_remaining !== "number") return 0;
+    const available = c.legendary_actions_remaining;
+    const spent = Math.min(available, cost);
+    c.legendary_actions_remaining = available - spent;
+    return spent;
+  }
+
+  const lairCanFireThisRound = computed(() =>
+    lairEnabled.value
+      && lairOwnerInstanceId.value !== null
+      && !lairFiredRounds.value.has(round.value)
+      && (combatants.value.find((c) => c.instance_id === lairOwnerInstanceId.value)?.hp ?? 0) > 0,
+  );
+
+  function markLairFired() {
+    lairFiredRounds.value = new Set([...lairFiredRounds.value, round.value]);
   }
 
   function hydrateFromLive(state: {
@@ -381,6 +451,10 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     availableMonsters,
     availableNpcs,
     pendingBroadcasts,
+    // Boss mechanics state
+    lairEnabled,
+    lairOwnerInstanceId,
+    lairCanFireThisRound,
     sortedCombatants,
     activeCombatant,
     rollInitiative,
@@ -407,5 +481,11 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     clearPendingBroadcast,
     reset,
     hydrateFromLive,
+    // Boss mechanics helpers
+    setBossMechanics,
+    toggleSurprised,
+    primeLegendaryActions,
+    spendLegendaryActions,
+    markLairFired,
   };
 });

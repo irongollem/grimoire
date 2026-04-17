@@ -53,6 +53,10 @@ export interface Encounter {
   location_id: string | null;
   is_finished: boolean;
   events?: EncounterEvent[];
+  // Boss-fight mechanics
+  lair_enabled: boolean;
+  /** References a CombatantDef.id in `combatants[]`. Null = no owner chosen yet. */
+  lair_owner_def_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -139,6 +143,14 @@ export interface RunCombatant {
     startedRound: number | null;
     appliedEffectIds: string[];
   } | null;
+  // Surprise — true on round 1 if the DM flagged this combatant as surprised
+  // at combat start. Cleared automatically when they finish their first turn.
+  surprised?: boolean;
+  // Legendary actions — populated for combatants whose monster stat block has
+  // a `legendary_actions` array. Max pool resets at the start of this
+  // combatant's turn; other combatants' turns can spend actions from here.
+  legendary_action_cap?: number;
+  legendary_actions_remaining?: number;
 }
 
 // ── XP / CR tables (D&D 5e) ──────────────────────────────────────────────────

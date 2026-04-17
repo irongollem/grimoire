@@ -71,6 +71,16 @@ watch(
       });
       store.availableMonsters = mons;
       store.availableNpcs = npcList as Npc[];
+      // Re-prime boss mechanics from the encounter definition on rehydrate.
+      // Legendary pools live on the combatant rows already (persisted in
+      // combatants_live) so we don't re-prime them here.
+      const lairOwnerInstanceId = enc.lair_enabled && enc.lair_owner_def_id
+        ? live.combatants_live.find((c) => c.def_id === enc.lair_owner_def_id)?.instance_id ?? null
+        : null;
+      store.setBossMechanics({
+        lairEnabled: enc.lair_enabled,
+        lairOwnerInstanceId,
+      });
       return;
     }
 
@@ -220,5 +230,31 @@ function initStore(enc: Encounter, mons: Monster[], par: PartyMember[], npcList:
   store.events = enc.events ?? [];
   store.eventsFired = [];
   store.traps = traps;
+
+  // Boss mechanics: prime legendary action caps on any monster whose stat
+  // block declares legendary_actions. Default cap is 3 per 5e RAW. If a
+  // stat block declares `legendary_action_uses` in future, we'd read that
+  // — for now the hard default keeps things simple.
+  const legendaryCaps: Record<string, number> = {};
+  for (const c of combatants) {
+    if (!c.monster_id) continue;
+    const monster = mons.find((m) => m.id === c.monster_id);
+    if (monster?.stat_block?.legendary_actions?.length) {
+      legendaryCaps[c.instance_id] = 3;
+    }
+  }
+  if (Object.keys(legendaryCaps).length > 0) {
+    store.primeLegendaryActions(legendaryCaps);
+  }
+
+  // Wire lair actions. The encounter references a CombatantDef.id; look up
+  // the first live instance with that def_id to get the runtime instance_id.
+  const lairOwnerInstanceId = enc.lair_enabled && enc.lair_owner_def_id
+    ? combatants.find((c) => c.def_id === enc.lair_owner_def_id)?.instance_id ?? null
+    : null;
+  store.setBossMechanics({
+    lairEnabled: enc.lair_enabled,
+    lairOwnerInstanceId,
+  });
 }
 </script>
