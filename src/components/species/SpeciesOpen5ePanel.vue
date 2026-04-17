@@ -260,19 +260,25 @@ function parseAsi(asi: Open5eAsi[] | undefined): Record<string, number | string>
 function parseTraits(raw: string | undefined): Array<{ name: string; description: string }> {
   if (!raw?.trim()) return [];
 
-  const blocks = raw.split(/\n\n+/).map((b) => b.trim()).filter(Boolean);
+  // Normalize: some Open5e sources separate traits with single newlines instead of
+  // double newlines. Insert a double newline before any line that starts with a
+  // trait heading marker (**_ or ***) so the block-based split works uniformly.
+  const normalized = raw.replace(/\n(?=\*\*[_*])/g, "\n\n");
+  const blocks = normalized.split(/\n\n+/).map((b) => b.trim()).filter(Boolean);
   const traits: Array<{ name: string; descParts: string[] }> = [];
   // Table blocks that appear before the first **_Name._** trait (e.g. dragonborn
   // ancestry table). They get attached to the next named trait encountered.
   const pendingTables: string[] = [];
 
   for (const block of blocks) {
-    const match = block.match(/^\*\*_(.+?)\._\*\*\s*([\s\S]*)/);
+    // Handle both **_Name._** and ***Name.*** (bold-italic) trait heading formats
+    const match = block.match(/^(?:\*\*_(.+?)\._\*\*|\*\*\*(.+?)\.\*\*\*)\s*([\s\S]*)/);
     if (match) {
-      const desc = match[2].trim();
+      const traitName = (match[1] ?? match[2]).trim();
+      const desc = match[3].trim();
       // Desc first, then any table that preceded this trait (e.g. ancestry table)
       const descParts = desc ? [desc, ...pendingTables] : [...pendingTables];
-      traits.push({ name: match[1].trim(), descParts });
+      traits.push({ name: traitName, descParts });
       pendingTables.length = 0;
     } else if (traits.length > 0) {
       // Continuation block after a named trait — attach to it

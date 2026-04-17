@@ -25,6 +25,11 @@ if ("serviceWorker" in navigator && import.meta.env.PROD) {
     });
   });
   navigator.serviceWorker.addEventListener("controllerchange", () => {
+    // Skip the reload on auth-only pages — the user hasn't seen any content
+    // yet, so there's nothing stale to replace, and reloading causes a
+    // jarring flash on the login screen during first-ever SW install.
+    const p = window.location.pathname;
+    if (p === "/login" || p === "/signup" || p.startsWith("/join/")) return;
     window.location.reload();
   });
 }

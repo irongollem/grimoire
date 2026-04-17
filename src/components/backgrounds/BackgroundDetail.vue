@@ -66,15 +66,14 @@
     </div>
 
     <!-- Equipment -->
-    <label class="flex flex-col gap-1">
+    <div class="flex flex-col gap-1">
       <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Starting equipment</span>
-      <textarea
+      <RichTextEditor
         v-model="form.equipment"
         placeholder="Items provided by the background, with any starting coin."
-        rows="3"
-        class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+        min-height="80px"
       />
-    </label>
+    </div>
 
     <!-- Feature -->
     <div class="flex flex-col gap-2 rounded-lg border border-border bg-card/50 px-4 py-3">
@@ -84,24 +83,22 @@
         placeholder="Feature name (e.g. Shelter of the Faithful)"
         class="w-full bg-background border border-border rounded-md px-3 py-2 font-cinzel text-sm font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       />
-      <textarea
+      <RichTextEditor
         v-model="form.feature_description"
         placeholder="Describe what the feature does mechanically and in play."
-        rows="4"
-        class="w-full bg-background border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+        min-height="100px"
       />
     </div>
 
     <!-- Suggested characteristics -->
-    <label class="flex flex-col gap-1">
+    <div class="flex flex-col gap-1">
       <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Suggested characteristics</span>
-      <textarea
+      <RichTextEditor
         v-model="form.suggested_characteristics"
         placeholder="Personality traits, ideals, bonds, and flaws to inspire players."
-        rows="5"
-        class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+        min-height="120px"
       />
-    </label>
+    </div>
   </div>
 </template>
 

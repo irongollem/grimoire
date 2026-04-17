@@ -29,14 +29,20 @@ self.addEventListener("install", (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) =>
-      // Tolerate individual misses rather than aborting the whole install if
-      // one precache entry 404s on the CDN during a rolling deploy.
+      // Use fetch + conditional put instead of cache.add so that 4xx
+      // responses (e.g. manifest.webmanifest on a Vercel preview deployment
+      // with Deployment Protection) are silently skipped rather than
+      // propagated as console errors.  cache.add() rejects on non-ok
+      // responses and the browser logs the error even when we .catch() it.
       Promise.all(
-        PRECACHE.map((path) =>
-          cache
-            .add(new Request(path, { cache: "reload" }))
-            .catch(() => undefined),
-        ),
+        PRECACHE.map(async (path) => {
+          try {
+            const response = await fetch(new Request(path, { cache: "reload" }));
+            if (response.ok) await cache.put(path, response);
+          } catch {
+            // Silently skip — non-critical; the network fetch will serve it
+          }
+        }),
       ),
     ),
   );
