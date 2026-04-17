@@ -208,7 +208,7 @@
                 isActive(combatant)
                   ? 'bg-primary/8 ring-1 ring-inset ring-primary/20'
                   : 'hover:bg-muted/20',
-                (combatant.instance_id === myPlayer?.instance_id || combatant.npc_id)
+                (combatant.instance_id === myPlayer?.instance_id || combatant.npc_id || (combatant.type === 'monster' && !combatant.npc_id && combatant.monster_id))
                   ? 'cursor-pointer'
                   : '',
               ]"
@@ -364,6 +364,36 @@
     <div class="w-full lg:flex-1 lg:min-w-0 lg:order-1">
       <PlayerCharacterView />
     </div>
+    <!-- Monster lightbox -->
+    <Transition name="fade">
+      <div v-if="selectedMonsterCombatant" class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" @click.self="closeMonster">
+        <div class="bg-card rounded-xl border border-border w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+          <div class="relative shrink-0">
+            <div v-if="selectedMonsterCombatant.portrait_url" class="w-full h-72 overflow-hidden">
+              <FocalImage
+                :src="selectedMonsterCombatant.portrait_url"
+                :alt="selectedMonsterCombatant.name"
+                :focal-point="selectedMonsterCombatant.portrait_focal_point ?? null"
+                format="portrait"
+              />
+            </div>
+            <button class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors" @click="closeMonster">
+              <XIcon class="h-4 w-4" />
+            </button>
+          </div>
+          <div class="p-4 overflow-y-auto space-y-4">
+            <h2 class="font-cinzel text-lg font-bold text-foreground">{{ selectedMonsterCombatant.name }}</h2>
+            <PlayerNotesWidget
+              v-if="selectedMonsterCombatant.monster_id"
+              entity-type="monster"
+              :entity-id="selectedMonsterCombatant.monster_id"
+              placeholder="Your observations about this creature…"
+            />
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <!-- NPC lightbox -->
     <Transition name="fade">
       <div v-if="selectedNpc" class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" @click.self="closeNpc">
@@ -682,10 +712,18 @@ const { data: myNpcPcNote } = useMyNpcPcNote(selectedNpcId);
 function openNpc(npc: Npc) { selectedNpc.value = npc; }
 function closeNpc()        { selectedNpc.value = null; }
 
+const selectedMonsterCombatant = ref<RunCombatant | null>(null);
+function openMonster(c: RunCombatant) { selectedMonsterCombatant.value = c; }
+function closeMonster()               { selectedMonsterCombatant.value = null; }
+
 function onCombatantClick(combatant: RunCombatant) {
   if (combatant.npc_id) {
     const npc = allNpcs.value?.find((n) => n.id === combatant.npc_id);
     if (npc) openNpc(npc);
+    return;
+  }
+  if (combatant.type === 'monster' && !combatant.npc_id && combatant.monster_id) {
+    openMonster(combatant);
     return;
   }
   if (combatant.instance_id === myPlayer.value?.instance_id) toggleHpPanel();
