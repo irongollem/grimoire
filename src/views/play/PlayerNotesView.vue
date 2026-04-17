@@ -39,9 +39,8 @@
         </div>
 
         <!-- Expanded content -->
-        <div v-if="selected === note.id" class="border-t border-border px-4 py-4 note-body">
-          <!-- eslint-disable-next-line vue/no-v-html -->
-          <div v-html="renderNote(note.content)" />
+        <div v-if="selected === note.id" class="border-t border-border px-4 py-4">
+          <RichTextViewer :content="note.content" />
         </div>
       </div>
     </div>
@@ -51,10 +50,9 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { BookOpen, Pin, ChevronDown } from "lucide-vue-next";
-import { generateHTML } from "@tiptap/core";
-import StarterKit from "@tiptap/starter-kit";
 import { useNotes } from "@/composables/useNotes";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import type { NoteCategory } from "@/types/notes.types";
 
 const CATEGORY_LABELS: Record<NoteCategory, string> = {
@@ -79,27 +77,4 @@ const selected = ref<string | null>(null);
 function toggle(id: string) {
   selected.value = selected.value === id ? null : id;
 }
-
-function renderNote(content: string | null): string {
-  if (!content) return "";
-  try {
-    const json = JSON.parse(content);
-    return generateHTML(json, [StarterKit]);
-  } catch {
-    return "";
-  }
-}
 </script>
-
-<style scoped>
-@reference "@/assets/main.css";
-
-.note-body :deep(p)          { @apply font-fell text-sm text-foreground mb-2 leading-relaxed; }
-.note-body :deep(h1)         { @apply font-cinzel text-xl font-bold text-foreground mb-2 mt-4 first:mt-0; }
-.note-body :deep(h2)         { @apply font-cinzel text-lg font-bold text-foreground mb-2 mt-3 first:mt-0; }
-.note-body :deep(h3)         { @apply font-cinzel text-base font-bold text-foreground mb-1 mt-3 first:mt-0; }
-.note-body :deep(ul)         { @apply list-disc pl-5 mb-2 space-y-1 font-fell text-sm; }
-.note-body :deep(ol)         { @apply list-decimal pl-5 mb-2 space-y-1 font-fell text-sm; }
-.note-body :deep(blockquote) { @apply border-l-2 border-primary/50 pl-4 italic text-muted-foreground my-2 font-fell text-sm; }
-.note-body :deep(hr)         { @apply border-t border-primary/30 my-3; }
-</style>
