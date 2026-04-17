@@ -92,6 +92,15 @@ export interface PartyMember {
   card_art_url: string | null;  // landscape art for MTG Card Forge
   notes: string | null;
   sort_order: number;
+  // Roleplay / identity (all optional — new fields, may be absent on legacy rows)
+  alignment?: string | null;
+  personality_traits?: string | null;
+  ideals?: string | null;
+  bonds?: string | null;
+  flaws?: string | null;
+  deity?: string | null;
+  // Experience points (ignored when the campaign uses milestone levelling).
+  experience_points?: number;
   // Currency
   cp: number;
   sp: number;

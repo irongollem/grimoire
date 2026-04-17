@@ -59,11 +59,30 @@ export const PROF_LEVELS: { value: SkillProfLevel; label: string }[] = [
 
 export const SCORE_MODES = [
   { id: "pointbuy" as const, label: "Point Buy" },
+  { id: "array"    as const, label: "Standard Array" },
+  { id: "roll"     as const, label: "Roll 4d6" },
   { id: "manual"   as const, label: "Manual" },
 ];
 
+export type ScoreMode = (typeof SCORE_MODES)[number]["id"];
+
 export const POINT_BUY_COSTS: Record<number, number> = { 8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9 };
 export const POINT_BUY_TOTAL = 27;
+
+/** Standard array per 5e PHB, highest first. */
+export const STANDARD_ARRAY = [15, 14, 13, 12, 10, 8] as const;
+
+/** Roll 4d6 and drop the lowest die. Returns the sum of the three kept dice. */
+export function roll4d6DropLowest(): number {
+  const rolls = [
+    Math.floor(Math.random() * 6) + 1,
+    Math.floor(Math.random() * 6) + 1,
+    Math.floor(Math.random() * 6) + 1,
+    Math.floor(Math.random() * 6) + 1,
+  ];
+  rolls.sort((a, b) => b - a);
+  return rolls[0] + rolls[1] + rolls[2];
+}
 
 // ── Composable ────────────────────────────────────────────────────────────────
 
@@ -118,7 +137,7 @@ export function useCharacterCreationForm() {
   const activeTab  = ref<"identity" | "stats" | "profs">("identity");
   const wizardStep = ref(0);
   const saving     = ref(false);
-  const scoreMode  = ref<"pointbuy" | "manual">("pointbuy");
+  const scoreMode  = ref<ScoreMode>("pointbuy");
 
   const portraitUrl = ref(existingMember.value?.portrait_url ?? "");
   const focalPoint  = ref<{ x: number; y: number } | null>(existingMember.value?.portrait_focal_point ?? null);
@@ -174,6 +193,13 @@ export function useCharacterCreationForm() {
     carry_capacity_override: m?.carry_capacity_override ?? null,
     class_resources: m?.class_resources ?? {},
     class_choices:   m?.class_choices ?? {},
+    alignment:          m?.alignment ?? "",
+    personality_traits: m?.personality_traits ?? "",
+    ideals:             m?.ideals ?? "",
+    bonds:              m?.bonds ?? "",
+    flaws:              m?.flaws ?? "",
+    deity:              m?.deity ?? "",
+    experience_points:  m?.experience_points ?? 0,
   });
 
   // ── Point buy ────────────────────────────────────────────────────────────────
@@ -320,6 +346,12 @@ export function useCharacterCreationForm() {
       subrace:     f.subrace || null,
       background:  f.background || null,
       notes:       f.notes || null,
+      alignment:            f.alignment || null,
+      personality_traits:   f.personality_traits || null,
+      ideals:               f.ideals || null,
+      bonds:                f.bonds || null,
+      flaws:                f.flaws || null,
+      deity:                f.deity || null,
       portrait_url:         portraitUrl.value || null,
       portrait_focal_point: focalPoint.value,
       card_art_url:         cardArtUrl.value || null,
