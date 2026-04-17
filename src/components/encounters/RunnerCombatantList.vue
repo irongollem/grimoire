@@ -84,6 +84,7 @@
       <span class="type-badge" :class="combatant.type">{{ combatant.type === 'player' ? 'PC' : combatant.npc_id ? 'NPC' : 'Monster' }}</span>
       <span v-if="combatant.wildshape" class="wildshape-row-badge" title="Wildshaping">🐺 {{ combatant.wildshape.beast_name }}</span>
       <span v-if="combatant.hp === 0 && combatant.type === 'monster'" class="dead-badge">☠</span>
+      <span v-if="combatant.surprised" class="surprised-badge" title="Surprised — cannot act on first turn">✦ Surprised</span>
     </div>
 
     <!-- HP -->
@@ -670,6 +671,10 @@ function quickTemp(instanceId: string) {
 
 .wildshape-row-badge {
   @apply font-fell text-[10px] text-amber-400 italic ml-1;
+}
+
+.surprised-badge {
+  @apply font-cinzel text-[9px] text-amber-500 tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 ml-1;
 }
 
 .hp-cell {

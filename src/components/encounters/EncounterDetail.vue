@@ -327,6 +327,35 @@
           :excluded-monster-ids="excludedMonsterIds"
           @hide-monster="toggleHideMonster"
         />
+
+        <!-- Boss Mechanics (legendary/lair) -->
+        <div class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase">Boss Mechanics</h2>
+              <p class="font-fell text-xs text-muted-foreground mt-1">
+                Lair actions fire at initiative 20 each round. Legendary actions auto-enable on any combatant whose stat block has them.
+              </p>
+            </div>
+            <label class="flex items-center gap-2 cursor-pointer shrink-0">
+              <input type="checkbox" v-model="form.lair_enabled" class="h-4 w-4 rounded border-border bg-muted" />
+              <span class="font-cinzel text-xs font-semibold text-foreground tracking-wide">Lair Actions</span>
+            </label>
+          </div>
+          <div v-if="form.lair_enabled" class="flex flex-col gap-2">
+            <label class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">LAIR OWNER</label>
+            <select
+              v-model="form.lair_owner_def_id"
+              class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option :value="null">— pick an owner —</option>
+              <option v-for="opt in lairOwnerOptions" :key="opt.id" :value="opt.id">{{ opt.label }}</option>
+            </select>
+            <p v-if="form.lair_enabled && !form.lair_owner_def_id" class="font-fell text-[11px] text-amber-500/80 italic">
+              Pick a combatant whose stat block has Lair Actions. Without one, the runner won't show the lair card.
+            </p>
+          </div>
+        </div>
       </div>
 
       <!-- Right column -->
@@ -492,6 +521,21 @@ function onCancel() {
 }
 const campaign = useCampaignStore();
 const { data: monsters } = useAllMonsters();
+
+/** Combatants eligible as lair owners — any monster/NPC slot in this encounter.
+ *  Shows an indicator next to entries whose stat block already has lair_actions. */
+const lairOwnerOptions = computed(() => {
+  return form.combatants.map((c) => {
+    const monster = c.monster_id ? (monsters.value ?? []).find((m) => m.id === c.monster_id) : null;
+    const hasLairActions = !!(monster?.stat_block?.lair_actions?.length);
+    const baseName = c.custom_name ?? monster?.name ?? (c.npc_id ? "NPC" : "Combatant");
+    return {
+      id: c.id,
+      label: hasLairActions ? `${baseName} ★ (has lair actions)` : baseName,
+    };
+  });
+});
+
 const { data: party, isLoading: partyLoading } = useParty();
 const { data: companions } = useCompanions();
 const { data: npcs } = useNpcs();
@@ -566,6 +610,8 @@ const form = reactive({
     ...(props.encounter?.art_objects ?? []),
   ] as import("@/types/encounter.types").ArtObject[],
   events: [...(props.encounter?.events ?? [])] as EncounterEvent[],
+  lair_enabled: props.encounter?.lair_enabled ?? false,
+  lair_owner_def_id: props.encounter?.lair_owner_def_id ?? (null as string | null),
 });
 
 // For new encounters, auto-select all party members once the party data loads
@@ -821,6 +867,8 @@ async function buildPayload() {
     art_objects: form.art_objects,
     is_finished: props.encounter?.is_finished ?? false,
     events: form.events,
+    lair_enabled: form.lair_enabled,
+    lair_owner_def_id: form.lair_enabled ? form.lair_owner_def_id : null,
   };
 }
 

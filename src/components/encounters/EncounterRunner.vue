@@ -63,6 +63,8 @@
     <div class="runner-body-wrap">
       <!-- Initiative list -->
       <div class="runner-body">
+        <!-- Boss mechanics panel (lair actions + legendary actions + surprise) -->
+        <RunnerBossMechanics />
         <RunnerCombatantList
           :selected-id="selectedId"
           @select="selectedId = $event"
@@ -103,6 +105,7 @@ import { useAuthStore } from "@/stores/auth";
 import RunnerCombatantList from "./RunnerCombatantList.vue";
 import RunnerEntityDetail from "./RunnerEntityDetail.vue";
 import RunnerDmTools from "./RunnerDmTools.vue";
+import RunnerBossMechanics from "./RunnerBossMechanics.vue";
 
 const store = useEncounterRunStore();
 const router = useRouter();
