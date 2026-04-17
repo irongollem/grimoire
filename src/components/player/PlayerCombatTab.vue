@@ -1,5 +1,8 @@
 <template>
   <div class="space-y-3">
+    <!-- Loadout shortcut -->
+    <PlayerLoadout :member-id="member.id" />
+
     <!-- Equipped weapon list -->
     <div v-if="equippedWeapons.length" class="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border">
       <div v-for="{ inv, item } in equippedWeapons" :key="inv.id" class="px-4 py-3">
@@ -98,6 +101,7 @@ import { usePartyInventory } from "@/composables/usePartyInventory";
 import { useItems } from "@/composables/useItems";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
+import PlayerLoadout from "@/components/player/PlayerLoadout.vue";
 import type { PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
