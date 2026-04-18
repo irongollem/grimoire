@@ -23,10 +23,7 @@
 
       <!-- Session # — only relevant for session notes -->
       <label v-if="category === 'session'" class="flex items-center gap-1.5">
-        <span
-          class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
-          >#</span
-        >
+        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">#</span>
         <input
           v-model.number="sessionNum"
           type="number"
@@ -41,11 +38,7 @@
         type="button"
         :title="isPinned ? 'Unpin note' : 'Pin note'"
         class="p-2 rounded-md border border-border transition-colors"
-        :class="
-          isPinned
-            ? 'bg-primary/10 text-primary border-primary/30'
-            : 'bg-card text-muted-foreground hover:text-foreground'
-        "
+        :class="isPinned ? 'bg-primary/10 text-primary border-primary/30' : 'bg-card text-muted-foreground hover:text-foreground'"
         @click="isPinned = !isPinned"
       >
         <Pin class="h-3.5 w-3.5" />
@@ -81,39 +74,148 @@
     <!-- Tags -->
     <TagInput v-model="tags" />
 
+    <!-- ── Session date fields ──────────────────────────────────────────────── -->
+    <template v-if="category === 'session'">
+      <div class="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
+        <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">SESSION DATES</p>
+
+        <!-- Start date -->
+        <div class="space-y-1.5">
+          <p class="font-fell text-xs text-muted-foreground">Start date (in-game)</p>
+          <div class="flex gap-2 flex-wrap">
+            <input
+              v-model.number="sessionStartYear"
+              type="number"
+              min="1"
+              placeholder="Year"
+              class="w-24 bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+            <select
+              v-model.number="sessionStartMonth"
+              class="bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option :value="null">— Month —</option>
+              <option v-for="m in calendarAdapter.months" :key="m.num" :value="m.num">{{ m.name }}</option>
+            </select>
+            <input
+              v-model.number="sessionStartDay"
+              type="number"
+              min="1"
+              max="30"
+              placeholder="Day"
+              class="w-20 bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+        </div>
+
+        <!-- End date -->
+        <div class="space-y-1.5">
+          <p class="font-fell text-xs text-muted-foreground">End date (in-game, optional)</p>
+          <div class="flex gap-2 flex-wrap">
+            <input
+              v-model.number="sessionEndYear"
+              type="number"
+              min="1"
+              placeholder="Year"
+              class="w-24 bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+            <select
+              v-model.number="sessionEndMonth"
+              class="bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option :value="null">— Month —</option>
+              <option v-for="m in calendarAdapter.months" :key="m.num" :value="m.num">{{ m.name }}</option>
+            </select>
+            <input
+              v-model.number="sessionEndDay"
+              type="number"
+              min="1"
+              max="30"
+              placeholder="Day"
+              class="w-20 bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+        </div>
+
+        <!-- Real-world date -->
+        <div class="space-y-1.5">
+          <p class="font-fell text-xs text-muted-foreground">Real-world date (optional)</p>
+          <VueDatePicker
+            v-model="sessionRealDateObj"
+            :dark="true"
+            :enable-time-picker="false"
+            :teleport="true"
+            format="yyyy-MM-dd"
+            placeholder="Pick real-world date…"
+            class="grimoire-datepicker"
+          />
+        </div>
+
+        <!-- Linked calendar event indicator -->
+        <div v-if="props.note?.linked_calendar_event_id" class="flex items-center gap-2 font-cinzel text-xs text-primary">
+          <CalendarDays class="h-3 w-3" />
+          Calendar event linked
+        </div>
+      </div>
+    </template>
+
     <p v-if="saveError" class="text-destructive font-fell text-sm">
       {{ saveError }}
     </p>
 
     <!-- Tiptap editor -->
     <RichTextEditor
+      ref="rteRef"
       v-model="body"
       placeholder="Write your note here…"
       allow-upload
+      allow-calendar-events
+      :entity-mention-items="entityMentionItems"
+      @insert-calendar-event="showEventModal = true"
     />
   </div>
+
+  <!-- Inline calendar event creation modal -->
+  <InlineCalendarEventModal
+    v-model="showEventModal"
+    @event-created="onEventCreated"
+  />
 </template>
 
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
+import { VueDatePicker } from "@vuepic/vue-datepicker";
 import RichTextEditor from "../common/RichTextEditor.vue";
-import { Save, Trash2, Pin } from "lucide-vue-next";
+import InlineCalendarEventModal from "@/components/calendar/InlineCalendarEventModal.vue";
+import { Save, Trash2, Pin, CalendarDays } from "lucide-vue-next";
 import TagInput from "@/components/common/TagInput.vue";
 import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
 import {
   useCreateNote,
   useUpdateNote,
   useDeleteNote,
+  useNotes,
 } from "@/composables/useNotes";
+import { useParty } from "@/composables/useParty";
+import { useNpcs } from "@/composables/useNpcs";
+import { useAllMonsters } from "@/composables/useMonsters";
+import type { EntityMentionItem } from "@/lib/tiptap/EntityMention";
+import {
+  useCreateCalendarEvent,
+  useUpdateCalendarEvent,
+  useDeleteCalendarEvent,
+} from "@/composables/useCalendarEvents";
 import {
   removeRichTextImages,
   cleanupRemovedRichTextImages,
 } from "@/composables/useImageUpload";
 import type { Note, NoteCategory } from "@/types/notes.types";
+import type { CalendarEvent } from "@/types/calendar.types";
 import { useCampaignStore } from "@/stores/campaign";
+import { useCalendarStore } from "@/stores/calendar";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
 import { getCurrentUser } from "@/lib/supabase";
 import { storeToRefs } from "pinia";
@@ -141,25 +243,178 @@ const saving = ref(false);
 const saveError = ref("");
 const user = getCurrentUser();
 
+// ── Session dates ─────────────────────────────────────────────────────────────
+const sessionStartYear  = ref<number | null>(props.note?.session_start_year ?? null);
+const sessionStartMonth = ref<number | null>(props.note?.session_start_month ?? null);
+const sessionStartDay   = ref<number | null>(props.note?.session_start_day ?? null);
+const sessionEndYear    = ref<number | null>(props.note?.session_end_year ?? null);
+const sessionEndMonth   = ref<number | null>(props.note?.session_end_month ?? null);
+const sessionEndDay     = ref<number | null>(props.note?.session_end_day ?? null);
+const sessionRealDate   = ref<string | null>(props.note?.session_real_date ?? null);
+
+// VueDatePicker works with Date objects internally; we store as YYYY-MM-DD strings.
+const sessionRealDateObj = computed<Date | null>({
+  get: () => {
+    if (!sessionRealDate.value) return null;
+    // Handle both "YYYY-MM-DD" and legacy locale strings gracefully
+    const d = new Date(sessionRealDate.value);
+    return isNaN(d.getTime()) ? null : d;
+  },
+  set: (d: Date | null) => {
+    if (!d) { sessionRealDate.value = null; return; }
+    const year  = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day   = String(d.getDate()).padStart(2, "0");
+    sessionRealDate.value = `${year}-${month}-${day}`;
+  },
+});
+
+const calendarStore = useCalendarStore();
+const calendarAdapter = computed(() => calendarStore.adapter);
+
+// ── Entity mention items ──────────────────────────────────────────────────────
+const { data: allNotes } = useNotes();
+const { data: partyMembers } = useParty();
+const { data: npcs } = useNpcs();
+const { data: monsters } = useAllMonsters();
+
+const entityMentionItems = computed<EntityMentionItem[]>(() => [
+  ...(partyMembers.value ?? []).map((m) => ({
+    id: m.id,
+    entityType: "player" as const,
+    label: m.name,
+  })),
+  ...(npcs.value ?? []).map((n) => ({
+    id: n.id,
+    entityType: "npc" as const,
+    label: n.name,
+  })),
+  ...(monsters.value ?? []).map((mon) => ({
+    id: mon.id,
+    entityType: "monster" as const,
+    label: mon.name,
+  })),
+]);
+
+// ── Pre-fill start date from the last session note's end date ─────────────────
+// Only applies when creating a new session note (props.note === null).
+watch(
+  category,
+  (newCat) => {
+    if (props.note !== null) return; // editing — don't overwrite
+    if (newCat !== "session") return;
+    if (sessionStartYear.value !== null) return; // already set
+
+    const sessionNotes = (allNotes.value ?? []).filter(
+      (n) => n.category === "session" && n.session_num !== null,
+    );
+    if (!sessionNotes.length) return;
+
+    const last = sessionNotes.reduce((a, b) =>
+      (a.session_num ?? 0) > (b.session_num ?? 0) ? a : b,
+    );
+
+    // Use end date if set, otherwise fall back to start date
+    const prefillYear  = last.session_end_year  ?? last.session_start_year;
+    const prefillMonth = last.session_end_month ?? last.session_start_month;
+    const prefillDay   = last.session_end_day   ?? last.session_start_day;
+
+    if (prefillYear !== null) {
+      sessionStartYear.value  = prefillYear;
+      sessionStartMonth.value = prefillMonth;
+      sessionStartDay.value   = prefillDay;
+    }
+  },
+  { immediate: true },
+);
+
+// ── Inline event modal ────────────────────────────────────────────────────────
+const showEventModal = ref(false);
+const rteRef = ref<InstanceType<typeof RichTextEditor> | null>(null);
+
+function onEventCreated(event: CalendarEvent) {
+  rteRef.value?.insertCalendarEventRef({
+    eventId: event.id,
+    label: event.title,
+    year: event.harptos_year,
+    month: event.harptos_month,
+  });
+}
+
+// ── Mutations ─────────────────────────────────────────────────────────────────
 const { mutateAsync: create } = useCreateNote();
 const { mutateAsync: update } = useUpdateNote();
 const { mutateAsync: del } = useDeleteNote();
+const { mutateAsync: createCalEvent } = useCreateCalendarEvent();
+const { mutateAsync: updateCalEvent } = useUpdateCalendarEvent();
+const { mutateAsync: deleteCalEvent } = useDeleteCalendarEvent();
 const { activeCampaignId } = storeToRefs(useCampaignStore());
 
 function buildPayload() {
+  const isSession = category.value === "session";
   return {
     title: title.value.trim() || "Untitled Note",
     category: category.value,
-    session_num:
-      category.value === "session" ? (sessionNum.value ?? null) : null,
+    session_num: isSession ? (sessionNum.value ?? null) : null,
     is_pinned: isPinned.value,
     player_visible_to: playerVisibleTo.value,
     tags: tags.value,
     content: body.value ?? null,
-    // campaign_id is injected by useCreateNote for inserts; never include it
-    // in update payloads or it can overwrite with null on a stale active campaign.
     user_id: user?.id,
+    session_start_year:  isSession ? (sessionStartYear.value ?? null) : null,
+    session_start_month: isSession ? (sessionStartMonth.value ?? null) : null,
+    session_start_day:   isSession ? (sessionStartDay.value ?? null) : null,
+    session_end_year:    isSession ? (sessionEndYear.value ?? null) : null,
+    session_end_month:   isSession ? (sessionEndMonth.value ?? null) : null,
+    session_end_day:     isSession ? (sessionEndDay.value ?? null) : null,
+    session_real_date:   isSession ? (sessionRealDate.value ?? null) : null,
+    // Managed by syncSessionCalendarEvent — never set directly here
+    linked_calendar_event_id: props.note?.linked_calendar_event_id ?? null,
   };
+}
+
+// ── Session calendar event sync ───────────────────────────────────────────────
+// Avoids circular FK: insert note first → insert event with linked_note_id
+// → patch note.linked_calendar_event_id.
+
+async function syncSessionCalendarEvent(noteId: string) {
+  const isSession = category.value === "session";
+  const hasDate = isSession && sessionStartYear.value !== null;
+  const existingEventId = props.note?.linked_calendar_event_id ?? null;
+
+  if (hasDate) {
+    const isMultiDay = sessionEndYear.value !== null;
+    const eventPayload = {
+      title: `Session ${sessionNum.value ?? "?"}: ${title.value.trim()}`,
+      event_type: "session" as const,
+      color: "#C9920A",
+      harptos_year:  sessionStartYear.value!,
+      harptos_month: sessionStartMonth.value,
+      harptos_day:   sessionStartDay.value,
+      festival_day:  null,
+      is_multi_day:  isMultiDay,
+      end_year:      isMultiDay ? sessionEndYear.value : null,
+      end_month:     isMultiDay ? sessionEndMonth.value : null,
+      end_day:       isMultiDay ? sessionEndDay.value : null,
+      description:   null,
+      linked_quest_id: null,
+      linked_encounter_id: null,
+      linked_location_id: null,
+      linked_note_id: noteId,
+      travel_party_member_ids: [],
+      campaign_id: activeCampaignId.value,
+    };
+
+    if (existingEventId) {
+      await updateCalEvent({ id: existingEventId, update: eventPayload });
+    } else {
+      const newEvt = await createCalEvent(eventPayload);
+      await update({ id: noteId, update: { linked_calendar_event_id: newEvt.id } });
+    }
+  } else if (existingEventId) {
+    await deleteCalEvent(existingEventId);
+    await update({ id: noteId, update: { linked_calendar_event_id: null } });
+  }
 }
 
 async function save() {
@@ -174,6 +429,7 @@ async function save() {
       const oldContent = props.note.content;
       await update({ id: props.note.id, update: buildPayload() });
       cleanupRemovedRichTextImages(oldContent, body.value);
+      await syncSessionCalendarEvent(props.note.id);
       if (justShared && activeCampaignId.value)
         void sendCampaignAnnouncement(
           activeCampaignId.value,
@@ -182,6 +438,7 @@ async function save() {
       router.push("/notes");
     } else {
       const created = await create(buildPayload());
+      await syncSessionCalendarEvent(created.id);
       if (nowShared && activeCampaignId.value)
         void sendCampaignAnnouncement(
           activeCampaignId.value,
@@ -201,6 +458,8 @@ async function remove() {
   if (!(await confirm(`Delete "${props.note.title}"? This cannot be undone.`)))
     return;
   const oldContent = props.note.content;
+  if (props.note.linked_calendar_event_id)
+    await deleteCalEvent(props.note.linked_calendar_event_id);
   await del(props.note.id);
   removeRichTextImages(oldContent);
   router.push("/notes");

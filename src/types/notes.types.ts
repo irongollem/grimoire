@@ -17,6 +17,15 @@ export interface Note {
   session_num: number | null;
   is_pinned: boolean;
   player_visible_to: string[];
+  // Session date fields — only meaningful when category === 'session'
+  session_start_year: number | null;
+  session_start_month: number | null;
+  session_start_day: number | null;
+  session_end_year: number | null;
+  session_end_month: number | null;
+  session_end_day: number | null;
+  session_real_date: string | null; // real-world date "YYYY-MM-DD"
+  linked_calendar_event_id: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -151,3 +151,40 @@ export function useDeleteCalendarEvent() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }
+
+/** Fetch a single calendar event by its UUID. Returns null if deleted/not found. */
+export function useCalendarEventById(id: MaybeRef<string | null>) {
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, "by-id", unref(id)]),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("calendar_events")
+        .select("*")
+        .eq("id", unref(id)!)
+        .maybeSingle();
+      if (error) throw error;
+      return data as CalendarEvent | null;
+    },
+    enabled: () => !!unref(id),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+/** Fetch the calendar event linked to a note via linked_note_id. */
+export function useLinkedNoteCalendarEvent(noteId: MaybeRef<string | null>) {
+  const campaign = useCampaignStore();
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, "linked-note", unref(noteId)]),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("calendar_events")
+        .select("*")
+        .eq("linked_note_id", unref(noteId)!)
+        .eq("campaign_id", campaign.activeCampaignId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data as CalendarEvent | null;
+    },
+    enabled: () => !!unref(noteId) && !!campaign.activeCampaignId,
+  });
+}

@@ -384,3 +384,132 @@ input[type="number"] {
     font-size: 16px;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   VueDatePicker theme — maps --dp-* vars to app theme vars so the datepicker
+   respects both light and dark mode automatically. The calendar menu teleports
+   to <body>, so overrides must live here in the global stylesheet (not scoped).
+───────────────────────────────────────────────────────────────────────────── */
+:root {
+  --dp-background-color: var(--card);
+  --dp-text-color: var(--card-foreground);
+  --dp-hover-color: var(--muted);
+  --dp-hover-text-color: var(--foreground);
+  --dp-hover-icon-color: var(--foreground);
+  --dp-primary-color: var(--primary);
+  --dp-primary-disabled-color: color-mix(in oklch, var(--primary) 40%, transparent);
+  --dp-primary-text-color: var(--primary-foreground);
+  --dp-secondary-color: var(--muted);
+  --dp-border-color: var(--border);
+  --dp-menu-border-color: var(--border);
+  --dp-border-color-hover: var(--ring);
+  --dp-border-color-focus: var(--ring);
+  --dp-disabled-color: var(--muted);
+  --dp-disabled-color-text: var(--muted-foreground);
+  --dp-scroll-bar-background: var(--muted);
+  --dp-scroll-bar-color: var(--border);
+  --dp-success-color: hsl(142 60% 40%);
+  --dp-icon-color: var(--muted-foreground);
+  --dp-danger-color: var(--destructive);
+  --dp-highlight-color: color-mix(in oklch, var(--primary) 15%, transparent);
+  --dp-font-family: "Crimson Pro", Georgia, serif;
+  --dp-font-size: 0.875rem;
+  --dp-border-radius: 0.375rem;
+  --dp-input-padding: 0.5rem 0.75rem;
+}
+
+/* ── Input field ───────────────────────────────────────────────────────────── */
+.grimoire-datepicker .dp__input {
+  background-color: var(--background) !important;
+  border-color: var(--border) !important;
+  color: var(--foreground) !important;
+  font-family: "Crimson Pro", Georgia, serif !important;
+  font-size: 0.875rem !important;
+  border-radius: 0.375rem !important;
+  padding: 0.5rem 0.75rem 0.5rem 2.25rem !important;
+  height: auto !important;
+}
+.grimoire-datepicker .dp__input:hover,
+.grimoire-datepicker .dp__input_focus {
+  border-color: var(--ring) !important;
+  box-shadow: 0 0 0 1px var(--ring) !important;
+}
+.grimoire-datepicker .dp__input_icon {
+  color: var(--muted-foreground) !important;
+}
+.grimoire-datepicker .dp__input_wrap {
+  border-radius: 0.375rem;
+}
+
+/* ── Teleported calendar menu — theme-agnostic, driven by --dp-* vars ─────── */
+.dp__menu,
+.dp__menu_inner {
+  background-color: var(--card) !important;
+  border-color: var(--border) !important;
+  color: var(--card-foreground) !important;
+  font-family: "Crimson Pro", Georgia, serif !important;
+}
+.dp__calendar_header_item,
+.dp__cell_inner,
+.dp__month_year_select {
+  color: var(--foreground) !important;
+  font-family: "Crimson Pro", Georgia, serif !important;
+}
+.dp__today {
+  border-color: var(--primary) !important;
+}
+.dp__active_date,
+.dp__overlay_cell_active {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+}
+.dp__date_hover:hover,
+.dp__date_hover_start:hover,
+.dp__date_hover_end:hover,
+.dp__overlay_cell:hover {
+  background: var(--muted) !important;
+  color: var(--foreground) !important;
+}
+.dp__cell_disabled {
+  color: var(--muted-foreground) !important;
+  opacity: 0.5;
+}
+.dp__nav_btn,
+.dp__inner_nav {
+  color: var(--muted-foreground) !important;
+}
+.dp__nav_btn:hover {
+  background: var(--muted) !important;
+}
+.dp__overlay {
+  background-color: var(--card) !important;
+  border-color: var(--border) !important;
+}
+.dp__time_col,
+.dp__time_display {
+  color: var(--foreground) !important;
+}
+.dp__time_col_btn:hover {
+  background: var(--muted) !important;
+}
+.dp__action_select {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  border-radius: 0.375rem !important;
+  font-family: "Cinzel", Georgia, serif !important;
+  font-size: 0.7rem !important;
+  letter-spacing: 0.05em !important;
+}
+.dp__action_cancel {
+  color: var(--muted-foreground) !important;
+  border-color: var(--border) !important;
+  background: transparent !important;
+  border-radius: 0.375rem !important;
+  font-family: "Cinzel", Georgia, serif !important;
+  font-size: 0.7rem !important;
+  letter-spacing: 0.05em !important;
+}
+.dp__action_cancel:hover {
+  color: var(--foreground) !important;
+  border-color: var(--ring) !important;
+}

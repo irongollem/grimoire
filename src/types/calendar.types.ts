@@ -39,6 +39,7 @@ export interface CalendarEvent {
   linked_quest_id: string | null;
   linked_encounter_id: string | null;
   linked_location_id: string | null;
+  linked_note_id: string | null;
   travel_party_member_ids: string[];
   created_at: string;
   updated_at: string;
@@ -60,8 +61,8 @@ export function linkedEntityId(event: CalendarEvent): string | null {
 
 export type CalendarEventInsert = Omit<
   CalendarEvent,
-  "id" | "user_id" | "created_at" | "updated_at"
->;
+  "id" | "user_id" | "created_at" | "updated_at" | "linked_note_id"
+> & { linked_note_id?: string | null };
 export type CalendarEventUpdate = Partial<CalendarEventInsert>;
 
 // ── Adapter pattern types ──────────────────────────────────────────────────

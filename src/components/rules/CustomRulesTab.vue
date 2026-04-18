@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="overflow-y-auto h-full px-4 pt-4 pb-4 md:px-6 md:pt-6">
     <!-- Filters + new button -->
     <div class="flex flex-wrap items-center gap-2 mb-5">
       <div class="relative flex-1 min-w-48">

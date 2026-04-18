@@ -97,6 +97,14 @@ export const useCalendarStore = defineStore("calendar", () => {
     currentMonth.value = 1;
   }
 
+  // ── Event highlighting (used when navigating from inline event refs) ─────────
+
+  const highlightedEventId = ref<string | null>(null);
+
+  function setHighlightedEvent(id: string | null) {
+    highlightedEventId.value = id;
+  }
+
   return {
     activeCalendarId,
     view,
@@ -113,5 +121,7 @@ export const useCalendarStore = defineStore("calendar", () => {
     setView,
     setTimelineZoom,
     loadFromCampaign,
+    highlightedEventId,
+    setHighlightedEvent,
   };
 });

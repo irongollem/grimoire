@@ -89,7 +89,7 @@
 
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
-const { confirm, notify } = useConfirm();
+const { confirm } = useConfirm();
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { Radio, Dices, Swords, DoorOpen, Flag } from "lucide-vue-next";
@@ -136,6 +136,19 @@ async function handleGoLive() {
   goingLive.value = true;
   try {
     await goLive({ round: store.round, activeIndex: store.activeIndex, combatants: store.combatants });
+
+    // Auto-discover only revealed monsters when going live — hidden/unseen
+    // combatants haven't been seen by players yet.
+    const monsterIds = new Set(
+      store.combatants
+        .filter((c) => c.type === "monster" && c.monster_id && c.reveal_state === "revealed")
+        .map((c) => c.monster_id!),
+    );
+    if (monsterIds.size > 0) {
+      const monstersToDiscover = (monsters.value ?? []).filter((m) => monsterIds.has(m.id));
+      const partyMemberIds = (partyMembers.value ?? []).map((m) => m.id);
+      await autoDiscover({ monsters: monstersToDiscover, partyMemberIds });
+    }
   } finally {
     goingLive.value = false;
   }
@@ -262,26 +275,6 @@ async function handleEndCombat() {
       }),
     ),
   );
-
-  // Auto-discover any monster combatants that reached "revealed" state
-  const revealedMonsterIds = new Set(
-    store.combatants
-      .filter((c) => c.type === "monster" && c.reveal_state === "revealed" && c.monster_id)
-      .map((c) => c.monster_id!),
-  );
-  if (revealedMonsterIds.size > 0) {
-    const revealedMonsters = (monsters.value ?? []).filter((m) => revealedMonsterIds.has(m.id));
-    const partyMemberIds = (partyMembers.value ?? []).map((m) => m.id);
-    const newDiscoveries = await autoDiscover({ monsters: revealedMonsters, partyMemberIds });
-    if (newDiscoveries.length > 0) {
-      const newIds = new Set([
-        ...newDiscoveries.map((d) => d.monster_id).filter(Boolean),
-        ...newDiscoveries.map((d) => d.srd_slug).filter(Boolean),
-      ]);
-      const names = revealedMonsters.filter((m) => newIds.has(m.id)).map((m) => m.name).join(", ");
-      notify(`Auto-shared to bestiary: ${names}`, "Monsters Discovered");
-    }
-  }
 
   store.reset();
   router.push(`/encounters/${encounterId.value}`);

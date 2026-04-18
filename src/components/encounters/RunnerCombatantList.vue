@@ -58,7 +58,7 @@
           class="reveal-btn"
           :class="revealBtnClass(combatant.reveal_state)"
           :title="revealBtnTitle(combatant.reveal_state)"
-          @click.stop="store.cycleRevealState(combatant.instance_id)"
+          @click.stop="handleCycleReveal(combatant)"
         >
           <EyeOff v-if="combatant.reveal_state === 'hidden'" class="h-2.5 w-2.5" />
           <Eye v-else-if="combatant.reveal_state === 'unseen'" class="h-2.5 w-2.5" />
@@ -215,7 +215,7 @@
               class="reveal-btn"
               :class="revealBtnClass(combatant.reveal_state)"
               :title="revealBtnTitle(combatant.reveal_state)"
-              @click.stop="store.cycleRevealState(combatant.instance_id)"
+              @click.stop="handleCycleReveal(combatant)"
             >
               <EyeOff v-if="combatant.reveal_state === 'hidden'" class="h-2.5 w-2.5" />
               <Eye v-else-if="combatant.reveal_state === 'unseen'" class="h-2.5 w-2.5" />
@@ -340,6 +340,8 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { useParty } from "@/composables/useParty";
+import { useAllMonsters } from "@/composables/useMonsters";
+import { useAutoDiscoverMonsters } from "@/composables/useDiscoveredMonsters";
 import { useConcentration } from "@/composables/useConcentration";
 import {
   CONDITIONS,
@@ -366,6 +368,8 @@ const emit = defineEmits<{
 
 const store = useEncounterRunStore();
 const { data: partyList } = useParty();
+const { data: monsters } = useAllMonsters();
+const { mutateAsync: autoDiscover } = useAutoDiscoverMonsters();
 const { rollConcentrationSave, endConcentration } = useConcentration();
 const addingCondFor = ref<string | null>(null);
 const quickAmounts = ref<Record<string, number | null>>({});
@@ -506,6 +510,17 @@ function revealBtnTitle(state: RevealState | undefined) {
   if (state === "revealed") return "Revealed — click to hide";
   if (state === "unseen")   return "Unseen — click to reveal";
   return "Hidden — click to show slot";
+}
+
+function handleCycleReveal(combatant: RunCombatant) {
+  store.cycleRevealState(combatant.instance_id);
+  const updated = store.sortedCombatants.find((c) => c.instance_id === combatant.instance_id);
+  if (updated?.reveal_state !== "revealed" || !updated.monster_id) return;
+  const monstersToDiscover = (monsters.value ?? []).filter((m) => m.id === updated.monster_id);
+  const partyMemberIds = (partyList.value ?? []).map((m) => m.id);
+  if (monstersToDiscover.length && partyMemberIds.length) {
+    void autoDiscover({ monsters: monstersToDiscover, partyMemberIds });
+  }
 }
 
 async function quickDamage(instanceId: string) {

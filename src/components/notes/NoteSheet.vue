@@ -90,7 +90,7 @@ async function handleDelete() {
   });
   if (!ok) return;
   removeRichTextImages(props.note.content);
-  await deleteMut.mutateAsync(props.note.id);
   router.push("/notes");
+  await deleteMut.mutateAsync(props.note.id);
 }
 </script>

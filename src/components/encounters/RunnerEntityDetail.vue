@@ -1067,16 +1067,33 @@ interface RangedAttack {
   weaponInvId: string;
 }
 
-/** Map a vault Item's subtype/tags to the ammo tag it requires. */
+/** Map a vault Item's subtype/tags to the ammo tag it requires.
+ *
+ *  Resolution order:
+ *  1. Explicit ammo tag on the weapon itself (e.g. tag "bolt" on a custom crossbow)
+ *  2. firearm tag → firearm-bullet
+ *  3. Subtype keyword match
+ *  4. Name keyword match (fallback for missing subtypes)
+ */
 function weaponAmmoTag(item: Item): string | null {
+  // 1. Explicit ammo tag wins — lets custom weapons like "Crosswing" bind to
+  //    any ammo type by simply adding the right tag to the weapon item.
+  const AMMO_TAGS = ["arrow", "bolt", "bullet", "needle", "dart", "firearm-bullet"] as const;
+  const explicitTag = AMMO_TAGS.find((t) => item.tags.includes(t));
+  if (explicitTag) return explicitTag;
+
+  // 2. Firearm tag
   if (item.tags.includes("firearm")) return "firearm-bullet";
+
+  // 3. Subtype keyword
   const sub = (item.subtype ?? "").toLowerCase();
   if (sub.includes("shortbow") || sub.includes("longbow") || (sub.includes("bow") && !sub.includes("crossbow"))) return "arrow";
   if (sub.includes("crossbow")) return "bolt";
   if (sub === "sling") return "bullet";
   if (sub.includes("blowgun")) return "needle";
   if (sub.includes("dart")) return "dart";
-  // name-based fallback for unusual subtypes
+
+  // 4. Name keyword fallback
   const name = item.name.toLowerCase();
   if (name.includes("longbow") || name.includes("shortbow") || (name.includes("bow") && !name.includes("crossbow"))) return "arrow";
   if (name.includes("crossbow")) return "bolt";
@@ -1162,12 +1179,13 @@ const playerRangedAttacks = computed<RangedAttack[]>(() => {
     .flatMap((inv) => {
       if (!inv.item_id) return [];
       const item = vaultItemMap.value.get(inv.item_id);
-      if (!item || !item.properties.includes("ammunition")) return [];
+      if (!item) return [];
       // Self-charged weapons (laser rifle, etc.) carry their own ammo — no external stack needed
       const isSelfCharged = item.charges !== null;
       const ammoTag = isSelfCharged ? null : weaponAmmoTag(item);
-      // Skip weapons that need external ammo but have an unrecognised type
-      if (!isSelfCharged && !ammoTag) return [];
+      // Accept if: manual "ammunition" property, self-charged, or name/subtype recognised by weaponAmmoTag.
+      // This means a Longbow without "ammunition" ticked still works.
+      if (!item.properties.includes("ammunition") && !isSelfCharged && !ammoTag) return [];
 
       // Finesse ranged weapons (thrown finesse) may use STR if higher
       const usesStr = item.properties.includes("finesse") && strMod > dexMod;

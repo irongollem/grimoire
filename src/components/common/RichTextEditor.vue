@@ -1,15 +1,10 @@
 <template>
   <div
-    class="rich-editor flex flex-col rounded-lg border border-border bg-card lg:overflow-hidden"
+    class="rich-editor flex flex-col rounded-lg border border-border bg-card overflow-clip"
     :style="{ minHeight: minHeight ?? '180px' }"
   >
-    <!--
-      Toolbar — on mobile: single horizontally-scrollable row so all icon
-      buttons stay reachable without wrapping into 2-3 rows and eating the
-      editor viewport. Desktop: wrap as before.
-    -->
     <div
-      class="flex flex-nowrap items-center gap-0.5 p-1.5 border-b border-border bg-muted/30 shrink-0 overflow-x-auto rte-toolbar lg:flex-wrap lg:overflow-visible"
+      class="flex flex-wrap items-center gap-0.5 p-1.5 border-b border-border bg-card shrink-0 sticky top-11 md:top-0 z-20 rte-toolbar"
     >
       <template v-if="editor">
         <button
@@ -27,6 +22,55 @@
           @click="editor.chain().focus().toggleItalic().run()"
         >
           <em class="text-[11px] leading-none">I</em>
+        </button>
+        <button
+          type="button"
+          title="Underline"
+          :class="tbCls(editor.isActive('underline'))"
+          @click="editor.chain().focus().toggleUnderline().run()"
+        >
+          <UnderlineIcon class="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          title="Highlight"
+          :class="tbCls(editor.isActive('highlight'))"
+          @click="editor.chain().focus().toggleHighlight().run()"
+        >
+          <Highlighter class="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          title="Link"
+          :class="tbCls(editor.isActive('link'))"
+          @click="toggleLink"
+        >
+          <LinkIcon class="h-3.5 w-3.5" />
+        </button>
+        <div class="w-px h-5 bg-border mx-0.5" />
+        <button
+          type="button"
+          title="Align left"
+          :class="tbCls(editor.isActive({ textAlign: 'left' }))"
+          @click="editor.chain().focus().setTextAlign('left').run()"
+        >
+          <AlignLeft class="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          title="Align center"
+          :class="tbCls(editor.isActive({ textAlign: 'center' }))"
+          @click="editor.chain().focus().setTextAlign('center').run()"
+        >
+          <AlignCenter class="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          title="Align right"
+          :class="tbCls(editor.isActive({ textAlign: 'right' }))"
+          @click="editor.chain().focus().setTextAlign('right').run()"
+        >
+          <AlignRight class="h-3.5 w-3.5" />
         </button>
         <div class="w-px h-5 bg-border mx-0.5" />
         <button
@@ -77,6 +121,22 @@
           @click="editor.chain().focus().toggleBlockquote().run()"
         >
           <Quote class="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          title="Task list"
+          :class="tbCls(editor.isActive('taskList'))"
+          @click="editor.chain().focus().toggleTaskList().run()"
+        >
+          <ListTodo class="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          title="Horizontal rule"
+          :class="tbCls(false)"
+          @click="editor.chain().focus().setHorizontalRule().run()"
+        >
+          <Minus class="h-3.5 w-3.5" />
         </button>
         <div class="w-px h-5 bg-border mx-0.5" />
         <!-- Table controls -->
@@ -155,6 +215,20 @@
             :class="uploadingImage ? 'animate-pulse' : ''"
           />
         </button>
+        <!-- Image size presets — only shown when an image node is selected -->
+        <template v-if="editor.isActive('image')">
+          <div class="w-px h-5 bg-border mx-0.5" />
+          <button
+            v-for="preset in IMG_SIZE_PRESETS"
+            :key="preset.value"
+            type="button"
+            :title="`Image width: ${preset.label}`"
+            :class="tbCls(editor.getAttributes('image').width === preset.value)"
+            @click="editor.chain().focus().updateAttributes('image', { width: preset.value }).run()"
+          >
+            <span class="text-[9px] font-cinzel font-bold leading-none">{{ preset.label }}</span>
+          </button>
+        </template>
         <div class="w-px h-5 bg-border mx-0.5" />
         <button
           type="button"
@@ -177,28 +251,29 @@
         <div class="w-px h-5 bg-border mx-0.5" />
         <button
           type="button"
-          title="Toggle two-column layout"
-          :class="tbCls(twoColumn)"
-          @click="
-            editor
-              .chain()
-              .focus()
-              .updateAttributes('doc', { twoColumn: !twoColumn })
-              .run()
-          "
+          title="Wrap selection in two columns (click again to remove)"
+          :class="tbCls(editor.isActive('columns'))"
+          @click="editor.chain().focus().toggleColumns().run()"
         >
           <Columns2 class="h-3.5 w-3.5" />
         </button>
+        <!-- Calendar event ref — only when allowCalendarEvents is enabled -->
+        <template v-if="allowCalendarEvents">
+          <div class="w-px h-5 bg-border mx-0.5" />
+          <button
+            type="button"
+            title="Insert calendar event reference"
+            :class="tbCls(false)"
+            @click="emit('insert-calendar-event')"
+          >
+            <CalendarDays class="h-3.5 w-3.5" />
+          </button>
+        </template>
       </template>
       <slot name="toolbar-end" />
     </div>
 
     <!-- Content area -->
-    <!--
-      Mobile: let the surrounding page scroll — nested overflow-auto causes
-      scroll traps on touch. Desktop: keep internal scroll so the editor can
-      sit at a fixed height in dense forms.
-    -->
     <div class="p-3 lg:flex-1 lg:overflow-auto lg:min-h-0 cursor-text" @click="onContentAreaClick">
       <EditorContent
         :editor="editor"
@@ -214,11 +289,38 @@
       class="hidden"
       @change="onFileSelected"
     />
+
+    <!-- Entity mention suggestion popup -->
+    <Teleport to="body">
+      <div
+        v-if="suggestionState.active && suggestionState.items.length"
+        class="entity-suggestion-popup"
+        :style="{ top: `${suggestionState.position.top}px`, left: `${suggestionState.position.left}px` }"
+      >
+        <button
+          v-for="(item, idx) in suggestionState.items"
+          :key="item.id"
+          type="button"
+          class="entity-suggestion-item"
+          :class="[
+            `entity-suggestion-item--${item.entityType}`,
+            idx === suggestionState.selectedIndex ? 'entity-suggestion-item--active' : '',
+          ]"
+          @mouseenter="suggestionState.selectedIndex = idx"
+          @click="selectSuggestionItem(idx)"
+        >
+          <span class="entity-suggestion-badge" :class="`entity-suggestion-badge--${item.entityType}`">
+            {{ ENTITY_TYPE_LABELS[item.entityType] }}
+          </span>
+          {{ item.label }}
+        </button>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onUnmounted } from "vue";
+import { ref, reactive, onUnmounted } from "vue";
 import { getCurrentUser } from "@/lib/supabase";
 import { toWebP } from "@/lib/mediaConvert";
 import { uploadToBucket } from "@/lib/storage";
@@ -232,6 +334,31 @@ import TableRow from "@tiptap/extension-table-row";
 import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
 import Image from "@tiptap/extension-image";
+import Highlight from "@tiptap/extension-highlight";
+import TaskList from "@tiptap/extension-task-list";
+import TaskItem from "@tiptap/extension-task-item";
+import Link from "@tiptap/extension-link";
+import Typography from "@tiptap/extension-typography";
+import Underline from "@tiptap/extension-underline";
+
+// Extend Image to persist a width attribute as an inline style.
+// Stored as a CSS value string, e.g. "25%", "50%", "75%", "100%".
+const ResizableImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      width: {
+        default: null,
+        renderHTML(attrs) {
+          return attrs.width ? { style: `width: ${attrs.width}; height: auto;` } : {};
+        },
+        parseHTML(el) {
+          return (el as HTMLImageElement).style.width || null;
+        },
+      },
+    };
+  },
+});
 import { parseMarkdown, looksLikeMarkdown, sanitizePasteText } from "@/lib/markdownToTiptap";
 import {
   List,
@@ -245,29 +372,150 @@ import {
   Trash2,
   ImageIcon,
   Columns2,
+  CalendarDays,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Underline as UnderlineIcon,
+  Highlighter,
+  Link as LinkIcon,
+  ListTodo,
+  Minus,
 } from "lucide-vue-next";
+import TextAlign from "@tiptap/extension-text-align";
+import { Columns } from "@/lib/tiptap/Columns";
+import { CalendarEventRef } from "@/lib/tiptap/CalendarEventRef";
+import type { CalendarEventRefAttrs } from "@/lib/tiptap/CalendarEventRef";
+import { createEntityMentionExtension } from "@/lib/tiptap/EntityMention";
+import type { EntityMentionItem, EntityMentionAttrs, EntityType } from "@/lib/tiptap/EntityMention";
+
 
 const CustomDocument = Node.create({
   name: "doc",
   topNode: true,
   content: "block+",
   addAttributes() {
-    return {
-      twoColumn: { default: false },
-    };
+    return { twoColumn: { default: false } };
   },
 });
+
+const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
+  player: "PC",
+  npc: "NPC",
+  monster: "MON",
+};
 
 const props = defineProps<{
   modelValue: string | null;
   placeholder?: string;
   minHeight?: string;
   allowUpload?: boolean;
+  allowCalendarEvents?: boolean;
+  entityMentionItems?: EntityMentionItem[];
 }>();
 
 const emit = defineEmits<{
   "update:modelValue": [value: string];
+  "insert-calendar-event": [];
 }>();
+
+// ── Entity mention suggestion state ──────────────────────────────────────────
+
+interface SuggestionState {
+  active: boolean;
+  items: EntityMentionItem[];
+  selectedIndex: number;
+  position: { top: number; left: number };
+  command: ((item: EntityMentionItem) => void) | null;
+}
+
+const suggestionState = reactive<SuggestionState>({
+  active: false,
+  items: [],
+  selectedIndex: 0,
+  position: { top: 0, left: 0 },
+  command: null,
+});
+
+function selectSuggestionItem(index: number) {
+  const item = suggestionState.items[index];
+  if (item && suggestionState.command) {
+    suggestionState.command(item);
+    suggestionState.active = false;
+  }
+}
+
+const entityMentionExtension = createEntityMentionExtension({
+  items: ({ query }) =>
+    (props.entityMentionItems ?? [])
+      .filter((i) => i.label.toLowerCase().includes(query.toLowerCase()))
+      .slice(0, 8),
+
+  render: () => ({
+    onStart(p) {
+      suggestionState.active = true;
+      suggestionState.items = p.items as EntityMentionItem[];
+      suggestionState.selectedIndex = 0;
+      const rect = p.clientRect?.();
+      if (rect) {
+        suggestionState.position = {
+          top: rect.bottom + window.scrollY + 4,
+          left: rect.left + window.scrollX,
+        };
+      }
+      suggestionState.command = (item: EntityMentionItem) => p.command(item);
+    },
+    onUpdate(p) {
+      suggestionState.items = p.items as EntityMentionItem[];
+      suggestionState.selectedIndex = 0;
+      const rect = p.clientRect?.();
+      if (rect) {
+        suggestionState.position = {
+          top: rect.bottom + window.scrollY + 4,
+          left: rect.left + window.scrollX,
+        };
+      }
+      suggestionState.command = (item: EntityMentionItem) => p.command(item);
+    },
+    onExit() {
+      suggestionState.active = false;
+      suggestionState.items = [];
+      suggestionState.command = null;
+    },
+    onKeyDown({ event }) {
+      if (!suggestionState.active || !suggestionState.items.length) return false;
+      if (event.key === "ArrowDown") {
+        suggestionState.selectedIndex =
+          (suggestionState.selectedIndex + 1) % suggestionState.items.length;
+        return true;
+      }
+      if (event.key === "ArrowUp") {
+        suggestionState.selectedIndex =
+          (suggestionState.selectedIndex - 1 + suggestionState.items.length) %
+          suggestionState.items.length;
+        return true;
+      }
+      if (event.key === "Enter") {
+        selectSuggestionItem(suggestionState.selectedIndex);
+        return true;
+      }
+      if (event.key === "Escape") {
+        suggestionState.active = false;
+        return true;
+      }
+      return false;
+    },
+  }),
+
+  command: ({ editor, range, props: item }) => {
+    const mentionAttrs: EntityMentionAttrs = {
+      id: (item as EntityMentionItem).id,
+      entityType: (item as EntityMentionItem).entityType,
+      label: (item as EntityMentionItem).label,
+    };
+    editor.chain().focus().deleteRange(range).insertEntityMention(mentionAttrs).run();
+  },
+});
 
 /** Recursively remove link marks from Tiptap JSON (from DnDBeyond-pasted content). */
 function stripLinkMarks(node: unknown): unknown {
@@ -309,7 +557,17 @@ const editor = useEditor({
     TableRow,
     TableHeader,
     TableCell,
-    Image,
+    ResizableImage,
+    TextAlign.configure({ types: ["heading", "paragraph"] }),
+    Columns,
+    Underline,
+    Highlight,
+    TaskList,
+    TaskItem.configure({ nested: true }),
+    Link.configure({ openOnClick: false, HTMLAttributes: { target: "_blank", rel: "noopener noreferrer" } }),
+    Typography,
+    ...(props.allowCalendarEvents ? [CalendarEventRef] : []),
+    entityMentionExtension,
   ],
   editorProps: {
     handlePaste(view, event) {
@@ -360,8 +618,8 @@ const editor = useEditor({
       return div.innerHTML;
     },
   },
-  onCreate() {
-    twoColumn.value = editor.value?.getAttributes("doc").twoColumn ?? false;
+  onTransaction({ editor: e }) {
+    twoColumn.value = e.state.doc.attrs.twoColumn ?? false;
   },
   onUpdate() {
     emit("update:modelValue", JSON.stringify(editor.value?.getJSON() ?? {}));
@@ -370,6 +628,23 @@ const editor = useEditor({
 
 onUnmounted(() => editor.value?.destroy());
 
+defineExpose({
+  insertCalendarEventRef(attrs: CalendarEventRefAttrs): void {
+    editor.value?.commands.insertCalendarEventRef(attrs);
+  },
+  insertEntityMention(attrs: EntityMentionAttrs): void {
+    editor.value?.commands.insertEntityMention(attrs);
+  },
+});
+
+const IMG_SIZE_PRESETS = [
+  { label: "¼", value: "25%" },
+  { label: "½", value: "50%" },
+  { label: "¾", value: "75%" },
+  { label: "Full", value: "100%" },
+] as const;
+
+// twoColumn: legacy doc-level attribute kept for rendering existing saved content.
 const twoColumn = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
 const uploadingImage = ref(false);
@@ -402,10 +677,26 @@ async function onFileSelected(e: Event) {
   }
 }
 
+function toggleLink() {
+  if (!editor.value) return;
+  if (editor.value.isActive("link")) {
+    editor.value.chain().focus().unsetLink().run();
+  } else {
+    const url = window.prompt("Enter URL");
+    if (url) editor.value.chain().focus().setLink({ href: url }).run();
+  }
+}
+
 function onContentAreaClick(e: MouseEvent) {
   if (!editor.value) return;
   if (editor.value.view.dom.contains(e.target as unknown as globalThis.Node)) return;
-  editor.value.commands.focus("end");
+  // Only jump to end when clicking BELOW the editor content, not to the sides.
+  const pmRect = editor.value.view.dom.getBoundingClientRect();
+  if (e.clientY > pmRect.bottom) {
+    editor.value.commands.focus("end");
+  } else {
+    editor.value.commands.focus();
+  }
 }
 
 function tbCls(active: boolean) {
@@ -478,7 +769,7 @@ function tbCls(active: boolean) {
 .rte-two-col :deep(.ProseMirror) {
   column-count: 2;
   column-gap: 1.75rem;
-  column-rule: 1px solid hsl(var(--border));
+  column-rule: 1px solid theme(colors.border);
 }
 .rte-two-col :deep(.ProseMirror table),
 .rte-two-col :deep(.ProseMirror .ProseMirror-widget) {
@@ -492,5 +783,125 @@ function tbCls(active: boolean) {
 }
 .rte-content :deep(.ProseMirror img.ProseMirror-selectednode) {
   @apply ring-2 ring-primary;
+}
+
+/* Visible selection highlight (important on dark backgrounds & over images) */
+.rte-content :deep(.ProseMirror) ::selection {
+  background: theme(colors.primary / 30%);
+}
+
+/* Make image selection visible within a text range selection */
+.rte-content :deep(.ProseMirror img) {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: outline-color 0.1s;
+}
+.rte-content :deep(.ProseMirror img.ProseMirror-selectednode) {
+  outline-color: theme(colors.primary);
+}
+
+/* Underline */
+.rte-content :deep(.ProseMirror u) {
+  @apply underline;
+}
+
+/* Highlight */
+.rte-content :deep(.ProseMirror mark) {
+  @apply bg-yellow-400/25 text-foreground rounded-sm px-0.5;
+}
+
+/* Link */
+.rte-content :deep(.ProseMirror a) {
+  @apply text-primary underline cursor-pointer;
+}
+.rte-content :deep(.ProseMirror a:hover) {
+  @apply opacity-80;
+}
+
+/* Task list */
+.rte-content :deep(.ProseMirror ul[data-type="taskList"]) {
+  @apply list-none pl-1 mb-3 space-y-1;
+}
+.rte-content :deep(.ProseMirror li[data-type="taskItem"]) {
+  @apply flex items-start gap-2;
+}
+.rte-content :deep(.ProseMirror li[data-type="taskItem"] > label) {
+  @apply flex items-center pt-0.5 shrink-0;
+}
+.rte-content :deep(.ProseMirror li[data-type="taskItem"] > label > input[type="checkbox"]) {
+  @apply w-3.5 h-3.5 accent-primary cursor-pointer;
+}
+.rte-content :deep(.ProseMirror li[data-type="taskItem"][data-checked="true"] > div) {
+  @apply line-through text-muted-foreground;
+}
+
+/* Per-segment two-column block */
+.rte-content :deep(.ProseMirror [data-type="columns"]) {
+  column-count: 2;
+  column-gap: 1.75rem;
+  column-rule: 1px solid theme(colors.border);
+  @apply my-3;
+}
+
+/* ── Entity mention suggestion popup ────────────────────────────────────── */
+.entity-suggestion-popup {
+  position: absolute;
+  z-index: 9999;
+  min-width: 180px;
+  max-width: 280px;
+  background: theme(colors.card);
+  border: 1px solid theme(colors.border);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.entity-suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.75rem;
+  font-family: var(--font-fell, serif);
+  font-size: 0.8rem;
+  color: theme(colors.foreground);
+  text-align: left;
+  width: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+.entity-suggestion-item:hover,
+.entity-suggestion-item--active {
+  background: theme(colors.muted);
+}
+
+.entity-suggestion-badge {
+  font-family: var(--font-cinzel, serif);
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 0.1rem 0.35rem;
+  border-radius: 9999px;
+  border: 1px solid;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.entity-suggestion-badge--player {
+  color: theme(colors.blue-400);
+  border-color: theme(colors.blue-400 / 40%);
+  background: theme(colors.blue-400 / 10%);
+}
+.entity-suggestion-badge--npc {
+  color: theme(colors.violet-400);
+  border-color: theme(colors.violet-400 / 40%);
+  background: theme(colors.violet-400 / 10%);
+}
+.entity-suggestion-badge--monster {
+  color: theme(colors.rose-400);
+  border-color: theme(colors.rose-400 / 40%);
+  background: theme(colors.rose-400 / 10%);
 }
 </style>

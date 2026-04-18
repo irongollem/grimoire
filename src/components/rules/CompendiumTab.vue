@@ -1,7 +1,7 @@
 <template>
-  <div class="flex gap-4 h-[calc(100vh-16rem)]">
+  <div class="flex h-full min-h-0">
     <!-- Sidebar: rule tree -->
-    <div class="w-64 shrink-0 flex flex-col gap-2 overflow-y-auto pr-2">
+    <div class="w-64 shrink-0 flex flex-col gap-2 overflow-y-auto px-4 pt-4 pb-4 md:px-6 md:pt-6">
       <div class="relative">
         <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <input
@@ -74,7 +74,7 @@
     </div>
 
     <!-- Main: rule content -->
-    <div class="flex-1 overflow-y-auto">
+    <div class="flex-1 overflow-y-auto px-4 pt-4 pb-4 md:px-6 md:pt-6">
       <div v-if="selected" class="max-w-3xl space-y-3">
         <h2 class="font-cinzel text-xl font-bold text-foreground">{{ selected.name }}</h2>
         <div

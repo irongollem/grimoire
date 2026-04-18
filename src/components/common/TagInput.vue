@@ -112,8 +112,19 @@ watch(open, (val) => {
 
 onUnmounted(() => window.removeEventListener("scroll", updatePosition, true));
 
+/** Normalize a tag: lowercase, spaces/underscores → hyphens, strip anything that isn't a-z 0-9 or hyphen. */
+function normalizeTag(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, "-")       // spaces and underscores → hyphen
+    .replace(/[^a-z0-9-]/g, "")   // strip everything else
+    .replace(/-{2,}/g, "-")        // collapse double-hyphens
+    .replace(/^-+|-+$/g, "");      // trim leading/trailing hyphens
+}
+
 function addTag(tag: string) {
-  const clean = tag.trim();
+  const clean = normalizeTag(tag);
   if (clean && !model.value.includes(clean)) {
     model.value = [...model.value, clean];
   }
@@ -124,7 +135,7 @@ function handlePaste(e: ClipboardEvent) {
   const text = e.clipboardData?.getData("text") ?? "";
   const newTags = text
     .split(",")
-    .map((t) => t.trim())
+    .map(normalizeTag)
     .filter((t) => t && !model.value.includes(t));
   if (newTags.length) model.value = [...model.value, ...newTags];
   inputVal.value = "";
@@ -133,7 +144,7 @@ function handlePaste(e: ClipboardEvent) {
 function addFromInput() {
   const newTags = inputVal.value
     .split(",")
-    .map((t) => t.trim())
+    .map(normalizeTag)
     .filter((t) => t && !model.value.includes(t));
   if (newTags.length) model.value = [...model.value, ...newTags];
   inputVal.value = "";

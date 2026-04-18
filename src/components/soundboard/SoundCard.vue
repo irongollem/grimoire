@@ -182,6 +182,25 @@
         <span class="font-fell text-[10px] text-muted-foreground tabular-nums shrink-0">
           {{ formatTime(spotifyStore.durationMs) }}
         </span>
+        <!-- Repeat -->
+        <button
+          class="shrink-0 p-0.5 rounded transition-all opacity-0 group-hover:opacity-100"
+          :class="spotifyStore.repeatMode > 0 ? 'text-green-500' : 'text-muted-foreground hover:text-foreground'"
+          :title="repeatTitle"
+          @click="cycleRepeat"
+        >
+          <Repeat1 v-if="spotifyStore.repeatMode === 2" class="h-2.5 w-2.5" />
+          <Repeat v-else class="h-2.5 w-2.5" />
+        </button>
+        <!-- Shuffle -->
+        <button
+          class="shrink-0 p-0.5 rounded transition-all opacity-0 group-hover:opacity-100"
+          :class="spotifyStore.shuffleOn ? 'text-green-500' : 'text-muted-foreground hover:text-foreground'"
+          title="Shuffle"
+          @click="spotifyStore.setShuffle(!spotifyStore.shuffleOn)"
+        >
+          <Shuffle class="h-2.5 w-2.5" />
+        </button>
       </div>
 
       <!-- Not-ready indicator -->
@@ -262,7 +281,7 @@
 
 <script setup lang="ts">
 import { computed, ref, nextTick } from "vue";
-import { Play, Pause, Square, Repeat, Trash2, AlertTriangle, Pencil, Music2, SkipBack, SkipForward } from "lucide-vue-next";
+import { Play, Pause, Square, Repeat, Repeat1, Shuffle, Trash2, AlertTriangle, Pencil, Music2, SkipBack, SkipForward } from "lucide-vue-next";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useUpdateSound } from "@/composables/useSounds";
@@ -355,6 +374,19 @@ function formatTime(value: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
   return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+// ── Spotify repeat / shuffle ──────────────────────────────────────────────
+
+const repeatTitle = computed(() => {
+  if (spotifyStore.repeatMode === 2) return "Repeat: Track";
+  if (spotifyStore.repeatMode === 1) return "Repeat: Context";
+  return "Repeat: Off";
+});
+
+function cycleRepeat() {
+  const next = ((spotifyStore.repeatMode + 1) % 3) as 0 | 1 | 2;
+  spotifyStore.setRepeat(next);
 }
 
 // ── Inline name editing ───────────────────────────────────────────────────

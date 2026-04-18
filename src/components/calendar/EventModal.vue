@@ -450,6 +450,7 @@ function defaultForm(): CalendarEventInsert {
     linked_quest_id: null,
     linked_encounter_id: null,
     linked_location_id: null,
+    linked_note_id: null,
     travel_party_member_ids: [],
   };
 }
@@ -486,6 +487,7 @@ watch(
           linked_quest_id: props.editEvent.linked_quest_id,
           linked_encounter_id: props.editEvent.linked_encounter_id,
           linked_location_id: props.editEvent.linked_location_id,
+          linked_note_id: props.editEvent.linked_note_id,
           travel_party_member_ids: props.editEvent.travel_party_member_ids ?? [],
         };
         dateType.value = props.editEvent.festival_day ? "festival" : "regular";

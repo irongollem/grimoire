@@ -38,10 +38,10 @@
 
         <!-- Playing sounds list -->
         <div class="max-h-72 overflow-y-auto p-2 space-y-1.5">
-          <!-- Spotify track (singleton) -->
+          <!-- Spotify track (singleton) — visible while a track is loaded, even when paused -->
           <div
-            v-if="spotifyStore.isConnected && spotifyStore.isPlaying"
-            class="space-y-1.5 pb-1.5 border-b border-border/50"
+            v-if="spotifyStore.isConnected && spotifyStore.trackName"
+            class="group/spotify space-y-1.5 pb-1.5 border-b border-border/50"
           >
             <div class="flex items-center gap-2 px-2 py-1.5 rounded-md bg-green-500/5 border border-green-500/20">
               <img
@@ -68,17 +68,7 @@
                 :value="spotifyStore.volume"
                 @input="spotifyStore.setVolume(+($event.target as HTMLInputElement).value)"
               />
-              <!-- Repeat -->
-              <button
-                class="shrink-0 transition-colors"
-                :class="spotifyStore.repeatMode > 0 ? 'text-green-500' : 'text-muted-foreground hover:text-foreground'"
-                :title="repeatTitle"
-                @click="cycleRepeat"
-              >
-                <Repeat1 v-if="spotifyStore.repeatMode === 2" class="h-3 w-3" />
-                <Repeat v-else class="h-3 w-3" />
-              </button>
-              <!-- Prev / Pause / Next -->
+              <!-- Prev / Play·Pause / Next -->
               <button
                 class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
                 title="Previous track"
@@ -88,10 +78,11 @@
               </button>
               <button
                 class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                title="Pause Spotify"
-                @click="spotifyStore.pause()"
+                :title="spotifyStore.isPlaying ? 'Pause' : 'Resume'"
+                @click="spotifyStore.isPlaying ? spotifyStore.pause() : spotifyStore.resume()"
               >
-                <Pause class="h-3 w-3" />
+                <Pause v-if="spotifyStore.isPlaying" class="h-3 w-3" />
+                <Play v-else class="h-3 w-3" />
               </button>
               <button
                 class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
@@ -102,11 +93,8 @@
               </button>
             </div>
 
-            <!-- Spotify progress bar -->
-            <div
-              v-if="spotifyStore.durationMs > 0"
-              class="flex items-center gap-1.5 px-2"
-            >
+            <!-- Progress bar + repeat/shuffle on same row -->
+            <div class="flex items-center gap-1.5 px-2">
               <span class="font-fell text-[9px] text-muted-foreground tabular-nums">
                 {{ formatSpotifyTime(spotifyStore.positionMs) }}
               </span>
@@ -119,6 +107,25 @@
               <span class="font-fell text-[9px] text-muted-foreground tabular-nums">
                 {{ formatSpotifyTime(spotifyStore.durationMs) }}
               </span>
+              <!-- Repeat -->
+              <button
+                class="shrink-0 transition-all opacity-0 group-hover/spotify:opacity-100"
+                :class="spotifyStore.repeatMode > 0 ? 'text-green-500' : 'text-muted-foreground hover:text-foreground'"
+                :title="repeatTitle"
+                @click="cycleRepeat"
+              >
+                <Repeat1 v-if="spotifyStore.repeatMode === 2" class="h-2.5 w-2.5" />
+                <Repeat v-else class="h-2.5 w-2.5" />
+              </button>
+              <!-- Shuffle -->
+              <button
+                class="shrink-0 transition-all opacity-0 group-hover/spotify:opacity-100"
+                :class="spotifyStore.shuffleOn ? 'text-green-500' : 'text-muted-foreground hover:text-foreground'"
+                title="Shuffle"
+                @click="spotifyStore.setShuffle(!spotifyStore.shuffleOn)"
+              >
+                <Shuffle class="h-2.5 w-2.5" />
+              </button>
             </div>
           </div>
 
@@ -174,7 +181,7 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, nextTick } from "vue";
-import { Music2, X, Square, Pause, SkipBack, SkipForward, VolumeX, Repeat, Repeat1 } from "lucide-vue-next";
+import { Music2, X, Square, Pause, Play, SkipBack, SkipForward, VolumeX, Repeat, Repeat1, Shuffle } from "lucide-vue-next";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useSounds } from "@/composables/useSounds";
