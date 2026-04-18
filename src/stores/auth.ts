@@ -66,7 +66,8 @@ export const useAuthStore = defineStore("auth", () => {
         setCachedUser(user.value);
 
         if (user.value) {
-          await loadMembership(user.value.id);
+          const storedCampaignId = localStorage.getItem("grimoire_active_campaign") ?? undefined;
+          await loadMembership(user.value.id, storedCampaignId);
         }
 
         initialized.value = true;
@@ -88,7 +89,10 @@ export const useAuthStore = defineStore("auth", () => {
           setCachedUser(user.value);
           if (user.value) {
             const userId = user.value.id;
-            setTimeout(() => void loadMembership(userId), 0);
+            setTimeout(() => {
+              const storedCampaignId = localStorage.getItem("grimoire_active_campaign") ?? undefined;
+              void loadMembership(userId, storedCampaignId);
+            }, 0);
           } else {
             membership.value = null;
           }
@@ -118,7 +122,8 @@ export const useAuthStore = defineStore("auth", () => {
         user.value = data.user;
         session.value = data.session;
         setCachedUser(data.user);
-        await loadMembership(data.user.id);
+        const storedCampaignId = localStorage.getItem("grimoire_active_campaign") ?? undefined;
+        await loadMembership(data.user.id, storedCampaignId);
       }
     } finally {
       loading.value = false;
