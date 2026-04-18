@@ -35,8 +35,9 @@ export function cn(...inputs: ClassValue[]) {
 // ── Carry weight helpers ───────────────────────────────────────────────────────
 
 /** Parse a D&D weight string like "3 lb.", "1/4 lb.", "0.5 lbs." → pounds as a number. */
-export function parseWeightLb(weight: string | null | undefined): number {
-  if (!weight) return 0;
+export function parseWeightLb(weight: number | string | null | undefined): number {
+  if (weight === null || weight === undefined) return 0;
+  if (typeof weight === "number") return weight;
   const s = weight.toLowerCase().replace(/lbs?\.?/g, "").trim();
   if (s.includes("/")) {
     const [num, den] = s.split("/").map(Number);

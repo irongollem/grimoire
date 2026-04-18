@@ -105,7 +105,7 @@ function mapWeapon(item: Open5eWeapon): ItemInsert {
     rarity: "mundane",
     requires_attunement: false,
     attunement_requirements: null,
-    weight: item.weight || null,
+    weight: item.weight ? parseFloat(item.weight) || null : null,
     cost: item.cost || null,
     damage_rolls: item.damage_dice
       ? [{ dice: item.damage_dice, type: item.damage_type }]
@@ -137,7 +137,7 @@ function mapArmor(item: Open5eArmor): ItemInsert {
     rarity: "mundane",
     requires_attunement: false,
     attunement_requirements: null,
-    weight: item.weight || null,
+    weight: item.weight ? parseFloat(item.weight) || null : null,
     cost: item.cost || null,
     damage_rolls: null,
     armor_class: item.ac_string || null,
