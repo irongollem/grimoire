@@ -49,6 +49,27 @@ export interface SpellSlotEntry {
   used: number;
 }
 
+export interface LevelChoiceASI {
+  mode: 'plus2' | 'plus1plus1' | 'feat';
+  primary?: string;
+  secondary?: string;
+  feat_id?: string;
+}
+
+export interface LevelChoiceEntry {
+  class_name: string;
+  is_new_class: boolean;
+  hp_gained: number;
+  asi?: LevelChoiceASI;
+  subclass?: string;
+  spells_learned?: string[];
+  cantrips_learned?: string[];
+  step_choices?: Record<string, string | string[]>;
+  new_class_profs?: string[];
+}
+
+export type LevelChoices = Record<number, LevelChoiceEntry>;
+
 export interface PartyMember {
   id: string;
   user_id: string;
@@ -121,6 +142,7 @@ export interface PartyMember {
   hit_dice_remaining?: number | null;
   class_resources: Record<string, { current: number; max: number; rest: "short" | "long" }>;
   class_choices: Record<string, unknown>;
+  level_choices: LevelChoices;
   concentration?: ConcentrationState | null;
   created_at: string;
   updated_at: string;
@@ -134,7 +156,9 @@ export interface ConcentrationState {
   appliedEffectIds: string[];
 }
 
-export type PartyMemberInsert = Omit<PartyMember, "id" | "user_id" | "created_at" | "updated_at">;
+export type PartyMemberInsert = Omit<PartyMember, "id" | "user_id" | "created_at" | "updated_at" | "level_choices"> & {
+  level_choices?: LevelChoices;
+};
 export type PartyMemberUpdate = Partial<PartyMemberInsert>;
 
 // Conditions + helpers now live in `@/lib/conditions`. Re-exported here so

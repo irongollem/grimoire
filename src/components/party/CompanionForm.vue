@@ -169,7 +169,11 @@
           </div>
           <div class="flex flex-col gap-1">
             <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">HP</label>
-            <input v-model="sb.hit_points" placeholder="11 (2d8+2)" class="sb-input" />
+            <DiceExprInput
+              :model-value="extractDice(sb.hit_points) || null"
+              placeholder="2d8+2"
+              @update:model-value="sb.hit_points = $event ?? ''"
+            />
           </div>
           <div class="flex flex-col gap-1">
             <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Speed</label>
@@ -263,7 +267,13 @@ import FocalPointPicker from "@/components/common/FocalPointPicker.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import TraitSection from "@/components/npcs/TraitSection.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import DiceExprInput from "@/components/common/DiceExprInput.vue";
 import { STAT_BLOCK_ABILITIES, abilityModifier, skillsToString, skillsToRecord } from "@/lib/utils";
+
+function extractDice(val: string): string {
+  const m = val.match(/\(([^)]+)\)/);
+  return m ? m[1].trim() : val;
+}
 
 const ABILITIES = STAT_BLOCK_ABILITIES;
 const modifier = abilityModifier;

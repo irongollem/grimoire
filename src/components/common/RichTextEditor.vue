@@ -337,9 +337,7 @@ import Image from "@tiptap/extension-image";
 import Highlight from "@tiptap/extension-highlight";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
-import Link from "@tiptap/extension-link";
 import Typography from "@tiptap/extension-typography";
-import Underline from "@tiptap/extension-underline";
 
 // Extend Image to persist a width attribute as an inline style.
 // Stored as a CSS value string, e.g. "25%", "50%", "75%", "100%".
@@ -548,7 +546,10 @@ function parseContent(value: string | null): object | string | undefined {
 const editor = useEditor({
   content: parseContent(props.modelValue),
   extensions: [
-    StarterKit.configure({ document: false }),
+    StarterKit.configure({
+      document: false,
+      link: { openOnClick: false, HTMLAttributes: { target: "_blank", rel: "noopener noreferrer" } },
+    }),
     CustomDocument,
     Placeholder.configure({
       placeholder: props.placeholder ?? "Write something…",
@@ -560,11 +561,9 @@ const editor = useEditor({
     ResizableImage,
     TextAlign.configure({ types: ["heading", "paragraph"] }),
     Columns,
-    Underline,
     Highlight,
     TaskList,
     TaskItem.configure({ nested: true }),
-    Link.configure({ openOnClick: false, HTMLAttributes: { target: "_blank", rel: "noopener noreferrer" } }),
     Typography,
     ...(props.allowCalendarEvents ? [CalendarEventRef] : []),
     entityMentionExtension,

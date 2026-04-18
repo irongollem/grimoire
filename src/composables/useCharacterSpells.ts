@@ -97,6 +97,31 @@ export function useRemoveCharacterSpell() {
   });
 }
 
+/** Delete a spell from character_spells by partyMemberId + spellId. */
+export function useDeleteCharacterSpell() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      partyMemberId,
+      spellId,
+    }: {
+      partyMemberId: string;
+      spellId: string;
+    }) => {
+      const { error } = await supabase
+        .from("character_spells")
+        .delete()
+        .eq("party_member_id", partyMemberId)
+        .eq("spell_id", spellId);
+      if (error) throw error;
+    },
+    onSuccess: (_, { partyMemberId }) => {
+      void qc.invalidateQueries({ queryKey: ["characterSpells", partyMemberId] });
+      void qc.invalidateQueries({ queryKey: ["characterSpellsDetails", partyMemberId] });
+    },
+  });
+}
+
 /** Toggle is_prepared on an existing character_spell row. */
 export function useTogglePrepared() {
   const qc = useQueryClient();

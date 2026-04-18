@@ -688,9 +688,13 @@ router.beforeEach(async (to) => {
   }
 
   // Players can't manually navigate to /play if they're actually a DM
-  // Exception: DM preview mode lets the DM browse the player portal
+  // Exceptions:
+  //   - DM preview mode lets the DM browse the full player portal
+  //   - A memberId query param means the DM is managing a specific character
+  //     (e.g. navigating to the Level Up wizard on a party member's behalf)
   const ui = useUiStore();
-  if (to.meta.requiresPlayer && auth.isDM && !ui.dmPreviewMode) {
+  const dmManagingMember = auth.isDM && !!to.query.memberId;
+  if (to.meta.requiresPlayer && auth.isDM && !ui.dmPreviewMode && !dmManagingMember) {
     return { name: "dashboard" };
   }
 });

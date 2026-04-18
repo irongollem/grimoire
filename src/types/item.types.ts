@@ -144,7 +144,7 @@ export interface Item {
   rarity: ItemRarity;
   requires_attunement: boolean;
   attunement_requirements: string | null; // e.g. "by a spellcaster"
-  weight: string | null; // e.g. "3 lb."
+  weight: number | null;
   cost: string | null; // e.g. "50 gp"
   damage_rolls: DamageRoll[] | null; // for weapons
   armor_class: string | null; // e.g. "13 + DEX modifier (max 2)"

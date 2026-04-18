@@ -277,7 +277,11 @@
                 </div>
                 <div>
                   <label class="field-label">Hit Points</label>
-                  <input v-model="statBlock.hit_points" placeholder="52 (8d8+16)" class="field-input" />
+                  <DiceExprInput
+                    :model-value="extractDice(statBlock.hit_points) || null"
+                    placeholder="8d8+16"
+                    @update:model-value="statBlock.hit_points = $event ?? ''"
+                  />
                 </div>
                 <div>
                   <label class="field-label">Speed</label>
@@ -395,8 +399,14 @@ import NpcFactionsSection from '@/components/factions/NpcFactionsSection.vue'
 import type { Npc, NpcInsert, NpcStatus, NpcRelationship, StatBlock } from '@/types/npc.types'
 import { useCampaignStore } from '@/stores/campaign'
 import EntityCombobox from '@/components/common/EntityCombobox.vue'
+import DiceExprInput from '@/components/common/DiceExprInput.vue'
 import PlayerNotesWidget from '@/components/common/PlayerNotesWidget.vue'
 import { STAT_BLOCK_ABILITIES, abilityModifier, skillsToString, skillsToRecord } from '@/lib/utils'
+
+function extractDice(val: string): string {
+  const m = val.match(/\(([^)]+)\)/);
+  return m ? m[1].trim() : val;
+}
 
 const { confirm, notify } = useConfirm();
 

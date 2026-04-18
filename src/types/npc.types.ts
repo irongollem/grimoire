@@ -97,7 +97,7 @@ export interface SpellcastingBlock {
 
 export interface StatBlock {
   armor_class: number;
-  hit_points: string; // e.g. "52 (8d8 + 16)"
+  hit_points: string; // pure dice expr, e.g. "8d8+16"
   speed: string; // e.g. "30 ft."
   str: number;
   dex: number;

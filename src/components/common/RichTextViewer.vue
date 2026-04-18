@@ -40,9 +40,7 @@ import { Columns } from "@/lib/tiptap/Columns";
 import Highlight from "@tiptap/extension-highlight";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
-import Link from "@tiptap/extension-link";
 import Typography from "@tiptap/extension-typography";
-import Underline from "@tiptap/extension-underline";
 import { CalendarEventRef } from "@/lib/tiptap/CalendarEventRef";
 import { createEntityMentionExtension } from "@/lib/tiptap/EntityMention";
 
@@ -66,7 +64,9 @@ const editor = useEditor({
   content: parseContent(props.content),
   editable: false,
   extensions: [
-    StarterKit,
+    StarterKit.configure({
+      link: { openOnClick: true, HTMLAttributes: { target: "_blank", rel: "noopener noreferrer" } },
+    }),
     Table,
     TableRow,
     TableHeader,
@@ -74,11 +74,9 @@ const editor = useEditor({
     Image,
     TextAlign.configure({ types: ["heading", "paragraph"] }),
     Columns,
-    Underline,
     Highlight,
     TaskList,
     TaskItem.configure({ nested: true }),
-    Link.configure({ openOnClick: true, HTMLAttributes: { target: "_blank", rel: "noopener noreferrer" } }),
     Typography,
     CalendarEventRef,
     EntityMentionViewer,

@@ -492,7 +492,7 @@ import { rollDie } from "@/lib/dice";
 import { useAllFeatures } from "@/composables/useFeatures";
 import { useCharacterSpells, useAddCharacterSpell } from "@/composables/useCharacterSpells";
 import { useSpellsPage } from "@/composables/useSpells";
-import type { PartyMember, PartyMemberUpdate, SpellSlotEntry } from "@/types/party.types";
+import type { PartyMember, PartyMemberUpdate, SpellSlotEntry, LevelChoiceEntry, LevelChoices } from "@/types/party.types";
 import type { AbilityKey, AsiMode, ClassStep, ClassResourceDef, FeatureEntry } from "./types";
 import { featureName, featureDescription, mapFeatureIds } from "./types";
 import type { CustomResource } from "@/levelup/customTypes";
@@ -1091,6 +1091,48 @@ async function confirm() {
     for (const spellId of selectedCantripIds.value) {
       await addSpell({ partyMemberId: props.member.id, spellId, isPrepared: false });
     }
+
+    // Persist this level's choices so de-leveling can reverse them exactly
+    const choiceEntry: LevelChoiceEntry = {
+      class_name: memberClass.value,
+      is_new_class: isAddingNewClass.value,
+      hp_gained: hpGain.value,
+    };
+    if (grantsAsi.value) {
+      choiceEntry.asi = {
+        mode: asiMode.value,
+        ...(asiPrimary.value ? { primary: asiPrimary.value } : {}),
+        ...(asiMode.value === 'plus1plus1' && asiSecondary.value ? { secondary: asiSecondary.value } : {}),
+        ...(asiMode.value === 'feat' && featId.value ? { feat_id: featId.value } : {}),
+      };
+    }
+    if (needsSubclassChoice.value && subclassInput.value.trim()) {
+      choiceEntry.subclass = subclassInput.value.trim();
+    }
+    if (selectedSpellIds.value.size > 0) {
+      choiceEntry.spells_learned = [...selectedSpellIds.value];
+    }
+    if (selectedCantripIds.value.size > 0) {
+      choiceEntry.cantrips_learned = [...selectedCantripIds.value];
+    }
+    const allStepChoices: Record<string, string | string[]> = {};
+    for (const step of classSteps.value) {
+      if ((step.count ?? 1) > 1) {
+        const picks = (stepMultiValues.value[step.key] ?? []).filter(Boolean);
+        if (picks.length) allStepChoices[step.key] = picks;
+      } else if (stepValues.value[step.key]) {
+        allStepChoices[step.key] = stepValues.value[step.key];
+      }
+    }
+    if (Object.keys(allStepChoices).length) choiceEntry.step_choices = allStepChoices;
+    if (isAddingNewClass.value && newClassProficiencyGrants.value.length > 0) {
+      choiceEntry.new_class_profs = newClassProficiencyGrants.value;
+    }
+    const newLevelChoices: LevelChoices = {
+      ...(props.member.level_choices ?? {}),
+      [nextLevel.value]: choiceEntry,
+    };
+    await updateMember({ id: props.member.id, update: { level_choices: newLevelChoices } });
 
     // Multi-level loop: keep going if we haven't reached targetLevel yet
     if (props.targetLevel && nextLevel.value < props.targetLevel) {

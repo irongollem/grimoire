@@ -115,3 +115,17 @@ export function useUpdateCharacterClass() {
     },
   });
 }
+
+export function useDeleteCharacterClass() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("character_classes").delete().eq("id", id);
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+    },
+  });
+}

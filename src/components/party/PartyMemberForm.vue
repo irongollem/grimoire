@@ -58,7 +58,7 @@
               <label class="block">
                 <span class="field-label">Character Name *</span>
                 <input
-                  v-model="f.name"
+                  v-model="form.name"
                   class="field-input w-full"
                   placeholder="Aric Stormblade"
                 />
@@ -84,24 +84,12 @@
               </label>
             </div>
           </div>
-          <!-- Card Art (landscape, for MTG Card Forge) -->
-          <div class="flex flex-col gap-1">
-            <span class="field-label">Card Art
-              <span class="font-fell normal-case font-normal italic text-muted-foreground">(landscape, for card printing)</span>
-            </span>
-            <ImageUpload
-              :model-value="cardArtUrl || null"
-              aspect="landscape"
-              placeholder="Drop card art or click to upload"
-              @update:model-value="cardArtUrl = $event ?? ''"
-            />
-          </div>
 
           <div class="grid grid-cols-2 gap-3">
             <div class="block">
               <span class="field-label">Species</span>
               <EntityCombobox
-                :model-value="f.species_id ?? ''"
+                :model-value="form.species_id ?? ''"
                 :options="speciesOptions"
                 placeholder="Select species…"
                 @update:model-value="onSpeciesSelected"
@@ -109,17 +97,17 @@
             </div>
             <div v-if="subraceOptions.length > 0" class="block">
               <span class="field-label">Variant</span>
-              <select v-model="f.subrace" class="field-input w-full">
+              <select v-model="form.subrace" class="field-input w-full">
                 <option value="">— None —</option>
                 <option v-for="sr in subraceOptions" :key="sr" :value="sr">{{ sr }}</option>
               </select>
             </div>
-            <!-- Disguise species (shapeshifter) -->
-            <div v-if="f.species_id" class="col-span-2 rounded-md border border-border/60 bg-muted/20 p-3 flex flex-col gap-3">
+            <!-- Disguise species (shapeshifter only) -->
+            <div v-if="form.species_id && selectedSpecies?.is_shapeshifter" class="col-span-2 rounded-md border border-border/60 bg-muted/20 p-3 flex flex-col gap-3">
               <div class="flex items-center justify-between">
                 <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">Disguise</span>
                 <button
-                  v-if="f.disguise_species_id"
+                  v-if="form.disguise_species_id"
                   type="button"
                   class="font-fell text-xs text-muted-foreground hover:text-destructive transition-colors italic"
                   @click="clearDisguise"
@@ -132,7 +120,7 @@
                 <div>
                   <span class="field-label">Appears as</span>
                   <EntityCombobox
-                    :model-value="f.disguise_species_id ?? ''"
+                    :model-value="form.disguise_species_id ?? ''"
                     :options="speciesOptions"
                     placeholder="Select disguise species…"
                     @update:model-value="onDisguiseSpeciesSelected"
@@ -140,7 +128,7 @@
                 </div>
                 <div v-if="disguiseSubraceOptions.length > 0">
                   <span class="field-label">Disguise Variant</span>
-                  <select v-model="f.disguise_subrace" class="field-input w-full">
+                  <select v-model="form.disguise_subrace" class="field-input w-full">
                     <option value="">— None —</option>
                     <option v-for="sr in disguiseSubraceOptions" :key="sr" :value="sr">{{ sr }}</option>
                   </select>
@@ -148,35 +136,59 @@
               </div>
             </div>
 
-            <label class="block">
-              <span class="field-label">Class</span>
-              <select v-model="f.class" class="field-input w-full">
-                <option value="">— None —</option>
-                <option v-for="c in allClassNames" :key="c" :value="c">{{ c }}</option>
-              </select>
-            </label>
-            <div class="block">
-              <span class="field-label">Subclass</span>
-              <select v-if="subclassOptions.length > 0" v-model="f.subclass" class="field-input w-full">
-                <option value="">— None —</option>
-                <option v-for="sc in subclassOptions" :key="sc" :value="sc">{{ sc }}</option>
-              </select>
-              <input
-                v-else
-                v-model="f.subclass"
-                class="field-input w-full"
-                placeholder="Battle Master"
-              />
-            </div>
+            <!-- Class / Subclass / Level — read-only when multiclass data exists -->
+            <template v-if="hasMulticlassData">
+              <div class="col-span-2 rounded-md border border-border/60 bg-muted/20 px-3 py-2 flex items-center justify-between">
+                <div>
+                  <span class="field-label block mb-0.5">Class</span>
+                  <span class="font-fell text-sm text-foreground">{{ multiclassLabel }}</span>
+                </div>
+                <RouterLink
+                  :to="{ name: 'play-character-levelup', query: { memberId: props.member?.id, targetLevel: multiclassTotal + 1 } }"
+                  class="font-fell text-xs text-gold-400 hover:text-gold-300 underline italic transition-colors"
+                  @click="emit('close')"
+                >Level Up →</RouterLink>
+              </div>
+            </template>
+            <template v-else>
+              <label class="block">
+                <span class="field-label">Class</span>
+                <select v-model="form.class" class="field-input w-full">
+                  <option value="">— None —</option>
+                  <option v-for="c in allClassNames" :key="c" :value="c">{{ c }}</option>
+                </select>
+              </label>
+              <div class="block">
+                <span class="field-label">Subclass</span>
+                <select v-if="subclassOptions.length > 0" v-model="form.subclass" class="field-input w-full">
+                  <option value="">— None —</option>
+                  <option v-for="sc in subclassOptions" :key="sc" :value="sc">{{ sc }}</option>
+                </select>
+                <input
+                  v-else
+                  v-model="form.subclass"
+                  class="field-input w-full"
+                  placeholder="Battle Master"
+                />
+              </div>
+            </template>
             <label class="block">
               <span class="field-label">Level</span>
               <input
-                v-model.number="f.level"
+                v-if="!hasMulticlassData"
+                v-model.number="form.level"
                 type="number"
                 min="1"
                 max="20"
                 class="field-input w-full"
               />
+              <div
+                v-else
+                class="field-input bg-muted/30 text-muted-foreground flex items-center"
+              >
+                {{ multiclassTotal }}
+                <span class="ml-2 text-[11px] italic font-fell">total</span>
+              </div>
             </label>
             <div>
               <label class="field-label">Proficiency Bonus</label>
@@ -184,14 +196,14 @@
                 class="field-input bg-muted/30 text-muted-foreground flex items-center"
               >
                 +{{ profBonus }}
-                <span class="ml-2 text-[11px]">(from level {{ f.level }})</span>
+                <span class="ml-2 text-[11px]">(from level {{ form.level }})</span>
               </div>
             </div>
           </div>
           <div>
             <span class="field-label">Notes</span>
             <RichTextEditor
-              v-model="f.notes"
+              v-model="form.notes"
               placeholder="Background, personality, goals…"
               min-height="120px"
             />
@@ -217,7 +229,7 @@
                 >{{ stat.label }}</span
               >
               <input
-                v-model.number="f[stat.key]"
+                v-model.number="form[stat.key]"
                 type="number"
                 min="1"
                 max="30"
@@ -226,10 +238,10 @@
               <span
                 class="font-cinzel text-xs font-bold"
                 :class="
-                  mod(f[stat.key]) >= 0 ? 'text-green-500' : 'text-destructive'
+                  mod(form[stat.key]) >= 0 ? 'text-green-500' : 'text-destructive'
                 "
               >
-                {{ mod(f[stat.key]) >= 0 ? "+" : "" }}{{ mod(f[stat.key]) }}
+                {{ mod(form[stat.key]) >= 0 ? "+" : "" }}{{ mod(form[stat.key]) }}
               </span>
             </label>
           </div>
@@ -244,7 +256,7 @@
             <label class="block">
               <span class="field-label">Max HP</span>
               <input
-                v-model.number="f.max_hp"
+                v-model.number="form.max_hp"
                 type="number"
                 min="1"
                 class="field-input w-full"
@@ -253,7 +265,7 @@
             <label class="block">
               <span class="field-label">Current HP</span>
               <input
-                v-model.number="f.current_hp"
+                v-model.number="form.current_hp"
                 type="number"
                 class="field-input w-full"
               />
@@ -261,7 +273,7 @@
             <label class="block">
               <span class="field-label">Temp HP</span>
               <input
-                v-model.number="f.temp_hp"
+                v-model.number="form.temp_hp"
                 type="number"
                 min="0"
                 class="field-input w-full"
@@ -270,7 +282,7 @@
             <label class="block">
               <span class="field-label">Armor Class</span>
               <input
-                v-model.number="f.ac"
+                v-model.number="form.ac"
                 type="number"
                 min="1"
                 class="field-input w-full"
@@ -279,7 +291,7 @@
             <label class="block">
               <span class="field-label">Speed (ft)</span>
               <input
-                v-model.number="f.speed"
+                v-model.number="form.speed"
                 type="number"
                 min="0"
                 step="5"
@@ -289,7 +301,7 @@
             <label class="block">
               <span class="field-label">Initiative Bonus</span>
               <input
-                v-model.number="f.initiative_bonus"
+                v-model.number="form.initiative_bonus"
                 type="number"
                 class="field-input w-full"
                 placeholder="= DEX mod"
@@ -298,7 +310,7 @@
             <label class="block">
               <span class="field-label">Carry Capacity Override</span>
               <input
-                v-model="f.carry_capacity_override"
+                v-model="form.carry_capacity_override"
                 type="text"
                 class="field-input w-full"
                 placeholder="*2, +30, 150 — blank = STR×15"
@@ -390,7 +402,7 @@
             >
               <input
                 type="checkbox"
-                :checked="f.saving_throw_proficiencies.includes(save.key)"
+                :checked="form.saving_throw_proficiencies.includes(save.key)"
                 class="rounded"
                 @change="toggleSave(save.key)"
               />
@@ -424,7 +436,7 @@
                   type="button"
                   class="px-1.5 py-0.5 transition-colors"
                   :class="
-                    (f.skill_proficiencies[skill.key] ?? 'none') === level.value
+                    (form.skill_proficiencies[skill.key] ?? 'none') === level.value
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-card text-muted-foreground hover:text-foreground'
                   "
@@ -449,11 +461,11 @@
             Tool Proficiencies
           </p>
           <TagPickerInput
-            :model-value="f.tool_proficiencies"
+            :model-value="form.tool_proficiencies"
             :groups="TOOL_PROFICIENCY_GROUPS"
             placeholder="Search tools…"
             variant="primary"
-            @update:model-value="f.tool_proficiencies = $event"
+            @update:model-value="form.tool_proficiencies = $event"
           />
 
           <!-- Languages -->
@@ -461,10 +473,10 @@
             Languages
           </p>
           <TagPickerInput
-            :model-value="f.languages"
+            :model-value="form.languages"
             :groups="LANGUAGE_GROUPS"
             placeholder="Search languages…"
-            @update:model-value="f.languages = $event"
+            @update:model-value="form.languages = $event"
           />
         </template>
       </div>
@@ -491,7 +503,7 @@
           </button>
           <button
             type="button"
-            :disabled="!f.name.trim()"
+            :disabled="!form.name.trim()"
             class="px-4 py-2 font-cinzel text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
             @click="save"
           >
@@ -524,6 +536,8 @@ import { SKILLS } from "@/types/party.types";
 import { useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAllCustomSubclasses } from "@/composables/useCustomSubclasses";
+import { useCharacterClasses } from "@/composables/useCharacterClasses";
+import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
 import TagPickerInput from "@/components/common/TagPickerInput.vue";
 import type {
@@ -568,6 +582,15 @@ const PROF_LEVELS: { value: SkillProfLevel; label: string }[] = [
 const props = defineProps<{ member: PartyMember | null }>();
 const emit = defineEmits<{ close: [] }>();
 
+// If this member already has character_classes rows (added via Level Up), the
+// class/subclass/level fields on party_members are stale. Show them read-only
+// so the DM can't accidentally desync the two tables.
+const memberId = computed(() => props.member?.id ?? null);
+const { data: characterClassRows } = useCharacterClasses(memberId);
+const hasMulticlassData = computed(() => (characterClassRows.value?.length ?? 0) > 0);
+const multiclassLabel = computed(() => formatMulticlassLabel(characterClassRows.value ?? []));
+const multiclassTotal = computed(() => totalLevel(characterClassRows.value ?? []));
+
 const campaignStore = useCampaignStore();
 const { data: systemClasses } = useAllSystemClasses();
 const { data: customClasses } = useAllCustomClasses();
@@ -581,51 +604,50 @@ const allClassNames = computed<string[]>(() => {
 
 const { data: allSpecies } = useAllSpecies();
 const speciesOptions  = computed(() => (allSpecies.value ?? []).map(s => ({ id: s.id, name: s.name })));
-// f.race stores the denormalised species *name* (readable everywhere — dashboard,
-// NPC-by-race, etc.). f.species_id stores the FK to the species table, which is
+// form.race stores the denormalised species *name* (readable everywhere — dashboard,
+// NPC-by-race, etc.). form.species_id stores the FK to the species table, which is
 // what the combobox binds to. When the DM picks a species we write both.
-const selectedSpecies = computed(() => (allSpecies.value ?? []).find(s => s.id === f.species_id) ?? null);
+const selectedSpecies = computed(() => (allSpecies.value ?? []).find(s => s.id === form.species_id) ?? null);
 const subraceOptions  = computed(() => selectedSpecies.value?.subraces?.map(sr => sr.name) ?? []);
 
-const selectedDisguiseSpecies = computed(() => (allSpecies.value ?? []).find(s => s.id === f.disguise_species_id) ?? null);
+const selectedDisguiseSpecies = computed(() => (allSpecies.value ?? []).find(s => s.id === form.disguise_species_id) ?? null);
 const disguiseSubraceOptions  = computed(() => selectedDisguiseSpecies.value?.subraces?.map(sr => sr.name) ?? []);
 
 function onDisguiseSpeciesSelected(id: string) {
   const sp = (allSpecies.value ?? []).find(s => s.id === id);
-  f.disguise_species_id = id || null;
-  f.disguise_race       = sp?.name ?? null;
-  f.disguise_subrace    = null;
+  form.disguise_species_id = id || null;
+  form.disguise_race       = sp?.name ?? null;
+  form.disguise_subrace    = null;
 }
 
 function clearDisguise() {
-  f.disguise_species_id = null;
-  f.disguise_race       = null;
-  f.disguise_subrace    = null;
+  form.disguise_species_id = null;
+  form.disguise_race       = null;
+  form.disguise_subrace    = null;
 }
 
 function onSpeciesSelected(id: string) {
   const sp = (allSpecies.value ?? []).find(s => s.id === id);
-  f.species_id = id || null;
-  f.race       = sp?.name ?? null;
-  f.subrace    = "";
+  form.species_id = id || null;
+  form.race       = sp?.name ?? null;
+  form.subrace    = "";
 }
 
 
 const { data: allCustomSubclasses } = useAllCustomSubclasses();
 const subclassOptions = computed(() =>
   (allCustomSubclasses.value ?? [])
-    .filter(sc => sc.class_name === f.class)
+    .filter(sc => sc.class_name === form.class)
     .map(sc => sc.subclass_name),
 );
 
 const activeTab = ref<"identity" | "stats" | "profs">("identity");
 
-// Portrait + card art
+// Portrait
 const portraitUrl = ref(props.member?.portrait_url ?? "");
 const focalPoint  = ref<{ x: number; y: number } | null>(props.member?.portrait_focal_point ?? null);
-const cardArtUrl  = ref(props.member?.card_art_url ?? "");
 
-const f = reactive<
+const form = reactive<
   Omit<PartyMemberInsert, "sort_order" | "portrait_url" | "card_art_url" | "spell_slots"> & {
     sort_order: number;
   }
@@ -686,24 +708,29 @@ const f = reactive<
 // on load so the combobox pre-selects correctly. Also self-heals rows damaged by
 // the previous version of this form that wrote the species UUID into `race`: if
 // `race` looks like a UUID, resolve it via allSpecies.
-watch([allSpecies, () => f.species_id, () => f.race], ([list]) => {
+watch([allSpecies, () => form.species_id, () => form.race], ([list]) => {
   const species = list ?? [];
   if (!species.length) return;
   // Case A: no species_id yet but race matches a species by name — backfill id
-  if (!f.species_id && f.race) {
-    const byName = species.find(s => s.name === f.race);
-    if (byName) f.species_id = byName.id;
+  if (!form.species_id && form.race) {
+    const byName = species.find(s => s.name === form.race);
+    if (byName) form.species_id = byName.id;
   }
   // Case B: race got a UUID written into it (old bug) — resolve to the name
-  const looksLikeUuid = typeof f.race === "string"
-    && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(f.race);
+  const looksLikeUuid = typeof form.race === "string"
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(form.race);
   if (looksLikeUuid) {
-    const byId = species.find(s => s.id === f.race);
+    const byId = species.find(s => s.id === form.race);
     if (byId) {
-      f.species_id = byId.id;
-      f.race       = byId.name;
+      form.species_id = byId.id;
+      form.race       = byId.name;
     }
   }
+}, { immediate: true });
+
+// Keep form.level in sync with the authoritative total when multiclass data exists.
+watch(multiclassTotal, (total) => {
+  if (hasMulticlassData.value) form.level = total;
 }, { immediate: true });
 
 // Spell slot max per level (index 0 = level 1, ..., index 8 = level 9)
@@ -734,12 +761,12 @@ const spellSlotMaxes = reactive<number[]>(
 );
 
 function resetSlotsToDefault() {
-  const defaults = buildSlotMaxes(undefined, f.class ?? "", f.level);
+  const defaults = buildSlotMaxes(undefined, form.class ?? "", form.level);
   defaults.forEach((v, i) => { spellSlotMaxes[i] = v; });
 }
 
 // Auto-update slot defaults when class changes (only if all slots are currently 0)
-watch(() => f.class, () => {
+watch(() => form.class, () => {
   if (spellSlotMaxes.every((v) => v === 0)) resetSlotsToDefault();
 });
 
@@ -748,7 +775,7 @@ function mod(score: number) {
 }
 
 const profBonus = computed(() => {
-  const l = f.level;
+  const l = form.level;
   if (l >= 17) return 6;
   if (l >= 13) return 5;
   if (l >= 9) return 4;
@@ -756,21 +783,21 @@ const profBonus = computed(() => {
   return 2;
 });
 
-function skillProf(key: keyof typeof f.skill_proficiencies) {
-  return f.skill_proficiencies[key] ?? "none";
+function skillProf(key: keyof typeof form.skill_proficiencies) {
+  return form.skill_proficiencies[key] ?? "none";
 }
 
 function setSkillProf(
-  key: keyof typeof f.skill_proficiencies,
+  key: keyof typeof form.skill_proficiencies,
   val: SkillProfLevel,
 ) {
-  f.skill_proficiencies[key] = val;
+  form.skill_proficiencies[key] = val;
 }
 function skillBonus(
-  key: keyof typeof f.skill_proficiencies,
+  key: keyof typeof form.skill_proficiencies,
   ability: SaveKey,
 ): string {
-  const base = mod(f[ability]);
+  const base = mod(form[ability]);
   const prof = skillProf(key);
   const bonus =
     prof === "proficient"
@@ -781,13 +808,13 @@ function skillBonus(
   return (bonus >= 0 ? "+" : "") + bonus;
 }
 function toggleSave(key: SaveKey) {
-  const idx = f.saving_throw_proficiencies.indexOf(key);
-  if (idx >= 0) f.saving_throw_proficiencies.splice(idx, 1);
-  else f.saving_throw_proficiencies.push(key);
+  const idx = form.saving_throw_proficiencies.indexOf(key);
+  if (idx >= 0) form.saving_throw_proficiencies.splice(idx, 1);
+  else form.saving_throw_proficiencies.push(key);
 }
 function saveBonus(key: SaveKey): string {
-  const base = mod(f[key]);
-  const bonus = f.saving_throw_proficiencies.includes(key)
+  const base = mod(form[key]);
+  const bonus = form.saving_throw_proficiencies.includes(key)
     ? base + profBonus.value
     : base;
   return (bonus >= 0 ? "+" : "") + bonus;
@@ -795,7 +822,7 @@ function saveBonus(key: SaveKey): string {
 
 // Passive skills
 const passivePerception = computed(() => {
-  const base = mod(f.wis);
+  const base = mod(form.wis);
   const prof = skillProf("perception");
   return (
     10 +
@@ -808,7 +835,7 @@ const passivePerception = computed(() => {
   );
 });
 const passiveInsight = computed(() => {
-  const base = mod(f.wis);
+  const base = mod(form.wis);
   const prof = skillProf("insight");
   return (
     10 +
@@ -821,7 +848,7 @@ const passiveInsight = computed(() => {
   );
 });
 const passiveInvestigation = computed(() => {
-  const base = mod(f.int);
+  const base = mod(form.int);
   const prof = skillProf("investigation");
   return (
     10 +
@@ -858,16 +885,16 @@ async function save() {
   // Derive player_name from selected campaign member
   const selectedPlayer = players.value.find((m) => m.id === selectedCampaignMemberId.value);
   const payload = {
-    ...f,
-    name: f.name.trim(),
-    player_name: selectedPlayer?.display_name ?? (f.player_name || null),
-    class: f.class || null,
-    subclass: f.subclass || null,
-    race: f.race || null,
-    notes: f.notes || null,
+    ...form,
+    name: form.name.trim(),
+    player_name: selectedPlayer?.display_name ?? (form.player_name || null),
+    class: form.class || null,
+    subclass: form.subclass || null,
+    race: form.race || null,
+    notes: form.notes || null,
     portrait_url: portraitUrl.value || null,
     portrait_focal_point: focalPoint.value,
-    card_art_url: cardArtUrl.value || null,
+    card_art_url: props.member?.card_art_url ?? null,
     proficiency_bonus: profBonus.value,
     spell_slots: spellSlotMaxes
       .map((max, i) => {

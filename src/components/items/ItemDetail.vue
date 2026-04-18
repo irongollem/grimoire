@@ -100,11 +100,7 @@
         <div class="grid grid-cols-2 gap-3">
           <label class="flex flex-col gap-1">
             <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Weight</span>
-            <input
-              v-model="weight"
-              placeholder="e.g. 3 lb."
-              class="bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            />
+            <WeightInput v-model="weight" />
           </label>
           <label class="flex flex-col gap-1">
             <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Cost</span>
@@ -132,10 +128,10 @@
           <div class="grid grid-cols-2 gap-3">
             <label class="flex flex-col gap-1">
               <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Versatile Damage</span>
-              <input
-                v-model="versatileDamage"
-                placeholder="e.g. 1d10 (two-handed)"
-                class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              <DiceExprInput
+                :model-value="versatileDamage || null"
+                placeholder="e.g. 1d10"
+                @update:model-value="versatileDamage = $event ?? ''"
               />
             </label>
             <label class="flex flex-col gap-1">
@@ -217,14 +213,19 @@
                 class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </label>
-            <label v-if="isMagic && itemType !== 'ammunition'" class="flex flex-col gap-1">
+            <div v-if="isMagic && itemType !== 'ammunition'" class="flex flex-col gap-1">
               <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Recharge</span>
+              <DiceExprInput
+                :model-value="rechargeRoll"
+                placeholder="1d6+4"
+                @update:model-value="rechargeRoll = $event"
+              />
               <input
-                v-model="recharge"
-                placeholder="e.g. 1d6+4 charges at dawn"
+                v-model="rechargeWhen"
+                placeholder="dawn / short rest / long rest"
                 class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
-            </label>
+            </div>
           </div>
           <label class="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" v-model="isArcaneFocus" class="rounded" />
@@ -361,6 +362,8 @@ import { useSpells } from "@/composables/useSpells";
 import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
 import { formatItemForScriptorium } from "@/lib/scriptoriumImport";
 import DamageRollsInput from "@/components/common/DamageRollsInput.vue";
+import DiceExprInput from "@/components/common/DiceExprInput.vue";
+import WeightInput from "@/components/common/WeightInput.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import {
@@ -387,7 +390,11 @@ const name = ref(props.item?.name ?? props.prefillName ?? "");
 const itemType = ref<ItemType>(props.item?.item_type ?? "gear");
 const subtype = ref(props.item?.subtype ?? "");
 const rarity = ref<ItemRarity>(props.item?.rarity ?? "mundane");
-const weight = ref(props.item?.weight ?? "");
+const weight = ref<number | null>(
+  typeof props.item?.weight === "string"
+    ? parseFloat(props.item.weight) || null
+    : (props.item?.weight ?? null),
+);
 const cost = ref(props.item?.cost ?? "");
 const description = ref(props.item?.description ?? "");
 const mundaneDescription = ref(props.item?.mundane_description ?? "");
@@ -427,7 +434,15 @@ const curseRevealed = ref(props.item?.curse_revealed ?? false);
 const requiresAttunement = ref(props.item?.requires_attunement ?? false);
 const attunementRequirements = ref(props.item?.attunement_requirements ?? "");
 const charges = ref<number | null>(props.item?.charges ?? null);
-const recharge = ref(props.item?.recharge ?? "");
+
+function parseRecharge(val: string | null): { roll: string | null; when: string } {
+  if (!val) return { roll: null, when: "" };
+  const m = val.match(/^(.+?)\s+charges?\s+(?:at\s+)?(.*)$/i);
+  return m ? { roll: m[1].trim(), when: m[2].trim() } : { roll: val, when: "" };
+}
+const { roll: _rechargeRoll, when: _rechargeWhen } = parseRecharge(props.item?.recharge ?? null);
+const rechargeRoll = ref<string | null>(_rechargeRoll);
+const rechargeWhen = ref(_rechargeWhen);
 const spellIds = ref<string[]>(props.item?.spell_ids ?? []);
 
 // ── Spell picker ──────────────────────────────────────────────────────────────
@@ -477,7 +492,7 @@ function buildPayload() {
     attunement_requirements: requiresAttunement.value
       ? attunementRequirements.value.trim() || null
       : null,
-    weight: weight.value.trim() || null,
+    weight: weight.value,
     cost: cost.value.trim() || null,
     damage_rolls: isWeapon.value && damageRolls.value.length ? damageRolls.value : null,
     armor_class: isArmor.value ? armorClass.value.trim() || null : null,
@@ -485,7 +500,9 @@ function buildPayload() {
     weapon_range: isWeapon.value ? weaponRange.value.trim() || null : null,
     versatile_damage: isWeapon.value ? versatileDamage.value.trim() || null : null,
     charges: charges.value ?? null,
-    recharge: recharge.value.trim() || null,
+    recharge: rechargeRoll.value
+      ? `${rechargeRoll.value} charges${rechargeWhen.value ? ` at ${rechargeWhen.value}` : ""}`.trim()
+      : null,
     spell_ids: spellIds.value,
     description: description.value,
     mundane_description: isMagic.value ? mundaneDescription.value || null : null,
