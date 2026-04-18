@@ -143,7 +143,6 @@ export function useCharacterCreationForm() {
 
   const portraitUrl = ref(existingMember.value?.portrait_url ?? "");
   const focalPoint  = ref<{ x: number; y: number } | null>(existingMember.value?.portrait_focal_point ?? null);
-  const cardArtUrl  = ref("");
 
   const m = existingMember.value;
   const f = reactive<Omit<PartyMemberInsert, "sort_order" | "portrait_url" | "spell_slots"> & { sort_order: number }>({
@@ -363,7 +362,6 @@ export function useCharacterCreationForm() {
       physical_description: f.physical_description || null,
       portrait_url:         portraitUrl.value || null,
       portrait_focal_point: focalPoint.value,
-      card_art_url:         cardArtUrl.value || null,
       proficiency_bonus:    profBonus.value,
       spell_slots:          spellSlots,
       current_hp:           f.max_hp,
@@ -458,7 +456,7 @@ export function useCharacterCreationForm() {
     auth,
     // form state
     f, activeTab, wizardStep, saving, scoreMode,
-    portraitUrl, focalPoint, cardArtUrl, spellSlotMaxes,
+    portraitUrl, focalPoint, spellSlotMaxes,
     importBackgroundEquipment,
     // computed
     isEditMode, existingMember, backRoute,

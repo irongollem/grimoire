@@ -35,11 +35,6 @@
         </div>
       </div>
 
-      <div class="flex flex-col gap-1">
-        <span class="field-label">Card Art <span class="font-fell normal-case font-normal italic text-muted-foreground">(landscape, for card printing)</span></span>
-        <ImageUpload :model-value="cardArtUrl || null" aspect="landscape" placeholder="Drop card art or click to upload" @update:model-value="cardArtUrl = $event ?? ''" />
-      </div>
-
       <div class="grid grid-cols-2 gap-3">
         <div class="block">
           <span class="field-label">Species</span>
@@ -180,7 +175,7 @@ const form = inject(CHARACTER_FORM_KEY)!;
 const {
   router, auth, f,
   activeTab, saving,
-  portraitUrl, focalPoint, cardArtUrl, spellSlotMaxes,
+  portraitUrl, focalPoint, spellSlotMaxes,
   existingMember, backRoute,
   speciesOptions, backgroundOptions, subraceOptions,
   allClassNames, subclassOptions,
