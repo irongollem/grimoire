@@ -310,12 +310,8 @@
               placeholder="Describe the curse effect, trigger, and how it can be removed…"
               min-height="120px"
             />
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" v-model="curseRevealed" class="rounded" />
-              <span class="font-fell text-sm text-foreground">Revealed to players</span>
-            </label>
             <p class="font-fell text-xs text-muted-foreground italic">
-              When hidden, players cannot see the curse description. Toggle revealed once a player attunes or triggers the curse.
+              Reveal the curse to players via the party inventory panel once a player attunes or triggers it.
             </p>
           </template>
         </div>
@@ -428,7 +424,6 @@ const isContainer = computed({
 // ── Curse fields ──────────────────────────────────────────────────────────────
 const isCursed = ref(!!(props.item?.curse_description));
 const curseDescription = ref(props.item?.curse_description ?? "");
-const curseRevealed = ref(props.item?.curse_revealed ?? false);
 
 // ── Magic fields ──────────────────────────────────────────────────────────────
 const requiresAttunement = ref(props.item?.requires_attunement ?? false);
@@ -516,7 +511,6 @@ function buildPayload() {
     mundane_image_focal_point: mundaneImageFocalPoint.value,
     is_arcane_focus: isArcaneFocus.value,
     curse_description: isCursed.value ? curseDescription.value || null : null,
-    curse_revealed: isCursed.value ? curseRevealed.value : false,
   };
 }
 

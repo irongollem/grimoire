@@ -39,12 +39,13 @@ export interface PartyInventoryItem {
   is_identified: boolean; // false = players see only mundane_description
   is_ruined: boolean;
   sort_order: number;
+  curse_revealed: boolean; // DM-toggled: players only see curse_description when true
 }
 
 export type PartyInventoryInsert = Omit<
   PartyInventoryItem,
-  "id" | "user_id" | "updated_at" | "current_charges" | "sort_order" | "is_identified"
-> & { current_charges?: number | null; sort_order?: number; is_identified?: boolean };
+  "id" | "user_id" | "updated_at" | "current_charges" | "sort_order" | "is_identified" | "curse_revealed"
+> & { current_charges?: number | null; sort_order?: number; is_identified?: boolean; curse_revealed?: boolean };
 export type PartyInventoryUpdate = Partial<
   Pick<
     PartyInventoryItem,
@@ -61,5 +62,6 @@ export type PartyInventoryUpdate = Partial<
     | "name"
     | "current_charges"
     | "sort_order"
+    | "curse_revealed"
   >
 >;

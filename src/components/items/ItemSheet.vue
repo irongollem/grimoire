@@ -176,38 +176,14 @@
           <RichTextViewer :content="item.description" />
         </div>
 
-        <!-- Curse (DM always sees it; players only see it when revealed) -->
+        <!-- Curse (DM always sees it; players never see it from this template view) -->
         <div
-          v-if="item.curse_description && (!playerView || item.curse_revealed)"
+          v-if="item.curse_description && !playerView"
           class="rounded-lg border border-destructive/30 bg-destructive/5 p-4 flex flex-col gap-3"
         >
-          <div class="flex items-center justify-between gap-2">
-            <h3
-              class="font-cinzel text-xs font-bold tracking-wider text-destructive uppercase"
-            >
-              Curse
-            </h3>
-            <button
-              v-if="!playerView"
-              type="button"
-              :disabled="isTogglingReveal"
-              class="inline-flex items-center gap-1.5 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider border transition-colors disabled:opacity-50"
-              :class="
-                item.curse_revealed
-                  ? 'border-amber-500/50 text-amber-500 hover:bg-amber-500/10'
-                  : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
-              "
-              @click="toggleReveal"
-            >
-              <Eye v-if="item.curse_revealed" class="h-3 w-3" />
-              <EyeOff v-else class="h-3 w-3" />
-              {{
-                item.curse_revealed
-                  ? "Revealed to players"
-                  : "Hidden from players"
-              }}
-            </button>
-          </div>
+          <h3 class="font-cinzel text-xs font-bold tracking-wider text-destructive uppercase">
+            Curse
+          </h3>
           <RichTextViewer :content="item.curse_description" />
         </div>
 
@@ -271,11 +247,10 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Eye, EyeOff, Package, User, Users, ShoppingBag } from "lucide-vue-next";
+import { Package, User, Users, ShoppingBag } from "lucide-vue-next";
 import { RouterLink } from "vue-router";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import { useUpdateItem } from "@/composables/useItems";
 import { useLootTablesByItem } from "@/composables/useLootTables";
 import { useItemHolders } from "@/composables/useItemHolders";
 import {
@@ -305,18 +280,4 @@ const displayCost = computed(
   () => props.priceOverride ?? props.item.cost ?? null,
 );
 
-const { mutateAsync: updateItem } = useUpdateItem();
-const isTogglingReveal = ref(false);
-
-async function toggleReveal() {
-  isTogglingReveal.value = true;
-  try {
-    await updateItem({
-      id: props.item.id,
-      update: { curse_revealed: !props.item.curse_revealed },
-    });
-  } finally {
-    isTogglingReveal.value = false;
-  }
-}
 </script>

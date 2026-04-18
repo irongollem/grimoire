@@ -416,7 +416,7 @@ export function useImportStarterRecipes() {
       if (missing.length > 0) {
         const toInsert = [...GEAR, ...PROVISIONS]
           .filter((g) => missing.includes(g.name))
-          .map((g) => ({ curse_description: null, curse_revealed: false, ...g, user_id: user!.id }));
+          .map((g) => ({ curse_description: null, ...g, user_id: user!.id }));
         if (toInsert.length > 0) {
           const { data: inserted, error } = await supabase
             .from("items")

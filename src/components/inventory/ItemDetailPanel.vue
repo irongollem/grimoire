@@ -219,12 +219,28 @@
           <RichTextViewer :content="displayDescription" />
         </div>
 
-        <!-- Curse (only visible to players once revealed by the DM) -->
+        <!-- Curse (DM sees it always with reveal toggle; players only see it when revealed) -->
         <div
-          v-if="vaultItem?.curse_revealed && vaultItem.curse_description"
+          v-if="vaultItem?.curse_description && (canIdentify || inv?.curse_revealed)"
           class="rounded-lg border border-destructive/30 bg-destructive/5 p-3 flex flex-col gap-2"
         >
-          <p class="font-cinzel text-xs font-semibold text-destructive tracking-wider uppercase">Curse</p>
+          <div class="flex items-center justify-between gap-2">
+            <p class="font-cinzel text-xs font-semibold text-destructive tracking-wider uppercase">Curse</p>
+            <button
+              v-if="canIdentify && inv"
+              type="button"
+              :disabled="isTogglingCurse"
+              class="inline-flex items-center gap-1.5 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider border transition-colors disabled:opacity-50"
+              :class="inv.curse_revealed
+                ? 'border-amber-500/50 text-amber-500 hover:bg-amber-500/10'
+                : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'"
+              @click="toggleCurseReveal"
+            >
+              <Eye v-if="inv.curse_revealed" class="h-3 w-3" />
+              <EyeOff v-else class="h-3 w-3" />
+              {{ inv.curse_revealed ? 'Revealed to players' : 'Hidden from players' }}
+            </button>
+          </div>
           <RichTextViewer :content="vaultItem.curse_description" />
         </div>
 
@@ -271,7 +287,7 @@
 
 <script setup lang="ts">
 import { computed, ref, reactive, watch } from "vue";
-import { X, Plus, Minus, ShoppingBag } from "lucide-vue-next";
+import { X, Plus, Minus, ShoppingBag, Eye, EyeOff } from "lucide-vue-next";
 import { COINS, type CoinKey, parseCoinText } from "@/lib/currency";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
@@ -320,6 +336,17 @@ watch(() => props.inv, () => { sellOpen.value = false; });
 
 const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
 const isUpdating = ref(false);
+
+const isTogglingCurse = ref(false);
+async function toggleCurseReveal() {
+  if (!props.inv) return;
+  isTogglingCurse.value = true;
+  try {
+    await updateInventoryItem({ id: props.inv.id, update: { curse_revealed: !props.inv.curse_revealed } });
+  } finally {
+    isTogglingCurse.value = false;
+  }
+}
 
 const rarityColor = computed(() =>
   props.vaultItem ? (RARITY_COLORS[props.vaultItem.rarity] ?? "#888888") : "#888888"

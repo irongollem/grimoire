@@ -166,7 +166,6 @@ export interface Item {
   mundane_image_url: string | null; // artwork shown before identification
   mundane_image_focal_point?: { x: number; y: number } | null;
   curse_description: string | null;
-  curse_revealed: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -181,7 +180,7 @@ export type ItemInsert = Omit<
 };
 export type ItemUpdate = Partial<ItemInsert>;
 /** Subset used by static data files — fields managed by the DB are omitted */
-export type StaticItemData = Omit<ItemInsert, "user_id" | "curse_description" | "curse_revealed" | "is_arcane_focus">;
+export type StaticItemData = Omit<ItemInsert, "user_id" | "curse_description" | "is_arcane_focus">;
 
 /** True for item types that can have weapon damage dice */
 export function isWeaponType(t: ItemType): boolean {
