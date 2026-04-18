@@ -40,34 +40,13 @@
         </button>
       </div>
 
-      <!-- Legacy: no history — show class picker -->
-      <div v-else class="space-y-2">
-        <div class="rounded-md bg-amber-500/10 border border-amber-500/30 px-3 py-2">
-          <p class="font-cinzel text-[10px] text-amber-400 tracking-wider mb-0.5">NO LEVEL HISTORY</p>
-          <p class="font-fell text-xs text-amber-400">
-            This character has no level history. Select which class to remove a level from.
-            HP will be estimated. Spells, ASIs, and feats cannot be auto-reversed.
-          </p>
-        </div>
-        <div class="flex items-center gap-3">
-          <select
-            v-model="legacyClassName"
-            class="flex-1 rounded border border-border bg-muted/40 px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          >
-            <option value="" disabled>Select class…</option>
-            <option v-for="entry in characterClasses" :key="entry.id" :value="entry.class_name">
-              {{ entry.class_name }} ({{ entry.levels }} levels)
-            </option>
-          </select>
-          <button
-            v-if="legacyClassName"
-            type="button"
-            class="font-cinzel text-xs text-muted-foreground hover:text-destructive transition-colors tracking-wider"
-            @click="showConfirmation = !showConfirmation"
-          >
-            {{ showConfirmation ? '× cancel' : '− undo last level' }}
-          </button>
-        </div>
+      <!-- No history — cannot de-level -->
+      <div v-else class="rounded-md bg-amber-500/10 border border-amber-500/30 px-3 py-2">
+        <p class="font-cinzel text-[10px] text-amber-400 tracking-wider mb-0.5">NO LEVEL HISTORY</p>
+        <p class="font-fell text-xs text-amber-400">
+          This character has no level history recorded. Ask your DM to seed
+          <code class="font-mono">level_choices</code> in the database before de-leveling.
+        </p>
       </div>
 
       <!-- Confirmation panel -->
@@ -92,17 +71,6 @@
             </p>
             <p v-if="lastChoice.is_new_class" class="font-fell text-xs text-foreground">
               {{ lastChoice.class_name }} class entry removed
-            </p>
-          </template>
-
-          <!-- Estimated (legacy) -->
-          <template v-else>
-            <p class="font-fell text-xs text-foreground">
-              HP: ~−{{ estimatedHpLoss }}
-              <span class="text-muted-foreground ml-1">({{ member.max_hp }} → ~{{ Math.max(1, member.max_hp - estimatedHpLoss) }})</span>
-            </p>
-            <p v-if="profWillDrop" class="font-fell text-xs text-foreground">
-              Proficiency bonus: +{{ currentProfBonus }} → +{{ newProfBonus }}
             </p>
           </template>
 
@@ -143,7 +111,6 @@ import { useUpdatePartyMember } from '@/composables/useParty';
 import { useUpdateCharacterClass, useDeleteCharacterClass } from '@/composables/useCharacterClasses';
 import { useDeleteCharacterSpell } from '@/composables/useCharacterSpells';
 import { useCustomClassByName, useAllSystemClasses } from '@/composables/useCustomClasses';
-import { getHitDie } from '@/types/spell.types';
 import type { PartyMember, PartyMemberUpdate, LevelChoiceEntry, SpellSlotEntry } from '@/types/party.types';
 import type { CharacterClass } from '@/types/multiclass.types';
 import type { CustomResource } from '@/levelup/customTypes';
@@ -154,7 +121,6 @@ const props = defineProps<{
 }>();
 
 const showConfirmation = ref(false);
-const legacyClassName = ref('');
 const isPending = ref(false);
 const error = ref('');
 
@@ -169,8 +135,7 @@ const lastChoice = computed<LevelChoiceEntry | null>(() => {
   return choices[props.member.level] ?? null;
 });
 
-// The class name to act on: from history if available, otherwise from picker
-const activeClassName = computed(() => lastChoice.value?.class_name ?? legacyClassName.value);
+const activeClassName = computed(() => lastChoice.value?.class_name ?? '');
 
 // The character_classes row for the active class
 const targetEntry = computed<CharacterClass | null>(() =>
@@ -190,14 +155,6 @@ const currentProfBonus = computed(() => 2 + Math.floor((props.member.level - 1) 
 const newProfBonus = computed(() => 2 + Math.floor((props.member.level - 2) / 4));
 const profWillDrop = computed(() => newProfBonus.value < currentProfBonus.value);
 
-// Estimated HP loss for legacy characters
-const estimatedHpLoss = computed(() => {
-  if (!targetEntry.value) return 0;
-  const hd = theClass.value?.hit_die ?? getHitDie(targetEntry.value.class_name);
-  const conMod = Math.floor((props.member.con - 10) / 2);
-  return Math.max(1, Math.ceil(hd / 2) + 1 + conMod);
-});
-
 // ASI description for display
 const asiDescription = computed(() => {
   const asi = lastChoice.value?.asi;
@@ -213,11 +170,7 @@ const asiDescription = computed(() => {
 // Manual review items
 const manualReviewItems = computed<string[]>(() => {
   const items: string[] = [];
-  if (!lastChoice.value) {
-    items.push('No level history — HP estimated using class average');
-    items.push('Spells, ASIs, and feats from this level cannot be auto-reversed');
-    return items;
-  }
+  if (!lastChoice.value) return items;
   const c = lastChoice.value;
   if (c.asi?.mode === 'feat') items.push('Feat from this level — remove manually');
   if ((c.spells_learned?.length ?? 0) > 0)
@@ -239,7 +192,8 @@ function resourceMaxAtLevel(resource: CustomResource, level: number): number {
 
 async function confirmDeLevel() {
   const entry = targetEntry.value;
-  if (!entry) return;
+  const choice = lastChoice.value;
+  if (!entry || !choice) return;
 
   isPending.value = true;
   error.value = '';
@@ -247,7 +201,6 @@ async function confirmDeLevel() {
     const currentLevel = props.member.level;
     const newTotalLevel = currentLevel - 1;
     const newClassLevel = entry.levels - 1;
-    const choice = lastChoice.value;
 
     const memberUpdate: Record<string, unknown> = {
       level: newTotalLevel,
@@ -256,13 +209,13 @@ async function confirmDeLevel() {
     };
 
     // HP
-    const hpLoss = choice ? choice.hp_gained : estimatedHpLoss.value;
+    const hpLoss = choice.hp_gained;
     const newMaxHp = Math.max(1, props.member.max_hp - hpLoss);
     memberUpdate.max_hp = newMaxHp;
     memberUpdate.current_hp = Math.min(props.member.current_hp, newMaxHp);
 
-    // ASI reversal (exact, from history)
-    if (choice?.asi && choice.asi.mode !== 'feat') {
+    // ASI reversal
+    if (choice.asi && choice.asi.mode !== 'feat') {
       if (choice.asi.primary) {
         const k = choice.asi.primary as keyof PartyMember;
         memberUpdate[k] = Math.max(1, (props.member[k] as number) - (choice.asi.mode === 'plus2' ? 2 : 1));
@@ -274,9 +227,7 @@ async function confirmDeLevel() {
     }
 
     // Subclass
-    const subclassToClear = choice
-      ? !!choice.subclass
-      : (theClass.value?.subclass_level === entry.levels && !!entry.subclass_name);
+    const subclassToClear = !!choice.subclass;
     if (subclassToClear && entry.is_primary) memberUpdate.subclass = null;
 
     // Spell slots from class table at newClassLevel
@@ -320,16 +271,14 @@ async function confirmDeLevel() {
     }
 
     // Remove this level from level_choices
-    if (choice) {
-      const newChoices = { ...(props.member.level_choices ?? {}) };
-      delete newChoices[currentLevel];
-      memberUpdate.level_choices = newChoices;
-    }
+    const newChoices = { ...(props.member.level_choices ?? {}) };
+    delete newChoices[currentLevel];
+    memberUpdate.level_choices = newChoices;
 
     await updateMember({ id: props.member.id, update: memberUpdate as PartyMemberUpdate });
 
     // Remove spells learned at this level (not also learned at an earlier level)
-    if (choice) {
+    {
       const toRemove = [...(choice.spells_learned ?? []), ...(choice.cantrips_learned ?? [])];
       const earlierSpells = new Set(
         Object.entries(props.member.level_choices ?? {})
@@ -364,7 +313,6 @@ async function confirmDeLevel() {
     }
 
     showConfirmation.value = false;
-    legacyClassName.value = '';
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to de-level.';
   } finally {
