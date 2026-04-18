@@ -190,9 +190,7 @@ const props = defineProps<{ member: PartyMember; hidePlayerActions?: boolean }>(
 
 const { data: allSpecies } = useAllSpecies();
 const speciesName = computed(() =>
-  props.member.race
-    ? (allSpecies.value ?? []).find(s => s.id === props.member.race)?.name ?? props.member.race
-    : null,
+  (allSpecies.value ?? []).find(s => s.id === props.member.species_id)?.name ?? null,
 );
 
 const { mutateAsync: updateMember } = useUpdatePartyMember();

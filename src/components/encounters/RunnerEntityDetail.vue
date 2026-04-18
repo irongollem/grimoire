@@ -290,7 +290,7 @@
           class="detail-portrait"
         />
         <p class="detail-meta">
-          {{ [selectedMember.race, selectedMember.class].filter(Boolean).join(' · ') }}
+          {{ [speciesNameMap.get(selectedMember.species_id ?? '') ?? null, selectedMember.class].filter(Boolean).join(' · ') }}
           <span v-if="selectedMember.level"> · Level {{ selectedMember.level }}</span>
         </p>
         <div class="detail-divider" />
@@ -703,6 +703,7 @@ import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useAllMonsters } from "@/composables/useMonsters";
 import type { Monster } from "@/types/monster.types";
 import { useParty } from "@/composables/useParty";
+import { useSpeciesNameMap } from "@/composables/useSpecies";
 import { SKILLS } from "@/types/party.types";
 import type { SaveKey } from "@/types/party.types";
 import { TRAP_TYPE_COLORS } from "@/types/trap.types";
@@ -739,6 +740,7 @@ const campaign = useCampaignStore();
 const auth = useAuthStore();
 const { data: monsters } = useAllMonsters();
 const { data: party } = useParty();
+const speciesNameMap = useSpeciesNameMap();
 const { data: companions } = useCompanions();
 const { data: inventoryItems } = usePartyInventory();
 const { data: vaultItems } = useItems();

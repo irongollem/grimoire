@@ -343,9 +343,7 @@ const { mutate: updateMember } = useUpdatePartyMember();
 const { confirm } = useConfirm();
 const { data: allSpecies } = useAllSpecies();
 const linkedSpecies = computed(() =>
-  props.member.race
-    ? (allSpecies.value ?? []).find((s) => s.id === props.member.race) ?? null
-    : null,
+  (allSpecies.value ?? []).find((s) => s.id === props.member.species_id) ?? null,
 );
 const linkedSubrace = computed(() =>
   props.member.subrace && linkedSpecies.value?.subraces

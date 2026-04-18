@@ -115,8 +115,8 @@
                 >
                   <div class="flex-1 min-w-0">
                     <span class="font-cinzel text-xs font-semibold text-foreground">{{ entry.party_member.name }}</span>
-                    <span v-if="entry.party_member.race || entry.party_member.class" class="font-fell text-[11px] text-muted-foreground italic ml-2">
-                      {{ [entry.party_member.race, entry.party_member.class].filter(Boolean).join(' · ') }}
+                    <span v-if="speciesNameMap.get(entry.party_member.species_id ?? '') || entry.party_member.class" class="font-fell text-[11px] text-muted-foreground italic ml-2">
+                      {{ [speciesNameMap.get(entry.party_member.species_id ?? ''), entry.party_member.class].filter(Boolean).join(' · ') }}
                     </span>
                     <span v-if="entry.party_member.id === myMemberId" class="font-cinzel text-[9px] text-emerald-400 ml-2 tracking-wider">(You)</span>
                   </div>
@@ -152,6 +152,7 @@
 import { ref, computed } from "vue";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { Shield, XIcon } from "lucide-vue-next";
+import { useSpeciesNameMap } from "@/composables/useSpecies";
 import { usePlayerVisibleFactions, usePartyMemberFactions, usePlayerFactionNpcs, usePlayerFactionPartyMembers } from "@/composables/useFactions";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
@@ -163,6 +164,7 @@ import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 const auth = useAuthStore();
 const ui   = useUiStore();
 const { data: factions, isLoading } = usePlayerVisibleFactions();
+const speciesNameMap = useSpeciesNameMap();
 
 const search   = ref("");
 const selected = ref<Faction | null>(null);

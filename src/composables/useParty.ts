@@ -43,7 +43,7 @@ async function updatePartyMember(id: string, update: PartyMemberUpdate): Promise
 async function deletePartyMember(member: PartyMember): Promise<void> {
   const { error } = await supabase.from("party_members").delete().eq("id", member.id);
   if (error) throw error;
-  await removeStorageImages("asset-images", member.portrait_url, member.card_art_url);
+  await removeStorageImages("asset-images", member.portrait_url);
 }
 
 export function useParty() {

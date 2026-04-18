@@ -155,12 +155,12 @@ export function usePlayerFactionPartyMembers(factionId: Ref<string>, enabled: Re
     queryFn: async () => {
       const { data, error } = await supabase
         .from("faction_party_members")
-        .select("*, party_member:party_members(id, name, class, race, level, portrait_url)")
+        .select("*, party_member:party_members(id, name, class, species_id, level, portrait_url)")
         .eq("faction_id", factionId.value)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return data as (FactionPartyMember & {
-        party_member: Pick<PartyMember, "id" | "name" | "class" | "race" | "level" | "portrait_url">;
+        party_member: Pick<PartyMember, "id" | "name" | "class" | "species_id" | "level" | "portrait_url">;
       })[];
     },
     enabled: computed(() => !!factionId.value && enabled.value),
@@ -528,7 +528,7 @@ export function useDeleteFactionRelation() {
 // ── Faction Party Members ──────────────────────────────────────────────────────
 
 export interface FactionPartyMemberWithMember extends FactionPartyMember {
-  party_member: Pick<PartyMember, "id" | "name" | "class" | "race" | "level" | "portrait_url">;
+  party_member: Pick<PartyMember, "id" | "name" | "class" | "species_id" | "level" | "portrait_url">;
 }
 
 export function useFactionPartyMembers(factionId: string) {
@@ -537,7 +537,7 @@ export function useFactionPartyMembers(factionId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("faction_party_members")
-        .select("*, party_member:party_members(id, name, class, race, level, portrait_url)")
+        .select("*, party_member:party_members(id, name, class, species_id, level, portrait_url)")
         .eq("faction_id", factionId)
         .order("created_at", { ascending: true });
       if (error) throw error;

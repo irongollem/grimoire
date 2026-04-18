@@ -627,9 +627,7 @@ function clearDisguise() {
 }
 
 function onSpeciesSelected(id: string) {
-  const sp = (allSpecies.value ?? []).find(s => s.id === id);
   form.species_id = id || null;
-  form.race       = sp?.name ?? null;
   form.subrace    = "";
 }
 
@@ -648,7 +646,7 @@ const portraitUrl = ref(props.member?.portrait_url ?? "");
 const focalPoint  = ref<{ x: number; y: number } | null>(props.member?.portrait_focal_point ?? null);
 
 const form = reactive<
-  Omit<PartyMemberInsert, "sort_order" | "portrait_url" | "card_art_url" | "spell_slots"> & {
+  Omit<PartyMemberInsert, "sort_order" | "portrait_url" | "spell_slots"> & {
     sort_order: number;
   }
 >({
@@ -658,7 +656,6 @@ const form = reactive<
   class: props.member?.class ?? "",
   subclass: props.member?.subclass ?? "",
   level: props.member?.level ?? 1,
-  race: props.member?.race ?? "",
   subrace: props.member?.subrace ?? "",
   max_hp: props.member?.max_hp ?? 10,
   current_hp: props.member?.current_hp ?? 10,
@@ -700,33 +697,9 @@ const form = reactive<
   disguise_species_id: props.member?.disguise_species_id ?? null,
   disguise_race: props.member?.disguise_race ?? null,
   disguise_subrace: props.member?.disguise_subrace ?? null,
-  background: props.member?.background ?? null,
   background_id: props.member?.background_id ?? null,
 });
 
-// Legacy rows may have `race` set (by name) but no `species_id` — backfill the id
-// on load so the combobox pre-selects correctly. Also self-heals rows damaged by
-// the previous version of this form that wrote the species UUID into `race`: if
-// `race` looks like a UUID, resolve it via allSpecies.
-watch([allSpecies, () => form.species_id, () => form.race], ([list]) => {
-  const species = list ?? [];
-  if (!species.length) return;
-  // Case A: no species_id yet but race matches a species by name — backfill id
-  if (!form.species_id && form.race) {
-    const byName = species.find(s => s.name === form.race);
-    if (byName) form.species_id = byName.id;
-  }
-  // Case B: race got a UUID written into it (old bug) — resolve to the name
-  const looksLikeUuid = typeof form.race === "string"
-    && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(form.race);
-  if (looksLikeUuid) {
-    const byId = species.find(s => s.id === form.race);
-    if (byId) {
-      form.species_id = byId.id;
-      form.race       = byId.name;
-    }
-  }
-}, { immediate: true });
 
 // Keep form.level in sync with the authoritative total when multiclass data exists.
 watch(multiclassTotal, (total) => {
@@ -890,11 +863,9 @@ async function save() {
     player_name: selectedPlayer?.display_name ?? (form.player_name || null),
     class: form.class || null,
     subclass: form.subclass || null,
-    race: form.race || null,
     notes: form.notes || null,
     portrait_url: portraitUrl.value || null,
     portrait_focal_point: focalPoint.value,
-    card_art_url: props.member?.card_art_url ?? null,
     proficiency_bonus: profBonus.value,
     spell_slots: spellSlotMaxes
       .map((max, i) => {

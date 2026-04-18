@@ -30,10 +30,11 @@ export function getDisplaySpeciesId(
 
 /** The race label (name string) for the party card / lightbox header. */
 export function getDisplayRace(
-  member: Pick<PartyMember, "id" | "race"> & DisguiseFields,
+  member: Pick<PartyMember, "id"> & DisguiseFields,
+  speciesName: string | null,
   viewerMemberId: string | null,
 ): string | null {
-  return shouldSeeDisguise(member, viewerMemberId) ? member.disguise_race : member.race;
+  return shouldSeeDisguise(member, viewerMemberId) ? member.disguise_race : speciesName;
 }
 
 export function getDisplaySubrace(

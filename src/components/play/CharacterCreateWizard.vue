@@ -168,7 +168,7 @@
       </div>
 
       <p v-if="f.species_id" class="font-cinzel text-xs text-primary/70 tracking-wider text-center">
-        ✓ {{ f.race }} selected{{ f.subrace ? ` — ${f.subrace}` : '' }}
+        ✓ {{ selectedSpecies?.name }} selected{{ f.subrace ? ` — ${f.subrace}` : '' }}
       </p>
     </div>
 
@@ -250,7 +250,7 @@
       </div>
 
       <p v-if="f.background_id" class="font-cinzel text-xs text-primary/70 tracking-wider text-center">
-        ✓ {{ f.background }} selected
+        ✓ {{ selectedBackground?.name }} selected
       </p>
     </div>
 
@@ -473,13 +473,13 @@
           </div>
           <div>
             <p class="font-cinzel text-base font-bold text-foreground">{{ f.name || "—" }}</p>
-            <p class="font-fell text-xs text-muted-foreground">Level {{ f.level }} {{ [f.race, f.class].filter(Boolean).join(" ") }}</p>
+            <p class="font-fell text-xs text-muted-foreground">Level {{ f.level }} {{ [selectedSpecies?.name, f.class].filter(Boolean).join(" ") }}</p>
           </div>
         </div>
         <div class="p-4 grid grid-cols-2 gap-3">
-          <div v-if="f.race"><p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">SPECIES</p><p class="font-fell text-sm">{{ f.race }}{{ f.subrace ? ` (${f.subrace})` : '' }}</p></div>
+          <div v-if="f.species_id"><p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">SPECIES</p><p class="font-fell text-sm">{{ selectedSpecies?.name }}{{ f.subrace ? ` (${f.subrace})` : '' }}</p></div>
           <div v-if="f.class"><p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">CLASS</p><p class="font-fell text-sm">{{ f.class }}{{ f.subclass ? ` — ${f.subclass}` : '' }}</p></div>
-          <div v-if="f.background"><p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">BACKGROUND</p><p class="font-fell text-sm">{{ f.background }}</p></div>
+          <div v-if="f.background_id"><p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">BACKGROUND</p><p class="font-fell text-sm">{{ selectedBackground?.name }}</p></div>
           <div><p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">HP / AC</p><p class="font-fell text-sm">{{ f.max_hp }} HP · AC {{ f.ac }}</p></div>
         </div>
         <div class="px-4 pb-4 grid grid-cols-6 gap-2">

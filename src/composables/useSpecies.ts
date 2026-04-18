@@ -53,6 +53,16 @@ export function useAllSpecies() {
   return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchAllSpecies, staleTime: Infinity });
 }
 
+/** Returns a Map<species_id, species_name> for fast inline lookups. */
+export function useSpeciesNameMap() {
+  const { data } = useAllSpecies();
+  return computed(() => {
+    const m = new Map<string, string>();
+    for (const s of data.value ?? []) m.set(s.id, s.name);
+    return m;
+  });
+}
+
 export function useSpecies(id: Ref<string>) {
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, id.value]),

@@ -282,10 +282,8 @@
                 <Shield class="h-3 w-3" />
                 Party Member
               </div>
-              <div v-if="panelPc.class || panelPc.race" class="font-fell text-xs text-muted-foreground">
-                <span v-if="panelPc.class">{{ panelPc.class }}</span>
-                <span v-if="panelPc.class && panelPc.race"> · </span>
-                <span v-if="panelPc.race">{{ panelPc.race }}</span>
+              <div v-if="panelPc.class || panelPc.species_id" class="font-fell text-xs text-muted-foreground">
+                {{ [panelPc.class, speciesNameMap.get(panelPc.species_id ?? '')].filter(Boolean).join(' · ') }}
               </div>
               <div class="font-cinzel text-xs text-foreground">Level {{ panelPc.level }}</div>
               <RouterLink
@@ -313,6 +311,7 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { useNpcs } from "@/composables/useNpcs";
 import { useParty } from "@/composables/useParty";
+import { useSpeciesNameMap } from "@/composables/useSpecies";
 import { useLocationTree } from "@/composables/useLocations";
 import { useAllNpcRelations, useCreateNpcRelation, useUpdateNpcRelation, useDeleteNpcRelation } from "@/composables/useNpcRelations";
 import { useAllNpcPcNotes, useUpsertNpcPcNoteDirect, useDeleteNpcPcNote } from "@/composables/useNpcPcNotes";
@@ -337,6 +336,7 @@ const { locationOptions, getDescendantIds } = useLocationTree();
 
 const { data: allNpcs, isLoading: npcsLoading } = useNpcs();
 const { data: partyMembers, isLoading: partyLoading } = useParty();
+const speciesNameMap = useSpeciesNameMap();
 const { data: npcRelations, isLoading: relLoading } = useAllNpcRelations();
 const { data: pcNotes, isLoading: pcNotesLoading } = useAllNpcPcNotes();
 const { mutateAsync: createRelation, isPending: isSavingNpcLink } = useCreateNpcRelation();

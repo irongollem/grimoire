@@ -79,13 +79,11 @@ export interface PartyMember {
   class: string | null;
   subclass: string | null;
   level: number;
-  race: string | null;
   subrace: string | null;
   species_id: string | null;
   disguise_species_id: string | null;
   disguise_race: string | null;
   disguise_subrace: string | null;
-  background: string | null;
   background_id: string | null;
   max_hp: number;
   current_hp: number;
@@ -110,7 +108,6 @@ export interface PartyMember {
   death_save_failures: number;
   portrait_url: string | null;  // tall profile image
   portrait_focal_point?: { x: number; y: number } | null;
-  card_art_url: string | null;  // landscape art for MTG Card Forge
   notes: string | null;
   sort_order: number;
   // Roleplay / identity (all optional — new fields, may be absent on legacy rows)

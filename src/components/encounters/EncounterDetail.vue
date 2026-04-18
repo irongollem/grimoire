@@ -205,7 +205,7 @@
                 >
                   {{
                     [
-                      member.race,
+                      speciesNameMap.get(member.species_id ?? '') ?? null,
                       memberClassLabel(member.id, member.class),
                       memberLevelDisplay(member.id, member.level) ? `Lv${memberLevelDisplay(member.id, member.level)}` : "",
                     ]
@@ -463,6 +463,7 @@ import {
 } from "lucide-vue-next";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useParty } from "@/composables/useParty";
+import { useSpeciesNameMap } from "@/composables/useSpecies";
 import { useAllCampaignCharacterClasses } from "@/composables/useCharacterClasses";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import type { CharacterClass } from "@/types/multiclass.types";
@@ -537,6 +538,7 @@ const lairOwnerOptions = computed(() => {
 });
 
 const { data: party, isLoading: partyLoading } = useParty();
+const speciesNameMap = useSpeciesNameMap();
 const { data: companions } = useCompanions();
 const { data: npcs } = useNpcs();
 const { data: allItems } = useItems();

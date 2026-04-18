@@ -128,7 +128,7 @@
                     {{ member.name }}
                   </p>
                   <p class="font-fell text-[11px] text-muted-foreground italic truncate leading-tight">
-                    {{ [member.race, memberClassLabel(member.id, member.class), memberLevelDisplay(member.id, member.level) ? `Lvl ${memberLevelDisplay(member.id, member.level)}` : null].filter(Boolean).join(" · ") || "—" }}
+                    {{ [speciesNameMap.get(member.species_id ?? ''), memberClassLabel(member.id, member.class), memberLevelDisplay(member.id, member.level) ? `Lvl ${memberLevelDisplay(member.id, member.level)}` : null].filter(Boolean).join(" · ") || "—" }}
                   </p>
                 </div>
                 <!-- HP -->
@@ -323,6 +323,7 @@ import StatCard from "@/components/common/StatCard.vue";
 import { extractTiptapText } from "@/lib/utils";
 import { useAllQuests } from "@/composables/useQuests";
 import { useParty } from "@/composables/useParty";
+import { useSpeciesNameMap } from "@/composables/useSpecies";
 import { useAllCampaignCharacterClasses } from "@/composables/useCharacterClasses";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import type { CharacterClass } from "@/types/multiclass.types";
@@ -345,6 +346,7 @@ const campaignStore = useCampaignStore();
 
 const { data: allQuests,  isLoading: questsLoading } = useAllQuests();
 const { data: party,      isLoading: partyLoading }  = useParty();
+const speciesNameMap = useSpeciesNameMap();
 const { data: allCharacterClasses } = useAllCampaignCharacterClasses();
 const classesByMember = computed(() => {
   const m = new Map<string, CharacterClass[]>();

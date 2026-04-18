@@ -143,23 +143,21 @@ export function useCharacterCreationForm() {
 
   const portraitUrl = ref(existingMember.value?.portrait_url ?? "");
   const focalPoint  = ref<{ x: number; y: number } | null>(existingMember.value?.portrait_focal_point ?? null);
-  const cardArtUrl  = ref(existingMember.value?.card_art_url ?? "");
+  const cardArtUrl  = ref("");
 
   const m = existingMember.value;
-  const f = reactive<Omit<PartyMemberInsert, "sort_order" | "portrait_url" | "card_art_url" | "spell_slots"> & { sort_order: number }>({
+  const f = reactive<Omit<PartyMemberInsert, "sort_order" | "portrait_url" | "spell_slots"> & { sort_order: number }>({
     campaign_id:   m?.campaign_id ?? null,
     name:          m?.name ?? "",
     player_name:   m?.player_name ?? auth.membership?.display_name ?? "",
     class:         m?.class ?? "",
     subclass:      m?.subclass ?? "",
     level:         m?.level ?? 1,
-    race:          m?.race ?? "",
     subrace:       m?.subrace ?? "",
     species_id:         m?.species_id ?? null,
     disguise_species_id: null,
     disguise_race:       null,
     disguise_subrace:    null,
-    background:    m?.background ?? "",
     background_id: m?.background_id ?? null,
     max_hp:        m?.max_hp ?? 10,
     current_hp:    m?.current_hp ?? 10,
@@ -240,7 +238,6 @@ export function useCharacterCreationForm() {
   function onSpeciesSelect(id: string) {
     const sp = (allSpecies.value ?? []).find(s => s.id === id);
     f.species_id = id || null;
-    f.race    = sp?.name ?? "";
     f.subrace = "";
     if (sp?.languages?.length) {
       for (const lang of sp.languages) {
@@ -267,7 +264,6 @@ export function useCharacterCreationForm() {
   function onBackgroundSelect(id: string) {
     const bg = (allBackgrounds.value ?? []).find(b => b.id === id);
     f.background_id = id || null;
-    f.background    = bg?.name ?? "";
     if (!bg) return;
     for (const skill of bg.skill_proficiencies ?? []) {
       const key = SKILLS.find(s => s.label.toLowerCase() === skill.toLowerCase())?.key;
@@ -353,9 +349,7 @@ export function useCharacterCreationForm() {
       player_name: f.player_name || auth.membership?.display_name || null,
       class:       f.class || null,
       subclass:    f.subclass || null,
-      race:        f.race || null,
       subrace:     f.subrace || null,
-      background:  f.background || null,
       notes:       f.notes || null,
       alignment:            f.alignment || null,
       personality_traits:   f.personality_traits || null,

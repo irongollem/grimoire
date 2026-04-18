@@ -510,6 +510,7 @@ import { Download, Copy, Info, CircleUser, Upload } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { useParty } from "@/composables/useParty";
+import { useSpeciesNameMap } from "@/composables/useSpecies";
 import { useNpcs } from "@/composables/useNpcs";
 import { useMonsters } from "@/composables/useMonsters";
 import CoinFace from "@/components/mint/CoinFace.vue";
@@ -767,6 +768,7 @@ interface TokenEntity {
 
 const sourceTab = ref<SourceTab>("party");
 const { data: partyMembers } = useParty();
+const speciesNameMap = useSpeciesNameMap();
 const { data: npcs }         = useNpcs();
 const { data: allMonsters }  = useMonsters();
 
@@ -774,7 +776,7 @@ const partyEntities = computed<TokenEntity[]>(() =>
   (partyMembers.value ?? []).map((m) => ({
     id:          m.id,
     name:        m.name,
-    subtitle:    [m.race, m.class].filter(Boolean).join(" · ") || "Party Member",
+    subtitle:    [speciesNameMap.value.get(m.species_id ?? ''), m.class].filter(Boolean).join(" · ") || "Party Member",
     imageUrl:    m.portrait_url ?? null,
     bgGradient:  ["#1e3a5f", "#060d1a"],
   })),

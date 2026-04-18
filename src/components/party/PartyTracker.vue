@@ -82,7 +82,7 @@
               <p class="font-fell text-xs text-muted-foreground italic">
                 {{
                   [
-                    member.race ? (speciesNameMap.get(member.race) ?? member.race) : null,
+                    speciesNameMap.get(member.species_id ?? '') ?? null,
                     memberClassLabel(member.id, member.class),
                     memberLevelDisplay(member.id, member.level) ? `Lv${memberLevelDisplay(member.id, member.level)}` : "",
                   ]

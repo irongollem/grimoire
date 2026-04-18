@@ -747,6 +747,7 @@ import {
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
+import { useSpeciesNameMap } from "@/composables/useSpecies";
 import {
   usePartyInventory,
   useAddInventoryItem,
@@ -775,6 +776,7 @@ import ItemDetailPanel from "@/components/inventory/ItemDetailPanel.vue";
 const auth = useAuthStore();
 const ui = useUiStore();
 const { data: partyMembers } = useParty();
+const speciesNameMap = useSpeciesNameMap();
 const { data: inventory } = usePartyInventory();
 useInventoryLive();
 const { data: allItems } = useItems();
@@ -894,12 +896,13 @@ const totalCarriedWeight = computed(
 );
 
 // ── Carry capacity ─────────────────────────────────────────────────────────────
-const powerfulBuild = computed(() => hasPowerfulBuild(member.value?.race));
+const memberSpeciesName = computed(() => speciesNameMap.value.get(member.value?.species_id ?? '') ?? null);
+const powerfulBuild = computed(() => hasPowerfulBuild(memberSpeciesName.value));
 
 const effectiveCapacity = computed(() =>
   carryCapacity(
     member.value?.str ?? 10,
-    member.value?.race,
+    memberSpeciesName.value,
     member.value?.carry_capacity_override ?? null,
   ),
 );
