@@ -1,55 +1,111 @@
 <template>
-  <div class="rounded-lg border border-border bg-card p-4 space-y-3">
+  <div class="rounded-lg border border-border bg-card p-4 space-y-4">
     <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">Current Levels</h3>
 
-    <div v-for="entry in characterClasses" :key="entry.id" class="space-y-2">
-      <!-- Class row -->
-      <div class="flex items-center justify-between">
+    <!-- Class breakdown (read-only context) -->
+    <div class="flex flex-wrap gap-x-4 gap-y-1">
+      <div v-for="entry in characterClasses" :key="entry.id" class="flex items-baseline gap-1.5">
+        <span class="font-fell text-sm text-foreground">
+          {{ entry.class_name }}{{ entry.subclass_name ? ` (${entry.subclass_name})` : '' }}
+        </span>
+        <span class="font-cinzel text-xs text-muted-foreground">{{ entry.levels }}</span>
+      </div>
+    </div>
+
+    <!-- Can't go below level 1 -->
+    <p v-if="member.level <= 1" class="font-fell text-xs text-muted-foreground italic">
+      Already at level 1 — cannot de-level further.
+    </p>
+
+    <template v-else>
+      <!-- Last level taken (with history) -->
+      <div v-if="lastChoice" class="flex items-center justify-between">
         <div>
-          <span class="font-fell text-sm text-foreground">
-            {{ entry.class_name }}{{ entry.subclass_name ? ` (${entry.subclass_name})` : '' }}
-          </span>
-          <span class="font-cinzel text-xs text-muted-foreground ml-2">Level {{ entry.levels }}</span>
+          <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Last level taken</span>
+          <p class="font-fell text-sm text-foreground mt-0.5">
+            {{ lastChoice.class_name }}
+            <span class="text-muted-foreground">— Level {{ member.level }}</span>
+            <span v-if="lastChoice.is_new_class" class="font-cinzel text-[10px] text-primary ml-2 tracking-wider">NEW CLASS</span>
+          </p>
         </div>
         <button
           type="button"
-          class="font-cinzel text-xs text-muted-foreground hover:text-destructive transition-colors tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
-          :disabled="member.level <= 1 || (!!pendingEntry && pendingEntry.id !== entry.id)"
-          @click="pendingEntry = pendingEntry?.id === entry.id ? null : entry"
+          class="font-cinzel text-xs tracking-wider transition-colors"
+          :class="showConfirmation
+            ? 'text-muted-foreground hover:text-foreground'
+            : 'text-muted-foreground hover:text-destructive'"
+          @click="showConfirmation = !showConfirmation"
         >
-          {{ pendingEntry?.id === entry.id ? '× cancel' : '− 1 level' }}
+          {{ showConfirmation ? '× cancel' : '− undo last level' }}
         </button>
       </div>
 
-      <!-- Inline confirmation -->
-      <div v-if="pendingEntry?.id === entry.id" class="rounded-md border border-border/60 bg-muted/20 p-3 space-y-3">
-        <!-- What changes -->
+      <!-- Legacy: no history — show class picker -->
+      <div v-else class="space-y-2">
+        <div class="rounded-md bg-amber-500/10 border border-amber-500/30 px-3 py-2">
+          <p class="font-cinzel text-[10px] text-amber-400 tracking-wider mb-0.5">NO LEVEL HISTORY</p>
+          <p class="font-fell text-xs text-amber-400">
+            This character has no level history. Select which class to remove a level from.
+            HP will be estimated. Spells, ASIs, and feats cannot be auto-reversed.
+          </p>
+        </div>
+        <div class="flex items-center gap-3">
+          <select
+            v-model="legacyClassName"
+            class="flex-1 rounded border border-border bg-muted/40 px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="" disabled>Select class…</option>
+            <option v-for="entry in characterClasses" :key="entry.id" :value="entry.class_name">
+              {{ entry.class_name }} ({{ entry.levels }} levels)
+            </option>
+          </select>
+          <button
+            v-if="legacyClassName"
+            type="button"
+            class="font-cinzel text-xs text-muted-foreground hover:text-destructive transition-colors tracking-wider"
+            @click="showConfirmation = !showConfirmation"
+          >
+            {{ showConfirmation ? '× cancel' : '− undo last level' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Confirmation panel -->
+      <div v-if="showConfirmation && targetEntry" class="rounded-md border border-border/60 bg-muted/20 p-3 space-y-3">
         <div class="space-y-1.5">
           <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Changes</p>
-          <template v-if="hasHistory">
+
+          <!-- Exact (has history) -->
+          <template v-if="lastChoice">
             <p class="font-fell text-xs text-foreground">
-              HP: <span class="text-destructive">−{{ pendingChoice!.hp_gained }}</span>
-              ({{ member.max_hp }} → {{ Math.max(1, member.max_hp - pendingChoice!.hp_gained) }})
+              HP: <span class="text-destructive">−{{ lastChoice.hp_gained }}</span>
+              <span class="text-muted-foreground ml-1">({{ member.max_hp }} → {{ Math.max(1, member.max_hp - lastChoice.hp_gained) }})</span>
             </p>
             <p v-if="profWillDrop" class="font-fell text-xs text-foreground">
               Proficiency bonus: +{{ currentProfBonus }} → +{{ newProfBonus }}
             </p>
-            <p v-if="pendingChoice!.asi" class="font-fell text-xs text-foreground">
-              {{ asiDescription }} will be reverted
+            <p v-if="lastChoice.asi" class="font-fell text-xs text-foreground">
+              {{ asiDescription }} reverted
             </p>
-            <p v-if="pendingChoice!.subclass" class="font-fell text-xs text-foreground">
-              Subclass "{{ pendingChoice!.subclass }}" will be cleared
+            <p v-if="lastChoice.subclass" class="font-fell text-xs text-foreground">
+              Subclass "{{ lastChoice.subclass }}" cleared
+            </p>
+            <p v-if="lastChoice.is_new_class" class="font-fell text-xs text-foreground">
+              {{ lastChoice.class_name }} class entry removed
             </p>
           </template>
+
+          <!-- Estimated (legacy) -->
           <template v-else>
             <p class="font-fell text-xs text-foreground">
-              HP: approximately −{{ estimatedHpLoss }}
-              ({{ member.max_hp }} → ~{{ Math.max(1, member.max_hp - estimatedHpLoss) }})
+              HP: ~−{{ estimatedHpLoss }}
+              <span class="text-muted-foreground ml-1">({{ member.max_hp }} → ~{{ Math.max(1, member.max_hp - estimatedHpLoss) }})</span>
             </p>
             <p v-if="profWillDrop" class="font-fell text-xs text-foreground">
               Proficiency bonus: +{{ currentProfBonus }} → +{{ newProfBonus }}
             </p>
           </template>
+
           <p class="font-fell text-xs text-muted-foreground italic">
             Spell slots and class resources recalculated from class table.
           </p>
@@ -57,14 +113,11 @@
 
         <!-- Manual review warning -->
         <div
-          v-if="manualReviewItems.length > 0 || !hasHistory"
+          v-if="manualReviewItems.length > 0"
           class="rounded-md bg-amber-500/10 border border-amber-500/30 px-3 py-2 space-y-1"
         >
           <p class="font-cinzel text-[10px] text-amber-400 tracking-wider">REVIEW MANUALLY</p>
-          <p v-if="!hasHistory" class="font-fell text-xs text-amber-400">
-            No level history found — HP estimated using class average. Spells, ASIs, and feats cannot be auto-reversed.
-          </p>
-          <ul v-if="manualReviewItems.length" class="space-y-0.5">
+          <ul class="space-y-0.5">
             <li v-for="item in manualReviewItems" :key="item" class="font-fell text-xs text-amber-400">• {{ item }}</li>
           </ul>
         </div>
@@ -75,12 +128,12 @@
           type="button"
           class="w-full rounded-md bg-destructive px-4 py-2 font-cinzel text-xs font-semibold text-destructive-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
           :disabled="isPending"
-          @click="confirmDeLevel(entry)"
+          @click="confirmDeLevel"
         >
-          {{ isPending ? 'Applying…' : `Confirm — Remove ${entry.class_name} Level ${entry.levels}` }}
+          {{ isPending ? 'Applying…' : `Confirm — Remove ${targetEntry.class_name} Level ${targetEntry.levels}` }}
         </button>
       </div>
-    </div>
+    </template>
   </div>
 </template>
 
@@ -100,7 +153,8 @@ const props = defineProps<{
   characterClasses: CharacterClass[];
 }>();
 
-const pendingEntry = ref<CharacterClass | null>(null);
+const showConfirmation = ref(false);
+const legacyClassName = ref('');
 const isPending = ref(false);
 const error = ref('');
 
@@ -109,24 +163,27 @@ const { mutateAsync: updateCharacterClass } = useUpdateCharacterClass();
 const { mutateAsync: deleteCharacterClass } = useDeleteCharacterClass();
 const { mutateAsync: deleteSpell } = useDeleteCharacterSpell();
 
-// Load class data for the pending entry
-const selectedClassName = computed(() => pendingEntry.value?.class_name ?? '');
-const { data: customClass } = useCustomClassByName(selectedClassName);
+// The level_choices entry for the current total level (if it exists)
+const lastChoice = computed<LevelChoiceEntry | null>(() => {
+  const choices = props.member.level_choices ?? {};
+  return choices[props.member.level] ?? null;
+});
+
+// The class name to act on: from history if available, otherwise from picker
+const activeClassName = computed(() => lastChoice.value?.class_name ?? legacyClassName.value);
+
+// The character_classes row for the active class
+const targetEntry = computed<CharacterClass | null>(() =>
+  props.characterClasses.find(c => c.class_name === activeClassName.value) ?? null,
+);
+
+// Load class definition for the target class (for spell slots, resources, hit die)
+const { data: customClass } = useCustomClassByName(activeClassName);
 const { data: allSystemClasses } = useAllSystemClasses();
 const systemClass = computed(() =>
-  (allSystemClasses.value ?? []).find(c => c.class_name === selectedClassName.value) ?? null,
+  (allSystemClasses.value ?? []).find(c => c.class_name === activeClassName.value) ?? null,
 );
 const theClass = computed(() => customClass.value ?? systemClass.value ?? null);
-
-// The level_choices entry for the current total level
-const pendingChoice = computed<LevelChoiceEntry | null>(() => {
-  if (!pendingEntry.value) return null;
-  const choices = props.member.level_choices ?? {};
-  const entry = choices[props.member.level];
-  if (!entry || entry.class_name !== pendingEntry.value.class_name) return null;
-  return entry;
-});
-const hasHistory = computed(() => !!pendingChoice.value);
 
 // Proficiency bonus
 const currentProfBonus = computed(() => 2 + Math.floor((props.member.level - 1) / 4));
@@ -135,18 +192,18 @@ const profWillDrop = computed(() => newProfBonus.value < currentProfBonus.value)
 
 // Estimated HP loss for legacy characters
 const estimatedHpLoss = computed(() => {
-  if (!pendingEntry.value) return 0;
-  const hd = theClass.value?.hit_die ?? getHitDie(pendingEntry.value.class_name);
+  if (!targetEntry.value) return 0;
+  const hd = theClass.value?.hit_die ?? getHitDie(targetEntry.value.class_name);
   const conMod = Math.floor((props.member.con - 10) / 2);
   return Math.max(1, Math.ceil(hd / 2) + 1 + conMod);
 });
 
 // ASI description for display
 const asiDescription = computed(() => {
-  const asi = pendingChoice.value?.asi;
+  const asi = lastChoice.value?.asi;
   if (!asi) return '';
   const LABEL: Record<string, string> = { str: 'STR', dex: 'DEX', con: 'CON', int: 'INT', wis: 'WIS', cha: 'CHA' };
-  if (asi.mode === 'feat') return `Feat${asi.feat_id ? '' : ''}`;
+  if (asi.mode === 'feat') return 'Feat';
   if (asi.mode === 'plus2' && asi.primary) return `${LABEL[asi.primary] ?? asi.primary} +2`;
   if (asi.mode === 'plus1plus1')
     return [asi.primary, asi.secondary].filter(Boolean).map(k => `${LABEL[k!] ?? k} +1`).join(', ');
@@ -155,16 +212,20 @@ const asiDescription = computed(() => {
 
 // Manual review items
 const manualReviewItems = computed<string[]>(() => {
-  if (!pendingEntry.value || !hasHistory.value || !pendingChoice.value) return [];
   const items: string[] = [];
-  const c = pendingChoice.value;
-  if (c.asi?.mode === 'feat' && c.asi.feat_id) items.push('Feat from this level — remove manually from sheet');
+  if (!lastChoice.value) {
+    items.push('No level history — HP estimated using class average');
+    items.push('Spells, ASIs, and feats from this level cannot be auto-reversed');
+    return items;
+  }
+  const c = lastChoice.value;
+  if (c.asi?.mode === 'feat') items.push('Feat from this level — remove manually');
   if ((c.spells_learned?.length ?? 0) > 0)
-    items.push(`${c.spells_learned!.length} spell(s) learned at this level will be removed from your spell list`);
+    items.push(`${c.spells_learned!.length} spell(s) from this level will be removed`);
   if ((c.cantrips_learned?.length ?? 0) > 0)
-    items.push(`${c.cantrips_learned!.length} cantrip(s) learned at this level will be removed`);
+    items.push(`${c.cantrips_learned!.length} cantrip(s) from this level will be removed`);
   if (c.step_choices && Object.keys(c.step_choices).length > 0)
-    items.push('Class choices from this level (e.g. Fighting Style, Invocations) — review manually');
+    items.push('Class choices (Fighting Style, Invocations, etc.) — review manually');
   return items;
 });
 
@@ -176,14 +237,17 @@ function resourceMaxAtLevel(resource: CustomResource, level: number): number {
   return 0;
 }
 
-async function confirmDeLevel(entry: CharacterClass) {
+async function confirmDeLevel() {
+  const entry = targetEntry.value;
+  if (!entry) return;
+
   isPending.value = true;
   error.value = '';
   try {
     const currentLevel = props.member.level;
     const newTotalLevel = currentLevel - 1;
     const newClassLevel = entry.levels - 1;
-    const choice = pendingChoice.value;
+    const choice = lastChoice.value;
 
     const memberUpdate: Record<string, unknown> = {
       level: newTotalLevel,
@@ -197,7 +261,7 @@ async function confirmDeLevel(entry: CharacterClass) {
     memberUpdate.max_hp = newMaxHp;
     memberUpdate.current_hp = Math.min(props.member.current_hp, newMaxHp);
 
-    // ASI reversal
+    // ASI reversal (exact, from history)
     if (choice?.asi && choice.asi.mode !== 'feat') {
       if (choice.asi.primary) {
         const k = choice.asi.primary as keyof PartyMember;
@@ -232,7 +296,7 @@ async function confirmDeLevel(entry: CharacterClass) {
       }
     }
 
-    // Class resources
+    // Class resources at newClassLevel
     const resources: CustomResource[] = [
       ...(systemClass.value?.resources ?? []),
       ...(customClass.value?.resources ?? []),
@@ -262,10 +326,9 @@ async function confirmDeLevel(entry: CharacterClass) {
       memberUpdate.level_choices = newChoices;
     }
 
-    // Update party member
     await updateMember({ id: props.member.id, update: memberUpdate as PartyMemberUpdate });
 
-    // Remove spells learned at this level
+    // Remove spells learned at this level (not also learned at an earlier level)
     if (choice) {
       const toRemove = [...(choice.spells_learned ?? []), ...(choice.cantrips_learned ?? [])];
       const earlierSpells = new Set(
@@ -288,10 +351,7 @@ async function confirmDeLevel(entry: CharacterClass) {
         await updateCharacterClass({ id: remaining[0].id, update: { is_primary: true } });
         await updateMember({
           id: props.member.id,
-          update: {
-            class: remaining[0].class_name,
-            subclass: remaining[0].subclass_name ?? null,
-          } as PartyMemberUpdate,
+          update: { class: remaining[0].class_name, subclass: remaining[0].subclass_name ?? null } as PartyMemberUpdate,
         });
       } else if (remaining.length === 0) {
         await updateMember({ id: props.member.id, update: { class: null, subclass: null } as PartyMemberUpdate });
@@ -303,7 +363,8 @@ async function confirmDeLevel(entry: CharacterClass) {
       });
     }
 
-    pendingEntry.value = null;
+    showConfirmation.value = false;
+    legacyClassName.value = '';
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to de-level.';
   } finally {
