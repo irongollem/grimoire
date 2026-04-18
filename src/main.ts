@@ -9,6 +9,7 @@ import { captureInstallPrompt } from "./composables/usePwaInstall";
 import { onWakeLockVisibilityChange } from "./composables/useWakeLock";
 import { installTooltipEngine } from "./lib/tooltip";
 import { tooltip as vTooltip } from "./directives/tooltip";
+import { noPwm as vNoPwm } from "./directives/noPwm";
 
 window.addEventListener("beforeinstallprompt", captureInstallPrompt, { once: true });
 document.addEventListener("visibilitychange", onWakeLockVisibilityChange);
@@ -87,6 +88,7 @@ app.use(router);
 // here for cases where the value is dynamic and we want to skip the native
 // tooltip flicker.
 app.directive("tooltip", vTooltip);
+app.directive("no-pwm", vNoPwm);
 installTooltipEngine();
 
 app.mount("#app");

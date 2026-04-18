@@ -2,6 +2,7 @@
   <div class="relative flex-1" ref="rootEl">
     <div class="relative">
       <input
+        v-no-pwm
         ref="inputEl"
         v-model="query"
         type="text"

@@ -19,6 +19,7 @@
         </button>
       </span>
       <input
+        v-no-pwm
         ref="inputRef"
         v-model="inputVal"
         :placeholder="model.length ? '' : placeholder"
