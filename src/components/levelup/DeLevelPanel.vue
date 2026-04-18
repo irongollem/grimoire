@@ -1,85 +1,39 @@
 <template>
-  <div class="rounded-lg border border-border bg-card p-4 space-y-4">
-    <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">Current Levels</h3>
-
-    <!-- Class breakdown (read-only context) -->
-    <div class="flex flex-wrap gap-x-4 gap-y-1">
-      <div v-for="entry in characterClasses" :key="entry.id" class="flex items-baseline gap-1.5">
-        <span class="font-fell text-sm text-foreground">
-          {{ entry.class_name }}{{ entry.subclass_name ? ` (${entry.subclass_name})` : '' }}
-        </span>
-        <span class="font-cinzel text-xs text-muted-foreground">{{ entry.levels }}</span>
-      </div>
+  <!-- Nothing to show if already at level 1 -->
+  <template v-if="member.level > 1">
+    <!-- No history warning (subtle) -->
+    <div v-if="!lastChoice" class="flex items-center gap-2 pt-2">
+      <span class="font-cinzel text-[10px] tracking-wider text-amber-500/70 uppercase">No level history</span>
+      <span class="font-fell text-xs text-muted-foreground">— ask your DM to seed <code class="font-mono">level_choices</code> before de-leveling</span>
     </div>
 
-    <!-- Can't go below level 1 -->
-    <p v-if="member.level <= 1" class="font-fell text-xs text-muted-foreground italic">
-      Already at level 1 — cannot de-level further.
-    </p>
-
     <template v-else>
-      <!-- Last level taken (with history) -->
-      <div v-if="lastChoice" class="flex items-center justify-between">
-        <div>
-          <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Last level taken</span>
-          <p class="font-fell text-sm text-foreground mt-0.5">
-            {{ lastChoice.class_name }}
-            <span class="text-muted-foreground">— Level {{ member.level }}</span>
-            <span v-if="lastChoice.is_new_class" class="font-cinzel text-[10px] text-primary ml-2 tracking-wider">NEW CLASS</span>
+      <!-- Confirmation details (shown above the action row when active) -->
+      <div v-if="showConfirmation && targetEntry" class="rounded-md border border-border/60 bg-muted/20 p-3 space-y-2">
+        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Reversing level {{ member.level }} — {{ lastChoice.class_name }}</p>
+
+        <div class="space-y-1">
+          <p class="font-fell text-xs text-foreground">
+            HP: <span class="text-destructive">−{{ lastChoice.hp_gained }}</span>
+            <span class="text-muted-foreground ml-1">({{ member.max_hp }} → {{ Math.max(1, member.max_hp - lastChoice.hp_gained) }})</span>
           </p>
-        </div>
-        <button
-          type="button"
-          class="font-cinzel text-xs tracking-wider transition-colors"
-          :class="showConfirmation
-            ? 'text-muted-foreground hover:text-foreground'
-            : 'text-muted-foreground hover:text-destructive'"
-          @click="showConfirmation = !showConfirmation"
-        >
-          {{ showConfirmation ? '× cancel' : '− undo last level' }}
-        </button>
-      </div>
-
-      <!-- No history — cannot de-level -->
-      <div v-else class="rounded-md bg-amber-500/10 border border-amber-500/30 px-3 py-2">
-        <p class="font-cinzel text-[10px] text-amber-400 tracking-wider mb-0.5">NO LEVEL HISTORY</p>
-        <p class="font-fell text-xs text-amber-400">
-          This character has no level history recorded. Ask your DM to seed
-          <code class="font-mono">level_choices</code> in the database before de-leveling.
-        </p>
-      </div>
-
-      <!-- Confirmation panel -->
-      <div v-if="showConfirmation && targetEntry" class="rounded-md border border-border/60 bg-muted/20 p-3 space-y-3">
-        <div class="space-y-1.5">
-          <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Changes</p>
-
-          <!-- Exact (has history) -->
-          <template v-if="lastChoice">
-            <p class="font-fell text-xs text-foreground">
-              HP: <span class="text-destructive">−{{ lastChoice.hp_gained }}</span>
-              <span class="text-muted-foreground ml-1">({{ member.max_hp }} → {{ Math.max(1, member.max_hp - lastChoice.hp_gained) }})</span>
-            </p>
-            <p v-if="profWillDrop" class="font-fell text-xs text-foreground">
-              Proficiency bonus: +{{ currentProfBonus }} → +{{ newProfBonus }}
-            </p>
-            <p v-if="lastChoice.asi" class="font-fell text-xs text-foreground">
-              {{ asiDescription }} reverted
-            </p>
-            <p v-if="lastChoice.subclass" class="font-fell text-xs text-foreground">
-              Subclass "{{ lastChoice.subclass }}" cleared
-            </p>
-            <p v-if="lastChoice.is_new_class" class="font-fell text-xs text-foreground">
-              {{ lastChoice.class_name }} class entry removed
-            </p>
-          </template>
-
+          <p v-if="profWillDrop" class="font-fell text-xs text-foreground">
+            Proficiency bonus: +{{ currentProfBonus }} → +{{ newProfBonus }}
+          </p>
+          <p v-if="lastChoice.asi" class="font-fell text-xs text-foreground">
+            {{ asiDescription }} reverted
+          </p>
+          <p v-if="lastChoice.subclass" class="font-fell text-xs text-foreground">
+            Subclass "{{ lastChoice.subclass }}" cleared
+          </p>
+          <p v-if="lastChoice.is_new_class" class="font-fell text-xs text-foreground">
+            {{ lastChoice.class_name }} class entry removed
+          </p>
           <p class="font-fell text-xs text-muted-foreground italic">
             Spell slots and class resources recalculated from class table.
           </p>
         </div>
 
-        <!-- Manual review warning -->
         <div
           v-if="manualReviewItems.length > 0"
           class="rounded-md bg-amber-500/10 border border-amber-500/30 px-3 py-2 space-y-1"
@@ -91,18 +45,39 @@
         </div>
 
         <p v-if="error" class="font-fell text-xs text-destructive">{{ error }}</p>
+      </div>
 
+      <!-- Action row -->
+      <div class="flex items-center justify-between gap-4 pt-1">
+        <!-- De-level trigger / confirm -->
         <button
+          v-if="!showConfirmation"
           type="button"
-          class="w-full rounded-md bg-destructive px-4 py-2 font-cinzel text-xs font-semibold text-destructive-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
-          :disabled="isPending"
-          @click="confirmDeLevel"
+          class="font-cinzel text-xs tracking-wider text-muted-foreground hover:text-destructive transition-colors"
+          @click="showConfirmation = true"
         >
-          {{ isPending ? 'Applying…' : `Confirm — Remove ${targetEntry.class_name} Level ${targetEntry.levels}` }}
+          ← Back to level {{ member.level - 1 }}
         </button>
+        <div v-else class="flex items-center gap-3">
+          <button
+            type="button"
+            class="font-cinzel text-xs tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            @click="showConfirmation = false"
+          >
+            × cancel
+          </button>
+          <button
+            type="button"
+            class="rounded-md bg-destructive px-3 py-1.5 font-cinzel text-xs font-semibold text-destructive-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+            :disabled="isPending"
+            @click="confirmDeLevel"
+          >
+            {{ isPending ? 'Applying…' : `Confirm — remove level ${member.level}` }}
+          </button>
+        </div>
       </div>
     </template>
-  </div>
+  </template>
 </template>
 
 <script setup lang="ts">

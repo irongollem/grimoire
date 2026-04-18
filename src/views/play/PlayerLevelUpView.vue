@@ -4,16 +4,16 @@
       <p class="font-fell text-sm text-muted-foreground italic">No character linked.</p>
     </div>
     <template v-else>
-      <DeLevelPanel
-        v-if="characterClasses && characterClasses.length > 0"
-        :member="member"
-        :character-classes="characterClasses"
-      />
       <LevelUpWizard
         :key="member.level"
         :member="member"
         :target-level="targetLevel"
         :back-route="backRoute"
+      />
+      <DeLevelPanel
+        v-if="characterClasses && characterClasses.length > 0"
+        :member="member"
+        :character-classes="characterClasses"
       />
     </template>
   </div>
