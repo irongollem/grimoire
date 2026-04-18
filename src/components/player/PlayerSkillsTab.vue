@@ -130,7 +130,7 @@ import { SKILLS } from "@/types/party.types";
 import type { PartyMember, SkillProficiencies } from "@/types/party.types";
 
 const props = defineProps<{ member: PartyMember; checkDisadvantage: boolean }>();
-const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifier: number; total: number }] }>();
+const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifier: number; total: number; masked?: boolean }] }>();
 
 const { sendFlavorMessage } = useCampaignMessages();
 const { promptRoll } = usePromptedRoll();
@@ -180,7 +180,8 @@ const passiveInvestigation = computed(() => passiveScore("investigation"));
 
 const IMMERSIVE_SKILL_KEYS = new Set([
   "stealth", "sleight_of_hand", "arcana", "history", "nature", "religion",
-  "insight", "investigation", "medicine",
+  "insight", "investigation", "medicine", "perception",
+  "persuasion", "intimidation", "deception",
 ]);
 
 function immersiveFlavor(label: string, name: string): string {
@@ -194,6 +195,10 @@ function immersiveFlavor(label: string, name: string): string {
   if (l.includes("insight"))       return `${name} tries to read the situation`;
   if (l.includes("investigation")) return `${name} examines the area carefully`;
   if (l.includes("medicine"))      return `${name} assesses the situation`;
+  if (l.includes("perception"))    return `${name} looks and listens carefully`;
+  if (l.includes("persuasion"))    return `${name} tries to make their case`;
+  if (l.includes("intimidation"))  return `${name} attempts to assert themselves`;
+  if (l.includes("deception"))     return `${name} chooses their words carefully`;
   return `${name} makes a check`;
 }
 
@@ -210,7 +215,7 @@ async function rollSkill(skill: (typeof SKILLS)[number]) {
   if (isImmersive) {
     const label = `${skill.label} Check`;
     await sendFlavorMessage(immersiveFlavor(label, name), skill.label);
-    await promptRoll({
+    const result = await promptRoll({
       counts: { 20: 1 },
       modifier,
       label,
@@ -218,6 +223,7 @@ async function rollSkill(skill: (typeof SKILLS)[number]) {
       recipientUserId: dmUserId.value,
       senderName: name,
     });
+    if (result) emit("roll", { label, dice: 0, modifier, total: 0, masked: true });
     return;
   }
 

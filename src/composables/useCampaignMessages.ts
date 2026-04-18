@@ -65,7 +65,7 @@ function subscribe(campaignId: string) {
         }
         if (
           msg.recipient_user_id === null ||
-          msg.user_id === auth.user?.id ||
+          (msg.user_id === auth.user?.id && auth.isDM) ||
           msg.recipient_user_id === auth.user?.id
         ) {
           messages.value.push(msg);
@@ -474,6 +474,8 @@ export function useCampaignMessages() {
 
   function _optimisticPush(msg: CampaignMessage) {
     if (messages.value.find(m => m.id === msg.id)) return;
+    // For whispered messages, only show to the recipient (or to DM, who sees their own whispers)
+    if (msg.recipient_user_id !== null && msg.recipient_user_id !== auth.user?.id && !auth.isDM) return;
     messages.value.push(msg);
     if (messages.value.length > LIMIT) messages.value.shift();
   }

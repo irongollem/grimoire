@@ -7,11 +7,14 @@
       >
         <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-0.5">{{ current!.label }}</p>
         <div class="flex items-baseline gap-2">
-          <span class="font-cinzel text-3xl font-bold text-foreground">{{ current!.total }}</span>
+          <span class="font-cinzel text-3xl font-bold text-foreground">{{ current!.masked ? "?" : current!.total }}</span>
           <span class="font-fell text-sm text-muted-foreground">
-            d20 ({{ current!.dice }})
-            <template v-if="current!.modifier !== 0">
-              {{ current!.modifier >= 0 ? "+" : "" }}{{ current!.modifier }}
+            <template v-if="current!.masked">result hidden — DM eyes only</template>
+            <template v-else>
+              d20 ({{ current!.dice }})
+              <template v-if="current!.modifier !== 0">
+                {{ current!.modifier >= 0 ? "+" : "" }}{{ current!.modifier }}
+              </template>
             </template>
           </span>
         </div>
@@ -31,6 +34,7 @@ export interface RollResult {
   dice: number;
   modifier: number;
   total: number;
+  masked?: boolean;
 }
 
 const props = defineProps<{ result: RollResult | null }>();
