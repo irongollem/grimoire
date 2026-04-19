@@ -348,6 +348,32 @@ async function castSpell(entry: CharacterSpellEntry) {
       }
     }
 
+    // Auto-roll healing
+    if (spell.healing_dice) {
+      const parsed = parseExpression(spell.healing_dice);
+      if (parsed) {
+        const breakdown: DieResult[] = [];
+        let total = 0;
+        for (const term of parsed.terms) {
+          for (let i = 0; i < term.count; i++) {
+            const val = rollDie(term.sides);
+            breakdown.push({ val, dropped: false });
+            total += val;
+          }
+        }
+        total += parsed.modifier;
+        await sendRoll({
+          total,
+          label: `${spell.name} — ${spell.healing_dice} healing`,
+          modifier: parsed.modifier,
+          breakdown,
+          isCrit: false,
+          isFumble: false,
+          isDamage: true,
+        });
+      }
+    }
+
     // Spend slot
     if (level > 0) {
       const slot = slotForLevel(level);

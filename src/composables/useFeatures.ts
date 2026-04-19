@@ -149,3 +149,53 @@ export function useImportSrdFeatures() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }
+
+/**
+ * Backfills descriptions on system (user_id = null) class features by fetching
+ * them from the Open5e v2 API. Only updates rows that currently have no description.
+ * Requires the class_features_system_desc_policy migration to be applied first.
+ */
+export function useBackfillSystemFeatureDescriptions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<{ updated: number }> => {
+      const { fetchClassFeatureDescriptions } = await import("@/lib/open5eClassImport");
+      const descMap = await fetchClassFeatureDescriptions();
+
+      // Fetch all system features that currently have no description
+      const names = [...descMap.keys()];
+      type SystemFeatureRow = { id: string; name: string };
+      const rows: SystemFeatureRow[] = [];
+      const CHUNK = 200;
+      for (let i = 0; i < names.length; i += CHUNK) {
+        const { data } = await supabase
+          .from("class_features")
+          .select("id, name")
+          .is("user_id", null)
+          .is("description", null)
+          .in("name", names.slice(i, i + CHUNK));
+        rows.push(...((data ?? []) as SystemFeatureRow[]));
+      }
+
+      // Update each missing description in batches
+      const CONCURRENCY = 25;
+      let updated = 0;
+      for (let i = 0; i < rows.length; i += CONCURRENCY) {
+        await Promise.all(
+          rows.slice(i, i + CONCURRENCY).map((row) => {
+            const desc = descMap.get(row.name);
+            if (!desc) return Promise.resolve();
+            updated++;
+            return supabase
+              .from("class_features")
+              .update({ description: desc })
+              .eq("id", row.id);
+          }),
+        );
+      }
+
+      return { updated };
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}

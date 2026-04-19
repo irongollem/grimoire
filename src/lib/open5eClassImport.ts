@@ -1,6 +1,21 @@
 import { fetchAll } from "@/lib/open5eApi";
 import type { CustomClassInsert, CustomSubclassInsert, HitDie } from "@/levelup/customTypes";
 
+// ── Description helpers ───────────────────────────────────────────────────────
+
+/** Convert plain text description to a minimal Tiptap JSON doc string. */
+function descToTiptap(desc: string): string {
+  const paragraphs = desc
+    .split(/\n\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const content = paragraphs.map((text) => ({
+    type: "paragraph",
+    content: [{ type: "text", text }],
+  }));
+  return JSON.stringify({ type: "doc", content });
+}
+
 // ── Open5e v2 API shape ───────────────────────────────────────────────────────
 
 interface Open5eV2ClassFeature {
@@ -150,4 +165,23 @@ export function subclassToInsert(preview: Open5eSubclassPreview): CustomSubclass
     steps: [],
     resources: [],
   };
+}
+
+// ── System feature description backfill ──────────────────────────────────────
+
+/**
+ * Fetches all class feature descriptions from the Open5e v2 API and returns
+ * a map of { featureName → tiptapJsonString } for every feature that has a
+ * non-empty `desc` field. Used to backfill system (user_id = null) features.
+ */
+export async function fetchClassFeatureDescriptions(): Promise<Map<string, string>> {
+  const raw = await fetchAll<Open5eV2Class>(V2_BASE);
+  const map = new Map<string, string>();
+  for (const cls of raw) {
+    for (const feat of cls.features ?? []) {
+      if (!feat.desc || map.has(feat.name)) continue;
+      map.set(feat.name, descToTiptap(feat.desc));
+    }
+  }
+  return map;
 }

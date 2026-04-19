@@ -44,4 +44,4 @@ Cantrip scaling (extra dice at levels 5/11/17) is not currently automatic. Enter
 
 ## Healing spells
 
-Use the **Healing dice** field instead of Damage rolls. The cast button does not auto-roll healing — the player uses the standard dice roller for that.
+Use the **Healing dice** field (e.g. `1d8+3`) instead of Damage rolls. The cast button auto-rolls the healing and posts the result to chat, the same way damage is rolled. The party can then apply the total to whoever was healed.

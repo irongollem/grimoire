@@ -112,9 +112,9 @@
       <!-- Abilities tab -->
       <template v-if="activeTab === 'abilities'">
         <ListActionButton
-          :icon="abilityImportMutation.isPending.value ? Loader2 : Download"
+          :icon="abilityImporting ? Loader2 : Download"
           :label="abilityImportLabel"
-          :disabled="abilityImportMutation.isPending.value"
+          :disabled="abilityImporting"
           @click="handleAbilityImport"
         />
         <ListActionButton :icon="Plus" label="New Ability" mobile-label="Ability" variant="primary" to="/features/new" />
@@ -232,7 +232,7 @@ import {
 } from "@/composables/useBackgrounds";
 import { useImportOpen5eClasses, useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
 import { useImportOpen5eSubclasses } from "@/composables/useCustomSubclasses";
-import { useImportSrdFeatures } from "@/composables/useFeatures";
+import { useImportSrdFeatures, useBackfillSystemFeatureDescriptions } from "@/composables/useFeatures";
 import type { ImportResult } from "@/composables/useFeatures";
 import { FEATURE_TYPES, FEATURE_TYPE_LABELS } from "@/types/feature.types";
 
@@ -365,24 +365,27 @@ async function handleClassImport() {
   classResetTimer = setTimeout(() => { classImportStatus.value = "idle"; classImportError.value = null; }, 8000);
 }
 
-// ── Abilities: import ─────────────────────────────────────────────────────────
+// ── Abilities: import + description backfill ──────────────────────────────────
 const abilityImportMutation = useImportSrdFeatures();
+const descBackfillMutation = useBackfillSystemFeatureDescriptions();
+const abilityImporting = ref(false);
 const abilityImportStatus = ref<"idle" | "done">("idle");
 const abilityImportResult = ref<ImportResult>({ inserted: 0, updated: 0 });
+const descFilled = ref(0);
 const abilityImportError = ref<string | null>(null);
 let abilityResetTimer: ReturnType<typeof setTimeout> | null = null;
 onBeforeUnmount(() => { if (abilityResetTimer) clearTimeout(abilityResetTimer); });
 
 const abilityImportLabel = computed(() => {
-  if (abilityImportMutation.isPending.value) return "Syncing…";
+  if (abilityImporting.value) return "Syncing…";
   if (abilityImportError.value) return `Error: ${abilityImportError.value}`;
   if (abilityImportStatus.value === "done") {
     const { inserted, updated } = abilityImportResult.value;
-    if (inserted === 0 && updated === 0) return "Already up to date";
     const parts: string[] = [];
     if (inserted > 0) parts.push(`${inserted} added`);
     if (updated > 0) parts.push(`${updated} updated`);
-    return parts.join(", ");
+    if (descFilled.value > 0) parts.push(`${descFilled.value} descriptions filled`);
+    return parts.length ? parts.join(", ") : "Already up to date";
   }
   return "Sync from Open5e";
 });
@@ -390,11 +393,16 @@ const abilityImportLabel = computed(() => {
 async function handleAbilityImport() {
   abilityImportStatus.value = "idle";
   abilityImportError.value = null;
+  abilityImporting.value = true;
   try {
     abilityImportResult.value = await abilityImportMutation.mutateAsync();
+    const backfill = await descBackfillMutation.mutateAsync();
+    descFilled.value = backfill.updated;
     abilityImportStatus.value = "done";
   } catch (e) {
     abilityImportError.value = e instanceof Error ? e.message : String(e);
+  } finally {
+    abilityImporting.value = false;
   }
   abilityResetTimer = setTimeout(() => { abilityImportStatus.value = "idle"; abilityImportError.value = null; }, 8000);
 }

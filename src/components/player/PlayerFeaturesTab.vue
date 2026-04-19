@@ -125,44 +125,71 @@
       </div>
 
       <div v-else class="divide-y divide-border">
-        <div
-          v-for="(features, lvl) in featuresByLevel"
-          :key="lvl"
-          class="px-4 py-2.5"
-        >
-          <div class="flex gap-3">
-            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-12 shrink-0 pt-0.5">
-              Lvl {{ lvl }}
-            </span>
-            <div class="flex flex-wrap gap-1.5">
-              <button
-                v-for="feat in features"
-                :key="featureName(feat)"
-                class="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 font-fell text-sm text-foreground transition-colors"
-                :class="featureDescription(feat)
-                  ? 'bg-muted/50 border-border hover:border-primary/40 hover:bg-primary/5 cursor-pointer'
-                  : 'bg-muted/50 border-border cursor-default'"
-                @click="featureDescription(feat) && toggleExpanded(featureName(feat))"
-              >
-                {{ featureName(feat) }}
-                <ChevronDown
-                  v-if="featureDescription(feat)"
-                  class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
-                  :class="expanded.has(featureName(feat)) ? 'rotate-180' : ''"
-                />
-              </button>
-            </div>
-          </div>
-          <!-- Expanded descriptions -->
-          <template v-for="feat in features" :key="`desc-${featureName(feat)}`">
-            <div
-              v-if="featureDescription(feat) && expanded.has(featureName(feat))"
-              class="mt-2 ml-15 rounded-md bg-muted/30 border border-border/60 px-3 py-2"
+        <template v-for="(features, lvl) in featuresByLevel" :key="lvl">
+          <div
+            v-for="feat in features"
+            :key="`${lvl}-${featureName(feat)}`"
+            class="px-4 py-2.5"
+          >
+            <button
+              class="w-full text-left flex items-center gap-3"
+              :class="featureDescription(feat) ? 'cursor-pointer' : 'cursor-default'"
+              @click="featureDescription(feat) && toggleExpanded(`class-${lvl}-${featureName(feat)}`)"
             >
-              <p class="font-cinzel text-[10px] text-primary tracking-wider mb-1">{{ featureName(feat) }}</p>
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-10 shrink-0">Lvl {{ lvl }}</span>
+              <span class="font-fell text-sm text-foreground flex-1">{{ featureName(feat) }}</span>
+              <ChevronDown
+                v-if="featureDescription(feat)"
+                class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
+                :class="expanded.has(`class-${lvl}-${featureName(feat)}`) ? 'rotate-180' : ''"
+              />
+            </button>
+            <div
+              v-if="featureDescription(feat) && expanded.has(`class-${lvl}-${featureName(feat)}`)"
+              class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2"
+            >
               <RichTextViewer :content="featureDescription(feat)!" />
             </div>
-          </template>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- ── Spell choices ─────────────────────────────────────────────────── -->
+    <div v-if="spellPickSteps.length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
+      <div class="px-4 py-2.5 border-b border-border">
+        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Spell Choices</p>
+      </div>
+      <div class="divide-y divide-border">
+        <div v-for="step in spellPickSteps" :key="step.key" class="px-4 py-3 space-y-2">
+          <div class="flex items-baseline gap-3">
+            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-10 shrink-0">Lvl {{ step.level }}</span>
+            <span class="font-fell text-sm font-semibold text-foreground">{{ step.label }}</span>
+          </div>
+          <p v-if="step.description" class="font-fell text-xs text-muted-foreground pl-13">{{ step.description }}</p>
+          <!-- Already picked -->
+          <div v-if="spellChoicesForStep(step.key).length" class="pl-13 flex flex-wrap gap-1.5">
+            <span
+              v-for="(name, i) in spellChoicesForStep(step.key)"
+              :key="i"
+              class="inline-flex items-center rounded-md bg-primary/10 border border-primary/20 px-2 py-0.5 font-fell text-sm text-foreground"
+            >{{ name }}</span>
+          </div>
+          <!-- Not yet picked -->
+          <div v-else class="pl-13 flex items-center gap-2">
+            <select
+              v-model="pendingSpellPicks[step.key]"
+              class="flex-1 bg-muted/40 border border-border rounded px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="" disabled>Choose a spell…</option>
+              <option v-for="opt in step.options" :key="opt" :value="opt">{{ opt }}</option>
+            </select>
+            <button
+              :disabled="!pendingSpellPicks[step.key]"
+              class="px-2.5 py-1 bg-primary text-primary-foreground rounded font-cinzel text-[10px] tracking-wider disabled:opacity-40 transition-opacity hover:opacity-90"
+              @click="confirmSpellPick(step.key)"
+            >Save</button>
+          </div>
         </div>
       </div>
     </div>
@@ -248,43 +275,33 @@
         </p>
       </div>
       <div class="divide-y divide-border">
-        <div
-          v-for="(features, lvl) in subclassFeaturesByLevel"
-          :key="lvl"
-          class="px-4 py-2.5"
-        >
-          <div class="flex gap-3">
-            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-12 shrink-0 pt-0.5">Lvl {{ lvl }}</span>
-            <div class="flex flex-wrap gap-1.5">
-              <button
-                v-for="feat in features"
-                :key="featureName(feat)"
-                class="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 font-fell text-sm text-foreground transition-colors"
-                :class="featureDescription(feat)
-                  ? 'bg-muted/50 border-border hover:border-primary/40 hover:bg-primary/5 cursor-pointer'
-                  : 'bg-muted/50 border-border cursor-default'"
-                @click="featureDescription(feat) && toggleExpanded(`sub-${featureName(feat)}`)"
-              >
-                {{ featureName(feat) }}
-                <ChevronDown
-                  v-if="featureDescription(feat)"
-                  class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
-                  :class="expanded.has(`sub-${featureName(feat)}`) ? 'rotate-180' : ''"
-                />
-              </button>
-            </div>
-          </div>
-          <!-- Expanded descriptions -->
-          <template v-for="feat in features" :key="`subdesc-${featureName(feat)}`">
-            <div
-              v-if="featureDescription(feat) && expanded.has(`sub-${featureName(feat)}`)"
-              class="mt-2 ml-15 rounded-md bg-muted/30 border border-border/60 px-3 py-2"
+        <template v-for="(features, lvl) in subclassFeaturesByLevel" :key="lvl">
+          <div
+            v-for="feat in features"
+            :key="`sub-${lvl}-${featureName(feat)}`"
+            class="px-4 py-2.5"
+          >
+            <button
+              class="w-full text-left flex items-center gap-3"
+              :class="featureDescription(feat) ? 'cursor-pointer' : 'cursor-default'"
+              @click="featureDescription(feat) && toggleExpanded(`sub-${lvl}-${featureName(feat)}`)"
             >
-              <p class="font-cinzel text-[10px] text-primary tracking-wider mb-1">{{ featureName(feat) }}</p>
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-10 shrink-0">Lvl {{ lvl }}</span>
+              <span class="font-fell text-sm text-foreground flex-1">{{ featureName(feat) }}</span>
+              <ChevronDown
+                v-if="featureDescription(feat)"
+                class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
+                :class="expanded.has(`sub-${lvl}-${featureName(feat)}`) ? 'rotate-180' : ''"
+              />
+            </button>
+            <div
+              v-if="featureDescription(feat) && expanded.has(`sub-${lvl}-${featureName(feat)}`)"
+              class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2"
+            >
               <RichTextViewer :content="featureDescription(feat)!" />
             </div>
-          </template>
-        </div>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -353,6 +370,7 @@ import { ref, computed, watch } from "vue";
 import { ChevronDown } from "lucide-vue-next";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { featureName, featureDescription, mapFeatureIds, type FeatureEntry } from "@/levelup/types";
+import type { CustomStep } from "@/levelup/customTypes";
 import { useAllFeatures } from "@/composables/useFeatures";
 import { getDefaultSpellSlots, getSlotRecovery } from "@/types/spell.types";
 import { useClassByName } from "@/composables/useCustomClasses";
@@ -520,6 +538,32 @@ function toggleExpanded(name: string) {
   if (expanded.value.has(name)) expanded.value.delete(name);
   else expanded.value.add(name);
   expanded.value = new Set(expanded.value); // trigger reactivity
+}
+
+// ── Spell pick steps ──────────────────────────────────────────────────────────
+
+/** All spell_pick steps from the class and subclass at levels the character has reached. */
+const spellPickSteps = computed((): CustomStep[] => {
+  const allSteps = [
+    ...(classData.value?.steps ?? []),
+    ...(customSubclass.value?.steps ?? []),
+  ] as CustomStep[];
+  return allSteps.filter(s => s.step_type === "spell_pick" && s.level <= props.member.level);
+});
+
+function spellChoicesForStep(stepKey: string): string[] {
+  const v = (props.member.class_choices ?? {})[stepKey];
+  if (!v) return [];
+  return Array.isArray(v) ? (v as string[]) : [String(v)];
+}
+
+const pendingSpellPicks = ref<Record<string, string>>({});
+
+function confirmSpellPick(stepKey: string) {
+  const picked = pendingSpellPicks.value[stepKey];
+  if (!picked) return;
+  const newChoices = { ...(props.member.class_choices ?? {}), [stepKey]: picked };
+  updateMember({ id: props.member.id, update: { class_choices: newChoices } });
 }
 
 // ── Class choices (read-only) ─────────────────────────────────────────────────
