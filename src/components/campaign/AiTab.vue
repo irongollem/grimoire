@@ -107,7 +107,7 @@ import { ref, computed, watch } from "vue";
 import { Eye, EyeOff } from "lucide-vue-next";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/useCampaigns";
-import { encryptApiKey } from "@/lib/apiKeyVault";
+import { encryptApiKey, primeDecryptCache } from "@/lib/apiKeyVault";
 import { getSetting } from "@/settings/index";
 
 const LOCAL_MODE_KEY = "grimoire_openai_key_mode";
@@ -162,6 +162,8 @@ async function save() {
       const trimmedKey = form.value.openai_api_key.trim();
       if (trimmedKey) {
         apiKeyValue = await encryptApiKey(trimmedKey);
+        // Pre-seed the cache so the switchToCampaign() below skips a decrypt round-trip
+        primeDecryptCache(apiKeyValue, trimmedKey);
       } else {
         apiKeyValue = null;
       }
