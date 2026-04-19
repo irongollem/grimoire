@@ -131,6 +131,14 @@
                 ✕
               </button>
             </div>
+            <label class="block">
+              <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">ABILITY BONUS</span>
+              <input
+                v-model="sub.asiText"
+                placeholder="e.g. CHA +1 or +1 Charisma"
+                class="mt-1 w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </label>
             <RichTextEditor v-model="sub.description" placeholder="Subrace description…" />
             <TraitSection v-model="sub.traits" label="Subrace Trait" />
           </div>
@@ -162,7 +170,7 @@ import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import TraitSection from "@/components/npcs/TraitSection.vue";
-import type { Species, SpeciesSize, SpeciesSubrace } from "@/types/species.types";
+import type { Species, SpeciesSize } from "@/types/species.types";
 
 const props = defineProps<{ species?: Species | null }>();
 
@@ -201,9 +209,12 @@ function makeForm(s?: Species | null) {
     tags: [...(s?.tags ?? [])],
     source: s?.source ?? "",
     subraces: (s?.subraces ?? []).map((sr) => ({
-      ...sr,
+      name: sr.name,
+      description: sr.description,
       traits: sr.traits.map((t) => ({ ...t })),
-    })) as SpeciesSubrace[],
+      ability_score_increases: sr.ability_score_increases ?? null,
+      asiText: asiToString(sr.ability_score_increases ?? null),
+    })),
     image_url: s?.image_url ?? "",
     focal_point: s?.focal_point ?? null,
     is_shapeshifter: s?.is_shapeshifter ?? false,
@@ -226,7 +237,7 @@ function setSpeed(type: typeof SPEED_TYPES[number], raw: string) {
 }
 
 function addSubrace() {
-  form.subraces.push({ name: "", description: "", traits: [] });
+  form.subraces.push({ name: "", description: "", traits: [], ability_score_increases: null, asiText: "" });
 }
 
 function removeSubrace(i: number) {
@@ -250,7 +261,16 @@ async function save() {
       languages: form.languages,
       tags: form.tags,
       source: form.source.trim() || null,
-      subraces: form.subraces.length ? form.subraces : null,
+      subraces: form.subraces.length
+        ? form.subraces.map((sr) => ({
+            name: sr.name,
+            description: sr.description,
+            traits: sr.traits,
+            ability_score_increases: sr.asiText?.trim()
+              ? { description: sr.asiText.trim() }
+              : null,
+          }))
+        : null,
       image_url: form.image_url || null,
       focal_point: form.focal_point,
       is_shapeshifter: form.is_shapeshifter,

@@ -17,6 +17,7 @@ export interface SpeciesSubrace {
   name: string;
   description: string;
   traits: SpeciesTrait[];
+  ability_score_increases?: Record<string, number | string> | null;
 }
 
 export interface Species {

@@ -154,7 +154,7 @@
     <div class="flex items-center justify-end gap-3 pt-2 border-t border-border">
       <button type="button" class="px-4 py-2 font-cinzel text-xs font-semibold text-muted-foreground border border-border rounded-md hover:text-foreground transition-colors" @click="router.push(backRoute)">Cancel</button>
       <button type="button" :disabled="!f.name.trim() || saving"
-        class="px-4 py-2 font-cinzel text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50" @click="save">
+        class="px-4 py-2 font-cinzel text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50" @click="save()">
         {{ saving ? "Saving…" : "Save Changes" }}
       </button>
     </div>

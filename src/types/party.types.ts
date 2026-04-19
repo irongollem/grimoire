@@ -156,6 +156,7 @@ export interface ConcentrationState {
 }
 
 export type PartyMemberInsert = Omit<PartyMember, "id" | "user_id" | "owner_user_id" | "is_dm_managed" | "created_at" | "updated_at" | "level_choices"> & {
+  owner_user_id?: string | null;
   level_choices?: LevelChoices;
 };
 export type PartyMemberUpdate = Partial<PartyMemberInsert>;

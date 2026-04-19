@@ -24,15 +24,15 @@ export const EDIT_TABS = [
 ] as const;
 
 export const WIZARD_STEPS = [
-  { id: "identity",   label: "Identity" },
-  { id: "species",    label: "Species" },
-  { id: "class",      label: "Class" },
-  { id: "background", label: "Background" },
+  { id: "basics",     label: "Basics" },
   { id: "abilities",  label: "Abilities" },
-  { id: "combat",     label: "Combat" },
-  { id: "profs",      label: "Profs" },
-  { id: "review",     label: "Review" },
+  { id: "background", label: "Background" },
+  { id: "class",      label: "Class" },
+  { id: "done",       label: "Done" },
 ] as const;
+
+export type AsiMode = "standard" | "custom";
+export type AbilityKey = "str" | "dex" | "con" | "int" | "wis" | "cha";
 
 export const ABILITY_STATS = [
   { key: "str" as const, label: "STR" },
@@ -116,6 +116,36 @@ export function useCharacterCreationForm() {
     if (!f.class) return [];
     return (allSubclasses.value ?? []).filter(sc => sc.class_name === f.class).map(sc => sc.subclass_name).sort();
   });
+
+  // ── ASI mode (new chars only) ─────────────────────────────────────────────────
+  const asiMode   = ref<AsiMode>("standard");
+  const customAsi = reactive<Record<AbilityKey, number>>({ str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 });
+  const customAsiTotal = computed(() => (Object.values(customAsi) as number[]).reduce((s, v) => s + v, 0));
+
+  function adjustCustomAsi(key: AbilityKey, delta: 1 | -1) {
+    const next = (customAsi[key] ?? 0) + delta;
+    if (next < 0 || next > 2) return;
+    if (delta === 1 && customAsiTotal.value >= 3) return;
+    customAsi[key] = next;
+  }
+
+  // ── Selected class / subrace (for HP / spell-slot / ASI derivation) ─────────
+  const selectedClass   = computed(() => mergedClasses.value.find(c => c.class_name === f.class) ?? null);
+  const selectedBg      = computed(() => (allBackgrounds.value ?? []).find(b => b.id === f.background_id) ?? null);
+  const selectedSubrace = computed(() =>
+    (f.subrace && selectedSpecies.value?.subraces)
+      ? (selectedSpecies.value.subraces.find(sr => sr.name === f.subrace) ?? null)
+      : null,
+  );
+
+  // Derived stats (preview in Done step; applied on save for new chars)
+  const derivedHp       = computed(() => {
+    const cls = selectedClass.value;
+    return cls ? Math.max(1, cls.hit_die + mod(f.con)) : null;
+  });
+  const derivedAc       = computed(() => 10 + mod(f.dex));
+  const derivedSpeed    = computed(() => selectedSpecies.value?.speed?.walk ?? 30);
+  const derivedInitiative = computed(() => mod(f.dex));
 
   const isEditMode = computed(() => route.name === "play-character-edit");
   const { data: partyMembers }    = useParty();
@@ -319,30 +349,61 @@ export function useCharacterCreationForm() {
 
   // ── Save ──────────────────────────────────────────────────────────────────────
 
-  async function save() {
+  async function save(levelUp = false) {
     if (!f.name.trim() || saving.value) return;
     saving.value = true;
 
-    if (!isEditMode.value && selectedSpecies.value?.ability_score_increases) {
-      const abilityKeyMap: Record<string, keyof typeof f> = {
+    const isNew = !isEditMode.value;
+
+    if (isNew) {
+      // ── Apply species ASI (standard = auto-apply structured bonuses; custom = distribute freely) ─
+      const abilityKeyMap: Record<string, AbilityKey> = {
         strength: "str", dexterity: "dex", constitution: "con",
         intelligence: "int", wisdom: "wis", charisma: "cha",
         str: "str", dex: "dex", con: "con", int: "int", wis: "wis", cha: "cha",
       };
-      for (const [key, val] of Object.entries(selectedSpecies.value.ability_score_increases)) {
-        const fKey = abilityKeyMap[key.toLowerCase()];
-        if (fKey) (f as unknown as Record<string, number>)[fKey as string] = Math.min(20, (f[fKey] as number) + (val as number));
+      function applyStructuredAsi(asi: Record<string, number | string>) {
+        if ("description" in asi) return; // free-text — player set scores manually
+        for (const [key, val] of Object.entries(asi)) {
+          const fKey = abilityKeyMap[key.toLowerCase()];
+          if (fKey && typeof val === "number") f[fKey] = Math.min(20, f[fKey] + val);
+        }
       }
+      if (asiMode.value === "standard") {
+        if (selectedSpecies.value?.ability_score_increases)
+          applyStructuredAsi(selectedSpecies.value.ability_score_increases);
+        if (selectedSubrace.value?.ability_score_increases)
+          applyStructuredAsi(selectedSubrace.value.ability_score_increases);
+      } else if (asiMode.value === "custom") {
+        // Custom replaces ALL racial ASIs — player distributes freely
+        for (const [key, val] of Object.entries(customAsi) as [AbilityKey, number][]) {
+          if (val > 0) f[key] = Math.min(20, f[key] + val);
+        }
+      }
+
+      // ── Derive all stats from class / species sources — no magic numbers ───
+      f.level = 1;
+      f.proficiency_bonus = 2;
+
+      const cls = selectedClass.value;
+      const hp  = cls ? Math.max(1, cls.hit_die + Math.floor((f.con - 10) / 2)) : 8;
+      f.max_hp     = hp;
+      f.current_hp = hp;
+      f.ac         = 10 + Math.floor((f.dex - 10) / 2);       // unarmored default
+      f.speed      = selectedSpecies.value?.speed?.walk ?? 30;
+      f.initiative_bonus  = Math.floor((f.dex - 10) / 2);
+      f.hit_dice_remaining = 1;
     }
 
-    const spellSlots: SpellSlotEntry[] = spellSlotMaxes
-      .map((max, i) => {
-        const existing = existingMember.value?.spell_slots?.find((s) => s.level === i + 1);
-        return { level: i + 1, max, used: max > 0 ? (existing?.used ?? 0) : 0 };
-      })
-      .filter((s) => s.max > 0);
+    // ── Spell slots from class table ────────────────────────────────────────
+    const slotLevel = isNew ? 1 : f.level;
+    const spellSlots: SpellSlotEntry[] = getDefaultSpellSlots(f.class || null, slotLevel)
+      .map((s) => ({
+        ...s,
+        used: existingMember.value?.spell_slots?.find((e) => e.level === s.level)?.used ?? 0,
+      }));
 
-    const payload = {
+    const basePayload = {
       ...f,
       name:        f.name.trim(),
       player_name: f.player_name || auth.membership?.display_name || null,
@@ -362,76 +423,61 @@ export function useCharacterCreationForm() {
       physical_description: f.physical_description || null,
       portrait_url:         portraitUrl.value || null,
       portrait_focal_point: focalPoint.value,
-      proficiency_bonus:    profBonus.value,
       spell_slots:          spellSlots,
-      current_hp:           f.max_hp,
-      // Hit dice pool — starts at 1 per level so level-ups can decrement correctly
-      // and the rest dialog doesn't have to guess.
-      hit_dice_remaining:   f.level,
     };
 
-    if (isEditMode.value && existingMember.value) {
-      const { campaign_id: _cid, ...updatePayload } = payload;
-      await update({ id: existingMember.value.id, update: updatePayload });
-      saving.value = false;
-      router.push(backRoute);
-    } else {
-      const created = await create(payload);
-      const myMembership = (campaignMembers.value ?? []).find((cm) => cm.user_id === auth.user?.id);
-      if (myMembership) {
-        await updateCampaignMember({ id: myMembership.id, update: { party_member_id: created.id } });
-      }
-      // Seed the primary character_classes row. Characters above level 1
-      // immediately route to the level-up wizard, which increments from 1
-      // per-class-level for each remaining level.
-      if (f.class) {
-        await addCharacterClass({
-          party_member_id: created.id,
-          class_name:      f.class,
-          subclass_name:   f.subclass || null,
-          levels:          1,
-          is_primary:      true,
-          hit_dice_used:   0,
-          sort_order:      0,
-        });
-      }
+    try {
+      if (!isNew && existingMember.value) {
+        // ── Edit flow ─────────────────────────────────────────────────────────
+        const { campaign_id: _cid, owner_user_id: _owner, ...updatePayload } = basePayload;
+        await update({ id: existingMember.value.id, update: updatePayload });
+        router.push("/play/champions");
+      } else {
+        // ── Create flow ───────────────────────────────────────────────────────
+        const created = await create({ ...basePayload, owner_user_id: auth.user?.id ?? null });
 
-      // Seed inventory from the chosen background's free-text equipment.
-      // Each comma- (or "and"-) separated entry becomes a freeform inventory
-      // row carried by the new character. Quantities embedded in entries
-      // (e.g. "10 gp", "two daggers") are kept verbatim — refining is the
-      // player's job in /play/inventory.
-      if (importBackgroundEquipment.value && f.background_id) {
-        const bg = (allBackgrounds.value ?? []).find((b) => b.id === f.background_id);
-        const entries = parseEquipmentList(bg?.equipment ?? "");
-        for (const entry of entries) {
-          await addInventoryItem({
-            item_id: null,
-            name: entry,
-            quantity: 1,
-            carried_by: created.id,
-            location: "backpack",
-            slot: null,
-            is_container: false,
-            container_id: null,
-            is_attuned: false,
-            is_equipped: false,
-            notes: null,
-            current_charges: null,
-            is_identified: true,
-            is_ruined: false,
-            sort_order: 0,
+        // Link as active character for this player
+        const myMembership = (campaignMembers.value ?? []).find((cm) => cm.user_id === auth.user?.id);
+        if (myMembership) {
+          await updateCampaignMember({ id: myMembership.id, update: { party_member_id: created.id } });
+        }
+
+        // Seed level 1 character_classes row
+        if (f.class) {
+          await addCharacterClass({
+            party_member_id: created.id,
+            class_name:      f.class,
+            subclass_name:   null,          // subclass comes from LevelUpWizard
+            levels:          1,
+            is_primary:      true,
+            hit_dice_used:   0,
+            sort_order:      0,
           });
         }
-      }
 
-      await auth.refreshMembership();
-      saving.value = false;
-      if (f.level > 1) {
-        router.push(`/play/character/levelup?targetLevel=${f.level}`);
-      } else {
-        router.push(backRoute);
+        // Seed background starting equipment as inventory rows
+        if (importBackgroundEquipment.value && f.background_id) {
+          const bg = (allBackgrounds.value ?? []).find((b) => b.id === f.background_id);
+          for (const entry of parseEquipmentList(bg?.equipment ?? "")) {
+            await addInventoryItem({
+              item_id: null, name: entry, quantity: 1,
+              carried_by: created.id, location: "backpack",
+              slot: null, is_container: false, container_id: null,
+              is_attuned: false, is_equipped: false, notes: null,
+              current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
+            });
+          }
+        }
+
+        await auth.refreshMembership();
+        if (levelUp) {
+          router.push(`/play/character/levelup?targetLevel=2&memberId=${created.id}`);
+        } else {
+          router.push("/play/champions");
+        }
       }
+    } finally {
+      saving.value = false;
     }
   }
 
@@ -458,12 +504,16 @@ export function useCharacterCreationForm() {
     f, activeTab, wizardStep, saving, scoreMode,
     portraitUrl, focalPoint, spellSlotMaxes,
     importBackgroundEquipment,
+    // ASI (new chars)
+    asiMode, customAsi, customAsiTotal, adjustCustomAsi,
     // computed
     isEditMode, existingMember, backRoute,
     allSpecies, allBackgrounds,
     speciesOptions, backgroundOptions, selectedSpecies, subraceOptions,
+    selectedClass, selectedBg, selectedSubrace,
     mergedClasses, allClassNames, subclassOptions,
     pointsRemaining, suggestedHp, profBonus,
+    derivedHp, derivedAc, derivedSpeed, derivedInitiative,
     passivePerception, passiveInsight, passiveInvestigation,
     // methods
     mod, setSkillProf, skillBonus, toggleSave, saveBonus,

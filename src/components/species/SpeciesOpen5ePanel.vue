@@ -213,16 +213,17 @@ function parseSpeed(raw: string | Record<string, number> | undefined): Record<st
 
 function parseLanguages(raw: string | undefined): string[] {
   if (!raw) return [];
-  // Strip leading markdown header e.g. "**_Languages._** "
-  const cleaned = raw.replace(/^\*\*_[^_]+\._\*\*\s*/i, "");
+  // Strip leading markdown bold/italic header — handles both "***Languages.***" and "**_Languages._**"
+  const cleaned = raw.replace(/^\*+_?[^*\n]+_?\.?\*+\s*/i, "");
   // Take only the first sentence (the one listing the language names)
   const firstSentence = cleaned.split(".")[0];
   // Strip "You can speak, read, and write " / "You speak " preamble
   const stripped = firstSentence.replace(/^you (?:can )?(?:speak(?:,? read(?:,? and write)?)?\s+)/i, "");
+  // Drop entries that are still clearly descriptive phrases (e.g. "your choice of Common or Undercommon")
   return stripped
     .split(/,\s*|\s+and\s+/)
     .map((l) => l.trim())
-    .filter(Boolean);
+    .filter((l) => Boolean(l) && !/^your choice/i.test(l));
 }
 
 function parseTags(race: Open5eRace): string[] {
@@ -331,7 +332,7 @@ async function buildAndCreate(race: Open5eRace) {
     size: parseSize(race.size_raw ?? race.size),
     speed: parseSpeed(race.speed),
     ability_score_increases: parseAsi(race.asi),
-    traits: parseTraits(race.traits),
+    traits: parseTraits([race.vision, race.traits].filter(Boolean).join("\n\n")),
     languages: parseLanguages(race.languages),
     tags: parseTags(race),
     source: race.document__title ?? null,
@@ -340,6 +341,7 @@ async function buildAndCreate(race: Open5eRace) {
           name: sr.name,
           description: sr.desc ?? "",
           traits: parseTraits(sr.traits),
+          ability_score_increases: parseAsi(sr.asi) ?? null,
         }))
       : null,
     image_url: null,

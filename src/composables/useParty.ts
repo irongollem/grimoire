@@ -123,12 +123,21 @@ export function useDeletePartyMember() {
 
 const MY_CHARS_KEY = "my-characters";
 
-async function fetchMyCharacters(campaignId: string, userId: string): Promise<PartyMember[]> {
+async function fetchMyCharacters(
+  campaignId: string,
+  userId: string,
+  linkedMemberId: string | null,
+): Promise<PartyMember[]> {
+  // Include: chars owned by this user (new chars) AND the currently-linked char
+  // (handles pre-ownership-migration chars whose owner_user_id is still null).
+  const orParts = [`owner_user_id.eq.${userId}`];
+  if (linkedMemberId) orParts.push(`id.eq.${linkedMemberId}`);
+
   const { data, error } = await supabase
     .from("party_members")
     .select("*")
     .eq("campaign_id", campaignId)
-    .eq("owner_user_id", userId)
+    .or(orParts.join(","))
     .order("created_at", { ascending: true });
   if (error) throw error;
   return data as PartyMember[];
@@ -138,11 +147,12 @@ async function fetchMyCharacters(campaignId: string, userId: string): Promise<Pa
 export function useMyCharacters() {
   const campaign = useCampaignStore();
   const auth = useAuthStore();
-  const campaignId = computed(() => campaign.activeCampaignId);
-  const userId = computed(() => auth.user?.id);
+  const campaignId  = computed(() => campaign.activeCampaignId);
+  const userId      = computed(() => auth.user?.id);
+  const linkedId    = computed(() => auth.linkedPartyMemberId);
   return useQuery({
-    queryKey: computed(() => [MY_CHARS_KEY, campaignId.value, userId.value]),
-    queryFn: () => fetchMyCharacters(campaignId.value!, userId.value!),
+    queryKey: computed(() => [MY_CHARS_KEY, campaignId.value, userId.value, linkedId.value]),
+    queryFn: () => fetchMyCharacters(campaignId.value!, userId.value!, linkedId.value),
     enabled: () => !!campaignId.value && !!userId.value,
   });
 }
