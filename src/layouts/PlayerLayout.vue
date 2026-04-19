@@ -11,7 +11,7 @@
 
       <div class="flex-1" />
 
-      <span v-if="characterName" class="font-cinzel text-xs text-foreground hidden sm:inline">
+      <span v-if="characterName && route.path !== '/play'" class="font-cinzel text-xs text-foreground hidden sm:inline">
         {{ characterName }}
       </span>
 

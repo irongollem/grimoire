@@ -55,6 +55,8 @@ export interface RollResult {
   isCrit: boolean;
   isFumble: boolean;
   manual?: boolean;
+  /** True for spell/weapon damage rolls — suppresses d20-centric display in chat. */
+  isDamage?: boolean;
 }
 
 export const ALL_DICE: DieSize[] = [4, 6, 8, 10, 12, 20, 100];

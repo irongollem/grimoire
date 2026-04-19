@@ -41,25 +41,34 @@
             >
               {{ (msg.metadata as RollMetadata).total }}
             </span>
-            <span class="font-fell text-sm text-muted-foreground">
-              <template v-if="getDice(msg.metadata as RollMetadata) !== null">
-                d20 ({{ getDice(msg.metadata as RollMetadata) }})
-              </template>
-              <template v-if="(msg.metadata as RollMetadata).modifier !== 0">
-                {{ (msg.metadata as RollMetadata).modifier >= 0 ? "+" : ""
-                }}{{ (msg.metadata as RollMetadata).modifier }}
-              </template>
-            </span>
-            <span
-              v-if="(msg.metadata as RollMetadata).isCrit"
-              class="font-cinzel text-[10px] text-gold-500 tracking-wider"
-              >NAT 20!</span
-            >
-            <span
-              v-else-if="(msg.metadata as RollMetadata).isFumble"
-              class="font-cinzel text-[10px] text-destructive tracking-wider"
-              >NAT 1</span
-            >
+            <!-- Damage roll: show individual die values -->
+            <template v-if="(msg.metadata as RollMetadata).isDamage">
+              <span class="font-fell text-sm text-muted-foreground">
+                [{{ (msg.metadata as RollMetadata).breakdown.filter(d => !d.dropped).map(d => d.val).join("+") }}]
+              </span>
+            </template>
+            <!-- d20 check: show d20 value + modifier + crit/fumble -->
+            <template v-else>
+              <span class="font-fell text-sm text-muted-foreground">
+                <template v-if="getDice(msg.metadata as RollMetadata) !== null">
+                  d20 ({{ getDice(msg.metadata as RollMetadata) }})
+                </template>
+                <template v-if="(msg.metadata as RollMetadata).modifier !== 0">
+                  {{ (msg.metadata as RollMetadata).modifier >= 0 ? "+" : ""
+                  }}{{ (msg.metadata as RollMetadata).modifier }}
+                </template>
+              </span>
+              <span
+                v-if="(msg.metadata as RollMetadata).isCrit"
+                class="font-cinzel text-[10px] text-gold-500 tracking-wider"
+                >NAT 20!</span
+              >
+              <span
+                v-else-if="(msg.metadata as RollMetadata).isFumble"
+                class="font-cinzel text-[10px] text-destructive tracking-wider"
+                >NAT 1</span
+              >
+            </template>
             <span
               v-if="(msg.metadata as RollMetadata).manual"
               class="font-cinzel text-[10px] text-muted-foreground tracking-wider"

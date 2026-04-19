@@ -1,5 +1,5 @@
 <template>
-  <div class="rounded-lg border border-border bg-card overflow-hidden flex flex-col">
+  <div class="rounded-lg border border-border bg-card overflow-hidden flex flex-col md:rounded-none md:border-0">
     <div class="flex items-stretch flex-1">
       <!-- Portrait (beast image when wildshaped) -->
       <div class="shrink-0 w-24 relative overflow-hidden bg-muted/50">
@@ -18,7 +18,7 @@
 
       <!-- Right column -->
       <div class="flex-1 min-w-0 flex flex-col">
-        <!-- Name row + icon controls -->
+        <!-- Name + inspiration -->
         <div class="flex items-start gap-2 px-3 pt-3 pb-1">
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-1.5">
@@ -38,7 +38,7 @@
               <template v-else>{{ [speciesName, member.subrace, classLabel].filter(Boolean).join(" · ") }}</template>
               <span v-if="!wildshape && memberTotalLevel" class="font-cinzel text-[10px] text-primary not-italic ml-1">Lv {{ memberTotalLevel }}</span>
             </p>
-            <!-- XP progress (only when not wildshaped and the campaign actually tracks XP) -->
+            <!-- XP progress -->
             <div v-if="!wildshape && ((member.experience_points ?? 0) > 0 || readyToLevelUp)" class="mt-1 flex items-center gap-1.5">
               <span class="font-cinzel text-[9px] text-muted-foreground tracking-wider">XP</span>
               <div class="flex-1 max-w-32 h-1 rounded-full bg-muted overflow-hidden">
@@ -56,36 +56,21 @@
               >Ready ↑</RouterLink>
             </div>
           </div>
-          <div v-if="!hidePlayerActions && !wildshape" class="shrink-0 flex items-center gap-1 pt-0.5">
-            <RouterLink
-              :to="`/play/character/levelup?memberId=${member.id}`"
-              class="h-6 w-6 flex items-center justify-center rounded text-primary/60 hover:text-primary hover:bg-primary/10 transition-colors"
-              title="Level Up"
-            ><TrendingUp class="h-3.5 w-3.5" /></RouterLink>
-            <RouterLink
-              :to="`/play/character/edit?memberId=${member.id}`"
-              class="h-6 w-6 flex items-center justify-center rounded text-muted-foreground/60 hover:text-foreground hover:bg-muted/50 transition-colors"
-              title="Edit Character"
-            ><Settings class="h-3.5 w-3.5" /></RouterLink>
-          </div>
         </div>
 
-        <!-- HP controls row -->
-        <div class="flex items-center gap-1 px-3 pb-1">
-          <input
-            v-model.number="hpInput"
-            type="number"
-            min="0"
-            placeholder="0"
-            class="w-10 h-6 rounded border border-border bg-muted/40 px-1 font-cinzel text-xs text-center focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-          <button class="h-6 px-1.5 rounded bg-destructive/15 border border-destructive/40 font-cinzel text-[9px] text-destructive hover:bg-destructive/25 transition-colors tracking-wider" @click="applyDamage">DMG</button>
-          <button class="h-6 px-1.5 rounded bg-elven-green/10 border border-elven-green/40 font-cinzel text-[9px] text-elven-green hover:bg-elven-green/20 transition-colors tracking-wider" @click="applyHeal">Heal</button>
-          <button v-if="!wildshape" class="h-6 px-1.5 rounded bg-blue-500/10 border border-blue-500/30 font-cinzel text-[9px] text-blue-400 hover:bg-blue-500/20 transition-colors tracking-wider" @click="applyTempHp">Tmp</button>
+        <!-- Combat stats: AC · SPD · INIT · PROF · HD (static reference, grouped with identity) -->
+        <div class="flex items-center flex-wrap gap-y-0.5 px-3 pb-2">
+          <template v-for="(cs, csIdx) in combatStats" :key="cs.label">
+            <div class="flex items-baseline gap-0.5">
+              <span class="font-cinzel text-[9px] text-muted-foreground tracking-wider">{{ cs.label }}</span>
+              <span class="font-cinzel text-xs font-bold text-foreground ml-0.5">{{ cs.value }}<span v-if="cs.suffix" class="text-[9px] text-muted-foreground">{{ cs.suffix }}</span></span>
+            </div>
+            <span v-if="csIdx < combatStats.length - 1" class="text-border mx-1 select-none">·</span>
+          </template>
         </div>
 
-        <!-- HP readout -->
-        <div class="flex items-baseline gap-1.5 px-3 flex-wrap">
+        <!-- HP readout (current state — shown before controls) -->
+        <div class="flex items-baseline gap-1.5 px-3 pt-1 flex-wrap">
           <span class="font-cinzel text-2xl font-bold" :class="hpColor">{{ displayHp }}</span>
           <span class="font-fell text-sm text-muted-foreground">/ {{ displayMaxHp }}</span>
           <span v-if="!wildshape && member.temp_hp" class="font-cinzel text-[10px] text-blue-400 ml-1">+{{ member.temp_hp }} tmp</span>
@@ -102,63 +87,69 @@
           </button>
         </div>
 
-        <!-- AC / SPD / INIT / PROF + condition picker -->
-        <div class="flex items-center gap-1 px-3 pt-2 pb-3 mt-auto">
-          <div v-for="cs in combatStats" :key="cs.label" class="flex items-baseline gap-0.5">
-            <span class="font-cinzel text-[9px] text-muted-foreground tracking-wider">{{ cs.label }}</span>
-            <span class="font-cinzel text-xs font-bold text-foreground ml-0.5">{{ cs.value }}<span v-if="cs.suffix" class="text-[9px] text-muted-foreground">{{ cs.suffix }}</span></span>
-            <span class="text-border mx-1 select-none">·</span>
-          </div>
-          <div class="ml-auto flex items-center gap-1">
-            <RestButtons :member="member" />
-            <!-- Add condition picker -->
-            <button
-              ref="conditionPickerBtn"
-              class="h-6 w-6 flex items-center justify-center rounded-full border border-dashed border-muted-foreground/40 text-muted-foreground/50 hover:border-amber-500/60 hover:text-amber-500 transition-colors text-base leading-none"
-              title="Add condition"
-              @click="openConditionPicker"
-            >+</button>
+        <!-- HP controls (directly below the readout) -->
+        <div class="flex items-center gap-1 px-3 pt-1.5 pb-1">
+          <input
+            v-model.number="hpInput"
+            type="number"
+            min="0"
+            placeholder="0"
+            class="w-10 h-6 rounded border border-border bg-muted/40 px-1 font-cinzel text-xs text-center focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+          <button class="h-6 px-1.5 rounded bg-destructive/15 border border-destructive/40 font-cinzel text-[9px] text-destructive hover:bg-destructive/25 transition-colors tracking-wider" @click="applyDamage">DMG</button>
+          <button class="h-6 px-1.5 rounded bg-elven-green/10 border border-elven-green/40 font-cinzel text-[9px] text-elven-green hover:bg-elven-green/20 transition-colors tracking-wider" @click="applyHeal">Heal</button>
+          <button v-if="!wildshape" class="h-6 px-1.5 rounded bg-blue-500/10 border border-blue-500/30 font-cinzel text-[9px] text-blue-400 hover:bg-blue-500/20 transition-colors tracking-wider" @click="applyTempHp">Tmp</button>
+        </div>
 
-            <Teleport to="body">
-              <template v-if="showConditionPicker">
-                <div class="fixed inset-0 z-40" @click="showConditionPicker = false" />
-                <div
-                  class="fixed z-50 w-52 rounded-lg border border-border bg-card shadow-xl overflow-hidden"
-                  :style="{ top: pickerPos.top + 'px', right: pickerPos.right + 'px' }"
-                >
-                  <div class="p-2 border-b border-border">
-                    <input
-                      ref="conditionSearchInput"
-                      v-model="conditionSearch"
-                      type="text"
-                      placeholder="Search conditions…"
-                      class="w-full rounded border border-border bg-muted/40 px-2 py-1 font-fell text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-                      @keydown.escape="showConditionPicker = false"
-                    />
-                  </div>
-                  <div class="max-h-56 overflow-y-auto">
-                    <button
-                      v-for="cond in filteredConditions"
-                      :key="cond"
-                      class="w-full text-left px-3 py-1.5 font-cinzel text-[11px] tracking-wider transition-colors"
-                      :class="hasCondition(cond)
-                        ? 'text-destructive/40 cursor-default'
-                        : 'text-foreground hover:bg-amber-500/10 hover:text-amber-500'"
-                      :disabled="hasCondition(cond)"
-                      :title="getConditionDescription(cond)"
-                      @click="addCondition(cond)"
-                    >{{ cond }}</button>
-                  </div>
+        <!-- Rest + condition picker (management actions, pinned to bottom) -->
+        <div class="flex items-center gap-1 px-3 pb-3 mt-auto">
+          <RestButtons :member="member" />
+          <button
+            ref="conditionPickerBtn"
+            class="h-6 w-6 flex items-center justify-center rounded-full border border-dashed border-muted-foreground/40 text-muted-foreground/50 hover:border-amber-500/60 hover:text-amber-500 transition-colors text-base leading-none"
+            title="Add condition"
+            @click="openConditionPicker"
+          >+</button>
+
+          <Teleport to="body">
+            <template v-if="showConditionPicker">
+              <div class="fixed inset-0 z-40" @click="showConditionPicker = false" />
+              <div
+                class="fixed z-50 w-52 rounded-lg border border-border bg-card shadow-xl overflow-hidden"
+                :style="{ top: pickerPos.top + 'px', right: pickerPos.right + 'px' }"
+              >
+                <div class="p-2 border-b border-border">
+                  <input
+                    ref="conditionSearchInput"
+                    v-model="conditionSearch"
+                    type="text"
+                    placeholder="Search conditions…"
+                    class="w-full rounded border border-border bg-muted/40 px-2 py-1 font-fell text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                    @keydown.escape="showConditionPicker = false"
+                  />
                 </div>
-              </template>
-            </Teleport>
-          </div>
+                <div class="max-h-56 overflow-y-auto">
+                  <button
+                    v-for="cond in filteredConditions"
+                    :key="cond"
+                    class="w-full text-left px-3 py-1.5 font-cinzel text-[11px] tracking-wider transition-colors"
+                    :class="hasCondition(cond)
+                      ? 'text-destructive/40 cursor-default'
+                      : 'text-foreground hover:bg-amber-500/10 hover:text-amber-500'"
+                    :disabled="hasCondition(cond)"
+                    :title="getConditionDescription(cond)"
+                    @click="addCondition(cond)"
+                  >{{ cond }}</button>
+                </div>
+              </div>
+            </template>
+          </Teleport>
         </div>
       </div>
     </div>
 
-    <!-- HP bar -->
-    <div class="h-1.5 w-full bg-muted overflow-hidden">
+    <!-- HP bar — mobile only; md+ uses the parent wrapper's full-width bar -->
+    <div class="h-1.5 w-full bg-muted overflow-hidden md:hidden">
       <div class="h-full transition-all" :class="hpBarColor" :style="{ width: `${hpPct}%` }" />
     </div>
   </div>
@@ -167,7 +158,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick } from "vue";
 import { RouterLink } from "vue-router";
-import { Star, TrendingUp, Settings } from "lucide-vue-next";
+import { Star } from "lucide-vue-next";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useClassByName } from "@/composables/useCustomClasses";
 import { useCharacterClasses } from "@/composables/useCharacterClasses";

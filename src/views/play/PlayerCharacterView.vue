@@ -21,22 +21,35 @@
 
     <template v-else>
       <!-- ── Always visible ─────────────────────────────────── -->
-      <div class="flex flex-col gap-3 md:flex-row md:items-stretch md:gap-0">
-        <PlayerCharacterHeader
-          :member="member"
-          :wildshape="activeWildshape ?? undefined"
-          :hide-player-actions="hidePlayerActions"
-          class="md:flex-1 md:rounded-r-none md:border-r-0"
-        />
-        <div class="md:w-72 md:shrink-0 md:border md:border-l-0 md:border-border md:bg-card md:rounded-r-lg md:overflow-hidden md:flex md:flex-col md:justify-center md:gap-3 md:px-3 md:py-3">
-          <AbilityScoreTable
-            :scores="effectiveScores"
-            :saves="memberSaves"
-            :rounded="false"
-            @roll-ability="onRollAbility"
-            @roll-save="onRollSave"
+      <!-- Outer wrapper: unified card on tablet+; stacked cards on mobile -->
+      <div class="md:rounded-lg md:border md:border-border md:overflow-hidden">
+        <div class="flex flex-col gap-3 md:flex-row md:items-stretch md:gap-0">
+          <PlayerCharacterHeader
+            :member="member"
+            :wildshape="activeWildshape ?? undefined"
+            :hide-player-actions="hidePlayerActions"
+            class="md:flex-1"
           />
-          <PlayerConditions :member="member" @roll="onChildRoll" />
+          <div class="md:w-72 md:shrink-0 md:border-l md:border-border md:bg-card md:flex md:flex-col">
+            <!-- Ability scores: vertical single-table, flush against card edges -->
+            <AbilityScoreTable
+              :scores="effectiveScores"
+              :saves="memberSaves"
+              :rounded="false"
+              :vertical="true"
+              :borderless="true"
+              @roll-ability="onRollAbility"
+              @roll-save="onRollSave"
+            />
+            <!-- Conditions: separated by a divider, padded -->
+            <div class="border-t border-border/40 px-3 py-2.5">
+              <PlayerConditions :member="member" @roll="onChildRoll" />
+            </div>
+          </div>
+        </div>
+        <!-- Full-width HP bar — tablet+ only (mobile bar lives inside PlayerCharacterHeader) -->
+        <div class="hidden md:block h-1.5 bg-muted overflow-hidden">
+          <div class="h-full transition-all" :class="hpBarColor" :style="{ width: `${hpPct}%` }" />
         </div>
       </div>
 
@@ -561,6 +574,23 @@ const spellSaveDc = computed(() => {
 const spellAttackBonus = computed(() => {
   const dc = spellSaveDc.value;
   return dc !== null ? dc - 8 : null;
+});
+
+// ── HP bar (full-width, spans header + sidebar on tablet+) ────────────────────
+const hpPct = computed(() => {
+  const m = member.value;
+  if (!m) return 0;
+  const hp = activeWildshape.value?.beast_hp ?? m.current_hp;
+  const maxHp = activeWildshape.value?.beast_max_hp ?? m.max_hp;
+  if (maxHp === 0) return 0;
+  return Math.max(0, Math.min(100, (hp / maxHp) * 100));
+});
+const hpBarColor = computed(() => {
+  const p = hpPct.value;
+  if (p <= 0) return "bg-muted-foreground/40";
+  if (p < 33) return "bg-destructive";
+  if (p < 66) return "bg-amber-500";
+  return "bg-elven-green";
 });
 
 // ── Roll toast (shared across all rolling children) ───────────────────────────

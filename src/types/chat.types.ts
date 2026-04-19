@@ -8,6 +8,8 @@ export interface RollMetadata {
   isCrit: boolean;
   isFumble: boolean;
   manual?: boolean;
+  /** True for spell/weapon damage rolls — suppresses d20-centric display in chat. */
+  isDamage?: boolean;
 }
 
 export interface ItemDropClaim {

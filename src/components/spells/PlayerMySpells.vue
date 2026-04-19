@@ -194,6 +194,8 @@ import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useConcentration } from "@/composables/useConcentration";
 import { useUiStore } from "@/stores/ui";
 import { SCHOOL_COLORS } from "@/types/spell.types";
+import { parseExpression, rollDie } from "@/lib/dice";
+import type { DieResult, RollResult } from "@/lib/dice";
 import type { CasterType, CharacterSpellEntry, Spell } from "@/types/spell.types";
 import type { SpellSlotEntry } from "@/types/party.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -224,7 +226,7 @@ const { data: allEntries, isLoading } = useCharacterSpellsWithDetails(
 const { mutate: removeSpell, isPending: isRemoving } = useRemoveCharacterSpell();
 const { mutate: togglePreparedMutation, isPending: isToggling } = useTogglePrepared();
 const { mutateAsync: updateMember } = useUpdatePartyMember();
-const { sendFlavorMessage } = useCampaignMessages();
+const { sendFlavorMessage, sendRoll } = useCampaignMessages();
 const { data: partyList } = useParty();
 const { startConcentration } = useConcentration();
 const thisMember = computed(() =>
@@ -290,27 +292,61 @@ function signedNum(n: number): string {
   return n >= 0 ? `+${n}` : `${n}`;
 }
 
+/** Roll one damage_rolls entry into a RollResult, or null if unparseable. */
+function buildDamageRollResult(spell: Spell, diceExpr: string, damageType: string): RollResult | null {
+  const parsed = parseExpression(diceExpr);
+  if (!parsed) return null;
+
+  const breakdown: DieResult[] = [];
+  let total = 0;
+  for (const term of parsed.terms) {
+    for (let i = 0; i < term.count; i++) {
+      const val = rollDie(term.sides);
+      breakdown.push({ val, dropped: false });
+      total += val;
+    }
+  }
+  total += parsed.modifier;
+
+  const typeLabel = damageType ? ` ${damageType}` : "";
+  let label = `${spell.name} — ${diceExpr}${typeLabel} damage`;
+  if (spell.attack_type === "save" && spell.save_effect === "half") {
+    label += ` (half on ${spell.save_attribute ?? "save"})`;
+  }
+
+  return { total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: true };
+}
+
 async function castSpell(entry: CharacterSpellEntry) {
   if (!props.partyMemberId || isCasting.value) return;
   isCasting.value = true;
   try {
     const level = entry.spell.level;
+    const spell = entry.spell;
 
     // Concentration guard: casting a new concentration spell ends the previous.
-    if (entry.spell.concentration && thisMember.value) {
-      const ok = await startConcentration(thisMember.value, entry.spell, { castAtLevel: level });
+    if (spell.concentration && thisMember.value) {
+      const ok = await startConcentration(thisMember.value, spell, { castAtLevel: level });
       if (!ok) return;
     }
 
     // Build flavor text
-    let text = `${props.memberName} casts ${entry.spell.name}`;
+    let text = `${props.memberName} casts ${spell.name}`;
     if (level > 0 && props.spellAttackBonus !== null
-      && (entry.spell.attack_type === "ranged_spell" || entry.spell.attack_type === "melee_spell")) {
+      && (spell.attack_type === "ranged_spell" || spell.attack_type === "melee_spell")) {
       text += ` (Atk ${signedNum(props.spellAttackBonus)})`;
-    } else if (level > 0 && props.spellSaveDc !== null && entry.spell.attack_type === "save") {
-      text += ` (DC ${props.spellSaveDc} ${entry.spell.save_attribute ?? ""})`;
+    } else if (level > 0 && props.spellSaveDc !== null && spell.attack_type === "save") {
+      text += ` (DC ${props.spellSaveDc} ${spell.save_attribute ?? ""})`;
     }
     await sendFlavorMessage(text, "spell");
+
+    // Auto-roll damage for each damage_rolls entry
+    if (spell.damage_rolls?.length) {
+      for (const dmg of spell.damage_rolls) {
+        const result = buildDamageRollResult(spell, dmg.dice, dmg.type);
+        if (result) await sendRoll(result);
+      }
+    }
 
     // Spend slot
     if (level > 0) {
