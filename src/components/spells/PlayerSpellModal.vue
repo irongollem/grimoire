@@ -3,20 +3,33 @@
     <Transition name="spell-modal">
       <div
         v-if="spell"
-        class="fixed inset-0 z-[200] flex items-end sm:items-center justify-center sm:p-4"
+        class="fixed inset-0 z-200 flex items-end sm:items-center justify-center sm:p-4"
         role="dialog"
         aria-modal="true"
       >
         <!-- Backdrop -->
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="$emit('close')" />
+        <div
+          class="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          @click="$emit('close')"
+        />
 
         <!-- Panel -->
-        <div class="relative w-full sm:max-w-2xl sm:rounded-xl rounded-t-xl border border-border bg-background shadow-2xl flex flex-col max-h-[90dvh]">
+        <div
+          class="relative w-full sm:max-w-2xl sm:rounded-xl rounded-t-xl border border-border bg-background shadow-2xl flex flex-col max-h-[90dvh]"
+        >
           <!-- Header -->
-          <div class="flex items-center justify-between px-5 py-3.5 border-b border-border shrink-0">
+          <div
+            class="flex items-center justify-between px-5 py-3.5 border-b border-border shrink-0"
+          >
             <div class="min-w-0">
-              <h2 class="font-cinzel text-base font-bold text-foreground truncate">{{ spell.name }}</h2>
-              <p class="font-fell text-xs text-muted-foreground italic capitalize">
+              <h2
+                class="font-cinzel text-base font-bold text-foreground truncate"
+              >
+                {{ spell.name }}
+              </h2>
+              <p
+                class="font-fell text-xs text-muted-foreground italic capitalize"
+              >
                 {{ spellSubtitle }}
               </p>
             </div>
@@ -51,7 +64,12 @@ defineEmits<{ close: [] }>();
 const spellSubtitle = computed(() => {
   const s = props.spell;
   if (!s) return "";
-  return [spellLevelLabel(s.level), s.school, s.ritual ? "Ritual" : null, s.concentration ? "Concentration" : null]
+  return [
+    spellLevelLabel(s.level),
+    s.school,
+    s.ritual ? "Ritual" : null,
+    s.concentration ? "Concentration" : null,
+  ]
     .filter(Boolean)
     .join(" · ");
 });
@@ -64,7 +82,9 @@ const spellSubtitle = computed(() => {
 }
 .spell-modal-enter-active .relative,
 .spell-modal-leave-active .relative {
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
 }
 .spell-modal-enter-from,
 .spell-modal-leave-to {

@@ -7,7 +7,7 @@
   <Teleport to="body">
     <div
       v-if="lightboxSrc"
-      class="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 p-4 cursor-zoom-out"
+      class="fixed inset-0 z-200 flex items-center justify-center bg-black/80 p-4 cursor-zoom-out"
       @click="lightboxSrc = null"
     >
       <img
@@ -65,7 +65,10 @@ const editor = useEditor({
   editable: false,
   extensions: [
     StarterKit.configure({
-      link: { openOnClick: true, HTMLAttributes: { target: "_blank", rel: "noopener noreferrer" } },
+      link: {
+        openOnClick: true,
+        HTMLAttributes: { target: "_blank", rel: "noopener noreferrer" },
+      },
     }),
     Table,
     TableRow,
@@ -166,10 +169,14 @@ function onContentClick(e: MouseEvent) {
 .rte-content :deep(.ProseMirror li[data-type="taskItem"] > label) {
   @apply flex items-center pt-0.5 shrink-0;
 }
-.rte-content :deep(.ProseMirror li[data-type="taskItem"] > label > input[type="checkbox"]) {
+.rte-content
+  :deep(
+    .ProseMirror li[data-type="taskItem"] > label > input[type="checkbox"]
+  ) {
   @apply w-3.5 h-3.5 accent-primary cursor-pointer;
 }
-.rte-content :deep(.ProseMirror li[data-type="taskItem"][data-checked="true"] > div) {
+.rte-content
+  :deep(.ProseMirror li[data-type="taskItem"][data-checked="true"] > div) {
   @apply line-through text-muted-foreground;
 }
 .rte-content :deep(.ProseMirror [data-type="columns"]) {
