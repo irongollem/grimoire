@@ -28,7 +28,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onBeforeUnmount } from "vue";
 import smartcrop from "smartcrop";
-import type { VariantWidth } from "@/lib/storage";
+import { backfillVariants, type VariantWidth } from "@/lib/storage";
 
 export type ImageFormat = "portrait" | "landscape" | "token" | "square";
 
@@ -79,9 +79,13 @@ function toVariantUrl(url: string, width: VariantWidth): string {
   return `${stem}_w${width}.webp`;
 }
 
+// Set to true when the variant URL returns a 4xx — falls back to original.
+// Reset when props.src changes (new upload will have variants).
+const variantFailed = ref(false);
+
 const displaySrc = computed(() => {
   if (!props.src) return undefined;
-  if (props.print) return props.src;
+  if (props.print || variantFailed.value) return props.src;
   return toVariantUrl(props.src, FORMAT_RENDER_WIDTHS[props.format]);
 });
 
@@ -174,10 +178,11 @@ function onLoad() {
 }
 
 function onError() {
-  // Variant doesn't exist (pre-dates this change) — fall back to original URL.
-  if (imgRef.value && props.src && imgRef.value.src !== props.src) {
-    imgRef.value.src = props.src;
-  }
+  // Variant is missing — flip to original. variantFailed causes displaySrc to
+  // return props.src, so Vue re-renders cleanly without any further 4xx.
+  variantFailed.value = true;
+  // Backfill the missing variants in the background so future loads use them.
+  if (props.src) void backfillVariants(props.src);
 }
 
 // ── Cache helpers ──────────────────────────────────────────────────────────────
@@ -208,7 +213,10 @@ async function runSmartcrop(
   img.crossOrigin = "anonymous";
   await new Promise<void>((resolve) => {
     img.onload = () => resolve();
-    img.onerror = () => resolve();
+    img.onerror = () => {
+      // Variant missing — fall back to original for smartcrop analysis.
+      if (img.src !== src) { img.src = src; } else { resolve(); }
+    };
     img.src = toVariantUrl(src, 400);
   });
 
@@ -277,6 +285,7 @@ watch(
   ([url, fp]) => {
     rawFocalPoint.value = null;
     objectPosition.value = FORMAT_DEFAULTS[props.format];
+    variantFailed.value = false;
     if (url) resolve(url, fp);
   },
   { immediate: true },

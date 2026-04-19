@@ -165,6 +165,8 @@ export interface UploadParams {
   ext?: string;
   /** MIME type sent in the upload; defaults to blob.type. */
   contentType?: string;
+  /** When true, overwrite an existing object at the same path. */
+  upsert?: boolean;
 }
 
 /**
@@ -184,6 +186,7 @@ export async function uploadToBucket({
   path,
   ext,
   contentType,
+  upsert = false,
 }: UploadParams): Promise<string | null> {
   const cfg = BUCKETS[bucket];
   if (blob.size > cfg.maxBytes) {
@@ -201,7 +204,7 @@ export async function uploadToBucket({
   const storagePath = path ?? `${userId}/${crypto.randomUUID()}.${ext ?? "webp"}`;
   const { error } = await supabase.storage
     .from(cfg.id)
-    .upload(storagePath, blob, { contentType: mime });
+    .upload(storagePath, blob, { contentType: mime, upsert });
   if (error) return null;
 
   if (!cfg.public) return storagePath;
@@ -274,6 +277,58 @@ export async function removeByPublicUrl(
     .filter((u): u is string => !!u && u.includes(marker))
     .map((u) => decodeURIComponent(u.slice(u.indexOf(marker) + marker.length)));
   await deleteFromBucket(bucket, pathsWithVariants(paths));
+}
+
+// ── Variant backfill ──────────────────────────────────────────────────────
+
+// Tracks URLs already attempted this session so we don't retry on every render.
+const _backfillAttempted = new Set<string>();
+
+/**
+ * Re-generate and upload missing size variants for an existing image.
+ *
+ * Called by FocalImage when a variant URL returns 4xx. Fire-and-forget: the
+ * caller should not await this. Failures are swallowed — the image continues
+ * to display at full resolution via the fallback. Permission errors are
+ * expected when the current user didn't upload the original; the variants
+ * will be filled in the next time the owner loads the image.
+ */
+export async function backfillVariants(originalUrl: string): Promise<void> {
+  if (_backfillAttempted.has(originalUrl)) return;
+  _backfillAttempted.add(originalUrl);
+
+  try {
+    // Identify which bucket owns this URL.
+    let bucketKey: BucketKey | null = null;
+    let storagePath: string | null = null;
+    for (const [key, cfg] of Object.entries(BUCKETS) as [BucketKey, BucketConfig][]) {
+      if (!cfg.generateVariants) continue;
+      const marker = `/object/public/${cfg.id}/`;
+      if (originalUrl.includes(marker)) {
+        bucketKey = key;
+        storagePath = decodeURIComponent(originalUrl.slice(originalUrl.indexOf(marker) + marker.length));
+        break;
+      }
+    }
+    if (!bucketKey || !storagePath) return;
+
+    // Download the original.
+    const resp = await fetch(originalUrl);
+    if (!resp.ok) return;
+    const blob = await resp.blob();
+
+    // Generate and upload all variants; upsert so partial prior uploads are fixed.
+    const path = storagePath;
+    const bucket = bucketKey;
+    await Promise.allSettled(
+      VARIANT_WIDTHS.map(async (width) => {
+        const variantBlob = await resizeToWebP(blob, width, 0.8);
+        await uploadToBucket({ bucket, blob: variantBlob, path: variantPath(path, width), upsert: true });
+      }),
+    );
+  } catch {
+    // Swallow all errors — display fallback is already in place.
+  }
 }
 
 /**
