@@ -30,7 +30,7 @@
         >
           <LibraryBig class="h-3.5 w-3.5 shrink-0" />
           <span v-if="seeding">{{ seedProgress }}</span>
-          <span v-else>Seed core PHB races ({{ CORE_RACE_SLUGS.length }})</span>
+          <span v-else>Import / update core PHB races ({{ CORE_RACE_SLUGS.length }})</span>
         </button>
       </div>
 
@@ -99,7 +99,7 @@ import { ref, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { X, Search, Download, LibraryBig } from "lucide-vue-next";
 import { useUiStore } from "@/stores/ui";
-import { useCreateSpecies, useAllSpecies } from "@/composables/useSpecies";
+import { useCreateSpecies, useUpdateSpecies, useAllSpecies } from "@/composables/useSpecies";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { markdownToTiptapJson } from "@/lib/markdownToTiptap";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -146,6 +146,7 @@ const CORE_RACE_SLUGS = [
 const ui = useUiStore();
 const router = useRouter();
 const { mutateAsync: createSpecies } = useCreateSpecies();
+const { mutateAsync: updateSpecies } = useUpdateSpecies();
 const { data: existingSpecies } = useAllSpecies();
 
 const query = ref("");
@@ -299,33 +300,8 @@ function parseTraits(raw: string | undefined): Array<{ name: string; description
     }));
 }
 
-async function seedCoreRaces() {
-  seeding.value = true;
-  error.value = "";
-  const existing = new Set(
-    (existingSpecies.value ?? []).map((s) => s.name.toLowerCase()),
-  );
-  let done = 0;
-  for (const slug of CORE_RACE_SLUGS) {
-    seedProgress.value = `${done} / ${CORE_RACE_SLUGS.length}…`;
-    try {
-      const res = await fetch(`https://api.open5e.com/v1/races/${slug}/?format=json`);
-      if (!res.ok) continue;
-      const race = await res.json() as Open5eRace;
-      if (existing.has(race.name.toLowerCase())) { done++; continue; }
-      await buildAndCreate(race);
-    } catch {
-      // skip failed entries silently
-    }
-    done++;
-  }
-  seeding.value = false;
-  seedProgress.value = "";
-  ui.speciesOpen5ePanelOpen = false;
-}
-
-async function buildAndCreate(race: Open5eRace) {
-  return createSpecies({
+function buildPayload(race: Open5eRace) {
+  return {
     name: race.name,
     description: race.desc ? toTiptapJson(race.desc) : null,
     notes: null,
@@ -347,15 +323,49 @@ async function buildAndCreate(race: Open5eRace) {
     image_url: null,
     focal_point: null,
     is_shapeshifter: false,
-  });
+  };
+}
+
+async function upsertRace(race: Open5eRace) {
+  const payload = buildPayload(race);
+  const existing = (existingSpecies.value ?? []).find(
+    (s) => s.name.toLowerCase() === race.name.toLowerCase(),
+  );
+  if (existing) {
+    await updateSpecies({ id: existing.id, update: payload });
+    return existing.id;
+  }
+  const created = await createSpecies(payload);
+  return created.id;
+}
+
+async function seedCoreRaces() {
+  seeding.value = true;
+  error.value = "";
+  let done = 0;
+  for (const slug of CORE_RACE_SLUGS) {
+    seedProgress.value = `${done} / ${CORE_RACE_SLUGS.length}…`;
+    try {
+      const res = await fetch(`https://api.open5e.com/v1/races/${slug}/?format=json`);
+      if (!res.ok) continue;
+      const race = await res.json() as Open5eRace;
+      await upsertRace(race);
+    } catch {
+      // skip failed entries silently
+    }
+    done++;
+  }
+  seeding.value = false;
+  seedProgress.value = "";
+  ui.speciesOpen5ePanelOpen = false;
 }
 
 async function importRace(race: Open5eRace) {
   importing.value = true;
   try {
-    const created = await buildAndCreate(race);
+    const id = await upsertRace(race);
     ui.speciesOpen5ePanelOpen = false;
-    router.push(`/species/${created.id}?edit=true`);
+    router.push(`/species/${id}?edit=true`);
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Import failed.";
   } finally {

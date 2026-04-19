@@ -196,6 +196,38 @@ function asiToString(asi: Species["ability_score_increases"]): string {
     .join(", ");
 }
 
+// Maps 3-letter codes and full names → canonical 3-letter key
+const ASI_ABILITY_MAP: Record<string, string> = {
+  str: "str", strength: "str",
+  dex: "dex", dexterity: "dex",
+  con: "con", constitution: "con",
+  int: "int", intelligence: "int",
+  wis: "wis", wisdom: "wis",
+  cha: "cha", charisma: "cha",
+};
+
+/**
+ * Try to parse a simple "+2 DEX, +1 WIS" style string back to a structured map.
+ * Supports "+N STAT" and "STAT +N" in any order, 3-letter codes or full names.
+ * Returns null if any token can't be parsed — caller falls back to { description }.
+ */
+function tryParseAsiText(text: string): Record<string, number> | null {
+  const parts = text.split(/,\s*/);
+  const result: Record<string, number> = {};
+  for (const part of parts) {
+    const m = part.trim().match(/^\+?(\d+)\s+([A-Za-z]+)$/) ??
+              part.trim().match(/^([A-Za-z]+)\s+\+?(\d+)$/);
+    if (!m) return null;
+    const [val, abilityRaw] = m[1].match(/^\d+$/)
+      ? [parseInt(m[1]), m[2].toLowerCase()]
+      : [parseInt(m[2]), m[1].toLowerCase()];
+    const key = ASI_ABILITY_MAP[abilityRaw];
+    if (!key || isNaN(val)) return null;
+    result[key] = val;
+  }
+  return Object.keys(result).length ? result : null;
+}
+
 function makeForm(s?: Species | null) {
   return {
     name: s?.name ?? "",
@@ -254,9 +286,11 @@ async function save() {
       notes: form.notes || null,
       size: (form.size as SpeciesSize) || null,
       speed: Object.keys(form.speed).length ? form.speed : null,
-      ability_score_increases: form.asiDescription.trim()
-        ? { description: form.asiDescription.trim() }
-        : null,
+      ability_score_increases: (() => {
+        const t = form.asiDescription.trim();
+        if (!t) return null;
+        return tryParseAsiText(t) ?? { description: t };
+      })(),
       traits: form.traits.length ? form.traits : null,
       languages: form.languages,
       tags: form.tags,
@@ -266,9 +300,11 @@ async function save() {
             name: sr.name,
             description: sr.description,
             traits: sr.traits,
-            ability_score_increases: sr.asiText?.trim()
-              ? { description: sr.asiText.trim() }
-              : null,
+            ability_score_increases: (() => {
+              const t = sr.asiText?.trim();
+              if (!t) return null;
+              return tryParseAsiText(t) ?? { description: t };
+            })(),
           }))
         : null,
       image_url: form.image_url || null,

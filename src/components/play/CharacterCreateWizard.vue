@@ -130,21 +130,26 @@
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div v-for="stat in ABILITY_STATS" :key="stat.key"
-            class="rounded-lg border border-border bg-card p-3 flex flex-col items-center gap-2">
+            class="rounded-lg border bg-card p-3 flex flex-col items-center gap-1.5 transition-colors"
+            :class="asiMode === 'bonus' && racialBonusMap[stat.key] ? 'border-primary/40 bg-primary/2' : 'border-border'">
             <span class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</span>
             <div class="flex items-center gap-2">
               <button type="button"
                 class="w-6 h-6 rounded-full border border-border font-cinzel text-sm font-bold transition-colors hover:border-primary hover:text-primary disabled:opacity-30"
                 :disabled="f[stat.key] <= 8"
                 @click="f[stat.key]--">−</button>
-              <span class="font-cinzel text-lg font-bold w-6 text-center">{{ f[stat.key] }}</span>
+              <span class="font-cinzel text-lg font-bold w-8 text-center">{{ displayScore(stat.key) }}</span>
               <button type="button"
                 class="w-6 h-6 rounded-full border border-border font-cinzel text-sm font-bold transition-colors hover:border-primary hover:text-primary disabled:opacity-30"
                 :disabled="f[stat.key] >= 15 || pointsRemaining <= 0 || (pointsRemaining < (POINT_BUY_COSTS[f[stat.key] + 1] ?? 99) - POINT_BUY_COSTS[f[stat.key]])"
                 @click="f[stat.key]++">+</button>
             </div>
-            <span class="font-cinzel text-xs font-bold" :class="mod(f[stat.key]) >= 0 ? 'text-green-500' : 'text-destructive'">
-              {{ mod(f[stat.key]) >= 0 ? '+' : '' }}{{ mod(f[stat.key]) }}
+            <span v-if="asiMode === 'bonus' && racialBonusMap[stat.key]"
+              class="font-cinzel text-[9px] font-bold text-primary leading-none">
+              +{{ racialBonusMap[stat.key] }} racial
+            </span>
+            <span class="font-cinzel text-xs font-bold" :class="totalMod(stat.key) >= 0 ? 'text-green-500' : 'text-destructive'">
+              {{ totalMod(stat.key) >= 0 ? '+' : '' }}{{ totalMod(stat.key) }}
             </span>
             <span class="font-cinzel text-[9px] text-muted-foreground">{{ POINT_BUY_COSTS[f[stat.key]] ?? 0 }} pts</span>
           </div>
@@ -173,15 +178,20 @@
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div v-for="stat in ABILITY_STATS" :key="stat.key"
-            class="rounded-lg border border-border bg-card p-3 flex flex-col items-center gap-2">
+            class="rounded-lg border bg-card p-3 flex flex-col items-center gap-1.5 transition-colors"
+            :class="asiMode === 'bonus' && racialBonusMap[stat.key] ? 'border-primary/40 bg-primary/2' : 'border-border'">
             <span class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</span>
             <select :value="scoreAssignment[stat.key] ?? ''" class="field-input w-full text-center"
               @change="onPoolPick(stat.key, ($event.target as HTMLSelectElement).value)">
               <option value="">—</option>
               <option v-for="opt in availableForAbility(stat.key)" :key="opt.idx" :value="opt.idx">{{ opt.val }}</option>
             </select>
-            <span class="font-cinzel text-xs font-bold" :class="mod(f[stat.key]) >= 0 ? 'text-green-500' : 'text-destructive'">
-              {{ mod(f[stat.key]) >= 0 ? '+' : '' }}{{ mod(f[stat.key]) }}
+            <span v-if="asiMode === 'bonus' && racialBonusMap[stat.key]"
+              class="font-cinzel text-[9px] font-bold text-primary leading-none">
+              +{{ racialBonusMap[stat.key] }} racial
+            </span>
+            <span class="font-cinzel text-xs font-bold" :class="totalMod(stat.key) >= 0 ? 'text-green-500' : 'text-destructive'">
+              {{ totalMod(stat.key) >= 0 ? '+' : '' }}{{ totalMod(stat.key) }}
             </span>
           </div>
         </div>
@@ -194,8 +204,12 @@
           <label v-for="stat in ABILITY_STATS" :key="stat.key" class="flex flex-col items-center gap-1">
             <span class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</span>
             <input v-model.number="f[stat.key]" type="number" min="1" max="30" class="field-input w-full text-center px-1" />
-            <span class="font-cinzel text-xs font-bold" :class="mod(f[stat.key]) >= 0 ? 'text-green-500' : 'text-destructive'">
-              {{ mod(f[stat.key]) >= 0 ? '+' : '' }}{{ mod(f[stat.key]) }}
+            <span v-if="asiMode === 'bonus' && racialBonusMap[stat.key]"
+              class="font-cinzel text-[9px] font-bold text-primary leading-none">
+              +{{ racialBonusMap[stat.key] }} racial
+            </span>
+            <span class="font-cinzel text-xs font-bold" :class="totalMod(stat.key) >= 0 ? 'text-green-500' : 'text-destructive'">
+              {{ totalMod(stat.key) >= 0 ? '+' : '' }}{{ totalMod(stat.key) }}
             </span>
           </label>
         </div>
@@ -203,67 +217,76 @@
 
       <!-- Species ASI -->
       <div v-if="selectedSpecies?.ability_score_increases && Object.keys(selectedSpecies.ability_score_increases).length"
-        class="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-3">
+        class="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2.5">
+
+        <!-- Header + mode switch -->
         <div class="flex items-center justify-between flex-wrap gap-2">
           <p class="font-cinzel text-xs font-semibold text-primary tracking-wider">
-            {{ selectedSpecies.name.toUpperCase() }} ABILITY BONUSES
+            {{ selectedSpecies.name.toUpperCase() }} BONUSES
           </p>
-          <!-- Standard/Custom toggle — only when bonuses are structured numeric values -->
-          <div v-if="asiIsStructured" class="flex rounded overflow-hidden border border-primary/30 text-xs font-cinzel font-semibold">
+          <div class="flex rounded overflow-hidden border border-primary/30 text-[11px] font-cinzel font-semibold">
+            <button v-if="asiIsStructured" type="button"
+              class="px-2.5 py-1 transition-colors"
+              :class="asiMode === 'bonus' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
+              @click="asiMode = 'bonus'">Racial</button>
             <button type="button"
-              class="px-3 py-1 transition-colors"
-              :class="asiMode === 'standard' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-              @click="asiMode = 'standard'">Standard</button>
-            <button type="button"
-              class="px-3 py-1 transition-colors"
+              class="px-2.5 py-1 transition-colors"
               :class="asiMode === 'custom' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
               @click="asiMode = 'custom'">Custom (+3)</button>
+            <button type="button"
+              class="px-2.5 py-1 transition-colors"
+              :class="asiMode === 'manual' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
+              @click="asiMode = 'manual'">Skip</button>
           </div>
         </div>
 
-        <!-- Structured bonuses: standard chip list or custom distribution -->
-        <template v-if="asiIsStructured">
-          <div v-if="asiMode === 'standard'" class="flex flex-wrap gap-1.5 items-center">
-            <span v-for="([key, val]) in asiStructuredEntries" :key="key"
-              class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-[11px] text-primary uppercase">
-              {{ key }} +{{ val }}
+        <!-- Racial mode: structured — bonuses shown directly in score cards above -->
+        <p v-if="asiMode === 'bonus' && asiIsStructured"
+          class="font-fell text-xs text-muted-foreground italic">
+          Racial bonuses reflected in your scores above — applied automatically on save.
+        </p>
+
+        <!-- Racial mode: unstructured — show free-text description, player adjusts manually -->
+        <div v-else-if="asiMode === 'bonus' && !asiIsStructured" class="space-y-1">
+          <p class="font-fell text-sm text-foreground">{{ asiDescriptionText }}</p>
+          <p class="font-fell text-xs text-muted-foreground italic">
+            Free-text bonus — adjust your scores above to include it, then use Skip or Custom instead.
+          </p>
+        </div>
+
+        <!-- Custom mode: distribute 3 free points (player picks which abilities) -->
+        <div v-else-if="asiMode === 'custom'" class="space-y-2">
+          <p class="font-fell text-xs text-muted-foreground italic">
+            Distribute 3 free points across any abilities (max +2 per ability).
+            <span :class="customAsiTotal >= 3 ? 'text-green-500 font-bold not-italic' : 'text-primary'">
+              {{ customAsiTotal < 3 ? `${3 - customAsiTotal} remaining` : 'All assigned' }}.
             </span>
-            <span class="font-fell text-xs text-muted-foreground italic">(applied automatically)</span>
-          </div>
-          <div v-else class="space-y-2">
-            <p class="font-fell text-xs text-muted-foreground italic">
-              Replaces all racial bonuses — distribute 3 free points (max +2 per ability).
-              {{ customAsiTotal < 3 ? `${3 - customAsiTotal} remaining.` : 'All assigned.' }}
-            </p>
-            <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
-              <div v-for="stat in ABILITY_STATS" :key="stat.key" class="flex flex-col items-center gap-1">
-                <span class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</span>
-                <div class="flex items-center gap-1">
-                  <button type="button"
-                    class="w-5 h-5 rounded border border-border font-cinzel text-xs font-bold transition-colors hover:border-primary hover:text-primary disabled:opacity-30"
-                    :disabled="customAsi[stat.key] <= 0"
-                    @click="adjustCustomAsi(stat.key, -1)">−</button>
-                  <span class="font-cinzel text-sm font-bold w-5 text-center"
-                    :class="customAsi[stat.key] > 0 ? 'text-primary' : 'text-muted-foreground'">
-                    +{{ customAsi[stat.key] }}
-                  </span>
-                  <button type="button"
-                    class="w-5 h-5 rounded border border-border font-cinzel text-xs font-bold transition-colors hover:border-primary hover:text-primary disabled:opacity-30"
-                    :disabled="customAsi[stat.key] >= 2 || customAsiTotal >= 3"
-                    @click="adjustCustomAsi(stat.key, 1)">+</button>
-                </div>
+          </p>
+          <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+            <div v-for="stat in ABILITY_STATS" :key="stat.key" class="flex flex-col items-center gap-1">
+              <span class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</span>
+              <div class="flex items-center gap-1">
+                <button type="button"
+                  class="w-5 h-5 rounded border border-border font-cinzel text-xs font-bold transition-colors hover:border-primary hover:text-primary disabled:opacity-30"
+                  :disabled="customAsi[stat.key] <= 0"
+                  @click="adjustCustomAsi(stat.key, -1)">−</button>
+                <span class="font-cinzel text-sm font-bold w-5 text-center"
+                  :class="customAsi[stat.key] > 0 ? 'text-primary' : 'text-muted-foreground'">
+                  +{{ customAsi[stat.key] }}
+                </span>
+                <button type="button"
+                  class="w-5 h-5 rounded border border-border font-cinzel text-xs font-bold transition-colors hover:border-primary hover:text-primary disabled:opacity-30"
+                  :disabled="customAsi[stat.key] >= 2 || customAsiTotal >= 3"
+                  @click="adjustCustomAsi(stat.key, 1)">+</button>
               </div>
             </div>
           </div>
-        </template>
+        </div>
 
-        <!-- Free-text bonuses: show description only; player applies manually or picks Custom -->
-        <template v-else>
-          <p class="font-fell text-sm text-foreground">{{ asiDescriptionText }}</p>
-          <p class="font-fell text-xs text-muted-foreground italic">
-            These can't be auto-applied — adjust your scores above. Or pick <strong>Custom (+3)</strong> to replace all racial bonuses with 3 free points instead.
-          </p>
-        </template>
+        <!-- Skip mode -->
+        <p v-else class="font-fell text-xs text-muted-foreground italic">
+          Racial bonuses skipped — you handle your ability scores above.
+        </p>
       </div>
     </div>
 
@@ -509,9 +532,9 @@
         <div class="px-4 pt-3 pb-2 grid grid-cols-6 gap-2">
           <div v-for="stat in ABILITY_STATS" :key="stat.key" class="text-center">
             <p class="font-cinzel text-[9px] text-muted-foreground tracking-wider">{{ stat.label }}</p>
-            <p class="font-cinzel text-sm font-bold">{{ f[stat.key] }}</p>
-            <p class="font-cinzel text-[10px]" :class="mod(f[stat.key]) >= 0 ? 'text-green-500' : 'text-destructive'">
-              {{ mod(f[stat.key]) >= 0 ? '+' : '' }}{{ mod(f[stat.key]) }}
+            <p class="font-cinzel text-sm font-bold">{{ displayScore(stat.key) }}</p>
+            <p class="font-cinzel text-[10px]" :class="totalMod(stat.key) >= 0 ? 'text-green-500' : 'text-destructive'">
+              {{ totalMod(stat.key) >= 0 ? '+' : '' }}{{ totalMod(stat.key) }}
             </p>
           </div>
         </div>
@@ -671,14 +694,11 @@ const {
 // ── Species ASI format detection ─────────────────────────────────────────────
 // ASI can be { dex: 2, str: 1 } (structured) or { description: "+2 DEX" } (free-text).
 // Both base and selected subrace ASIs are considered.
-// Structured = can be auto-applied. Free-text = player adjusts scores manually.
+// Structured = can be auto-applied and shown inline in score cards.
 function isStructuredAsi(asi: Record<string, number | string> | null | undefined): boolean {
   if (!asi) return true; // null = no bonus = no problem
   if ("description" in asi) return false;
   return Object.values(asi).every(v => typeof v === "number");
-}
-function asiToChipLabel(key: string, val: number | string): string {
-  return `${key.toUpperCase()} +${val}`;
 }
 
 const asiIsStructured = computed(() =>
@@ -686,17 +706,37 @@ const asiIsStructured = computed(() =>
   isStructuredAsi(selectedSubrace.value?.ability_score_increases),
 );
 
-// All structured ASI entries (base + subrace) as flat [key, val] pairs for chip rendering
-const asiStructuredEntries = computed((): [string, number][] => {
-  const entries: [string, number][] = [];
+// Maps ability key → total racial bonus (base + subrace) when ASI is structured.
+// Used to show bonuses inline in score cards and compute total modifiers.
+const racialBonusMap = computed((): Partial<Record<AbilityKey, number>> => {
+  if (!asiIsStructured.value || asiMode.value !== "bonus") return {};
+  const abilityKeyMap: Record<string, AbilityKey> = {
+    str: "str", dex: "dex", con: "con", int: "int", wis: "wis", cha: "cha",
+    strength: "str", dexterity: "dex", constitution: "con", intelligence: "int", wisdom: "wis", charisma: "cha",
+  };
+  const map: Partial<Record<AbilityKey, number>> = {};
+  const addAsi = (asi: Record<string, number | string>) => {
+    for (const [k, v] of Object.entries(asi)) {
+      const fk = abilityKeyMap[k.toLowerCase()];
+      if (fk && typeof v === "number") map[fk] = (map[fk] ?? 0) + v;
+    }
+  };
   const base = selectedSpecies.value?.ability_score_increases;
-  if (base && !("description" in base))
-    for (const [k, v] of Object.entries(base)) if (typeof v === "number") entries.push([k, v]);
+  if (base && !("description" in base)) addAsi(base);
   const sub = selectedSubrace.value?.ability_score_increases;
-  if (sub && !("description" in sub))
-    for (const [k, v] of Object.entries(sub)) if (typeof v === "number") entries.push([k, v]);
-  return entries;
+  if (sub && !("description" in sub)) addAsi(sub);
+  return map;
 });
+
+// Displayed score: base + racial bonus (when in Bonus mode with structured ASI)
+function displayScore(key: AbilityKey): number {
+  return f[key] + (racialBonusMap.value[key] ?? 0);
+}
+
+// Modifier based on total score (including racial bonus in Bonus mode)
+function totalMod(key: AbilityKey): number {
+  return mod(displayScore(key));
+}
 
 // Human-readable description text when ASI is free-text format
 const asiDescriptionText = computed((): string => {
@@ -704,12 +744,12 @@ const asiDescriptionText = computed((): string => {
   const baseAsi = selectedSpecies.value?.ability_score_increases;
   if (baseAsi) {
     if ("description" in baseAsi && typeof baseAsi.description === "string") parts.push(baseAsi.description as string);
-    else parts.push(...Object.entries(baseAsi).map(([k, v]) => asiToChipLabel(k, v)));
+    else parts.push(...Object.entries(baseAsi).map(([k, v]) => `${k.toUpperCase()} +${v}`));
   }
   const subAsi = selectedSubrace.value?.ability_score_increases;
   if (subAsi) {
     if ("description" in subAsi && typeof subAsi.description === "string") parts.push(`${f.subrace}: ${subAsi.description}`);
-    else parts.push(...Object.entries(subAsi).map(([k, v]) => `${f.subrace}: ${asiToChipLabel(k, v)}`));
+    else parts.push(...Object.entries(subAsi).map(([k, v]) => `${f.subrace}: ${k.toUpperCase()} +${v}`));
   }
   return parts.join(", ");
 });

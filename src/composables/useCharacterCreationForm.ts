@@ -31,7 +31,7 @@ export const WIZARD_STEPS = [
   { id: "done",       label: "Done" },
 ] as const;
 
-export type AsiMode = "standard" | "custom";
+export type AsiMode = "bonus" | "custom" | "manual";
 export type AbilityKey = "str" | "dex" | "con" | "int" | "wis" | "cha";
 
 export const ABILITY_STATS = [
@@ -118,7 +118,7 @@ export function useCharacterCreationForm() {
   });
 
   // ── ASI mode (new chars only) ─────────────────────────────────────────────────
-  const asiMode   = ref<AsiMode>("standard");
+  const asiMode   = ref<AsiMode>("bonus");
   const customAsi = reactive<Record<AbilityKey, number>>({ str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 });
   const customAsiTotal = computed(() => (Object.values(customAsi) as number[]).reduce((s, v) => s + v, 0));
 
@@ -369,7 +369,7 @@ export function useCharacterCreationForm() {
           if (fKey && typeof val === "number") f[fKey] = Math.min(20, f[fKey] + val);
         }
       }
-      if (asiMode.value === "standard") {
+      if (asiMode.value === "bonus") {
         if (selectedSpecies.value?.ability_score_increases)
           applyStructuredAsi(selectedSpecies.value.ability_score_increases);
         if (selectedSubrace.value?.ability_score_increases)
