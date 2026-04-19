@@ -136,15 +136,17 @@
               </div>
             </div>
 
-            <!-- Class / Subclass / Level — read-only when multiclass data exists -->
-            <template v-if="hasMulticlassData">
+            <!-- Class / Subclass / Level — read-only when character has builder data -->
+            <template v-if="hasBuilderData">
               <div class="col-span-2 rounded-md border border-border/60 bg-muted/20 px-3 py-2 flex items-center justify-between">
                 <div>
                   <span class="field-label block mb-0.5">Class</span>
-                  <span class="font-fell text-sm text-foreground">{{ multiclassLabel }}</span>
+                  <span class="font-fell text-sm text-foreground">
+                    {{ hasMulticlassData ? multiclassLabel : (form.class + (form.subclass ? ' — ' + form.subclass : '')) }}
+                  </span>
                 </div>
                 <RouterLink
-                  :to="{ name: 'play-character-levelup', query: { memberId: props.member?.id, targetLevel: multiclassTotal + 1 } }"
+                  :to="{ name: 'play-character-levelup', query: { memberId: props.member?.id, targetLevel: (hasMulticlassData ? multiclassTotal : form.level) + 1 } }"
                   class="font-fell text-xs text-gold-400 hover:text-gold-300 underline italic transition-colors"
                   @click="emit('close')"
                 >Level Up →</RouterLink>
@@ -175,7 +177,7 @@
             <label class="block">
               <span class="field-label">Level</span>
               <input
-                v-if="!hasMulticlassData"
+                v-if="!hasBuilderData"
                 v-model.number="form.level"
                 type="number"
                 min="1"
@@ -186,7 +188,7 @@
                 v-else
                 class="field-input bg-muted/30 text-muted-foreground flex items-center"
               >
-                {{ multiclassTotal }}
+                {{ hasMulticlassData ? multiclassTotal : form.level }}
                 <span class="ml-2 text-[11px] italic font-fell">total</span>
               </div>
             </label>
@@ -590,6 +592,12 @@ const { data: characterClassRows } = useCharacterClasses(memberId);
 const hasMulticlassData = computed(() => (characterClassRows.value?.length ?? 0) > 0);
 const multiclassLabel = computed(() => formatMulticlassLabel(characterClassRows.value ?? []));
 const multiclassTotal = computed(() => totalLevel(characterClassRows.value ?? []));
+// Lock class/subclass/level whenever the character was built through the wizard
+// (has level_choices entries) — not just when multiclass rows exist.
+const hasBuilderData = computed(() =>
+  hasMulticlassData.value ||
+  (props.member !== null && Object.keys(props.member.level_choices ?? {}).length > 0),
+);
 
 const campaignStore = useCampaignStore();
 const { data: systemClasses } = useAllSystemClasses();

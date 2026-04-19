@@ -299,10 +299,12 @@ export async function backfillVariants(originalUrl: string): Promise<void> {
 
   try {
     // Identify which bucket owns this URL.
+    // Limit to image buckets only — audio (sounds) has no visual variants.
     let bucketKey: BucketKey | null = null;
     let storagePath: string | null = null;
     for (const [key, cfg] of Object.entries(BUCKETS) as [BucketKey, BucketConfig][]) {
-      if (!cfg.generateVariants) continue;
+      const isImageBucket = (cfg.mimeTypes as readonly string[]).some((m) => m.startsWith("image/"));
+      if (!isImageBucket) continue;
       const marker = `/object/public/${cfg.id}/`;
       if (originalUrl.includes(marker)) {
         bucketKey = key;
