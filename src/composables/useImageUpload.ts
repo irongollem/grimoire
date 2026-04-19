@@ -4,6 +4,7 @@ import { toWebP } from "@/lib/mediaConvert";
 import {
   BUCKETS,
   uploadToBucket,
+  uploadWithVariants,
   removeByPublicUrl,
   type BucketKey,
 } from "@/lib/storage";
@@ -92,7 +93,10 @@ export function useImageUpload(bucket: string) {
     uploadError.value = null;
     try {
       const webpFile = await toWebP(file);
-      const url = await uploadToBucket({ bucket: key, userId: auth.user.id, blob: webpFile, contentType: webpFile.type});
+      const cfg = BUCKETS[key];
+      const url = cfg.generateVariants
+        ? await uploadWithVariants({ bucket: key, userId: auth.user.id, blob: webpFile })
+        : await uploadToBucket({ bucket: key, userId: auth.user.id, blob: webpFile, contentType: webpFile.type });
       if (!url) uploadError.value = "Upload failed";
       return url;
     } catch (e) {

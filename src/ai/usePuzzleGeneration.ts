@@ -1,5 +1,5 @@
 import { useAuthStore } from "@/stores/auth";
-import { uploadToBucket } from "@/lib/storage";
+import { uploadWithVariants } from "@/lib/storage";
 import {
   PUZZLE_SYSTEM_PROMPT,
   IMAGE_BASE_PROMPT,
@@ -91,7 +91,7 @@ export function usePuzzleGeneration() {
           const b64 = await imageProvider.generate(imagePrompt, "1024x1536");
 
           if (b64) {
-            image_url = await uploadToBucket({
+            image_url = await uploadWithVariants({
               bucket: "puzzleImages",
               userId: auth.user.id,
               blob: b64ToBlob(b64),

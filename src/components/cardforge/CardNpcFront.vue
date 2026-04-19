@@ -9,7 +9,7 @@
 
       <!-- Art area -->
       <div class="art-area">
-        <FocalImage v-if="portrait" :src="portrait" format="landscape" :focal-point="data.portrait_focal_point" />
+        <FocalImage v-if="portrait" :src="portrait" format="landscape" :focal-point="data.portrait_focal_point" print />
         <div v-else class="art-placeholder">
           <span class="placeholder-glyph">{{ typeGlyph }}</span>
           <span class="placeholder-label">{{ placeholderLabel }}</span>

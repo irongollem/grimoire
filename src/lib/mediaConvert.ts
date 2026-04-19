@@ -51,6 +51,31 @@ export async function toWebP(file: File, maxPx = 1920, quality = 0.85): Promise<
   });
 }
 
+/**
+ * Resize an image blob to a target width (height proportional). Never upscales.
+ * Input must already be an image blob (WebP or JPEG) — no format fallback needed.
+ * Returns the original blob on any canvas failure — never throws.
+ */
+export async function resizeToWebP(blob: Blob, width: number, quality = 0.8): Promise<Blob> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(blob);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const scale = Math.min(1, width / img.width);
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+      canvas.toBlob((result) => resolve(result ?? blob), "image/webp", quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(blob); };
+    img.src = objectUrl;
+  });
+}
+
 // ── Audio ─────────────────────────────────────────────────────────────────
 
 /**

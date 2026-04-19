@@ -9,7 +9,7 @@
 
       <!-- Art area -->
       <div class="art-area">
-        <FocalImage v-if="data.portrait_url" :src="data.portrait_url" format="portrait" :focal-point="data.portrait_focal_point" />
+        <FocalImage v-if="data.portrait_url" :src="data.portrait_url" format="portrait" :focal-point="data.portrait_focal_point" print />
         <div v-else class="art-placeholder">
           <span class="placeholder-glyph">{{ data.name.slice(0, 2).toUpperCase() }}</span>
           <span class="placeholder-label">{{ data.occupation ?? "NPC" }}</span>

@@ -1,5 +1,5 @@
 import { useAuthStore } from "@/stores/auth";
-import { uploadToBucket } from "@/lib/storage";
+import { uploadWithVariants } from "@/lib/storage";
 import {
   SPELL_SYSTEM_PROMPT,
   IMAGE_BASE_PROMPT,
@@ -106,7 +106,7 @@ export function useSpellGeneration() {
         // Spells get their own bucket (see migration 20260413000014) so the
         // DM can browse spell art in isolation later.
         if (b64 && auth.user) {
-          image_url = await uploadToBucket({ bucket: "spellImages", userId: auth.user.id, blob: b64ToBlob(b64) });
+          image_url = await uploadWithVariants({ bucket: "spellImages", userId: auth.user.id, blob: b64ToBlob(b64) });
         }
       }
 

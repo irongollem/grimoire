@@ -20,6 +20,7 @@
       "
       loading="lazy"
       @load="onLoad"
+      @error="onError"
     />
   </div>
 </template>
@@ -27,6 +28,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onBeforeUnmount } from "vue";
 import smartcrop from "smartcrop";
+import type { VariantWidth } from "@/lib/storage";
 
 export type ImageFormat = "portrait" | "landscape" | "token" | "square";
 
@@ -58,34 +60,30 @@ const props = defineProps<{
   format: ImageFormat;
   /** Manual override — when set, skips smartcrop entirely. Values are 0–100 percentages of the source image. */
   focalPoint?: { x: number; y: number } | null;
+  /** When true, skip variant URL derivation and serve the full-resolution original.
+   *  Use this in Card Forge where images are printed at ~300 DPI. */
+  print?: boolean;
 }>();
 
-// ── Supabase image transforms (Pro plan) ───────────────────────────────────────
-// Set VITE_SUPABASE_TRANSFORMS=true in .env.local (and Vercel env vars) to enable.
-// When disabled, falls back to raw URLs — zero behavior change.
-
-const TRANSFORMS_ENABLED = import.meta.env.VITE_SUPABASE_TRANSFORMS === "true";
-
-const FORMAT_RENDER_WIDTHS: Record<ImageFormat, number> = {
+const FORMAT_RENDER_WIDTHS: Record<ImageFormat, VariantWidth> = {
   portrait: 400,
   landscape: 600,
   token: 200,
   square: 300,
 };
 
-function toRenderUrl(url: string, width: number, quality = 80): string {
-  if (!TRANSFORMS_ENABLED) return url;
-  return (
-    url.replace("/storage/v1/object/", "/storage/v1/render/image/") +
-    `?width=${width}&quality=${quality}&resize=contain`
-  );
+function toVariantUrl(url: string, width: VariantWidth): string {
+  // Variants are always .webp regardless of the original's extension (png/jpeg/webp).
+  const lastDot = url.lastIndexOf(".");
+  const stem = lastDot === -1 ? url : url.slice(0, lastDot);
+  return `${stem}_w${width}.webp`;
 }
 
-const displaySrc = computed(() =>
-  props.src
-    ? toRenderUrl(props.src, FORMAT_RENDER_WIDTHS[props.format])
-    : undefined,
-);
+const displaySrc = computed(() => {
+  if (!props.src) return undefined;
+  if (props.print) return props.src;
+  return toVariantUrl(props.src, FORMAT_RENDER_WIDTHS[props.format]);
+});
 
 const rootRef = ref<HTMLElement | null>(null);
 const imgRef = ref<HTMLImageElement | null>(null);
@@ -175,6 +173,13 @@ function onLoad() {
   applyFocalPoint(img, rawFocalPoint.value);
 }
 
+function onError() {
+  // Variant doesn't exist (pre-dates this change) — fall back to original URL.
+  if (imgRef.value && props.src && imgRef.value.src !== props.src) {
+    imgRef.value.src = props.src;
+  }
+}
+
 // ── Cache helpers ──────────────────────────────────────────────────────────────
 
 function cacheKey(url: string) {
@@ -204,7 +209,7 @@ async function runSmartcrop(
   await new Promise<void>((resolve) => {
     img.onload = () => resolve();
     img.onerror = () => resolve();
-    img.src = toRenderUrl(src, 400, 75);
+    img.src = toVariantUrl(src, 400);
   });
 
   if (!img.naturalWidth) return null;

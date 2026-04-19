@@ -21,6 +21,7 @@
  */
 
 import { supabase } from "@/lib/supabase";
+import { resizeToWebP } from "@/lib/mediaConvert";
 
 // ── Config ───────────────────────────────────────────────────────────────
 
@@ -33,6 +34,12 @@ export interface BucketConfig {
   readonly mimeTypes: readonly string[];
   /** True when objects are readable without a signed URL. */
   readonly public: boolean;
+  /**
+   * Whether uploads to this bucket should generate pre-sized variants.
+   * Only entity-image buckets displayed through FocalImage need variants.
+   * Scriptorium rich-text embeds (assetImages) and sounds do NOT.
+   */
+  readonly generateVariants: boolean;
 }
 
 const FIVE_MB   =  5 * 1024 * 1024;
@@ -57,58 +64,90 @@ export const BUCKETS = {
     maxBytes: FIVE_MB,
     mimeTypes: IMAGE_MIMES,
     public: true,
+    generateVariants: true,
   },
   assetImages: {
     id: "asset-images",
     maxBytes: FIVE_MB,
     mimeTypes: IMAGE_MIMES,
     public: true,
+    generateVariants: false, // Scriptorium rich-text embeds — never displayed via FocalImage
   },
   spellImages: {
     id: "spell-images",
     maxBytes: FIVE_MB,
     mimeTypes: IMAGE_MIMES,
     public: true,
+    generateVariants: true,
   },
   puzzleImages: {
     id: "puzzle-images",
     maxBytes: FIVE_MB,
     mimeTypes: IMAGE_MIMES,
     public: true,
+    generateVariants: true,
   },
   itemImages: {
     id: "item-images",
     maxBytes: FIVE_MB,
     mimeTypes: IMAGE_MIMES,
     public: true,
+    generateVariants: true,
   },
   monsterImages: {
     id: "monster-images",
     maxBytes: FIVE_MB,
     mimeTypes: IMAGE_MIMES,
     public: true,
+    generateVariants: true,
   },
   trapImages: {
     id: "trap-images",
     maxBytes: FIVE_MB,
     mimeTypes: IMAGE_MIMES,
     public: true,
+    generateVariants: true,
   },
   locationImages: {
     id: "location-images",
     maxBytes: FIVE_MB,
     mimeTypes: IMAGE_MIMES,
     public: true,
+    generateVariants: true,
   },
   sounds: {
     id: "sounds",
     maxBytes: TWENTY_MB,
     mimeTypes: AUDIO_MIMES,
     public: true,
+    generateVariants: false,
   },
 } as const satisfies Record<string, BucketConfig>;
 
 export type BucketKey = keyof typeof BUCKETS;
+
+// ── Variant widths ────────────────────────────────────────────────────────
+
+/**
+ * The 4 fixed render widths used by FocalImage. Variants are pre-generated at
+ * upload time so the Supabase transform API is never needed at display time.
+ */
+export const VARIANT_WIDTHS = [200, 300, 400, 600] as const;
+export type VariantWidth = (typeof VARIANT_WIDTHS)[number];
+
+/**
+ * Derive the storage path for a pre-generated size variant from the original
+ * object path.
+ *
+ * Example:
+ *   variantPath("abc/img.webp", 400) → "abc/img_w400.webp"
+ */
+export function variantPath(originalPath: string, width: VariantWidth): string {
+  // Variants are always .webp regardless of the original's extension (png/jpeg/webp).
+  const lastDot = originalPath.lastIndexOf(".");
+  const stem = lastDot === -1 ? originalPath : originalPath.slice(0, lastDot);
+  return `${stem}_w${width}.webp`;
+}
 
 // ── Upload / read / delete ────────────────────────────────────────────────
 
@@ -169,6 +208,41 @@ export async function uploadToBucket({
   return supabase.storage.from(cfg.id).getPublicUrl(storagePath).data.publicUrl;
 }
 
+export interface UploadWithVariantsParams {
+  bucket: BucketKey;
+  blob: Blob;
+  userId: string;
+}
+
+/**
+ * Upload an image and pre-generate all 4 size variants in parallel.
+ *
+ * The original is stored at the canonical path (returned as the public URL and
+ * saved in the DB). Variants are stored alongside it at e.g. `{uuid}_w400.webp`.
+ * Variant upload failures are non-fatal — FocalImage falls back to the original
+ * via @error.
+ */
+export async function uploadWithVariants({
+  bucket,
+  blob,
+  userId,
+}: UploadWithVariantsParams): Promise<string | null> {
+  const ext = blob.type === "image/jpeg" ? "jpeg" : "webp";
+  const originalPath = `${userId}/${crypto.randomUUID()}.${ext}`;
+
+  const originalUrl = await uploadToBucket({ bucket, blob, path: originalPath, contentType: blob.type });
+  if (!originalUrl) return null;
+
+  await Promise.allSettled(
+    VARIANT_WIDTHS.map(async (width) => {
+      const variantBlob = await resizeToWebP(blob, width, 0.8);
+      await uploadToBucket({ bucket, blob: variantBlob, path: variantPath(originalPath, width) });
+    }),
+  );
+
+  return originalUrl;
+}
+
 /** Get a public URL for an existing object (no fetch — pure URL builder). */
 export function getPublicUrl(bucket: BucketKey, path: string): string {
   return supabase.storage.from(BUCKETS[bucket].id).getPublicUrl(path).data.publicUrl;
@@ -178,6 +252,11 @@ export function getPublicUrl(bucket: BucketKey, path: string): string {
 export async function deleteFromBucket(bucket: BucketKey, paths: string[]): Promise<void> {
   if (!paths.length) return;
   await supabase.storage.from(BUCKETS[bucket].id).remove(paths);
+}
+
+/** Expand a list of storage paths to include all pre-generated variant paths. */
+function pathsWithVariants(paths: string[]): string[] {
+  return paths.flatMap((p) => [p, ...VARIANT_WIDTHS.map((w) => variantPath(p, w))]);
 }
 
 /**
@@ -194,7 +273,7 @@ export async function removeByPublicUrl(
   const paths = urls
     .filter((u): u is string => !!u && u.includes(marker))
     .map((u) => decodeURIComponent(u.slice(u.indexOf(marker) + marker.length)));
-  await deleteFromBucket(bucket, paths);
+  await deleteFromBucket(bucket, pathsWithVariants(paths));
 }
 
 /**
@@ -208,6 +287,6 @@ export async function deleteByPublicUrl(...urls: (string | null | undefined)[]):
     const paths = urls
       .filter((u): u is string => !!u && u.includes(marker))
       .map((u) => decodeURIComponent(u.slice(u.indexOf(marker) + marker.length)));
-    if (paths.length) await deleteFromBucket(key, paths);
+    if (paths.length) await deleteFromBucket(key, pathsWithVariants(paths));
   }
 }
