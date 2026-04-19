@@ -1,6 +1,6 @@
 import type { Component } from "vue";
 import {
-  BookOpen, Globe, Hammer, Landmark, Library, Package,
+  BookOpen, Crown, Globe, Hammer, Landmark, Library, Package,
   PenLine, Puzzle, ScrollText, Settings, Shield, Skull, Sparkles, Swords, User,
 } from "lucide-vue-next";
 
@@ -11,7 +11,8 @@ export interface PlayerNavItem {
 }
 
 export const ALL_PLAYER_NAV: PlayerNavItem[] = [
-  { to: "/play",           label: "Character", icon: User },
+  { to: "/play",           label: "Character",  icon: User },
+  { to: "/play/champions", label: "Champions",  icon: Crown },
   { to: "/play/party",     label: "People",    icon: Shield },
   { to: "/play/inventory", label: "Inventory", icon: Package },
   { to: "/play/quests",    label: "Quests",    icon: ScrollText },

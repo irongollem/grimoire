@@ -73,6 +73,8 @@ export type LevelChoices = Record<number, LevelChoiceEntry>;
 export interface PartyMember {
   id: string;
   user_id: string;
+  owner_user_id: string | null;
+  is_dm_managed: boolean;
   campaign_id: string | null;
   name: string;
   player_name: string | null;
@@ -153,7 +155,7 @@ export interface ConcentrationState {
   appliedEffectIds: string[];
 }
 
-export type PartyMemberInsert = Omit<PartyMember, "id" | "user_id" | "created_at" | "updated_at" | "level_choices"> & {
+export type PartyMemberInsert = Omit<PartyMember, "id" | "user_id" | "owner_user_id" | "is_dm_managed" | "created_at" | "updated_at" | "level_choices"> & {
   level_choices?: LevelChoices;
 };
 export type PartyMemberUpdate = Partial<PartyMemberInsert>;

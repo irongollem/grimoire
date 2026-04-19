@@ -121,6 +121,54 @@ export function useDeletePartyMember() {
   });
 }
 
+const MY_CHARS_KEY = "my-characters";
+
+async function fetchMyCharacters(campaignId: string, userId: string): Promise<PartyMember[]> {
+  const { data, error } = await supabase
+    .from("party_members")
+    .select("*")
+    .eq("campaign_id", campaignId)
+    .eq("owner_user_id", userId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data as PartyMember[];
+}
+
+/** All characters owned by the current user in the active campaign (bench + active). */
+export function useMyCharacters() {
+  const campaign = useCampaignStore();
+  const auth = useAuthStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  const userId = computed(() => auth.user?.id);
+  return useQuery({
+    queryKey: computed(() => [MY_CHARS_KEY, campaignId.value, userId.value]),
+    queryFn: () => fetchMyCharacters(campaignId.value!, userId.value!),
+    enabled: () => !!campaignId.value && !!userId.value,
+  });
+}
+
+/** Sets which character is active for the current user in this campaign. */
+export function useSetActiveCharacter() {
+  const auth = useAuthStore();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (partyMemberId: string) => {
+      const membershipId = auth.membership?.id;
+      if (!membershipId) throw new Error("No campaign membership");
+      const { error } = await supabase
+        .from("campaign_members")
+        .update({ party_member_id: partyMemberId })
+        .eq("id", membershipId);
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await auth.refreshMembership();
+      void queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      void queryClient.invalidateQueries({ queryKey: [MY_CHARS_KEY] });
+    },
+  });
+}
+
 export function useSetShapeshifterAppearance() {
   const queryClient = useQueryClient();
   return useMutation({

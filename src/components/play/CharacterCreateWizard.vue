@@ -193,20 +193,8 @@
         </button>
       </div>
 
-      <div v-if="f.class && subclassOptions.length > 0" class="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
-        <p class="font-cinzel text-xs font-semibold text-primary tracking-wider">SUBCLASS (OPTIONAL)</p>
-        <div class="flex flex-wrap gap-2">
-          <button v-for="sc in subclassOptions" :key="sc" type="button"
-            class="px-3 py-1.5 rounded-md font-cinzel text-xs font-semibold transition-colors"
-            :class="f.subclass === sc ? 'bg-primary text-primary-foreground' : 'bg-card border border-border text-muted-foreground hover:text-foreground'"
-            @click="f.subclass = f.subclass === sc ? '' : sc">
-            {{ sc }}
-          </button>
-        </div>
-      </div>
-
       <p v-if="f.class" class="font-cinzel text-xs text-primary/70 tracking-wider text-center">
-        ✓ {{ f.class }} selected{{ f.subclass ? ` — ${f.subclass}` : '' }}
+        ✓ {{ f.class }} selected — subclass unlocked through levelling
       </p>
     </div>
 
@@ -550,7 +538,7 @@ const {
   backRoute,
   allSpecies, allBackgrounds,
   selectedSpecies, subraceOptions,
-  mergedClasses, subclassOptions,
+  mergedClasses,
   pointsRemaining, suggestedHp,
   mod, setSkillProf, skillBonus, toggleSave, saveBonus,
   resetSlotsToDefault, onSpeciesSelect, onClassSelect, onBackgroundSelect,
