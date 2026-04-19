@@ -1,92 +1,125 @@
 <template>
   <div class="space-y-3">
-    <!-- Loadout shortcut -->
-    <PlayerLoadout :member-id="member.id" />
 
-    <!-- Equipped weapon list -->
-    <div v-if="equippedWeapons.length" class="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border">
-      <div v-for="{ inv, item } in equippedWeapons" :key="inv.id" class="px-4 py-3">
-        <div class="flex items-center justify-between mb-2">
-          <span class="font-fell text-sm text-foreground font-semibold">{{ inv.name }}</span>
-          <span v-if="item.subtype" class="font-cinzel text-[10px] text-muted-foreground tracking-wider">{{ item.subtype }}</span>
+    <!-- ── Beast actions (when wildshaped) ───────────────────────────────────── -->
+    <template v-if="wildshapeMonster">
+      <template v-for="section in beastActionSections" :key="section.label">
+        <div v-if="section.entries.length" class="rounded-lg border border-primary/30 bg-card overflow-hidden">
+          <div class="px-4 py-2.5 border-b border-border">
+            <p class="font-cinzel text-xs font-semibold text-primary/80 tracking-wider">{{ section.label }}</p>
+          </div>
+          <div class="divide-y divide-border">
+            <div v-for="action in section.entries" :key="action.name" class="px-4 py-3">
+              <div class="flex items-start justify-between gap-2 mb-1.5">
+                <span class="font-fell text-sm text-foreground font-semibold">{{ action.name }}</span>
+                <button
+                  v-if="parseBeastAttackBonus(action.description) !== null"
+                  class="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors shrink-0"
+                  @click="rollBeastAttack(action.name, parseBeastAttackBonus(action.description)!)"
+                >
+                  <Sword class="h-3 w-3 text-muted-foreground" />
+                  <span class="font-cinzel text-xs text-foreground">Attack</span>
+                  <span class="font-cinzel text-xs" :class="parseBeastAttackBonus(action.description)! >= 0 ? 'text-elven-green' : 'text-destructive'">
+                    {{ signedNum(parseBeastAttackBonus(action.description)!) }}
+                  </span>
+                  <span v-if="attackDisadvantage" class="font-cinzel text-[9px] text-amber-500">Dis</span>
+                </button>
+              </div>
+              <p class="font-fell text-xs text-muted-foreground leading-relaxed">{{ action.description }}</p>
+            </div>
+          </div>
         </div>
-        <div class="flex flex-wrap gap-2">
-          <button
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors group"
-            @click="rollWeaponAttack(inv, item)"
-          >
-            <Sword class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
-            <span class="font-cinzel text-xs text-foreground">Attack</span>
-            <span class="font-cinzel text-xs" :class="weaponAttackMod(item) >= 0 ? 'text-elven-green' : 'text-destructive'">
-              {{ signedNum(weaponAttackMod(item)) }}
-            </span>
-            <span v-if="attackDisadvantage" class="font-cinzel text-[9px] text-amber-500 tracking-wider">Dis</span>
-          </button>
-          <button
-            v-if="item.damage_rolls?.length"
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-amber-500/50 hover:bg-muted/30 transition-colors group"
-            @click="rollWeaponDamage(inv, item)"
-          >
-            <Zap class="h-3.5 w-3.5 text-muted-foreground group-hover:text-amber-400 transition-colors" />
-            <span class="font-cinzel text-xs text-foreground">{{ item.damage_rolls[0].dice }}</span>
-            <span class="font-cinzel text-xs text-muted-foreground">{{ item.damage_rolls[0].type }}</span>
-          </button>
-        </div>
-      </div>
-    </div>
+      </template>
+    </template>
 
-    <!-- Always-available melee attacks -->
-    <div class="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border">
-      <!-- Unarmed Strike -->
-      <div class="px-4 py-3">
-        <div class="flex items-center justify-between mb-2">
-          <span class="font-fell text-sm text-foreground font-semibold">Unarmed Strike</span>
-          <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">Proficient</span>
-        </div>
-        <div class="flex flex-wrap gap-2 items-center">
-          <button
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors group"
-            @click="rollUnarmedAttack"
-          >
-            <Sword class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
-            <span class="font-cinzel text-xs text-foreground">Attack</span>
-            <span class="font-cinzel text-xs" :class="unarmedAttackMod >= 0 ? 'text-elven-green' : 'text-destructive'">
-              {{ signedNum(unarmedAttackMod) }}
-            </span>
-            <span v-if="attackDisadvantage" class="font-cinzel text-[9px] text-amber-500 tracking-wider">Dis</span>
-          </button>
-          <span class="font-cinzel text-xs text-muted-foreground">{{ unarmedDamage }} bludgeoning</span>
-        </div>
-      </div>
-      <!-- Improvised Weapon -->
-      <div class="px-4 py-3">
-        <div class="flex items-center justify-between mb-2">
-          <span class="font-fell text-sm text-foreground font-semibold">Improvised Weapon</span>
-          <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">No proficiency</span>
-        </div>
-        <div class="flex flex-wrap gap-2">
-          <button
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors group"
-            @click="rollImprovisedAttack"
-          >
-            <Sword class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
-            <span class="font-cinzel text-xs text-foreground">Attack</span>
-            <span class="font-cinzel text-xs" :class="improvisedAttackMod >= 0 ? 'text-elven-green' : 'text-destructive'">
-              {{ signedNum(improvisedAttackMod) }}
-            </span>
-            <span v-if="attackDisadvantage" class="font-cinzel text-[9px] text-amber-500 tracking-wider">Dis</span>
-          </button>
-          <button
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-amber-500/50 hover:bg-muted/30 transition-colors group"
-            @click="rollImprovisedDamage"
-          >
-            <Zap class="h-3.5 w-3.5 text-muted-foreground group-hover:text-amber-400 transition-colors" />
-            <span class="font-cinzel text-xs text-foreground">1d4</span>
-            <span class="font-cinzel text-xs text-muted-foreground">{{ signedNum(improvisedAttackMod) }}</span>
-          </button>
+    <!-- ── Normal character combat (hidden while wildshaped) ─────────────────── -->
+    <template v-else>
+      <!-- Loadout shortcut -->
+      <PlayerLoadout :member-id="member.id" />
+
+      <!-- Equipped weapon list -->
+      <div v-if="equippedWeapons.length" class="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border">
+        <div v-for="{ inv, item } in equippedWeapons" :key="inv.id" class="px-4 py-3">
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-fell text-sm text-foreground font-semibold">{{ inv.name }}</span>
+            <span v-if="item.subtype" class="font-cinzel text-[10px] text-muted-foreground tracking-wider">{{ item.subtype }}</span>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors group"
+              @click="rollWeaponAttack(inv, item)"
+            >
+              <Sword class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+              <span class="font-cinzel text-xs text-foreground">Attack</span>
+              <span class="font-cinzel text-xs" :class="weaponAttackMod(item) >= 0 ? 'text-elven-green' : 'text-destructive'">
+                {{ signedNum(weaponAttackMod(item)) }}
+              </span>
+              <span v-if="attackDisadvantage" class="font-cinzel text-[9px] text-amber-500 tracking-wider">Dis</span>
+            </button>
+            <button
+              v-if="item.damage_rolls?.length"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-amber-500/50 hover:bg-muted/30 transition-colors group"
+              @click="rollWeaponDamage(inv, item)"
+            >
+              <Zap class="h-3.5 w-3.5 text-muted-foreground group-hover:text-amber-400 transition-colors" />
+              <span class="font-cinzel text-xs text-foreground">{{ item.damage_rolls[0].dice }}</span>
+              <span class="font-cinzel text-xs text-muted-foreground">{{ item.damage_rolls[0].type }}</span>
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      <!-- Always-available melee attacks -->
+      <div class="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border">
+        <div class="px-4 py-3">
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-fell text-sm text-foreground font-semibold">Unarmed Strike</span>
+            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">Proficient</span>
+          </div>
+          <div class="flex flex-wrap gap-2 items-center">
+            <button
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors group"
+              @click="rollUnarmedAttack"
+            >
+              <Sword class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+              <span class="font-cinzel text-xs text-foreground">Attack</span>
+              <span class="font-cinzel text-xs" :class="unarmedAttackMod >= 0 ? 'text-elven-green' : 'text-destructive'">
+                {{ signedNum(unarmedAttackMod) }}
+              </span>
+              <span v-if="attackDisadvantage" class="font-cinzel text-[9px] text-amber-500 tracking-wider">Dis</span>
+            </button>
+            <span class="font-cinzel text-xs text-muted-foreground">{{ unarmedDamage }} bludgeoning</span>
+          </div>
+        </div>
+        <div class="px-4 py-3">
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-fell text-sm text-foreground font-semibold">Improvised Weapon</span>
+            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">No proficiency</span>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors group"
+              @click="rollImprovisedAttack"
+            >
+              <Sword class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+              <span class="font-cinzel text-xs text-foreground">Attack</span>
+              <span class="font-cinzel text-xs" :class="improvisedAttackMod >= 0 ? 'text-elven-green' : 'text-destructive'">
+                {{ signedNum(improvisedAttackMod) }}
+              </span>
+              <span v-if="attackDisadvantage" class="font-cinzel text-[9px] text-amber-500 tracking-wider">Dis</span>
+            </button>
+            <button
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-amber-500/50 hover:bg-muted/30 transition-colors group"
+              @click="rollImprovisedDamage"
+            >
+              <Zap class="h-3.5 w-3.5 text-muted-foreground group-hover:text-amber-400 transition-colors" />
+              <span class="font-cinzel text-xs text-foreground">1d4</span>
+              <span class="font-cinzel text-xs text-muted-foreground">{{ signedNum(improvisedAttackMod) }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -105,8 +138,9 @@ import PlayerLoadout from "@/components/player/PlayerLoadout.vue";
 import type { PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
+import type { Monster } from "@/types/monster.types";
 
-const props = defineProps<{ member: PartyMember; attackDisadvantage: boolean }>();
+const props = defineProps<{ member: PartyMember; attackDisadvantage: boolean; wildshapeMonster?: Monster }>();
 const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifier: number; total: number }] }>();
 
 const { data: inventory } = usePartyInventory();
@@ -139,13 +173,37 @@ const unarmedAttackMod = computed(() => strMod.value + props.member.proficiency_
 const unarmedDamage = computed(() => 1 + strMod.value);
 const improvisedAttackMod = computed(() => bestMod.value);
 
+// Beast action sections shown when wildshaped
+const beastActionSections = computed(() => {
+  const sb = props.wildshapeMonster?.stat_block;
+  if (!sb) return [];
+  return [
+    { label: "Actions",       entries: sb.actions       ?? [] },
+    { label: "Bonus Actions", entries: sb.bonus_actions ?? [] },
+    { label: "Reactions",     entries: sb.reactions     ?? [] },
+  ];
+});
+
+/** Extracts the attack bonus from a beast action description, e.g. "+4 to hit" → 4 */
+function parseBeastAttackBonus(desc: string): number | null {
+  const m = desc.match(/\+(\d+)\s+to\s+hit/i);
+  if (m) return parseInt(m[1], 10);
+  const m2 = desc.match(/-(\d+)\s+to\s+hit/i);
+  if (m2) return -parseInt(m2[1], 10);
+  return null;
+}
+
+async function rollBeastAttack(name: string, bonus: number) {
+  return rollAttackWith(bonus, name);
+}
+
 function weaponAbilityMod(item: Item): number {
   const itemProps = item.properties ?? [];
-  const strMod = abilityMod(props.member.str);
+  const strModVal = abilityMod(props.member.str);
   const dexModVal = abilityMod(props.member.dex);
   if (itemProps.includes("ammunition")) return dexModVal;
-  if (itemProps.includes("finesse")) return dexModVal > strMod ? dexModVal : strMod;
-  return strMod;
+  if (itemProps.includes("finesse")) return dexModVal > strModVal ? dexModVal : strModVal;
+  return strModVal;
 }
 function weaponAttackMod(item: Item): number {
   return weaponAbilityMod(item) + props.member.proficiency_bonus;
@@ -185,7 +243,6 @@ function parsedToCounts(parsed: ParsedExpression): Partial<Record<DieSize, numbe
 async function rollDamageLabelled(parsed: ParsedExpression, mod: number, label: string) {
   const counts = parsedToCounts(parsed);
   if (Object.keys(counts).length === 0) {
-    // Flat damage — no prompt needed, just emit+post via rollParsed path.
     const { total: diceTotal, breakdown } = rollParsed(parsed);
     const total = diceTotal + mod;
     emit("roll", { label, dice: diceTotal, modifier: mod, total });

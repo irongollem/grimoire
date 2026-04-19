@@ -92,6 +92,13 @@ export function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
+/** Parse a D&D challenge rating string ("1/4", "1/2", "5", "0") to a number. */
+export function parseCr(cr: string | null | undefined): number {
+  if (!cr || cr === "0") return 0;
+  if (cr.includes("/")) { const [n, d] = cr.split("/"); return Number(n) / Number(d); }
+  return parseFloat(cr) || 0;
+}
+
 type TiptapNode = { text?: string; content?: TiptapNode[] };
 
 export function extractTiptapText(json: string | null | undefined, maxLength = 160): string {

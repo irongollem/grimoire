@@ -54,10 +54,10 @@
     <template v-if="selectedCombatant.type === 'monster' && selectedMonster">
       <div class="detail-scroll">
         <FocalImage
-          v-if="selectedCombatant.portrait_url"
-          :src="selectedCombatant.portrait_url"
+          v-if="selectedCombatant.wildshape?.beast_image_url ?? selectedCombatant.portrait_url"
+          :src="(selectedCombatant.wildshape?.beast_image_url ?? selectedCombatant.portrait_url)!"
           :alt="selectedCombatant.name"
-          :focal-point="selectedCombatant.portrait_focal_point ?? null"
+          :focal-point="selectedCombatant.wildshape?.beast_image_url ? null : (selectedCombatant.portrait_focal_point ?? null)"
           format="portrait"
           class="detail-portrait"
         />
@@ -142,10 +142,10 @@
     <template v-else-if="selectedCombatant.type === 'monster' && selectedNpc">
       <div class="detail-scroll">
         <FocalImage
-          v-if="selectedCombatant.portrait_url"
-          :src="selectedCombatant.portrait_url"
+          v-if="selectedCombatant.wildshape?.beast_image_url ?? selectedCombatant.portrait_url"
+          :src="(selectedCombatant.wildshape?.beast_image_url ?? selectedCombatant.portrait_url)!"
           :alt="selectedCombatant.name"
-          :focal-point="selectedCombatant.portrait_focal_point ?? null"
+          :focal-point="selectedCombatant.wildshape?.beast_image_url ? null : (selectedCombatant.portrait_focal_point ?? null)"
           format="portrait"
           class="detail-portrait"
         />
@@ -219,10 +219,10 @@
     <template v-else-if="selectedCombatant.type === 'player' && selectedCompanion">
       <div class="detail-scroll">
         <FocalImage
-          v-if="selectedCombatant.portrait_url"
-          :src="selectedCombatant.portrait_url"
+          v-if="selectedCombatant.wildshape?.beast_image_url ?? selectedCombatant.portrait_url"
+          :src="(selectedCombatant.wildshape?.beast_image_url ?? selectedCombatant.portrait_url)!"
           :alt="selectedCombatant.name"
-          :focal-point="selectedCombatant.portrait_focal_point ?? null"
+          :focal-point="selectedCombatant.wildshape?.beast_image_url ? null : (selectedCombatant.portrait_focal_point ?? null)"
           format="portrait"
           class="detail-portrait"
         />
@@ -282,10 +282,10 @@
     <template v-else-if="selectedCombatant.type === 'player' && selectedMember">
       <div class="detail-scroll">
         <FocalImage
-          v-if="selectedCombatant.portrait_url"
-          :src="selectedCombatant.portrait_url"
+          v-if="selectedCombatant.wildshape?.beast_image_url ?? selectedCombatant.portrait_url"
+          :src="(selectedCombatant.wildshape?.beast_image_url ?? selectedCombatant.portrait_url)!"
           :alt="selectedCombatant.name"
-          :focal-point="selectedCombatant.portrait_focal_point ?? null"
+          :focal-point="selectedCombatant.wildshape?.beast_image_url ? null : (selectedCombatant.portrait_focal_point ?? null)"
           format="portrait"
           class="detail-portrait"
         />
@@ -443,16 +443,25 @@
           <template v-if="selectedCombatant.wildshape">
             <div class="wildshape-banner">
               <span class="wildshape-banner-label">🐺 {{ selectedCombatant.wildshape.beast_name }}</span>
-              <button
-                type="button"
-                class="wildshape-revert-btn"
-                @click="store.revertWildshape(selectedCombatant!.instance_id)"
-              >Revert Form</button>
+              <div class="flex items-center gap-1.5">
+                <button
+                  v-if="isSelectedDruid"
+                  type="button"
+                  class="wildshape-revert-btn"
+                  @click="showWildshapePicker = !showWildshapePicker"
+                >{{ showWildshapePicker ? 'Cancel' : 'Change' }}</button>
+                <button
+                  type="button"
+                  class="wildshape-revert-btn"
+                  @click="store.revertWildshape(selectedCombatant!.instance_id); showWildshapePicker = false"
+                >Revert</button>
+              </div>
             </div>
             <template v-if="wildshapeMonster">
               <p class="detail-meta mt-1">{{ wildshapeMonster.size }} {{ wildshapeMonster.monster_type }}</p>
               <div class="detail-stats mt-2">
-                <div class="detail-stat"><span>AC</span><strong>{{ wildshapeMonster.stat_block?.armor_class }}</strong></div>
+                <div class="detail-stat"><span>AC</span><strong>{{ selectedCombatant.wildshape!.beast_ac }}</strong></div>
+                <div class="detail-stat"><span>HP</span><strong>{{ selectedCombatant.wildshape!.beast_hp }}/{{ selectedCombatant.wildshape!.beast_max_hp }}</strong></div>
                 <div class="detail-stat"><span>Speed</span><strong>{{ wildshapeMonster.stat_block?.speed }}</strong></div>
               </div>
               <div class="detail-divider" />
@@ -492,8 +501,8 @@
             </template>
           </template>
 
-          <!-- Wildshape picker (Druid only, not currently wildshaped) -->
-          <template v-else-if="isSelectedDruid">
+          <!-- Wildshape picker (Druid, not wildshaped OR "Change" clicked while wildshaped) -->
+          <template v-if="isSelectedDruid && !selectedCombatant.wildshape">
             <div class="flex items-center justify-between">
               <p class="detail-section-label">Wildshape</p>
               <div class="flex items-center gap-1.5">
@@ -506,25 +515,25 @@
                 >{{ showWildshapePicker ? 'Cancel' : '🐺 Choose Form' }}</button>
               </div>
             </div>
-            <template v-if="showWildshapePicker">
-              <p v-if="!wildshapeForms.length" class="font-fell text-xs text-muted-foreground italic px-1 py-2">
-                No eligible beast forms at this level.
-              </p>
-              <div v-else class="wildshape-picker-list">
-                <button
-                  v-for="m in wildshapeForms"
-                  :key="m.id"
-                  type="button"
-                  class="wildshape-pick-row"
-                  @click="handleWildshape(m)"
-                >
-                  <span class="pick-name">{{ m.name }}</span>
-                  <span class="pick-cr">CR {{ m.stat_block?.challenge_rating }}</span>
-                  <span class="pick-ac">AC {{ m.stat_block?.armor_class }}</span>
-                  <span class="pick-speed">{{ m.stat_block?.speed }}</span>
-                </button>
-              </div>
-            </template>
+          </template>
+          <template v-if="showWildshapePicker && isSelectedDruid">
+            <p v-if="!wildshapeForms.length" class="font-fell text-xs text-muted-foreground italic px-1 py-2">
+              No eligible beast forms at this level.
+            </p>
+            <div v-else class="wildshape-picker-list">
+              <button
+                v-for="m in wildshapeForms"
+                :key="m.id"
+                type="button"
+                class="wildshape-pick-row"
+                @click="handleWildshape(m)"
+              >
+                <span class="pick-name">{{ m.name }}</span>
+                <span class="pick-cr">CR {{ m.stat_block?.challenge_rating }}</span>
+                <span class="pick-ac">AC {{ m.stat_block?.armor_class }}</span>
+                <span class="pick-speed">{{ m.stat_block?.speed }}</span>
+              </button>
+            </div>
           </template>
         </template>
 
@@ -712,6 +721,7 @@ import { useDiscoveredKeys } from "@/composables/useDiscoveredMonsters";
 import { useDmPinnedForms } from "@/composables/usePinnedForms";
 import { useCompanions } from "@/composables/useCompanions";
 import { parseExpression } from "@/lib/dice";
+import { parseCr } from "@/lib/utils";
 import { rollParsed } from "@/lib/roller";
 import type { DieSize, RollResult } from "@/lib/roller";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
@@ -1356,14 +1366,7 @@ const isSelectedCircleOfMoon = computed(() =>
   selectedMember.value?.subclass?.toLowerCase().includes("moon") ?? false,
 );
 
-function parseCrValue(cr: string | null | undefined): number {
-  if (!cr || cr === "0") return 0;
-  if (cr.includes("/")) {
-    const [n, d] = cr.split("/");
-    return Number(n) / Number(d);
-  }
-  return parseFloat(cr) || 0;
-}
+
 
 const wildshapeMaxCr = computed(() => {
   const level = selectedMember.value?.level ?? 1;
@@ -1391,14 +1394,14 @@ const wildshapeForms = computed<Monster[]>(() => {
     .filter((m) => {
       if (!dkeys.has(m.id) && !pinnedKeys.has(m.id)) return false;
       if ((m.monster_type ?? "").toLowerCase() !== "beast") return false;
-      if (parseCrValue(m.stat_block?.challenge_rating) > maxCr) return false;
+      if (parseCr(m.stat_block?.challenge_rating) > maxCr) return false;
       if (level < 8) {
         const speed = (m.stat_block?.speed ?? "").toLowerCase();
         if (speed.includes("fly") || speed.includes("swim")) return false;
       }
       return true;
     })
-    .sort((a, b) => parseCrValue(a.stat_block?.challenge_rating) - parseCrValue(b.stat_block?.challenge_rating));
+    .sort((a, b) => parseCr(a.stat_block?.challenge_rating) - parseCr(b.stat_block?.challenge_rating));
 });
 
 const wildshapeMonster = computed<Monster | null>(() => {
@@ -1443,12 +1446,14 @@ function handleWildshape(monster: Monster) {
   const sb = monster.stat_block;
   const maxHp = parseInt(String(sb?.hit_points ?? "1").split(" ")[0], 10) || 1;
   const ac = String(sb?.armor_class ?? "10");
+  const wildshapesUsed = (selectedMember.value?.wildshapes_used ?? 0) + 1;
   store.enterWildshape(selectedCombatant.value.instance_id, {
     id: monster.id,
     name: monster.name,
+    image_url: monster.image_url ?? null,
     max_hp: maxHp,
     ac,
-  });
+  }, wildshapesUsed);
   showWildshapePicker.value = false;
 }
 

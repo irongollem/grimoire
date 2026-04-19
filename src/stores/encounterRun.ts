@@ -4,6 +4,15 @@ import type { RunCombatant, FactionDef, RevealState, EncounterEvent, EventTrigge
 import type { Monster } from "@/types/monster.types";
 import type { Npc } from "@/types/npc.types";
 import type { Trap } from "@/types/trap.types";
+import { supabase } from "@/lib/supabase";
+
+/** Fire-and-forget write to party_members for player combatants.
+ *  The store is the immediate source of truth for DM display; this call
+ *  persists the change so the player's sheet and future sessions see it too. */
+function persistPlayer(c: RunCombatant, patch: Record<string, unknown>) {
+  if (c.type !== "player" || !c.party_member_id) return;
+  void supabase.from("party_members").update(patch).eq("id", c.party_member_id);
+}
 
 export const useEncounterRunStore = defineStore("encounterRun", () => {
   const encounterId = ref<string | null>(null);
@@ -108,41 +117,61 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     activeIndex.value = prevIndexInSorted;
   }
 
-  function enterWildshape(instanceId: string, beast: { id: string; name: string; max_hp: number; ac: string }) {
+  function enterWildshape(instanceId: string, beast: { id: string; name: string; image_url: string | null; max_hp: number; ac: string }, wildshapesUsed: number) {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c) return;
+    // Player's real hp/max_hp/ac are NEVER modified — beast form is a self-contained overlay.
+    // Reverting is simply clearing this field; nothing needs restoring.
     c.wildshape = {
       monster_id: beast.id,
       beast_name: beast.name,
-      original_hp: c.hp,
-      original_max_hp: c.max_hp,
-      original_ac: c.ac,
+      beast_image_url: beast.image_url,
+      beast_hp: beast.max_hp,
+      beast_max_hp: beast.max_hp,
+      beast_ac: beast.ac,
     } satisfies WildshapeState;
-    c.hp = beast.max_hp;
-    c.max_hp = beast.max_hp;
-    c.ac = beast.ac;
+    persistPlayer(c, { wildshape_state: c.wildshape, wildshapes_used: wildshapesUsed });
   }
 
   function revertWildshape(instanceId: string) {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c?.wildshape) return;
-    c.hp = c.wildshape.original_hp;
-    c.max_hp = c.wildshape.original_max_hp;
-    c.ac = c.wildshape.original_ac;
+    // Real stats were never touched — just remove the overlay.
     c.wildshape = undefined;
+    persistPlayer(c, { wildshape_state: null });
   }
 
   function adjustHp(instanceId: string, delta: number) {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c) return;
+    // Temp HP absorbs damage first, regardless of wildshape state
     if (delta < 0 && c.temp_hp) {
       const absorbed = Math.min(c.temp_hp, -delta);
       c.temp_hp = c.temp_hp - absorbed;
       delta = delta + absorbed;
       if (c.temp_hp === 0) c.temp_hp = undefined;
     }
-    c.hp = Math.min(c.max_hp, Math.max(0, c.hp + delta));
-    if (c.hp === 0 && c.wildshape) revertWildshape(instanceId);
+    if (c.wildshape) {
+      if (delta < 0) {
+        // Damage reduces beast HP. 5e RAW: excess damage on revert carries to real HP.
+        const newBeastHp = c.wildshape.beast_hp + delta;
+        if (newBeastHp <= 0) {
+          const overflow = -newBeastHp;
+          revertWildshape(instanceId); // clears c.wildshape
+          c.hp = Math.max(0, c.hp - overflow);
+        } else {
+          c.wildshape.beast_hp = newBeastHp;
+        }
+      } else {
+        // Healing goes to beast HP, capped at beast max
+        c.wildshape.beast_hp = Math.min(c.wildshape.beast_max_hp, c.wildshape.beast_hp + delta);
+      }
+    } else {
+      c.hp = Math.min(c.max_hp, Math.max(0, c.hp + delta));
+    }
+    if (c.type === "player") {
+      persistPlayer(c, { current_hp: c.hp, temp_hp: c.temp_hp ?? 0, wildshape_state: c.wildshape ?? null });
+    }
     checkEvents();
   }
 
@@ -151,13 +180,19 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     if (!c) return;
     // Temp HP doesn't stack — take the higher value
     c.temp_hp = Math.max(c.temp_hp ?? 0, value) || undefined;
+    persistPlayer(c, { temp_hp: c.temp_hp ?? 0 });
   }
 
   function setHp(instanceId: string, value: number) {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c) return;
-    c.hp = Math.min(c.max_hp, Math.max(0, value));
-    if (c.hp === 0 && c.wildshape) revertWildshape(instanceId);
+    if (c.wildshape) {
+      c.wildshape.beast_hp = Math.min(c.wildshape.beast_max_hp, Math.max(0, value));
+      if (c.wildshape.beast_hp === 0) revertWildshape(instanceId);
+    } else {
+      c.hp = Math.min(c.max_hp, Math.max(0, value));
+    }
+    persistPlayer(c, { current_hp: c.hp, wildshape_state: c.wildshape ?? null });
     checkEvents();
   }
 
@@ -167,6 +202,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     const idx = c.conditions.indexOf(condition);
     if (idx >= 0) c.conditions.splice(idx, 1);
     else c.conditions.push(condition);
+    persistPlayer(c, { conditions: c.conditions });
   }
 
   /** Replace a combatant's full conditions array — used when several
@@ -175,6 +211,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c) return;
     c.conditions = conditions;
+    persistPlayer(c, { conditions: c.conditions });
   }
 
   function addCurse(instanceId: string, curse: string) {

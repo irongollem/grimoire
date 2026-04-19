@@ -97,13 +97,14 @@ export interface EncounterEvent {
   is_player_visible?: boolean;
 }
 
-// Wildshape overlay — stores original player stats so they can be restored on revert
+// Wildshape overlay — tracks beast form HP independently; player's real stats are NEVER modified
 export interface WildshapeState {
   monster_id: string;
   beast_name: string;
-  original_hp: number;
-  original_max_hp: number;
-  original_ac: string;
+  beast_image_url: string | null;
+  beast_hp: number;      // current HP in beast form
+  beast_max_hp: number;  // max HP of the beast
+  beast_ac: string;      // AC of the beast
 }
 
 // Live combatant during a run (ephemeral — not stored in DB)

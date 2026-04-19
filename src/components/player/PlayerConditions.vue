@@ -78,7 +78,6 @@ import { computed } from "vue";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
-import { patchLiveCombatantConditions } from "@/composables/useEncounterLive";
 import {
   getConditionDescription,
   getExhaustionLevel,
@@ -102,13 +101,11 @@ const exhaustionLevel = computed(() => getExhaustionLevel(props.member.condition
 async function removeCondition(cond: string) {
   const updated = (props.member.conditions ?? []).filter(c => c !== cond);
   await updateMember({ id: props.member.id, update: { conditions: updated } });
-  void patchLiveCombatantConditions(props.member.id, updated);
 }
 
 async function setExhaustion(level: number) {
   const updated = setExhaustionLevel(props.member.conditions ?? [], level);
   await updateMember({ id: props.member.id, update: { conditions: updated } });
-  void patchLiveCombatantConditions(props.member.id, updated);
 }
 
 // ── Death saves ───────────────────────────────────────────────────────────────

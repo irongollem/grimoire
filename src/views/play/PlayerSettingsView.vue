@@ -270,13 +270,15 @@
         <li
           v-for="(item, i) in sortedNav"
           :key="item.to"
-          class="flex items-center gap-3 rounded-md border px-3 py-2 bg-card select-none transition-colors"
-          :class="{
-            'opacity-40': draggingIdx === i,
-            'border-primary/50': overIdx === i && draggingIdx !== null && draggingIdx !== i,
-            'border-border': !(overIdx === i && draggingIdx !== null && draggingIdx !== i),
-          }"
+          class="relative flex items-center gap-3 rounded-md border border-border px-3 py-2 bg-card select-none transition-colors"
+          :class="{ 'opacity-40': draggingIdx === i }"
         >
+          <!-- Drop insertion line — shown above the target row -->
+          <div
+            v-if="overIdx === i && draggingIdx !== null && draggingIdx !== i"
+            class="absolute inset-x-1 top-0 h-0.5 rounded-full bg-primary z-10"
+            style="transform: translateY(-50%)"
+          />
           <!-- Drag handle -->
           <span
             class="cursor-grab active:cursor-grabbing text-muted-foreground touch-none"
@@ -432,6 +434,24 @@
     </section>
   </div>
   </PageHeader>
+
+  <!-- Drag ghost — floats with the pointer during reorder (visible on iOS touch) -->
+  <Teleport to="body">
+    <div
+      v-if="ghostItem"
+      class="fixed z-9999 pointer-events-none flex items-center gap-3 rounded-md border border-primary/60 bg-card px-3 py-2 shadow-2xl"
+      :style="{
+        top: ghostY + 'px',
+        left: ghostLeft + 'px',
+        width: ghostWidth + 'px',
+        transform: 'translateY(-50%)',
+      }"
+    >
+      <GripVertical class="h-4 w-4 shrink-0 text-muted-foreground" />
+      <component :is="ghostItem.icon" class="h-4 w-4 shrink-0 text-muted-foreground" />
+      <span class="font-cinzel text-xs tracking-wider flex-1">{{ ghostItem.label }}</span>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -471,6 +491,14 @@ const dragListRef = ref<HTMLElement | null>(null);
 const draggingIdx = ref<number | null>(null);
 const overIdx     = ref<number | null>(null);
 
+// Ghost element state for pointer-follow feedback on iOS and other touch devices
+const ghostY     = ref(0);
+const ghostLeft  = ref(0);
+const ghostWidth = ref(280);
+const ghostItem  = computed(() =>
+  draggingIdx.value !== null ? (sortedNav.value[draggingIdx.value] ?? null) : null
+);
+
 function getOverIndex(clientY: number): number {
   if (!dragListRef.value) return 0;
   const items = Array.from(dragListRef.value.children) as HTMLElement[];
@@ -484,11 +512,22 @@ function getOverIndex(clientY: number): number {
 let activeMove: ((ev: PointerEvent) => void) | null = null;
 let activeUp: (() => void) | null = null;
 
-function onHandlePointerDown(index: number, _e: PointerEvent) {
-  draggingIdx.value = index;
-  overIdx.value = index;
+function onHandlePointerDown(index: number, e: PointerEvent) {
+  // Capture the pointer so events keep firing even if the finger leaves the element (iOS)
+  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 
-  activeMove = (ev: PointerEvent) => { overIdx.value = getOverIndex(ev.clientY); };
+  const listRect = dragListRef.value?.getBoundingClientRect();
+  ghostLeft.value  = listRect?.left ?? 0;
+  ghostWidth.value = listRect?.width ?? 280;
+  ghostY.value     = e.clientY;
+
+  draggingIdx.value = index;
+  overIdx.value     = index;
+
+  activeMove = (ev: PointerEvent) => {
+    overIdx.value = getOverIndex(ev.clientY);
+    ghostY.value  = ev.clientY;
+  };
   activeUp = () => {
     if (draggingIdx.value !== null && overIdx.value !== null && draggingIdx.value !== overIdx.value) {
       const current = sortedNav.value.map((item) => item.to);

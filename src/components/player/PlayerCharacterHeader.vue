@@ -1,19 +1,19 @@
 <template>
   <div class="rounded-lg border border-border bg-card overflow-hidden flex flex-col">
     <div class="flex items-stretch flex-1">
-      <!-- Portrait -->
+      <!-- Portrait (beast image when wildshaped) -->
       <div class="shrink-0 w-24 relative overflow-hidden bg-muted/50">
         <FocalImage
-          v-if="member.portrait_url"
-          :src="member.portrait_url"
-          :alt="member.name"
+          v-if="wildshape?.beast_image_url ?? member.portrait_url"
+          :src="(wildshape?.beast_image_url ?? member.portrait_url)!"
+          :alt="wildshape?.beast_name ?? member.name"
           format="portrait"
-          :focal-point="member.portrait_focal_point ?? null"
+          :focal-point="wildshape?.beast_image_url ? null : (member.portrait_focal_point ?? null)"
         />
         <span
           v-else
           class="absolute inset-0 flex items-center justify-center font-cinzel text-3xl font-bold text-muted-foreground"
-        >{{ member.name.charAt(0) }}</span>
+        >{{ wildshape ? wildshape.beast_name.charAt(0) : member.name.charAt(0) }}</span>
       </div>
 
       <!-- Right column -->
@@ -22,8 +22,11 @@
         <div class="flex items-start gap-2 px-3 pt-3 pb-1">
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-1.5">
-              <h1 class="font-cinzel text-lg font-bold text-foreground leading-tight truncate">{{ member.name }}</h1>
+              <h1 class="font-cinzel text-lg font-bold text-foreground leading-tight truncate">
+                {{ wildshape ? wildshape.beast_name : member.name }}
+              </h1>
               <button
+                v-if="!wildshape"
                 class="shrink-0 flex items-center justify-center transition-colors"
                 :class="member.inspiration ? 'text-gold-500' : 'text-muted-foreground/30 hover:text-muted-foreground/60'"
                 title="Inspiration"
@@ -31,11 +34,12 @@
               ><Star class="h-3.5 w-3.5" :class="member.inspiration ? 'fill-gold-500' : ''" /></button>
             </div>
             <p class="font-fell text-xs text-muted-foreground italic">
-              {{ [speciesName, member.subrace, classLabel].filter(Boolean).join(" · ") }}
-              <span v-if="memberTotalLevel" class="font-cinzel text-[10px] text-primary not-italic ml-1">Lv {{ memberTotalLevel }}</span>
+              <template v-if="wildshape">🐺 {{ member.name }}</template>
+              <template v-else>{{ [speciesName, member.subrace, classLabel].filter(Boolean).join(" · ") }}</template>
+              <span v-if="!wildshape && memberTotalLevel" class="font-cinzel text-[10px] text-primary not-italic ml-1">Lv {{ memberTotalLevel }}</span>
             </p>
-            <!-- XP progress (only when the campaign actually tracks XP) -->
-            <div v-if="(member.experience_points ?? 0) > 0 || readyToLevelUp" class="mt-1 flex items-center gap-1.5">
+            <!-- XP progress (only when not wildshaped and the campaign actually tracks XP) -->
+            <div v-if="!wildshape && ((member.experience_points ?? 0) > 0 || readyToLevelUp)" class="mt-1 flex items-center gap-1.5">
               <span class="font-cinzel text-[9px] text-muted-foreground tracking-wider">XP</span>
               <div class="flex-1 max-w-32 h-1 rounded-full bg-muted overflow-hidden">
                 <div class="h-full transition-all"
@@ -52,7 +56,7 @@
               >Ready ↑</RouterLink>
             </div>
           </div>
-          <div v-if="!hidePlayerActions" class="shrink-0 flex items-center gap-1 pt-0.5">
+          <div v-if="!hidePlayerActions && !wildshape" class="shrink-0 flex items-center gap-1 pt-0.5">
             <RouterLink
               :to="`/play/character/levelup?memberId=${member.id}`"
               class="h-6 w-6 flex items-center justify-center rounded text-primary/60 hover:text-primary hover:bg-primary/10 transition-colors"
@@ -77,14 +81,14 @@
           />
           <button class="h-6 px-1.5 rounded bg-destructive/15 border border-destructive/40 font-cinzel text-[9px] text-destructive hover:bg-destructive/25 transition-colors tracking-wider" @click="applyDamage">DMG</button>
           <button class="h-6 px-1.5 rounded bg-elven-green/10 border border-elven-green/40 font-cinzel text-[9px] text-elven-green hover:bg-elven-green/20 transition-colors tracking-wider" @click="applyHeal">Heal</button>
-          <button class="h-6 px-1.5 rounded bg-blue-500/10 border border-blue-500/30 font-cinzel text-[9px] text-blue-400 hover:bg-blue-500/20 transition-colors tracking-wider" @click="applyTempHp">Tmp</button>
+          <button v-if="!wildshape" class="h-6 px-1.5 rounded bg-blue-500/10 border border-blue-500/30 font-cinzel text-[9px] text-blue-400 hover:bg-blue-500/20 transition-colors tracking-wider" @click="applyTempHp">Tmp</button>
         </div>
 
         <!-- HP readout -->
         <div class="flex items-baseline gap-1.5 px-3 flex-wrap">
-          <span class="font-cinzel text-2xl font-bold" :class="hpColor">{{ member.current_hp }}</span>
-          <span class="font-fell text-sm text-muted-foreground">/ {{ member.max_hp }}</span>
-          <span v-if="member.temp_hp" class="font-cinzel text-[10px] text-blue-400 ml-1">+{{ member.temp_hp }} tmp</span>
+          <span class="font-cinzel text-2xl font-bold" :class="hpColor">{{ displayHp }}</span>
+          <span class="font-fell text-sm text-muted-foreground">/ {{ displayMaxHp }}</span>
+          <span v-if="!wildshape && member.temp_hp" class="font-cinzel text-[10px] text-blue-400 ml-1">+{{ member.temp_hp }} tmp</span>
           <span v-if="attackDisadvantage" class="font-cinzel text-[9px] text-amber-500 tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Disadvantage on attack rolls">⚔ Dis</span>
           <span v-if="checkDisadvantage"  class="font-cinzel text-[9px] text-amber-500 tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Disadvantage on ability checks">✦ Dis</span>
           <button
@@ -170,7 +174,6 @@ import { useCharacterClasses } from "@/composables/useCharacterClasses";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import { getHitDie } from "@/types/spell.types";
 import { useConcentration } from "@/composables/useConcentration";
-import { patchLiveCombatantConditions } from "@/composables/useEncounterLive";
 import {
   CONDITIONS,
   getConditionDescription,
@@ -181,12 +184,13 @@ import {
 } from "@/lib/conditions";
 import type { PartyMember } from "@/types/party.types";
 import { xpForNextLevel, xpForLevel, levelForXp } from "@/types/party.types";
+import type { WildshapeState } from "@/types/encounter.types";
 import { abilityModifier } from "@/lib/utils";
 import { useAllSpecies } from "@/composables/useSpecies";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RestButtons from "@/components/player/RestButtons.vue";
 
-const props = defineProps<{ member: PartyMember; hidePlayerActions?: boolean }>();
+const props = defineProps<{ member: PartyMember; wildshape?: WildshapeState; hidePlayerActions?: boolean }>();
 
 const { data: allSpecies } = useAllSpecies();
 const speciesName = computed(() =>
@@ -232,7 +236,6 @@ async function addCondition(cond: string) {
     ? setExhaustionLevel(props.member.conditions ?? [], 1)
     : [...(props.member.conditions ?? []), cond];
   await updateMember({ id: props.member.id, update: { conditions: updated } });
-  void patchLiveCombatantConditions(props.member.id, updated);
 }
 
 const classNameRef = computed(() => props.member.class ?? "");
@@ -270,8 +273,13 @@ const hitDiceRemaining = computed(() =>
   Math.min(memberTotalLevel.value, props.member.hit_dice_remaining ?? memberTotalLevel.value),
 );
 
+// When wildshaped, display beast AC/HP; otherwise real member stats.
+const displayHp    = computed(() => props.wildshape?.beast_hp    ?? props.member.current_hp);
+const displayMaxHp = computed(() => props.wildshape?.beast_max_hp ?? props.member.max_hp);
+const displayAc    = computed(() => props.wildshape?.beast_ac     ?? props.member.ac);
+
 const combatStats = computed(() => [
-  { label: "AC",   value: props.member.ac,    suffix: "" },
+  { label: "AC",   value: displayAc.value, suffix: "" },
   { label: "SPD",  value: props.member.speed, suffix: "ft" },
   { label: "INIT", value: abilityModifier(props.member.dex), suffix: "" },
   { label: "PROF", value: `+${props.member.proficiency_bonus}`, suffix: "" },
@@ -279,8 +287,8 @@ const combatStats = computed(() => [
 ]);
 
 const hpPct = computed(() => {
-  if (props.member.max_hp === 0) return 0;
-  return Math.max(0, Math.min(100, (props.member.current_hp / props.member.max_hp) * 100));
+  if (displayMaxHp.value === 0) return 0;
+  return Math.max(0, Math.min(100, (displayHp.value / displayMaxHp.value) * 100));
 });
 
 // XP progress — only meaningful when the campaign actually awards XP.
@@ -318,22 +326,47 @@ const checkDisadvantage  = computed(() => hasCheckDisadvantage(props.member.cond
 async function applyDamage() {
   if (hpInput.value <= 0) return;
   const dmg = hpInput.value;
-  const newHp = Math.max(0, props.member.current_hp - dmg);
-  await updateMember({ id: props.member.id, update: { current_hp: newHp } });
   hpInput.value = 0;
-  if (props.member.concentration) {
-    if (newHp === 0) {
-      await endConcentration(props.member, { reason: "dropped to 0 HP" });
+  if (props.wildshape) {
+    const newBeastHp = props.wildshape.beast_hp - dmg;
+    if (newBeastHp <= 0) {
+      // Beast drops to 0 — revert and apply overflow damage to real HP
+      const overflow = Math.abs(newBeastHp);
+      const newHp = Math.max(0, props.member.current_hp - overflow);
+      await updateMember({ id: props.member.id, update: { wildshape_state: null, current_hp: newHp } });
+      if (props.member.concentration && newHp === 0) {
+        await endConcentration(props.member, { reason: "dropped to 0 HP" });
+      }
     } else {
-      await rollConcentrationSave(props.member, dmg);
+      await updateMember({ id: props.member.id, update: {
+        wildshape_state: { ...props.wildshape, beast_hp: newBeastHp },
+      }});
+    }
+  } else {
+    const newHp = Math.max(0, props.member.current_hp - dmg);
+    await updateMember({ id: props.member.id, update: { current_hp: newHp } });
+    if (props.member.concentration) {
+      if (newHp === 0) {
+        await endConcentration(props.member, { reason: "dropped to 0 HP" });
+      } else {
+        await rollConcentrationSave(props.member, dmg);
+      }
     }
   }
 }
 async function applyHeal() {
   if (hpInput.value <= 0) return;
-  const newHp = Math.min(props.member.max_hp, props.member.current_hp + hpInput.value);
-  await updateMember({ id: props.member.id, update: { current_hp: newHp } });
+  const val = hpInput.value;
   hpInput.value = 0;
+  if (props.wildshape) {
+    const newBeastHp = Math.min(props.wildshape.beast_max_hp, props.wildshape.beast_hp + val);
+    await updateMember({ id: props.member.id, update: {
+      wildshape_state: { ...props.wildshape, beast_hp: newBeastHp },
+    }});
+  } else {
+    const newHp = Math.min(props.member.max_hp, props.member.current_hp + val);
+    await updateMember({ id: props.member.id, update: { current_hp: newHp } });
+  }
 }
 async function applyTempHp() {
   if (hpInput.value <= 0) return;

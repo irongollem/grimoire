@@ -127,6 +127,9 @@
               <p v-if="hasSpellSlots" class="flex items-center gap-1.5">
                 <span class="text-elven-green">✓</span> All spell slots restored
               </p>
+              <p v-if="(member.wildshapes_used ?? 0) > 0 || member.wildshape_state" class="flex items-center gap-1.5">
+                <span class="text-elven-green">✓</span> Wild Shape uses restored
+              </p>
               <p class="flex items-center gap-1.5">
                 <span class="text-elven-green">✓</span> Death saves cleared
               </p>
@@ -293,6 +296,9 @@ function confirm() {
         used: 0,
       }));
     }
+
+    // Wild Shape recharges on short rest (5e RAW)
+    update.wildshapes_used = 0;
   } else {
     // Long rest — restore everything
     update.current_hp = props.member.max_hp;
@@ -320,6 +326,10 @@ function confirm() {
       ...s,
       used: 0,
     }));
+
+    // Wild Shape: revert active form and reset uses
+    update.wildshapes_used = 0;
+    update.wildshape_state = null;
   }
 
   emit("confirm", update);

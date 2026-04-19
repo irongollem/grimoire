@@ -253,6 +253,7 @@ import { useUiStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { parseExpression } from "@/lib/dice";
+import { parseCr } from "@/lib/utils";
 import { rollDice, rollParsed } from "@/lib/roller";
 import type { DiscoveredMonster, Monster } from "@/types/monster.types";
 import FocalImage from "@/components/common/FocalImage.vue";
@@ -324,15 +325,7 @@ const filtered = computed(() => {
 });
 
 // ── Wild Forms tab ───────────────────────────────────────────────────────────
-function parseFraction(s: string): number {
-  const [a, b] = s.split("/");
-  return parseFloat(a) / parseFloat(b || "1");
-}
-function parseCr(cr: string): number {
-  if (!cr || cr === "0") return 0;
-  if (cr.includes("/")) return parseFraction(cr);
-  return parseFloat(cr) || 0;
-}
+
 
 const maxWildshapeCr = computed(() => {
   const level = member.value?.level ?? 1;

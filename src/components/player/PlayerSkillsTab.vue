@@ -129,7 +129,12 @@ import { useCampaignStore } from "@/stores/campaign";
 import { SKILLS } from "@/types/party.types";
 import type { PartyMember, SkillProficiencies } from "@/types/party.types";
 
-const props = defineProps<{ member: PartyMember; checkDisadvantage: boolean }>();
+const props = defineProps<{
+  member: PartyMember;
+  checkDisadvantage: boolean;
+  /** Beast ability scores override STR/DEX/CON when wildshaped */
+  overrideScores?: { str: number; dex: number; con: number; int: number; wis: number; cha: number };
+}>();
 const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifier: number; total: number; masked?: boolean }] }>();
 
 const { sendFlavorMessage } = useCampaignMessages();
@@ -152,7 +157,9 @@ function skillProfClass(key: keyof SkillProficiencies) {
   return "border-muted-foreground/30 text-transparent";
 }
 function skillBonusValue(skill: (typeof SKILLS)[number]) {
-  const score = props.member[skill.ability] as number;
+  // When wildshaped, use beast STR/DEX/CON; player keeps INT/WIS/CHA proficiency bonuses
+  const src = props.overrideScores ?? props.member;
+  const score = src[skill.ability as keyof typeof src] as number;
   const mod = abilityMod(score);
   const level = profLevel(skill.key);
   const pb = props.member.proficiency_bonus;

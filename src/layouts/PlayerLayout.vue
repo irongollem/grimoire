@@ -15,11 +15,11 @@
         {{ characterName }}
       </span>
 
-      <!-- Live encounter button -->
+      <!-- Live encounter — mobile: navigate to encounter view -->
       <RouterLink
         v-if="anyRunning"
         :to="{ name: 'player-encounter' }"
-        class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-green-500/15 border border-green-500/40 text-green-400 hover:bg-green-500/25 transition-colors font-cinzel text-xs font-semibold tracking-wider"
+        class="md:hidden flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-green-500/15 border border-green-500/40 text-green-400 hover:bg-green-500/25 transition-colors font-cinzel text-xs font-semibold tracking-wider"
       >
         <span class="relative flex h-2 w-2 shrink-0">
           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
@@ -27,6 +27,23 @@
         </span>
         Live
       </RouterLink>
+
+      <!-- Live encounter — tablet+: toggle the encounter sidebar -->
+      <button
+        v-if="anyRunning"
+        type="button"
+        class="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md border transition-colors font-cinzel text-xs font-semibold tracking-wider"
+        :class="showEncounterPanel
+          ? 'bg-green-500/25 border-green-400/60 text-green-300'
+          : 'bg-green-500/15 border-green-500/40 text-green-400 hover:bg-green-500/25'"
+        @click="showEncounterPanel = !showEncounterPanel"
+      >
+        <span class="relative flex h-2 w-2 shrink-0">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+        </span>
+        Live
+      </button>
 
       <button
         class="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
@@ -66,9 +83,10 @@
         v-if="encounterLiveToast"
         class="fixed top-16 right-4 z-50 w-full max-w-sm pr-safe"
       >
+        <!-- Mobile: tap navigates to encounter view -->
         <RouterLink
           :to="{ name: 'player-encounter' }"
-          class="rounded-lg border border-green-500/40 bg-card shadow-xl px-4 py-3 flex items-start gap-3"
+          class="md:hidden rounded-lg border border-green-500/40 bg-card shadow-xl px-4 py-3 flex items-start gap-3"
           @click="encounterLiveToast = false"
         >
           <Swords class="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
@@ -80,6 +98,19 @@
             <X class="h-3.5 w-3.5" />
           </button>
         </RouterLink>
+        <!-- Tablet+: tap dismisses (panel already opened automatically) -->
+        <div
+          class="hidden md:flex rounded-lg border border-green-500/40 bg-card shadow-xl px-4 py-3 items-start gap-3"
+        >
+          <Swords class="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
+          <div class="flex-1 min-w-0">
+            <p class="font-cinzel text-xs font-semibold text-green-400 tracking-wider">Encounter Started!</p>
+            <p class="font-fell text-sm text-foreground mt-0.5">Live encounter panel opened on the left.</p>
+          </div>
+          <button class="text-muted-foreground hover:text-foreground transition-colors shrink-0" @click="encounterLiveToast = false">
+            <X class="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
     </Transition>
 
@@ -102,10 +133,20 @@
       </div>
     </Transition>
 
-    <!-- Content + chat side panel — reserve space above the fixed bottom nav,
+    <!-- Content + sidebars — reserve space above the fixed bottom nav,
          extending into the home-indicator safe area so the nav and gesture bar
          don't both land on top of the last row of content on notched phones. -->
     <div class="flex-1 min-h-0 flex overflow-hidden pb-[calc(4rem+env(safe-area-inset-bottom))]">
+      <!-- Encounter sidebar (md+, left) -->
+      <Transition name="encounter-panel">
+        <aside
+          v-if="showEncounterPanel && !isMobile"
+          class="flex flex-col w-72 shrink-0 border-r border-border bg-card h-full min-h-0"
+        >
+          <PlayerEncounterPanel @close="showEncounterPanel = false" />
+        </aside>
+      </Transition>
+
       <main class="flex-1 overflow-y-auto">
         <div class="px-4 py-6">
           <RouterView />
@@ -195,6 +236,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { useIsMobile } from "@/composables/useBreakpoint";
 import { LogOut, Megaphone, X, Eye, LayoutGrid, Swords } from "lucide-vue-next";
 import { useRunningEncounters, usePlayerEncounterLive } from "@/composables/useEncounterLive";
 import { useAuthStore } from "@/stores/auth";
@@ -207,6 +249,7 @@ import { useCampaignBroadcast } from "@/composables/useCampaignBroadcast";
 import { usePlayerNavPrefs } from "@/composables/usePlayerNavPrefs";
 import { MOBILE_NAV_SLOTS, TABLET_NAV_SLOTS } from "@/lib/playerNav";
 import CampaignChat from "@/components/chat/CampaignChat.vue";
+import PlayerEncounterPanel from "@/components/player/PlayerEncounterPanel.vue";
 
 const auth = useAuthStore();
 const ui = useUiStore();
@@ -241,23 +284,25 @@ watch(
 useCampaignPresence();
 usePartyLive();
 
+const isMobile = useIsMobile();
 const { anyRunning, runningLoaded } = useRunningEncounters();
 // Keep the player encounter subscription alive for the entire session so state
 // stays in sync even when the player navigates away from the encounter page.
 usePlayerEncounterLive(campaign.activeCampaignId ?? "");
 const encounterLiveToast = ref(false);
+const showEncounterPanel = ref(false);
 
-// Auto-navigate + toast when a NEW encounter goes live (skip initial data load)
-watch([runningLoaded, anyRunning], ([loaded, isRunning], [wasLoaded]) => {
-  if (!loaded || !wasLoaded) return; // skip until initial fetch is done
-  if (isRunning) {
+// Auto-open the encounter panel when an encounter goes live.
+// On the initial page load (oldVals undefined/falsy) just open the panel silently.
+// Mid-session transitions also show the toast so the player is notified.
+watch([runningLoaded, anyRunning], ([loaded, isRunning], oldVals) => {
+  if (!loaded || !isRunning) return;
+  showEncounterPanel.value = true;
+  if (oldVals?.[0]) {
     encounterLiveToast.value = true;
     setTimeout(() => { encounterLiveToast.value = false; }, 6000);
-    if (route.name !== "player-encounter") {
-      void router.push({ name: "player-encounter" });
-    }
   }
-});
+}, { immediate: true });
 
 const { messages, dismiss } = useCampaignBroadcast();
 const latestMessage = computed(() => messages.value[0] ?? null);
@@ -270,17 +315,8 @@ const characterName = computed(() => {
 
 const { sortedNav } = usePlayerNavPrefs();
 
-// Always keep Settings reachable in the quick bar — if it was dragged out of
-// the visible slots in custom mode, replace the last slot with it.
-function ensureSettings(items: typeof sortedNav.value, slots: number) {
-  const slice = items.slice(0, slots);
-  const settingsItem = items.find((i) => i.to === "/play/settings");
-  if (!settingsItem || slice.some((i) => i.to === "/play/settings")) return slice;
-  return [...slice.slice(0, slots - 1), settingsItem];
-}
-
-const mobileNav = computed(() => ensureSettings(sortedNav.value, MOBILE_NAV_SLOTS));
-const tabletNav = computed(() => ensureSettings(sortedNav.value, TABLET_NAV_SLOTS));
+const mobileNav = computed(() => sortedNav.value.slice(0, MOBILE_NAV_SLOTS));
+const tabletNav = computed(() => sortedNav.value.slice(0, TABLET_NAV_SLOTS));
 
 const showMore = ref(false);
 
@@ -329,5 +365,16 @@ async function handleSignOut() {
 .more-panel-enter-from .relative,
 .more-panel-leave-to .relative {
   transform: translateY(100%);
+}
+
+.encounter-panel-enter-active,
+.encounter-panel-leave-active {
+  transition: width 0.25s ease, opacity 0.2s ease;
+  overflow: hidden;
+}
+.encounter-panel-enter-from,
+.encounter-panel-leave-to {
+  width: 0 !important;
+  opacity: 0;
 }
 </style>

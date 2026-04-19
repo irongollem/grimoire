@@ -43,10 +43,10 @@
         :class="store.started && combatant.instance_id === store.activeCombatant?.instance_id ? 'avatar-active' : ''"
       >
         <FocalImage
-          v-if="combatant.portrait_url"
-          :src="combatant.portrait_url"
-          :alt="combatant.name"
-          :focal-point="combatant.portrait_focal_point ?? null"
+          v-if="getWildshape(combatant)?.beast_image_url ?? combatant.portrait_url"
+          :src="(getWildshape(combatant)?.beast_image_url ?? combatant.portrait_url)!"
+          :alt="getWildshape(combatant)?.beast_name ?? combatant.name"
+          :focal-point="getWildshape(combatant)?.beast_image_url ? null : (combatant.portrait_focal_point ?? null)"
           format="square"
         />
         <div v-else class="avatar-initials" :style="{ backgroundColor: factionColor(combatant.faction_id) + '44', color: factionColor(combatant.faction_id) }">
@@ -82,7 +82,7 @@
     <div class="name-cell">
       <span class="combatant-name">{{ combatant.name }}</span>
       <span class="type-badge" :class="combatant.type">{{ combatant.type === 'player' ? 'PC' : combatant.npc_id ? 'NPC' : 'Monster' }}</span>
-      <span v-if="combatant.wildshape" class="wildshape-row-badge" title="Wildshaping">🐺 {{ combatant.wildshape.beast_name }}</span>
+      <span v-if="getWildshape(combatant)" class="wildshape-row-badge" title="Wildshaping">🐺 {{ getWildshape(combatant)!.beast_name }}</span>
       <span v-if="combatant.hp === 0 && combatant.type === 'monster'" class="dead-badge">☠</span>
       <span v-if="combatant.surprised" class="surprised-badge" title="Surprised — cannot act on first turn">✦ Surprised</span>
     </div>
@@ -92,13 +92,13 @@
       <button class="hp-btn" @click="handleAdjustHp(combatant.instance_id, -1)">−</button>
       <input
         type="number"
-        :value="combatant.hp"
+        :value="displayHp(combatant)"
         min="0"
-        :max="combatant.max_hp"
+        :max="displayMaxHp(combatant)"
         class="hp-input"
         @change="(e) => handleSetHp(combatant.instance_id, Number((e.target as HTMLInputElement).value))"
       />
-      <span class="hp-max">/ {{ combatant.max_hp }}</span>
+      <span class="hp-max">/ {{ displayMaxHp(combatant) }}</span>
       <button class="hp-btn" @click="handleAdjustHp(combatant.instance_id, 1)">+</button>
       <span
         v-if="flashState[combatant.instance_id]"
@@ -111,19 +111,19 @@
 
     <!-- AC -->
     <div class="ac-cell">
-      <span class="ac-value">{{ combatant.ac }}</span>
+      <span class="ac-value">{{ displayAc(combatant) }}</span>
     </div>
 
     <!-- Conditions -->
     <div class="conditions-cell" @click.stop>
       <ExhaustionChip
-        v-if="getExhaustionLevel(combatant.conditions) > 0"
+        v-if="getExhaustionLevel(displayConditions(combatant)) > 0"
         variant="amber"
-        :level="getExhaustionLevel(combatant.conditions)"
+        :level="getExhaustionLevel(displayConditions(combatant))"
         @update="(lvl) => onExhaustionChange(combatant.instance_id, lvl)"
       />
       <span
-        v-for="cond in nonExhaustion(combatant.conditions)"
+        v-for="cond in nonExhaustion(displayConditions(combatant))"
         :key="cond"
         class="cond-badge"
         @click="store.toggleCondition(combatant.instance_id, cond)"
@@ -200,10 +200,10 @@
             :class="store.started && combatant.instance_id === store.activeCombatant?.instance_id ? 'avatar-active' : ''"
           >
             <FocalImage
-              v-if="combatant.portrait_url"
-              :src="combatant.portrait_url"
-              :alt="combatant.name"
-              :focal-point="combatant.portrait_focal_point ?? null"
+              v-if="getWildshape(combatant)?.beast_image_url ?? combatant.portrait_url"
+              :src="(getWildshape(combatant)?.beast_image_url ?? combatant.portrait_url)!"
+              :alt="getWildshape(combatant)?.beast_name ?? combatant.name"
+              :focal-point="getWildshape(combatant)?.beast_image_url ? null : (combatant.portrait_focal_point ?? null)"
               format="square"
             />
             <div v-else class="avatar-initials" :style="{ backgroundColor: factionColor(combatant.faction_id) + '44', color: factionColor(combatant.faction_id) }">
@@ -227,7 +227,7 @@
           <span class="combatant-name">{{ combatant.name }}</span>
           <div class="mc-badges">
             <span class="type-badge" :class="combatant.type">{{ combatant.type === 'player' ? 'PC' : combatant.npc_id ? 'NPC' : 'Monster' }}</span>
-            <span v-if="combatant.wildshape" class="wildshape-row-badge" title="Wildshaping">🐺 {{ combatant.wildshape.beast_name }}</span>
+            <span v-if="getWildshape(combatant)" class="wildshape-row-badge" title="Wildshaping">🐺 {{ getWildshape(combatant)!.beast_name }}</span>
             <span v-if="combatant.hp === 0 && combatant.type === 'monster'" class="dead-badge">☠</span>
           </div>
         </div>
@@ -247,12 +247,12 @@
         </label>
         <div class="mc-stat-hp">
           <span class="mc-stat-label">HP</span>
-          <span class="mc-stat-value">{{ combatant.hp }}<span class="mc-stat-sep">/</span>{{ combatant.max_hp }}</span>
+          <span class="mc-stat-value">{{ displayHp(combatant) }}<span class="mc-stat-sep">/</span>{{ displayMaxHp(combatant) }}</span>
           <span v-if="combatant.temp_hp" class="mc-stat-temp">+{{ combatant.temp_hp }} tmp</span>
         </div>
         <div class="mc-stat-ac">
           <span class="mc-stat-label">AC</span>
-          <span class="mc-stat-value">{{ combatant.ac }}</span>
+          <span class="mc-stat-value">{{ displayAc(combatant) }}</span>
         </div>
       </div>
 
@@ -261,9 +261,9 @@
         <button class="hp-btn hp-btn-lg" @click="handleAdjustHp(combatant.instance_id, -1)">−</button>
         <input
           type="number"
-          :value="combatant.hp"
+          :value="displayHp(combatant)"
           min="0"
-          :max="combatant.max_hp"
+          :max="displayMaxHp(combatant)"
           class="hp-input hp-input-lg"
           @change="(e) => handleSetHp(combatant.instance_id, Number((e.target as HTMLInputElement).value))"
         />
@@ -299,13 +299,13 @@
       <!-- Row 5: conditions (wraps) -->
       <div class="mc-conditions" @click.stop>
         <ExhaustionChip
-          v-if="getExhaustionLevel(combatant.conditions) > 0"
+          v-if="getExhaustionLevel(displayConditions(combatant)) > 0"
           variant="amber"
-          :level="getExhaustionLevel(combatant.conditions)"
+          :level="getExhaustionLevel(displayConditions(combatant))"
           @update="(lvl) => onExhaustionChange(combatant.instance_id, lvl)"
         />
         <span
-          v-for="cond in nonExhaustion(combatant.conditions)"
+          v-for="cond in nonExhaustion(displayConditions(combatant))"
           :key="cond"
           class="cond-badge"
           @click="store.toggleCondition(combatant.instance_id, cond)"
@@ -334,7 +334,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { Eye, EyeOff } from "lucide-vue-next";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
@@ -354,8 +354,6 @@ import { CONCENTRATION_BREAKING_CONDITIONS } from "@/composables/useConcentratio
 import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
 import type { RunCombatant, RevealState } from "@/types/encounter.types";
 
-// Drives the mobile card vs. desktop table switch below. Reactive, so rotating
-// a phone/tablet updates in real time.
 const isMobile = useIsMobile();
 
 const props = defineProps<{
@@ -374,7 +372,46 @@ const { rollConcentrationSave, endConcentration } = useConcentration();
 const addingCondFor = ref<string | null>(null);
 const quickAmounts = ref<Record<string, number | null>>({});
 
-// Debounce state for HP +/- buttons
+// O(1) lookup map — avoids repeated find() per-helper per-combatant per-render
+const partyMap = computed(() => new Map(partyList.value?.map((m) => [m.id, m]) ?? []));
+
+function getWildshape(c: RunCombatant) {
+  if (c.type === "player") return partyMap.value.get(c.party_member_id ?? "")?.wildshape_state ?? undefined;
+  return c.wildshape;
+}
+
+function displayHp(c: RunCombatant): number {
+  if (c.type === "player") {
+    const m = partyMap.value.get(c.party_member_id ?? "");
+    if (m) return m.wildshape_state?.beast_hp ?? m.current_hp;
+  }
+  return c.wildshape?.beast_hp ?? c.hp;
+}
+
+function displayMaxHp(c: RunCombatant): number {
+  if (c.type === "player") {
+    const m = partyMap.value.get(c.party_member_id ?? "");
+    if (m) return m.wildshape_state?.beast_max_hp ?? m.max_hp;
+  }
+  return c.wildshape?.beast_max_hp ?? c.max_hp;
+}
+
+function displayAc(c: RunCombatant): string {
+  if (c.type === "player") {
+    const m = partyMap.value.get(c.party_member_id ?? "");
+    if (m) return m.wildshape_state?.beast_ac ?? String(m.ac);
+  }
+  return c.wildshape?.beast_ac ?? c.ac;
+}
+
+function displayConditions(c: RunCombatant): string[] {
+  if (c.type === "player") {
+    const m = partyMap.value.get(c.party_member_id ?? "");
+    return m?.conditions ?? c.conditions;
+  }
+  return c.conditions;
+}
+
 const pendingDeltas = new Map<string, number>();
 const pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -419,7 +456,8 @@ function handleSetHp(instanceId: string, newHp: number) {
   }
 
   const combatant = store.sortedCombatants.find((c) => c.instance_id === instanceId);
-  const delta = combatant ? newHp - combatant.hp : 0;
+  const currentHp = combatant ? displayHp(combatant) : 0;
+  const delta = newHp - currentHp;
   store.setHp(instanceId, newHp);
   if (delta !== 0) showFlash(instanceId, delta);
 }
@@ -440,10 +478,11 @@ function availableConditions(c: RunCombatant): string[] {
   // Hide non-exhaustion conditions the creature already has, and hide the
   // single "Exhaustion" picker entry once they have any level of it (the
   // chip's pips become the level control instead).
-  const hasExhaustion = getExhaustionLevel(c.conditions) > 0;
+  const conditions = displayConditions(c);
+  const hasExhaustion = getExhaustionLevel(conditions) > 0;
   return CONDITIONS.filter((cond) => {
     if (cond === "Exhaustion") return !hasExhaustion;
-    return !c.conditions.includes(cond);
+    return !conditions.includes(cond);
   });
 }
 
@@ -479,7 +518,7 @@ async function onPickCondition(instanceId: string, value: string) {
 function onExhaustionChange(instanceId: string, newLevel: number) {
   const combatant = store.sortedCombatants.find((c) => c.instance_id === instanceId);
   if (!combatant) return;
-  const next = setExhaustionLevel(combatant.conditions, newLevel);
+  const next = setExhaustionLevel(displayConditions(combatant), newLevel);
   store.setConditions(instanceId, next);
 }
 
@@ -529,7 +568,7 @@ async function quickDamage(instanceId: string) {
   const c = store.sortedCombatants.find((x) => x.instance_id === instanceId);
   const memberId = c?.party_member_id;
   const memberBefore = memberId ? partyList.value?.find((m) => m.id === memberId) ?? null : null;
-  const hpBefore = c?.hp ?? 0;
+  const hpBefore = c ? displayHp(c) : 0;
 
   store.adjustHp(instanceId, -amt);
   showFlash(instanceId, -amt);

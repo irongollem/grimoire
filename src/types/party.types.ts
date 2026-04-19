@@ -1,3 +1,5 @@
+import type { WildshapeState } from "@/types/encounter.types";
+
 export type SkillProfLevel = "none" | "proficient" | "expertise";
 export type SaveKey = "str" | "dex" | "con" | "int" | "wis" | "cha";
 
@@ -143,6 +145,9 @@ export interface PartyMember {
   class_choices: Record<string, unknown>;
   level_choices: LevelChoices;
   concentration?: ConcentrationState | null;
+  wildshape_state?: WildshapeState | null;
+  wildshapes_used?: number;
+  wildshape_reset?: string | null;
   created_at: string;
   updated_at: string;
 }
