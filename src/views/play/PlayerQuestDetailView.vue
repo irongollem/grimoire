@@ -201,31 +201,6 @@
         </div>
       </div>
 
-      <!-- Linked Encounters -->
-      <div
-        v-if="linkedEncounterRefs.length"
-        class="rounded-lg border border-border bg-card overflow-hidden"
-      >
-        <div class="px-3 py-2 border-b border-border bg-muted/20">
-          <span
-            class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
-            >Encounters</span
-          >
-        </div>
-        <div class="p-2 flex flex-col gap-1">
-          <div
-            v-for="ref in linkedEncounterRefs"
-            :key="ref.id"
-            class="flex items-center gap-2 px-2 py-1.5"
-          >
-            <Swords class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span class="font-fell text-sm text-foreground">{{
-              encounterName(ref.ref_id)
-            }}</span>
-          </div>
-        </div>
-      </div>
-
       <!-- Notes -->
       <PlayerNotesWidget
         v-if="quest"
@@ -246,7 +221,6 @@ import {
   User,
   MapPin,
   Check,
-  Swords,
   Skull,
 } from "lucide-vue-next";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
@@ -258,7 +232,6 @@ import {
 import { useNpcs } from "@/composables/useNpcs";
 import { useAllLocations } from "@/composables/useLocations";
 import { useMonsters } from "@/composables/useMonsters";
-import { useEncounters } from "@/composables/useEncounters";
 import { QUEST_STATUS_LABELS, QUEST_STATUS_COLORS } from "@/types/quest.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 
@@ -272,7 +245,7 @@ const { data: questRefs } = useQuestRefs(questId);
 const { data: npcs } = useNpcs();
 const { data: locations } = useAllLocations();
 const { data: allMonsters } = useMonsters();
-const { data: allEncounters } = useEncounters();
+
 
 // Giver / primary location names
 const giverName = computed(
@@ -298,9 +271,6 @@ const linkedLocationRefs = computed(() =>
 );
 const linkedMonsterRefs = computed(() =>
   visibleRefs.value.filter((r) => r.ref_type === "monster"),
-);
-const linkedEncounterRefs = computed(() =>
-  visibleRefs.value.filter((r) => r.ref_type === "encounter"),
 );
 
 // Currency reward
@@ -330,8 +300,5 @@ function locationName2(id: string) {
 }
 function monsterName(id: string) {
   return (allMonsters.value ?? []).find((m) => m.id === id)?.name ?? id;
-}
-function encounterName(id: string) {
-  return (allEncounters.value ?? []).find((e) => e.id === id)?.name ?? id;
 }
 </script>
