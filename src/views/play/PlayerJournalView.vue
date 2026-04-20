@@ -270,6 +270,32 @@
               />
             </div>
             <RichTextEditor v-model="editForm.content" min-height="160px" allow-upload />
+
+            <!-- Context link row -->
+            <div class="flex flex-wrap items-center gap-2">
+              <select
+                v-model="editForm.ref_type"
+                class="bg-muted border border-border rounded-md px-2 py-1.5 font-cinzel text-[11px] font-semibold text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                @change="editForm.ref_id = ''"
+              >
+                <option value="">No context</option>
+                <option value="quest">Quest</option>
+                <option value="npc">NPC</option>
+                <option value="location">Location</option>
+                <option value="item">Item</option>
+                <option value="monster">Monster</option>
+                <option value="encounter">Encounter</option>
+              </select>
+              <select
+                v-if="editForm.ref_type"
+                v-model="editForm.ref_id"
+                class="flex-1 min-w-32 bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option value="">— Select —</option>
+                <option v-for="opt in editRefOptions" :key="opt.id" :value="opt.id">{{ opt.name }}</option>
+              </select>
+            </div>
+
             <div class="flex items-center justify-between gap-2">
               <button
                 type="button"
@@ -426,9 +452,9 @@ function cancelForm() {
   formRefId.value = "";
 }
 
-// Context options based on selected ref type
-const refOptions = computed((): { id: string; name: string }[] => {
-  switch (formRefType.value) {
+// Context options based on selected ref type (shared between create + edit forms)
+function getRefOptions(refType: string): { id: string; name: string }[] {
+  switch (refType) {
     case "quest":     return (playerQuests.value ?? []).map((q) => ({ id: q.id, name: q.title }));
     case "npc":       return (sharedNpcs.value ?? []).map((n) => ({ id: n.id, name: n.name }));
     case "location":  return (sharedLocations.value ?? []).map((l) => ({ id: l.id, name: l.name }));
@@ -449,14 +475,16 @@ const refOptions = computed((): { id: string; name: string }[] => {
     case "encounter": return (allEncounters.value ?? []).map((e) => ({ id: e.id, name: e.name }));
     default:          return [];
   }
-});
+}
 
-function resolveRefLabel(): string | null {
-  if (!formRefType.value || !formRefId.value) return null;
-  const opt = refOptions.value.find((o) => o.id === formRefId.value);
+const refOptions = computed(() => getRefOptions(formRefType.value));
+const editRefOptions = computed(() => getRefOptions(editForm.value.ref_type));
+
+function resolveLabel(refType: string, refId: string, options: { id: string; name: string }[]): string | null {
+  if (!refType || !refId) return null;
+  const opt = options.find((o) => o.id === refId);
   if (!opt) return null;
-  const typeLabel = formRefType.value.charAt(0).toUpperCase() + formRefType.value.slice(1);
-  return `${typeLabel}: ${opt.name}`;
+  return `${refType.charAt(0).toUpperCase() + refType.slice(1)}: ${opt.name}`;
 }
 
 async function submitNew() {
@@ -471,7 +499,7 @@ async function submitNew() {
       is_private: formIsPrivate.value,
       ref_type:   (formRefType.value as JournalRefType) || null,
       ref_id:     formRefId.value || null,
-      ref_label:  resolveRefLabel(),
+      ref_label:  resolveLabel(formRefType.value, formRefId.value, refOptions.value),
     });
     cancelForm();
   } finally {
@@ -485,6 +513,8 @@ const editForm = ref({
   content:    "",
   category:   "adventure" as JournalCategory,
   is_private: true,
+  ref_type:   "" as string,
+  ref_id:     "" as string,
 });
 const editOriginalContent = ref<string>("");
 
@@ -495,6 +525,8 @@ function startEdit(entry: PlayerJournalEntry) {
     content:    entry.content,
     category:   entry.category,
     is_private: entry.is_private,
+    ref_type:   entry.ref_type ?? "",
+    ref_id:     entry.ref_id ?? "",
   };
   editingId.value = entry.id;
 }
@@ -516,6 +548,9 @@ async function submitEdit() {
         content:    editForm.value.content,
         category:   editForm.value.category,
         is_private: editForm.value.is_private,
+        ref_type:   (editForm.value.ref_type as JournalRefType) || null,
+        ref_id:     editForm.value.ref_id || null,
+        ref_label:  resolveLabel(editForm.value.ref_type, editForm.value.ref_id, editRefOptions.value),
       },
     });
     cleanupRemovedRichTextImages(oldContent, editForm.value.content);
