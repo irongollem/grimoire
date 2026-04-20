@@ -3,7 +3,7 @@
     <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">
       {{ label.toUpperCase() }}
     </p>
-    <div v-for="(entry, i) in props.modelValue ?? []" :key="keys[i]" class="flex gap-2 mb-2 items-start">
+    <div v-for="(entry, i) in model" :key="keys[i]" class="flex gap-2 mb-2 items-start">
       <div class="flex-1 space-y-1">
         <label class="block">
           <span class="sr-only">{{ label }} name</span>
@@ -39,17 +39,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from "vue";
+import { ref, watch } from "vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 
-const props = defineProps<{
-  modelValue: Array<{ name: string; description: string }> | undefined;
-  label: string;
-}>();
+defineProps<{ label: string }>();
 
-const emit = defineEmits<{
-  "update:modelValue": [value: Array<{ name: string; description: string }>];
-}>();
+const model = defineModel<Array<{ name: string; description: string }>>({ default: [] });
 
 /**
  * Stable per-item keys so Vue never reuses a Tiptap editor instance for a
@@ -59,40 +54,38 @@ const emit = defineEmits<{
 let _counter = 0;
 const nextKey = () => ++_counter;
 
-const keys = ref<number[]>([]);
+const keys = ref<number[]>(model.value.map(() => nextKey()));
 
-// Flag to suppress the watch when WE are the ones emitting (avoids key reset
-// on every keystroke that bounces back through the parent).
-let emitting = false;
+let ownUpdate = false;
 
-watch(
-  () => props.modelValue,
-  (val) => {
-    if (emitting) return;
-    // External change (form reset, species navigation) — rebuild keys
-    keys.value = (val ?? []).map(() => nextKey());
-  },
-  { immediate: true },
-);
+// Fires when the array REFERENCE changes. Our own emits (via ownUpdate) are
+// skipped; only external replacements (navigation, template apply) rebuild keys.
+watch(model, () => {
+  if (ownUpdate) { ownUpdate = false; return; }
+  keys.value = model.value.map(() => nextKey());
+});
 
 function add() {
   keys.value.push(nextKey());
-  emitting = true;
-  emit("update:modelValue", [...(props.modelValue ?? []), { name: "", description: "" }]);
-  nextTick(() => { emitting = false; });
+  ownUpdate = true;
+  model.value = [...model.value, { name: "", description: "" }];
 }
 
 function remove(i: number) {
-  keys.value.splice(i, 1); // remove key BEFORE emitting so the watch length check aligns
-  const arr = [...(props.modelValue ?? [])];
+  keys.value.splice(i, 1);
+  ownUpdate = true;
+  const arr = [...model.value];
   arr.splice(i, 1);
-  emitting = true;
-  emit("update:modelValue", arr);
-  nextTick(() => { emitting = false; });
+  model.value = arr;
 }
 
 function update(i: number, key: "name" | "description", value: string) {
-  const arr = (props.modelValue ?? []).map((e, idx) => (idx === i ? { ...e, [key]: value } : e));
-  emit("update:modelValue", arr);
+  // Spread only the changed item; unchanged items keep the same object reference
+  // so Vue skips re-rendering their children (prevents sibling Tiptap editors
+  // from being disturbed, which caused scroll/blur issues with sticky toolbars).
+  ownUpdate = true;
+  const arr = [...model.value];
+  arr[i] = { ...arr[i], [key]: value };
+  model.value = arr;
 }
 </script>
