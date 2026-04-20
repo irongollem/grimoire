@@ -1,5 +1,5 @@
 <template>
-  <div class="w-fit mx-auto space-y-8">
+  <div class="space-y-8">
 
     <!-- ── The Party ───────────────────────────────────────────────────────── -->
     <section>
@@ -11,12 +11,12 @@
       <p v-else-if="!members?.length" class="font-fell text-muted-foreground italic">
         No party members yet.
       </p>
-      <div v-else class="flex flex-wrap gap-4">
+      <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
         <template v-for="entry in sortedParty" :key="entry.data.id">
           <!-- Party member card -->
           <div
             v-if="entry.kind === 'member'"
-            class="flex flex-col rounded-lg border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors shrink-0 w-50"
+            class="flex flex-col rounded-lg border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
             :class="entry.data.id === auth.linkedPartyMemberId ? 'border-primary/40' : 'border-border'"
             @click="openMember(entry.data)"
           >
@@ -74,7 +74,7 @@
           <!-- Companion card -->
           <div
             v-else
-            class="flex flex-col rounded-lg border border-border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors shrink-0 w-50"
+            class="flex flex-col rounded-lg border border-border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
             @click="openCompanion(entry.data)"
           >
             <div class="relative aspect-3/4 bg-muted overflow-hidden shrink-0">
@@ -183,13 +183,12 @@
           v-if="!filteredNpcs.length"
           class="font-fell text-sm text-muted-foreground italic"
         >No people match your filters.</p>
-        <div v-else class="flex flex-wrap gap-4">
+        <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
           <PlayerNpcCard
             v-for="npc in filteredNpcs"
             :key="npc.id"
             :npc="npc"
             :location="npc.player_visible_fields.includes('location') ? resolvedLocation(npc) : undefined"
-            class="shrink-0 w-50"
             @click="openNpc(npc)"
           />
         </div>

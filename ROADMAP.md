@@ -282,6 +282,7 @@
 - [x] **Atlas type filter dropdown** — replaced pill-button type filters with a compact `<select>` dropdown in the Atlas header, matching the encounters view layout
 - [x] **Pin through vague regions** — the map editor's Unplaced picker now recurses through container types (world / plane / continent / region / country) to surface concrete descendants, so a map of Icewind Dale can pin the individual Ten Towns without first flattening the hierarchy. Each surfaced entry shows a breadcrumb (`· Ten Towns`) so the DM can tell which region it came from. (issue #139)
 - [x] **Atlas search + type filter** (irongollem/grimoire#200) — player Atlas now has a search bar (matches name, player summary, shared description) and type dropdown so players can skip vague parent containers; DM Atlas search also extended to match description body text and notes
+- [x] **Player party page responsive grid** (irongollem/grimoire#214) — replaced fixed-width `w-50` flex-wrap cards with `auto-fill` CSS grid (`minmax(180px, 1fr)`) so party member and NPC cards stretch to fill available screen width
 
 ### Rules reliquary
 
