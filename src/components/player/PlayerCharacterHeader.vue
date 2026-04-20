@@ -73,7 +73,12 @@
         <div class="flex items-baseline gap-1.5 px-3 pt-1 flex-wrap">
           <span class="font-cinzel text-2xl font-bold" :class="hpColor">{{ displayHp }}</span>
           <span class="font-fell text-sm text-muted-foreground">/ {{ displayMaxHp }}</span>
-          <span v-if="!wildshape && member.temp_hp" class="font-cinzel text-[10px] text-blue-400 ml-1">+{{ member.temp_hp }} tmp</span>
+          <button
+            v-if="!wildshape && member.temp_hp"
+            class="font-cinzel text-[10px] text-blue-400 ml-1 hover:text-blue-300 transition-colors inline-flex items-center gap-0.5"
+            title="Click to clear temp HP"
+            @click="clearTempHp"
+          >+{{ member.temp_hp }} tmp <span class="text-blue-400/50">×</span></button>
           <span v-if="attackDisadvantage" class="font-cinzel text-[9px] text-amber-500 tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Disadvantage on attack rolls">⚔ Dis</span>
           <span v-if="checkDisadvantage"  class="font-cinzel text-[9px] text-amber-500 tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Disadvantage on ability checks">✦ Dis</span>
           <button
@@ -95,6 +100,8 @@
             min="0"
             placeholder="0"
             class="w-10 h-6 rounded border border-border bg-muted/40 px-1 font-cinzel text-xs text-center focus:outline-none focus:ring-1 focus:ring-ring"
+            @keydown="blockInvalidChars"
+            @focus="($event.target as HTMLInputElement).select()"
           />
           <button class="h-6 px-1.5 rounded bg-destructive/15 border border-destructive/40 font-cinzel text-[9px] text-destructive hover:bg-destructive/25 transition-colors tracking-wider" @click="applyDamage">DMG</button>
           <button class="h-6 px-1.5 rounded bg-elven-green/10 border border-elven-green/40 font-cinzel text-[9px] text-elven-green hover:bg-elven-green/20 transition-colors tracking-wider" @click="applyHeal">Heal</button>
@@ -191,7 +198,11 @@ const speciesName = computed(() =>
 const { mutateAsync: updateMember } = useUpdatePartyMember();
 const { rollConcentrationSave, endConcentration } = useConcentration();
 
-const hpInput = ref(0);
+const hpInput = ref<number | null>(null);
+
+function blockInvalidChars(e: KeyboardEvent) {
+  if (["+", "-", "e", "E"].includes(e.key)) e.preventDefault();
+}
 
 const showConditionPicker = ref(false);
 const conditionSearch = ref("");
@@ -315,9 +326,9 @@ const attackDisadvantage = computed(() => hasAttackDisadvantage(props.member.con
 const checkDisadvantage  = computed(() => hasCheckDisadvantage(props.member.conditions ?? []));
 
 async function applyDamage() {
-  if (hpInput.value <= 0) return;
+  if (!hpInput.value || hpInput.value <= 0) return;
   const dmg = hpInput.value;
-  hpInput.value = 0;
+  hpInput.value = null;
   if (props.wildshape) {
     const newBeastHp = props.wildshape.beast_hp - dmg;
     if (newBeastHp <= 0) {
@@ -334,21 +345,32 @@ async function applyDamage() {
       }});
     }
   } else {
-    const newHp = Math.max(0, props.member.current_hp - dmg);
-    await updateMember({ id: props.member.id, update: { current_hp: newHp } });
+    // Temp HP absorbs damage first
+    let remaining = dmg;
+    const tempHp = props.member.temp_hp ?? 0;
+    let newTempHp = tempHp;
+    if (tempHp > 0) {
+      const absorbed = Math.min(tempHp, remaining);
+      newTempHp = tempHp - absorbed;
+      remaining -= absorbed;
+    }
+    const newHp = Math.max(0, props.member.current_hp - remaining);
+    const update: Record<string, number> = { current_hp: newHp };
+    if (newTempHp !== tempHp) update.temp_hp = newTempHp;
+    await updateMember({ id: props.member.id, update });
     if (props.member.concentration) {
       if (newHp === 0) {
         await endConcentration(props.member, { reason: "dropped to 0 HP" });
-      } else {
+      } else if (remaining > 0) {
         await rollConcentrationSave(props.member, dmg);
       }
     }
   }
 }
 async function applyHeal() {
-  if (hpInput.value <= 0) return;
+  if (!hpInput.value || hpInput.value <= 0) return;
   const val = hpInput.value;
-  hpInput.value = 0;
+  hpInput.value = null;
   if (props.wildshape) {
     const newBeastHp = Math.min(props.wildshape.beast_max_hp, props.wildshape.beast_hp + val);
     await updateMember({ id: props.member.id, update: {
@@ -360,9 +382,12 @@ async function applyHeal() {
   }
 }
 async function applyTempHp() {
-  if (hpInput.value <= 0) return;
+  if (!hpInput.value || hpInput.value <= 0) return;
   await updateMember({ id: props.member.id, update: { temp_hp: hpInput.value } });
-  hpInput.value = 0;
+  hpInput.value = null;
+}
+async function clearTempHp() {
+  await updateMember({ id: props.member.id, update: { temp_hp: 0 } });
 }
 
 async function toggleInspiration() {
