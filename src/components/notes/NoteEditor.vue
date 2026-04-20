@@ -172,13 +172,47 @@
       allow-calendar-events
       :entity-mention-items="entityMentionItems"
       @insert-calendar-event="showEventModal = true"
-    />
+    >
+      <template v-if="isOpenAiImageProvider" #toolbar-end>
+        <div class="w-px h-5 bg-border mx-0.5" />
+        <button
+          type="button"
+          title="Generate scene illustration"
+          class="inline-flex items-center justify-center rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+          @click="openChroniclerGenerate"
+        >
+          <Sparkles class="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          title="Scene library"
+          class="inline-flex items-center justify-center rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+          @click="showChroniclerLibrary = true"
+        >
+          <Images class="h-3.5 w-3.5" />
+        </button>
+      </template>
+    </RichTextEditor>
   </div>
 
   <!-- Inline calendar event creation modal -->
   <InlineCalendarEventModal
     v-model="showEventModal"
     @event-created="onEventCreated"
+  />
+
+  <ChroniclerGenerateDialog
+    :visible="showChroniclerGenerate"
+    :scene-text="chroniclerSceneText"
+    :entities="chroniclerEntities"
+    @close="showChroniclerGenerate = false"
+    @generated="onChroniclerGenerated"
+  />
+
+  <ChroniclerLibraryPicker
+    :visible="showChroniclerLibrary"
+    @close="showChroniclerLibrary = false"
+    @select="onChroniclerSelect"
   />
 </template>
 
@@ -190,7 +224,15 @@ import { useRouter } from "vue-router";
 import { VueDatePicker } from "@vuepic/vue-datepicker";
 import RichTextEditor from "../common/RichTextEditor.vue";
 import InlineCalendarEventModal from "@/components/calendar/InlineCalendarEventModal.vue";
-import { Save, Trash2, Pin, CalendarDays } from "lucide-vue-next";
+import ChroniclerGenerateDialog from "./ChroniclerGenerateDialog.vue";
+import ChroniclerLibraryPicker from "./ChroniclerLibraryPicker.vue";
+import { Save, Trash2, Pin, CalendarDays, Sparkles, Images } from "lucide-vue-next";
+import {
+  extractEntityMentions,
+  extractPlainText,
+  resolveEntityMaterial,
+  type ResolvedEntity,
+} from "@/ai/useChroniclerImageGeneration";
 import TagInput from "@/components/common/TagInput.vue";
 import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
 import {
@@ -327,6 +369,37 @@ watch(
   },
   { immediate: true },
 );
+
+// ── Chronicler ────────────────────────────────────────────────────────────────
+const showChroniclerGenerate = ref(false);
+const showChroniclerLibrary  = ref(false);
+const chroniclerSceneText    = ref("");
+const chroniclerEntities     = ref<ResolvedEntity[]>([]);
+
+const campaignStore = useCampaignStore();
+const isOpenAiImageProvider = computed(
+  () => (campaignStore.activeCampaign?.image_provider ?? "openai") === "openai",
+);
+
+function openChroniclerGenerate() {
+  const mentions = extractEntityMentions(body.value);
+  chroniclerSceneText.value = extractPlainText(body.value);
+  chroniclerEntities.value  = resolveEntityMaterial(
+    mentions,
+    npcs.value,
+    monsters.value,
+    partyMembers.value,
+  );
+  showChroniclerGenerate.value = true;
+}
+
+function onChroniclerGenerated(url: string) {
+  rteRef.value?.insertImageAtCursor(url);
+}
+
+function onChroniclerSelect(url: string) {
+  rteRef.value?.insertImageAtCursor(url);
+}
 
 // ── Inline event modal ────────────────────────────────────────────────────────
 const showEventModal = ref(false);

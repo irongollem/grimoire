@@ -122,6 +122,13 @@ export const BUCKETS = {
     public: true,
     generateVariants: false,
   },
+  chronicle: {
+    id: "chronicle",
+    maxBytes: FIVE_MB,
+    mimeTypes: IMAGE_MIMES,
+    public: true,
+    generateVariants: false, // Displayed as thumbnails via CSS; no FocalImage variants needed
+  },
 } as const satisfies Record<string, BucketConfig>;
 
 export type BucketKey = keyof typeof BUCKETS;
