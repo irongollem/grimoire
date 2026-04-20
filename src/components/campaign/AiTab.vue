@@ -72,12 +72,20 @@
         <div class="flex flex-col gap-1">
           <label class="font-cinzel text-xs text-muted-foreground tracking-wide">Text generation</label>
           <p class="font-fell text-xs text-muted-foreground italic">Used for NPCs, monsters, items, spells, and puzzles.</p>
-          <select v-model="form.text_provider" class="field-input text-sm">
-            <option value="openai">OpenAI — GPT-4o mini</option>
-            <option value="anthropic">Claude — Sonnet 4.6</option>
-            <option value="gemini">Google Gemini — 3.1 Flash</option>
+          <select
+            v-if="availableTextProviders.length > 0"
+            v-model="form.text_provider"
+            class="field-input text-sm"
+          >
+            <option v-for="o in availableTextProviders" :key="o.value" :value="o.value">{{ o.label }}</option>
           </select>
-          <p class="font-fell text-xs text-muted-foreground">
+          <div v-else class="field-input text-sm opacity-50 cursor-not-allowed select-none text-muted-foreground">
+            No provider selected
+          </div>
+          <p v-if="availableTextProviders.length === 0" class="font-fell text-xs text-yellow-600 dark:text-yellow-500 font-semibold">
+            ⚠ Enter an API key above to enable text generation.
+          </p>
+          <p v-else class="font-fell text-xs text-muted-foreground">
             {{ activeTextCost.hint }}
             <span class="opacity-60">· prices approximate</span>
           </p>
@@ -91,11 +99,20 @@
               fal.ai does not support alter-ego disguise portraits — that requires OpenAI.
             </span>
           </p>
-          <select v-model="form.image_provider" class="field-input text-sm">
-            <option value="openai">OpenAI — gpt-image-1.5</option>
-            <option value="falai">fal.ai — FLUX 2 Flex</option>
+          <select
+            v-if="availableImageProviders.length > 0"
+            v-model="form.image_provider"
+            class="field-input text-sm"
+          >
+            <option v-for="o in availableImageProviders" :key="o.value" :value="o.value">{{ o.label }}</option>
           </select>
-          <p class="font-fell text-xs text-muted-foreground">
+          <div v-else class="field-input text-sm opacity-50 cursor-not-allowed select-none text-muted-foreground">
+            No provider selected
+          </div>
+          <p v-if="availableImageProviders.length === 0" class="font-fell text-xs text-yellow-600 dark:text-yellow-500 font-semibold">
+            ⚠ Enter an API key above to enable image generation.
+          </p>
+          <p v-else class="font-fell text-xs text-muted-foreground">
             {{ activeImageCost.hint }}
             <span class="opacity-60">· prices approximate</span>
           </p>
@@ -192,6 +209,42 @@ const localModeEnabled = ref(localStorage.getItem(LOCAL_MODE_KEY) === "local");
 const activeSetting       = computed(() => getSetting(campaign.activeCampaign?.calendar_id ?? ""));
 const settingDefaultPrompt = computed(() => activeSetting.value?.defaultAiPrompt ?? "");
 const settingLabel         = computed(() => activeSetting.value?.label ?? "Setting");
+
+// Provider option definitions for the dropdowns
+const TEXT_PROVIDER_OPTIONS = [
+  { value: "openai",    label: "OpenAI — GPT-4o mini" },
+  { value: "anthropic", label: "Claude — Sonnet 4.6" },
+  { value: "gemini",    label: "Google Gemini — 3.1 Flash" },
+] as const;
+
+const IMAGE_PROVIDER_OPTIONS = [
+  { value: "openai", label: "OpenAI — gpt-image-1.5" },
+  { value: "falai",  label: "fal.ai — FLUX 2 Flex" },
+] as const;
+
+function providerHasKey(providerId: string): boolean {
+  if (form.value.keys[providerId].trim()) return true;
+  if (localModeEnabled.value) {
+    const p = providerDefs.find((d) => d.id === providerId);
+    return p ? !!localStorage.getItem(p.localKey) : false;
+  }
+  return false;
+}
+
+const availableTextProviders  = computed(() => TEXT_PROVIDER_OPTIONS.filter((o) => providerHasKey(o.value)));
+const availableImageProviders = computed(() => IMAGE_PROVIDER_OPTIONS.filter((o) => providerHasKey(o.value)));
+
+// Auto-correct selection if the chosen provider loses its key
+watch(availableTextProviders, (options) => {
+  if (options.length > 0 && !options.some((o) => o.value === form.value.text_provider)) {
+    form.value.text_provider = options[0].value;
+  }
+});
+watch(availableImageProviders, (options) => {
+  if (options.length > 0 && !options.some((o) => o.value === form.value.image_provider)) {
+    form.value.image_provider = options[0].value;
+  }
+});
 
 // Cost hints — based on ~2 000 input + ~800 output tokens per text generation
 const TEXT_COSTS: Record<string, string> = {
