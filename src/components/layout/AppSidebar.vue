@@ -1,6 +1,6 @@
 <template>
   <aside
-    class="hidden md:flex flex-col w-60 shrink-0 border-r border-border bg-card h-screen sticky top-0"
+    class="hidden md:flex flex-col w-60 shrink-0 border-r border-border bg-card h-dvh sticky top-0"
   >
     <!-- Logo -->
     <div class="px-4 py-5 border-b border-border">

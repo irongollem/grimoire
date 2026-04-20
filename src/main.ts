@@ -97,8 +97,18 @@ app.mount("#app");
 // without reflowing the layout. Scroll the focused input to the centre of the
 // visible area so that absolute-positioned dropdowns (top-full / bottom-full)
 // are not hidden behind the keyboard.
+//
+// Guard: only fire when the viewport shrinks by ≥150 px (keyboard appearance).
+// Without this guard the handler also fires on pinch-zoom and window-resize,
+// causing scrollIntoView({ block:"center" }) to unexpectedly scroll the content
+// container and leave users stranded below the form content.
 if (window.visualViewport) {
+  let lastVpHeight = window.visualViewport.height;
   window.visualViewport.addEventListener("resize", () => {
+    const currentHeight = window.visualViewport!.height;
+    const delta = lastVpHeight - currentHeight;
+    lastVpHeight = currentHeight;
+    if (delta < 150) return; // not a keyboard — ignore
     const el = document.activeElement as HTMLElement | null;
     if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT")) {
       setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "center" }), 60);

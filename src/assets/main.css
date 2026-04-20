@@ -136,6 +136,14 @@
   }
 
 
+  html, body {
+    /* Prevent document-level scroll entirely. All scrolling happens within
+       the app's layout containers (e.g. <main>, PageHeader's body div).
+       Without this, scroll restoration, scrollIntoView(), or any transient
+       overflow can scroll the whole page including the sidebar. */
+    overflow: hidden;
+  }
+
   body {
     background-color: var(--background);
     color: var(--foreground);
