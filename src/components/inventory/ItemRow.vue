@@ -1,5 +1,5 @@
 <template>
-  <div class="flex items-center gap-2 px-4 py-2.5 border-b border-border last:border-0 hover:bg-muted/10 transition-colors group">
+  <div class="flex items-center gap-2 px-4 py-2.5 border-b border-border last:border-0 hover:bg-muted/10 transition-colors group select-none">
     <GripVertical class="drag-handle h-3 w-3 shrink-0 text-muted-foreground/20 group-hover:text-muted-foreground/50 cursor-grab active:cursor-grabbing transition-colors" />
     <div class="flex-1 min-w-0">
       <button
