@@ -611,15 +611,17 @@ const linkedCharacter = computed(() => {
 
 // ── Scheduling ────────────────────────────────────────────────────────────────
 
+const today = new Date().toISOString().slice(0, 10);
+
 const confirmedSessions = computed(() =>
   (proposals.value ?? [])
-    .filter(p => p.status === "confirmed")
+    .filter(p => p.status === "confirmed" && p.proposed_date >= today)
     .sort((a, b) => a.proposed_date.localeCompare(b.proposed_date))
 );
 
 const proposedSessions = computed(() =>
   (proposals.value ?? [])
-    .filter(p => p.status === "proposed")
+    .filter(p => p.status === "proposed" && p.proposed_date >= today)
     .sort((a, b) => a.proposed_date.localeCompare(b.proposed_date))
 );
 
