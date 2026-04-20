@@ -29,10 +29,9 @@
     </div>
   </div>
 
-  <!-- Shared right column: traps + spawn combatants -->
-  <div class="side-column">
-    <!-- Traps section (shown if any traps exist) -->
-    <div v-if="store.traps.length" class="traps-panel">
+  <!-- Traps column (only shown when encounter has traps) -->
+  <div v-if="store.traps.length" class="side-column">
+    <div class="traps-panel">
       <div class="traps-header">
         <span class="traps-title">⚠ TRAPS</span>
       </div>
@@ -57,45 +56,11 @@
         </div>
       </div>
     </div>
-
-    <!-- Spawn Combatants section -->
-    <div class="spawn-section">
-      <div class="spawn-header" @click="showSpawnPanel = !showSpawnPanel">
-        <span class="spawn-title">⚔ SPAWN</span>
-        <span class="spawn-toggle">{{ showSpawnPanel ? '‹' : '›' }}</span>
-      </div>
-      <template v-if="showSpawnPanel">
-        <div class="spawn-tabs">
-          <button class="spawn-tab" :class="{ 'spawn-tab-active': spawnTab === 'monster' }" @click.stop="spawnTab = 'monster'">Monster</button>
-          <button class="spawn-tab" :class="{ 'spawn-tab-active': spawnTab === 'npc' }" @click.stop="spawnTab = 'npc'">NPC</button>
-        </div>
-        <div class="spawn-form">
-          <EntityCombobox
-            v-model="spawnEntityId"
-            :options="spawnTab === 'monster' ? spawnMonsterOptions : spawnNpcOptions"
-            :placeholder="spawnTab === 'monster' ? 'Search monsters…' : 'Search NPCs…'"
-          />
-          <div class="spawn-row">
-            <label class="spawn-label">Faction</label>
-            <select v-model="spawnFactionId" class="spawn-select">
-              <option v-for="f in store.factions" :key="f.id" :value="f.id">{{ f.name }}</option>
-            </select>
-          </div>
-          <div class="spawn-row">
-            <label class="spawn-label">Count</label>
-            <input v-model.number="spawnCount" type="number" min="1" max="20" class="spawn-count-input" />
-            <button class="spawn-add-btn" :disabled="!spawnEntityId" @click="handleSpawnAdd">+</button>
-          </div>
-        </div>
-      </template>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { TRAP_TYPE_COLORS } from "@/types/trap.types";
 
 const props = defineProps<{
@@ -107,32 +72,6 @@ const emit = defineEmits<{
 }>();
 
 const store = useEncounterRunStore();
-
-const showSpawnPanel = ref(true);
-const spawnTab = ref<"monster" | "npc">("monster");
-const spawnEntityId = ref("");
-const spawnFactionId = ref("enemy");
-const spawnCount = ref(1);
-
-const spawnMonsterOptions = computed(() =>
-  (store.availableMonsters ?? []).map((m) => ({ id: m.id, name: m.name })),
-);
-
-const spawnNpcOptions = computed(() =>
-  (store.availableNpcs ?? [])
-    .filter((n) => !!n.stat_block)
-    .map((n) => ({ id: n.id, name: n.name })),
-);
-
-function handleSpawnAdd() {
-  if (!spawnEntityId.value) return;
-  if (spawnTab.value === "monster") {
-    store.addMonster(spawnEntityId.value, spawnFactionId.value, spawnCount.value);
-  } else {
-    store.addNpc(spawnEntityId.value, spawnFactionId.value, spawnCount.value);
-  }
-  spawnEntityId.value = "";
-}
 
 function triggerLabel(trigger: import("@/types/encounter.types").EventTrigger): string {
   if (trigger.type === "round_start") return `Round ${trigger.round} start`;
@@ -340,134 +279,4 @@ function toggleTrapDetail(id: string) {
   overflow: hidden;
 }
 
-/* ── Spawn section ────────────────────────────────────────────────────────── */
-
-.spawn-section {
-  display: flex;
-  flex-direction: column;
-  border-top: 1px solid theme(colors.border / 60%);
-  flex-shrink: 0;
-}
-.spawn-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid theme(colors.border / 100%);
-  background: theme(colors.muted / 20%);
-  cursor: pointer;
-  user-select: none;
-  gap: 0.5rem;
-}
-.spawn-header:hover {
-  background: theme(colors.muted / 40%);
-}
-.spawn-title {
-  font-family: var(--font-cinzel, serif);
-  font-size: 10px;
-  font-weight: 700;
-  color: theme(colors.muted-foreground / 100%);
-  letter-spacing: 0.1em;
-  white-space: nowrap;
-}
-.spawn-toggle {
-  font-family: var(--font-cinzel, serif);
-  font-size: 12px;
-  color: theme(colors.muted-foreground / 100%);
-  line-height: 1;
-}
-.spawn-tabs {
-  display: flex;
-  border-bottom: 1px solid theme(colors.border / 100%);
-}
-.spawn-tab {
-  flex: 1;
-  padding: 0.3rem 0.25rem;
-  font-family: var(--font-cinzel, serif);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  color: theme(colors.muted-foreground / 100%);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.spawn-tab:hover {
-  color: theme(colors.foreground / 100%);
-  background: theme(colors.muted / 30%);
-}
-.spawn-tab-active {
-  color: theme(colors.foreground / 100%);
-  background: theme(colors.muted / 30%);
-  border-bottom: 2px solid theme(colors.primary / 100%);
-}
-.spawn-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-  padding: 0.5rem;
-}
-.spawn-row {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-}
-.spawn-label {
-  font-family: var(--font-cinzel, serif);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  color: theme(colors.muted-foreground / 100%);
-  white-space: nowrap;
-  width: 36px;
-  flex-shrink: 0;
-}
-.spawn-select {
-  flex: 1;
-  background: theme(colors.muted / 30%);
-  border: 1px solid theme(colors.border / 100%);
-  border-radius: 4px;
-  padding: 0.2rem 0.375rem;
-  font-family: var(--font-fell, serif);
-  font-size: 10px;
-  color: theme(colors.foreground / 100%);
-  outline: none;
-  min-width: 0;
-}
-.spawn-count-input {
-  width: 40px;
-  background: theme(colors.muted / 30%);
-  border: 1px solid theme(colors.border / 100%);
-  border-radius: 4px;
-  padding: 0.2rem 0.375rem;
-  font-family: var(--font-cinzel, serif);
-  font-size: 11px;
-  font-weight: 700;
-  color: theme(colors.foreground / 100%);
-  text-align: center;
-  outline: none;
-}
-.spawn-add-btn {
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-  border: 1px solid theme(colors.border / 100%);
-  background: theme(colors.muted / 40%);
-  color: theme(colors.foreground / 100%);
-  font-family: var(--font-cinzel, serif);
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s;
-  flex-shrink: 0;
-}
-.spawn-add-btn:hover:not(:disabled) {
-  border-color: theme(colors.primary / 60%);
-  color: theme(colors.primary / 100%);
-  background: theme(colors.muted / 60%);
-}
-.spawn-add-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
 </style>

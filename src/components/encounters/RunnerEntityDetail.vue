@@ -1505,7 +1505,7 @@ function renderTraitDesc(desc: string): string {
 /* ── Detail panel ─────────────────────────────────────────────────────────── */
 
 .detail-panel {
-  @apply w-80 shrink-0 border-l border-border bg-card flex flex-col overflow-hidden;
+  @apply w-full bg-card flex flex-col overflow-hidden;
 }
 
 @media (max-width: 639px) {

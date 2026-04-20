@@ -51,25 +51,37 @@
             <span class="font-fell text-xs text-muted-foreground italic ml-auto">DM is preparing</span>
           </div>
 
-          <!-- Round + active turn header -->
-          <div
-            v-else
-            class="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3"
-          >
-            <div class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">ROUND</div>
-            <div class="font-cinzel text-2xl font-bold text-primary">{{ liveState.current_round }}</div>
-            <div v-if="activeCombatant" class="ml-4 flex items-center gap-2">
-              <span class="font-cinzel text-xs text-muted-foreground tracking-wider">ACTIVE:</span>
-              <span class="font-cinzel text-sm font-bold text-foreground">
+          <!-- Round + active turn header (full / compact variants, CSS picks which) -->
+          <template v-else>
+            <div class="round-header-full flex items-center justify-center flex-wrap gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+              <div class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">ROUND</div>
+              <div class="font-cinzel text-2xl font-bold text-primary">{{ liveState.current_round }}</div>
+              <div v-if="activeCombatant" class="ml-4 flex items-center gap-2 min-w-0">
+                <span class="font-cinzel text-xs text-muted-foreground tracking-wider shrink-0">ACTIVE:</span>
+                <span class="font-cinzel text-sm font-bold text-foreground wrap-break-word min-w-0">
+                  {{
+                    activeCombatant.type === "monster" &&
+                    (activeCombatant.reveal_state ?? "hidden") === "hidden"
+                      ? "???"
+                      : activeCombatant.name
+                  }}
+                </span>
+              </div>
+            </div>
+
+            <div class="round-header-compact rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1.5 flex items-center gap-1.5 min-w-0">
+              <span class="font-cinzel text-sm font-bold text-primary shrink-0">{{ liveState.current_round }}:</span>
+              <span class="font-cinzel text-xs font-semibold text-foreground truncate">
                 {{
-                  activeCombatant.type === "monster" &&
-                  (activeCombatant.reveal_state ?? "hidden") === "hidden"
-                    ? "???"
-                    : activeCombatant.name
+                  activeCombatant
+                    ? (activeCombatant.type === "monster" && (activeCombatant.reveal_state ?? "hidden") === "hidden"
+                        ? "???"
+                        : activeCombatant.name)
+                    : "—"
                 }}
               </span>
             </div>
-          </div>
+          </template>
 
           <!-- Combatant list -->
           <div class="rounded-lg border border-border bg-card overflow-hidden">
@@ -78,6 +90,7 @@
               <div
                 v-if="combatant.reveal_state === 'unseen' && combatant.type === 'monster'"
                 class="player-row opacity-50"
+                data-combatant-type="monster"
               >
                 <div class="portrait-cell">
                   <div class="portrait-inner">
@@ -89,9 +102,9 @@
                     <span class="font-cinzel text-sm font-bold text-muted-foreground">{{ combatant.initiative ?? "—" }}</span>
                   </div>
                   <div class="flex-1 min-w-0 self-center">
-                    <div class="flex items-center gap-2">
-                      <span class="font-cinzel text-sm font-semibold text-muted-foreground italic">???</span>
-                      <span class="font-cinzel text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wider bg-muted text-muted-foreground">NPC</span>
+                    <div class="flex items-center gap-2 overflow-hidden">
+                      <span class="combatant-name font-cinzel text-sm font-semibold text-muted-foreground italic truncate">???</span>
+                      <span class="pc-npc-badge shrink-0 font-cinzel text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wider bg-muted text-muted-foreground">NPC</span>
                     </div>
                   </div>
                 </div>
@@ -101,6 +114,7 @@
               <div
                 v-else
                 class="player-row"
+                :data-combatant-type="combatant.type"
                 :class="[
                   isActive(combatant) ? 'bg-primary/8 ring-1 ring-inset ring-primary/20' : 'hover:bg-muted/20',
                   (combatant.instance_id === myPlayer?.instance_id || combatant.npc_id || (combatant.type === 'monster' && !combatant.npc_id && combatant.monster_id)) ? 'cursor-pointer' : '',
@@ -138,16 +152,16 @@
                   </div>
 
                   <div class="flex-1 min-w-0 self-center">
-                    <div class="flex items-center gap-2 flex-wrap">
-                      <span class="font-cinzel text-sm font-semibold text-foreground truncate">{{ combatant.name }}</span>
+                    <div class="flex items-center gap-2 overflow-hidden">
+                      <span class="combatant-name font-cinzel text-sm font-semibold text-foreground truncate min-w-0">{{ combatant.name }}</span>
                       <span
-                        class="font-cinzel text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wider"
+                        class="pc-npc-badge shrink-0 font-cinzel text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wider"
                         :class="combatant.type === 'player' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'"
                       >{{ combatant.type === "player" ? "PC" : "NPC" }}</span>
                       <span
                         v-for="cond in combatant.conditions"
                         :key="cond"
-                        class="font-cinzel text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 tracking-wider"
+                        class="shrink-0 font-cinzel text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 tracking-wider"
                       >{{ cond }}</span>
                     </div>
                     <div
@@ -640,4 +654,39 @@ function statusColor(s: NpcStatus)      { return STATUS_COLORS[s] ?? "#6b7280"; 
 .fade-leave-active { transition: opacity 0.2s ease; }
 .fade-enter-from,
 .fade-leave-to    { opacity: 0; }
+
+/* ── Compact mode: panel narrower than 200px ─────────────────────────────── */
+.round-header-compact { display: none; }
+
+@container (max-width: 200px) {
+  .round-header-full    { display: none; }
+  .round-header-compact { display: flex; }
+
+  .portrait-cell {
+    display: none;
+  }
+
+  .player-row {
+    min-height: 2rem;
+  }
+
+  .row-content {
+    padding-top: 0.375rem;
+    padding-bottom: 0.375rem;
+    gap: 0.375rem;
+  }
+
+  .pc-npc-badge {
+    display: none;
+  }
+
+  /* Color names by type instead of showing the badge */
+  .player-row[data-combatant-type="player"] .combatant-name {
+    color: #818cf8; /* indigo / primary */
+  }
+  .player-row[data-combatant-type="monster"] .combatant-name,
+  .player-row[data-combatant-type="npc"] .combatant-name {
+    color: #b45309; /* amber */
+  }
+}
 </style>

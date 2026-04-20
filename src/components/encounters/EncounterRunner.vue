@@ -69,14 +69,25 @@
           :selected-id="selectedId"
           @select="selectedId = $event"
         />
+        <!-- Spawn panel at the bottom of the main list -->
+        <RunnerSpawnPanel />
       </div>
 
-      <!-- Stat block detail panel -->
-      <RunnerEntityDetail
-        :selected-id="selectedId"
-        :selected-trap-id="selectedTrapId"
-        @close="selectedId = null; selectedTrapId = null"
-      />
+      <!-- Stat block detail panel with draggable left border -->
+      <template v-if="selectedId !== null || selectedTrapId !== null">
+        <div
+          class="resize-handle"
+          title="Drag to resize"
+          @mousedown.prevent="startDetailResize($event)"
+        />
+        <div class="panel-shell" :style="{ width: detailWidth + 'px' }">
+          <RunnerEntityDetail
+            :selected-id="selectedId"
+            :selected-trap-id="selectedTrapId"
+            @close="selectedId = null; selectedTrapId = null"
+          />
+        </div>
+      </template>
 
       <!-- Events + traps + spawn sidebar -->
       <RunnerDmTools
@@ -106,6 +117,7 @@ import RunnerCombatantList from "./RunnerCombatantList.vue";
 import RunnerEntityDetail from "./RunnerEntityDetail.vue";
 import RunnerDmTools from "./RunnerDmTools.vue";
 import RunnerBossMechanics from "./RunnerBossMechanics.vue";
+import RunnerSpawnPanel from "./RunnerSpawnPanel.vue";
 
 const store = useEncounterRunStore();
 const router = useRouter();
@@ -123,6 +135,27 @@ const { mutateAsync: autoDiscover } = useAutoDiscoverMonsters();
 
 const selectedId = ref<string | null>(null);
 const selectedTrapId = ref<string | null>(null);
+
+const detailWidth = ref(320);
+
+function startDetailResize(e: MouseEvent) {
+  const startX = e.clientX;
+  const startWidth = detailWidth.value;
+  document.body.style.cursor = "col-resize";
+  document.body.style.userSelect = "none";
+
+  function onMove(ev: MouseEvent) {
+    detailWidth.value = Math.max(200, Math.min(700, startWidth + (startX - ev.clientX)));
+  }
+  function onUp() {
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+  }
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup", onUp);
+}
 
 function handleStartCombat() {
   store.startCombat();
@@ -364,5 +397,35 @@ async function handleEndCombat() {
 
 .runner-body {
   @apply flex-1 overflow-y-auto min-w-0;
+}
+
+.resize-handle {
+  width: 5px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: theme(colors.border / 100%);
+  transition: background 0.15s;
+  z-index: 1;
+}
+
+.resize-handle:hover {
+  background: theme(colors.primary / 50%);
+}
+
+.panel-shell {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+@media (max-width: 639px) {
+  .resize-handle {
+    display: none;
+  }
+  .panel-shell {
+    width: auto !important;
+  }
 }
 </style>

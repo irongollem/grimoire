@@ -141,11 +141,20 @@
       <Transition name="encounter-panel">
         <aside
           v-if="showEncounterPanel && !isMobile"
-          class="flex flex-col w-72 shrink-0 border-r border-border bg-card h-full min-h-0"
+          class="flex flex-col shrink-0 bg-card h-full min-h-0"
+          :style="{ width: encounterPanelWidth + 'px', containerType: 'inline-size' }"
         >
           <PlayerEncounterPanel @close="showEncounterPanel = false" />
         </aside>
       </Transition>
+
+      <!-- Drag handle — visible whenever the encounter panel is open -->
+      <div
+        v-if="showEncounterPanel && !isMobile"
+        class="encounter-resize-handle"
+        title="Drag to resize"
+        @mousedown.prevent="startEncounterResize($event)"
+      />
 
       <main class="flex-1 overflow-y-auto">
         <div class="px-4 py-6">
@@ -291,6 +300,25 @@ const { anyRunning, runningLoaded } = useRunningEncounters();
 usePlayerEncounterLive(campaign.activeCampaignId ?? "");
 const encounterLiveToast = ref(false);
 const showEncounterPanel = ref(false);
+const encounterPanelWidth = ref(288); // w-72 default
+
+function startEncounterResize(e: MouseEvent) {
+  const startX = e.clientX;
+  const startWidth = encounterPanelWidth.value;
+  document.body.style.cursor = "col-resize";
+  document.body.style.userSelect = "none";
+  function onMove(ev: MouseEvent) {
+    encounterPanelWidth.value = Math.max(180, Math.min(520, startWidth + (ev.clientX - startX)));
+  }
+  function onUp() {
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+  }
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup", onUp);
+}
 
 // Auto-open the encounter panel when an encounter goes live.
 // On the initial page load (oldVals undefined/falsy) just open the panel silently.
@@ -338,6 +366,8 @@ async function handleSignOut() {
 </script>
 
 <style scoped>
+@reference "@/assets/main.css";
+
 .toast-enter-active,
 .toast-leave-active {
   transition: transform 0.25s ease, opacity 0.25s ease;
@@ -376,5 +406,30 @@ async function handleSignOut() {
 .encounter-panel-leave-to {
   width: 0 !important;
   opacity: 0;
+}
+
+.encounter-resize-handle {
+  width: 6px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: theme(colors.border / 100%);
+  transition: background 0.15s;
+  position: relative;
+}
+.encounter-resize-handle::after {
+  content: '';
+  position: absolute;
+  top: calc(50% - 20px);
+  left: 1px;
+  width: 4px;
+  height: 40px;
+  border-left: 1.5px dotted theme(colors.muted-foreground / 50%);
+  border-right: 1.5px dotted theme(colors.muted-foreground / 50%);
+}
+.encounter-resize-handle:hover {
+  background: theme(colors.primary / 30%);
+}
+.encounter-resize-handle:hover::after {
+  border-color: theme(colors.primary / 70%);
 }
 </style>
