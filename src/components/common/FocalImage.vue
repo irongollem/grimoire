@@ -83,9 +83,18 @@ function toVariantUrl(url: string, width: VariantWidth): string {
 // Reset when props.src changes (new upload will have variants).
 const variantFailed = ref(false);
 
+// Matches URLs that are already pre-sized variants (_w200/_w300/_w400/_w600).
+// If image_url in the DB was accidentally set to a variant path (e.g. by the
+// old one-time backfill script), deriving another variant would double the
+// suffix (_w400_w600.webp) — serve the stored variant as-is instead.
+const VARIANT_URL_RE = /_w(?:200|300|400|600)\.webp$/;
+
 const displaySrc = computed(() => {
   if (!props.src) return undefined;
-  if (props.print || variantFailed.value) return props.src;
+  // blob:/data: URLs can't be converted to variant paths — serve as-is.
+  if (props.print || variantFailed.value || !props.src.startsWith("http")) return props.src;
+  // Already a variant URL in DB — use it directly, skip double-suffixing.
+  if (VARIANT_URL_RE.test(props.src)) return props.src;
   return toVariantUrl(props.src, FORMAT_RENDER_WIDTHS[props.format]);
 });
 

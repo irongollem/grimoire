@@ -20,7 +20,7 @@
  * allowlist when this happened (see migration 20260413000004).
  */
 
-import { supabase } from "@/lib/supabase";
+import { supabase, getCurrentUser } from "@/lib/supabase";
 import { resizeToWebP } from "@/lib/mediaConvert";
 
 // ── Config ───────────────────────────────────────────────────────────────
@@ -205,7 +205,10 @@ export async function uploadToBucket({
   const { error } = await supabase.storage
     .from(cfg.id)
     .upload(storagePath, blob, { contentType: mime, upsert });
-  if (error) return null;
+  if (error) {
+    console.warn(`[uploadToBucket] ${cfg.id}/${storagePath}:`, error.message);
+    return null;
+  }
 
   if (!cfg.public) return storagePath;
   return supabase.storage.from(cfg.id).getPublicUrl(storagePath).data.publicUrl;
@@ -314,22 +317,38 @@ export async function backfillVariants(originalUrl: string): Promise<void> {
     }
     if (!bucketKey || !storagePath) return;
 
+    // Only upload if the current user owns this path (first segment = userId).
+    // Players loading DM-owned images would get RLS 400s — skip silently.
+    const userId = getCurrentUser()?.id;
+    if (!userId || !storagePath.startsWith(userId + "/")) return;
+
     // Download the original.
     const resp = await fetch(originalUrl);
-    if (!resp.ok) return;
+    if (!resp.ok) {
+      console.warn(`[backfillVariants] failed to fetch original (${resp.status}):`, originalUrl);
+      return;
+    }
     const blob = await resp.blob();
 
-    // Generate and upload all variants; upsert so partial prior uploads are fixed.
+    // Generate and upload all variants. Do NOT upsert — several image buckets
+    // (asset-images in particular) have no UPDATE storage policy, and
+    // INSERT ... ON CONFLICT DO UPDATE requires both INSERT and UPDATE to pass RLS
+    // even for new rows. The variants don't exist yet so plain INSERT is correct.
     const path = storagePath;
     const bucket = bucketKey;
-    await Promise.allSettled(
+    const results = await Promise.allSettled(
       VARIANT_WIDTHS.map(async (width) => {
         const variantBlob = await resizeToWebP(blob, width, 0.8);
-        await uploadToBucket({ bucket, blob: variantBlob, path: variantPath(path, width), upsert: true });
+        const url = await uploadToBucket({ bucket, blob: variantBlob, path: variantPath(path, width) });
+        if (!url) throw new Error(`upload returned null for width ${width}`);
       }),
     );
-  } catch {
-    // Swallow all errors — display fallback is already in place.
+    const failures = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+    if (failures.length) {
+      console.warn(`[backfillVariants] ${failures.length}/${results.length} variant uploads failed for`, originalUrl, failures.map((f) => f.reason));
+    }
+  } catch (err) {
+    console.warn("[backfillVariants] unexpected error for", originalUrl, err);
   }
 }
 

@@ -29,7 +29,7 @@
         <div class="relative">
           <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <input
-            v-model="search"
+            v-model="searchInput"
             type="text"
             placeholder="Search bestiary…"
             class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -244,6 +244,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { refDebounced } from "@vueuse/core";
 import { Pin, Search, X } from "lucide-vue-next";
 import { usePlayerDiscoveries, useAutoDiscoverMonsters } from "@/composables/useDiscoveredMonsters";
 import { usePinnedForms, useTogglePinnedForm } from "@/composables/usePinnedForms";
@@ -315,7 +316,8 @@ const resolved = computed<BestiaryEntry[]>(() =>
   }),
 );
 
-const search = ref("");
+const searchInput = ref("");
+const search = refDebounced(searchInput, 300);
 const filtered = computed(() => {
   if (!search.value.trim()) return resolved.value;
   const q = search.value.trim().toLowerCase();
