@@ -203,8 +203,6 @@
 
   <ChroniclerGenerateDialog
     :visible="showChroniclerGenerate"
-    :scene-text="chroniclerSceneText"
-    :entities="chroniclerEntities"
     @close="showChroniclerGenerate = false"
     @generated="onChroniclerGenerated"
   />
@@ -227,12 +225,6 @@ import InlineCalendarEventModal from "@/components/calendar/InlineCalendarEventM
 import ChroniclerGenerateDialog from "./ChroniclerGenerateDialog.vue";
 import ChroniclerLibraryPicker from "./ChroniclerLibraryPicker.vue";
 import { Save, Trash2, Pin, CalendarDays, Sparkles, Images } from "lucide-vue-next";
-import {
-  extractEntityMentions,
-  extractPlainText,
-  resolveEntityMaterial,
-  type ResolvedEntity,
-} from "@/ai/useChroniclerImageGeneration";
 import TagInput from "@/components/common/TagInput.vue";
 import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
 import {
@@ -373,8 +365,6 @@ watch(
 // ── Chronicler ────────────────────────────────────────────────────────────────
 const showChroniclerGenerate = ref(false);
 const showChroniclerLibrary  = ref(false);
-const chroniclerSceneText    = ref("");
-const chroniclerEntities     = ref<ResolvedEntity[]>([]);
 
 const campaignStore = useCampaignStore();
 const isOpenAiImageProvider = computed(
@@ -382,14 +372,6 @@ const isOpenAiImageProvider = computed(
 );
 
 function openChroniclerGenerate() {
-  const mentions = extractEntityMentions(body.value);
-  chroniclerSceneText.value = extractPlainText(body.value);
-  chroniclerEntities.value  = resolveEntityMaterial(
-    mentions,
-    npcs.value,
-    monsters.value,
-    partyMembers.value,
-  );
   showChroniclerGenerate.value = true;
 }
 

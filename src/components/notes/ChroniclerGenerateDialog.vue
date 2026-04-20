@@ -18,16 +18,37 @@
           </p>
         </div>
 
-        <!-- Reference entities -->
-        <div v-if="entities.length > 0" class="font-fell text-xs text-muted-foreground leading-relaxed">
-          <span class="font-semibold">References:</span>
-          {{ entities.map(e => e.label).join(', ') }}
-          <span class="opacity-60 ml-1">
-            ({{ portraitCount }} with portrait · {{ entities.length - portraitCount }} text-only)
-          </span>
+        <!-- Scene prompt -->
+        <div class="flex flex-col gap-1">
+          <label class="font-cinzel text-xs text-muted-foreground tracking-wide">Scene prompt</label>
+          <textarea
+            v-model="scenePrompt"
+            rows="4"
+            placeholder="Describe the scene… use @Name to reference characters, e.g. @Aria and @Thorin face the @Dragon in the ruins."
+            class="field-input resize-none text-sm"
+            :disabled="generating"
+          />
         </div>
-        <div v-else class="font-fell text-xs text-muted-foreground italic">
-          No @-mentioned entities — generating from scene description only.
+
+        <!-- Resolved entities -->
+        <div v-if="scenePrompt.trim()" class="flex flex-col gap-1.5">
+          <span class="font-cinzel text-xs text-muted-foreground tracking-wide">Resolved characters</span>
+          <div v-if="resolvedEntities.length > 0" class="flex flex-wrap gap-1.5">
+            <span
+              v-for="e in resolvedEntities"
+              :key="e.label"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-fell"
+              :class="e.portraitUrl
+                ? 'border-primary/50 bg-primary/10 text-primary'
+                : 'border-border bg-muted/30 text-muted-foreground'"
+            >
+              <span class="text-[10px]">{{ e.portraitUrl ? '▣' : '◻' }}</span>
+              {{ e.label }}
+            </span>
+          </div>
+          <p v-else-if="hasMentions" class="font-fell text-xs text-muted-foreground italic">
+            No @mentions matched known characters — generating from description only.
+          </p>
         </div>
 
         <!-- Shape picker -->
@@ -78,7 +99,7 @@
           <button
             type="button"
             class="inline-flex items-center gap-1.5 px-4 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-            :disabled="generating"
+            :disabled="generating || !scenePrompt.trim()"
             @click="generate"
           >
             <Sparkles class="h-3 w-3" :class="generating ? 'animate-pulse' : ''" />
@@ -91,19 +112,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { Sparkles } from "lucide-vue-next";
-import { generateChroniclerImage, type ResolvedEntity } from "@/ai/useChroniclerImageGeneration";
+import { parseSceneEntities, generateChroniclerImage } from "@/ai/useChroniclerImageGeneration";
 import { useCreateChroniclerImage } from "@/composables/useChroniclerImages";
 import { useCampaignStore } from "@/stores/campaign";
+import { useNpcs } from "@/composables/useNpcs";
+import { useParty } from "@/composables/useParty";
+import { useAllMonsters } from "@/composables/useMonsters";
 import { storeToRefs } from "pinia";
 import type { ChroniclerSize } from "@/types/chronicler.types";
 
-const props = defineProps<{
-  visible: boolean;
-  sceneText: string;
-  entities: ResolvedEntity[];
-}>();
+const props = defineProps<{ visible: boolean }>();
 
 const emit = defineEmits<{
   close: [];
@@ -115,31 +135,47 @@ const SHAPES: { label: string; value: ChroniclerSize; cost: string }[] = [
   { label: "Landscape", value: "1536x1024",  cost: "~$0.40–0.65" },
 ];
 
-const size      = ref<ChroniclerSize>("1024x1024");
-const styleHint = ref("");
-const generating = ref(false);
-const error      = ref("");
+const scenePrompt = ref("");
+const size        = ref<ChroniclerSize>("1024x1024");
+const styleHint   = ref("");
+const generating  = ref(false);
+const error       = ref("");
 
-const portraitCount = computed(() => props.entities.filter((e) => e.portraitUrl).length);
+watch(() => props.visible, (v) => {
+  if (v) {
+    scenePrompt.value = "";
+    error.value = "";
+  }
+});
+
+const { data: npcs }         = useNpcs();
+const { data: monsters }     = useAllMonsters();
+const { data: partyMembers } = useParty();
+
+const resolvedEntities = computed(() =>
+  parseSceneEntities(scenePrompt.value, npcs.value, monsters.value, partyMembers.value),
+);
+
+const hasMentions = computed(() => /@[A-Za-z]/.test(scenePrompt.value));
 
 const { activeCampaignId } = storeToRefs(useCampaignStore());
 const { mutateAsync: createImage } = useCreateChroniclerImage();
 
 async function generate() {
-  if (!activeCampaignId.value) return;
+  if (!activeCampaignId.value || !scenePrompt.value.trim()) return;
   generating.value = true;
   error.value = "";
   try {
     const url = await generateChroniclerImage({
-      sceneText: props.sceneText,
-      entities:  props.entities,
+      sceneText: scenePrompt.value,
+      entities:  resolvedEntities.value,
       size:      size.value,
       styleHint: styleHint.value,
     });
     await createImage({
       campaign_id: activeCampaignId.value,
       image_url:   url,
-      prompt:      props.sceneText.slice(0, 500),
+      prompt:      scenePrompt.value.slice(0, 500),
       size:        size.value,
     });
     emit("generated", url);

@@ -75,41 +75,76 @@ export interface ResolvedEntity {
   textDescription: string | null;
 }
 
-export function resolveEntityMaterial(
-  mentions: EntityMentionRef[],
+function normName(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function nameMatches(entityName: string, token: string): boolean {
+  const name  = entityName.toLowerCase();
+  const tok   = token.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const norm  = normName(entityName);
+  return (
+    norm === tok ||
+    norm.startsWith(tok) ||
+    name.startsWith(token.toLowerCase()) ||
+    tok.length >= 3 && norm.includes(tok)
+  );
+}
+
+export function parseSceneEntities(
+  text: string,
   npcs: Npc[] | undefined,
   monsters: Monster[] | undefined,
   partyMembers: PartyMember[] | undefined,
 ): ResolvedEntity[] {
-  return mentions.map((m) => {
-    if (m.entityType === "npc") {
-      const npc = npcs?.find((n) => n.id === m.id);
-      return {
-        label: npc?.name ?? m.label,
-        portraitUrl: npc?.portrait_url ?? null,
-        textDescription: npc
-          ? `${npc.name}${npc.appearance ? `: ${npc.appearance}` : ""}`
-          : null,
-      };
+  // Extract @Token — stops at whitespace and common punctuation
+  const tokens = [...text.matchAll(/@([A-Za-z][^\s,.'":;!?@]*)/g)].map((m) => m[1]);
+  const unique  = [...new Set(tokens)];
+
+  const allEntities: ResolvedEntity[] = [];
+  const seen = new Set<string>();
+
+  for (const tok of unique) {
+    let found: ResolvedEntity | null = null;
+
+    for (const pm of partyMembers ?? []) {
+      if (nameMatches(pm.name, tok)) {
+        found = { label: pm.name, portraitUrl: pm.portrait_url ?? null, textDescription: pm.name };
+        break;
+      }
     }
-    if (m.entityType === "monster") {
-      const mon = monsters?.find((x) => x.id === m.id);
-      return {
-        label: mon?.name ?? m.label,
-        portraitUrl: mon?.image_url ?? null,
-        textDescription: mon
-          ? `${mon.name}${mon.description ? `: ${mon.description}` : ""}`
-          : null,
-      };
+    if (!found) {
+      for (const npc of npcs ?? []) {
+        if (nameMatches(npc.name, tok)) {
+          found = {
+            label: npc.name,
+            portraitUrl: npc.portrait_url ?? null,
+            textDescription: `${npc.name}${npc.appearance ? `: ${npc.appearance}` : ""}`,
+          };
+          break;
+        }
+      }
     }
-    // player
-    const pm = partyMembers?.find((p) => p.id === m.id);
-    return {
-      label: pm?.name ?? m.label,
-      portraitUrl: pm?.portrait_url ?? null,
-      textDescription: pm?.name ?? m.label,
-    };
-  });
+    if (!found) {
+      for (const mon of monsters ?? []) {
+        if (nameMatches(mon.name, tok)) {
+          found = {
+            label: mon.name,
+            portraitUrl: mon.image_url ?? null,
+            textDescription: `${mon.name}${mon.description ? `: ${mon.description}` : ""}`,
+          };
+          break;
+        }
+      }
+    }
+
+    if (found && !seen.has(found.label)) {
+      seen.add(found.label);
+      allEntities.push(found);
+    }
+  }
+
+  return allEntities;
 }
 
 // ── Image generation ──────────────────────────────────────────────────────────
