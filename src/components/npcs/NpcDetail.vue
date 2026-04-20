@@ -285,40 +285,33 @@
                 </div>
                 <div class="col-span-full">
                   <label class="field-label">Speed</label>
-                  <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-1.5">
-                    <div class="flex items-center gap-1.5">
-                      <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">Walk</span>
-                      <input :value="speedObj.walk ?? ''" type="number" step="5" min="0" placeholder="0"
-                        class="field-input speed-input w-14 text-center" @input="setSpeed('walk', ($event.target as HTMLInputElement).value)" />
-                      <span class="font-cinzel text-[10px] text-muted-foreground">ft.</span>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                      <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">Fly</span>
-                      <input :value="speedObj.fly ?? ''" type="number" step="5" min="0" placeholder="0"
-                        class="field-input speed-input w-14 text-center" @input="setSpeed('fly', ($event.target as HTMLInputElement).value)" />
-                      <span class="font-cinzel text-[10px] text-muted-foreground">ft.</span>
-                      <label class="flex items-center gap-1 ml-0.5 cursor-pointer">
-                        <input v-model="speedObj.hover" type="checkbox" :disabled="!speedObj.fly" class="rounded" />
-                        <span class="font-cinzel text-[10px] text-muted-foreground">hover</span>
-                      </label>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                      <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">Swim</span>
-                      <input :value="speedObj.swim ?? ''" type="number" step="5" min="0" placeholder="0"
-                        class="field-input speed-input w-14 text-center" @input="setSpeed('swim', ($event.target as HTMLInputElement).value)" />
-                      <span class="font-cinzel text-[10px] text-muted-foreground">ft.</span>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                      <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">Climb</span>
-                      <input :value="speedObj.climb ?? ''" type="number" step="5" min="0" placeholder="0"
-                        class="field-input speed-input w-14 text-center" @input="setSpeed('climb', ($event.target as HTMLInputElement).value)" />
-                      <span class="font-cinzel text-[10px] text-muted-foreground">ft.</span>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                      <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">Burrow</span>
-                      <input :value="speedObj.burrow ?? ''" type="number" step="5" min="0" placeholder="0"
-                        class="field-input speed-input w-14 text-center" @input="setSpeed('burrow', ($event.target as HTMLInputElement).value)" />
-                      <span class="font-cinzel text-[10px] text-muted-foreground">ft.</span>
+                  <div class="grid grid-cols-5 gap-2 mt-1">
+                    <div v-for="sp in SPEED_TYPES" :key="sp.key" class="flex flex-col items-center gap-1">
+                      <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">{{ sp.label }}</span>
+                      <!-- Fly: left-edge hover toggle embedded in the box -->
+                      <div v-if="sp.key === 'fly'"
+                        class="relative w-full rounded-md overflow-hidden border border-border bg-muted focus-within:ring-1 focus-within:ring-ring">
+                        <button type="button"
+                          class="absolute inset-y-0 left-0 w-4 transition-colors flex items-center justify-center"
+                          :class="speedObj.hover && speedObj.fly ? 'bg-primary/70' : 'bg-border/50 hover:bg-border/80'"
+                          :title="!speedObj.fly ? 'Set a fly speed to enable hover' : speedObj.hover ? 'Hover on — click to disable' : 'Hover off — click to enable'"
+                          @click="speedObj.fly && (speedObj.hover = !speedObj.hover)"
+                        >
+                          <Wind class="w-2.5 h-2.5 shrink-0"
+                            :class="speedObj.hover && speedObj.fly ? 'text-primary-foreground' : 'text-muted-foreground/60'" />
+                        </button>
+                        <input :value="speedObj.fly ?? ''" type="number" step="5" min="0" placeholder="—"
+                          class="speed-input w-full bg-transparent pl-6 pr-8 py-1.5 font-fell text-sm text-foreground text-center placeholder:text-muted-foreground/40 focus:outline-none"
+                          @input="setSpeed('fly', ($event.target as HTMLInputElement).value)" />
+                        <span class="absolute inset-y-0 right-1.5 flex items-center pointer-events-none font-cinzel text-[10px] text-muted-foreground">ft.</span>
+                      </div>
+                      <!-- Other speeds: standard -->
+                      <div v-else class="relative w-full">
+                        <input :value="speedObj[sp.key] ?? ''" type="number" step="5" min="0" placeholder="—"
+                          class="field-input speed-input w-full text-center"
+                          @input="setSpeed(sp.key, ($event.target as HTMLInputElement).value)" />
+                        <span class="absolute inset-y-0 right-1.5 flex items-center pointer-events-none font-cinzel text-[10px] text-muted-foreground">ft.</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -410,6 +403,7 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 import { ref, reactive, computed, watch, watchEffect } from 'vue'
+import { Wind } from 'lucide-vue-next'
 import { parseSpeed, speedToString } from '@/lib/utils'
 import type { SpeedBlock } from '@/lib/utils'
 import RichTextEditor from '@/components/common/RichTextEditor.vue'
@@ -732,8 +726,17 @@ watchEffect(() => {
   statBlock.speed = speedToString(speedObj)
 })
 
+const SPEED_TYPES = [
+  { key: 'walk',   label: 'Walk'   },
+  { key: 'fly',    label: 'Fly'    },
+  { key: 'swim',   label: 'Swim'   },
+  { key: 'climb',  label: 'Climb'  },
+  { key: 'burrow', label: 'Burrow' },
+] as const
+
 function setSpeed(key: 'walk' | 'fly' | 'swim' | 'climb' | 'burrow', val: string) {
   speedObj[key] = val === '' ? undefined : parseInt(val, 10)
+  if (key === 'fly' && !speedObj.fly) speedObj.hover = undefined
 }
 
 const modifier = abilityModifier
@@ -880,12 +883,7 @@ defineExpose({
 .field-label {
   @apply block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1;
 }
-.speed-input {
-  width: 3.5rem;
-  -moz-appearance: textfield;
-}
+.speed-input { -moz-appearance: textfield; }
 .speed-input::-webkit-outer-spin-button,
-.speed-input::-webkit-inner-spin-button {
-  appearance: none;
-}
+.speed-input::-webkit-inner-spin-button { appearance: none; }
 </style>

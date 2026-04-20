@@ -99,9 +99,13 @@ app.mount("#app");
 // are not hidden behind the keyboard.
 //
 // Guard: only fire when the viewport shrinks by ≥150 px (keyboard appearance).
-// Without this guard the handler also fires on pinch-zoom and window-resize,
-// causing scrollIntoView({ block:"center" }) to unexpectedly scroll the content
-// container and leave users stranded below the form content.
+// Without this guard the handler also fires on pinch-zoom and window-resize.
+//
+// IMPORTANT: we do NOT use el.scrollIntoView() here. scrollIntoView() walks
+// all the way up to html/body and Chrome/WebKit allow it to scroll elements
+// with overflow:hidden — shifting the entire page out of view (blank screen).
+// Instead we manually scroll only the nearest overflow-y-auto ancestor (the
+// <main> layout container), leaving html/body untouched.
 if (window.visualViewport) {
   let lastVpHeight = window.visualViewport.height;
   window.visualViewport.addEventListener("resize", () => {
@@ -110,8 +114,26 @@ if (window.visualViewport) {
     lastVpHeight = currentHeight;
     if (delta < 150) return; // not a keyboard — ignore
     const el = document.activeElement as HTMLElement | null;
-    if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT")) {
-      setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "center" }), 60);
-    }
+    if (!el || !["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName)) return;
+
+    setTimeout(() => {
+      // Find the nearest scrollable ancestor — should be <main class="overflow-y-auto">.
+      // Stop before body so we never touch html/body scroll position.
+      let container: HTMLElement | null = el.parentElement;
+      while (container && container !== document.body) {
+        const { overflowY } = getComputedStyle(container);
+        if (overflowY === "auto" || overflowY === "scroll") break;
+        container = container.parentElement;
+      }
+      if (!container || container === document.body) return;
+
+      const vpHeight = window.visualViewport!.height;
+      const elRect = el.getBoundingClientRect();
+      const cRect = container.getBoundingClientRect();
+      // Center the element vertically in the shrunken visual viewport.
+      const target =
+        container.scrollTop + (elRect.top - cRect.top) - vpHeight / 2 + elRect.height / 2;
+      container.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
+    }, 60);
   });
 }
