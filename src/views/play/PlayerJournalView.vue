@@ -323,12 +323,14 @@ import {
   JOURNAL_CATEGORIES, JOURNAL_CATEGORY_LIST,
 } from "@/composables/usePlayerJournal";
 import type { JournalCategory, PlayerJournalEntry, JournalRefType } from "@/composables/usePlayerJournal";
-import { useAllQuests } from "@/composables/useQuests";
-import { useNpcs } from "@/composables/useNpcs";
-import { useAllLocations } from "@/composables/useLocations";
-import { useItems } from "@/composables/useItems";
-import { useMonsters } from "@/composables/useMonsters";
+import { usePlayerVisibleQuests } from "@/composables/useQuests";
+import { useSharedNpcs } from "@/composables/useNpcs";
+import { useSharedLocations } from "@/composables/useLocations";
+import { usePartyInventory } from "@/composables/usePartyInventory";
+import { useAllMonsters } from "@/composables/useMonsters";
+import { usePlayerDiscoveries } from "@/composables/useDiscoveredMonsters";
 import { useEncounters } from "@/composables/useEncounters";
+import { useAuthStore } from "@/stores/auth";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
@@ -339,13 +341,15 @@ const { data: myEntries,     isLoading: loadingMine }   = useMyJournalEntries();
 const { data: sharedEntries, isLoading: loadingShared } = useSharedJournalEntries();
 const isLoading = computed(() => loadingMine.value || loadingShared.value);
 
-// Entity data for context picker
-const { data: allQuests }    = useAllQuests();
-const { data: npcs }         = useNpcs();
-const { data: locations }    = useAllLocations();
-const { data: allItems }     = useItems();
-const { data: allMonsters }  = useMonsters();
-const { data: allEncounters } = useEncounters();
+// Entity data for context picker — player-scoped to avoid leaking DM data
+const auth = useAuthStore();
+const { data: playerQuests }      = usePlayerVisibleQuests();
+const { data: sharedNpcs }        = useSharedNpcs();
+const { data: sharedLocations }   = useSharedLocations();
+const { data: inventory }         = usePartyInventory();
+const { data: allMonsters }       = useAllMonsters();
+const { data: playerDiscoveries } = usePlayerDiscoveries();
+const { data: allEncounters }     = useEncounters();
 
 // ── Mutations ─────────────────────────────────────────────────────────────────
 const { mutateAsync: create } = useCreateJournalEntry();
@@ -425,11 +429,23 @@ function cancelForm() {
 // Context options based on selected ref type
 const refOptions = computed((): { id: string; name: string }[] => {
   switch (formRefType.value) {
-    case "quest":     return (allQuests.value ?? []).map((q) => ({ id: q.id, name: q.title }));
-    case "npc":       return (npcs.value ?? []).map((n) => ({ id: n.id, name: n.name }));
-    case "location":  return (locations.value ?? []).map((l) => ({ id: l.id, name: l.name }));
-    case "item":      return (allItems.value ?? []).map((i) => ({ id: i.id, name: i.name }));
-    case "monster":   return (allMonsters.value ?? []).map((m) => ({ id: m.id, name: m.name }));
+    case "quest":     return (playerQuests.value ?? []).map((q) => ({ id: q.id, name: q.title }));
+    case "npc":       return (sharedNpcs.value ?? []).map((n) => ({ id: n.id, name: n.name }));
+    case "location":  return (sharedLocations.value ?? []).map((l) => ({ id: l.id, name: l.name }));
+    case "item": {
+      const myMemberId = auth.linkedPartyMemberId;
+      return (inventory.value ?? [])
+        .filter((i) => i.carried_by === myMemberId || i.carried_by === null)
+        .map((i) => ({ id: i.id, name: i.name }));
+    }
+    case "monster": {
+      const discoveries = playerDiscoveries.value ?? [];
+      const monsters = allMonsters.value ?? [];
+      return discoveries.flatMap((d) => {
+        const m = monsters.find((m) => d.srd_slug ? m.id === d.srd_slug : m.id === d.monster_id);
+        return m ? [{ id: m.id, name: m.name }] : [];
+      });
+    }
     case "encounter": return (allEncounters.value ?? []).map((e) => ({ id: e.id, name: e.name }));
     default:          return [];
   }
