@@ -2,6 +2,7 @@ import { computed, type Ref } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { SRD_MONSTERS } from "@/data/srdMonsters";
 
 export interface SearchHit {
   id: string;
@@ -59,11 +60,18 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
     {
       type: "monster",
       label: "Bestiary",
-      items: ((monstersRes.data ?? []) as { id: string; name: string }[]).map((r) => ({
-        id: r.id,
-        name: r.name,
-        route: `/monsters/${r.id}`,
-      })),
+      items: (() => {
+        const queryLower = query.toLowerCase();
+        const dbMonsters = (monstersRes.data ?? []) as { id: string; name: string }[];
+        const dbNames = new Set(dbMonsters.map((r) => r.name.toLowerCase()));
+        const srdHits = SRD_MONSTERS
+          .filter((m) => m.name.toLowerCase().includes(queryLower) && !dbNames.has(m.name.toLowerCase()))
+          .slice(0, LIMIT)
+          .map((m) => ({ id: m.id, name: m.name }));
+        return [...dbMonsters, ...srdHits]
+          .slice(0, LIMIT)
+          .map((r) => ({ id: r.id, name: r.name, route: `/monsters/${r.id}` }));
+      })(),
     },
     {
       type: "note",
