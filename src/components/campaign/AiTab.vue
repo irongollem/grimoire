@@ -73,10 +73,14 @@
           <label class="font-cinzel text-xs text-muted-foreground tracking-wide">Text generation</label>
           <p class="font-fell text-xs text-muted-foreground italic">Used for NPCs, monsters, items, spells, and puzzles.</p>
           <select v-model="form.text_provider" class="field-input text-sm">
-            <option value="openai">OpenAI</option>
-            <option value="anthropic">Claude (Anthropic)</option>
-            <option value="gemini">Google Gemini</option>
+            <option value="openai">OpenAI — GPT-4o mini</option>
+            <option value="anthropic">Claude — Sonnet 4.6</option>
+            <option value="gemini">Google Gemini — 3.1 Flash</option>
           </select>
+          <p class="font-fell text-xs text-muted-foreground">
+            {{ activeTextCost.hint }}
+            <span class="opacity-60">· prices approximate</span>
+          </p>
         </div>
 
         <div class="flex flex-col gap-1">
@@ -88,9 +92,13 @@
             </span>
           </p>
           <select v-model="form.image_provider" class="field-input text-sm">
-            <option value="openai">OpenAI</option>
-            <option value="falai">fal.ai (FLUX)</option>
+            <option value="openai">OpenAI — gpt-image-1.5</option>
+            <option value="falai">fal.ai — FLUX 2 Flex</option>
           </select>
+          <p class="font-fell text-xs text-muted-foreground">
+            {{ activeImageCost.hint }}
+            <span class="opacity-60">· prices approximate</span>
+          </p>
         </div>
       </div>
     </div>
@@ -184,6 +192,20 @@ const localModeEnabled = ref(localStorage.getItem(LOCAL_MODE_KEY) === "local");
 const activeSetting       = computed(() => getSetting(campaign.activeCampaign?.calendar_id ?? ""));
 const settingDefaultPrompt = computed(() => activeSetting.value?.defaultAiPrompt ?? "");
 const settingLabel         = computed(() => activeSetting.value?.label ?? "Setting");
+
+// Cost hints — based on ~2 000 input + ~800 output tokens per text generation
+const TEXT_COSTS: Record<string, string> = {
+  openai:    "~$0.001 per generation  (GPT-4o mini: $0.15 / $0.60 per M tokens)",
+  anthropic: "~$0.02 per generation   (Sonnet 4.6: $3 / $15 per M tokens)",
+  gemini:    "~$0.0004 per generation (Gemini Flash: $0.075 / $0.30 per M tokens)",
+};
+// Cost hints — per portrait; OpenAI NPC with alter-ego requires a second edit call
+const IMAGE_COSTS: Record<string, string> = {
+  openai: "~$0.04 per portrait · ~$0.08 if alter-ego is enabled (gpt-image-1.5)",
+  falai:  "~$0.025 per portrait (FLUX 2 Flex)",
+};
+const activeTextCost  = computed(() => ({ hint: TEXT_COSTS[form.value.text_provider]  ?? TEXT_COSTS.openai }));
+const activeImageCost = computed(() => ({ hint: IMAGE_COSTS[form.value.image_provider] ?? IMAGE_COSTS.openai }));
 
 watch(
   () => campaign.activeCampaign,
