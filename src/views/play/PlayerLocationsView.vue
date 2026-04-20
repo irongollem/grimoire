@@ -99,15 +99,30 @@
           </button>
         </div>
 
-        <!-- Detail panel: summary, map, description, NPCs, player notes -->
+        <!-- Detail panel: art, summary, map, description, NPCs, player notes -->
         <div v-if="detailOpen.has(entry.loc.id)" class="px-4 pb-4 flex flex-col gap-4">
-          <!-- Player summary (always shown when present) -->
-          <p
-            v-if="entry.loc.player_summary"
-            class="font-fell text-sm text-foreground italic"
-          >
-            {{ entry.loc.player_summary }}
-          </p>
+          <!-- Sigil + player summary -->
+          <div class="flex items-start gap-3 pt-1">
+            <button
+              v-if="entry.loc.image_url"
+              type="button"
+              class="w-14 shrink-0 rounded-md overflow-hidden aspect-3/4 cursor-zoom-in"
+              @click="lightboxSrc = entry.loc.image_url"
+            >
+              <FocalImage
+                :src="entry.loc.image_url"
+                :alt="entry.loc.name"
+                format="portrait"
+                :focal-point="null"
+              />
+            </button>
+            <p
+              v-if="entry.loc.player_summary"
+              class="font-fell text-sm text-foreground italic flex-1"
+            >
+              {{ entry.loc.player_summary }}
+            </p>
+          </div>
 
           <!-- Map -->
           <div v-if="entry.loc.map_url">
@@ -182,6 +197,18 @@
       </div>
     </div>
   </div>
+
+  <!-- Image lightbox -->
+  <Teleport to="body">
+    <div
+      v-if="lightboxSrc"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm cursor-zoom-out"
+      @click="lightboxSrc = null"
+      @keydown.escape="lightboxSrc = null"
+    >
+      <img :src="lightboxSrc" class="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl" />
+    </div>
+  </Teleport>
 
   <!-- Watch panel — art + player summary + notes for a pinned sub-location -->
   <Teleport to="body">
@@ -283,6 +310,7 @@ const { data: locations, isLoading } = useSharedLocations();
 
 const search = ref("");
 const typeFilter = ref("all");
+const lightboxSrc = ref<string | null>(null);
 
 // Build a depth-annotated flat list preserving parent → children order.
 // A location whose parent is not in the shared set is treated as a root (depth 0)
