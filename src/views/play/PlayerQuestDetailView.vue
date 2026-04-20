@@ -43,10 +43,15 @@
       <div
         class="flex flex-wrap gap-x-4 gap-y-1.5 text-sm font-fell text-muted-foreground"
       >
-        <span v-if="giverName" class="flex items-center gap-1.5">
+        <button
+          v-if="giverName"
+          type="button"
+          class="flex items-center gap-1.5 hover:text-primary transition-colors"
+          @click="openNpc(quest!.giver_npc_id!)"
+        >
           <User class="h-3.5 w-3.5 shrink-0" />
           {{ giverName }}
-        </span>
+        </button>
         <span v-if="primaryLocationName" class="flex items-center gap-1.5">
           <MapPin class="h-3.5 w-3.5 shrink-0" />
           {{ primaryLocationName }}
@@ -138,16 +143,18 @@
           >
         </div>
         <div class="p-2 flex flex-col gap-1">
-          <div
+          <button
             v-for="ref in linkedNpcRefs"
             :key="ref.id"
-            class="flex items-center gap-2 px-2 py-1.5"
+            type="button"
+            class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 transition-colors text-left"
+            @click="openNpc(ref.ref_id)"
           >
             <User class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span class="font-fell text-sm text-foreground">{{
+            <span class="font-fell text-sm text-foreground hover:text-primary transition-colors">{{
               npcName(ref.ref_id)
             }}</span>
-          </div>
+          </button>
         </div>
       </div>
 
@@ -210,10 +217,50 @@
       />
     </template>
   </div>
+
+  <!-- NPC lightbox -->
+  <Teleport to="body">
+    <div
+      v-if="selectedNpc"
+      class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+      @click.self="selectedNpc = null"
+    >
+      <div class="bg-card rounded-xl border border-border w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+        <div class="relative shrink-0">
+          <div v-if="selectedNpc.player_visible_fields?.includes('portrait') && getNpcDisplayPortrait(selectedNpc)" class="w-full h-72 overflow-hidden">
+            <FocalImage
+              :src="getNpcDisplayPortrait(selectedNpc)!"
+              :alt="getNpcDisplayName(selectedNpc)"
+              format="portrait"
+              :focal-point="getNpcDisplayFocalPoint(selectedNpc)"
+            />
+          </div>
+          <button
+            class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors"
+            @click="selectedNpc = null"
+          >
+            <X class="h-4 w-4" />
+          </button>
+        </div>
+        <div class="p-4 overflow-y-auto space-y-4">
+          <div>
+            <h2 class="font-cinzel text-lg font-bold text-foreground">
+              {{ selectedNpc.player_visible_fields?.includes('name') ? getNpcDisplayName(selectedNpc) : '???' }}
+            </h2>
+            <p v-if="selectedNpc.player_visible_fields?.includes('race') && selectedNpc.race"
+              class="mt-1 font-fell text-sm text-muted-foreground italic">{{ selectedNpc.race }}</p>
+            <p v-if="selectedNpc.player_visible_fields?.includes('occupation') && selectedNpc.occupation"
+              class="font-fell text-sm text-muted-foreground">{{ selectedNpc.occupation }}</p>
+          </div>
+          <PlayerNotesWidget entity-type="npc" :entity-id="selectedNpc.id" placeholder="Your observations about this character…" />
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import {
   ChevronLeft,
@@ -222,6 +269,7 @@ import {
   MapPin,
   Check,
   Skull,
+  X,
 } from "lucide-vue-next";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import {
@@ -232,8 +280,11 @@ import {
 import { useNpcs } from "@/composables/useNpcs";
 import { useAllLocations } from "@/composables/useLocations";
 import { useMonsters } from "@/composables/useMonsters";
+import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
 import { QUEST_STATUS_LABELS, QUEST_STATUS_COLORS } from "@/types/quest.types";
+import type { Npc } from "@/types/npc.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import FocalImage from "@/components/common/FocalImage.vue";
 
 const route = useRoute();
 const questId = computed(() => route.params.id as string);
@@ -246,6 +297,13 @@ const { data: npcs } = useNpcs();
 const { data: locations } = useAllLocations();
 const { data: allMonsters } = useMonsters();
 
+// NPC lightbox
+const selectedNpc = ref<Npc | null>(null);
+
+function openNpc(npcId: string) {
+  const npc = (npcs.value ?? []).find((n) => n.id === npcId);
+  if (npc) selectedNpc.value = npc;
+}
 
 // Giver / primary location names
 const giverName = computed(
