@@ -117,7 +117,7 @@
                 :data-combatant-type="combatant.type"
                 :class="[
                   isActive(combatant) ? 'bg-primary/8 ring-1 ring-inset ring-primary/20' : 'hover:bg-muted/20',
-                  (combatant.instance_id === myPlayer?.instance_id || combatant.npc_id || (combatant.type === 'monster' && !combatant.npc_id && combatant.monster_id)) ? 'cursor-pointer' : '',
+                  (combatant.npc_id || combatant.monster_id || combatant.party_member_id || combatant.companion_id) ? 'cursor-pointer' : '',
                 ]"
                 @click="onCombatantClick(combatant)"
               >
@@ -194,21 +194,6 @@
               </div>
             </template>
 
-            <!-- HP adjustment panel -->
-            <div v-if="showHpPanel && myPlayer" class="hp-panel" @click.stop>
-              <input
-                v-model.number="hpAmount"
-                type="number"
-                min="0"
-                placeholder="0"
-                class="hp-panel-input"
-                @keydown.enter="applyDamage"
-              />
-              <button type="button" class="hp-panel-btn hp-dmg" @click="applyDamage">Dmg</button>
-              <button type="button" class="hp-panel-btn hp-heal" @click="applyHeal">Heal</button>
-              <button type="button" class="hp-panel-btn hp-temp" @click="applyTemp">+Temp</button>
-              <span v-if="myPlayer.temp_hp" class="hp-temp-display">{{ myPlayer.temp_hp }} tmp</span>
-            </div>
           </div>
         </template>
 
@@ -325,6 +310,47 @@
       </div>
     </div>
   </Transition>
+
+  <!-- Party member / companion lightbox -->
+  <Transition name="fade">
+    <div
+      v-if="selectedMemberCombatant"
+      class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+      @click.self="selectedMemberCombatant = null"
+    >
+      <div class="bg-card rounded-xl border border-border w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+        <div class="relative shrink-0">
+          <div v-if="selectedMemberCombatant.portrait_url" class="w-full h-72 overflow-hidden">
+            <FocalImage
+              :src="selectedMemberCombatant.portrait_url"
+              :alt="selectedMemberCombatant.name"
+              format="portrait"
+              :focal-point="null"
+            />
+          </div>
+          <button
+            class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors"
+            @click="selectedMemberCombatant = null"
+          >
+            <X class="h-4 w-4" />
+          </button>
+        </div>
+        <div class="p-4 overflow-y-auto space-y-3">
+          <h2 class="font-cinzel text-lg font-bold text-foreground">{{ selectedMemberCombatant.name }}</h2>
+          <div class="flex gap-4 font-cinzel text-sm">
+            <div class="text-center">
+              <p class="text-[9px] text-muted-foreground tracking-wider">AC</p>
+              <p class="font-bold">{{ selectedMemberCombatant.ac }}</p>
+            </div>
+            <div class="text-center">
+              <p class="text-[9px] text-muted-foreground tracking-wider">HP</p>
+              <p class="font-bold">{{ selectedMemberCombatant.hp }} / {{ selectedMemberCombatant.max_hp }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </Transition>
 </template>
 
 <script setup lang="ts">
@@ -342,7 +368,6 @@ import { usePlayerCombatPrefs } from "@/composables/usePlayerCombatPrefs";
 import { useTurnChime } from "@/composables/useTurnChime";
 import { useScreenShake } from "@/composables/useScreenShake";
 import { useNpcs } from "@/composables/useNpcs";
-import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useParty } from "@/composables/useParty";
 import { usePlayerNpcRatings } from "@/composables/usePlayerNpcRatings";
 import { useMyNpcPcNote } from "@/composables/useNpcPcNotes";
@@ -472,30 +497,8 @@ function hpLabel(c: RunCombatant): string {
   return "Healthy";
 }
 
-// HP panel
-const runStore = useEncounterRunStore();
-const showHpPanel = ref(false);
-const hpAmount = ref<number | null>(null);
-
-function toggleHpPanel() {
-  showHpPanel.value = !showHpPanel.value;
-  hpAmount.value = null;
-}
-function applyDamage() {
-  if (!myPlayer.value || !hpAmount.value) return;
-  runStore.adjustHp(myPlayer.value.instance_id, -hpAmount.value);
-  hpAmount.value = null;
-}
-function applyHeal() {
-  if (!myPlayer.value || !hpAmount.value) return;
-  runStore.adjustHp(myPlayer.value.instance_id, hpAmount.value);
-  hpAmount.value = null;
-}
-function applyTemp() {
-  if (!myPlayer.value || !hpAmount.value) return;
-  runStore.setTempHp(myPlayer.value.instance_id, hpAmount.value);
-  hpAmount.value = null;
-}
+// Party member / companion lightbox
+const selectedMemberCombatant = ref<RunCombatant | null>(null);
 
 // NPC lightbox
 const { data: allNpcs } = useNpcs();
@@ -527,7 +530,10 @@ function onCombatantClick(combatant: RunCombatant) {
     openMonster(combatant);
     return;
   }
-  if (combatant.instance_id === myPlayer.value?.instance_id) toggleHpPanel();
+  if (combatant.party_member_id || combatant.companion_id) {
+    selectedMemberCombatant.value = combatant;
+    return;
+  }
 }
 
 const REL_COLORS: Record<NpcRelationship, string> = {
