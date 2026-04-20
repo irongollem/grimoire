@@ -1,40 +1,42 @@
 import type { TextProvider, ImageProvider } from "./types";
 import { createOpenAiTextProvider, createOpenAiImageProvider } from "./openai";
 import { createGeminiTextProvider } from "./gemini";
+import { createAnthropicTextProvider } from "./anthropic";
+import { createFalAiImageProvider } from "./falai";
 import { useCampaignStore } from "@/stores/campaign";
 
 export type { TextProvider, ImageProvider };
 
-function resolveImageKey(): string {
-  const key = useCampaignStore().decryptedApiKey;
-  if (!key)
-    throw new Error(
-      "No image AI API key configured. Add one in Campaign Settings → AI.",
-    );
-  return key;
-}
-
-function resolveTextKey(): string {
+function resolveKey(provider: string): string {
   const store = useCampaignStore();
-  // Use dedicated text key if set, otherwise fall back to image key for backward compat
-  const key = store.decryptedTextApiKey || store.decryptedApiKey;
+  const key = ({
+    openai:    store.decryptedOpenAiKey,
+    anthropic: store.decryptedAnthropicKey,
+    gemini:    store.decryptedGeminiKey,
+    falai:     store.decryptedFalAiKey,
+  } as Record<string, string>)[provider] ?? "";
   if (!key)
     throw new Error(
-      "No text AI API key configured. Add one in Campaign Settings → AI.",
+      `No API key configured for ${provider}. Add one in Campaign Settings → AI.`,
     );
   return key;
-}
-
-function buildTextProvider(key: string): TextProvider {
-  // Gemini keys start with "AIza"
-  if (key.startsWith("AIza")) return createGeminiTextProvider(key);
-  return createOpenAiTextProvider(key);
 }
 
 export function getTextProvider(): TextProvider {
-  return buildTextProvider(resolveTextKey());
+  const provider = useCampaignStore().activeCampaign?.text_provider ?? "openai";
+  const key = resolveKey(provider);
+  switch (provider) {
+    case "anthropic": return createAnthropicTextProvider(key);
+    case "gemini":    return createGeminiTextProvider(key);
+    default:          return createOpenAiTextProvider(key);
+  }
 }
 
 export function getImageProvider(): ImageProvider {
-  return createOpenAiImageProvider(resolveImageKey());
+  const provider = useCampaignStore().activeCampaign?.image_provider ?? "openai";
+  const key = resolveKey(provider);
+  switch (provider) {
+    case "falai": return createFalAiImageProvider(key);
+    default:      return createOpenAiImageProvider(key);
+  }
 }

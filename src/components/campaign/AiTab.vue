@@ -26,76 +26,96 @@
       </div>
     </div>
 
-    <!-- Text AI API Key -->
+    <!-- Provider Keys -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Text AI API Key</span>
+        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">API Keys</span>
       </div>
-      <div class="p-4 flex flex-col gap-3">
+      <div class="p-4 flex flex-col gap-4">
         <p class="font-fell text-xs text-muted-foreground italic">
-          Used for generating NPC descriptions, monster stat blocks, items, spells, and puzzles.
-          Accepts OpenAI keys (<code class="text-xs">sk-…</code>) or Google Gemini keys (<code class="text-xs">AIza…</code>) — the provider is detected automatically.
-          Leave blank to use the image key as a fallback (OpenAI only).
+          Store keys for every provider you want to use. Choose which provider is active for text and image generation below.
         </p>
-        <div class="relative">
-          <input
-            v-model="form.text_api_key"
-            :type="showTextKey ? 'text' : 'password'"
-            placeholder="sk-… or AIza…"
-            class="field-input pr-10"
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <button
-            type="button"
-            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-            @click="showTextKey = !showTextKey"
-          >
-            <Eye v-if="!showTextKey" class="h-4 w-4" />
-            <EyeOff v-else class="h-4 w-4" />
-          </button>
-        </div>
-        <div class="flex gap-3 text-xs text-muted-foreground font-fell">
-          <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">Get OpenAI key →</a>
-          <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">Get Gemini key →</a>
+
+        <div v-for="p in providerDefs" :key="p.id" class="flex flex-col gap-1">
+          <div class="flex items-center justify-between">
+            <label class="font-cinzel text-xs text-muted-foreground tracking-wide">{{ p.label }}</label>
+            <a :href="p.link" target="_blank" rel="noopener noreferrer" class="font-fell text-xs text-primary hover:underline">Get key →</a>
+          </div>
+          <div class="relative">
+            <input
+              v-model="form.keys[p.id]"
+              :type="showKeys[p.id] ? 'text' : 'password'"
+              :placeholder="p.placeholder"
+              class="field-input pr-10 w-full"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button
+              type="button"
+              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              @click="showKeys[p.id] = !showKeys[p.id]"
+            >
+              <Eye v-if="!showKeys[p.id]" class="h-4 w-4" />
+              <EyeOff v-else class="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Image AI API Key -->
+    <!-- Provider Selection -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Image AI API Key</span>
+        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Active Providers</span>
       </div>
-      <div class="p-4 flex flex-col gap-3">
-        <p class="font-fell text-xs text-muted-foreground italic">
-          Used for portrait and artwork generation (OpenAI only).
-          <span v-if="localModeEnabled">Your key is stored on this device only.</span>
-          <span v-else>Your key is encrypted and stored in your campaign, protected by your account. It is never shared with other players.</span>
-          <a
-            href="https://platform.openai.com/api-keys"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-primary hover:underline"
-          >Get a key →</a>
-        </p>
-        <div class="relative">
-          <input
-            v-model="form.openai_api_key"
-            :type="showKey ? 'text' : 'password'"
-            placeholder="sk-…"
-            class="field-input pr-10"
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <button
-            type="button"
-            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-            @click="showKey = !showKey"
+      <div class="p-4 flex flex-col gap-4">
+        <div class="flex flex-col gap-1">
+          <label class="font-cinzel text-xs text-muted-foreground tracking-wide">Text generation</label>
+          <p class="font-fell text-xs text-muted-foreground italic">Used for NPCs, monsters, items, spells, and puzzles.</p>
+          <select
+            v-if="availableTextProviders.length > 0"
+            v-model="form.text_provider"
+            class="field-input text-sm"
           >
-            <Eye v-if="!showKey" class="h-4 w-4" />
-            <EyeOff v-else class="h-4 w-4" />
-          </button>
+            <option v-for="o in availableTextProviders" :key="o.value" :value="o.value">{{ o.label }}</option>
+          </select>
+          <div v-else class="field-input text-sm opacity-50 cursor-not-allowed select-none text-muted-foreground">
+            No provider selected
+          </div>
+          <p v-if="availableTextProviders.length === 0" class="font-fell text-xs text-yellow-600 dark:text-yellow-500 font-semibold">
+            ⚠ Enter an API key above to enable text generation.
+          </p>
+          <p v-else class="font-fell text-xs text-muted-foreground">
+            {{ activeTextCost.hint }}
+            <span class="opacity-60">· prices approximate</span>
+          </p>
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <label class="font-cinzel text-xs text-muted-foreground tracking-wide">Image generation</label>
+          <p class="font-fell text-xs text-muted-foreground italic">
+            Used for portrait and artwork generation.
+            <span v-if="form.image_provider === 'falai'" class="text-yellow-600 dark:text-yellow-500">
+              fal.ai does not support alter-ego disguise portraits — that requires OpenAI.
+            </span>
+          </p>
+          <select
+            v-if="availableImageProviders.length > 0"
+            v-model="form.image_provider"
+            class="field-input text-sm"
+          >
+            <option v-for="o in availableImageProviders" :key="o.value" :value="o.value">{{ o.label }}</option>
+          </select>
+          <div v-else class="field-input text-sm opacity-50 cursor-not-allowed select-none text-muted-foreground">
+            No provider selected
+          </div>
+          <p v-if="availableImageProviders.length === 0" class="font-fell text-xs text-yellow-600 dark:text-yellow-500 font-semibold">
+            ⚠ Enter an API key above to enable image generation.
+          </p>
+          <p v-else class="font-fell text-xs text-muted-foreground">
+            {{ activeImageCost.hint }}
+            <span class="opacity-60">· prices approximate</span>
+          </p>
         </div>
       </div>
     </div>
@@ -140,44 +160,116 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, reactive, watch } from "vue";
 import { Eye, EyeOff } from "lucide-vue-next";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/useCampaigns";
 import { encryptApiKey, primeDecryptCache } from "@/lib/apiKeyVault";
 import { getSetting } from "@/settings/index";
 
-const LOCAL_MODE_KEY = "grimoire_openai_key_mode";
-const LOCAL_KEY_STORAGE = "grimoire_openai_key";
-const TEXT_LOCAL_MODE_KEY = "grimoire_text_key_mode";
-const TEXT_LOCAL_KEY_STORAGE = "grimoire_text_key";
+const LOCAL_MODE_KEY = "grimoire_key_local_mode";
+
+interface ProviderDef {
+  id:          string;
+  label:       string;
+  placeholder: string;
+  link:        string;
+  dbField:     string;
+  localKey:    string;
+}
+
+const providerDefs: ProviderDef[] = [
+  { id: "openai",    label: "OpenAI",          placeholder: "sk-…",     dbField: "openai_api_key",    localKey: "grimoire_openai_key",    link: "https://platform.openai.com/api-keys" },
+  { id: "anthropic", label: "Anthropic",        placeholder: "sk-ant-…", dbField: "anthropic_api_key", localKey: "grimoire_anthropic_key", link: "https://console.anthropic.com/settings/keys" },
+  { id: "gemini",    label: "Google Gemini",    placeholder: "AIza…",    dbField: "gemini_api_key",    localKey: "grimoire_gemini_key",    link: "https://aistudio.google.com/app/apikey" },
+  { id: "falai",     label: "fal.ai",           placeholder: "…",        dbField: "falai_api_key",     localKey: "grimoire_falai_key",     link: "https://fal.ai/dashboard/keys" },
+];
 
 const campaign = useCampaignStore();
 const { mutateAsync: updateCampaign } = useUpdateCampaign();
 
+function initialKeys(): Record<string, string> {
+  const c = campaign.activeCampaign;
+  return Object.fromEntries(
+    providerDefs.map((p) => [p.id, (c?.[p.dbField as keyof typeof c] as string | null) ?? ""])
+  );
+}
+
 const form = ref({
-  openai_api_key: campaign.activeCampaign?.openai_api_key ?? "",
-  text_api_key: campaign.activeCampaign?.text_api_key ?? "",
+  text_provider:    campaign.activeCampaign?.text_provider  ?? "openai",
+  image_provider:   campaign.activeCampaign?.image_provider ?? "openai",
   ai_setting_prompt: campaign.activeCampaign?.ai_setting_prompt ?? "",
+  keys: initialKeys(),
 });
 
-const showKey = ref(false);
-const showTextKey = ref(false);
-const isSaving = ref(false);
-// Single local mode toggle applies to both keys for simplicity
+const showKeys     = reactive<Record<string, boolean>>(Object.fromEntries(providerDefs.map((p) => [p.id, false])));
+const isSaving     = ref(false);
 const localModeEnabled = ref(localStorage.getItem(LOCAL_MODE_KEY) === "local");
 
-const activeSetting = computed(() => getSetting(campaign.activeCampaign?.calendar_id ?? ""));
+const activeSetting       = computed(() => getSetting(campaign.activeCampaign?.calendar_id ?? ""));
 const settingDefaultPrompt = computed(() => activeSetting.value?.defaultAiPrompt ?? "");
-const settingLabel = computed(() => activeSetting.value?.label ?? "Setting");
+const settingLabel         = computed(() => activeSetting.value?.label ?? "Setting");
+
+// Provider option definitions for the dropdowns
+const TEXT_PROVIDER_OPTIONS = [
+  { value: "openai",    label: "OpenAI — GPT-4o mini" },
+  { value: "anthropic", label: "Claude — Sonnet 4.6" },
+  { value: "gemini",    label: "Google Gemini — 3.1 Flash" },
+] as const;
+
+const IMAGE_PROVIDER_OPTIONS = [
+  { value: "openai", label: "OpenAI — gpt-image-1.5" },
+  { value: "falai",  label: "fal.ai — FLUX 2 Flex" },
+] as const;
+
+function providerHasKey(providerId: string): boolean {
+  if (form.value.keys[providerId].trim()) return true;
+  if (localModeEnabled.value) {
+    const p = providerDefs.find((d) => d.id === providerId);
+    return p ? !!localStorage.getItem(p.localKey) : false;
+  }
+  return false;
+}
+
+const availableTextProviders  = computed(() => TEXT_PROVIDER_OPTIONS.filter((o) => providerHasKey(o.value)));
+const availableImageProviders = computed(() => IMAGE_PROVIDER_OPTIONS.filter((o) => providerHasKey(o.value)));
+
+// Auto-correct selection if the chosen provider loses its key
+watch(availableTextProviders, (options) => {
+  if (options.length > 0 && !options.some((o) => o.value === form.value.text_provider)) {
+    form.value.text_provider = options[0].value;
+  }
+});
+watch(availableImageProviders, (options) => {
+  if (options.length > 0 && !options.some((o) => o.value === form.value.image_provider)) {
+    form.value.image_provider = options[0].value;
+  }
+});
+
+// Cost hints — based on ~2 000 input + ~800 output tokens per text generation
+const TEXT_COSTS: Record<string, string> = {
+  openai:    "~$0.001 per generation  (GPT-4o mini: $0.15 / $0.60 per M tokens)",
+  anthropic: "~$0.02 per generation   (Sonnet 4.6: $3 / $15 per M tokens)",
+  gemini:    "~$0.0004 per generation (Gemini Flash: $0.075 / $0.30 per M tokens)",
+};
+// Cost hints — gpt-image-1.5 at high quality 1024×1536 is the main cost driver
+const IMAGE_COSTS: Record<string, string> = {
+  openai: "~$0.15–0.40 per portrait · ~$0.30–0.80 with alter-ego (gpt-image-1.5, high quality)",
+  falai:  "~$0.025 per portrait (FLUX 2 Flex)",
+};
+const activeTextCost  = computed(() => ({ hint: TEXT_COSTS[form.value.text_provider]  ?? TEXT_COSTS.openai }));
+const activeImageCost = computed(() => ({ hint: IMAGE_COSTS[form.value.image_provider] ?? IMAGE_COSTS.openai }));
 
 watch(
   () => campaign.activeCampaign,
   (c) => {
     if (c) {
-      form.value.openai_api_key = c.openai_api_key ?? "";
-      form.value.text_api_key = c.text_api_key ?? "";
+      form.value.text_provider    = c.text_provider  ?? "openai";
+      form.value.image_provider   = c.image_provider ?? "openai";
       form.value.ai_setting_prompt = c.ai_setting_prompt ?? "";
+      for (const p of providerDefs) {
+        form.value.keys[p.id] = (c[p.dbField as keyof typeof c] as string | null) ?? "";
+      }
     }
   },
 );
@@ -186,46 +278,40 @@ async function save() {
   if (!campaign.activeCampaignId || !campaign.activeCampaign) return;
   isSaving.value = true;
   try {
-    let imageKeyValue: string | null = null;
-    let textKeyValue: string | null = null;
+    const encryptedKeys: Record<string, string | null> = {};
 
     if (localModeEnabled.value) {
-      // Local mode: save both to localStorage, clear from DB
-      const trimmedImage = form.value.openai_api_key.trim();
-      if (trimmedImage) localStorage.setItem(LOCAL_KEY_STORAGE, trimmedImage);
-      else localStorage.removeItem(LOCAL_KEY_STORAGE);
-
-      const trimmedText = form.value.text_api_key.trim();
-      if (trimmedText) localStorage.setItem(TEXT_LOCAL_KEY_STORAGE, trimmedText);
-      else localStorage.removeItem(TEXT_LOCAL_KEY_STORAGE);
-
+      for (const p of providerDefs) {
+        const trimmed = form.value.keys[p.id].trim();
+        if (trimmed) localStorage.setItem(p.localKey, trimmed);
+        else         localStorage.removeItem(p.localKey);
+        encryptedKeys[p.dbField] = null;
+      }
       localStorage.setItem(LOCAL_MODE_KEY, "local");
-      localStorage.setItem(TEXT_LOCAL_MODE_KEY, "local");
     } else {
-      // DB mode: encrypt both, clear localStorage
-      const trimmedImage = form.value.openai_api_key.trim();
-      if (trimmedImage) {
-        imageKeyValue = await encryptApiKey(trimmedImage);
-        primeDecryptCache(imageKeyValue, trimmedImage);
+      for (const p of providerDefs) {
+        const trimmed = form.value.keys[p.id].trim();
+        if (trimmed) {
+          const enc = await encryptApiKey(trimmed);
+          primeDecryptCache(enc, trimmed);
+          encryptedKeys[p.dbField] = enc;
+        } else {
+          encryptedKeys[p.dbField] = null;
+        }
+        localStorage.removeItem(p.localKey);
       }
-
-      const trimmedText = form.value.text_api_key.trim();
-      if (trimmedText) {
-        textKeyValue = await encryptApiKey(trimmedText);
-        primeDecryptCache(textKeyValue, trimmedText);
-      }
-
-      localStorage.removeItem(LOCAL_KEY_STORAGE);
       localStorage.removeItem(LOCAL_MODE_KEY);
-      localStorage.removeItem(TEXT_LOCAL_KEY_STORAGE);
-      localStorage.removeItem(TEXT_LOCAL_MODE_KEY);
     }
 
     const updated = await updateCampaign({
       id: campaign.activeCampaignId,
       update: {
-        openai_api_key: imageKeyValue,
-        text_api_key: textKeyValue,
+        openai_api_key:    encryptedKeys["openai_api_key"],
+        anthropic_api_key: encryptedKeys["anthropic_api_key"],
+        gemini_api_key:    encryptedKeys["gemini_api_key"],
+        falai_api_key:     encryptedKeys["falai_api_key"],
+        text_provider:     form.value.text_provider  || null,
+        image_provider:    form.value.image_provider || null,
         ai_setting_prompt: form.value.ai_setting_prompt.trim() || null,
       },
     });

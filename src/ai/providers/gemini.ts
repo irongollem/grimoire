@@ -2,7 +2,7 @@ import type { TextProvider } from "./types";
 
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
-export function createGeminiTextProvider(apiKey: string, model = "gemini-2.0-flash"): TextProvider {
+export function createGeminiTextProvider(apiKey: string, model = "gemini-3.1-flash"): TextProvider {
   return {
     async complete(systemPrompt: string, userPrompt: string): Promise<string> {
       const res = await fetch(
