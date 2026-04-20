@@ -16,6 +16,9 @@
           type="text"
           maxlength="60"
           placeholder="Your name…"
+          autocomplete="off"
+          data-1p-ignore
+          data-lpignore="true"
           class="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         />
         <button
