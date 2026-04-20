@@ -1,7 +1,7 @@
 <template>
-  <div>
+  <div class="flex flex-col h-full">
     <div class="h-1 w-full shrink-0" :style="{ backgroundColor: crColor(monster?.stat_block?.challenge_rating ?? '0') }" />
-    <div class="flex">
+    <div class="flex flex-1">
       <div class="shrink-0 w-20 bg-muted overflow-hidden">
         <FocalImage
           v-if="imageUrl"
