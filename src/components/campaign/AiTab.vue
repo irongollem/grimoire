@@ -146,6 +146,26 @@
       </div>
     </div>
 
+    <!-- Promotional consent -->
+    <div class="rounded-lg border border-border bg-card overflow-hidden">
+      <div class="px-4 py-3 border-b border-border bg-muted/20">
+        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Chronicler Promotion</span>
+      </div>
+      <div class="p-4 flex flex-col gap-3">
+        <label class="flex items-start gap-2 cursor-pointer">
+          <input
+            v-model="form.allow_chronicle_promotion"
+            type="checkbox"
+            class="h-4 w-4 mt-0.5 rounded border-border bg-background shrink-0"
+          />
+          <span class="text-sm">Allow Grimoire to use my campaign's Chronicler scene illustrations for promotional purposes</span>
+        </label>
+        <p class="font-fell text-xs text-muted-foreground italic">
+          Opt-in only. If enabled, AI-generated scene images from your notes may be featured in Grimoire's gallery or marketing materials. Your campaign name, notes, and player data are never shared.
+        </p>
+      </div>
+    </div>
+
     <div class="flex justify-end">
       <button
         type="submit"
@@ -199,6 +219,7 @@ const form = ref({
   text_provider:    campaign.activeCampaign?.text_provider  ?? "openai",
   image_provider:   campaign.activeCampaign?.image_provider ?? "openai",
   ai_setting_prompt: campaign.activeCampaign?.ai_setting_prompt ?? "",
+  allow_chronicle_promotion: campaign.activeCampaign?.allow_chronicle_promotion ?? false,
   keys: initialKeys(),
 });
 
@@ -267,6 +288,7 @@ watch(
       form.value.text_provider    = c.text_provider  ?? "openai";
       form.value.image_provider   = c.image_provider ?? "openai";
       form.value.ai_setting_prompt = c.ai_setting_prompt ?? "";
+      form.value.allow_chronicle_promotion = c.allow_chronicle_promotion ?? false;
       for (const p of providerDefs) {
         form.value.keys[p.id] = (c[p.dbField as keyof typeof c] as string | null) ?? "";
       }
@@ -313,6 +335,7 @@ async function save() {
         text_provider:     form.value.text_provider  || null,
         image_provider:    form.value.image_provider || null,
         ai_setting_prompt: form.value.ai_setting_prompt.trim() || null,
+        allow_chronicle_promotion: form.value.allow_chronicle_promotion,
       },
     });
     campaign.switchToCampaign(updated);

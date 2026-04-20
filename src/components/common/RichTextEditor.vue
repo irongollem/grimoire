@@ -634,6 +634,9 @@ defineExpose({
   insertEntityMention(attrs: EntityMentionAttrs): void {
     editor.value?.commands.insertEntityMention(attrs);
   },
+  insertImageAtCursor(src: string): void {
+    editor.value?.chain().focus().setImage({ src }).run();
+  },
 });
 
 const IMG_SIZE_PRESETS = [
