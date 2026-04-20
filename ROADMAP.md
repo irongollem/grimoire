@@ -281,6 +281,7 @@
 - [x] **Populate Planes button** — "Populate Planes" button in Atlas header seeds the 21 standard D&D planes (transitive, inner, outer, and Sigil) via `usePopulatePlanarLocations`; two-pass insert resolves parent links (Avernus → Nine Hells); idempotent — skips already-existing planes
 - [x] **Atlas type filter dropdown** — replaced pill-button type filters with a compact `<select>` dropdown in the Atlas header, matching the encounters view layout
 - [x] **Pin through vague regions** — the map editor's Unplaced picker now recurses through container types (world / plane / continent / region / country) to surface concrete descendants, so a map of Icewind Dale can pin the individual Ten Towns without first flattening the hierarchy. Each surfaced entry shows a breadcrumb (`· Ten Towns`) so the DM can tell which region it came from. (issue #139)
+- [x] **Atlas search + type filter** (irongollem/grimoire#200) — player Atlas now has a search bar (matches name, player summary, shared description) and type dropdown so players can skip vague parent containers; DM Atlas search also extended to match description body text and notes
 
 ### Rules reliquary
 

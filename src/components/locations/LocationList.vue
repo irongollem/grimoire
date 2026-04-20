@@ -62,7 +62,9 @@ const filtered = computed(() => {
     const q = props.search.trim().toLowerCase();
     list = list.filter((l) =>
       l.name.toLowerCase().includes(q) ||
-      l.tags.some((t) => t.toLowerCase().includes(q)),
+      l.tags.some((t) => t.toLowerCase().includes(q)) ||
+      extractTiptapText(l.description, 500).toLowerCase().includes(q) ||
+      (l.notes ?? "").toLowerCase().includes(q),
     );
   }
   return list;

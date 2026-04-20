@@ -15,6 +15,33 @@
     </p>
 
     <div v-else class="flex flex-col gap-2">
+      <!-- Search + filter bar -->
+      <div class="flex items-center gap-2">
+        <div class="relative flex-1">
+          <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          <input
+            v-model="search"
+            type="text"
+            placeholder="Search locations…"
+            class="w-full rounded-md border border-border bg-muted/40 pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        </div>
+        <select
+          v-model="typeFilter"
+          aria-label="Location type filter"
+          class="rounded-md border border-border bg-muted/40 px-2 py-1.5 font-cinzel text-[10px] tracking-wider text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option value="all">All types</option>
+          <option v-for="opt in TYPE_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+        </select>
+        <button
+          v-if="search || typeFilter !== 'all'"
+          type="button"
+          class="font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          @click="search = ''; typeFilter = 'all'"
+        >Clear</button>
+      </div>
+
       <div class="flex justify-end">
         <button
           type="button"
@@ -27,6 +54,9 @@
           Close all
         </button>
       </div>
+      <p v-if="isFiltering && !visibleTree.length" class="text-center font-fell text-sm text-muted-foreground italic py-8">
+        No locations match your search.
+      </p>
       <div
         v-for="entry in visibleTree"
         :key="entry.loc.id"
@@ -225,12 +255,15 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick } from "vue";
-import { ChevronDown, X, Eye } from "lucide-vue-next";
+import { ChevronDown, X, Eye, Search } from "lucide-vue-next";
 import { useSharedLocations } from "@/composables/useLocations";
 import { useSharedNpcsByLocations } from "@/composables/useNpcs";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
+import { extractTiptapText } from "@/lib/utils";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS, STORE_LOCATION_TYPES } from "@/types/location.types";
 import type { Location, LocationType } from "@/types/location.types";
+
+const TYPE_OPTIONS = Object.entries(LOCATION_TYPE_LABELS).map(([value, label]) => ({ value, label }));
 
 interface WatchTarget {
   id: string;
@@ -247,6 +280,9 @@ import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 
 const { data: locations, isLoading } = useSharedLocations();
+
+const search = ref("");
+const typeFilter = ref("all");
 
 // Build a depth-annotated flat list preserving parent → children order.
 // A location whose parent is not in the shared set is treated as a root (depth 0)
@@ -301,9 +337,32 @@ const hasSharedChildren = computed(() => {
   return result;
 });
 
+// When searching or filtering, show a flat list of matches.
+// Otherwise use the normal collapsible tree.
+const isFiltering = computed(() => search.value.trim() || typeFilter.value !== "all");
+
+const filteredFlat = computed(() => {
+  const all = locations.value ?? [];
+  let list = all;
+  if (typeFilter.value !== "all") {
+    list = list.filter((l) => l.location_type === typeFilter.value);
+  }
+  if (search.value.trim()) {
+    const q = search.value.trim().toLowerCase();
+    list = list.filter((l) =>
+      l.name.toLowerCase().includes(q) ||
+      (l.player_summary ?? "").toLowerCase().includes(q) ||
+      (l.is_description_shared ? extractTiptapText(l.description, 500).toLowerCase().includes(q) : false),
+    );
+  }
+  return list.map((loc) => ({ loc, depth: 0 }));
+});
+
 // visibleTree hides children whose parent is not in childrenOpen.
 // Because flatTree is parent-before-child, a single pass propagates transitively.
 const visibleTree = computed(() => {
+  if (isFiltering.value) return filteredFlat.value;
+
   const all = flatTree.value;
   const sharedIds = new Set((locations.value ?? []).map((l) => l.id));
   const hiddenIds = new Set<string>();
