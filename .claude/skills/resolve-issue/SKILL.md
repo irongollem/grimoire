@@ -11,7 +11,7 @@ allowed-tools:
   - Bash
   - Agent
   - mcp__github__get_issue
-  - mcp__github__get_issue_comments
+  - mcp__github__add_issue_comment
   - mcp__github__update_issue
   - mcp__supabase__execute_sql
 ---
@@ -32,13 +32,15 @@ Handles both SSH (`git@github.com:owner/repo.git`) and HTTPS (`https://github.co
 
 Then use `mcp__github__get_issue` with the parsed `owner`, `repo`, and `issue_number: <N>`.
 
-Read the **title**, **body**, and **labels** carefully. Labels tell you the scope:
+Read the **title**, **body**, **labels**, and **comments** carefully. Labels tell you the scope:
 
 - `bug` — something broken that needs fixing
 - `enhancement` — new feature or improvement
 - `player views` — touches `/play/*` routes (player portal)
 - `dm views` — touches DM-side views
 - `regression` — treat with extra care; verify the fix doesn't break adjacent flows
+
+If the issue has comments (`comments > 0`), fetch them with `gh issue view <N> --comments --json comments --jq '.comments[].body'`. Comments often contain clarifications, reproduction steps, or decisions from the reporter or maintainer that refine the scope beyond what the body says.
 
 **If the issue has no body**, write one now using `mcp__github__update_issue` before proceeding. The body should contain:
 - A **Summary** paragraph explaining what the issue is asking for in plain language
