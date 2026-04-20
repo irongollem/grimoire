@@ -50,6 +50,8 @@ import SpellGeneratorPanel from "@/components/spells/SpellGeneratorPanel.vue";
 import AiGenerationBadge from "@/components/common/AiGenerationBadge.vue";
 import SoundboardWidget from "@/components/soundboard/SoundboardWidget.vue";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
+import { useCampaignLiveSync } from "@/composables/useCampaignLiveSync";
 
 useCampaignPresence();
+useCampaignLiveSync();
 </script>

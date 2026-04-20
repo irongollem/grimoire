@@ -233,10 +233,7 @@ import {
   useDeleteNote,
   useNotes,
 } from "@/composables/useNotes";
-import { useParty } from "@/composables/useParty";
-import { useNpcs } from "@/composables/useNpcs";
-import { useAllMonsters } from "@/composables/useMonsters";
-import type { EntityMentionItem } from "@/lib/tiptap/EntityMention";
+import { useEntityMentionItems } from "@/composables/useEntityMentionItems";
 import {
   useCreateCalendarEvent,
   useUpdateCalendarEvent,
@@ -306,29 +303,8 @@ const sessionRealDateObj = computed<Date | null>({
 const calendarStore = useCalendarStore();
 const calendarAdapter = computed(() => calendarStore.adapter);
 
-// ── Entity mention items ──────────────────────────────────────────────────────
 const { data: allNotes } = useNotes();
-const { data: partyMembers } = useParty();
-const { data: npcs } = useNpcs();
-const { data: monsters } = useAllMonsters();
-
-const entityMentionItems = computed<EntityMentionItem[]>(() => [
-  ...(partyMembers.value ?? []).map((m) => ({
-    id: m.id,
-    entityType: "player" as const,
-    label: m.name,
-  })),
-  ...(npcs.value ?? []).map((n) => ({
-    id: n.id,
-    entityType: "npc" as const,
-    label: n.name,
-  })),
-  ...(monsters.value ?? []).map((mon) => ({
-    id: mon.id,
-    entityType: "monster" as const,
-    label: mon.name,
-  })),
-]);
+const { mentionItems: entityMentionItems } = useEntityMentionItems();
 
 // ── Pre-fill start date from the last session note's end date ─────────────────
 // Only applies when creating a new session note (props.note === null).

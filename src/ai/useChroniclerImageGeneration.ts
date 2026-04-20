@@ -165,9 +165,11 @@ async function fetchPortraitBlob(url: string): Promise<Blob | null> {
 function buildPrompt(
   sceneText: string,
   textDescriptions: string[],
-  styleHint: string,
+  settingPrompt: string,
 ): string {
-  const parts = [IMAGE_BASE_PROMPT, "\n\nCompose a scene illustration."];
+  const parts = [IMAGE_BASE_PROMPT];
+  if (settingPrompt.trim()) parts.push(settingPrompt.trim());
+  parts.push("\n\nCompose a scene illustration.");
   if (textDescriptions.length > 0) {
     parts.push(
       "The following characters appear — use the provided reference portraits where available, and the written descriptions for those without one:\n" +
@@ -175,7 +177,6 @@ function buildPrompt(
     );
   }
   parts.push(`\nScene: ${sceneText}`);
-  if (styleHint.trim()) parts.push(styleHint.trim());
   return parts.join("\n");
 }
 
@@ -183,11 +184,11 @@ export async function generateChroniclerImage(params: {
   sceneText: string;
   entities: ResolvedEntity[];
   size: ChroniclerSize;
-  styleHint: string;
 }): Promise<string> {
-  const { sceneText, entities, size, styleHint } = params;
+  const { sceneText, entities, size } = params;
   const store = useCampaignStore();
   const apiKey = store.decryptedOpenAiKey;
+  const settingPrompt = store.activeCampaign?.ai_setting_prompt ?? "";
   if (!apiKey) throw new Error("No OpenAI API key configured. Add one in Campaign Settings → AI.");
 
   // Collect portrait blobs and text descriptions in parallel
@@ -204,7 +205,7 @@ export async function generateChroniclerImage(params: {
     }),
   );
 
-  const prompt = buildPrompt(sceneText, textDescriptions, styleHint);
+  const prompt = buildPrompt(sceneText, textDescriptions, settingPrompt);
 
   let b64: string;
 

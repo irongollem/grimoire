@@ -342,27 +342,39 @@
           </div>
 
           <!-- Actions -->
-          <div class="flex justify-end gap-2 pt-1">
+          <div class="flex items-center justify-between gap-2 pt-1">
             <button
+              v-if="editEvent"
               type="button"
-              class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
-              @click="close"
+              :disabled="isPending || isDeleting"
+              class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-destructive hover:opacity-80 border border-destructive/40 rounded-md transition-opacity disabled:opacity-50"
+              @click="deleteAndClose"
             >
-              Cancel
+              {{ isDeleting ? "Deleting…" : "Delete" }}
             </button>
-            <button
-              type="submit"
-              :disabled="isPending"
-              class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-            >
-              {{
-                isPending
-                  ? "Saving…"
-                  : editEvent
-                    ? "Save Changes"
-                    : "Create Event"
-              }}
-            </button>
+            <div v-else />
+            <div class="flex gap-2">
+              <button
+                type="button"
+                class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
+                @click="close"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                :disabled="isPending"
+                class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+              >
+                {{
+                  isPending
+                    ? "Saving…"
+                    : editEvent
+                      ? "Save Changes"
+                      : "Create Event"
+                }}
+              </button>
+            </div>
           </div>
         </form>
       </div>
@@ -380,6 +392,7 @@ import { useCalendarStore } from "@/stores/calendar";
 import {
   useCreateCalendarEvent,
   useUpdateCalendarEvent,
+  useDeleteCalendarEvent,
 } from "@/composables/useCalendarEvents";
 import { linkedEntityType, linkedEntityId } from "@/types/calendar.types";
 import type {
@@ -417,6 +430,8 @@ const { mutateAsync: createEvent, isPending: isCreating } =
   useCreateCalendarEvent();
 const { mutateAsync: updateEvent, isPending: isUpdating } =
   useUpdateCalendarEvent();
+const { mutateAsync: deleteEvent, isPending: isDeleting } =
+  useDeleteCalendarEvent();
 const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
 const campaign = useCampaignStore();
 const { data: locations } = useAllLocations();
@@ -427,7 +442,7 @@ const linkedLocationId = computed({
   set: (v: string) => { form.value.linked_location_id = v || null; },
 });
 
-const isPending = computed(() => isCreating.value || isUpdating.value);
+const isPending = computed(() => isCreating.value || isUpdating.value || isDeleting.value);
 
 type DateType = "regular" | "festival";
 const dateType = ref<DateType>("regular");
@@ -554,6 +569,11 @@ const entityIconComponent = computed(() => {
 
 function close() {
   emit("update:modelValue", false);
+}
+
+async function deleteAndClose() {
+  await deleteEvent(props.editEvent!.id);
+  close();
 }
 
 function toggleTraveler(memberId: string) {

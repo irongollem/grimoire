@@ -114,24 +114,6 @@
       </div>
     </Transition>
 
-    <!-- Broadcast toast -->
-    <Transition name="toast">
-      <div
-        v-if="latestMessage"
-        class="fixed top-16 right-4 z-50 w-full max-w-sm pr-safe"
-      >
-        <div class="rounded-lg border border-primary/30 bg-card shadow-gold-glow px-4 py-3 flex items-start gap-3">
-          <Megaphone class="h-4 w-4 text-primary shrink-0 mt-0.5" />
-          <div class="flex-1 min-w-0">
-            <p class="font-cinzel text-xs font-semibold text-primary tracking-wider">DM Announcement</p>
-            <p class="font-fell text-sm text-foreground mt-0.5">{{ latestMessage.text }}</p>
-          </div>
-          <button class="text-muted-foreground hover:text-foreground transition-colors shrink-0" @click="dismiss(latestMessage.id)">
-            <X class="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </div>
-    </Transition>
 
     <!-- Content + sidebars — reserve space above the fixed bottom nav,
          extending into the home-indicator safe area so the nav and gesture bar
@@ -237,15 +219,15 @@
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
-import { LogOut, Megaphone, X, Eye, LayoutGrid, Swords } from "lucide-vue-next";
+import { LogOut, X, Eye, LayoutGrid, Swords } from "lucide-vue-next";
 import { useRunningEncounters, usePlayerEncounterLive } from "@/composables/useEncounterLive";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCampaignById } from "@/composables/useCampaigns";
 import { useParty, usePartyLive } from "@/composables/useParty";
+import { useCampaignLiveSync } from "@/composables/useCampaignLiveSync";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
-import { useCampaignBroadcast } from "@/composables/useCampaignBroadcast";
 import { usePlayerNavPrefs } from "@/composables/usePlayerNavPrefs";
 import { MOBILE_NAV_SLOTS, TABLET_NAV_SLOTS } from "@/lib/playerNav";
 import CampaignChat from "@/components/chat/CampaignChat.vue";
@@ -283,6 +265,7 @@ watch(
 
 useCampaignPresence();
 usePartyLive();
+useCampaignLiveSync();
 
 const isMobile = useIsMobile();
 const { anyRunning, runningLoaded } = useRunningEncounters();
@@ -304,8 +287,6 @@ watch([runningLoaded, anyRunning], ([loaded, isRunning], oldVals) => {
   }
 }, { immediate: true });
 
-const { messages, dismiss } = useCampaignBroadcast();
-const latestMessage = computed(() => messages.value[0] ?? null);
 
 const campaignName = computed(() => campaign.activeCampaign?.name ?? "Campaign");
 const characterName = computed(() => {
