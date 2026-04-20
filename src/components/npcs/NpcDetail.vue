@@ -283,9 +283,44 @@
                     @update:model-value="statBlock.hit_points = $event ?? ''"
                   />
                 </div>
-                <div>
+                <div class="col-span-full">
                   <label class="field-label">Speed</label>
-                  <input v-model="statBlock.speed" placeholder="30 ft." class="field-input" />
+                  <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-1.5">
+                    <div class="flex items-center gap-1.5">
+                      <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">Walk</span>
+                      <input :value="speedObj.walk ?? ''" type="number" step="5" min="0" placeholder="0"
+                        class="field-input speed-input w-14 text-center" @input="setSpeed('walk', ($event.target as HTMLInputElement).value)" />
+                      <span class="font-cinzel text-[10px] text-muted-foreground">ft.</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                      <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">Fly</span>
+                      <input :value="speedObj.fly ?? ''" type="number" step="5" min="0" placeholder="0"
+                        class="field-input speed-input w-14 text-center" @input="setSpeed('fly', ($event.target as HTMLInputElement).value)" />
+                      <span class="font-cinzel text-[10px] text-muted-foreground">ft.</span>
+                      <label class="flex items-center gap-1 ml-0.5 cursor-pointer">
+                        <input v-model="speedObj.hover" type="checkbox" :disabled="!speedObj.fly" class="rounded" />
+                        <span class="font-cinzel text-[10px] text-muted-foreground">hover</span>
+                      </label>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                      <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">Swim</span>
+                      <input :value="speedObj.swim ?? ''" type="number" step="5" min="0" placeholder="0"
+                        class="field-input speed-input w-14 text-center" @input="setSpeed('swim', ($event.target as HTMLInputElement).value)" />
+                      <span class="font-cinzel text-[10px] text-muted-foreground">ft.</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                      <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">Climb</span>
+                      <input :value="speedObj.climb ?? ''" type="number" step="5" min="0" placeholder="0"
+                        class="field-input speed-input w-14 text-center" @input="setSpeed('climb', ($event.target as HTMLInputElement).value)" />
+                      <span class="font-cinzel text-[10px] text-muted-foreground">ft.</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                      <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">Burrow</span>
+                      <input :value="speedObj.burrow ?? ''" type="number" step="5" min="0" placeholder="0"
+                        class="field-input speed-input w-14 text-center" @input="setSpeed('burrow', ($event.target as HTMLInputElement).value)" />
+                      <span class="font-cinzel text-[10px] text-muted-foreground">ft.</span>
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <label class="field-label">Challenge Rating</label>
@@ -374,7 +409,9 @@
 
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, watchEffect } from 'vue'
+import { parseSpeed, speedToString } from '@/lib/utils'
+import type { SpeedBlock } from '@/lib/utils'
 import RichTextEditor from '@/components/common/RichTextEditor.vue'
 import TagInput from '@/components/common/TagInput.vue'
 import { useRouter } from 'vue-router'
@@ -688,6 +725,17 @@ const statBlock = reactive<FlatStatBlock>({
   spellcasting: props.npc?.stat_block?.spellcasting ?? null,
 })
 
+// Speed structured editor state — parsed from statBlock.speed on init,
+// kept in sync so buildStatBlock() always gets the right string.
+const speedObj = reactive<SpeedBlock>(parseSpeed(statBlock.speed))
+watchEffect(() => {
+  statBlock.speed = speedToString(speedObj)
+})
+
+function setSpeed(key: 'walk' | 'fly' | 'swim' | 'climb' | 'burrow', val: string) {
+  speedObj[key] = val === '' ? undefined : parseInt(val, 10)
+}
+
 const modifier = abilityModifier
 
 // ── Templates ─────────────────────────────────────────────────────────────────
@@ -702,10 +750,13 @@ function applyTemplate(id: string) {
   if (!tpl) return
   const sb = tpl.stat_block
   hasStatBlock.value = true
+  // Sync speedObj from template before watchEffect re-serializes it
+  const parsed = parseSpeed(sb.speed)
+  speedObj.walk = parsed.walk; speedObj.fly = parsed.fly; speedObj.swim = parsed.swim
+  speedObj.climb = parsed.climb; speedObj.burrow = parsed.burrow; speedObj.hover = parsed.hover
   Object.assign(statBlock, {
     armor_class: sb.armor_class,
     hit_points: sb.hit_points,
-    speed: sb.speed,
     str: sb.str, dex: sb.dex, con: sb.con,
     int: sb.int, wis: sb.wis, cha: sb.cha,
     challenge_rating: sb.challenge_rating,
@@ -828,5 +879,13 @@ defineExpose({
 }
 .field-label {
   @apply block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1;
+}
+.speed-input {
+  width: 3.5rem;
+  -moz-appearance: textfield;
+}
+.speed-input::-webkit-outer-spin-button,
+.speed-input::-webkit-inner-spin-button {
+  appearance: none;
 }
 </style>

@@ -32,6 +32,47 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// ── Speed helpers ─────────────────────────────────────────────────────────────
+
+export interface SpeedBlock {
+  walk?: number;
+  fly?: number;
+  swim?: number;
+  climb?: number;
+  burrow?: number;
+  hover?: boolean;
+}
+
+export function speedToString(speed: SpeedBlock | string | undefined | null): string {
+  if (!speed) return "0 ft.";
+  if (typeof speed === "string") return speed;
+  const parts: string[] = [];
+  if (speed.walk) parts.push(`${speed.walk} ft.`);
+  if (speed.fly) parts.push(`fly ${speed.fly} ft.${speed.hover ? " (hover)" : ""}`);
+  if (speed.swim) parts.push(`swim ${speed.swim} ft.`);
+  if (speed.climb) parts.push(`climb ${speed.climb} ft.`);
+  if (speed.burrow) parts.push(`burrow ${speed.burrow} ft.`);
+  return parts.join(", ") || "0 ft.";
+}
+
+export function parseSpeed(s: SpeedBlock | string | undefined | null): SpeedBlock {
+  if (!s) return { walk: 30 };
+  if (typeof s === "object") return { ...s };
+  const result: SpeedBlock = {};
+  for (const part of s.split(",").map((p) => p.trim().toLowerCase())) {
+    const m = part.match(/^(fly|swim|climb|burrow)?\s*(\d+)\s*ft\.?(\s*\(hover\))?$/);
+    if (!m) continue;
+    const val = parseInt(m[2], 10);
+    const mode = m[1] || "walk";
+    if (mode === "walk") result.walk = val;
+    else if (mode === "fly") { result.fly = val; if (m[3]) result.hover = true; }
+    else if (mode === "swim") result.swim = val;
+    else if (mode === "climb") result.climb = val;
+    else if (mode === "burrow") result.burrow = val;
+  }
+  return Object.keys(result).length ? result : { walk: 30 };
+}
+
 // ── Carry weight helpers ───────────────────────────────────────────────────────
 
 /** Parse a D&D weight string like "3 lb.", "1/4 lb.", "0.5 lbs." → pounds as a number. */

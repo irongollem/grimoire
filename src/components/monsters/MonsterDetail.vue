@@ -219,14 +219,45 @@
                   @update:model-value="sb.hit_points = $event ?? ''"
                 />
               </div>
-              <label class="block">
+              <div class="block col-span-full">
                 <span class="field-label">Speed</span>
-                <input
-                  v-model="sb.speed"
-                  class="field-input w-full"
-                  placeholder="30 ft."
-                />
-              </label>
+                <div class="grid grid-cols-2 gap-x-6 gap-y-1 mt-1.5 w-fit">
+                  <div class="flex items-center gap-1.5">
+                    <span class="speed-label">Walk</span>
+                    <input :value="speedObj.walk ?? ''" type="number" step="5" min="0" placeholder="—"
+                      class="speed-input" @input="setSpeed('walk', ($event.target as HTMLInputElement).value)" />
+                    <span class="speed-unit">ft.</span>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <span class="speed-label">Fly</span>
+                    <input :value="speedObj.fly ?? ''" type="number" step="5" min="0" placeholder="—"
+                      class="speed-input" @input="setSpeed('fly', ($event.target as HTMLInputElement).value)" />
+                    <span class="speed-unit">ft.</span>
+                    <label class="flex items-center gap-1 ml-0.5 cursor-pointer">
+                      <input v-model="speedObj.hover" type="checkbox" :disabled="!speedObj.fly" class="rounded" />
+                      <span class="speed-unit">hover</span>
+                    </label>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <span class="speed-label">Swim</span>
+                    <input :value="speedObj.swim ?? ''" type="number" step="5" min="0" placeholder="—"
+                      class="speed-input" @input="setSpeed('swim', ($event.target as HTMLInputElement).value)" />
+                    <span class="speed-unit">ft.</span>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <span class="speed-label">Climb</span>
+                    <input :value="speedObj.climb ?? ''" type="number" step="5" min="0" placeholder="—"
+                      class="speed-input" @input="setSpeed('climb', ($event.target as HTMLInputElement).value)" />
+                    <span class="speed-unit">ft.</span>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <span class="speed-label">Burrow</span>
+                    <input :value="speedObj.burrow ?? ''" type="number" step="5" min="0" placeholder="—"
+                      class="speed-input" @input="setSpeed('burrow', ($event.target as HTMLInputElement).value)" />
+                    <span class="speed-unit">ft.</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -425,7 +456,9 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, reactive, computed, watch } from "vue";
+import { ref, reactive, computed, watch, watchEffect } from "vue";
+import { parseSpeed, speedToString } from "@/lib/utils";
+import type { SpeedBlock } from "@/lib/utils";
 import { useRouter } from "vue-router";
 import { Save, Trash2, ScrollText, Copy, Sparkles } from "lucide-vue-next";
 import MonsterGenerateDialog from "@/ai/MonsterGenerateDialog.vue";
@@ -536,7 +569,7 @@ function defaultSb(): MonsterStatBlock {
   return {
     armor_class: 10,
     hit_points: "10 (2d8+1)",
-    speed: "30 ft.",
+    speed: "30 ft.", // serialized string; speedObj is the edit state
     str: 10,
     dex: 10,
     con: 10,
@@ -567,6 +600,17 @@ const sb = reactive<MonsterStatBlock>(
     ? { ...defaultSb(), ...props.monster.stat_block }
     : defaultSb(),
 );
+
+// Speed structured editor state — parsed from sb.speed on init,
+// kept in sync so buildPayload() always gets the right string.
+const speedObj = reactive<SpeedBlock>(parseSpeed(sb.speed));
+watchEffect(() => {
+  sb.speed = speedToString(speedObj);
+});
+
+function setSpeed(key: "walk" | "fly" | "swim" | "climb" | "burrow", val: string) {
+  speedObj[key] = val === "" ? undefined : parseInt(val, 10);
+}
 
 // Skills string <-> Record conversion
 const skillsText = computed(() =>
@@ -737,5 +781,12 @@ async function remove() {
 }
 .gold-divider {
   @apply border-t border-primary/30;
+}
+.speed-input::-webkit-outer-spin-button,
+.speed-input::-webkit-inner-spin-button {
+  appearance: none;
+}
+.speed-input {
+  -moz-appearance: textfield;
 }
 </style>
