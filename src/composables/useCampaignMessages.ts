@@ -36,7 +36,16 @@ async function fetchMessages(campaignId: string) {
       .eq("campaign_id", campaignId)
       .order("created_at", { ascending: true })
       .limit(LIMIT);
-    if (!error) messages.value = (data ?? []) as CampaignMessage[];
+    if (!error) {
+      const auth = useAuthStore();
+      const uid = auth.user?.id;
+      messages.value = ((data ?? []) as CampaignMessage[]).filter(msg => {
+        // dm_roll: only the recipient (DM) sees it — sender never sees result
+        if (msg.type === "dm_roll") return auth.isDM || msg.recipient_user_id === uid;
+        // public or addressed to me or DM or I sent it (regular whisper)
+        return msg.recipient_user_id === null || auth.isDM || msg.recipient_user_id === uid || msg.user_id === uid;
+      });
+    }
   } catch {
     // AbortError (auth lock steal) or network error — just leave current messages
   } finally {
@@ -63,11 +72,11 @@ function subscribe(campaignId: string) {
           messages.value[existingIdx] = msg;
           return;
         }
-        if (
-          msg.recipient_user_id === null ||
-          (msg.user_id === auth.user?.id && auth.isDM) ||
-          msg.recipient_user_id === auth.user?.id
-        ) {
+        const uid = auth.user?.id;
+        const visible = msg.type === "dm_roll"
+          ? auth.isDM || msg.recipient_user_id === uid
+          : msg.recipient_user_id === null || auth.isDM || msg.recipient_user_id === uid || msg.user_id === uid;
+        if (visible) {
           messages.value.push(msg);
           if (messages.value.length > LIMIT) messages.value.shift();
         }
@@ -265,7 +274,7 @@ export function useCampaignMessages() {
       recipient_user_id: recipientUserId,
       sender_name: senderName ?? getSenderName(),
       message: `rolled ${result.label} = ${result.total}`,
-      type: "roll",
+      type: recipientUserId ? "dm_roll" : "roll",
       metadata: result,
     };
     const { data } = await supabase.from("campaign_messages").insert(insert).select().single();
@@ -474,8 +483,11 @@ export function useCampaignMessages() {
 
   function _optimisticPush(msg: CampaignMessage) {
     if (messages.value.find(m => m.id === msg.id)) return;
-    // For whispered messages, only show to the recipient (or to DM, who sees their own whispers)
-    if (msg.recipient_user_id !== null && msg.recipient_user_id !== auth.user?.id && !auth.isDM) return;
+    const uid = auth.user?.id;
+    const visible = msg.type === "dm_roll"
+      ? auth.isDM || msg.recipient_user_id === uid
+      : msg.recipient_user_id === null || auth.isDM || msg.recipient_user_id === uid || msg.user_id === uid;
+    if (!visible) return;
     messages.value.push(msg);
     if (messages.value.length > LIMIT) messages.value.shift();
   }

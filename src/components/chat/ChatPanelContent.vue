@@ -45,7 +45,7 @@
       </div>
       <template v-else>
         <div
-          v-for="msg in messages"
+          v-for="msg in displayMessages"
           :key="msg.id"
           class="group flex gap-1"
           :class="msg.user_id === myUserId ? 'flex-row-reverse' : 'flex-row'"
@@ -611,6 +611,74 @@
             </div>
           </div>
 
+          <!-- Hidden roll (dm_roll) — only visible to the DM -->
+          <div
+            v-else-if="msg.type === 'dm_roll'"
+            class="max-w-[90%] rounded-lg px-3 py-2 border border-dashed border-purple-500/50 bg-purple-500/8"
+          >
+            <!-- DM-only badge -->
+            <div class="flex items-center gap-1 mb-1.5">
+              <EyeOff class="h-3 w-3 text-purple-500 dark:text-purple-400 shrink-0" />
+              <span class="font-cinzel text-[9px] text-purple-500 dark:text-purple-400 tracking-widest">HIDDEN ROLL</span>
+            </div>
+            <!-- Flavor line (merged from preceding system message if present) -->
+            <p
+              v-if="flavorForRoll(msg)"
+              class="font-fell text-sm text-foreground/85 italic leading-snug mb-2"
+            >
+              <span class="font-cinzel text-[10px] font-semibold text-purple-600 dark:text-purple-400 not-italic tracking-wider">
+                {{ (flavorForRoll(msg)!.metadata as FlavorMetadata).skill_label }}:
+              </span>
+              {{ flavorForRoll(msg)!.message }}
+            </p>
+            <!-- Sender row -->
+            <p class="font-cinzel text-[10px] text-foreground/60 tracking-wider mb-1.5">
+              <span class="font-semibold text-purple-600 dark:text-purple-300">{{ msg.sender_name }}</span>
+              {{ " " }}rolled {{ asRoll(msg.metadata).label }}
+            </p>
+            <!-- Total + breakdown -->
+            <div class="flex items-center gap-3">
+              <div
+                class="shrink-0 flex flex-col items-center justify-center w-14 h-14 rounded-lg border"
+                :class="
+                  asRoll(msg.metadata).isCrit
+                    ? 'border-amber-400/50 bg-amber-400/10'
+                    : asRoll(msg.metadata).isFumble
+                      ? 'border-destructive/50 bg-destructive/10'
+                      : 'border-purple-500/50 bg-purple-500/10'
+                "
+              >
+                <span
+                  class="font-cinzel text-2xl font-bold leading-none"
+                  :class="
+                    asRoll(msg.metadata).isCrit
+                      ? 'text-amber-400'
+                      : asRoll(msg.metadata).isFumble
+                        ? 'text-destructive'
+                        : 'text-purple-800 dark:text-purple-100'
+                  "
+                >{{ asRoll(msg.metadata).total ?? "?" }}</span>
+                <span v-if="asRoll(msg.metadata).isCrit" class="font-cinzel text-[8px] text-amber-400 tracking-widest mt-0.5">CRIT</span>
+                <span v-else-if="asRoll(msg.metadata).isFumble" class="font-cinzel text-[8px] text-destructive tracking-widest mt-0.5">FAIL</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div v-if="asRoll(msg.metadata).breakdown?.length" class="flex flex-wrap gap-1 mb-1">
+                  <span
+                    v-for="(d, i) in asRoll(msg.metadata).breakdown"
+                    :key="i"
+                    class="font-cinzel text-[10px] px-1.5 py-0.5 rounded"
+                    :class="d.dropped ? 'line-through text-muted-foreground/30 bg-muted/30' : 'bg-purple-500/20 text-purple-800 dark:text-purple-100'"
+                  >{{ d.val }}</span>
+                  <span
+                    v-if="asRoll(msg.metadata).modifier !== 0"
+                    class="font-cinzel text-[10px] text-purple-600 dark:text-purple-400 px-1"
+                  >{{ asRoll(msg.metadata).modifier > 0 ? `+${asRoll(msg.metadata).modifier}` : asRoll(msg.metadata).modifier }}</span>
+                </div>
+                <p class="font-fell text-[10px] text-muted-foreground/50">{{ timeLabel(msg.created_at) }}</p>
+              </div>
+            </div>
+          </div>
+
           <!-- System / flavor message -->
           <div
             v-else-if="msg.type === 'system'"
@@ -918,6 +986,7 @@ import {
   ChevronDown,
   Package,
   PackageOpen,
+  EyeOff,
 } from "lucide-vue-next";
 import ChatItemDropDetails from "@/components/chat/ChatItemDropDetails.vue";
 import { rollDice } from "@/lib/roller";
@@ -1059,6 +1128,29 @@ function onClaimToNpc(messageId: string, npcId: string) {
 }
 
 const auth = useAuthStore();
+
+// Hide the system/flavor message that immediately precedes a dm_roll from the
+// same user — it's rendered inline inside the dm_roll card instead.
+const displayMessages = computed(() =>
+  props.messages.filter((msg, idx) => {
+    if (msg.type !== "system") return true;
+    if (!(msg.metadata as FlavorMetadata)?.skill_label) return true;
+    const next = props.messages[idx + 1];
+    return !(next?.type === "dm_roll" && next.user_id === msg.user_id);
+  }),
+);
+
+function flavorForRoll(msg: CampaignMessage): CampaignMessage | null {
+  const idx = props.messages.findIndex(m => m.id === msg.id);
+  if (idx <= 0) return null;
+  const prev = props.messages[idx - 1];
+  if (
+    prev.type === "system" &&
+    prev.user_id === msg.user_id &&
+    (prev.metadata as FlavorMetadata)?.skill_label
+  ) return prev;
+  return null;
+}
 
 const scrollEl = ref<HTMLElement | null>(null);
 const inputEl = ref<HTMLTextAreaElement | null>(null);

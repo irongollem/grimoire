@@ -1,4 +1,4 @@
-export type MessageType = "chat" | "roll" | "system" | "item_drop" | "currency_drop" | "vendor_offer" | "player_offer" | "loot_chest";
+export type MessageType = "chat" | "roll" | "system" | "item_drop" | "currency_drop" | "vendor_offer" | "player_offer" | "loot_chest" | "dm_roll";
 
 export interface RollMetadata {
   label: string;
