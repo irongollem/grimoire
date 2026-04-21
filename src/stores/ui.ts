@@ -297,6 +297,14 @@ export const useUiStore = defineStore("ui", () => {
     dmPreviewPartyMemberId.value = null;
   }
 
+  // Player Atlas — expanded location state survives navigation within session
+  const atlasChildrenOpen = ref(new Set<string>());
+  const atlasDetailOpen = ref(new Set<string>());
+  function resetAtlasOpenState() {
+    atlasChildrenOpen.value = new Set();
+    atlasDetailOpen.value = new Set();
+  }
+
   function resetNotesFilters() {
     notesFilterCategory.value = "all";
     notesFilterTags.value = [];
@@ -461,5 +469,10 @@ export const useUiStore = defineStore("ui", () => {
 
     // Character Codex
     codexActiveTab,
+
+    // Player Atlas
+    atlasChildrenOpen,
+    atlasDetailOpen,
+    resetAtlasOpenState,
   };
 });

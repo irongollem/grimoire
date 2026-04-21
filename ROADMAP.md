@@ -284,6 +284,7 @@
 - [x] **Atlas search + type filter** (irongollem/grimoire#200) — player Atlas now has a search bar (matches name, player summary, shared description) and type dropdown so players can skip vague parent containers; DM Atlas search also extended to match description body text and notes
 - [x] **Player party page responsive grid** (irongollem/grimoire#214) — replaced fixed-width `w-50` flex-wrap cards with `auto-fill` CSS grid (`minmax(180px, 1fr)`) so party member and NPC cards stretch to fill available screen width
 - [x] **Clickable NPCs in quest log** (irongollem/grimoire#207) — NPC names in the player quest detail view are now clickable, opening a lightbox with portrait, name, race/occupation, and player notes; giver NPC in the meta row is also clickable
+- [x] **Persist Atlas open state** (irongollem/grimoire#199) — expanded/collapsed locations in the player Atlas now survive navigation within the session via `useUiStore` (`atlasChildrenOpen` + `atlasDetailOpen`)
 
 ### Rules reliquary
 

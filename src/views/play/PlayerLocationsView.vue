@@ -284,6 +284,7 @@
 import { ref, computed, nextTick } from "vue";
 import { ChevronDown, X, Eye, Search } from "lucide-vue-next";
 import { useSharedLocations } from "@/composables/useLocations";
+import { useUiStore } from "@/stores/ui";
 import { useSharedNpcsByLocations } from "@/composables/useNpcs";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { extractTiptapText } from "@/lib/utils";
@@ -349,8 +350,16 @@ const flatTree = computed(() => {
 
 // childrenOpen — which locations have their child cards visible in the list.
 // detailOpen   — which locations have their detail panel (map/description/NPCs) open.
-const childrenOpen = ref(new Set<string>());
-const detailOpen = ref(new Set<string>());
+// Stored in useUiStore so state survives navigation within the session.
+const ui = useUiStore();
+const childrenOpen = computed({
+  get: () => ui.atlasChildrenOpen,
+  set: (v) => { ui.atlasChildrenOpen = v; },
+});
+const detailOpen = computed({
+  get: () => ui.atlasDetailOpen,
+  set: (v) => { ui.atlasDetailOpen = v; },
+});
 const fullSizeMaps = ref(new Set<string>());
 
 // Locations that have at least one shared child.
