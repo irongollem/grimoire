@@ -345,12 +345,22 @@
           />
         </button>
       </div>
+    </section>
+
+    <!-- Dice settings -->
+    <section class="rounded-lg border border-border bg-card p-5 space-y-4">
+      <div>
+        <h2 class="font-cinzel text-sm font-semibold text-foreground tracking-wide">Dice</h2>
+        <p class="font-fell text-xs text-muted-foreground italic mt-1">
+          Choose where rolls come from.
+        </p>
+      </div>
       <div class="flex items-center justify-between">
         <div>
           <p class="font-cinzel text-xs text-foreground tracking-wide">Dice source</p>
-          <p class="font-fell text-xs text-muted-foreground italic">Choose where rolls come from. Physical mode prompts you to enter the result of dice you rolled yourself.</p>
+          <p class="font-fell text-xs text-muted-foreground italic">Physical mode prompts you to enter the result of dice you rolled yourself.</p>
         </div>
-        <div class="flex rounded-md border border-border overflow-hidden text-[10px] font-cinzel tracking-wider">
+        <div class="flex rounded-md border border-border overflow-hidden text-[10px] font-cinzel tracking-wider shrink-0 ml-3">
           <button
             type="button"
             class="px-3 py-1 transition-colors"
@@ -363,6 +373,29 @@
             :class="diceMode === 'physical' ? 'bg-primary text-primary-foreground' : 'bg-muted/40 text-muted-foreground hover:text-foreground'"
             @click="setDiceMode('physical')"
           >PHYSICAL</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Theme override -->
+    <section class="rounded-lg border border-border bg-card p-5 space-y-4">
+      <div>
+        <h2 class="font-cinzel text-sm font-semibold text-foreground tracking-wide">Appearance</h2>
+        <p class="font-fell text-xs text-muted-foreground italic mt-1">
+          Your DM sets the campaign theme. Override it here if you prefer a different look.
+        </p>
+      </div>
+      <div class="flex items-center justify-between">
+        <p class="font-cinzel text-xs text-foreground tracking-wide">Theme</p>
+        <div class="flex rounded-md border border-border overflow-hidden text-[10px] font-cinzel tracking-wider shrink-0">
+          <button
+            v-for="opt in THEME_OVERRIDE_OPTIONS"
+            :key="opt.value"
+            type="button"
+            class="px-2.5 py-1 transition-colors border-l border-border first:border-l-0"
+            :class="currentOverride === opt.value ? 'bg-primary text-primary-foreground' : 'bg-muted/40 text-muted-foreground hover:text-foreground'"
+            @click="setOverride(opt.value)"
+          >{{ opt.label }}</button>
         </div>
       </div>
     </section>
@@ -470,6 +503,8 @@ const { enabled: wakeLockEnabled, isSupported: wakeLockSupported, toggle: toggle
 import { usePlayerNavPrefs } from "@/composables/usePlayerNavPrefs";
 import { usePlayerCombatPrefs } from "@/composables/usePlayerCombatPrefs";
 import { useDicePrefs } from "@/composables/useDicePrefs";
+import { useTheme } from "@/composables/useTheme";
+import type { ThemeOverride } from "@/composables/useTheme";
 import { MOBILE_NAV_SLOTS } from "@/lib/playerNav";
 import PageHeader from "@/components/common/PageHeader.vue";
 import { useAuthStore } from "@/stores/auth";
@@ -489,6 +524,16 @@ const { sortedNav, setNavOrder } = usePlayerNavPrefs();
 // ── Combat preferences ────────────────────────────────────────────────────────
 const { turnAudioEnabled, setTurnAudio } = usePlayerCombatPrefs();
 const { diceAudioEnabled, setDiceAudio, diceMode, setDiceMode } = useDicePrefs();
+
+// ── Theme override ───────────────────────────────────────────────────────────
+const { themeOverride, setOverride } = useTheme();
+const currentOverride = themeOverride;
+const THEME_OVERRIDE_OPTIONS: { value: ThemeOverride; label: string }[] = [
+  { value: "campaign", label: "Campaign" },
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+  { value: "system", label: "System" },
+];
 
 const dragListRef = ref<HTMLElement | null>(null);
 const draggingIdx = ref<number | null>(null);

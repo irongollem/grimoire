@@ -285,6 +285,7 @@
 - [x] **Player party page responsive grid** (irongollem/grimoire#214) — replaced fixed-width `w-50` flex-wrap cards with `auto-fill` CSS grid (`minmax(180px, 1fr)`) so party member and NPC cards stretch to fill available screen width
 - [x] **Clickable NPCs in quest log** (irongollem/grimoire#207) — NPC names in the player quest detail view are now clickable, opening a lightbox with portrait, name, race/occupation, and player notes; giver NPC in the meta row is also clickable
 - [x] **Persist Atlas open state** (irongollem/grimoire#199) — expanded/collapsed locations in the player Atlas now survive navigation within the session via `useUiStore` (`atlasChildrenOpen` + `atlasDetailOpen`)
+- [x] **Player theme override** (irongollem/grimoire#197) — players can override the DM's campaign theme with Light, Dark, or System (browser preference) via a toggle in Settings > Appearance. Listens for `prefers-color-scheme` changes in system mode.
 
 ### Rules reliquary
 
