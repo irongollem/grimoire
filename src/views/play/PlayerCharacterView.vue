@@ -495,7 +495,7 @@ const member = computed<PartyMember | null>(() =>
 const trueSpeciesId = computed(() => member.value?.species_id ?? "");
 const { data: trueSpecies } = useSpecies(trueSpeciesId);
 const canShapeshift = computed(
-  () => !ui.dmPreviewMode && !!trueSpecies.value?.is_shapeshifter,
+  () => !!trueSpecies.value?.is_shapeshifter,
 );
 
 // ── Tabs ───────────────────────────────────────────────────────────────────────
