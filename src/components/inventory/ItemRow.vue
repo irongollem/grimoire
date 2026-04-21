@@ -44,11 +44,12 @@
       @click="$emit('drop-to-chat', item)"
     ><ArrowUpFromLine class="h-3 w-3" /></button>
 
-    <!-- Split stack -->
+    <!-- Split stack — always rendered for consistent row width -->
     <button
-      v-if="item.quantity > 1"
-      class="h-6 w-6 flex items-center justify-center rounded text-muted-foreground/40 hover:text-sky-400 hover:bg-sky-400/10 transition-colors opacity-0 group-hover:opacity-100"
+      class="h-6 w-6 flex items-center justify-center rounded text-muted-foreground/40 hover:text-sky-400 hover:bg-sky-400/10 transition-colors"
+      :class="item.quantity > 1 ? 'opacity-0 group-hover:opacity-100' : 'invisible'"
       title="Split stack"
+      :disabled="item.quantity <= 1"
       @click="$emit('split-stack', item)"
     ><Scissors class="h-3 w-3" /></button>
 

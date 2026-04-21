@@ -41,6 +41,7 @@
           @drop-to-chat="(item) => $emit('drop-to-chat', item)"
           @open-detail="(item) => $emit('open-detail', item)"
           @sell-item="(item) => $emit('sell-item', item)"
+          @split-stack="(item) => $emit('split-stack', item)"
         />
       </VueDraggable>
       <div v-if="!items.length && !showAdd" class="px-4 py-3">
@@ -117,6 +118,7 @@ const emit = defineEmits<{
   'drop-to-chat': [item: PartyInventoryItem];
   'open-detail': [item: PartyInventoryItem];
   'sell-item': [item: PartyInventoryItem];
+  'split-stack': [item: PartyInventoryItem];
   reorder: [items: PartyInventoryItem[]];
 }>();
 
