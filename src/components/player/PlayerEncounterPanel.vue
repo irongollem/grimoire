@@ -312,45 +312,7 @@
   </Transition>
 
   <!-- Party member / companion lightbox -->
-  <Transition name="fade">
-    <div
-      v-if="selectedMemberCombatant"
-      class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
-      @click.self="selectedMemberCombatant = null"
-    >
-      <div class="bg-card rounded-xl border border-border w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-        <div class="relative shrink-0">
-          <div v-if="selectedMemberCombatant.portrait_url" class="w-full h-72 overflow-hidden">
-            <FocalImage
-              :src="selectedMemberCombatant.portrait_url"
-              :alt="selectedMemberCombatant.name"
-              format="portrait"
-              :focal-point="null"
-            />
-          </div>
-          <button
-            class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors"
-            @click="selectedMemberCombatant = null"
-          >
-            <X class="h-4 w-4" />
-          </button>
-        </div>
-        <div class="p-4 overflow-y-auto space-y-3">
-          <h2 class="font-cinzel text-lg font-bold text-foreground">{{ selectedMemberCombatant.name }}</h2>
-          <div class="flex gap-4 font-cinzel text-sm">
-            <div class="text-center">
-              <p class="text-[9px] text-muted-foreground tracking-wider">AC</p>
-              <p class="font-bold">{{ selectedMemberCombatant.ac }}</p>
-            </div>
-            <div class="text-center">
-              <p class="text-[9px] text-muted-foreground tracking-wider">HP</p>
-              <p class="font-bold">{{ selectedMemberCombatant.hp }} / {{ selectedMemberCombatant.max_hp }}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </Transition>
+  <PartyMemberLightbox :member="selectedMember" @close="selectedMemberCombatant = null" />
 </template>
 
 <script setup lang="ts">
@@ -369,6 +331,7 @@ import { useTurnChime } from "@/composables/useTurnChime";
 import { useScreenShake } from "@/composables/useScreenShake";
 import { useNpcs } from "@/composables/useNpcs";
 import { useParty } from "@/composables/useParty";
+import PartyMemberLightbox from "@/components/player/PartyMemberLightbox.vue";
 import { usePlayerNpcRatings } from "@/composables/usePlayerNpcRatings";
 import { useMyNpcPcNote } from "@/composables/useNpcPcNotes";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
@@ -499,7 +462,12 @@ function hpLabel(c: RunCombatant): string {
 
 // Party member / companion lightbox
 const selectedMemberCombatant = ref<RunCombatant | null>(null);
-
+const selectedMember = computed(() => {
+  const c = selectedMemberCombatant.value;
+  if (!c) return null;
+  const id = c.party_member_id ?? c.companion_id;
+  return partyList.value?.find((m) => m.id === id) ?? null;
+});
 // NPC lightbox
 const { data: allNpcs } = useNpcs();
 const { getRating, setRating } = usePlayerNpcRatings();
