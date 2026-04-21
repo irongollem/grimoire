@@ -296,6 +296,7 @@
 ### Scriptorium
 
 - [x] **Two-column layout** — Columns2 toolbar button toggles `column-count: 2` on both the editor and the Scriptorium preview; persisted per document in DB (`is_two_column`); H1/H2 span both columns in preview
+- [x] **Per-document theme: OneDnD 2024 ↔ Classic PHB 2014** (irongollem/grimoire#222) — palette refactored to CSS custom properties on `.phb-body` / `.phb-page` (shared contract: `--sc-ink`, `--sc-accent`, `--sc-accent-contrast`, `--sc-page-bg`, `--sc-callout-bg`, `--sc-callout-border`, `--sc-code-bg`, `--sc-col-rule`, `--sc-heading-font`, `--sc-body-font`, plus per-block `--sc-h1-*` / `--sc-title-bar-*` knobs). Defaults render OneDnD 2024 (teal); `.theme-phb2014` override swaps to classic palette (deep red-brown ink `#58180d`, cream parchment `#eeeadf`, olive callouts `#e0e5c1`) and replaces the filled-bar H1 with double-ruled red title on parchment. Segmented "2024 | Classic" toggle in the editor toolbar; persisted as `scriptorium_documents.theme`. Preview and `useScriptoriumPdf` both receive the same theme class on their page elements so export matches WYSIWYG. Every subsequent scriptorium block added for Homebrewery parity (#221 tracking) will consume this variable contract rather than adding new literal palettes.
 
 ### Tokens & VTT Integration
 

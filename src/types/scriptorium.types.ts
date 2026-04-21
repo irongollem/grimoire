@@ -12,6 +12,8 @@ export type ScriptoriumDocType =
   | "location"
   | "quest";
 
+export type ScriptoriumTheme = "onednd2024" | "phb2014";
+
 export interface ScriptoriumDocument {
   id: string;
   user_id: string;
@@ -21,6 +23,7 @@ export interface ScriptoriumDocument {
   tags: string[];
   is_published: boolean;
   is_two_column: boolean;
+  theme: ScriptoriumTheme;
   word_count: number;
   created_at: string;
   updated_at: string;

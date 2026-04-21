@@ -331,6 +331,44 @@
             >
               <Columns2 class="h-3.5 w-3.5" />
             </button>
+
+            <!-- Theme -->
+            <div
+              role="radiogroup"
+              aria-label="Preview theme"
+              class="ml-1 inline-flex rounded border border-border overflow-hidden shrink-0"
+            >
+              <button
+                type="button"
+                role="radio"
+                :aria-checked="theme === 'onednd2024'"
+                title="OneDnD 2024 theme"
+                class="px-2 h-[26px] font-cinzel text-[9px] font-semibold tracking-wider uppercase transition-colors"
+                :class="
+                  theme === 'onednd2024'
+                    ? 'bg-primary/20 text-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                "
+                @click="theme = 'onednd2024'"
+              >
+                2024
+              </button>
+              <button
+                type="button"
+                role="radio"
+                :aria-checked="theme === 'phb2014'"
+                title="Classic PHB (2014) theme"
+                class="px-2 h-[26px] font-cinzel text-[9px] font-semibold tracking-wider uppercase transition-colors border-l border-border"
+                :class="
+                  theme === 'phb2014'
+                    ? 'bg-primary/20 text-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                "
+                @click="theme = 'phb2014'"
+              >
+                Classic
+              </button>
+            </div>
           </template>
         </div>
 
@@ -364,7 +402,7 @@
           <p
             class="font-cinzel text-xs font-semibold text-muted-foreground uppercase tracking-widest"
           >
-            Preview — OneDnD 2024
+            Preview — {{ themeLabel }}
           </p>
           <div class="flex items-center gap-2">
             <span
@@ -394,13 +432,14 @@
             v-for="(pageHtml, pageIndex) in pages"
             :key="pageIndex"
             class="phb-page"
+            :class="themeClass"
           >
             <div v-if="pageIndex === 0" class="phb-title-bar">
               {{ title || "Untitled Document" }}
             </div>
             <div
               class="phb-body"
-              :class="{ 'phb-two-col': isTwoColumn }"
+              :class="[themeClass, { 'phb-two-col': isTwoColumn }]"
               v-html="pageHtml"
             />
           </div>
@@ -455,6 +494,7 @@ import { useScriptoriumPdf } from "@/composables/useScriptoriumPdf";
 import type {
   ScriptoriumDocument,
   ScriptoriumDocType,
+  ScriptoriumTheme,
 } from "@/types/scriptorium.types";
 import PdfPreviewDialog from "@/components/scriptorium/PdfPreviewDialog.vue";
 import AssetInsertPanel from "@/components/scriptorium/AssetInsertPanel.vue";
@@ -534,7 +574,15 @@ const title = ref(props.doc?.title ?? "");
 const docType = ref<ScriptoriumDocType>(props.doc?.doc_type ?? "custom");
 const isPublished = ref(props.doc?.is_published ?? false);
 const isTwoColumn = ref(props.doc?.is_two_column ?? false);
+const theme = ref<ScriptoriumTheme>(props.doc?.theme ?? "onednd2024");
 const tags = ref<string[]>(props.doc?.tags ?? []);
+
+const themeClass = computed(() =>
+  theme.value === "phb2014" ? "theme-phb2014" : "theme-onednd2024",
+);
+const themeLabel = computed(() =>
+  theme.value === "phb2014" ? "Classic PHB (2014)" : "OneDnD 2024",
+);
 
 // Editor
 const previewHtml = ref("");
@@ -636,6 +684,7 @@ async function save() {
       tags: tags.value,
       is_published: isPublished.value,
       is_two_column: isTwoColumn.value,
+      theme: theme.value,
       word_count: wordCount.value,
     };
     if (props.doc) {
@@ -668,7 +717,7 @@ const {
   exportPdf,
   savePdf,
   closePdfPreview,
-} = useScriptoriumPdf(pages, title);
+} = useScriptoriumPdf(pages, title, theme);
 
 onUnmounted(() => editor.value?.destroy());
 </script>
@@ -727,7 +776,62 @@ onUnmounted(() => editor.value?.destroy());
   object-fit: cover;
 }
 
-/* ── PHB Preview (OneDnD 2024 output style) ───────────────────── */
+/* ── PHB Preview (themed output) ──────────────────────────────── */
+/*
+ * Palette + typography contract used by every .phb-* block below.
+ * The two themes override this contract; every new scriptorium block
+ * type added in future parity tickets MUST consume these vars rather
+ * than hex literals so both themes stay in sync.
+ *
+ * Defaults = OneDnD 2024 (teal). Classic overrides are in
+ * `.phb-body.theme-phb2014` below.
+ *
+ * TODO: swap the web-safe serif fallback for licensed Bookinsanity /
+ * Mr Eaves faces once licensing is sorted.
+ */
+.phb-body.theme-onednd2024,
+.phb-body.theme-phb2014,
+.phb-page.theme-onednd2024,
+.phb-page.theme-phb2014 {
+  /* Typography */
+  --sc-heading-font: "Cinzel", Georgia, serif;
+  --sc-body-font: Georgia, "Times New Roman", serif;
+
+  /* Palette */
+  --sc-ink: #1a1a1a;
+  --sc-accent: #1b3a4b;
+  --sc-accent-contrast: #f9f6ef;
+  --sc-page-bg: #f9f6ef;
+  --sc-callout-bg: #e8f4f8;
+  --sc-callout-border: var(--sc-accent);
+  --sc-code-bg: #e4ddd0;
+  --sc-col-rule: #c9b99a;
+
+  /* Per-block treatments (themes override these to swap filled-bar H1
+     for ruled H1 without rewriting every selector below) */
+  --sc-h1-bg: var(--sc-accent);
+  --sc-h1-color: var(--sc-accent-contrast);
+  --sc-h1-border-b: none;
+  --sc-h1-padding: 0.35rem 1rem;
+  --sc-title-bar-bg: var(--sc-accent);
+  --sc-title-bar-color: var(--sc-accent-contrast);
+}
+
+.phb-body.theme-phb2014,
+.phb-page.theme-phb2014 {
+  --sc-body-font: Georgia, "Palatino Linotype", "Book Antiqua", serif;
+  --sc-accent: #58180d; /* deep red-brown, classic PHB ink */
+  --sc-accent-contrast: #eeeadf;
+  --sc-page-bg: #eeeadf;
+  --sc-callout-bg: #e0e5c1; /* light olive/cream */
+
+  /* Classic H1: no filled bar — red title on parchment with double rule below */
+  --sc-h1-bg: transparent;
+  --sc-h1-color: var(--sc-accent);
+  --sc-h1-border-b: 3px double var(--sc-accent);
+  --sc-h1-padding: 0.35rem 0 0.25rem;
+}
+
 /* Parchment-gray canvas between pages */
 .phb-bg {
   background: #a09a90;
@@ -738,11 +842,10 @@ onUnmounted(() => editor.value?.destroy());
   gap: 1.5rem;
 }
 
-/* Each A4 page card */
 .phb-two-col {
   column-count: 2;
   column-gap: 1.5rem;
-  column-rule: 1px solid #c9b99a;
+  column-rule: 1px solid var(--sc-col-rule);
 }
 .phb-two-col :deep(h1),
 .phb-two-col :deep(h2) {
@@ -758,19 +861,19 @@ onUnmounted(() => editor.value?.destroy());
     no-repeat;
   padding: 2.5rem 2.5rem 2rem;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
-  font-family: Georgia, "Times New Roman", serif;
-  color: #1a1a1a;
+  font-family: var(--sc-body-font);
+  color: var(--sc-ink);
   line-height: 1.65;
   font-size: 0.9375rem;
   overflow: visible;
 }
 
 .phb-title-bar {
-  font-family: "Cinzel", Georgia, serif;
+  font-family: var(--sc-heading-font);
   font-size: 1.6rem;
   font-weight: 700;
-  color: #f9f6ef;
-  background: #1b3a4b;
+  color: var(--sc-title-bar-color);
+  background: var(--sc-title-bar-bg);
   padding: 0.6rem 2.5rem;
   margin: -2.5rem -2.5rem 1.75rem;
   letter-spacing: 0.04em;
@@ -787,31 +890,32 @@ onUnmounted(() => editor.value?.destroy());
 }
 
 .phb-body :deep(h1) {
-  font-family: "Cinzel", Georgia, serif;
+  font-family: var(--sc-heading-font);
   font-size: 1.25rem;
   font-weight: 700;
-  color: #f9f6ef;
-  background: #1b3a4b;
-  padding: 0.35rem 1rem;
+  color: var(--sc-h1-color);
+  background: var(--sc-h1-bg);
+  border-bottom: var(--sc-h1-border-b);
+  padding: var(--sc-h1-padding);
   margin: 1.5rem -1rem 1rem;
   letter-spacing: 0.03em;
 }
 .phb-body :deep(h2) {
-  font-family: "Cinzel", Georgia, serif;
+  font-family: var(--sc-heading-font);
   font-size: 1.05rem;
   font-weight: 700;
-  color: #1b3a4b;
-  border-bottom: 2px solid #1b3a4b;
+  color: var(--sc-accent);
+  border-bottom: 2px solid var(--sc-accent);
   padding-bottom: 0.2rem;
   margin: 1.25rem 0 0.6rem;
   letter-spacing: 0.02em;
 }
 .phb-body :deep(h3) {
-  font-family: "Cinzel", Georgia, serif;
+  font-family: var(--sc-heading-font);
   font-size: 0.9375rem;
   font-weight: 600;
   font-style: italic;
-  color: #1b3a4b;
+  color: var(--sc-accent);
   margin: 1rem 0 0.35rem;
 }
 .phb-body :deep(p) {
@@ -826,8 +930,8 @@ onUnmounted(() => editor.value?.destroy());
   margin: 0.2rem 0;
 }
 .phb-body :deep(blockquote) {
-  border-left: 4px solid #1b3a4b;
-  background: #e8f4f8;
+  border-left: 4px solid var(--sc-callout-border);
+  background: var(--sc-callout-bg);
   padding: 0.6rem 0.875rem;
   margin: 0.875rem 0;
   border-radius: 0 4px 4px 0;
@@ -847,15 +951,15 @@ onUnmounted(() => editor.value?.destroy());
   display: none;
 }
 .phb-body :deep(code) {
-  background: #e4ddd0;
+  background: var(--sc-code-bg);
   padding: 0.1em 0.35em;
   border-radius: 2px;
   font-family: "Courier New", monospace;
   font-size: 0.875em;
 }
 .phb-body :deep(pre) {
-  background: #1b3a4b;
-  color: #e8f4f8;
+  background: var(--sc-accent);
+  color: var(--sc-accent-contrast);
   padding: 0.875rem;
   border-radius: 4px;
   overflow-x: auto;
