@@ -214,9 +214,7 @@ async function generateAndCreate() {
     description: result.description ? toTiptapJson(result.description) : null,
     notes: result.notes ? toTiptapJson(result.notes) : null,
     image_url: result.image_url ?? null,
-    card_art_url: null,
     portrait_focal_point: null,
-    card_art_focal_point: null,
     stat_block: result.stat_block,
   });
 

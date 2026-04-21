@@ -45,7 +45,7 @@ async function updateNpc(id: string, update: NpcUpdate): Promise<Npc> {
 async function deleteNpc(npc: Npc): Promise<void> {
   const { error } = await supabase.from("npcs").delete().eq("id", npc.id);
   if (error) throw error;
-  await removeStorageImages("asset-images", npc.portrait_url, npc.card_art_url, npc.disguise_portrait_url);
+  await removeStorageImages("asset-images", npc.portrait_url, npc.disguise_portrait_url);
 }
 
 export function useNpcs() {
@@ -295,7 +295,6 @@ export function usePopulateSettingNpcs() {
           status: h.status,
           relationship: h.relationship,
           portrait_url: h.portrait_url,
-          card_art_url: null,
           portrait_focal_point: null,
           disguise_name: null,
           disguise_portrait_url: null,

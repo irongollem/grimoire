@@ -224,7 +224,6 @@ function mapMonster(m: Open5eMonster): MonsterInsert {
     stat_block: statBlock,
     notes: null,
     image_url: null,
-    card_art_url: null,
     is_srd: m.document__slug === "wotc-srd",
     open5e_import: true,
   };

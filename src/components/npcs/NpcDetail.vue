@@ -566,7 +566,6 @@ async function promoteToMonster() {
       source: null,
       tags: [...props.npc.tags],
       image_url: props.npc.portrait_url,
-      card_art_url: props.npc.card_art_url,
       portrait_focal_point: props.npc.portrait_focal_point ?? null,
       description: null,
       notes: props.npc.notes,
@@ -601,9 +600,6 @@ function onMonsterLinked(monsterId: string | null) {
   if (!form.portrait_url && m.image_url) {
     form.portrait_url = m.image_url
     form.portrait_focal_point = m.portrait_focal_point ?? null
-  }
-  if (!form.card_art_url && m.card_art_url) {
-    form.card_art_url = m.card_art_url
   }
 
   const msb = m.stat_block
@@ -653,7 +649,6 @@ const form = reactive<NpcInsert>({
   linked_monster_id: props.npc?.linked_monster_id ?? null,
   scriptorium_doc_id: props.npc?.scriptorium_doc_id ?? null,
   campaign_id: campaign.activeCampaignId,
-  card_art_url: props.npc?.card_art_url ?? null,
   portrait_focal_point: props.npc?.portrait_focal_point ?? null,
   player_visible_fields: [...(props.npc?.player_visible_fields ?? [])],
   player_visible_to: props.npc?.player_visible_to ?? [],

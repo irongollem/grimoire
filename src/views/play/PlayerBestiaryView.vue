@@ -191,7 +191,7 @@
                 </div>
                 <div class="text-center">
                   <p class="text-[9px] text-muted-foreground tracking-wider">HP</p>
-                  <p class="font-bold">{{ lightbox.monster.stat_block.hit_points }}</p>
+                  <p class="font-bold">{{ formatHitPoints(lightbox.monster.stat_block.hit_points) }}</p>
                 </div>
                 <div class="text-center">
                   <p class="text-[9px] text-muted-foreground tracking-wider">SPD</p>
@@ -255,7 +255,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { parseExpression } from "@/lib/dice";
 import type { DieSize } from "@/lib/dice";
-import { parseCr } from "@/lib/utils";
+import { parseCr, formatHitPoints } from "@/lib/utils";
 import { rollParsed } from "@/lib/roller";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import type { DiscoveredMonster, Monster } from "@/types/monster.types";

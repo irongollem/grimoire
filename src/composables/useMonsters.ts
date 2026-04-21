@@ -61,7 +61,7 @@ async function updateMonster(id: string, update: MonsterUpdate): Promise<Monster
 async function deleteMonster(monster: Monster): Promise<void> {
   const { error } = await supabase.from("monsters").delete().eq("id", monster.id);
   if (error) throw error;
-  await deleteByPublicUrl(monster.image_url, monster.card_art_url);
+  await deleteByPublicUrl(monster.image_url);
 }
 
 export function useMonsters() {
@@ -89,7 +89,7 @@ export function useAllMonsters() {
       .map((m) => {
         const a = art[m.id];
         return a
-          ? { ...m, image_url: a.image_url, card_art_url: a.card_art_url, portrait_focal_point: a.portrait_focal_point, card_art_focal_point: a.card_art_focal_point }
+          ? { ...m, image_url: a.image_url, portrait_focal_point: a.portrait_focal_point }
           : m;
       });
     return [...srd, ...custom].sort((a, b) => a.name.localeCompare(b.name));
@@ -139,8 +139,8 @@ export function useCloneSrdMonster() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (srdMonster: Monster): Promise<Monster> => {
-      const { name, monster_type, size, alignment, habitat, source, tags, stat_block, notes, image_url, card_art_url } = srdMonster;
-      return createMonster({ name, monster_type, size, alignment, habitat, source: `${source ?? "SRD 5.1"} (customized)`, tags, stat_block, notes, image_url, card_art_url });
+      const { name, monster_type, size, alignment, habitat, source, tags, stat_block, notes, image_url } = srdMonster;
+      return createMonster({ name, monster_type, size, alignment, habitat, source: `${source ?? "SRD 5.1"} (customized)`, tags, stat_block, notes, image_url });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });

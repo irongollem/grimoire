@@ -72,7 +72,7 @@ const badge = computed(() => {
   const cr = props.data.stat_block?.challenge_rating;
   return cr !== null ? `CR ${cr}` : null;
 });
-const portrait = computed(() => props.data.card_art_url ?? props.data.portrait_url ?? null);
+const portrait = computed(() => props.data.portrait_url ?? null);
 const typeGlyph = computed(() => props.data.name.charAt(0).toUpperCase());
 const placeholderLabel = computed(() => props.data.occupation ?? "NPC");
 const typeLine = computed(() => {

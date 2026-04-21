@@ -64,9 +64,7 @@ export interface Monster {
   description?: string | null;
   notes: string | null;
   image_url: string | null;    // portrait / profile image (tall)
-  card_art_url: string | null; // landscape art for MTG Card Forge
   portrait_focal_point?: { x: number; y: number } | null;
-  card_art_focal_point?: { x: number; y: number } | null;
   created_at: string;
   updated_at: string;
   is_srd?: boolean;            // true for read-only SRD reference monsters (static file + wotc-srd imports)

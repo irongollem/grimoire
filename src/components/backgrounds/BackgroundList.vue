@@ -169,7 +169,7 @@ import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import type { Background } from "@/types/background.types";
 
-const props = withDefaults(defineProps<{ readonly?: boolean; selectMode?: boolean; selectedId?: string }>(), {
+withDefaults(defineProps<{ readonly?: boolean; selectMode?: boolean; selectedId?: string }>(), {
   readonly: false,
   selectMode: false,
   selectedId: undefined,

@@ -187,8 +187,8 @@ async function onDrop(e: DragEvent) {
     if (!blob.type.startsWith("image/")) throw new Error("Not an image");
     const filename = url.split("/").pop()?.split("?")[0] || "image";
     await handleFile(new File([blob], filename, { type: blob.type }));
-  } catch (err) {
-    uploadError.value = err instanceof Error ? err.message : "Could not fetch dropped image";
+  } catch {
+    uploadError.value = "Can't fetch this image directly — save it to disk first, then drag the file";
   }
 }
 

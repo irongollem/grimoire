@@ -29,22 +29,6 @@
           class="w-full bg-card border border-border rounded-md px-3 py-2 font-cinzel text-lg font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </label>
-      <!-- Template picker -->
-      <select
-        class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @change="applyTemplate($event)"
-      >
-        <option value="">Load template…</option>
-        <optgroup
-          v-for="cat in MONSTER_TEMPLATE_CATEGORIES"
-          :key="cat.label"
-          :label="cat.label"
-        >
-          <option v-for="t in cat.templates" :key="t.id" :value="t.id">
-            {{ t.name }}
-          </option>
-        </optgroup>
-      </select>
       <button
         v-if="aiApiKey"
         type="button"
@@ -76,6 +60,16 @@
       <button
         v-if="props.monster"
         type="button"
+        :disabled="duplicating"
+        class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors disabled:opacity-50"
+        @click="duplicate"
+      >
+        <Copy class="h-3.5 w-3.5" />
+        {{ duplicating ? "Copying…" : "Duplicate" }}
+      </button>
+      <button
+        v-if="props.monster"
+        type="button"
         class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
         @click="remove"
       >
@@ -100,20 +94,6 @@
             show-focal-point
             @update:model-value="onPortraitUrlUpdate($event)"
             @update:focal-point="onPortraitFocalUpdate($event)"
-          />
-
-          <!-- Card Art (landscape, for MTG Card Forge) -->
-          <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mt-2">
-            CARD ART
-          </p>
-          <ImageUpload
-            :model-value="form.card_art_url || null"
-            :focal-point="form.card_art_focal_point"
-            aspect="landscape"
-            show-focal-point
-            placeholder="Drop card art or click to upload"
-            @update:model-value="onCardArtUrlUpdate($event)"
-            @update:focal-point="onCardArtFocalUpdate($event)"
           />
 
           <!-- Tags -->
@@ -209,6 +189,7 @@
                   v-model.number="sb.armor_class"
                   type="number"
                   class="field-input w-full"
+                  @focus="($event.target as HTMLInputElement).select()"
                 />
               </label>
               <div class="block">
@@ -238,6 +219,7 @@
                       </button>
                       <input :value="speedObj.fly ?? ''" type="number" step="5" min="0" placeholder="—"
                         class="speed-input w-full bg-transparent pl-6 pr-8 py-1.5 font-fell text-sm text-foreground text-center placeholder:text-muted-foreground/40 focus:outline-none"
+                        @focus="($event.target as HTMLInputElement).select()"
                         @input="setSpeed('fly', ($event.target as HTMLInputElement).value)" />
                       <span class="absolute inset-y-0 right-1.5 flex items-center pointer-events-none font-cinzel text-[10px] text-muted-foreground">ft.</span>
                     </div>
@@ -245,6 +227,7 @@
                     <div v-else class="relative w-full">
                       <input :value="speedObj[sp.key] ?? ''" type="number" step="5" min="0" placeholder="—"
                         class="field-input speed-input w-full text-center"
+                        @focus="($event.target as HTMLInputElement).select()"
                         @input="setSpeed(sp.key, ($event.target as HTMLInputElement).value)" />
                       <span class="absolute inset-y-0 right-1.5 flex items-center pointer-events-none font-cinzel text-[10px] text-muted-foreground">ft.</span>
                     </div>
@@ -270,6 +253,7 @@
                   min="1"
                   max="30"
                   class="field-input w-full text-center"
+                  @focus="($event.target as HTMLInputElement).select()"
                 />
                 <span
                   class="font-cinzel text-xs font-bold"
@@ -303,6 +287,7 @@
                 min="0"
                 class="field-input w-full"
                 placeholder="2"
+                @focus="($event.target as HTMLInputElement).select()"
               />
             </label>
             <label class="block">
@@ -390,6 +375,7 @@
                 min="0"
                 max="5"
                 class="field-input w-20"
+                @focus="($event.target as HTMLInputElement).select()"
               />
             </label>
             <TraitSection
@@ -473,10 +459,6 @@ import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
 import { formatMonsterForScriptorium } from "@/lib/scriptoriumImport";
 import TraitSection from "@/components/npcs/TraitSection.vue";
 import SpellcastingSection from "@/components/common/SpellcastingSection.vue";
-import {
-  MONSTER_TEMPLATE_CATEGORIES,
-  getMonsterTemplate,
-} from "@/data/monsterTemplates";
 import type {
   Monster,
   MonsterType,
@@ -540,9 +522,7 @@ const form = reactive({
   description: props.monster?.description ?? "",
   notes: props.monster?.notes ?? "",
   image_url: props.monster?.image_url ?? "",
-  card_art_url: props.monster?.card_art_url ?? "",
   portrait_focal_point: props.monster?.portrait_focal_point ?? null,
-  card_art_focal_point: props.monster?.card_art_focal_point ?? null,
 });
 
 // When SRD art loads asynchronously, sync art fields from the updated prop
@@ -551,9 +531,7 @@ watch(
   (m) => {
     if (isSrd.value && m) {
       form.image_url = m.image_url ?? "";
-      form.card_art_url = m.card_art_url ?? "";
       form.portrait_focal_point = m.portrait_focal_point ?? null;
-      form.card_art_focal_point = m.card_art_focal_point ?? null;
     }
   },
 );
@@ -629,20 +607,6 @@ function parseSkills(text: string) {
   sb.skills = rec;
 }
 
-// Template picker
-function applyTemplate(event: Event) {
-  const id = (event.target as HTMLSelectElement).value;
-  if (!id) return;
-  const tmpl = getMonsterTemplate(id);
-  if (!tmpl) return;
-  form.name = tmpl.name;
-  form.monster_type = tmpl.monster_type;
-  form.size = tmpl.size;
-  form.alignment = tmpl.alignment;
-  Object.assign(sb, defaultSb(), tmpl.stat_block);
-  (event.target as HTMLSelectElement).value = "";
-}
-
 // Ability modifier
 function mod(score: number) {
   return Math.floor((score - 10) / 2);
@@ -657,15 +621,6 @@ function onPortraitFocalUpdate(pt: { x: number; y: number } | null) {
   if (isSrd.value) upsertSrdArt({ srd_id: props.monster!.id, portrait_focal_point: pt });
   else form.portrait_focal_point = pt;
 }
-function onCardArtUrlUpdate(url: string | null) {
-  if (isSrd.value) upsertSrdArt({ srd_id: props.monster!.id, card_art_url: url });
-  else form.card_art_url = url ?? "";
-}
-function onCardArtFocalUpdate(pt: { x: number; y: number } | null) {
-  if (isSrd.value) upsertSrdArt({ srd_id: props.monster!.id, card_art_focal_point: pt });
-  else form.card_art_focal_point = pt;
-}
-
 // AI generation
 const campaignStore = useCampaignStore();
 const aiApiKey = computed(() => campaignStore.decryptedApiKey);
@@ -697,8 +652,20 @@ const { mutateAsync: clone } = useCloneSrdMonster();
 const { mutateAsync: createScriptoriumDoc } = useCreateScriptoriumDocument();
 const saving = ref(false);
 const cloning = ref(false);
+const duplicating = ref(false);
 const saveError = ref("");
 const sendingToScriptorium = ref(false);
+
+async function duplicate() {
+  if (!props.monster) return;
+  duplicating.value = true;
+  try {
+    const copy = await create({ ...buildPayload(), name: `${props.monster.name} (copy)` });
+    router.push(`/monsters/${copy.id}`);
+  } finally {
+    duplicating.value = false;
+  }
+}
 
 async function customize() {
   if (!props.monster) return;
@@ -735,9 +702,7 @@ function buildPayload() {
     description: form.description || null,
     notes: form.notes || null,
     image_url: form.image_url || null,
-    card_art_url: form.card_art_url || null,
     portrait_focal_point: form.portrait_focal_point ?? null,
-    card_art_focal_point: form.card_art_focal_point ?? null,
     stat_block: { ...sb },
   };
 }

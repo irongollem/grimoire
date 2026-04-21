@@ -133,6 +133,24 @@ export function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
+/**
+ * Format a D&D hit points string for display.
+ * "3d8+6"        → "19 (3d8+6)"
+ * "19 (3d8+6)"   → "19 (3d8+6)"  (already formatted — idempotent)
+ * "10"           → "10"           (plain number — returned as-is)
+ */
+export function formatHitPoints(hp: string | null | undefined): string {
+  if (!hp) return "—";
+  const s = hp.trim();
+  if (/^\d+\s*\(/.test(s)) return s; // already "avg (dice)"
+  const m = s.match(/^(\d+)d(\d+)([+-]\d+)?$/);
+  if (m) {
+    const avg = Math.floor(parseInt(m[1], 10) * (parseInt(m[2], 10) + 1) / 2 + (m[3] ? parseInt(m[3], 10) : 0));
+    return `${avg} (${s})`;
+  }
+  return s;
+}
+
 /** Parse a D&D challenge rating string ("1/4", "1/2", "5", "0") to a number. */
 export function parseCr(cr: string | null | undefined): number {
   if (!cr || cr === "0") return 0;

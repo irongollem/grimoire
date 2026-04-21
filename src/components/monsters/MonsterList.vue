@@ -96,7 +96,7 @@
           <!-- Stats row -->
           <div class="flex gap-3 font-cinzel text-[11px] text-muted-foreground">
             <span><span class="text-foreground font-bold">AC</span> {{ monster.stat_block.armor_class }}</span>
-            <span><span class="text-foreground font-bold">HP</span> {{ monster.stat_block.hit_points }}</span>
+            <span><span class="text-foreground font-bold">HP</span> {{ formatHitPoints(monster.stat_block.hit_points) }}</span>
           </div>
 
           <!-- Tags -->
@@ -165,7 +165,7 @@
         <button
           type="button"
           class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left font-fell text-xs transition-colors"
-          :class="popoverCurrentDiscovery && allPartyIds().every(id => isMemberVisible(id))
+          :class="popoverCurrentDiscovery && allPartyIds.every(id => isMemberVisible(id))
             ? 'bg-primary/15 text-primary'
             : 'text-foreground hover:bg-muted/50'"
           @click="setWholeParty()"
@@ -231,12 +231,12 @@
 
 <script setup lang="ts">
 import { computed, reactive } from "vue";
+import { formatHitPoints } from "@/lib/utils";
 import { Pencil, Eye, EyeOff, Users, BarChart2 } from "lucide-vue-next";
 import { useUiStore } from "@/stores/ui";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useAllMonsters } from "@/composables/useMonsters";
-import { useCampaignDiscoveries, useToggleMonsterDiscovery, useUpdateDiscoveryVisibility, useUpdateDiscoveryStats } from "@/composables/useDiscoveredMonsters";
-import { useParty } from "@/composables/useParty";
+import { useMonsterVisibility } from "@/composables/useMonsterVisibility";
 import type { Monster, DiscoveredMonster } from "@/types/monster.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
@@ -248,11 +248,25 @@ const typeFilter = computed(() => ui.monstersFilterType);
 const sourceFilter = computed(() => ui.monstersFilterSource);
 
 const { data: allMonsters, isLoading } = useAllMonsters();
-const { data: discoveries } = useCampaignDiscoveries();
-const { data: party } = useParty();
-const { mutate: toggleDiscovery } = useToggleMonsterDiscovery();
-const { mutate: updateVisibility } = useUpdateDiscoveryVisibility();
-const { mutate: updateStats } = useUpdateDiscoveryStats();
+
+// ── Share popover ────────────────────────────────────────────────────────────
+
+const popover = reactive<{ monster: Monster | null; style: string }>({
+  monster: null,
+  style: "",
+});
+
+const {
+  discoveries,
+  party,
+  currentDiscovery: popoverCurrentDiscovery,
+  allPartyIds,
+  isMemberVisible,
+  setWholeParty,
+  toggleMember,
+  unshare: doUnshare,
+  updateStats,
+} = useMonsterVisibility(computed(() => popover.monster));
 
 function getDiscovery(monster: Monster): DiscoveredMonster | undefined {
   return discoveries.value?.find(
@@ -263,17 +277,6 @@ function getDiscovery(monster: Monster): DiscoveredMonster | undefined {
 function isDiscovered(monster: Monster): boolean {
   return !!getDiscovery(monster);
 }
-
-// ── Share popover ────────────────────────────────────────────────────────────
-
-const popover = reactive<{ monster: Monster | null; style: string }>({
-  monster: null,
-  style: "",
-});
-
-const popoverCurrentDiscovery = computed(() =>
-  popover.monster ? getDiscovery(popover.monster) : undefined,
-);
 
 function openPopover(monster: Monster, event: MouseEvent) {
   popover.monster = monster;
@@ -286,46 +289,8 @@ function openPopover(monster: Monster, event: MouseEvent) {
 
 function closePopover() { popover.monster = null; }
 
-function allPartyIds(): string[] {
-  return party.value?.map((m) => m.id) ?? [];
-}
-
-function isMemberVisible(memberId: string): boolean {
-  const d = popoverCurrentDiscovery.value;
-  if (!d) return false;
-  if (d.visible_to === null) return true; // legacy null = whole party
-  return d.visible_to.includes(memberId);
-}
-
-function setWholeParty() {
-  if (!popover.monster) return;
-  const ids = [...new Set(allPartyIds())];
-  const d = popoverCurrentDiscovery.value;
-  if (!d) {
-    toggleDiscovery({ monster: popover.monster, currentDiscovery: undefined, visibleTo: ids });
-  } else {
-    updateVisibility({ id: d.id, visibleTo: ids });
-  }
-}
-
-function toggleMember(memberId: string) {
-  if (!popover.monster) return;
-  const d = popoverCurrentDiscovery.value;
-  if (!d) {
-    // No discovery yet — create one scoped to just this member
-    toggleDiscovery({ monster: popover.monster, currentDiscovery: undefined, visibleTo: [memberId] });
-    return;
-  }
-  const current: string[] = d.visible_to === null ? allPartyIds() : [...d.visible_to];
-  const idx = current.indexOf(memberId);
-  const next = idx === -1 ? [...current, memberId] : current.filter((id) => id !== memberId);
-  updateVisibility({ id: d.id, visibleTo: next.length === 0 ? [] : next });
-}
-
 function unshare() {
-  if (!popover.monster) return;
-  const d = popoverCurrentDiscovery.value;
-  if (d) toggleDiscovery({ monster: popover.monster, currentDiscovery: d });
+  doUnshare();
   closePopover();
 }
 

@@ -4,7 +4,7 @@
     <!-- AC · HP · Speed -->
     <div class="flex flex-wrap gap-x-5 gap-y-1 px-4 py-2 border-b border-primary/20 font-medium">
       <span><strong>AC</strong> {{ sb.armor_class }}</span>
-      <span><strong>HP</strong> {{ sb.hit_points }}</span>
+      <span><strong>HP</strong> {{ formatHitPoints(sb.hit_points) }}</span>
       <span><strong>Speed</strong> {{ sb.speed }}</span>
     </div>
 
@@ -56,7 +56,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { skillsToString } from "@/lib/utils";
+import { skillsToString, formatHitPoints } from "@/lib/utils";
 import type { MonsterStatBlock } from "@/types/monster.types";
 import type { StatBlock } from "@/types/npc.types";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";

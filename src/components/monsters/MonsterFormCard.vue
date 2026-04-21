@@ -25,7 +25,7 @@
         <div v-if="monster" class="flex gap-3 font-cinzel text-[11px] text-muted-foreground">
           <template v-if="revealStats">
             <span><span class="text-foreground font-bold">AC</span> {{ monster.stat_block.armor_class }}</span>
-            <span><span class="text-foreground font-bold">HP</span> {{ monster.stat_block.hit_points }}</span>
+            <span><span class="text-foreground font-bold">HP</span> {{ formatHitPoints(monster.stat_block.hit_points) }}</span>
           </template>
           <span
             class="ml-auto px-1.5 py-0.5 rounded font-bold text-white text-[9px]"
@@ -40,6 +40,7 @@
 <script setup lang="ts">
 import FocalImage from "@/components/common/FocalImage.vue";
 import type { Monster } from "@/types/monster.types";
+import { formatHitPoints } from "@/lib/utils";
 
 defineProps<{
   monster: Monster | null;
