@@ -749,10 +749,11 @@ async function save() {
   try {
     if (props.monster) {
       await update({ id: props.monster.id, update: buildPayload() });
+      router.push(`/monsters/${props.monster.id}`);
     } else {
-      await create(buildPayload());
+      const created = await create(buildPayload());
+      router.push(`/monsters/${created.id}`);
     }
-    router.push("/monsters");
   } catch (e: unknown) {
     saveError.value = e instanceof Error ? e.message : "Failed to save";
   } finally {

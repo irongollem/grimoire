@@ -562,7 +562,7 @@ const pendingSpellPicks = ref<Record<string, string>>({});
 function confirmSpellPick(stepKey: string) {
   const picked = pendingSpellPicks.value[stepKey];
   if (!picked) return;
-  const newChoices = { ...(props.member.class_choices ?? {}), [stepKey]: picked };
+  const newChoices = { ...props.member.class_choices, [stepKey]: picked };
   updateMember({ id: props.member.id, update: { class_choices: newChoices } });
 }
 

@@ -1138,7 +1138,7 @@ async function confirm() {
       choiceEntry.new_class_profs = newClassProficiencyGrants.value;
     }
     const newLevelChoices: LevelChoices = {
-      ...(props.member.level_choices ?? {}),
+      ...props.member.level_choices,
       [nextLevel.value]: choiceEntry,
     };
     await updateMember({ id: props.member.id, update: { level_choices: newLevelChoices } });

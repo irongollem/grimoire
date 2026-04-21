@@ -182,7 +182,7 @@ const speedPills = computed(() => {
     burrow: "Burrow",
   };
   return (Object.keys(s) as (keyof typeof s)[])
-    .filter(k => s[k] != null && s[k]! > 0)
+    .filter(k => s[k] !== null && s[k] !== undefined && s[k]! > 0)
     .map(k => `${labels[k] ?? capitalize(k)} ${s[k]}ft`);
 });
 

@@ -246,7 +246,7 @@ async function confirmDeLevel() {
     }
 
     // Remove this level from level_choices
-    const newChoices = { ...(props.member.level_choices ?? {}) };
+    const newChoices = { ...props.member.level_choices };
     delete newChoices[currentLevel];
     memberUpdate.level_choices = newChoices;
 

@@ -12,6 +12,7 @@
           : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground',
         isUploading ? 'opacity-50 pointer-events-none cursor-default' : 'cursor-pointer',
       ]"
+      @dragenter.prevent
       @dragover.prevent="dragOver = true"
       @dragleave.self="dragOver = false"
       @drop.prevent="onDrop"
@@ -24,35 +25,36 @@
 
     <!-- Image + focal point picker -->
     <template v-else-if="showFocalPoint">
-      <FocalPointPicker
-        :src="modelValue"
-        :model-value="focalPoint ?? null"
-        @update:model-value="emit('update:focalPoint', $event)"
-      />
       <div
-        class="flex items-center gap-3 mt-1.5"
+        class="rounded-lg transition-shadow"
+        :class="dragOver ? 'ring-2 ring-primary/70' : ''"
+        @dragenter.prevent
         @dragover.prevent="dragOver = true"
         @dragleave.self="dragOver = false"
         @drop.prevent="onDrop"
       >
-        <label
-          :for="inputId"
-          class="font-cinzel text-[10px] tracking-wider transition-colors"
-          :class="[
-            isUploading ? 'opacity-50 pointer-events-none cursor-default' : 'cursor-pointer',
-            dragOver ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
-          ]"
-        >
-          {{ isUploading ? "Uploading…" : "Change image" }}
-        </label>
-        <span class="text-muted-foreground/40 text-xs">·</span>
-        <button
-          type="button"
-          class="font-cinzel text-[10px] text-destructive hover:opacity-80 transition-opacity tracking-wider"
-          @click="removeImage"
-        >
-          Remove
-        </button>
+        <FocalPointPicker
+          :src="modelValue"
+          :model-value="focalPoint ?? null"
+          @update:model-value="emit('update:focalPoint', $event)"
+        />
+        <div class="flex items-center gap-3 mt-1.5">
+          <label
+            :for="inputId"
+            class="font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            :class="isUploading ? 'opacity-50 pointer-events-none cursor-default' : 'cursor-pointer'"
+          >
+            {{ isUploading ? "Uploading…" : "Change image" }}
+          </label>
+          <span class="text-muted-foreground/40 text-xs">·</span>
+          <button
+            type="button"
+            class="font-cinzel text-[10px] text-destructive hover:opacity-80 transition-opacity tracking-wider"
+            @click="removeImage"
+          >
+            Remove
+          </button>
+        </div>
       </div>
     </template>
 
@@ -64,6 +66,7 @@
           aspect !== 'auto' ? aspectClass : '',
           dragOver ? 'border-primary/70' : 'border-border hover:border-primary/50',
         ]"
+        @dragenter.prevent
         @dragover.prevent="dragOver = true"
         @dragleave.self="dragOver = false"
         @drop.prevent="onDrop"
@@ -163,9 +166,30 @@ async function onFileSelected(e: Event) {
 
 async function onDrop(e: DragEvent) {
   dragOver.value = false;
+
+  // Case 1: file dragged from OS
   const file = e.dataTransfer?.files?.[0];
-  if (!file || !file.type.startsWith("image/")) return;
-  await handleFile(file);
+  if (file?.type.startsWith("image/")) {
+    await handleFile(file);
+    return;
+  }
+
+  // Case 2: image element dragged from another browser tab/window
+  // dataTransfer.files is empty in this case; the URL lives in text/uri-list
+  const uriList = e.dataTransfer?.getData("text/uri-list") ?? "";
+  const url = uriList.split("\n").map((l) => l.trim()).find((l) => l && !l.startsWith("#"));
+  if (!url) return;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    if (!blob.type.startsWith("image/")) throw new Error("Not an image");
+    const filename = url.split("/").pop()?.split("?")[0] || "image";
+    await handleFile(new File([blob], filename, { type: blob.type }));
+  } catch (err) {
+    uploadError.value = err instanceof Error ? err.message : "Could not fetch dropped image";
+  }
 }
 
 function removeImage() {

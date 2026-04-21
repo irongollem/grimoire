@@ -256,7 +256,7 @@ async function generateAndCreate() {
     rarity: result.rarity,
     requires_attunement: result.requires_attunement ?? false,
     attunement_requirements: result.attunement_requirements ?? null,
-    weight: result.weight != null ? parseFloat(String(result.weight)) || null : null,
+    weight: result.weight !== null && result.weight !== undefined ? parseFloat(String(result.weight)) || null : null,
     cost: result.cost ?? null,
     damage_rolls: result.damage_rolls ?? null,
     armor_class: result.armor_class ?? null,

@@ -137,7 +137,7 @@ const totalDice = computed(() =>
 );
 
 function clamp(sides: DieSize, val: number | null): number | null {
-  if (val == null || Number.isNaN(val)) return null;
+  if (val === null || val === undefined || Number.isNaN(val)) return null;
   if (val < 1 || val > sides) return null;
   return Math.floor(val);
 }
