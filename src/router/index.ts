@@ -95,6 +95,18 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Party Inventory" },
     },
     {
+      path: "/play/background",
+      name: "play-background",
+      component: () => import("@/views/play/PlayerBackgroundPickerView.vue"),
+      meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Choose Background" },
+    },
+    {
+      path: "/play/species",
+      name: "play-species",
+      component: () => import("@/views/play/PlayerSpeciesPickerView.vue"),
+      meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Choose Species" },
+    },
+    {
       path: "/play/crafting",
       name: "play-crafting",
       component: () => import("@/views/play/PlayerCraftingView.vue"),
@@ -402,7 +414,7 @@ const router = createRouter({
       path: "/codex/:tab(species|backgrounds|classes|archetypes|abilities)",
       name: "codex",
       component: () => import("@/views/codex/CharacterCodexView.vue"),
-      meta: { requiresAuth: true, title: "Character Codex" },
+      meta: { requiresAuth: true, playerReadable: true, title: "Character Codex" },
     },
 
     // Legacy /species entry — redirect to the codex so existing bookmarks work.
@@ -689,7 +701,7 @@ router.beforeEach(async (to) => {
   }
 
   // Players are redirected away from DM routes to the player portal
-  if (auth.isAuthenticated && auth.isPlayer && !to.meta.requiresPlayer && to.name !== "join-campaign") {
+  if (auth.isAuthenticated && auth.isPlayer && !to.meta.requiresPlayer && !to.meta.playerReadable && to.name !== "join-campaign") {
     return { name: "play" };
   }
 

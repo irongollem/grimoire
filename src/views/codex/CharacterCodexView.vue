@@ -12,112 +12,114 @@
   -->
   <ListPageLayout title="Character Codex" description="Species, backgrounds, classes & archetypes for your players">
     <template #actions>
-      <!-- Species tab -->
-      <ListActionButton
-        v-if="activeTab === 'species'"
-        :icon="Download"
-        label="Import Open5e"
-        @click="ui.speciesOpen5ePanelOpen = true"
-      />
-      <ListActionButton
-        v-if="activeTab === 'species'"
-        :icon="Plus"
-        label="New Species"
-        mobile-label="Species"
-        variant="primary"
-        to="/species/new"
-      />
+      <template v-if="isDM">
+        <!-- Species tab -->
+        <ListActionButton
+          v-if="activeTab === 'species'"
+          :icon="Download"
+          label="Import Open5e"
+          @click="ui.speciesOpen5ePanelOpen = true"
+        />
+        <ListActionButton
+          v-if="activeTab === 'species'"
+          :icon="Plus"
+          label="New Species"
+          mobile-label="Species"
+          variant="primary"
+          to="/species/new"
+        />
 
-      <!-- Backgrounds tab -->
-      <template v-if="activeTab === 'backgrounds'">
-        <div ref="sourcePickerRef" class="relative shrink-0">
-          <button
-            type="button"
-            class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors shrink-0"
-            :title="selectedSources.length === 0 ? 'All sources selected' : `${selectedSources.length} source(s) selected`"
-            @click="showSourcePicker = !showSourcePicker"
-          >
-            <Settings2 class="size-3.5 shrink-0" />
-          </button>
-          <div
-            v-show="showSourcePicker"
-            class="absolute right-0 top-full mt-1 z-50 min-w-64 max-h-80 overflow-y-auto rounded-md border border-border bg-popover shadow-lg"
-          >
-            <div class="p-3 border-b border-border">
-              <p class="font-cinzel text-xs font-semibold text-foreground">Import Sources</p>
-              <p class="font-fell text-xs text-muted-foreground mt-0.5">Leave all unchecked to import everything.</p>
-            </div>
-            <div v-if="docsLoading" class="p-3 flex items-center justify-center">
-              <Loader2 class="size-4 animate-spin text-muted-foreground" />
-            </div>
-            <div v-else class="p-2 flex flex-col gap-0.5">
-              <label
-                v-for="doc in open5eDocs"
-                :key="doc.slug"
-                class="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-accent transition-colors"
-              >
-                <input v-model="selectedSources" type="checkbox" :value="doc.slug" class="accent-primary" />
-                <span class="font-fell text-sm text-foreground">{{ doc.title }}</span>
-                <span class="font-fell text-xs text-muted-foreground ml-auto">{{ doc.slug }}</span>
-              </label>
-            </div>
-            <div v-if="selectedSources.length > 0" class="p-2 border-t border-border">
-              <button
-                type="button"
-                class="w-full text-center font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
-                @click="selectedSources = []"
-              >
-                Clear selection
-              </button>
+        <!-- Backgrounds tab -->
+        <template v-if="activeTab === 'backgrounds'">
+          <div ref="sourcePickerRef" class="relative shrink-0">
+            <button
+              type="button"
+              class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors shrink-0"
+              :title="selectedSources.length === 0 ? 'All sources selected' : `${selectedSources.length} source(s) selected`"
+              @click="showSourcePicker = !showSourcePicker"
+            >
+              <Settings2 class="size-3.5 shrink-0" />
+            </button>
+            <div
+              v-show="showSourcePicker"
+              class="absolute right-0 top-full mt-1 z-50 min-w-64 max-h-80 overflow-y-auto rounded-md border border-border bg-popover shadow-lg"
+            >
+              <div class="p-3 border-b border-border">
+                <p class="font-cinzel text-xs font-semibold text-foreground">Import Sources</p>
+                <p class="font-fell text-xs text-muted-foreground mt-0.5">Leave all unchecked to import everything.</p>
+              </div>
+              <div v-if="docsLoading" class="p-3 flex items-center justify-center">
+                <Loader2 class="size-4 animate-spin text-muted-foreground" />
+              </div>
+              <div v-else class="p-2 flex flex-col gap-0.5">
+                <label
+                  v-for="doc in open5eDocs"
+                  :key="doc.slug"
+                  class="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-accent transition-colors"
+                >
+                  <input v-model="selectedSources" type="checkbox" :value="doc.slug" class="accent-primary" />
+                  <span class="font-fell text-sm text-foreground">{{ doc.title }}</span>
+                  <span class="font-fell text-xs text-muted-foreground ml-auto">{{ doc.slug }}</span>
+                </label>
+              </div>
+              <div v-if="selectedSources.length > 0" class="p-2 border-t border-border">
+                <button
+                  type="button"
+                  class="w-full text-center font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
+                  @click="selectedSources = []"
+                >
+                  Clear selection
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-        <ListActionButton
-          :icon="bgImportMutation.isPending.value ? Loader2 : Download"
-          :label="bgImportStatusLabel"
-          :disabled="bgImportMutation.isPending.value"
-          @click="handleBgImport"
-        />
-        <ListActionButton
-          :icon="Plus"
-          label="New Background"
-          mobile-label="Background"
-          variant="primary"
-          to="/backgrounds/new"
-        />
-      </template>
+          <ListActionButton
+            :icon="bgImportMutation.isPending.value ? Loader2 : Download"
+            :label="bgImportStatusLabel"
+            :disabled="bgImportMutation.isPending.value"
+            @click="handleBgImport"
+          />
+          <ListActionButton
+            :icon="Plus"
+            label="New Background"
+            mobile-label="Background"
+            variant="primary"
+            to="/backgrounds/new"
+          />
+        </template>
 
-      <!-- Classes tab -->
-      <template v-if="activeTab === 'classes'">
-        <ListActionButton
-          :icon="classImportMutation.isPending.value ? Loader2 : Download"
-          :label="classImportLabel"
-          :disabled="classImportMutation.isPending.value"
-          @click="handleClassImport"
-        />
-        <ListActionButton :icon="Plus" label="New Class" mobile-label="Class" variant="primary" to="/levelup/classes/new" />
-      </template>
+        <!-- Classes tab -->
+        <template v-if="activeTab === 'classes'">
+          <ListActionButton
+            :icon="classImportMutation.isPending.value ? Loader2 : Download"
+            :label="classImportLabel"
+            :disabled="classImportMutation.isPending.value"
+            @click="handleClassImport"
+          />
+          <ListActionButton :icon="Plus" label="New Class" mobile-label="Class" variant="primary" to="/levelup/classes/new" />
+        </template>
 
-      <!-- Archetypes tab -->
-      <template v-if="activeTab === 'archetypes'">
-        <ListActionButton
-          :icon="archetypeImportMutation.isPending.value ? Loader2 : Download"
-          :label="archetypeImportLabel"
-          :disabled="archetypeImportMutation.isPending.value"
-          @click="handleArchetypeImport"
-        />
-        <ListActionButton :icon="Plus" label="New Archetype" mobile-label="Archetype" variant="primary" to="/levelup/custom/new" />
-      </template>
+        <!-- Archetypes tab -->
+        <template v-if="activeTab === 'archetypes'">
+          <ListActionButton
+            :icon="archetypeImportMutation.isPending.value ? Loader2 : Download"
+            :label="archetypeImportLabel"
+            :disabled="archetypeImportMutation.isPending.value"
+            @click="handleArchetypeImport"
+          />
+          <ListActionButton :icon="Plus" label="New Archetype" mobile-label="Archetype" variant="primary" to="/levelup/custom/new" />
+        </template>
 
-      <!-- Abilities tab -->
-      <template v-if="activeTab === 'abilities'">
-        <ListActionButton
-          :icon="abilityImporting ? Loader2 : Download"
-          :label="abilityImportLabel"
-          :disabled="abilityImporting"
-          @click="handleAbilityImport"
-        />
-        <ListActionButton :icon="Plus" label="New Ability" mobile-label="Ability" variant="primary" to="/features/new" />
+        <!-- Abilities tab -->
+        <template v-if="activeTab === 'abilities'">
+          <ListActionButton
+            :icon="abilityImporting ? Loader2 : Download"
+            :label="abilityImportLabel"
+            :disabled="abilityImporting"
+            @click="handleAbilityImport"
+          />
+          <ListActionButton :icon="Plus" label="New Ability" mobile-label="Ability" variant="primary" to="/features/new" />
+        </template>
       </template>
     </template>
 
@@ -196,8 +198,8 @@
       </button>
     </div>
 
-    <SpeciesList v-if="activeTab === 'species'" />
-    <BackgroundList v-else-if="activeTab === 'backgrounds'" />
+    <SpeciesList v-if="activeTab === 'species'" :readonly="!isDM" />
+    <BackgroundList v-else-if="activeTab === 'backgrounds'" :readonly="!isDM" />
     <ClassList v-else-if="activeTab === 'classes'" />
     <ArchetypeList v-else-if="activeTab === 'archetypes'" ref="archetypeListRef" />
     <AbilityList v-else-if="activeTab === 'abilities'" />
@@ -210,6 +212,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
 import { useLocalStorage, onClickOutside } from "@vueuse/core";
 import { Dna, BookUser, GraduationCap, BookOpen, Zap, Download, Plus, Settings2, Loader2 } from "lucide-vue-next";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
@@ -261,6 +264,8 @@ const BG_SOURCE_OPTIONS = [
 ] as const;
 
 const ui = useUiStore();
+const auth = useAuthStore();
+const isDM = auth.isDM;
 const route = useRoute();
 const router = useRouter();
 

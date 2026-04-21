@@ -33,10 +33,25 @@
       <div
         v-for="s in visibleItems"
         :key="s.id"
-        class="group relative flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
+        class="group relative flex flex-col rounded-lg border bg-card transition-colors overflow-hidden"
+        :class="[
+          selectMode ? 'cursor-pointer' : '',
+          selectedId && s.id === selectedId
+            ? 'border-primary ring-1 ring-primary/20'
+            : 'border-border hover:border-primary/50',
+        ]"
       >
-        <!-- Card link overlay -->
-        <RouterLink :to="`/species/${s.id}`" class="absolute inset-0 z-2" />
+        <!-- Card link / select overlay -->
+        <RouterLink v-if="!selectMode" :to="`/species/${s.id}`" class="absolute inset-0 z-2" />
+        <button v-else type="button" class="absolute inset-0 z-2" @click="emit('select', s)" />
+
+        <!-- Selected badge -->
+        <div
+          v-if="selectedId && s.id === selectedId"
+          class="absolute top-2 right-2 z-10 flex items-center justify-center size-5 rounded-full bg-primary text-primary-foreground"
+        >
+          <Check class="size-3" />
+        </div>
 
         <!-- Portrait / placeholder -->
         <div class="relative h-36 bg-muted overflow-hidden shrink-0">
@@ -80,10 +95,21 @@
               {{ tag }}
             </span>
           </div>
+
+          <!-- Select button (shown in selectMode) -->
+          <button
+            v-if="selectMode"
+            type="button"
+            class="relative z-10 mt-2 w-full rounded-md border border-primary/60 bg-primary/10 px-3 py-1.5 font-cinzel text-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
+            @click.stop="emit('select', s)"
+          >
+            Select
+          </button>
         </div>
 
         <!-- Edit button -->
         <RouterLink
+          v-if="!readonly && !selectMode"
           :to="`/species/${s.id}?edit=true`"
           class="absolute top-2 left-2 z-10 flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
           title="Edit species"
@@ -107,13 +133,21 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { Pencil } from "lucide-vue-next";
+import { Pencil, Check } from "lucide-vue-next";
+import type { Species } from "@/types/species.types";
 import { useUiStore } from "@/stores/ui";
 import { useAllSpecies } from "@/composables/useSpecies";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+
+const props = withDefaults(defineProps<{ readonly?: boolean; selectMode?: boolean; selectedId?: string }>(), {
+  readonly: false,
+  selectMode: false,
+  selectedId: undefined,
+});
+const emit = defineEmits<{ select: [species: Species] }>();
 
 const ui = useUiStore();
 const { data: allSpecies, isLoading } = useAllSpecies();

@@ -36,42 +36,34 @@
       </div>
 
       <div class="grid grid-cols-2 gap-3">
-        <div class="block">
+        <div>
           <span class="field-label">Species</span>
-          <EntityCombobox :model-value="f.species_id ?? ''" :options="speciesOptions" placeholder="Search species…"
-            @update:model-value="onSpeciesSelect($event)" />
+          <p v-if="!!f.species_id" class="font-fell text-sm text-foreground inline">
+            {{ currentSpeciesName }}&ensp;<RouterLink to="/play/species" class="font-cinzel text-[11px] text-primary hover:underline">Change</RouterLink>
+          </p>
+          <RouterLink v-else to="/play/species" class="font-cinzel text-xs font-semibold text-primary hover:underline">
+            Browse &amp; Pick a Species
+          </RouterLink>
         </div>
-        <div v-if="subraceOptions.length > 0" class="block">
-          <span class="field-label">Variant</span>
-          <select v-model="f.subrace" class="field-input w-full">
-            <option value="">— None —</option>
-            <option v-for="sr in subraceOptions" :key="sr" :value="sr">{{ sr }}</option>
-          </select>
-        </div>
-        <label class="block">
+        <div>
           <span class="field-label">Class</span>
-          <select v-model="f.class" class="field-input w-full" @change="f.subclass = ''">
-            <option value="">— None —</option>
-            <option v-for="c in allClassNames" :key="c" :value="c">{{ c }}</option>
-          </select>
-        </label>
-        <div class="block">
-          <span class="field-label">Subclass</span>
-          <EntityCombobox v-if="subclassOptions.length > 0" :model-value="f.subclass ?? ''"
-            :options="subclassOptions.map((n: string) => ({ id: n, name: n }))" placeholder="Choose subclass…"
-            @update:model-value="f.subclass = $event" />
-          <input v-else v-model="f.subclass" class="field-input w-full"
-            :placeholder="f.class ? 'No subclasses defined yet' : 'Choose a class first'" :disabled="!f.class" />
+          <p class="font-fell text-sm text-foreground">
+            {{ f.class ?? '—' }}<span v-if="f.subclass" class="text-muted-foreground"> · {{ f.subclass }}</span>
+          </p>
         </div>
-        <div class="block">
-          <span class="field-label">Background</span>
-          <EntityCombobox :model-value="f.background_id ?? ''" :options="backgroundOptions" placeholder="Search backgrounds…"
-            @update:model-value="onBackgroundSelect($event)" />
-        </div>
-        <label class="block">
+        <div>
           <span class="field-label">Level</span>
-          <input v-model.number="f.level" type="number" min="1" max="20" class="field-input w-full" />
-        </label>
+          <p class="font-fell text-sm text-foreground">{{ f.level }}</p>
+        </div>
+        <div>
+          <span class="field-label">Background</span>
+          <p v-if="currentBgName" class="font-fell text-sm text-foreground inline">
+            {{ currentBgName }}&ensp;<RouterLink to="/play/background" class="font-cinzel text-[11px] text-primary hover:underline">Change</RouterLink>
+          </p>
+          <RouterLink v-else to="/play/background" class="font-cinzel text-xs font-semibold text-primary hover:underline">
+            Browse &amp; Pick a Background
+          </RouterLink>
+        </div>
       </div>
 
       <div>
@@ -162,14 +154,13 @@
 </template>
 
 <script setup lang="ts">
-import { inject } from "vue";
+import { inject, computed } from "vue";
 import { CHARACTER_FORM_KEY, EDIT_TABS, ABILITY_STATS, SAVE_STATS, PROF_LEVELS, SLOT_LEVEL_LABELS } from "@/composables/useCharacterCreationForm";
 import { SKILLS } from "@/types/party.types";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagPickerInput from "@/components/common/TagPickerInput.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
 
 const form = inject(CHARACTER_FORM_KEY)!;
 const {
@@ -177,13 +168,19 @@ const {
   activeTab, saving,
   portraitUrl, focalPoint, spellSlotMaxes,
   existingMember, backRoute,
-  speciesOptions, backgroundOptions, subraceOptions,
-  allClassNames, subclassOptions,
+  speciesOptions, backgroundOptions,
   passivePerception, passiveInsight, passiveInvestigation,
   mod, setSkillProf, skillBonus, toggleSave, saveBonus,
-  resetSlotsToDefault, onSpeciesSelect, onBackgroundSelect,
+  resetSlotsToDefault,
   save,
 } = form;
+
+const currentSpeciesName = computed(
+  () => (speciesOptions.value as Array<{ id: string; name: string }>).find((s) => s.id === f.species_id)?.name ?? "—",
+);
+const currentBgName = computed(
+  () => (backgroundOptions.value as Array<{ id: string; name: string }>).find((b) => b.id === f.background_id)?.name ?? null,
+);
 </script>
 
 <style scoped>
