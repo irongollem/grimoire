@@ -20,7 +20,7 @@ import type { Location } from "@/types/location.types";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { Quest, QuestObjective } from "@/types/quest.types";
 import { QUEST_STATUS_LABELS } from "@/types/quest.types";
-import type { ScriptoriumDocType } from "@/types/scriptorium.types";
+import type { ScriptoriumDocType, ScriptoriumTheme } from "@/types/scriptorium.types";
 
 // ── Output type ───────────────────────────────────────────────────────────────
 
@@ -31,6 +31,7 @@ export interface ScriptoriumImportData {
   tags: string[];
   is_published: boolean;
   is_two_column: boolean;
+  theme: ScriptoriumTheme;
   word_count: number;
 }
 
@@ -165,6 +166,7 @@ const npcFormatter: AssetFormatter<Npc> = {
       tags: uniqueTags(["npc"], npc.tags, [npc.race]),
       is_published: false,
       is_two_column: false,
+      theme: "onednd2024" as ScriptoriumTheme,
       word_count: countWords(html),
     };
   },
@@ -258,6 +260,7 @@ const monsterFormatter: AssetFormatter<Monster> = {
       tags: uniqueTags(["monster"], [monster.monster_type], monster.tags, [monster.source]),
       is_published: false,
       is_two_column: false,
+      theme: "onednd2024" as ScriptoriumTheme,
       word_count: countWords(html),
     };
   },
@@ -330,6 +333,7 @@ const spellFormatter: AssetFormatter<Spell> = {
       tags,
       is_published: false,
       is_two_column: false,
+      theme: "onednd2024" as ScriptoriumTheme,
       word_count: countWords(html),
     };
   },
@@ -406,6 +410,7 @@ const itemFormatter: AssetFormatter<{ item: Item; spells: Spell[] }> = {
       tags,
       is_published: false,
       is_two_column: false,
+      theme: "onednd2024" as ScriptoriumTheme,
       word_count: countWords(html),
     };
   },
@@ -467,6 +472,7 @@ const locationFormatter: AssetFormatter<Location> = {
       tags,
       is_published: false,
       is_two_column: false,
+      theme: "onednd2024" as ScriptoriumTheme,
       word_count: countWords(html),
     };
   },
@@ -529,6 +535,7 @@ const questFormatter: AssetFormatter<{
       tags: uniqueTags(["quest", quest.status], quest.tags),
       is_published: false,
       is_two_column: false,
+      theme: "onednd2024" as ScriptoriumTheme,
       word_count: countWords(html),
     };
   },
