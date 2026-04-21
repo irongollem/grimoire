@@ -37,16 +37,22 @@
             </div>
             <div class="grid grid-cols-2 gap-3">
               <div class="rounded-md bg-muted p-2.5">
-                <div class="flex items-center justify-between mb-1">
+                <template v-if="showNumericHp">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">HP</span>
+                    <span class="font-cinzel text-sm font-bold" :class="hpColor">
+                      {{ member.current_hp }} / {{ member.max_hp }}
+                    </span>
+                  </div>
+                  <div class="h-1.5 rounded-full bg-background overflow-hidden">
+                    <div class="h-full rounded-full transition-all" :class="hpBarColor"
+                      :style="{ width: `${hpPct}%` }" />
+                  </div>
+                </template>
+                <template v-else>
                   <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">HP</span>
-                  <span class="font-cinzel text-sm font-bold" :class="hpColor">
-                    {{ member.current_hp }} / {{ member.max_hp }}
-                  </span>
-                </div>
-                <div class="h-1.5 rounded-full bg-background overflow-hidden">
-                  <div class="h-full rounded-full transition-all" :class="hpBarColor"
-                    :style="{ width: `${hpPct}%` }" />
-                </div>
+                  <p class="font-fell text-sm italic" :class="hpColor">{{ hpLabel }}</p>
+                </template>
               </div>
               <div class="rounded-md bg-muted p-2.5 flex items-center gap-2">
                 <Shield class="h-4 w-4 text-muted-foreground shrink-0" />
@@ -101,16 +107,27 @@ import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
+import { useCampaignStore } from "@/stores/campaign";
 import { useSpecies, useSpeciesNameMap } from "@/composables/useSpecies";
 import { getDisplayRace, getDisplaySpeciesId } from "@/lib/partyMemberDisplay";
 import type { PartyMember } from "@/types/party.types";
+import type { HealthVisibility } from "@/types/encounter.types";
 
 const props = defineProps<{ member: PartyMember | null }>();
 defineEmits<{ close: [] }>();
 
 const auth = useAuthStore();
 const ui = useUiStore();
+const campaign = useCampaignStore();
 const speciesNameMap = useSpeciesNameMap();
+
+const healthVis = computed<HealthVisibility>(
+  () => (campaign.activeCampaign?.health_visibility as HealthVisibility) ?? "strategic",
+);
+const isOwnMember = computed(() => props.member?.id === (viewerMemberId.value ?? auth.linkedPartyMemberId));
+const showNumericHp = computed(() =>
+  healthVis.value === "strategic" || isOwnMember.value,
+);
 
 const viewerMemberId = computed(() =>
   ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId ?? null,
@@ -137,5 +154,13 @@ const hpBarColor = computed(() => {
   if (p < 33) return "bg-destructive";
   if (p < 66) return "bg-amber-500";
   return "bg-elven-green";
+});
+const hpLabel = computed(() => {
+  const p = hpPct.value;
+  if (p <= 0) return "Dead";
+  if (p <= 25) return "Bloodied";
+  if (p <= 50) return "Wounded";
+  if (p <= 75) return "Hurt";
+  return "Healthy";
 });
 </script>

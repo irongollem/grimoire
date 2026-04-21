@@ -46,14 +46,20 @@
                 </p>
               </div>
               <div>
-                <div class="flex items-center justify-between mb-0.5">
+                <template v-if="showNumericHp(entry.data)">
+                  <div class="flex items-center justify-between mb-0.5">
+                    <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">HP</span>
+                    <span class="font-cinzel text-[10px]" :class="hpColor(entry.data)">{{ entry.data.current_hp }} / {{ entry.data.max_hp }}</span>
+                  </div>
+                  <div class="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div class="h-full rounded-full transition-all" :class="hpBarColor(entry.data)"
+                      :style="{ width: `${Math.max(0, Math.min(100, (entry.data.current_hp / entry.data.max_hp) * 100))}%` }" />
+                  </div>
+                </template>
+                <template v-else>
                   <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">HP</span>
-                  <span class="font-cinzel text-[10px]" :class="hpColor(entry.data)">{{ entry.data.current_hp }} / {{ entry.data.max_hp }}</span>
-                </div>
-                <div class="h-1.5 rounded-full bg-muted overflow-hidden">
-                  <div class="h-full rounded-full transition-all" :class="hpBarColor(entry.data)"
-                    :style="{ width: `${Math.max(0, Math.min(100, (entry.data.current_hp / entry.data.max_hp) * 100))}%` }" />
-                </div>
+                  <p class="font-fell text-xs italic" :class="hpColor(entry.data)">{{ immersiveHpLabel(entry.data) }}</p>
+                </template>
               </div>
               <div class="flex items-center gap-2 flex-wrap">
                 <span class="flex items-center gap-1">
@@ -334,6 +340,7 @@ import { ref, computed } from "vue";
 import { UserIcon, XIcon, Shield, Search } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
+import { useCampaignStore } from "@/stores/campaign";
 import { useParty } from "@/composables/useParty";
 import { useSharedNpcs } from "@/composables/useNpcs";
 import { useAllLocations } from "@/composables/useLocations";
@@ -353,9 +360,11 @@ import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } fro
 import { getDisplayRace } from "@/lib/partyMemberDisplay";
 import { useSpeciesNameMap } from "@/composables/useSpecies";
 import type { Npc, NpcRelationship, NpcStatus } from "@/types/npc.types";
+import type { HealthVisibility } from "@/types/encounter.types";
 
 const auth = useAuthStore();
 const ui = useUiStore();
+const campaign = useCampaignStore();
 const viewerMemberId = computed(() =>
   ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId
 );
@@ -551,13 +560,31 @@ function companionHpBarColor(c: Companion) {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+function hpPct(m: PartyMember) {
+  return m.max_hp === 0 ? 0 : m.current_hp / m.max_hp;
+}
 function hpColor(m: PartyMember) {
-  const pct = m.current_hp / m.max_hp;
-  return pct < 0.33 ? "text-destructive" : pct < 0.66 ? "text-amber-400" : "text-elven-green";
+  const p = hpPct(m);
+  return p < 0.33 ? "text-destructive" : p < 0.66 ? "text-amber-400" : "text-elven-green";
 }
 function hpBarColor(m: PartyMember) {
-  const pct = m.current_hp / m.max_hp;
-  return pct < 0.33 ? "bg-destructive" : pct < 0.66 ? "bg-amber-400" : "bg-elven-green";
+  const p = hpPct(m);
+  return p < 0.33 ? "bg-destructive" : p < 0.66 ? "bg-amber-400" : "bg-elven-green";
+}
+
+const healthVis = computed(() =>
+  (campaign.activeCampaign?.health_visibility as HealthVisibility) ?? "strategic",
+);
+function showNumericHp(m: PartyMember) {
+  return healthVis.value === "strategic" || m.id === viewerMemberId.value;
+}
+function immersiveHpLabel(m: PartyMember) {
+  const p = hpPct(m) * 100;
+  if (p <= 0) return "Dead";
+  if (p <= 25) return "Bloodied";
+  if (p <= 50) return "Wounded";
+  if (p <= 75) return "Hurt";
+  return "Healthy";
 }
 
 const REL_COLORS: Record<NpcRelationship, string> = { ally: "#2563eb", neutral: "#6b7280", enemy: "#dc2626", unknown: "#9333ea" };
