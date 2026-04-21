@@ -254,8 +254,10 @@ import { useUiStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { parseExpression } from "@/lib/dice";
+import type { DieSize } from "@/lib/dice";
 import { parseCr } from "@/lib/utils";
-import { rollDice, rollParsed } from "@/lib/roller";
+import { rollParsed } from "@/lib/roller";
+import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import type { DiscoveredMonster, Monster } from "@/types/monster.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -270,6 +272,7 @@ interface FormEntry { monster: Monster; name: string; imageUrl: string | null }
 const ui = useUiStore();
 const auth = useAuthStore();
 const { sendRoll } = useCampaignMessages();
+const { promptRoll } = usePromptedRoll();
 const { data: discoveries, isLoading: isLoadingDiscoveries } = usePlayerDiscoveries();
 const { data: allMonsters } = useAllMonsters();
 const { data: partyMembers } = useParty();
@@ -480,20 +483,46 @@ function actionDiceLabel(desc: string): string {
   return diceStr + (mod > 0 ? `+${mod}` : mod < 0 ? `${mod}` : "");
 }
 
-function rollAttack(attackBonus: number, actionName: string) {
-  const result = rollDice({ 20: 1 }, attackBonus);
+async function rollAttack(attackBonus: number, actionName: string) {
   const label = `${actionName} Attack`;
-  lastRoll.value = { label, total: result.total };
-  void sendRoll({ ...result, label }, null, member.value?.name);
+  const result = await promptRoll({
+    counts: { 20: 1 },
+    modifier: attackBonus,
+    label,
+    senderName: member.value?.name,
+  });
+  if (result) lastRoll.value = { label, total: result.total };
 }
 
-function rollActionDamage(desc: string, actionName: string) {
+async function rollActionDamage(desc: string, actionName: string) {
   const parsed = parseExpression(desc);
   if (!parsed || !parsed.terms.length) return;
-  const { total, breakdown } = rollParsed(parsed);
   const label = `${actionName} (${actionDiceLabel(desc)})`;
-  lastRoll.value = { label, total };
-  void sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false }, null, member.value?.name);
+
+  const counts: Partial<Record<DieSize, number>> = {};
+  for (const t of parsed.terms) {
+    if ([4, 6, 8, 10, 12, 20, 100].includes(t.sides)) {
+      const k = t.sides as DieSize;
+      counts[k] = (counts[k] ?? 0) + t.count;
+    }
+  }
+
+  if (Object.keys(counts).length === 0) {
+    // Non-standard dice — fallback
+    const { total, breakdown } = rollParsed(parsed);
+    lastRoll.value = { label, total };
+    void sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: true }, null, member.value?.name);
+    return;
+  }
+
+  const result = await promptRoll({
+    counts,
+    modifier: parsed.modifier,
+    label,
+    senderName: member.value?.name,
+    isDamage: true,
+  });
+  if (result) lastRoll.value = { label, total: result.total };
 }
 
 const lightboxScores = computed(() => {

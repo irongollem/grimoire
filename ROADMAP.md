@@ -80,6 +80,7 @@
 - [x] Story faction membership for players — party members can join campaign factions (`faction_party_members` table, same role/status system as NPCs); faction detail page shows both NPC and player members; player portal faction panel shows fellow NPC members + the player's own rank when they share a faction (irongollem/grimoire#5)
 - [x] Encounter list quest filter — dropdown with All / Unassigned / per-quest options; uses `quest_refs` (ref_type=encounter) via `useEncounterQuestLinks`; filter state persisted in ui store (irongollem/grimoire#15)
 - [x] Unarmed strike + improvised weapon attacks in encounter runner — player detail panel now always shows Melee Attacks section with roll buttons (irongollem/grimoire#104)
+- [x] Concentration enforcement + physical dice mode — all remaining roll sites (initiative, DiceRoller, hit die, chat inline roller, crafting checks) now route through `usePromptedRoll`, respecting the tool/physical dice preference; concentration tracking on party_members with auto-save on damage, condition/death breaks, cast-replace prompt, and voluntary drop chip on player header and runner combatant card (irongollem/grimoire#185)
 
 ### Quests & Adventures
 

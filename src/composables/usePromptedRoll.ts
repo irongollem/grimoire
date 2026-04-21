@@ -14,6 +14,8 @@ export interface PromptedRollArgs {
   senderName?: string;
   /** Skip posting to chat (e.g. internal mechanics rolls). Default false. */
   silent?: boolean;
+  /** Flag as a damage/healing roll — chat renders breakdown instead of d20 display. */
+  isDamage?: boolean;
 }
 
 export interface PendingManualRoll {
@@ -73,6 +75,7 @@ export function usePromptedRoll() {
 
     if (result) {
       if (args.label) result.label = args.label;
+      if (args.isDamage) result.isDamage = true;
       if (!args.silent) {
         await sendRoll(result, args.recipientUserId ?? null, args.senderName);
       }

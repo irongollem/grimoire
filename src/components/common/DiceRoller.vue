@@ -157,7 +157,7 @@ import { ref, reactive, computed } from "vue";
 import { Dices } from "lucide-vue-next";
 import DiceResult from "@/components/common/DiceResult.vue";
 import { primeDiceAudio } from "@/lib/diceAudio";
-import { rollDice } from "@/lib/roller";
+import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import type { DieSize, RollMode, RollResult } from "@/lib/roller";
 
 const DICE: { sides: DieSize; icon: string }[] = [
@@ -209,8 +209,17 @@ function toggleDie(sides: DieSize) { counts[sides] = counts[sides] > 0 ? 0 : 1; 
 function increment(sides: DieSize) { counts[sides] = Math.min(counts[sides] + 1, 9); }
 function decrement(sides: DieSize) { counts[sides] = Math.max(counts[sides] - 1, 0); }
 
-function roll() {
-  result.value = rollDice(counts, modifier.value, mode.value);
+const { promptRoll } = usePromptedRoll();
+
+async function roll() {
+  const r = await promptRoll({
+    counts,
+    modifier: modifier.value,
+    label: rollLabel.value,
+    mode: mode.value,
+    silent: true,
+  });
+  if (r) result.value = r;
 }
 
 function clearAll() {

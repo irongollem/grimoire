@@ -194,8 +194,10 @@ import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useConcentration } from "@/composables/useConcentration";
 import { useUiStore } from "@/stores/ui";
 import { SCHOOL_COLORS } from "@/types/spell.types";
-import { parseExpression, rollDie } from "@/lib/dice";
-import type { DieResult, RollResult } from "@/lib/dice";
+import { parseExpression } from "@/lib/dice";
+import type { DieSize } from "@/lib/dice";
+import { rollParsed } from "@/lib/roller";
+import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import type { CasterType, CharacterSpellEntry, Spell } from "@/types/spell.types";
 import type { SpellSlotEntry } from "@/types/party.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -227,6 +229,7 @@ const { mutate: removeSpell, isPending: isRemoving } = useRemoveCharacterSpell()
 const { mutate: togglePreparedMutation, isPending: isToggling } = useTogglePrepared();
 const { mutateAsync: updateMember } = useUpdatePartyMember();
 const { sendFlavorMessage, sendRoll } = useCampaignMessages();
+const { promptRoll } = usePromptedRoll();
 const { data: partyList } = useParty();
 const { startConcentration } = useConcentration();
 const thisMember = computed(() =>
@@ -292,29 +295,15 @@ function signedNum(n: number): string {
   return n >= 0 ? `+${n}` : `${n}`;
 }
 
-/** Roll one damage_rolls entry into a RollResult, or null if unparseable. */
-function buildDamageRollResult(spell: Spell, diceExpr: string, damageType: string): RollResult | null {
-  const parsed = parseExpression(diceExpr);
-  if (!parsed) return null;
-
-  const breakdown: DieResult[] = [];
-  let total = 0;
-  for (const term of parsed.terms) {
-    for (let i = 0; i < term.count; i++) {
-      const val = rollDie(term.sides);
-      breakdown.push({ val, dropped: false });
-      total += val;
+function parsedToCounts(terms: { count: number; sides: number }[]): Partial<Record<DieSize, number>> {
+  const counts: Partial<Record<DieSize, number>> = {};
+  for (const t of terms) {
+    if ([4, 6, 8, 10, 12, 20, 100].includes(t.sides)) {
+      const k = t.sides as DieSize;
+      counts[k] = (counts[k] ?? 0) + t.count;
     }
   }
-  total += parsed.modifier;
-
-  const typeLabel = damageType ? ` ${damageType}` : "";
-  let label = `${spell.name} — ${diceExpr}${typeLabel} damage`;
-  if (spell.attack_type === "save" && spell.save_effect === "half") {
-    label += ` (half on ${spell.save_attribute ?? "save"})`;
-  }
-
-  return { total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: true };
+  return counts;
 }
 
 async function castSpell(entry: CharacterSpellEntry) {
@@ -343,8 +332,20 @@ async function castSpell(entry: CharacterSpellEntry) {
     // Auto-roll damage for each damage_rolls entry
     if (spell.damage_rolls?.length) {
       for (const dmg of spell.damage_rolls) {
-        const result = buildDamageRollResult(spell, dmg.dice, dmg.type);
-        if (result) await sendRoll(result);
+        const parsed = parseExpression(dmg.dice);
+        if (!parsed) continue;
+        const typeLabel = dmg.type ? ` ${dmg.type}` : "";
+        let label = `${spell.name} — ${dmg.dice}${typeLabel} damage`;
+        if (spell.attack_type === "save" && spell.save_effect === "half") {
+          label += ` (half on ${spell.save_attribute ?? "save"})`;
+        }
+        const counts = parsedToCounts(parsed.terms);
+        if (Object.keys(counts).length === 0) {
+          const { total, breakdown } = rollParsed(parsed);
+          void sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: true });
+        } else {
+          await promptRoll({ counts, modifier: parsed.modifier, label, isDamage: true });
+        }
       }
     }
 
@@ -352,25 +353,14 @@ async function castSpell(entry: CharacterSpellEntry) {
     if (spell.healing_dice) {
       const parsed = parseExpression(spell.healing_dice);
       if (parsed) {
-        const breakdown: DieResult[] = [];
-        let total = 0;
-        for (const term of parsed.terms) {
-          for (let i = 0; i < term.count; i++) {
-            const val = rollDie(term.sides);
-            breakdown.push({ val, dropped: false });
-            total += val;
-          }
+        const label = `${spell.name} — ${spell.healing_dice} healing`;
+        const counts = parsedToCounts(parsed.terms);
+        if (Object.keys(counts).length === 0) {
+          const { total, breakdown } = rollParsed(parsed);
+          void sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: true });
+        } else {
+          await promptRoll({ counts, modifier: parsed.modifier, label, isDamage: true });
         }
-        total += parsed.modifier;
-        await sendRoll({
-          total,
-          label: `${spell.name} — ${spell.healing_dice} healing`,
-          modifier: parsed.modifier,
-          breakdown,
-          isCrit: false,
-          isFumble: false,
-          isDamage: true,
-        });
       }
     }
 

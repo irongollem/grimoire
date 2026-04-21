@@ -166,7 +166,8 @@ import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
 import { getSlotRecovery, getHitDie } from "@/types/spell.types";
 import { useClassByName } from "@/composables/useCustomClasses";
 import { abilityModifier } from "@/lib/utils";
-import { rollParsed } from "@/lib/roller";
+import { usePromptedRoll } from "@/composables/usePromptedRoll";
+import type { DieSize } from "@/lib/dice";
 
 const props = defineProps<{
   member: PartyMember;
@@ -208,10 +209,16 @@ const remainingAfterSpend = computed(
   () => hitDiceRemaining.value - diceSpent.value,
 );
 
-function rollHitDie() {
-  const { total: roll } = rollParsed({ terms: [{ count: 1, sides: hitDie.value }], modifier: 0 });
-  const healed = Math.max(1, roll + conMod.value);
-  rolls.value.push(healed);
+const { promptRoll } = usePromptedRoll();
+
+async function rollHitDie() {
+  const r = await promptRoll({
+    counts: { [hitDie.value as DieSize]: 1 },
+    modifier: conMod.value,
+    label: `Hit Die (1d${hitDie.value}+${conMod.value})`,
+    silent: true,
+  });
+  if (r) rolls.value.push(Math.max(1, r.total));
 }
 
 // ── HP preview ────────────────────────────────────────────────────────────────

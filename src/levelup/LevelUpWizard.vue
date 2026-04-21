@@ -488,7 +488,8 @@ import { useCampaignStore } from "@/stores/campaign";
 import { meetsMulticlassPrereq } from "@/types/multiclass.types";
 import type { CharacterClass } from "@/types/multiclass.types";
 import { getHitDie } from "@/types/spell.types";
-import { rollDie } from "@/lib/dice";
+import type { DieSize } from "@/lib/dice";
+import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { useAllFeatures } from "@/composables/useFeatures";
 import { useCharacterSpells, useAddCharacterSpell } from "@/composables/useCharacterSpells";
 import { useSpellsPage } from "@/composables/useSpells";
@@ -648,9 +649,17 @@ function setHpMode(mode: HpMode) {
   rolledHp.value = null;
 }
 
-function rollHp() {
+const { promptRoll } = usePromptedRoll();
+
+async function rollHp() {
   if (rolledHp.value !== null) return;
-  rolledHp.value = rollDie(hitDie.value);
+  const r = await promptRoll({
+    counts: { [hitDie.value as DieSize]: 1 },
+    modifier: 0,
+    label: `Hit Die (1d${hitDie.value})`,
+    silent: true,
+  });
+  if (r) rolledHp.value = r.total;
 }
 
 /** HP gained at this level-up. Minimum 1 per 5e guidance (no negative levels). */
