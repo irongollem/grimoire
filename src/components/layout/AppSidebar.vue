@@ -3,33 +3,14 @@
     class="hidden md:flex flex-col w-60 shrink-0 border-r border-border bg-card h-dvh sticky top-0"
   >
     <!-- Logo -->
-    <div class="px-4 py-5 border-b border-border">
-      <div class="flex items-center justify-between gap-2">
+    <div class="px-4 py-4 border-b border-border space-y-2.5">
+      <!-- Brand row: title left, status indicators right -->
+      <div class="flex items-start justify-between gap-2">
         <RouterLink to="/dashboard" class="block min-w-0">
-          <h1 class="font-cinzel text-xl font-bold text-gold-500 tracking-widest">Grimoire</h1>
-          <p class="font-fell text-xs text-muted-foreground italic mt-0.5">Campaign Companion</p>
+          <h1 class="font-cinzel text-xl font-bold text-gold-500 tracking-widest leading-none">Grimoire</h1>
+          <p class="font-fell text-xs text-muted-foreground italic mt-1">Campaign Companion</p>
         </RouterLink>
-        <div class="flex items-center gap-1.5 shrink-0">
-          <!-- DM Prep/Play mode toggle (issue #133) — DM-only segmented pill.
-               In Play mode, flipping an entity's visibility-to-player auto-
-               broadcasts a narrative chat event. In Prep mode (default) that
-               side-effect is silent so the DM can set up sessions freely. -->
-          <button
-            v-if="isDm"
-            type="button"
-            :title="ui.dmMode === 'play'
-              ? 'Play mode — visibility changes broadcast to chat. Click to stop broadcasting.'
-              : 'Prep mode — visibility changes are silent. Click to start broadcasting.'"
-            class="flex items-center gap-0.5 rounded border px-1 py-0.5 font-cinzel text-[9px] tracking-widest font-bold transition-colors"
-            :class="ui.dmMode === 'play'
-              ? 'border-primary/60 bg-primary/15 text-primary hover:bg-primary/25'
-              : 'border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground/50'"
-            @click="ui.toggleDmMode()"
-          >
-            <span class="px-1" :class="ui.dmMode === 'prep' ? '' : 'opacity-50'">PREP</span>
-            <span class="px-1" :class="ui.dmMode === 'play' ? '' : 'opacity-50'">PLAY</span>
-          </button>
-
+        <div class="flex items-center gap-1 shrink-0 pt-0.5">
           <!-- AI generation in-progress spinner -->
           <button
             v-if="isAnyAiGenerating && activeGenerator"
@@ -40,6 +21,7 @@
             <Loader2 class="h-3 w-3 text-primary animate-spin" />
             <span class="font-cinzel text-[9px] text-primary tracking-wider">AI</span>
           </button>
+          <!-- Live encounter indicator -->
           <RouterLink
             v-if="anyRunning && firstRunning"
             :to="`/encounters/${firstRunning.encounter_id}/run`"
@@ -51,6 +33,31 @@
           </RouterLink>
         </div>
       </div>
+
+      <!-- DM Prep/Play segmented control — DM-only, full-width below the brand.
+           In Play mode, visibility changes auto-broadcast to chat.
+           In Prep mode (default) that side-effect is silent. -->
+      <button
+        v-if="isDm"
+        type="button"
+        :title="ui.dmMode === 'play'
+          ? 'Play mode — visibility changes broadcast to chat. Click to stop broadcasting.'
+          : 'Prep mode — visibility changes are silent. Click to start broadcasting.'"
+        class="w-full flex items-center rounded border overflow-hidden font-cinzel text-[9px] tracking-widest font-bold transition-colors"
+        :class="ui.dmMode === 'play' ? 'border-primary/50' : 'border-border'"
+        @click="ui.toggleDmMode()"
+      >
+        <span
+          class="flex-1 text-center py-1 transition-colors"
+          :class="ui.dmMode === 'prep' ? 'bg-muted text-foreground' : 'text-muted-foreground'"
+        >PREP</span>
+        <span
+          class="flex-1 text-center py-1 border-l transition-colors"
+          :class="ui.dmMode === 'play'
+            ? 'bg-primary/15 text-primary border-primary/30'
+            : 'text-muted-foreground border-border'"
+        >PLAY</span>
+      </button>
     </div>
 
     <!-- Campaign switcher -->
