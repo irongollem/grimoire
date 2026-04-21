@@ -1,5 +1,6 @@
 import { ref } from "vue";
 import { rollDice } from "@/lib/roller";
+import { playDiceRollSound } from "@/lib/diceAudio";
 import type { DieSize, RollMode, RollResult, DieResult } from "@/lib/dice";
 import { useDicePrefs } from "@/composables/useDicePrefs";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
@@ -49,6 +50,8 @@ export function usePromptedRoll() {
     const mode = args.mode ?? "normal";
     let result: RollResult | null = null;
 
+    const isHidden = !!args.recipientUserId;
+
     if (diceMode.value === "physical") {
       const manual = await new Promise<RollResult | null>((resolve) => {
         pending.value = {
@@ -60,8 +63,12 @@ export function usePromptedRoll() {
         };
       });
       result = manual;
+      // Play sound manually for physical rolls — suppress fumble on hidden rolls
+      if (result) playDiceRollSound(result.isCrit, isHidden ? false : result.isFumble);
     } else {
-      result = rollDice(args.counts, args.modifier, mode);
+      // Mute automatic sound so we can control fumble suppression
+      result = rollDice(args.counts, args.modifier, mode, { mute: true });
+      if (result) playDiceRollSound(result.isCrit, isHidden ? false : result.isFumble);
     }
 
     if (result) {

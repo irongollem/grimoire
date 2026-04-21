@@ -989,7 +989,7 @@ import {
   EyeOff,
 } from "lucide-vue-next";
 import ChatItemDropDetails from "@/components/chat/ChatItemDropDetails.vue";
-import { rollDice } from "@/lib/roller";
+import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { ALL_DICE } from "@/lib/dice";
 import { formatCoinParts } from "@/lib/currency";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -1238,9 +1238,27 @@ function decrement(d: DieSize) {
   diceCounts[d] = Math.max((diceCounts[d] ?? 0) - 1, 0);
 }
 
-function rollAndPost() {
+const { promptRoll } = usePromptedRoll();
+
+async function rollAndPost() {
   if (totalDice.value === 0) return;
-  const result = rollDice(diceCounts, diceModifier.value, diceMode.value);
+  const parts: string[] = [];
+  for (const d of ALL_DICE) {
+    const c = diceCounts[d] ?? 0;
+    if (c > 0) parts.push(`${c}d${d}`);
+  }
+  if (diceModifier.value !== 0)
+    parts.push(diceModifier.value > 0 ? `+${diceModifier.value}` : `${diceModifier.value}`);
+  const label = parts.join(" + ") || "Roll";
+  const result = await promptRoll({
+    counts: diceCounts,
+    modifier: diceModifier.value,
+    label,
+    mode: diceMode.value,
+    silent: true,
+    recipientUserId: whisperTarget.value || null,
+  });
+  if (!result) return;
   emit("sendRoll", { result, recipientUserId: whisperTarget.value || null });
 }
 

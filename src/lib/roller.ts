@@ -24,9 +24,10 @@ export function rollDice(
   counts: Partial<Record<DieSize, number>>,
   modifier: number,
   mode: RollMode = "normal",
+  options?: { mute?: boolean },
 ): RollResult {
   const result = _rollDice(counts, modifier, mode);
-  playDiceRollSound(result.isCrit, result.isFumble);
+  if (!options?.mute) playDiceRollSound(result.isCrit, result.isFumble);
   return result;
 }
 

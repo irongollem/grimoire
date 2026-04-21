@@ -268,13 +268,15 @@ export function useCampaignMessages() {
   async function sendRoll(result: RollResult, recipientUserId: string | null = null, senderName?: string) {
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id) return;
+    // Crits are always public — too exciting to hide
+    const effectiveRecipient = result.isCrit ? null : recipientUserId;
     const insert: CampaignMessageInsert = {
       campaign_id: cid,
       user_id: auth.user.id,
-      recipient_user_id: recipientUserId,
+      recipient_user_id: effectiveRecipient,
       sender_name: senderName ?? getSenderName(),
       message: `rolled ${result.label} = ${result.total}`,
-      type: recipientUserId ? "dm_roll" : "roll",
+      type: effectiveRecipient ? "dm_roll" : "roll",
       metadata: result,
     };
     const { data } = await supabase.from("campaign_messages").insert(insert).select().single();
