@@ -1,18 +1,12 @@
 /**
  * Class progression table templates for Scriptorium.
  *
- * Each factory returns Tiptap JSON (as a plain object) for a wide-block
- * wrapping a table with class `.sc-class-table`.
- *
- * The table node itself is a standard editable Tiptap table — no custom
- * node required. Authors can rename columns, fill features, and add rows
- * after insertion.
- *
- * Proficiency bonus follows the standard D&D 5e formula:
- *   2 for L1–4, 3 for L5–8, 4 for L9–12, 5 for L13–16, 6 for L17–20.
+ * Each factory returns Tiptap JSON for a wideBlock wrapping an editable
+ * `.sc-class-table` table. Authors can rename columns, fill features, and
+ * add rows after insertion.
  */
 
-/** Proficiency bonus lookup by level (index = level - 1). */
+/** Standard D&D 5e prof bonus by level (index = level - 1). */
 const PROF_BONUS = [
   "+2", "+2", "+2", "+2",
   "+3", "+3", "+3", "+3",
@@ -106,73 +100,36 @@ const THIRD_CASTER_SLOTS: readonly string[][] = [
   ["4", "3", "3", "1"],
 ];
 
-// ── Tiptap node helpers ──────────────────────────────────────────────────────
+// ── Tiptap JSON helpers ──────────────────────────────────────────────────────
 
 function paragraph(text: string): object {
-  return {
-    type: "paragraph",
-    content: text
-      ? [{ type: "text", text }]
-      : [],
-  };
+  return { type: "paragraph", content: text ? [{ type: "text", text }] : [] };
 }
 
 function tableCell(text: string): object {
-  return {
-    type: "tableCell",
-    attrs: { colspan: 1, rowspan: 1 },
-    content: [paragraph(text)],
-  };
+  return { type: "tableCell", attrs: { colspan: 1, rowspan: 1 }, content: [paragraph(text)] };
 }
 
 function tableHeader(text: string): object {
-  return {
-    type: "tableHeader",
-    attrs: { colspan: 1, rowspan: 1 },
-    content: [paragraph(text)],
-  };
+  return { type: "tableHeader", attrs: { colspan: 1, rowspan: 1 }, content: [paragraph(text)] };
 }
 
 function headerRow(headers: string[]): object {
-  return {
-    type: "tableRow",
-    content: headers.map(tableHeader),
-  };
+  return { type: "tableRow", content: headers.map(tableHeader) };
 }
 
 function dataRow(cells: string[]): object {
-  return {
-    type: "tableRow",
-    content: cells.map(tableCell),
-  };
+  return { type: "tableRow", content: cells.map(tableCell) };
 }
 
-/**
- * Wrap a table node in a wideBlock so it spans both columns in a
- * two-column Scriptorium document.
- */
 function wideBlockTable(tableNode: object): object {
-  return {
-    type: "wideBlock",
-    content: [tableNode],
-  };
+  return { type: "wideBlock", content: [tableNode] };
 }
 
-function table(rows: object[], cssClass: string): object {
-  return {
-    type: "table",
-    attrs: { class: cssClass },
-    content: rows,
-  };
+function classTable(rows: object[]): object {
+  return { type: "table", attrs: { class: "sc-class-table" }, content: rows };
 }
 
-// ── Public factories ─────────────────────────────────────────────────────────
-
-/**
- * Full caster progression (L1–20).
- * Columns: Level, Prof. Bonus, Class Features, Cantrips Known,
- *          1st – 9th spell slots.
- */
 export function fullCasterTable(): object {
   const headers = [
     "Level", "Prof. Bonus", "Class Features", "Cantrips Known",
@@ -180,24 +137,14 @@ export function fullCasterTable(): object {
   ];
   const rows: object[] = [headerRow(headers)];
   for (let lvl = 1; lvl <= 20; lvl++) {
-    const i = lvl - 1;
-    rows.push(
-      dataRow([
-        String(lvl),
-        PROF_BONUS[i],
-        "—",
-        FULL_CASTER_CANTRIPS[i],
-        ...FULL_CASTER_SLOTS[i],
-      ]),
-    );
+    rows.push(dataRow([
+      String(lvl), PROF_BONUS[lvl - 1], "—", FULL_CASTER_CANTRIPS[lvl - 1],
+      ...FULL_CASTER_SLOTS[lvl - 1],
+    ]));
   }
-  return wideBlockTable(table(rows, "sc-class-table"));
+  return wideBlockTable(classTable(rows));
 }
 
-/**
- * Half caster progression (L1–20).
- * Columns: Level, Prof. Bonus, Class Features, 1st – 5th spell slots.
- */
 export function halfCasterTable(): object {
   const headers = [
     "Level", "Prof. Bonus", "Class Features",
@@ -205,23 +152,11 @@ export function halfCasterTable(): object {
   ];
   const rows: object[] = [headerRow(headers)];
   for (let lvl = 1; lvl <= 20; lvl++) {
-    const i = lvl - 1;
-    rows.push(
-      dataRow([
-        String(lvl),
-        PROF_BONUS[i],
-        "—",
-        ...HALF_CASTER_SLOTS[i],
-      ]),
-    );
+    rows.push(dataRow([String(lvl), PROF_BONUS[lvl - 1], "—", ...HALF_CASTER_SLOTS[lvl - 1]]));
   }
-  return wideBlockTable(table(rows, "sc-class-table"));
+  return wideBlockTable(classTable(rows));
 }
 
-/**
- * Third caster progression (L1–20; spellcasting starts at L3).
- * Columns: Level, Prof. Bonus, Class Features, 1st – 4th spell slots.
- */
 export function thirdCasterTable(): object {
   const headers = [
     "Level", "Prof. Bonus", "Class Features",
@@ -229,35 +164,17 @@ export function thirdCasterTable(): object {
   ];
   const rows: object[] = [headerRow(headers)];
   for (let lvl = 1; lvl <= 20; lvl++) {
-    const i = lvl - 1;
-    rows.push(
-      dataRow([
-        String(lvl),
-        PROF_BONUS[i],
-        "—",
-        ...THIRD_CASTER_SLOTS[i],
-      ]),
-    );
+    rows.push(dataRow([String(lvl), PROF_BONUS[lvl - 1], "—", ...THIRD_CASTER_SLOTS[lvl - 1]]));
   }
-  return wideBlockTable(table(rows, "sc-class-table"));
+  return wideBlockTable(classTable(rows));
 }
 
-/**
- * Martial progression (L1–20).
- * Columns: Level, Prof. Bonus, Class Features, {customColumn}.
- *
- * @param customColumn - Name for the custom numeric column, e.g. "Ki Points".
- */
+/** @param customColumn - e.g. "Ki Points", "Sneak Attack" */
 export function martialTable(customColumn: string): object {
-  const headers = [
-    "Level", "Prof. Bonus", "Class Features", customColumn,
-  ];
+  const headers = ["Level", "Prof. Bonus", "Class Features", customColumn];
   const rows: object[] = [headerRow(headers)];
   for (let lvl = 1; lvl <= 20; lvl++) {
-    const i = lvl - 1;
-    rows.push(
-      dataRow([String(lvl), PROF_BONUS[i], "—", "—"]),
-    );
+    rows.push(dataRow([String(lvl), PROF_BONUS[lvl - 1], "—", "—"]));
   }
-  return wideBlockTable(table(rows, "sc-class-table"));
+  return wideBlockTable(classTable(rows));
 }

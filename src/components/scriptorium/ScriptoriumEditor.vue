@@ -873,8 +873,6 @@ const editor = useEditor({
     Watermark,
     ArtistCredit,
     ColumnBreak,
-    // Extend Table to persist an optional `class` attribute so class
-    // progression templates can attach `.sc-class-table` for styling.
     Table.extend({
       addAttributes() {
         return {
