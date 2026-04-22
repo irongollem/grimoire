@@ -873,7 +873,21 @@ const editor = useEditor({
     Watermark,
     ArtistCredit,
     ColumnBreak,
-    Table.configure({ resizable: false }),
+    // Extend Table to persist an optional `class` attribute so class
+    // progression templates can attach `.sc-class-table` for styling.
+    Table.extend({
+      addAttributes() {
+        return {
+          ...this.parent?.(),
+          class: {
+            default: null,
+            parseHTML: (el) => el.getAttribute("class") ?? null,
+            renderHTML: (attrs) =>
+              attrs.class ? { class: attrs.class } : {},
+          },
+        };
+      },
+    }).configure({ resizable: false }),
     TableRow,
     TableCell,
     TableHeader,
@@ -1744,5 +1758,156 @@ onUnmounted(() => editor.value?.destroy());
 .phb-body :deep(.sc-class-table td:first-child),
 .phb-editor :deep(.ProseMirror .sc-class-table td:first-child) {
   font-weight: 700;
+}
+
+/* ── Callout block CSS variables ─────────────────────────────── */
+/*
+ * Type-specific colour knobs for note / descriptive / quote blocks.
+ * Defaults = OneDnD 2024 (teal family); classic overrides in .theme-phb2014.
+ *
+ * --sc-callout-note-bg       background fill of .sc-note
+ * --sc-callout-note-border   accent border colour for .sc-note
+ * --sc-callout-desc-bg       background fill of .sc-descriptive
+ * --sc-callout-desc-border   accent border colour for .sc-descriptive
+ * --sc-callout-quote-color   italic body text colour for .sc-quote
+ * --sc-callout-attr-color    attribution line text colour
+ */
+.phb-body.theme-onednd2024,
+.phb-body.theme-phb2014,
+.phb-page.theme-onednd2024,
+.phb-page.theme-phb2014 {
+  --sc-callout-note-bg: var(--sc-callout-bg);
+  --sc-callout-note-border: var(--sc-callout-border);
+  --sc-callout-desc-bg: color-mix(in srgb, var(--sc-accent) 12%, var(--sc-page-bg));
+  --sc-callout-desc-border: var(--sc-accent);
+  --sc-callout-quote-color: var(--sc-ink);
+  --sc-callout-attr-color: color-mix(in srgb, var(--sc-accent) 80%, var(--sc-ink));
+}
+
+/* Classic theme callout overrides */
+.phb-body.theme-phb2014,
+.phb-page.theme-phb2014 {
+  --sc-callout-note-bg: #e0e5c1;
+  --sc-callout-note-border: var(--sc-accent);
+  --sc-callout-desc-bg: #ddd8c4;
+  --sc-callout-desc-border: var(--sc-accent);
+  --sc-callout-attr-color: var(--sc-accent);
+}
+
+/* ── Note block ───────────────────────────────────────────────── */
+
+/* Preview */
+.phb-body :deep(.sc-note) {
+  background: var(--sc-callout-note-bg);
+  border-left: 3px solid var(--sc-callout-note-border);
+  border-radius: 0 4px 4px 0;
+  padding: 0.6rem 0.875rem;
+  margin: 0.875rem 0;
+}
+.phb-body :deep(.sc-note p) {
+  margin: 0 0 0.4rem;
+  font-size: 0.875em;
+}
+.phb-body :deep(.sc-note p:last-child) {
+  margin-bottom: 0;
+}
+
+/* Classic: double rule top + bottom, no left border */
+.phb-body.theme-phb2014 :deep(.sc-note) {
+  border-left: none;
+  border-top: 2px double var(--sc-callout-note-border);
+  border-bottom: 2px double var(--sc-callout-note-border);
+  border-radius: 0;
+  padding: 0.5rem 0.875rem;
+}
+
+/* Editor */
+.phb-editor :deep(.ProseMirror .sc-note) {
+  border-left: 3px solid color-mix(in srgb, var(--primary, currentColor) 60%, transparent);
+  background: color-mix(in srgb, var(--primary, currentColor) 8%, transparent);
+  border-radius: 0 4px 4px 0;
+  padding: 0.5rem 0.75rem;
+  margin: 0.5rem 0;
+}
+
+/* ── Descriptive block ────────────────────────────────────────── */
+
+/* Preview */
+.phb-body :deep(.sc-descriptive) {
+  background: var(--sc-callout-desc-bg);
+  border: 2px solid var(--sc-callout-desc-border);
+  border-radius: 4px;
+  padding: 0.875rem 1rem;
+  margin: 0.875rem 0;
+  font-style: italic;
+}
+.phb-body :deep(.sc-descriptive p) {
+  margin: 0 0 0.5rem;
+}
+.phb-body :deep(.sc-descriptive p:last-child) {
+  margin-bottom: 0;
+}
+
+/* Classic: heavier border, square corners */
+.phb-body.theme-phb2014 :deep(.sc-descriptive) {
+  border-radius: 0;
+  border-width: 3px;
+}
+
+/* Editor */
+.phb-editor :deep(.ProseMirror .sc-descriptive) {
+  border: 2px solid color-mix(in srgb, var(--primary, currentColor) 50%, transparent);
+  background: color-mix(in srgb, var(--primary, currentColor) 6%, transparent);
+  border-radius: 4px;
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+  font-style: italic;
+}
+
+/* ── Quote block ──────────────────────────────────────────────── */
+
+/* Preview */
+.phb-body :deep(.sc-quote) {
+  padding: 0.375rem 1rem;
+  margin: 0.875rem 0;
+  color: var(--sc-callout-quote-color);
+  font-style: italic;
+}
+.phb-body :deep(.sc-quote p) {
+  margin: 0 0 0.35rem;
+}
+.phb-body :deep(.sc-quote p:last-child) {
+  margin-bottom: 0;
+}
+
+/* Attribution — em-dash via pseudo so empty attribution renders cleanly */
+.phb-body :deep(.sc-attribution) {
+  font-style: normal;
+  font-variant: small-caps;
+  font-size: 0.875em;
+  color: var(--sc-callout-attr-color);
+  margin: 0.35rem 0 0;
+  letter-spacing: 0.02em;
+}
+.phb-body :deep(.sc-attribution::before) {
+  content: "\2014\00A0";
+}
+
+/* Editor */
+.phb-editor :deep(.ProseMirror .sc-quote) {
+  border-left: 2px solid color-mix(in srgb, currentColor 30%, transparent);
+  padding: 0.25rem 0.75rem;
+  margin: 0.5rem 0;
+  font-style: italic;
+  color: color-mix(in srgb, currentColor 75%, transparent);
+}
+.phb-editor :deep(.ProseMirror .sc-attribution) {
+  font-style: normal;
+  font-variant: small-caps;
+  font-size: 0.875em;
+  opacity: 0.75;
+}
+.phb-editor :deep(.ProseMirror .sc-attribution::before) {
+  content: "\2014\00A0";
 }
 </style>

@@ -14,13 +14,18 @@
 import type { Component } from "vue";
 import type { Editor } from "@tiptap/core";
 import {
+  Award,
   BookMarked,
   BookOpen,
   BookText,
   Bookmark,
   Droplets,
+  Gem,
   Hash,
+  Info,
   List,
+  Maximize2,
+  MessageSquare,
   Minus,
   MoveHorizontal,
   MoveVertical,
@@ -28,9 +33,13 @@ import {
   Quote,
   RectangleHorizontal,
   RefreshCw,
+  ScrollText,
+  Skull,
+  Sparkles,
   Stamp,
   SquareSplitVertical,
   Table2,
+  UserRound,
 } from "lucide-vue-next";
 import {
   frontCoverTemplate,
@@ -44,6 +53,13 @@ import {
   thirdCasterTable,
   martialTable,
 } from "@/lib/scriptorium/classTableTemplates";
+import {
+  monsterStatBlockTemplate,
+  monsterStatBlockWideTemplate,
+  spellTemplate,
+  magicItemTemplate,
+  classFeatureTemplate,
+} from "@/lib/scriptorium/templates";
 
 export interface BlockEntry {
   /** Which section this entry belongs to. */
@@ -210,6 +226,39 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     icon: Quote,
     action: (editor) => editor.chain().focus().toggleBlockquote().run(),
   },
+  {
+    group: "Callouts",
+    label: "Note",
+    description:
+      "Boxed highlight for rules reminders and DM tips. 2024 theme: teal-tinted with accent border. Classic theme: parchment with double rule. Shortcut: Mod-Alt-N.",
+    icon: Info,
+    action: (editor) => editor.chain().focus().toggleNoteBlock().run(),
+  },
+  {
+    group: "Callouts",
+    label: "Descriptive (Read-Aloud)",
+    description:
+      "Framed box for prose read aloud to players. 2024 theme: flat darker teal. Classic theme: square-cornered parchment frame. Shortcut: Mod-Alt-D.",
+    icon: ScrollText,
+    action: (editor) => editor.chain().focus().toggleDescriptiveBlock().run(),
+  },
+  {
+    group: "Callouts",
+    label: "Quote",
+    description:
+      "Italic pulled quote with optional attribution line. No decorative frame — font treatment only. Shortcut: Mod-Alt-Q.",
+    icon: MessageSquare,
+    action: (editor) => editor.chain().focus().toggleQuoteBlock().run(),
+  },
+  {
+    group: "Callouts",
+    label: "Attribution",
+    description:
+      "Em-dash author/source line inside a Quote block. Renders in small-caps italic; classic theme uses accent red. Only meaningful inside a Quote block.",
+    icon: UserRound,
+    action: (editor) => editor.chain().focus().insertAttribution().run(),
+    enabled: (editor) => editor.isActive("quoteBlock"),
+  },
 
   // ── Decoration ──────────────────────────────────────────────────────────────
   {
@@ -287,6 +336,57 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
         .insertContent(martialTable(col.trim() || "Resource"))
         .run();
     },
+  },
+
+  // ── Entity block templates ───────────────────────────────────────────────────
+  {
+    group: "Templates",
+    label: "Monster Stat Block",
+    description:
+      "Full stat block scaffold (name, type line, AC/HP/Speed/CR, ability scores, saving throws, skills, senses, traits, actions, reactions, legendary actions) with [Bracketed] placeholders. Framed in a callout box matching Homebrewery style.",
+    icon: Skull,
+    action: (editor) =>
+      editor.chain().focus().insertContent(monsterStatBlockTemplate()).run(),
+  },
+  {
+    group: "Templates",
+    label: "Monster Stat Block (Wide)",
+    description:
+      "Same as Monster Stat Block but wrapped in a Wide Block so it spans both columns in a two-column layout. Use this for larger creatures or when you need more horizontal space.",
+    icon: Maximize2,
+    action: (editor) =>
+      editor
+        .chain()
+        .focus()
+        .insertContent(monsterStatBlockWideTemplate())
+        .run(),
+  },
+  {
+    group: "Templates",
+    label: "Spell",
+    description:
+      "Spell entry scaffold (name, level + school subtitle, Casting Time, Range, Components, Duration, description, Spell Lists, At Higher Levels) with [Bracketed] placeholders. Matches the DB-sourced spell block format.",
+    icon: Sparkles,
+    action: (editor) =>
+      editor.chain().focus().insertContent(spellTemplate()).run(),
+  },
+  {
+    group: "Templates",
+    label: "Magic Item",
+    description:
+      "Magic item entry scaffold (name, type + rarity + attunement subtitle, flavour description, mechanical effect, Charges block) with [Bracketed] placeholders. Matches the DB-sourced item block format.",
+    icon: Gem,
+    action: (editor) =>
+      editor.chain().focus().insertContent(magicItemTemplate()).run(),
+  },
+  {
+    group: "Templates",
+    label: "Class Feature",
+    description:
+      "Class feature scaffold (feature name, level + class prerequisite line, description body, optional sub-feature heading) with [Bracketed] placeholders.",
+    icon: Award,
+    action: (editor) =>
+      editor.chain().focus().insertContent(classFeatureTemplate()).run(),
   },
 
   // ── Structural ───────────────────────────────────────────────────────────────

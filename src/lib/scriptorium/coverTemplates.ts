@@ -12,11 +12,6 @@
 
 import type { CoverPageVariant, CoverPageAttrs } from "@/lib/tiptap/coverPage";
 
-type CoverContent = {
-  type: "horizontalRule" | "coverPage";
-  attrs?: Partial<CoverPageAttrs & { variant: CoverPageVariant }>;
-};
-
 export type CoverPageJSON = {
   type: "horizontalRule" | "coverPage";
   attrs?: Partial<CoverPageAttrs & { variant: CoverPageVariant }>;
@@ -26,11 +21,11 @@ function makeCover(
   variant: CoverPageVariant,
   overrides: Partial<Omit<CoverPageAttrs, "variant">> = {},
 ): CoverPageJSON {
-  const node: CoverContent = {
-    type: "coverPage",
-    attrs: { variant, ...overrides },
-  };
-  return [{ type: "horizontalRule" }, node, { type: "horizontalRule" }];
+  return [
+    { type: "horizontalRule" },
+    { type: "coverPage", attrs: { variant, ...overrides } },
+    { type: "horizontalRule" },
+  ];
 }
 
 /** Front cover — title, subtitle, art slot, HOMEBREW banner + footnote. */

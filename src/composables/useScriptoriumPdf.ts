@@ -3,6 +3,7 @@ import type { ComputedRef, Ref } from "vue";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import type { ScriptoriumTheme, ScriptoriumPageSize } from "@/types/scriptorium.types";
+import { injectPageAnchors } from "@/lib/tiptap/tocBlock";
 
 /** Footer bar styles shared between both themes (onednd2024 defaults; phb2014 overrides). */
 const FOOTER_CSS = `
@@ -145,6 +146,46 @@ div[data-type="coverPage"] { position:absolute; inset:0; overflow:hidden; }
 .sc-toc-leader { flex:1 1 auto; border-bottom:1px dotted rgba(26,26,26,0.4); align-self:flex-end; margin-bottom:3px; min-width:11px; }
 .sc-toc-page { flex-shrink:0; font-weight:600; color:var(--sc-accent); min-width:22px; text-align:right; }
 .sc-toc-empty { color:rgba(26,26,26,0.5); font-style:italic; font-size:13px; }
+/* Class progression table — palette-variable driven, both themes */
+.sc-class-table { width:100%; border-collapse:collapse; font-family:var(--sc-body-font,Georgia,serif); font-size:13px; color:var(--sc-ink,#1a1a1a); line-height:1.3; margin:11px 0; }
+.sc-class-table th { font-family:var(--sc-heading-font,'Cinzel',Georgia,serif); font-size:12px; font-variant:small-caps; font-weight:700; letter-spacing:.04em; text-align:center; color:var(--sc-accent-contrast,#f9f6ef); background:var(--sc-accent,#1b3a4b); padding:4px 7px; border:1px solid var(--sc-accent,#1b3a4b); white-space:nowrap; }
+.sc-class-table td { text-align:center; padding:3px 6px; border:1px solid rgba(27,58,75,0.3); vertical-align:middle; }
+.sc-class-table td p, .sc-class-table th p { margin:0; }
+.sc-class-table tr:nth-child(odd) td { background:rgba(27,58,75,0.08); }
+.sc-class-table td:first-child { font-weight:700; }
+/* Callout block variables — 2024 defaults; classic theme overrides below */
+.phb-page.theme-onednd2024, .phb-page.theme-phb2014 {
+  --sc-callout-note-bg: var(--sc-callout-bg);
+  --sc-callout-note-border: var(--sc-callout-border);
+  --sc-callout-desc-bg: color-mix(in srgb, var(--sc-accent) 12%, var(--sc-page-bg));
+  --sc-callout-desc-border: var(--sc-accent);
+  --sc-callout-quote-color: var(--sc-ink);
+  --sc-callout-attr-color: color-mix(in srgb, var(--sc-accent) 80%, var(--sc-ink));
+}
+.phb-page.theme-phb2014 {
+  --sc-callout-note-bg: #E0E5C1;
+  --sc-callout-note-border: var(--sc-accent);
+  --sc-callout-desc-bg: #DDD8C4;
+  --sc-callout-desc-border: var(--sc-accent);
+  --sc-callout-attr-color: var(--sc-accent);
+}
+/* Note block */
+.sc-note { background:var(--sc-callout-note-bg); border-left:3px solid var(--sc-callout-note-border); border-radius:0 4px 4px 0; padding:9px 14px; margin:14px 0; }
+.sc-note p { margin:0 0 6px; font-size:0.875em; }
+.sc-note p:last-child { margin-bottom:0; }
+.theme-phb2014 .sc-note { border-left:none; border-top:2px double var(--sc-callout-note-border); border-bottom:2px double var(--sc-callout-note-border); border-radius:0; padding:8px 14px; }
+/* Descriptive block */
+.sc-descriptive { background:var(--sc-callout-desc-bg); border:2px solid var(--sc-callout-desc-border); border-radius:4px; padding:14px 16px; margin:14px 0; font-style:italic; }
+.sc-descriptive p { margin:0 0 8px; }
+.sc-descriptive p:last-child { margin-bottom:0; }
+.theme-phb2014 .sc-descriptive { border-radius:0; border-width:3px; }
+/* Quote block */
+.sc-quote { padding:6px 16px; margin:14px 0; color:var(--sc-callout-quote-color); font-style:italic; }
+.sc-quote p { margin:0 0 5px; }
+.sc-quote p:last-child { margin-bottom:0; }
+/* Attribution — em-dash via pseudo-element; no content = no orphaned dash */
+.sc-attribution { font-style:normal; font-variant:small-caps; font-size:0.875em; color:var(--sc-callout-attr-color); margin:6px 0 0; letter-spacing:.02em; }
+.sc-attribution::before { content:"\\2014\\00A0"; }
 `;
 
 function themeClass(theme: ScriptoriumTheme): string {
@@ -213,6 +254,10 @@ async function buildPdfBlob(
     holder.appendChild(page);
     pageEls.push(page);
   }
+
+  // Inject sc-page-{n} id anchors so TOC links resolve inside the PDF viewer
+  const tocPageIdx = pages.findIndex((p) => p.includes('data-type="toc"'));
+  injectPageAnchors(pageEls, tocPageIdx);
 
   document.body.appendChild(holder);
   await document.fonts.ready;
