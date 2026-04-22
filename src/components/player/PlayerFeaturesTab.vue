@@ -114,46 +114,84 @@
       </div>
     </div>
 
-    <!-- ── Class features ──────────────────────────────────────────────────── -->
-    <div class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="px-4 py-2.5 border-b border-border">
-        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Features</p>
-      </div>
+    <!-- ── Class features (one card per class, grouped for multiclass) ──────── -->
+    <template v-for="group in classFeatureGroups" :key="group.class_name">
+      <div class="rounded-lg border border-border bg-card overflow-hidden">
+        <div class="px-4 py-2.5 border-b border-border">
+          <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
+            {{ group.class_name || 'Class' }} Features
+            <span v-if="group.subclass_name" class="normal-case font-fell font-normal tracking-normal ml-1 text-muted-foreground/70">({{ group.subclass_name }})</span>
+          </p>
+        </div>
 
-      <div v-if="Object.keys(featuresByLevel).length === 0" class="px-4 py-3">
-        <p class="font-fell text-sm text-muted-foreground italic">No class features found.</p>
-      </div>
+        <div
+          v-if="Object.keys(group.featuresByLevel).length === 0 && Object.keys(group.subclassFeaturesByLevel).length === 0"
+          class="px-4 py-3"
+        >
+          <p class="font-fell text-sm text-muted-foreground italic">No class features defined yet.</p>
+        </div>
 
-      <div v-else class="divide-y divide-border">
-        <template v-for="(features, lvl) in featuresByLevel" :key="lvl">
-          <div
-            v-for="feat in features"
-            :key="`${lvl}-${featureName(feat)}`"
-            class="px-4 py-2.5"
-          >
-            <button
-              class="w-full text-left flex items-center gap-3"
-              :class="featureDescription(feat) ? 'cursor-pointer' : 'cursor-default'"
-              @click="featureDescription(feat) && toggleExpanded(`class-${lvl}-${featureName(feat)}`)"
-            >
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-10 shrink-0">Lvl {{ lvl }}</span>
-              <span class="font-fell text-sm text-foreground flex-1">{{ featureName(feat) }}</span>
-              <ChevronDown
-                v-if="featureDescription(feat)"
-                class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
-                :class="expanded.has(`class-${lvl}-${featureName(feat)}`) ? 'rotate-180' : ''"
-              />
-            </button>
+        <div v-else class="divide-y divide-border">
+          <!-- Class features -->
+          <template v-for="(features, lvl) in group.featuresByLevel" :key="lvl">
             <div
-              v-if="featureDescription(feat) && expanded.has(`class-${lvl}-${featureName(feat)}`)"
-              class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2"
+              v-for="feat in features"
+              :key="`${group.class_name}-${lvl}-${featureName(feat)}`"
+              class="px-4 py-2.5"
             >
-              <RichTextViewer :content="featureDescription(feat)!" />
+              <button
+                class="w-full text-left flex items-center gap-3"
+                :class="featureDescription(feat) ? 'cursor-pointer' : 'cursor-default'"
+                @click="featureDescription(feat) && toggleExpanded(`class-${group.class_name}-${lvl}-${featureName(feat)}`)"
+              >
+                <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-10 shrink-0">Lvl {{ lvl }}</span>
+                <span class="font-fell text-sm text-foreground flex-1">{{ featureName(feat) }}</span>
+                <ChevronDown
+                  v-if="featureDescription(feat)"
+                  class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
+                  :class="expanded.has(`class-${group.class_name}-${lvl}-${featureName(feat)}`) ? 'rotate-180' : ''"
+                />
+              </button>
+              <div
+                v-if="featureDescription(feat) && expanded.has(`class-${group.class_name}-${lvl}-${featureName(feat)}`)"
+                class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2"
+              >
+                <RichTextViewer :content="featureDescription(feat)!" />
+              </div>
             </div>
-          </div>
-        </template>
+          </template>
+          <!-- Subclass features inline (subtle tint + "Subclass" badge) -->
+          <template v-for="(subFeats, lvl) in group.subclassFeaturesByLevel" :key="`sub-${lvl}`">
+            <div
+              v-for="feat in subFeats"
+              :key="`${group.class_name}-sub-${lvl}-${featureName(feat)}`"
+              class="px-4 py-2.5 bg-primary/3"
+            >
+              <button
+                class="w-full text-left flex items-center gap-3"
+                :class="featureDescription(feat) ? 'cursor-pointer' : 'cursor-default'"
+                @click="featureDescription(feat) && toggleExpanded(`sub-${group.class_name}-${lvl}-${featureName(feat)}`)"
+              >
+                <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-10 shrink-0">Lvl {{ lvl }}</span>
+                <span class="font-fell text-sm text-foreground flex-1">{{ featureName(feat) }}</span>
+                <span class="font-cinzel text-[9px] text-primary/60 tracking-wider shrink-0 mr-1">Subclass</span>
+                <ChevronDown
+                  v-if="featureDescription(feat)"
+                  class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
+                  :class="expanded.has(`sub-${group.class_name}-${lvl}-${featureName(feat)}`) ? 'rotate-180' : ''"
+                />
+              </button>
+              <div
+                v-if="featureDescription(feat) && expanded.has(`sub-${group.class_name}-${lvl}-${featureName(feat)}`)"
+                class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2"
+              >
+                <RichTextViewer :content="featureDescription(feat)!" />
+              </div>
+            </div>
+          </template>
+        </div>
       </div>
-    </div>
+    </template>
 
     <!-- ── Spell choices ─────────────────────────────────────────────────── -->
     <div v-if="spellPickSteps.length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
@@ -266,44 +304,6 @@
       </div>
     </div>
 
-    <!-- ── Subclass features ───────────────────────────────────────────────── -->
-    <div v-if="Object.keys(subclassFeaturesByLevel).length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="px-4 py-2.5 border-b border-border">
-        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
-          Subclass Features
-          <span class="normal-case font-fell font-normal tracking-normal ml-1 text-muted-foreground/70">({{ member.subclass }})</span>
-        </p>
-      </div>
-      <div class="divide-y divide-border">
-        <template v-for="(features, lvl) in subclassFeaturesByLevel" :key="lvl">
-          <div
-            v-for="feat in features"
-            :key="`sub-${lvl}-${featureName(feat)}`"
-            class="px-4 py-2.5"
-          >
-            <button
-              class="w-full text-left flex items-center gap-3"
-              :class="featureDescription(feat) ? 'cursor-pointer' : 'cursor-default'"
-              @click="featureDescription(feat) && toggleExpanded(`sub-${lvl}-${featureName(feat)}`)"
-            >
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-10 shrink-0">Lvl {{ lvl }}</span>
-              <span class="font-fell text-sm text-foreground flex-1">{{ featureName(feat) }}</span>
-              <ChevronDown
-                v-if="featureDescription(feat)"
-                class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
-                :class="expanded.has(`sub-${lvl}-${featureName(feat)}`) ? 'rotate-180' : ''"
-              />
-            </button>
-            <div
-              v-if="featureDescription(feat) && expanded.has(`sub-${lvl}-${featureName(feat)}`)"
-              class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2"
-            >
-              <RichTextViewer :content="featureDescription(feat)!" />
-            </div>
-          </div>
-        </template>
-      </div>
-    </div>
 
     <!-- ── Languages & Tool Proficiencies ───────────────────────────────────── -->
     <div
@@ -373,8 +373,10 @@ import { featureName, featureDescription, mapFeatureIds, type FeatureEntry } fro
 import type { CustomStep } from "@/levelup/customTypes";
 import { useAllFeatures } from "@/composables/useFeatures";
 import { getDefaultSpellSlots, getSlotRecovery } from "@/types/spell.types";
-import { useClassByName } from "@/composables/useCustomClasses";
-import { useCustomSubclassByClassAndSubclass } from "@/composables/useCustomSubclasses";
+import { useClassByName, useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
+import { useCustomSubclassByClassAndSubclass, useAllCustomSubclasses } from "@/composables/useCustomSubclasses";
+import { useCharacterClasses } from "@/composables/useCharacterClasses";
+import type { SystemClass, CustomClass, CustomSubclass } from "@/levelup/customTypes";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useAllSpecies } from "@/composables/useSpecies";
 import { useConfirm } from "@/composables/useConfirm";
@@ -403,17 +405,64 @@ const linkedSubrace = computed(() =>
 
 const featureObjectMap = computed(() => new Map((allFeatures.value ?? []).map(f => [f.id, f])));
 
-// Subclass features by level (from DB custom subclass definition)
-const subclassFeaturesByLevel = computed((): Record<number, FeatureEntry[]> => {
-  const sub = customSubclass.value;
-  if (!sub) return {};
+// ── Multiclass feature grouping ───────────────────────────────────────────────
+
+const memberIdRef = computed(() => props.member.id);
+const { data: characterClasses } = useCharacterClasses(memberIdRef);
+const { data: allSystemClasses } = useAllSystemClasses();
+const { data: allCustomClasses } = useAllCustomClasses();
+const { data: allCustomSubclassEntries } = useAllCustomSubclasses();
+
+/** class_name → class data (custom wins over system on name collision). */
+const classDataMap = computed(() => {
+  const map = new Map<string, SystemClass | CustomClass>();
+  for (const c of allSystemClasses.value ?? []) map.set(c.class_name, c);
+  for (const c of allCustomClasses.value ?? []) map.set(c.class_name, c);
+  return map;
+});
+
+/** "ClassName::SubclassName" → subclass data. */
+const subclassDataMap = computed(() => {
+  const map = new Map<string, CustomSubclass>();
+  for (const s of allCustomSubclassEntries.value ?? []) {
+    map.set(`${s.class_name}::${s.subclass_name}`, s);
+  }
+  return map;
+});
+
+interface ClassFeatureGroup {
+  class_name: string;
+  subclass_name: string | null;
+  levels: number;
+  featuresByLevel: Record<number, FeatureEntry[]>;
+  subclassFeaturesByLevel: Record<number, FeatureEntry[]>;
+}
+
+function buildFeaturesByLevel(
+  cls: { features: Record<string, string[]> } | null | undefined,
+  maxLevel: number,
+): Record<number, FeatureEntry[]> {
+  if (!cls) return {};
   const result: Record<number, FeatureEntry[]> = {};
-  for (let lvl = 1; lvl <= props.member.level; lvl++) {
-    const entries = mapFeatureIds(sub.features[lvl.toString()] ?? [], featureObjectMap.value);
+  for (let lvl = 1; lvl <= maxLevel; lvl++) {
+    const entries = mapFeatureIds(cls.features[lvl.toString()] ?? [], featureObjectMap.value);
     if (entries.length > 0) result[lvl] = entries;
   }
   return result;
-});
+}
+
+/** Feature groups keyed by class — one per character_classes row. */
+const classFeatureGroups = computed<ClassFeatureGroup[]>(() =>
+  (characterClasses.value ?? []).map(cc => ({
+    class_name: cc.class_name,
+    subclass_name: cc.subclass_name,
+    levels: cc.levels,
+    featuresByLevel: buildFeaturesByLevel(classDataMap.value.get(cc.class_name), cc.levels),
+    subclassFeaturesByLevel: cc.subclass_name
+      ? buildFeaturesByLevel(subclassDataMap.value.get(`${cc.class_name}::${cc.subclass_name}`), cc.levels)
+      : {},
+  }))
+);
 
 // ── Local optimistic state ────────────────────────────────────────────────────
 
@@ -520,18 +569,6 @@ async function longRest() {
   persistSlots();
 }
 
-// ── Features (read-only, expandable) ─────────────────────────────────────────
-
-const featuresByLevel = computed((): Record<number, FeatureEntry[]> => {
-  const cls = classData.value;
-  if (!cls) return {};
-  const result: Record<number, FeatureEntry[]> = {};
-  for (let lvl = 1; lvl <= props.member.level; lvl++) {
-    const entries = mapFeatureIds(cls.features[lvl.toString()] ?? [], featureObjectMap.value);
-    if (entries.length > 0) result[lvl] = entries;
-  }
-  return result;
-});
 
 const expanded = ref(new Set<string>());
 function toggleExpanded(name: string) {

@@ -487,7 +487,7 @@ import {
 import { useCampaignStore } from "@/stores/campaign";
 import { meetsMulticlassPrereq } from "@/types/multiclass.types";
 import type { CharacterClass } from "@/types/multiclass.types";
-import { getHitDie } from "@/types/spell.types";
+import { getHitDie, getMulticlassSpellSlots } from "@/types/spell.types";
 import type { DieSize } from "@/lib/dice";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { useAllFeatures } from "@/composables/useFeatures";
@@ -517,24 +517,7 @@ const { data: multiclassPrereqs } = useMulticlassPrereqs();
 const { data: allCustomClasses } = useAllCustomClasses();
 const { data: allSystemClasses } = useAllSystemClasses();
 
-/** Synthetic fallback row for pre-multiclass characters (no character_classes yet). */
-const memberClassEntries = computed<CharacterClass[]>(() => {
-  const list = characterClasses.value ?? [];
-  if (list.length > 0) return list;
-  if (!props.member.class) return [];
-  return [{
-    id: "__legacy__",
-    party_member_id: props.member.id,
-    class_name: props.member.class,
-    subclass_name: props.member.subclass ?? null,
-    levels: props.member.level,
-    is_primary: true,
-    hit_dice_used: 0,
-    sort_order: 0,
-    created_at: props.member.created_at,
-    updated_at: props.member.updated_at,
-  }];
-});
+const memberClassEntries = computed<CharacterClass[]>(() => characterClasses.value ?? []);
 
 const existingClassOptions = computed(() => memberClassEntries.value);
 
@@ -702,9 +685,60 @@ function dbSlots(level: number): SpellSlotEntry[] {
 const prevLevelInChosenClass = computed(() => Math.max(0, levelInChosenClass.value - 1));
 const prevSpellSlots = computed<SpellSlotEntry[]>(() => dbSlots(prevLevelInChosenClass.value));
 const newSpellSlots  = computed<SpellSlotEntry[]>(() => dbSlots(levelInChosenClass.value));
+
+// ── Multiclass-aware spell slot lists ─────────────────────────────────────────
+// For multi-class characters the PHB combines all caster levels into a single
+// slot table. We compute the post-level-up class list here so that confirm()
+// can store the correct combined slots instead of the per-class table used by
+// dbSlots().
+
+/** Class list as it will look AFTER this level-up (for slot calculation). */
+const postLevelupClassList = computed<{ class_name: string; levels: number }[]>(() => {
+  const entries = memberClassEntries.value;
+  if (isAddingNewClass.value && newClassName.value) {
+    return [
+      ...entries.map(e => ({ class_name: e.class_name, levels: e.levels })),
+      { class_name: newClassName.value, levels: 1 },
+    ];
+  }
+  if (chosenExistingEntry.value) {
+    const chosenId = chosenExistingEntry.value.id;
+    return entries.map(e => ({
+      class_name: e.class_name,
+      levels: e.id === chosenId ? e.levels + 1 : e.levels,
+    }));
+  }
+  return [];
+});
+
+/** Class list as it looks BEFORE this level-up (for slot diff summary). */
+const preLevelupClassList = computed<{ class_name: string; levels: number }[]>(() =>
+  memberClassEntries.value.map(e => ({ class_name: e.class_name, levels: e.levels }))
+);
+
+/**
+ * Spell slots after this level-up. Uses the PHB multiclass combined table when
+ * the character will have 2+ classes; falls back to the per-class DB table for
+ * single-class characters so custom class slot progressions are respected.
+ */
+const postLevelupSpellSlots = computed<SpellSlotEntry[]>(() => {
+  if (postLevelupClassList.value.length > 1) {
+    return getMulticlassSpellSlots(postLevelupClassList.value);
+  }
+  return newSpellSlots.value;
+});
+
+/** Spell slots before this level-up — multiclass-aware for the diff summary. */
+const preLevelupSpellSlots = computed<SpellSlotEntry[]>(() => {
+  if (preLevelupClassList.value.length > 1) {
+    return getMulticlassSpellSlots(preLevelupClassList.value);
+  }
+  return prevSpellSlots.value;
+});
+
 const newSpellSlotSummary = computed(() => {
-  const prev = prevSpellSlots.value;
-  const next = newSpellSlots.value;
+  const prev = preLevelupSpellSlots.value;
+  const next = postLevelupSpellSlots.value;
   if (next.length === 0) return null;
   const gains: string[] = [];
   for (const slot of next) {
@@ -957,10 +991,12 @@ async function confirm() {
     hit_dice_remaining: newHitDiceCount.value,
   };
 
-  // Spell slots
-  if (newSpellSlots.value.length > 0) {
+  // Spell slots — use the multiclass-aware combined table so that e.g. a
+  // Paladin/Wizard character gets the correct merged slot count, not just the
+  // Wizard's own per-class progression.
+  if (postLevelupSpellSlots.value.length > 0) {
     const existing = props.member.spell_slots ?? [];
-    update.spell_slots = newSpellSlots.value.map(s => ({
+    update.spell_slots = postLevelupSpellSlots.value.map(s => ({
       ...s,
       used: existing.find(e => e.level === s.level)?.used ?? 0,
     }));
@@ -1056,9 +1092,7 @@ async function confirm() {
     await updateMember({ id: props.member.id, update: update as PartyMemberUpdate });
 
     // Persist to character_classes: insert a new row for a new class, or
-    // increment the levels on the existing row being leveled. Skip the
-    // synthetic "__legacy__" entry — those characters get a fresh row when
-    // the next level is taken (backfill migration should cover the rest).
+    // increment the levels on the existing row being leveled.
     if (isAddingNewClass.value && newClassName.value) {
       await addCharacterClass({
         party_member_id: props.member.id,
@@ -1069,7 +1103,7 @@ async function confirm() {
         hit_dice_used: 0,
         sort_order: existingClassOptions.value.length,
       });
-    } else if (chosenExistingEntry.value && chosenExistingEntry.value.id !== "__legacy__") {
+    } else if (chosenExistingEntry.value) {
       const entry = chosenExistingEntry.value;
       const patch: { levels: number; subclass_name?: string | null } = {
         levels: entry.levels + 1,
@@ -1078,19 +1112,6 @@ async function confirm() {
         patch.subclass_name = subclass;
       }
       await updateCharacterClass({ id: entry.id, update: patch });
-    } else if (chosenExistingEntry.value?.id === "__legacy__") {
-      // Pre-backfill character — create the primary row at its new level.
-      await addCharacterClass({
-        party_member_id: props.member.id,
-        class_name: chosenExistingEntry.value.class_name,
-        subclass_name: (needsSubclassChoice.value && subclass)
-          ? subclass
-          : (chosenExistingEntry.value.subclass_name ?? null),
-        levels: chosenExistingEntry.value.levels + 1,
-        is_primary: true,
-        hit_dice_used: 0,
-        sort_order: 0,
-      });
     }
 
     // Add selected spells and cantrips to character_spells
