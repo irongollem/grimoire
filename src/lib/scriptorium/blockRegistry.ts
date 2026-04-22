@@ -14,15 +14,36 @@
 import type { Component } from "vue";
 import type { Editor } from "@tiptap/core";
 import {
+  BookMarked,
+  BookOpen,
+  BookText,
+  Bookmark,
   Droplets,
+  Hash,
+  List,
   Minus,
   MoveHorizontal,
   MoveVertical,
   Pen,
   Quote,
+  RectangleHorizontal,
+  RefreshCw,
   Stamp,
   SquareSplitVertical,
+  Table2,
 } from "lucide-vue-next";
+import {
+  frontCoverTemplate,
+  insideCoverTemplate,
+  partDividerTemplate,
+  backCoverTemplate,
+} from "@/lib/scriptorium/coverTemplates";
+import {
+  fullCasterTable,
+  halfCasterTable,
+  thirdCasterTable,
+  martialTable,
+} from "@/lib/scriptorium/classTableTemplates";
 
 export interface BlockEntry {
   /** Which section this entry belongs to. */
@@ -43,6 +64,7 @@ export interface BlockEntry {
 
 /** Controls the display order of groups in the picker. */
 export const BLOCK_GROUP_ORDER: string[] = [
+  "Cover Pages",
   "Layout",
   "Callouts",
   "Templates",
@@ -59,7 +81,53 @@ export const BLOCK_GROUP_ORDER: string[] = [
  *   3. If you're introducing a new group, add it to BLOCK_GROUP_ORDER above.
  */
 export const BLOCK_REGISTRY: BlockEntry[] = [
+  // ── Cover Pages ──────────────────────────────────────────────────────────────
+  {
+    group: "Cover Pages",
+    label: "Front Cover",
+    description:
+      "Full-page front cover: title, subtitle, art slot, HOMEBREW banner. Always occupies its own page.",
+    icon: BookOpen,
+    action: (editor) =>
+      editor.chain().focus().insertContent(frontCoverTemplate()).run(),
+  },
+  {
+    group: "Cover Pages",
+    label: "Inside Cover",
+    description:
+      "Inside cover: background art fills the upper half, title + subtitle overlay at the bottom.",
+    icon: BookMarked,
+    action: (editor) =>
+      editor.chain().focus().insertContent(insideCoverTemplate()).run(),
+  },
+  {
+    group: "Cover Pages",
+    label: "Part Divider",
+    description:
+      'Section break divider: centred "PART N" number + subtitle with ornamental rules. Perfect for multi-chapter brews.',
+    icon: Bookmark,
+    action: (editor) =>
+      editor.chain().focus().insertContent(partDividerTemplate()).run(),
+  },
+  {
+    group: "Cover Pages",
+    label: "Back Cover",
+    description:
+      "Back cover: art strip, subtitle, three blurb paragraphs, tagline, and URL/logo bar. Page footer suppressed.",
+    icon: BookText,
+    action: (editor) =>
+      editor.chain().focus().insertContent(backCoverTemplate()).run(),
+  },
+
   // ── Layout ──────────────────────────────────────────────────────────────────
+  {
+    group: "Layout",
+    label: "Wide Block",
+    description:
+      "Wrap content in a full-width container that spans both columns (no-op in single-column documents). Nest tables, stat blocks, or images inside to break the column flow.",
+    icon: RectangleHorizontal,
+    action: (editor) => editor.chain().focus().toggleWideBlock().run(),
+  },
   {
     group: "Layout",
     label: "Page Break",
@@ -174,5 +242,76 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
         .focus()
         .insertArtistCredit({ position: "bottom-right" })
         .run(),
+  },
+
+  // ── Templates ────────────────────────────────────────────────────────────────
+  {
+    group: "Templates",
+    label: "Class Table — Full Caster",
+    description:
+      "20-row progression table for full spellcasters (e.g. Wizard, Sorcerer): Level, Prof. Bonus, Features, Cantrips Known, and 1st–9th spell slots. Spans both columns via Wide Block.",
+    icon: Table2,
+    action: (editor) =>
+      editor.chain().focus().insertContent(fullCasterTable()).run(),
+  },
+  {
+    group: "Templates",
+    label: "Class Table — Half Caster",
+    description:
+      "20-row progression table for half-casters (e.g. Paladin, Ranger): Level, Prof. Bonus, Features, and 1st–5th spell slots. Spans both columns via Wide Block.",
+    icon: Table2,
+    action: (editor) =>
+      editor.chain().focus().insertContent(halfCasterTable()).run(),
+  },
+  {
+    group: "Templates",
+    label: "Class Table — Third Caster",
+    description:
+      "20-row progression table for third-casters (e.g. Arcane Trickster, Eldritch Knight): Level, Prof. Bonus, Features, and 1st–4th spell slots (spellcasting starts at L3). Spans both columns via Wide Block.",
+    icon: Table2,
+    action: (editor) =>
+      editor.chain().focus().insertContent(thirdCasterTable()).run(),
+  },
+  {
+    group: "Templates",
+    label: "Class Table — Martial",
+    description:
+      "20-row progression table for martial classes (e.g. Fighter, Monk): Level, Prof. Bonus, Features, and one custom numeric column. You will be prompted for the column name (e.g. Ki Points, Sneak Attack). Spans both columns via Wide Block.",
+    icon: Table2,
+    action: (editor) => {
+      const col = prompt("Custom column name (e.g. Ki Points):");
+      if (col === null) return;
+      editor
+        .chain()
+        .focus()
+        .insertContent(martialTable(col.trim() || "Resource"))
+        .run();
+    },
+  },
+
+  // ── Structural ───────────────────────────────────────────────────────────────
+  {
+    group: "Structural",
+    label: "Table of Contents",
+    description:
+      "Auto-generated TOC from all H1/H2/H3 headings in the document. Place this block on its own page; the preview and PDF replace it with a live linked list with dotted leaders and page numbers.",
+    icon: List,
+    action: (editor) => editor.chain().focus().insertTocBlock().run(),
+  },
+  {
+    group: "Structural",
+    label: "Skip Page Number",
+    description:
+      "Marks this page so its number is omitted and the running counter does not advance (e.g. for a full-page illustration).",
+    icon: Hash,
+    action: (editor) => editor.chain().focus().insertSkipCounting().run(),
+  },
+  {
+    group: "Structural",
+    label: "Reset Page Counter",
+    description:
+      "Resets the running page counter back to the document\u2019s starting number from this page onwards. Useful after a cover page or unnumbered front matter.",
+    icon: RefreshCw,
+    action: (editor) => editor.chain().focus().insertResetCounting().run(),
   },
 ];

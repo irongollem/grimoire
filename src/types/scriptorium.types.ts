@@ -29,6 +29,9 @@ export interface ScriptoriumDocument {
   page_size: ScriptoriumPageSize;
   ink_friendly: boolean;
   word_count: number;
+  show_page_numbers: boolean;
+  footer_text: string;
+  page_number_start: number;
   created_at: string;
   updated_at: string;
 }

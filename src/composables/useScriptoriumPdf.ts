@@ -4,6 +4,42 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import type { ScriptoriumTheme, ScriptoriumPageSize } from "@/types/scriptorium.types";
 
+/** Footer bar styles shared between both themes (onednd2024 defaults; phb2014 overrides). */
+const FOOTER_CSS = `
+.sc-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 68px;
+  font-family: var(--sc-body-font);
+  font-size: 12px;
+  color: var(--sc-accent);
+  border-top: 1px solid var(--sc-accent);
+  box-sizing: border-box;
+}
+.phb-page.theme-onednd2024 .sc-footer-text {
+  font-style: italic;
+  font-variant: small-caps;
+}
+.phb-page.theme-phb2014 .sc-footer-text {
+  font-style: italic;
+  font-variant: small-caps;
+}
+.sc-footer-num {
+  font-weight: 600;
+}
+/* Marker atoms — invisible in PDF output */
+.sc-skip-counting,
+.sc-reset-counting {
+  display: none;
+}
+`;
+
 /*
  * Page dimensions at 96 dpi (px → mm mapping for jsPDF).
  *
@@ -80,6 +116,8 @@ img:not(.phb-border) { max-width:380px; max-height:480px; border-radius:4px; obj
 .sc-spacer-h { display:inline-block; border:none; }
 /* Column break: invisible, forces CSS multi-column break */
 .sc-column-break { break-before:column; display:block; height:0; }
+/* Wide block: spans both columns in multi-column layout; no-op in single-column */
+.sc-wide { column-span:all; margin:12px 0; }
 /* Decoration variables — resolved via existing palette vars for both themes */
 .phb-page.theme-onednd2024, .phb-page.theme-phb2014 { --sc-decoration-watermark:var(--sc-accent); --sc-decoration-credit:var(--sc-ink); }
 /* Watercolor overlay: mix-blend-mode blends the splatter with the parchment */
@@ -87,6 +125,26 @@ img[data-type="watercolor"] { mix-blend-mode:multiply; }
 /* Watermark wrapper fills the page (absolute via inline style from renderHTML) */
 div[data-type="watermark"] { overflow:hidden; }
 /* Artist credit positioned via inline style from renderHTML — no extra rules needed */
+/* Cover page: fills the entire .phb-page; children are absolutely positioned by renderHTML */
+div[data-type="coverPage"] { position:absolute; inset:0; overflow:hidden; }
+/* Cover page suppresses the title bar and page border on that page */
+.phb-page:has(div[data-type="coverPage"]) .phb-title-bar,
+.phb-page:has(div[data-type="coverPage"]) .phb-border { display:none; }
+/* Cover page suppresses the footer on front + back variants */
+.phb-page:has(div[data-type="coverPage"][data-variant="front"]) .sc-footer,
+.phb-page:has(div[data-type="coverPage"][data-variant="back"]) .sc-footer { display:none; }
+/* Table of Contents — both themes use palette vars so no per-theme overrides needed */
+.sc-toc { font-family:var(--sc-body-font); color:var(--sc-ink); margin:11px 0 14px; }
+.sc-toc-heading { font-family:var(--sc-heading-font); font-size:15px; font-weight:700; color:var(--sc-accent); border-bottom:2px solid var(--sc-accent); padding-bottom:3px; margin:0 0 11px; }
+.sc-toc-list { list-style:none; padding:0; margin:0; column-count:2; column-gap:22px; }
+.sc-toc-item { break-inside:avoid; margin:3px 0; }
+.sc-toc-h2 { padding-left:14px; font-size:13px; }
+.sc-toc-h3 { padding-left:28px; font-size:12px; font-style:italic; }
+.sc-toc-link { display:flex; align-items:baseline; gap:4px; text-decoration:none; color:var(--sc-ink); }
+.sc-toc-text { white-space:nowrap; overflow:hidden; text-overflow:clip; flex-shrink:1; min-width:0; }
+.sc-toc-leader { flex:1 1 auto; border-bottom:1px dotted rgba(26,26,26,0.4); align-self:flex-end; margin-bottom:3px; min-width:11px; }
+.sc-toc-page { flex-shrink:0; font-weight:600; color:var(--sc-accent); min-width:22px; text-align:right; }
+.sc-toc-empty { color:rgba(26,26,26,0.5); font-style:italic; font-size:13px; }
 `;
 
 function themeClass(theme: ScriptoriumTheme): string {
@@ -99,6 +157,8 @@ async function buildPdfBlob(
   theme: ScriptoriumTheme,
   pageSize: ScriptoriumPageSize = "A4",
   inkFriendly = false,
+  pageFooters: (string | null)[] = [],
+  footerText = "",
 ): Promise<Blob> {
   const size = PAGE_SIZES[pageSize];
   const holder = document.createElement("div");
@@ -107,7 +167,7 @@ async function buildPdfBlob(
   holder.style.setProperty("--sc-page-w", `${size.w}px`);
   holder.style.setProperty("--sc-page-h", `${size.h}px`);
   const styleEl = document.createElement("style");
-  styleEl.textContent = RENDER_CSS;
+  styleEl.textContent = RENDER_CSS + FOOTER_CSS;
   holder.appendChild(styleEl);
 
   const cls = themeClass(theme);
@@ -133,6 +193,22 @@ async function buildPdfBlob(
     const body = document.createElement("div");
     body.innerHTML = pages[i];
     page.appendChild(body);
+
+    // Footer bar: inject if this page has a page number label
+    const footerLabel = pageFooters[i] ?? null;
+    if (footerLabel !== null) {
+      const footer = document.createElement("div");
+      footer.className = "sc-footer";
+      const textSpan = document.createElement("span");
+      textSpan.className = "sc-footer-text";
+      textSpan.textContent = footerText;
+      const numSpan = document.createElement("span");
+      numSpan.className = "sc-footer-num";
+      numSpan.textContent = footerLabel;
+      footer.appendChild(textSpan);
+      footer.appendChild(numSpan);
+      page.appendChild(footer);
+    }
 
     holder.appendChild(page);
     pageEls.push(page);
@@ -175,6 +251,8 @@ export function useScriptoriumPdf(
   theme: Ref<ScriptoriumTheme>,
   pageSize: Ref<ScriptoriumPageSize>,
   inkFriendly: Ref<boolean>,
+  pageFooters: ComputedRef<(string | null)[]>,
+  footerText: Ref<string>,
 ) {
   const showPdfPreview = ref(false);
   const pdfBlobUrl = ref<string | null>(null);
@@ -201,7 +279,15 @@ export function useScriptoriumPdf(
   async function exportPdf() {
     isGeneratingPdf.value = true;
     try {
-      const blob = await buildPdfBlob(pages.value, title.value, theme.value, pageSize.value, inkFriendly.value);
+      const blob = await buildPdfBlob(
+        pages.value,
+        title.value,
+        theme.value,
+        pageSize.value,
+        inkFriendly.value,
+        pageFooters.value,
+        footerText.value,
+      );
       const fileName = `${title.value || "Untitled"}.pdf`;
       // Use File instead of Blob — Chrome's PDF viewer uses the File name as the suggested download filename
       const file = new File([blob], fileName, { type: "application/pdf" });

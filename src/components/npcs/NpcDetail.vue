@@ -543,7 +543,10 @@ async function sendToScriptorium() {
   if (!props.npc) return
   isSendingToScriptorium.value = true
   try {
-    const importData = formatNpcForScriptorium(props.npc)
+    const locationName = props.npc.location_id
+      ? (locationOptions.value.find((l) => l.id === props.npc!.location_id)?.name ?? null)
+      : null
+    const importData = formatNpcForScriptorium(props.npc, locationName)
     const doc = await createScriptoriumDoc(importData)
     await updateNpc({ id: props.npc.id, update: { scriptorium_doc_id: doc.id } })
     router.push(`/scriptorium/${doc.id}`)

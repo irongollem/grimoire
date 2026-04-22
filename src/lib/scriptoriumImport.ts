@@ -35,6 +35,9 @@ export interface ScriptoriumImportData {
   page_size: ScriptoriumPageSize;
   ink_friendly: boolean;
   word_count: number;
+  show_page_numbers: boolean;
+  footer_text: string;
+  page_number_start: number;
 }
 
 // ── Formatter interface ───────────────────────────────────────────────────────
@@ -73,8 +76,8 @@ function uniqueTags(...groups: (string | null | undefined)[][]): string[] {
 
 // ── NPC formatter ─────────────────────────────────────────────────────────────
 
-const npcFormatter: AssetFormatter<Npc> = {
-  format(npc: Npc): ScriptoriumImportData {
+const npcFormatter: AssetFormatter<{ npc: Npc; locationName?: string | null }> = {
+  format({ npc, locationName }): ScriptoriumImportData {
     let html = "";
 
     // Portrait image (floated right in the document)
@@ -93,7 +96,7 @@ const npcFormatter: AssetFormatter<Npc> = {
       npc.alignment && `<strong>Alignment</strong> ${npc.alignment}`,
       npc.age && `<strong>Age</strong> ${npc.age}`,
       npc.occupation && `<strong>Occupation</strong> ${npc.occupation}`,
-      npc.location_id && `<strong>Location</strong> ${npc.location_id}`,
+      (npc.location_id && locationName) && `<strong>Location</strong> ${locationName}`,
     ].filter(Boolean) as string[];
 
     if (identityRows.length) {
@@ -172,6 +175,9 @@ const npcFormatter: AssetFormatter<Npc> = {
       page_size: "A4" as ScriptoriumPageSize,
       ink_friendly: false,
       word_count: countWords(html),
+      show_page_numbers: false,
+      footer_text: "",
+      page_number_start: 1,
     };
   },
 };
@@ -268,6 +274,9 @@ const monsterFormatter: AssetFormatter<Monster> = {
       page_size: "A4" as ScriptoriumPageSize,
       ink_friendly: false,
       word_count: countWords(html),
+      show_page_numbers: false,
+      footer_text: "",
+      page_number_start: 1,
     };
   },
 };
@@ -343,6 +352,9 @@ const spellFormatter: AssetFormatter<Spell> = {
       page_size: "A4" as ScriptoriumPageSize,
       ink_friendly: false,
       word_count: countWords(html),
+      show_page_numbers: false,
+      footer_text: "",
+      page_number_start: 1,
     };
   },
 };
@@ -422,6 +434,9 @@ const itemFormatter: AssetFormatter<{ item: Item; spells: Spell[] }> = {
       page_size: "A4" as ScriptoriumPageSize,
       ink_friendly: false,
       word_count: countWords(html),
+      show_page_numbers: false,
+      footer_text: "",
+      page_number_start: 1,
     };
   },
 };
@@ -486,6 +501,9 @@ const locationFormatter: AssetFormatter<Location> = {
       page_size: "A4" as ScriptoriumPageSize,
       ink_friendly: false,
       word_count: countWords(html),
+      show_page_numbers: false,
+      footer_text: "",
+      page_number_start: 1,
     };
   },
 };
@@ -551,6 +569,9 @@ const questFormatter: AssetFormatter<{
       page_size: "A4" as ScriptoriumPageSize,
       ink_friendly: false,
       word_count: countWords(html),
+      show_page_numbers: false,
+      footer_text: "",
+      page_number_start: 1,
     };
   },
 };
@@ -575,8 +596,8 @@ export function formatForScriptorium<T>(type: string, asset: T): ScriptoriumImpo
 }
 
 // Typed convenience exports
-export function formatNpcForScriptorium(npc: Npc): ScriptoriumImportData {
-  return npcFormatter.format(npc);
+export function formatNpcForScriptorium(npc: Npc, locationName?: string | null): ScriptoriumImportData {
+  return npcFormatter.format({ npc, locationName });
 }
 
 export function formatMonsterForScriptorium(monster: Monster): ScriptoriumImportData {

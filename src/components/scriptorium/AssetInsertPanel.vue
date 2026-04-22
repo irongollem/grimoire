@@ -269,7 +269,10 @@ function insertItem(item: ListItem) {
   if (item.type === "npcs") {
     const npc = npcs.value?.find((n) => n.id === item.id);
     if (!npc) return;
-    html = formatNpcForScriptorium(npc).content;
+    const locationName = npc.location_id
+      ? (locations.value?.find((l) => l.id === npc.location_id)?.name ?? null)
+      : null;
+    html = formatNpcForScriptorium(npc, locationName).content;
   } else if (item.type === "monsters") {
     const monster = monsters.value?.find((m) => m.id === item.id);
     if (!monster) return;

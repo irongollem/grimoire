@@ -47,6 +47,29 @@
           >PUBLISHED</span
         >
       </label>
+      <label class="flex items-center gap-2 cursor-pointer select-none">
+        <input type="checkbox" v-model="showPageNumbers" class="rounded" />
+        <span
+          class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+          >PAGE #S</span
+        >
+      </label>
+      <template v-if="showPageNumbers">
+        <input
+          v-model="footerText"
+          placeholder="Footer text…"
+          class="w-40 bg-card border border-border rounded-md px-2 py-1.5 font-fell text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+        <label class="flex items-center gap-1.5">
+          <span class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider whitespace-nowrap">START #</span>
+          <input
+            v-model.number="pageNumberStart"
+            type="number"
+            min="1"
+            class="w-14 bg-card border border-border rounded-md px-2 py-1.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        </label>
+      </template>
       <button
         type="button"
         :disabled="isSaving || !title.trim()"
@@ -199,6 +222,14 @@
               @click="editor.chain().focus().toggleCodeBlock().run()"
             >
               <SquareCode class="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              title="Wide Block (spans both columns)"
+              :class="tbCls(editor.isActive('wideBlock'))"
+              @click="editor.chain().focus().toggleWideBlock().run()"
+            >
+              <RectangleHorizontal class="h-3.5 w-3.5" />
             </button>
             <button
               type="button"
@@ -500,6 +531,13 @@
               :class="[themeClass, { 'phb-two-col': isTwoColumn }]"
               v-html="pageHtml"
             />
+            <div
+              v-if="pageFooters[pageIndex] !== null"
+              class="sc-footer"
+            >
+              <span class="sc-footer-text">{{ footerText }}</span>
+              <span class="sc-footer-num">{{ pageFooters[pageIndex] }}</span>
+            </div>
           </div>
           <p class="phb-hint">
             ── use the Page Break button (—) to start a new page ──
@@ -540,6 +578,7 @@ import {
   Columns2,
   LayoutGrid,
   Printer,
+  RectangleHorizontal,
 } from "lucide-vue-next";
 import {
   useCreateScriptoriumDocument,
@@ -557,6 +596,19 @@ import { Watercolor } from "@/lib/tiptap/watercolor";
 import { Watermark } from "@/lib/tiptap/watermark";
 import { ArtistCredit } from "@/lib/tiptap/artistCredit";
 import { ColumnBreak } from "@/lib/tiptap/columnBreak";
+import { Table } from "@tiptap/extension-table";
+import TableRow from "@tiptap/extension-table-row";
+import TableCell from "@tiptap/extension-table-cell";
+import TableHeader from "@tiptap/extension-table-header";
+import { SkipCounting } from "@/lib/tiptap/skipCounting";
+import { ResetCounting } from "@/lib/tiptap/resetCounting";
+import { WideBlock } from "@/lib/tiptap/wideBlock";
+import { NoteBlock } from "@/lib/tiptap/noteBlock";
+import { DescriptiveBlock } from "@/lib/tiptap/descriptiveBlock";
+import { QuoteBlock } from "@/lib/tiptap/quoteBlock";
+import { Attribution } from "@/lib/tiptap/attribution";
+import { TocBlock, buildTocPages } from "@/lib/tiptap/tocBlock";
+import { CoverPage } from "@/lib/tiptap/coverPage";
 import type {
   ScriptoriumDocument,
   ScriptoriumDocType,
@@ -647,6 +699,9 @@ const theme = ref<ScriptoriumTheme>(props.doc?.theme ?? "onednd2024");
 const pageSize = ref<ScriptoriumPageSize>(props.doc?.page_size ?? "A4");
 const inkFriendly = ref(props.doc?.ink_friendly ?? false);
 const tags = ref<string[]>(props.doc?.tags ?? []);
+const showPageNumbers = ref(props.doc?.show_page_numbers ?? false);
+const footerText = ref(props.doc?.footer_text ?? "");
+const pageNumberStart = ref(props.doc?.page_number_start ?? 1);
 
 const themeClass = computed(() =>
   theme.value === "phb2014" ? "theme-phb2014" : "theme-onednd2024",
@@ -818,6 +873,19 @@ const editor = useEditor({
     Watermark,
     ArtistCredit,
     ColumnBreak,
+    Table.configure({ resizable: false }),
+    TableRow,
+    TableCell,
+    TableHeader,
+    SkipCounting,
+    ResetCounting,
+    WideBlock,
+    NoteBlock,
+    DescriptiveBlock,
+    QuoteBlock,
+    Attribution,
+    TocBlock,
+    CoverPage,
   ],
   onCreate({ editor }) {
     updateDerived(editor.getHTML(), editor.getText());
@@ -867,6 +935,9 @@ async function save() {
       page_size: pageSize.value,
       ink_friendly: inkFriendly.value,
       word_count: wordCount.value,
+      show_page_numbers: showPageNumbers.value,
+      footer_text: footerText.value,
+      page_number_start: pageNumberStart.value,
     };
     if (props.doc) {
       const oldContent = props.doc.content;
@@ -883,12 +954,43 @@ async function save() {
   }
 }
 
-// Split rendered HTML into pages at every <hr> (Page Break)
+// Split rendered HTML into pages at every <hr> (Page Break),
+// then run the TOC pre-pass so any sc-toc-placeholder becomes a live TOC.
 const pages = computed(() => {
   const html = previewHtml.value || "";
   const parts = html.split(/<hr\s*\/?\s*>/gi);
   while (parts.length > 1 && !parts[parts.length - 1].trim()) parts.pop();
-  return parts.length ? parts : [""];
+  const rawPages = parts.length ? parts : [""];
+  return buildTocPages(rawPages);
+});
+
+// Page-number counter logic shared between preview and PDF
+// Returns the footer label for each page index, or null if that page is unnumbered.
+// Page 0 (title bar page) always returns null.
+// Pages containing a front or back cover page also suppress the footer.
+const pageFooters = computed<(string | null)[]>(() => {
+  if (!showPageNumbers.value) return pages.value.map(() => null);
+
+  const skipTag = 'data-type="skip-counting"';
+  const resetTag = 'data-type="reset-counting"';
+  let counter = pageNumberStart.value;
+  return pages.value.map((html, idx) => {
+    if (idx === 0) return null; // title bar page never gets a footer
+    // Front and back cover variants suppress the footer
+    if (
+      html.includes('data-type="coverPage"') &&
+      (html.includes('data-variant="front"') || html.includes('data-variant="back"'))
+    ) {
+      return null;
+    }
+    const hasSkip = html.includes(skipTag);
+    const hasReset = html.includes(resetTag);
+    if (hasReset) counter = pageNumberStart.value;
+    if (hasSkip) return null; // omit + don't advance
+    const label = String(counter);
+    counter++;
+    return label;
+  });
 });
 
 const {
@@ -898,7 +1000,15 @@ const {
   exportPdf,
   savePdf,
   closePdfPreview,
-} = useScriptoriumPdf(pages, title, theme, pageSize, inkFriendly);
+} = useScriptoriumPdf(
+  pages,
+  title,
+  theme,
+  pageSize,
+  inkFriendly,
+  pageFooters,
+  footerText,
+);
 
 onUnmounted(() => editor.value?.destroy());
 </script>
@@ -1319,5 +1429,320 @@ onUnmounted(() => editor.value?.destroy());
  */
 .phb-body :deep(img[data-type="watercolor"]) {
   mix-blend-mode: multiply;
+}
+
+/* ── Wide block ──────────────────────────────────────────────── */
+
+/*
+ * Preview: column-span:all escapes the CSS multi-column flow so the
+ * container spans the full page width. In single-column documents the
+ * property is a no-op — identical rendering to a normal block.
+ */
+.phb-body :deep(.sc-wide) {
+  column-span: all;
+  margin: 0.75rem 0;
+}
+
+/*
+ * Editor: dashed outline so authors can see the wide block boundary.
+ * The "wide" label appears at the top-left corner.
+ */
+.phb-editor :deep(.ProseMirror .sc-wide) {
+  outline: 1px dashed color-mix(in srgb, currentColor 35%, transparent);
+  outline-offset: 3px;
+  border-radius: 2px;
+  padding: 0.25rem;
+  margin: 0.5rem 0;
+  position: relative;
+}
+.phb-editor :deep(.ProseMirror .sc-wide::before) {
+  content: "wide";
+  position: absolute;
+  top: -0.75rem;
+  left: 0.25rem;
+  font-family: system-ui, sans-serif;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: color-mix(in srgb, currentColor 45%, transparent);
+  pointer-events: none;
+}
+
+/* ── Cover page ──────────────────────────────────────────────── */
+/*
+ * A cover page node is an atom that fills its own physical page.  In the
+ * PHB preview each .phb-page is an independent div, so the cover simply
+ * occupies the page that holds it.  In the editor the atom is rendered
+ * inline as a selectable block with a labelled dashed outline so authors
+ * can see and click it.
+ *
+ * The cover node's renderHTML uses only inline styles + CSS variables from
+ * the palette contract, so both themes render correctly without any
+ * selector overrides here.  The rules below handle only the editor
+ * preview representation.
+ */
+
+/* Editor: show as a tall labeled block so the variant is identifiable */
+.phb-editor :deep(.ProseMirror div[data-type="coverPage"]) {
+  position: relative;
+  display: block;
+  border: 2px dashed color-mix(in srgb, currentColor 30%, transparent);
+  border-radius: 4px;
+  min-height: 8rem;
+  margin: 0.75rem 0;
+  overflow: hidden;
+  cursor: default;
+}
+.phb-editor :deep(.ProseMirror div[data-type="coverPage"]::before) {
+  content: "cover: " attr(data-variant);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, currentColor 45%, transparent);
+  pointer-events: none;
+  white-space: nowrap;
+}
+/* Suppress the absolutely-positioned children inside the editor atom so
+   they don't overflow the dashed box or collide with sibling content. */
+.phb-editor :deep(.ProseMirror div[data-type="coverPage"] > *) {
+  display: none;
+}
+
+/* Preview: cover fills its .phb-page parent which is already
+   position:relative.  The node's renderHTML places its children with
+   position:absolute / inset:0 relative to that ancestor.  We just
+   make the cover wrapper itself position:absolute and full-bleed so
+   the absolutely-positioned children anchor correctly. */
+.phb-body :deep(div[data-type="coverPage"]) {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* Back cover and front cover variants suppress the running page-number
+   footer. The pageFooters computed already returns null for these pages,
+   so .sc-footer is not rendered — this rule is a belt-and-suspenders guard
+   in case CSS :has() ever needs to do it independently. */
+.phb-page:has(div[data-type="coverPage"][data-variant="back"]) .sc-footer,
+.phb-page:has(div[data-type="coverPage"][data-variant="front"]) .sc-footer {
+  display: none;
+}
+
+/* ── Page footer bar ──────────────────────────────────────────── */
+
+.sc-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2.5rem;
+  font-family: var(--sc-body-font);
+  font-size: 0.75rem;
+  color: var(--sc-accent);
+  border-top: 1px solid var(--sc-col-rule);
+  box-sizing: border-box;
+}
+
+.sc-footer-text {
+  font-style: italic;
+  font-variant: small-caps;
+}
+
+.sc-footer-num {
+  font-weight: 600;
+}
+
+/* ── Skip / Reset counting chips (editor only) ────────────────── */
+
+/*
+ * In the ProseMirror editor these atom nodes render as small labelled chips
+ * so authors can see and select them. In the preview they are hidden via
+ * sc-skip-counting / sc-reset-counting display:none below.
+ */
+.phb-editor :deep(.ProseMirror .sc-skip-counting),
+.phb-editor :deep(.ProseMirror .sc-reset-counting) {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.5rem;
+  border: 1px dashed color-mix(in srgb, currentColor 40%, transparent);
+  border-radius: 3px;
+  font-family: system-ui, sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  color: color-mix(in srgb, currentColor 55%, transparent);
+  background: color-mix(in srgb, currentColor 5%, transparent);
+  cursor: default;
+  user-select: none;
+  margin: 0.25rem 0;
+}
+.phb-editor :deep(.ProseMirror .sc-skip-counting::before) {
+  content: "skip #";
+}
+.phb-editor :deep(.ProseMirror .sc-reset-counting::before) {
+  content: "reset \2116";
+}
+
+/* Preview: marker atoms are invisible — zero height, no display */
+.phb-body :deep(.sc-skip-counting),
+.phb-body :deep(.sc-reset-counting) {
+  display: none;
+}
+
+/* ── Table of Contents ───────────────────────────────────────── */
+
+/*
+ * Editor: atom placeholder — dashed outline with descriptive label.
+ */
+.phb-editor :deep(.ProseMirror nav[data-type="toc"]) {
+  display: block;
+  border: 1px dashed color-mix(in srgb, currentColor 35%, transparent);
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  margin: 0.75rem 0;
+  font-family: system-ui, sans-serif;
+  font-size: 0.75rem;
+  text-align: center;
+  letter-spacing: 0.05em;
+  color: color-mix(in srgb, currentColor 45%, transparent);
+}
+.phb-editor :deep(.ProseMirror nav[data-type="toc"]::after) {
+  content: "Table of Contents (auto-generated on preview)";
+}
+
+/*
+ * Preview: rendered TOC — two-column list with dotted leaders.
+ * All colours consumed from the palette contract (--sc-* vars)
+ * so both themes render correctly.
+ */
+.phb-body :deep(.sc-toc) {
+  font-family: var(--sc-body-font);
+  color: var(--sc-ink);
+  margin: 0.75rem 0 1rem;
+}
+.phb-body :deep(.sc-toc-heading) {
+  font-family: var(--sc-heading-font);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--sc-accent);
+  border-bottom: 2px solid var(--sc-accent);
+  padding-bottom: 0.2rem;
+  margin: 0 0 0.75rem;
+  letter-spacing: 0.03em;
+}
+.phb-body :deep(.sc-toc-list) {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  column-count: 2;
+  column-gap: 1.5rem;
+}
+.phb-body :deep(.sc-toc-item) {
+  break-inside: avoid;
+  margin: 0.2rem 0;
+}
+.phb-body :deep(.sc-toc-h2) {
+  padding-left: 1rem;
+  font-size: 0.875em;
+}
+.phb-body :deep(.sc-toc-h3) {
+  padding-left: 2rem;
+  font-size: 0.8125em;
+  font-style: italic;
+}
+.phb-body :deep(.sc-toc-link) {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  text-decoration: none;
+  color: var(--sc-ink);
+}
+.phb-body :deep(.sc-toc-link:hover) {
+  color: var(--sc-accent);
+}
+.phb-body :deep(.sc-toc-text) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  flex-shrink: 1;
+  min-width: 0;
+}
+.phb-body :deep(.sc-toc-leader) {
+  flex: 1 1 auto;
+  border-bottom: 1px dotted color-mix(in srgb, var(--sc-ink) 40%, transparent);
+  align-self: flex-end;
+  margin-bottom: 0.2em;
+  min-width: 0.75rem;
+}
+.phb-body :deep(.sc-toc-page) {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: var(--sc-accent);
+  min-width: 1.5rem;
+  text-align: right;
+}
+.phb-body :deep(.sc-toc-empty) {
+  color: color-mix(in srgb, var(--sc-ink) 50%, transparent);
+  font-style: italic;
+  font-size: 0.875em;
+}
+
+/* ── Class progression table (.sc-class-table) ───────────────── */
+/*
+ * Applied to the Tiptap table node in all four class table templates.
+ * Palette driven by CSS variables — both themes render correctly.
+ */
+.phb-body :deep(.sc-class-table),
+.phb-editor :deep(.ProseMirror .sc-class-table) {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--sc-body-font, Georgia, serif);
+  font-size: 0.8125rem;
+  color: var(--sc-ink, #1a1a1a);
+  line-height: 1.3;
+  margin: 0.75rem 0;
+}
+.phb-body :deep(.sc-class-table th),
+.phb-editor :deep(.ProseMirror .sc-class-table th) {
+  font-family: var(--sc-heading-font, "Cinzel", Georgia, serif);
+  font-size: 0.75rem;
+  font-variant: small-caps;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: center;
+  color: var(--sc-accent-contrast, #f9f6ef);
+  background: var(--sc-accent, #1b3a4b);
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--sc-accent, #1b3a4b);
+  white-space: nowrap;
+}
+.phb-body :deep(.sc-class-table td),
+.phb-editor :deep(.ProseMirror .sc-class-table td) {
+  text-align: center;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid color-mix(in srgb, var(--sc-accent, #1b3a4b) 30%, transparent);
+  vertical-align: middle;
+}
+.phb-body :deep(.sc-class-table td p),
+.phb-editor :deep(.ProseMirror .sc-class-table td p),
+.phb-body :deep(.sc-class-table th p),
+.phb-editor :deep(.ProseMirror .sc-class-table th p) {
+  margin: 0;
+}
+.phb-body :deep(.sc-class-table tr:nth-child(odd) td),
+.phb-editor :deep(.ProseMirror .sc-class-table tr:nth-child(odd) td) {
+  background: color-mix(in srgb, var(--sc-accent, #1b3a4b) 8%, transparent);
+}
+.phb-body :deep(.sc-class-table td:first-child),
+.phb-editor :deep(.ProseMirror .sc-class-table td:first-child) {
+  font-weight: 700;
 }
 </style>
