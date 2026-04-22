@@ -7,7 +7,7 @@
         {{ isEditMode ? 'Edit Character' : 'Create Your Character' }}
       </h1>
       <div class="mt-3 flex items-center gap-1 overflow-x-auto pb-1">
-        <template v-for="(step, idx) in WIZARD_STEPS" :key="step.id">
+        <template v-for="(step, idx) in activeSteps" :key="step.id">
           <button type="button"
             class="shrink-0 flex items-center gap-1.5 px-2 py-1 rounded font-cinzel text-[10px] font-semibold tracking-wider transition-colors"
             :class="wizardStep === idx
@@ -23,15 +23,15 @@
             </span>
             {{ step.label }}
           </button>
-          <div v-if="idx < WIZARD_STEPS.length - 1" class="shrink-0 w-3 h-px bg-border" />
+          <div v-if="idx < activeSteps.length - 1" class="shrink-0 w-3 h-px bg-border" />
         </template>
       </div>
     </div>
 
     <!-- ─────────────────────────────────────────────────────────────────────── -->
-    <!-- Step 0: Basics — portrait · name · species                            -->
+    <!-- Step: Basics — portrait · name · species                              -->
     <!-- ─────────────────────────────────────────────────────────────────────── -->
-    <div v-if="wizardStep === 0" class="space-y-5">
+    <div v-if="currentStepId === 'basics'" class="space-y-5">
 
       <!-- Portrait + name -->
       <div class="flex gap-4">
@@ -102,9 +102,9 @@
     </div>
 
     <!-- ─────────────────────────────────────────────────────────────────────── -->
-    <!-- Step 1: Abilities — scores + species ASI                              -->
+    <!-- Step: Abilities — scores + species ASI                                -->
     <!-- ─────────────────────────────────────────────────────────────────────── -->
-    <div v-else-if="wizardStep === 1" class="space-y-4">
+    <div v-else-if="currentStepId === 'abilities'" class="space-y-4">
 
       <!-- Score method tabs -->
       <div class="flex items-center gap-2 p-1 rounded-lg bg-muted w-fit flex-wrap">
@@ -291,9 +291,9 @@
     </div>
 
     <!-- ─────────────────────────────────────────────────────────────────────── -->
-    <!-- Step 2: Background & Identity                                          -->
+    <!-- Step: Background & Identity                                            -->
     <!-- ─────────────────────────────────────────────────────────────────────── -->
-    <div v-else-if="wizardStep === 2" class="space-y-4">
+    <div v-else-if="currentStepId === 'background'" class="space-y-4">
 
       <!-- Background picker -->
       <div class="space-y-3">
@@ -316,16 +316,11 @@
           </button>
         </div>
 
-        <!-- Starting equipment -->
-        <div v-if="selectedBg?.equipment" class="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
-          <p class="font-cinzel text-xs font-semibold text-primary tracking-wider">STARTING EQUIPMENT</p>
-          <p class="font-fell text-sm text-foreground whitespace-pre-wrap">{{ selectedBg.equipment }}</p>
-          <label class="flex items-start gap-2 cursor-pointer pt-1">
-            <input type="checkbox" v-model="importBackgroundEquipment" class="mt-0.5 h-4 w-4 rounded border-border bg-muted" />
-            <span class="font-fell text-xs text-muted-foreground">
-              Add these to my inventory automatically.
-            </span>
-          </label>
+        <!-- Starting equipment preview (managed on the Equipment step) -->
+        <div v-if="selectedBg?.equipment" class="rounded-lg border border-primary/20 bg-primary/3 p-3 space-y-1">
+          <p class="font-cinzel text-xs font-semibold text-primary/80 tracking-wider">STARTING EQUIPMENT</p>
+          <p class="font-fell text-sm text-foreground/80 whitespace-pre-wrap">{{ selectedBg.equipment }}</p>
+          <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">Manage inventory import on the Equipment step →</p>
         </div>
       </div>
 
@@ -413,9 +408,9 @@
     </div>
 
     <!-- ─────────────────────────────────────────────────────────────────────── -->
-    <!-- Step 3: Class + Proficiencies                                          -->
+    <!-- Step: Class + Proficiencies                                            -->
     <!-- ─────────────────────────────────────────────────────────────────────── -->
-    <div v-else-if="wizardStep === 3" class="space-y-4">
+    <div v-else-if="currentStepId === 'class'" class="space-y-4">
       <p class="font-fell text-sm text-muted-foreground italic">
         Choose your class. Saving throw proficiencies are set automatically. Fine-tune skills in the collapsible below.
       </p>
@@ -503,9 +498,76 @@
     </div>
 
     <!-- ─────────────────────────────────────────────────────────────────────── -->
-    <!-- Step 4: Done — derived stats summary + save                           -->
+    <!-- Step: Equipment — class bundle choice + background pack               -->
     <!-- ─────────────────────────────────────────────────────────────────────── -->
-    <div v-else-if="wizardStep === 4" class="space-y-4">
+    <div v-else-if="currentStepId === 'equipment'" class="space-y-4">
+      <p class="font-fell text-sm text-muted-foreground italic">
+        Choose your starting loadout. Items linked to your vault are added with full stats; unrecognised names are added as text entries you can link later.
+      </p>
+
+      <!-- Class equipment choice -->
+      <div v-if="classEquipmentPack" class="space-y-3">
+        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
+          {{ f.class?.toUpperCase() }} STARTING EQUIPMENT
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            v-for="key in (['a', 'b'] as const)" :key="key" type="button"
+            class="rounded-lg border text-left transition-all p-3 space-y-2"
+            :class="classEquipmentChoice === key
+              ? 'border-primary ring-1 ring-primary bg-primary/5'
+              : 'border-border bg-card hover:border-primary/40'"
+            @click="classEquipmentChoice = key">
+            <p class="font-cinzel text-xs font-semibold text-foreground">
+              {{ key === 'a' ? 'Choice A' : 'Choice B' }}
+              <span class="font-fell font-normal text-muted-foreground ml-1">— {{ classEquipmentPack[key].label }}</span>
+            </p>
+            <ul class="space-y-0.5">
+              <li
+                v-for="item in classEquipmentPack[key].items" :key="item.name + (item.quantity ?? 1)"
+                class="font-fell text-xs text-foreground flex items-center gap-1.5">
+                <span class="text-primary/60 shrink-0">·</span>
+                <span v-if="(item.quantity ?? 1) > 1" class="text-muted-foreground">{{ item.quantity }}×</span>
+                {{ item.name }}
+              </li>
+            </ul>
+          </button>
+        </div>
+        <label class="flex items-start gap-2 cursor-pointer">
+          <input type="checkbox" v-model="importClassEquipment" class="mt-0.5 h-4 w-4 rounded border-border bg-muted" />
+          <span class="font-fell text-xs text-muted-foreground">Add selected loadout to my inventory automatically.</span>
+        </label>
+      </div>
+
+      <div v-else class="rounded-lg border border-border bg-card p-3">
+        <p class="font-fell text-sm text-muted-foreground italic">
+          No standard equipment defined for {{ f.class || 'this class' }}.
+          <span v-if="!f.class"> Pick a class first.</span>
+        </p>
+      </div>
+
+      <!-- Background equipment summary -->
+      <div v-if="selectedBg?.equipment" class="rounded-lg border border-border bg-card p-3 space-y-2">
+        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">BACKGROUND EQUIPMENT</p>
+        <p class="font-fell text-sm text-foreground whitespace-pre-wrap">{{ selectedBg.equipment }}</p>
+        <label class="flex items-start gap-2 cursor-pointer pt-0.5">
+          <input type="checkbox" v-model="importBackgroundEquipment" class="mt-0.5 h-4 w-4 rounded border-border bg-muted" />
+          <span class="font-fell text-xs text-muted-foreground">Add background equipment to inventory automatically.</span>
+        </label>
+      </div>
+
+      <div v-if="!classEquipmentPack && !selectedBg?.equipment" class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 flex items-start gap-2">
+        <span class="text-amber-500 shrink-0 mt-0.5">⚡</span>
+        <p class="font-fell text-sm text-amber-700 dark:text-amber-400">
+          No starting equipment — pick a class and background first, or continue and add gear manually.
+        </p>
+      </div>
+    </div>
+
+    <!-- ─────────────────────────────────────────────────────────────────────── -->
+    <!-- Step: Done — derived stats summary + save                             -->
+    <!-- ─────────────────────────────────────────────────────────────────────── -->
+    <div v-else-if="currentStepId === 'done'" class="space-y-4">
       <p class="font-fell text-sm text-muted-foreground italic">
         {{ isEditMode ? 'Review your changes before saving.' : 'All set! Stats are derived from your choices — no magic numbers.' }}
       </p>
@@ -638,7 +700,7 @@
       </button>
 
       <!-- Next / Skip (hidden on Done step) -->
-      <div v-if="wizardStep < WIZARD_STEPS.length - 1" class="flex items-center gap-2">
+      <div v-if="wizardStep < activeSteps.length - 1" class="flex items-center gap-2">
         <button type="button"
           class="px-4 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
           @click="wizardStep++">
@@ -659,7 +721,7 @@
 <script setup lang="ts">
 import { inject, ref, reactive, computed } from "vue";
 import {
-  CHARACTER_FORM_KEY, WIZARD_STEPS,
+  CHARACTER_FORM_KEY, WIZARD_STEPS, WIZARD_STEPS_EDIT,
   ABILITY_STATS, SAVE_STATS, PROF_LEVELS, SCORE_MODES,
   SLOT_LEVEL_LABELS, POINT_BUY_COSTS, STANDARD_ARRAY,
   roll4d6DropLowest,
@@ -688,8 +750,13 @@ const {
   mod, setSkillProf, skillBonus, toggleSave, saveBonus,
   onSpeciesSelect, onClassSelect, onBackgroundSelect,
   importBackgroundEquipment,
+  classEquipmentChoice, importClassEquipment, classEquipmentPack,
   save,
 } = form;
+
+// Use the right step list based on mode; derive the current step's id from it.
+const activeSteps = computed(() => isEditMode.value ? WIZARD_STEPS_EDIT : WIZARD_STEPS);
+const currentStepId = computed(() => activeSteps.value[wizardStep.value]?.id ?? "done");
 
 // ── Species ASI format detection ─────────────────────────────────────────────
 // ASI can be { dex: 2, str: 1 } (structured) or { description: "+2 DEX" } (free-text).

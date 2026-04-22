@@ -12,6 +12,8 @@ import { useAllSpecies } from "@/composables/useSpecies";
 import { useBackgrounds } from "@/composables/useBackgrounds";
 import { getDefaultSpellSlots } from "@/types/spell.types";
 import type { PartyMemberInsert, SkillProfLevel, SaveKey, SpellSlotEntry } from "@/types/party.types";
+import { supabase } from "@/lib/supabase";
+import { CLASS_EQUIPMENT } from "@/data/classEquipment";
 
 // ── Constants (exported for use in template components) ───────────────────────
 
@@ -24,6 +26,16 @@ export const EDIT_TABS = [
 ] as const;
 
 export const WIZARD_STEPS = [
+  { id: "basics",     label: "Basics" },
+  { id: "abilities",  label: "Abilities" },
+  { id: "background", label: "Background" },
+  { id: "class",      label: "Class" },
+  { id: "equipment",  label: "Equipment" },
+  { id: "done",       label: "Done" },
+] as const;
+
+/** Edit mode skips the equipment step — character already has gear. */
+export const WIZARD_STEPS_EDIT = [
   { id: "basics",     label: "Basics" },
   { id: "abilities",  label: "Abilities" },
   { id: "background", label: "Background" },
@@ -240,6 +252,23 @@ export function useCharacterCreationForm() {
   // the player can untick it on the Background step.
   const importBackgroundEquipment = ref(true);
 
+  // Class starting equipment: choice A or B, and whether to seed inventory.
+  const classEquipmentChoice = ref<"a" | "b">("a");
+  const importClassEquipment  = ref(true);
+
+  /** The two equipment bundles for the currently chosen class (null if class has no data). */
+  const classEquipmentPack = computed(() => f.class ? (CLASS_EQUIPMENT[f.class] ?? null) : null);
+
+  /** Look up vault item IDs by name (case-insensitive). Returns Map<lowercaseName, itemId>. */
+  async function lookupVaultItems(names: string[]): Promise<Map<string, string>> {
+    if (names.length === 0) return new Map();
+    const filter = names.map(n => `name.ilike.${n}`).join(",");
+    const { data } = await supabase.from("items").select("id, name").or(filter);
+    const map = new Map<string, string>();
+    for (const row of data ?? []) map.set((row.name as string).toLowerCase(), row.id as string);
+    return map;
+  }
+
   // ── Point buy ────────────────────────────────────────────────────────────────
 
   const totalSpent      = computed(() => ABILITY_STATS.reduce((sum, stat) => sum + (POINT_BUY_COSTS[f[stat.key]] ?? 0), 0));
@@ -455,6 +484,26 @@ export function useCharacterCreationForm() {
           });
         }
 
+        // Seed class starting equipment with vault lookup
+        if (importClassEquipment.value && f.class) {
+          const pack = CLASS_EQUIPMENT[f.class];
+          if (pack) {
+            const bundle = classEquipmentChoice.value === "a" ? pack.a : pack.b;
+            const uniqueNames = [...new Set(bundle.items.map(e => e.name))];
+            const vaultMap = await lookupVaultItems(uniqueNames);
+            for (const entry of bundle.items) {
+              const itemId = vaultMap.get(entry.name.toLowerCase()) ?? null;
+              await addInventoryItem({
+                item_id: itemId, name: entry.name, quantity: entry.quantity ?? 1,
+                carried_by: created.id, location: "backpack",
+                slot: null, is_container: false, container_id: null,
+                is_attuned: false, is_equipped: false, notes: null,
+                current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
+              });
+            }
+          }
+        }
+
         // Seed background starting equipment as inventory rows
         if (importBackgroundEquipment.value && f.background_id) {
           const bg = (allBackgrounds.value ?? []).find((b) => b.id === f.background_id);
@@ -504,6 +553,7 @@ export function useCharacterCreationForm() {
     f, activeTab, wizardStep, saving, scoreMode,
     portraitUrl, focalPoint, spellSlotMaxes,
     importBackgroundEquipment,
+    classEquipmentChoice, importClassEquipment, classEquipmentPack,
     // ASI (new chars)
     asiMode, customAsi, customAsiTotal, adjustCustomAsi,
     // computed
