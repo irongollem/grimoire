@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div
       v-if="show"
-      class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+      class="fixed inset-0 z-9999 flex items-center justify-center bg-black/70 backdrop-blur-sm"
       @click.self="$emit('close')"
       @keydown.esc="$emit('close')"
     >
@@ -13,7 +13,9 @@
         <div
           class="flex items-center justify-between px-4 py-3 border-b border-border shrink-0"
         >
-          <h2 class="font-cinzel font-bold text-sm tracking-wide text-foreground">
+          <h2
+            class="font-cinzel font-bold text-sm tracking-wide text-foreground"
+          >
             Insert Block
           </h2>
           <button
@@ -59,10 +61,14 @@
                   <component :is="entry.icon" class="h-4 w-4" />
                 </div>
                 <div class="min-w-0">
-                  <p class="font-cinzel text-xs font-semibold text-foreground leading-tight">
+                  <p
+                    class="font-cinzel text-xs font-semibold text-foreground leading-tight"
+                  >
                     {{ entry.label }}
                   </p>
-                  <p class="font-fell text-xs text-muted-foreground italic leading-snug mt-0.5">
+                  <p
+                    class="font-fell text-xs text-muted-foreground italic leading-snug mt-0.5"
+                  >
                     {{ entry.description }}
                   </p>
                 </div>
@@ -89,10 +95,14 @@
                   <Link class="h-4 w-4" />
                 </div>
                 <div class="min-w-0">
-                  <p class="font-cinzel text-xs font-semibold text-foreground leading-tight">
+                  <p
+                    class="font-cinzel text-xs font-semibold text-foreground leading-tight"
+                  >
                     From URL…
                   </p>
-                  <p class="font-fell text-xs text-muted-foreground italic leading-snug mt-0.5">
+                  <p
+                    class="font-fell text-xs text-muted-foreground italic leading-snug mt-0.5"
+                  >
                     Insert an image by pasting its web address
                   </p>
                 </div>
@@ -109,10 +119,14 @@
                   <Library class="h-4 w-4" />
                 </div>
                 <div class="min-w-0">
-                  <p class="font-cinzel text-xs font-semibold text-foreground leading-tight">
+                  <p
+                    class="font-cinzel text-xs font-semibold text-foreground leading-tight"
+                  >
                     From library…
                   </p>
-                  <p class="font-fell text-xs text-muted-foreground italic leading-snug mt-0.5">
+                  <p
+                    class="font-fell text-xs text-muted-foreground italic leading-snug mt-0.5"
+                  >
                     Browse and insert saved NPCs, monsters, spells, or locations
                   </p>
                 </div>

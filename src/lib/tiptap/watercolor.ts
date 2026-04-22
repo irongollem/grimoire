@@ -70,8 +70,8 @@ export const Watercolor = Node.create({
         renderHTML: (attrs) => ({ "data-width": attrs.width }),
       },
       color: {
-        default: "#1B3A4B",
-        parseHTML: (el) => el.getAttribute("data-color") ?? "#1B3A4B",
+        default: "#7d1c1c",
+        parseHTML: (el) => el.getAttribute("data-color") ?? "#7d1c1c",
         renderHTML: (attrs) => ({ "data-color": attrs.color }),
       },
       opacity: {
@@ -91,7 +91,7 @@ export const Watercolor = Node.create({
 
   renderHTML({ HTMLAttributes, node }) {
     const attrs = node.attrs as WatercolorAttrs;
-    const src = `/assets/scriptorium/watercolor/${attrs.variant}.webp`;
+    const src = `/assets/scriptorium/watercolor/${attrs.variant}.png`;
     const style = [
       "position:absolute",
       `top:${attrs.top}`,

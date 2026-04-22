@@ -137,6 +137,7 @@ import {
 } from "@/lib/scriptoriumImport";
 import { SCHOOL_COLORS, spellLevelLabel } from "@/types/spell.types";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
+import type { ScriptoriumTheme } from "@/types/scriptorium.types";
 
 const MONSTER_TYPE_COLORS: Record<string, string> = {
   aberration: "#7c3aed",
@@ -161,7 +162,7 @@ const NPC_STATUS_COLORS: Record<string, string> = {
   unknown: "#6b7280",
 };
 
-const props = defineProps<{ show: boolean; editor: Editor | undefined }>();
+const props = defineProps<{ show: boolean; editor: Editor | undefined; theme: ScriptoriumTheme }>();
 const emit = defineEmits<{ close: [] }>();
 
 type TabKey = "npcs" | "monsters" | "spells" | "locations";
@@ -272,11 +273,11 @@ function insertItem(item: ListItem) {
     const locationName = npc.location_id
       ? (locations.value?.find((l) => l.id === npc.location_id)?.name ?? null)
       : null;
-    html = formatNpcForScriptorium(npc, locationName).content;
+    html = formatNpcForScriptorium(npc, locationName, props.theme).content;
   } else if (item.type === "monsters") {
     const monster = monsters.value?.find((m) => m.id === item.id);
     if (!monster) return;
-    html = formatMonsterForScriptorium(monster).content;
+    html = formatMonsterForScriptorium(monster, props.theme).content;
   } else if (item.type === "spells") {
     const spell = spells.value?.find((s) => s.id === item.id);
     if (!spell) return;
@@ -288,7 +289,7 @@ function insertItem(item: ListItem) {
   }
 
   const endPos = props.editor.state.doc.content.size;
-  props.editor.chain().focus().insertContentAt(endPos, `<hr />${html}`).run();
+  props.editor.chain().focus().insertContentAt(endPos, html).run();
   emit("close");
 }
 </script>

@@ -13,6 +13,7 @@
 
 import type { Component } from "vue";
 import type { Editor } from "@tiptap/core";
+import type { WatercolorVariant } from "@/lib/tiptap/watercolor";
 import {
   Award,
   BookMarked,
@@ -267,8 +268,10 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     description:
       "Absolutely-positioned watercolor blob overlay. Select the node to choose variant (1\u201312), position, width, tint colour, and opacity.",
     icon: Droplets,
-    action: (editor) =>
-      editor.chain().focus().insertWatercolor({ variant: 1 }).run(),
+    action: (editor) => {
+      const variant = (Math.floor(Math.random() * 12) + 1) as WatercolorVariant;
+      editor.chain().focus().insertWatercolor({ variant }).run();
+    },
   },
   {
     group: "Decoration",

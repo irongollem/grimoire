@@ -9,13 +9,17 @@
   <AssetInsertPanel
     :show="showAssetPanel"
     :editor="editor"
+    :theme="theme"
     @close="showAssetPanel = false"
   />
   <BlockPickerPanel
     :show="showBlockPicker"
     :editor="editor"
     @close="showBlockPicker = false"
-    @open-asset-panel="showBlockPicker = false; showAssetPanel = true"
+    @open-asset-panel="
+      showBlockPicker = false;
+      showAssetPanel = true;
+    "
   />
 
   <div class="flex flex-col gap-3">
@@ -61,7 +65,10 @@
           class="w-40 bg-card border border-border rounded-md px-2 py-1.5 font-fell text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
         <label class="flex items-center gap-1.5">
-          <span class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider whitespace-nowrap">START #</span>
+          <span
+            class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider whitespace-nowrap"
+            >START #</span
+          >
           <input
             v-model.number="pageNumberStart"
             type="number"
@@ -305,7 +312,10 @@
                   editor
                     .chain()
                     .focus()
-                    .updateAttributes('image', { dataAlign: 'left', layoutMode: 'inline' })
+                    .updateAttributes('image', {
+                      dataAlign: 'left',
+                      layoutMode: 'inline',
+                    })
                     .run()
                 "
               >
@@ -321,7 +331,10 @@
                   editor
                     .chain()
                     .focus()
-                    .updateAttributes('image', { dataAlign: 'center', layoutMode: 'inline' })
+                    .updateAttributes('image', {
+                      dataAlign: 'center',
+                      layoutMode: 'inline',
+                    })
                     .run()
                 "
               >
@@ -340,7 +353,10 @@
                   editor
                     .chain()
                     .focus()
-                    .updateAttributes('image', { dataAlign: 'right', layoutMode: 'inline' })
+                    .updateAttributes('image', {
+                      dataAlign: 'right',
+                      layoutMode: 'inline',
+                    })
                     .run()
                 "
               >
@@ -355,7 +371,9 @@
               <button
                 type="button"
                 title="Wrap left — text flows around right edge"
-                :class="tbCls(editor.getAttributes('image').layoutMode === 'wrapLeft')"
+                :class="
+                  tbCls(editor.getAttributes('image').layoutMode === 'wrapLeft')
+                "
                 @click="
                   editor
                     .chain()
@@ -369,7 +387,11 @@
               <button
                 type="button"
                 title="Wrap right — text flows around left edge"
-                :class="tbCls(editor.getAttributes('image').layoutMode === 'wrapRight')"
+                :class="
+                  tbCls(
+                    editor.getAttributes('image').layoutMode === 'wrapRight',
+                  )
+                "
                 @click="
                   editor
                     .chain()
@@ -383,7 +405,9 @@
               <button
                 type="button"
                 title="Absolute position — pin image at exact page coordinates"
-                :class="tbCls(editor.getAttributes('image').layoutMode === 'absolute')"
+                :class="
+                  tbCls(editor.getAttributes('image').layoutMode === 'absolute')
+                "
                 @click="
                   editor
                     .chain()
@@ -410,7 +434,9 @@
                 <button
                   type="button"
                   title="Bleed into column gutter"
-                  :class="tbCls(editor.getAttributes('image').gutterBleed === true)"
+                  :class="
+                    tbCls(editor.getAttributes('image').gutterBleed === true)
+                  "
                   @click="
                     editor
                       .chain()
@@ -421,14 +447,20 @@
                       .run()
                   "
                 >
-                  <span class="font-cinzel text-[9px] font-bold leading-none">⇔</span>
+                  <span class="font-cinzel text-[9px] font-bold leading-none"
+                    >⇔</span
+                  >
                 </button>
               </template>
               <!-- Absolute position inputs (absolute mode only) -->
-              <template v-if="editor.getAttributes('image').layoutMode === 'absolute'">
+              <template
+                v-if="editor.getAttributes('image').layoutMode === 'absolute'"
+              >
                 <div class="w-px h-5 bg-border mx-0.5" />
                 <label class="flex items-center gap-0.5">
-                  <span class="font-cinzel text-[9px] text-muted-foreground">T</span>
+                  <span class="font-cinzel text-[9px] text-muted-foreground"
+                    >T</span
+                  >
                   <input
                     type="number"
                     :value="editor.getAttributes('image').posTop ?? ''"
@@ -441,14 +473,17 @@
                         .chain()
                         .focus()
                         .updateAttributes('image', {
-                          posTop: ($event.target as HTMLInputElement).value || null,
+                          posTop:
+                            ($event.target as HTMLInputElement).value || null,
                         })
                         .run()
                     "
                   />
                 </label>
                 <label class="flex items-center gap-0.5">
-                  <span class="font-cinzel text-[9px] text-muted-foreground">L</span>
+                  <span class="font-cinzel text-[9px] text-muted-foreground"
+                    >L</span
+                  >
                   <input
                     type="number"
                     :value="editor.getAttributes('image').posLeft ?? ''"
@@ -461,14 +496,17 @@
                         .chain()
                         .focus()
                         .updateAttributes('image', {
-                          posLeft: ($event.target as HTMLInputElement).value || null,
+                          posLeft:
+                            ($event.target as HTMLInputElement).value || null,
                         })
                         .run()
                     "
                   />
                 </label>
                 <label class="flex items-center gap-0.5">
-                  <span class="font-cinzel text-[9px] text-muted-foreground">R</span>
+                  <span class="font-cinzel text-[9px] text-muted-foreground"
+                    >R</span
+                  >
                   <input
                     type="number"
                     :value="editor.getAttributes('image').posRight ?? ''"
@@ -481,14 +519,17 @@
                         .chain()
                         .focus()
                         .updateAttributes('image', {
-                          posRight: ($event.target as HTMLInputElement).value || null,
+                          posRight:
+                            ($event.target as HTMLInputElement).value || null,
                         })
                         .run()
                     "
                   />
                 </label>
                 <label class="flex items-center gap-0.5">
-                  <span class="font-cinzel text-[9px] text-muted-foreground">B</span>
+                  <span class="font-cinzel text-[9px] text-muted-foreground"
+                    >B</span
+                  >
                   <input
                     type="number"
                     :value="editor.getAttributes('image').posBottom ?? ''"
@@ -501,7 +542,8 @@
                         .chain()
                         .focus()
                         .updateAttributes('image', {
-                          posBottom: ($event.target as HTMLInputElement).value || null,
+                          posBottom:
+                            ($event.target as HTMLInputElement).value || null,
                         })
                         .run()
                     "
@@ -553,7 +595,7 @@
                 role="radio"
                 :aria-checked="theme === 'onednd2024'"
                 title="OneDnD 2024 theme"
-                class="px-2 h-[26px] font-cinzel text-[9px] font-semibold tracking-wider uppercase transition-colors"
+                class="px-2 h-6.5 font-cinzel text-[9px] font-semibold tracking-wider uppercase transition-colors"
                 :class="
                   theme === 'onednd2024'
                     ? 'bg-primary/20 text-primary'
@@ -568,7 +610,7 @@
                 role="radio"
                 :aria-checked="theme === 'phb2014'"
                 title="Classic PHB (2014) theme"
-                class="px-2 h-[26px] font-cinzel text-[9px] font-semibold tracking-wider uppercase transition-colors border-l border-border"
+                class="px-2 h-6.5 font-cinzel text-[9px] font-semibold tracking-wider uppercase transition-colors border-l border-border"
                 :class="
                   theme === 'phb2014'
                     ? 'bg-primary/20 text-primary'
@@ -589,7 +631,7 @@
               class="ml-1 inline-flex rounded border border-border overflow-hidden shrink-0"
             >
               <button
-                v-for="(sz, idx) in (['A4', 'A5', 'Letter'] as const)"
+                v-for="(sz, idx) in ['A4', 'A5', 'Letter'] as const"
                 :key="sz"
                 type="button"
                 role="radio"
@@ -684,20 +726,16 @@
             :class="[themeClass, { 'ink-friendly': inkFriendly }]"
             :style="pageSizeStyle"
           >
-            <div v-if="pageIndex === 0" class="phb-title-bar">
-              {{ title || "Untitled Document" }}
-            </div>
             <div
               class="phb-body"
               :class="[themeClass, { 'phb-two-col': isTwoColumn }]"
               v-html="pageHtml"
             />
-            <div
-              v-if="pageFooters[pageIndex] !== null"
-              class="sc-footer"
-            >
+            <!-- Odd index = recto (right-hand page): # on right. Even index = verso (left-hand page): # on left. -->
+            <div v-if="pageFooters[pageIndex] !== null" class="sc-footer" :class="pageIndex % 2 === 0 ? 'sc-footer--recto' : 'sc-footer--verso'">
+              <span class="sc-footer-num sc-footer-num--left">{{ pageFooters[pageIndex] }}</span>
               <span class="sc-footer-text">{{ footerText }}</span>
-              <span class="sc-footer-num">{{ pageFooters[pageIndex] }}</span>
+              <span class="sc-footer-num sc-footer-num--right">{{ pageFooters[pageIndex] }}</span>
             </div>
           </div>
           <p class="phb-hint">
@@ -875,9 +913,9 @@ const themeLabel = computed(() =>
 
 // Page size → preview aspect ratio (max-width stays 680px; height scales by ratio)
 const PAGE_ASPECT: Record<ScriptoriumPageSize, number> = {
-  A4: 297 / 210,     // ~1.4143
-  A5: 210 / 148,     // ~1.4189
-  Letter: 11 / 8.5,  // ~1.2941
+  A4: 297 / 210, // ~1.4143
+  A5: 210 / 148, // ~1.4189
+  Letter: 11 / 8.5, // ~1.2941
 } as const;
 const pageSizeStyle = computed(() => {
   const ratio = PAGE_ASPECT[pageSize.value];
@@ -1022,9 +1060,7 @@ const editor = useEditor({
           "div",
           {
             class: wrapperClass,
-            ...(wrapperStyle.length
-              ? { style: wrapperStyle.join(";") }
-              : {}),
+            ...(wrapperStyle.length ? { style: wrapperStyle.join(";") } : {}),
           },
           ["img", imgAttrs],
         ];
@@ -1043,15 +1079,36 @@ const editor = useEditor({
           class: {
             default: null,
             parseHTML: (el) => el.getAttribute("class") ?? null,
-            renderHTML: (attrs) =>
-              attrs.class ? { class: attrs.class } : {},
+            renderHTML: (attrs) => (attrs.class ? { class: attrs.class } : {}),
           },
         };
       },
     }).configure({ resizable: false }),
     TableRow,
-    TableCell,
-    TableHeader,
+    TableCell.extend({
+      addAttributes() {
+        return {
+          ...this.parent?.(),
+          class: {
+            default: null,
+            parseHTML: (el) => el.getAttribute("class") ?? null,
+            renderHTML: (attrs) => (attrs.class ? { class: attrs.class } : {}),
+          },
+        };
+      },
+    }),
+    TableHeader.extend({
+      addAttributes() {
+        return {
+          ...this.parent?.(),
+          class: {
+            default: null,
+            parseHTML: (el) => el.getAttribute("class") ?? null,
+            renderHTML: (attrs) => (attrs.class ? { class: attrs.class } : {}),
+          },
+        };
+      },
+    }),
     SkipCounting,
     ResetCounting,
     WideBlock,
@@ -1141,20 +1198,19 @@ const pages = computed(() => {
 
 // Page-number counter logic shared between preview and PDF
 // Returns the footer label for each page index, or null if that page is unnumbered.
-// Page 0 (title bar page) always returns null.
-// Pages containing a front or back cover page also suppress the footer.
+// Pages containing a front or back cover page suppress the footer.
 const pageFooters = computed<(string | null)[]>(() => {
   if (!showPageNumbers.value) return pages.value.map(() => null);
 
   const skipTag = 'data-type="skip-counting"';
   const resetTag = 'data-type="reset-counting"';
   let counter = pageNumberStart.value;
-  return pages.value.map((html, idx) => {
-    if (idx === 0) return null; // title bar page never gets a footer
+  return pages.value.map((html, _idx) => {
     // Front and back cover variants suppress the footer
     if (
       html.includes('data-type="coverPage"') &&
-      (html.includes('data-variant="front"') || html.includes('data-variant="back"'))
+      (html.includes('data-variant="front"') ||
+        html.includes('data-variant="back"'))
     ) {
       return null;
     }
@@ -1265,10 +1321,10 @@ onUnmounted(() => editor.value?.destroy());
 
   /* Palette */
   --sc-ink: #1a1a1a;
-  --sc-accent: #1b3a4b;
+  --sc-accent: #7d1c1c; /* dark crimson — matches 2024 Monster Manual / D&D Beyond */
   --sc-accent-contrast: #f9f6ef;
   --sc-page-bg: #f9f6ef;
-  --sc-callout-bg: #e8f4f8;
+  --sc-callout-bg: #f5ece8; /* very light warm rose, derived from red accent */
   --sc-callout-border: var(--sc-accent);
   --sc-code-bg: #e4ddd0;
   --sc-col-rule: #c9b99a;
@@ -1316,6 +1372,15 @@ onUnmounted(() => editor.value?.destroy());
 .phb-two-col :deep(h1),
 .phb-two-col :deep(h2) {
   column-span: all;
+}
+/* Headings inside callout/stat blocks must NOT span columns */
+.phb-two-col :deep(.sc-note h1),
+.phb-two-col :deep(.sc-note h2),
+.phb-two-col :deep(.sc-descriptive h1),
+.phb-two-col :deep(.sc-descriptive h2),
+.phb-two-col :deep(.sc-wide h1),
+.phb-two-col :deep(.sc-wide h2) {
+  column-span: none;
 }
 
 /* Ink-friendly: strip background fills and decorative imagery in preview */
@@ -1511,7 +1576,8 @@ onUnmounted(() => editor.value?.destroy());
 .phb-editor :deep(.ProseMirror .sc-column-break) {
   display: block;
   height: 0;
-  border-top: 1px dashed color-mix(in srgb, var(--sc-col-rule, currentColor) 60%, transparent);
+  border-top: 1px dashed
+    color-mix(in srgb, var(--sc-col-rule, currentColor) 60%, transparent);
   margin: 0.5rem 0;
   position: relative;
 }
@@ -1736,6 +1802,11 @@ onUnmounted(() => editor.value?.destroy());
   font-weight: 600;
 }
 
+/* Recto (right-hand, odd page number): # on right, no left # */
+.sc-footer--recto .sc-footer-num--left { display: none; }
+/* Verso (left-hand, even page number): # on left, no right # */
+.sc-footer--verso .sc-footer-num--right { display: none; }
+
 /* ── Skip / Reset counting chips (editor only) ────────────────── */
 
 /*
@@ -1903,7 +1974,8 @@ onUnmounted(() => editor.value?.destroy());
 .phb-editor :deep(.ProseMirror .sc-class-table td) {
   text-align: center;
   padding: 0.2rem 0.4rem;
-  border: 1px solid color-mix(in srgb, var(--sc-accent, #1b3a4b) 30%, transparent);
+  border: 1px solid
+    color-mix(in srgb, var(--sc-accent, #1b3a4b) 30%, transparent);
   vertical-align: middle;
 }
 .phb-body :deep(.sc-class-table td p),
@@ -1939,10 +2011,18 @@ onUnmounted(() => editor.value?.destroy());
 .phb-page.theme-phb2014 {
   --sc-callout-note-bg: var(--sc-callout-bg);
   --sc-callout-note-border: var(--sc-callout-border);
-  --sc-callout-desc-bg: color-mix(in srgb, var(--sc-accent) 12%, var(--sc-page-bg));
+  --sc-callout-desc-bg: color-mix(
+    in srgb,
+    var(--sc-accent) 12%,
+    var(--sc-page-bg)
+  );
   --sc-callout-desc-border: var(--sc-accent);
   --sc-callout-quote-color: var(--sc-ink);
-  --sc-callout-attr-color: color-mix(in srgb, var(--sc-accent) 80%, var(--sc-ink));
+  --sc-callout-attr-color: color-mix(
+    in srgb,
+    var(--sc-accent) 80%,
+    var(--sc-ink)
+  );
 }
 
 /* Classic theme callout overrides */
@@ -1984,7 +2064,8 @@ onUnmounted(() => editor.value?.destroy());
 
 /* Editor */
 .phb-editor :deep(.ProseMirror .sc-note) {
-  border-left: 3px solid color-mix(in srgb, var(--primary, currentColor) 60%, transparent);
+  border-left: 3px solid
+    color-mix(in srgb, var(--primary, currentColor) 60%, transparent);
   background: color-mix(in srgb, var(--primary, currentColor) 8%, transparent);
   border-radius: 0 4px 4px 0;
   padding: 0.5rem 0.75rem;
@@ -2017,7 +2098,8 @@ onUnmounted(() => editor.value?.destroy());
 
 /* Editor */
 .phb-editor :deep(.ProseMirror .sc-descriptive) {
-  border: 2px solid color-mix(in srgb, var(--primary, currentColor) 50%, transparent);
+  border: 2px solid
+    color-mix(in srgb, var(--primary, currentColor) 50%, transparent);
   background: color-mix(in srgb, var(--primary, currentColor) 6%, transparent);
   border-radius: 4px;
   padding: 0.75rem;
@@ -2070,6 +2152,111 @@ onUnmounted(() => editor.value?.destroy());
 }
 .phb-editor :deep(.ProseMirror .sc-attribution::before) {
   content: "\2014\00A0";
+}
+
+/* ── Ability score table ────────────────────────────────────────── */
+/* Two-row borderless table: header row (STR/DEX/…) + value row */
+.phb-body :deep(.sc-ability-table) {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  margin: 6px 0 8px;
+  font-family: var(--sc-body-font);
+  font-size: 0.875em;
+}
+.phb-body :deep(.sc-ability-table th) {
+  font-family: var(--sc-heading-font);
+  font-size: 0.875em;
+  font-variant: small-caps;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-align: center;
+  color: var(--sc-accent);
+  padding: 1px 2px 3px;
+  border: none;
+  background: transparent;
+}
+.phb-body :deep(.sc-ability-table td) {
+  text-align: center;
+  padding: 1px 2px;
+  border: none;
+  color: var(--sc-ink);
+}
+/* Classic 2014: a thin rule under the header row mirrors PHB layout */
+.phb-body.theme-phb2014 :deep(.sc-ability-table th) {
+  border-bottom: 1px solid var(--sc-accent);
+}
+/* Editor placeholder styling */
+.phb-editor :deep(.ProseMirror .sc-ability-table th) {
+  background: color-mix(in srgb, var(--sc-accent) 8%, transparent);
+}
+
+/* ── 2024 ability table variant ──────────────────────────────────────────── */
+/*
+ * Nine-column layout: 4 cols (name + Score + Mod + Save) · 1 gap col ·
+ * 4 cols (name + Score + Mod + Save) — mirrors the D&D Beyond 2024 layout.
+ *
+ * .sc-abil-name  — ability name cell (STR/DEX/… label + accent background)
+ * .sc-abil-gap   — invisible spacer column between the two panels
+ */
+.phb-body :deep(.sc-ability-table--2024) {
+  table-layout: auto;
+}
+/* Full header row (all non-gap th) gets accent fill — matches D&D Beyond layout */
+.phb-body :deep(.sc-ability-table--2024 thead th:not(.sc-abil-gap)) {
+  background: var(--sc-accent);
+  color: var(--sc-accent-contrast);
+  font-family: var(--sc-heading-font);
+  font-size: 0.6875rem;
+  font-variant: small-caps;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-align: center;
+  padding: 4px 6px;
+  border: none;
+  white-space: nowrap;
+}
+/* Body ability-name cells (td.sc-abil-name) also get accent fill */
+.phb-body :deep(.sc-ability-table--2024 tbody td.sc-abil-name) {
+  background: var(--sc-accent);
+  color: var(--sc-accent-contrast);
+  font-family: var(--sc-heading-font);
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant: small-caps;
+  letter-spacing: 0.05em;
+  text-align: center;
+  padding: 3px 8px;
+  border: none;
+  white-space: nowrap;
+}
+/* Data cells (body score/mod/save columns) */
+.phb-body :deep(.sc-ability-table--2024 tbody td:not(.sc-abil-gap):not(.sc-abil-name)) {
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 2px 4px;
+  color: var(--sc-ink);
+  border-bottom: 1px solid color-mix(in srgb, var(--sc-accent) 15%, transparent);
+}
+/* Gap column — invisible separator between the two panels */
+.phb-body :deep(.sc-ability-table--2024 .sc-abil-gap) {
+  width: 1rem;
+  border: none !important;
+  background: transparent !important;
+  padding: 0;
+}
+
+/* Editor: same color treatment in the ProseMirror view */
+.phb-editor :deep(.ProseMirror .sc-ability-table--2024 td.sc-abil-name),
+.phb-editor :deep(.ProseMirror .sc-ability-table--2024 thead th:not(.sc-abil-gap)) {
+  background: color-mix(in srgb, currentColor 30%, transparent);
+  font-weight: 700;
+  font-variant: small-caps;
+}
+.phb-editor :deep(.ProseMirror .sc-ability-table--2024 .sc-abil-gap) {
+  width: 1rem;
+  border: none;
+  background: transparent;
 }
 
 /* ── Image layout modes ─────────────────────────────────────────── */

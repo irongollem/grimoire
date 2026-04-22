@@ -43,10 +43,29 @@ export interface ScriptoriumImportData {
 // ── Formatter interface ───────────────────────────────────────────────────────
 
 export interface AssetFormatter<T> {
-  format(asset: T): ScriptoriumImportData;
+  format(asset: T, theme?: ScriptoriumTheme): ScriptoriumImportData;
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
+
+/** CR string → XP award (D&D 5e / 2024 standard table). */
+const CR_XP: Record<string, number> = {
+  "0": 10, "1/8": 25, "1/4": 50, "1/2": 100,
+  "1": 200, "2": 450, "3": 700, "4": 1100,
+  "5": 1800, "6": 2300, "7": 2900, "8": 3900,
+  "9": 5000, "10": 5900, "11": 7200, "12": 8400,
+  "13": 10000, "14": 11500, "15": 13000, "16": 15000,
+  "17": 18000, "18": 20000, "19": 22000, "20": 25000,
+  "21": 33000, "22": 41000, "23": 50000, "24": 62000,
+  "25": 75000, "26": 90000, "27": 105000, "28": 120000,
+  "29": 135000, "30": 155000,
+};
+
+function crLabel(cr: string): string {
+  const xp = CR_XP[cr];
+  const xpStr = xp !== undefined ? ` (${xp.toLocaleString()} XP)` : "";
+  return `CR ${cr}${xpStr}`;
+}
 
 function countWords(html: string): number {
   const text = html
@@ -61,8 +80,100 @@ function abilityMod(score: number): string {
   return m >= 0 ? `+${m}` : `${m}`;
 }
 
+/**
+ * Parse a saving_throws string (e.g. "Dex +4, Wis +2") into a per-ability map.
+ * Abilities not listed default to the plain ability modifier.
+ */
+function parseSaves(savingThrows: string | null, abs: [string, number][]): Record<string, string> {
+  const saves: Record<string, string> = {};
+  abs.forEach(([label, score]) => { saves[label] = abilityMod(score); });
+  if (!savingThrows) return saves;
+  const abbrev: Record<string, string> = {
+    str: "STR", strength: "STR",
+    dex: "DEX", dexterity: "DEX",
+    con: "CON", constitution: "CON",
+    int: "INT", intelligence: "INT",
+    wis: "WIS", wisdom: "WIS",
+    cha: "CHA", charisma: "CHA",
+  };
+  savingThrows.split(",").forEach((part) => {
+    const m = part.trim().match(/^(\w+)\s*([+-]\d+)/i);
+    if (m) {
+      const key = abbrev[m[1].toLowerCase()];
+      if (key) saves[key] = m[2];
+    }
+  });
+  return saves;
+}
+
+/**
+ * Render ability scores as a theme-appropriate table.
+ *
+ * Classic PHB 2014: single wide 2-row table — ability abbreviations in the
+ *   header, "score (mod)" in the value row.
+ *
+ * OneDnD 2024: two 4-row × 4-column panels (STR/DEX/CON left, INT/WIS/CHA
+ *   right) with Score / Mod / Save columns — matching the D&D Beyond 2024
+ *   monster layout. Layout is fixed at import time (not reactive to theme
+ *   toggle; reimport with the correct theme active to change it).
+ */
+function abilityScoresHtml(
+  abs: [string, number][],
+  savingThrows: string | null,
+  theme: ScriptoriumTheme = "onednd2024",
+): string {
+  if (theme === "phb2014") {
+    // ── Classic: 2-row 6-column table ────────────────────────────────────────
+    const headers = abs.map(([l]) => `<th>${l}</th>`).join("");
+    const values = abs.map(([, s]) => `<td>${s} (${abilityMod(s)})</td>`).join("");
+    return `<table class="sc-ability-table sc-ability-table--classic"><thead><tr>${headers}</tr></thead><tbody><tr>${values}</tr></tbody></table>`;
+  }
+
+  // ── 2024: two 4-row panels inside one table (gap column in the middle) ─────
+  // Header row uses <th> throughout; body rows use <td> throughout to avoid
+  // mixed th/td per-row which ProseMirror normalises inconsistently.
+  // Ability name cells in the body use class="sc-abil-name" on <td>.
+  const saves = parseSaves(savingThrows, abs);
+  const left = abs.slice(0, 3);   // STR, DEX, CON
+  const right = abs.slice(3);     // INT, WIS, CHA
+  const header = `<tr><th class="sc-abil-name"></th><th>Score</th><th>Mod</th><th>Save</th><th class="sc-abil-gap"></th><th class="sc-abil-name"></th><th>Score</th><th>Mod</th><th>Save</th></tr>`;
+  const rows = left.map(([lL, sL], i) => {
+    const [lR, sR] = right[i];
+    const modL = abilityMod(sL); const modR = abilityMod(sR);
+    return `<tr><td class="sc-abil-name">${lL}</td><td>${sL}</td><td>${modL}</td><td>${saves[lL]}</td><td class="sc-abil-gap"></td><td class="sc-abil-name">${lR}</td><td>${sR}</td><td>${modR}</td><td>${saves[lR]}</td></tr>`;
+  }).join("");
+  return `<table class="sc-ability-table sc-ability-table--2024"><thead>${header}</thead><tbody>${rows}</tbody></table>`;
+}
+
 function traitList(traits: Array<{ name: string; description: string }>): string {
-  return traits.map((t) => `<p><strong>${t.name}.</strong> ${t.description}</p>`).join("\n");
+  return traits
+    .map((t) => {
+      const desc = t.description ?? "";
+      // Trait descriptions may be stored as Tiptap JSON (from the rich-text editor)
+      // or as plain text (Open5e imports before the RichTextEditor was adopted).
+      if (desc.trimStart().startsWith("{")) {
+        const bodyHtml = tiptapJsonToHtml(desc);
+        // Merge the bold name into the first <p> so it reads as a single paragraph
+        if (bodyHtml.startsWith("<p>")) {
+          return bodyHtml.replace(/^<p>/, `<p><strong>${t.name}.</strong> `);
+        }
+        return `<p><strong>${t.name}.</strong></p>\n${bodyHtml}`;
+      }
+      return `<p><strong>${t.name}.</strong> ${desc}</p>`;
+    })
+    .join("\n");
+}
+
+/**
+ * Render a rich-text field that may be stored as Tiptap JSON or plain text.
+ * Falls back to a plain `<p>` wrapping if not valid JSON.
+ */
+function richTextOrPlain(value: string | null): string {
+  if (!value) return "";
+  if (value.trimStart().startsWith("{")) {
+    return tiptapJsonToHtml(value) || `<p>${value}</p>\n`;
+  }
+  return `<p>${value}</p>\n`;
 }
 
 function capitalize(s: string): string {
@@ -77,7 +188,7 @@ function uniqueTags(...groups: (string | null | undefined)[][]): string[] {
 // ── NPC formatter ─────────────────────────────────────────────────────────────
 
 const npcFormatter: AssetFormatter<{ npc: Npc; locationName?: string | null }> = {
-  format({ npc, locationName }): ScriptoriumImportData {
+  format({ npc, locationName }, theme: ScriptoriumTheme = "onednd2024"): ScriptoriumImportData {
     let html = "";
 
     // Portrait image (floated right in the document)
@@ -117,7 +228,7 @@ const npcFormatter: AssetFormatter<{ npc: Npc; locationName?: string | null }> =
     if (loreItems.length) {
       html += "<h2>Lore</h2>\n";
       loreItems.forEach(({ label, value }) => {
-        html += `<h3>${label}</h3>\n<p>${value}</p>\n`;
+        html += `<h3>${label}</h3>\n${richTextOrPlain(value)}`;
       });
     }
 
@@ -125,22 +236,19 @@ const npcFormatter: AssetFormatter<{ npc: Npc; locationName?: string | null }> =
     if (npc.stat_block) {
       const sb = npc.stat_block;
       html += "<h1>Statistics</h1>\n";
-      html += `<p><strong>AC</strong> ${sb.armor_class} &nbsp; <strong>HP</strong> ${sb.hit_points} &nbsp; <strong>Speed</strong> ${sb.speed} &nbsp; <strong>CR</strong> ${sb.challenge_rating}</p>\n`;
+      html += `<p><strong>AC</strong> ${sb.armor_class}</p>\n`;
+      html += `<p><strong>HP</strong> ${sb.hit_points}</p>\n`;
+      html += `<p><strong>Speed</strong> ${sb.speed}</p>\n`;
+      html += `<p>${crLabel(sb.challenge_rating)}</p>\n`;
 
-      // Ability scores
-      html += "<p>";
-      const abilities: [string, number][] = [
-        ["STR", sb.str],
-        ["DEX", sb.dex],
-        ["CON", sb.con],
-        ["INT", sb.int],
-        ["WIS", sb.wis],
-        ["CHA", sb.cha],
-      ];
-      html += abilities
-        .map(([label, score]) => `<strong>${label}</strong> ${score} (${abilityMod(score)})`)
-        .join(" &nbsp; ");
-      html += "</p>\n";
+      // Ability scores — theme-appropriate table (fixed at import time)
+      {
+        const abs: [string, number][] = [
+          ["STR", sb.str], ["DEX", sb.dex], ["CON", sb.con],
+          ["INT", sb.int], ["WIS", sb.wis], ["CHA", sb.cha],
+        ];
+        html += abilityScoresHtml(abs, sb.saving_throws ?? null, theme) + "\n";
+      }
 
       if (sb.skills && Object.keys(sb.skills).length) {
         const skillsStr = Object.entries(sb.skills)
@@ -171,7 +279,7 @@ const npcFormatter: AssetFormatter<{ npc: Npc; locationName?: string | null }> =
       tags: uniqueTags(["npc"], npc.tags, [npc.race]),
       is_published: false,
       is_two_column: false,
-      theme: "onednd2024" as ScriptoriumTheme,
+      theme,
       page_size: "A4" as ScriptoriumPageSize,
       ink_friendly: false,
       word_count: countWords(html),
@@ -185,7 +293,7 @@ const npcFormatter: AssetFormatter<{ npc: Npc; locationName?: string | null }> =
 // ── Monster formatter ─────────────────────────────────────────────────────────
 
 const monsterFormatter: AssetFormatter<Monster> = {
-  format(monster: Monster): ScriptoriumImportData {
+  format(monster: Monster, theme: ScriptoriumTheme = "onednd2024"): ScriptoriumImportData {
     const sb = monster.stat_block;
     let html = "";
 
@@ -200,23 +308,25 @@ const monsterFormatter: AssetFormatter<Monster> = {
     ].filter(Boolean);
     html += `<p><em>${typeParts.join(" ")}</em></p>\n`;
 
-    // Combat stats
-    html += `<p><strong>Armor Class</strong> ${sb.armor_class} &nbsp; <strong>Hit Points</strong> ${sb.hit_points} &nbsp; <strong>Speed</strong> ${sb.speed} &nbsp; <strong>Challenge</strong> ${sb.challenge_rating}</p>\n`;
+    // Portrait image (floated right)
+    if (monster.image_url) {
+      html += `<img src="${monster.image_url}" data-align="right" style="float:right;margin:0 0 10px 14px;width:180px;" alt="${monster.name}" />\n`;
+    }
 
-    // Ability scores
-    html += "<p>";
-    const abilities: [string, number][] = [
-      ["STR", sb.str],
-      ["DEX", sb.dex],
-      ["CON", sb.con],
-      ["INT", sb.int],
-      ["WIS", sb.wis],
-      ["CHA", sb.cha],
-    ];
-    html += abilities
-      .map(([label, score]) => `<strong>${label}</strong> ${score} (${abilityMod(score)})`)
-      .join(" &nbsp; ");
-    html += "</p>\n";
+    // Combat stats — one per line, matching D&D Beyond 2024 layout
+    html += `<p><strong>Armor Class</strong> ${sb.armor_class}</p>\n`;
+    html += `<p><strong>Hit Points</strong> ${sb.hit_points}</p>\n`;
+    html += `<p><strong>Speed</strong> ${sb.speed}</p>\n`;
+    html += `<p>${crLabel(sb.challenge_rating)}</p>\n`;
+
+    // Ability scores — theme-appropriate table (fixed at import time)
+    {
+      const abs: [string, number][] = [
+        ["STR", sb.str], ["DEX", sb.dex], ["CON", sb.con],
+        ["INT", sb.int], ["WIS", sb.wis], ["CHA", sb.cha],
+      ];
+      html += abilityScoresHtml(abs, sb.saving_throws ?? null, theme) + "\n";
+    }
 
     // Proficiency block
     if (sb.saving_throws) html += `<p><strong>Saving Throws</strong> ${sb.saving_throws}</p>\n`;
@@ -259,8 +369,12 @@ const monsterFormatter: AssetFormatter<Monster> = {
       html += "<h1>Lair Actions</h1>\n" + traitList(sb.lair_actions);
     }
 
+    if (monster.description) {
+      html += "<h2>Description</h2>\n" + tiptapJsonToHtml(monster.description);
+    }
     if (monster.notes) {
-      html += `<h2>DM Notes</h2>\n<blockquote><p>${monster.notes}</p></blockquote>\n`;
+      const notesHtml = tiptapJsonToHtml(monster.notes) || `<p>${monster.notes}</p>\n`;
+      html += "<h2>DM Notes</h2>\n" + notesHtml;
     }
 
     return {
@@ -270,7 +384,7 @@ const monsterFormatter: AssetFormatter<Monster> = {
       tags: uniqueTags(["monster"], [monster.monster_type], monster.tags, [monster.source]),
       is_published: false,
       is_two_column: false,
-      theme: "onednd2024" as ScriptoriumTheme,
+      theme,
       page_size: "A4" as ScriptoriumPageSize,
       ink_friendly: false,
       word_count: countWords(html),
@@ -596,12 +710,19 @@ export function formatForScriptorium<T>(type: string, asset: T): ScriptoriumImpo
 }
 
 // Typed convenience exports
-export function formatNpcForScriptorium(npc: Npc, locationName?: string | null): ScriptoriumImportData {
-  return npcFormatter.format({ npc, locationName });
+export function formatNpcForScriptorium(
+  npc: Npc,
+  locationName?: string | null,
+  theme: ScriptoriumTheme = "onednd2024",
+): ScriptoriumImportData {
+  return npcFormatter.format({ npc, locationName }, theme);
 }
 
-export function formatMonsterForScriptorium(monster: Monster): ScriptoriumImportData {
-  return monsterFormatter.format(monster);
+export function formatMonsterForScriptorium(
+  monster: Monster,
+  theme: ScriptoriumTheme = "onednd2024",
+): ScriptoriumImportData {
+  return monsterFormatter.format(monster, theme);
 }
 
 export function formatSpellForScriptorium(spell: Spell): ScriptoriumImportData {

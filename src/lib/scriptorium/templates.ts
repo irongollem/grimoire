@@ -35,7 +35,7 @@ export function monsterStatBlockTemplate(): string {
 <p><em>[Size] [Monster Type], [Alignment]</em></p>
 <p><strong>Armor Class</strong> [AC] &nbsp; <strong>Hit Points</strong> [HP] ([Hit Dice]) &nbsp; <strong>Speed</strong> [Speed] ft.</p>
 <p><strong>Challenge</strong> [CR] ([XP] XP) &nbsp; <strong>Proficiency Bonus</strong> +[PB]</p>
-<p><strong>STR</strong> [10] (+0) &nbsp; <strong>DEX</strong> [10] (+0) &nbsp; <strong>CON</strong> [10] (+0) &nbsp; <strong>INT</strong> [10] (+0) &nbsp; <strong>WIS</strong> [10] (+0) &nbsp; <strong>CHA</strong> [10] (+0)</p>
+<table class="sc-ability-table sc-ability-table--2024"><thead><tr><th class="sc-abil-name"></th><th>Score</th><th>Mod</th><th>Save</th><th class="sc-abil-gap"></th><th class="sc-abil-name"></th><th>Score</th><th>Mod</th><th>Save</th></tr></thead><tbody><tr><td class="sc-abil-name">STR</td><td>[10]</td><td>(+0)</td><td>+0</td><td class="sc-abil-gap"></td><td class="sc-abil-name">INT</td><td>[10]</td><td>(+0)</td><td>+0</td></tr><tr><td class="sc-abil-name">DEX</td><td>[10]</td><td>(+0)</td><td>+0</td><td class="sc-abil-gap"></td><td class="sc-abil-name">WIS</td><td>[10]</td><td>(+0)</td><td>+0</td></tr><tr><td class="sc-abil-name">CON</td><td>[10]</td><td>(+0)</td><td>+0</td><td class="sc-abil-gap"></td><td class="sc-abil-name">CHA</td><td>[10]</td><td>(+0)</td><td>+0</td></tr></tbody></table>
 <p><strong>Saving Throws</strong> [e.g. Dex +4, Wis +2]</p>
 <p><strong>Skills</strong> [e.g. Perception +4, Stealth +6]</p>
 <p><strong>Damage Resistances</strong> [damage types]</p>
@@ -67,7 +67,7 @@ export function monsterStatBlockWideTemplate(): string {
 <p><em>[Size] [Monster Type], [Alignment]</em></p>
 <p><strong>Armor Class</strong> [AC] &nbsp; <strong>Hit Points</strong> [HP] ([Hit Dice]) &nbsp; <strong>Speed</strong> [Speed] ft.</p>
 <p><strong>Challenge</strong> [CR] ([XP] XP) &nbsp; <strong>Proficiency Bonus</strong> +[PB]</p>
-<p><strong>STR</strong> [10] (+0) &nbsp; <strong>DEX</strong> [10] (+0) &nbsp; <strong>CON</strong> [10] (+0) &nbsp; <strong>INT</strong> [10] (+0) &nbsp; <strong>WIS</strong> [10] (+0) &nbsp; <strong>CHA</strong> [10] (+0)</p>
+<table class="sc-ability-table sc-ability-table--2024"><thead><tr><th class="sc-abil-name"></th><th>Score</th><th>Mod</th><th>Save</th><th class="sc-abil-gap"></th><th class="sc-abil-name"></th><th>Score</th><th>Mod</th><th>Save</th></tr></thead><tbody><tr><td class="sc-abil-name">STR</td><td>[10]</td><td>(+0)</td><td>+0</td><td class="sc-abil-gap"></td><td class="sc-abil-name">INT</td><td>[10]</td><td>(+0)</td><td>+0</td></tr><tr><td class="sc-abil-name">DEX</td><td>[10]</td><td>(+0)</td><td>+0</td><td class="sc-abil-gap"></td><td class="sc-abil-name">WIS</td><td>[10]</td><td>(+0)</td><td>+0</td></tr><tr><td class="sc-abil-name">CON</td><td>[10]</td><td>(+0)</td><td>+0</td><td class="sc-abil-gap"></td><td class="sc-abil-name">CHA</td><td>[10]</td><td>(+0)</td><td>+0</td></tr></tbody></table>
 <p><strong>Saving Throws</strong> [e.g. Dex +4, Wis +2]</p>
 <p><strong>Skills</strong> [e.g. Perception +4, Stealth +6]</p>
 <p><strong>Damage Resistances</strong> [damage types]</p>

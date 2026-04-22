@@ -70,10 +70,10 @@ const RENDER_CSS = `
   --sc-heading-font: 'Cinzel', Georgia, serif;
   --sc-body-font: Georgia, 'Times New Roman', serif;
   --sc-ink: #1a1a1a;
-  --sc-accent: #1B3A4B;
+  --sc-accent: #7d1c1c;
   --sc-accent-contrast: #F9F6EF;
   --sc-page-bg: #F9F6EF;
-  --sc-callout-bg: #E8F4F8;
+  --sc-callout-bg: #F5ECE8;
   --sc-callout-border: var(--sc-accent);
   --sc-code-bg: #e4ddd0;
   --sc-h1-bg: var(--sc-accent);
@@ -94,7 +94,8 @@ const RENDER_CSS = `
   --sc-h1-border-b: 3px double var(--sc-accent);
   --sc-h1-padding: 5px 0 4px;
 }
-.phb-page { position:relative; width:var(--sc-page-w,794px); height:var(--sc-page-h,1123px); background:var(--sc-page-bg); padding:60px 68px 53px; overflow:hidden; font-family:var(--sc-body-font); color:var(--sc-ink); line-height:1.65; font-size:15px; }
+.phb-page { position:relative; width:var(--sc-page-w,794px); height:var(--sc-page-h,1123px); background:url('/assets/scriptorium/page-background.webp') center/cover no-repeat, var(--sc-page-bg); padding:60px 68px 53px; overflow:hidden; font-family:var(--sc-body-font); color:var(--sc-ink); line-height:1.65; font-size:15px; }
+.ink-friendly.phb-page { background:var(--sc-page-bg) !important; }
 .phb-border { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; opacity:.65; }
 .phb-title-bar { font-family:var(--sc-heading-font); font-size:26px; font-weight:700; color:var(--sc-title-bar-color); background:var(--sc-title-bar-bg); padding:9px 68px; margin:-60px -68px 28px; letter-spacing:.04em; line-height:1.25; }
 h1 { font-family:var(--sc-heading-font); font-size:19px; font-weight:700; color:var(--sc-h1-color); background:var(--sc-h1-bg); border-bottom:var(--sc-h1-border-b); padding:var(--sc-h1-padding); margin:19px -5px 11px; }
@@ -157,10 +158,10 @@ div[data-type="coverPage"] { position:absolute; inset:0; overflow:hidden; }
 .phb-page.theme-onednd2024, .phb-page.theme-phb2014 {
   --sc-callout-note-bg: var(--sc-callout-bg);
   --sc-callout-note-border: var(--sc-callout-border);
-  --sc-callout-desc-bg: color-mix(in srgb, var(--sc-accent) 12%, var(--sc-page-bg));
+  --sc-callout-desc-bg: #EADCD6;
   --sc-callout-desc-border: var(--sc-accent);
   --sc-callout-quote-color: var(--sc-ink);
-  --sc-callout-attr-color: color-mix(in srgb, var(--sc-accent) 80%, var(--sc-ink));
+  --sc-callout-attr-color: #691C1C;
 }
 .phb-page.theme-phb2014 {
   --sc-callout-note-bg: #E0E5C1;
@@ -186,6 +187,23 @@ div[data-type="coverPage"] { position:absolute; inset:0; overflow:hidden; }
 /* Attribution — em-dash via pseudo-element; no content = no orphaned dash */
 .sc-attribution { font-style:normal; font-variant:small-caps; font-size:0.875em; color:var(--sc-callout-attr-color); margin:6px 0 0; letter-spacing:.02em; }
 .sc-attribution::before { content:"\\2014\\00A0"; }
+/* Ability score table — two-row borderless layout */
+.sc-ability-table { width:100%; border-collapse:collapse; table-layout:fixed; margin:6px 0 8px; font-family:var(--sc-body-font); font-size:13px; }
+.sc-ability-table th { font-family:var(--sc-heading-font); font-size:12px; font-variant:small-caps; font-weight:700; letter-spacing:.03em; text-align:center; color:var(--sc-accent); padding:1px 2px 3px; border:none; background:transparent; }
+.sc-ability-table td { text-align:center; padding:1px 2px; border:none; color:var(--sc-ink); }
+.phb-page.theme-phb2014 .sc-ability-table th { border-bottom:1px solid var(--sc-accent); }
+/* 2024 ability table variant — two 4-col panels with filled name cells */
+.sc-ability-table--2024 { table-layout:auto; }
+/* Full header row (all non-gap th) gets accent fill — matches D&D Beyond */
+.sc-ability-table--2024 thead th:not(.sc-abil-gap) { background:var(--sc-accent); color:var(--sc-accent-contrast); font-family:var(--sc-heading-font); font-size:10px; font-variant:small-caps; font-weight:700; letter-spacing:.05em; text-align:center; padding:4px 6px; border:none; white-space:nowrap; }
+/* Body ability-name cells also get accent fill */
+.sc-ability-table--2024 tbody td.sc-abil-name { background:var(--sc-accent); color:var(--sc-accent-contrast); font-family:var(--sc-heading-font); font-size:11px; font-weight:700; font-variant:small-caps; letter-spacing:.05em; text-align:center; padding:3px 8px; border:none; white-space:nowrap; }
+/* Data cells */
+.sc-ability-table--2024 tbody td:not(.sc-abil-gap):not(.sc-abil-name) { font-size:13px; text-align:center; padding:2px 4px; color:var(--sc-ink); border-bottom:1px solid rgba(125,28,28,0.15); }
+/* Gap column — invisible spacer */
+.sc-ability-table--2024 .sc-abil-gap { width:16px; border:none !important; background:transparent !important; padding:0; }
+/* Two-column layout: headings inside callout blocks must not span columns */
+.phb-two-col .sc-note h1,.phb-two-col .sc-note h2,.phb-two-col .sc-descriptive h1,.phb-two-col .sc-descriptive h2,.phb-two-col .sc-wide h1,.phb-two-col .sc-wide h2 { column-span:none; }
 /* Image layout modes — wrapper div emitted by renderHTML */
 .sc-img-wrap--wrapLeft { float:left; shape-outside:margin-box; margin:0 1em 1em 0; clear:left; }
 .sc-img-wrap--wrapRight { float:right; shape-outside:margin-box; margin:0 0 1em 1em; clear:right; }
@@ -217,6 +235,15 @@ async function buildPdfBlob(
   styleEl.textContent = RENDER_CSS + FOOTER_CSS;
   holder.appendChild(styleEl);
 
+  // Preload background texture so html2canvas can render the CSS background-image.
+  // The existing img-wait loop below will block until this resolves.
+  if (!inkFriendly) {
+    const bgPreload = document.createElement("img");
+    bgPreload.src = "/assets/scriptorium/page-background.webp";
+    bgPreload.style.cssText = "position:absolute;width:0;height:0;opacity:0;pointer-events:none;";
+    holder.appendChild(bgPreload);
+  }
+
   const cls = themeClass(theme);
   const inkCls = inkFriendly ? " ink-friendly" : "";
   const pageEls: HTMLElement[] = [];
@@ -230,30 +257,36 @@ async function buildPdfBlob(
     border.alt = "";
     page.appendChild(border);
 
-    if (i === 0) {
-      const bar = document.createElement("div");
-      bar.className = "phb-title-bar";
-      bar.textContent = title || "Untitled Document";
-      page.appendChild(bar);
-    }
-
     const body = document.createElement("div");
     body.innerHTML = pages[i];
     page.appendChild(body);
 
-    // Footer bar: inject if this page has a page number label
+    // Footer bar: inject if this page has a page number label.
+    // Recto (even index = right-hand page): number on right.
+    // Verso (odd index = left-hand page): number on left.
     const footerLabel = pageFooters[i] ?? null;
     if (footerLabel !== null) {
+      const isRecto = i % 2 === 0;
       const footer = document.createElement("div");
       footer.className = "sc-footer";
+
+      const numLeft = document.createElement("span");
+      numLeft.className = "sc-footer-num";
+      numLeft.textContent = footerLabel;
+      numLeft.style.visibility = isRecto ? "hidden" : "visible";
+
       const textSpan = document.createElement("span");
       textSpan.className = "sc-footer-text";
       textSpan.textContent = footerText;
-      const numSpan = document.createElement("span");
-      numSpan.className = "sc-footer-num";
-      numSpan.textContent = footerLabel;
+
+      const numRight = document.createElement("span");
+      numRight.className = "sc-footer-num";
+      numRight.textContent = footerLabel;
+      numRight.style.visibility = isRecto ? "visible" : "hidden";
+
+      footer.appendChild(numLeft);
       footer.appendChild(textSpan);
-      footer.appendChild(numSpan);
+      footer.appendChild(numRight);
       page.appendChild(footer);
     }
 
