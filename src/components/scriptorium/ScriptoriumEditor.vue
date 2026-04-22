@@ -705,6 +705,39 @@
             >
               {{ DOC_TYPE_LABELS[docType] }}
             </span>
+
+            <!-- Zoom controls — behaves like a PDF viewer -->
+            <div class="flex items-center rounded border border-border overflow-hidden">
+              <button
+                type="button"
+                title="Zoom out"
+                :disabled="effectiveZoom <= 0.25"
+                class="px-1.5 h-6.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                @click="zoomOut"
+              >
+                <ZoomOut class="h-3 w-3" />
+              </button>
+              <!-- Centre button: shows current zoom %; click to snap back to fit-to-width -->
+              <button
+                type="button"
+                :title="zoomMode === 'fit' ? 'Fit to width' : 'Click to fit to width'"
+                class="px-1.5 h-6.5 font-cinzel text-[9px] font-semibold tracking-wider border-x border-border transition-colors min-w-9.5 text-center"
+                :class="zoomMode === 'fit' ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-muted'"
+                @click="zoomFit"
+              >
+                {{ zoomMode === 'fit' ? 'Fit' : zoomLabel }}
+              </button>
+              <button
+                type="button"
+                title="Zoom in"
+                :disabled="effectiveZoom >= 2.0"
+                class="px-1.5 h-6.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                @click="zoomIn"
+              >
+                <ZoomIn class="h-3 w-3" />
+              </button>
+            </div>
+
             <button
               type="button"
               title="Export as PDF"
@@ -780,6 +813,8 @@ import {
   RectangleHorizontal,
   WrapText,
   Pin,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-vue-next";
 import {
   useCreateScriptoriumDocument,
@@ -933,12 +968,39 @@ onMounted(() => {
   }
 });
 
+// ── Zoom controls ────────────────────────────────────────────────────────────
+// 'fit' tracks the container width automatically; 'manual' uses a fixed step.
+const zoomMode = ref<"fit" | "manual">("fit");
+const manualZoom = ref(1.0);
+const ZOOM_STEPS = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0] as const;
+
+const autoZoom = computed(() => {
+  const { w } = PAGE_SIZES_PX[pageSize.value];
+  const available = previewContainerWidth.value > 0 ? previewContainerWidth.value - 32 : w;
+  return Math.min(1, available / w);
+});
+
+const effectiveZoom = computed(() =>
+  zoomMode.value === "fit" ? autoZoom.value : manualZoom.value,
+);
+
+const zoomLabel = computed(() => `${Math.round(effectiveZoom.value * 100)}%`);
+
+function zoomIn() {
+  const cur = effectiveZoom.value;
+  const next = ZOOM_STEPS.find((s) => s > cur + 0.01);
+  if (next !== undefined) { manualZoom.value = next; zoomMode.value = "manual"; }
+}
+function zoomOut() {
+  const cur = effectiveZoom.value;
+  const prev = [...ZOOM_STEPS].reverse().find((s) => s < cur - 0.01);
+  if (prev !== undefined) { manualZoom.value = prev; zoomMode.value = "manual"; }
+}
+function zoomFit() { zoomMode.value = "fit"; }
+
 const pageSizeStyle = computed(() => {
   const { w, h } = PAGE_SIZES_PX[pageSize.value];
-  // Leave 32 px breathing room (16 px each side) inside the parchment-gray bg strip.
-  const available = previewContainerWidth.value > 0 ? previewContainerWidth.value - 32 : w;
-  const zoom = Math.min(1, available / w);
-  return { width: `${w}px`, height: `${h}px`, zoom };
+  return { width: `${w}px`, height: `${h}px`, zoom: effectiveZoom.value };
 });
 
 // Editor
