@@ -212,7 +212,7 @@ export async function generateChroniclerImage(params: {
   if (portraitBlobs.length > 0) {
     // Multi-image edit endpoint — composes reference portraits into the scene
     const form = new FormData();
-    form.append("model", "gpt-image-1.5");
+    form.append("model", "gpt-image-2");
     form.append("prompt", prompt);
     form.append("size", size);
     form.append("output_format", "webp");
@@ -235,7 +235,7 @@ export async function generateChroniclerImage(params: {
     const res = await fetch(GENERATE_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: "gpt-image-1.5", prompt, size, output_format: "webp" }),
+      body: JSON.stringify({ model: "gpt-image-2", prompt, size, output_format: "webp" }),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));

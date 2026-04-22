@@ -42,7 +42,7 @@ export function createOpenAiImageProvider(apiKey: string): ImageProvider {
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: "gpt-image-1.5",
+          model: "gpt-image-2",
           prompt,
           size,
           output_format: "webp",
@@ -60,7 +60,7 @@ export function createOpenAiImageProvider(apiKey: string): ImageProvider {
 
     async edit(source: Blob, prompt: string, size: string): Promise<string> {
       const form = new FormData();
-      form.append("model", "gpt-image-1.5");
+      form.append("model", "gpt-image-2");
       form.append(
         "image[]",
         new File([source], "portrait.webp", { type: "image/webp" }),
