@@ -186,6 +186,12 @@ div[data-type="coverPage"] { position:absolute; inset:0; overflow:hidden; }
 /* Attribution — em-dash via pseudo-element; no content = no orphaned dash */
 .sc-attribution { font-style:normal; font-variant:small-caps; font-size:0.875em; color:var(--sc-callout-attr-color); margin:6px 0 0; letter-spacing:.02em; }
 .sc-attribution::before { content:"\\2014\\00A0"; }
+/* Image layout modes — wrapper div emitted by renderHTML */
+.sc-img-wrap--wrapLeft { float:left; shape-outside:margin-box; margin:0 1em 1em 0; clear:left; }
+.sc-img-wrap--wrapRight { float:right; shape-outside:margin-box; margin:0 0 1em 1em; clear:right; }
+.sc-img-wrap--wrapLeft.sc-img-wrap--gutter { margin-left:-3em; }
+.sc-img-wrap--wrapRight.sc-img-wrap--gutter { margin-right:-3em; }
+.sc-img-wrap--absolute { position:absolute; z-index:10; }
 `;
 
 function themeClass(theme: ScriptoriumTheme): string {

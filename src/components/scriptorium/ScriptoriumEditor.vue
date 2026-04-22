@@ -305,7 +305,7 @@
                   editor
                     .chain()
                     .focus()
-                    .updateAttributes('image', { dataAlign: 'left' })
+                    .updateAttributes('image', { dataAlign: 'left', layoutMode: 'inline' })
                     .run()
                 "
               >
@@ -321,7 +321,7 @@
                   editor
                     .chain()
                     .focus()
-                    .updateAttributes('image', { dataAlign: 'center' })
+                    .updateAttributes('image', { dataAlign: 'center', layoutMode: 'inline' })
                     .run()
                 "
               >
@@ -340,13 +340,174 @@
                   editor
                     .chain()
                     .focus()
-                    .updateAttributes('image', { dataAlign: 'right' })
+                    .updateAttributes('image', { dataAlign: 'right', layoutMode: 'inline' })
                     .run()
                 "
               >
                 <AlignRight class="h-3.5 w-3.5" />
               </button>
               <div class="w-px h-5 bg-border mx-0.5" />
+              <!-- Layout mode controls -->
+              <span
+                class="font-cinzel text-[9px] text-muted-foreground tracking-wider px-1 self-center"
+                >LAYOUT</span
+              >
+              <button
+                type="button"
+                title="Wrap left — text flows around right edge"
+                :class="tbCls(editor.getAttributes('image').layoutMode === 'wrapLeft')"
+                @click="
+                  editor
+                    .chain()
+                    .focus()
+                    .updateAttributes('image', { layoutMode: 'wrapLeft' })
+                    .run()
+                "
+              >
+                <WrapText class="h-3.5 w-3.5 scale-x-[-1]" />
+              </button>
+              <button
+                type="button"
+                title="Wrap right — text flows around left edge"
+                :class="tbCls(editor.getAttributes('image').layoutMode === 'wrapRight')"
+                @click="
+                  editor
+                    .chain()
+                    .focus()
+                    .updateAttributes('image', { layoutMode: 'wrapRight' })
+                    .run()
+                "
+              >
+                <WrapText class="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                title="Absolute position — pin image at exact page coordinates"
+                :class="tbCls(editor.getAttributes('image').layoutMode === 'absolute')"
+                @click="
+                  editor
+                    .chain()
+                    .focus()
+                    .updateAttributes('image', {
+                      layoutMode: 'absolute',
+                      posTop: '60',
+                      posLeft: '40',
+                      posRight: null,
+                      posBottom: null,
+                    })
+                    .run()
+                "
+              >
+                <Pin class="h-3.5 w-3.5" />
+              </button>
+              <!-- Bleed-into-gutter toggle (wrap modes only) -->
+              <template
+                v-if="
+                  editor.getAttributes('image').layoutMode === 'wrapLeft' ||
+                  editor.getAttributes('image').layoutMode === 'wrapRight'
+                "
+              >
+                <button
+                  type="button"
+                  title="Bleed into column gutter"
+                  :class="tbCls(editor.getAttributes('image').gutterBleed === true)"
+                  @click="
+                    editor
+                      .chain()
+                      .focus()
+                      .updateAttributes('image', {
+                        gutterBleed: !editor.getAttributes('image').gutterBleed,
+                      })
+                      .run()
+                  "
+                >
+                  <span class="font-cinzel text-[9px] font-bold leading-none">⇔</span>
+                </button>
+              </template>
+              <!-- Absolute position inputs (absolute mode only) -->
+              <template v-if="editor.getAttributes('image').layoutMode === 'absolute'">
+                <div class="w-px h-5 bg-border mx-0.5" />
+                <label class="flex items-center gap-0.5">
+                  <span class="font-cinzel text-[9px] text-muted-foreground">T</span>
+                  <input
+                    type="number"
+                    :value="editor.getAttributes('image').posTop ?? ''"
+                    min="0"
+                    max="1200"
+                    class="w-12 h-5.5 rounded border border-border bg-card px-1 font-mono text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    placeholder="px"
+                    @change="
+                      editor
+                        .chain()
+                        .focus()
+                        .updateAttributes('image', {
+                          posTop: ($event.target as HTMLInputElement).value || null,
+                        })
+                        .run()
+                    "
+                  />
+                </label>
+                <label class="flex items-center gap-0.5">
+                  <span class="font-cinzel text-[9px] text-muted-foreground">L</span>
+                  <input
+                    type="number"
+                    :value="editor.getAttributes('image').posLeft ?? ''"
+                    min="0"
+                    max="800"
+                    class="w-12 h-5.5 rounded border border-border bg-card px-1 font-mono text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    placeholder="px"
+                    @change="
+                      editor
+                        .chain()
+                        .focus()
+                        .updateAttributes('image', {
+                          posLeft: ($event.target as HTMLInputElement).value || null,
+                        })
+                        .run()
+                    "
+                  />
+                </label>
+                <label class="flex items-center gap-0.5">
+                  <span class="font-cinzel text-[9px] text-muted-foreground">R</span>
+                  <input
+                    type="number"
+                    :value="editor.getAttributes('image').posRight ?? ''"
+                    min="0"
+                    max="800"
+                    class="w-12 h-5.5 rounded border border-border bg-card px-1 font-mono text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    placeholder="px"
+                    @change="
+                      editor
+                        .chain()
+                        .focus()
+                        .updateAttributes('image', {
+                          posRight: ($event.target as HTMLInputElement).value || null,
+                        })
+                        .run()
+                    "
+                  />
+                </label>
+                <label class="flex items-center gap-0.5">
+                  <span class="font-cinzel text-[9px] text-muted-foreground">B</span>
+                  <input
+                    type="number"
+                    :value="editor.getAttributes('image').posBottom ?? ''"
+                    min="0"
+                    max="1200"
+                    class="w-12 h-5.5 rounded border border-border bg-card px-1 font-mono text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    placeholder="px"
+                    @change="
+                      editor
+                        .chain()
+                        .focus()
+                        .updateAttributes('image', {
+                          posBottom: ($event.target as HTMLInputElement).value || null,
+                        })
+                        .run()
+                    "
+                  />
+                </label>
+              </template>
             </template>
 
             <!-- History -->
@@ -579,6 +740,8 @@ import {
   LayoutGrid,
   Printer,
   RectangleHorizontal,
+  WrapText,
+  Pin,
 } from "lucide-vue-next";
 import {
   useCreateScriptoriumDocument,
@@ -1907,5 +2070,38 @@ onUnmounted(() => editor.value?.destroy());
 }
 .phb-editor :deep(.ProseMirror .sc-attribution::before) {
   content: "\2014\00A0";
+}
+
+/* ── Image layout modes ─────────────────────────────────────────── */
+/* Wrap-left: float image left, text flows around the right edge */
+.phb-body :deep(.sc-img-wrap--wrapLeft) {
+  float: left;
+  shape-outside: margin-box;
+  margin: 0 1em 1em 0;
+  clear: left;
+}
+/* Wrap-right: float image right, text flows around the left edge */
+.phb-body :deep(.sc-img-wrap--wrapRight) {
+  float: right;
+  shape-outside: margin-box;
+  margin: 0 0 1em 1em;
+  clear: right;
+}
+/* Bleed variants extend image into the column gutter */
+.phb-body :deep(.sc-img-wrap--wrapLeft.sc-img-wrap--gutter) {
+  margin-left: -3em;
+}
+.phb-body :deep(.sc-img-wrap--wrapRight.sc-img-wrap--gutter) {
+  margin-right: -3em;
+}
+/* Absolute: positioned relative to .phb-page (already position:relative) */
+.phb-body :deep(.sc-img-wrap--absolute) {
+  position: absolute;
+  z-index: 10;
+}
+/* Editor: show a subtle outline on absolute images so they're discoverable */
+.phb-editor :deep(.ProseMirror .sc-img-wrap--absolute) {
+  outline: 2px dashed oklch(0.7 0.15 250 / 0.6);
+  outline-offset: 2px;
 }
 </style>
