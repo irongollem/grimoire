@@ -10,10 +10,11 @@ export type { TextProvider, ImageProvider };
 function resolveKey(provider: string): string {
   const store = useCampaignStore();
   const key = ({
-    openai:    store.decryptedOpenAiKey,
-    anthropic: store.decryptedAnthropicKey,
-    gemini:    store.decryptedGeminiKey,
-    falai:     store.decryptedFalAiKey,
+    openai:       store.decryptedOpenAiKey,
+    "openai-mini": store.decryptedOpenAiKey,
+    anthropic:    store.decryptedAnthropicKey,
+    gemini:       store.decryptedGeminiKey,
+    falai:        store.decryptedFalAiKey,
   } as Record<string, string>)[provider] ?? "";
   if (!key)
     throw new Error(
@@ -36,7 +37,8 @@ export function getImageProvider(): ImageProvider {
   const provider = useCampaignStore().activeCampaign?.image_provider ?? "openai";
   const key = resolveKey(provider);
   switch (provider) {
-    case "falai": return createFalAiImageProvider(key);
-    default:      return createOpenAiImageProvider(key);
+    case "falai":        return createFalAiImageProvider(key);
+    case "openai-mini":  return createOpenAiImageProvider(key, "gpt-image-1-mini");
+    default:             return createOpenAiImageProvider(key);
   }
 }

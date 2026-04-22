@@ -32,7 +32,10 @@ export function createOpenAiTextProvider(apiKey: string): TextProvider {
   };
 }
 
-export function createOpenAiImageProvider(apiKey: string): ImageProvider {
+export function createOpenAiImageProvider(
+  apiKey: string,
+  model: "gpt-image-2" | "gpt-image-1-mini" = "gpt-image-2",
+): ImageProvider {
   return {
     async generate(prompt: string, size: string): Promise<string> {
       const res = await fetch(IMAGE_URL, {
@@ -42,7 +45,7 @@ export function createOpenAiImageProvider(apiKey: string): ImageProvider {
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: "gpt-image-2",
+          model,
           prompt,
           size,
           output_format: "webp",
@@ -60,7 +63,7 @@ export function createOpenAiImageProvider(apiKey: string): ImageProvider {
 
     async edit(source: Blob, prompt: string, size: string): Promise<string> {
       const form = new FormData();
-      form.append("model", "gpt-image-2");
+      form.append("model", model);
       form.append(
         "image[]",
         new File([source], "portrait.webp", { type: "image/webp" }),

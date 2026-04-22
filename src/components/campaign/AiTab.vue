@@ -98,6 +98,9 @@
             <span v-if="form.image_provider === 'falai'" class="text-yellow-600 dark:text-yellow-500">
               fal.ai does not support alter-ego disguise portraits — that requires OpenAI.
             </span>
+            <span v-if="form.image_provider === 'openai-mini'" class="text-muted-foreground">
+              Draft mode: lower cost, same sizes and features as gpt-image-2, but lower output quality.
+            </span>
           </p>
           <select
             v-if="availableImageProviders.length > 0"
@@ -239,8 +242,9 @@ const TEXT_PROVIDER_OPTIONS = [
 ] as const;
 
 const IMAGE_PROVIDER_OPTIONS = [
-  { value: "openai", label: "OpenAI — gpt-image-2" },
-  { value: "falai",  label: "fal.ai — FLUX 2 Flex" },
+  { value: "openai",       label: "OpenAI — gpt-image-2",             keyProvider: "openai" },
+  { value: "openai-mini",  label: "OpenAI — gpt-image-1-mini (draft)", keyProvider: "openai" },
+  { value: "falai",        label: "fal.ai — FLUX 2 Flex",             keyProvider: "falai"  },
 ] as const;
 
 function providerHasKey(providerId: string): boolean {
@@ -253,7 +257,7 @@ function providerHasKey(providerId: string): boolean {
 }
 
 const availableTextProviders  = computed(() => TEXT_PROVIDER_OPTIONS.filter((o) => providerHasKey(o.value)));
-const availableImageProviders = computed(() => IMAGE_PROVIDER_OPTIONS.filter((o) => providerHasKey(o.value)));
+const availableImageProviders = computed(() => IMAGE_PROVIDER_OPTIONS.filter((o) => providerHasKey(o.keyProvider)));
 
 // Auto-correct selection if the chosen provider loses its key
 watch(availableTextProviders, (options) => {
@@ -273,10 +277,11 @@ const TEXT_COSTS: Record<string, string> = {
   anthropic: "~$0.02 per generation   (Sonnet 4.6: $3 / $15 per M tokens)",
   gemini:    "~$0.0004 per generation (Gemini Flash: $0.075 / $0.30 per M tokens)",
 };
-// Cost hints — gpt-image-2 at high quality 1024×1536 is the main cost driver
+// Cost hints — gpt-image-2 at high quality 1024×1024 is the main cost driver
 const IMAGE_COSTS: Record<string, string> = {
-  openai: "~$0.15–0.40 per portrait · ~$0.30–0.80 with alter-ego (gpt-image-2, high quality)",
-  falai:  "~$0.025 per portrait (FLUX 2 Flex)",
+  openai:        "~$0.05–0.20 per portrait · ~$0.10–0.40 with alter-ego (gpt-image-2, high quality)",
+  "openai-mini": "~$0.005–0.036 per portrait · alter-ego supported (gpt-image-1-mini)",
+  falai:         "~$0.025 per portrait (FLUX 2 Flex)",
 };
 const activeTextCost  = computed(() => ({ hint: TEXT_COSTS[form.value.text_provider]  ?? TEXT_COSTS.openai }));
 const activeImageCost = computed(() => ({ hint: IMAGE_COSTS[form.value.image_provider] ?? IMAGE_COSTS.openai }));
