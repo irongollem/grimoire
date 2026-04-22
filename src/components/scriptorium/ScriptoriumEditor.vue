@@ -11,6 +11,12 @@
     :editor="editor"
     @close="showAssetPanel = false"
   />
+  <BlockPickerPanel
+    :show="showBlockPicker"
+    :editor="editor"
+    @close="showBlockPicker = false"
+    @open-asset-panel="showBlockPicker = false; showAssetPanel = true"
+  />
 
   <div class="flex flex-col gap-3">
     <!-- Metadata row -->
@@ -215,6 +221,18 @@
             >
               <PackagePlus class="h-3.5 w-3.5" />
               Insert
+            </button>
+
+            <!-- Insert Block picker -->
+            <button
+              type="button"
+              title="Insert block…"
+              :class="tbCls(showBlockPicker)"
+              class="gap-1 px-2 font-cinzel text-[10px] font-semibold tracking-wider"
+              @click="showBlockPicker = true"
+            >
+              <LayoutGrid class="h-3.5 w-3.5" />
+              Block
             </button>
 
             <div class="w-px h-5 bg-border mx-0.5" />
@@ -480,6 +498,7 @@ import {
   AlignRight,
   Trash2,
   Columns2,
+  LayoutGrid,
 } from "lucide-vue-next";
 import {
   useCreateScriptoriumDocument,
@@ -498,6 +517,7 @@ import type {
 } from "@/types/scriptorium.types";
 import PdfPreviewDialog from "@/components/scriptorium/PdfPreviewDialog.vue";
 import AssetInsertPanel from "@/components/scriptorium/AssetInsertPanel.vue";
+import BlockPickerPanel from "@/components/scriptorium/BlockPickerPanel.vue";
 import TagInput from "@/components/common/TagInput.vue";
 
 const IMAGE_SIZES = [
@@ -568,6 +588,7 @@ const router = useRouter();
 
 // Panels
 const showAssetPanel = ref(false);
+const showBlockPicker = ref(false);
 
 // Metadata
 const title = ref(props.doc?.title ?? "");
