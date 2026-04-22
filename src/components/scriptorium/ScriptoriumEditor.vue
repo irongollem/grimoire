@@ -718,7 +718,7 @@
             </button>
           </div>
         </div>
-        <div class="phb-bg lg:flex-1 lg:overflow-auto lg:min-h-0">
+        <div ref="previewContainerRef" class="phb-bg lg:flex-1 lg:overflow-auto lg:min-h-0">
           <div
             v-for="(pageHtml, pageIndex) in pages"
             :key="pageIndex"
@@ -750,7 +750,7 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, computed, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
@@ -911,16 +911,34 @@ const themeLabel = computed(() =>
   theme.value === "phb2014" ? "Classic PHB (2014)" : "OneDnD 2024",
 );
 
-// Page size → preview aspect ratio (max-width stays 680px; height scales by ratio)
-const PAGE_ASPECT: Record<ScriptoriumPageSize, number> = {
-  A4: 297 / 210, // ~1.4143
-  A5: 210 / 148, // ~1.4189
-  Letter: 11 / 8.5, // ~1.2941
+// Physical page dimensions at 96 dpi — matches PAGE_SIZES in useScriptoriumPdf.ts exactly.
+// Using the same pixel dimensions in both preview and PDF is what makes them WYSIWYG.
+const PAGE_SIZES_PX: Record<ScriptoriumPageSize, { w: number; h: number }> = {
+  A4: { w: 794, h: 1123 },
+  A5: { w: 559, h: 794 },
+  Letter: { w: 816, h: 1056 },
 } as const;
+
+// Track the preview container width so we can zoom pages to fit.
+const previewContainerRef = ref<HTMLElement | null>(null);
+const previewContainerWidth = ref(0);
+let resizeObserver: ResizeObserver | null = null;
+
+onMounted(() => {
+  if (previewContainerRef.value) {
+    resizeObserver = new ResizeObserver((entries) => {
+      previewContainerWidth.value = entries[0].contentRect.width;
+    });
+    resizeObserver.observe(previewContainerRef.value);
+  }
+});
+
 const pageSizeStyle = computed(() => {
-  const ratio = PAGE_ASPECT[pageSize.value];
-  // preview page max-width is 680px; min-height = 680 * ratio
-  return { minHeight: `${Math.round(680 * ratio)}px` };
+  const { w, h } = PAGE_SIZES_PX[pageSize.value];
+  // Leave 32 px breathing room (16 px each side) inside the parchment-gray bg strip.
+  const available = previewContainerWidth.value > 0 ? previewContainerWidth.value - 32 : w;
+  const zoom = Math.min(1, available / w);
+  return { width: `${w}px`, height: `${h}px`, zoom };
 });
 
 // Editor
@@ -1241,7 +1259,10 @@ const {
   footerText,
 );
 
-onUnmounted(() => editor.value?.destroy());
+onUnmounted(() => {
+  editor.value?.destroy();
+  resizeObserver?.disconnect();
+});
 </script>
 
 <style scoped>
@@ -1399,19 +1420,18 @@ onUnmounted(() => editor.value?.destroy());
 }
 
 .phb-page {
+  /* width / height / zoom injected via :style (pageSizeStyle) — see script */
   position: relative;
-  width: 100%;
-  max-width: 680px;
-  min-height: 961px; /* overridden per-page via :style pageSizeStyle */
   background: url("/assets/scriptorium/page-background.webp") center / cover
     no-repeat;
-  padding: 2.5rem 2.5rem 2rem;
+  /* Padding matches PDF RENDER_CSS exactly — critical for WYSIWYG accuracy */
+  padding: 60px 68px 53px;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
   font-family: var(--sc-body-font);
   color: var(--sc-ink);
   line-height: 1.65;
-  font-size: 0.9375rem;
-  overflow: visible;
+  font-size: 15px;
+  overflow: hidden;
 }
 
 .phb-title-bar {
@@ -1785,9 +1805,9 @@ onUnmounted(() => editor.value?.destroy());
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 2.5rem;
+  padding: 0 68px; /* matches PDF RENDER_CSS */
   font-family: var(--sc-body-font);
-  font-size: 0.75rem;
+  font-size: 12px; /* matches PDF RENDER_CSS */
   color: var(--sc-accent);
   border-top: 1px solid var(--sc-col-rule);
   box-sizing: border-box;
