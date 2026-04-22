@@ -110,7 +110,7 @@
       Mobile: no min-height so the page scrolls naturally and both panes sit in
       the document flow. Desktop: fixed 620px pane height with internal scroll.
     -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:min-h-155">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:h-full lg:min-h-0">
       <!-- Editor pane -->
       <!--
         overflow-hidden only kicks in at lg: so the mobile layout doesn't clip the
@@ -637,7 +637,7 @@
                 role="radio"
                 :aria-checked="pageSize === sz"
                 :title="`Page size: ${sz}`"
-                class="px-2 h-[26px] font-cinzel text-[9px] font-semibold tracking-wider uppercase transition-colors"
+                class="px-2 h-6.5 font-cinzel text-[9px] font-semibold tracking-wider uppercase transition-colors"
                 :class="[
                   idx > 0 ? 'border-l border-border' : '',
                   pageSize === sz
@@ -683,9 +683,10 @@
         </div>
       </div>
 
-      <!-- Preview pane -->
+      <!-- Preview pane — bg matches .phb-bg so macOS rubber-band bounce shows the same gray -->
       <div
         class="flex flex-col rounded-lg border border-border lg:overflow-hidden"
+        style="background: #a09a90"
       >
         <div
           class="flex items-center justify-between px-4 py-2 border-b border-border bg-card shrink-0"
@@ -958,14 +959,32 @@ const PAGE_SIZES_PX: Record<ScriptoriumPageSize, { w: number; h: number }> = {
 const previewContainerRef = ref<HTMLElement | null>(null);
 const previewContainerWidth = ref(0);
 let resizeObserver: ResizeObserver | null = null;
+// Keep a direct reference for the cleanup in onUnmounted (ref may be null by then).
+let previewEl: HTMLElement | null = null;
+let wheelHandler: ((e: WheelEvent) => void) | null = null;
 
 onMounted(() => {
-  if (previewContainerRef.value) {
-    resizeObserver = new ResizeObserver((entries) => {
-      previewContainerWidth.value = entries[0].contentRect.width;
-    });
-    resizeObserver.observe(previewContainerRef.value);
-  }
+  if (!previewContainerRef.value) return;
+  previewEl = previewContainerRef.value;
+
+  resizeObserver = new ResizeObserver((entries) => {
+    previewContainerWidth.value = entries[0].contentRect.width;
+  });
+  resizeObserver.observe(previewEl);
+
+  // Block swipe-to-back/forward navigation at horizontal scroll boundaries.
+  // overscroll-behavior: contain only works when the element has overflow to absorb;
+  // at fit zoom there is no horizontal overflow so the gesture leaks through to the browser.
+  // A non-passive wheel listener intercepts purely horizontal swipes and blocks them
+  // at the left/right boundary regardless of overflow state.
+  wheelHandler = (e: WheelEvent) => {
+    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return; // vertical — let it pass
+    const el = previewEl!;
+    const atLeft = el.scrollLeft <= 0;
+    const atRight = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1;
+    if (atLeft || atRight) e.preventDefault(); // at boundary → block navigation
+  };
+  previewEl.addEventListener("wheel", wheelHandler, { passive: false });
 });
 
 // ── Zoom controls ────────────────────────────────────────────────────────────
@@ -1324,6 +1343,9 @@ const {
 onUnmounted(() => {
   editor.value?.destroy();
   resizeObserver?.disconnect();
+  if (previewEl && wheelHandler) {
+    previewEl.removeEventListener("wheel", wheelHandler);
+  }
 });
 </script>
 
@@ -1443,8 +1465,9 @@ onUnmounted(() => {
   padding: 1.5rem 1rem 3rem;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start; /* pages self-centre via margin: 0 auto; flex-start lets them overflow right when zoomed in */
   gap: 1.5rem;
+  overscroll-behavior: contain; /* prevent swipe-to-back/forward navigation over the pannable area */
 }
 
 .phb-two-col {
@@ -1484,6 +1507,9 @@ onUnmounted(() => {
 .phb-page {
   /* width / height / zoom injected via :style (pageSizeStyle) — see script */
   position: relative;
+  /* Self-centres when narrower than container; left-aligns when zoomed beyond container width
+     so horizontal scroll reaches the right edge without hiding the left behind scroll=0 */
+  margin: 0 auto;
   background: url("/assets/scriptorium/page-background.webp") center / cover
     no-repeat;
   /* Padding matches PDF RENDER_CSS exactly — critical for WYSIWYG accuracy */
