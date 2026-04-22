@@ -387,6 +387,45 @@
                 Classic
               </button>
             </div>
+
+            <div class="w-px h-5 bg-border mx-0.5" />
+
+            <!-- Page size -->
+            <div
+              role="radiogroup"
+              aria-label="Page size"
+              class="ml-1 inline-flex rounded border border-border overflow-hidden shrink-0"
+            >
+              <button
+                v-for="(sz, idx) in (['A4', 'A5', 'Letter'] as const)"
+                :key="sz"
+                type="button"
+                role="radio"
+                :aria-checked="pageSize === sz"
+                :title="`Page size: ${sz}`"
+                class="px-2 h-[26px] font-cinzel text-[9px] font-semibold tracking-wider uppercase transition-colors"
+                :class="[
+                  idx > 0 ? 'border-l border-border' : '',
+                  pageSize === sz
+                    ? 'bg-primary/20 text-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+                ]"
+                @click="pageSize = sz"
+              >
+                {{ sz }}
+              </button>
+            </div>
+
+            <!-- Ink-friendly toggle -->
+            <button
+              type="button"
+              title="Ink-friendly export (strips backgrounds & decorations)"
+              :class="tbCls(inkFriendly)"
+              class="gap-1 px-2 font-cinzel text-[10px] font-semibold tracking-wider"
+              @click="inkFriendly = !inkFriendly"
+            >
+              <Printer class="h-3.5 w-3.5" />
+            </button>
           </template>
         </div>
 
@@ -450,7 +489,8 @@
             v-for="(pageHtml, pageIndex) in pages"
             :key="pageIndex"
             class="phb-page"
-            :class="themeClass"
+            :class="[themeClass, { 'ink-friendly': inkFriendly }]"
+            :style="pageSizeStyle"
           >
             <div v-if="pageIndex === 0" class="phb-title-bar">
               {{ title || "Untitled Document" }}
@@ -499,6 +539,7 @@ import {
   Trash2,
   Columns2,
   LayoutGrid,
+  Printer,
 } from "lucide-vue-next";
 import {
   useCreateScriptoriumDocument,
@@ -510,10 +551,17 @@ import {
   cleanupRemovedRichTextImages,
 } from "@/composables/useImageUpload";
 import { useScriptoriumPdf } from "@/composables/useScriptoriumPdf";
+import { SpacerVertical } from "@/lib/tiptap/SpacerVertical";
+import { SpacerHorizontal } from "@/lib/tiptap/SpacerHorizontal";
+import { Watercolor } from "@/lib/tiptap/watercolor";
+import { Watermark } from "@/lib/tiptap/watermark";
+import { ArtistCredit } from "@/lib/tiptap/artistCredit";
+import { ColumnBreak } from "@/lib/tiptap/columnBreak";
 import type {
   ScriptoriumDocument,
   ScriptoriumDocType,
   ScriptoriumTheme,
+  ScriptoriumPageSize,
 } from "@/types/scriptorium.types";
 import PdfPreviewDialog from "@/components/scriptorium/PdfPreviewDialog.vue";
 import AssetInsertPanel from "@/components/scriptorium/AssetInsertPanel.vue";
@@ -596,6 +644,8 @@ const docType = ref<ScriptoriumDocType>(props.doc?.doc_type ?? "custom");
 const isPublished = ref(props.doc?.is_published ?? false);
 const isTwoColumn = ref(props.doc?.is_two_column ?? false);
 const theme = ref<ScriptoriumTheme>(props.doc?.theme ?? "onednd2024");
+const pageSize = ref<ScriptoriumPageSize>(props.doc?.page_size ?? "A4");
+const inkFriendly = ref(props.doc?.ink_friendly ?? false);
 const tags = ref<string[]>(props.doc?.tags ?? []);
 
 const themeClass = computed(() =>
@@ -604,6 +654,18 @@ const themeClass = computed(() =>
 const themeLabel = computed(() =>
   theme.value === "phb2014" ? "Classic PHB (2014)" : "OneDnD 2024",
 );
+
+// Page size → preview aspect ratio (max-width stays 680px; height scales by ratio)
+const PAGE_ASPECT: Record<ScriptoriumPageSize, number> = {
+  A4: 297 / 210,     // ~1.4143
+  A5: 210 / 148,     // ~1.4189
+  Letter: 11 / 8.5,  // ~1.2941
+} as const;
+const pageSizeStyle = computed(() => {
+  const ratio = PAGE_ASPECT[pageSize.value];
+  // preview page max-width is 680px; min-height = 680 * ratio
+  return { minHeight: `${Math.round(680 * ratio)}px` };
+});
 
 // Editor
 const previewHtml = ref("");
@@ -657,9 +719,105 @@ const editor = useEditor({
               return { style: parts.join(";") };
             },
           },
+          // Layout mode: inline (default, uses dataAlign float), wrapLeft, wrapRight, absolute
+          layoutMode: {
+            default: "inline",
+            parseHTML: (el) => el.getAttribute("data-layout-mode") ?? "inline",
+            renderHTML: (attrs) => ({
+              "data-layout-mode": attrs.layoutMode ?? "inline",
+            }),
+          },
+          // Gutter bleed: extends wrap image into the column gutter (-3cm / ~-114px)
+          gutterBleed: {
+            default: false,
+            parseHTML: (el) => el.getAttribute("data-gutter-bleed") === "true",
+            renderHTML: (attrs) => ({
+              "data-gutter-bleed": attrs.gutterBleed ? "true" : "false",
+            }),
+          },
+          // Absolute-position offsets (stored as CSS value strings, e.g. "60px")
+          posTop: {
+            default: null,
+            parseHTML: (el) => el.getAttribute("data-pos-top") ?? null,
+            renderHTML: (attrs) =>
+              attrs.posTop ? { "data-pos-top": attrs.posTop } : {},
+          },
+          posLeft: {
+            default: null,
+            parseHTML: (el) => el.getAttribute("data-pos-left") ?? null,
+            renderHTML: (attrs) =>
+              attrs.posLeft ? { "data-pos-left": attrs.posLeft } : {},
+          },
+          posRight: {
+            default: null,
+            parseHTML: (el) => el.getAttribute("data-pos-right") ?? null,
+            renderHTML: (attrs) =>
+              attrs.posRight ? { "data-pos-right": attrs.posRight } : {},
+          },
+          posBottom: {
+            default: null,
+            parseHTML: (el) => el.getAttribute("data-pos-bottom") ?? null,
+            renderHTML: (attrs) =>
+              attrs.posBottom ? { "data-pos-bottom": attrs.posBottom } : {},
+          },
         };
       },
+      // Override renderHTML to emit a wrapper div for wrapLeft/wrapRight/absolute
+      // so the CSS classes land on a block-level element rather than the <img> itself.
+      renderHTML({ HTMLAttributes }) {
+        const mode: string = HTMLAttributes["data-layout-mode"] ?? "inline";
+        if (mode === "inline") {
+          // Default behaviour — just an <img> with inline style from dataAlign
+          return ["img", HTMLAttributes];
+        }
+        // Build wrapper class list
+        const wrapperClass = [
+          "sc-img-wrap",
+          `sc-img-wrap--${mode}`,
+          HTMLAttributes["data-gutter-bleed"] === "true"
+            ? "sc-img-wrap--gutter"
+            : "",
+        ]
+          .filter(Boolean)
+          .join(" ");
+
+        // Build wrapper style for absolute mode
+        const wrapperStyle: string[] = [];
+        if (mode === "absolute") {
+          if (HTMLAttributes["data-pos-top"])
+            wrapperStyle.push(`top:${HTMLAttributes["data-pos-top"]}`);
+          if (HTMLAttributes["data-pos-left"])
+            wrapperStyle.push(`left:${HTMLAttributes["data-pos-left"]}`);
+          if (HTMLAttributes["data-pos-right"])
+            wrapperStyle.push(`right:${HTMLAttributes["data-pos-right"]}`);
+          if (HTMLAttributes["data-pos-bottom"])
+            wrapperStyle.push(`bottom:${HTMLAttributes["data-pos-bottom"]}`);
+          if (HTMLAttributes.width)
+            wrapperStyle.push(`width:${HTMLAttributes.width}px`);
+        }
+
+        // Strip style from img attrs in wrap/absolute mode (wrapper owns layout)
+        const imgAttrs = { ...HTMLAttributes };
+        delete imgAttrs.style;
+
+        return [
+          "div",
+          {
+            class: wrapperClass,
+            ...(wrapperStyle.length
+              ? { style: wrapperStyle.join(";") }
+              : {}),
+          },
+          ["img", imgAttrs],
+        ];
+      },
     }).configure({ inline: false, allowBase64: false }),
+    SpacerVertical,
+    SpacerHorizontal,
+    Watercolor,
+    Watermark,
+    ArtistCredit,
+    ColumnBreak,
   ],
   onCreate({ editor }) {
     updateDerived(editor.getHTML(), editor.getText());
@@ -706,6 +864,8 @@ async function save() {
       is_published: isPublished.value,
       is_two_column: isTwoColumn.value,
       theme: theme.value,
+      page_size: pageSize.value,
+      ink_friendly: inkFriendly.value,
       word_count: wordCount.value,
     };
     if (props.doc) {
@@ -738,7 +898,7 @@ const {
   exportPdf,
   savePdf,
   closePdfPreview,
-} = useScriptoriumPdf(pages, title, theme);
+} = useScriptoriumPdf(pages, title, theme, pageSize, inkFriendly);
 
 onUnmounted(() => editor.value?.destroy());
 </script>
@@ -873,11 +1033,26 @@ onUnmounted(() => editor.value?.destroy());
   column-span: all;
 }
 
+/* Ink-friendly: strip background fills and decorative imagery in preview */
+.phb-page.ink-friendly {
+  --sc-callout-bg: transparent;
+  --sc-page-bg: #fff;
+  background: #fff;
+}
+.phb-page.ink-friendly :deep(.sc-watercolor),
+.phb-page.ink-friendly :deep(.sc-watermark),
+.phb-page.ink-friendly :deep(img.sc-decor) {
+  display: none;
+}
+.phb-page.ink-friendly :deep(*) {
+  background-image: none !important;
+}
+
 .phb-page {
   position: relative;
   width: 100%;
   max-width: 680px;
-  min-height: 961px; /* 680px × (297/210) = A4 aspect ratio */
+  min-height: 961px; /* overridden per-page via :style pageSizeStyle */
   background: url("/assets/scriptorium/page-background.webp") center / cover
     no-repeat;
   padding: 2.5rem 2.5rem 2rem;
@@ -991,5 +1166,158 @@ onUnmounted(() => editor.value?.destroy());
   background: transparent;
   padding: 0;
   color: inherit;
+}
+
+/* ── Spacers ──────────────────────────────────────────────────── */
+
+/* Editor: vertical spacer — dashed outline so authors can see it */
+.phb-editor :deep(.ProseMirror .sc-spacer-v) {
+  display: block;
+  border: 1px dashed color-mix(in srgb, currentColor 35%, transparent);
+  border-radius: 2px;
+  position: relative;
+  min-height: 4px;
+}
+.phb-editor :deep(.ProseMirror .sc-spacer-v::after) {
+  content: "spacer";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: system-ui, sans-serif;
+  font-size: 10px;
+  color: color-mix(in srgb, currentColor 45%, transparent);
+  pointer-events: none;
+  letter-spacing: 0.04em;
+}
+
+/* Editor: horizontal spacer — inline dashed sliver */
+.phb-editor :deep(.ProseMirror .sc-spacer-h) {
+  border-bottom: 1px dashed color-mix(in srgb, currentColor 35%, transparent);
+  vertical-align: bottom;
+  min-width: 4px;
+  height: 1em;
+}
+
+/* Preview: spacers are invisible — just the empty space they occupy */
+.phb-body :deep(.sc-spacer-v) {
+  display: block;
+  border: none;
+}
+.phb-body :deep(.sc-spacer-v::after) {
+  display: none;
+}
+.phb-body :deep(.sc-spacer-h) {
+  display: inline-block;
+  border: none;
+}
+
+/* ── Column break ────────────────────────────────────────────── */
+
+/* Preview: forces a CSS column break — invisible, zero height */
+.phb-body :deep(.sc-column-break) {
+  break-before: column;
+  display: block;
+  height: 0;
+}
+
+/* Editor: faint dashed rule so authors can see where the break is */
+.phb-editor :deep(.ProseMirror .sc-column-break) {
+  display: block;
+  height: 0;
+  border-top: 1px dashed color-mix(in srgb, var(--sc-col-rule, currentColor) 60%, transparent);
+  margin: 0.5rem 0;
+  position: relative;
+}
+.phb-editor :deep(.ProseMirror .sc-column-break::after) {
+  content: "column break";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: system-ui, sans-serif;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: color-mix(in srgb, currentColor 40%, transparent);
+  background: var(--background, #fff);
+  padding: 0 0.4rem;
+  pointer-events: none;
+}
+
+/* ── Decoration overlay CSS variables ─────────────────────────── */
+/*
+ * --sc-decoration-watermark  — diagonal watermark text colour (falls back to --sc-accent)
+ * --sc-decoration-credit     — artist credit text colour (falls back to --sc-ink)
+ *
+ * Both themes receive the same defaults here; override in the .theme-phb2014
+ * block above if a theme-specific tint is ever needed.
+ */
+.phb-body.theme-onednd2024,
+.phb-body.theme-phb2014,
+.phb-page.theme-onednd2024,
+.phb-page.theme-phb2014 {
+  --sc-decoration-watermark: var(--sc-accent);
+  --sc-decoration-credit: var(--sc-ink);
+}
+
+/* ── Watercolor: editor placeholder ───────────────────────────── */
+/*
+ * In the ProseMirror editor the <img data-type="watercolor"> is rendered
+ * as a block atom. Add a dashed outline so authors can see / select it,
+ * and apply mix-blend-mode so the editor preview matches PHB output.
+ */
+.phb-editor :deep(.ProseMirror img[data-type="watercolor"]) {
+  outline: 1px dashed color-mix(in srgb, currentColor 40%, transparent);
+  outline-offset: 2px;
+  border-radius: 2px;
+  mix-blend-mode: multiply;
+}
+
+/* ── Watermark: editor placeholder ───────────────────────────── */
+/*
+ * The watermark wrapper is `position:absolute` in the rendered output, which
+ * collapses to nothing in the flat ProseMirror flow. Render it as a labelled
+ * inline block so authors can see and select it.
+ */
+.phb-editor :deep(.ProseMirror div[data-type="watermark"]) {
+  position: static !important;
+  display: block;
+  border: 1px dashed color-mix(in srgb, currentColor 35%, transparent);
+  border-radius: 2px;
+  padding: 0.25rem 0.75rem;
+  margin: 0.5rem 0;
+  overflow: hidden;
+  max-height: 3rem;
+}
+.phb-editor :deep(.ProseMirror div[data-type="watermark"] span) {
+  position: static !important;
+  font-size: 1.25rem;
+  transform: none !important;
+  opacity: 0.45;
+}
+
+/* ── Artist credit: editor placeholder ───────────────────────── */
+.phb-editor :deep(.ProseMirror div[data-type="artistCredit"]) {
+  position: static !important;
+  display: block;
+  border: 1px dashed color-mix(in srgb, currentColor 35%, transparent);
+  border-radius: 2px;
+  padding: 0.15rem 0.5rem;
+  margin: 0.25rem 0;
+  font-size: 0.7rem;
+  font-style: italic;
+  opacity: 0.65;
+}
+
+/* ── Decoration in PHB preview ───────────────────────────────── */
+/*
+ * .phb-page is position:relative — absolutely-positioned children from
+ * the renderHTML inline styles will anchor there correctly.
+ * No further overrides needed: all positioning is driven by inline styles
+ * emitted by each node's renderHTML method.
+ */
+.phb-body :deep(img[data-type="watercolor"]) {
+  mix-blend-mode: multiply;
 }
 </style>

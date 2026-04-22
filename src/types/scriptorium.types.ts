@@ -14,6 +14,8 @@ export type ScriptoriumDocType =
 
 export type ScriptoriumTheme = "onednd2024" | "phb2014";
 
+export type ScriptoriumPageSize = "A4" | "A5" | "Letter";
+
 export interface ScriptoriumDocument {
   id: string;
   user_id: string;
@@ -24,6 +26,8 @@ export interface ScriptoriumDocument {
   is_published: boolean;
   is_two_column: boolean;
   theme: ScriptoriumTheme;
+  page_size: ScriptoriumPageSize;
+  ink_friendly: boolean;
   word_count: number;
   created_at: string;
   updated_at: string;

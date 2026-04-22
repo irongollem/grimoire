@@ -20,7 +20,7 @@ import type { Location } from "@/types/location.types";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { Quest, QuestObjective } from "@/types/quest.types";
 import { QUEST_STATUS_LABELS } from "@/types/quest.types";
-import type { ScriptoriumDocType, ScriptoriumTheme } from "@/types/scriptorium.types";
+import type { ScriptoriumDocType, ScriptoriumTheme, ScriptoriumPageSize } from "@/types/scriptorium.types";
 
 // ── Output type ───────────────────────────────────────────────────────────────
 
@@ -32,6 +32,8 @@ export interface ScriptoriumImportData {
   is_published: boolean;
   is_two_column: boolean;
   theme: ScriptoriumTheme;
+  page_size: ScriptoriumPageSize;
+  ink_friendly: boolean;
   word_count: number;
 }
 
@@ -167,6 +169,8 @@ const npcFormatter: AssetFormatter<Npc> = {
       is_published: false,
       is_two_column: false,
       theme: "onednd2024" as ScriptoriumTheme,
+      page_size: "A4" as ScriptoriumPageSize,
+      ink_friendly: false,
       word_count: countWords(html),
     };
   },
@@ -261,6 +265,8 @@ const monsterFormatter: AssetFormatter<Monster> = {
       is_published: false,
       is_two_column: false,
       theme: "onednd2024" as ScriptoriumTheme,
+      page_size: "A4" as ScriptoriumPageSize,
+      ink_friendly: false,
       word_count: countWords(html),
     };
   },
@@ -334,6 +340,8 @@ const spellFormatter: AssetFormatter<Spell> = {
       is_published: false,
       is_two_column: false,
       theme: "onednd2024" as ScriptoriumTheme,
+      page_size: "A4" as ScriptoriumPageSize,
+      ink_friendly: false,
       word_count: countWords(html),
     };
   },
@@ -411,6 +419,8 @@ const itemFormatter: AssetFormatter<{ item: Item; spells: Spell[] }> = {
       is_published: false,
       is_two_column: false,
       theme: "onednd2024" as ScriptoriumTheme,
+      page_size: "A4" as ScriptoriumPageSize,
+      ink_friendly: false,
       word_count: countWords(html),
     };
   },
@@ -473,6 +483,8 @@ const locationFormatter: AssetFormatter<Location> = {
       is_published: false,
       is_two_column: false,
       theme: "onednd2024" as ScriptoriumTheme,
+      page_size: "A4" as ScriptoriumPageSize,
+      ink_friendly: false,
       word_count: countWords(html),
     };
   },
@@ -536,6 +548,8 @@ const questFormatter: AssetFormatter<{
       is_published: false,
       is_two_column: false,
       theme: "onednd2024" as ScriptoriumTheme,
+      page_size: "A4" as ScriptoriumPageSize,
+      ink_friendly: false,
       word_count: countWords(html),
     };
   },
