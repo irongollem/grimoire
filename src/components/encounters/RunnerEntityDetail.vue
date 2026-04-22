@@ -135,6 +135,28 @@
           <div class="detail-divider" />
           <SpellcastingList :spellcasting="selectedMonster.stat_block.spellcasting" />
         </template>
+        <!-- Legendary action tracker — live pip counter -->
+        <template v-if="selectedCombatant.legendary_action_cap">
+          <div class="detail-divider" />
+          <div class="la-tracker">
+            <span class="la-label">Legendary Actions</span>
+            <div class="la-pips">
+              <span
+                v-for="i in selectedCombatant.legendary_action_cap"
+                :key="i"
+                class="la-pip"
+                :class="i <= (selectedCombatant.legendary_actions_remaining ?? 0) ? 'la-pip-on' : 'la-pip-off'"
+              />
+            </div>
+            <span class="la-count">{{ selectedCombatant.legendary_actions_remaining ?? 0 }} / {{ selectedCombatant.legendary_action_cap }}</span>
+            <button
+              type="button"
+              class="la-spend-btn"
+              :disabled="!selectedCombatant.legendary_actions_remaining"
+              @click="store.spendLegendaryActions(selectedCombatant!.instance_id, 1)"
+            >Use 1</button>
+          </div>
+        </template>
       </div>
     </template>
 
@@ -1796,5 +1818,70 @@ function renderTraitDesc(desc: string): string {
   font-family: var(--font-fell, serif);
   font-size: 10px;
   font-weight: 500;
+}
+
+/* ── Legendary action tracker ─────────────────────────────────────────────── */
+
+.la-tracker {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: theme(colors.muted / 15%);
+  border-radius: 0.375rem;
+}
+.la-label {
+  font-family: var(--font-cinzel, serif);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: theme(colors.muted-foreground / 100%);
+  flex-shrink: 0;
+}
+.la-pips {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+.la-pip {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid;
+  flex-shrink: 0;
+}
+.la-pip-on {
+  background: theme(colors.purple.500 / 80%);
+  border-color: theme(colors.purple.400 / 100%);
+}
+.la-pip-off {
+  background: transparent;
+  border-color: theme(colors.border / 100%);
+}
+.la-count {
+  font-family: var(--font-cinzel, serif);
+  font-size: 10px;
+  color: theme(colors.muted-foreground / 100%);
+  flex-shrink: 0;
+}
+.la-spend-btn {
+  margin-left: auto;
+  font-family: var(--font-cinzel, serif);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 3px;
+  border: 1px solid theme(colors.purple.500 / 50%);
+  color: theme(colors.purple.400 / 100%);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.la-spend-btn:hover:not(:disabled) {
+  background: theme(colors.purple.500 / 15%);
+}
+.la-spend-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 </style>

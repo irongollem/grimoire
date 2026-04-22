@@ -94,10 +94,14 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     if (nextInAlive === 0) round.value++;
     activeIndex.value = nextIndexInSorted;
 
-    // Refresh legendary action pool at the start of that creature's turn.
+    // At the start of each combatant's turn: refresh their reaction and
+    // legendary action pool (5e RAW: reactions reset at start of YOUR turn).
     const nextCombatant = sorted[nextIndexInSorted];
-    if (nextCombatant && typeof nextCombatant.legendary_action_cap === "number") {
-      nextCombatant.legendary_actions_remaining = nextCombatant.legendary_action_cap;
+    if (nextCombatant) {
+      nextCombatant.reactionUsed = false;
+      if (typeof nextCombatant.legendary_action_cap === "number") {
+        nextCombatant.legendary_actions_remaining = nextCombatant.legendary_action_cap;
+      }
     }
     checkEvents();
   }
@@ -263,6 +267,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     const dexMod = Math.floor((dex - 10) / 2);
     const ac = String(sb?.armor_class ?? 10);
     const spawnKey = `spawn-${monsterId}-${Date.now()}`;
+    const legendaryCap = sb?.legendary_actions?.length ? 3 : undefined;
     for (let i = 0; i < count; i++) {
       const displayName = count > 1 ? `${customName || monster.name} ${i + 1}` : customName || monster.name;
       combatants.value.push({
@@ -282,6 +287,10 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
         reveal_state: "hidden",
         portrait_url: monster.image_url ?? null,
         portrait_focal_point: monster.portrait_focal_point ?? null,
+        ...(legendaryCap !== undefined && {
+          legendary_action_cap: legendaryCap,
+          legendary_actions_remaining: legendaryCap,
+        }),
       });
     }
   }
@@ -415,6 +424,12 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     c.surprised = !c.surprised;
   }
 
+  function toggleReaction(instanceId: string) {
+    const c = combatants.value.find((x) => x.instance_id === instanceId);
+    if (!c) return;
+    c.reactionUsed = !c.reactionUsed;
+  }
+
   /** Seed legendary-action state on every combatant whose monster has a
    *  non-empty `legendary_actions` array. Called once at combat start after
    *  monsters are loaded so the runner knows who gets a pool. */
@@ -521,6 +536,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     // Boss mechanics helpers
     setBossMechanics,
     toggleSurprised,
+    toggleReaction,
     primeLegendaryActions,
     spendLegendaryActions,
     markLairFired,

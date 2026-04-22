@@ -152,6 +152,8 @@ export interface RunCombatant {
   // combatant's turn; other combatants' turns can spend actions from here.
   legendary_action_cap?: number;
   legendary_actions_remaining?: number;
+  // Reaction — one per round; reset at the start of each new round.
+  reactionUsed?: boolean;
 }
 
 // ── XP / CR tables (D&D 5e) ──────────────────────────────────────────────────

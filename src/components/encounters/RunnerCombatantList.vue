@@ -84,7 +84,20 @@
       <span class="type-badge" :class="combatant.type">{{ combatant.type === 'player' ? 'PC' : combatant.npc_id ? 'NPC' : 'Monster' }}</span>
       <span v-if="getWildshape(combatant)" class="wildshape-row-badge" title="Wildshaping">🐺 {{ getWildshape(combatant)!.beast_name }}</span>
       <span v-if="combatant.hp === 0 && combatant.type === 'monster'" class="dead-badge">☠</span>
-      <span v-if="combatant.surprised" class="surprised-badge" title="Surprised — cannot act on first turn">✦ Surprised</span>
+      <button
+        v-if="combatant.surprised"
+        type="button"
+        class="surprised-badge surprised-toggle"
+        title="Surprised — click to remove"
+        @click.stop="store.toggleSurprised(combatant.instance_id)"
+      >✦ Surprised ×</button>
+      <button
+        v-else-if="!store.started || store.round === 1"
+        type="button"
+        class="surprised-set-btn"
+        title="Mark as surprised"
+        @click.stop="store.toggleSurprised(combatant.instance_id)"
+      >✦?</button>
     </div>
 
     <!-- HP -->
@@ -135,6 +148,14 @@
         :title="`Concentrating on ${pcConcentration(combatant)} — click to drop`"
         @click="dropCombatantConcentration(combatant)"
       >✦ {{ pcConcentration(combatant) }} ×</span>
+      <button
+        v-if="store.started"
+        type="button"
+        class="reaction-chip"
+        :class="combatant.reactionUsed ? 'reaction-used' : 'reaction-ready'"
+        :title="combatant.reactionUsed ? 'Reaction used — click to restore' : 'Reaction available — click to mark used'"
+        @click="store.toggleReaction(combatant.instance_id)"
+      >⚡</button>
       <div class="relative" v-if="addingCondFor !== combatant.instance_id">
         <button class="add-cond-btn" @click="addingCondFor = combatant.instance_id">+</button>
       </div>
@@ -229,6 +250,20 @@
             <span class="type-badge" :class="combatant.type">{{ combatant.type === 'player' ? 'PC' : combatant.npc_id ? 'NPC' : 'Monster' }}</span>
             <span v-if="getWildshape(combatant)" class="wildshape-row-badge" title="Wildshaping">🐺 {{ getWildshape(combatant)!.beast_name }}</span>
             <span v-if="combatant.hp === 0 && combatant.type === 'monster'" class="dead-badge">☠</span>
+            <button
+              v-if="combatant.surprised"
+              type="button"
+              class="surprised-badge surprised-toggle"
+              title="Surprised — tap to remove"
+              @click.stop="store.toggleSurprised(combatant.instance_id)"
+            >✦ Surprised ×</button>
+            <button
+              v-else-if="!store.started || store.round === 1"
+              type="button"
+              class="surprised-set-btn"
+              title="Mark as surprised"
+              @click.stop="store.toggleSurprised(combatant.instance_id)"
+            >✦?</button>
           </div>
         </div>
       </div>
@@ -311,6 +346,14 @@
           @click="store.toggleCondition(combatant.instance_id, cond)"
           :title="`${cond} — tap to remove\n\n${getConditionDescription(cond)}`"
         >{{ cond }} ×</span>
+        <button
+          v-if="store.started"
+          type="button"
+          class="reaction-chip"
+          :class="combatant.reactionUsed ? 'reaction-used' : 'reaction-ready'"
+          :title="combatant.reactionUsed ? 'Reaction used — tap to restore' : 'Reaction available — tap to mark used'"
+          @click="store.toggleReaction(combatant.instance_id)"
+        >⚡</button>
         <div v-if="addingCondFor !== combatant.instance_id" class="relative">
           <button class="add-cond-btn" @click="addingCondFor = combatant.instance_id">+</button>
         </div>
@@ -1017,5 +1060,29 @@ function quickTemp(instanceId: string) {
   flex-wrap: wrap;
   gap: 0.375rem;
   padding-left: 3.125rem;
+}
+
+/* Surprised toggle — clickable version of the badge */
+.surprised-toggle {
+  cursor: pointer;
+}
+.surprised-toggle:hover {
+  @apply bg-amber-500/20 border-amber-500/60;
+}
+
+/* Unset surprised button — small, low-key */
+.surprised-set-btn {
+  @apply font-cinzel text-[9px] text-muted-foreground/50 tracking-wider px-1 py-0.5 rounded border border-dashed border-muted-foreground/20 hover:text-amber-500 hover:border-amber-500/40 transition-colors;
+}
+
+/* Reaction chip */
+.reaction-chip {
+  @apply inline-flex items-center px-1.5 py-0.5 rounded font-cinzel text-[9px] font-semibold border transition-colors cursor-pointer;
+}
+.reaction-ready {
+  @apply bg-sky-500/10 text-sky-400 border-sky-500/30 hover:bg-sky-500/20;
+}
+.reaction-used {
+  @apply bg-muted text-muted-foreground/40 border-border line-through hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/30;
 }
 </style>

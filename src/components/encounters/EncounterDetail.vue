@@ -344,13 +344,12 @@
           </div>
           <div v-if="form.lair_enabled" class="flex flex-col gap-2">
             <label class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">LAIR OWNER</label>
-            <select
-              v-model="form.lair_owner_def_id"
-              class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option :value="null">— pick an owner —</option>
-              <option v-for="opt in lairOwnerOptions" :key="opt.id" :value="opt.id">{{ opt.label }}</option>
-            </select>
+            <EntityCombobox
+              :model-value="form.lair_owner_def_id ?? ''"
+              :options="lairOwnerOptions"
+              placeholder="Search combatants…"
+              @update:model-value="form.lair_owner_def_id = $event || null"
+            />
             <p v-if="form.lair_enabled && !form.lair_owner_def_id" class="font-fell text-[11px] text-amber-500/80 italic">
               Pick a combatant whose stat block has Lair Actions. Without one, the runner won't show the lair card.
             </p>
@@ -528,11 +527,12 @@ const { data: monsters } = useAllMonsters();
 const lairOwnerOptions = computed(() => {
   return form.combatants.map((c) => {
     const monster = c.monster_id ? (monsters.value ?? []).find((m) => m.id === c.monster_id) : null;
+    const npc = c.npc_id ? (npcs.value ?? []).find((n) => n.id === c.npc_id) : null;
     const hasLairActions = !!(monster?.stat_block?.lair_actions?.length);
-    const baseName = c.custom_name ?? monster?.name ?? (c.npc_id ? "NPC" : "Combatant");
+    const baseName = c.custom_name ?? monster?.name ?? npc?.name ?? "Combatant";
     return {
       id: c.id,
-      label: hasLairActions ? `${baseName} ★ (has lair actions)` : baseName,
+      name: hasLairActions ? `★ ${baseName}` : baseName,
     };
   });
 });

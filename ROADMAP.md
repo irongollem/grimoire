@@ -82,6 +82,10 @@
 - [x] Encounter list quest filter — dropdown with All / Unassigned / per-quest options; uses `quest_refs` (ref_type=encounter) via `useEncounterQuestLinks`; filter state persisted in ui store (irongollem/grimoire#15)
 - [x] Unarmed strike + improvised weapon attacks in encounter runner — player detail panel now always shows Melee Attacks section with roll buttons (irongollem/grimoire#104)
 - [x] Concentration enforcement + physical dice mode — all remaining roll sites (initiative, DiceRoller, hit die, chat inline roller, crafting checks) now route through `usePromptedRoll`, respecting the tool/physical dice preference; concentration tracking on party_members with auto-save on damage, condition/death breaks, cast-replace prompt, and voluntary drop chip on player header and runner combatant card (irongollem/grimoire#185)
+- [x] Surprise mechanic — `surprised` flag on `RunCombatant`; DM can mark/unmark any combatant as surprised before or during round 1 via toggle button on the row; flag auto-clears at the end of the combatant's first turn (irongollem/grimoire#249)
+- [x] Reaction tracker — ⚡ chip per combatant in the conditions cell (desktop) and conditions row (mobile); click to mark used (strikes through), click again to restore; all reactions auto-reset at the start of each new round (irongollem/grimoire#250)
+- [x] Legendary actions live tracker — pip counter in RunnerEntityDetail showing remaining / cap; "Use 1" button spends an action; pool resets automatically at the start of the boss's own turn (irongollem/grimoire#251)
+- [x] Lair actions banner — amber banner in RunnerDmTools when `lairEnabled` and lair action is available this round (initiative count 20); "Used" button marks it spent; resets at start of each new round (irongollem/grimoire#252)
 
 ### Quests & Adventures
 
