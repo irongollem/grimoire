@@ -91,7 +91,7 @@ export const Watercolor = Node.create({
 
   renderHTML({ HTMLAttributes, node }) {
     const attrs = node.attrs as WatercolorAttrs;
-    const src = `/assets/scriptorium/watercolor/splatter-${attrs.variant}.png`;
+    const src = `/assets/scriptorium/watercolor/${attrs.variant}.webp`;
     const style = [
       "position:absolute",
       `top:${attrs.top}`,
