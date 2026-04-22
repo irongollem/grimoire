@@ -2399,4 +2399,13 @@ onUnmounted(() => {
   outline: 2px dashed oklch(0.7 0.15 250 / 0.6);
   outline-offset: 2px;
 }
+
+/* Selection ring — shown on any selected image node (inline or wrapped).
+   ProseMirror adds .ProseMirror-selectednode to the top-level wrapper of
+   the selected atom node, so this covers .sc-img-wrap divs and bare <img>. */
+.phb-editor :deep(.ProseMirror .ProseMirror-selectednode),
+.phb-editor :deep(.ProseMirror img.ProseMirror-selectednode) {
+  outline: 2px solid oklch(0.6 0.2 250);
+  outline-offset: 2px;
+}
 </style>
