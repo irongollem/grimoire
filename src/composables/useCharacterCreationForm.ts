@@ -14,6 +14,7 @@ import { getDefaultSpellSlots } from "@/types/spell.types";
 import type { PartyMemberInsert, SkillProfLevel, SaveKey, SpellSlotEntry } from "@/types/party.types";
 import { supabase } from "@/lib/supabase";
 import { CLASS_EQUIPMENT } from "@/data/classEquipment";
+import type { BundleItemEntry } from "@/types/item.types";
 
 // ── Constants (exported for use in template components) ───────────────────────
 
@@ -259,14 +260,69 @@ export function useCharacterCreationForm() {
   /** The two equipment bundles for the currently chosen class (null if class has no data). */
   const classEquipmentPack = computed(() => f.class ? (CLASS_EQUIPMENT[f.class] ?? null) : null);
 
-  /** Look up vault item IDs by name (case-insensitive). Returns Map<lowercaseName, itemId>. */
-  async function lookupVaultItems(names: string[]): Promise<Map<string, string>> {
+  /** Vault item data needed for equipment seeding. */
+  interface VaultEntry { id: string; bundle_items: BundleItemEntry[] | null }
+
+  /** Look up vault items by name (case-insensitive). Returns Map<lowercaseName, VaultEntry>. */
+  async function lookupVaultItems(names: string[]): Promise<Map<string, VaultEntry>> {
     if (names.length === 0) return new Map();
     const filter = names.map(n => `name.ilike.${n}`).join(",");
-    const { data } = await supabase.from("items").select("id, name").or(filter);
-    const map = new Map<string, string>();
-    for (const row of data ?? []) map.set((row.name as string).toLowerCase(), row.id as string);
+    const { data } = await supabase.from("items").select("id, name, bundle_items").or(filter);
+    const map = new Map<string, VaultEntry>();
+    for (const row of data ?? []) {
+      map.set((row.name as string).toLowerCase(), {
+        id: row.id as string,
+        bundle_items: row.bundle_items as BundleItemEntry[] | null,
+      });
+    }
     return map;
+  }
+
+  /**
+   * Seed one equipment entry into party_inventory.
+   * If the vault item is a pack (has bundle_items), the pack itself becomes an
+   * is_container=true row and each sub-item is inserted with container_id pointing to it.
+   */
+  async function seedEquipmentEntry(
+    entry: { name: string; quantity?: number },
+    vaultMap: Map<string, VaultEntry>,
+    carrierId: string,
+  ): Promise<void> {
+    const vault = vaultMap.get(entry.name.toLowerCase()) ?? null;
+    const bundleItems = vault?.bundle_items;
+
+    if (bundleItems && bundleItems.length > 0) {
+      // Pack: insert the pack itself as a container
+      const packRow = await addInventoryItem({
+        item_id: vault!.id, name: entry.name, quantity: entry.quantity ?? 1,
+        carried_by: carrierId, location: "backpack",
+        slot: null, is_container: true, container_id: null,
+        is_attuned: false, is_equipped: false, notes: null,
+        current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
+      });
+      // Look up the sub-items and insert them inside the pack
+      const subNames = [...new Set(bundleItems.map(b => b.name))];
+      const subMap = await lookupVaultItems(subNames);
+      for (const sub of bundleItems) {
+        const subVault = subMap.get(sub.name.toLowerCase()) ?? null;
+        await addInventoryItem({
+          item_id: subVault?.id ?? null, name: sub.name, quantity: sub.quantity ?? 1,
+          carried_by: carrierId, location: "container",
+          slot: null, is_container: false, container_id: packRow.id,
+          is_attuned: false, is_equipped: false, notes: null,
+          current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
+        });
+      }
+    } else {
+      // Plain item
+      await addInventoryItem({
+        item_id: vault?.id ?? null, name: entry.name, quantity: entry.quantity ?? 1,
+        carried_by: carrierId, location: "backpack",
+        slot: null, is_container: false, container_id: null,
+        is_attuned: false, is_equipped: false, notes: null,
+        current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
+      });
+    }
   }
 
   // ── Point buy ────────────────────────────────────────────────────────────────
@@ -484,27 +540,20 @@ export function useCharacterCreationForm() {
           });
         }
 
-        // Seed class starting equipment with vault lookup
+        // Seed class starting equipment with vault lookup (packs expand into their contents)
         if (importClassEquipment.value && f.class) {
-          const pack = CLASS_EQUIPMENT[f.class];
-          if (pack) {
-            const bundle = classEquipmentChoice.value === "a" ? pack.a : pack.b;
+          const classPack = CLASS_EQUIPMENT[f.class];
+          if (classPack) {
+            const bundle = classEquipmentChoice.value === "a" ? classPack.a : classPack.b;
             const uniqueNames = [...new Set(bundle.items.map(e => e.name))];
             const vaultMap = await lookupVaultItems(uniqueNames);
             for (const entry of bundle.items) {
-              const itemId = vaultMap.get(entry.name.toLowerCase()) ?? null;
-              await addInventoryItem({
-                item_id: itemId, name: entry.name, quantity: entry.quantity ?? 1,
-                carried_by: created.id, location: "backpack",
-                slot: null, is_container: false, container_id: null,
-                is_attuned: false, is_equipped: false, notes: null,
-                current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
-              });
+              await seedEquipmentEntry(entry, vaultMap, created.id);
             }
           }
         }
 
-        // Seed background starting equipment as inventory rows
+        // Seed background starting equipment as inventory rows (text-based, no vault lookup)
         if (importBackgroundEquipment.value && f.background_id) {
           const bg = (allBackgrounds.value ?? []).find((b) => b.id === f.background_id);
           for (const entry of parseEquipmentList(bg?.equipment ?? "")) {

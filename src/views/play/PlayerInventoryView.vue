@@ -1386,21 +1386,63 @@ function focusDropdownItem(idx: number) {
 
 async function addItem() {
   if (!newItemSelectedId.value) return;
-  await addInventoryItem({
-    name: newItemName.value.trim(),
-    quantity: newItemQty.value,
-    item_id: newItemSelectedId.value || null,
-    carried_by: resolvedMemberId.value ?? null,
-    location: "backpack",
-    slot: null,
-    is_container: isContainerVaultItem(newItemSelectedId.value || null),
-    container_id: null,
-    is_attuned: false,
-    is_equipped: false,
-    notes: null,
-    is_ruined: false,
-    is_identified: !isMagicVaultItem(newItemSelectedId.value || null),
-  });
+  const vaultItem = (allItems.value ?? []).find((i) => i.id === newItemSelectedId.value) ?? null;
+  const bundleItems = vaultItem?.bundle_items;
+
+  if (bundleItems && bundleItems.length > 0) {
+    // Pack: add the pack itself as a container, then expand contents inside it
+    const packRow = await addInventoryItem({
+      name: newItemName.value.trim(),
+      quantity: newItemQty.value,
+      item_id: vaultItem!.id,
+      carried_by: resolvedMemberId.value ?? null,
+      location: "backpack",
+      slot: null,
+      is_container: true,
+      container_id: null,
+      is_attuned: false,
+      is_equipped: false,
+      notes: null,
+      is_ruined: false,
+      is_identified: true,
+    });
+    for (const sub of bundleItems) {
+      const subVault = (allItems.value ?? []).find(
+        (i) => i.name.toLowerCase() === sub.name.toLowerCase(),
+      ) ?? null;
+      await addInventoryItem({
+        name: sub.name,
+        quantity: sub.quantity ?? 1,
+        item_id: subVault?.id ?? null,
+        carried_by: resolvedMemberId.value ?? null,
+        location: "container",
+        slot: null,
+        is_container: subVault?.tags.includes("container") ?? false,
+        container_id: packRow.id,
+        is_attuned: false,
+        is_equipped: false,
+        notes: null,
+        is_ruined: false,
+        is_identified: !subVault || subVault.rarity === "mundane",
+      });
+    }
+  } else {
+    await addInventoryItem({
+      name: newItemName.value.trim(),
+      quantity: newItemQty.value,
+      item_id: newItemSelectedId.value || null,
+      carried_by: resolvedMemberId.value ?? null,
+      location: "backpack",
+      slot: null,
+      is_container: isContainerVaultItem(newItemSelectedId.value || null),
+      container_id: null,
+      is_attuned: false,
+      is_equipped: false,
+      notes: null,
+      is_ruined: false,
+      is_identified: !isMagicVaultItem(newItemSelectedId.value || null),
+    });
+  }
   newItemName.value = "";
   newItemSelectedId.value = "";
   newItemQty.value = 1;

@@ -237,6 +237,46 @@
           </label>
         </div>
 
+        <!-- Bundle contents (packs only) -->
+        <div v-if="isPack" class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3">
+          <h3 class="font-cinzel text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
+            Bundle Contents
+            <span class="normal-case font-fell font-normal text-muted-foreground/60"> — items added when this pack is opened</span>
+          </h3>
+          <div class="flex flex-col gap-1.5">
+            <div
+              v-for="(entry, idx) in bundleItems"
+              :key="idx"
+              class="flex items-center gap-2"
+            >
+              <input
+                v-model.number="entry.quantity"
+                type="number" min="1"
+                class="w-14 bg-muted border border-border rounded-md px-2 py-1.5 font-cinzel text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <span class="font-fell text-sm text-foreground flex-1">{{ entry.name }}</span>
+              <button
+                type="button"
+                class="text-muted-foreground hover:text-destructive transition-colors"
+                @click="removeBundleItem(idx)"
+              ><X class="h-3.5 w-3.5" /></button>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <input
+              v-model="bundleItemInput"
+              placeholder="Item name…"
+              class="flex-1 bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              @keydown.enter.prevent="addBundleItem"
+            />
+            <button
+              type="button"
+              class="px-3 py-1.5 rounded-md border border-border font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              @click="addBundleItem"
+            >Add</button>
+          </div>
+        </div>
+
         <!-- Spell references (optional, links to Spellbook entries) -->
         <div v-if="isMagic && !isArtObject" class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-2">
           <div class="flex items-center justify-between">
@@ -348,6 +388,7 @@
 </template>
 
 <script setup lang="ts">
+import { X } from "lucide-vue-next";
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm, notify } = useConfirm();
 import { ref, computed } from "vue";
@@ -420,6 +461,23 @@ const isContainer = computed({
     else if (!v) tags.value = tags.value.filter(t => t !== 'container');
   },
 });
+
+// ── Pack / bundle fields ───────────────────────────────────────────────────────
+const bundleItems = ref<Array<{ name: string; quantity: number }>>(
+  (props.item?.bundle_items ?? []).map(e => ({ name: e.name, quantity: e.quantity ?? 1 })),
+);
+const isPack = computed(() => itemType.value === "pack");
+const bundleItemInput = ref("");
+
+function addBundleItem() {
+  const name = bundleItemInput.value.trim();
+  if (!name) return;
+  bundleItems.value = [...bundleItems.value, { name, quantity: 1 }];
+  bundleItemInput.value = "";
+}
+function removeBundleItem(idx: number) {
+  bundleItems.value = bundleItems.value.filter((_, i) => i !== idx);
+}
 
 // ── Curse fields ──────────────────────────────────────────────────────────────
 const isCursed = ref(!!(props.item?.curse_description));
@@ -511,6 +569,9 @@ function buildPayload() {
     mundane_image_focal_point: mundaneImageFocalPoint.value,
     is_arcane_focus: isArcaneFocus.value,
     curse_description: isCursed.value ? curseDescription.value || null : null,
+    bundle_items: isPack.value && bundleItems.value.length
+      ? bundleItems.value.map(e => ({ name: e.name, quantity: e.quantity }))
+      : null,
   };
 }
 

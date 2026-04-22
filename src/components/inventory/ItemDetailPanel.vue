@@ -207,6 +207,24 @@
           >{{ localAttuned ? 'Attuned ✓' : attunedCount >= 3 ? 'Slots Full' : 'Attune' }}</button>
         </div>
 
+        <!-- Bundle contents (packs only) -->
+        <div
+          v-if="vaultItem?.bundle_items?.length"
+          class="rounded-lg border border-border bg-card/50 p-3 flex flex-col gap-2"
+        >
+          <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider uppercase">Contents</p>
+          <ul class="space-y-0.5">
+            <li
+              v-for="(entry, i) in vaultItem.bundle_items"
+              :key="i"
+              class="font-fell text-sm text-foreground flex items-baseline gap-1.5"
+            >
+              <span class="text-muted-foreground text-xs shrink-0">×{{ entry.quantity ?? 1 }}</span>
+              {{ entry.name }}
+            </li>
+          </ul>
+        </div>
+
         <!-- Notes -->
         <div v-if="inv.notes" class="rounded-lg border border-border bg-card/50 p-3">
           <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider uppercase mb-1">Notes</p>

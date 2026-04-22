@@ -31,6 +31,7 @@ export const ITEM_TYPES = [
   "provision",
   "art_object",
   "service",
+  "pack",
 ] as const;
 export type ItemType = (typeof ITEM_TYPES)[number];
 
@@ -54,6 +55,7 @@ export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
   provision: "Provision",
   art_object: "Art Object",
   service: "Service",
+  pack: "Pack / Bundle",
 };
 
 export const ITEM_RARITIES = [
@@ -135,6 +137,12 @@ export const WEAPON_PROPERTIES = [
 ] as const;
 export type WeaponProperty = (typeof WEAPON_PROPERTIES)[number];
 
+/** One entry in a pack/bundle's contents list. */
+export interface BundleItemEntry {
+  name: string;
+  quantity?: number;
+}
+
 export interface Item {
   id: string;
   user_id: string;
@@ -159,6 +167,7 @@ export interface Item {
   source_title?: string | null; // human-readable document title, e.g. "Vault of Magic"
   source_url?: string | null; // link to the product page
   tags: string[];
+  bundle_items?: BundleItemEntry[] | null;
   image_url: string | null;
   image_focal_point?: { x: number; y: number } | null;
   is_arcane_focus: boolean;

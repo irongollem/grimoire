@@ -146,6 +146,7 @@ import {
   Component,
   Handshake,
   UtensilsCrossed,
+  Package,
 } from "lucide-vue-next";
 import FocalImage from "@/components/common/FocalImage.vue";
 import type { ItemType } from "@/types/item.types";
@@ -170,6 +171,7 @@ const ITEM_TYPE_ICONS: Record<ItemType, VueComponent> = {
   provision: UtensilsCrossed,
   art_object: Gem,
   service: Handshake,
+  pack: Package,
 };
 
 function itemTypeIcon(type: ItemType): VueComponent {
