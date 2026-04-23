@@ -87,6 +87,29 @@
             Walk speed will be updated to {{ pendingSpecies.speed.walk }} ft.
           </p>
 
+          <!-- Free-pick spell grants -->
+          <div v-if="freePickGrants.length > 0">
+            <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-2">
+              SPELLS REQUIRING YOUR CHOICE
+            </p>
+            <div class="space-y-1">
+              <div
+                v-for="grant in freePickGrants"
+                :key="grant.spell_name"
+                class="flex items-center gap-2 px-2 py-1 rounded bg-amber-500/10 border border-amber-500/20"
+              >
+                <div class="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
+                <span class="font-fell text-sm text-foreground flex-1">{{ grant.spell_name }}</span>
+                <span class="font-cinzel text-[10px] text-amber-500">
+                  {{ grant.uses_per_day === null ? "At will" : `${grant.uses_per_day}/day` }}
+                </span>
+              </div>
+            </div>
+            <p class="font-fell text-xs text-muted-foreground italic mt-1.5">
+              You'll be taken to your Innate Spells to add these manually.
+            </p>
+          </div>
+
           <!-- Action buttons -->
           <div class="flex gap-3 pt-2">
             <button
@@ -122,6 +145,7 @@ import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
 import type { Species } from "@/types/species.types";
+import { applySpeciesSpellGrants } from "@/composables/useCharacterSpells";
 
 const SIZE_OPTIONS = [
   { value: "all", label: "All" },
@@ -156,6 +180,15 @@ const headerDescription = computed(() => {
 const pendingSpecies = ref<Species | null>(null);
 const selectedSubrace = ref("");
 const saving = ref(false);
+
+/** Free-pick grants relevant to the selected subrace that need manual spell selection */
+const freePickGrants = computed(() =>
+  (pendingSpecies.value?.granted_spells ?? []).filter(
+    (g) =>
+      g.spell_id === null &&
+      (g.subrace === null || g.subrace === (selectedSubrace.value || null)),
+  ),
+);
 
 /** Languages from the new species that the member doesn't already have. */
 const languagesToAdd = computed(() => {
@@ -194,7 +227,12 @@ async function confirm() {
           : {}),
       },
     });
-    router.push("/play");
+    // Seed innate spells granted by the new species; returns free-pick grants
+    const freePicks = await applySpeciesSpellGrants(
+      me.value.id, pendingSpecies.value, me.value.level ?? 1, selectedSubrace.value || null,
+    );
+    // Navigate to innate spells tab so player can complete any free-pick selections
+    router.push(freePicks.length > 0 ? "/play/spells?tab=innate" : "/play");
   } finally {
     saving.value = false;
   }

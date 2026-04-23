@@ -1,5 +1,15 @@
 export type SpeciesSize = "tiny" | "small" | "medium" | "large";
 
+export interface SpeciesSpellGrant {
+  spell_id: string | null;     // null = free player pick (e.g. High Elf cantrip)
+  spell_name: string;          // display name; for free picks, describes the choice
+  uses_per_day: number | null; // null = at will
+  resets_on: "long_rest" | "short_rest" | null;
+  min_level: number;           // character level required (default 1)
+  source_label: string;        // e.g. "High Elf — Cantrip"
+  subrace: string | null;      // null = all subraces; string = specific subrace name
+}
+
 export interface SpeciesSpeed {
   walk?: number;
   fly?: number;
@@ -37,6 +47,7 @@ export interface Species {
   image_url: string | null;
   focal_point: { x: number; y: number } | null;
   is_shapeshifter: boolean;
+  granted_spells: SpeciesSpellGrant[];
   created_at: string;
   updated_at: string;
 }

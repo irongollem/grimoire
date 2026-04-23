@@ -11,6 +11,7 @@ import { useAllCustomSubclasses } from "@/composables/useCustomSubclasses";
 import { useAllSpecies } from "@/composables/useSpecies";
 import { useBackgrounds } from "@/composables/useBackgrounds";
 import { getDefaultSpellSlots } from "@/types/spell.types";
+import { applySpeciesSpellGrants } from "@/composables/useCharacterSpells";
 import type { PartyMemberInsert, SkillProfLevel, SaveKey, SpellSlotEntry } from "@/types/party.types";
 import { supabase } from "@/lib/supabase";
 import { CLASS_EQUIPMENT } from "@/data/classEquipment";
@@ -516,7 +517,16 @@ export function useCharacterCreationForm() {
         // ── Edit flow ─────────────────────────────────────────────────────────
         const { campaign_id: _cid, owner_user_id: _owner, ...updatePayload } = basePayload;
         await update({ id: existingMember.value.id, update: updatePayload });
-        router.push("/play/champions");
+        // Apply any newly unlocked species grants (e.g. Tiefling Darkness at level 5)
+        let freePicks: Awaited<ReturnType<typeof applySpeciesSpellGrants>> = [];
+        if (selectedSpecies.value) {
+          freePicks = await applySpeciesSpellGrants(
+            existingMember.value.id, selectedSpecies.value, f.level,
+            f.subrace || existingMember.value.subrace || null,
+          );
+        }
+        // If free-pick grants need manual selection, land on the innate tab
+        router.push(freePicks.length > 0 ? "/play/spells?tab=innate" : "/play/champions");
       } else {
         // ── Create flow ───────────────────────────────────────────────────────
         const created = await create({ ...basePayload, owner_user_id: auth.user?.id ?? null });
@@ -538,6 +548,11 @@ export function useCharacterCreationForm() {
             hit_dice_used:   0,
             sort_order:      0,
           });
+        }
+
+        // Seed innate spells granted by the chosen species (subrace-filtered)
+        if (selectedSpecies.value) {
+          await applySpeciesSpellGrants(created.id, selectedSpecies.value, 1, f.subrace || null);
         }
 
         // Seed class starting equipment with vault lookup (packs expand into their contents)

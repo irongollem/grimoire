@@ -139,6 +139,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
+import { useRoute } from "vue-router";
 import { refDebounced } from "@vueuse/core";
 import { Search, Sparkles } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
@@ -296,7 +297,10 @@ const tabs = computed(() => {
 });
 
 const defaultTab = computed((): TabId => tabs.value[0].id);
-const activeTab = ref<TabId>(defaultTab.value);
+const route = useRoute();
+const activeTab = ref<TabId>(
+  (route.query.tab as TabId | undefined) ?? defaultTab.value,
+);
 
 // ── Filters (browse tab) ───────────────────────────────────────────────────────
 const searchInput = ref("");

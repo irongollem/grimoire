@@ -2,6 +2,7 @@ import { computed, toValue, type MaybeRef, type MaybeRefOrGetter } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import type { CharacterSpell, CharacterSpellEntry, InnateSourceType, InnateResetsOn } from "@/types/spell.types";
+import type { Species } from "@/types/species.types";
 
 export interface SpellKnower {
   party_member_id: string;
@@ -277,4 +278,44 @@ export function useSpellKnowers(spellId: MaybeRefOrGetter<string>) {
     },
     enabled: computed(() => !!toValue(spellId)),
   });
+}
+
+/**
+ * Insert innate spell grants from a species onto a party member.
+ * Idempotent — skips rows that already exist (upsert with ignoreDuplicates).
+ * Returns free-pick grants (spell_id = null) that the caller should surface to the player.
+ */
+export async function applySpeciesSpellGrants(
+  partyMemberId: string,
+  species: Species,
+  characterLevel: number,
+  subrace?: string | null,
+): Promise<Species["granted_spells"]> {
+  const all = (species.granted_spells ?? []).filter(
+    (g) =>
+      g.min_level <= characterLevel &&
+      (g.subrace === null || g.subrace === (subrace ?? null)),
+  );
+  const autoGrants = all.filter((g) => g.spell_id !== null);
+  const freePickGrants = all.filter((g) => g.spell_id === null);
+
+  if (autoGrants.length) {
+    const rows = autoGrants.map((g) => ({
+      party_member_id: partyMemberId,
+      spell_id: g.spell_id as string,
+      is_prepared: false,
+      source_type: "racial" as InnateSourceType,
+      source_label: g.source_label || null,
+      uses_per_day: g.uses_per_day,
+      uses_remaining: g.uses_per_day,
+      resets_on: (g.resets_on ?? null) as InnateResetsOn | null,
+    }));
+
+    const { error } = await supabase
+      .from("character_spells")
+      .upsert(rows, { onConflict: "party_member_id,spell_id,source_type", ignoreDuplicates: true });
+    if (error) throw error;
+  }
+
+  return freePickGrants;
 }
