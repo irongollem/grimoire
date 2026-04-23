@@ -11,6 +11,7 @@ export interface SpotifyTokens {
   access_token: string;
   refresh_token: string;
   expires_at: number; // unix ms
+  client_id?: string; // bound to the app that issued the tokens
 }
 
 // ── PKCE helpers ──────────────────────────────────────────────────────────
@@ -101,6 +102,7 @@ export async function exchangeCode(code: string, clientId?: string): Promise<Spo
     access_token: data.access_token,
     refresh_token: data.refresh_token,
     expires_at: Date.now() + data.expires_in * 1000,
+    client_id: id,
   };
   storeTokens(tokens);
   return tokens;
@@ -123,6 +125,7 @@ async function refreshAccessToken(clientId: string, refreshToken: string): Promi
     access_token: data.access_token,
     refresh_token: data.refresh_token ?? refreshToken,
     expires_at: Date.now() + data.expires_in * 1000,
+    client_id: clientId,
   };
   storeTokens(tokens);
   return tokens;
@@ -152,6 +155,11 @@ export function clearTokens(): void {
 export async function getValidToken(clientId: string): Promise<string | null> {
   const tokens = getStoredTokens();
   if (!tokens) return null;
+  // Tokens were issued for a different app — clear and force re-auth.
+  if (tokens.client_id && tokens.client_id !== clientId) {
+    clearTokens();
+    return null;
+  }
 
   // Refresh 60 s before expiry to avoid mid-session token death
   if (Date.now() < tokens.expires_at - 60_000) {
