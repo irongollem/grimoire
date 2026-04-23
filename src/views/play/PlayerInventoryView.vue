@@ -662,6 +662,7 @@
       @close="selectedInv = null"
       @unequip="unequipSelected"
       @sell="handleSell"
+      @consume="handleConsume"
     />
 
     <!-- Slot assignment modal -->
@@ -1320,6 +1321,11 @@ async function openDetailWithSell(inv: PartyInventoryItem) {
   selectedInv.value = inv;
   await nextTick();
   detailPanel.value?.openSell();
+}
+
+async function handleConsume(id: string) {
+  selectedInv.value = null;
+  await removeInventoryItem(id);
 }
 
 async function handleSell(
