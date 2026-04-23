@@ -13,6 +13,7 @@ import { useBackgrounds } from "@/composables/useBackgrounds";
 import { getDefaultSpellSlots } from "@/types/spell.types";
 import { applySpeciesSpellGrants } from "@/composables/useCharacterSpells";
 import type { SpeciesSpellGrant } from "@/types/species.types";
+import { computeAc } from "@/types/party.types";
 import type { PartyMemberInsert, SkillProfLevel, SaveKey, SpellSlotEntry } from "@/types/party.types";
 import { supabase } from "@/lib/supabase";
 import { CLASS_EQUIPMENT } from "@/data/classEquipment";
@@ -160,6 +161,15 @@ export function useCharacterCreationForm() {
   });
   const derivedAc       = computed(() => 10 + mod(f.dex));
   const derivedSpeed    = computed(() => selectedSpecies.value?.speed?.walk ?? 30);
+
+  // When a formula is active, keep f.ac in sync whenever ability scores change.
+  watch(
+    () => [f.dex, f.con, f.wis, f.ac_formula] as const,
+    () => {
+      if (!f.ac_formula) return;
+      f.ac = computeAc(f.ac_formula, f);
+    },
+  );
   const derivedInitiative = computed(() => mod(f.dex));
 
   const isEditMode = computed(() => route.name === "play-character-edit");
@@ -207,6 +217,7 @@ export function useCharacterCreationForm() {
     current_hp:    m?.current_hp ?? 10,
     temp_hp:       m?.temp_hp ?? 0,
     ac:            m?.ac ?? 10,
+    ac_formula:    (m?.ac_formula ?? null) as string | null,
     speed:         m?.speed ?? 30,
     initiative_bonus:   m?.initiative_bonus ?? 0,
     current_initiative: m?.current_initiative ?? null,

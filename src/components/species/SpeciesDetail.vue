@@ -65,6 +65,22 @@
           </div>
         </div>
 
+        <!-- Natural Armor AC -->
+        <div>
+          <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">NATURAL ARMOR AC</label>
+          <div class="flex items-center gap-2">
+            <input
+              v-model.number="form.natural_armor_ac"
+              type="number"
+              min="1"
+              max="30"
+              placeholder="—"
+              class="w-24 bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+            <span class="font-fell text-xs text-muted-foreground italic">Leave blank if the species has no natural armor trait</span>
+          </div>
+        </div>
+
         <!-- Speed -->
         <div>
           <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">SPEED (ft)</label>
@@ -394,6 +410,7 @@ function makeForm(s?: Species | null) {
     image_url: s?.image_url ?? "",
     focal_point: s?.focal_point ?? null,
     is_shapeshifter: s?.is_shapeshifter ?? false,
+    natural_armor_ac: s?.natural_armor_ac ?? null as number | null,
     grantedSpells: (s?.granted_spells ?? []).map((g) => ({ ...g })),
   };
 }
@@ -519,6 +536,7 @@ async function save() {
       image_url: form.image_url || null,
       focal_point: form.focal_point,
       is_shapeshifter: form.is_shapeshifter,
+      natural_armor_ac: form.natural_armor_ac || null,
       granted_spells: form.grantedSpells,
     };
 

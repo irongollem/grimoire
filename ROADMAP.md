@@ -265,6 +265,8 @@
 - [x] **Level-up cantrip picker** — when `cantripsKnownGain > 0` at a level-up, a dedicated cantrip picker section appears (filtered to level-0 spells for the character's class); separate from the spell picker; selected cantrips saved to `character_spells` on confirm; banner in Features Gained announces the cantrips total
 - [x] **Spell picker max-slot filter** — level-up spell picker filters out spells above the character's max castable slot level (e.g. a Warlock with only level-2 slots won't see 5th-level spells in the picker)
 
+- [x] **AC formula system** — replaces the hand-typed `ac` integer with a formula picker on the character edit sheet; formulas: Unarmored Defense (Barbarian: 10+DEX+CON), Unarmored Defense (Monk: 10+DEX+WIS), Mage Armor (13+DEX), Natural Armor (fixed base); formula stored in `ac_formula` column on `party_members`; reactive watch re-computes `f.ac` as ability scores change; `computeAc()` utility exported from `party.types.ts`; species editor gains a `natural_armor_ac` field (seeds the natural armor picker); all existing consumers of `member.ac` unchanged (irongollem/grimoire#261)
+
 ### Character Creation & Level-Up
 
 - [x] **Guided character creation wizard** — 8-step wizard (Identity→Species→Class→Background→Abilities→Combat→Proficiencies→Review) with point-buy ability score system; species/background/class all DB-linked; form state extracted into `useCharacterCreationForm` composable + `CHARACTER_FORM_KEY` injection; shell view `PlayerCharacterCreateView` is 12 lines; wizard and edit-tabs are separate focused components

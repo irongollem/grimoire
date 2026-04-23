@@ -47,6 +47,7 @@ export interface Species {
   image_url: string | null;
   focal_point: { x: number; y: number } | null;
   is_shapeshifter: boolean;
+  natural_armor_ac?: number | null;
   granted_spells: SpeciesSpellGrant[];
   created_at: string;
   updated_at: string;

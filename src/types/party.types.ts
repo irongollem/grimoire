@@ -93,6 +93,7 @@ export interface PartyMember {
   current_hp: number;
   temp_hp: number;
   ac: number;
+  ac_formula?: string | null;
   speed: number;
   initiative_bonus: number;
   current_initiative: number | null;
@@ -169,6 +170,30 @@ export type PartyMemberUpdate = Partial<PartyMemberInsert>;
 // Conditions + helpers now live in `@/lib/conditions`. Re-exported here so
 // existing imports from `@/types/party.types` keep working.
 export { CONDITIONS, ATTACK_DIS_CONDITIONS, CHECK_DIS_CONDITIONS } from "@/lib/conditions";
+
+// ── AC formula ───────────────────────────────────────────────────────────────
+// Encodes where a character's AC comes from. Stored in party_members.ac_formula.
+// null → manual (use ac integer as-is).
+// "unarmored:dex+con" → Barbarian Unarmored Defense: 10 + DEX mod + CON mod
+// "unarmored:dex+wis" → Monk Unarmored Defense:      10 + DEX mod + WIS mod
+// "mage_armor"        → Mage Armor spell:             13 + DEX mod
+// "natural:<N>"       → Natural Armor:                fixed base AC N (e.g. "natural:15")
+
+export function computeAc(
+  formula: string | null | undefined,
+  scores: { ac: number; dex: number; con: number; wis: number },
+): number {
+  if (!formula) return scores.ac;
+  const dexMod = Math.floor((scores.dex - 10) / 2);
+  if (formula === "unarmored:dex+con") return 10 + dexMod + Math.floor((scores.con - 10) / 2);
+  if (formula === "unarmored:dex+wis") return 10 + dexMod + Math.floor((scores.wis - 10) / 2);
+  if (formula === "mage_armor") return 13 + dexMod;
+  if (formula.startsWith("natural:")) {
+    const base = parseInt(formula.slice(8), 10);
+    return isNaN(base) ? scores.ac : base;
+  }
+  return scores.ac;
+}
 
 // ── XP-per-level table (D&D 5e PHB) ──────────────────────────────────────────
 // Total XP required to reach each level. Index 0 → Lv 1, index 19 → Lv 20.

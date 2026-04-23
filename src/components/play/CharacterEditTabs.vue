@@ -90,7 +90,27 @@
         <label class="block"><span class="field-label">Max HP</span><input v-model.number="f.max_hp" type="number" min="1" class="field-input w-full" /></label>
         <label class="block"><span class="field-label">Current HP</span><input v-model.number="f.current_hp" type="number" class="field-input w-full" /></label>
         <label class="block"><span class="field-label">Temp HP</span><input v-model.number="f.temp_hp" type="number" min="0" class="field-input w-full" /></label>
-        <label class="block"><span class="field-label">Armor Class</span><input v-model.number="f.ac" type="number" min="1" class="field-input w-full" /></label>
+        <!-- Armor Class — formula picker -->
+        <div class="block col-span-2 sm:col-span-3">
+          <span class="field-label">Armor Class</span>
+          <div class="flex flex-wrap gap-2 items-center">
+            <select v-model="acFormulaType" class="field-input shrink-0">
+              <option value="">Manual</option>
+              <option value="unarmored:dex+con">Unarmored Defense (Barbarian)</option>
+              <option value="unarmored:dex+wis">Unarmored Defense (Monk)</option>
+              <option value="mage_armor">Mage Armor</option>
+              <option value="natural">Natural Armor</option>
+            </select>
+            <!-- Manual: editable number -->
+            <input v-if="!acFormulaType" v-model.number="f.ac" type="number" min="1" class="field-input w-20" />
+            <!-- Formula: computed read-only value + optional natural base input -->
+            <template v-else>
+              <span class="field-input w-16 text-center font-bold pointer-events-none select-none">{{ f.ac }}</span>
+              <span class="font-fell text-xs text-muted-foreground italic">{{ acFormulaLabel }}</span>
+              <input v-if="acFormulaType === 'natural'" v-model.number="naturalBase" type="number" min="1" class="field-input w-20" placeholder="Base AC" />
+            </template>
+          </div>
+        </div>
         <label class="block"><span class="field-label">Speed (ft)</span><input v-model.number="f.speed" type="number" min="0" step="5" class="field-input w-full" /></label>
         <label class="block"><span class="field-label">Initiative Bonus</span><input v-model.number="f.initiative_bonus" type="number" class="field-input w-full" placeholder="= DEX mod" /></label>
         <label class="block"><span class="field-label">Carry Capacity Override</span><input v-model="f.carry_capacity_override" type="text" class="field-input w-full" placeholder="*2, +30, 150" /></label>
@@ -168,7 +188,7 @@ const {
   activeTab, saving,
   portraitUrl, focalPoint, spellSlotMaxes,
   existingMember, backRoute,
-  speciesOptions, backgroundOptions,
+  speciesOptions, backgroundOptions, selectedSpecies,
   passivePerception, passiveInsight, passiveInvestigation,
   mod, setSkillProf, skillBonus, toggleSave, saveBonus,
   resetSlotsToDefault,
@@ -181,6 +201,51 @@ const currentSpeciesName = computed(
 const currentBgName = computed(
   () => (backgroundOptions.value as Array<{ id: string; name: string }>).find((b) => b.id === f.background_id)?.name ?? null,
 );
+
+// ── AC formula picker ─────────────────────────────────────────────────────────
+
+/** Dropdown value: "" = manual, "natural" = natural armor, else the formula string. */
+const acFormulaType = computed({
+  get(): string {
+    const fm = f.ac_formula;
+    if (!fm) return "";
+    if (fm.startsWith("natural:")) return "natural";
+    return fm;
+  },
+  set(val: string) {
+    if (val === "") {
+      f.ac_formula = null;
+    } else if (val === "natural") {
+      // Seed from species natural_armor_ac if available, else 10.
+      const speciesBase = (selectedSpecies.value as { natural_armor_ac?: number | null } | null)?.natural_armor_ac ?? 10;
+      f.ac_formula = `natural:${speciesBase}`;
+    } else {
+      f.ac_formula = val;
+    }
+  },
+});
+
+/** The base AC integer for the natural armor option. */
+const naturalBase = computed({
+  get(): number {
+    const fm = f.ac_formula;
+    if (fm?.startsWith("natural:")) return parseInt(fm.slice(8), 10) || 10;
+    return (selectedSpecies.value as { natural_armor_ac?: number | null } | null)?.natural_armor_ac ?? 10;
+  },
+  set(val: number) {
+    f.ac_formula = `natural:${val}`;
+  },
+});
+
+const acFormulaLabel = computed(() => {
+  const fm = f.ac_formula;
+  if (!fm) return "";
+  if (fm === "unarmored:dex+con") return `10 + DEX (${mod(f.dex) >= 0 ? "+" : ""}${mod(f.dex)}) + CON (${mod(f.con) >= 0 ? "+" : ""}${mod(f.con)})`;
+  if (fm === "unarmored:dex+wis") return `10 + DEX (${mod(f.dex) >= 0 ? "+" : ""}${mod(f.dex)}) + WIS (${mod(f.wis) >= 0 ? "+" : ""}${mod(f.wis)})`;
+  if (fm === "mage_armor")        return `13 + DEX (${mod(f.dex) >= 0 ? "+" : ""}${mod(f.dex)})`;
+  if (fm.startsWith("natural:"))  return "Natural Armor — base:";
+  return "";
+});
 </script>
 
 <style scoped>
