@@ -20,7 +20,6 @@ const FOOTER_CSS = `
   font-family: var(--sc-body-font);
   font-size: 12px;
   color: var(--sc-accent);
-  border-top: 1px solid var(--sc-accent);
   box-sizing: border-box;
 }
 .phb-page.theme-onednd2024 .sc-footer-text {
@@ -101,9 +100,9 @@ const RENDER_CSS = `
 h1 { font-family:var(--sc-heading-font); font-size:19px; font-weight:700; color:var(--sc-h1-color); background:var(--sc-h1-bg); border-bottom:var(--sc-h1-border-b); padding:var(--sc-h1-padding); margin:19px -5px 11px; }
 h2 { font-family:var(--sc-heading-font); font-size:16px; font-weight:700; color:var(--sc-accent); border-bottom:2px solid var(--sc-accent); padding-bottom:3px; margin:16px 0 7px; }
 h3 { font-family:var(--sc-heading-font); font-size:15px; font-weight:600; font-style:italic; color:var(--sc-accent); margin:13px 0 4px; }
-p { margin:0 0 7px; } ul,ol { padding-left:19px; margin:4px 0 7px; } li { margin:2px 0; }
+p { margin:0 0 7px; font-style:normal; } ul,ol { padding-left:19px; margin:4px 0 7px; } li { margin:2px 0; }
 blockquote { border-left:4px solid var(--sc-callout-border); background:var(--sc-callout-bg); padding:8px 11px; margin:11px 0; border-radius:0 4px 4px 0; font-style:italic; }
-blockquote p { margin:0; } strong { font-weight:700; } em { font-style:italic; }
+blockquote p { margin:0; font-style:italic; } strong { font-weight:700; } em { font-style:italic; }
 code { background:var(--sc-code-bg); padding:1px 4px; border-radius:2px; font-family:'Courier New',monospace; font-size:13px; }
 pre { background:var(--sc-accent); color:var(--sc-accent-contrast); padding:11px; border-radius:4px; overflow:hidden; margin:11px 0; font-size:13px; }
 pre code { background:transparent; padding:0; color:inherit; }
@@ -148,8 +147,8 @@ div[data-type="coverPage"] { position:absolute; inset:0; overflow:hidden; }
 .sc-toc-page { flex-shrink:0; font-weight:600; color:var(--sc-accent); min-width:22px; text-align:right; }
 .sc-toc-empty { color:rgba(26,26,26,0.5); font-style:italic; font-size:13px; }
 /* Class progression table — palette-variable driven, both themes */
-.sc-class-table { width:100%; border-collapse:collapse; font-family:var(--sc-body-font,Georgia,serif); font-size:13px; color:var(--sc-ink,#1a1a1a); line-height:1.3; margin:11px 0; }
-.sc-class-table th { font-family:var(--sc-heading-font,'Cinzel',Georgia,serif); font-size:12px; font-variant:small-caps; font-weight:700; letter-spacing:.04em; text-align:center; color:var(--sc-accent-contrast,#f9f6ef); background:var(--sc-accent,#1b3a4b); padding:4px 7px; border:1px solid var(--sc-accent,#1b3a4b); white-space:nowrap; }
+.sc-class-table { width:100%; border-collapse:collapse; font-family:var(--sc-body-font,Georgia,serif); font-size:11px; color:var(--sc-ink,#1a1a1a); line-height:1.3; margin:11px 0; }
+.sc-class-table th { font-family:var(--sc-heading-font,'Cinzel',Georgia,serif); font-size:11px; font-variant:small-caps; font-weight:700; letter-spacing:.04em; text-align:center; color:var(--sc-accent-contrast,#f9f6ef); background:var(--sc-accent,#1b3a4b); padding:4px 7px; border:1px solid var(--sc-accent,#1b3a4b); white-space:normal; min-width:0; }
 .sc-class-table td { text-align:center; padding:3px 6px; border:1px solid rgba(27,58,75,0.3); vertical-align:middle; }
 .sc-class-table td p, .sc-class-table th p { margin:0; }
 .sc-class-table tr:nth-child(odd) td { background:rgba(27,58,75,0.08); }
@@ -172,17 +171,17 @@ div[data-type="coverPage"] { position:absolute; inset:0; overflow:hidden; }
 }
 /* Note block */
 .sc-note { background:var(--sc-callout-note-bg); border-left:3px solid var(--sc-callout-note-border); border-radius:0 4px 4px 0; padding:9px 14px; margin:14px 0; }
-.sc-note p { margin:0 0 6px; font-size:0.875em; }
+.sc-note p { margin:0 0 6px; font-size:0.875em; font-style:italic; }
 .sc-note p:last-child { margin-bottom:0; }
 .theme-phb2014 .sc-note { border-left:none; border-top:2px double var(--sc-callout-note-border); border-bottom:2px double var(--sc-callout-note-border); border-radius:0; padding:8px 14px; }
 /* Descriptive block */
 .sc-descriptive { background:var(--sc-callout-desc-bg); border:2px solid var(--sc-callout-desc-border); border-radius:4px; padding:14px 16px; margin:14px 0; font-style:italic; }
-.sc-descriptive p { margin:0 0 8px; }
+.sc-descriptive p { margin:0 0 8px; font-style:italic; }
 .sc-descriptive p:last-child { margin-bottom:0; }
 .theme-phb2014 .sc-descriptive { border-radius:0; border-width:3px; }
 /* Quote block */
 .sc-quote { padding:6px 16px; margin:14px 0; color:var(--sc-callout-quote-color); font-style:italic; }
-.sc-quote p { margin:0 0 5px; }
+.sc-quote p { margin:0 0 5px; font-style:italic; }
 .sc-quote p:last-child { margin-bottom:0; }
 /* Attribution — em-dash via pseudo-element; no content = no orphaned dash */
 .sc-attribution { font-style:normal; font-variant:small-caps; font-size:0.875em; color:var(--sc-callout-attr-color); margin:6px 0 0; letter-spacing:.02em; }

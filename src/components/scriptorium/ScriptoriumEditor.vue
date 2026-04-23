@@ -22,7 +22,7 @@
     "
   />
 
-  <div class="flex flex-col gap-3">
+  <div class="flex flex-col gap-3 lg:h-full">
     <!-- Metadata row -->
     <div class="flex flex-wrap gap-2 items-end">
       <label class="flex-1 min-w-64">
@@ -110,7 +110,7 @@
       Mobile: no min-height so the page scrolls naturally and both panes sit in
       the document flow. Desktop: fixed 620px pane height with internal scroll.
     -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:h-full lg:min-h-0">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:flex-1 lg:min-h-0">
       <!-- Editor pane -->
       <!--
         overflow-hidden only kicks in at lg: so the mobile layout doesn't clip the
@@ -752,24 +752,31 @@
             </button>
           </div>
         </div>
-        <div ref="previewContainerRef" class="phb-bg lg:flex-1 lg:overflow-auto lg:min-h-0">
+        <div ref="previewContainerRef" class="phb-bg lg:flex-1 lg:overflow-auto lg:min-h-0" style="touch-action: pan-x pan-y;">
+          <!-- Wrapper gives the scroll container the correct zoomed dimensions.
+               The inner .phb-page uses transform:scale so layout is unaffected
+               by zoom (CSS `zoom` runs after flex layout and breaks scroll). -->
           <div
             v-for="(pageHtml, pageIndex) in pages"
             :key="pageIndex"
-            class="phb-page"
-            :class="[themeClass, { 'ink-friendly': inkFriendly }]"
-            :style="pageSizeStyle"
+            :style="pageWrapperStyle"
           >
             <div
-              class="phb-body"
-              :class="[themeClass, { 'phb-two-col': isTwoColumn }]"
-              v-html="pageHtml"
-            />
-            <!-- Odd index = recto (right-hand page): # on right. Even index = verso (left-hand page): # on left. -->
-            <div v-if="pageFooters[pageIndex] !== null" class="sc-footer" :class="pageIndex % 2 === 0 ? 'sc-footer--recto' : 'sc-footer--verso'">
-              <span class="sc-footer-num sc-footer-num--left">{{ pageFooters[pageIndex] }}</span>
-              <span class="sc-footer-text">{{ footerText }}</span>
-              <span class="sc-footer-num sc-footer-num--right">{{ pageFooters[pageIndex] }}</span>
+              class="phb-page"
+              :class="[themeClass, { 'ink-friendly': inkFriendly }]"
+              :style="pageInnerStyle"
+            >
+              <div
+                class="phb-body"
+                :class="[themeClass, { 'phb-two-col': isTwoColumn }]"
+                v-html="pageHtml"
+              />
+              <!-- Odd index = recto (right-hand page): # on right. Even index = verso (left-hand page): # on left. -->
+              <div v-if="pageFooters[pageIndex] !== null" class="sc-footer" :class="pageIndex % 2 === 0 ? 'sc-footer--recto' : 'sc-footer--verso'">
+                <span class="sc-footer-num sc-footer-num--left">{{ pageFooters[pageIndex] }}</span>
+                <span class="sc-footer-text">{{ footerText }}</span>
+                <span class="sc-footer-num sc-footer-num--right">{{ pageFooters[pageIndex] }}</span>
+              </div>
             </div>
           </div>
           <p class="phb-hint">
@@ -962,6 +969,16 @@ let resizeObserver: ResizeObserver | null = null;
 // Keep a direct reference for the cleanup in onUnmounted (ref may be null by then).
 let previewEl: HTMLElement | null = null;
 let wheelHandler: ((e: WheelEvent) => void) | null = null;
+let pinchStartHandler: ((e: TouchEvent) => void) | null = null;
+let pinchMoveHandler: ((e: TouchEvent) => void) | null = null;
+let pinchStartDist = 0;
+let pinchStartZoom = 0;
+
+function pinchDist(t: TouchList): number {
+  const dx = t[0].clientX - t[1].clientX;
+  const dy = t[0].clientY - t[1].clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
 
 onMounted(() => {
   if (!previewContainerRef.value) return;
@@ -978,13 +995,42 @@ onMounted(() => {
   // A non-passive wheel listener intercepts purely horizontal swipes and blocks them
   // at the left/right boundary regardless of overflow state.
   wheelHandler = (e: WheelEvent) => {
+    // ctrlKey is set by browsers for pinch-to-zoom gestures (iOS Safari, macOS trackpad).
+    // Intercept here so we zoom the page content instead of the browser viewport.
+    if (e.ctrlKey) {
+      e.preventDefault();
+      const factor = 1 - e.deltaY * 0.008; // sensitivity tuned for trackpad + iOS
+      const newZoom = Math.min(2.0, Math.max(0.25, effectiveZoom.value * factor));
+      manualZoom.value = newZoom;
+      zoomMode.value = "manual";
+      return;
+    }
     if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return; // vertical — let it pass
-    const el = previewEl!;
-    const atLeft = el.scrollLeft <= 0;
-    const atRight = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1;
-    if (atLeft || atRight) e.preventDefault(); // at boundary → block navigation
+    // Always intercept horizontal scroll and apply it manually so the browser
+    // never sees it as a navigation swipe, even on a fast flick.
+    e.preventDefault();
+    previewEl!.scrollLeft += e.deltaX;
   };
   previewEl.addEventListener("wheel", wheelHandler, { passive: false });
+
+  // Pinch-to-zoom: record the starting finger distance and zoom level on
+  // two-finger touch, then scale manualZoom proportionally on touchmove.
+  pinchStartHandler = (e: TouchEvent) => {
+    if (e.touches.length !== 2) return;
+    pinchStartDist = pinchDist(e.touches);
+    pinchStartZoom = effectiveZoom.value;
+  };
+  pinchMoveHandler = (e: TouchEvent) => {
+    if (e.touches.length !== 2) return;
+    e.preventDefault(); // prevent browser native zoom
+    const d = pinchDist(e.touches);
+    if (pinchStartDist === 0) return;
+    const clamped = Math.min(2.0, Math.max(0.25, pinchStartZoom * (d / pinchStartDist)));
+    manualZoom.value = clamped;
+    zoomMode.value = "manual";
+  };
+  previewEl.addEventListener("touchstart", pinchStartHandler, { passive: true });
+  previewEl.addEventListener("touchmove", pinchMoveHandler, { passive: false });
 });
 
 // ── Zoom controls ────────────────────────────────────────────────────────────
@@ -1017,9 +1063,29 @@ function zoomOut() {
 }
 function zoomFit() { zoomMode.value = "fit"; }
 
-const pageSizeStyle = computed(() => {
+// Wrapper: gives the scroll container the correct zoomed layout dimensions.
+// Inner page uses transform:scale — layout-neutral, just visual scaling.
+// (CSS `zoom` runs after flex layout and doesn't update scroll dimensions.)
+const pageWrapperStyle = computed(() => {
   const { w, h } = PAGE_SIZES_PX[pageSize.value];
-  return { width: `${w}px`, height: `${h}px`, zoom: effectiveZoom.value };
+  const z = effectiveZoom.value;
+  return {
+    width: `${Math.round(w * z)}px`,
+    height: `${Math.round(h * z)}px`,
+    flexShrink: '0',
+    margin: '0 auto',
+  };
+});
+
+const pageInnerStyle = computed(() => {
+  const { w, h } = PAGE_SIZES_PX[pageSize.value];
+  const z = effectiveZoom.value;
+  return {
+    width: `${w}px`,
+    height: `${h}px`,
+    transform: `scale(${z})`,
+    transformOrigin: 'top left',
+  };
 });
 
 // Editor
@@ -1343,8 +1409,10 @@ const {
 onUnmounted(() => {
   editor.value?.destroy();
   resizeObserver?.disconnect();
-  if (previewEl && wheelHandler) {
-    previewEl.removeEventListener("wheel", wheelHandler);
+  if (previewEl) {
+    if (wheelHandler) previewEl.removeEventListener("wheel", wheelHandler);
+    if (pinchStartHandler) previewEl.removeEventListener("touchstart", pinchStartHandler);
+    if (pinchMoveHandler) previewEl.removeEventListener("touchmove", pinchMoveHandler);
   }
 });
 </script>
@@ -1355,6 +1423,15 @@ onUnmounted(() => {
 /* Keep toolbar children at natural size in the nowrap scroll row on mobile */
 .scriptorium-toolbar > * {
   flex-shrink: 0;
+}
+
+/* ── Form controls (#243): bind directly to runtime theme vars ── */
+/* Scoped styles are unlayered and win over Tailwind's @layer utilities,
+   so this guarantees inputs pick up the JS-updated --card variable. */
+input:not([type="checkbox"]):not([type="radio"]),
+select {
+  background-color: var(--card);
+  color: var(--foreground);
 }
 
 /* ── Editor (dark app theme) ──────────────────────────────────── */
@@ -1384,6 +1461,16 @@ onUnmounted(() => {
 .phb-editor :deep(.ProseMirror ol) {
   @apply pl-6 my-2;
 }
+/* #246: plain paragraphs must not inherit italic from callout containers */
+.phb-editor :deep(.ProseMirror p) {
+  font-style: normal;
+}
+.phb-editor :deep(.ProseMirror .sc-descriptive p),
+.phb-editor :deep(.ProseMirror blockquote p),
+.phb-editor :deep(.ProseMirror .sc-quote p) {
+  font-style: italic;
+}
+
 .phb-editor :deep(.ProseMirror blockquote) {
   @apply border-l-4 border-primary pl-3 text-muted-foreground italic my-2;
 }
@@ -1505,11 +1592,9 @@ onUnmounted(() => {
 }
 
 .phb-page {
-  /* width / height / zoom injected via :style (pageSizeStyle) — see script */
+  /* width / height / transform injected via :style (pageInnerStyle) — see script */
   position: relative;
-  /* Self-centres when narrower than container; left-aligns when zoomed beyond container width
-     so horizontal scroll reaches the right edge without hiding the left behind scroll=0 */
-  margin: 0 auto;
+  /* margin and flex-shrink live on the pageWrapperStyle wrapper — not here */
   background: url("/assets/scriptorium/page-background.webp") center / cover
     no-repeat;
   /* Padding matches PDF RENDER_CSS exactly — critical for WYSIWYG accuracy */
@@ -1574,6 +1659,7 @@ onUnmounted(() => {
 }
 .phb-body :deep(p) {
   margin: 0 0 0.6rem;
+  font-style: normal; /* #246: resist italic inheritance from callout containers */
 }
 .phb-body :deep(ul),
 .phb-body :deep(ol) {
@@ -1593,6 +1679,7 @@ onUnmounted(() => {
 }
 .phb-body :deep(blockquote p) {
   margin: 0;
+  font-style: italic; /* restore italic overridden by the general p rule */
 }
 .phb-body :deep(strong) {
   font-weight: 700;
@@ -1897,7 +1984,6 @@ onUnmounted(() => {
   font-family: var(--sc-body-font);
   font-size: 12px; /* matches PDF RENDER_CSS */
   color: var(--sc-accent);
-  border-top: 1px solid var(--sc-col-rule);
   box-sizing: border-box;
 }
 
@@ -2059,7 +2145,7 @@ onUnmounted(() => {
   width: 100%;
   border-collapse: collapse;
   font-family: var(--sc-body-font, Georgia, serif);
-  font-size: 0.8125rem;
+  font-size: 0.6875rem; /* #241: reduced from 0.8125rem to fit 14-col table */
   color: var(--sc-ink, #1a1a1a);
   line-height: 1.3;
   margin: 0.75rem 0;
@@ -2076,7 +2162,8 @@ onUnmounted(() => {
   background: var(--sc-accent, #1b3a4b);
   padding: 0.3rem 0.5rem;
   border: 1px solid var(--sc-accent, #1b3a4b);
-  white-space: nowrap;
+  white-space: normal; /* #241: allow header text to wrap */
+  min-width: 0;
 }
 .phb-body :deep(.sc-class-table td),
 .phb-editor :deep(.ProseMirror .sc-class-table td) {
@@ -2156,6 +2243,7 @@ onUnmounted(() => {
 .phb-body :deep(.sc-note p) {
   margin: 0 0 0.4rem;
   font-size: 0.875em;
+  font-style: italic;
 }
 .phb-body :deep(.sc-note p:last-child) {
   margin-bottom: 0;
@@ -2179,6 +2267,9 @@ onUnmounted(() => {
   padding: 0.5rem 0.75rem;
   margin: 0.5rem 0;
 }
+.phb-editor :deep(.ProseMirror .sc-note p) {
+  font-style: italic;
+}
 
 /* ── Descriptive block ────────────────────────────────────────── */
 
@@ -2193,6 +2284,7 @@ onUnmounted(() => {
 }
 .phb-body :deep(.sc-descriptive p) {
   margin: 0 0 0.5rem;
+  font-style: italic; /* restore italic overridden by the general p rule */
 }
 .phb-body :deep(.sc-descriptive p:last-child) {
   margin-bottom: 0;
@@ -2226,6 +2318,7 @@ onUnmounted(() => {
 }
 .phb-body :deep(.sc-quote p) {
   margin: 0 0 0.35rem;
+  font-style: italic; /* restore italic overridden by the general p rule */
 }
 .phb-body :deep(.sc-quote p:last-child) {
   margin-bottom: 0;
@@ -2400,12 +2493,20 @@ onUnmounted(() => {
   outline-offset: 2px;
 }
 
-/* Selection ring — shown on any selected image node (inline or wrapped).
+/* Selection ring — shown on any selected atom node (image, spacer, etc).
    ProseMirror adds .ProseMirror-selectednode to the top-level wrapper of
    the selected atom node, so this covers .sc-img-wrap divs and bare <img>. */
 .phb-editor :deep(.ProseMirror .ProseMirror-selectednode),
 .phb-editor :deep(.ProseMirror img.ProseMirror-selectednode) {
   outline: 2px solid oklch(0.6 0.2 250);
   outline-offset: 2px;
+}
+
+/* #244: Spacer nodes are zero-height; use background fill so the ring is visible. */
+.phb-editor :deep(.ProseMirror [data-type="spacer-v"].ProseMirror-selectednode),
+.phb-editor :deep(.ProseMirror [data-type="spacer-h"].ProseMirror-selectednode) {
+  outline: 2px solid oklch(0.6 0.2 250);
+  outline-offset: 0px;
+  background: oklch(0.6 0.2 250 / 0.2);
 }
 </style>
