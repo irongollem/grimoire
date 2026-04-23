@@ -18,7 +18,7 @@
           ? { transform: `translateY(${clippedTranslateY}px)` }
           : { objectPosition }
       "
-      loading="lazy"
+      :loading="print ? 'eager' : 'lazy'"
       @load="onLoad"
       @error="onError"
     />
