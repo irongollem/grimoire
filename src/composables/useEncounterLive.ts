@@ -30,7 +30,21 @@ export function useRunningEncounters() {
       .channel(`running_encounters:${campaign.activeCampaignId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "encounter_state",
           filter: `campaign_id=eq.${campaign.activeCampaignId}` },
-        () => { void fetchRunning(); })
+        (payload) => {
+          if (payload.eventType === "DELETE") {
+            const id = (payload.old as { encounter_id?: string }).encounter_id;
+            if (id) runningStates.value = runningStates.value.filter(s => s.encounter_id !== id);
+          } else {
+            const row = payload.new as EncounterState;
+            const idx = runningStates.value.findIndex(s => s.encounter_id === row.encounter_id);
+            if (row.is_running) {
+              if (idx >= 0) runningStates.value[idx] = row;
+              else runningStates.value.push(row);
+            } else {
+              if (idx >= 0) runningStates.value.splice(idx, 1);
+            }
+          }
+        })
       .subscribe();
   }
 
@@ -104,19 +118,18 @@ export function useEncounterLive(encounterId: string) {
 
   async function pushState(state: { round: number; activeIndex: number; combatants: RunCombatant[]; eventsFired: string[] }) {
     if (!liveState.value) return;
-    const { data, error } = await supabase
+    const patch = {
+      current_round: state.round,
+      active_combatant_index: state.activeIndex,
+      combatants_live: state.combatants,
+      events_fired: state.eventsFired,
+    };
+    const { error } = await supabase
       .from("encounter_state")
-      .update({
-        current_round: state.round,
-        active_combatant_index: state.activeIndex,
-        combatants_live: state.combatants,
-        events_fired: state.eventsFired,
-      })
-      .eq("encounter_id", encounterId)
-      .select()
-      .single();
+      .update(patch)
+      .eq("encounter_id", encounterId);
     if (error) throw error;
-    liveState.value = data as EncounterState;
+    liveState.value = { ...liveState.value, ...patch };
   }
 
   async function endLive() {

@@ -101,7 +101,13 @@ export function usePartyLive() {
           "postgres_changes",
           { event: "UPDATE", schema: "public", table: "party_members",
             filter: `campaign_id=eq.${campaignId}` },
-          () => { void queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }); },
+          (payload) => {
+            const updated = payload.new as PartyMember;
+            queryClient.setQueryData<PartyMember[]>([QUERY_KEY, campaignId], (old) => {
+              if (!old) return old;
+              return old.map((m) => (m.id === updated.id ? updated : m));
+            });
+          },
         )
         .subscribe();
     },
