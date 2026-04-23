@@ -257,6 +257,7 @@
 #### Player Spells — Phase 4: Click-to-Cast in Encounter
 
 - [x] Prepared spells accessible from encounter runner player detail panel with 🎲 roll + DC badge
+- [x] **Spell upcast picker** — clicking "Cast" on any spell with a base level opens an interactive modal showing available spell slots ≥ base level; buttons for each level show scaled damage/healing dice (`scaleExpression()` computes dice additions per slot level); player selects casting level, damage/healing rolls and slot spending happen at the chosen level; migration adds `higher_level_damage: {dice_per_level, type}` and `higher_level_healing` to spells table; Open5e import parses "increases by XdY per level" patterns from spell descriptions (`src/components/spells/PlayerMySpells.vue`, `src/lib/dice.ts`, `src/lib/open5eSpellImport.ts`)
 
 #### Player Spells — Phase 5: Known-caster spell count + cantrips
 
