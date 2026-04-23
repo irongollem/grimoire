@@ -253,6 +253,7 @@ import { parseExpression, parsedToCounts, scaleExpression } from "@/lib/dice";
 import { rollParsed } from "@/lib/roller";
 import { signedNum } from "@/lib/utils";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
+import { cantripDiceMultiplier } from "@/types/spell.types";
 import type { CasterType, CharacterSpellEntry, Spell } from "@/types/spell.types";
 import type { SpellSlotEntry } from "@/types/party.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -275,6 +276,8 @@ const props = defineProps<{
   viewMode: "spellbook" | "prepared";
   /** Max spells that can be prepared (null = no cap / not applicable). */
   maxPrepared?: number | null;
+  /** Total character level (sum of all class levels). Used for cantrip damage scaling. */
+  memberLevel?: number;
 }>();
 
 const { data: rawEntries, isLoading } = useCharacterSpellsWithDetails(
@@ -434,12 +437,16 @@ async function castSpell(entry: CharacterSpellEntry, castLevel: number) {
     }
     await sendFlavorMessage(text, "spell");
 
-    // Auto-roll damage (scaled if upcast)
+    // Cantrip dice multiplier (×1/2/3/4 based on total character level)
+    const cantripMult = castLevel === 0 ? cantripDiceMultiplier(props.memberLevel ?? 1) : 1;
+
+    // Auto-roll damage (scaled if upcast or cantrip level-up)
     if (spell.damage_rolls?.length) {
       for (const dmg of spell.damage_rolls) {
-        const diceSrc = (extraLevels > 0 && spell.higher_level_damage)
+        let diceSrc = (extraLevels > 0 && spell.higher_level_damage)
           ? scaleExpression(dmg.dice, extraLevels, spell.higher_level_damage.dice_per_level)
           : dmg.dice;
+        if (cantripMult > 1) diceSrc = scaleExpression(dmg.dice, cantripMult - 1, dmg.dice);
         const parsed = parseExpression(diceSrc);
         if (!parsed) continue;
         const typeLabel = dmg.type ? ` ${dmg.type}` : "";

@@ -32,6 +32,7 @@
       :spell-attack-bonus="spellAttackBonus"
       :spell-save-dc="spellSaveDc"
       :max-prepared="maxPrepared"
+      :member-level="memberLevel"
       view-mode="prepared"
     />
 
@@ -189,6 +190,13 @@ const maxPrepared = computed(() => computeMaxPrepared(member.value, classData.va
 const memberName  = computed(() => member.value?.name ?? "");
 
 const { data: characterClasses } = useCharacterClasses(resolvedMemberId);
+
+// Total character level — sum of all class levels (multiclass), falls back to member.level
+const memberLevel = computed(() => {
+  const classes = characterClasses.value;
+  if (classes && classes.length > 0) return classes.reduce((s, c) => s + c.levels, 0);
+  return member.value?.level ?? 1;
+});
 
 // Effective spell slots — multiclass-aware: combines class levels per PHB.
 // Falls back to per-class progression for single-class characters and to the

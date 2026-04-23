@@ -238,6 +238,17 @@ export function getMaxPrepared(
 // none:     non-caster or subclass caster (Fighter EK, Rogue AT, Monk, etc.)
 export type CasterType = "prepared" | "known" | "spellbook" | "none";
 
+/**
+ * Cantrip damage multiplier per 5e rules: +1 die at character levels 5, 11, 17.
+ * Uses total character level (sum of all class levels for multiclass characters).
+ */
+export function cantripDiceMultiplier(totalLevel: number): 1 | 2 | 3 | 4 {
+  if (totalLevel >= 17) return 4;
+  if (totalLevel >= 11) return 3;
+  if (totalLevel >= 5) return 2;
+  return 1;
+}
+
 const PREPARED_CLASSES = ["Cleric", "Druid", "Paladin", "Artificer"] as const;
 const KNOWN_CLASSES    = ["Sorcerer", "Warlock", "Bard", "Ranger"] as const;
 const SPELLBOOK_CLASSES = ["Wizard"] as const;
