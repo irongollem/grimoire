@@ -49,8 +49,33 @@
       view-mode="spellbook"
     />
 
+    <!-- Innate tab -->
+    <template v-else-if="activeTab === 'innate'">
+      <div class="flex justify-end mb-2">
+        <button
+          type="button"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-violet-500/15 border border-violet-500/30 text-violet-400 font-cinzel text-xs font-semibold tracking-wider hover:bg-violet-500/25 transition-colors"
+          @click="addInnateOpen = true"
+        >
+          <Sparkles class="h-3.5 w-3.5" />
+          Add Innate Spell
+        </button>
+      </div>
+      <PlayerInnateSpells
+        :party-member-id="resolvedMemberId"
+        :member-name="memberName"
+        :spell-attack-bonus="spellAttackBonus"
+        :spell-save-dc="spellSaveDc"
+      />
+      <AddInnateSpellDialog
+        :open="addInnateOpen"
+        :party-member-id="resolvedMemberId"
+        @close="addInnateOpen = false"
+      />
+    </template>
+
     <!-- All Spells browse tab -->
-    <template v-else>
+    <template v-else-if="activeTab === 'browse'">
       <div class="flex flex-wrap items-center gap-2">
         <!-- Search -->
         <div class="relative flex-1 min-w-48">
@@ -115,18 +140,22 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { refDebounced } from "@vueuse/core";
-import { Search } from "lucide-vue-next";
+import { Search, Sparkles } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/useParty";
 import { useCharacterSpells, useCharacterSpellsWithDetails } from "@/composables/useCharacterSpells";
 import SpellList from "@/components/spells/SpellList.vue";
 import PlayerMySpells from "@/components/spells/PlayerMySpells.vue";
+import PlayerInnateSpells from "@/components/spells/PlayerInnateSpells.vue";
+import AddInnateSpellDialog from "@/components/spells/AddInnateSpellDialog.vue";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
 import type { Spell } from "@/types/spell.types";
 import { SPELL_SCHOOLS, SPELL_CLASSES, getCasterType, computeMaxPrepared, getDefaultSpellSlots, getMulticlassSpellSlots } from "@/types/spell.types";
 import { useCharacterClasses } from "@/composables/useCharacterClasses";
 import { useClassByName } from "@/composables/useCustomClasses";
+
+const addInnateOpen = ref(false);
 
 const selectedSpell = ref<Spell | null>(null);
 
@@ -195,12 +224,18 @@ const spellSaveDc = computed(() => {
 const { data: characterSpells }        = useCharacterSpells(resolvedMemberId);
 // Details (with spell level) used for accurate known/cantrip counts
 const { data: characterSpellsDetails } = useCharacterSpellsWithDetails(resolvedMemberId);
-const knownSpellIds    = computed(() => characterSpells.value?.map((cs) => cs.spell_id) ?? []);
-const preparedSpellIds = computed(() => characterSpells.value?.filter((cs) => cs.is_prepared).map((cs) => cs.spell_id) ?? []);
+
+// Separate class spells (slot-based) from innate (racial/feat/item)
+const classSpells  = computed(() => (characterSpells.value ?? []).filter(cs => !cs.source_type || cs.source_type === "class"));
+const innateSpells = computed(() => (characterSpellsDetails.value ?? []).filter(cs => cs.source_type && cs.source_type !== "class"));
+
+const knownSpellIds    = computed(() => classSpells.value.map((cs) => cs.spell_id));
+const preparedSpellIds = computed(() => classSpells.value.filter((cs) => cs.is_prepared).map((cs) => cs.spell_id));
 // Cantrips and spells are separate pools — spells_known table never includes cantrips
-const knownCount    = computed(() => (characterSpellsDetails.value ?? []).filter(cs => cs.spell.level > 0).length);
-const cantripCount  = computed(() => (characterSpellsDetails.value ?? []).filter(cs => cs.spell.level === 0).length);
+const knownCount    = computed(() => (characterSpellsDetails.value ?? []).filter(cs => (!cs.source_type || cs.source_type === "class") && cs.spell.level > 0).length);
+const cantripCount  = computed(() => (characterSpellsDetails.value ?? []).filter(cs => (!cs.source_type || cs.source_type === "class") && cs.spell.level === 0).length);
 const preparedCount = computed(() => preparedSpellIds.value.length);
+const innateCount   = computed(() => innateSpells.value.length);
 const maxKnown      = computed(() => {
   const m = member.value;
   if (!m || casterType.value !== "known") return null;
@@ -217,13 +252,21 @@ const maxCantrips   = computed(() => {
 });
 
 // ── Tabs ───────────────────────────────────────────────────────────────────────
-type TabId = "prepared" | "spellbook" | "browse";
+type TabId = "prepared" | "spellbook" | "innate" | "browse";
 
 const allSpellsLabel = computed(() =>
   memberClass.value && (casterType.value === "prepared" || casterType.value === "known")
     ? `All ${memberClass.value} Spells`
     : "All Spells",
 );
+
+// Innate tab — always present so players can add racial/feat spells at any time
+const innateTab = computed(() => ({
+  id: "innate" as TabId,
+  label: "Innate",
+  count: innateCount.value || null,
+  max: null, cantrips: null, maxCantrips: null,
+}));
 
 const tabs = computed(() => {
   const type = casterType.value;
@@ -232,18 +275,24 @@ const tabs = computed(() => {
   if (type === "spellbook") return [
     { id: "prepared" as TabId,  label: "Prepared",  count: preparedCount.value, max: null, cantrips: null, maxCantrips: null },
     { id: "spellbook" as TabId, label: "Spellbook", count: knownCount.value,    max: null, cantrips: null, maxCantrips: null },
+    innateTab.value,
     { id: "browse" as TabId,    label: "All Spells", count: null,               max: null, cantrips: null, maxCantrips: null },
   ];
   if (type === "prepared") return [
     { id: "prepared" as TabId, label: "Prepared",           count: preparedCount.value, max: null, cantrips: null, maxCantrips: null },
+    innateTab.value,
     { id: "browse" as TabId,   label: allSpellsLabel.value, count: null,               max: null, cantrips: null, maxCantrips: null },
   ];
   if (type === "known") return [
     { id: "spellbook" as TabId, label: `Known ${cls ? cls : ""}`.trim(), count: knownCount.value, max: maxKnown.value, cantrips: cantripCount.value, maxCantrips: maxCantrips.value },
+    innateTab.value,
     { id: "browse" as TabId,    label: allSpellsLabel.value,             count: null,              max: null,          cantrips: null,               maxCantrips: null },
   ];
-  // none — just browse
-  return [{ id: "browse" as TabId, label: "All Spells", count: null, max: null, cantrips: null, maxCantrips: null }];
+  // none — innate + browse
+  return [
+    innateTab.value,
+    { id: "browse" as TabId, label: "All Spells", count: null, max: null, cantrips: null, maxCantrips: null },
+  ];
 });
 
 const defaultTab = computed((): TabId => tabs.value[0].id);

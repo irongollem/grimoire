@@ -127,6 +127,9 @@
               <p v-if="hasSpellSlots" class="flex items-center gap-1.5">
                 <span class="text-elven-green">✓</span> All spell slots restored
               </p>
+              <p class="flex items-center gap-1.5">
+                <span class="text-elven-green">✓</span> Innate spell uses restored
+              </p>
               <p v-if="(member.wildshapes_used ?? 0) > 0 || member.wildshape_state" class="flex items-center gap-1.5">
                 <span class="text-elven-green">✓</span> Wild Shape uses restored
               </p>
@@ -167,6 +170,7 @@ import { getSlotRecovery, getHitDie } from "@/types/spell.types";
 import { useClassByName } from "@/composables/useCustomClasses";
 import { abilityModifier } from "@/lib/utils";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
+import { restoreInnateUses } from "@/composables/useCharacterSpells";
 import type { DieSize } from "@/lib/dice";
 
 const props = defineProps<{
@@ -271,6 +275,8 @@ const hasSpellSlots = computed(() => props.effectiveSpellSlots.length > 0);
 
 function confirm() {
   const update: PartyMemberUpdate = {};
+  const restType = props.mode === "long" ? "long" : "short";
+  void restoreInnateUses(props.member.id, restType);
 
   if (props.mode === "short") {
     // HP from hit dice

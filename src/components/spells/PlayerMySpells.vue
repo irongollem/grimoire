@@ -222,8 +222,12 @@ const props = defineProps<{
   maxPrepared?: number | null;
 }>();
 
-const { data: allEntries, isLoading } = useCharacterSpellsWithDetails(
+const { data: rawEntries, isLoading } = useCharacterSpellsWithDetails(
   computed(() => props.partyMemberId),
+);
+// Innate spells (racial/feat/item/other) are shown in the Innate tab — exclude them here
+const allEntries = computed(() =>
+  (rawEntries.value ?? []).filter((e) => !e.source_type || e.source_type === "class"),
 );
 const { mutate: removeSpell, isPending: isRemoving } = useRemoveCharacterSpell();
 const { mutate: togglePreparedMutation, isPending: isToggling } = useTogglePrepared();

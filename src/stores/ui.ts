@@ -247,6 +247,15 @@ export const useUiStore = defineStore("ui", () => {
     playerSpellOpenLevels.value = [0];
   }
 
+  // Player innate spell accordion — which source groups are expanded
+  const playerInnateOpenSources = ref<string[]>([]);
+
+  function togglePlayerInnateSource(label: string) {
+    const idx = playerInnateOpenSources.value.indexOf(label);
+    if (idx >= 0) playerInnateOpenSources.value.splice(idx, 1);
+    else playerInnateOpenSources.value.push(label);
+  }
+
   // Mobile nav
   const mobileNavOpen = ref(false);
 
@@ -402,6 +411,10 @@ export const useUiStore = defineStore("ui", () => {
     playerSpellOpenLevels,
     togglePlayerSpellLevel,
     resetPlayerSpellOpenLevels,
+
+    // Player innate spell accordion
+    playerInnateOpenSources,
+    togglePlayerInnateSource,
 
     // Layout
     mobileNavOpen,

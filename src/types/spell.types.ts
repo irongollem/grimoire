@@ -239,12 +239,21 @@ export function getCasterType(cls: string | null | undefined): CasterType {
   return "none";
 }
 
+export type InnateSourceType = 'class' | 'racial' | 'feat' | 'item' | 'other';
+export type InnateResetsOn = 'long_rest' | 'short_rest';
+
 export interface CharacterSpell {
   id: string;
   party_member_id: string;
   spell_id: string;
   is_known: boolean;
   is_prepared: boolean;
+  source_type: InnateSourceType;
+  uses_per_day: number | null;
+  uses_remaining: number | null;
+  resets_on: InnateResetsOn | null;
+  source_label: string | null;
+  source_class_id?: string | null;
   created_at: string;
   updated_at: string;
 }
