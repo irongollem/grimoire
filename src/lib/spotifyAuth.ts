@@ -68,6 +68,7 @@ export async function buildAuthUrl(clientId: string): Promise<string> {
     code_challenge_method: "S256",
     code_challenge: challenge,
     scope: SCOPES,
+    show_dialog: "true", // Always show account chooser so switching accounts works
   });
 
   return `https://accounts.spotify.com/authorize?${params}`;

@@ -115,6 +115,10 @@ export const useSpotifyStore = defineStore("spotify", () => {
   const volume = ref(0.8);
   const repeatMode = ref<0 | 1 | 2>(0); // 0=off, 1=context, 2=track
   const shuffleOn = ref(false);
+  /** Last playback error message from Spotify, or null if the last play succeeded. */
+  const playError = ref<string | null>(null);
+  /** The Spotify account currently linked (fetched via /v1/me after SDK is ready). */
+  const spotifyUser = ref<{ display_name: string; email: string; product: string } | null>(null);
 
   // ── Auth ───────────────────────────────────────────────────────────────
 
@@ -132,9 +136,21 @@ export const useSpotifyStore = defineStore("spotify", () => {
     isPlaying.value = false;
     currentUri.value = null;
     lastPlayedUrl.value = null;
+    spotifyUser.value = null;
     _stopTick();
     sdkPlayer?.disconnect();
     sdkPlayer = null;
+  }
+
+  async function fetchAccount() {
+    const token = await getValidToken(clientId.value);
+    if (!token) return;
+    const res = await fetch("https://api.spotify.com/v1/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return;
+    const data = await res.json() as { display_name: string; email: string; product: string };
+    spotifyUser.value = { display_name: data.display_name, email: data.email, product: data.product };
   }
 
   // ── SDK lifecycle ──────────────────────────────────────────────────────
@@ -174,6 +190,7 @@ export const useSpotifyStore = defineStore("spotify", () => {
     sdkPlayer.addListener("ready", ({ device_id }) => {
       deviceId.value = device_id;
       isReady.value = true;
+      void fetchAccount();
     });
 
     sdkPlayer.addListener("not_ready", () => {
@@ -243,13 +260,11 @@ export const useSpotifyStore = defineStore("spotify", () => {
     const token = await getValidToken(clientId.value);
     if (!token) return;
 
-    lastPlayedUrl.value = fileUrl;
-
     const body = isContextUri(uri)
       ? { context_uri: uri }
       : { uris: [uri] };
 
-    await fetch(
+    const res = await fetch(
       `https://api.spotify.com/v1/me/player/play?device_id=${deviceId.value}`,
       {
         method: "PUT",
@@ -260,6 +275,21 @@ export const useSpotifyStore = defineStore("spotify", () => {
         body: JSON.stringify(body),
       },
     );
+
+    if (!res.ok) {
+      let msg = `Spotify error ${res.status}`;
+      try {
+        const body = await res.json() as { error?: { message?: string } };
+        if (body.error?.message) msg = body.error.message;
+      } catch { /* ignore parse errors */ }
+      // Common: 403 "Player command failed: Not allowed" → desktop app is holding playback.
+      // Common: 403 "Player command failed: Premium required" → free account.
+      playError.value = msg;
+      return;
+    }
+
+    playError.value = null;
+    lastPlayedUrl.value = fileUrl;
   }
 
   async function pause() {
@@ -330,6 +360,8 @@ export const useSpotifyStore = defineStore("spotify", () => {
     artistName,
     albumArtUrl,
     volume,
+    playError,
+    spotifyUser,
     connect,
     disconnect,
     initSDK,
