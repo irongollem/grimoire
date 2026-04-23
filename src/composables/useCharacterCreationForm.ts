@@ -161,15 +161,6 @@ export function useCharacterCreationForm() {
   });
   const derivedAc       = computed(() => 10 + mod(f.dex));
   const derivedSpeed    = computed(() => selectedSpecies.value?.speed?.walk ?? 30);
-
-  // When a formula is active, keep f.ac in sync whenever ability scores change.
-  watch(
-    () => [f.dex, f.con, f.wis, f.ac_formula] as const,
-    () => {
-      if (!f.ac_formula) return;
-      f.ac = computeAc(f.ac_formula, f);
-    },
-  );
   const derivedInitiative = computed(() => mod(f.dex));
 
   const isEditMode = computed(() => route.name === "play-character-edit");
@@ -260,6 +251,16 @@ export function useCharacterCreationForm() {
     pronouns:             m?.pronouns ?? "",
     physical_description: m?.physical_description ?? "",
   });
+
+  // When a formula is active, keep f.ac in sync whenever ability scores change.
+  // Must be placed after f is defined (watch getter runs immediately on setup).
+  watch(
+    () => [f.dex, f.con, f.wis, f.ac_formula] as const,
+    () => {
+      if (!f.ac_formula) return;
+      f.ac = computeAc(f.ac_formula, f);
+    },
+  );
 
   // Whether to import the chosen background's equipment text into inventory
   // on creation. Defaults to true so new characters don't end up empty-handed;
