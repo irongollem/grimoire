@@ -347,8 +347,7 @@ import { useParty } from "@/composables/useParty";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { supabase } from "@/lib/supabase";
-import { parseExpression } from "@/lib/dice";
-import type { DieSize } from "@/lib/dice";
+import { parseExpression, parsedToCounts } from "@/lib/dice";
 import { rollParsed } from "@/lib/roller";
 import { SCHOOL_COLORS } from "@/types/spell.types";
 import type { Spell } from "@/types/spell.types";
@@ -545,16 +544,6 @@ const castButtonTitle = computed(() => {
 
 const isCasting = ref(false);
 
-function parsedToCounts(terms: { count: number; sides: number }[]): Partial<Record<DieSize, number>> {
-  const counts: Partial<Record<DieSize, number>> = {};
-  for (const t of terms) {
-    if ([4, 6, 8, 10, 12, 20, 100].includes(t.sides)) {
-      const k = t.sides as DieSize;
-      counts[k] = (counts[k] ?? 0) + t.count;
-    }
-  }
-  return counts;
-}
 
 async function castFromItem(spell: Spell) {
   if (!props.inv || !canCastSpell.value || isCasting.value) return;

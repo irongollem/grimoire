@@ -121,6 +121,10 @@ export function formatWeightLb(w: number): string {
   return w % 1 === 0 ? `${w} lb` : `${w.toFixed(1)} lb`;
 }
 
+export function signedNum(n: number): string {
+  return n >= 0 ? `+${n}` : `${n}`;
+}
+
 export function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);

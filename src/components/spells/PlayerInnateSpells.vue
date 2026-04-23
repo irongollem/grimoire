@@ -145,9 +145,9 @@ import { useConcentration } from "@/composables/useConcentration";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { useUiStore } from "@/stores/ui";
 import { SCHOOL_COLORS } from "@/types/spell.types";
-import { parseExpression } from "@/lib/dice";
-import type { DieSize } from "@/lib/dice";
+import { parseExpression, parsedToCounts } from "@/lib/dice";
 import { rollParsed } from "@/lib/roller";
+import { signedNum } from "@/lib/utils";
 import type { CharacterSpellEntry, Spell } from "@/types/spell.types";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
 
@@ -171,7 +171,7 @@ const { data: allEntries } = useCharacterSpellsWithDetails(
   computed(() => props.partyMemberId),
 );
 const { mutate: removeById, isPending: isRemoving } = useRemoveCharacterSpellById();
-const { mutate: spendUse } = useSpendInnateUse();
+const { mutate: spendUse, isPending: isCasting } = useSpendInnateUse();
 const { sendFlavorMessage, sendRoll } = useCampaignMessages();
 const { promptRoll } = usePromptedRoll();
 const { data: partyList } = useParty();
@@ -201,10 +201,6 @@ const sourceGroups = computed(() => {
   return [...map.entries()].map(([label, entries]) => ({ label, entries }));
 });
 
-function signedNum(n: number): string {
-  return n >= 0 ? `+${n}` : `${n}`;
-}
-
 function castButtonClass(entry: CharacterSpellEntry): string {
   const exhausted = entry.uses_per_day !== null && !entry.uses_remaining;
   if (exhausted) return "bg-muted/30 border-border/50 text-muted-foreground/40 cursor-not-allowed";
@@ -220,26 +216,11 @@ function castButtonTitle(entry: CharacterSpellEntry): string {
   return `Cast — use 1 of ${entry.uses_remaining} remaining`;
 }
 
-function parsedToCounts(terms: { count: number; sides: number }[]): Partial<Record<DieSize, number>> {
-  const counts: Partial<Record<DieSize, number>> = {};
-  for (const t of terms) {
-    if ([4, 6, 8, 10, 12, 20, 100].includes(t.sides)) {
-      const k = t.sides as DieSize;
-      counts[k] = (counts[k] ?? 0) + t.count;
-    }
-  }
-  return counts;
-}
-
-const isCasting = ref(false);
-
 async function castSpell(entry: CharacterSpellEntry) {
   if (!props.partyMemberId || isCasting.value) return;
   if (entry.uses_per_day !== null && !entry.uses_remaining) return;
 
-  isCasting.value = true;
-  try {
-    const spell = entry.spell;
+  const spell = entry.spell;
 
     // Concentration guard
     if (spell.concentration && thisMember.value) {
@@ -301,9 +282,6 @@ async function castSpell(entry: CharacterSpellEntry) {
         newRemaining: entry.uses_remaining - 1,
       });
     }
-  } finally {
-    isCasting.value = false;
-  }
 }
 
 function handleRemove(entry: CharacterSpellEntry) {

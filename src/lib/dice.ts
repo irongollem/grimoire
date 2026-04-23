@@ -180,6 +180,21 @@ export function parseExpression(expr: string | null | undefined): ParsedExpressi
   return { terms, modifier };
 }
 
+/**
+ * Convert parsed expression terms to a die-size → count map for the physical dice roller.
+ * Non-standard die sizes (d2, d3, etc.) are dropped — they'll fall through to rollParsed.
+ */
+export function parsedToCounts(terms: ExprTerm[]): Partial<Record<DieSize, number>> {
+  const counts: Partial<Record<DieSize, number>> = {};
+  for (const t of terms) {
+    if ([4, 6, 8, 10, 12, 20, 100].includes(t.sides)) {
+      const k = t.sides as DieSize;
+      counts[k] = (counts[k] ?? 0) + t.count;
+    }
+  }
+  return counts;
+}
+
 /** Floor of the statistical average. */
 export function averageExpression(parsed: ParsedExpression): number {
   const avg = parsed.terms.reduce((s, t) => s + (t.count * (t.sides + 1)) / 2, 0);

@@ -12,6 +12,7 @@ import { useAllSpecies } from "@/composables/useSpecies";
 import { useBackgrounds } from "@/composables/useBackgrounds";
 import { getDefaultSpellSlots } from "@/types/spell.types";
 import { applySpeciesSpellGrants } from "@/composables/useCharacterSpells";
+import type { SpeciesSpellGrant } from "@/types/species.types";
 import type { PartyMemberInsert, SkillProfLevel, SaveKey, SpellSlotEntry } from "@/types/party.types";
 import { supabase } from "@/lib/supabase";
 import { CLASS_EQUIPMENT } from "@/data/classEquipment";
@@ -518,7 +519,7 @@ export function useCharacterCreationForm() {
         const { campaign_id: _cid, owner_user_id: _owner, ...updatePayload } = basePayload;
         await update({ id: existingMember.value.id, update: updatePayload });
         // Apply any newly unlocked species grants (e.g. Tiefling Darkness at level 5)
-        let freePicks: Awaited<ReturnType<typeof applySpeciesSpellGrants>> = [];
+        let freePicks: SpeciesSpellGrant[] = [];
         if (selectedSpecies.value) {
           freePicks = await applySpeciesSpellGrants(
             existingMember.value.id, selectedSpecies.value, f.level,
@@ -550,7 +551,6 @@ export function useCharacterCreationForm() {
           });
         }
 
-        // Seed innate spells granted by the chosen species (subrace-filtered)
         if (selectedSpecies.value) {
           await applySpeciesSpellGrants(created.id, selectedSpecies.value, 1, f.subrace || null);
         }

@@ -314,7 +314,7 @@ import ImageUpload from "@/components/common/ImageUpload.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import TraitSection from "@/components/npcs/TraitSection.vue";
 import type { Species, SpeciesSize, SpeciesSpellGrant } from "@/types/species.types";
-import type { Spell } from "@/types/spell.types";
+import type { Spell, InnateResetsOn } from "@/types/spell.types";
 
 const props = defineProps<{ species?: Species | null }>();
 
@@ -410,7 +410,7 @@ function makeGrantForm() {
     subrace: null as string | null,
     usesPerDay: null as number | null,
     usesCount: 1,
-    resetsOn: "long_rest" as "long_rest" | "short_rest",
+    resetsOn: "long_rest" as InnateResetsOn,
     minLevel: 1,
   };
 }
