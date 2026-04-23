@@ -41,7 +41,7 @@
               <div>
                 <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ entry.data.name }}</h3>
                 <p class="font-fell text-xs text-muted-foreground italic truncate">
-                  {{ [getDisplayRace(entry.data, speciesNameMap.get(entry.data.species_id ?? '') ?? null, viewerMemberId), entry.data.class].filter(Boolean).join(' ') }}
+                  {{ [getDisplayRace(entry.data, speciesNameMap.get(entry.data.species_id ?? '') ?? null, viewerMemberId, viewerIsDm), entry.data.class].filter(Boolean).join(' ') }}
                   <span v-if="entry.data.level" class="font-cinzel not-italic text-primary ml-1">Lv{{ entry.data.level }}</span>
                 </p>
               </div>
@@ -368,6 +368,8 @@ const campaign = useCampaignStore();
 const viewerMemberId = computed(() =>
   ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId
 );
+// DM not in preview mode sees true forms; players (even without a linked party member) see disguises.
+const viewerIsDm = computed(() => !ui.dmPreviewMode && auth.isDM);
 const { data: members, isLoading: partyLoading } = useParty();
 const speciesNameMap = useSpeciesNameMap();
 const { data: allSharedNpcs, isLoading: npcsLoading } = useSharedNpcs();

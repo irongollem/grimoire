@@ -31,7 +31,7 @@
             <div>
               <h2 class="font-cinzel text-lg font-bold text-foreground">{{ member.name }}</h2>
               <p class="font-fell text-sm text-muted-foreground italic">
-                {{ [getDisplayRace(member, speciesNameMap.get(member.species_id ?? '') ?? null, viewerMemberId), member.class].filter(Boolean).join(' ') }}
+                {{ [getDisplayRace(member, speciesNameMap.get(member.species_id ?? '') ?? null, viewerMemberId, viewerIsDm), member.class].filter(Boolean).join(' ') }}
                 <span v-if="member.level" class="font-cinzel not-italic text-primary ml-1">Lv{{ member.level }}</span>
               </p>
             </div>
@@ -132,9 +132,10 @@ const showNumericHp = computed(() =>
 const viewerMemberId = computed(() =>
   ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId ?? null,
 );
+const viewerIsDm = computed(() => !ui.dmPreviewMode && auth.isDM);
 
 const displaySpeciesId = computed(() =>
-  props.member ? (getDisplaySpeciesId(props.member, viewerMemberId.value) ?? "") : "",
+  props.member ? (getDisplaySpeciesId(props.member, viewerMemberId.value, viewerIsDm.value) ?? "") : "",
 );
 const { data: displaySpecies } = useSpecies(displaySpeciesId);
 
