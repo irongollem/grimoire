@@ -181,6 +181,33 @@ export function parseExpression(expr: string | null | undefined): ParsedExpressi
 }
 
 /**
+ * Scale a dice expression by adding `extraLevels × perLevel` dice.
+ * e.g. scaleExpression("8d6", 2, "1d6") → "10d6"
+ * Returns the base expression unchanged if either parse fails or extraLevels ≤ 0.
+ */
+export function scaleExpression(base: string, extraLevels: number, perLevel: string): string {
+  if (extraLevels <= 0) return base;
+  const baseParsed = parseExpression(base);
+  const levelParsed = parseExpression(perLevel);
+  if (!baseParsed || !levelParsed) return base;
+
+  const terms = baseParsed.terms.map((t) => ({ ...t }));
+  let modifier = baseParsed.modifier;
+
+  for (const t of levelParsed.terms) {
+    const existing = terms.find((x) => x.sides === t.sides);
+    if (existing) existing.count += t.count * extraLevels;
+    else terms.push({ count: t.count * extraLevels, sides: t.sides });
+  }
+  modifier += levelParsed.modifier * extraLevels;
+
+  const parts: string[] = terms.filter((t) => t.count > 0).map((t) => `${t.count}d${t.sides}`);
+  if (modifier > 0) parts.push(`+${modifier}`);
+  else if (modifier < 0) parts.push(String(modifier));
+  return parts.join("") || "0";
+}
+
+/**
  * Convert parsed expression terms to a die-size → count map for the physical dice roller.
  * Non-standard die sizes (d2, d3, etc.) are dropped — they'll fall through to rollParsed.
  */

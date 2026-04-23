@@ -1326,6 +1326,8 @@ function buildPayload() {
     aoe_shape: aoeShape.value || null,
     aoe_size: aoeSize.value || null,
     condition_inflicted: conditionInflicted.value || null,
+    higher_level_damage: props.spell?.higher_level_damage ?? null,
+    higher_level_healing: props.spell?.higher_level_healing ?? null,
   };
 }
 

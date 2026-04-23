@@ -1,4 +1,4 @@
-import type { SpellInsert, SpellSchool } from "@/types/spell.types";
+import type { SpellInsert, SpellSchool, HigherLevelDamage } from "@/types/spell.types";
 import { SPELL_SCHOOLS, SPELL_CLASSES } from "@/types/spell.types";
 import { ARTIFICER_SPELL_DELTA } from "@/data/artificerSpellDelta";
 import { fetchAll } from "@/lib/open5eApi";
@@ -167,6 +167,27 @@ function normalizeComponents(raw: string): string[] {
     .filter((c) => ["V", "S", "M"].includes(c));
 }
 
+// ── Upcast scaling parsers ────────────────────────────────────────────────────
+
+// Covers the large majority of SRD patterns, e.g.:
+//   "the damage increases by 1d6 for each slot level above 3rd"
+//   "deal an extra 2d6 for each slot level above 1st"
+const UPCAST_DICE_RE = /(\d+d\d+)\s+(?:for|per)\s+each\s+(?:slot\s+level|level)\s+above/i;
+
+function parseHigherLevelDamage(prose: string | null): HigherLevelDamage | null {
+  if (!prose) return null;
+  if (/heal/i.test(prose)) return null; // healing handled separately
+  const m = prose.match(UPCAST_DICE_RE);
+  return m ? { dice_per_level: m[1], type: null } : null;
+}
+
+function parseHigherLevelHealing(prose: string | null): string | null {
+  if (!prose) return null;
+  if (!/heal/i.test(prose)) return null;
+  const m = prose.match(UPCAST_DICE_RE);
+  return m ? m[1] : null;
+}
+
 // ── Mapper ────────────────────────────────────────────────────────────────────
 
 function mapSpell(spell: Open5eSpell): SpellInsert {
@@ -200,6 +221,8 @@ function mapSpell(spell: Open5eSpell): SpellInsert {
     condition_inflicted: null,
     description: spell.desc ?? "",
     higher_levels: spell.higher_level?.trim() || null,
+    higher_level_damage: parseHigherLevelDamage(spell.higher_level),
+    higher_level_healing: parseHigherLevelHealing(spell.higher_level),
     classes: normalizeClasses(spell.dnd_class, spell.name),
     tags: [],
     source: spell.document__slug ?? null,

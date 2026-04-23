@@ -142,6 +142,13 @@ export const RANGE_OPTIONS = [
   { value: "Special", label: "Special" },
 ];
 
+export interface HigherLevelDamage {
+  /** Dice added per slot level above the spell's base level, e.g. "1d6". */
+  dice_per_level: string;
+  /** Damage type, or null to inherit from the base damage roll. */
+  type: string | null;
+}
+
 export interface Spell {
   id: string;
   user_id: string;
@@ -170,6 +177,10 @@ export interface Spell {
   condition_inflicted: string | null; // e.g. "blinded", "stunned"
   description: string;
   higher_levels: string | null;
+  /** Machine-readable damage scaling: dice added per slot level above base. */
+  higher_level_damage: HigherLevelDamage | null;
+  /** Healing dice added per slot level above base, e.g. "1d8". */
+  higher_level_healing: string | null;
   classes: string[];
   tags: string[];
   source: string | null;       // open5e document slug, used for filtering

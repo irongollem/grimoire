@@ -116,6 +116,8 @@ export function spellInsertFromAi(ai: SpellAiGenerated): SpellInsert {
     condition_inflicted: ai.condition_inflicted?.toLowerCase() ?? null,
     description: ai.description ?? "",
     higher_levels: ai.level === 0 ? null : ai.higher_levels ?? null,
+    higher_level_damage: null,
+    higher_level_healing: null,
     classes,
     tags: ai.tags ?? [],
     source: "Grimoire:AI",

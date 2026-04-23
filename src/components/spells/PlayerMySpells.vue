@@ -130,7 +130,7 @@
               :class="castButtonClass(entry)"
               :disabled="isCasting"
               :title="castButtonTitle(entry)"
-              @click="castSpell(entry)"
+              @click="startCast(entry)"
             >
               <Wand2 class="h-3 w-3" />
               Cast
@@ -179,6 +179,61 @@
     <!-- Spell detail modal -->
     <PlayerSpellModal :spell="selectedSpell" @close="selectedSpell = null" />
   </div>
+
+  <!-- Upcast slot picker -->
+  <Teleport to="body">
+    <div v-if="pendingCastEntry" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/60" @click="pendingCastEntry = null" />
+      <div class="relative z-10 w-full max-w-sm rounded-xl border border-border bg-background shadow-2xl p-5 space-y-4">
+        <!-- Header -->
+        <div class="flex items-center gap-2">
+          <div
+            class="h-2.5 w-2.5 shrink-0 rounded-full"
+            :style="{ backgroundColor: SCHOOL_COLORS[pendingCastEntry.spell.school] }"
+          />
+          <h2 class="font-cinzel text-base font-bold text-foreground">{{ pendingCastEntry.spell.name }}</h2>
+        </div>
+
+        <!-- Slot level picker -->
+        <div>
+          <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-2">CAST AT LEVEL</p>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="lvl in upcastLevels"
+              :key="lvl"
+              class="flex flex-col items-center px-3 py-2 rounded-lg border font-cinzel text-xs font-semibold transition-colors"
+              :class="selectedUpcastLevel === lvl
+                ? 'bg-primary/15 border-primary text-primary'
+                : 'bg-muted border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'"
+              @click="selectedUpcastLevel = lvl"
+            >
+              <span>{{ SLOT_LEVEL_LABELS[lvl - 1] }}</span>
+              <span v-if="scaledDiceLabel(pendingCastEntry, lvl)" class="font-fell text-[10px] font-normal mt-0.5 opacity-80">
+                {{ scaledDiceLabel(pendingCastEntry, lvl) }}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="flex gap-3 pt-1">
+          <button
+            type="button"
+            class="flex-1 px-4 py-2 font-cinzel text-xs font-semibold border border-border rounded-md text-muted-foreground hover:text-foreground transition-colors"
+            @click="pendingCastEntry = null"
+          >Cancel</button>
+          <button
+            type="button"
+            :disabled="isCasting"
+            class="flex-1 px-4 py-2 font-cinzel text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
+            @click="confirmCast"
+          >
+            {{ isCasting ? "Casting…" : "Cast" }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -194,7 +249,7 @@ import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useConcentration } from "@/composables/useConcentration";
 import { useUiStore } from "@/stores/ui";
 import { SCHOOL_COLORS } from "@/types/spell.types";
-import { parseExpression, parsedToCounts } from "@/lib/dice";
+import { parseExpression, parsedToCounts, scaleExpression } from "@/lib/dice";
 import { rollParsed } from "@/lib/roller";
 import { signedNum } from "@/lib/utils";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
@@ -272,9 +327,9 @@ function isCastable(entry: CharacterSpellEntry): boolean {
 }
 
 function slotAvailable(level: number): boolean {
-  if (level === 0) return true; // cantrips always available
+  if (level === 0) return true;
   const slot = slotForLevel(level);
-  if (!slot) return true; // no slot tracking configured — allow anyway
+  if (!slot) return true; // no slot tracking configured — allow
   return slot.used < slot.max;
 }
 
@@ -295,37 +350,100 @@ function castButtonTitle(entry: CharacterSpellEntry): string {
   return `Cast — spend one ${SLOT_LEVEL_LABELS[entry.spell.level - 1]}-level slot`;
 }
 
+// ── Upcast picker ──────────────────────────────────────────────────────────────
+const pendingCastEntry = ref<CharacterSpellEntry | null>(null);
+const selectedUpcastLevel = ref(1);
 
-async function castSpell(entry: CharacterSpellEntry) {
+/** All slot levels ≥ spell's base that have at least one use remaining. */
+const upcastLevels = computed(() => {
+  if (!pendingCastEntry.value) return [];
+  const base = pendingCastEntry.value.spell.level;
+  return props.spellSlots
+    .filter((s) => s.level >= base && s.used < s.max)
+    .map((s) => s.level);
+});
+
+/** Human-readable scaled dice label shown under each level button in the picker. */
+function scaledDiceLabel(entry: CharacterSpellEntry, castLevel: number): string {
+  const extra = castLevel - entry.spell.level;
+  if (extra === 0) {
+    // Base level — show base dice if available
+    if (entry.spell.damage_rolls?.length) return entry.spell.damage_rolls[0].dice;
+    if (entry.spell.healing_dice) return entry.spell.healing_dice;
+    return "";
+  }
+  if (entry.spell.higher_level_damage && entry.spell.damage_rolls?.length) {
+    return scaleExpression(entry.spell.damage_rolls[0].dice, extra, entry.spell.higher_level_damage.dice_per_level);
+  }
+  if (entry.spell.higher_level_healing && entry.spell.healing_dice) {
+    return scaleExpression(entry.spell.healing_dice, extra, entry.spell.higher_level_healing);
+  }
+  return "";
+}
+
+/** Decide whether to show the upcast picker or cast immediately. */
+function startCast(entry: CharacterSpellEntry) {
+  if (!slotAvailable(entry.spell.level)) return;
+  // Cantrips cast directly — no slot
+  if (entry.spell.level === 0) {
+    void castSpell(entry, 0);
+    return;
+  }
+  // Compute available slot levels for this spell
+  const base = entry.spell.level;
+  const available = props.spellSlots.filter((s) => s.level >= base && s.used < s.max);
+  // Only one option (or no slot tracking) → cast at base level directly
+  if (available.length <= 1) {
+    void castSpell(entry, base);
+    return;
+  }
+  // Multiple levels available → show picker
+  pendingCastEntry.value = entry;
+  selectedUpcastLevel.value = base;
+}
+
+function confirmCast() {
+  if (!pendingCastEntry.value) return;
+  const entry = pendingCastEntry.value;
+  const level = selectedUpcastLevel.value;
+  pendingCastEntry.value = null;
+  void castSpell(entry, level);
+}
+
+async function castSpell(entry: CharacterSpellEntry, castLevel: number) {
   if (!props.partyMemberId || isCasting.value) return;
   isCasting.value = true;
   try {
-    const level = entry.spell.level;
     const spell = entry.spell;
+    const extraLevels = castLevel - spell.level;
 
-    // Concentration guard: casting a new concentration spell ends the previous.
+    // Concentration guard
     if (spell.concentration && thisMember.value) {
-      const ok = await startConcentration(thisMember.value, spell, { castAtLevel: level });
+      const ok = await startConcentration(thisMember.value, spell, { castAtLevel: castLevel });
       if (!ok) return;
     }
 
-    // Build flavor text
+    // Flavor text
     let text = `${props.memberName} casts ${spell.name}`;
-    if (level > 0 && props.spellAttackBonus !== null
+    if (extraLevels > 0) text += ` (upcast ${SLOT_LEVEL_LABELS[castLevel - 1]})`;
+    if (castLevel > 0 && props.spellAttackBonus !== null
       && (spell.attack_type === "ranged_spell" || spell.attack_type === "melee_spell")) {
-      text += ` (Atk ${signedNum(props.spellAttackBonus)})`;
-    } else if (level > 0 && props.spellSaveDc !== null && spell.attack_type === "save") {
-      text += ` (DC ${props.spellSaveDc} ${spell.save_attribute ?? ""})`;
+      text += ` — Atk ${signedNum(props.spellAttackBonus)}`;
+    } else if (castLevel > 0 && props.spellSaveDc !== null && spell.attack_type === "save") {
+      text += ` — DC ${props.spellSaveDc} ${spell.save_attribute ?? ""}`;
     }
     await sendFlavorMessage(text, "spell");
 
-    // Auto-roll damage for each damage_rolls entry
+    // Auto-roll damage (scaled if upcast)
     if (spell.damage_rolls?.length) {
       for (const dmg of spell.damage_rolls) {
-        const parsed = parseExpression(dmg.dice);
+        const diceSrc = (extraLevels > 0 && spell.higher_level_damage)
+          ? scaleExpression(dmg.dice, extraLevels, spell.higher_level_damage.dice_per_level)
+          : dmg.dice;
+        const parsed = parseExpression(diceSrc);
         if (!parsed) continue;
         const typeLabel = dmg.type ? ` ${dmg.type}` : "";
-        let label = `${spell.name} — ${dmg.dice}${typeLabel} damage`;
+        let label = `${spell.name} — ${diceSrc}${typeLabel} damage`;
         if (spell.attack_type === "save" && spell.save_effect === "half") {
           label += ` (half on ${spell.save_attribute ?? "save"})`;
         }
@@ -339,27 +457,30 @@ async function castSpell(entry: CharacterSpellEntry) {
       }
     }
 
-    // Auto-roll healing
+    // Auto-roll healing (scaled if upcast)
     if (spell.healing_dice) {
-      const parsed = parseExpression(spell.healing_dice);
+      const diceSrc = (extraLevels > 0 && spell.higher_level_healing)
+        ? scaleExpression(spell.healing_dice, extraLevels, spell.higher_level_healing)
+        : spell.healing_dice;
+      const parsed = parseExpression(diceSrc);
       if (parsed) {
-        const label = `${spell.name} — ${spell.healing_dice} healing`;
+        const label = `${spell.name} — ${diceSrc} healing`;
         const counts = parsedToCounts(parsed.terms);
         if (Object.keys(counts).length === 0) {
           const { total, breakdown } = rollParsed(parsed);
-          void sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: true });
+          void sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: false });
         } else {
-          await promptRoll({ counts, modifier: parsed.modifier, label, isDamage: true });
+          await promptRoll({ counts, modifier: parsed.modifier, label, isDamage: false });
         }
       }
     }
 
-    // Spend slot
-    if (level > 0) {
-      const slot = slotForLevel(level);
+    // Spend slot at the chosen level
+    if (castLevel > 0) {
+      const slot = slotForLevel(castLevel);
       if (slot && slot.used < slot.max) {
         const updated = props.spellSlots.map((s) =>
-          s.level === level ? { ...s, used: s.used + 1 } : s,
+          s.level === castLevel ? { ...s, used: s.used + 1 } : s,
         );
         await updateMember({ id: props.partyMemberId, update: { spell_slots: updated } });
       }
