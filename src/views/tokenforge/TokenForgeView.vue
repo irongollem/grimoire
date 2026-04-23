@@ -761,6 +761,7 @@ interface TokenEntity {
   name: string;
   subtitle: string;
   imageUrl: string | null;
+  focalPoint: { x: number; y: number } | null;
   bgGradient: [string, string];
 }
 
@@ -778,6 +779,7 @@ const partyEntities = computed<TokenEntity[]>(() =>
     name:        m.name,
     subtitle:    [speciesNameMap.value.get(m.species_id ?? ''), m.class].filter(Boolean).join(" · ") || "Party Member",
     imageUrl:    m.portrait_url ?? null,
+    focalPoint:  m.portrait_focal_point ?? null,
     bgGradient:  ["#1e3a5f", "#060d1a"],
   })),
 );
@@ -788,6 +790,7 @@ const npcEntities = computed<TokenEntity[]>(() =>
     name:        n.name,
     subtitle:    [n.race, n.occupation].filter(Boolean).join(" · ") || "NPC",
     imageUrl:    n.portrait_url ?? null,
+    focalPoint:  n.portrait_focal_point ?? null,
     bgGradient:  ["#3d2b1f", "#0e0906"],
   })),
 );
@@ -798,6 +801,7 @@ const monsterEntities = computed<TokenEntity[]>(() =>
     name:        m.name,
     subtitle:    [m.size, m.monster_type].filter(Boolean).map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(" "),
     imageUrl:    m.image_url ?? null,
+    focalPoint:  m.portrait_focal_point ?? null,
     bgGradient:  ["#3b0a0a", "#0a0202"],
   })),
 );
@@ -835,6 +839,7 @@ function applyCustom() {
     name:       customName.value.trim(),
     subtitle:   "Custom",
     imageUrl:   customImageUrl.value,
+    focalPoint: null,
     bgGradient: ["#1a1a2e", "#060610"],
   };
   settings.value.ringColor = "#6b7280";
@@ -933,7 +938,17 @@ async function drawToken(canvas: HTMLCanvasElement, entity: TokenEntity, version
       let dw: number, dh: number;
       if (aspect > 1) { dh = diam; dw = diam * aspect; }
       else             { dw = diam; dh = diam / aspect; }
-      ctx.drawImage(img, cx - dw / 2, cy - dh / 2, dw, dh);
+
+      // Use focal point to center the subject in the circle.
+      // fp is 0-100% of the source image; clamp so image fully covers the inner circle.
+      const fp = entity.focalPoint;
+      const drawX = fp
+        ? Math.min(cx - ir, Math.max(cx + ir - dw, cx - (fp.x / 100) * dw))
+        : cx - dw / 2;
+      const drawY = fp
+        ? Math.min(cy - ir, Math.max(cy + ir - dh, cy - (fp.y / 100) * dh))
+        : cy - dh / 2;
+      ctx.drawImage(img, drawX, drawY, dw, dh);
     }
   }
 
