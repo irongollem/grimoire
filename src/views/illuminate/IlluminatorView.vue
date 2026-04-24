@@ -1,20 +1,21 @@
 <template>
-  <div>
+  <!-- On desktop the view fills main's flex height; controls scroll independently. -->
+  <div class="flex flex-col lg:flex-1 lg:min-h-0 lg:overflow-hidden">
     <PageHeader
       title="Illuminator"
       description="Apply torn-edge and fade treatments to images for use in Scriptorium."
     />
 
-    <div class="px-4 pb-4 md:px-6">
-      <div class="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 items-start">
+    <div class="px-4 pb-4 md:px-6 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
+      <div class="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 lg:h-full">
 
-        <!-- ── Preview ──────────────────────────────────────────────────── -->
-        <div class="flex flex-col gap-3">
+        <!-- ── Preview column ───────────────────────────────────────────── -->
+        <div class="flex flex-col gap-3 lg:min-h-0 lg:overflow-hidden">
 
           <!-- Drop zone -->
           <div
             v-if="!sourceImage"
-            class="relative flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-border bg-card transition-colors min-h-80 cursor-pointer"
+            class="relative flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-border bg-card transition-colors min-h-80 lg:flex-1 cursor-pointer"
             :class="isDragging ? 'border-primary bg-primary/5' : 'hover:border-primary/50'"
             @click="fileInput?.click()"
             @dragover.prevent="isDragging = true"
@@ -37,18 +38,19 @@
 
           <!-- Canvas preview -->
           <template v-else>
+            <!-- On desktop: flex-1 + min-h-0 lets the canvas fill available height -->
             <div
-              class="relative rounded-xl overflow-hidden"
+              class="relative rounded-xl overflow-hidden lg:flex-1 lg:min-h-0 flex items-center justify-center"
               style="background: repeating-conic-gradient(#3a3a3a 0% 25%, #2a2a2a 0% 50%) 0 0 / 20px 20px;"
             >
               <canvas
                 ref="previewCanvas"
-                class="block max-w-full mx-auto"
+                class="block max-w-full lg:max-h-full"
                 :class="dofEnabled ? 'cursor-crosshair' : ''"
                 @click="onCanvasClick"
               />
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 shrink-0">
               <button
                 type="button"
                 class="font-cinzel text-xs tracking-wider text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
@@ -62,35 +64,40 @@
           </template>
         </div>
 
-        <!-- ── Controls ──────────────────────────────────────────────────── -->
-        <div class="flex flex-col rounded-xl border border-border bg-card overflow-hidden">
+        <!-- ── Controls column — scrolls independently on desktop ────────── -->
+        <div class="flex flex-col rounded-xl border border-border bg-card overflow-hidden lg:min-h-0 lg:overflow-y-auto">
 
           <!-- ── Colour Grading section ──────────────────────────────────── -->
           <div>
-            <!-- Header: toggle + label + reset link -->
-            <button
-              type="button"
-              class="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors"
-              @click="gradingEnabled = !gradingEnabled"
+            <div
+              class="flex items-center px-4 py-3 hover:bg-muted/40 transition-colors cursor-pointer select-none"
+              @click="gradingOpen = !gradingOpen"
             >
+              <ChevronRightIcon
+                class="h-3 w-3 shrink-0 text-muted-foreground transition-transform mr-2"
+                :class="gradingOpen ? 'rotate-90' : ''"
+              />
               <span
-                class="font-cinzel text-xs font-bold tracking-widest uppercase transition-colors"
+                class="flex-1 font-cinzel text-xs font-bold tracking-widest uppercase transition-colors"
                 :class="gradingEnabled ? 'text-foreground' : 'text-muted-foreground'"
               >Colour Grading</span>
-              <!-- Toggle pill -->
-              <span
+              <!-- Enable toggle pill — click.stop so it doesn't collapse the accordion -->
+              <button
+                type="button"
                 class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
                 :class="gradingEnabled ? 'bg-primary' : 'bg-muted-foreground/30'"
+                @click.stop="gradingEnabled = !gradingEnabled"
               >
                 <span
                   class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform"
                   :class="gradingEnabled ? 'translate-x-4.5' : 'translate-x-0.5'"
                 />
-              </span>
-            </button>
+              </button>
+            </div>
 
             <!-- Body: presets + sliders — dimmed when disabled -->
             <div
+              v-show="gradingOpen"
               class="px-4 pb-4 flex flex-col gap-3 transition-opacity"
               :class="gradingEnabled ? 'opacity-100' : 'opacity-35'"
             >
@@ -136,29 +143,34 @@
 
           <!-- ── Vignette section ───────────────────────────────────────── -->
           <div class="border-t border-border">
-            <!-- Header: toggle + label -->
-            <button
-              type="button"
-              class="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors"
-              @click="vignetteEnabled = !vignetteEnabled"
+            <div
+              class="flex items-center px-4 py-3 hover:bg-muted/40 transition-colors cursor-pointer select-none"
+              @click="vignetteOpen = !vignetteOpen"
             >
+              <ChevronRightIcon
+                class="h-3 w-3 shrink-0 text-muted-foreground transition-transform mr-2"
+                :class="vignetteOpen ? 'rotate-90' : ''"
+              />
               <span
-                class="font-cinzel text-xs font-bold tracking-widest uppercase transition-colors"
+                class="flex-1 font-cinzel text-xs font-bold tracking-widest uppercase transition-colors"
                 :class="vignetteEnabled ? 'text-foreground' : 'text-muted-foreground'"
               >Vignette</span>
-              <span
+              <button
+                type="button"
                 class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
                 :class="vignetteEnabled ? 'bg-primary' : 'bg-muted-foreground/30'"
+                @click.stop="vignetteEnabled = !vignetteEnabled"
               >
                 <span
                   class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform"
                   :class="vignetteEnabled ? 'translate-x-4.5' : 'translate-x-0.5'"
                 />
-              </span>
-            </button>
+              </button>
+            </div>
 
             <!-- Body: mode + colour + sliders -->
             <div
+              v-show="vignetteOpen"
               class="px-4 pb-4 flex flex-col gap-3 transition-opacity"
               :class="vignetteEnabled ? 'opacity-100' : 'opacity-35'"
             >
@@ -221,27 +233,33 @@
 
           <!-- ── Depth of Field section ─────────────────────────────────── -->
           <div class="border-t border-border">
-            <button
-              type="button"
-              class="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors"
-              @click="dofEnabled = !dofEnabled"
+            <div
+              class="flex items-center px-4 py-3 hover:bg-muted/40 transition-colors cursor-pointer select-none"
+              @click="dofOpen = !dofOpen"
             >
+              <ChevronRightIcon
+                class="h-3 w-3 shrink-0 text-muted-foreground transition-transform mr-2"
+                :class="dofOpen ? 'rotate-90' : ''"
+              />
               <span
-                class="font-cinzel text-xs font-bold tracking-widest uppercase transition-colors"
+                class="flex-1 font-cinzel text-xs font-bold tracking-widest uppercase transition-colors"
                 :class="dofEnabled ? 'text-foreground' : 'text-muted-foreground'"
               >Depth of Field</span>
-              <span
+              <button
+                type="button"
                 class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
                 :class="dofEnabled ? 'bg-primary' : 'bg-muted-foreground/30'"
+                @click.stop="dofEnabled = !dofEnabled"
               >
                 <span
                   class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform"
                   :class="dofEnabled ? 'translate-x-4.5' : 'translate-x-0.5'"
                 />
-              </span>
-            </button>
+              </button>
+            </div>
 
             <div
+              v-show="dofOpen"
               class="px-4 pb-4 flex flex-col gap-3 transition-opacity"
               :class="dofEnabled ? 'opacity-100' : 'opacity-35'"
             >
@@ -315,30 +333,35 @@
             :key="edge"
             class="border-t border-border"
           >
-            <!-- Edge header: toggle switch + label -->
-            <button
-              type="button"
-              class="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors"
-              @click="opts[edge].enabled = !opts[edge].enabled"
+            <!-- Edge header: chevron + label + enable pill -->
+            <div
+              class="flex items-center px-4 py-3 hover:bg-muted/40 transition-colors cursor-pointer select-none"
+              @click="edgeOpen[edge] = !edgeOpen[edge]"
             >
+              <ChevronRightIcon
+                class="h-3 w-3 shrink-0 text-muted-foreground transition-transform mr-2"
+                :class="edgeOpen[edge] ? 'rotate-90' : ''"
+              />
               <span
-                class="font-cinzel text-xs font-bold tracking-widest uppercase transition-colors"
+                class="flex-1 font-cinzel text-xs font-bold tracking-widest uppercase transition-colors"
                 :class="opts[edge].enabled ? 'text-foreground' : 'text-muted-foreground'"
               >{{ edge }}</span>
-              <!-- Toggle pill -->
-              <span
+              <button
+                type="button"
                 class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
                 :class="opts[edge].enabled ? 'bg-primary' : 'bg-muted-foreground/30'"
+                @click.stop="opts[edge].enabled = !opts[edge].enabled"
               >
                 <span
                   class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform"
                   :class="opts[edge].enabled ? 'translate-x-4.5' : 'translate-x-0.5'"
                 />
-              </span>
-            </button>
+              </button>
+            </div>
 
             <!-- Sliders — dimmed when disabled, still adjustable -->
             <div
+              v-show="edgeOpen[edge]"
               class="px-4 pb-4 flex flex-col gap-3 transition-opacity"
               :class="opts[edge].enabled ? 'opacity-100' : 'opacity-35'"
             >
@@ -406,6 +429,7 @@ import {
   Download as DownloadIcon,
   Clipboard as ClipboardIcon,
   Check as CheckIcon,
+  ChevronRight as ChevronRightIcon,
 } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import {
@@ -461,6 +485,12 @@ const vignette = reactive<VignetteOptions>(structuredClone(DEFAULT_VIGNETTE));
 // DOF state
 const dofEnabled = ref(false);
 const dof = reactive<DofBlurOptions>(structuredClone(DEFAULT_DOF_BLUR));
+
+// Accordion open state — each section collapses independently from its enable toggle
+const gradingOpen  = ref(false);
+const vignetteOpen = ref(false);
+const dofOpen      = ref(false);
+const edgeOpen     = reactive<Record<string, boolean>>({ top: false, right: false, bottom: false, left: false });
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
