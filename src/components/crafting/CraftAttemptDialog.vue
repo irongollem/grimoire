@@ -113,6 +113,12 @@
             </div>
           </div>
 
+          <!-- Error notice -->
+          <div v-if="attemptError" class="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2.5">
+            <AlertTriangle class="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+            <p class="font-fell text-xs text-destructive">{{ attemptError }}</p>
+          </div>
+
           <!-- Roll result -->
           <div v-if="result" class="rounded-lg border px-4 py-3 text-center"
             :class="{
@@ -225,6 +231,7 @@ const { sendMessage } = useCampaignMessages();
 
 const result = ref<CraftingAttemptResult | null>(null);
 const attempting = ref(false);
+const attemptError = ref<string | null>(null);
 const selectedModifiers = ref<Set<number>>(new Set());
 const workspaceEnabled = ref(false);
 const poorIngredientsEnabled = ref(false);
@@ -358,6 +365,7 @@ const outcomeDetail = computed(() => {
 async function attempt() {
   if (!canAttempt.value) return;
   attempting.value = true;
+  attemptError.value = null;
 
   const { ids, primaryId, primaryItem } = resolveInventoryIds();
   const primaryItemDef = props.allItems.find((i) => i.id === primaryItem?.item_id);
@@ -396,6 +404,8 @@ async function attempt() {
     else msg += `\n❌ **Failed.** Ingredients consumed.`;
 
     sendMessage(msg);
+  } catch (err) {
+    attemptError.value = err instanceof Error ? err.message : "An unexpected error occurred.";
   } finally {
     attempting.value = false;
   }

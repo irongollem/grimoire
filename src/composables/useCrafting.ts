@@ -347,6 +347,8 @@ export function useAttemptCraft() {
         if (error) throw error;
       }
 
+      const uid = getCurrentUser()!.id;
+
       if (outcome === "success") {
         // 3a. Add all crafted outputs to inventory
         for (const output of outputs) {
@@ -365,13 +367,14 @@ export function useAttemptCraft() {
             notes: null,
             is_ruined: false,
           };
-          const { error } = await supabase.from("party_inventory").insert(insert);
+          const { error } = await supabase.from("party_inventory").insert({ ...insert, user_id: uid });
           if (error) throw error;
         }
       } else if (outcome === "ruin") {
         // 3b. Re-add primary ingredient as ruined
         const { error } = await supabase.from("party_inventory").insert({
           campaign_id: primaryInventoryItem.campaign_id,
+          user_id: uid,
           item_id: primaryInventoryItem.item_id,
           name: `Ruined: ${primaryInventoryItem.name}`,
           quantity: 1,
