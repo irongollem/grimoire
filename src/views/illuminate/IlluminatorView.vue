@@ -60,11 +60,80 @@
         <!-- ── Controls ──────────────────────────────────────────────────── -->
         <div class="flex flex-col rounded-xl border border-border bg-card overflow-hidden">
 
+          <!-- ── Colour Grading section ──────────────────────────────────── -->
+          <div>
+            <!-- Header: toggle + label + reset link -->
+            <button
+              type="button"
+              class="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors"
+              @click="gradingEnabled = !gradingEnabled"
+            >
+              <span
+                class="font-cinzel text-xs font-bold tracking-widest uppercase transition-colors"
+                :class="gradingEnabled ? 'text-foreground' : 'text-muted-foreground'"
+              >Colour Grading</span>
+              <!-- Toggle pill -->
+              <span
+                class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
+                :class="gradingEnabled ? 'bg-primary' : 'bg-muted-foreground/30'"
+              >
+                <span
+                  class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform"
+                  :class="gradingEnabled ? 'translate-x-4.5' : 'translate-x-0.5'"
+                />
+              </span>
+            </button>
+
+            <!-- Body: presets + sliders — dimmed when disabled -->
+            <div
+              class="px-4 pb-4 flex flex-col gap-3 transition-opacity"
+              :class="gradingEnabled ? 'opacity-100' : 'opacity-35'"
+            >
+              <!-- Preset buttons -->
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mr-1">Presets</span>
+                <button
+                  v-for="preset in GRADING_PRESETS"
+                  :key="preset.label"
+                  type="button"
+                  class="font-cinzel text-[10px] tracking-wider px-2 py-0.5 rounded border border-border hover:border-primary hover:text-primary transition-colors"
+                  @click="applyPreset(preset.values)"
+                >{{ preset.label }}</button>
+                <button
+                  type="button"
+                  class="font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors ml-auto"
+                  @click="resetGrading"
+                >Reset</button>
+              </div>
+
+              <!-- Grading sliders -->
+              <div v-for="gs in GRADING_SLIDERS" :key="gs.key">
+                <div class="flex items-center justify-between mb-1">
+                  <label class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">
+                    {{ gs.label }}
+                  </label>
+                  <span class="font-fell text-xs text-muted-foreground tabular-nums">
+                    {{ gradingDisplay(gs.key) }}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  :min="gs.min"
+                  :max="gs.max"
+                  :step="gs.step"
+                  :value="grading[gs.key]"
+                  class="w-full h-1.5 rounded-full appearance-none cursor-pointer bg-border accent-primary"
+                  @input="(e) => setGradingSlider(gs.key, parseFloat((e.target as HTMLInputElement).value))"
+                />
+              </div>
+            </div>
+          </div>
+
           <!-- Per-edge sections -->
           <div
-            v-for="(edge, idx) in EDGE_KEYS"
+            v-for="edge in EDGE_KEYS"
             :key="edge"
-            :class="idx > 0 ? 'border-t border-border' : ''"
+            class="border-t border-border"
           >
             <!-- Edge header: toggle switch + label -->
             <button
@@ -161,11 +230,17 @@ import {
 import PageHeader from "@/components/common/PageHeader.vue";
 import {
   applyEdgeTreatmentToCtx,
-  applyEdgeTreatment,
+  processImage,
   DEFAULT_EDGE_TREATMENT,
   type EdgeTreatmentOptions,
   type EdgeOptions,
 } from "@/lib/edgeTreatment";
+import {
+  applyColourGrading,
+  DEFAULT_COLOUR_GRADING,
+  GRADING_PRESETS,
+  type ColourGradingOptions,
+} from "@/lib/colourGrading";
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -182,6 +257,10 @@ const clipboardSupported =
 
 const opts = reactive<EdgeTreatmentOptions>(structuredClone(DEFAULT_EDGE_TREATMENT));
 
+// Colour grading state
+const gradingEnabled = ref(false);
+const grading = reactive<ColourGradingOptions>(structuredClone(DEFAULT_COLOUR_GRADING));
+
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const EDGE_KEYS = ["top", "right", "bottom", "left"] as const;
@@ -196,6 +275,22 @@ const SLIDERS: Array<{ key: SliderKey; label: string; min: number; max: number; 
   { key: "variation",  label: "Variation",  min: 0,  max: 1,  step: 0.01 },
 ];
 
+type GradingSliderKey = keyof ColourGradingOptions;
+const GRADING_SLIDERS: Array<{
+  key: GradingSliderKey;
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  isHue: boolean;
+}> = [
+  { key: "brightness",  label: "Brightness", min: -1,   max: 1,   step: 0.01, isHue: false },
+  { key: "contrast",    label: "Contrast",   min: -1,   max: 1,   step: 0.01, isHue: false },
+  { key: "saturation",  label: "Saturation", min: -1,   max: 1,   step: 0.01, isHue: false },
+  { key: "temperature", label: "Temp",       min: -1,   max: 1,   step: 0.01, isHue: false },
+  { key: "hue",         label: "Hue",        min: -180, max: 180, step: 1,    isHue: true  },
+];
+
 function sliderDisplay(edge: EdgeKey, key: SliderKey): string {
   const v = opts[edge][key];
   return key === "passes" ? String(Math.round(v)) : String(Math.round(v * 100));
@@ -203,6 +298,29 @@ function sliderDisplay(edge: EdgeKey, key: SliderKey): string {
 
 function setSlider(edge: EdgeKey, key: SliderKey, value: number): void {
   (opts[edge] as EdgeOptions)[key] = value;
+}
+
+function gradingDisplay(key: GradingSliderKey): string {
+  const v = grading[key];
+  if (key === "hue") {
+    const deg = Math.round(v);
+    return deg >= 0 ? `+${deg}°` : `${deg}°`;
+  }
+  const pct = Math.round(v * 100);
+  return pct >= 0 ? `+${pct}` : String(pct);
+}
+
+function setGradingSlider(key: GradingSliderKey, value: number): void {
+  (grading as ColourGradingOptions)[key] = value;
+}
+
+function applyPreset(values: ColourGradingOptions): void {
+  Object.assign(grading, values);
+  if (!gradingEnabled.value) gradingEnabled.value = true;
+}
+
+function resetGrading(): void {
+  Object.assign(grading, structuredClone(DEFAULT_COLOUR_GRADING));
 }
 
 // ─── Image loading ────────────────────────────────────────────────────────────
@@ -255,6 +373,8 @@ function renderPreview() {
   const ctx = canvas.getContext("2d")!;
   ctx.clearRect(0, 0, pw, ph);
   ctx.drawImage(img, 0, 0, pw, ph);
+
+  if (gradingEnabled.value) applyColourGrading(ctx, pw, ph, grading);
   applyEdgeTreatmentToCtx(ctx, pw, ph, opts);
 }
 
@@ -265,15 +385,24 @@ function scheduleRender() {
 }
 
 watch(opts, scheduleRender, { deep: true });
+watch(grading, scheduleRender, { deep: true });
+watch(gradingEnabled, scheduleRender);
 watch(sourceImage, () => { renderTimer = setTimeout(renderPreview, 0); });
 
 // ─── Export ───────────────────────────────────────────────────────────────────
+
+function buildGradingFn(): ((ctx: CanvasRenderingContext2D, w: number, h: number) => void) | undefined {
+  if (!gradingEnabled.value) return undefined;
+  // Snapshot current grading values so they don't change mid-export
+  const snapshot = { ...grading };
+  return (ctx, w, h) => applyColourGrading(ctx, w, h, snapshot);
+}
 
 async function downloadPng() {
   if (!sourceImage.value || isExporting.value) return;
   isExporting.value = true;
   try {
-    const blob = await applyEdgeTreatment(sourceImage.value, opts);
+    const blob = await processImage(sourceImage.value, opts, buildGradingFn());
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
     a.href     = url;
@@ -289,7 +418,7 @@ async function copyToClipboard() {
   if (!sourceImage.value || isExporting.value || !clipboardSupported) return;
   isExporting.value = true;
   try {
-    const blob = await applyEdgeTreatment(sourceImage.value, opts);
+    const blob = await processImage(sourceImage.value, opts, buildGradingFn());
     await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
     copySuccess.value = true;
     setTimeout(() => { copySuccess.value = false; }, 2000);
@@ -302,5 +431,7 @@ async function copyToClipboard() {
 
 function resetDefaults() {
   Object.assign(opts, structuredClone(DEFAULT_EDGE_TREATMENT));
+  resetGrading();
+  gradingEnabled.value = false;
 }
 </script>

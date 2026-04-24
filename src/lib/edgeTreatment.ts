@@ -251,3 +251,34 @@ export async function applyEdgeTreatment(
     );
   });
 }
+
+/**
+ * Full export pipeline: colour grading (optional) → edge mask → PNG blob.
+ * Import `ColourGradingOptions` and `applyColourGrading` from colourGrading.ts
+ * is avoided here to keep modules independent; the caller passes a pre-bound
+ * grading function (or undefined to skip).
+ */
+export async function processImage(
+  image: HTMLImageElement,
+  edgeOpts: EdgeTreatmentOptions,
+  applyGrading?: (ctx: CanvasRenderingContext2D, w: number, h: number) => void,
+): Promise<Blob> {
+  const w = image.naturalWidth;
+  const h = image.naturalHeight;
+
+  const canvas = document.createElement("canvas");
+  canvas.width  = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(image, 0, 0, w, h);
+
+  if (applyGrading) applyGrading(ctx, w, h);
+  applyEdgeTreatmentToCtx(ctx, w, h, edgeOpts);
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error("PNG export failed"))),
+      "image/png",
+    );
+  });
+}
