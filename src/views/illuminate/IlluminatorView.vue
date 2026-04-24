@@ -327,62 +327,86 @@
             </div>
           </div>
 
-          <!-- Per-edge sections -->
-          <div
-            v-for="edge in EDGE_KEYS"
-            :key="edge"
-            class="border-t border-border"
-          >
-            <!-- Edge header: chevron + label + enable pill -->
+          <!-- ── Edge Treatment section (parent for all four edges) ──── -->
+          <div class="border-t border-border">
+            <!-- Parent header — no enable toggle, controlled per-edge -->
             <div
               class="flex items-center px-4 py-3 hover:bg-muted/40 transition-colors cursor-pointer select-none"
-              @click="edgeOpen[edge] = !edgeOpen[edge]"
+              @click="edgesOpen = !edgesOpen"
             >
               <ChevronRightIcon
                 class="h-3 w-3 shrink-0 text-muted-foreground transition-transform mr-2"
-                :class="edgeOpen[edge] ? 'rotate-90' : ''"
+                :class="edgesOpen ? 'rotate-90' : ''"
               />
+              <span class="flex-1 font-cinzel text-xs font-bold tracking-widest uppercase text-foreground">
+                Edge Treatment
+              </span>
+              <!-- Active edge count badge -->
               <span
-                class="flex-1 font-cinzel text-xs font-bold tracking-widest uppercase transition-colors"
-                :class="opts[edge].enabled ? 'text-foreground' : 'text-muted-foreground'"
-              >{{ edge }}</span>
-              <button
-                type="button"
-                class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
-                :class="opts[edge].enabled ? 'bg-primary' : 'bg-muted-foreground/30'"
-                @click.stop="opts[edge].enabled = !opts[edge].enabled"
-              >
-                <span
-                  class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform"
-                  :class="opts[edge].enabled ? 'translate-x-4.5' : 'translate-x-0.5'"
-                />
-              </button>
+                v-if="EDGE_KEYS.some(e => opts[e].enabled)"
+                class="font-cinzel text-[10px] tracking-wider text-primary mr-2"
+              >{{ EDGE_KEYS.filter(e => opts[e].enabled).length }} active</span>
             </div>
 
-            <!-- Sliders — dimmed when disabled, still adjustable -->
-            <div
-              v-show="edgeOpen[edge]"
-              class="px-4 pb-4 flex flex-col gap-3 transition-opacity"
-              :class="opts[edge].enabled ? 'opacity-100' : 'opacity-35'"
-            >
-              <div v-for="slider in SLIDERS" :key="slider.key">
-                <div class="flex items-center justify-between mb-1">
-                  <label class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">
-                    {{ slider.label }}
-                  </label>
-                  <span class="font-fell text-xs text-muted-foreground tabular-nums">
-                    {{ sliderDisplay(edge, slider.key) }}
-                  </span>
+            <!-- Per-edge sub-sections -->
+            <div v-show="edgesOpen">
+              <div
+                v-for="edge in EDGE_KEYS"
+                :key="edge"
+                class="border-t border-border/50"
+              >
+                <!-- Sub-header: indented, smaller chevron -->
+                <div
+                  class="flex items-center pl-8 pr-4 py-2.5 hover:bg-muted/40 transition-colors cursor-pointer select-none"
+                  @click="edgeOpen[edge] = !edgeOpen[edge]"
+                >
+                  <ChevronRightIcon
+                    class="h-2.5 w-2.5 shrink-0 text-muted-foreground transition-transform mr-2"
+                    :class="edgeOpen[edge] ? 'rotate-90' : ''"
+                  />
+                  <span
+                    class="flex-1 font-cinzel text-[10px] font-semibold tracking-widest uppercase transition-colors"
+                    :class="opts[edge].enabled ? 'text-foreground' : 'text-muted-foreground'"
+                  >{{ edge }}</span>
+                  <button
+                    type="button"
+                    class="relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors"
+                    :class="opts[edge].enabled ? 'bg-primary' : 'bg-muted-foreground/30'"
+                    @click.stop="opts[edge].enabled = !opts[edge].enabled"
+                  >
+                    <span
+                      class="inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform"
+                      :class="opts[edge].enabled ? 'translate-x-3.5' : 'translate-x-0.5'"
+                    />
+                  </button>
                 </div>
-                <input
-                  type="range"
-                  :min="slider.min"
-                  :max="slider.max"
-                  :step="slider.step"
-                  :value="opts[edge][slider.key]"
-                  class="w-full h-1.5 rounded-full appearance-none cursor-pointer bg-border accent-primary"
-                  @input="(e) => setSlider(edge, slider.key, parseFloat((e.target as HTMLInputElement).value))"
-                />
+
+                <!-- Sliders — dimmed when disabled -->
+                <div
+                  v-show="edgeOpen[edge]"
+                  class="pl-8 pr-4 pb-4 flex flex-col gap-3 transition-opacity"
+                  :class="opts[edge].enabled ? 'opacity-100' : 'opacity-35'"
+                >
+                  <div v-for="slider in SLIDERS" :key="slider.key">
+                    <div class="flex items-center justify-between mb-1">
+                      <label class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">
+                        {{ slider.label }}
+                      </label>
+                      <span class="font-fell text-xs text-muted-foreground tabular-nums">
+                        {{ sliderDisplay(edge, slider.key) }}
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      :min="slider.min"
+                      :max="slider.max"
+                      :step="slider.step"
+                      :value="opts[edge][slider.key]"
+                      class="w-full h-1.5 rounded-full appearance-none cursor-pointer bg-border accent-primary"
+                      @input="(e) => setSlider(edge, slider.key, parseFloat((e.target as HTMLInputElement).value))"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -490,6 +514,7 @@ const dof = reactive<DofBlurOptions>(structuredClone(DEFAULT_DOF_BLUR));
 const gradingOpen  = ref(false);
 const vignetteOpen = ref(false);
 const dofOpen      = ref(false);
+const edgesOpen    = ref(false);
 const edgeOpen     = reactive<Record<string, boolean>>({ top: false, right: false, bottom: false, left: false });
 
 // ─── Config ───────────────────────────────────────────────────────────────────
