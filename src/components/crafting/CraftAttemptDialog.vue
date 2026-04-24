@@ -371,9 +371,15 @@ async function attempt() {
   const primaryItemDef = props.allItems.find((i) => i.id === primaryItem?.item_id);
 
   try {
+    const resolvedOutputNames: Record<string, string> = {};
+    for (const o of props.outputs) {
+      if (o.item_id) resolvedOutputNames[o.item_id] = props.allItems.find((i) => i.id === o.item_id)?.name ?? "";
+    }
+
     const res = await attemptCraft({
       recipe: props.recipe,
       outputs: props.outputs,
+      outputItemNames: resolvedOutputNames,
       ingredientInventoryIds: ids,
       primaryIngredientInventoryId: primaryId,
       primaryInventoryItem: {

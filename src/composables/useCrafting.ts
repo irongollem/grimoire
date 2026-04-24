@@ -290,6 +290,8 @@ export function useAttemptCraft() {
       recipe: CraftingRecipe;
       /** Output items to add to inventory on success */
       outputs: CraftingOutput[];
+      /** Resolved names for each output item (item_id → display name) */
+      outputItemNames: Record<string, string>;
       /** party_inventory item IDs the player is slotting in (in ingredient order) */
       ingredientInventoryIds: string[];
       /** primary ingredient's inventory id — ruined on critical fail */
@@ -306,6 +308,7 @@ export function useAttemptCraft() {
       const {
         recipe,
         outputs,
+        outputItemNames,
         ingredientInventoryIds,
         primaryInventoryItem,
         modifierBonuses,
@@ -355,7 +358,7 @@ export function useAttemptCraft() {
           const insert: PartyInventoryInsert = {
             campaign_id: recipe.campaign_id,
             item_id: output.item_id,
-            name: "",
+            name: output.item_id ? (outputItemNames[output.item_id] ?? "") : "",
             quantity: output.quantity,
             carried_by: partyMemberId,
             location: "backpack",

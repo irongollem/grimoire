@@ -722,7 +722,7 @@
                 → {{ recipientName(msg.recipient_user_id) }}
               </span>
             </div>
-            <p class="font-fell text-sm text-foreground leading-snug">
+            <p class="font-fell text-sm text-foreground leading-snug whitespace-pre-line">
               {{ msg.message }}
             </p>
             <p
