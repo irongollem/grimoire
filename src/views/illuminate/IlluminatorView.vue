@@ -470,7 +470,7 @@ function renderPreview() {
   ctx.drawImage(img, 0, 0, pw, ph);
 
   if (gradingEnabled.value) applyColourGrading(ctx, pw, ph, grading);
-  if (vignetteEnabled.value) applyVignette(ctx, pw, ph, vignette);
+  if (vignetteEnabled.value) applyVignette(ctx, pw, ph, { ...vignette, enabled: true });
   applyEdgeTreatmentToCtx(ctx, pw, ph, opts);
 }
 
@@ -497,7 +497,7 @@ function buildGradingFn(): ((ctx: CanvasRenderingContext2D, w: number, h: number
 
 function buildVignetteFn(): ((ctx: CanvasRenderingContext2D, w: number, h: number) => void) | undefined {
   if (!vignetteEnabled.value) return undefined;
-  const snapshot = { ...vignette };
+  const snapshot = { ...vignette, enabled: true };
   return (ctx, w, h) => applyVignette(ctx, w, h, snapshot);
 }
 
