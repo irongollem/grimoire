@@ -601,7 +601,7 @@ function renderPreview() {
   canvas.width  = pw;
   canvas.height = ph;
 
-  const ctx = canvas.getContext("2d")!;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
   ctx.clearRect(0, 0, pw, ph);
   ctx.drawImage(img, 0, 0, pw, ph);
 

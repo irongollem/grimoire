@@ -239,7 +239,7 @@ export async function applyEdgeTreatment(
   const canvas = document.createElement("canvas");
   canvas.width  = w;
   canvas.height = h;
-  const ctx = canvas.getContext("2d")!;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
   ctx.drawImage(image, 0, 0);
 
   applyEdgeTreatmentToCtx(ctx, w, h, options);
@@ -269,7 +269,7 @@ export async function processImage(
   const canvas = document.createElement("canvas");
   canvas.width  = w;
   canvas.height = h;
-  const ctx = canvas.getContext("2d")!;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
   ctx.drawImage(image, 0, 0, w, h);
 
   if (applyGrading) applyGrading(ctx, w, h);
