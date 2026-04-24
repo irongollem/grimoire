@@ -69,6 +69,8 @@ import NpcTabContent from "@/components/npcs/NpcTabContent.vue";
 import { useUpdateNpc } from "@/composables/useNpcs";
 import { useNpcFactions } from "@/composables/useFactions";
 import { getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
+import { useUiStore } from "@/stores/ui";
+import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import type { Npc } from "@/types/npc.types";
 
 const props = defineProps<{ npc: Npc }>();
@@ -85,12 +87,23 @@ const displayFocalPoint = computed(() => getNpcDisplayFocalPoint(props.npc));
 // Quick reveal/conceal toggle — saves immediately without opening edit mode
 const { mutateAsync: updateNpc } = useUpdateNpc();
 const isToggling = ref(false);
+const ui = useUiStore();
+const { sendNarrativeEvent } = useCampaignMessages();
 
 async function toggleReveal() {
   if (isToggling.value) return;
   isToggling.value = true;
+  const revealing = !props.npc.is_revealed;
   try {
-    await updateNpc({ id: props.npc.id, update: { is_revealed: !props.npc.is_revealed } });
+    await updateNpc({ id: props.npc.id, update: { is_revealed: revealing } });
+    // Announce reveal to players in play mode (fire-and-forget)
+    if (revealing && ui.dmMode === "play") {
+      const disguise = props.npc.disguise_name?.trim();
+      const msg = disguise
+        ? `${disguise} is revealed to be ${props.npc.name}.`
+        : `${props.npc.name} has been revealed.`;
+      void sendNarrativeEvent(msg);
+    }
   } finally {
     isToggling.value = false;
   }
