@@ -41,7 +41,12 @@
               class="relative rounded-xl overflow-hidden"
               style="background: repeating-conic-gradient(#3a3a3a 0% 25%, #2a2a2a 0% 50%) 0 0 / 20px 20px;"
             >
-              <canvas ref="previewCanvas" class="block max-w-full mx-auto" />
+              <canvas
+                ref="previewCanvas"
+                class="block max-w-full mx-auto"
+                :class="dofEnabled ? 'cursor-crosshair' : ''"
+                @click="onCanvasClick"
+              />
             </div>
             <div class="flex items-center gap-2">
               <button
@@ -214,6 +219,96 @@
             </div>
           </div>
 
+          <!-- ── Depth of Field section ─────────────────────────────────── -->
+          <div class="border-t border-border">
+            <button
+              type="button"
+              class="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors"
+              @click="dofEnabled = !dofEnabled"
+            >
+              <span
+                class="font-cinzel text-xs font-bold tracking-widest uppercase transition-colors"
+                :class="dofEnabled ? 'text-foreground' : 'text-muted-foreground'"
+              >Depth of Field</span>
+              <span
+                class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
+                :class="dofEnabled ? 'bg-primary' : 'bg-muted-foreground/30'"
+              >
+                <span
+                  class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform"
+                  :class="dofEnabled ? 'translate-x-4.5' : 'translate-x-0.5'"
+                />
+              </span>
+            </button>
+
+            <div
+              class="px-4 pb-4 flex flex-col gap-3 transition-opacity"
+              :class="dofEnabled ? 'opacity-100' : 'opacity-35'"
+            >
+              <!-- Hint when enabled -->
+              <p v-if="dofEnabled && sourceImage" class="font-fell text-[11px] text-muted-foreground italic">
+                Click the image to set the focal point
+              </p>
+
+              <!-- Falloff curve pills -->
+              <div class="flex items-center gap-1.5">
+                <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mr-1">Falloff</span>
+                <button
+                  v-for="curve in (['linear', 'quadratic', 'cubic'] as FalloffCurve[])"
+                  :key="curve"
+                  type="button"
+                  class="font-cinzel text-[10px] tracking-wider px-2 py-0.5 rounded border transition-colors"
+                  :class="dof.falloff === curve
+                    ? 'border-primary text-primary'
+                    : 'border-border hover:border-primary/60 hover:text-foreground text-muted-foreground'"
+                  @click="dof.falloff = curve"
+                >{{ curve }}</button>
+              </div>
+
+              <!-- Focus radius -->
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Focus radius</label>
+                  <span class="font-fell text-xs text-muted-foreground tabular-nums">{{ Math.round(dof.focusRadius * 100) }}</span>
+                </div>
+                <input
+                  type="range" min="0" max="1" step="0.01"
+                  :value="dof.focusRadius"
+                  class="w-full h-1.5 rounded-full appearance-none cursor-pointer bg-border accent-primary"
+                  @input="(e) => { dof.focusRadius = parseFloat((e.target as HTMLInputElement).value); }"
+                />
+              </div>
+
+              <!-- Blur strength -->
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Blur</label>
+                  <span class="font-fell text-xs text-muted-foreground tabular-nums">{{ Math.round(dof.blurStrength * 100) }}</span>
+                </div>
+                <input
+                  type="range" min="0" max="1" step="0.01"
+                  :value="dof.blurStrength"
+                  class="w-full h-1.5 rounded-full appearance-none cursor-pointer bg-border accent-primary"
+                  @input="(e) => { dof.blurStrength = parseFloat((e.target as HTMLInputElement).value); }"
+                />
+              </div>
+
+              <!-- Desaturation -->
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Desaturation</label>
+                  <span class="font-fell text-xs text-muted-foreground tabular-nums">{{ Math.round(dof.desaturation * 100) }}</span>
+                </div>
+                <input
+                  type="range" min="0" max="1" step="0.01"
+                  :value="dof.desaturation"
+                  class="w-full h-1.5 rounded-full appearance-none cursor-pointer bg-border accent-primary"
+                  @input="(e) => { dof.desaturation = parseFloat((e.target as HTMLInputElement).value); }"
+                />
+              </div>
+            </div>
+          </div>
+
           <!-- Per-edge sections -->
           <div
             v-for="edge in EDGE_KEYS"
@@ -332,6 +427,13 @@ import {
   type VignetteOptions,
   type VignetteMode,
 } from "@/lib/vignette";
+import {
+  applyDofBlur,
+  drawFocalCrosshair,
+  DEFAULT_DOF_BLUR,
+  type DofBlurOptions,
+  type FalloffCurve,
+} from "@/lib/dofBlur";
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -355,6 +457,10 @@ const grading = reactive<ColourGradingOptions>(structuredClone(DEFAULT_COLOUR_GR
 // Vignette state
 const vignetteEnabled = ref(false);
 const vignette = reactive<VignetteOptions>(structuredClone(DEFAULT_VIGNETTE));
+
+// DOF state
+const dofEnabled = ref(false);
+const dof = reactive<DofBlurOptions>(structuredClone(DEFAULT_DOF_BLUR));
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -470,8 +576,12 @@ function renderPreview() {
   ctx.drawImage(img, 0, 0, pw, ph);
 
   if (gradingEnabled.value) applyColourGrading(ctx, pw, ph, grading);
+  if (dofEnabled.value) applyDofBlur(ctx, pw, ph, { ...dof, enabled: true });
   if (vignetteEnabled.value) applyVignette(ctx, pw, ph, { ...vignette, enabled: true });
   applyEdgeTreatmentToCtx(ctx, pw, ph, opts);
+
+  // Crosshair drawn last — visible in preview only, not in export
+  if (dofEnabled.value) drawFocalCrosshair(ctx, pw, ph, dof.focalX, dof.focalY);
 }
 
 let renderTimer: ReturnType<typeof setTimeout> | null = null;
@@ -485,7 +595,20 @@ watch(grading, scheduleRender, { deep: true });
 watch(gradingEnabled, scheduleRender);
 watch(vignette, scheduleRender, { deep: true });
 watch(vignetteEnabled, scheduleRender);
+watch(dof, scheduleRender, { deep: true });
+watch(dofEnabled, scheduleRender);
 watch(sourceImage, () => { renderTimer = setTimeout(renderPreview, 0); });
+
+// ─── Canvas interaction ───────────────────────────────────────────────────────
+
+function onCanvasClick(e: MouseEvent) {
+  if (!dofEnabled.value) return;
+  const canvas = previewCanvas.value;
+  if (!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  dof.focalX = Math.max(0, Math.min(1, (e.clientX - rect.left)  / rect.width));
+  dof.focalY = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+}
 
 // ─── Export ───────────────────────────────────────────────────────────────────
 
@@ -493,6 +616,12 @@ function buildGradingFn(): ((ctx: CanvasRenderingContext2D, w: number, h: number
   if (!gradingEnabled.value) return undefined;
   const snapshot = { ...grading };
   return (ctx, w, h) => applyColourGrading(ctx, w, h, snapshot);
+}
+
+function buildDofFn(): ((ctx: CanvasRenderingContext2D, w: number, h: number) => void) | undefined {
+  if (!dofEnabled.value) return undefined;
+  const snapshot = { ...dof, enabled: true };
+  return (ctx, w, h) => applyDofBlur(ctx, w, h, snapshot);
 }
 
 function buildVignetteFn(): ((ctx: CanvasRenderingContext2D, w: number, h: number) => void) | undefined {
@@ -505,7 +634,7 @@ async function downloadPng() {
   if (!sourceImage.value || isExporting.value) return;
   isExporting.value = true;
   try {
-    const blob = await processImage(sourceImage.value, opts, buildGradingFn(), buildVignetteFn());
+    const blob = await processImage(sourceImage.value, opts, buildGradingFn(), buildDofFn(), buildVignetteFn());
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
     a.href     = url;
@@ -521,7 +650,7 @@ async function copyToClipboard() {
   if (!sourceImage.value || isExporting.value || !clipboardSupported) return;
   isExporting.value = true;
   try {
-    const blob = await processImage(sourceImage.value, opts, buildGradingFn(), buildVignetteFn());
+    const blob = await processImage(sourceImage.value, opts, buildGradingFn(), buildDofFn(), buildVignetteFn());
     await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
     copySuccess.value = true;
     setTimeout(() => { copySuccess.value = false; }, 2000);
@@ -538,5 +667,7 @@ function resetDefaults() {
   gradingEnabled.value = false;
   Object.assign(vignette, structuredClone(DEFAULT_VIGNETTE));
   vignetteEnabled.value = false;
+  Object.assign(dof, structuredClone(DEFAULT_DOF_BLUR));
+  dofEnabled.value = false;
 }
 </script>

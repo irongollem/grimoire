@@ -253,13 +253,14 @@ export async function applyEdgeTreatment(
 }
 
 /**
- * Full export pipeline: colour grading (optional) → vignette (optional) → edge mask → PNG blob.
+ * Full export pipeline: colour grading → DOF blur → vignette → edge mask → PNG blob.
  * Callers pass pre-bound functions to keep modules independent.
  */
 export async function processImage(
   image: HTMLImageElement,
   edgeOpts: EdgeTreatmentOptions,
   applyGrading?: (ctx: CanvasRenderingContext2D, w: number, h: number) => void,
+  applyDofFn?: (ctx: CanvasRenderingContext2D, w: number, h: number) => void,
   applyVignetteFn?: (ctx: CanvasRenderingContext2D, w: number, h: number) => void,
 ): Promise<Blob> {
   const w = image.naturalWidth;
@@ -272,6 +273,7 @@ export async function processImage(
   ctx.drawImage(image, 0, 0, w, h);
 
   if (applyGrading) applyGrading(ctx, w, h);
+  if (applyDofFn) applyDofFn(ctx, w, h);
   if (applyVignetteFn) applyVignetteFn(ctx, w, h);
   applyEdgeTreatmentToCtx(ctx, w, h, edgeOpts);
 

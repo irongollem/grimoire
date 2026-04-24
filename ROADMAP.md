@@ -328,6 +328,7 @@
 - [x] **Illuminator — colour grading** — brightness, contrast, saturation, temperature, hue sliders with Sepia/Moonlit/Vivid presets; applied before edge mask in render pipeline; export captures grading at full resolution. Partial #265.
 - [x] **Illuminator — N-pass layered eraser + variation** — replaced smooth gradient fade with N independent binary-edged eraser passes; alpha = count_inside/N giving visible brush-stroke character; Variation slider drives per-layer noise frequency spread and phase offset for hand-painted feel.
 - [x] **Illuminator — vignette** — radial vignette with smoothstep falloff; transparent mode erases alpha toward edges, colour mode blends toward a chosen hex colour; Strength + Softness sliders; applied between colour grading and edge mask in pipeline. Partial #269.
+- [x] **Illuminator — depth of field** — radial blur + desaturation from a click-to-set focal point; 4-level box-blur pyramid (no external deps) lerped by normalised distance; linear/quadratic/cubic falloff curves; Focus radius, Blur, and Desaturation sliders; crosshair drawn on preview canvas, omitted from export. Closes #266.
 
 ### Misc
 
