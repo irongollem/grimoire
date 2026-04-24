@@ -122,7 +122,6 @@ export function applyDofBlur(
   if (!opts.enabled || (opts.blurStrength <= 0 && opts.desaturation <= 0)) return;
 
   const short      = Math.min(w, h);
-  const diag       = Math.sqrt(w * w + h * h);
   const maxRadius  = Math.round(opts.blurStrength * short * 0.06);
   const N          = 4; // number of levels in the blur pyramid
 
@@ -133,10 +132,16 @@ export function applyDofBlur(
     ? buildBlurPyramid(src, w, h, maxRadius, N)
     : null;
 
-  const cx     = opts.focalX * w;
-  const cy     = opts.focalY * h;
-  const innerR = opts.focusRadius * diag * 0.5;
-  const range  = Math.max(1, diag - innerR);
+  const cx = opts.focalX * w;
+  const cy = opts.focalY * h;
+
+  // Furthest corner from the focal point — this is where t=1 lands, ensuring
+  // the falloff curves span the full [0,1] range across real pixel distances.
+  const maxDist = Math.sqrt(
+    Math.max(cx, w - cx) ** 2 + Math.max(cy, h - cy) ** 2,
+  );
+  const innerR = opts.focusRadius * maxDist;
+  const range  = Math.max(1, maxDist - innerR);
 
   for (let y = 0; y < h; y++) {
     const dy = y - cy;
