@@ -129,6 +129,91 @@
             </div>
           </div>
 
+          <!-- ── Vignette section ───────────────────────────────────────── -->
+          <div class="border-t border-border">
+            <!-- Header: toggle + label -->
+            <button
+              type="button"
+              class="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors"
+              @click="vignetteEnabled = !vignetteEnabled"
+            >
+              <span
+                class="font-cinzel text-xs font-bold tracking-widest uppercase transition-colors"
+                :class="vignetteEnabled ? 'text-foreground' : 'text-muted-foreground'"
+              >Vignette</span>
+              <span
+                class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
+                :class="vignetteEnabled ? 'bg-primary' : 'bg-muted-foreground/30'"
+              >
+                <span
+                  class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform"
+                  :class="vignetteEnabled ? 'translate-x-4.5' : 'translate-x-0.5'"
+                />
+              </span>
+            </button>
+
+            <!-- Body: mode + colour + sliders -->
+            <div
+              class="px-4 pb-4 flex flex-col gap-3 transition-opacity"
+              :class="vignetteEnabled ? 'opacity-100' : 'opacity-35'"
+            >
+              <!-- Mode pill buttons -->
+              <div class="flex items-center gap-1.5">
+                <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mr-1">Mode</span>
+                <button
+                  v-for="mode in (['transparent', 'colour'] as VignetteMode[])"
+                  :key="mode"
+                  type="button"
+                  class="font-cinzel text-[10px] tracking-wider px-2 py-0.5 rounded border transition-colors"
+                  :class="vignette.mode === mode
+                    ? 'border-primary text-primary'
+                    : 'border-border hover:border-primary/60 hover:text-foreground text-muted-foreground'"
+                  @click="vignette.mode = mode"
+                >{{ mode }}</button>
+              </div>
+
+              <!-- Colour picker — only in colour mode -->
+              <div v-if="vignette.mode === 'colour'" class="flex items-center gap-2">
+                <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Colour</span>
+                <input
+                  type="color"
+                  :value="vignette.colour"
+                  class="h-6 w-10 cursor-pointer rounded border border-border bg-transparent p-0.5"
+                  @input="(e) => { vignette.colour = (e.target as HTMLInputElement).value; }"
+                />
+                <span class="font-fell text-xs text-muted-foreground">{{ vignette.colour }}</span>
+              </div>
+
+              <!-- Strength slider -->
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Strength</label>
+                  <span class="font-fell text-xs text-muted-foreground tabular-nums">{{ Math.round(vignette.strength * 100) }}</span>
+                </div>
+                <input
+                  type="range" min="0" max="1" step="0.01"
+                  :value="vignette.strength"
+                  class="w-full h-1.5 rounded-full appearance-none cursor-pointer bg-border accent-primary"
+                  @input="(e) => { vignette.strength = parseFloat((e.target as HTMLInputElement).value); }"
+                />
+              </div>
+
+              <!-- Softness slider -->
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Softness</label>
+                  <span class="font-fell text-xs text-muted-foreground tabular-nums">{{ Math.round(vignette.softness * 100) }}</span>
+                </div>
+                <input
+                  type="range" min="0" max="1" step="0.01"
+                  :value="vignette.softness"
+                  class="w-full h-1.5 rounded-full appearance-none cursor-pointer bg-border accent-primary"
+                  @input="(e) => { vignette.softness = parseFloat((e.target as HTMLInputElement).value); }"
+                />
+              </div>
+            </div>
+          </div>
+
           <!-- Per-edge sections -->
           <div
             v-for="edge in EDGE_KEYS"
@@ -241,6 +326,12 @@ import {
   GRADING_PRESETS,
   type ColourGradingOptions,
 } from "@/lib/colourGrading";
+import {
+  applyVignette,
+  DEFAULT_VIGNETTE,
+  type VignetteOptions,
+  type VignetteMode,
+} from "@/lib/vignette";
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -260,6 +351,10 @@ const opts = reactive<EdgeTreatmentOptions>(structuredClone(DEFAULT_EDGE_TREATME
 // Colour grading state
 const gradingEnabled = ref(false);
 const grading = reactive<ColourGradingOptions>(structuredClone(DEFAULT_COLOUR_GRADING));
+
+// Vignette state
+const vignetteEnabled = ref(false);
+const vignette = reactive<VignetteOptions>(structuredClone(DEFAULT_VIGNETTE));
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -375,6 +470,7 @@ function renderPreview() {
   ctx.drawImage(img, 0, 0, pw, ph);
 
   if (gradingEnabled.value) applyColourGrading(ctx, pw, ph, grading);
+  if (vignetteEnabled.value) applyVignette(ctx, pw, ph, vignette);
   applyEdgeTreatmentToCtx(ctx, pw, ph, opts);
 }
 
@@ -387,22 +483,29 @@ function scheduleRender() {
 watch(opts, scheduleRender, { deep: true });
 watch(grading, scheduleRender, { deep: true });
 watch(gradingEnabled, scheduleRender);
+watch(vignette, scheduleRender, { deep: true });
+watch(vignetteEnabled, scheduleRender);
 watch(sourceImage, () => { renderTimer = setTimeout(renderPreview, 0); });
 
 // ─── Export ───────────────────────────────────────────────────────────────────
 
 function buildGradingFn(): ((ctx: CanvasRenderingContext2D, w: number, h: number) => void) | undefined {
   if (!gradingEnabled.value) return undefined;
-  // Snapshot current grading values so they don't change mid-export
   const snapshot = { ...grading };
   return (ctx, w, h) => applyColourGrading(ctx, w, h, snapshot);
+}
+
+function buildVignetteFn(): ((ctx: CanvasRenderingContext2D, w: number, h: number) => void) | undefined {
+  if (!vignetteEnabled.value) return undefined;
+  const snapshot = { ...vignette };
+  return (ctx, w, h) => applyVignette(ctx, w, h, snapshot);
 }
 
 async function downloadPng() {
   if (!sourceImage.value || isExporting.value) return;
   isExporting.value = true;
   try {
-    const blob = await processImage(sourceImage.value, opts, buildGradingFn());
+    const blob = await processImage(sourceImage.value, opts, buildGradingFn(), buildVignetteFn());
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
     a.href     = url;
@@ -418,7 +521,7 @@ async function copyToClipboard() {
   if (!sourceImage.value || isExporting.value || !clipboardSupported) return;
   isExporting.value = true;
   try {
-    const blob = await processImage(sourceImage.value, opts, buildGradingFn());
+    const blob = await processImage(sourceImage.value, opts, buildGradingFn(), buildVignetteFn());
     await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
     copySuccess.value = true;
     setTimeout(() => { copySuccess.value = false; }, 2000);
@@ -433,5 +536,7 @@ function resetDefaults() {
   Object.assign(opts, structuredClone(DEFAULT_EDGE_TREATMENT));
   resetGrading();
   gradingEnabled.value = false;
+  Object.assign(vignette, structuredClone(DEFAULT_VIGNETTE));
+  vignetteEnabled.value = false;
 }
 </script>

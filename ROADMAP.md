@@ -325,6 +325,9 @@
 - [x] **Token print sheet** — multi-select tokens into a print queue, choose physical size (25mm / 32mm / 50mm), back style (Mystery ? / Mirror front), prints duplex-aligned front + back A4 sheets with column-reversed backs.
 - [x] **Coin designer** — SVG coin designer tab in The Mint. Metal selector (Copper/Silver/Electrum/Gold/Platinum) with auto-denomination (CP/SP/EP/GP/PP). Emblem picker (Crown/Cross/Fleur/Star/Anchor/Moon/Diamond/Omega/Knight). Centre value + denomination label. Curved rim inscription via SVG textPath. Live preview. Duplex-aligned A4 print sheet (Small 24mm ×70 / Standard 30mm ×48 / Large 38mm ×35 per sheet).
 - [x] **Illuminator** — standalone image manipulation tool at `/illuminate` in the Publish nav group. Phase 1: torn/faded edge effect using 4-octave fBm value noise (no external deps) applied as a canvas destination-in mask. Per-edge toggles (top/right/bottom/left), roughness, fade width, and tear depth sliders. Live preview at ≤900px; download and clipboard-copy export full-resolution PNG with alpha transparency. Closes #264.
+- [x] **Illuminator — colour grading** — brightness, contrast, saturation, temperature, hue sliders with Sepia/Moonlit/Vivid presets; applied before edge mask in render pipeline; export captures grading at full resolution. Partial #265.
+- [x] **Illuminator — N-pass layered eraser + variation** — replaced smooth gradient fade with N independent binary-edged eraser passes; alpha = count_inside/N giving visible brush-stroke character; Variation slider drives per-layer noise frequency spread and phase offset for hand-painted feel.
+- [x] **Illuminator — vignette** — radial vignette with smoothstep falloff; transparent mode erases alpha toward edges, colour mode blends toward a chosen hex colour; Strength + Softness sliders; applied between colour grading and edge mask in pipeline. Partial #269.
 
 ### Misc
 
