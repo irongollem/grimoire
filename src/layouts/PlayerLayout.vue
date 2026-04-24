@@ -45,6 +45,8 @@
         Live
       </button>
 
+      <DiceRoller />
+
       <button
         class="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
         title="Sign out"
@@ -229,6 +231,7 @@ import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { LogOut, X, Eye, LayoutGrid, Swords } from "lucide-vue-next";
+import DiceRoller from "@/components/common/DiceRoller.vue";
 import { useRunningEncounters, usePlayerEncounterLive } from "@/composables/useEncounterLive";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
