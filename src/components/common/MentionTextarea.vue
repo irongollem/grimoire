@@ -90,7 +90,7 @@ function getMentionAt(text: string, cursor: number): { query: string; start: num
 
 const filteredItems = computed(() => {
   if (mentionQuery.value === null) return [];
-  const q = mentionQuery.value.toLowerCase();
+  const q = mentionQuery.value.toLowerCase().replace(/_/g, " ");
   return props.items
     .filter((item) => item.label.toLowerCase().includes(q))
     .slice(0, 8);
@@ -138,7 +138,7 @@ function onBlur() {
 function selectItem(item: EntityMentionItem) {
   const ta = textareaRef.value;
   if (!ta) return;
-  const inserted  = `@${item.label} `;
+  const inserted  = `@${item.label.replace(/ /g, "_")} `;
   const before    = ta.value.slice(0, mentionStart.value);
   const after     = ta.value.slice(ta.selectionStart);
   const newValue  = before + inserted + after;

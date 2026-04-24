@@ -347,9 +347,10 @@ async function handlePayVendorOffer({ messageId }: { messageId: string }) {
 
   const { pp, gp, ep, sp, cp } = fromCP(walletCP - costCP);
   const vendorVaultItem = (allItems.value ?? []).find(i => i.id === meta.item_id);
+  const isService = vendorVaultItem?.item_type === "service";
   await Promise.all([
     updatePartyMember({ id: member.id, update: { pp, gp, ep, sp, cp } }),
-    meta.item_name ? addInventoryItem({
+    meta.item_name && !isService ? addInventoryItem({
       name: meta.item_name, quantity: 1, item_id: meta.item_id,
       carried_by: partyMemberId,
       location: 'backpack', slot: null,
