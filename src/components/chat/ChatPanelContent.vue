@@ -722,9 +722,7 @@
                 → {{ recipientName(msg.recipient_user_id) }}
               </span>
             </div>
-            <p class="font-fell text-sm text-foreground leading-snug whitespace-pre-line">
-              {{ msg.message }}
-            </p>
+            <p class="font-fell text-sm text-foreground leading-snug whitespace-pre-line" v-html="renderMessage(msg.message)" />
             <p
               class="font-fell text-[10px] text-muted-foreground/50 mt-0.5 text-right"
             >
@@ -973,6 +971,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, nextTick, shallowRef } from "vue";
+import { marked } from "marked";
 import {
   MessageCircle,
   X,
@@ -1268,6 +1267,12 @@ function timeLabel(iso: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function renderMessage(text: string): string {
+  // Render inline markdown (bold, italic, code) only — no block elements.
+  // marked.parseInline escapes HTML by default, preventing XSS.
+  return marked.parseInline(text, { async: false }) as string;
 }
 </script>
 
