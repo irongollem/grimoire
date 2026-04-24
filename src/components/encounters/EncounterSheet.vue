@@ -202,7 +202,7 @@
         <RouterLink
           v-for="it in lootItems"
           :key="it.id"
-          :to="`/items/${it.id}`"
+          :to="`/vault/${it.id}`"
           class="inline-flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
         >
           <Package class="h-3.5 w-3.5 text-muted-foreground" />

@@ -230,6 +230,8 @@ import { useNpcs, useUpdateNpc } from "@/composables/useNpcs";
 import { useParty } from "@/composables/useParty";
 import { useNpcPcNotesByPartyMember } from "@/composables/useNpcPcNotes";
 import { useAllLocations, useLocationTree } from "@/composables/useLocations";
+import { useCampaignMessages } from "@/composables/useCampaignMessages";
+import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
@@ -247,6 +249,8 @@ const props = defineProps<{
 
 const { data: npcs, isLoading } = useNpcs();
 const { data: party } = useParty();
+const { sendNarrativeEvent } = useCampaignMessages();
+const ui = useUiStore();
 
 const { data: connectedNpcIds } = useNpcPcNotesByPartyMember(computed(() => props.partyMemberFilter));
 const { mutate: updateNpc } = useUpdateNpc();
@@ -385,7 +389,11 @@ function allPartyIds(): string[] {
 function setWholeParty() {
   const npc = popoverNpc.value;
   if (!npc) return;
+  const wasHidden = !isShared(npc);
   updateNpc({ id: npc.id, update: { player_visible_to: [...new Set(allPartyIds())] } });
+  if (wasHidden && ui.dmMode === "play") {
+    void sendNarrativeEvent(`The party encounters ${npc.name}.`);
+  }
 }
 
 function toggleMember(memberId: string) {
@@ -395,6 +403,11 @@ function toggleMember(memberId: string) {
   const idx = current.indexOf(memberId);
   const next = idx === -1 ? [...current, memberId] : current.filter((id) => id !== memberId);
   updateNpc({ id: npc.id, update: { player_visible_to: next } });
+  if (idx === -1 && ui.dmMode === "play") {
+    const memberName = party.value?.find((m) => m.id === memberId)?.name;
+    const who = memberName ?? "A party member";
+    void sendNarrativeEvent(`${who} encounters ${npc.name}.`);
+  }
 }
 
 function unshare() {
