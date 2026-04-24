@@ -62,7 +62,7 @@
               @click="rollWeaponDamage(inv, item)"
             >
               <Zap class="h-3.5 w-3.5 text-muted-foreground group-hover:text-amber-400 transition-colors" />
-              <span class="font-cinzel text-xs text-foreground">{{ item.damage_rolls[0].dice }}</span>
+              <span class="font-cinzel text-xs text-foreground">{{ weaponDamageExpr(item) }}</span>
               <span class="font-cinzel text-xs text-muted-foreground">{{ item.damage_rolls[0].type }}</span>
             </button>
           </div>
@@ -207,6 +207,19 @@ function weaponAbilityMod(item: Item): number {
 }
 function weaponAttackMod(item: Item): number {
   return weaponAbilityMod(item) + props.member.proficiency_bonus;
+}
+
+function weaponDamageExpr(item: Item): string {
+  const raw = item.damage_rolls?.[0]?.dice ?? "";
+  const abilMod = weaponAbilityMod(item);
+  if (abilMod === 0) return raw;
+  const parsed = parseExpression(raw);
+  if (!parsed) return raw;
+  const totalMod = parsed.modifier + abilMod;
+  const parts: string[] = parsed.terms.map(t => `${t.count}d${t.sides}`);
+  if (totalMod > 0) parts.push(`+${totalMod}`);
+  else if (totalMod < 0) parts.push(String(totalMod));
+  return parts.join("") || raw;
 }
 
 function modeTag(mode: RollMode) {
