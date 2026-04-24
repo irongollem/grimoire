@@ -970,7 +970,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, nextTick, shallowRef } from "vue";
+import { ref, reactive, computed, watch, nextTick, shallowRef, onMounted } from "vue";
 import { marked } from "marked";
 import {
   MessageCircle,
@@ -1154,16 +1154,23 @@ function flavorForRoll(msg: CampaignMessage): CampaignMessage | null {
 const scrollEl = ref<HTMLElement | null>(null);
 const inputEl = ref<HTMLTextAreaElement | null>(null);
 
-// Auto-scroll when messages change
+function scrollToBottom() {
+  if (scrollEl.value) scrollEl.value.scrollTop = scrollEl.value.scrollHeight;
+}
+
+// Scroll to bottom on initial open (messages already loaded)
+onMounted(async () => {
+  await nextTick();
+  scrollToBottom();
+});
+
+// Auto-scroll when new messages arrive
 watch(
   () => props.messages.length,
   async () => {
     await nextTick();
-    if (scrollEl.value) {
-      scrollEl.value.scrollTop = scrollEl.value.scrollHeight;
-    }
+    scrollToBottom();
   },
-  { immediate: true },
 );
 
 // ── Members for whisper ────────────────────────────────────────────────────────
