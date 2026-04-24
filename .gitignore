@@ -38,3 +38,4 @@ supabase/.temp/
 *.sw?
 .mcp.json
 src/views/play/TEMPSHIT.ts
+.claude/worktrees/
