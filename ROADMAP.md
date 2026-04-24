@@ -324,6 +324,7 @@
 - [x] **The Mint** (formerly Token Forge) — circular VTT token generator at `/tokens`. Source tabs: Party / NPCs / Monsters / Custom. Ring colour presets + custom picker. Ring width options. Optional curved arc name label. Export 280px / 512px PNG + clipboard copy. Entities without art get an initial-letter placeholder.
 - [x] **Token print sheet** — multi-select tokens into a print queue, choose physical size (25mm / 32mm / 50mm), back style (Mystery ? / Mirror front), prints duplex-aligned front + back A4 sheets with column-reversed backs.
 - [x] **Coin designer** — SVG coin designer tab in The Mint. Metal selector (Copper/Silver/Electrum/Gold/Platinum) with auto-denomination (CP/SP/EP/GP/PP). Emblem picker (Crown/Cross/Fleur/Star/Anchor/Moon/Diamond/Omega/Knight). Centre value + denomination label. Curved rim inscription via SVG textPath. Live preview. Duplex-aligned A4 print sheet (Small 24mm ×70 / Standard 30mm ×48 / Large 38mm ×35 per sheet).
+- [x] **Illuminator** — standalone image manipulation tool at `/illuminate` in the Publish nav group. Phase 1: torn/faded edge effect using 4-octave fBm value noise (no external deps) applied as a canvas destination-in mask. Per-edge toggles (top/right/bottom/left), roughness, fade width, and tear depth sliders. Live preview at ≤900px; download and clipboard-copy export full-resolution PNG with alpha transparency. Closes #264.
 
 ### Misc
 

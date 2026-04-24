@@ -677,6 +677,13 @@ const router = createRouter({
       component: () => import("@/views/tokenforge/TokenForgeView.vue"),
       meta: { requiresAuth: true, title: "The Mint" },
     },
+    // Illuminator
+    {
+      path: "/illuminate",
+      name: "illuminate",
+      component: () => import("@/views/illuminate/IlluminatorView.vue"),
+      meta: { requiresAuth: true, title: "Illuminator" },
+    },
 
     // 404
     {

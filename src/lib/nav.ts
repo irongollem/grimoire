@@ -21,6 +21,7 @@ import {
   Music2,
   Dna,
   Settings,
+  Wand2,
 } from "lucide-vue-next";
 import type { Component } from "vue";
 
@@ -209,6 +210,12 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/tokens",
         icon: CircleUser,
         description: "Create VTT tokens & coins",
+      },
+      {
+        label: "Illuminator",
+        to: "/illuminate",
+        icon: Wand2,
+        description: "Apply torn-edge effects to images",
       },
     ],
   },
