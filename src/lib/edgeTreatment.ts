@@ -48,9 +48,9 @@ export const DEFAULT_EDGE_OPTIONS: EdgeOptions = {
 
 export const DEFAULT_EDGE_TREATMENT: EdgeTreatmentOptions = {
   top:    { ...DEFAULT_EDGE_OPTIONS },
-  right:  { ...DEFAULT_EDGE_OPTIONS, enabled: true },
-  bottom: { ...DEFAULT_EDGE_OPTIONS, enabled: true },
-  left:   { ...DEFAULT_EDGE_OPTIONS, enabled: true },
+  right:  { ...DEFAULT_EDGE_OPTIONS },
+  bottom: { ...DEFAULT_EDGE_OPTIONS },
+  left:   { ...DEFAULT_EDGE_OPTIONS },
 };
 
 // ─── Noise ────────────────────────────────────────────────────────────────────
