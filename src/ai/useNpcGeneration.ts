@@ -138,7 +138,7 @@ export function useNpcGeneration() {
           .filter(Boolean)
           .join("\n");
 
-        const b64 = await imageProvider.generate(imagePrompt, "1024x1536");
+        const b64 = await imageProvider.generate(imagePrompt, "1024x1024");
         const truePortraitBlob = b64 ? b64ToBlob(b64) : null;
 
         const uploadTrue = async () => {
@@ -166,7 +166,7 @@ export function useNpcGeneration() {
             const disguiseB64 = await imageProvider.edit(
               truePortraitBlob,
               disguisePrompt,
-              "1024x1536",
+              "1024x1024",
             );
             if (!disguiseB64 || !auth.user) return;
             disguise_portrait_url = await uploadWithVariants({ bucket: "npcPortraits", userId: auth.user.id, blob: b64ToBlob(disguiseB64) });

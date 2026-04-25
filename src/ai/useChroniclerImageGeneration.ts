@@ -188,6 +188,9 @@ export async function generateChroniclerImage(params: {
   const { sceneText, entities, size } = params;
   const store = useCampaignStore();
   const apiKey = store.decryptedOpenAiKey;
+  const imageModel = store.activeCampaign?.image_provider === "openai-mini"
+    ? "gpt-image-1-mini"
+    : "gpt-image-2";
   const settingPrompt = store.activeCampaign?.ai_setting_prompt ?? "";
   if (!apiKey) throw new Error("No OpenAI API key configured. Add one in Campaign Settings → AI.");
 
@@ -212,7 +215,7 @@ export async function generateChroniclerImage(params: {
   if (portraitBlobs.length > 0) {
     // Multi-image edit endpoint — composes reference portraits into the scene
     const form = new FormData();
-    form.append("model", "gpt-image-1.5");
+    form.append("model", imageModel);
     form.append("prompt", prompt);
     form.append("size", size);
     form.append("output_format", "webp");
@@ -235,7 +238,7 @@ export async function generateChroniclerImage(params: {
     const res = await fetch(GENERATE_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: "gpt-image-1.5", prompt, size, output_format: "webp" }),
+      body: JSON.stringify({ model: imageModel, prompt, size, output_format: "webp" }),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));

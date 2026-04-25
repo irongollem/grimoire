@@ -85,7 +85,7 @@ export function useMonsterGeneration() {
           .filter(Boolean)
           .join(" — ");
 
-        const b64 = await imageProvider.generate(imagePrompt, "1024x1536");
+        const b64 = await imageProvider.generate(imagePrompt, "1024x1024");
 
         // ── 3. Upload to Supabase storage ─────────────────────────────
         if (b64 && auth.user) {
