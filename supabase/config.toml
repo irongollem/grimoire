@@ -35,6 +35,14 @@ verify_jwt = false
 [functions.api-key-vault]
 verify_jwt = false
 
+# In-app bug reporter — called by the browser on behalf of any logged-in user.
+# The gateway check is off because we want anonymous reports too (e.g. users
+# who can't access their session). Security: the function only creates GitHub
+# issues; it never reads or mutates app data. The GITHUB_TOKEN secret is
+# scoped to `issues: write` only.
+[functions.create-bug-report]
+verify_jwt = false
+
 # Shared SRD rules sync — triggered by an admin / cron with the service-role
 # key, so the gateway check can stay on.
 # [functions.sync-srd-rules]

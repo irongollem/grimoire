@@ -1,0 +1,167 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+// Public endpoint — no JWT required. Anyone using the app can file a report.
+// Security: we only create issues (no reads, no destructive ops). The
+// GITHUB_TOKEN secret is scoped to `issues: write` on irongollem/grimoire.
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+interface BugReportPayload {
+  where: string;
+  action: string;
+  expected: string;
+  actual: string;
+  screenshot?: string; // base64 data URL
+  screenshotName?: string;
+  submittedBy?: string;
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: CORS_HEADERS });
+  }
+
+  if (req.method !== "POST") {
+    return new Response("Method Not Allowed", { status: 405, headers: CORS_HEADERS });
+  }
+
+  let payload: BugReportPayload;
+  try {
+    payload = await req.json();
+  } catch {
+    return new Response("Invalid JSON", { status: 400, headers: CORS_HEADERS });
+  }
+
+  const { where, action, expected, actual, screenshot, screenshotName, submittedBy } = payload;
+
+  if (!where?.trim() || !action?.trim() || !expected?.trim() || !actual?.trim()) {
+    return new Response("Missing required fields", { status: 400, headers: CORS_HEADERS });
+  }
+
+  const githubToken = Deno.env.get("GITHUB_TOKEN");
+  if (!githubToken) {
+    console.error("GITHUB_TOKEN secret is not set");
+    return new Response("Server misconfigured", { status: 500, headers: CORS_HEADERS });
+  }
+
+  // Ensure the `user-report` label exists on the repo (idempotent).
+  await fetch("https://api.github.com/repos/irongollem/grimoire/labels", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${githubToken}`,
+      "Accept": "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "Content-Type": "application/json",
+      "User-Agent": "Grimoire-BugReporter/1.0",
+    },
+    body: JSON.stringify({
+      name: "user-report",
+      color: "e4a820",
+      description: "Submitted via in-app bug reporter — not filed by a maintainer",
+    }),
+  });
+  // 422 = label already exists — ignored intentionally.
+
+  // Upload screenshot to Supabase Storage if provided.
+  let screenshotUrl: string | null = null;
+  if (screenshot?.startsWith("data:")) {
+    try {
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+
+      // Ensure bucket exists (no-op if already present).
+      await supabase.storage.createBucket("bug-reports", { public: true }).catch(() => {});
+
+      const base64Data = screenshot.split(",")[1];
+      const mimeType = screenshot.split(";")[0].split(":")[1] ?? "image/jpeg";
+      const byteCharacters = atob(base64Data);
+      const byteArray = new Uint8Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteArray[i] = byteCharacters.charCodeAt(i);
+      }
+
+      const ext = mimeType.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";
+      const safeName = (screenshotName ?? "screenshot").replace(/[^a-z0-9._-]/gi, "_");
+      const path = `${Date.now()}-${safeName}.${ext}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("bug-reports")
+        .upload(path, byteArray, { contentType: mimeType, upsert: false });
+
+      if (!uploadError && uploadData) {
+        const { data: pub } = supabase.storage.from("bug-reports").getPublicUrl(uploadData.path);
+        screenshotUrl = pub.publicUrl;
+      } else if (uploadError) {
+        console.error("Screenshot upload error:", uploadError);
+      }
+    } catch (e) {
+      console.error("Screenshot upload failed:", e);
+      // Non-fatal — continue without screenshot.
+    }
+  }
+
+  const timestamp = new Date().toISOString().replace("T", " ").slice(0, 19) + " UTC";
+  const submitter = submittedBy?.trim() || "Anonymous";
+
+  const body = [
+    "> [!IMPORTANT]",
+    "> **This issue was submitted automatically via the Grimoire in-app bug reporter.**",
+    "> It was **not** filed by a maintainer. Please review before acting on it.",
+    "",
+    "---",
+    "",
+    "### Where in the app",
+    where.trim(),
+    "",
+    "### What the user was doing",
+    action.trim(),
+    "",
+    "### What they expected",
+    expected.trim(),
+    "",
+    "### What actually happened",
+    actual.trim(),
+    "",
+    "### Screenshot",
+    screenshotUrl ? `![Screenshot](${screenshotUrl})` : "*None provided*",
+    "",
+    "---",
+    `*Submitted by: ${submitter} · ${timestamp}*`,
+  ].join("\n");
+
+  const issueTitle = `[App Bug Report] ${where.trim().slice(0, 80)}`;
+
+  const ghResponse = await fetch("https://api.github.com/repos/irongollem/grimoire/issues", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${githubToken}`,
+      "Accept": "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "Content-Type": "application/json",
+      "User-Agent": "Grimoire-BugReporter/1.0",
+    },
+    body: JSON.stringify({
+      title: issueTitle,
+      body,
+      labels: ["bug", "user-report"],
+    }),
+  });
+
+  if (!ghResponse.ok) {
+    const errText = await ghResponse.text();
+    console.error("GitHub API error:", ghResponse.status, errText);
+    return new Response("Failed to create issue", { status: 502, headers: CORS_HEADERS });
+  }
+
+  const issue = await ghResponse.json() as { number: number; html_url: string };
+
+  return new Response(
+    JSON.stringify({ issueNumber: issue.number, issueUrl: issue.html_url }),
+    { status: 201, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
+  );
+});

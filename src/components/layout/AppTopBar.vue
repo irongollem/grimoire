@@ -29,8 +29,16 @@
       <span class="px-1" :class="ui.dmMode === 'play' ? '' : 'opacity-50'">PLAY</span>
     </button>
 
+    <button
+      class="text-muted-foreground hover:text-foreground transition-colors"
+      aria-label="Report a bug"
+      @click="bugReportOpen = true"
+    >
+      <Bug class="h-5 w-5" />
+    </button>
     <SoundboardWidgetToggle class="px-1.5! py-1!" />
     <DiceRoller />
+    <BugReportModal v-model="bugReportOpen" />
 
     <!-- Mobile nav FAB — bottom-left, thumb-friendly.
          Bottom/left offsets include env(safe-area-inset-*) so the FAB clears
@@ -109,16 +117,18 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from "vue";
 import { useRoute } from "vue-router";
-import { Menu, Search, X, Loader2 } from "lucide-vue-next";
+import { Menu, Search, X, Loader2, Bug } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import DiceRoller from "@/components/common/DiceRoller.vue";
 import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
+import BugReportModal from "@/components/common/BugReportModal.vue";
 import { useGlobalSearch } from "@/composables/useGlobalSearch";
 
 const route = useRoute();
 const ui = useUiStore();
 const auth = useAuthStore();
+const bugReportOpen = ref(false);
 const isDm = computed(() => auth.currentRole === "dm");
 
 const pageTitle = computed(() => (route.meta.title as string | undefined) ?? "Grimoire");
