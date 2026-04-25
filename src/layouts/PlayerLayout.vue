@@ -49,6 +49,14 @@
 
       <button
         class="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+        title="Report a bug"
+        @click="bugReportOpen = true"
+      >
+        <Bug class="h-4 w-4" />
+      </button>
+
+      <button
+        class="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
         title="Sign out"
         @click="handleSignOut"
       >
@@ -193,6 +201,8 @@
     </nav>
   </div>
 
+  <BugReportModal v-model="bugReportOpen" />
+
   <!-- "More" panel -->
   <Teleport to="body">
     <Transition name="more-panel">
@@ -230,7 +240,7 @@
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
-import { LogOut, X, Eye, LayoutGrid, Swords } from "lucide-vue-next";
+import { LogOut, X, Eye, LayoutGrid, Swords, Bug } from "lucide-vue-next";
 import DiceRoller from "@/components/common/DiceRoller.vue";
 import { useRunningEncounters, usePlayerEncounterLive } from "@/composables/useEncounterLive";
 import { useAuthStore } from "@/stores/auth";
@@ -244,10 +254,12 @@ import { usePlayerNavPrefs } from "@/composables/usePlayerNavPrefs";
 import { MOBILE_NAV_SLOTS, TABLET_NAV_SLOTS } from "@/lib/playerNav";
 import CampaignChat from "@/components/chat/CampaignChat.vue";
 import PlayerEncounterPanel from "@/components/player/PlayerEncounterPanel.vue";
+import BugReportModal from "@/components/common/BugReportModal.vue";
 
 const auth = useAuthStore();
 const ui = useUiStore();
 const campaign = useCampaignStore();
+const bugReportOpen = ref(false);
 const route = useRoute();
 
 const membershipCampaignId = computed(() => auth.membership?.campaign_id ?? null);
