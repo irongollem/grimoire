@@ -28,7 +28,9 @@
         </div>
         <div class="flex items-center gap-2 shrink-0">
           <slot name="actions" />
-          <DiceRoller />
+          <div class="hidden md:block">
+            <DiceRoller />
+          </div>
         </div>
       </div>
       <div class="gold-divider mt-4" />

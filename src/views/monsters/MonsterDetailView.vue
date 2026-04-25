@@ -7,7 +7,7 @@
         @click="router.push('/monsters')"
       >
         <ChevronLeft class="h-3.5 w-3.5" />
-        Back
+        <span class="hidden md:inline">Back</span>
       </button>
 
       <!-- Visibility toggle -->
@@ -34,15 +34,6 @@
       >
         <Pencil class="h-3.5 w-3.5" />
         Edit
-      </button>
-      <button
-        v-else
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
-        @click="stopEditing"
-      >
-        <Eye class="h-3.5 w-3.5" />
-        View
       </button>
     </template>
 
@@ -154,11 +145,6 @@ const isEditing = computed(() => isNew.value || route.query.edit === "true");
 
 function startEditing() {
   router.replace({ query: { ...route.query, edit: "true" } });
-}
-function stopEditing() {
-  const q = { ...route.query };
-  delete q.edit;
-  router.replace({ query: q });
 }
 
 const { data: artMap } = useSrdMonsterArt();
