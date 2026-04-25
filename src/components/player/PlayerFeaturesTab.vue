@@ -82,13 +82,13 @@
     </div>
 
     <!-- ── Spell slots ────────────────────────────────────────────────────── -->
-    <div v-if="localSlots.length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
+    <div v-if="effectiveSlots.length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-2.5 border-b border-border">
         <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Spell Slots</p>
       </div>
       <div class="divide-y divide-border">
         <div
-          v-for="slot in localSlots"
+          v-for="slot in effectiveSlots"
           :key="slot.level"
           class="flex items-center gap-3 px-4 py-2.5"
         >
@@ -372,7 +372,7 @@ import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { featureName, featureDescription, mapFeatureIds, type FeatureEntry } from "@/levelup/types";
 import type { CustomStep } from "@/levelup/customTypes";
 import { useAllFeatures } from "@/composables/useFeatures";
-import { getDefaultSpellSlots, getSlotRecovery } from "@/types/spell.types";
+import { getDefaultSpellSlots, getSlotRecovery, getMulticlassSpellSlots } from "@/types/spell.types";
 import { useClassByName, useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
 import { useCustomSubclassByClassAndSubclass, useAllCustomSubclasses } from "@/composables/useCustomSubclasses";
 import { useCharacterClasses } from "@/composables/useCharacterClasses";
@@ -475,7 +475,6 @@ interface LocalResource {
 }
 
 const localResources = ref<LocalResource[]>([]);
-const localSlots = ref<SpellSlotEntry[]>([]);
 
 function syncFromProps() {
   localResources.value = Object.entries(props.member.class_resources ?? {}).map(([key, res]) => ({
@@ -485,15 +484,19 @@ function syncFromProps() {
     max: res.max,
     rest: res.rest,
   }));
-
-  // Use stored slots if present; fall back to class defaults so pre-wizard casters still get tracking
-  const stored = props.member.spell_slots ?? [];
-  localSlots.value = stored.length > 0
-    ? stored.map(s => ({ ...s }))
-    : getDefaultSpellSlots(props.member.class, props.member.level).map(s => ({ ...s }));
 }
 
 watch(() => [props.member.id, props.member.updated_at], syncFromProps, { immediate: true });
+
+// Spell slots — single source of truth: TanStack Query cache via props.member.spell_slots.
+// Falls back to multiclass or per-class defaults when DB has no stored slots yet.
+const effectiveSlots = computed((): SpellSlotEntry[] => {
+  const m = props.member;
+  if (m.spell_slots?.length) return m.spell_slots;
+  const list = (characterClasses.value ?? []).map((c) => ({ class_name: c.class_name, levels: c.levels }));
+  if (list.length > 0) return getMulticlassSpellSlots(list);
+  return getDefaultSpellSlots(m.class, m.level);
+});
 
 // ── Persist helpers ───────────────────────────────────────────────────────────
 
@@ -502,10 +505,6 @@ function persistResources() {
     localResources.value.map(r => [r.key, { current: r.current, max: r.max, rest: r.rest }]),
   );
   updateMember({ id: props.member.id, update: { class_resources } });
-}
-
-function persistSlots() {
-  updateMember({ id: props.member.id, update: { spell_slots: localSlots.value } });
 }
 
 // ── Resource controls ─────────────────────────────────────────────────────────
@@ -527,16 +526,16 @@ function restoreResource(key: string) {
 // ── Spell slot controls ───────────────────────────────────────────────────────
 
 function toggleSlot(level: number, pip: number) {
-  const slot = localSlots.value.find(s => s.level === level);
+  const slots = effectiveSlots.value;
+  const slot = slots.find(s => s.level === level);
   if (!slot) return;
   const available = slot.max - slot.used;
   // pip index from left; pips 1..available are filled (click = use), rest are empty (click = restore)
-  if (pip <= available) {
-    slot.used = Math.min(slot.max, slot.used + 1);
-  } else {
-    slot.used = Math.max(0, slot.used - 1);
-  }
-  persistSlots();
+  const newUsed = pip <= available
+    ? Math.min(slot.max, slot.used + 1)
+    : Math.max(0, slot.used - 1);
+  const updated = slots.map(s => s.level === level ? { ...s, used: newUsed } : s);
+  updateMember({ id: props.member.id, update: { spell_slots: updated } });
 }
 
 // ── Rest ──────────────────────────────────────────────────────────────────────
@@ -550,8 +549,7 @@ function shortRest() {
 
   // Restore spell slots if class recharges on short rest (Warlock pact magic)
   if ((classData.value?.slot_recovery ?? getSlotRecovery(props.member.class)) === "short") {
-    for (const s of localSlots.value) s.used = 0;
-    persistSlots();
+    updateMember({ id: props.member.id, update: { spell_slots: effectiveSlots.value.map(s => ({ ...s, used: 0 })) } });
   }
 }
 
@@ -565,8 +563,7 @@ async function longRest() {
   for (const r of localResources.value) r.current = r.max;
   persistResources();
 
-  for (const s of localSlots.value) s.used = 0;
-  persistSlots();
+  updateMember({ id: props.member.id, update: { spell_slots: effectiveSlots.value.map(s => ({ ...s, used: 0 })) } });
 }
 
 
