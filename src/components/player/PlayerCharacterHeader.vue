@@ -157,7 +157,10 @@
 
     <!-- HP bar — mobile only; md+ uses the parent wrapper's full-width bar -->
     <div class="h-1.5 w-full bg-muted overflow-hidden md:hidden">
-      <div class="h-full transition-all" :class="hpBarColor" :style="{ width: `${hpPct}%` }" />
+      <div class="h-full flex">
+        <div class="h-full transition-all" :class="hpBarColor" :style="{ width: `${hpBarWidthPct}%` }" />
+        <div v-if="tempHpBarPct > 0" class="h-full transition-all bg-blue-500" :style="{ width: `${tempHpBarPct}%` }" />
+      </div>
     </div>
   </div>
 </template>
@@ -291,6 +294,17 @@ const combatStats = computed(() => [
 const hpPct = computed(() => {
   if (displayMaxHp.value === 0) return 0;
   return Math.max(0, Math.min(100, (displayHp.value / displayMaxHp.value) * 100));
+});
+const tempHpBarPct = computed(() => {
+  const temp = props.wildshape ? 0 : (props.member.temp_hp ?? 0);
+  if (temp <= 0 || displayMaxHp.value === 0) return 0;
+  return (temp / (displayMaxHp.value + temp)) * 100;
+});
+const hpBarWidthPct = computed(() => {
+  const temp = props.wildshape ? 0 : (props.member.temp_hp ?? 0);
+  const total = displayMaxHp.value + temp;
+  if (total === 0) return 0;
+  return Math.max(0, Math.min(100, (displayHp.value / total) * 100));
 });
 
 // XP progress — only meaningful when the campaign actually awards XP.

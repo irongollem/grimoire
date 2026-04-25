@@ -49,7 +49,10 @@
         </div>
         <!-- Full-width HP bar — tablet+ only (mobile bar lives inside PlayerCharacterHeader) -->
         <div class="hidden md:block h-1.5 bg-muted overflow-hidden">
-          <div class="h-full transition-all" :class="hpBarColor" :style="{ width: `${hpPct}%` }" />
+          <div class="h-full flex">
+            <div class="h-full transition-all" :class="hpBarColor" :style="{ width: `${hpBarWidthPct}%` }" />
+            <div v-if="tempHpBarPct > 0" class="h-full transition-all bg-blue-500" :style="{ width: `${tempHpBarPct}%` }" />
+          </div>
         </div>
       </div>
 
@@ -535,6 +538,23 @@ const hpBarColor = computed(() => {
   if (p < 33) return "bg-destructive";
   if (p < 66) return "bg-amber-500";
   return "bg-elven-green";
+});
+const tempHpBarPct = computed(() => {
+  const m = member.value;
+  if (!m) return 0;
+  const temp = m.temp_hp ?? 0;
+  if (temp <= 0) return 0;
+  const maxHp = activeWildshape.value?.beast_max_hp ?? m.max_hp;
+  return (temp / (maxHp + temp)) * 100;
+});
+const hpBarWidthPct = computed(() => {
+  const m = member.value;
+  if (!m) return 0;
+  const hp = activeWildshape.value?.beast_hp ?? m.current_hp;
+  const maxHp = activeWildshape.value?.beast_max_hp ?? m.max_hp;
+  const total = maxHp + (m.temp_hp ?? 0);
+  if (total === 0) return 0;
+  return Math.max(0, Math.min(100, (hp / total) * 100));
 });
 
 // ── Roll toast (shared across all rolling children) ───────────────────────────
