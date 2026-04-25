@@ -4,7 +4,10 @@
     :style="{ minHeight: minHeight ?? '180px' }"
   >
     <div
-      class="flex flex-wrap items-center gap-0.5 p-1.5 border-b border-border bg-card shrink-0 sticky top-11 md:top-0 z-20 rte-toolbar"
+      :class="[
+        'flex flex-wrap items-center gap-0.5 p-1.5 border-b border-border bg-card shrink-0 z-20 rte-toolbar',
+        props.stickyToolbar !== false && 'sticky top-11 md:top-0',
+      ]"
     >
       <template v-if="editor">
         <button
@@ -410,6 +413,7 @@ const props = defineProps<{
   allowUpload?: boolean;
   allowCalendarEvents?: boolean;
   entityMentionItems?: EntityMentionItem[];
+  stickyToolbar?: boolean;
 }>();
 
 const emit = defineEmits<{
