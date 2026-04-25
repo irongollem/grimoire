@@ -88,6 +88,15 @@
       <AppInvitePanel v-if="auth.isAppAdmin" />
       <SoundboardWidgetToggle />
       <button
+        class="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+        title="Report a bug"
+        @click="bugReportOpen = true"
+      >
+        <Bug class="h-3.5 w-3.5 shrink-0" />
+        <span class="font-fell">Report a Bug</span>
+      </button>
+      <BugReportModal v-model="bugReportOpen" />
+      <button
         v-if="auth.isDM"
         class="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
         title="Preview the player portal as your players see it"
@@ -145,7 +154,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { LogOut, Pencil, Check, Eye, Loader2 } from "lucide-vue-next";
+import { LogOut, Pencil, Check, Eye, Loader2, Bug } from "lucide-vue-next";
 import { isAnyAiGenerating, getAiGeneratorRegistry } from "@/ai/aiGeneratorRegistry";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { useAuthStore } from "@/stores/auth";
@@ -159,10 +168,12 @@ import CampaignSwitcher from "./CampaignSwitcher.vue";
 import GlobalSearch from "./GlobalSearch.vue";
 import AppInvitePanel from "@/components/admin/AppInvitePanel.vue";
 import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
+import BugReportModal from "@/components/common/BugReportModal.vue";
 
 const auth = useAuthStore();
 const ui = useUiStore();
 const router = useRouter();
+const bugReportOpen = ref(false);
 // DM detection — the prep/play toggle is the only DM-only sidebar control
 // so far; gate its visibility so players never see it (issue #133 acceptance).
 const isDm = computed(() => auth.currentRole === "dm");
