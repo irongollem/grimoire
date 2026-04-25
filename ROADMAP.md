@@ -622,7 +622,6 @@ Keep the core DM tooling free forever (open source). Gate AI features, advanced 
 
 - [x] **AC formula — natural armor & unarmored defense as character traits** (irongollem/grimoire#261) — `ac_formula text` column added to `party_members`, `natural_armor_ac integer` to `species`; `computeAc()` helper in `party.types.ts` evaluates formula strings; CharacterEditTabs gains AC formula picker (Manual / Natural Armor / Unarmored Defense Barb/Monk / Mage Armor) with live-computed read-only AC preview; formula auto-seeds natural base from species when available; `useCharacterCreationForm` watches ability scores to keep `f.ac` in sync; SpeciesDetail gains Natural Armor AC input field
 
-
 - [x] **Temp HP reflected in life bar** (irongollem/grimoire#273) — HP bars in `PlayerCharacterView` (tablet+) and `PlayerCharacterHeader` (mobile) now render two segments: regular HP in its normal color + a blue extension for temp HP; both segments are proportional to `max_hp + temp_hp` so the bar always fills its container
 
 - [x] **Illuminator: texture overlay + blend modes** (irongollem/grimoire#269, part 2) — new `src/lib/textureOverlay.ts` with `applyTextureOverlay` (tileable, uses canvas globalCompositeOperation); blend modes: Multiply, Screen, Overlay, Soft Light, Hard Light; Opacity + Tile Scale sliders; compact drop/upload area in new "Texture Overlay" accordion section; wired into preview + full-res export pipeline (after DoF, before Vignette)
