@@ -262,6 +262,7 @@ export async function processImage(
   applyGrading?: (ctx: CanvasRenderingContext2D, w: number, h: number) => void,
   applyDofFn?: (ctx: CanvasRenderingContext2D, w: number, h: number) => void,
   applyVignetteFn?: (ctx: CanvasRenderingContext2D, w: number, h: number) => void,
+  applyTextureFn?: (ctx: CanvasRenderingContext2D, w: number, h: number) => void,
 ): Promise<Blob> {
   const w = image.naturalWidth;
   const h = image.naturalHeight;
@@ -274,6 +275,7 @@ export async function processImage(
 
   if (applyGrading) applyGrading(ctx, w, h);
   if (applyDofFn) applyDofFn(ctx, w, h);
+  if (applyTextureFn) applyTextureFn(ctx, w, h);
   if (applyVignetteFn) applyVignetteFn(ctx, w, h);
   applyEdgeTreatmentToCtx(ctx, w, h, edgeOpts);
 

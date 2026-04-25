@@ -624,3 +624,5 @@ Keep the core DM tooling free forever (open source). Gate AI features, advanced 
 
 
 - [x] **Temp HP reflected in life bar** (irongollem/grimoire#273) — HP bars in `PlayerCharacterView` (tablet+) and `PlayerCharacterHeader` (mobile) now render two segments: regular HP in its normal color + a blue extension for temp HP; both segments are proportional to `max_hp + temp_hp` so the bar always fills its container
+
+- [x] **Illuminator: texture overlay + blend modes** (irongollem/grimoire#269, part 2) — new `src/lib/textureOverlay.ts` with `applyTextureOverlay` (tileable, uses canvas globalCompositeOperation); blend modes: Multiply, Screen, Overlay, Soft Light, Hard Light; Opacity + Tile Scale sliders; compact drop/upload area in new "Texture Overlay" accordion section; wired into preview + full-res export pipeline (after DoF, before Vignette)

@@ -231,6 +231,109 @@
             </div>
           </div>
 
+          <!-- ── Texture Overlay section ──────────────────────────────────── -->
+          <div class="border-t border-border">
+            <div
+              class="flex items-center px-4 py-3 hover:bg-muted/40 transition-colors cursor-pointer select-none"
+              @click="textureOpen = !textureOpen"
+            >
+              <ChevronRightIcon
+                class="h-3 w-3 shrink-0 text-muted-foreground transition-transform mr-2"
+                :class="textureOpen ? 'rotate-90' : ''"
+              />
+              <span
+                class="flex-1 font-cinzel text-xs font-bold tracking-widest uppercase transition-colors"
+                :class="textureEnabled ? 'text-foreground' : 'text-muted-foreground'"
+              >Texture Overlay</span>
+              <button
+                type="button"
+                class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
+                :class="textureEnabled && textureImage ? 'bg-primary' : 'bg-muted-foreground/30'"
+                @click.stop="textureImage && (textureEnabled = !textureEnabled)"
+              >
+                <span
+                  class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform"
+                  :class="textureEnabled && textureImage ? 'translate-x-4.5' : 'translate-x-0.5'"
+                />
+              </button>
+            </div>
+
+            <div
+              v-show="textureOpen"
+              class="px-4 pb-4 flex flex-col gap-3 transition-opacity"
+              :class="textureEnabled && textureImage ? 'opacity-100' : 'opacity-35'"
+            >
+              <!-- Texture upload -->
+              <div
+                v-if="!textureImage"
+                class="flex items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 py-3 cursor-pointer hover:border-primary/50 transition-colors"
+                @click="textureFileInput?.click()"
+                @dragover.prevent
+                @drop.prevent="onTextureDrop"
+              >
+                <span class="font-fell text-xs text-muted-foreground">Drop texture or click to upload</span>
+                <input
+                  ref="textureFileInput"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  class="sr-only"
+                  @change="onTextureFileChange"
+                />
+              </div>
+              <div v-else class="flex items-center gap-2">
+                <span class="font-fell text-xs text-muted-foreground truncate flex-1">{{ textureFilename }}</span>
+                <button
+                  type="button"
+                  class="font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                  @click="clearTexture"
+                >Remove</button>
+              </div>
+
+              <!-- Blend mode pills -->
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mr-1">Blend</span>
+                <button
+                  v-for="mode in BLEND_MODES"
+                  :key="mode"
+                  type="button"
+                  class="font-cinzel text-[10px] tracking-wider px-2 py-0.5 rounded border transition-colors"
+                  :class="texture.blendMode === mode
+                    ? 'border-primary text-primary'
+                    : 'border-border hover:border-primary/60 hover:text-foreground text-muted-foreground'"
+                  @click="texture.blendMode = mode"
+                >{{ BLEND_MODE_LABELS[mode] }}</button>
+              </div>
+
+              <!-- Opacity slider -->
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Opacity</label>
+                  <span class="font-fell text-xs text-muted-foreground tabular-nums">{{ Math.round(texture.opacity * 100) }}</span>
+                </div>
+                <input
+                  type="range" min="0" max="1" step="0.01"
+                  :value="texture.opacity"
+                  class="w-full h-1.5 rounded-full appearance-none cursor-pointer bg-border accent-primary"
+                  @input="(e) => { texture.opacity = parseFloat((e.target as HTMLInputElement).value); }"
+                />
+              </div>
+
+              <!-- Scale slider -->
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Tile scale</label>
+                  <span class="font-fell text-xs text-muted-foreground tabular-nums">×{{ texture.scale.toFixed(2) }}</span>
+                </div>
+                <input
+                  type="range" min="0.1" max="3" step="0.05"
+                  :value="texture.scale"
+                  class="w-full h-1.5 rounded-full appearance-none cursor-pointer bg-border accent-primary"
+                  @input="(e) => { texture.scale = parseFloat((e.target as HTMLInputElement).value); }"
+                />
+              </div>
+            </div>
+          </div>
+
           <!-- ── Depth of Field section ─────────────────────────────────── -->
           <div class="border-t border-border">
             <div
@@ -447,7 +550,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from "vue";
+import { ref, shallowRef, reactive, watch } from "vue";
 import {
   Image as ImageIcon,
   Download as DownloadIcon,
@@ -482,6 +585,13 @@ import {
   type DofBlurOptions,
   type FalloffCurve,
 } from "@/lib/dofBlur";
+import {
+  applyTextureOverlay,
+  DEFAULT_TEXTURE_OVERLAY,
+  BLEND_MODES,
+  BLEND_MODE_LABELS,
+  type TextureOverlayOptions,
+} from "@/lib/textureOverlay";
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -510,9 +620,19 @@ const vignette = reactive<VignetteOptions>(structuredClone(DEFAULT_VIGNETTE));
 const dofEnabled = ref(false);
 const dof = reactive<DofBlurOptions>(structuredClone(DEFAULT_DOF_BLUR));
 
+// Texture overlay state
+const textureEnabled   = ref(false);
+const textureImage     = shallowRef<HTMLImageElement | null>(null);
+const textureFilename  = ref("");
+const textureFileInput = ref<HTMLInputElement | null>(null);
+const texture = reactive<Omit<TextureOverlayOptions, "enabled">>(
+  structuredClone({ blendMode: DEFAULT_TEXTURE_OVERLAY.blendMode, opacity: DEFAULT_TEXTURE_OVERLAY.opacity, scale: DEFAULT_TEXTURE_OVERLAY.scale }),
+);
+
 // Accordion open state — each section collapses independently from its enable toggle
 const gradingOpen  = ref(false);
 const vignetteOpen = ref(false);
+const textureOpen  = ref(false);
 const dofOpen      = ref(false);
 const edgesOpen    = ref(false);
 const edgeOpen     = reactive<Record<string, boolean>>({ top: false, right: false, bottom: false, left: false });
@@ -610,6 +730,37 @@ function clearImage() {
   if (fileInput.value) fileInput.value.value = "";
 }
 
+function loadTextureFile(file: File) {
+  if (!file.type.startsWith("image/")) return;
+  textureFilename.value = file.name.replace(/\.[^.]+$/, "");
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    if (textureImage.value) URL.revokeObjectURL(textureImage.value.src);
+    textureImage.value = img;
+    textureEnabled.value = true;
+  };
+  img.src = url;
+}
+
+function onTextureFileChange(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (file) loadTextureFile(file);
+}
+
+function onTextureDrop(e: DragEvent) {
+  const file = e.dataTransfer?.files[0];
+  if (file) loadTextureFile(file);
+}
+
+function clearTexture() {
+  if (textureImage.value) URL.revokeObjectURL(textureImage.value.src);
+  textureImage.value = null;
+  textureFilename.value = "";
+  textureEnabled.value = false;
+  if (textureFileInput.value) textureFileInput.value.value = "";
+}
+
 // ─── Render ───────────────────────────────────────────────────────────────────
 
 const MAX_PREVIEW = 900;
@@ -632,6 +783,9 @@ function renderPreview() {
 
   if (gradingEnabled.value) applyColourGrading(ctx, pw, ph, grading);
   if (dofEnabled.value) applyDofBlur(ctx, pw, ph, { ...dof, enabled: true });
+  if (textureEnabled.value && textureImage.value) {
+    applyTextureOverlay(ctx, pw, ph, { ...texture, enabled: true }, textureImage.value);
+  }
   if (vignetteEnabled.value) applyVignette(ctx, pw, ph, { ...vignette, enabled: true });
   applyEdgeTreatmentToCtx(ctx, pw, ph, opts);
 
@@ -652,6 +806,9 @@ watch(vignette, scheduleRender, { deep: true });
 watch(vignetteEnabled, scheduleRender);
 watch(dof, scheduleRender, { deep: true });
 watch(dofEnabled, scheduleRender);
+watch(texture, scheduleRender, { deep: true });
+watch(textureEnabled, scheduleRender);
+watch(textureImage, scheduleRender);
 watch(sourceImage, () => { renderTimer = setTimeout(renderPreview, 0); });
 
 // ─── Canvas interaction ───────────────────────────────────────────────────────
@@ -685,11 +842,18 @@ function buildVignetteFn(): ((ctx: CanvasRenderingContext2D, w: number, h: numbe
   return (ctx, w, h) => applyVignette(ctx, w, h, snapshot);
 }
 
+function buildTextureFn(): ((ctx: CanvasRenderingContext2D, w: number, h: number) => void) | undefined {
+  if (!textureEnabled.value || !textureImage.value) return undefined;
+  const snapshot = { ...texture, enabled: true };
+  const img = textureImage.value;
+  return (ctx, w, h) => applyTextureOverlay(ctx, w, h, snapshot, img);
+}
+
 async function downloadPng() {
   if (!sourceImage.value || isExporting.value) return;
   isExporting.value = true;
   try {
-    const blob = await processImage(sourceImage.value, opts, buildGradingFn(), buildDofFn(), buildVignetteFn());
+    const blob = await processImage(sourceImage.value, opts, buildGradingFn(), buildDofFn(), buildVignetteFn(), buildTextureFn());
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
     a.href     = url;
@@ -705,7 +869,7 @@ async function copyToClipboard() {
   if (!sourceImage.value || isExporting.value || !clipboardSupported) return;
   isExporting.value = true;
   try {
-    const blob = await processImage(sourceImage.value, opts, buildGradingFn(), buildDofFn(), buildVignetteFn());
+    const blob = await processImage(sourceImage.value, opts, buildGradingFn(), buildDofFn(), buildVignetteFn(), buildTextureFn());
     await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
     copySuccess.value = true;
     setTimeout(() => { copySuccess.value = false; }, 2000);
@@ -724,5 +888,7 @@ function resetDefaults() {
   vignetteEnabled.value = false;
   Object.assign(dof, structuredClone(DEFAULT_DOF_BLUR));
   dofEnabled.value = false;
+  clearTexture();
+  Object.assign(texture, { blendMode: DEFAULT_TEXTURE_OVERLAY.blendMode, opacity: DEFAULT_TEXTURE_OVERLAY.opacity, scale: DEFAULT_TEXTURE_OVERLAY.scale });
 }
 </script>
