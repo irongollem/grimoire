@@ -2,10 +2,16 @@ export type PlanId = 'free' | 'tester' | 'pro'
 
 export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'cancelled'
 
+export interface PlanPrice {
+  monthly: number
+  yearly: number
+}
+
 export interface Plan {
   id: PlanId
   name: string
   stripe_price_id: string | null
+  prices: Record<string, PlanPrice>
   quotas: Partial<Record<QuotaResource, number>>
 }
 
