@@ -249,7 +249,7 @@
                 type="button"
                 class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
                 :class="textureEnabled && textureImage ? 'bg-primary' : 'bg-muted-foreground/30'"
-                @click.stop="textureImage && (textureEnabled = !textureEnabled)"
+                @click.stop="textureEnabled = !textureEnabled"
               >
                 <span
                   class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform"
