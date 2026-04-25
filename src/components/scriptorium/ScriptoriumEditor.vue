@@ -786,6 +786,8 @@
       </div>
     </div>
   </div>
+
+  <PaywallModal v-model="showPaywall" resource="scriptorium_documents" />
 </template>
 
 <script setup lang="ts">
@@ -863,6 +865,8 @@ import PdfPreviewDialog from "@/components/scriptorium/PdfPreviewDialog.vue";
 import AssetInsertPanel from "@/components/scriptorium/AssetInsertPanel.vue";
 import BlockPickerPanel from "@/components/scriptorium/BlockPickerPanel.vue";
 import TagInput from "@/components/common/TagInput.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
+import { isQuotaExceeded } from "@/lib/quotaError";
 
 const IMAGE_SIZES = [
   { label: "S", w: 120 },
@@ -1297,6 +1301,7 @@ const { mutateAsync: create } = useCreateScriptoriumDocument();
 const { mutateAsync: update } = useUpdateScriptoriumDocument();
 const { mutateAsync: deleteDoc } = useDeleteScriptoriumDocument();
 const isSaving = ref(false);
+const showPaywall = ref(false);
 const isDeleting = ref(false);
 const saveError = ref("");
 
@@ -1345,6 +1350,7 @@ async function save() {
       router.replace(`/scriptorium/${created.id}`);
     }
   } catch (e: unknown) {
+    if (isQuotaExceeded(e)) { showPaywall.value = true; return; }
     saveError.value = e instanceof Error ? e.message : "Failed to save";
   } finally {
     isSaving.value = false;

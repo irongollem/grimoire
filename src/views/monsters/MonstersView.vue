@@ -73,7 +73,7 @@
         label="New Monster"
         mobile-label="Monster"
         variant="primary"
-        to="/monsters/new"
+        @click="handleNew"
       />
     </template>
 
@@ -114,6 +114,8 @@
 
     <MonsterList />
   </ListPageLayout>
+
+  <PaywallModal v-model="showPaywall" resource="monsters" />
 </template>
 
 <script setup lang="ts">
@@ -129,8 +131,19 @@ import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import MonsterList from "@/components/monsters/MonsterList.vue";
 import { useUiStore } from "@/stores/ui";
 import { useImportSrdMonsters, useOpen5eMonsterDocuments, type MonsterImportResult } from "@/composables/useMonsters";
+import { useRouter } from "vue-router";
+import PaywallModal from "@/components/common/PaywallModal.vue";
+import { useQuota } from "@/composables/useQuota";
 
+const router = useRouter();
 const ui = useUiStore();
+const { canCreate } = useQuota("monsters");
+const showPaywall = ref(false);
+
+function handleNew() {
+  if (!canCreate.value) { showPaywall.value = true; return; }
+  router.push("/monsters/new");
+}
 
 const SOURCE_OPTIONS = [
   { value: "all", label: "All" },

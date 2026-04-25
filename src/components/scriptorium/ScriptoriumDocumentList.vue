@@ -41,12 +41,13 @@
       description="Craft monsters, spells, items, and adventure documents with the look of the official books."
     >
       <template #action>
-        <RouterLink
-          to="/scriptorium/new"
+        <button
+          type="button"
           class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-sm font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+          @click="handleNew"
         >
           Create your first document
-        </RouterLink>
+        </button>
       </template>
     </EmptyState>
 
@@ -146,12 +147,15 @@
       {{ filtered.length }} of {{ docs?.length ?? 0 }} documents
     </p>
   </div>
+
+  <PaywallModal v-model="showPaywall" resource="scriptorium_documents" />
 </template>
 
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed } from "vue";
+import { useRouter } from "vue-router";
 import { Search, Globe, Trash2 } from "lucide-vue-next";
 import {
   useScriptoriumDocuments,
@@ -159,7 +163,18 @@ import {
 } from "@/composables/useScriptorium";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
+import { useQuota } from "@/composables/useQuota";
 import type { ScriptoriumDocType } from "@/types/scriptorium.types";
+
+const router = useRouter();
+const { canCreate } = useQuota("scriptorium_documents");
+const showPaywall = ref(false);
+
+function handleNew() {
+  if (!canCreate.value) { showPaywall.value = true; return; }
+  router.push("/scriptorium/new");
+}
 
 const TYPE_OPTIONS = [
   { value: "all", label: "All" },

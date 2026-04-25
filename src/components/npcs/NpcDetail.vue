@@ -398,6 +398,8 @@
     @close="showGenerateDialog = false"
     @generated="onAiGenerated"
   />
+
+  <PaywallModal v-model="showPaywall" resource="npcs" />
 </template>
 
 <script setup lang="ts">
@@ -433,6 +435,8 @@ import EntityCombobox from '@/components/common/EntityCombobox.vue'
 import DiceExprInput from '@/components/common/DiceExprInput.vue'
 import PlayerNotesWidget from '@/components/common/PlayerNotesWidget.vue'
 import { STAT_BLOCK_ABILITIES, abilityModifier, skillsToString, skillsToRecord } from '@/lib/utils'
+import PaywallModal from '@/components/common/PaywallModal.vue'
+import { isQuotaExceeded } from '@/lib/quotaError'
 
 function extractDice(val: string): string {
   const m = val.match(/\(([^)]+)\)/);
@@ -440,6 +444,7 @@ function extractDice(val: string): string {
 }
 
 const { confirm, notify } = useConfirm();
+const showPaywall = ref(false);
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -846,7 +851,8 @@ async function save() {
     }
 
     if (props.npc?.id) router.push('/npcs')
-  } catch {
+  } catch (e: unknown) {
+    if (isQuotaExceeded(e)) { showPaywall.value = true; return; }
     notify('Failed to save NPC. Please try again.')
   }
 }

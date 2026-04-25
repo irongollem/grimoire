@@ -22,7 +22,7 @@
         label="New NPC"
         mobile-label="NPC"
         variant="primary"
-        to="/npcs/new"
+        @click="handleNew"
       />
     </template>
 
@@ -89,10 +89,13 @@
       :sort-by="sortBy"
     />
   </ListPageLayout>
+
+  <PaywallModal v-model="showPaywall" resource="npcs" />
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { useRouter } from "vue-router";
 import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
 import { Plus, Wand2, Sparkles, Network } from "lucide-vue-next";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
@@ -108,11 +111,21 @@ import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { getSetting } from "@/settings/index";
 import { usePopulateSettingNpcs } from "@/composables/useNpcs";
+import PaywallModal from "@/components/common/PaywallModal.vue";
+import { useQuota } from "@/composables/useQuota";
 
 type LocationOption = { id: string; name: string; depth: number };
 
+const router = useRouter();
 const ui = useUiStore();
 const campaign = useCampaignStore();
+const { canCreate } = useQuota("npcs");
+const showPaywall = ref(false);
+
+function handleNew() {
+  if (!canCreate.value) { showPaywall.value = true; return; }
+  router.push("/npcs/new");
+}
 const { locationOptions } = useLocationTree();
 const { data: party } = useParty();
 

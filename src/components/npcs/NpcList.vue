@@ -17,12 +17,13 @@
       description="Populate your realm with merchants, villains, sages, and more."
     >
       <template #action>
-        <RouterLink
-          to="/npcs/new"
+        <button
+          type="button"
           class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-sm font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+          @click="handleNew"
         >
           Add your first NPC
-        </RouterLink>
+        </button>
       </template>
     </EmptyState>
 
@@ -220,10 +221,13 @@
       </div>
     </div>
   </Teleport>
+
+  <PaywallModal v-model="showPaywall" resource="npcs" />
 </template>
 
 <script setup lang="ts">
-import { computed, reactive } from "vue";
+import { ref, computed, reactive } from "vue";
+import { useRouter } from "vue-router";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { Pencil, Eye, EyeOff, Users } from "lucide-vue-next";
 import { useNpcs, useUpdateNpc } from "@/composables/useNpcs";
@@ -237,6 +241,17 @@ import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
 import type { Npc, NpcRelationship, NpcStatus } from "@/types/npc.types";
+import PaywallModal from "@/components/common/PaywallModal.vue";
+import { useQuota } from "@/composables/useQuota";
+
+const router = useRouter();
+const { canCreate } = useQuota("npcs");
+const showPaywall = ref(false);
+
+function handleNew() {
+  if (!canCreate.value) { showPaywall.value = true; return; }
+  router.push("/npcs/new");
+}
 
 const props = defineProps<{
   search: string;

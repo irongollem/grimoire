@@ -444,12 +444,14 @@
       </div>
     </div>
   </div>
+
+  <PaywallModal v-model="showPaywall" resource="encounters" />
 </template>
 
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { computed, reactive, watch } from "vue";
+import { ref, computed, reactive, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   ChevronLeft,
@@ -505,6 +507,10 @@ import EncounterEvents from "@/components/encounters/EncounterEvents.vue";
 import EncounterFactions from "@/components/encounters/EncounterFactions.vue";
 import EncounterLoot from "@/components/encounters/EncounterLoot.vue";
 import EncounterTraps from "@/components/encounters/EncounterTraps.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
+import { isQuotaExceeded } from "@/lib/quotaError";
+
+const showPaywall = ref(false);
 
 const props = defineProps<{
   encounter: Encounter | null;
@@ -877,15 +883,25 @@ async function buildPayload() {
 async function handleSave(): Promise<string | null> {
   const payload = await buildPayload();
   if (props.encounter) {
-    await updateEncounterMutation.mutateAsync({
-      id: props.encounter.id,
-      update: payload,
-    });
-    return props.encounter.id;
+    try {
+      await updateEncounterMutation.mutateAsync({
+        id: props.encounter.id,
+        update: payload,
+      });
+      return props.encounter.id;
+    } catch (e: unknown) {
+      if (isQuotaExceeded(e)) { showPaywall.value = true; return null; }
+      throw e;
+    }
   } else {
-    const created = await createEncounter.mutateAsync(payload);
-    router.replace(`/encounters/${created.id}`);
-    return created.id;
+    try {
+      const created = await createEncounter.mutateAsync(payload);
+      router.replace(`/encounters/${created.id}`);
+      return created.id;
+    } catch (e: unknown) {
+      if (isQuotaExceeded(e)) { showPaywall.value = true; return null; }
+      throw e;
+    }
   }
 }
 

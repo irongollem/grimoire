@@ -430,6 +430,8 @@
     @close="showGenerateDialog = false"
     @generated="onAiGenerated"
   />
+
+  <PaywallModal v-model="showPaywall" resource="monsters" />
 </template>
 
 <script setup lang="ts">
@@ -465,6 +467,8 @@ import type {
   MonsterSize,
   MonsterStatBlock,
 } from "@/types/monster.types";
+import PaywallModal from "@/components/common/PaywallModal.vue";
+import { isQuotaExceeded } from "@/lib/quotaError";
 
 const ALIGNMENTS = [
   "Lawful Good", "Neutral Good", "Chaotic Good",
@@ -651,6 +655,7 @@ const { mutateAsync: del } = useDeleteMonster();
 const { mutateAsync: clone } = useCloneSrdMonster();
 const { mutateAsync: createScriptoriumDoc } = useCreateScriptoriumDocument();
 const saving = ref(false);
+const showPaywall = ref(false);
 const cloning = ref(false);
 const duplicating = ref(false);
 const saveError = ref("");
@@ -720,6 +725,7 @@ async function save() {
       router.push(`/monsters/${created.id}`);
     }
   } catch (e: unknown) {
+    if (isQuotaExceeded(e)) { showPaywall.value = true; return; }
     saveError.value = e instanceof Error ? e.message : "Failed to save";
   } finally {
     saving.value = false;

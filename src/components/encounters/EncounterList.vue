@@ -10,12 +10,13 @@
       description="Build encounters to plan combat — monsters, factions, difficulty analysis, and live tracking."
     >
       <template #action>
-        <RouterLink
-          to="/encounters/new"
+        <button
+          type="button"
           class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-sm font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+          @click="handleNew"
         >
           Build your first encounter
-        </RouterLink>
+        </button>
       </template>
     </EmptyState>
 
@@ -108,10 +109,13 @@
       {{ filtered.length }} of {{ encounters?.length ?? 0 }} encounters
     </p>
   </div>
+
+  <PaywallModal v-model="showPaywall" resource="encounters" />
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { ref, computed } from "vue";
+import { useRouter } from "vue-router";
 import { Skull, Users, CheckCheck } from "lucide-vue-next";
 import { useEncounters } from "@/composables/useEncounters";
 import { useRunningEncounters } from "@/composables/useEncounterLive";
@@ -127,6 +131,17 @@ import { useEncountersInRollTables } from "@/composables/useRollTables";
 import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
+import { useQuota } from "@/composables/useQuota";
+
+const router = useRouter();
+const { canCreate } = useQuota("encounters");
+const showPaywall = ref(false);
+
+function handleNew() {
+  if (!canCreate.value) { showPaywall.value = true; return; }
+  router.push("/encounters/new");
+}
 
 const ui = useUiStore();
 const search = computed(() => ui.encountersSearch);

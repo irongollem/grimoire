@@ -10,12 +10,13 @@
       description="Customize an SRD monster or build your own from scratch."
     >
       <template #action>
-        <RouterLink
-          to="/monsters/new"
+        <button
+          type="button"
           class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-sm font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+          @click="handleNew"
         >
           Add your first monster
-        </RouterLink>
+        </button>
       </template>
     </EmptyState>
 
@@ -227,10 +228,13 @@
       </div>
     </div>
   </Teleport>
+
+  <PaywallModal v-model="showPaywall" resource="monsters" />
 </template>
 
 <script setup lang="ts">
-import { computed, reactive } from "vue";
+import { ref, computed, reactive } from "vue";
+import { useRouter } from "vue-router";
 import { formatHitPoints } from "@/lib/utils";
 import { Pencil, Eye, EyeOff, Users, BarChart2 } from "lucide-vue-next";
 import { useUiStore } from "@/stores/ui";
@@ -241,6 +245,17 @@ import type { Monster, DiscoveredMonster } from "@/types/monster.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
+import { useQuota } from "@/composables/useQuota";
+
+const router = useRouter();
+const { canCreate } = useQuota("monsters");
+const showPaywall = ref(false);
+
+function handleNew() {
+  if (!canCreate.value) { showPaywall.value = true; return; }
+  router.push("/monsters/new");
+}
 
 const ui = useUiStore();
 const search = computed(() => ui.monstersSearch);

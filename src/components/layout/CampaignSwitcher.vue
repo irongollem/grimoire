@@ -257,6 +257,8 @@
       </div>
     </div>
   </Teleport>
+
+  <PaywallModal v-model="showPaywall" resource="campaigns" />
 </template>
 
 <script setup lang="ts">
@@ -273,6 +275,9 @@ import { useCampaignStore } from "@/stores/campaign";
 import { listCalendarAdapters, getCalendarAdapter } from "@/calendars/index";
 import { getSetting, listSettings } from "@/settings/index";
 import type { Campaign } from "@/types/campaign.types";
+import { useQuota } from "@/composables/useQuota";
+import PaywallModal from "@/components/common/PaywallModal.vue";
+import { isQuotaExceeded } from "@/lib/quotaError";
 
 const campaignStore = useCampaignStore();
 const { onlineUsers } = useCampaignPresence();
@@ -305,6 +310,9 @@ const form = ref({
 
 const open = ref(false);
 const showModal = ref(false);
+const showPaywall = ref(false);
+
+const { canCreate: canCreateCampaign } = useQuota("campaigns");
 
 // Auto-select first campaign on load if none is active
 watch(
@@ -330,6 +338,8 @@ function select(campaign: Campaign) {
 }
 
 function startCreate() {
+  open.value = false;
+  if (!canCreateCampaign.value) { showPaywall.value = true; return; }
   form.value = {
     name: "",
     setting: "",
@@ -337,7 +347,6 @@ function startCreate() {
     current_year: defaultCalendar?.defaultYear ?? 1495,
   };
   showModal.value = true;
-  open.value = false;
 }
 
 function closeModal() {
@@ -354,22 +363,27 @@ function onCalendarChange() {
 }
 
 async function submitForm() {
-  const created = await createCampaign({
-    name: form.value.name,
-    setting: form.value.setting || "Custom Setting",
-    calendar_id: form.value.calendar_id,
-    current_year: form.value.current_year,
-    theme: "grimoire",
-    health_visibility: "strategic",
-    immersive_rolls: false,
-    description: null,
-    spotify_client_id: null,
-  });
-  if (isFirstCampaign.value && claimExisting.value) {
-    await claimOrphans(created.id);
+  try {
+    const created = await createCampaign({
+      name: form.value.name,
+      setting: form.value.setting || "Custom Setting",
+      calendar_id: form.value.calendar_id,
+      current_year: form.value.current_year,
+      theme: "grimoire",
+      health_visibility: "strategic",
+      immersive_rolls: false,
+      description: null,
+      spotify_client_id: null,
+    });
+    if (isFirstCampaign.value && claimExisting.value) {
+      await claimOrphans(created.id);
+    }
+    campaignStore.switchToCampaign(created);
+    closeModal();
+  } catch (e: unknown) {
+    if (isQuotaExceeded(e)) { closeModal(); showPaywall.value = true; return; }
+    throw e;
   }
-  campaignStore.switchToCampaign(created);
-  closeModal();
 }
 
 async function claimForActive() {

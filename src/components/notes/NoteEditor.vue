@@ -212,6 +212,8 @@
     @close="showChroniclerLibrary = false"
     @select="onChroniclerSelect"
   />
+
+  <PaywallModal v-model="showPaywall" resource="notes" />
 </template>
 
 <script setup lang="ts">
@@ -250,6 +252,8 @@ import { useCalendarStore } from "@/stores/calendar";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
 import { getCurrentUser } from "@/lib/supabase";
 import { storeToRefs } from "pinia";
+import PaywallModal from "@/components/common/PaywallModal.vue";
+import { isQuotaExceeded } from "@/lib/quotaError";
 
 const CATEGORIES: { value: NoteCategory; label: string }[] = [
   { value: "general", label: "General" },
@@ -271,6 +275,7 @@ const isPinned = ref(props.note?.is_pinned ?? false);
 const playerVisibleTo = ref<string[]>(props.note?.player_visible_to ?? []);
 const tags = ref<string[]>(props.note?.tags ? [...props.note.tags] : []);
 const saving = ref(false);
+const showPaywall = ref(false);
 const saveError = ref("");
 const user = getCurrentUser();
 
@@ -478,6 +483,7 @@ async function save() {
       router.replace(`/notes/${created.id}`);
     }
   } catch (e: unknown) {
+    if (isQuotaExceeded(e)) { showPaywall.value = true; return; }
     saveError.value = e instanceof Error ? e.message : "Failed to save";
   } finally {
     saving.value = false;
