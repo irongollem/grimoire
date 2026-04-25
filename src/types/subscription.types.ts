@@ -1,4 +1,4 @@
-export type PlanId = 'free' | 'pro'
+export type PlanId = 'free' | 'tester' | 'pro'
 
 export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'cancelled'
 
@@ -16,6 +16,15 @@ export type QuotaResource =
   | 'encounters'
   | 'scriptorium_documents'
   | 'notes'
+
+export const QUOTA_RESOURCE_LABELS: Record<QuotaResource, string> = {
+  campaigns:             'Campaigns',
+  npcs:                  'NPCs',
+  monsters:              'Custom monsters',
+  encounters:            'Encounters',
+  scriptorium_documents: 'Scriptorium documents',
+  notes:                 'Notes',
+} as const
 
 export interface UserSubscription {
   user_id: string
