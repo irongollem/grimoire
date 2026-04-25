@@ -88,7 +88,7 @@ export function usePuzzleGeneration() {
           .join(" — ");
 
         try {
-          const b64 = await imageProvider.generate(imagePrompt, "1024x1024");
+          const b64 = await imageProvider.generate(imagePrompt, "1024x1536");
 
           if (b64) {
             image_url = await uploadWithVariants({
