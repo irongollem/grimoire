@@ -94,7 +94,7 @@
           <!-- Drag handle — only visible when not filtered -->
           <div
             v-if="!ui.soundboardHasActiveFilters"
-            class="drag-handle absolute top-2 left-2 z-10 cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors opacity-0 group-hover:opacity-100"
+            class="drag-handle absolute top-2 left-2 z-10 cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
             title="Drag to reorder"
           >
             <GripVertical class="h-3.5 w-3.5" />

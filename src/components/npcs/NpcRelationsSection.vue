@@ -115,7 +115,7 @@
         <!-- Delete -->
         <button
           type="button"
-          class="shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
+          class="shrink-0 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
           @click="removeRelation(rel.id)"
         >
           <X class="h-3.5 w-3.5" />

@@ -113,7 +113,7 @@
             <button
               type="button"
               :title="obj.is_player_visible ? 'Visible to players — click to hide' : 'Hidden — click to reveal'"
-              class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+              class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
               :class="obj.is_player_visible ? 'text-elven-green' : 'text-muted-foreground hover:text-foreground'"
               @click="toggleObjectiveVisibility(obj)"
             >

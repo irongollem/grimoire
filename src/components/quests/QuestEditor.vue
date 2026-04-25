@@ -260,7 +260,7 @@
                     ? 'Visible to players — click to hide'
                     : 'Hidden from players — click to reveal'
                 "
-                class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                 :class="
                   obj.is_player_visible
                     ? 'text-elven-green'
@@ -273,7 +273,7 @@
               </button>
               <button
                 type="button"
-                class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
+                class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
                 @click="removeObjective(obj)"
               >
                 <X class="h-3.5 w-3.5" />
@@ -357,7 +357,7 @@
                     ? 'Visible to players'
                     : 'Hidden from players'
                 "
-                class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                 :class="
                   ref.is_player_visible
                     ? 'text-elven-green'
@@ -371,7 +371,7 @@
               <button
                 v-if="!isNew"
                 type="button"
-                class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
+                class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
                 @click="removeRef(ref)"
               >
                 <X class="h-3.5 w-3.5" />
@@ -445,7 +445,7 @@
                     ? 'Visible to players'
                     : 'Hidden from players'
                 "
-                class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                 :class="
                   ref.is_player_visible
                     ? 'text-elven-green'
@@ -459,7 +459,7 @@
               <button
                 v-if="!isNew"
                 type="button"
-                class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
+                class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
                 @click="removeRef(ref)"
               >
                 <X class="h-3.5 w-3.5" />
@@ -533,7 +533,7 @@
                     ? 'Visible to players'
                     : 'Hidden from players'
                 "
-                class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                 :class="
                   ref.is_player_visible
                     ? 'text-elven-green'
@@ -547,7 +547,7 @@
               <button
                 v-if="!isNew"
                 type="button"
-                class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
+                class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
                 @click="removeRef(ref)"
               >
                 <X class="h-3.5 w-3.5" />
@@ -623,7 +623,7 @@
                     ? 'Visible to players'
                     : 'Hidden from players'
                 "
-                class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                 :class="
                   ref.is_player_visible
                     ? 'text-elven-green'
@@ -637,7 +637,7 @@
               <button
                 v-if="!isNew"
                 type="button"
-                class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
+                class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
                 @click="removeRef(ref)"
               >
                 <X class="h-3.5 w-3.5" />

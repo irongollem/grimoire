@@ -52,7 +52,7 @@
 
         <button
           type="button"
-          class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
+          class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
           title="Remove all"
           @click="removeAll(trap.id)"
         >

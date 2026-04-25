@@ -79,6 +79,7 @@
           class="resize-handle"
           title="Drag to resize"
           @mousedown.prevent="startDetailResize($event)"
+          @touchstart.prevent="startDetailResizeTouch($event)"
         />
         <div class="panel-shell" :style="{ width: detailWidth + 'px' }">
           <RunnerEntityDetail
@@ -155,6 +156,23 @@ function startDetailResize(e: MouseEvent) {
   }
   document.addEventListener("mousemove", onMove);
   document.addEventListener("mouseup", onUp);
+}
+
+function startDetailResizeTouch(e: TouchEvent) {
+  const startX = e.touches[0].clientX;
+  const startWidth = detailWidth.value;
+  document.body.style.userSelect = "none";
+
+  function onMove(ev: TouchEvent) {
+    detailWidth.value = Math.max(200, Math.min(700, startWidth + (startX - ev.touches[0].clientX)));
+  }
+  function onEnd() {
+    document.body.style.userSelect = "";
+    document.removeEventListener("touchmove", onMove);
+    document.removeEventListener("touchend", onEnd);
+  }
+  document.addEventListener("touchmove", onMove, { passive: false });
+  document.addEventListener("touchend", onEnd);
 }
 
 function handleStartCombat() {
@@ -400,12 +418,21 @@ async function handleEndCombat() {
 }
 
 .resize-handle {
+  position: relative;
   width: 5px;
   flex-shrink: 0;
   cursor: col-resize;
   background: theme(colors.border / 100%);
   transition: background 0.15s;
   z-index: 1;
+}
+
+/* Expand the touch/click surface to 44px without affecting layout */
+.resize-handle::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin-inline: -20px;
 }
 
 .resize-handle:hover {

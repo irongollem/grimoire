@@ -41,13 +41,13 @@
 
         <button
           type="button"
-          class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground shrink-0"
+          class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground shrink-0"
           title="Drop to chat"
           @click="emit('drop-item', { item, qty })"
         ><Gift class="h-3.5 w-3.5" /></button>
         <button
           type="button"
-          class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
+          class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
           title="Remove all"
           @click="removeAllOfItem(item.id)"
         ><X class="h-3.5 w-3.5" /></button>

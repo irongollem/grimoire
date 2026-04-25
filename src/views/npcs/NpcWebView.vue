@@ -251,7 +251,7 @@
                       :style="{ backgroundColor: conn.color + '22', color: conn.color }"
                     >{{ conn.typeLabel }}</span>
                     <span class="font-fell text-foreground truncate flex-1 text-left">{{ conn.name }}</span>
-                    <Pencil class="h-3 w-3 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <Pencil class="h-3 w-3 shrink-0 text-muted-foreground [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity" />
                   </button>
                 </template>
               </div>

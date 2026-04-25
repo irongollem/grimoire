@@ -24,7 +24,7 @@
       <!-- Edit name button -->
       <button
         v-if="!editingName"
-        class="shrink-0 p-1 rounded text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
+        class="shrink-0 p-1 rounded text-muted-foreground hover:text-foreground transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
         title="Rename"
         @click="startNameEdit"
       >
@@ -59,7 +59,7 @@
       <!-- Delete button -->
       <button
         v-if="showDelete"
-        class="shrink-0 p-1 rounded text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+        class="shrink-0 p-1 rounded text-muted-foreground hover:text-destructive transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
         title="Delete sound"
         @click="$emit('delete', sound)"
       >
@@ -184,7 +184,7 @@
         </span>
         <!-- Repeat -->
         <button
-          class="shrink-0 p-0.5 rounded transition-all opacity-0 group-hover:opacity-100"
+          class="shrink-0 p-0.5 rounded transition-all [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
           :class="spotifyStore.repeatMode > 0 ? 'text-green-500' : 'text-muted-foreground hover:text-foreground'"
           :title="repeatTitle"
           @click="cycleRepeat"
@@ -194,7 +194,7 @@
         </button>
         <!-- Shuffle -->
         <button
-          class="shrink-0 p-0.5 rounded transition-all opacity-0 group-hover:opacity-100"
+          class="shrink-0 p-0.5 rounded transition-all [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
           :class="spotifyStore.shuffleOn ? 'text-green-500' : 'text-muted-foreground hover:text-foreground'"
           title="Shuffle"
           @click="spotifyStore.setShuffle(!spotifyStore.shuffleOn)"

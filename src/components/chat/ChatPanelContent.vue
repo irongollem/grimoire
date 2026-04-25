@@ -54,7 +54,7 @@
           <button
             v-if="msg.user_id === myUserId || auth.isDM"
             type="button"
-            class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 self-start p-1.5 rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive"
+            class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity shrink-0 self-start p-1.5 rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive"
             title="Delete message"
             @click="$emit('delete', msg.id)"
           >

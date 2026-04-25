@@ -65,7 +65,7 @@
           <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground">
             <ImagePlus class="h-6 w-6" />
           </div>
-          <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full">
+          <div class="absolute inset-0 bg-black/50 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full">
             <span class="font-fell text-white text-xs italic">{{ portraitUrl ? 'Change' : 'Upload' }}</span>
           </div>
           <div v-if="isUploading" class="absolute inset-0 bg-black/60 flex items-center justify-center rounded-full">

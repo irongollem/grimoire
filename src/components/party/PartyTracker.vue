@@ -558,7 +558,7 @@
           <!-- Drop to chat -->
           <button
             type="button"
-            class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 rounded flex items-center justify-center text-muted-foreground/40 hover:text-amber-400 hover:bg-amber-400/10"
+            class="shrink-0 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 rounded flex items-center justify-center text-muted-foreground/40 hover:text-amber-400 hover:bg-amber-400/10"
             title="Drop to chat"
             @click="dropInventoryItemToChat(item)"
           >
@@ -567,7 +567,7 @@
           <!-- Delete -->
           <button
             type="button"
-            class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive"
+            class="shrink-0 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive"
             @click="removeItem(item.id)"
           >
             <Trash2 class="h-3.5 w-3.5" />

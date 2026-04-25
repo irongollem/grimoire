@@ -130,7 +130,7 @@
         </RouterLink>
         <button
           type="button"
-          class="absolute top-2 right-2 w-6 h-6 rounded flex items-center justify-center bg-card/80 border border-border text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-all"
+          class="absolute top-2 right-2 w-6 h-6 rounded flex items-center justify-center bg-card/80 border border-border text-muted-foreground [@media(hover:hover)]:opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-all"
           title="Delete document"
           @click.prevent="confirmDelete(doc.id, doc.title)"
         >

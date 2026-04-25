@@ -31,7 +31,7 @@
             @click="select(img.image_url)"
           >
             <img :src="img.image_url" :alt="img.prompt" class="w-full h-full object-cover" />
-            <div class="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div class="absolute inset-0 bg-primary/20 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity" />
           </button>
         </div>
       </div>

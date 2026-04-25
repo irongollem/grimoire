@@ -95,7 +95,7 @@
           <button
             type="button"
             :title="props.excludedMonsterIds.has(monster.id) ? 'Show in search' : 'Hide from search'"
-            class="opacity-0 group-hover:opacity-100 transition-opacity px-2 py-2 text-muted-foreground hover:text-destructive shrink-0"
+            class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity px-2 py-2 text-muted-foreground hover:text-destructive shrink-0"
             @click.stop="emit('hideMonster', monster.id)"
           >
             <X class="h-3.5 w-3.5" />

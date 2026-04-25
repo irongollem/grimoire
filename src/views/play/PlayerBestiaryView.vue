@@ -131,7 +131,7 @@
               <button
                 v-if="ui.dmPreviewMode"
                 type="button"
-                class="absolute top-1.5 right-1.5 z-10 p-0.5 rounded bg-card/80 text-muted-foreground hover:bg-primary/20 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+                class="absolute top-1.5 right-1.5 z-10 p-0.5 rounded bg-card/80 text-muted-foreground hover:bg-primary/20 hover:text-primary transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
                 title="Pin form"
                 @click.stop="togglePin(entry.monster)"
               >

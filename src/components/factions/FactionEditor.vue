@@ -21,7 +21,7 @@
           <span class="font-fell text-sm italic">Upload emblem</span>
         </div>
         <div
-          class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+          class="absolute inset-0 bg-black/50 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
         >
           <span class="font-fell text-white text-sm italic">{{
             form.emblem_url ? "Change" : "Upload"

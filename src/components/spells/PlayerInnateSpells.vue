@@ -115,7 +115,7 @@
 
             <!-- Remove button -->
             <button
-              class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-400 p-1 rounded cursor-pointer shrink-0"
+              class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-400 p-1 rounded cursor-pointer shrink-0"
               title="Remove innate spell"
               :disabled="isRemoving"
               @click="handleRemove(entry)"

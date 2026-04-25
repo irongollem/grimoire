@@ -75,7 +75,7 @@
         <label
           v-if="!isUploading"
           :for="inputId"
-          class="absolute inset-0 cursor-pointer bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+          class="absolute inset-0 cursor-pointer bg-black/50 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
         >
           <span class="font-fell text-white text-xs italic">Change</span>
         </label>
