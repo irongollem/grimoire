@@ -185,6 +185,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, title: "Campaign Dashboard" },
   },
   {
+    path: "/billing",
+    name: "billing",
+    component: () => import("@/views/BillingView.vue"),
+    meta: { requiresAuth: true, title: "Billing & Subscription" },
+  },
+  {
     path: "/campaign/settings",
     name: "campaign-settings",
     component: () => import("@/views/campaign/CampaignSettingsView.vue"),

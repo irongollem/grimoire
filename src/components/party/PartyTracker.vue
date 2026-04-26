@@ -78,6 +78,13 @@
                 >
                   {{ member.name }}
                 </RouterLink>
+                <button
+                  class="shrink-0 text-muted-foreground/50 hover:text-primary transition-colors"
+                  title="Preview player portal as this character"
+                  @click="previewAsPlayer(member.id)"
+                >
+                  <Eye class="h-3.5 w-3.5" />
+                </button>
               </div>
               <p class="font-fell text-xs text-muted-foreground italic">
                 {{
@@ -679,7 +686,7 @@ const { confirm } = useConfirm();
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { ref, computed, reactive, nextTick } from "vue";
 import { useRouter } from "vue-router";
-import { Plus, Dices, RotateCcw, Sparkles, Backpack, Trash2, ExternalLink, ArrowUpFromLine, MapPin } from "lucide-vue-next";
+import { Plus, Dices, RotateCcw, Sparkles, Backpack, Trash2, ExternalLink, ArrowUpFromLine, MapPin, Eye } from "lucide-vue-next";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import { useAllLocations } from "@/composables/useLocations";
 import { usePartyInventory, useAddInventoryItem, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
@@ -695,6 +702,7 @@ import { isInDisguise } from "@/lib/partyMemberDisplay";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useNpcs } from "@/composables/useNpcs";
 import { useCampaignStore } from "@/stores/campaign";
+import { useUiStore } from "@/stores/ui";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -1072,6 +1080,12 @@ async function deleteCompanion(companion: Companion) {
 }
 
 const router = useRouter();
+const ui = useUiStore();
+
+function previewAsPlayer(partyMemberId: string) {
+  ui.enterDmPreview(partyMemberId);
+  router.push({ name: "play" });
+}
 
 // Inventory
 const campaign = useCampaignStore();

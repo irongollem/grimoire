@@ -28,6 +28,7 @@
         </button>
       </template>
 
+      <SoundboardWidgetToggle />
       <ListActionButton
         :icon="Plus"
         label="Add Sound"
@@ -128,6 +129,7 @@ import EmptyState from "@/components/common/EmptyState.vue";
 import SoundCard from "@/components/soundboard/SoundCard.vue";
 import SoundForm from "@/components/soundboard/SoundForm.vue";
 import SoundCategoryFilter from "@/components/soundboard/SoundCategoryFilter.vue";
+import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
 
 const ui = useUiStore();
 const soundboardStore = useSoundboardStore();
