@@ -74,10 +74,12 @@
           <div class="flex items-center gap-3 px-5 pb-5">
             <button
               type="button"
-              class="flex-1 px-4 py-2 rounded-md bg-amber-500 text-black font-cinzel text-xs font-semibold tracking-wider hover:bg-amber-400 transition-colors"
+              class="flex-1 px-4 py-2 rounded-md bg-amber-500 text-black font-cinzel text-xs font-semibold tracking-wider hover:bg-amber-400 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              :disabled="stripeLoading"
               @click="upgrade"
             >
-              Upgrade to Pro
+              <Loader2 v-if="stripeLoading" class="h-3.5 w-3.5 animate-spin" />
+              {{ stripeLoading ? 'Redirecting…' : 'Upgrade to Pro' }}
             </button>
             <button
               type="button"
@@ -95,10 +97,10 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { useRouter } from "vue-router";
-import { X, Crown } from "lucide-vue-next";
+import { X, Crown, Loader2 } from "lucide-vue-next";
 import { useQuota } from "@/composables/useQuota";
 import { usePlan } from "@/composables/usePlan";
+import { useStripe } from "@/composables/useStripe";
 import { QUOTA_RESOURCE_LABELS } from "@/types/subscription.types";
 import type { QuotaResource } from "@/types/subscription.types";
 import { detectCurrency, formatCents } from "@/lib/pricing";
@@ -110,9 +112,9 @@ const props = defineProps<{
 
 const emit = defineEmits<{ "update:modelValue": [val: boolean] }>()
 
-const router = useRouter()
 const { quota } = useQuota(props.resource)
 const { data: proPlan } = usePlan('pro')
+const { loading: stripeLoading, createCheckoutSession } = useStripe()
 
 
 const currency = detectCurrency()
@@ -156,7 +158,7 @@ function close() {
 
 function upgrade() {
   close()
-  router.push("/pricing")
+  createCheckoutSession()
 }
 </script>
 

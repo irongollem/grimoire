@@ -43,6 +43,21 @@ verify_jwt = false
 [functions.create-bug-report]
 verify_jwt = false
 
+# Stripe checkout — requires an authenticated user; gateway check off so the
+# function can return a typed JSON error instead of a generic 401 from the
+# gateway. The function verifies the JWT manually via supabase.auth.getUser().
+[functions.stripe-create-checkout]
+verify_jwt = false
+
+# Stripe billing portal — same pattern as checkout.
+[functions.stripe-create-portal]
+verify_jwt = false
+
+# Stripe webhook — called by Stripe (no user JWT). The function validates
+# the Stripe-Signature header with the webhook secret instead.
+[functions.stripe-webhook]
+verify_jwt = false
+
 # Shared SRD rules sync — triggered by an admin / cron with the service-role
 # key, so the gateway check can stay on.
 # [functions.sync-srd-rules]
