@@ -25,14 +25,7 @@ Read these five files first — they cover the entire data and component surface
 
 ### Database Table: `notes`
 
-Defined in `supabase/migrations/20250305000000_initial_schema.sql`.
-Extended by:
-
-- `supabase/migrations/20260314000000_campaign_scoping.sql` — adds `campaign_id`
-- `supabase/migrations/20260315000009_player_portal.sql` — adds `is_player_visible`
-- `supabase/migrations/20260408000080_notes_player_visibility.sql` — replaces with `player_visible_to uuid[]`
-- `supabase/migrations/20260413000003_drop_shared_with_players_all_tables.sql` — drops `shared_with_players`, finalises RLS
-- `supabase/migrations/20260418000000_session_dates_cal_note_link.sql` — adds session date cols + `linked_calendar_event_id`
+Defined in `supabase/migrations/20260426000099_initial_schema_squashed.sql`.
 
 Key columns:
 
@@ -179,7 +172,7 @@ View: `src/views/play/PlayerJournalView.vue`
 
 ### Database Table: `player_journal_entries`
 
-Defined in `supabase/migrations/20260317000002_player_journal_entries.sql`.
+Defined in `supabase/migrations/20260426000099_initial_schema_squashed.sql`.
 
 Key columns: `id`, `user_id`, `campaign_id`, `title`, `content` (Tiptap JSON), `category`, `tags`, `is_private` (bool, default true), `ref_type`, `ref_id`, `ref_label`, `created_at`, `updated_at`.
 
@@ -247,12 +240,7 @@ No player-facing calendar route exists in the player portal.
 
 ### Database Table: `calendar_events`
 
-Defined in `supabase/migrations/20250305000000_initial_schema.sql`.
-Extended by:
-
-- `supabase/migrations/20260314000000_campaign_scoping.sql` — adds `campaign_id`
-- `supabase/migrations/20260315000005_calendar_entity_pins.sql` — adds `linked_quest_id`, `linked_encounter_id`, `linked_location_id`
-- `supabase/migrations/20260418000000_session_dates_cal_note_link.sql` — adds `linked_note_id`
+Defined in `supabase/migrations/20260426000099_initial_schema_squashed.sql`.
 
 Key columns:
 
