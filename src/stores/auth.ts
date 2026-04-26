@@ -10,6 +10,7 @@ export const useAuthStore = defineStore("auth", () => {
   const loading = ref(false);
   const initialized = ref(false);
   const membership = ref<CampaignMember | null>(null);
+  const username = ref<string | null>(null);
 
   const isAuthenticated = computed(() => !!user.value);
   const userEmail = computed(() => user.value?.email ?? null);
@@ -18,6 +19,15 @@ export const useAuthStore = defineStore("auth", () => {
   const isDM = computed(() => currentRole.value === "dm");
   const isPlayer = computed(() => currentRole.value === "player");
   const linkedPartyMemberId = computed(() => membership.value?.party_member_id ?? null);
+
+  async function loadUsername(userId: string) {
+    const { data } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("user_id", userId)
+      .single();
+    username.value = data?.username ?? null;
+  }
 
   async function loadMembership(userId: string, campaignId?: string) {
     let query = supabase
@@ -67,7 +77,10 @@ export const useAuthStore = defineStore("auth", () => {
 
         if (user.value) {
           const storedCampaignId = localStorage.getItem("grimoire_active_campaign") ?? undefined;
-          await loadMembership(user.value.id, storedCampaignId);
+          await Promise.all([
+            loadMembership(user.value.id, storedCampaignId),
+            loadUsername(user.value.id),
+          ]);
         }
 
         initialized.value = true;
@@ -92,9 +105,11 @@ export const useAuthStore = defineStore("auth", () => {
             setTimeout(() => {
               const storedCampaignId = localStorage.getItem("grimoire_active_campaign") ?? undefined;
               void loadMembership(userId, storedCampaignId);
+              void loadUsername(userId);
             }, 0);
           } else {
             membership.value = null;
+            username.value = null;
           }
         });
         authListener = subscription;
@@ -123,7 +138,10 @@ export const useAuthStore = defineStore("auth", () => {
         session.value = data.session;
         setCachedUser(data.user);
         const storedCampaignId = localStorage.getItem("grimoire_active_campaign") ?? undefined;
-        await loadMembership(data.user.id, storedCampaignId);
+        await Promise.all([
+          loadMembership(data.user.id, storedCampaignId),
+          loadUsername(data.user.id),
+        ]);
       }
     } finally {
       loading.value = false;
@@ -149,6 +167,7 @@ export const useAuthStore = defineStore("auth", () => {
     user.value = null;
     session.value = null;
     membership.value = null;
+    username.value = null;
     setCachedUser(null);
   }
 
@@ -195,6 +214,7 @@ export const useAuthStore = defineStore("auth", () => {
     loading,
     initialized,
     membership,
+    username,
     isAuthenticated,
     isAppAdmin,
     userEmail,
