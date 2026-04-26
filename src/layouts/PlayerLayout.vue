@@ -67,20 +67,20 @@
     <!-- DM preview banner -->
     <div
       v-if="ui.dmPreviewMode"
-      class="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2 flex items-center gap-3 shrink-0"
+      class="bg-amber-500 px-4 py-2 flex items-center gap-3 shrink-0"
     >
-      <Eye class="h-3.5 w-3.5 text-amber-400 shrink-0" />
-      <span class="font-cinzel text-xs text-amber-400 tracking-wider shrink-0">DM Preview — viewing as:</span>
+      <Eye class="h-3.5 w-3.5 text-black/70 shrink-0" />
+      <span class="font-cinzel text-xs text-black font-semibold tracking-wider shrink-0">DM Preview — viewing as:</span>
       <select
         :value="ui.dmPreviewPartyMemberId ?? ''"
-        class="flex-1 min-w-0 max-w-48 bg-amber-500/10 border border-amber-500/30 rounded px-2 py-0.5 font-fell text-xs text-amber-200 focus:outline-none focus:ring-1 focus:ring-amber-500/50"
+        class="flex-1 min-w-0 max-w-48 bg-black/10 border border-black/20 rounded px-2 py-0.5 font-fell text-xs text-black focus:outline-none focus:ring-1 focus:ring-black/30"
         @change="ui.dmPreviewPartyMemberId = ($event.target as HTMLSelectElement).value || null"
       >
         <option value="">— pick a character —</option>
         <option v-for="m in partyMembers" :key="m.id" :value="m.id">{{ m.name }}</option>
       </select>
       <button
-        class="font-cinzel text-[10px] tracking-wider text-amber-400 hover:text-amber-300 border border-amber-500/40 hover:border-amber-400/60 px-2 py-0.5 rounded transition-colors shrink-0"
+        class="font-cinzel text-[10px] tracking-wider text-black font-semibold border border-black/30 hover:bg-black/10 px-2 py-0.5 rounded transition-colors shrink-0"
         @click="exitPreview"
       >
         Exit Preview

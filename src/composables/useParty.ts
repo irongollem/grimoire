@@ -89,6 +89,7 @@ export function usePartyLive() {
   const campaign = useCampaignStore();
   const queryClient = useQueryClient();
   let channel: ReturnType<typeof supabase.channel> | null = null;
+  const uid = Math.random().toString(36).slice(2, 8);
 
   watch(
     () => campaign.activeCampaignId,
@@ -96,7 +97,7 @@ export function usePartyLive() {
       if (channel) { supabase.removeChannel(channel); channel = null; }
       if (!campaignId) return;
       channel = supabase
-        .channel(`party_members_live:${campaignId}`)
+        .channel(`party_members_live:${campaignId}:${uid}`)
         .on(
           "postgres_changes",
           { event: "UPDATE", schema: "public", table: "party_members",
