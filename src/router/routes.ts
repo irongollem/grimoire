@@ -3,6 +3,12 @@ import type { RouteRecordRaw } from "vue-router";
 export const routes: RouteRecordRaw[] = [
   // ── Marketing (public, no sidebar) ───────────────────────────────────
   {
+    path: "/",
+    name: "home",
+    component: () => import("@/views/LandingView.vue"),
+    meta: { layout: "marketing", requiresGuest: true, title: "Grimoire" },
+  },
+  {
     path: "/pricing",
     name: "pricing",
     component: () => import("@/views/PricingView.vue"),
@@ -172,10 +178,6 @@ export const routes: RouteRecordRaw[] = [
   },
 
   // ── App ───────────────────────────────────────────────────────────────
-  {
-    path: "/",
-    redirect: "/dashboard",
-  },
   {
     path: "/dashboard",
     name: "dashboard",

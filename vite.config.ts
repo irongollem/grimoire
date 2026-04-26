@@ -83,9 +83,8 @@ export default defineConfig({
   ],
   ssgOptions: {
     // Only pre-render public marketing routes — all auth-required app routes stay SPA.
-    // Add '/' here when the landing page (#291) is implemented.
     includedRoutes(paths: string[]) {
-      return paths.filter((p) => ["/pricing"].includes(p));
+      return paths.filter((p) => ["/", "/pricing"].includes(p));
     },
   },
   server: {
