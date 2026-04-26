@@ -25,8 +25,6 @@ Read these five files first — they cover the entire data and component surface
 
 ### Database Table: `notes`
 
-Defined in `supabase/migrations/20260426000099_initial_schema_squashed.sql`.
-
 Key columns:
 
 | Column                         | Type                      | Notes                                 |
@@ -49,7 +47,6 @@ Key columns:
 **RLS (current):** `auth.uid() = user_id` gives DM full access. Players select where their `party_member_id` is in `player_visible_to`:
 
 ```sql
--- from 20260413000003
 create policy "notes_select" on notes for select using (
   auth.uid() = user_id
   or (
@@ -172,8 +169,6 @@ View: `src/views/play/PlayerJournalView.vue`
 
 ### Database Table: `player_journal_entries`
 
-Defined in `supabase/migrations/20260426000099_initial_schema_squashed.sql`.
-
 Key columns: `id`, `user_id`, `campaign_id`, `title`, `content` (Tiptap JSON), `category`, `tags`, `is_private` (bool, default true), `ref_type`, `ref_id`, `ref_label`, `created_at`, `updated_at`.
 
 ### TypeScript Types — `src/composables/usePlayerJournal.ts`
@@ -239,8 +234,6 @@ TanStack Query key: `"player_journal"`.
 No player-facing calendar route exists in the player portal.
 
 ### Database Table: `calendar_events`
-
-Defined in `supabase/migrations/20260426000099_initial_schema_squashed.sql`.
 
 Key columns:
 
