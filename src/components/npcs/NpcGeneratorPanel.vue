@@ -268,9 +268,9 @@
           </button>
         </div>
 
-        <!-- No API key nudge -->
+        <!-- No API key nudge (pro users only) -->
         <div
-          v-if="!aiApiKey"
+          v-if="isPro && !aiApiKey"
           class="rounded-md border border-border bg-muted/40 p-3"
         >
           <p class="font-fell text-xs text-muted-foreground italic">
@@ -318,7 +318,7 @@
         class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0"
       >
         <button
-          v-if="aiApiKey"
+          v-if="isPro && aiApiKey"
           type="button"
           :disabled="isAnyAiGenerating || !concept.trim()"
           :title="
@@ -333,6 +333,15 @@
           {{ isGenerating ? "Generating…" : "Generate with AI" }}
         </button>
         <button
+          v-else-if="!isPro"
+          type="button"
+          class="w-full inline-flex items-center justify-center gap-1.5 py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+          @click="showPaywall = true"
+        >
+          <Sparkles class="h-3.5 w-3.5" />
+          Generate with AI
+        </button>
+        <button
           type="button"
           :disabled="isCreating"
           class="w-full py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
@@ -343,6 +352,7 @@
       </div>
     </aside>
   </Transition>
+  <PaywallModal v-model="showPaywall" message="AI generation is a Pro feature. Upgrade to generate NPCs, monsters, items, spells, puzzles, and session artwork." />
 </template>
 
 <script setup lang="ts">
@@ -364,6 +374,8 @@ import type {
 import { NPC_RELATIONSHIP_TYPE_LABELS } from "@/types/npc.types";
 import { useCampaignStore } from "@/stores/campaign";
 import { useNpcGeneration, toTiptapJson } from "@/ai/useNpcGeneration";
+import { useSubscription } from "@/composables/useSubscription";
+import PaywallModal from "@/components/common/PaywallModal.vue";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { useLocationTree } from "@/composables/useLocations";
@@ -457,6 +469,8 @@ const { data: npcs } = useNpcs();
 const { mutateAsync: createNpcRelation } = useCreateNpcRelation();
 
 const aiApiKey = computed(() => campaign.decryptedApiKey);
+const { isPro } = useSubscription();
+const showPaywall = ref(false);
 
 function openAiSettings() {
   ui.npcGeneratorOpen = false;

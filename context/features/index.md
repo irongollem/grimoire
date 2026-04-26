@@ -78,7 +78,7 @@ Each doc covers **both DM and player perspectives**, lists exact file paths, com
 ### Publishing & Output Tools (desktop-only)
 
 - **Scriptorium** — Tiptap document editor; live paginated preview; two PHB themes (2024 OneDnD / Classic 2014); three page sizes; ink-friendly mode; PDF export; `is_published` sharing
-- **Card Forge** — MTG (63×88mm, 9/sheet) + Tarot (70×120mm, 4/sheet) card printing; 20 card components (NPC/Monster/Item/Spell × MTG/Tarot × front/back); cross-type mixing; duplex with column reversal; 1mm bleed; named Card Library in localStorage
+- **Card Forge** — Trading card (63×88mm, 9/sheet) + Tarot (70×120mm, 4/sheet) card printing; 20 card components (NPC/Monster/Item/Spell × trading/Tarot × front/back); cross-type mixing; duplex with column reversal; 1mm bleed; named Card Library in localStorage
 - **The Mint** — VTT token creator (ring color, name arc, 280/512px PNG, print queue in 3 sizes) + coin designer (metal/motif/rim text, A4 print sheet)
 - **Illuminator** — client-side canvas image processing: colour grading, vignette, texture overlay, depth of field (click focal point), torn/faded edges per edge; exports full-resolution PNG
 - **Reliquary** — DM screen (quick reference, SRD compendium, custom rules with Tracker builder, built-in manual); player portal version: Reference, Compendium, Codex, house rules (read-only)

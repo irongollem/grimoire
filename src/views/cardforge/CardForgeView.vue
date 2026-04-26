@@ -294,7 +294,7 @@ import { spellLevelLabel } from "@/types/spell.types";
 
 // ── Card sizes ──────────────────────────────────────────
 const CARD_SIZES = [
-  { id: "mtg", label: "MTG (63×88mm)", cols: 3, perPage: 9 },
+  { id: "mtg", label: "Trading card (63×88mm)", cols: 3, perPage: 9 },
   { id: "tarot", label: "Tarot (70×120mm)", cols: 2, perPage: 4 },
 ] as const;
 type CardSizeId = "mtg" | "tarot";

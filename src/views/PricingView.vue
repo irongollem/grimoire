@@ -283,15 +283,15 @@ const featureRows = computed(() => {
     ...quotaRows,
     {
       key: "ai",
-      label: "AI generation credits",
+      label: "AI generation (NPCs, monsters, artwork…)",
       freeText: "—",
-      proText: "5 / month",
+      proText: "✓",
       freeAvail: false,
       proAvail: true,
     },
     {
       key: "cardforge",
-      label: "Card Forge (print cards)",
+      label: "Card Forge (trading & Tarot cards)",
       freeText: "✓",
       proText: "✓",
       freeAvail: true,

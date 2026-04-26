@@ -86,8 +86,8 @@
           </button>
         </div>
 
-        <!-- No API key nudge -->
-        <div v-if="!aiApiKey" class="rounded-md border border-border bg-muted/40 p-3">
+        <!-- No API key nudge (pro users only) -->
+        <div v-if="isPro && !aiApiKey" class="rounded-md border border-border bg-muted/40 p-3">
           <p class="font-fell text-xs text-muted-foreground italic">
             Add an OpenAI key in
             <RouterLink
@@ -126,7 +126,7 @@
       <!-- Footer -->
       <div class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0">
         <button
-          v-if="aiApiKey"
+          v-if="isPro && aiApiKey"
           type="button"
           :disabled="isAnyAiGenerating || !concept.trim()"
           :title="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
@@ -136,10 +136,19 @@
           <Sparkles class="h-3.5 w-3.5" />
           {{ isGenerating ? "Generating…" : "Generate with AI" }}
         </button>
+        <button
+          v-else-if="!isPro"
+          type="button"
+          class="w-full inline-flex items-center justify-center gap-1.5 py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+          @click="showPaywall = true"
+        >
+          <Sparkles class="h-3.5 w-3.5" />
+          Generate with AI
+        </button>
         <RouterLink
           to="/spells/new"
           class="w-full inline-flex items-center justify-center py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md hover:opacity-90 transition-opacity"
-          :class="aiApiKey ? 'border border-border bg-card text-foreground hover:bg-muted' : 'bg-primary text-primary-foreground'"
+          :class="isPro && !aiApiKey ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-foreground hover:bg-muted'"
           @click="ui.spellGeneratorOpen = false"
         >
           New Blank Spell
@@ -147,6 +156,7 @@
       </div>
     </aside>
   </Transition>
+  <PaywallModal v-model="showPaywall" message="AI generation is a Pro feature. Upgrade to generate spells, NPCs, monsters, items, puzzles, and session artwork." />
 </template>
 
 <script setup lang="ts">
@@ -157,6 +167,8 @@ import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCreateSpell } from "@/composables/useSpells";
 import { useSpellGeneration } from "@/ai/useSpellGeneration";
+import { useSubscription } from "@/composables/useSubscription";
+import PaywallModal from "@/components/common/PaywallModal.vue";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { spellInsertFromAi } from "@/ai/spellAiAdapter";
@@ -176,6 +188,8 @@ const {
 } = useSpellGeneration();
 
 const aiApiKey = computed(() => campaign.decryptedApiKey);
+const { isPro } = useSubscription();
+const showPaywall = ref(false);
 
 const concept = ref("");
 const constraints = reactive<{ level: string; school: "" | SpellSchool }>({

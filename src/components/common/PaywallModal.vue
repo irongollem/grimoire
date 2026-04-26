@@ -21,12 +21,15 @@
             </div>
             <div class="flex-1 min-w-0">
               <h2 id="paywall-title" class="font-cinzel text-sm font-bold text-foreground tracking-wide">
-                You've reached your free limit
+                {{ props.message ? 'Pro feature' : 'You\'ve reached your free limit' }}
               </h2>
               <p class="mt-1 font-fell text-sm text-muted-foreground leading-snug">
-                Free DMs can create up to
-                <span class="text-foreground font-semibold">{{ limitText }}</span>.
-                Upgrade to keep building your campaign.
+                <template v-if="props.message">{{ props.message }}</template>
+                <template v-else>
+                  Free DMs can create up to
+                  <span class="text-foreground font-semibold">{{ limitText }}</span>.
+                  Upgrade to keep building your campaign.
+                </template>
               </p>
             </div>
             <button
@@ -107,12 +110,13 @@ import { detectCurrency, formatCents } from "@/lib/pricing";
 
 const props = defineProps<{
   modelValue: boolean
-  resource: QuotaResource
+  resource?: QuotaResource
+  message?: string
 }>()
 
 const emit = defineEmits<{ "update:modelValue": [val: boolean] }>()
 
-const { quota } = useQuota(props.resource)
+const { quota } = useQuota(props.resource ?? 'npcs')
 const { data: proPlan } = usePlan('pro')
 const { loading: stripeLoading, createCheckoutSession } = useStripe()
 
@@ -140,16 +144,17 @@ const savedMonths = computed(() => {
 })
 
 const limitText = computed(() => {
+  if (!props.resource) return ''
   const label = QUOTA_RESOURCE_LABELS[props.resource].toLowerCase()
   const limit = quota.value?.limit ?? null
   return limit !== null && limit >= 0 ? `${limit} ${label}` : label
 })
 
 const BENEFITS = [
-  "Unlimited NPCs, monsters, encounters, notes & more",
-  "5 AI generation credits every month",
+  "Unlimited campaigns, NPCs, monsters, encounters & notes",
+  "AI generation — NPCs, monsters, items, spells & artwork",
+  "Full world-building, combat, and publishing toolkit",
   "Your whole table plays free — always",
-  "Card Forge — print unlimited MTG & Tarot cards",
 ]
 
 function close() {

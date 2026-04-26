@@ -1,5 +1,24 @@
 <template>
-  <form class="max-w-md flex flex-col gap-6" @submit.prevent="save">
+  <div v-if="!isPro" class="max-w-md rounded-xl border border-amber-500/30 bg-amber-500/5 p-6 flex flex-col gap-3">
+    <div class="flex items-center gap-2.5">
+      <Crown class="h-5 w-5 text-amber-400 shrink-0" />
+      <span class="font-cinzel text-sm font-bold text-foreground tracking-wide">Pro feature</span>
+    </div>
+    <p class="font-fell text-sm text-muted-foreground leading-relaxed">
+      AI generation — NPCs, monsters, spells, items, puzzles, and session artwork — is available on the Pro plan.
+      Configure your own API keys or wait for Grimoire-managed credits.
+    </p>
+    <button
+      type="button"
+      class="self-start px-4 py-2 rounded-md bg-amber-500 text-black font-cinzel text-xs font-semibold tracking-wider hover:bg-amber-400 transition-colors disabled:opacity-60"
+      :disabled="stripeLoading"
+      @click="upgrade"
+    >
+      {{ stripeLoading ? 'Redirecting…' : 'Upgrade to Pro' }}
+    </button>
+  </div>
+
+  <form v-else class="max-w-md flex flex-col gap-6" @submit.prevent="save">
 
     <!-- Local Mode Toggle -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
@@ -184,11 +203,17 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, watch } from "vue";
-import { Eye, EyeOff } from "lucide-vue-next";
+import { Eye, EyeOff, Crown } from "lucide-vue-next";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/useCampaigns";
 import { encryptApiKey, primeDecryptCache } from "@/lib/apiKeyVault";
 import { getSetting } from "@/settings/index";
+import { useSubscription } from "@/composables/useSubscription";
+import { useStripe } from "@/composables/useStripe";
+
+const { isPro } = useSubscription();
+const { loading: stripeLoading, createCheckoutSession } = useStripe();
+function upgrade() { createCheckoutSession(); }
 
 const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 
