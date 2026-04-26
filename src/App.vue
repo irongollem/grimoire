@@ -29,6 +29,7 @@ import { useQueryClient } from "@tanstack/vue-query";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AuthLayout from "@/layouts/AuthLayout.vue";
 import PlayerLayout from "@/layouts/PlayerLayout.vue";
+import MarketingLayout from "@/layouts/MarketingLayout.vue";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
 import ManualRollPrompt from "@/components/common/ManualRollPrompt.vue";
 import LoadingScreen from "@/components/auth/LoadingScreen.vue";
@@ -62,13 +63,15 @@ const { data: earlyCampaign, isLoading: campaignFetching } = useCampaignById(
 // Hold the loading screen until auth is ready AND the active campaign has been
 // fetched (if one is expected). This prevents the "Create your first campaign"
 // flash that occurs when components mount before activeCampaign is hydrated.
-const showLoading = computed(
-  () =>
+const showLoading = computed(() => {
+  if (import.meta.env.SSR) return false;
+  return (
     !auth.initialized ||
     (!!campaignIdToFetch.value &&
       !campaignStore.activeCampaign &&
-      campaignFetching.value),
-);
+      campaignFetching.value)
+  );
+});
 
 watch(
   earlyCampaign,
@@ -82,7 +85,7 @@ watch(
 const router = useRouter();
 const { pullPx, readyToReload } = usePullToRefresh();
 
-useTheme().initTheme();
+if (!import.meta.env.SSR) useTheme().initTheme();
 
 // When the Supabase session expires mid-session (refresh token exhausted or
 // network failure), onAuthStateChange emits SIGNED_OUT and sets user to null.
@@ -150,6 +153,7 @@ const route = useRoute();
 const layout = computed(() => {
   if (route.meta.layout === "auth") return AuthLayout;
   if (route.meta.layout === "player") return PlayerLayout;
+  if (route.meta.layout === "marketing") return MarketingLayout;
   return DefaultLayout;
 });
 </script>

@@ -7,12 +7,12 @@ const OVERRIDE_KEY = "grimoire-theme-override";
 
 export type ThemeOverride = "campaign" | "light" | "dark" | "system";
 
-const activeId = ref<string>(
-  localStorage.getItem(STORAGE_KEY) ?? DEFAULT_THEME_ID,
-);
+const ls = typeof localStorage !== "undefined" ? localStorage : null;
+
+const activeId = ref<string>(ls?.getItem(STORAGE_KEY) ?? DEFAULT_THEME_ID);
 
 const themeOverride = ref<ThemeOverride>(
-  (localStorage.getItem(OVERRIDE_KEY) as ThemeOverride) ?? "campaign",
+  (ls?.getItem(OVERRIDE_KEY) as ThemeOverride) ?? "campaign",
 );
 
 function resolveSystemTheme(): string {

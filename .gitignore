@@ -39,3 +39,6 @@ supabase/.temp/
 .mcp.json
 src/views/play/TEMPSHIT.ts
 .claude/worktrees/
+
+# vite-ssg build temp directory
+.vite-ssg-temp/

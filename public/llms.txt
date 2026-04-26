@@ -1,0 +1,32 @@
+# Grimoire
+
+> Web-based D&D 5e campaign management tool for Dungeon Masters.
+
+## What it does
+
+- Campaign, NPC, monster, encounter, and note management
+- Faerûn Calendar (Calendar of Harptos) with custom calendar adapter support
+- Scriptorium: homebrew document editor styled like the 2024 PHB
+- Card Forge: printable MTG-style and Tarot-style stat cards for NPCs, monsters, items, and spells
+- Encounter runner with initiative, HP, conditions, factions, and mid-combat spawning
+- Player portal — free for all players in a campaign
+- Character Codex: species, backgrounds, classes, archetypes, and abilities
+- Workshop: crafting recipes and cooking
+- Atlas: location management with hierarchy
+- Quest log, faction tracker, Hall of Heroes, soundboard integration (Spotify)
+- Illuminator: battlegrid map preparation tool
+
+## Pricing
+
+- Free DM: 1 campaign, 10 NPCs, 3 custom monsters, 5 encounters, 3 Scriptorium documents, 10 notes
+- Pro DM: unlimited content, 5 AI generation credits/month — see dungeongrimoire.com/pricing for current pricing
+- Players always join and play for free, regardless of the DM's plan
+
+## Stack
+
+Vue 3, Supabase (PostgreSQL + Auth), TypeScript, Vite, Tailwind CSS v4
+
+## Links
+
+- App: https://dungeongrimoire.com
+- Pricing: https://dungeongrimoire.com/pricing

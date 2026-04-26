@@ -10,20 +10,22 @@ const MODE_KEY = "grimoire_dice_mode";
 
 export type DiceMode = "tool" | "physical";
 
+const ls = typeof localStorage !== "undefined" ? localStorage : null;
+
 export function getDiceAudioEnabled(): boolean {
-  return localStorage.getItem(PREF_KEY) !== "false"; // default on
+  return ls?.getItem(PREF_KEY) !== "false"; // default on
 }
 
 export function setDiceAudioEnabled(enabled: boolean): void {
-  localStorage.setItem(PREF_KEY, String(enabled));
+  ls?.setItem(PREF_KEY, String(enabled));
 }
 
 export function getDiceMode(): DiceMode {
-  return localStorage.getItem(MODE_KEY) === "physical" ? "physical" : "tool";
+  return ls?.getItem(MODE_KEY) === "physical" ? "physical" : "tool";
 }
 
 export function setDiceModePref(mode: DiceMode): void {
-  localStorage.setItem(MODE_KEY, mode);
+  ls?.setItem(MODE_KEY, mode);
 }
 
 // ── Synthesis helpers ────────────────────────────────────────────────────────

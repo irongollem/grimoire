@@ -4,7 +4,7 @@ import { ref } from "vue";
 const TURN_AUDIO_KEY = "grimoire_turn_audio";
 
 const turnAudioEnabled = ref<boolean>(
-  localStorage.getItem(TURN_AUDIO_KEY) !== "false", // default: on
+  typeof localStorage === "undefined" || localStorage.getItem(TURN_AUDIO_KEY) !== "false",
 );
 
 export function usePlayerCombatPrefs() {

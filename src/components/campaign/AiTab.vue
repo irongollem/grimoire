@@ -228,7 +228,7 @@ const form = ref({
 
 const showKeys     = reactive<Record<string, boolean>>(Object.fromEntries(providerDefs.map((p) => [p.id, false])));
 const isSaving     = ref(false);
-const localModeEnabled = ref(localStorage.getItem(LOCAL_MODE_KEY) === "local");
+const localModeEnabled = ref(typeof localStorage !== "undefined" && localStorage.getItem(LOCAL_MODE_KEY) === "local");
 
 const activeSetting       = computed(() => getSetting(campaign.activeCampaign?.calendar_id ?? ""));
 const settingDefaultPrompt = computed(() => activeSetting.value?.defaultAiPrompt ?? "");

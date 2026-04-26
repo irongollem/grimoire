@@ -24,7 +24,9 @@ const DB_KEY_FIELDS: Record<string, keyof Campaign> = {
 };
 
 export const useCampaignStore = defineStore("campaign", () => {
-  const activeCampaignId = ref<string | null>(localStorage.getItem(STORAGE_KEY));
+  const activeCampaignId = ref<string | null>(
+    typeof localStorage !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null,
+  );
   const activeCampaign   = ref<Campaign | null>(null);
 
   // Decrypted keys per provider

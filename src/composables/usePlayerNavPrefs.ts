@@ -5,6 +5,7 @@ import { ALL_PLAYER_NAV } from "@/lib/playerNav";
 const NAV_ORDER_KEY = "grimoire_nav_order";
 
 function loadJson<T>(key: string, fallback: T): T {
+  if (typeof localStorage === "undefined") return fallback;
   try { return JSON.parse(localStorage.getItem(key) ?? "null") ?? fallback; }
   catch { return fallback; }
 }
