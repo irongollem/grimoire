@@ -12,7 +12,7 @@ export const routes: RouteRecordRaw[] = [
     path: "/pricing",
     name: "pricing",
     component: () => import("@/views/PricingView.vue"),
-    meta: { layout: "marketing", title: "Pricing" },
+    meta: { layout: "marketing", requiresGuest: true, title: "Pricing" },
   },
 
   // ── Auth (no sidebar layout) ──────────────────────────────────────────

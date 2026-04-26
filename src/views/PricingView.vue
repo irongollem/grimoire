@@ -4,9 +4,10 @@
     <nav class="flex items-center justify-between px-6 py-4 border-b border-border/40 max-w-5xl mx-auto">
       <RouterLink
         to="/"
-        class="font-cinzel text-xl font-bold text-amber-400 tracking-widest hover:opacity-80 transition-opacity"
+        class="flex items-center gap-1.5 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground transition-colors"
       >
-        Grimoire
+        <span class="text-base leading-none">←</span>
+        <span>Home</span>
       </RouterLink>
       <div class="flex items-center gap-3">
         <RouterLink
