@@ -214,6 +214,7 @@
   />
 
   <PaywallModal v-model="showPaywall" resource="notes" />
+  <PaywallModal v-model="showAiPaywall" message="AI scene illustration is a Pro feature. Upgrade to generate artwork from your session notes." />
 </template>
 
 <script setup lang="ts">
@@ -254,6 +255,7 @@ import { getCurrentUser } from "@/lib/supabase";
 import { storeToRefs } from "pinia";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
+import { useSubscription } from "@/composables/useSubscription";
 
 const CATEGORIES: { value: NoteCategory; label: string }[] = [
   { value: "general", label: "General" },
@@ -346,13 +348,20 @@ watch(
 // ── Chronicler ────────────────────────────────────────────────────────────────
 const showChroniclerGenerate = ref(false);
 const showChroniclerLibrary  = ref(false);
+const showAiPaywall          = ref(false);
 
 const campaignStore = useCampaignStore();
 const isOpenAiImageProvider = computed(
   () => (campaignStore.activeCampaign?.image_provider ?? "openai") === "openai",
 );
 
+const { isPro } = useSubscription();
+
 function openChroniclerGenerate() {
+  if (!isPro.value) {
+    showAiPaywall.value = true;
+    return;
+  }
   showChroniclerGenerate.value = true;
 }
 
