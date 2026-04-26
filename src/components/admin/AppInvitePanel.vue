@@ -62,7 +62,7 @@
           <!-- Generate new invite -->
           <div class="space-y-3">
             <h3 class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-              New "Try Me" Link
+              New Invite Link
             </h3>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <input
@@ -78,6 +78,21 @@
                 placeholder="Uses (default 1)"
                 class="rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
+            </div>
+            <!-- Plan picker -->
+            <div class="flex items-center gap-1.5">
+              <button
+                v-for="opt in planOptions"
+                :key="opt.value"
+                type="button"
+                class="px-3 py-1 rounded-md font-cinzel text-[11px] font-semibold tracking-wider border transition-colors"
+                :class="newGrantedPlan === opt.value
+                  ? opt.activeClass
+                  : 'border-border text-muted-foreground hover:text-foreground'"
+                @click="newGrantedPlan = opt.value"
+              >
+                {{ opt.label }}
+              </button>
             </div>
             <div class="flex items-center gap-2">
               <input
@@ -113,9 +128,18 @@
             >
               <div class="flex items-start justify-between gap-2">
                 <div>
-                  <p v-if="invite.label" class="font-cinzel text-xs font-semibold text-foreground">
-                    {{ invite.label }}
-                  </p>
+                  <div class="flex items-center gap-2">
+                    <p v-if="invite.label" class="font-cinzel text-xs font-semibold text-foreground">
+                      {{ invite.label }}
+                    </p>
+                    <span
+                      v-if="invite.granted_plan !== 'free'"
+                      class="px-1.5 py-0.5 rounded font-cinzel text-[10px] font-semibold tracking-wider uppercase"
+                      :class="invite.granted_plan === 'admin'
+                        ? 'bg-primary/10 text-primary'
+                        : 'bg-amber-500/10 text-amber-400'"
+                    >{{ invite.granted_plan }}</span>
+                  </div>
                   <p class="font-fell text-xs text-muted-foreground italic">
                     {{ invite.use_count }}{{ invite.max_uses ? `/${invite.max_uses}` : '' }} uses
                     <span v-if="invite.expires_at"> · expires {{ formatDate(invite.expires_at) }}</span>
@@ -163,6 +187,7 @@ import { ref, computed } from "vue";
 import { ShieldCheck, Plus, Trash2, Copy, Check, Upload } from "lucide-vue-next";
 import { useAppInvites, useCreateAppInvite, useDeleteAppInvite } from "@/composables/useAppInvites";
 import type { AppInvite } from "@/composables/useAppInvites";
+import type { GrantedPlan } from "@/composables/useAppInvites";
 import { useBulkPublishSrdArtDefaults, useSrdArtDefaultStats } from "@/composables/useSrdArtDefaults";
 import type { SrdArtDefaultStats } from "@/composables/useSrdArtDefaults";
 import { useBulkMarkSrdMonsterArtAsCanonical } from "@/composables/useSrdMonsterArt";
@@ -181,6 +206,13 @@ const invites = computed(() => invitesQuery.data.value ?? []);
 const newLabel = ref("");
 const newExpiry = ref("");
 const newMaxUses = ref<number | null>(1);
+const newGrantedPlan = ref<GrantedPlan>("free");
+
+const planOptions: { value: GrantedPlan; label: string; activeClass: string }[] = [
+  { value: "free",   label: "Free",   activeClass: "border-border bg-muted text-foreground" },
+  { value: "tester", label: "Tester", activeClass: "border-amber-500/50 bg-amber-500/10 text-amber-400" },
+  { value: "admin",  label: "Admin",  activeClass: "border-primary/50 bg-primary/10 text-primary" },
+];
 const copiedId = ref<string | null>(null);
 
 function signupUrl(token: string) {
@@ -202,11 +234,13 @@ function handleCreate() {
   if (newLabel.value.trim()) payload.label = newLabel.value.trim();
   if (newExpiry.value) payload.expires_at = new Date(newExpiry.value).toISOString();
   payload.max_uses = newMaxUses.value ?? 1;
+  payload.granted_plan = newGrantedPlan.value;
   createInvite.mutate(payload, {
     onSuccess: () => {
       newLabel.value = "";
       newExpiry.value = "";
       newMaxUses.value = 1;
+      newGrantedPlan.value = "free";
     },
   });
 }

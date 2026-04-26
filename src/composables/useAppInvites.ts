@@ -3,6 +3,8 @@ import { supabase } from "@/lib/supabase";
 
 const QUERY_KEY = "app-invites";
 
+export type GrantedPlan = "free" | "tester" | "admin";
+
 export interface AppInvite {
   id: string;
   token: string;
@@ -10,10 +12,11 @@ export interface AppInvite {
   expires_at: string | null;
   max_uses: number | null;
   use_count: number;
+  granted_plan: GrantedPlan;
   created_at: string;
 }
 
-export type AppInviteInsert = Partial<Pick<AppInvite, "label" | "expires_at" | "max_uses">>;
+export type AppInviteInsert = Partial<Pick<AppInvite, "label" | "expires_at" | "max_uses" | "granted_plan">>;
 
 async function fetchAppInvites(): Promise<AppInvite[]> {
   const { data, error } = await supabase
