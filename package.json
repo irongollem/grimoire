@@ -9,7 +9,8 @@
     "build": "vue-tsc -b && vite-ssg build",
     "preview": "vite preview",
     "lint": "oxlint --config oxlint.json src/",
-    "lint:fix": "oxlint --config oxlint.json --fix src/"
+    "lint:fix": "oxlint --config oxlint.json --fix src/",
+    "stripe:setup": "node --env-file=.env.local scripts/stripe-setup.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
@@ -57,6 +58,7 @@
     "@vitejs/plugin-vue": "^6.0.6",
     "oxlint": "^1.60.0",
     "portless": "^0.10.2",
+    "stripe": "^22.1.0",
     "tailwindcss": "^4.0.0",
     "typescript": "~5.7.2",
     "vite": "^8.0.8",
