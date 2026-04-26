@@ -1,0 +1,341 @@
+# World-Building: Atlas, Quests & Factions
+
+## Overview
+
+Three interconnected modules for tracking the physical and political geography of a campaign: **Atlas** manages the location hierarchy and maps, **Quest Log** tracks adventures and objectives, and **Factions** models the organisations that shape the world. All three support granular player visibility — the DM controls what each player sees in the `/play/*` portal.
+
+---
+
+## Atlas (Locations)
+
+### DM View
+
+Route: `/locations` (list), `/locations/new`, `/locations/:id`, `/locations/:id?edit=true`
+
+**List page** (`LocationsView.vue`)
+
+- Title: "Atlas", subtitle: "Continents, cities, dungeons, and every place in between"
+- Filter bar: free-text search + type dropdown (all 17 location types)
+- Action buttons: **New Location** (primary), **Populate Setting** (bulk-inserts preset locations for the campaign's setting/calendar, e.g. Faerûn), **Populate Planes** (bulk-inserts the 21 standard D&D cosmological planes). Both populate buttons are idempotent — they skip names that already exist and report how many were added.
+- List rendered by `LocationList.vue`
+
+**Detail page** (`LocationDetailView.vue` + `LocationSheet.vue` / `LocationEditor.vue`)
+
+The detail page follows the sheet + editor convention: existing locations show a read-only sheet; adding `?edit=true` flips to the editor. New locations go straight into the editor. A breadcrumb showing the full ancestor chain (Locations → Parent → … → Current) is shown in both modes.
+
+**Location editor fields:**
+
+- **Name** (required), **Type** (one of 17 types, see below), **Sigil/Emblem image** (portrait aspect, uploaded to `location-images` bucket)
+- **Parent** — `EntityCombobox` picking any other location; setting this places the location in the hierarchy
+- **Child locations** — inline tag-style list of existing children; an inline search box lets the DM re-parent existing locations OR create a new child (navigates to `/locations/new?parent=id&name=…`)
+- **Tags** — `TagInput` component
+- **Calendar events** — compact inline `EntityCalendarSection` widget
+- **Description** — `RichTextEditor` (Tiptap, full formatting)
+- **Player Sharing panel** (hidden when creating new):
+  - **Player Summary** — a plain-text teaser always visible to players who can see the location
+  - **Share full description** — toggle (boolean)
+  - **Share linked NPCs** — toggle; when on, NPCs whose `location_id` equals this location appear in the player portal under "People in the Area"
+  - **Share inventory with players** — toggle; only shown for store/tavern/inn types
+  - **Player visibility** — `PlayerVisibilityToggle` picks which party member UUIDs are in `player_visible_to[]`
+- **Proprietor** (store/tavern/inn only) — NPC combobox; used as the sender name in vendor chat messages
+- **Store Inventory** — `StoreInventory` component, only for store/tavern/inn types; also shown in view mode so the DM can restock without entering edit mode
+- **Map** — upload landscape image; once uploaded an interactive `LocationMap` component appears with:
+  - DM can click to place **pins** on the map, each linked to a direct child location (or a pinnable descendant surfaced through "vague container" types — regions/continents recurse transparently so individual towns appear on a regional map)
+  - Each pin has `visible_to_players` flag (shown/hidden independently)
+  - "Share with players" toggle for the whole map
+  - Compact / Full-size toggle; "Change map" and "Remove" buttons
+
+**Location sheet (view mode) — read-only sections:**
+
+- Sigil + name + type badge + tags
+- Description (only rendered when Tiptap JSON has text content)
+- Interactive map with pins (clicking a pin navigates to the child location)
+- Sub-locations — chip links to each direct child
+- **Store** — `StoreInventory` available in read mode for quick restock
+- **People in the Area** — NPCs assigned to this location or any descendant, shown as cards (first 3, then "Show all N"); links to NPC detail
+- **Encounters Here** — encounters linked to this location; links to encounter detail
+- **Currently Here** — party members whose `current_location_id` equals this location; links to party member detail
+- **Move a party member here** — available in edit mode via an `EntityCombobox` + "Move here" button
+
+**Location type taxonomy** (17 types, each with a distinct colour dot):
+
+- _Vague containers_ (not useful as single map pins): World, Plane, Continent, Region, Country
+- _Concrete place types_: City, Town, Village, District, Building, Dungeon, Wilderness, Other
+- _Store types_ (support inventory): Store, Tavern, Inn
+- _Other_: Room
+
+**Hierarchy**: unlimited depth; parent/child relationship is a single `parent_id` FK. The `useLocationTree` composable builds a depth-annotated flat list for indented combobox display across the app. `getPinnableDescendants()` recurses through vague containers to surface pinnable leaves (capped at 60 per map).
+
+**Bulk seeding**: `SETTING_LOCATIONS` data maps calendar IDs to preset location arrays (e.g. Faerûn towns). `PLANAR_LOCATIONS` covers the 21 cosmological planes. Both use a two-pass insert: all records first, then parent links resolved by name.
+
+### Player View
+
+Route: `/play/locations` (embedded in player portal via `PlayerLocationsView.vue`)
+
+Players see only locations explicitly shared with them (`player_visible_to` contains their `party_member_id`). A location whose parent was not shared still appears at depth 0 so orphaned children are never invisible.
+
+**List layout:** collapsible tree with depth-based left indentation (16 px per level). Two toggles per entry:
+
+- **Main bar** (click) — expands/collapses child locations; shows a chevron indicator when shared children exist
+- **Details button** (Eye icon, right side) — toggles an inline detail panel below the entry
+
+Collapse/detail open state is persisted in `useUiStore` (`atlasChildrenOpen`, `atlasDetailOpen`) so it survives in-session navigation.
+
+**Filter bar:** text search (name, player_summary, and optionally shared description) + type dropdown; when filtering, the tree flattens to a simple matched list. A "Close all" button collapses all open panels.
+
+**Detail panel contents** (when expanded with Details button):
+
+- Sigil image (click → fullscreen lightbox overlay)
+- Player summary text
+- Interactive map (if `is_map_shared`): shows only pins with `visible_to_players = true`. Players can:
+  - Click a shared pin → scrolls to and expands that location in the list
+  - "Go there" pin action → same as click (scroll + expand)
+  - "Watch" pin action → opens a bottom-sheet modal with the sub-location's art, player summary, and a personal notes widget (even for unshared sub-locations where the pin still provides denormalised name/image)
+  - Compact / Full-size toggle
+- Full description (only when `is_description_shared = true`)
+- **Wares** (store/tavern/inn with `is_inventory_shared = true`) — rendered via `PlayerStoreWares`
+- **People in the Area** (when `is_npcs_shared = true`) — NPC cards showing display name, race, occupation (shapeshifter disguise respected via `getNpcDisplayName`)
+- **Player notes widget** — personal notes tied to this location entity
+
+---
+
+## Quest Log
+
+### DM View
+
+Route: `/quests` (list), `/quests/new`, `/quests/:id`, `/quests/:id?edit=true`
+
+**List page** (`QuestsView.vue` + `QuestList.vue`)
+
+- Filter bar: text search (title, summary, tags) with a **Clear** button (only shown when filters are active, state in `useUiStore`)
+- **View toggle**: list view ↔ Kanban board (preference stored in `ui.questsIsKanban`, persists session)
+- **List view**: responsive card grid (1–4 columns), status colour bar at top of each card, summary excerpt, tags (up to 2), time-ago stamp
+- **Kanban board**: 4 columns (Undiscovered, Active, On Hold, Completed, Failed). Cards are draggable — drag to a column header drop zone updates `status` immediately via `useUpdateQuest`. Columns show quest count and a per-card status colour top bar.
+
+**Quest editor fields** (two-column layout on desktop):
+_Left column:_
+
+- **Title** (required), **Status** selector (Undiscovered / Active / On Hold / Completed / Failed, colour-coded), **Player visibility toggle**, Save/Cancel/Delete/Scriptorium buttons
+- **Summary** — plain text, short description
+- **Quest Giver** — NPC combobox
+- **Location** — Location combobox (primary location for this quest)
+- **Part of Quest** — parent quest combobox (supports sub-quest nesting)
+- **Reward Notes** — freetext (XP, reputation, favours…)
+- **Reward Currency** — five-coin grid (PP/GP/EP/SP/CP); "Drop to Chat" button sends the currency pool as a chat message; integrated with `EncounterLoot` component for full loot management (items + multiple currency pools + art objects)
+- **Tags** — `TagInput`
+- **Description** — `RichTextEditor` (full narrative/context)
+- **DM Notes** — separate `RichTextEditor` (session notes, reminders — never shown to players)
+
+_Right column:_
+
+- **Objectives panel** — inline add/remove; each objective has a checkbox (toggle `is_done`) and a visibility toggle (Eye/EyeOff, controls `is_player_visible`). Objectives can only be added after the quest is saved.
+- **Reward panel** — `EncounterLoot` component (items, currency pools, art objects, "Drop pool to chat" and "Drop item to chat" buttons)
+- **Linked Encounters** — combobox to attach encounters; each linked ref has its own `is_player_visible` toggle
+
+**Quest sheet (view mode) — read-only sections:**
+
+- Status badge (colour-coded), Edit/Delete action bar
+- Summary text
+- Meta row: quest giver (links to NPC), primary location (links to location), parent quest (links to quest), tags
+- Description (Tiptap, rendered via `RichTextViewer`)
+- DM Notes (dimmed heading, rendered via `RichTextViewer`)
+- Objectives with interactive check/uncheck and visibility toggle (no edit mode required for these)
+- Rewards — coin text + item chips (link to vault) + freetext rewards note
+- Linked Encounters (section + count)
+- Key NPCs (grid, links to NPC detail)
+- Key Locations (chip links to location detail)
+- Creatures / Monsters (chip links)
+- Sub-quests (list with status badge + link)
+- **Scriptorium export** button — creates a Scriptorium document from this quest's content
+
+**Quest nesting**: `parent_quest_id` supports one level of official nesting (sub-quests shown on parent sheet). No depth limit in the schema.
+
+**Ref system** (`quest_refs` table): quests maintain a set of typed references (NPC / Location / Monster / Encounter), each with an `is_player_visible` flag that controls what the player portal shows. This is separate from the primary giver NPC and primary location fields.
+
+**Status lifecycle:** Undiscovered → Active → On Hold / Completed / Failed. Undiscovered quests exist in the DM's log but are excluded from the player portal query (`usePlayerVisibleQuests` filters on `player_visible_to IS NOT NULL`).
+
+### Player View
+
+Route: `/play/quests` (list), `/play/quests/:id` (detail)
+
+**Quest list** (`PlayerQuestsView.vue`)
+
+- Shows only quests where `player_visible_to` is non-null (the DM has explicitly shared the quest)
+- Grouped into four sections: Active, On Hold, Completed, Failed (Undiscovered never appears)
+- Each entry: title, status badge (colour-coded), summary excerpt, rewards hint (gold star icon + rewards text)
+- Clicking navigates to the detail view
+
+**Quest detail** (`PlayerQuestDetailView.vue`)
+
+- Title + colour-coded status badge
+- Meta row: quest giver name (clickable → NPC lightbox modal), primary location name
+- Summary text
+- **Objectives** — only objectives with `is_player_visible = true` are shown; checkboxes are read-only (state display only); progress counter (done/total)
+- **Rewards** — shown when quest has rewards text, items, or currency (freetext only in the current player view)
+- **Key NPCs** — only refs with `is_player_visible = true`; clicking opens an NPC lightbox modal (portrait shown if in `player_visible_fields`; name, race, occupation shown per field permissions; includes a personal notes widget)
+- **Key Locations** — only player-visible refs; display only (no click-through)
+- **Creatures** — only player-visible refs; display only
+- **Player notes widget** — personal notes for this quest
+
+---
+
+## Factions
+
+### DM View
+
+Route: `/factions` (list), `/factions/new`, `/factions/:id`, `/factions/:id?edit=true`
+
+**List page** (`FactionListView.vue`)
+
+- Filter bar: text search (name, tags) + type dropdown; state in `useUiStore` with Clear button
+- "Populate Setting" button — bulk-inserts seed factions for the active campaign's setting (only shown when the campaign has a recognised `calendar_id` with faction seed data); idempotent, deduplicates by name
+- Responsive card grid (1–3 columns): emblem thumbnail (or shield placeholder), name, type, tags (up to 3), Eye icon when `player_visible_to` is non-empty
+
+**Faction editor** (`FactionEditor.vue`) — two-column layout:
+_Left column:_ emblem image (square, click to upload, `asset-images` bucket), type selector (`EntityCombobox`), alignment selector (9 standard alignments), player visibility toggle (`PlayerVisibilityToggle`), tags (`TagInput`)
+_Right column:_ name, description/notes (`RichTextEditor`, placeholder: "History, motives, known activities…"), Save/Cancel/Delete buttons
+
+**Faction detail page** (`FactionDetailView.vue`)
+Shows the sheet or editor (via `?edit=true`), then below it always-visible sub-sections (rendered even in edit mode):
+
+- **FactionMembersSection** — NPC members. Combobox to add NPCs; each row shows NPC portrait thumbnail, name, occupation, role (Leader/Officer/Enforcer/Member/Initiate/Associate/Agent/Informant/Unknown), status (Active/Retired/Defected/Expelled/Deceased with colour badge). Role and status are inline-editable. Remove button per row.
+- **FactionPartyMembersSection** — PC members (party characters). Same structure; role-editable.
+- **FactionRelationsSection** — Directional inter-faction relations. Outgoing and incoming relations shown separately. Relation types: Allied, Friendly, Neutral, Suspicious, Rival, Hostile, Secret Ally, Secret Enemy (each with colour). Upsert on `(faction_id, target_faction_id)` unique constraint — adding the same relation again updates it.
+- **FactionLocationsSection** — Associated locations (with optional notes per link). Combobox + add button; remove per row.
+- **FactionItemsSection** — Associated items (with optional notes per link). Same pattern.
+- **EntityNotesPanel** — DM notes attached to the faction entity.
+
+### Player View
+
+Route: `/play/factions` (embedded in player portal via `PlayerFactionsView.vue`)
+
+#### Faction list
+
+- Shows factions the player can see: factions where they are a member (`faction_party_members` row exists) OR where their `party_member_id` is in the faction's `player_visible_to[]` array
+- In DM preview mode the client filters to the same criteria
+- Factions the player belongs to float to the top (sorted first), then alphabetical within each group; member factions get a green border highlight
+- Filter: text search on name, type, tags
+- Card grid (1–2 columns): emblem thumbnail, name, type, tags (up to 3)
+- Clicking a card opens the **detail modal** (fullscreen overlay)
+
+**Faction detail modal**
+
+- Header: emblem (larger), name, type · alignment
+- About: faction description rendered via `RichTextViewer`
+- **Known Members** (only shown if the player is a member of this faction):
+  - Heading includes the player's role ("Member", "Officer", etc.)
+  - PC members (party characters): name, species · class, role; the player's own character highlighted in green with "(You)" badge
+  - NPC members with `status = "Active"`: display name (shapeshifter-aware via `getNpcDisplayName`), race · occupation, role
+  - Uses player-scoped queries (`usePlayerFactionNpcs`, `usePlayerFactionPartyMembers`) that only return data if the player is a faction member
+- **Player notes widget** — personal notes for this faction
+
+---
+
+## Key Capabilities / USPs
+
+- **Unlimited location hierarchy** with breadcrumb navigation at every level; parent/child wiring can be done at creation or retroactively from any location's editor.
+- **Interactive map pinning**: DM drops pins onto uploaded map images and links each to a child location. The pin picker recurses through vague container types (regions/continents) to surface concrete towns without flattening the hierarchy.
+- **Granular per-player visibility**: all three modules use a `player_visible_to: string[]` array of party member UUIDs — the DM selects which specific players see each item (not just a global "visible" flag).
+- **Layered location sharing**: four independent toggles (summary, full description, linked NPCs, inventory/store wares) give the DM fine-grained control over what each revealed location exposes.
+- **Quest objective visibility**: each individual objective has its own `is_player_visible` toggle, so the DM can reveal objectives one at a time.
+- **Quest ref system**: a typed reference table (`quest_refs`) links quests to NPCs, locations, monsters, and encounters with individual player-visibility flags, separate from the primary giver NPC / location links.
+- **Quest Kanban board** with drag-and-drop status changes; List view and Kanban view toggle persisted per session.
+- **Sub-quests**: quests support `parent_quest_id` for nesting (displayed on parent's sheet as a sub-quest list).
+- **Faction relationship graph**: bidirectional inter-faction relations with 8 relation types (Allied → Secret Enemy), queried as outgoing + incoming so both sides see the link.
+- **Faction member roster** distinguishes NPC members (with role + lifecycle status) from PC members (party characters), and exposes them to players who belong to the faction.
+- **Setting seed data**: Atlas and Factions both ship "Populate Setting" buttons that bulk-seed campaign-appropriate locations/factions from static data keyed by `calendar_id`.
+- **Planar cosmology**: "Populate Planes" seeds all 21 standard D&D planes with correct parent hierarchy (e.g. Astral Sea as parent of outer planes).
+- **Store/vendor integration**: Store, Tavern, and Inn location types support a `StoreInventory` component (editable in both view and edit modes) with an optional proprietor NPC. When `is_inventory_shared` is toggled, the wares list appears in the player portal.
+- **Collapsible player atlas**: the player-facing Atlas keeps tree expand/collapse and detail-panel open state in `useUiStore` so the player's navigation context survives tab switching.
+
+---
+
+## Data Fields
+
+### Location (`locations` table)
+
+| Field                   | Type             | Notes                                                                                                                                   |
+| ----------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`                  | string           | Required                                                                                                                                |
+| `location_type`         | enum (17 values) | World, Plane, Continent, Region, Country, City, Town, Village, District, Building, Store, Tavern, Inn, Room, Dungeon, Wilderness, Other |
+| `parent_id`             | uuid FK          | Null = top-level                                                                                                                        |
+| `description`           | Tiptap JSON      | DM-only unless `is_description_shared`                                                                                                  |
+| `notes`                 | text             | (currently unused in UI)                                                                                                                |
+| `tags`                  | string[]         |                                                                                                                                         |
+| `image_url`             | string           | Sigil/emblem (portrait)                                                                                                                 |
+| `map_url`               | string           | Map image (landscape)                                                                                                                   |
+| `map_pins`              | MapPin[]         | JSONB array; each pin has `child_location_id`, `child_name`, `child_type`, `child_image_url`, `x`, `y`, `visible_to_players`            |
+| `is_map_shared`         | boolean          |                                                                                                                                         |
+| `player_visible_to`     | uuid[]           | Party member IDs who can see this location                                                                                              |
+| `player_summary`        | string           | Plain text always shown to players                                                                                                      |
+| `is_description_shared` | boolean          |                                                                                                                                         |
+| `is_npcs_shared`        | boolean          |                                                                                                                                         |
+| `is_inventory_shared`   | boolean          | Store/tavern/inn only                                                                                                                   |
+| `npc_owner_id`          | uuid FK          | Proprietor NPC                                                                                                                          |
+
+### Quest (`quests` table)
+
+| Field                        | Type        | Notes                                                             |
+| ---------------------------- | ----------- | ----------------------------------------------------------------- |
+| `title`                      | string      | Required                                                          |
+| `status`                     | enum        | undiscovered, active, on_hold, completed, failed                  |
+| `summary`                    | string      | Short description                                                 |
+| `description`                | Tiptap JSON | Full narrative                                                    |
+| `notes`                      | Tiptap JSON | DM-only session notes                                             |
+| `giver_npc_id`               | uuid FK     | Primary quest giver NPC                                           |
+| `location_id`                | uuid FK     | Primary location                                                  |
+| `parent_quest_id`            | uuid FK     | For sub-quests                                                    |
+| `rewards`                    | string      | Freetext reward description                                       |
+| `reward_pp/gp/ep/sp/cp`      | integer     | Coin reward amounts                                               |
+| `reward_item_ids`            | uuid[]      | Item FK array                                                     |
+| `reward_currency_pools`      | JSONB       | Multiple named currency pools                                     |
+| `reward_art_objects`         | JSONB       | Art object rewards                                                |
+| `tags`                       | string[]    |                                                                   |
+| `player_visible_to`          | uuid[]      | Null = not yet shared; non-null = shared with those party members |
+| `started_at` / `resolved_at` | timestamp   |                                                                   |
+
+### QuestObjective (`quest_objectives` table)
+
+| Field               | Type    | Notes                                 |
+| ------------------- | ------- | ------------------------------------- |
+| `description`       | string  | Objective text                        |
+| `is_done`           | boolean | Togglable in both view and edit modes |
+| `is_player_visible` | boolean | Per-objective visibility toggle       |
+| `sort_order`        | integer | Display order                         |
+
+### QuestRef (`quest_refs` table)
+
+| Field               | Type    | Notes                             |
+| ------------------- | ------- | --------------------------------- |
+| `ref_type`          | enum    | npc, location, monster, encounter |
+| `ref_id`            | uuid    | ID of the referenced entity       |
+| `is_player_visible` | boolean | Individual ref visibility         |
+
+### Faction (`factions` table)
+
+| Field               | Type        | Notes                                                                                                |
+| ------------------- | ----------- | ---------------------------------------------------------------------------------------------------- |
+| `name`              | string      | Required                                                                                             |
+| `faction_type`      | string      | Guild, Government, Religion, Criminal, Military, Merchant, Secret Society, Cult, Order, Tribe, Other |
+| `description`       | Tiptap JSON | History, motives, activities                                                                         |
+| `emblem_url`        | string      | Square emblem image                                                                                  |
+| `alignment`         | string      | 9 standard alignments                                                                                |
+| `player_visible_to` | uuid[]      | Party member IDs; also shown if player is a faction member                                           |
+| `tags`              | string[]    |                                                                                                      |
+
+### FactionNpc / FactionPartyMember (junction tables)
+
+| Field    | Type   | Notes                                                                             |
+| -------- | ------ | --------------------------------------------------------------------------------- |
+| `role`   | string | Leader, Officer, Enforcer, Member, Initiate, Associate, Agent, Informant, Unknown |
+| `status` | string | Active, Retired, Defected, Expelled, Deceased                                     |
+
+### FactionRelation (`faction_relations` table)
+
+| Field               | Type                              | Notes                                                                            |
+| ------------------- | --------------------------------- | -------------------------------------------------------------------------------- |
+| `faction_id`        | uuid                              | Source faction                                                                   |
+| `target_faction_id` | uuid                              | Target faction                                                                   |
+| `relation_type`     | enum                              | allied, friendly, neutral, suspicious, rival, hostile, secret_ally, secret_enemy |
+| `notes`             | string                            | Optional notes on the relation                                                   |
+| Unique constraint   | `(faction_id, target_faction_id)` | Upsert on conflict                                                               |
