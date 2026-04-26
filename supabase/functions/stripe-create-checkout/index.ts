@@ -61,21 +61,20 @@ serve(async (req: Request) => {
         .eq("user_id", user.id);
     }
 
-    // Resolve price ID: plans table first, env fallback
+    // Resolve price ID from plans table
     const { data: plan } = await admin
       .from("plans")
-      .select("stripe_price_id")
+      .select("stripe_price_id, stripe_annual_price_id")
       .eq("id", "pro")
       .single();
 
     const body = await req.json().catch(() => ({}));
     const interval: "month" | "year" = body.interval === "year" ? "year" : "month";
 
-    // Annual price ID lives in a separate env var until we add stripe_annual_price_id column
     const priceId =
       interval === "year"
-        ? (Deno.env.get("STRIPE_PRO_ANNUAL_PRICE_ID") ?? plan?.stripe_price_id)
-        : plan?.stripe_price_id ?? Deno.env.get("STRIPE_PRO_MONTHLY_PRICE_ID");
+        ? plan?.stripe_annual_price_id
+        : plan?.stripe_price_id;
 
     if (!priceId) {
       return json({ error: "Pro plan price not configured — set stripe_price_id on the pro plan row or STRIPE_PRO_MONTHLY_PRICE_ID env var" }, 500);
