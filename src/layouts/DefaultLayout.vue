@@ -51,7 +51,9 @@ import AiGenerationBadge from "@/components/common/AiGenerationBadge.vue";
 import SoundboardWidget from "@/components/soundboard/SoundboardWidget.vue";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
 import { useCampaignLiveSync } from "@/composables/useCampaignLiveSync";
+import { usePartyLive } from "@/composables/useParty";
 
 useCampaignPresence();
 useCampaignLiveSync();
+usePartyLive();
 </script>

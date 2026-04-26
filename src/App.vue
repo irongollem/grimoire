@@ -56,21 +56,27 @@ const campaignIdToFetch = computed<string | null>(() => {
   );
 });
 
-const { data: earlyCampaign, isLoading: campaignFetching } = useCampaignById(
+const { data: earlyCampaign, isError: campaignLoadError } = useCampaignById(
   () => campaignIdToFetch.value,
 );
 
 // Hold the loading screen until auth is ready AND the active campaign has been
 // fetched (if one is expected). This prevents the "Create your first campaign"
 // flash that occurs when components mount before activeCampaign is hydrated.
+//
+// We do NOT gate on `isLoading` here — there is a one-tick window right after
+// `auth.initialized` becomes true where TanStack Query has set `enabled = true`
+// but hasn't yet set `isFetching = true`. If we gated on `isLoading`, the
+// loading screen would briefly vanish during that window, the dashboard would
+// mount (showing empty party/quests), and then the loading screen would return
+// once fetching starts — causing a remount with a partially-initialised state.
+// Instead: keep the screen up as long as a campaign is expected but not loaded,
+// and release it on error so a fetch failure doesn't block the app forever.
 const showLoading = computed(() => {
   if (import.meta.env.SSR) return false;
-  return (
-    !auth.initialized ||
-    (!!campaignIdToFetch.value &&
-      !campaignStore.activeCampaign &&
-      campaignFetching.value)
-  );
+  if (!auth.initialized) return true;
+  if (campaignIdToFetch.value && !campaignStore.activeCampaign && !campaignLoadError.value) return true;
+  return false;
 });
 
 watch(
