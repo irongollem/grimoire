@@ -83,13 +83,14 @@
             class="flex flex-col rounded-lg border border-border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
             @click="openCompanion(entry.data)"
           >
-            <div class="relative aspect-3/4 bg-muted overflow-hidden shrink-0">
+            <div class="relative aspect-3/4 bg-muted overflow-hidden shrink-0 group">
               <FocalImage
                 v-if="entry.data.portrait_url"
                 :src="entry.data.portrait_url"
                 :alt="entry.data.name"
                 format="portrait"
                 :focal-point="entry.data.portrait_focal_point ?? null"
+                class="group-hover:scale-105 transition-transform duration-300"
               />
               <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
                 <UserIcon class="h-10 w-10" />
@@ -105,14 +106,20 @@
                 <p class="font-fell text-xs text-muted-foreground italic truncate">{{ ownerName(entry.data) || 'Party companion' }}</p>
               </div>
               <div>
-                <div class="flex items-center justify-between mb-0.5">
+                <template v-if="showCompanionNumericHp(entry.data)">
+                  <div class="flex items-center justify-between mb-0.5">
+                    <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">HP</span>
+                    <span class="font-cinzel text-[10px]" :class="companionHpColor(entry.data)">{{ entry.data.current_hp }} / {{ entry.data.max_hp }}</span>
+                  </div>
+                  <div class="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div class="h-full rounded-full transition-all" :class="companionHpBarColor(entry.data)"
+                      :style="{ width: `${Math.max(0, Math.min(100, (entry.data.current_hp / entry.data.max_hp) * 100))}%` }" />
+                  </div>
+                </template>
+                <template v-else>
                   <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">HP</span>
-                  <span class="font-cinzel text-[10px]" :class="companionHpColor(entry.data)">{{ entry.data.current_hp }} / {{ entry.data.max_hp }}</span>
-                </div>
-                <div class="h-1.5 rounded-full bg-muted overflow-hidden">
-                  <div class="h-full rounded-full transition-all" :class="companionHpBarColor(entry.data)"
-                    :style="{ width: `${Math.max(0, Math.min(100, (entry.data.current_hp / entry.data.max_hp) * 100))}%` }" />
-                </div>
+                  <p class="font-fell text-xs italic" :class="companionHpColor(entry.data)">{{ companionImmersiveHpLabel(entry.data) }}</p>
+                </template>
               </div>
               <div class="flex items-center gap-2 flex-wrap">
                 <span class="flex items-center gap-1">
@@ -559,6 +566,17 @@ function companionHpColor(c: Companion) {
 function companionHpBarColor(c: Companion) {
   const pct = c.current_hp / c.max_hp;
   return pct < 0.33 ? "bg-destructive" : pct < 0.66 ? "bg-amber-400" : "bg-elven-green";
+}
+function showCompanionNumericHp(c: Companion) {
+  return healthVis.value === "strategic" || c.owner_party_member_id === viewerMemberId.value;
+}
+function companionImmersiveHpLabel(c: Companion) {
+  const p = (c.current_hp / c.max_hp) * 100;
+  if (p <= 0) return "Dead";
+  if (p <= 25) return "Bloodied";
+  if (p <= 50) return "Wounded";
+  if (p <= 75) return "Hurt";
+  return "Healthy";
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
