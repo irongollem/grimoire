@@ -178,7 +178,8 @@ const pageTitle = computed(() => {
 const pageDescription = computed(() => {
   const m = resolvedMonster.value;
   if (!m) return "";
-  return `${m.size} ${m.monster_type} · CR ${m.stat_block.challenge_rating}${m.is_srd ? " · SRD 5.1" : ""}`;
+  const sourceLabel = m.is_srd ? ` · ${m.source_title ?? m.source ?? "SRD"}` : "";
+  return `${m.size} ${m.monster_type} · CR ${m.stat_block.challenge_rating}${sourceLabel}`;
 });
 
 // ── Visibility / discovery ────────────────────────────────────────────────────

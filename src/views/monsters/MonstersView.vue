@@ -70,20 +70,18 @@
         @clear="ui.resetMonstersFilters()"
       >
         <ListSearchInput v-model="ui.monstersSearch" placeholder="Search monsters…" />
-        <!--
-          Source pill group is desktop-only: on mobile the row has to fit
-          search + type dropdown + Clear inside the viewport, and SRD-vs-
-          Custom is a rare filter that mobile DMs can surface from desktop
-          when they actually need it. `md:contents` keeps the group
-          transparent to the flex layout at md+ so nothing changes there.
-        -->
-        <div class="hidden md:contents">
-          <ListFilterGroup
-            v-model="ui.monstersFilterSource"
-            :options="SOURCE_OPTIONS"
-            aria-label="Source filter"
-          />
-        </div>
+        <ListFilterSelect
+          v-model="ui.monstersFilterSource"
+          aria-label="Source filter"
+        >
+          <option value="all">All sources</option>
+          <option value="custom">Custom</option>
+          <option
+            v-for="src in enabledSourceData ?? []"
+            :key="src.source_slug"
+            :value="src.source_slug"
+          >{{ src.source_title ?? src.source_slug }}</option>
+        </ListFilterSelect>
         <!--
           Type covers all 14 standard D&D creature types — too many to sit as
           a button row without causing weird widths and wrap on mobile. A
@@ -112,7 +110,6 @@ import { Plus, Wand2, Loader2, Library } from "lucide-vue-next";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
-import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import MonsterList from "@/components/monsters/MonsterList.vue";
@@ -137,12 +134,6 @@ function handleNew() {
   if (!canCreate.value) { showPaywall.value = true; return; }
   router.push("/monsters/new");
 }
-
-const SOURCE_OPTIONS = [
-  { value: "all", label: "All" },
-  { value: "srd", label: "SRD" },
-  { value: "custom", label: "Custom" },
-] as const;
 
 const TYPE_OPTIONS = [
   { value: "all", label: "All types" },

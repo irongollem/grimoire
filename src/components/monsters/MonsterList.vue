@@ -76,9 +76,10 @@
             <div class="flex items-center gap-1 shrink-0">
               <span
                 v-if="monster.is_srd"
-                class="px-1 py-0.5 rounded font-cinzel text-[9px] font-bold tracking-wider bg-muted text-muted-foreground border border-border"
+                :title="monster.source_title ?? monster.source ?? 'SRD'"
+                class="max-w-22 truncate px-1 py-0.5 rounded font-cinzel text-[9px] font-bold tracking-wider bg-muted text-muted-foreground border border-border"
               >
-                SRD
+                {{ monster.source_title ?? monster.source ?? "SRD" }}
               </span>
               <span
                 class="min-w-8 text-center px-1.5 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider text-white"
@@ -311,8 +312,8 @@ function unshare() {
 
 const filtered = computed(() => {
   let list = allMonsters.value ?? [];
-  if (sourceFilter.value === "srd") list = list.filter((m) => m.is_srd);
   if (sourceFilter.value === "custom") list = list.filter((m) => !m.is_srd);
+  else if (sourceFilter.value !== "all") list = list.filter((m) => m.source === sourceFilter.value);
   if (search.value.trim()) {
     const q = search.value.trim().toLowerCase();
     list = list.filter(
