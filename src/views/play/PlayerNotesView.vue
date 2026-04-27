@@ -73,9 +73,9 @@ const notes = computed(() =>
     if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
     // Session notes sort by session_num ascending (nulls last)
     if (a.category === "session" && b.category === "session") {
-      if (a.session_num != null && b.session_num != null) return a.session_num - b.session_num;
-      if (a.session_num != null) return -1;
-      if (b.session_num != null) return 1;
+      if (a.session_num !== null && b.session_num !== null) return a.session_num - b.session_num;
+      if (a.session_num !== null) return -1;
+      if (b.session_num !== null) return 1;
     }
     // Session notes before other categories
     if (a.category === "session" && b.category !== "session") return -1;

@@ -358,6 +358,10 @@
                   <input v-model="statBlock.senses" placeholder="Darkvision 60 ft., passive Perception 14" class="field-input" />
                 </div>
                 <div>
+                  <label class="field-label">Damage Vulnerabilities</label>
+                  <input v-model="statBlock.damage_vulnerabilities" class="field-input" placeholder="bludgeoning" />
+                </div>
+                <div>
                   <label class="field-label">Damage Resistances</label>
                   <input v-model="statBlock.damage_resistances" class="field-input" />
                 </div>
@@ -384,7 +388,10 @@
                 :challenge-rating="statBlock.challenge_rating"
               />
               <TraitSection v-model="statBlock.actions" label="Actions" />
+              <TraitSection v-model="statBlock.bonus_actions" label="Bonus Actions" />
+              <TraitSection v-model="statBlock.reactions" label="Reactions" />
               <TraitSection v-model="statBlock.legendary_actions" label="Legendary Actions" />
+              <TraitSection v-model="statBlock.lair_actions" label="Lair Actions" />
             </div>
           </div>
         </div>
@@ -622,12 +629,16 @@ function onMonsterLinked(monsterId: string | null) {
     skills:             skillsToString(msb.skills),
     senses:             msb.senses ?? '',
     languages:          msb.languages ?? '',
+    damage_vulnerabilities: msb.damage_vulnerabilities ?? '',
     damage_resistances: msb.damage_resistances ?? '',
     damage_immunities:  msb.damage_immunities ?? '',
     condition_immunities: msb.condition_immunities ?? '',
     special_abilities:  msb.special_abilities ? [...msb.special_abilities] : [],
     actions:            msb.actions ? [...msb.actions] : [],
+    bonus_actions:      msb.bonus_actions ? [...msb.bonus_actions] : [],
+    reactions:          msb.reactions ? [...msb.reactions] : [],
     legendary_actions:  msb.legendary_actions ? [...msb.legendary_actions] : [],
+    lair_actions:       msb.lair_actions ? [...msb.lair_actions] : [],
     spellcasting:       msb.spellcasting ?? null,
   })
 }
@@ -691,9 +702,13 @@ interface FlatStatBlock {
   condition_immunities: string
   senses: string
   languages: string
+  damage_vulnerabilities: string
   special_abilities: StatBlock['special_abilities']
   actions: StatBlock['actions']
+  bonus_actions: StatBlock['bonus_actions']
+  reactions: StatBlock['reactions']
   legendary_actions: StatBlock['legendary_actions']
+  lair_actions: StatBlock['lair_actions']
   spellcasting: StatBlock['spellcasting'] | null
 }
 
@@ -711,6 +726,7 @@ const statBlock = reactive<FlatStatBlock>({
   proficiency_bonus: String(props.npc?.stat_block?.proficiency_bonus ?? ''),
   saving_throws: props.npc?.stat_block?.saving_throws ?? '',
   skills: skillsToString(props.npc?.stat_block?.skills),
+  damage_vulnerabilities: props.npc?.stat_block?.damage_vulnerabilities ?? '',
   damage_resistances: props.npc?.stat_block?.damage_resistances ?? '',
   damage_immunities: props.npc?.stat_block?.damage_immunities ?? '',
   condition_immunities: props.npc?.stat_block?.condition_immunities ?? '',
@@ -718,7 +734,10 @@ const statBlock = reactive<FlatStatBlock>({
   languages: props.npc?.stat_block?.languages ?? '',
   special_abilities: props.npc?.stat_block?.special_abilities ? [...props.npc.stat_block.special_abilities] : [],
   actions: props.npc?.stat_block?.actions ? [...props.npc.stat_block.actions] : [],
+  bonus_actions: props.npc?.stat_block?.bonus_actions ? [...props.npc.stat_block.bonus_actions] : [],
+  reactions: props.npc?.stat_block?.reactions ? [...props.npc.stat_block.reactions] : [],
   legendary_actions: props.npc?.stat_block?.legendary_actions ? [...props.npc.stat_block.legendary_actions] : [],
+  lair_actions: props.npc?.stat_block?.lair_actions ? [...props.npc.stat_block.lair_actions] : [],
   spellcasting: props.npc?.stat_block?.spellcasting ?? null,
 })
 
@@ -796,6 +815,7 @@ function buildStatBlock(): StatBlock | null {
     ...(statBlock.proficiency_bonus ? { proficiency_bonus: Number(statBlock.proficiency_bonus) } : {}),
     ...(statBlock.saving_throws ? { saving_throws: statBlock.saving_throws } : {}),
     ...(Object.keys(skillsRecord).length ? { skills: skillsRecord } : {}),
+    ...(statBlock.damage_vulnerabilities ? { damage_vulnerabilities: statBlock.damage_vulnerabilities } : {}),
     ...(statBlock.damage_resistances ? { damage_resistances: statBlock.damage_resistances } : {}),
     ...(statBlock.damage_immunities ? { damage_immunities: statBlock.damage_immunities } : {}),
     ...(statBlock.condition_immunities ? { condition_immunities: statBlock.condition_immunities } : {}),
@@ -803,7 +823,10 @@ function buildStatBlock(): StatBlock | null {
     ...(statBlock.languages ? { languages: statBlock.languages } : {}),
     ...(statBlock.special_abilities?.length ? { special_abilities: statBlock.special_abilities } : {}),
     ...(statBlock.actions?.length ? { actions: statBlock.actions } : {}),
+    ...(statBlock.bonus_actions?.length ? { bonus_actions: statBlock.bonus_actions } : {}),
+    ...(statBlock.reactions?.length ? { reactions: statBlock.reactions } : {}),
     ...(statBlock.legendary_actions?.length ? { legendary_actions: statBlock.legendary_actions } : {}),
+    ...(statBlock.lair_actions?.length ? { lair_actions: statBlock.lair_actions } : {}),
     ...(statBlock.spellcasting?.entries?.length ? { spellcasting: statBlock.spellcasting } : {}),
   }
 }

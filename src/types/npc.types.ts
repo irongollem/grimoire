@@ -117,7 +117,10 @@ export interface StatBlock {
   languages?: string;
   special_abilities?: Array<{ name: string; description: string }>;
   actions?: Array<{ name: string; description: string }>;
+  bonus_actions?: Array<{ name: string; description: string }>;
+  reactions?: Array<{ name: string; description: string }>;
   legendary_actions?: Array<{ name: string; description: string }>;
+  lair_actions?: Array<{ name: string; description: string }>;
   spellcasting?: SpellcastingBlock;
 }
 

@@ -71,7 +71,10 @@
         <TraitList title="Special Abilities" :traits="npc.stat_block.special_abilities" />
         <SpellcastingList :spellcasting="npc.stat_block.spellcasting" />
         <TraitList title="Actions" :traits="npc.stat_block.actions" />
+        <TraitList title="Bonus Actions" :traits="npc.stat_block.bonus_actions" />
+        <TraitList title="Reactions" :traits="npc.stat_block.reactions" />
         <TraitList title="Legendary Actions" :traits="npc.stat_block.legendary_actions" />
+        <TraitList title="Lair Actions" :traits="npc.stat_block.lair_actions" />
       </template>
       <p v-else class="font-fell text-sm text-muted-foreground italic">No stat block defined for this NPC.</p>
     </div>
