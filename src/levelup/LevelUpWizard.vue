@@ -645,14 +645,17 @@ async function rollHp() {
   if (r) rolledHp.value = r.total;
 }
 
+const subclassHpBonus = computed(() => customSubclass.value?.hp_per_level ?? 0);
+
 /** HP gained at this level-up. Minimum 1 per 5e guidance (no negative levels). */
 const hpGain = computed(() => {
+  const bonus = subclassHpBonus.value;
   if (hpMode.value === "roll") {
     if (rolledHp.value === null) return 0;
-    return Math.max(1, rolledHp.value + conMod.value);
+    return Math.max(1, rolledHp.value + conMod.value + bonus);
   }
-  if (hpMode.value === "max") return Math.max(1, hitDie.value + conMod.value);
-  return Math.max(1, hpAverageValue.value + conMod.value);
+  if (hpMode.value === "max") return Math.max(1, hitDie.value + conMod.value + bonus);
+  return Math.max(1, hpAverageValue.value + conMod.value + bonus);
 });
 
 const currentHitDice = computed(() =>

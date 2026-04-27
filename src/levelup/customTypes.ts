@@ -47,6 +47,8 @@ export interface CustomSubclass {
   features: CustomFeatures;
   steps: CustomStep[];
   resources: CustomResource[];
+  /** Extra HP gained per level in this class, on top of the hit die roll (e.g. Draconic Resilience = 1). */
+  hp_per_level: number | null;
   created_at: string;
   updated_at: string;
 }

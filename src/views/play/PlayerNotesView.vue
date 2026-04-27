@@ -23,7 +23,10 @@
           <Pin v-if="note.is_pinned" class="h-3.5 w-3.5 text-primary shrink-0" />
           <div class="flex-1 min-w-0">
             <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ note.title }}</p>
-            <p class="font-fell text-xs text-muted-foreground italic">{{ CATEGORY_LABELS[note.category] }}</p>
+            <p class="font-fell text-xs text-muted-foreground italic">
+              {{ CATEGORY_LABELS[note.category] }}
+              <span v-if="note.category === 'session' && note.session_num != null"> · Session {{ note.session_num }}</span>
+            </p>
           </div>
           <div class="hidden sm:flex flex-wrap gap-1 shrink-0">
             <span
@@ -67,9 +70,17 @@ const CATEGORY_LABELS: Record<NoteCategory, string> = {
 const { data: notesRaw, isLoading } = useNotes();
 const notes = computed(() =>
   (notesRaw.value ?? []).slice().sort((a, b) => {
-    if (a.is_pinned && !b.is_pinned) return -1;
-    if (!a.is_pinned && b.is_pinned) return 1;
-    return 0;
+    if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
+    // Session notes sort by session_num ascending (nulls last)
+    if (a.category === "session" && b.category === "session") {
+      if (a.session_num != null && b.session_num != null) return a.session_num - b.session_num;
+      if (a.session_num != null) return -1;
+      if (b.session_num != null) return 1;
+    }
+    // Session notes before other categories
+    if (a.category === "session" && b.category !== "session") return -1;
+    if (a.category !== "session" && b.category === "session") return 1;
+    return a.title.localeCompare(b.title);
   }),
 );
 
