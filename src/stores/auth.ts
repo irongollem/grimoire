@@ -89,7 +89,7 @@ export const useAuthStore = defineStore("auth", () => {
         // Without this, every HMR hot-reload stacks up another listener and
         // causes concurrent getSession() calls that fight over navigator.locks.
         authListener?.unsubscribe();
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
           // IMPORTANT: this callback is invoked *inside* the exclusive navigator.locks lock
           // that supabase-js holds during getSession() / token refresh. If we call
           // supabase.from() here (even indirectly via loadMembership), it tries to acquire
@@ -110,6 +110,14 @@ export const useAuthStore = defineStore("auth", () => {
           } else {
             membership.value = null;
             username.value = null;
+            // TOKEN_REFRESHED failure, reuse detection, or explicit sign-out — all
+            // arrive here as SIGNED_OUT. The router guard will redirect to /login on
+            // the next navigation; if we're mid-session we do it immediately.
+            if (event === "SIGNED_OUT" && initialized.value) {
+              setTimeout(() => {
+                if (!user.value) window.location.href = "/login";
+              }, 0);
+            }
           }
         });
         authListener = subscription;
@@ -177,36 +185,13 @@ export const useAuthStore = defineStore("auth", () => {
     if (user.value) await loadMembership(user.value.id, campaignId);
   }
 
-  // Ensure the current JWT is fresh before making DB calls. Called from the router
-  // guard on every navigation so components always mount with a valid token and
-  // don't have to wait for the navigator.locks refresh race themselves.
-  //
-  // If the session refresh takes longer than TIMEOUT_MS (lock stuck due to network
-  // hang), we reload the page — this clears the stuck lock and lets the app restart
-  // cleanly. Better a hard reload than an infinite spinner.
-  async function ensureFreshSession(): Promise<void> {
-    if (!user.value) return; // not logged in — nothing to refresh
-    const expiresAt = session.value?.expires_at; // unix seconds
-    const nowSec = Date.now() / 1000;
-    if (expiresAt && expiresAt > nowSec + 30) {
-      return;
-    }
-
-    const TIMEOUT_MS = 8_000;
-    const result = await Promise.race([
-      supabase.auth.getSession().then(({ data }) => data.session ?? null),
-      new Promise<"timeout">((resolve) => setTimeout(() => resolve("timeout"), TIMEOUT_MS)),
-    ]);
-
-    if (result === "timeout") {
-      window.location.reload();
-      return;
-    }
-
-    session.value = result;
-    user.value = result?.user ?? null;
-    setCachedUser(user.value);
-  }
+  // No-op: autoRefreshToken:true handles all proactive refresh internally, and
+  // every supabase.from() call refreshes the token if needed via _getAccessToken().
+  // The old getSession() call here was racing with the SDK's own refresh timer —
+  // both would send the same (single-use) refresh token, triggering reuse detection
+  // and killing the session. The SIGNED_OUT handler above redirects to /login if
+  // a refresh ever fails. Kept as a function so the router guard call site is unchanged.
+  async function ensureFreshSession(): Promise<void> {}
 
   return {
     user,
