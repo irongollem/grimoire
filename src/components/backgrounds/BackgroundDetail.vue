@@ -38,12 +38,12 @@
 
         <label class="flex flex-col gap-1">
           <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Tool proficiencies</span>
-          <TagInput v-model="form.tool_proficiencies" placeholder="Add a tool…" />
+          <TagPickerInput v-model="form.tool_proficiencies" :groups="TOOL_PROFICIENCY_GROUPS" placeholder="Search tools…" />
         </label>
 
         <label class="flex flex-col gap-1">
           <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Languages</span>
-          <TagInput v-model="form.languages" placeholder="Add a language…" />
+          <TagPickerInput v-model="form.languages" :groups="LANGUAGE_GROUPS" placeholder="Search languages…" />
         </label>
 
         <label class="flex flex-col gap-1">
@@ -107,7 +107,9 @@ import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import TagInput from "@/components/common/TagInput.vue";
+import TagPickerInput from "@/components/common/TagPickerInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
 import { useConfirm } from "@/composables/useConfirm";
 import {
   useCreateBackground,

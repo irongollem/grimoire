@@ -49,10 +49,12 @@ const KEY = "player_journal";
 // ── Fetchers ──────────────────────────────────────────────────────────────────
 
 async function fetchMyEntries(campaignId: string): Promise<PlayerJournalEntry[]> {
+  const user = getCurrentUser();
   const { data, error } = await supabase
     .from("player_journal_entries")
     .select("*")
     .eq("campaign_id", campaignId)
+    .eq("user_id", user!.id)
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data as PlayerJournalEntry[];

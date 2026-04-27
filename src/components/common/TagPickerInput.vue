@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col gap-2">
     <!-- Selected chips -->
-    <div v-if="modelValue.length" class="flex flex-wrap gap-1.5">
+    <div v-if="modelValue.length" class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
       <span
         v-for="(tag, idx) in modelValue"
         :key="tag"

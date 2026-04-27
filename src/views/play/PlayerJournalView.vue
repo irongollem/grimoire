@@ -118,8 +118,8 @@
       </button>
     </div>
 
-    <!-- Category filter (My Journal only) -->
-    <div v-if="activeTab === 'mine'" class="flex flex-wrap gap-1.5">
+    <!-- Category filter -->
+    <div class="flex flex-wrap gap-1.5">
       <button
         type="button"
         class="px-2.5 py-1 rounded-full font-cinzel text-[10px] font-semibold tracking-wider transition-colors border"
@@ -197,6 +197,9 @@
               </span>
               <span v-if="entry.ref_label" class="font-fell text-[11px] text-muted-foreground/70 italic truncate max-w-32">
                 {{ entry.ref_label }}
+              </span>
+              <span v-if="activeTab === 'party' && authorName(entry)" class="font-fell text-[11px] text-muted-foreground/70 italic">
+                by {{ authorName(entry) }}
               </span>
               <span
                 v-if="activeTab === 'mine'"
@@ -347,6 +350,7 @@ import { useAllMonsters } from "@/composables/useMonsters";
 import { usePlayerDiscoveries } from "@/composables/useDiscoveredMonsters";
 import { useEncounters } from "@/composables/useEncounters";
 import { useAuthStore } from "@/stores/auth";
+import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
@@ -355,7 +359,12 @@ import { removeRichTextImages, cleanupRemovedRichTextImages } from "@/composable
 // ── Data ───────────────────────────────────────────────────────────────────────
 const { data: myEntries,     isLoading: loadingMine }   = useMyJournalEntries();
 const { data: sharedEntries, isLoading: loadingShared } = useSharedJournalEntries();
+const { data: campaignMembers } = useCampaignMembers();
 const isLoading = computed(() => loadingMine.value || loadingShared.value);
+
+const memberByUserId = computed(() =>
+  Object.fromEntries((campaignMembers.value ?? []).map((m) => [m.user_id, m])),
+);
 
 // Entity data for context picker — player-scoped to avoid leaking DM data
 const auth = useAuthStore();
@@ -399,7 +408,7 @@ const visibleEntries = computed(() => {
   const entries = activeTab.value === "mine"
     ? (myEntries.value ?? [])
     : (sharedEntries.value ?? []);
-  if (activeTab.value === "mine" && filterCategory.value) {
+  if (filterCategory.value) {
     return entries.filter((e) => e.category === filterCategory.value);
   }
   return entries;
@@ -587,6 +596,10 @@ function isRteEmpty(val: string): boolean {
 function contentPreview(content: string): string {
   const text = plainText(content).replace(/\n+/g, " ").trim();
   return text.slice(0, 200) + (text.length > 200 ? "…" : "");
+}
+
+function authorName(entry: PlayerJournalEntry): string | null {
+  return memberByUserId.value[entry.user_id]?.display_name ?? null;
 }
 
 function formatDate(iso: string): string {
