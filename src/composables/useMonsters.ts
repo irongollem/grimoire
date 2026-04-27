@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { computed, type Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { SRD_MONSTERS, getSrdMonster } from "@/data/srdMonsters";
-import { useSrdMonsterArt } from "@/composables/useSrdMonsterArt";
+import { useEnabledSources } from "@/composables/useEnabledSources";
 import type { Monster, MonsterInsert, MonsterUpdate } from "@/types/monster.types";
 import { deleteByPublicUrl } from "@/lib/storage";
 
@@ -64,37 +64,60 @@ async function deleteMonster(monster: Monster): Promise<void> {
   await deleteByPublicUrl(monster.image_url);
 }
 
+const SRD_QUERY_KEY = "srd-monsters";
+
+async function fetchSrdMonsters(enabledSlugs: string[]): Promise<Monster[]> {
+  if (enabledSlugs.length === 0) return [];
+  const { data, error } = await supabase
+    .from("srd_monsters")
+    .select("*")
+    .in("source", enabledSlugs)
+    .order("name", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((row) => ({ ...row, user_id: "" })) as Monster[];
+}
+
 export function useMonsters() {
   return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchMonsters, staleTime: Infinity });
 }
 
-/** Returns the static SRD bestiary + the user's custom and Open5e-imported
- *  monsters, sorted by name. Static SRD monsters are overlaid with any
- *  custom art the user has uploaded.
+/** Returns SRD monsters filtered by the campaign's enabled sources + the user's
+ *  custom monsters, sorted by name.
  *
- *  Dedupe rule: if a DB monster exists with the same name as a static one
- *  (e.g. the user imported `wotc-srd` via `useImportSrdMonsters`), the DB
- *  version wins. That way re-importing doesn't produce 322 duplicate
- *  "Aboleth" rows, and a user who edits an imported monster sees their
- *  edits instead of the read-only static fallback. */
+ *  Dedupe rule: if a user-owned monster has the same name as an SRD row,
+ *  the user row wins — preserving any edits or custom art.
+ *  Falls back to the static SRD_MONSTERS bundle when the shared table is empty. */
 export function useAllMonsters() {
-  const query = useMonsters();
-  const { data: artMap } = useSrdMonsterArt();
+  const customQuery  = useMonsters();
+  const enabledQuery = useEnabledSources();
+
+  const enabledSlugs = computed(() =>
+    enabledQuery.data.value?.map((e) => e.source_slug) ?? null,
+  );
+
+  const srdQuery = useQuery({
+    queryKey: computed(() => [SRD_QUERY_KEY, enabledSlugs.value]),
+    queryFn: () => fetchSrdMonsters(enabledSlugs.value!),
+    enabled: () => enabledSlugs.value !== null,
+    staleTime: Infinity,
+  });
+
   const data = computed<Monster[]>(() => {
-    const custom = query.data.value ?? [];
-    const art = artMap.value ?? {};
-    const dbNames = new Set(custom.map((m) => m.name));
-    const srd = SRD_MONSTERS
-      .filter((m) => !dbNames.has(m.name))
-      .map((m) => {
-        const a = art[m.id];
-        return a
-          ? { ...m, image_url: a.image_url, portrait_focal_point: a.portrait_focal_point }
-          : m;
-      });
+    const custom   = customQuery.data.value ?? [];
+    const srdTable = srdQuery.data.value ?? [];
+    const dbNames  = new Set(custom.map((m) => m.name));
+
+    // Fall back to static bundle when the shared table hasn't been seeded yet.
+    const srdSource = srdTable.length > 0 ? srdTable : SRD_MONSTERS;
+    const srd = srdSource.filter((m) => !dbNames.has(m.name));
+
     return [...srd, ...custom].sort((a, b) => a.name.localeCompare(b.name));
   });
-  return { data, isLoading: query.isLoading };
+
+  const isLoading = computed(
+    () => customQuery.isLoading.value || enabledQuery.isLoading.value || srdQuery.isLoading.value,
+  );
+  return { data, isLoading };
 }
 
 export function useMonster(id: Ref<string>) {

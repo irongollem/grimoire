@@ -85,3 +85,16 @@ export function useBulkMarkSrdMonsterArtAsCanonical() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }
+
+/** Copies canonical srd_monster_art rows into srd_monsters.image_url in one server-side call. */
+export function useSyncSrdArtToSharedTable() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<number> => {
+      const { data, error } = await supabase.rpc("sync_srd_monster_art_to_shared_table");
+      if (error) throw error;
+      return data as number;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["srd-monsters"] }),
+  });
+}
