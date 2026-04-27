@@ -10,7 +10,7 @@ Key differences from the DM app:
 - Navigation is curated around what a player actually needs at the table: character sheet, inventory, quests, journal, etc.
 - All data is role-filtered: players only see what the DM has explicitly shared
 - A persistent live-encounter panel appears automatically when the DM starts a fight
-- Built-in dice roller, campaign chat, and audio cues for turn notifications
+- Built-in dice roller, campaign chat (header icon button), and audio cues for turn notifications
 
 The player portal is accessible at `/play` and all sub-routes under `/play/*`. The router guard in `src/router/index.ts` enforces role separation: authenticated players are redirected away from DM routes to `/play`, and DMs cannot access player-only routes except via DM Preview Mode.
 

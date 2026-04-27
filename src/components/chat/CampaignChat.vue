@@ -4,7 +4,7 @@
     <aside
       v-if="ui.chatOpen"
       class="hidden md:flex flex-col w-80 shrink-0 border-l border-border bg-card"
-      :class="props.contained ? 'h-full min-h-0' : 'sticky top-0 h-dvh'"
+      :class="contained ? 'h-full min-h-0' : 'sticky top-0 h-dvh'"
     >
       <ChatPanelContent
         :messages="messages"
@@ -30,22 +30,20 @@
     </aside>
   </Transition>
 
-  <!-- ── Right-edge tab (always visible when panel is closed) ── -->
+  <!-- ── Right-edge tab (always visible when panel is closed, unless hideTab) ── -->
   <Transition name="tab-fade">
     <button
-      v-if="!ui.chatOpen"
+      v-if="!ui.chatOpen && !hideTab"
       type="button"
       class="chat-no-print fixed right-[env(safe-area-inset-right)] z-40 flex flex-col items-center gap-1.5 px-2 py-3 rounded-l-xl border border-r-0 border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors shadow-lg select-none"
       :style="{ top: tabTop + 'px', touchAction: 'none' }"
       title="Open chat"
       @pointerdown="onTabPointerDown"
     >
-      <MessageCircle class="h-4 w-4" />
-      <span
-        v-if="unread > 0"
-        class="h-5 w-5 rounded-full bg-destructive text-destructive-foreground font-cinzel text-[10px] font-bold flex items-center justify-center"
-        >{{ unread > 9 ? "9+" : unread }}</span
-      >
+      <div class="relative">
+        <MessageCircle class="h-4 w-4" />
+        <span v-if="ui.chatHasUnread" class="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-destructive" />
+      </div>
     </button>
   </Transition>
 
@@ -105,7 +103,7 @@ import type { RollResult } from "@/lib/dice";
 import type { ItemDropMetadata, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, LootChestMetadata } from "@/types/chat.types";
 import { toCP, fromCP } from "@/lib/currency";
 
-const props = withDefaults(defineProps<{ contained?: boolean }>(), { contained: false });
+const { contained = false, hideTab = false } = defineProps<{ contained?: boolean; hideTab?: boolean }>();
 
 // ── Chat tab vertical drag ──────────────────────────────────────────────────
 const CHAT_TAB_TOP_KEY = "grimoire:chat-tab-top";
@@ -191,21 +189,12 @@ const npcs = computed(() =>
   (npcsData.value ?? []).map((n) => ({ id: n.id, name: n.name }))
 );
 
-const unread = ref(0);
-
 watch(messages, (msgs, prev) => {
   if (!ui.chatOpen && msgs.length > (prev?.length ?? 0)) {
     const newest = msgs[msgs.length - 1];
-    if (newest?.user_id !== auth.user?.id) unread.value++;
+    if (newest?.user_id !== auth.user?.id) ui.chatHasUnread = true;
   }
 });
-
-watch(
-  () => ui.chatOpen,
-  (open) => {
-    if (open) unread.value = 0;
-  },
-);
 
 function resolveClaimerName(): string {
   if (ui.dmTalkAsNpcName) return ui.dmTalkAsNpcName;

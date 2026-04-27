@@ -265,9 +265,11 @@ export const useUiStore = defineStore("ui", () => {
 
   // Chat panel
   const chatOpen = ref(false);
+  const chatHasUnread = ref(false);
 
   function toggleChat() {
     chatOpen.value = !chatOpen.value;
+    if (chatOpen.value) chatHasUnread.value = false;
   }
 
   // DM "talk as" NPC — DM can speak/act as any NPC
@@ -420,6 +422,7 @@ export const useUiStore = defineStore("ui", () => {
     mobileNavOpen,
     toggleMobileNav,
     chatOpen,
+    chatHasUnread,
     toggleChat,
 
     // DM persona

@@ -48,6 +48,15 @@
       <DiceRoller />
 
       <button
+        class="relative p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+        title="Open chat"
+        @click="ui.toggleChat()"
+      >
+        <MessageCircle class="h-4 w-4" />
+        <span v-if="ui.chatHasUnread" class="absolute top-0.5 right-0.5 h-2 w-2 rounded-full bg-destructive" />
+      </button>
+
+      <button
         class="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
         title="Report a bug"
         @click="bugReportOpen = true"
@@ -153,7 +162,7 @@
           <RouterView />
         </div>
       </main>
-      <CampaignChat :contained="true" />
+      <CampaignChat :contained="true" :hide-tab="true" />
     </div>
 
     <!-- ── Bottom navigation bar ──────────────────────────────────────────── -->
@@ -240,7 +249,7 @@
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
-import { LogOut, X, Eye, LayoutGrid, Swords, Bug } from "lucide-vue-next";
+import { LogOut, X, Eye, LayoutGrid, Swords, Bug, MessageCircle } from "lucide-vue-next";
 import DiceRoller from "@/components/common/DiceRoller.vue";
 import { useRunningEncounters, usePlayerEncounterLive } from "@/composables/useEncounterLive";
 import { useAuthStore } from "@/stores/auth";
