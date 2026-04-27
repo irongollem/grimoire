@@ -100,7 +100,9 @@ export function useAllMonsters() {
   });
 
   const data = computed<Monster[]>(() => {
-    const custom  = customQuery.data.value ?? [];
+    // Open5e imports in the monsters table are legacy — those now come from srd_monsters.
+    // Only surface truly custom-created monsters from the user's table.
+    const custom  = (customQuery.data.value ?? []).filter((m) => !m.open5e_import);
     const srd     = srdQuery.data.value ?? [];
     const dbNames = new Set(custom.map((m) => m.name));
     return [...srd.filter((m: Monster) => !dbNames.has(m.name)), ...custom]

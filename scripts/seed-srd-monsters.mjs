@@ -95,7 +95,7 @@ function extractLegendaryResistance(desc) {
   return m ? parseInt(m[1]) : 3;
 }
 
-function transformMonster(m, docSlug, docTitle) {
+function transformMonster(m) {
   const skills = toSkills(m.skills);
   const savingThrows = toSavingThrows(m);
   const specialAbilities = toTraits(m.special_abilities);
@@ -111,8 +111,10 @@ function transformMonster(m, docSlug, docTitle) {
     size: toSize(m.size),
     alignment: m.alignment || "unaligned",
     habitat: null,
-    source: docSlug,
-    source_title: docTitle ?? null,
+    // Use the document slug/title from the API response — each monster knows its own source.
+    // Using the filter parameter here caused every monster to be mis-tagged with the input slug.
+    source: m.document__slug ?? "unknown",
+    source_title: m.document__title ?? null,
     source_url: null,
     is_srd: true,
     open5e_import: false,
@@ -164,25 +166,16 @@ async function fetchOpen5eDocuments() {
   return docs;
 }
 
-async function fetchDocTitle(slug) {
-  const res = await fetch(`https://api.open5e.com/v1/documents/?slug=${slug}&limit=1`);
-  if (!res.ok) return null;
-  const json = await res.json();
-  return json.results?.[0]?.title ?? null;
-}
-
 async function fetchMonstersForSlugs(slugs) {
   const monsters = [];
   for (const slug of slugs) {
-    const docTitle = await fetchDocTitle(slug);
     let url = `https://api.open5e.com/v1/monsters/?document__slug=${slug}&limit=100&ordering=name`;
     while (url) {
       console.log(`  Fetching: ${url}`);
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
       const json = await res.json();
-      // Tag each raw monster with its source metadata before returning
-      monsters.push(...json.results.map((m) => ({ ...m, _docSlug: slug, _docTitle: docTitle })));
+      monsters.push(...json.results);
       url = json.next;
     }
   }
@@ -289,7 +282,7 @@ async function main() {
   console.log(`  Fetched ${raw.length} monsters.\n`);
 
   console.log("Step 2: Upserting to srd_monsters table…");
-  const rows = raw.map((m) => transformMonster(m, m._docSlug, m._docTitle));
+  const rows = raw.map((m) => transformMonster(m));
   await upsertBatch(rows);
   console.log(`  Done — ${rows.length} rows upserted.\n`);
 

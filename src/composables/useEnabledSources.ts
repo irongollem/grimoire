@@ -31,22 +31,9 @@ async function fetchEnabledSources(campaignId: string): Promise<EnabledSource[]>
 }
 
 async function fetchAvailableSrdSources(): Promise<AvailableSrdSource[]> {
-  const { data, error } = await supabase
-    .from("srd_monsters")
-    .select("source, source_title");
+  const { data, error } = await supabase.rpc("get_srd_monster_sources");
   if (error) throw error;
-  const counts = new Map<string, { title: string | null; count: number }>();
-  for (const row of (data ?? []) as Array<{ source: string; source_title: string | null }>) {
-    const existing = counts.get(row.source);
-    if (existing) {
-      existing.count++;
-    } else {
-      counts.set(row.source, { title: row.source_title, count: 1 });
-    }
-  }
-  return Array.from(counts.entries())
-    .map(([source, { title, count }]) => ({ source, source_title: title, count }))
-    .sort((a, b) => (a.source_title ?? a.source).localeCompare(b.source_title ?? b.source));
+  return (data ?? []) as AvailableSrdSource[];
 }
 
 async function enableSource(campaignId: string, source_slug: string, source_title: string | null): Promise<void> {
