@@ -8,7 +8,7 @@
     The whole chip carries the SRD rules text in `title=""` so hover /
     long-press gives the DM what each level does.
   -->
-  <span :class="wrapperClass" :title="tooltip">
+  <span :class="wrapperClass" :title="isTouch ? undefined : tooltip">
     <span class="font-cinzel text-[10px] font-semibold tracking-wider">Exhaustion</span>
 
     <span class="flex items-center gap-0.5">
@@ -37,6 +37,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { MAX_EXHAUSTION, getConditionDescription } from "@/lib/conditions";
+
+const isTouch = typeof window !== "undefined" && window.matchMedia("(hover: none)").matches;
 
 type Variant = "amber" | "destructive";
 

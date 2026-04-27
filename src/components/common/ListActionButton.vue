@@ -17,7 +17,7 @@
     :type="rootTag === 'button' ? 'button' : undefined"
     :disabled="rootTag === 'button' ? disabled : undefined"
     :class="buttonClass"
-    :title="tooltip ?? label"
+    :title="isTouch ? undefined : (tooltip ?? label)"
     :aria-label="tooltip ?? label"
     @click="onClick"
   >
@@ -45,6 +45,8 @@
 
 <script setup lang="ts">
 import { computed, type Component } from "vue";
+
+const isTouch = typeof window !== "undefined" && window.matchMedia("(hover: none)").matches;
 
 type Variant = "primary" | "secondary" | "ghost";
 

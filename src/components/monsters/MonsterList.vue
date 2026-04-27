@@ -45,8 +45,8 @@
           :style="{ backgroundColor: crColor(monster.stat_block.challenge_rating) }"
         />
 
-        <!-- Thumbnail (landscape) -->
-        <div class="relative h-36 bg-muted overflow-hidden shrink-0">
+        <!-- Thumbnail -->
+        <div class="relative aspect-2/3 bg-muted overflow-hidden shrink-0">
           <FocalImage
             v-if="monster.image_url"
             :src="monster.image_url"

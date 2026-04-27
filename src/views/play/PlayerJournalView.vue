@@ -240,16 +240,6 @@
                 class="font-cinzel text-[11px] text-muted-foreground/60 tracking-wider hover:text-destructive transition-colors"
                 @click="removeEntry(entry)"
               >Delete</button>
-              <button
-                type="button"
-                class="ml-auto inline-flex items-center gap-1 font-cinzel text-[11px] tracking-wider transition-colors"
-                :class="entry.is_private ? 'text-muted-foreground hover:text-elven-green' : 'text-elven-green hover:text-muted-foreground'"
-                @click="togglePrivacy(entry)"
-              >
-                <Lock v-if="entry.is_private" class="h-3 w-3" />
-                <Eye v-else class="h-3 w-3" />
-                {{ entry.is_private ? 'Make Shared' : 'Make Private' }}
-              </button>
             </div>
           </template>
 
@@ -576,7 +566,9 @@ type TiptapNode = { type?: string; text?: string; content?: TiptapNode[] };
 
 function extractNodeText(node: TiptapNode): string {
   if (node.type === "text") return node.text ?? "";
-  if (node.content) return node.content.map(extractNodeText).join(node.type === "paragraph" ? "\n" : "");
+  if (node.content) return node.content.map(extractNodeText).join(
+    node.type === "doc" || node.type === "paragraph" ? "\n" : "",
+  );
   return "";
 }
 
@@ -593,8 +585,8 @@ function isRteEmpty(val: string): boolean {
 }
 
 function contentPreview(content: string): string {
-  const text = plainText(content).replace(/\n/g, " ");
-  return text.slice(0, 80) + (text.length > 80 ? "…" : "");
+  const text = plainText(content).replace(/\n+/g, " ").trim();
+  return text.slice(0, 200) + (text.length > 200 ? "…" : "");
 }
 
 function formatDate(iso: string): string {

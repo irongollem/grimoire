@@ -11,11 +11,16 @@ import { setTooltipText } from "@/lib/tooltip";
  *   <button v-tooltip="`Switch to ${otherView}`">…</button>
  *   <Icon v-tooltip="t.label" />
  */
+
+const isTouch = typeof window !== "undefined" && window.matchMedia("(hover: none)").matches;
+
 export const tooltip: Directive<HTMLElement, string | undefined | null> = {
   mounted(el, binding) {
+    if (isTouch) return;
     setTooltipText(el, binding.value);
   },
   updated(el, binding) {
+    if (isTouch) return;
     if (binding.value !== binding.oldValue) {
       setTooltipText(el, binding.value);
     }
