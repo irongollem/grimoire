@@ -1,7 +1,12 @@
 <template>
   <div class="rounded-lg border border-border bg-card">
     <!-- Header -->
-    <div class="px-4 py-2 border-b border-border bg-muted/20 flex items-center gap-2 rounded-t-lg">
+    <div
+      ref="headerRef"
+      class="px-4 py-2 border-b border-border bg-muted/20 flex items-center gap-2 rounded-t-lg"
+      @dragover="onHeaderDragOver"
+      @dragleave="onHeaderDragLeave"
+    >
       <button class="flex items-center gap-1.5 flex-1 text-left" @click="open = !open">
         <ChevronRight class="h-3 w-3 text-muted-foreground transition-transform" :class="open ? 'rotate-90' : ''" />
         <span class="font-cinzel text-xs font-semibold text-foreground tracking-wider">{{ label }}</span>
@@ -26,16 +31,15 @@
       >Remove</button>
     </div>
 
-    <!-- Items -->
-    <div v-if="open">
-      <VueDraggable v-model="localItems" handle=".drag-handle" :animation="150" @end="onReorder">
+    <!-- Items — v-show keeps VueDraggable mounted so it's always a valid Sortable drop zone -->
+    <div v-show="open">
+      <VueDraggable v-model="localItems" group="inventory" handle=".drag-handle" :animation="150" @end="onEnd" @add="onCrossAdd">
         <ItemRow
           v-for="item in localItems"
           :key="item.id"
           :item="item"
           :all-containers="allContainers"
           :sellable="sellable"
-          @move="(item, loc, cid) => $emit('move', item, loc, cid)"
           @remove="(id) => $emit('remove', id)"
           @adjust-qty="(item, d) => $emit('adjust-qty', item, d)"
           @drop-to-chat="(item) => $emit('drop-to-chat', item)"
@@ -86,7 +90,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onUnmounted } from "vue";
 import { ChevronRight, Info } from "lucide-vue-next";
 import { VueDraggable } from "vue-draggable-plus";
 import type { PartyInventoryItem, InventoryLocation } from "@/types/inventory.types";
@@ -100,6 +104,7 @@ const props = defineProps<{
   allContainers: PartyInventoryItem[];
   allItems: Item[];
   resolvedMemberId: string | null;
+  location: InventoryLocation;
   container?: PartyInventoryItem;
   containerId?: string;
   isDefault?: boolean;
@@ -123,9 +128,42 @@ const emit = defineEmits<{
 }>();
 
 const open = ref(true);
+const headerRef = ref<HTMLElement | null>(null);
+
+// Drag-to-expand: auto-open after 500ms hover on a collapsed header.
+// Uses relatedTarget to avoid false "leave" triggers when moving between child elements.
+let expandTimer: ReturnType<typeof setTimeout> | null = null;
+function onHeaderDragOver() {
+  if (open.value || expandTimer) return;
+  expandTimer = setTimeout(() => { open.value = true; expandTimer = null; }, 500);
+}
+function onHeaderDragLeave(e: DragEvent) {
+  if (!expandTimer) return;
+  const related = e.relatedTarget as Node | null;
+  if (headerRef.value?.contains(related)) return; // moved to a child — stay
+  clearTimeout(expandTimer);
+  expandTimer = null;
+}
+onUnmounted(() => { if (expandTimer) clearTimeout(expandTimer); });
+
 const localItems = ref<PartyInventoryItem[]>([...props.items]);
 watch(() => props.items, (newItems) => { localItems.value = [...newItems]; });
-function onReorder() { emit('reorder', localItems.value); }
+
+interface SortEvent { from: Element; to: Element; newIndex?: number; }
+
+function onEnd(event: SortEvent) {
+  if (event.from === event.to) {
+    emit('reorder', localItems.value);
+  }
+}
+
+function onCrossAdd(event: SortEvent) {
+  const item = localItems.value[event.newIndex ?? 0];
+  if (!item) return;
+  const cid = props.location === 'container' ? (props.containerId ?? null) : null;
+  emit('move', item, props.location, cid);
+  emit('reorder', localItems.value);
+}
 const showAdd = ref(false);
 const addName = ref("");
 const addSelectedId = ref("");

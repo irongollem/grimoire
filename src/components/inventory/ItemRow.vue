@@ -1,6 +1,8 @@
 <template>
-  <div class="flex items-center gap-2 px-4 py-2.5 border-b border-border last:border-0 hover:bg-muted/10 transition-colors group select-none">
-    <GripVertical class="drag-handle h-3 w-3 shrink-0 text-muted-foreground/20 group-hover:text-muted-foreground/50 cursor-grab active:cursor-grabbing transition-colors" />
+  <div class="flex items-center gap-2 px-3 py-2.5 border-b border-border last:border-0 hover:bg-muted/10 transition-colors group select-none">
+    <div class="drag-handle shrink-0 -ml-0.5 flex items-center justify-center h-9 w-8 cursor-grab active:cursor-grabbing touch-none rounded">
+      <GripVertical class="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />
+    </div>
     <div class="flex-1 min-w-0">
       <button
         type="button"
@@ -23,19 +25,6 @@
         <Plus class="h-2 w-2" />
       </button>
     </div>
-
-    <!-- Move to location dropdown -->
-    <select
-      class="text-[10px] font-cinzel bg-transparent border border-border rounded px-1 py-0.5 text-muted-foreground focus:outline-none [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity max-w-24"
-      :value="currentLocationLabel"
-      @change="onMove($event)"
-    >
-      <option value="stash">Party Stash</option>
-      <option value="backpack">Backpack</option>
-      <option value="belt">Belt</option>
-      <option v-for="c in allContainers" :key="c.id" :value="`container:${c.id}`">{{ c.name }}</option>
-      <option value="stored">Stored</option>
-    </select>
 
     <!-- Drop to chat -->
     <button
@@ -70,9 +59,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
 import { Plus, Minus, Trash2, ArrowUpFromLine, ShoppingBag, GripVertical, Scissors } from "lucide-vue-next";
-import type { PartyInventoryItem, InventoryLocation } from "@/types/inventory.types";
+import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { PartyMember } from "@/types/party.types";
 
 const props = defineProps<{
@@ -83,10 +71,8 @@ const props = defineProps<{
   sellable?: boolean;
 }>();
 
-const emit = defineEmits<{
+defineEmits<{
   'adjust-qty': [item: PartyInventoryItem, delta: number];
-  // location='stash' is a UI-only virtual value meaning carried_by=null; parent resolves to a real InventoryLocation
-  'move': [item: PartyInventoryItem, location: InventoryLocation | 'stash', containerId: string | null];
   'remove': [id: string];
   'drop-to-chat': [item: PartyInventoryItem];
   'open-detail': [item: PartyInventoryItem];
@@ -94,23 +80,7 @@ const emit = defineEmits<{
   'split-stack': [item: PartyInventoryItem];
 }>();
 
-const currentLocationLabel = computed(() => {
-  if (props.item.carried_by === null) return 'stash';
-  if (props.item.location === 'container' && props.item.container_id)
-    return `container:${props.item.container_id}`;
-  return props.item.location;
-});
-
 function carrierName(id: string) {
   return props.partyMembers?.find(m => m.id === id)?.name ?? null;
-}
-
-function onMove(e: Event) {
-  const val = (e.target as HTMLSelectElement).value;
-  if (val.startsWith('container:')) {
-    emit('move', props.item, 'container', val.slice(10));
-  } else {
-    emit('move', props.item, val as InventoryLocation | 'stash', null);
-  }
 }
 </script>

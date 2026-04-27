@@ -66,10 +66,23 @@ export function useAddInventoryItem() {
 
 export function useUpdateInventoryItem() {
   const queryClient = useQueryClient();
+  const campaign = useCampaignStore();
   return useMutation({
     mutationFn: ({ id, update }: { id: string; update: PartyInventoryUpdate }) =>
       updateItem(id, update),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onMutate: async ({ id, update }) => {
+      const qk = [QUERY_KEY, campaign.activeCampaignId];
+      await queryClient.cancelQueries({ queryKey: qk });
+      const previous = queryClient.getQueryData<PartyInventoryItem[]>(qk);
+      queryClient.setQueryData<PartyInventoryItem[]>(qk, (old) =>
+        old ? old.map(item => item.id === id ? { ...item, ...update } : item) : old,
+      );
+      return { previous };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData([QUERY_KEY, campaign.activeCampaignId], ctx.previous);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }
 

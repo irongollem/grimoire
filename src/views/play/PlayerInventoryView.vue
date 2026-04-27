@@ -437,6 +437,7 @@
       <!-- Default backpack always shown -->
       <ContainerSection
         label="Backpack"
+        location="backpack"
         :is-default="true"
         :sellable="true"
         :items="backpackItems"
@@ -458,6 +459,7 @@
       <!-- Belt -->
       <ContainerSection
         label="Belt"
+        location="belt"
         :sellable="true"
         :items="beltItems"
         :weight="beltWeight"
@@ -481,6 +483,7 @@
         v-for="c in customContainers"
         :key="c.id"
         :label="c.name"
+        location="container"
         :container="c"
         :container-id="c.id"
         :sellable="true"
@@ -511,30 +514,33 @@
       >
         Stored Elsewhere
       </p>
-      <div
-        v-if="storedItems.length"
-        class="rounded-lg border border-border bg-card overflow-hidden"
-      >
-        <ItemRow
-          v-for="item in storedItems"
-          :key="item.id"
-          :item="item"
-          :all-containers="allContainers"
-          :sellable="true"
-          @move="moveItem"
-          @remove="removeItem"
-          @adjust-qty="adjustQty"
-          @drop-to-chat="dropItemToChat"
-          @split-stack="splitStack"
-          @open-detail="openDetail"
-          @sell-item="openDetailWithSell"
-        />
-      </div>
-      <div
-        v-else
-        class="rounded-lg border border-dashed border-border p-4 text-center"
-      >
-        <p class="font-fell text-sm text-muted-foreground italic">
+      <div class="rounded-lg border border-border bg-card overflow-hidden min-h-10">
+        <VueDraggable
+          v-model="localStoredItems"
+          group="inventory"
+          handle=".drag-handle"
+          :animation="150"
+          @add="onStoredAdd"
+        >
+          <ItemRow
+            v-for="item in localStoredItems"
+            :key="item.id"
+            :item="item"
+            :all-containers="allContainers"
+            :sellable="true"
+            @move="moveItem"
+            @remove="removeItem"
+            @adjust-qty="adjustQty"
+            @drop-to-chat="dropItemToChat"
+            @split-stack="splitStack"
+            @open-detail="openDetail"
+            @sell-item="openDetailWithSell"
+          />
+        </VueDraggable>
+        <p
+          v-if="!localStoredItems.length"
+          class="px-4 py-3 font-fell text-sm text-muted-foreground italic"
+        >
           Nothing stored away.
         </p>
       </div>
@@ -547,30 +553,33 @@
       >
         Party Stash
       </p>
-      <div
-        v-if="partyStash.length"
-        class="rounded-lg border border-border bg-card overflow-hidden"
-      >
-        <ItemRow
-          v-for="item in partyStash"
-          :key="item.id"
-          :item="item"
-          :show-carrier="true"
-          :party-members="partyMembers ?? []"
-          :all-containers="allContainers"
-          @move="moveItem"
-          @remove="removeItem"
-          @adjust-qty="adjustQty"
-          @drop-to-chat="dropItemToChat"
-          @split-stack="splitStack"
-          @open-detail="openDetail"
-        />
-      </div>
-      <div
-        v-else
-        class="rounded-lg border border-dashed border-border p-4 text-center"
-      >
-        <p class="font-fell text-sm text-muted-foreground italic">
+      <div class="rounded-lg border border-border bg-card overflow-hidden min-h-10">
+        <VueDraggable
+          v-model="localStashItems"
+          group="inventory"
+          handle=".drag-handle"
+          :animation="150"
+          @add="onStashAdd"
+        >
+          <ItemRow
+            v-for="item in localStashItems"
+            :key="item.id"
+            :item="item"
+            :show-carrier="true"
+            :party-members="partyMembers ?? []"
+            :all-containers="allContainers"
+            @move="moveItem"
+            @remove="removeItem"
+            @adjust-qty="adjustQty"
+            @drop-to-chat="dropItemToChat"
+            @split-stack="splitStack"
+            @open-detail="openDetail"
+          />
+        </VueDraggable>
+        <p
+          v-if="!localStashItems.length"
+          class="px-4 py-3 font-fell text-sm text-muted-foreground italic"
+        >
           The party stash is empty.
         </p>
       </div>
@@ -736,7 +745,8 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, computed, reactive, nextTick } from "vue";
+import { ref, computed, reactive, nextTick, watch } from "vue";
+import { VueDraggable } from "vue-draggable-plus";
 import { Plus, MessageCircle } from "lucide-vue-next";
 import { COINS, type CoinKey } from "@/lib/currency";
 import {
@@ -841,6 +851,25 @@ function itemsInContainer(cid: string) {
   return myItems.value.filter(
     (i) => i.location === "container" && i.container_id === cid,
   );
+}
+
+// ── Local drag-and-drop mirror refs for non-ContainerSection sections ──────────
+const localStoredItems = ref<PartyInventoryItem[]>([]);
+watch(storedItems, (v) => { localStoredItems.value = [...v]; }, { immediate: true });
+
+const localStashItems = ref<PartyInventoryItem[]>([]);
+watch(partyStash, (v) => { localStashItems.value = [...v]; }, { immediate: true });
+
+interface SortAddEvent { newIndex?: number; }
+
+function onStoredAdd(event: SortAddEvent) {
+  const item = localStoredItems.value[event.newIndex ?? 0];
+  if (item) void moveItem(item, 'stored', null);
+}
+
+function onStashAdd(event: SortAddEvent) {
+  const item = localStashItems.value[event.newIndex ?? 0];
+  if (item) void moveItem(item, 'stash', null);
 }
 
 // ── Weight helpers ─────────────────────────────────────────────────────────────
