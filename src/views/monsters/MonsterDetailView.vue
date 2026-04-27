@@ -127,7 +127,7 @@
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { Pencil, Eye, EyeOff, ChevronLeft, Users, BarChart2 } from "lucide-vue-next";
-import { useMonster, getSrdMonster } from "@/composables/useMonsters";
+import { useMonster, useSrdMonster } from "@/composables/useMonsters";
 import { useSrdMonsterArt } from "@/composables/useSrdMonsterArt";
 import { useMonsterVisibility } from "@/composables/useMonsterVisibility";
 import PageHeader from "@/components/common/PageHeader.vue";
@@ -147,20 +147,22 @@ function startEditing() {
   router.replace({ query: { ...route.query, edit: "true" } });
 }
 
+// Own art (user-uploaded) can override the canonical art already in srd_monsters.image_url
 const { data: artMap } = useSrdMonsterArt();
+const { data: srdMonsterData, isLoading: srdLoading } = useSrdMonster(id);
 const srdMonster = computed(() => {
-  if (!isSrdId.value) return null;
-  const m = getSrdMonster(id.value);
-  if (!m) return null;
+  if (!isSrdId.value || !srdMonsterData.value) return null;
+  const m = srdMonsterData.value;
   const art = artMap.value?.[id.value];
-  return art
-    ? { ...m, image_url: art.image_url, portrait_focal_point: art.portrait_focal_point }
-    : m;
+  return art ? { ...m, image_url: art.image_url, portrait_focal_point: art.portrait_focal_point } : m;
 });
+
 const dbMonsterId = computed(() => isSrdId.value ? "" : id.value);
 const { data: dbMonster, isLoading: dbLoading } = useMonster(dbMonsterId);
 
-const isLoading = computed(() => !isNew.value && !isSrdId.value && dbLoading.value);
+const isLoading = computed(() =>
+  !isNew.value && (isSrdId.value ? srdLoading.value : dbLoading.value),
+);
 
 const resolvedMonster = computed(() => {
   if (isNew.value) return null;

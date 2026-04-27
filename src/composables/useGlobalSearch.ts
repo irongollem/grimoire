@@ -2,7 +2,6 @@ import { computed, type Ref } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
-import { SRD_MONSTERS } from "@/data/srdMonsters";
 
 export interface SearchHit {
   id: string;
@@ -25,6 +24,7 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
     notesRes,
     npcsRes,
     monstersRes,
+    srdMonstersRes,
     spellsRes,
     itemsRes,
     locationsRes,
@@ -37,6 +37,7 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
       ? supabase.from("npcs").select("id, name, disguise_name").eq("campaign_id", campaignId).or(`name.ilike.${q},disguise_name.ilike.${q}`).limit(LIMIT)
       : Promise.resolve({ data: [] as { id: string; name: string; disguise_name: string | null }[], error: null }),
     supabase.from("monsters").select("id, name").ilike("name", q).limit(LIMIT),
+    supabase.from("srd_monsters").select("id, name").ilike("name", q).limit(LIMIT),
     supabase.from("spells").select("id, name").ilike("name", q).limit(LIMIT),
     supabase.from("items").select("id, name").ilike("name", q).limit(LIMIT),
     campaignId
@@ -61,14 +62,11 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
       type: "monster",
       label: "Bestiary",
       items: (() => {
-        const queryLower = query.toLowerCase();
-        const dbMonsters = (monstersRes.data ?? []) as { id: string; name: string }[];
-        const dbNames = new Set(dbMonsters.map((r) => r.name.toLowerCase()));
-        const srdHits = SRD_MONSTERS
-          .filter((m) => m.name.toLowerCase().includes(queryLower) && !dbNames.has(m.name.toLowerCase()))
-          .slice(0, LIMIT)
-          .map((m) => ({ id: m.id, name: m.name }));
-        return [...dbMonsters, ...srdHits]
+        const custom = (monstersRes.data ?? []) as { id: string; name: string }[];
+        const customNames = new Set(custom.map((r) => r.name.toLowerCase()));
+        const srd = ((srdMonstersRes.data ?? []) as { id: string; name: string }[])
+          .filter((r) => !customNames.has(r.name.toLowerCase()));
+        return [...custom, ...srd]
           .slice(0, LIMIT)
           .map((r) => ({ id: r.id, name: r.name, route: `/monsters/${r.id}` }));
       })(),

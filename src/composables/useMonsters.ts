@@ -1,12 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { computed, type Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
-import { SRD_MONSTERS, getSrdMonster } from "@/data/srdMonsters";
 import { useEnabledSources } from "@/composables/useEnabledSources";
 import type { Monster, MonsterInsert, MonsterUpdate } from "@/types/monster.types";
 import { deleteByPublicUrl } from "@/lib/storage";
 
-export { getSrdMonster };
 
 const QUERY_KEY = "monsters";
 const SOURCES_KEY = "monster-sources";
@@ -85,8 +83,7 @@ export function useMonsters() {
  *  custom monsters, sorted by name.
  *
  *  Dedupe rule: if a user-owned monster has the same name as an SRD row,
- *  the user row wins — preserving any edits or custom art.
- *  Falls back to the static SRD_MONSTERS bundle when the shared table is empty. */
+ *  the user row wins — preserving any edits or custom art. */
 export function useAllMonsters() {
   const customQuery  = useMonsters();
   const enabledQuery = useEnabledSources();
@@ -103,21 +100,35 @@ export function useAllMonsters() {
   });
 
   const data = computed<Monster[]>(() => {
-    const custom   = customQuery.data.value ?? [];
-    const srdTable = srdQuery.data.value ?? [];
-    const dbNames  = new Set(custom.map((m) => m.name));
-
-    // Fall back to static bundle when the shared table hasn't been seeded yet.
-    const srdSource = srdTable.length > 0 ? srdTable : SRD_MONSTERS;
-    const srd = srdSource.filter((m) => !dbNames.has(m.name));
-
-    return [...srd, ...custom].sort((a, b) => a.name.localeCompare(b.name));
+    const custom  = customQuery.data.value ?? [];
+    const srd     = srdQuery.data.value ?? [];
+    const dbNames = new Set(custom.map((m) => m.name));
+    return [...srd.filter((m: Monster) => !dbNames.has(m.name)), ...custom]
+      .sort((a, b) => a.name.localeCompare(b.name));
   });
 
   const isLoading = computed(
     () => customQuery.isLoading.value || enabledQuery.isLoading.value || srdQuery.isLoading.value,
   );
   return { data, isLoading };
+}
+
+/** Looks up a single monster from the shared srd_monsters table by its slug ID. */
+export function useSrdMonster(id: Ref<string>) {
+  return useQuery({
+    queryKey: computed(() => [SRD_QUERY_KEY, id.value]),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("srd_monsters")
+        .select("*")
+        .eq("id", id.value)
+        .single();
+      if (error) throw error;
+      return { ...data, user_id: "" } as Monster;
+    },
+    enabled: () => !!id.value,
+    staleTime: Infinity,
+  });
 }
 
 export function useMonster(id: Ref<string>) {
