@@ -69,6 +69,29 @@
         :member="member"
       />
 
+      <!-- Player description (editable by owner, read-only for others) -->
+      <div
+        v-if="isOwner || member.player_description"
+        class="rounded-lg border border-border bg-card overflow-hidden"
+      >
+        <div class="px-4 py-2.5 border-b border-border">
+          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">About</span>
+        </div>
+        <div class="p-3">
+          <RichTextEditor
+            v-if="isOwner"
+            :model-value="member.player_description ?? null"
+            placeholder="Describe yourself to your party…"
+            min-height="80px"
+            @update:model-value="saveDescription"
+          />
+          <RichTextViewer
+            v-else-if="member.player_description"
+            :content="member.player_description"
+          />
+        </div>
+      </div>
+
       <!-- ── Tabs ───────────────────────────────────────────── -->
       <div class="flex flex-wrap rounded-md border border-border overflow-hidden w-fit text-xs font-cinzel font-semibold tracking-wider">
         <button
@@ -337,6 +360,8 @@ import PlayerSkillsTab from "@/components/player/PlayerSkillsTab.vue";
 import PlayerCombatTab from "@/components/player/PlayerCombatTab.vue";
 import PlayerFeaturesTab from "@/components/player/PlayerFeaturesTab.vue";
 import PlayerAppearanceSection from "@/components/player/PlayerAppearanceSection.vue";
+import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { useSpecies } from "@/composables/useSpecies";
 
 const props = defineProps<{ memberId?: string; hidePlayerActions?: boolean }>();
@@ -475,6 +500,20 @@ const member = computed<PartyMember | null>(() =>
     ? (partyMembers.value.find((m) => m.id === resolvedMemberId.value) ?? null)
     : null,
 );
+
+// ── Player description ─────────────────────────────────────────────────────────
+const isOwner = computed(
+  () => !ui.dmPreviewMode && !!auth.linkedPartyMemberId && auth.linkedPartyMemberId === member.value?.id,
+);
+
+let descTimer: ReturnType<typeof setTimeout> | null = null;
+function saveDescription(value: string) {
+  if (!member.value) return;
+  if (descTimer) clearTimeout(descTimer);
+  descTimer = setTimeout(() => {
+    void updateMember({ id: member.value!.id, update: { player_description: value } });
+  }, 600);
+}
 
 // ── Shapeshifter ───────────────────────────────────────────────────────────────
 const trueSpeciesId = computed(() => member.value?.species_id ?? "");

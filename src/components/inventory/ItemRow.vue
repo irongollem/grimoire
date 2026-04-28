@@ -23,9 +23,11 @@
 
     <!-- Qty -->
     <div class="flex items-center gap-1 shrink-0">
-      <button class="h-4 w-4 rounded flex items-center justify-center hover:bg-muted border border-border transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100" @click="$emit('adjust-qty', item, -1)">
-        <Minus class="h-2 w-2" />
-      </button>
+      <button
+        class="h-4 w-4 rounded flex items-center justify-center hover:bg-muted border border-border transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100 disabled:opacity-40 disabled:cursor-not-allowed"
+        :disabled="item.quantity <= 1"
+        @click="$emit('adjust-qty', item, -1)"
+      ><Minus class="h-2 w-2" /></button>
       <span class="font-cinzel text-xs font-semibold text-foreground min-w-4 text-center">{{ item.quantity }}</span>
       <button class="h-4 w-4 rounded flex items-center justify-center hover:bg-muted border border-border transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100" @click="$emit('adjust-qty', item, 1)">
         <Plus class="h-2 w-2" />

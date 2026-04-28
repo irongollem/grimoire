@@ -214,10 +214,12 @@ watch(
 );
 
 // ── Bidirectional HP sync between runner and party_members ───────────────────
-// Loop-breaking relies on Vue's same-value reactive no-op: subscription echoes
-// of our own writes don't change store.combatants, so the watch never re-fires.
+// lastWrittenHp tracks the HP values we've sent to the DB so the Realtime echo
+// of our own write is dropped explicitly rather than relying on Vue's same-value
+// reactive no-op (which is an implementation detail, not a guarantee).
 
 const partyHpQueue = new Map<string, number>(); // partyMemberId → pending hp
+const lastWrittenHp = new Map<string, number>(); // partyMemberId → hp we last wrote
 let partyHpTimer: ReturnType<typeof setTimeout> | null = null;
 
 watch(
@@ -235,6 +237,7 @@ watch(
     partyHpTimer = setTimeout(async () => {
       const entries = [...partyHpQueue.entries()];
       partyHpQueue.clear();
+      entries.forEach(([id, hp]) => lastWrittenHp.set(id, hp));
       await Promise.all(entries.map(([id, current_hp]) =>
         updatePartyMember({ id, update: { current_hp } }),
       ));
@@ -255,6 +258,10 @@ onMounted(() => {
         filter: `campaign_id=eq.${campaignId}` },
       (payload) => {
         const row = payload.new as { id: string; current_hp: number };
+        if (lastWrittenHp.get(row.id) === row.current_hp) {
+          lastWrittenHp.delete(row.id);
+          return;
+        }
         const combatant = store.combatants.find((c) => c.party_member_id === row.id);
         if (combatant && combatant.hp !== row.current_hp) {
           store.setHp(combatant.instance_id, row.current_hp);

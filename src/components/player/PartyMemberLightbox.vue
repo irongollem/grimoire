@@ -66,6 +66,12 @@
               <span v-for="cond in member.conditions" :key="cond"
                 class="font-cinzel text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive tracking-wider">{{ cond }}</span>
             </div>
+            <!-- Player-authored description -->
+            <div v-if="member.player_description" class="border-t border-border pt-3">
+              <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase mb-1.5">About</p>
+              <RichTextViewer :content="member.player_description" />
+            </div>
+
             <!-- Species detail — shows true or disguise species depending on viewer -->
             <div v-if="displaySpecies" class="space-y-3 border-t border-border pt-3">
               <div v-if="displaySpecies.image_url" class="rounded-md overflow-hidden">

@@ -127,6 +127,8 @@ export interface PartyMember {
   gender?: string | null;
   pronouns?: string | null;
   physical_description?: string | null;
+  // Player-authored description visible to the whole party
+  player_description?: string | null;
   // Experience points (optional — campaigns using milestone levelling leave it 0)
   experience_points?: number;
   // Currency
