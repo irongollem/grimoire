@@ -32,7 +32,6 @@
           <Swords class="h-3.5 w-3.5" />
           <span class="btn-label">Start Combat</span>
         </button>
-        <DiceRoller />
         <button
           v-if="campaign.activeCampaignId"
           class="go-live-btn"
@@ -109,7 +108,6 @@ import { supabase } from "@/lib/supabase";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
-import DiceRoller from "@/components/common/DiceRoller.vue";
 import { useEncounterLive } from "@/composables/useEncounterLive";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAutoDiscoverMonsters } from "@/composables/useDiscoveredMonsters";

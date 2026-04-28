@@ -25,7 +25,6 @@
             <Plus class="h-3.5 w-3.5" />
             New Rule
           </RouterLink>
-          <DiceRoller class="hidden md:block" />
         </div>
       </div>
       <div class="gold-divider mt-3" />
@@ -65,7 +64,6 @@
 import { ref } from "vue";
 import { Plus, Monitor, BookOpen, Scroll, BookMarked } from "lucide-vue-next";
 import { RouterLink } from "vue-router";
-import DiceRoller from "@/components/common/DiceRoller.vue";
 import ScreenTab from "@/components/rules/ScreenTab.vue";
 import CompendiumTab from "@/components/rules/CompendiumTab.vue";
 import CustomRulesTab from "@/components/rules/CustomRulesTab.vue";

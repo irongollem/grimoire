@@ -290,10 +290,15 @@ const activePointers = new Map<number, { x: number; y: number }>();
 // Baseline captured at the moment a 2-finger gesture starts. Pinch math
 // anchors the pinch midpoint to its original map-space position so zoom
 // feels natural (doesn't drift toward a corner).
+// layoutOffsetX/Y: the container's position in the layout flow within the
+// frame (the mx-auto centering margin). Stable during a gesture but must
+// be captured because the corrected anchor formula subtracts it.
 let pinchStart: {
   dist: number;
   midX: number;
   midY: number;
+  layoutOffsetX: number;
+  layoutOffsetY: number;
   scale: number;
   tx: number;
   ty: number;
@@ -315,14 +320,24 @@ function clampTranslate(scaleV: number, txV: number, tyV: number) {
   const container = mapContainer.value;
   if (!frame || !container || scaleV <= 1) return { tx: 0, ty: 0 };
   const frameRect = frame.getBoundingClientRect();
-  const contentW = container.offsetWidth * scaleV;
+  const containerRect = container.getBoundingClientRect();
+  // Layout offset: the container's position in the CSS layout flow relative
+  // to the frame. With mx-auto this is the centering margin and is NOT zero.
+  // containerRect.left = frameRect.left + layoutX + tx (transformOrigin 0 0)
+  const layoutX = containerRect.left - frameRect.left - tx.value;
+  const layoutY = containerRect.top  - frameRect.top  - ty.value;
+  const contentW = container.offsetWidth  * scaleV;
   const contentH = container.offsetHeight * scaleV;
-  // Don't let the map edges retreat past the opposite edge of the frame.
-  const minX = frameRect.width - contentW;
-  const minY = frameRect.height - contentH;
+  // Content left + tx must be ≤ 0 (frame left), right must be ≥ frameWidth.
+  const clampAxis = (layoutOff: number, contentSize: number, frameSize: number, val: number) => {
+    const minV = frameSize - layoutOff - contentSize;
+    const maxV = -layoutOff;
+    if (minV > maxV) return -layoutOff + (frameSize - contentSize) / 2; // center if content fits
+    return Math.max(minV, Math.min(maxV, val));
+  };
   return {
-    tx: Math.max(minX, Math.min(0, txV)),
-    ty: Math.max(minY, Math.min(0, tyV)),
+    tx: clampAxis(layoutX, contentW, frameRect.width,  txV),
+    ty: clampAxis(layoutY, contentH, frameRect.height, tyV),
   };
 }
 
@@ -351,12 +366,17 @@ function onFramePointerDown(e: PointerEvent) {
   mapFrame.value?.setPointerCapture?.(e.pointerId);
 
   if (activePointers.size === 2) {
-    // Start of a pinch — capture baseline.
+    // Start of a pinch — capture baseline including the container's layout
+    // offset within the frame (mx-auto centering margin).
     const mid = pointerMidpointInFrame();
+    const frameRect = mapFrame.value!.getBoundingClientRect();
+    const containerRect = mapContainer.value!.getBoundingClientRect();
     pinchStart = {
       dist: pointerDistance(),
       midX: mid.x,
       midY: mid.y,
+      layoutOffsetX: containerRect.left - frameRect.left - tx.value,
+      layoutOffsetY: containerRect.top  - frameRect.top  - ty.value,
       scale: scale.value,
       tx: tx.value,
       ty: ty.value,
@@ -382,10 +402,15 @@ function onFramePointerMove(e: PointerEvent) {
       MIN_SCALE,
       Math.min(MAX_SCALE, (pinchStart.scale * dist) / pinchStart.dist),
     );
-    // Keep the initial pinch midpoint's *map-space* position anchored under
-    // wherever the current midpoint has moved to. (midX/Y in frame coords.)
-    const newTx = mid.x - (pinchStart.midX - pinchStart.tx) * (newScale / pinchStart.scale);
-    const newTy = mid.y - (pinchStart.midY - pinchStart.ty) * (newScale / pinchStart.scale);
+    // Keep the pinch midpoint's map-space position anchored under the current
+    // finger midpoint. The formula accounts for layoutOffset (the mx-auto
+    // margin that shifts the container away from the frame's top-left corner).
+    // Without it the map drifts right when the container is centered.
+    const lo = pinchStart.layoutOffsetX;
+    const lt = pinchStart.layoutOffsetY;
+    const ratio = newScale / pinchStart.scale;
+    const newTx = mid.x - lo - (pinchStart.midX - lo - pinchStart.tx) * ratio;
+    const newTy = mid.y - lt - (pinchStart.midY - lt - pinchStart.ty) * ratio;
     const clamped = clampTranslate(newScale, newTx, newTy);
     scale.value = newScale;
     tx.value = clamped.tx;
@@ -443,11 +468,17 @@ function installClickSwallow() {
 }
 
 function zoomAt(factor: number, anchorX: number, anchorY: number) {
+  const frame = mapFrame.value;
+  const container = mapContainer.value;
+  if (!frame || !container) return;
+  const frameRect = frame.getBoundingClientRect();
+  const containerRect = container.getBoundingClientRect();
+  const lo = containerRect.left - frameRect.left - tx.value; // layout offset X
+  const lt = containerRect.top  - frameRect.top  - ty.value; // layout offset Y
   const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale.value * factor));
-  // Keep the point under (anchorX, anchorY) — in frame coords — fixed on
-  // screen while the scale changes. Same math as the pinch-midpoint anchor.
-  const newTx = anchorX - ((anchorX - tx.value) * newScale) / scale.value;
-  const newTy = anchorY - ((anchorY - ty.value) * newScale) / scale.value;
+  // Same anchor math as pinch: keep the map-space point under (anchorX,anchorY) fixed.
+  const newTx = anchorX - lo - (anchorX - lo - tx.value) * (newScale / scale.value);
+  const newTy = anchorY - lt - (anchorY - lt - ty.value) * (newScale / scale.value);
   const clamped = clampTranslate(newScale, newTx, newTy);
   scale.value = newScale;
   tx.value = clamped.tx;

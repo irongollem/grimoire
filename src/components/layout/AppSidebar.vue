@@ -11,6 +11,7 @@
           <p class="font-fell text-xs text-muted-foreground italic mt-1">Campaign Companion</p>
         </RouterLink>
         <div class="flex items-center gap-1 shrink-0 pt-0.5">
+          <DiceRoller />
           <!-- AI generation in-progress spinner -->
           <button
             v-if="isAnyAiGenerating && activeGenerator"
@@ -193,6 +194,7 @@ import { useSubscription } from "@/composables/useSubscription";
 import NavItem from "./NavItem.vue";
 import CampaignSwitcher from "./CampaignSwitcher.vue";
 import GlobalSearch from "./GlobalSearch.vue";
+import DiceRoller from "@/components/common/DiceRoller.vue";
 import AppInvitePanel from "@/components/admin/AppInvitePanel.vue";
 import BugReportModal from "@/components/common/BugReportModal.vue";
 
