@@ -155,6 +155,7 @@
         class="encounter-resize-handle"
         title="Drag to resize"
         @mousedown.prevent="startEncounterResize($event)"
+        @touchstart.prevent="startEncounterResizeTouch($event)"
       />
 
       <main class="flex-1 overflow-y-auto">
@@ -327,6 +328,22 @@ function startEncounterResize(e: MouseEvent) {
   document.addEventListener("mouseup", onUp);
 }
 
+function startEncounterResizeTouch(e: TouchEvent) {
+  const startX = e.touches[0].clientX;
+  const startWidth = encounterPanelWidth.value;
+  document.body.style.userSelect = "none";
+  function onMove(ev: TouchEvent) {
+    encounterPanelWidth.value = Math.max(180, Math.min(520, startWidth + (ev.touches[0].clientX - startX)));
+  }
+  function onEnd() {
+    document.body.style.userSelect = "";
+    document.removeEventListener("touchmove", onMove);
+    document.removeEventListener("touchend", onEnd);
+  }
+  document.addEventListener("touchmove", onMove, { passive: false });
+  document.addEventListener("touchend", onEnd);
+}
+
 // Auto-open the encounter panel when an encounter goes live.
 // On the initial page load (oldVals undefined/falsy) just open the panel silently.
 // Mid-session transitions also show the toast so the player is notified.
@@ -414,24 +431,33 @@ async function handleSignOut() {
 }
 
 .encounter-resize-handle {
-  width: 6px;
+  width: 20px;
   flex-shrink: 0;
   cursor: col-resize;
+  position: relative;
+  transition: background 0.15s;
+}
+/* Thin visible line centered in the wider touch target */
+.encounter-resize-handle::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  left: calc(50% - 3px);
+  width: 6px;
   background: theme(colors.border / 100%);
   transition: background 0.15s;
-  position: relative;
 }
 .encounter-resize-handle::after {
   content: '';
   position: absolute;
   top: calc(50% - 20px);
-  left: 1px;
+  left: calc(50% - 2px);
   width: 4px;
   height: 40px;
   border-left: 1.5px dotted theme(colors.muted-foreground / 50%);
   border-right: 1.5px dotted theme(colors.muted-foreground / 50%);
 }
-.encounter-resize-handle:hover {
+.encounter-resize-handle:hover::before {
   background: theme(colors.primary / 30%);
 }
 .encounter-resize-handle:hover::after {

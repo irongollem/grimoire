@@ -191,9 +191,10 @@ const rollLabel = computed(() => {
   for (const d of DICE) {
     if (counts[d.sides] > 0) parts.push(`${counts[d.sides]}d${d.sides}`);
   }
+  let label = parts.join(" + ") || "—";
   if (modifier.value !== 0)
-    parts.push(modifier.value > 0 ? `+${modifier.value}` : `${modifier.value}`);
-  return parts.join(" + ") || "—";
+    label += modifier.value > 0 ? ` +${modifier.value}` : ` ${modifier.value}`;
+  return label;
 });
 
 /** Upper bound for scramble range — highest die currently selected, or 20. */
@@ -259,6 +260,7 @@ function clearAll() {
 
 .die-btn {
   @apply flex flex-col items-center justify-center w-full aspect-square rounded-lg border border-border bg-muted/40 hover:border-primary/60 hover:bg-primary/5 transition-colors gap-0.5 py-1.5;
+  touch-action: manipulation;
 }
 .die-active {
   @apply border-primary/60 bg-primary/10 text-primary;
@@ -276,6 +278,7 @@ function clearAll() {
 }
 .count-btn {
   @apply w-5 h-5 rounded bg-muted border border-border font-cinzel text-xs flex items-center justify-center hover:bg-card transition-colors leading-none;
+  touch-action: manipulation;
 }
 .count-val {
   @apply font-cinzel text-xs font-bold text-foreground w-4 text-center;
