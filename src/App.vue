@@ -34,7 +34,6 @@ import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
 import ManualRollPrompt from "@/components/common/ManualRollPrompt.vue";
 import LoadingScreen from "@/components/auth/LoadingScreen.vue";
 import { useTheme } from "@/composables/useTheme";
-import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCampaignById } from "@/composables/useCampaigns";
@@ -111,9 +110,9 @@ watch(
 // tab wake — which caused infinite spinners with no network activity.
 //
 // Instead we manually invalidate queries here, after confirming the session is
-// warm. For long absences we race the warm-up against a timeout: if the auth lock
-// is stuck (network down / hanging refresh), we reload the page rather than let
-// the user sit on a frozen screen.
+// warm. We MUST NOT call supabase.auth.getSession() directly: it races the
+// SDK's own autoRefreshToken for the same navigator.locks lock, causing an
+// AbortError storm (x18+ retries) on tab wake after a long absence.
 const queryClient = useQueryClient();
 let lastHidden = Date.now();
 
@@ -124,26 +123,25 @@ async function onVisibilityChange() {
   }
 
   const awayMs = Date.now() - lastHidden;
-  if (awayMs < 60_000) {
-    // Short absence — staleTime (60s) handles freshness, no forced invalidation.
-    // Calling invalidateQueries() here would burst N concurrent Supabase calls,
-    // all serializing through navigator.locks, blocking any subsequent navigation.
-    return;
-  }
+  if (awayMs < 60_000) return;
 
-  // Long absence — the JWT may have expired. Warm the session first so that
-  // every query fires with a valid token instead of queuing behind the lock.
+  // After a long absence the JWT is likely expired. autoRefreshToken handles
+  // the renewal — don't compete for navigator.locks. Poll auth.session (reactive,
+  // no lock) until it's confirmed valid or we give up.
   const TIMEOUT_MS = 8_000;
-  const timedOut = await Promise.race([
-    supabase.auth.getSession().then(() => false),
-    new Promise<true>((resolve) => setTimeout(() => resolve(true), TIMEOUT_MS)),
-  ]);
+  const POLL_MS = 200;
+  const sessionValid = () => (auth.session?.expires_at ?? 0) > Math.floor(Date.now() / 1000) + 30;
 
-  if (timedOut) {
-    window.location.reload();
-    return;
+  if (!sessionValid()) {
+    const start = Date.now();
+    while (Date.now() - start < TIMEOUT_MS) {
+      await new Promise<void>((r) => setTimeout(r, POLL_MS));
+      if (sessionValid()) break;
+      if (!auth.isAuthenticated) return; // SIGNED_OUT — auth.ts redirects to /login
+    }
   }
 
+  if (!auth.isAuthenticated || !sessionValid()) return;
   queryClient.invalidateQueries();
 }
 
