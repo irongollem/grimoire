@@ -106,42 +106,22 @@ watch(
 );
 
 // refetchOnWindowFocus is disabled globally (main.ts) to prevent TanStack Query
-// from independently queuing DB calls behind the navigator.locks auth refresh on
-// tab wake — which caused infinite spinners with no network activity.
-//
-// Instead we manually invalidate queries here, after confirming the session is
-// warm. We MUST NOT call supabase.auth.getSession() directly: it races the
-// SDK's own autoRefreshToken for the same navigator.locks lock, causing an
-// AbortError storm (x18+ retries) on tab wake after a long absence.
+// from firing N concurrent queries behind the auth lock on tab wake.
+// Instead we manually invalidate after a long absence so components get fresh
+// data. singleTabLock (supabase.ts) queues auth and DB operations in order
+// without a timeout, so autoRefreshToken finishes before queries run — no
+// AbortError storms, no explicit session warm-up needed here.
 const queryClient = useQueryClient();
 let lastHidden = Date.now();
 
-async function onVisibilityChange() {
+function onVisibilityChange() {
   if (document.visibilityState === "hidden") {
     lastHidden = Date.now();
     return;
   }
-
   const awayMs = Date.now() - lastHidden;
   if (awayMs < 60_000) return;
-
-  // After a long absence the JWT is likely expired. autoRefreshToken handles
-  // the renewal — don't compete for navigator.locks. Poll auth.session (reactive,
-  // no lock) until it's confirmed valid or we give up.
-  const TIMEOUT_MS = 8_000;
-  const POLL_MS = 200;
-  const sessionValid = () => (auth.session?.expires_at ?? 0) > Math.floor(Date.now() / 1000) + 30;
-
-  if (!sessionValid()) {
-    const start = Date.now();
-    while (Date.now() - start < TIMEOUT_MS) {
-      await new Promise<void>((r) => setTimeout(r, POLL_MS));
-      if (sessionValid()) break;
-      if (!auth.isAuthenticated) return; // SIGNED_OUT — auth.ts redirects to /login
-    }
-  }
-
-  if (!auth.isAuthenticated || !sessionValid()) return;
+  if (!auth.isAuthenticated) return;
   queryClient.invalidateQueries();
 }
 

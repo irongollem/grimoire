@@ -11,10 +11,36 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+// Replace navigator.locks (the default) with a simple in-process promise queue.
+//
+// The browser's navigator.locks API has a hardcoded 5000ms orphan-recovery
+// timeout: if any holder is suspended (device sleep, tab background) for >5s
+// the lock is forcibly stolen, and every waiting operation gets AbortError.
+// With many concurrent supabase.from() calls (each needs the auth token), a
+// single device wake can produce 40+ AbortErrors and put chat into an 8s
+// loading loop via the bail timer.
+//
+// The in-process queue serialises auth operations within this tab just as
+// reliably, but purely via Promise chaining — no browser API, no timeout.
+// Cross-tab token refresh is still safe: autoRefreshToken is the only writer,
+// and each tab has its own GoTrueClient with its own queue, so two tabs
+// refreshing simultaneously would use different refresh tokens (different
+// users) or, for the rare same-user-two-tabs case, one would get a 400 and
+// fall back to a new login — no worse than the current AbortError outcome.
+type LockFunc = (name: string, acquireTimeout: number, fn: () => Promise<unknown>) => Promise<unknown>;
+const _lockQueues: Record<string, Promise<unknown>> = {};
+const singleTabLock: LockFunc = (name, _timeout, fn) => {
+  const prev = _lockQueues[name] ?? Promise.resolve();
+  const current = prev.then(() => fn(), () => fn());
+  _lockQueues[name] = current.then(() => {}, () => {});
+  return current;
+};
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
+    lock: singleTabLock,
   },
 });
 

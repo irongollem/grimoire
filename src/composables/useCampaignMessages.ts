@@ -114,12 +114,10 @@ function subscribe(campaignId: string) {
         reconnectAttempts++;
         // Exponential backoff: 2s, 4s, 8s … capped at 30s
         const delay = Math.min(2000 * Math.pow(2, reconnectAttempts - 1), 30_000);
-        setTimeout(() => {
-          if (subscribedCampaignId && myGen === generation) {
-            fetchMessages(subscribedCampaignId).then(() => {
-              if (subscribedCampaignId && myGen === generation) subscribe(subscribedCampaignId);
-            });
-          }
+        setTimeout(async () => {
+          if (!subscribedCampaignId || myGen !== generation) return;
+          await fetchMessages(subscribedCampaignId);
+          if (subscribedCampaignId && myGen === generation) subscribe(subscribedCampaignId);
         }, delay);
       }
     });
@@ -144,26 +142,23 @@ function ensureWatcher() {
 
   // When the tab becomes visible again after sleeping/backgrounding:
   // - If the channel gave up (max attempts reached), reset and fully reconnect.
-  // - Otherwise just backfill missed messages. Always delay slightly so Supabase's
-  //   auth token refresh (which holds navigator.locks) finishes before we hit the DB.
+  // - Otherwise just backfill missed messages.
+  // singleTabLock (in supabase.ts) queues auth and DB operations without a
+  // timeout, so no explicit session wait is needed here — fetchMessages() will
+  // naturally run after autoRefreshToken finishes if the token needed renewal.
   if (typeof document !== "undefined") {
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible" && subscribedCampaignId) {
-        // Delay long enough for Supabase's internal auth token refresh to
-        // complete and release its navigator.locks lock before we call
-        // supabase.from() ourselves. 800ms was too tight on iOS after a long
-        // app suspension — 2s gives the auth round-trip time to settle.
-        setTimeout(() => {
-          if (!subscribedCampaignId) return;
-          if (reconnectAttempts >= MAX_RECONNECT) {
-            reconnectAttempts = 0;
-            fetchMessages(subscribedCampaignId).then(() => {
-              if (subscribedCampaignId) subscribe(subscribedCampaignId);
-            });
-          } else {
-            fetchMessages(subscribedCampaignId);
-          }
-        }, 2_000);
+    document.addEventListener("visibilitychange", async () => {
+      if (document.visibilityState !== "visible" || !subscribedCampaignId) return;
+      const auth = useAuthStore();
+      if (!auth.isAuthenticated) return;
+      const cid = subscribedCampaignId;
+      if (!cid) return;
+      if (reconnectAttempts >= MAX_RECONNECT) {
+        reconnectAttempts = 0;
+        await fetchMessages(cid);
+        if (subscribedCampaignId) subscribe(subscribedCampaignId);
+      } else {
+        await fetchMessages(cid);
       }
     });
   }
