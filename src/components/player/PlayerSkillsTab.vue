@@ -61,60 +61,6 @@
       </div>
     </div>
 
-    <!-- Personality (structured roleplay block) -->
-    <div
-      v-if="hasPersonality"
-      class="rounded-lg border border-border bg-card p-4 space-y-3"
-    >
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Personality</p>
-      <div v-if="member.alignment || member.deity" class="flex flex-wrap gap-1.5">
-        <span v-if="member.alignment" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">
-          {{ member.alignment }}
-        </span>
-        <span v-if="member.deity" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">
-          ✦ {{ member.deity }}
-        </span>
-      </div>
-      <div v-if="member.personality_traits" class="space-y-0.5">
-        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">TRAITS</p>
-        <p class="font-fell text-sm text-foreground whitespace-pre-wrap">{{ member.personality_traits }}</p>
-      </div>
-      <div v-if="member.ideals" class="space-y-0.5">
-        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">IDEALS</p>
-        <p class="font-fell text-sm text-foreground whitespace-pre-wrap">{{ member.ideals }}</p>
-      </div>
-      <div v-if="member.bonds" class="space-y-0.5">
-        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">BONDS</p>
-        <p class="font-fell text-sm text-foreground whitespace-pre-wrap">{{ member.bonds }}</p>
-      </div>
-      <div v-if="member.flaws" class="space-y-0.5">
-        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">FLAWS</p>
-        <p class="font-fell text-sm text-foreground whitespace-pre-wrap">{{ member.flaws }}</p>
-      </div>
-    </div>
-
-    <!-- Identity (age / gender / pronouns / description) -->
-    <div v-if="hasIdentityExtras" class="rounded-lg border border-border bg-card p-4 space-y-2">
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Identity</p>
-      <div class="flex flex-wrap gap-1.5">
-        <span v-if="member.age" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">
-          Age {{ member.age }}
-        </span>
-        <span v-if="member.gender" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">
-          {{ member.gender }}
-        </span>
-        <span v-if="member.pronouns" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">
-          {{ member.pronouns }}
-        </span>
-      </div>
-      <p v-if="member.physical_description" class="font-fell text-sm text-foreground whitespace-pre-wrap">{{ member.physical_description }}</p>
-    </div>
-
-    <!-- Notes -->
-    <div v-if="member.notes" class="rounded-lg border border-border bg-card p-4">
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2">Notes</p>
-      <p class="font-fell text-sm text-foreground whitespace-pre-wrap">{{ member.notes }}</p>
-    </div>
   </div>
 </template>
 
@@ -171,17 +117,6 @@ function passiveScore(skillKey: keyof SkillProficiencies) {
   return 10 + skillBonusValue(skill);
 }
 const passivePerception   = computed(() => passiveScore("perception"));
-const hasPersonality = computed(() =>
-  !!(props.member.alignment
-    || props.member.deity
-    || props.member.personality_traits
-    || props.member.ideals
-    || props.member.bonds
-    || props.member.flaws),
-);
-const hasIdentityExtras = computed(() =>
-  !!(props.member.age || props.member.gender || props.member.pronouns || props.member.physical_description),
-);
 const passiveInsight      = computed(() => passiveScore("insight"));
 const passiveInvestigation = computed(() => passiveScore("investigation"));
 

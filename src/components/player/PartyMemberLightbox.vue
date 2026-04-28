@@ -72,29 +72,14 @@
               <RichTextViewer :content="member.player_description" />
             </div>
 
-            <!-- Species detail — shows true or disguise species depending on viewer -->
-            <div v-if="displaySpecies" class="space-y-3 border-t border-border pt-3">
-              <div v-if="displaySpecies.image_url" class="rounded-md overflow-hidden">
-                <FocalImage
-                  :src="displaySpecies.image_url"
-                  :alt="displaySpecies.name"
-                  format="landscape"
-                  :focal-point="displaySpecies.focal_point ?? null"
-                />
-              </div>
-              <h3 class="font-cinzel text-sm font-bold text-foreground">{{ displaySpecies.name }}</h3>
-              <div class="flex flex-wrap gap-3 font-fell text-xs text-muted-foreground italic">
-                <span v-if="displaySpecies.size">Size: {{ displaySpecies.size }}</span>
-                <span v-if="displaySpecies.speed?.walk">Speed: {{ displaySpecies.speed.walk }} ft.</span>
-                <span v-if="displaySpecies.languages?.length">Languages: {{ displaySpecies.languages.join(', ') }}</span>
-              </div>
-              <RichTextViewer v-if="displaySpecies.description" :content="displaySpecies.description" />
-              <div v-if="displaySpecies.traits?.length" class="space-y-2">
-                <div v-for="trait in displaySpecies.traits" :key="trait.name">
-                  <p class="font-cinzel text-xs font-semibold text-foreground">{{ trait.name }}</p>
-                  <RichTextViewer :content="trait.description" class="font-fell text-xs text-muted-foreground" />
-                </div>
-              </div>
+            <!-- Species name chip — no full species block, just the label -->
+            <div v-if="displaySpecies" class="flex flex-wrap gap-1.5">
+              <span class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">
+                {{ displaySpecies.name }}
+              </span>
+              <span v-if="displaySpecies.size" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-muted-foreground tracking-wider">
+                {{ displaySpecies.size }}
+              </span>
             </div>
 
             <PlayerNotesWidget entity-type="party_member" :entity-id="member.id" placeholder="Your thoughts on this party member…" />
