@@ -31,9 +31,9 @@
     >
       <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">Identity</p>
       <div class="flex flex-wrap gap-1.5">
-        <span v-if="member.age"      class="chip">Age {{ member.age }}</span>
-        <span v-if="member.gender"   class="chip">{{ member.gender }}</span>
-        <span v-if="member.pronouns" class="chip">{{ member.pronouns }}</span>
+        <span v-if="member.age"      class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">Age {{ member.age }}</span>
+        <span v-if="member.gender"   class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">{{ member.gender }}</span>
+        <span v-if="member.pronouns" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">{{ member.pronouns }}</span>
       </div>
       <p v-if="member.physical_description" class="font-fell text-sm text-foreground whitespace-pre-wrap">
         {{ member.physical_description }}
@@ -47,8 +47,8 @@
     >
       <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">Personality</p>
       <div v-if="member.alignment || member.deity" class="flex flex-wrap gap-1.5">
-        <span v-if="member.alignment" class="chip">{{ member.alignment }}</span>
-        <span v-if="member.deity"     class="chip">✦ {{ member.deity }}</span>
+        <span v-if="member.alignment" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">{{ member.alignment }}</span>
+        <span v-if="member.deity"     class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">✦ {{ member.deity }}</span>
       </div>
       <div v-if="member.personality_traits" class="space-y-0.5">
         <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">TRAITS</p>
@@ -116,19 +116,19 @@
           <div v-if="background.skill_proficiencies.length">
             <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-1">SKILLS</p>
             <div class="flex flex-wrap gap-1">
-              <span v-for="s in background.skill_proficiencies" :key="s" class="chip">{{ s }}</span>
+              <span v-for="s in background.skill_proficiencies" :key="s" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">{{ s }}</span>
             </div>
           </div>
           <div v-if="background.tool_proficiencies.length">
             <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-1">TOOLS</p>
             <div class="flex flex-wrap gap-1">
-              <span v-for="t in background.tool_proficiencies" :key="t" class="chip">{{ t }}</span>
+              <span v-for="t in background.tool_proficiencies" :key="t" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">{{ t }}</span>
             </div>
           </div>
           <div v-if="background.languages.length">
             <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-1">LANGUAGES</p>
             <div class="flex flex-wrap gap-1">
-              <span v-for="l in background.languages" :key="l" class="chip">{{ l }}</span>
+              <span v-for="l in background.languages" :key="l" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">{{ l }}</span>
             </div>
           </div>
         </div>
@@ -178,9 +178,3 @@ const hasPersonality = computed(() =>
 );
 
 </script>
-
-<style scoped>
-.chip {
-  @apply px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider;
-}
-</style>
