@@ -27,9 +27,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // refreshing simultaneously would use different refresh tokens (different
 // users) or, for the rare same-user-two-tabs case, one would get a 400 and
 // fall back to a new login — no worse than the current AbortError outcome.
-type LockFunc = (name: string, acquireTimeout: number, fn: () => Promise<unknown>) => Promise<unknown>;
 const _lockQueues: Record<string, Promise<unknown>> = {};
-const singleTabLock: LockFunc = (name, _timeout, fn) => {
+const singleTabLock = <R>(name: string, _timeout: number, fn: () => Promise<R>): Promise<R> => {
   const prev = _lockQueues[name] ?? Promise.resolve();
   const current = prev.then(() => fn(), () => fn());
   _lockQueues[name] = current.then(() => {}, () => {});
