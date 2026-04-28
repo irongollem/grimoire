@@ -75,9 +75,12 @@
         </span>
       </div>
       <div class="divide-y divide-border">
-        <div v-for="note in othersNotes" :key="note.id" class="px-3 py-2.5">
+        <div v-for="note in othersNotes" :key="note.id" class="px-3 py-2.5 space-y-1">
+          <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">
+            {{ authorName(note.user_id) }}
+          </p>
           <RichTextViewer :content="note.content" />
-          <p class="font-cinzel text-[10px] text-muted-foreground/40 tracking-wider mt-1">
+          <p class="font-cinzel text-[10px] text-muted-foreground/40 tracking-wider">
             {{ note.updated_at?.slice(0, 10) }}
           </p>
         </div>
@@ -90,6 +93,7 @@
 import { ref, computed, watch } from "vue";
 import { Lock, Globe } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
+import { useMemberByUserId } from "@/composables/useCampaignMembers";
 import {
   useEntityNotes,
   useCreateEntityNote,
@@ -109,6 +113,8 @@ const props = withDefaults(defineProps<{
 
 const auth = useAuthStore();
 const myUserId = computed(() => auth.user?.id ?? "");
+
+const { displayNameFor: authorName } = useMemberByUserId();
 
 const { data: notes } = useEntityNotes(props.entityType, props.entityId);
 const createMut = useCreateEntityNote();

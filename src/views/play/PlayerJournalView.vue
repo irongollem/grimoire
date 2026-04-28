@@ -350,7 +350,7 @@ import { useAllMonsters } from "@/composables/useMonsters";
 import { usePlayerDiscoveries } from "@/composables/useDiscoveredMonsters";
 import { useEncounters } from "@/composables/useEncounters";
 import { useAuthStore } from "@/stores/auth";
-import { useCampaignMembers } from "@/composables/useCampaignMembers";
+import { useMemberByUserId } from "@/composables/useCampaignMembers";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
@@ -359,12 +359,8 @@ import { removeRichTextImages, cleanupRemovedRichTextImages } from "@/composable
 // ── Data ───────────────────────────────────────────────────────────────────────
 const { data: myEntries,     isLoading: loadingMine }   = useMyJournalEntries();
 const { data: sharedEntries, isLoading: loadingShared } = useSharedJournalEntries();
-const { data: campaignMembers } = useCampaignMembers();
 const isLoading = computed(() => loadingMine.value || loadingShared.value);
-
-const memberByUserId = computed(() =>
-  Object.fromEntries((campaignMembers.value ?? []).map((m) => [m.user_id, m])),
-);
+const { memberByUserId } = useMemberByUserId();
 
 // Entity data for context picker — player-scoped to avoid leaking DM data
 const auth = useAuthStore();

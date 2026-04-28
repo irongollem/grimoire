@@ -123,6 +123,19 @@ export function useRevokeInvite() {
   });
 }
 
+// ── Member lookup helper ──────────────────────────────────────────────────────
+
+export function useMemberByUserId() {
+  const { data: members } = useCampaignMembers();
+  const memberByUserId = computed(() =>
+    Object.fromEntries((members.value ?? []).map((m) => [m.user_id, m])),
+  );
+  function displayNameFor(userId: string, fallback = "Party member"): string {
+    return memberByUserId.value[userId]?.display_name ?? fallback;
+  }
+  return { memberByUserId, displayNameFor };
+}
+
 // ── Join via invite (called from JoinCampaign view) ───────────────────────────
 
 export async function joinCampaignViaInvite(token: string): Promise<string> {
