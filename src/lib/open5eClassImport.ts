@@ -164,6 +164,7 @@ export function subclassToInsert(preview: Open5eSubclassPreview): CustomSubclass
     features: {},
     steps: [],
     resources: [],
+    hp_per_level: null,
   };
 }
 

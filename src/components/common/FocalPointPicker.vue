@@ -11,15 +11,15 @@
       </span>
     </p>
 
-    <!-- Image with crosshair overlay -->
+    <!-- Image with crosshair overlay — aspect-3/4 prevents CLS when src changes -->
     <div
-      class="relative rounded overflow-hidden cursor-crosshair select-none"
+      class="relative aspect-3/4 rounded overflow-hidden cursor-crosshair select-none"
       @click="onPick"
     >
       <img
         :src="src"
         alt=""
-        class="w-full h-auto block pointer-events-none"
+        class="absolute inset-0 w-full h-full object-cover pointer-events-none"
         draggable="false"
       />
 

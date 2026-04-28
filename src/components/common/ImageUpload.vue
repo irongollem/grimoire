@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="relative">
     <!-- No image: dashed drop zone — label activates file input natively (iOS-safe) -->
     <label
       v-if="!modelValue"
@@ -99,7 +99,7 @@
       ref="fileInput"
       type="file"
       accept="image/*"
-      class="sr-only"
+      class="sr-only top-0! left-0!"
       :disabled="isUploading"
       @change="onFileSelected"
     />

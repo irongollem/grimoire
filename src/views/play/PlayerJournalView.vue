@@ -559,10 +559,6 @@ async function submitEdit() {
   }
 }
 
-async function togglePrivacy(entry: PlayerJournalEntry) {
-  await update({ id: entry.id, update: { is_private: !entry.is_private } });
-}
-
 async function removeEntry(entry: PlayerJournalEntry) {
   if (!await confirm("Delete this journal entry?")) return;
   if (expanded.value === entry.id) expanded.value = null;

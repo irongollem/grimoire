@@ -466,6 +466,7 @@ interface FormState {
   features: Record<string, string[]>;
   steps: CustomStep[];
   resources: CustomResource[];
+  hp_per_level: number | null;
 }
 
 const form = ref<FormState>({
@@ -475,6 +476,7 @@ const form = ref<FormState>({
   features: {},
   steps: [],
   resources: [],
+  hp_per_level: null,
 });
 
 const campaignScope = ref<string>("all");
@@ -492,6 +494,7 @@ watch(existing, (val) => {
       step_type: s.step_type ?? "text_pick",
     })),
     resources: raw.resources,
+    hp_per_level: raw.hp_per_level ?? null,
   };
   campaignScope.value = raw.campaign_id ?? "all";
 }, { immediate: true });
@@ -607,6 +610,7 @@ async function save() {
     features: form.value.features,
     steps: form.value.steps,
     resources: form.value.resources,
+    hp_per_level: form.value.hp_per_level,
     campaign_id: campaignScope.value === "all" ? null : campaignScope.value,
   };
   try {

@@ -160,6 +160,7 @@ async function createExample() {
         options: ["Option A", "Option B", "Option C"], count: 1,
       }],
       resources: [{ key: "example_uses", label: "Example Uses", rest: "long", scaling: "fixed", fixed_value: 3 }],
+      hp_per_level: null,
     });
   } finally {
     loadingExample.value = false;

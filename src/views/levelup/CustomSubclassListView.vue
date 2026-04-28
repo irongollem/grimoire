@@ -239,6 +239,7 @@ async function createExample() {
           fixed_value: 3,
         },
       ],
+      hp_per_level: null,
     });
   } finally {
     loadingExample.value = false;
