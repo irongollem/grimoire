@@ -364,13 +364,35 @@
           </div>
         </div>
 
-        <!-- bar -->
-        <div class="h-1.5 rounded-full bg-muted/40 overflow-hidden">
+        <!-- bar + threshold markers -->
+        <div class="relative">
+          <div class="h-1.5 rounded-full bg-muted/40 overflow-hidden">
+            <div
+              class="h-full rounded-full transition-all duration-300"
+              :class="carryColor"
+              :style="{ width: carryPercent + '%' }"
+            />
+          </div>
+          <!-- tick marks -->
           <div
-            class="h-full rounded-full transition-all duration-300"
-            :class="carryColor"
-            :style="{ width: carryPercent + '%' }"
+            class="absolute top-0 h-1.5 w-px bg-foreground/20 pointer-events-none"
+            :style="{ left: encumberedMarkerPct + '%' }"
           />
+          <div
+            class="absolute top-0 h-1.5 w-px bg-foreground/20 pointer-events-none"
+            :style="{ left: heavyMarkerPct + '%' }"
+          />
+          <!-- threshold labels -->
+          <div class="relative h-3.5 mt-0.5" aria-hidden="true">
+            <span
+              class="absolute font-cinzel text-[8px] text-muted-foreground/40 -translate-x-1/2 whitespace-nowrap"
+              :style="{ left: encumberedMarkerPct + '%' }"
+            >{{ formatWeightLb(encumberedThreshold) }}</span>
+            <span
+              class="absolute font-cinzel text-[8px] text-muted-foreground/40 -translate-x-1/2 whitespace-nowrap"
+              :style="{ left: heavyMarkerPct + '%' }"
+            >{{ formatWeightLb(heavyThreshold) }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -528,6 +550,7 @@
             :item="item"
             :all-containers="allContainers"
             :sellable="true"
+            :weight-per-unit="invWeightPerUnit(item)"
             @move="moveItem"
             @remove="removeItem"
             @adjust-qty="adjustQty"
@@ -568,6 +591,7 @@
             :show-carrier="true"
             :party-members="partyMembers ?? []"
             :all-containers="allContainers"
+            :weight-per-unit="invWeightPerUnit(item)"
             @move="moveItem"
             @remove="removeItem"
             @adjust-qty="adjustQty"
@@ -829,6 +853,15 @@ const backpackItems = computed(() =>
 const storedItems = computed(() =>
   myItems.value.filter((i) => i.location === "stored" && !i.is_container),
 );
+const orphanedItems = computed(() => {
+  const containerIds = new Set(customContainers.value.map((c) => c.id));
+  return myItems.value.filter(
+    (i) =>
+      i.location === "container" &&
+      !i.is_container &&
+      !containerIds.has(i.container_id ?? ""),
+  );
+});
 const attunedItems = computed(() => myItems.value.filter((i) => i.is_attuned));
 const customContainers = computed(() =>
   myItems.value.filter((i) => i.is_container),
@@ -855,7 +888,11 @@ function itemsInContainer(cid: string) {
 
 // ── Local drag-and-drop mirror refs for non-ContainerSection sections ──────────
 const localStoredItems = ref<PartyInventoryItem[]>([]);
-watch(storedItems, (v) => { localStoredItems.value = [...v]; }, { immediate: true });
+watch(
+  [storedItems, orphanedItems],
+  ([stored, orphaned]) => { localStoredItems.value = [...stored, ...orphaned]; },
+  { immediate: true },
+);
 
 const localStashItems = ref<PartyInventoryItem[]>([]);
 watch(partyStash, (v) => { localStashItems.value = [...v]; }, { immediate: true });
@@ -885,6 +922,11 @@ const itemWeightMap = computed((): Map<string, number> => {
 function invWeight(inv: PartyInventoryItem): number {
   if (!inv.item_id) return 0;
   return (itemWeightMap.value.get(inv.item_id) ?? 0) * inv.quantity;
+}
+
+function invWeightPerUnit(inv: PartyInventoryItem): number {
+  if (!inv.item_id) return 0;
+  return itemWeightMap.value.get(inv.item_id) ?? 0;
 }
 
 function sumWeight(items: PartyInventoryItem[]): number {
@@ -947,8 +989,32 @@ const carryColor = computed(() => {
   if (carryPercent.value >= 100) return "bg-destructive";
   if (carryPercent.value >= 67) return "bg-amber-500";
   if (carryPercent.value >= 33) return "bg-amber-400/70";
-  return "bg-primary";
+  return "bg-green-500";
 });
+
+const encumberedThreshold = computed(() => {
+  if (!member.value) return 0;
+  const mult = powerfulBuild.value ? 2 : 1;
+  return member.value.str * 5 * mult;
+});
+
+const heavyThreshold = computed(() => {
+  if (!member.value) return 0;
+  const mult = powerfulBuild.value ? 2 : 1;
+  return member.value.str * 10 * mult;
+});
+
+const encumberedMarkerPct = computed(() =>
+  effectiveCapacity.value > 0
+    ? Math.min(100, (encumberedThreshold.value / effectiveCapacity.value) * 100)
+    : 33.33,
+);
+
+const heavyMarkerPct = computed(() =>
+  effectiveCapacity.value > 0
+    ? Math.min(100, (heavyThreshold.value / effectiveCapacity.value) * 100)
+    : 66.67,
+);
 
 type BurdenLevel =
   | "unencumbered"
@@ -963,7 +1029,7 @@ const BURDEN_META: Record<
   unencumbered: {
     label: "Unencumbered",
     img: "/assets/unencumbered.webp",
-    color: "text-muted-foreground/60",
+    color: "text-green-500",
   },
   encumbered: {
     label: "Encumbered",

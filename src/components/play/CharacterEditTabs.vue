@@ -158,7 +158,7 @@
         </div>
       </div>
       <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase mt-4">Tool Proficiencies</p>
-      <TagPickerInput :model-value="f.tool_proficiencies" :groups="TOOL_PROFICIENCY_GROUPS" placeholder="Search tools…" variant="primary" @update:model-value="f.tool_proficiencies = $event" />
+      <TagPickerInput :model-value="f.tool_proficiencies" :groups="TOOL_PROFICIENCY_GROUPS" placeholder="Search tools…" @update:model-value="f.tool_proficiencies = $event" />
       <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase mt-3">Languages</p>
       <TagPickerInput :model-value="f.languages" :groups="LANGUAGE_GROUPS" placeholder="Search languages…" @update:model-value="f.languages = $event" />
     </div>

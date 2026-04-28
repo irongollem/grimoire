@@ -40,6 +40,7 @@
           :item="item"
           :all-containers="allContainers"
           :sellable="sellable"
+          :weight-per-unit="weightForItem(item)"
           @remove="(id) => $emit('remove', id)"
           @adjust-qty="(item, d) => $emit('adjust-qty', item, d)"
           @drop-to-chat="(item) => $emit('drop-to-chat', item)"
@@ -95,7 +96,7 @@ import { ChevronRight, Info } from "lucide-vue-next";
 import { VueDraggable } from "vue-draggable-plus";
 import type { PartyInventoryItem, InventoryLocation } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
-import { formatWeightLb } from "@/lib/utils";
+import { formatWeightLb, parseWeightLb } from "@/lib/utils";
 import ItemRow from "./ItemRow.vue";
 
 const props = defineProps<{
@@ -126,6 +127,17 @@ const emit = defineEmits<{
   'split-stack': [item: PartyInventoryItem];
   reorder: [items: PartyInventoryItem[]];
 }>();
+
+const itemWeightMap = computed((): Map<string, number> => {
+  const m = new Map<string, number>();
+  for (const it of props.allItems) m.set(it.id, parseWeightLb(it.weight));
+  return m;
+});
+
+function weightForItem(item: PartyInventoryItem): number {
+  if (!item.item_id) return 0;
+  return itemWeightMap.value.get(item.item_id) ?? 0;
+}
 
 const open = ref(true);
 const headerRef = ref<HTMLElement | null>(null);

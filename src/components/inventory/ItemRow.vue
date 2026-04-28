@@ -15,6 +15,12 @@
       </p>
     </div>
 
+    <!-- Weight -->
+    <span
+      v-if="unitWeight > 0"
+      class="font-cinzel text-[10px] text-muted-foreground/50 shrink-0 whitespace-nowrap"
+    >{{ fmtW(unitWeight) }}<span v-if="item.quantity > 1" class="hidden sm:inline"> ({{ fmtW(totalWeight) }})</span> lb.</span>
+
     <!-- Qty -->
     <div class="flex items-center gap-1 shrink-0">
       <button class="h-4 w-4 rounded flex items-center justify-center hover:bg-muted border border-border transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100" @click="$emit('adjust-qty', item, -1)">
@@ -59,6 +65,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import { Plus, Minus, Trash2, ArrowUpFromLine, ShoppingBag, GripVertical, Scissors } from "lucide-vue-next";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { PartyMember } from "@/types/party.types";
@@ -69,6 +76,7 @@ const props = defineProps<{
   showCarrier?: boolean;
   partyMembers?: PartyMember[];
   sellable?: boolean;
+  weightPerUnit?: number;
 }>();
 
 defineEmits<{
@@ -79,6 +87,14 @@ defineEmits<{
   'sell-item': [item: PartyInventoryItem];
   'split-stack': [item: PartyInventoryItem];
 }>();
+
+function fmtW(v: number): string {
+  const r = Math.round(v * 10) / 10;
+  return r % 1 === 0 ? String(r) : r.toFixed(1);
+}
+
+const unitWeight = computed(() => props.weightPerUnit ?? 0);
+const totalWeight = computed(() => unitWeight.value * props.item.quantity);
 
 function carrierName(id: string) {
   return props.partyMembers?.find(m => m.id === id)?.name ?? null;
