@@ -169,7 +169,7 @@
     <!-- ── Bottom navigation bar ──────────────────────────────────────────── -->
     <!-- pb-safe pushes the nav's inner content above the iOS home indicator;
          pl-safe / pr-safe keep the edge buttons off landscape notches. -->
-    <nav class="fixed bottom-0 inset-x-0 z-40 bg-card border-t border-border pb-safe pl-safe pr-safe">
+    <nav class="fixed bottom-0 inset-x-0 z-40 bg-card border-t border-border h-[calc(4rem+env(safe-area-inset-bottom))] pb-safe pl-safe pr-safe">
       <div class="flex items-stretch justify-around">
 
         <!-- Mobile (< sm): 4 pinned items -->
@@ -431,33 +431,32 @@ async function handleSignOut() {
 }
 
 .encounter-resize-handle {
-  width: 20px;
+  width: 6px;
   flex-shrink: 0;
   cursor: col-resize;
-  position: relative;
+  background: theme(colors.border / 100%);
   transition: background 0.15s;
+  position: relative;
+  z-index: 1;
 }
-/* Thin visible line centered in the wider touch target */
+/* Expand touch/click surface to ~44px without affecting layout */
 .encounter-resize-handle::before {
   content: '';
   position: absolute;
-  inset-block: 0;
-  left: calc(50% - 3px);
-  width: 6px;
-  background: theme(colors.border / 100%);
-  transition: background 0.15s;
+  inset: 0;
+  margin-inline: -19px;
 }
 .encounter-resize-handle::after {
   content: '';
   position: absolute;
   top: calc(50% - 20px);
-  left: calc(50% - 2px);
+  left: 1px;
   width: 4px;
   height: 40px;
   border-left: 1.5px dotted theme(colors.muted-foreground / 50%);
   border-right: 1.5px dotted theme(colors.muted-foreground / 50%);
 }
-.encounter-resize-handle:hover::before {
+.encounter-resize-handle:hover {
   background: theme(colors.primary / 30%);
 }
 .encounter-resize-handle:hover::after {
