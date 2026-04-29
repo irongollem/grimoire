@@ -1,34 +1,29 @@
 <template>
-  <Transition name="fade">
-    <div
-      v-if="inv"
-      class="fixed inset-0 bg-black/60 z-40"
-      @click="$emit('close')"
-    />
-  </Transition>
+  <Teleport to="body">
+    <Transition name="fade">
+      <div
+        v-if="inv"
+        class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+        @click.self="$emit('close')"
+      >
+        <div class="bg-card rounded-xl border border-border w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+          <!-- Header -->
+          <div class="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+            <h2 class="font-cinzel text-base font-semibold text-foreground truncate pr-2">{{ inv.name }}</h2>
+            <div class="flex items-center gap-2 shrink-0">
+              <button
+                v-if="inv.location === 'equipped'"
+                class="font-cinzel text-[10px] tracking-wider text-destructive hover:opacity-70 transition-opacity"
+                @click="emit('unequip')"
+              >Unequip</button>
+              <button class="text-muted-foreground hover:text-foreground" @click="$emit('close')">
+                <X class="h-5 w-5" />
+              </button>
+            </div>
+          </div>
 
-  <Transition name="slide-right">
-    <aside
-      v-if="inv"
-      class="fixed right-0 top-0 bottom-0 w-full max-w-sm bg-card border-l border-border z-50 flex flex-col"
-    >
-      <!-- Header -->
-      <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-        <h2 class="font-cinzel text-base font-semibold text-foreground truncate pr-2">{{ inv.name }}</h2>
-        <div class="flex items-center gap-2 shrink-0">
-          <button
-            v-if="inv.location === 'equipped'"
-            class="font-cinzel text-[10px] tracking-wider text-destructive hover:opacity-70 transition-opacity"
-            @click="emit('unequip')"
-          >Unequip</button>
-          <button class="text-muted-foreground hover:text-foreground" @click="$emit('close')">
-            <X class="h-5 w-5" />
-          </button>
-        </div>
-      </div>
-
-      <!-- Body -->
-      <div class="flex-1 overflow-y-auto p-5 space-y-4">
+          <!-- Body -->
+          <div class="flex-1 overflow-y-auto p-5 space-y-4">
 
         <!-- Art: mundane art when unidentified (if present), else identified art -->
         <div
@@ -330,9 +325,11 @@
           </div>
         </div>
 
+          </div>
+        </div>
       </div>
-    </aside>
-  </Transition>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -609,6 +606,4 @@ defineExpose({ openSell });
 <style scoped>
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
-.slide-right-enter-active, .slide-right-leave-active { transition: transform 0.25s ease; }
-.slide-right-enter-from, .slide-right-leave-to { transform: translateX(100%); }
 </style>
