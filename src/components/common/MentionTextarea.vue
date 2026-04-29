@@ -43,15 +43,17 @@ import { ref, computed } from "vue";
 import type { EntityMentionItem, EntityType } from "@/lib/tiptap/EntityMention";
 
 const ENTITY_LABELS: Record<EntityType, string> = {
-  player:  "PC",
-  npc:     "NPC",
-  monster: "MON",
+  player:   "PC",
+  npc:      "NPC",
+  monster:  "MON",
+  location: "LOC",
 };
 
 const BADGE_CLASSES: Record<EntityType, string> = {
-  player:  "text-blue-400 border-blue-400/40 bg-blue-400/10",
-  npc:     "text-violet-400 border-violet-400/40 bg-violet-400/10",
-  monster: "text-rose-400 border-rose-400/40 bg-rose-400/10",
+  player:   "text-blue-400 border-blue-400/40 bg-blue-400/10",
+  npc:      "text-violet-400 border-violet-400/40 bg-violet-400/10",
+  monster:  "text-rose-400 border-rose-400/40 bg-rose-400/10",
+  location: "text-emerald-400 border-emerald-400/40 bg-emerald-400/10",
 };
 
 const props = withDefaults(defineProps<{

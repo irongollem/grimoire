@@ -404,6 +404,7 @@ const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
   player: "PC",
   npc: "NPC",
   monster: "MON",
+  location: "LOC",
 };
 
 const props = defineProps<{

@@ -31,7 +31,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { nodeViewProps, NodeViewWrapper } from "@tiptap/vue-3";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import type { EntityType } from "@/lib/tiptap/EntityMention";
 
 const props = defineProps({ ...nodeViewProps });
@@ -42,16 +42,32 @@ const label = computed(() => props.node.attrs.label as string);
 const entityId = computed(() => props.node.attrs.id as string);
 
 const router = useRouter();
+const route = useRoute();
 
-const ENTITY_ROUTES: Record<EntityType, string> = {
+// DM side has per-entity detail routes — append the ID.
+const DM_ENTITY_ROUTES: Record<EntityType, string> = {
   player: "/party",
   npc: "/npcs",
   monster: "/monsters",
+  location: "/locations",
+};
+
+// Player portal only has list pages — navigate to the list, no ID.
+const PLAYER_LIST_ROUTES: Record<EntityType, string> = {
+  player: "/play/party",
+  npc: "/play/party",
+  monster: "/play/bestiary",
+  location: "/play/atlas",
 };
 
 function navigate() {
-  const base = ENTITY_ROUTES[entityType.value];
-  if (base) void router.push(`${base}/${entityId.value}`);
+  if (route.path.startsWith("/play/")) {
+    const target = PLAYER_LIST_ROUTES[entityType.value];
+    if (target) void router.push(target);
+  } else {
+    const base = DM_ENTITY_ROUTES[entityType.value];
+    if (base) void router.push(`${base}/${entityId.value}`);
+  }
 }
 </script>
 
@@ -139,5 +155,24 @@ function navigate() {
 .entity-chip--monster:hover {
   background: theme(colors.rose-400 / 20%);
   border-color: theme(colors.rose-400 / 60%);
+}
+
+/* ── Location (emerald) ─────────────────────────────────────────────────── */
+.entity-chip--location--edit {
+  border-color: theme(colors.emerald-400 / 35%);
+  background: theme(colors.emerald-400 / 10%);
+  color: theme(colors.emerald-400);
+  cursor: default;
+}
+.entity-chip--location {
+  border-color: theme(colors.emerald-400 / 40%);
+  background: theme(colors.emerald-400 / 10%);
+  color: theme(colors.emerald-400);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.entity-chip--location:hover {
+  background: theme(colors.emerald-400 / 20%);
+  border-color: theme(colors.emerald-400 / 60%);
 }
 </style>

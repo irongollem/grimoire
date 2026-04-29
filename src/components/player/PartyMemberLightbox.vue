@@ -265,7 +265,7 @@ const speedPills = computed(() => {
     walk: "Walk", fly: "Fly", swim: "Swim", climb: "Climb", burrow: "Burrow",
   };
   return (Object.keys(s) as (keyof Species["speed"] & string)[])
-    .filter((k) => s[k] != null && (s[k] as number) > 0)
+    .filter((k) => s[k] !== null && s[k] !== undefined && (s[k] as number) > 0)
     .map((k) => `${labels[k] ?? capitalize(k)} ${s[k]}ft`);
 });
 

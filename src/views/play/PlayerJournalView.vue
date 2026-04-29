@@ -40,7 +40,7 @@
         </div>
 
         <!-- Content -->
-        <RichTextEditor v-model="formContent" placeholder="Write your entry…" min-height="140px" allow-upload />
+        <RichTextEditor v-model="formContent" placeholder="Write your entry…" min-height="140px" allow-upload :entity-mention-items="mentionItems" />
 
         <!-- Context link row -->
         <div class="flex flex-wrap items-center gap-2">
@@ -270,7 +270,7 @@
                 class="flex-1 min-w-32 bg-transparent border-b border-border px-1 py-1 font-cinzel text-sm font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
               />
             </div>
-            <RichTextEditor v-model="editForm.content" min-height="160px" allow-upload />
+            <RichTextEditor v-model="editForm.content" min-height="160px" allow-upload :entity-mention-items="mentionItems" />
             <div class="flex flex-wrap items-center gap-2">
               <select
                 v-model="editForm.ref_type"
@@ -357,6 +357,7 @@ import { useAllMonsters } from "@/composables/useMonsters";
 import { usePlayerDiscoveries } from "@/composables/useDiscoveredMonsters";
 import { useEncounters } from "@/composables/useEncounters";
 import { useNotes } from "@/composables/useNotes";
+import { usePlayerEntityMentionItems } from "@/composables/usePlayerEntityMentionItems";
 import type { NoteCategory } from "@/types/notes.types";
 import { useAuthStore } from "@/stores/auth";
 import { useMemberByUserId } from "@/composables/useCampaignMembers";
@@ -364,6 +365,9 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { removeRichTextImages, cleanupRemovedRichTextImages } from "@/composables/useImageUpload";
+
+// ── Mention items ─────────────────────────────────────────────────────────────
+const { mentionItems } = usePlayerEntityMentionItems();
 
 // ── Data ───────────────────────────────────────────────────────────────────────
 const { data: myEntries,     isLoading: loadingMine }   = useMyJournalEntries();

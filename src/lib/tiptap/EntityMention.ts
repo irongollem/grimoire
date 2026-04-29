@@ -6,7 +6,7 @@ import type { SuggestionOptions } from "@tiptap/suggestion";
 import { VueNodeViewRenderer } from "@tiptap/vue-3";
 import EntityMentionChip from "@/components/tiptap/EntityMentionChip.vue";
 
-export type EntityType = "player" | "npc" | "monster";
+export type EntityType = "player" | "npc" | "monster" | "location";
 
 export interface EntityMentionItem {
   id: string;
