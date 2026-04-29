@@ -233,6 +233,7 @@
               :alt="getNpcDisplayName(selectedNpc)"
               format="portrait"
               :focal-point="getNpcDisplayFocalPoint(selectedNpc)"
+              :lightbox="true"
             />
           </div>
           <button

@@ -55,6 +55,7 @@
               :alt="char.name"
               format="portrait"
               :focal-point="char.portrait_focal_point ?? null"
+              :lightbox="true"
             />
             <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
               <UserIcon class="h-6 w-6" />

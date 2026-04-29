@@ -9,6 +9,7 @@
           :alt="wildshape?.beast_name ?? member.name"
           format="portrait"
           :focal-point="wildshape?.beast_image_url ? null : (member.portrait_focal_point ?? null)"
+          :lightbox="true"
         />
         <span
           v-else

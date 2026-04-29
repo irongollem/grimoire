@@ -1,11 +1,14 @@
 <template>
   <div
     ref="rootRef"
+    v-bind="$attrs"
     :class="[
       'w-full h-full',
       format === 'token' && 'rounded-full overflow-hidden',
       format === 'square' && 'overflow-hidden',
+      lightbox && src && 'cursor-zoom-in',
     ]"
+    @click="handleImageClick"
   >
     <img
       v-if="src"
@@ -23,14 +26,18 @@
       @error="onError"
     />
   </div>
+  <ImageLightbox v-if="lightbox" :src="lightboxSrc" @close="lightboxSrc = null" />
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onBeforeUnmount } from "vue";
 import smartcrop from "smartcrop";
 import { backfillVariants, type VariantWidth } from "@/lib/storage";
+import ImageLightbox from "@/components/common/ImageLightbox.vue";
 
 export type ImageFormat = "portrait" | "landscape" | "token" | "square";
+
+defineOptions({ inheritAttrs: false });
 
 // Target crop ratios passed to smartcrop — should match the display context:
 //   portrait  → playing card back  (63 × 88 mm ≈ 2:3)
@@ -65,6 +72,8 @@ const props = defineProps<{
   /** When true, skip variant URL derivation and serve the full-resolution original.
    *  Use this in Card Forge where images are printed at ~300 DPI. */
   print?: boolean;
+  /** When true, clicking the image opens a full-resolution lightbox overlay. */
+  lightbox?: boolean;
 }>();
 
 const FORMAT_RENDER_WIDTHS: Record<ImageFormat, VariantWidth> = {
@@ -84,6 +93,12 @@ function toVariantUrl(url: string, width: VariantWidth): string {
 // Set to true when the variant URL returns a 4xx — falls back to original.
 // Reset when props.src changes (new upload will have variants).
 const variantFailed = ref(false);
+
+const lightboxSrc = ref<string | null>(null);
+
+function handleImageClick() {
+  if (props.lightbox && props.src) lightboxSrc.value = props.src;
+}
 
 // Matches URLs that are already pre-sized variants (_w200/_w300/_w400/_w600).
 // If image_url in the DB was accidentally set to a variant path (e.g. by the

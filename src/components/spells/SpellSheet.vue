@@ -8,6 +8,7 @@
           :src="spell.image_url"
           :focal-point="spell.image_focal_point"
           format="portrait"
+          :lightbox="true"
           class="w-full rounded-lg overflow-hidden flex-1 min-h-0 max-h-[80vh]"
         />
         <div

@@ -220,6 +220,7 @@
               :alt="previewBeast.name"
               :focal-point="previewBeast.portrait_focal_point ?? null"
               format="portrait"
+              :lightbox="true"
             />
           </div>
           <button

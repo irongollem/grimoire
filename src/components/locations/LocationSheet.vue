@@ -49,6 +49,7 @@
           :src="location.image_url"
           :alt="location.name"
           format="portrait"
+          :lightbox="true"
           class="w-full rounded-lg border border-border overflow-hidden"
         />
       </div>

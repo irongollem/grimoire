@@ -30,6 +30,7 @@
             :alt="trap.name"
             format="portrait"
             :focal-point="trap.image_focal_point ?? null"
+            :lightbox="true"
             class="w-full h-full"
           />
           <Crosshair v-else class="h-8 w-8 text-muted-foreground/30" />

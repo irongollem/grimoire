@@ -7,6 +7,7 @@
         :src="displayPortrait"
         :focal-point="displayFocalPoint"
         format="portrait"
+        :lightbox="true"
         class="w-full rounded-lg overflow-hidden max-h-80 lg:max-h-none lg:flex-1 lg:min-h-0"
       />
       <div class="flex flex-wrap gap-1">

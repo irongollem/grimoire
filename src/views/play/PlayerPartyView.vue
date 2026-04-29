@@ -222,6 +222,7 @@
                 :alt="selectedNpc.player_visible_fields.includes('name') ? selectedNpcDisplay.name : '???'"
                 format="portrait"
                 :focal-point="selectedNpcDisplay.focalPoint"
+                :lightbox="true"
               />
             </div>
             <button class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors" @click="closeNpc">
@@ -291,6 +292,7 @@
                 :alt="selectedCompanion.name"
                 format="portrait"
                 :focal-point="selectedCompanion.portrait_focal_point ?? null"
+                :lightbox="true"
               />
             </div>
             <button class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors" @click="closeCompanion">

@@ -21,6 +21,7 @@
               :src="sheetArtTab === 'identified' ? item.image_url : item.mundane_image_url"
               :focal-point="sheetArtTab === 'identified' ? item.image_focal_point : item.mundane_image_focal_point"
               format="portrait"
+              :lightbox="true"
               class="h-full"
             />
           </div>
@@ -34,6 +35,7 @@
             :src="item.image_url"
             :focal-point="item.image_focal_point"
             format="portrait"
+            :lightbox="true"
             class="h-full"
           />
         </div>

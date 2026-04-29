@@ -29,6 +29,7 @@
             :alt="species.name"
             format="portrait"
             :focal-point="species.focal_point ?? null"
+            :lightbox="true"
             class="w-full h-full"
           />
           <Users v-else class="h-8 w-8 text-muted-foreground/30" />

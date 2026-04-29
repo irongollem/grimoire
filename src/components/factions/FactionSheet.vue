@@ -8,6 +8,7 @@
           :src="faction.emblem_url"
           :alt="faction.name + ' emblem'"
           format="portrait"
+          :lightbox="true"
           class="w-full h-full"
         />
         <div

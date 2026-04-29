@@ -31,6 +31,7 @@
               :alt="puzzle.name"
               format="portrait"
               :focal-point="puzzle.image_focal_point"
+              :lightbox="true"
               class="h-full"
             />
           </div>

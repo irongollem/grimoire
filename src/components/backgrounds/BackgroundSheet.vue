@@ -28,6 +28,7 @@
             :alt="background.name"
             format="portrait"
             :focal-point="background.focal_point ?? null"
+            :lightbox="true"
             class="w-full h-full"
           />
           <User2 v-else class="h-8 w-8 text-muted-foreground/30" />
