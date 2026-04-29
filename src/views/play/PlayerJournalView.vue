@@ -128,38 +128,34 @@
         <BookOpen class="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
         <p class="font-fell text-muted-foreground italic">No notes shared by your DM yet.</p>
       </div>
-      <div v-else class="space-y-3">
-        <div
+      <div v-else class="flex flex-col gap-2">
+        <JournalCard
           v-for="note in dmNotes"
           :key="note.id"
-          class="rounded-lg border border-border bg-card overflow-hidden"
-          @click="toggleNote(note.id)"
+          :color="NOTE_CATEGORIES[note.category]?.color ?? '#6b7280'"
+          :icon="NOTE_CATEGORIES[note.category]?.icon ?? BookOpen"
+          :category-label="NOTE_CATEGORIES[note.category]?.label ?? ''"
+          :title="note.title"
+          :date="formatDate(note.created_at)"
+          :expanded="selectedNote === note.id"
+          @toggle="toggleNote(note.id)"
         >
-          <div class="flex items-center gap-3 px-4 py-3 cursor-pointer select-none">
-            <Pin v-if="note.is_pinned" class="h-3.5 w-3.5 text-primary shrink-0" />
-            <div class="flex-1 min-w-0">
-              <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ note.title }}</p>
-              <p class="font-fell text-xs text-muted-foreground italic">
-                {{ NOTE_CATEGORY_LABELS[note.category] }}
-                <span v-if="note.category === 'session' && note.session_num != null"> · Session {{ note.session_num }}</span>
-              </p>
-            </div>
-            <div class="hidden sm:flex flex-wrap gap-1 shrink-0">
+          <template #meta>
+            <Pin v-if="note.is_pinned" class="h-2.5 w-2.5 text-primary shrink-0" />
+            <span v-if="note.category === 'session' && note.session_num != null" class="font-fell text-[11px] text-muted-foreground/70 italic">Session {{ note.session_num }}</span>
+            <span class="font-fell text-[11px] text-muted-foreground/70 italic">by DM</span>
+          </template>
+          <div class="px-4 py-4">
+            <RichTextViewer :content="note.content ?? ''" />
+            <div v-if="note.tags?.length" class="flex flex-wrap gap-1 mt-3">
               <span
-                v-for="tag in note.tags?.slice(0, 3)"
+                v-for="tag in note.tags"
                 :key="tag"
                 class="font-cinzel text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground tracking-wider"
               >{{ tag }}</span>
             </div>
-            <ChevronDown
-              class="h-4 w-4 text-muted-foreground shrink-0 transition-transform"
-              :class="selectedNote === note.id ? 'rotate-180' : ''"
-            />
           </div>
-          <div v-if="selectedNote === note.id" class="border-t border-border px-4 py-4">
-            <RichTextViewer :content="note.content" />
-          </div>
-        </div>
+        </JournalCard>
       </div>
     </template>
 
@@ -206,67 +202,32 @@
 
       <!-- Entry feed -->
       <div v-else class="flex flex-col gap-2">
-      <div
-        v-for="entry in visibleEntries"
-        :key="entry.id"
-        class="rounded-lg border border-border bg-card overflow-hidden transition-shadow hover:shadow-sm"
-      >
-        <!-- Color bar -->
-        <div class="h-0.5 w-full" :style="{ backgroundColor: JOURNAL_CATEGORIES[entry.category]?.color ?? '#6b7280' }" />
-
-        <!-- Entry header (always visible) -->
-        <button
-          type="button"
-          class="w-full flex items-start gap-3 px-4 py-3 text-left"
-          @click="toggleExpand(entry.id)"
+        <JournalCard
+          v-for="entry in visibleEntries"
+          :key="entry.id"
+          :color="JOURNAL_CATEGORIES[entry.category]?.color ?? '#6b7280'"
+          :icon="categoryIcon(entry.category)"
+          :category-label="JOURNAL_CATEGORIES[entry.category]?.label ?? ''"
+          :title="entry.title || contentPreview(entry.content)"
+          :preview="entry.title ? contentPreview(entry.content) : undefined"
+          :date="formatDate(entry.created_at)"
+          :expanded="expanded === entry.id"
+          @toggle="toggleExpand(entry.id)"
         >
-          <component
-            :is="categoryIcon(entry.category)"
-            class="h-4 w-4 shrink-0 mt-0.5"
-            :style="{ color: JOURNAL_CATEGORIES[entry.category]?.color ?? '#6b7280' }"
-          />
-          <div class="flex-1 min-w-0">
-            <div class="flex items-baseline gap-2 flex-wrap">
-              <p class="font-cinzel text-sm font-semibold text-foreground truncate">
-                {{ entry.title || contentPreview(entry.content) }}
-              </p>
-              <span
-                class="font-cinzel text-[10px] tracking-wider shrink-0"
-                :style="{ color: JOURNAL_CATEGORIES[entry.category]?.color ?? '#6b7280' }"
-              >{{ JOURNAL_CATEGORIES[entry.category]?.label }}</span>
-            </div>
-            <div v-if="entry.title" class="font-fell text-xs text-muted-foreground mt-0.5 line-clamp-1">
-              {{ contentPreview(entry.content) }}
-            </div>
-            <div class="flex flex-wrap items-center gap-3 mt-1.5">
-              <span class="font-cinzel text-[10px] text-muted-foreground/60 tracking-wider">
-                {{ formatDate(entry.created_at) }}
-              </span>
-              <span v-if="entry.ref_label" class="font-fell text-[11px] text-muted-foreground/70 italic truncate max-w-32">
-                {{ entry.ref_label }}
-              </span>
-              <span v-if="activeTab === 'party' && authorName(entry)" class="font-fell text-[11px] text-muted-foreground/70 italic">
-                by {{ authorName(entry) }}
-              </span>
-              <span
-                v-if="activeTab === 'mine'"
-                class="inline-flex items-center gap-1 font-cinzel text-[10px] tracking-wider"
-                :class="entry.is_private ? 'text-muted-foreground/50' : 'text-elven-green'"
-              >
-                <Lock v-if="entry.is_private" class="h-2.5 w-2.5" />
-                <Eye v-else class="h-2.5 w-2.5" />
-                {{ entry.is_private ? 'Private' : 'Shared' }}
-              </span>
-            </div>
-          </div>
-          <ChevronDown
-            class="h-4 w-4 text-muted-foreground shrink-0 transition-transform mt-0.5"
-            :class="expanded === entry.id ? 'rotate-180' : ''"
-          />
-        </button>
+          <template #meta>
+            <span v-if="entry.ref_label" class="font-fell text-[11px] text-muted-foreground/70 italic truncate max-w-32">{{ entry.ref_label }}</span>
+            <span v-if="activeTab === 'party' && authorName(entry)" class="font-fell text-[11px] text-muted-foreground/70 italic">by {{ authorName(entry) }}</span>
+            <span
+              v-if="activeTab === 'mine'"
+              class="inline-flex items-center gap-1 font-cinzel text-[10px] tracking-wider"
+              :class="entry.is_private ? 'text-muted-foreground/50' : 'text-elven-green'"
+            >
+              <Lock v-if="entry.is_private" class="h-2.5 w-2.5" />
+              <Eye v-else class="h-2.5 w-2.5" />
+              {{ entry.is_private ? 'Private' : 'Shared' }}
+            </span>
+          </template>
 
-        <!-- Expanded: view or edit -->
-        <div v-if="expanded === entry.id" class="border-t border-border">
           <!-- View mode (party journal or not editing) -->
           <template v-if="activeTab === 'party' || editingId !== entry.id">
             <div class="px-4 py-4">
@@ -310,8 +271,6 @@
               />
             </div>
             <RichTextEditor v-model="editForm.content" min-height="160px" allow-upload />
-
-            <!-- Context link row -->
             <div class="flex flex-wrap items-center gap-2">
               <select
                 v-model="editForm.ref_type"
@@ -335,7 +294,6 @@
                 <option v-for="opt in editRefOptions" :key="opt.id" :value="opt.id">{{ opt.name }}</option>
               </select>
             </div>
-
             <div class="flex items-center justify-between gap-2">
               <button
                 type="button"
@@ -368,9 +326,8 @@
               </div>
             </div>
           </div>
-        </div>
+        </JournalCard>
       </div>
-    </div>
     </template>
   </div>
 </template>
@@ -380,9 +337,11 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed } from "vue";
 import {
-  Plus, Save, Loader2, Lock, Eye, ChevronDown, BookOpen, Pin,
+  Plus, Save, Loader2, Lock, Eye, BookOpen, Pin,
   Search, Star, CalendarDays, Feather, MessageCircle, ScrollText,
+  FileText, MapPin, Shield,
 } from "lucide-vue-next";
+import JournalCard from "@/components/player/JournalCard.vue";
 import type { Component } from "vue";
 import {
   useMyJournalEntries, useSharedJournalEntries,
@@ -456,13 +415,13 @@ const dmNotes = computed(() =>
   }),
 );
 
-const NOTE_CATEGORY_LABELS: Record<NoteCategory, string> = {
-  general:  "General",
-  session:  "Session",
-  lore:     "Lore",
-  location: "Location",
-  quest:    "Quest",
-  faction:  "Faction",
+const NOTE_CATEGORIES: Record<NoteCategory, { label: string; color: string; icon: Component }> = {
+  general:  { label: "General",  color: "#6b7280", icon: FileText },
+  session:  { label: "Session",  color: "#3b82f6", icon: CalendarDays },
+  lore:     { label: "Lore",     color: "#a855f7", icon: BookOpen },
+  location: { label: "Location", color: "#10b981", icon: MapPin },
+  quest:    { label: "Quest",    color: "#f59e0b", icon: ScrollText },
+  faction:  { label: "Faction",  color: "#06b6d4", icon: Shield },
 };
 
 const selectedNote = ref<string | null>(null);
