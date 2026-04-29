@@ -1,4 +1,5 @@
 import type { DndSettingDef } from "./types";
+import { FAERUN_DEITIES, FAERUN_PANTHEONS } from "@/data/settingDeities";
 
 export const faerunSetting: DndSettingDef = {
   id: "faerun",
@@ -342,4 +343,6 @@ export const faerunSetting: DndSettingDef = {
       tags: ["lich", "anauroch", "ancient", "warlock's crypt", "necromancy"],
     },
   ],
+  pantheons: FAERUN_PANTHEONS,
+  deities: FAERUN_DEITIES,
 };

@@ -22,6 +22,7 @@ import {
   Dna,
   Settings,
   Wand2,
+  Flame,
 } from "lucide-vue-next";
 import type { Component } from "vue";
 
@@ -83,6 +84,13 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/locations",
         icon: Globe,
         description: "Realms, cities & dungeons",
+        requiresCampaign: true,
+      },
+      {
+        label: "Pantheon",
+        to: "/deities",
+        icon: Flame,
+        description: "Gods, deities & divine lore",
         requiresCampaign: true,
       },
       {

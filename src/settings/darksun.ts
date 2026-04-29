@@ -228,4 +228,6 @@ export const darksunSetting: DndSettingDef = {
       tags: ["dragon", "borys", "sorcerer-king", "apex predator", "athas"],
     },
   ],
+  pantheons: [],
+  deities: [],
 };

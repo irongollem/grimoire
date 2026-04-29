@@ -103,6 +103,21 @@ export const useUiStore = defineStore("ui", () => {
     factionsFilterType.value = "";
   }
 
+  // Deity (Pantheon) UI state
+  const deitiesSearch = ref("");
+  const deitiesFilterDomain = ref("");
+  const deitiesFilterPantheon = ref("");
+
+  const deitiesHasActiveFilters = computed(
+    () => deitiesSearch.value !== "" || deitiesFilterDomain.value !== "" || deitiesFilterPantheon.value !== "",
+  );
+
+  function resetDeitiesFilters() {
+    deitiesSearch.value = "";
+    deitiesFilterDomain.value = "";
+    deitiesFilterPantheon.value = "";
+  }
+
   // Player People (NPC) filter state
   const playerPeopleSearch = ref("");
   const playerPeopleFilterRelationship = ref<NpcRelationship | "all">("all");
@@ -389,6 +404,13 @@ export const useUiStore = defineStore("ui", () => {
     factionsFilterType,
     factionsHasActiveFilters,
     resetFactionsFilters,
+
+    // Deities (Pantheon)
+    deitiesSearch,
+    deitiesFilterDomain,
+    deitiesFilterPantheon,
+    deitiesHasActiveFilters,
+    resetDeitiesFilters,
 
     // Player People (NPCs)
     playerPeopleSearch,

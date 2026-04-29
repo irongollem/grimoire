@@ -1,4 +1,5 @@
 import type { DndSettingDef } from "./types";
+import { GREYHAWK_DEITIES, GREYHAWK_PANTHEONS } from "@/data/settingDeities";
 
 export const greyhawkSetting: DndSettingDef = {
   id: "greyhawk",
@@ -234,4 +235,6 @@ export const greyhawkSetting: DndSettingDef = {
       tags: ["greyhawk city", "lord mayor", "oligarchy", "politics", "neutral"],
     },
   ],
+  pantheons: GREYHAWK_PANTHEONS,
+  deities: GREYHAWK_DEITIES,
 };

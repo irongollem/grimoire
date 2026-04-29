@@ -133,6 +133,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Factions" },
   },
   {
+    path: "/play/deities",
+    name: "play-deities",
+    component: () => import("@/views/play/PlayerDeitiesView.vue"),
+    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Pantheon" },
+  },
+  {
     path: "/play/puzzles",
     name: "play-puzzles",
     component: () => import("@/views/play/PlayerPuzzlesView.vue"),
@@ -607,6 +613,46 @@ export const routes: RouteRecordRaw[] = [
     name: "location-detail",
     component: () => import("@/views/locations/LocationDetailView.vue"),
     meta: { requiresAuth: true, title: "Location" },
+  },
+
+  // Deities (Pantheon)
+  {
+    path: "/deities",
+    name: "deities",
+    component: () => import("@/views/deities/DeityListView.vue"),
+    meta: { requiresAuth: true, title: "Pantheon" },
+  },
+  {
+    path: "/deities/new",
+    name: "deity-new",
+    component: () => import("@/views/deities/DeityDetailView.vue"),
+    meta: { requiresAuth: true, title: "New Deity" },
+  },
+  {
+    path: "/deities/:id",
+    name: "deity-detail",
+    component: () => import("@/views/deities/DeityDetailView.vue"),
+    meta: { requiresAuth: true, title: "Deity" },
+  },
+
+  // Pantheons
+  {
+    path: "/pantheons",
+    name: "pantheons",
+    component: () => import("@/views/pantheons/PantheonListView.vue"),
+    meta: { requiresAuth: true, title: "Pantheons" },
+  },
+  {
+    path: "/pantheons/new",
+    name: "pantheon-new",
+    component: () => import("@/views/pantheons/PantheonDetailView.vue"),
+    meta: { requiresAuth: true, title: "New Pantheon" },
+  },
+  {
+    path: "/pantheons/:id",
+    name: "pantheon-detail",
+    component: () => import("@/views/pantheons/PantheonDetailView.vue"),
+    meta: { requiresAuth: true, title: "Pantheon" },
   },
 
   // Factions

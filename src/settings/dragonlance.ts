@@ -1,4 +1,5 @@
 import type { DndSettingDef } from "./types";
+import { DRAGONLANCE_DEITIES, DRAGONLANCE_PANTHEONS } from "@/data/settingDeities";
 
 export const dragonlanceSetting: DndSettingDef = {
   id: "dragonlance",
@@ -267,4 +268,6 @@ export const dragonlanceSetting: DndSettingDef = {
       tags: ["everman", "immortal", "key", "takhisis", "tragic"],
     },
   ],
+  pantheons: DRAGONLANCE_PANTHEONS,
+  deities: DRAGONLANCE_DEITIES,
 };

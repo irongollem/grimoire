@@ -246,4 +246,6 @@ export const planescapeSetting: DndSettingDef = {
       tags: ["titan", "outlands", "planar traveller", "powerful", "chaotic good"],
     },
   ],
+  pantheons: [],
+  deities: [],
 };

@@ -80,6 +80,33 @@ export interface SettingFactionDef {
   tags: string[];
 }
 
+// ── Deities & Pantheons ───────────────────────────────────────────────────────
+
+export interface SettingPantheonDef {
+  name: string;
+  /** Plain text — wrapped in Tiptap JSON on insert. */
+  description: string;
+  tags: string[];
+}
+
+export interface SettingDeityDef {
+  name: string;
+  titles?: string;
+  alternate_names?: string[];
+  /** Must match a SettingPantheonDef.name from the same setting. */
+  pantheon?: string;
+  alignment?: string;
+  /** Text description of the holy symbol. */
+  symbol?: string;
+  /** Cleric domain names from CLERIC_DOMAINS. */
+  domains: string[];
+  /** What the deity governs. */
+  portfolio?: string;
+  /** Plain text — wrapped in Tiptap JSON on insert. */
+  description: string;
+  tags: string[];
+}
+
 // ── Hall of Heroes seed entries ──────────────────────────────────────────────
 
 export interface SettingHeroDef {
@@ -108,6 +135,8 @@ export interface DndSettingDef {
   locations: SettingLocationDef[];
   factions: SettingFactionDef[];
   heroes: SettingHeroDef[];
+  pantheons: SettingPantheonDef[];
+  deities: SettingDeityDef[];
 }
 
 // ── Derivation helpers ───────────────────────────────────────────────────────

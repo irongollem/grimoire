@@ -238,4 +238,6 @@ export const mystaraSetting: DndSettingDef = {
       tags: ["orc", "warlord", "king", "humanoid", "villain"],
     },
   ],
+  pantheons: [],
+  deities: [],
 };

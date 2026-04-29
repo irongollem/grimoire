@@ -182,4 +182,6 @@ export const spelljammerSetting: DndSettingDef = {
       tags: ["pirate", "captain", "realmspace", "wildspace", "notorious"],
     },
   ],
+  pantheons: [],
+  deities: [],
 };

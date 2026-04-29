@@ -252,4 +252,6 @@ export const eberronSetting: DndSettingDef = {
       tags: ["dreaming dark", "inspired", "quori", "psionic", "sarlona"],
     },
   ],
+  pantheons: [],
+  deities: [],
 };

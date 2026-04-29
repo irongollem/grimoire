@@ -248,4 +248,6 @@ export const ravenloftSetting: DndSettingDef = {
       tags: ["vistani", "curse", "van richten", "traveller", "atonement"],
     },
   ],
+  pantheons: [],
+  deities: [],
 };

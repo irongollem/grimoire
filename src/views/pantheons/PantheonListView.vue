@@ -1,0 +1,102 @@
+<template>
+  <ListPageLayout title="Pantheons" description="Named groups of deities and their divine hierarchies">
+    <template #actions>
+      <ListActionButton
+        :icon="Sun"
+        label="All Deities"
+        mobile-label="Deities"
+        to="/deities"
+      />
+      <ListActionButton
+        :icon="Plus"
+        label="New Pantheon"
+        mobile-label="Pantheon"
+        variant="primary"
+        to="/pantheons/new"
+      />
+    </template>
+
+    <template #filters>
+      <ListFilterBar
+        :has-active-filters="!!search"
+        @clear="search = ''"
+      >
+        <ListSearchInput v-model="search" placeholder="Filter pantheons…" />
+      </ListFilterBar>
+    </template>
+
+    <div v-if="isLoading" class="flex justify-center py-16">
+      <LoadingSpinner />
+    </div>
+
+    <EmptyState
+      v-else-if="!filtered.length"
+      title="No pantheons yet"
+      description="Create a pantheon to group your deities — Faerûnian, Olympian, or wholly homebrew."
+    />
+
+    <template v-else>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <RouterLink
+          v-for="pantheon in filtered"
+          :key="pantheon.id"
+          :to="`/pantheons/${pantheon.id}`"
+          class="group flex items-center gap-3 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors p-4"
+        >
+          <div class="shrink-0 h-12 w-12 rounded-lg border border-border bg-muted overflow-hidden flex items-center justify-center">
+            <img v-if="pantheon.emblem_url" :src="pantheon.emblem_url" alt="" class="w-full h-full object-cover" />
+            <Flame v-else class="h-5 w-5 text-muted-foreground/40" />
+          </div>
+
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+              <p class="font-cinzel text-sm font-bold text-foreground truncate flex-1">{{ pantheon.name }}</p>
+              <Eye v-if="pantheon.player_visible_to?.length" class="h-3 w-3 shrink-0 text-elven-green" />
+            </div>
+            <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mt-0.5">
+              {{ deityCount(pantheon.id) }} {{ deityCount(pantheon.id) === 1 ? 'deity' : 'deities' }}
+            </p>
+            <div v-if="pantheon.tags.length" class="flex flex-wrap gap-1 mt-1.5">
+              <span
+                v-for="tag in pantheon.tags.slice(0, 3)"
+                :key="tag"
+                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider"
+              >{{ tag }}</span>
+            </div>
+          </div>
+
+          <ChevronRight class="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
+        </RouterLink>
+      </div>
+    </template>
+  </ListPageLayout>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from "vue";
+import { ChevronRight, Eye, Flame, Plus, Sun } from "lucide-vue-next";
+import { useAllPantheons, useAllDeities } from "@/composables/useDeities";
+import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
+import ListFilterBar from "@/components/common/ListFilterBar.vue";
+import ListSearchInput from "@/components/common/ListSearchInput.vue";
+import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import EmptyState from "@/components/common/EmptyState.vue";
+
+const { data: pantheons, isLoading } = useAllPantheons();
+const { data: deities } = useAllDeities();
+
+const search = ref("");
+
+const filtered = computed(() => {
+  const q = search.value.trim().toLowerCase();
+  return (pantheons.value ?? []).filter((p) => {
+    if (q && !p.name.toLowerCase().includes(q) && !p.tags.some((t) => t.toLowerCase().includes(q))) return false;
+    return true;
+  });
+});
+
+function deityCount(pantheonId: string): number {
+  return (deities.value ?? []).filter((d) => d.pantheon_id === pantheonId).length;
+}
+</script>
