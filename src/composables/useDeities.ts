@@ -251,35 +251,47 @@ export function usePopulateDeities() {
       // ── Deities ────────────────────────────────────────────────────────────
       const { data: existingDeities, error: dFetchErr } = await supabase
         .from("deities")
-        .select("id, name")
+        .select("id, name, pantheon_id")
         .eq("campaign_id", campaignId);
       if (dFetchErr) throw dFetchErr;
 
-      const existingDeityNames = new Set(
-        (existingDeities ?? []).map((d: { name: string }) => d.name.toLowerCase()),
+      type ExistingDeity = { id: string; name: string; pantheon_id: string | null };
+      const existingDeityMap = new Map<string, ExistingDeity>(
+        (existingDeities ?? []).map((d: ExistingDeity) => [d.name.toLowerCase(), d]),
       );
 
-      const deitiesToInsert = (setting.deities ?? [])
-        .filter((d) => !existingDeityNames.has(d.name.toLowerCase()))
-        .map((d) => ({
-          name: d.name,
-          titles: d.titles ?? null,
-          alternate_names: d.alternate_names ?? [],
-          pantheon_id: d.pantheon ? (pantheonNameToId[d.pantheon.toLowerCase()] ?? null) : null,
-          alignment: d.alignment ?? null,
-          symbol: d.symbol ?? null,
-          symbol_image_url: null,
-          portrait_url: null,
-          portrait_focal_point: null,
-          domains: d.domains,
-          portfolio: d.portfolio ?? null,
-          description: d.description ? toRichText(d.description) : null,
-          dm_notes: null,
-          tags: d.tags,
-          player_visible_to: [],
-          user_id: user!.id,
-          campaign_id: campaignId,
-        }));
+      const deitiesToInsert: object[] = [];
+      const deitiesToPatch: { id: string; pantheon_id: string | null }[] = [];
+
+      for (const d of setting.deities ?? []) {
+        const key = d.name.toLowerCase();
+        const seedPantheonId = d.pantheon ? (pantheonNameToId[d.pantheon.toLowerCase()] ?? null) : null;
+        const existing = existingDeityMap.get(key);
+        if (!existing) {
+          deitiesToInsert.push({
+            name: d.name,
+            titles: d.titles ?? null,
+            alternate_names: d.alternate_names ?? [],
+            pantheon_id: seedPantheonId,
+            alignment: d.alignment ?? null,
+            symbol: d.symbol ?? null,
+            symbol_image_url: null,
+            portrait_url: null,
+            portrait_focal_point: null,
+            domains: d.domains,
+            portfolio: d.portfolio ?? null,
+            description: d.description ? toRichText(d.description) : null,
+            dm_notes: null,
+            tags: d.tags,
+            player_visible_to: [],
+            user_id: user!.id,
+            campaign_id: campaignId,
+          });
+        } else if (existing.pantheon_id !== seedPantheonId) {
+          // Correct a stale or wrong pantheon assignment
+          deitiesToPatch.push({ id: existing.id, pantheon_id: seedPantheonId });
+        }
+      }
 
       let insertedDeityCount = 0;
       if (deitiesToInsert.length) {
@@ -291,7 +303,17 @@ export function usePopulateDeities() {
         insertedDeityCount = (inserted ?? []).length;
       }
 
-      return [insertedPantheonCount, insertedDeityCount];
+      let patchedDeityCount = 0;
+      for (const patch of deitiesToPatch) {
+        const { error: pErr } = await supabase
+          .from("deities")
+          .update({ pantheon_id: patch.pantheon_id })
+          .eq("id", patch.id);
+        if (pErr) throw pErr;
+        patchedDeityCount++;
+      }
+
+      return [insertedPantheonCount, insertedDeityCount + patchedDeityCount];
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pantheons"] });

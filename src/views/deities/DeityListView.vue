@@ -170,7 +170,7 @@ const populateStatusLabel = computed(() => {
     const parts: string[] = [];
     if (p) parts.push(`${p} pantheon${p !== 1 ? "s" : ""}`);
     if (d) parts.push(`${d} ${d !== 1 ? "deities" : "deity"}`);
-    return `Added ${parts.join(", ")}`;
+    return `Updated ${parts.join(", ")}`;
   }
   if (populateStatus.value === "uptodate") return "Already up to date";
   return "Populate Setting";

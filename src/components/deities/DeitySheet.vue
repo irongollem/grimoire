@@ -129,40 +129,18 @@
       </div>
     </div>
 
-    <!-- Right: name + content + actions -->
+    <!-- Right: name + content -->
     <div class="flex flex-col gap-4">
-      <div class="flex items-start justify-between gap-3">
-        <div class="min-w-0 flex-1">
-          <h1
-            class="font-cinzel text-2xl font-bold text-foreground leading-tight"
-          >
-            {{ deity.name }}
-          </h1>
-          <p
-            v-if="deity.titles"
-            class="font-fell text-sm text-muted-foreground italic mt-0.5"
-          >
-            {{ deity.titles }}
-          </p>
-        </div>
-        <div class="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
-            @click="handleDelete"
-          >
-            <Trash2 class="h-3.5 w-3.5" />
-            Delete
-          </button>
-          <button
-            type="button"
-            class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
-            @click="router.push({ query: { ...route.query, edit: 'true' } })"
-          >
-            <Pencil class="h-3.5 w-3.5" />
-            Edit
-          </button>
-        </div>
+      <div>
+        <h1 class="font-cinzel text-2xl font-bold text-foreground leading-tight">
+          {{ deity.name }}
+        </h1>
+        <p
+          v-if="deity.titles"
+          class="font-fell text-sm text-muted-foreground italic mt-0.5"
+        >
+          {{ deity.titles }}
+        </p>
       </div>
 
       <div v-if="hasDescription">
@@ -181,37 +159,30 @@
         </p>
         <RichTextViewer :content="deity.dm_notes" />
       </div>
+
+      <!-- Worshipping factions -->
+      <div class="border-t border-border pt-4">
+        <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-2">Worshipping Factions</p>
+        <DeityFactionsSection :deity-id="deity.id" />
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { RouterLink, useRoute, useRouter } from "vue-router";
-import { Pencil, Sun, Trash2 } from "lucide-vue-next";
-import { useConfirm } from "@/composables/useConfirm";
-import { useDeleteDeity } from "@/composables/useDeities";
+import { RouterLink } from "vue-router";
+import { Sun } from "lucide-vue-next";
 import type { Deity, Pantheon } from "@/types/deity.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import DeityFactionsSection from "@/components/deities/DeityFactionsSection.vue";
 
 const props = defineProps<{
   deity: Deity & { pantheon: Pick<Pantheon, "id" | "name"> | null };
 }>();
-const route = useRoute();
-const router = useRouter();
-const { confirm } = useConfirm();
-
-const deleteDeity = useDeleteDeity();
 
 const pantheonName = computed(() => props.deity.pantheon?.name ?? null);
-
-async function handleDelete() {
-  if (!(await confirm(`Delete "${props.deity.name}"? This cannot be undone.`)))
-    return;
-  router.push("/deities");
-  await deleteDeity.mutateAsync(props.deity.id);
-}
 
 function hasContent(d: string | null | undefined): boolean {
   if (!d) return false;

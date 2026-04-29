@@ -10,11 +10,13 @@ import type {
   FactionItem,
   FactionRelation,
   FactionPartyMember,
+  FactionDeity,
 } from "@/types/faction.types";
 import type { Npc } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
 import type { Location } from "@/types/location.types";
 import type { Item } from "@/types/item.types";
+import type { Deity } from "@/types/deity.types";
 
 // ── Factions CRUD ──────────────────────────────────────────────────────────────
 
@@ -298,6 +300,88 @@ export function useRemoveFactionNpc() {
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: ["faction-npcs", vars.faction_id] });
       qc.invalidateQueries({ queryKey: ["npc-factions", vars.npc_id] });
+    },
+  });
+}
+
+// ── Faction Deities ────────────────────────────────────────────────────────────
+
+export type FactionDeityWithDeity = FactionDeity & {
+  deity: Pick<Deity, "id" | "name" | "titles" | "alignment" | "domains" | "portrait_url">;
+};
+
+export function useFactionDeities(factionId: string) {
+  return useQuery({
+    queryKey: ["faction-deities", factionId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("faction_deities")
+        .select("*, deity:deities(id, name, titles, alignment, domains, portrait_url)")
+        .eq("faction_id", factionId)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data as FactionDeityWithDeity[];
+    },
+    enabled: !!factionId,
+  });
+}
+
+export function useDeityFactions(deityId: string) {
+  return useQuery({
+    queryKey: ["deity-factions", deityId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("faction_deities")
+        .select("*, faction:factions(id, name, faction_type, emblem_url)")
+        .eq("deity_id", deityId)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data as (FactionDeity & {
+        faction: Pick<Faction, "id" | "name" | "faction_type" | "emblem_url">;
+      })[];
+    },
+    enabled: !!deityId,
+  });
+}
+
+export function useAddFactionDeity() {
+  const qc = useQueryClient();
+  const campaign = useCampaignStore();
+  return useMutation({
+    mutationFn: async (payload: { faction_id: string; deity_id: string }) => {
+      const user = getCurrentUser();
+      const { error } = await supabase.from("faction_deities").insert({
+        ...payload,
+        user_id: user!.id,
+        campaign_id: campaign.activeCampaignId!,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["faction-deities", vars.faction_id] });
+      qc.invalidateQueries({ queryKey: ["deity-factions", vars.deity_id] });
+    },
+  });
+}
+
+export function useRemoveFactionDeity() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      faction_id: _f,
+      deity_id: _d,
+    }: {
+      id: string;
+      faction_id: string;
+      deity_id: string;
+    }) => {
+      const { error } = await supabase.from("faction_deities").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ["faction-deities", vars.faction_id] });
+      qc.invalidateQueries({ queryKey: ["deity-factions", vars.deity_id] });
     },
   });
 }

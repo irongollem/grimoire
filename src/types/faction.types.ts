@@ -98,6 +98,15 @@ export interface FactionNpc {
   user_id: string;
 }
 
+export interface FactionDeity {
+  id: string;
+  faction_id: string;
+  deity_id: string;
+  user_id: string;
+  campaign_id: string;
+  created_at: string;
+}
+
 export interface FactionLocation {
   id: string;
   faction_id: string;

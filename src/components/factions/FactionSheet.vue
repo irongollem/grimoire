@@ -70,6 +70,12 @@
       <p v-else class="font-fell text-sm text-muted-foreground italic">
         No description recorded for this faction.
       </p>
+
+      <!-- Patron Deities -->
+      <div class="border-t border-border pt-4">
+        <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-2">Patron Deities</p>
+        <FactionDeitiesSection :faction-id="faction.id" />
+      </div>
     </div>
   </div>
 </template>
@@ -83,6 +89,7 @@ import { useDeleteFaction } from "@/composables/useFactions";
 import type { Faction } from "@/types/faction.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import FactionDeitiesSection from "@/components/factions/FactionDeitiesSection.vue";
 
 const props = defineProps<{ faction: Faction }>();
 const route  = useRoute();

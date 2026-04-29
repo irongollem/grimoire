@@ -185,43 +185,14 @@
         />
       </div>
 
-      <!-- Action row -->
-      <div class="flex items-center justify-end gap-2">
-        <button
-          v-if="!isNew"
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
-          @click="handleDelete"
-        >
-          <Trash2 class="h-3.5 w-3.5" />
-          Delete
-        </button>
-        <button
-          v-if="!isNew"
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
-          @click="onCancel"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          :disabled="saving || !form.name.trim()"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
-          @click="handleSave"
-        >
-          <Save class="h-3.5 w-3.5" />
-          {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
-        </button>
-      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import { Save, Sun, Trash2 } from "lucide-vue-next";
+import { useRouter } from "vue-router";
+import { Sun } from "lucide-vue-next";
 import { useConfirm } from "@/composables/useConfirm";
 import { useImageUpload } from "@/composables/useImageUpload";
 import { useCreateDeity, useUpdateDeity, useDeleteDeity, useAllPantheons } from "@/composables/useDeities";
@@ -235,7 +206,6 @@ import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.v
 
 const { deity, isNew } = defineProps<{ deity: Deity | null; isNew: boolean }>();
 
-const route  = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();
 
@@ -347,11 +317,6 @@ async function handleDelete() {
   router.push("/deities");
 }
 
-function onCancel() {
-  const { edit: _edit, ...rest } = route.query;
-  router.push({ query: rest });
-}
-
 const { upload: uploadSymbol } = useImageUpload("asset-images");
 
 async function onFileSelected(e: Event) {
@@ -366,4 +331,6 @@ async function onFileSelected(e: Event) {
     uploading.value = false;
   }
 }
+
+defineExpose({ handleSave, handleDelete, isSaving: saving });
 </script>
