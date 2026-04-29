@@ -38,8 +38,7 @@ All 15 nav items defined in `src/lib/playerNav.ts`:
 | `/play/party`     | People    | Party member cards + shared NPCs with filter/search                             |
 | `/play/inventory` | Inventory | Paper doll, containers, coin purse, carry weight                                |
 | `/play/quests`    | Quests    | DM-shared quest log grouped by status                                           |
-| `/play/journal`   | Journal   | Personal adventure journal with optional party sharing                          |
-| `/play/notes`     | DM Notes  | Read-only view of notes the DM has shared                                       |
+| `/play/journal`   | Journal   | Personal adventure journal (My Journal / Party Journal / DM Notes tabs)         |
 | `/play/crafting`  | Workshop  | DM-shared crafting recipes with ingredient inventory check                      |
 | `/play/factions`  | Factions  | Factions shared by DM; member factions show known members                       |
 | `/play/puzzles`   | Puzzles   | DM-shared puzzles with hint count badge                                         |
@@ -209,7 +208,7 @@ Back route goes to `/play` (character sheet) if the player triggered it from the
 
 Route: `/play/journal` (`PlayerJournalView.vue`)
 
-A personal journal owned by each player character. Two tabs: **My Journal** (private entries) and **Party Journal** (entries marked as shared).
+A personal journal owned by each player character. Three tabs: **My Journal** (private entries), **Party Journal** (entries marked as shared), and **DM Notes** (read-only view of notes the DM has shared).
 
 Each entry has:
 
@@ -220,12 +219,6 @@ Each entry has:
 - Privacy toggle: Private (only you) or Shared (visible in Party Journal)
 
 Players can filter their journal by category. Entries can be expanded inline to read or edit. The privacy toggle on any entry can be flipped post-creation.
-
-### DM Notes
-
-Route: `/play/notes` (`PlayerNotesView.vue`)
-
-Read-only view of notes the DM has published. Notes are sorted with pinned notes first. Each note is an accordion: click to expand the rich text body. Tags are shown on tablet+. Categories shown for each note. Players cannot edit or create DM notes.
 
 ### Reliquary (Rules Reference)
 

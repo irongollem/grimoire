@@ -4,6 +4,7 @@
     <div class="flex items-center justify-between">
       <h2 class="font-cinzel text-xl font-bold text-foreground">Adventure Journal</h2>
       <button
+        v-if="activeTab !== 'dm-notes'"
         type="button"
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
         @click="openNew"
@@ -101,7 +102,7 @@
       </div>
     </div>
 
-    <!-- Tab bar: My Journal / Party Journal -->
+    <!-- Tab bar: My Journal / Party Journal / DM Notes -->
     <div class="flex items-center gap-0 border-b border-border">
       <button
         v-for="tab in TABS"
@@ -118,47 +119,93 @@
       </button>
     </div>
 
-    <!-- Category filter -->
-    <div class="flex flex-wrap gap-1.5">
-      <button
-        type="button"
-        class="px-2.5 py-1 rounded-full font-cinzel text-[10px] font-semibold tracking-wider transition-colors border"
-        :class="filterCategory === null
-          ? 'bg-primary/15 text-primary border-primary/30'
-          : 'text-muted-foreground border-border hover:border-foreground/30'"
-        @click="filterCategory = null"
-      >All</button>
-      <button
-        v-for="[key, cat] in JOURNAL_CATEGORY_LIST"
-        :key="key"
-        type="button"
-        class="px-2.5 py-1 rounded-full font-cinzel text-[10px] font-semibold tracking-wider transition-colors border"
-        :class="filterCategory === key
-          ? 'border-current'
-          : 'text-muted-foreground border-border hover:border-foreground/20'"
-        :style="filterCategory === key ? { color: cat.color, backgroundColor: cat.color + '18', borderColor: cat.color + '60' } : {}"
-        @click="filterCategory = (filterCategory === key ? null : key)"
-      >{{ cat.label }}</button>
-    </div>
+    <!-- DM Notes tab -->
+    <template v-if="activeTab === 'dm-notes'">
+      <div v-if="loadingNotes" class="flex justify-center py-12">
+        <LoadingSpinner />
+      </div>
+      <div v-else-if="!dmNotes.length" class="text-center py-12">
+        <BookOpen class="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+        <p class="font-fell text-muted-foreground italic">No notes shared by your DM yet.</p>
+      </div>
+      <div v-else class="space-y-3">
+        <div
+          v-for="note in dmNotes"
+          :key="note.id"
+          class="rounded-lg border border-border bg-card overflow-hidden"
+          @click="toggleNote(note.id)"
+        >
+          <div class="flex items-center gap-3 px-4 py-3 cursor-pointer select-none">
+            <Pin v-if="note.is_pinned" class="h-3.5 w-3.5 text-primary shrink-0" />
+            <div class="flex-1 min-w-0">
+              <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ note.title }}</p>
+              <p class="font-fell text-xs text-muted-foreground italic">
+                {{ NOTE_CATEGORY_LABELS[note.category] }}
+                <span v-if="note.category === 'session' && note.session_num != null"> · Session {{ note.session_num }}</span>
+              </p>
+            </div>
+            <div class="hidden sm:flex flex-wrap gap-1 shrink-0">
+              <span
+                v-for="tag in note.tags?.slice(0, 3)"
+                :key="tag"
+                class="font-cinzel text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground tracking-wider"
+              >{{ tag }}</span>
+            </div>
+            <ChevronDown
+              class="h-4 w-4 text-muted-foreground shrink-0 transition-transform"
+              :class="selectedNote === note.id ? 'rotate-180' : ''"
+            />
+          </div>
+          <div v-if="selectedNote === note.id" class="border-t border-border px-4 py-4">
+            <RichTextViewer :content="note.content" />
+          </div>
+        </div>
+      </div>
+    </template>
 
-    <!-- Loading -->
-    <div v-if="isLoading" class="flex justify-center py-12">
-      <LoadingSpinner />
-    </div>
+    <!-- Journal tabs (mine + party) -->
+    <template v-else>
+      <!-- Category filter -->
+      <div class="flex flex-wrap gap-1.5">
+        <button
+          type="button"
+          class="px-2.5 py-1 rounded-full font-cinzel text-[10px] font-semibold tracking-wider transition-colors border"
+          :class="filterCategory === null
+            ? 'bg-primary/15 text-primary border-primary/30'
+            : 'text-muted-foreground border-border hover:border-foreground/30'"
+          @click="filterCategory = null"
+        >All</button>
+        <button
+          v-for="[key, cat] in JOURNAL_CATEGORY_LIST"
+          :key="key"
+          type="button"
+          class="px-2.5 py-1 rounded-full font-cinzel text-[10px] font-semibold tracking-wider transition-colors border"
+          :class="filterCategory === key
+            ? 'border-current'
+            : 'text-muted-foreground border-border hover:border-foreground/20'"
+          :style="filterCategory === key ? { color: cat.color, backgroundColor: cat.color + '18', borderColor: cat.color + '60' } : {}"
+          @click="filterCategory = (filterCategory === key ? null : key)"
+        >{{ cat.label }}</button>
+      </div>
 
-    <!-- Empty state -->
-    <div v-else-if="visibleEntries.length === 0" class="text-center py-16 space-y-3">
-      <BookOpen class="h-10 w-10 text-muted-foreground/30 mx-auto" />
-      <p class="font-cinzel text-sm text-muted-foreground">
-        {{ activeTab === 'party' ? 'No shared entries from the party yet.' : 'Your journal is empty.' }}
-      </p>
-      <p v-if="activeTab === 'mine'" class="font-fell text-xs text-muted-foreground italic">
-        Record your adventures, clues, and discoveries.
-      </p>
-    </div>
+      <!-- Loading -->
+      <div v-if="isLoading" class="flex justify-center py-12">
+        <LoadingSpinner />
+      </div>
 
-    <!-- Entry feed -->
-    <div v-else class="flex flex-col gap-2">
+      <!-- Empty state -->
+      <div v-else-if="visibleEntries.length === 0" class="text-center py-16 space-y-3">
+        <BookOpen class="h-10 w-10 text-muted-foreground/30 mx-auto" />
+        <p class="font-cinzel text-sm text-muted-foreground">
+          {{ activeTab === 'party' ? 'No shared entries from the party yet.' : 'Your journal is empty.' }}
+        </p>
+        <p v-if="activeTab === 'mine'" class="font-fell text-xs text-muted-foreground italic">
+          Record your adventures, clues, and discoveries.
+        </p>
+      </div>
+
+      <!-- Entry feed -->
+      <div v-else class="flex flex-col gap-2">
       <div
         v-for="entry in visibleEntries"
         :key="entry.id"
@@ -324,6 +371,7 @@
         </div>
       </div>
     </div>
+    </template>
   </div>
 </template>
 
@@ -332,7 +380,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed } from "vue";
 import {
-  Plus, Save, Loader2, Lock, Eye, ChevronDown, BookOpen,
+  Plus, Save, Loader2, Lock, Eye, ChevronDown, BookOpen, Pin,
   Search, Star, CalendarDays, Feather, MessageCircle, ScrollText,
 } from "lucide-vue-next";
 import type { Component } from "vue";
@@ -349,6 +397,8 @@ import { usePartyInventory } from "@/composables/usePartyInventory";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { usePlayerDiscoveries } from "@/composables/useDiscoveredMonsters";
 import { useEncounters } from "@/composables/useEncounters";
+import { useNotes } from "@/composables/useNotes";
+import type { NoteCategory } from "@/types/notes.types";
 import { useAuthStore } from "@/stores/auth";
 import { useMemberByUserId } from "@/composables/useCampaignMembers";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -390,11 +440,42 @@ function categoryIcon(cat: string): Component {
   return CAT_ICONS[cat as JournalCategory] ?? BookOpen;
 }
 
+// ── DM Notes ──────────────────────────────────────────────────────────────────
+const { data: notesRaw, isLoading: loadingNotes } = useNotes();
+const dmNotes = computed(() =>
+  (notesRaw.value ?? []).slice().sort((a, b) => {
+    if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
+    if (a.category === "session" && b.category === "session") {
+      if (a.session_num !== null && b.session_num !== null) return a.session_num - b.session_num;
+      if (a.session_num !== null) return -1;
+      if (b.session_num !== null) return 1;
+    }
+    if (a.category === "session" && b.category !== "session") return -1;
+    if (a.category !== "session" && b.category === "session") return 1;
+    return a.title.localeCompare(b.title);
+  }),
+);
+
+const NOTE_CATEGORY_LABELS: Record<NoteCategory, string> = {
+  general:  "General",
+  session:  "Session",
+  lore:     "Lore",
+  location: "Location",
+  quest:    "Quest",
+  faction:  "Faction",
+};
+
+const selectedNote = ref<string | null>(null);
+function toggleNote(id: string) {
+  selectedNote.value = selectedNote.value === id ? null : id;
+}
+
 // ── Tabs ──────────────────────────────────────────────────────────────────────
-const activeTab = ref<"mine" | "party">("mine");
+const activeTab = ref<"mine" | "party" | "dm-notes">("mine");
 const TABS = computed(() => [
-  { id: "mine"  as const, label: "My Journal",    count: myEntries.value?.length ?? 0 },
-  { id: "party" as const, label: "Party Journal", count: sharedEntries.value?.length ?? 0 },
+  { id: "mine"     as const, label: "My Journal",    count: myEntries.value?.length ?? 0 },
+  { id: "party"    as const, label: "Party Journal", count: sharedEntries.value?.length ?? 0 },
+  { id: "dm-notes" as const, label: "DM Notes",      count: dmNotes.value.length },
 ]);
 
 // ── Filters ───────────────────────────────────────────────────────────────────

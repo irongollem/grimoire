@@ -94,9 +94,7 @@ export const routes: RouteRecordRaw[] = [
   },
   {
     path: "/play/notes",
-    name: "play-notes",
-    component: () => import("@/views/play/PlayerNotesView.vue"),
-    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Notes" },
+    redirect: "/play/journal",
   },
   {
     path: "/play/inventory",
