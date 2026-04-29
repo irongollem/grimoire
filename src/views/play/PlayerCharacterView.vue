@@ -94,6 +94,7 @@
         v-else-if="activeTab === 'features'"
         :member="member"
         :wildshape-monster="beastMonster ?? undefined"
+        :is-owner="isOwner"
       />
 
       <!-- Combat -->

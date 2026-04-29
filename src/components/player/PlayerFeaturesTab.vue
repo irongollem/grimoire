@@ -284,11 +284,18 @@
         <div v-if="member.languages?.length" class="flex gap-3 px-4 py-2.5">
           <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-32 shrink-0 pt-0.5">Languages</span>
           <div class="flex flex-wrap gap-1.5">
-            <span
-              v-for="lang in member.languages"
-              :key="lang"
-              class="inline-flex items-center rounded-md bg-muted/50 border border-border px-2 py-0.5 font-fell text-sm text-foreground"
-            >{{ lang }}</span>
+            <template v-for="lang in member.languages" :key="lang">
+              <RouterLink
+                v-if="isOwner && isChoicePlaceholder(lang)"
+                to="/play/character/edit?tab=profs"
+                class="inline-flex items-center rounded-md bg-primary/8 border border-primary/30 border-dashed px-2 py-0.5 font-fell text-sm text-primary/70 hover:text-primary hover:bg-primary/15 transition-colors"
+                :title="'Tap to choose a language'"
+              >{{ lang }}</RouterLink>
+              <span
+                v-else
+                class="inline-flex items-center rounded-md bg-muted/50 border border-border px-2 py-0.5 font-fell text-sm text-foreground"
+              >{{ lang }}</span>
+            </template>
           </div>
         </div>
         <div v-if="member.tool_proficiencies?.length" class="flex gap-3 px-4 py-2.5">
@@ -334,7 +341,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, RouterLink } from "vue-router";
 import { ChevronDown, Sparkles } from "lucide-vue-next";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { featureName, featureDescription, mapFeatureIds, type FeatureEntry } from "@/levelup/types";
@@ -351,9 +358,13 @@ import { useConfirm } from "@/composables/useConfirm";
 import type { PartyMember, SpellSlotEntry } from "@/types/party.types";
 import type { Monster } from "@/types/monster.types";
 
-const props = defineProps<{ member: PartyMember; showRestButtons?: boolean; wildshapeMonster?: Monster }>();
+const props = defineProps<{ member: PartyMember; showRestButtons?: boolean; wildshapeMonster?: Monster; isOwner?: boolean }>();
 
 const router = useRouter();
+
+function isChoicePlaceholder(s: string): boolean {
+  return s.toLowerCase().includes("choice");
+}
 
 function isSpellcasting(name: string): boolean {
   const n = name.toLowerCase();

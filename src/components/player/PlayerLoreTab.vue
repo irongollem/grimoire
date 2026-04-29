@@ -192,7 +192,15 @@
           <div v-if="background.languages.length">
             <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-1">LANGUAGES</p>
             <div class="flex flex-wrap gap-1">
-              <span v-for="l in background.languages" :key="l" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">{{ l }}</span>
+              <template v-for="l in background.languages" :key="l">
+                <RouterLink
+                  v-if="isOwner && isChoicePlaceholder(l)"
+                  to="/play/character/edit?tab=profs"
+                  class="px-2 py-0.5 rounded bg-primary/8 border border-primary/30 border-dashed font-cinzel text-[10px] text-primary/70 hover:text-primary hover:bg-primary/15 transition-colors"
+                  :title="'Tap to choose a language'"
+                >{{ l }}</RouterLink>
+                <span v-else class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">{{ l }}</span>
+              </template>
             </div>
           </div>
         </div>
@@ -212,6 +220,7 @@
 
 <script setup lang="ts">
 import { reactive, computed, watch } from "vue";
+import { RouterLink } from "vue-router";
 import { useBackground } from "@/composables/useBackgrounds";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
@@ -220,6 +229,10 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import type { PartyMember } from "@/types/party.types";
 
 const { member, isOwner } = defineProps<{ member: PartyMember; isOwner: boolean }>();
+
+function isChoicePlaceholder(s: string): boolean {
+  return s.toLowerCase().includes("choice");
+}
 
 const ALIGNMENT_OPTIONS = [
   "Lawful Good",    "Neutral Good",    "Chaotic Good",

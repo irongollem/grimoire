@@ -182,7 +182,10 @@ export function useCharacterCreationForm() {
   );
   const backRoute = (route.query.memberId as string | undefined) ? "/party" : "/play";
 
-  const activeTab  = ref<"identity" | "stats" | "profs">("identity");
+  const tabParam = route.query.tab as string | undefined;
+  const activeTab  = ref<"identity" | "stats" | "profs">(
+    tabParam === "profs" || tabParam === "stats" ? tabParam : "identity",
+  );
   const wizardStep = ref(0);
   const saving     = ref(false);
   const scoreMode  = ref<ScoreMode>("pointbuy");
