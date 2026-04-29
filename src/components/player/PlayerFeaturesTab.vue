@@ -81,39 +81,6 @@
       </div>
     </div>
 
-    <!-- ── Spell slots ────────────────────────────────────────────────────── -->
-    <div v-if="effectiveSlots.length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="px-4 py-2.5 border-b border-border">
-        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Spell Slots</p>
-      </div>
-      <div class="divide-y divide-border">
-        <div
-          v-for="slot in effectiveSlots"
-          :key="slot.level"
-          class="flex items-center gap-3 px-4 py-2.5"
-        >
-          <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-14 shrink-0">
-            Level {{ slot.level }}
-          </span>
-          <div class="flex gap-1.5 flex-wrap">
-            <button
-              v-for="i in slot.max"
-              :key="i"
-              class="h-5 w-5 rounded-full border-2 transition-colors"
-              :class="i <= (slot.max - slot.used)
-                ? 'border-primary bg-primary/80 hover:bg-primary/60'
-                : 'border-muted-foreground/30 bg-transparent hover:border-primary/40'"
-              :title="i <= (slot.max - slot.used) ? 'Click to use slot' : 'Click to restore slot'"
-              @click="toggleSlot(slot.level, i)"
-            />
-          </div>
-          <span class="font-cinzel text-[10px] text-muted-foreground ml-auto shrink-0">
-            {{ slot.max - slot.used }}/{{ slot.max }}
-          </span>
-        </div>
-      </div>
-    </div>
-
     <!-- ── Class features (one card per class, grouped for multiclass) ──────── -->
     <template v-for="group in classFeatureGroups" :key="group.class_name">
       <div class="rounded-lg border border-border bg-card overflow-hidden">
@@ -140,20 +107,20 @@
               class="px-4 py-2.5"
             >
               <button
-                class="w-full text-left flex items-center gap-3"
-                :class="featureDescription(feat) ? 'cursor-pointer' : 'cursor-default'"
-                @click="featureDescription(feat) && toggleExpanded(`class-${group.class_name}-${lvl}-${featureName(feat)}`)"
+                class="w-full text-left flex items-center gap-3 cursor-pointer"
+                @click="isSpellcasting(featureName(feat)) ? router.push('/play/spells') : featureDescription(feat) && toggleExpanded(`class-${group.class_name}-${lvl}-${featureName(feat)}`)"
               >
                 <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-10 shrink-0">Lvl {{ lvl }}</span>
                 <span class="font-fell text-sm text-foreground flex-1">{{ featureName(feat) }}</span>
+                <Sparkles v-if="isSpellcasting(featureName(feat))" class="h-3 w-3 text-primary/60 shrink-0" />
                 <ChevronDown
-                  v-if="featureDescription(feat)"
+                  v-else-if="featureDescription(feat)"
                   class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
                   :class="expanded.has(`class-${group.class_name}-${lvl}-${featureName(feat)}`) ? 'rotate-180' : ''"
                 />
               </button>
               <div
-                v-if="featureDescription(feat) && expanded.has(`class-${group.class_name}-${lvl}-${featureName(feat)}`)"
+                v-if="!isSpellcasting(featureName(feat)) && featureDescription(feat) && expanded.has(`class-${group.class_name}-${lvl}-${featureName(feat)}`)"
                 class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2"
               >
                 <RichTextViewer :content="featureDescription(feat)!" />
@@ -168,21 +135,21 @@
               class="px-4 py-2.5 bg-primary/3"
             >
               <button
-                class="w-full text-left flex items-center gap-3"
-                :class="featureDescription(feat) ? 'cursor-pointer' : 'cursor-default'"
-                @click="featureDescription(feat) && toggleExpanded(`sub-${group.class_name}-${lvl}-${featureName(feat)}`)"
+                class="w-full text-left flex items-center gap-3 cursor-pointer"
+                @click="isSpellcasting(featureName(feat)) ? router.push('/play/spells') : featureDescription(feat) && toggleExpanded(`sub-${group.class_name}-${lvl}-${featureName(feat)}`)"
               >
                 <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-10 shrink-0">Lvl {{ lvl }}</span>
                 <span class="font-fell text-sm text-foreground flex-1">{{ featureName(feat) }}</span>
                 <span class="font-cinzel text-[9px] text-primary/60 tracking-wider shrink-0 mr-1">Subclass</span>
+                <Sparkles v-if="isSpellcasting(featureName(feat))" class="h-3 w-3 text-primary/60 shrink-0" />
                 <ChevronDown
-                  v-if="featureDescription(feat)"
+                  v-else-if="featureDescription(feat)"
                   class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
                   :class="expanded.has(`sub-${group.class_name}-${lvl}-${featureName(feat)}`) ? 'rotate-180' : ''"
                 />
               </button>
               <div
-                v-if="featureDescription(feat) && expanded.has(`sub-${group.class_name}-${lvl}-${featureName(feat)}`)"
+                v-if="!isSpellcasting(featureName(feat)) && featureDescription(feat) && expanded.has(`sub-${group.class_name}-${lvl}-${featureName(feat)}`)"
                 class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2"
               >
                 <RichTextViewer :content="featureDescription(feat)!" />
@@ -367,7 +334,8 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { ChevronDown } from "lucide-vue-next";
+import { useRouter } from "vue-router";
+import { ChevronDown, Sparkles } from "lucide-vue-next";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { featureName, featureDescription, mapFeatureIds, type FeatureEntry } from "@/levelup/types";
 import type { CustomStep } from "@/levelup/customTypes";
@@ -384,6 +352,13 @@ import type { PartyMember, SpellSlotEntry } from "@/types/party.types";
 import type { Monster } from "@/types/monster.types";
 
 const props = defineProps<{ member: PartyMember; showRestButtons?: boolean; wildshapeMonster?: Monster }>();
+
+const router = useRouter();
+
+function isSpellcasting(name: string): boolean {
+  const n = name.toLowerCase();
+  return n.includes("spellcasting") || n === "pact magic";
+}
 
 const memberClassRef    = computed(() => props.member.class ?? "");
 const memberSubclassRef = computed(() => props.member.subclass ?? "");
@@ -521,21 +496,6 @@ function restoreResource(key: string) {
   if (!r || r.current >= r.max) return;
   r.current++;
   persistResources();
-}
-
-// ── Spell slot controls ───────────────────────────────────────────────────────
-
-function toggleSlot(level: number, pip: number) {
-  const slots = effectiveSlots.value;
-  const slot = slots.find(s => s.level === level);
-  if (!slot) return;
-  const available = slot.max - slot.used;
-  // pip index from left; pips 1..available are filled (click = use), rest are empty (click = restore)
-  const newUsed = pip <= available
-    ? Math.min(slot.max, slot.used + 1)
-    : Math.max(0, slot.used - 1);
-  const updated = slots.map(s => s.level === level ? { ...s, used: newUsed } : s);
-  updateMember({ id: props.member.id, update: { spell_slots: updated } });
 }
 
 // ── Rest ──────────────────────────────────────────────────────────────────────
