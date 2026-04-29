@@ -2,12 +2,17 @@
   <div class="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-5">
     <!-- Left: emblem + deities in this pantheon -->
     <div class="flex flex-col gap-4">
-      <div class="relative aspect-square rounded-lg border border-border overflow-hidden bg-muted">
+      <div
+        class="relative aspect-square rounded-lg border border-border overflow-hidden bg-muted max-w-150 mx-auto lg:max-w-none"
+        :class="pantheon.emblem_url ? 'cursor-zoom-in' : ''"
+        @click="pantheon.emblem_url && (lightbox = pantheon.emblem_url)"
+      >
         <FocalImage
           v-if="pantheon.emblem_url"
           :src="pantheon.emblem_url"
           :alt="pantheon.name + ' emblem'"
           format="portrait"
+          :render-width="600"
           class="w-full h-full"
         />
         <div
@@ -61,16 +66,21 @@
       </p>
     </div>
   </div>
+
+  <ImageLightbox :src="lightbox" @close="lightbox = null" />
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { RouterLink } from "vue-router";
 import { Flame, Sun } from "lucide-vue-next";
 import { useAllDeities } from "@/composables/useDeities";
 import type { Pantheon } from "@/types/deity.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import ImageLightbox from "@/components/common/ImageLightbox.vue";
+
+const lightbox = ref<string | null>(null);
 
 const props = defineProps<{ pantheon: Pantheon }>();
 

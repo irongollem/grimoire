@@ -60,6 +60,8 @@ const props = defineProps<{
   format: ImageFormat;
   /** Manual override — when set, skips smartcrop entirely. Values are 0–100 percentages of the source image. */
   focalPoint?: { x: number; y: number } | null;
+  /** Override the default variant width for this format. Use 600 for large detail-view portraits. */
+  renderWidth?: VariantWidth;
   /** When true, skip variant URL derivation and serve the full-resolution original.
    *  Use this in Card Forge where images are printed at ~300 DPI. */
   print?: boolean;
@@ -95,7 +97,7 @@ const displaySrc = computed(() => {
   if (props.print || variantFailed.value || !props.src.startsWith("http")) return props.src;
   // Already a variant URL in DB — use it directly, skip double-suffixing.
   if (VARIANT_URL_RE.test(props.src)) return props.src;
-  return toVariantUrl(props.src, FORMAT_RENDER_WIDTHS[props.format]);
+  return toVariantUrl(props.src, props.renderWidth ?? FORMAT_RENDER_WIDTHS[props.format]);
 });
 
 const rootRef = ref<HTMLElement | null>(null);

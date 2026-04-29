@@ -1111,6 +1111,17 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     tags: ["devils", "evil", "lawful", "minauros", "archdevil", "greed", "wealth"],
   },
   {
+    name: "Belial",
+    titles: "Archduke of Phlegethos, The Pale King",
+    pantheon: "Lords of the Nine Hells",
+    alignment: "Lawful Evil",
+    symbol: "A four-pointed crown of black iron wreathed in flame",
+    domains: ["Trickery", "Order"],
+    portfolio: "Corruption, manipulation, temptation, the corruption of the virtuous",
+    description: "Belial co-rules Phlegethos with his daughter Fierna — he is the mind and she is the face. A cold, calculating manipulator, Belial specialises in corrupting the righteous: seducing paladins, bribing priests, and turning idealists into instruments of Hell. He nominally defers to Fierna in public appearances while pulling every string from behind closed doors. His relationship with Asmodeus is one of mutual wariness.",
+    tags: ["devils", "evil", "lawful", "phlegethos", "archdevil", "corruption", "temptation"],
+  },
+  {
     name: "Fierna",
     titles: "Archduchess of Phlegethos, The Burning Princess",
     alternate_names: ["Lady of the Fires"],
@@ -1119,7 +1130,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A crown of crackling fire",
     domains: ["Trickery"],
     portfolio: "Seduction, passion, fire, manipulation, lust",
-    description: "Fierna co-rules the volcanic layer of Phlegethos alongside her father Belial, though in practice she is the public face while he schemes behind closed doors. Beautiful and devastatingly charismatic, she rules through personal magnetism and emotional manipulation. Her cultists are seducers, temptresses, and those who use desire as a weapon.",
+    description: "Fierna co-rules the volcanic layer of Phlegethos with her father Belial. She is the public throne and he is the hidden hand — though whether she is truly his puppet or has her own agenda is a matter of infernal debate. Beautiful and devastatingly charismatic, she rules through personal magnetism and emotional manipulation. Her cultists are seducers, temptresses, and those who use desire as a weapon.",
     tags: ["devils", "evil", "phlegethos", "archdevil", "fire", "seduction"],
   },
   {

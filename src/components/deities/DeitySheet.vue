@@ -4,7 +4,9 @@
     <div class="flex flex-col gap-4">
       <!-- Divine portrait -->
       <div
-        class="relative aspect-3/4 rounded-lg border border-border overflow-hidden bg-muted"
+        class="relative aspect-3/4 rounded-lg border border-border overflow-hidden bg-muted max-w-150 mx-auto lg:max-w-none"
+        :class="deity.portrait_url ? 'cursor-zoom-in' : ''"
+        @click="deity.portrait_url && (lightbox = deity.portrait_url)"
       >
         <FocalImage
           v-if="deity.portrait_url"
@@ -12,6 +14,7 @@
           :focal-point="deity.portrait_focal_point ?? null"
           :alt="deity.name"
           format="portrait"
+          :render-width="600"
           class="w-full h-full"
         />
         <div
@@ -167,16 +170,21 @@
       </div>
     </div>
   </div>
+
+  <ImageLightbox :src="lightbox" @close="lightbox = null" />
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { RouterLink } from "vue-router";
 import { Sun } from "lucide-vue-next";
 import type { Deity, Pantheon } from "@/types/deity.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import DeityFactionsSection from "@/components/deities/DeityFactionsSection.vue";
+import ImageLightbox from "@/components/common/ImageLightbox.vue";
+
+const lightbox = ref<string | null>(null);
 
 const props = defineProps<{
   deity: Deity & { pantheon: Pick<Pantheon, "id" | "name"> | null };
