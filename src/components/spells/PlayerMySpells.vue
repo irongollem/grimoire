@@ -427,7 +427,7 @@ async function castSpell(entry: CharacterSpellEntry, castLevel: number) {
     }
 
     // Flavor text
-    let text = `${props.memberName} casts ${spell.name}`;
+    let text = `casts ${spell.name}`;
     if (extraLevels > 0) text += ` (upcast ${SLOT_LEVEL_LABELS[castLevel - 1]})`;
     if (castLevel > 0 && props.spellAttackBonus !== null
       && (spell.attack_type === "ranged_spell" || spell.attack_type === "melee_spell")) {

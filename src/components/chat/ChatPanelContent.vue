@@ -537,7 +537,7 @@
               <span v-if="msg.recipient_user_id" class="text-amber-400">
                 whispers</span
               >
-              {{ " " }}rolled {{ asRoll(msg.metadata).label }}
+              {{ " " }}rolled <span class="text-primary/70">{{ asRoll(msg.metadata).label }}</span>
             </p>
             <!-- Horizontal layout: total left, breakdown right -->
             <div class="flex items-center gap-3">
@@ -621,6 +621,11 @@
               <EyeOff class="h-3 w-3 text-purple-500 dark:text-purple-400 shrink-0" />
               <span class="font-cinzel text-[9px] text-purple-500 dark:text-purple-400 tracking-widest">HIDDEN ROLL</span>
             </div>
+            <!-- Sender row — character first -->
+            <p class="font-cinzel text-[10px] text-foreground/60 tracking-wider mb-1">
+              <span class="font-semibold text-purple-600 dark:text-purple-300">{{ msg.sender_name }}</span>
+              {{ " " }}rolled <span class="text-purple-600/70 dark:text-purple-400">{{ asRoll(msg.metadata).label }}</span>
+            </p>
             <!-- Flavor line (merged from preceding system message if present) -->
             <p
               v-if="flavorForRoll(msg)"
@@ -630,11 +635,6 @@
                 {{ (flavorForRoll(msg)!.metadata as FlavorMetadata).skill_label }}:
               </span>
               {{ flavorForRoll(msg)!.message }}
-            </p>
-            <!-- Sender row -->
-            <p class="font-cinzel text-[10px] text-foreground/60 tracking-wider mb-1.5">
-              <span class="font-semibold text-purple-600 dark:text-purple-300">{{ msg.sender_name }}</span>
-              {{ " " }}rolled {{ asRoll(msg.metadata).label }}
             </p>
             <!-- Total + breakdown -->
             <div class="flex items-center gap-3">
@@ -684,10 +684,14 @@
             v-else-if="msg.type === 'system'"
             class="max-w-[80%] rounded-lg px-3 py-2 bg-muted/40 border border-border/50 italic"
           >
+            <p
+              v-if="msg.sender_name"
+              class="font-cinzel text-[10px] font-semibold text-primary not-italic tracking-wider mb-0.5"
+            >{{ msg.sender_name }}</p>
             <p class="font-fell text-sm text-foreground/80 leading-snug">
               <span
                 v-if="(msg.metadata as FlavorMetadata)?.skill_label"
-                class="font-cinzel text-[10px] font-semibold text-primary not-italic tracking-wider"
+                class="font-cinzel text-[10px] font-semibold text-primary/70 not-italic tracking-wider"
               >{{ (msg.metadata as FlavorMetadata).skill_label }}:</span>
               {{ msg.message }}
             </p>

@@ -56,21 +56,16 @@
         <span v-if="ui.chatHasUnread" class="absolute top-0.5 right-0.5 h-2 w-2 rounded-full bg-destructive" />
       </button>
 
-      <button
-        class="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
-        title="Report a bug"
-        @click="bugReportOpen = true"
-      >
-        <Bug class="h-4 w-4" />
-      </button>
-
-      <button
-        class="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
-        title="Sign out"
-        @click="handleSignOut"
-      >
-        <LogOut class="h-4 w-4" />
-      </button>
+      <!-- Hamburger menu -->
+      <div class="relative">
+        <button
+          class="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+          title="Menu"
+          @click="showMenu = !showMenu"
+        >
+          <Menu class="h-4 w-4" />
+        </button>
+      </div>
     </header>
 
     <!-- DM preview banner -->
@@ -213,6 +208,41 @@
 
   <BugReportModal v-model="bugReportOpen" />
 
+  <!-- Hamburger dropdown -->
+  <Teleport to="body">
+    <div v-if="showMenu" class="fixed inset-0 z-50" @click="showMenu = false">
+      <div
+        class="absolute right-2 top-14 bg-card border border-border rounded-lg shadow-xl overflow-hidden w-44"
+        @click.stop
+      >
+        <RouterLink
+          :to="{ name: 'play-settings' }"
+          class="flex items-center gap-2.5 px-4 py-3 font-cinzel text-xs font-semibold text-foreground hover:bg-muted transition-colors"
+          @click="showMenu = false"
+        >
+          <Settings class="h-4 w-4" />
+          Settings
+        </RouterLink>
+        <button
+          type="button"
+          class="w-full flex items-center gap-2.5 px-4 py-3 font-cinzel text-xs font-semibold text-foreground hover:bg-muted transition-colors"
+          @click="showMenu = false; bugReportOpen = true"
+        >
+          <Bug class="h-4 w-4" />
+          Report a Bug
+        </button>
+        <button
+          type="button"
+          class="w-full flex items-center gap-2.5 px-4 py-3 font-cinzel text-xs font-semibold text-destructive hover:bg-muted transition-colors"
+          @click="showMenu = false; handleSignOut()"
+        >
+          <LogOut class="h-4 w-4" />
+          Sign Out
+        </button>
+      </div>
+    </div>
+  </Teleport>
+
   <!-- "More" panel -->
   <Teleport to="body">
     <Transition name="more-panel">
@@ -250,7 +280,7 @@
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
-import { LogOut, X, Eye, LayoutGrid, Swords, Bug, MessageCircle } from "lucide-vue-next";
+import { LogOut, X, Eye, LayoutGrid, Swords, Bug, MessageCircle, Menu, Settings } from "lucide-vue-next";
 import DiceRoller from "@/components/common/DiceRoller.vue";
 import { useRunningEncounters, usePlayerEncounterLive } from "@/composables/useEncounterLive";
 import { useAuthStore } from "@/stores/auth";
@@ -369,6 +399,7 @@ const mobileNav = computed(() => sortedNav.value.slice(0, MOBILE_NAV_SLOTS));
 const tabletNav = computed(() => sortedNav.value.slice(0, TABLET_NAV_SLOTS));
 
 const showMore = ref(false);
+const showMenu = ref(false);
 
 function isActive(to: string): boolean {
   return to === "/play" ? route.path === "/play" : route.path.startsWith(to);

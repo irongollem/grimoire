@@ -1,7 +1,7 @@
 import type { Component } from "vue";
 import {
   Crown, Globe, Hammer, Landmark, Library, Package,
-  PenLine, Puzzle, ScrollText, Settings, Shield, Skull, Sparkles, User,
+  PenLine, Puzzle, ScrollText, Shield, Skull, Sparkles, User,
 } from "lucide-vue-next";
 
 export interface PlayerNavItem {
@@ -24,7 +24,6 @@ export const ALL_PLAYER_NAV: PlayerNavItem[] = [
   { to: "/play/bestiary",  label: "Bestiary",  icon: Skull },
   { to: "/play/spells",    label: "Spells",    icon: Sparkles },
   { to: "/play/rules",     label: "Reliquary", icon: Library },
-  { to: "/play/settings",  label: "Settings",  icon: Settings },
 ];
 
 export const MOBILE_NAV_SLOTS = 4;

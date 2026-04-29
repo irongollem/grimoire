@@ -126,22 +126,22 @@ const IMMERSIVE_SKILL_KEYS = new Set([
   "persuasion", "intimidation", "deception",
 ]);
 
-function immersiveFlavor(label: string, name: string): string {
+function immersiveFlavor(label: string): string {
   const l = label.toLowerCase();
-  if (l.includes("stealth"))       return `${name} tries to move undetected`;
-  if (l.includes("sleight"))       return `${name} attempts a careful maneuver`;
-  if (l.includes("arcana"))        return `${name} searches their arcane knowledge`;
-  if (l.includes("history"))       return `${name} tries to recall what they know`;
-  if (l.includes("nature"))        return `${name} reads the signs of the natural world`;
-  if (l.includes("religion"))      return `${name} draws on their religious knowledge`;
-  if (l.includes("insight"))       return `${name} tries to read the situation`;
-  if (l.includes("investigation")) return `${name} examines the area carefully`;
-  if (l.includes("medicine"))      return `${name} assesses the situation`;
-  if (l.includes("perception"))    return `${name} looks and listens carefully`;
-  if (l.includes("persuasion"))    return `${name} tries to make their case`;
-  if (l.includes("intimidation"))  return `${name} attempts to assert themselves`;
-  if (l.includes("deception"))     return `${name} chooses their words carefully`;
-  return `${name} makes a check`;
+  if (l.includes("stealth"))       return `tries to move undetected`;
+  if (l.includes("sleight"))       return `attempts a careful maneuver`;
+  if (l.includes("arcana"))        return `searches their arcane knowledge`;
+  if (l.includes("history"))       return `tries to recall what they know`;
+  if (l.includes("nature"))        return `reads the signs of the natural world`;
+  if (l.includes("religion"))      return `draws on their religious knowledge`;
+  if (l.includes("insight"))       return `tries to read the situation`;
+  if (l.includes("investigation")) return `examines the area carefully`;
+  if (l.includes("medicine"))      return `assesses the situation`;
+  if (l.includes("perception"))    return `looks and listens carefully`;
+  if (l.includes("persuasion"))    return `tries to make their case`;
+  if (l.includes("intimidation"))  return `attempts to assert themselves`;
+  if (l.includes("deception"))     return `chooses their words carefully`;
+  return `makes a check`;
 }
 
 function modeTag(mode: RollMode) {
@@ -156,7 +156,7 @@ async function rollSkill(skill: (typeof SKILLS)[number]) {
 
   if (isImmersive) {
     const label = `${skill.label} Check`;
-    await sendFlavorMessage(immersiveFlavor(label, name), skill.label);
+    await sendFlavorMessage(immersiveFlavor(label), skill.label);
     const result = await promptRoll({
       counts: { 20: 1 },
       modifier,

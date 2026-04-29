@@ -340,7 +340,6 @@ import { COINS, type CoinKey, parseCoinText } from "@/lib/currency";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { useUpdateInventoryItem } from "@/composables/usePartyInventory";
-import { useParty } from "@/composables/useParty";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { supabase } from "@/lib/supabase";
@@ -516,7 +515,6 @@ const { data: itemSpells } = useQuery({
   enabled: computed(() => (props.vaultItem?.spell_ids?.length ?? 0) > 0 && localIdentified.value),
 });
 
-const { data: partyMembers } = useParty();
 const { sendFlavorMessage, sendRoll } = useCampaignMessages();
 const { promptRoll } = usePromptedRoll();
 
@@ -546,10 +544,8 @@ async function castFromItem(spell: Spell) {
   if (!props.inv || !canCastSpell.value || isCasting.value) return;
   isCasting.value = true;
   try {
-    const casterName = partyMembers.value?.find((m) => m.id === props.inv!.carried_by)?.name ?? "Unknown";
-
     // Flavor message
-    await sendFlavorMessage(`${casterName} casts ${spell.name} from ${props.inv.name}`, "spell");
+    await sendFlavorMessage(`casts ${spell.name} from ${props.inv.name}`, "spell");
 
     // Auto-roll damage
     if (spell.damage_rolls?.length) {

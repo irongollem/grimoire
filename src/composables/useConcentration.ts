@@ -55,7 +55,7 @@ export function useConcentration() {
       appliedEffectIds: [],
     };
     await updateMember({ id: member.id, update: { concentration: state } });
-    void sendFlavorMessage(`${member.name} begins concentrating on ${spell.name}`, spell.name);
+    void sendFlavorMessage(`begins concentrating on ${spell.name}`, spell.name);
     return true;
   }
 
@@ -69,7 +69,7 @@ export function useConcentration() {
     await updateMember({ id: member.id, update: { concentration: null } });
     if (!opts.silent) {
       const tail = opts.reason ? ` (${opts.reason})` : "";
-      void sendFlavorMessage(`${member.name}'s concentration on ${prevName} ends${tail}`, prevName);
+      void sendFlavorMessage(`concentration on ${prevName} ends${tail}`, prevName);
     }
   }
 

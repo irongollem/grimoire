@@ -229,7 +229,7 @@ async function castSpell(entry: CharacterSpellEntry) {
     }
 
     // Flavor message
-    let text = `${props.memberName} casts ${spell.name}`;
+    let text = `casts ${spell.name}`;
     if (spell.level > 0 && props.spellAttackBonus !== null
       && (spell.attack_type === "ranged_spell" || spell.attack_type === "melee_spell")) {
       text += ` (Atk ${signedNum(props.spellAttackBonus)})`;
