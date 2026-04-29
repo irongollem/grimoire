@@ -156,19 +156,10 @@
         :title="combatant.reactionUsed ? 'Reaction used — click to restore' : 'Reaction available — click to mark used'"
         @click="store.toggleReaction(combatant.instance_id)"
       >⚡</button>
-      <div class="relative" v-if="addingCondFor !== combatant.instance_id">
-        <button class="add-cond-btn" @click="addingCondFor = combatant.instance_id">+</button>
-      </div>
-      <div v-else class="cond-picker">
-        <select
-          size="5"
-          class="cond-select"
-          @change="(e) => onPickCondition(combatant.instance_id, (e.target as HTMLSelectElement).value)"
-          @blur="addingCondFor = null"
-        >
-          <option v-for="c in availableConditions(combatant)" :key="c" :value="c">{{ c }}</option>
-        </select>
-      </div>
+      <ConditionPicker
+        :conditions="displayConditions(combatant)"
+        @pick="(name) => onConditionPickerPick(combatant.instance_id, name)"
+      />
     </div>
   </div>
 
@@ -354,19 +345,10 @@
           :title="combatant.reactionUsed ? 'Reaction used — tap to restore' : 'Reaction available — tap to mark used'"
           @click="store.toggleReaction(combatant.instance_id)"
         >⚡</button>
-        <div v-if="addingCondFor !== combatant.instance_id" class="relative">
-          <button class="add-cond-btn" @click="addingCondFor = combatant.instance_id">+</button>
-        </div>
-        <div v-else class="cond-picker">
-          <select
-            size="5"
-            class="cond-select"
-            @change="(e) => onPickCondition(combatant.instance_id, (e.target as HTMLSelectElement).value)"
-            @blur="addingCondFor = null"
-          >
-            <option v-for="c in availableConditions(combatant)" :key="c" :value="c">{{ c }}</option>
-          </select>
-        </div>
+        <ConditionPicker
+          :conditions="displayConditions(combatant)"
+          @pick="(name) => onConditionPickerPick(combatant.instance_id, name)"
+        />
       </div>
     </div>
   </template>
@@ -387,14 +369,15 @@ import { useAllMonsters } from "@/composables/useMonsters";
 import { useAutoDiscoverMonsters } from "@/composables/useDiscoveredMonsters";
 import { useConcentration } from "@/composables/useConcentration";
 import {
-  CONDITIONS,
   getConditionDescription,
   getExhaustionLevel,
   setExhaustionLevel,
   isExhaustion,
 } from "@/lib/conditions";
+import type { ConditionName } from "@/lib/conditions";
 import { CONCENTRATION_BREAKING_CONDITIONS } from "@/composables/useConcentration";
 import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
+import ConditionPicker from "@/components/encounters/ConditionPicker.vue";
 import type { RunCombatant, RevealState } from "@/types/encounter.types";
 
 const isMobile = useIsMobile();
@@ -412,7 +395,6 @@ const { data: partyList } = useParty();
 const { data: monsters } = useAllMonsters();
 const { mutateAsync: autoDiscover } = useAutoDiscoverMonsters();
 const { rollConcentrationSave, endConcentration } = useConcentration();
-const addingCondFor = ref<string | null>(null);
 const quickAmounts = ref<Record<string, number | null>>({});
 
 // O(1) lookup map — avoids repeated find() per-helper per-combatant per-render
@@ -517,45 +499,30 @@ function factionColor(factionId: string): string {
   return store.factions.find((f) => f.id === factionId)?.color ?? "#3D3D3D";
 }
 
-function availableConditions(c: RunCombatant): string[] {
-  // Hide non-exhaustion conditions the creature already has, and hide the
-  // single "Exhaustion" picker entry once they have any level of it (the
-  // chip's pips become the level control instead).
-  const conditions = displayConditions(c);
-  const hasExhaustion = getExhaustionLevel(conditions) > 0;
-  return CONDITIONS.filter((cond) => {
-    if (cond === "Exhaustion") return !hasExhaustion;
-    return !conditions.includes(cond);
-  });
-}
-
 function nonExhaustion(conditions: string[]): string[] {
   return conditions.filter((c) => !isExhaustion(c));
 }
 
-/**
- * Picker handler. Special-cased for "Exhaustion" — that selector adds level
- * 1; any subsequent level changes happen via the chip's pips. Other names
- * are stored as-is.
- */
-async function onPickCondition(instanceId: string, value: string) {
-  if (!value) { addingCondFor.value = null; return; }
-  if (value === "Exhaustion") {
-    onExhaustionChange(instanceId, 1);
+async function onConditionPickerPick(instanceId: string, name: ConditionName) {
+  if (name === "Exhaustion") {
+    const combatant = store.sortedCombatants.find((c) => c.instance_id === instanceId);
+    if (!combatant) return;
+    const level = getExhaustionLevel(displayConditions(combatant));
+    onExhaustionChange(instanceId, level > 0 ? 0 : 1);
   } else {
-    store.toggleCondition(instanceId, value);
-    // Concentration-breaking conditions end concentration on PCs automatically.
-    if (CONCENTRATION_BREAKING_CONDITIONS.includes(value)) {
+    const combatant = store.sortedCombatants.find((c) => c.instance_id === instanceId);
+    const wasActive = combatant ? displayConditions(combatant).includes(name) : false;
+    store.toggleCondition(instanceId, name);
+    if (!wasActive && CONCENTRATION_BREAKING_CONDITIONS.includes(name)) {
       const c = store.sortedCombatants.find((x) => x.instance_id === instanceId);
       const member = c?.party_member_id
         ? partyList.value?.find((m) => m.id === c.party_member_id) ?? null
         : null;
       if (member?.concentration) {
-        await endConcentration(member, { reason: value.toLowerCase() });
+        await endConcentration(member, { reason: name.toLowerCase() });
       }
     }
   }
-  addingCondFor.value = null;
 }
 
 function onExhaustionChange(instanceId: string, newLevel: number) {
@@ -844,20 +811,6 @@ function quickTemp(instanceId: string) {
   @apply inline-flex items-center px-1.5 py-0.5 rounded font-cinzel text-[9px] font-semibold bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 cursor-pointer hover:bg-destructive/20 hover:text-destructive transition-colors;
 }
 
-.add-cond-btn {
-  @apply w-5 h-5 rounded-full border border-dashed border-border text-muted-foreground font-cinzel text-xs flex items-center justify-center hover:border-primary hover:text-primary transition-colors;
-}
-
-.cond-picker {
-  @apply relative;
-}
-
-.cond-select {
-  @apply absolute z-10 bg-card border border-border rounded shadow-lg font-fell text-xs text-foreground focus:outline-none;
-  min-width: 120px;
-  top: 0;
-  left: 0;
-}
 
 .empty-runner {
   @apply text-center font-fell text-sm text-muted-foreground italic py-16;
