@@ -182,6 +182,38 @@ function toRichText(text: string): string {
   });
 }
 
+/** Reveal all deities and pantheons to all party members in one shot. */
+export function useRevealAllDeities() {
+  const qc = useQueryClient();
+  const campaign = useCampaignStore();
+  return useMutation({
+    mutationFn: async (): Promise<void> => {
+      const campaignId = campaign.activeCampaignId;
+      if (!campaignId) throw new Error("No active campaign");
+
+      const { data: members, error: mErr } = await supabase
+        .from("party_members")
+        .select("id")
+        .eq("campaign_id", campaignId);
+      if (mErr) throw mErr;
+
+      const allIds = (members ?? []).map((m: { id: string }) => m.id);
+      if (!allIds.length) return;
+
+      const [{ error: dErr }, { error: pErr }] = await Promise.all([
+        supabase.from("deities").update({ player_visible_to: allIds }).eq("campaign_id", campaignId),
+        supabase.from("pantheons").update({ player_visible_to: allIds }).eq("campaign_id", campaignId),
+      ]);
+      if (dErr) throw dErr;
+      if (pErr) throw pErr;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["deities"] });
+      qc.invalidateQueries({ queryKey: ["pantheons"] });
+    },
+  });
+}
+
 /** Bulk-insert seed pantheons + deities for the active campaign's setting.
  *  Returns [pantheonCount, deityCount] inserted. Deduplicates by name (case-insensitive). */
 export function usePopulateDeities() {
@@ -251,17 +283,17 @@ export function usePopulateDeities() {
       // ── Deities ────────────────────────────────────────────────────────────
       const { data: existingDeities, error: dFetchErr } = await supabase
         .from("deities")
-        .select("id, name, pantheon_id")
+        .select("id, name, pantheon_id, alternate_names")
         .eq("campaign_id", campaignId);
       if (dFetchErr) throw dFetchErr;
 
-      type ExistingDeity = { id: string; name: string; pantheon_id: string | null };
+      type ExistingDeity = { id: string; name: string; pantheon_id: string | null; alternate_names: string[] | null };
       const existingDeityMap = new Map<string, ExistingDeity>(
         (existingDeities ?? []).map((d: ExistingDeity) => [d.name.toLowerCase(), d]),
       );
 
       const deitiesToInsert: object[] = [];
-      const deitiesToPatch: { id: string; pantheon_id: string | null }[] = [];
+      const deitiesToPatch: { id: string; pantheon_id: string | null; alternate_names: string[] }[] = [];
 
       for (const d of setting.deities ?? []) {
         const key = d.name.toLowerCase();
@@ -287,9 +319,20 @@ export function usePopulateDeities() {
             user_id: user!.id,
             campaign_id: campaignId,
           });
-        } else if (existing.pantheon_id !== seedPantheonId) {
-          // Correct a stale or wrong pantheon assignment
-          deitiesToPatch.push({ id: existing.id, pantheon_id: seedPantheonId });
+        } else {
+          const seedAltNames = d.alternate_names ?? [];
+          const needsPantheonFix = existing.pantheon_id !== seedPantheonId;
+          const needsAltNamesFix =
+            seedAltNames.length > 0 &&
+            JSON.stringify([...(existing.alternate_names ?? [])].sort()) !==
+              JSON.stringify([...seedAltNames].sort());
+          if (needsPantheonFix || needsAltNamesFix) {
+            deitiesToPatch.push({
+              id: existing.id,
+              pantheon_id: seedPantheonId,
+              alternate_names: seedAltNames,
+            });
+          }
         }
       }
 
@@ -307,7 +350,7 @@ export function usePopulateDeities() {
       for (const patch of deitiesToPatch) {
         const { error: pErr } = await supabase
           .from("deities")
-          .update({ pantheon_id: patch.pantheon_id })
+          .update({ pantheon_id: patch.pantheon_id, alternate_names: patch.alternate_names })
           .eq("id", patch.id);
         if (pErr) throw pErr;
         patchedDeityCount++;

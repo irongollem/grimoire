@@ -9,6 +9,13 @@
         @click="handlePopulate"
       />
       <ListActionButton
+        v-if="deities?.length"
+        :icon="Eye"
+        :label="revealStatus === 'done' ? 'All Revealed' : 'Reveal All'"
+        :disabled="revealMutation.isPending.value"
+        @click="handleRevealAll"
+      />
+      <ListActionButton
         :icon="Flame"
         label="Pantheons"
         mobile-label="Pantheons"
@@ -117,7 +124,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { Eye, Flame, Plus, Sparkles, Sun } from "lucide-vue-next";
-import { useAllDeities, useAllPantheons, usePopulateDeities } from "@/composables/useDeities";
+import { useAllDeities, useAllPantheons, usePopulateDeities, useRevealAllDeities } from "@/composables/useDeities";
 import { CLERIC_DOMAINS } from "@/types/deity.types";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
@@ -156,6 +163,15 @@ const filtered = computed(() => {
     return true;
   });
 });
+
+const revealMutation = useRevealAllDeities();
+const revealStatus = ref<"idle" | "done">("idle");
+
+async function handleRevealAll() {
+  revealStatus.value = "idle";
+  await revealMutation.mutateAsync();
+  revealStatus.value = "done";
+}
 
 const populateMutation = usePopulateDeities();
 const populateStatus = ref<"idle" | "done" | "uptodate">("idle");
