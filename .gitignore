@@ -15,6 +15,7 @@ dist-ssr/
 # Environment variables
 .env.local
 .env.*.local
+.env.test
 
 # Personal setup notes (gitignored — edit freely)
 TODO_SETUP.md

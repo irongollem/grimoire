@@ -1,11 +1,12 @@
 /**
  * One-shot Stripe product + price setup for Grimoire AI Credit Packs.
  *
- * Run once per environment (test + live):
- *   node --env-file=.env.local scripts/stripe-setup-credit-packs.mjs
+ * Live:  node --env-file=.env.local scripts/stripe-setup-credit-packs.mjs
+ * Test:  STRIPE_SECRET_KEY=sk_test_... node scripts/stripe-setup-credit-packs.mjs
+ *        (see docs/stripe-testing.md for full local test setup)
  *
  * After running, copy the printed price IDs into:
- *   - .env.local (STRIPE_CREDIT_PACK_*_PRICE_ID)
+ *   - .env.local / .env.test (STRIPE_CREDIT_PACK_*_PRICE_ID)
  *   - Supabase secrets (same names)
  */
 
