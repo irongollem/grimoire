@@ -52,7 +52,16 @@
           <User class="h-3.5 w-3.5 shrink-0" />
           {{ giverName }}
         </button>
-        <span v-if="primaryLocationName" class="flex items-center gap-1.5">
+        <button
+          v-if="primaryLocationName && quest?.location_id && sharedLocationIds.has(quest.location_id)"
+          type="button"
+          class="flex items-center gap-1.5 hover:text-primary transition-colors"
+          @click="openLocation(quest!.location_id!)"
+        >
+          <MapPin class="h-3.5 w-3.5 shrink-0" />
+          {{ primaryLocationName }}
+        </button>
+        <span v-else-if="primaryLocationName" class="flex items-center gap-1.5">
           <MapPin class="h-3.5 w-3.5 shrink-0" />
           {{ primaryLocationName }}
         </span>
@@ -170,16 +179,28 @@
           >
         </div>
         <div class="p-2 flex flex-col gap-1">
-          <div
-            v-for="ref in linkedLocationRefs"
-            :key="ref.id"
-            class="flex items-center gap-2 px-2 py-1.5"
-          >
-            <MapPin class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span class="font-fell text-sm text-foreground">{{
-              locationName2(ref.ref_id)
-            }}</span>
-          </div>
+          <template v-for="ref in linkedLocationRefs" :key="ref.id">
+            <button
+              v-if="sharedLocationIds.has(ref.ref_id)"
+              type="button"
+              class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 transition-colors text-left w-full"
+              @click="openLocation(ref.ref_id)"
+            >
+              <MapPin class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span class="font-fell text-sm text-foreground hover:text-primary transition-colors">{{
+                locationName2(ref.ref_id)
+              }}</span>
+            </button>
+            <div
+              v-else
+              class="flex items-center gap-2 px-2 py-1.5"
+            >
+              <MapPin class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span class="font-fell text-sm text-foreground">{{
+                locationName2(ref.ref_id)
+              }}</span>
+            </div>
+          </template>
         </div>
       </div>
 
@@ -262,7 +283,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { RouterLink, useRoute } from "vue-router";
+import { RouterLink, useRoute, useRouter } from "vue-router";
 import {
   ChevronLeft,
   ScrollText,
@@ -279,7 +300,7 @@ import {
   useQuestRefs,
 } from "@/composables/useQuests";
 import { useNpcs } from "@/composables/useNpcs";
-import { useAllLocations } from "@/composables/useLocations";
+import { useSharedLocations } from "@/composables/useLocations";
 import { useMonsters } from "@/composables/useMonsters";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
 import { QUEST_STATUS_LABELS, QUEST_STATUS_COLORS } from "@/types/quest.types";
@@ -288,6 +309,7 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 
 const route = useRoute();
+const router = useRouter();
 const questId = computed(() => route.params.id as string);
 
 const { data: quest, isLoading } = useQuest(questId);
@@ -295,7 +317,7 @@ const { data: objectives } = useQuestObjectives(questId);
 const { data: questRefs } = useQuestRefs(questId);
 
 const { data: npcs } = useNpcs();
-const { data: locations } = useAllLocations();
+const { data: locations } = useSharedLocations();
 const { data: allMonsters } = useMonsters();
 
 // NPC lightbox
@@ -304,6 +326,13 @@ const selectedNpc = ref<Npc | null>(null);
 function openNpc(npcId: string) {
   const npc = (npcs.value ?? []).find((n) => n.id === npcId);
   if (npc) selectedNpc.value = npc;
+}
+
+// Shared location IDs — only locations accessible to this player render as links
+const sharedLocationIds = computed(() => new Set((locations.value ?? []).map((l) => l.id)));
+
+function openLocation(id: string) {
+  void router.push({ path: "/play/atlas", query: { open: id } });
 }
 
 // Giver / primary location names
