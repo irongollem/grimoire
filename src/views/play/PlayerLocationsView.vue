@@ -42,6 +42,137 @@
         >Clear</button>
       </div>
 
+      <!-- Favourites pinned section -->
+      <div v-if="!isFiltering && favouriteLocations.length" class="flex flex-col gap-1.5">
+        <p class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Favourites</p>
+        <div
+          v-for="loc in favouriteLocations"
+          :key="`fav-${loc.id}`"
+          :data-location-id="loc.id"
+          class="rounded-lg border border-amber-400/40 bg-card overflow-hidden"
+        >
+          <!-- Header row -->
+          <div class="w-full flex items-stretch">
+            <button
+              type="button"
+              class="flex-1 flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left min-w-0"
+              @click="toggleChildren(loc.id)"
+            >
+              <span
+                class="h-2 w-2 rounded-full shrink-0"
+                :style="{ backgroundColor: locColor(loc.location_type) }"
+              />
+              <span class="flex-1 font-cinzel text-sm font-semibold text-foreground truncate">{{ loc.name }}</span>
+              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider shrink-0">
+                {{ locLabel(loc.location_type) }}
+              </span>
+              <ChevronDown
+                v-if="hasSharedChildren.has(loc.id)"
+                class="h-3.5 w-3.5 text-muted-foreground transition-transform duration-150 shrink-0"
+                :class="childrenOpen.has(loc.id) ? 'rotate-180' : ''"
+              />
+            </button>
+            <button
+              type="button"
+              class="shrink-0 flex items-center gap-1.5 px-3 text-amber-400 hover:text-amber-300 hover:bg-muted/30 transition-colors border-l border-border"
+              title="Remove from favourites"
+              @click.stop="toggleFavourite(loc.id)"
+            >
+              <Star class="h-3.5 w-3.5 shrink-0 fill-current" />
+            </button>
+            <button
+              type="button"
+              class="shrink-0 flex items-center gap-1.5 px-3 text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors border-l border-border"
+              :class="detailOpen.has(loc.id) ? 'text-foreground' : ''"
+              :title="detailOpen.has(loc.id) ? 'Hide details' : 'Show details'"
+              @click="toggleDetail(loc.id)"
+            >
+              <Eye class="h-3.5 w-3.5 shrink-0" />
+              <span class="hidden sm:inline font-cinzel text-[10px] tracking-wider">Details</span>
+            </button>
+          </div>
+
+          <!-- Detail panel shared with main list (detailOpen set is unified) -->
+          <div v-if="detailOpen.has(loc.id)" class="px-4 pb-4 flex flex-col gap-4">
+            <div class="flex items-start gap-3 pt-1">
+              <button
+                v-if="loc.image_url"
+                type="button"
+                class="w-14 shrink-0 rounded-md overflow-hidden aspect-3/4 cursor-zoom-in"
+                @click="lightboxSrc = loc.image_url"
+              >
+                <FocalImage
+                  :src="loc.image_url"
+                  :alt="loc.name"
+                  format="portrait"
+                  :focal-point="null"
+                />
+              </button>
+              <p v-if="loc.player_summary" class="font-fell text-sm text-foreground italic flex-1">
+                {{ loc.player_summary }}
+              </p>
+            </div>
+            <div v-if="loc.map_url">
+              <LocationMap
+                :map-url="loc.map_url"
+                :pins="playerPins(loc)"
+                :children="[]"
+                mode="view"
+                :show-hidden-pins="false"
+                :compact="!fullSizeMaps.has(loc.id)"
+                :shared-child-ids="sharedChildIds"
+                @pin-click="onPinClick"
+                @pin-go="onPinGo"
+                @pin-watch="onPinWatch"
+              />
+              <div class="flex items-center justify-between mt-1">
+                <p v-if="!playerPins(loc).length" class="font-fell text-xs text-muted-foreground italic">No pins placed yet.</p>
+                <span v-else />
+                <button
+                  type="button"
+                  class="font-cinzel text-[10px] text-muted-foreground hover:text-foreground transition-colors tracking-wider"
+                  @click="toggleMapSize(loc.id)"
+                >
+                  {{ fullSizeMaps.has(loc.id) ? 'Compact' : 'Full size' }}
+                </button>
+              </div>
+            </div>
+            <div v-if="loc.is_description_shared && loc.description" class="border-t border-border pt-3">
+              <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-1">Description</p>
+              <RichTextViewer :content="loc.description" />
+            </div>
+            <div v-if="STORE_LOCATION_TYPES.has(loc.location_type) && loc.is_inventory_shared" class="border-t border-border pt-3">
+              <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-2">Wares</p>
+              <PlayerStoreWares :location-id="loc.id" />
+            </div>
+            <div v-if="loc.is_npcs_shared" class="border-t border-border pt-3">
+              <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-2">People in the Area</p>
+              <div v-if="sharedNpcsByLocation[loc.id]?.length" class="flex flex-col gap-1.5">
+                <div
+                  v-for="npc in sharedNpcsByLocation[loc.id]"
+                  :key="npc.id"
+                  class="flex items-center gap-2 rounded border border-border bg-muted/30 px-3 py-2"
+                >
+                  <div class="flex-1 min-w-0">
+                    <p class="font-cinzel text-xs font-semibold text-foreground truncate">{{ getNpcDisplayName(npc) }}</p>
+                    <p v-if="npc.occupation || npc.race" class="font-fell text-xs text-muted-foreground italic truncate">
+                      {{ [npc.race, npc.occupation].filter(Boolean).join(" · ") }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <p v-else class="font-fell text-xs text-muted-foreground italic">No one here yet.</p>
+            </div>
+            <PlayerNotesWidget
+              entity-type="location"
+              :entity-id="loc.id"
+              placeholder="Notes about this place…"
+            />
+          </div>
+        </div>
+        <div class="border-t border-border mt-1 mb-1" />
+      </div>
+
       <div class="flex justify-end">
         <button
           type="button"
@@ -84,6 +215,19 @@
               v-if="hasSharedChildren.has(entry.loc.id)"
               class="h-3.5 w-3.5 text-muted-foreground transition-transform duration-150 shrink-0"
               :class="childrenOpen.has(entry.loc.id) ? 'rotate-180' : ''"
+            />
+          </button>
+          <!-- Star: toggle favourite -->
+          <button
+            type="button"
+            class="shrink-0 flex items-center gap-1.5 px-3 hover:bg-muted/30 transition-colors border-l border-border"
+            :class="favouriteIds.has(entry.loc.id) ? 'text-amber-400 hover:text-amber-300' : 'text-muted-foreground hover:text-amber-400'"
+            :title="favouriteIds.has(entry.loc.id) ? 'Remove from favourites' : 'Add to favourites'"
+            @click.stop="toggleFavourite(entry.loc.id)"
+          >
+            <Star
+              class="h-3.5 w-3.5 shrink-0"
+              :class="favouriteIds.has(entry.loc.id) ? 'fill-current' : ''"
             />
           </button>
           <!-- Details button: toggles detail panel -->
@@ -282,8 +426,9 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick } from "vue";
-import { ChevronDown, X, Eye, Search } from "lucide-vue-next";
+import { ChevronDown, X, Eye, Search, Star } from "lucide-vue-next";
 import { useSharedLocations } from "@/composables/useLocations";
+import { usePlayerFavourites } from "@/composables/usePlayerFavourites";
 import { useUiStore } from "@/stores/ui";
 import { useSharedNpcsByLocations } from "@/composables/useNpcs";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
@@ -308,6 +453,7 @@ import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 
 const { data: locations, isLoading } = useSharedLocations();
+const { favouriteIds, toggleFavourite } = usePlayerFavourites("location");
 
 const search = ref("");
 const typeFilter = ref("all");
@@ -347,6 +493,11 @@ const flatTree = computed(() => {
     return true;
   });
 });
+
+// Locations the player has starred — shown pinned at the top.
+const favouriteLocations = computed(() =>
+  (locations.value ?? []).filter((l) => favouriteIds.value.has(l.id)),
+);
 
 // childrenOpen — which locations have their child cards visible in the list.
 // detailOpen   — which locations have their detail panel (map/description/NPCs) open.

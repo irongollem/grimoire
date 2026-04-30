@@ -248,6 +248,7 @@ Interactive map/location browser. Shows only locations the DM has shared (`useSh
   - People in the area (linked NPCs, when `is_npcs_shared`)
   - Player notes widget
 - Map pins can navigate to a child location ("Go") or open a Watch panel with art + summary + notes
+- **Favourites** — star icon on every location card; starred locations appear in a pinned section above the main list (hidden when searching/filtering); persisted in `player_favourites` table (`entity_type = 'location'`); composable: `usePlayerFavourites('location')` in `src/composables/usePlayerFavourites.ts`
 
 ### Bestiary
 
