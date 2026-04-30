@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col gap-4">
-    <!-- Inner section toggle -->
+    <!-- Section pills -->
     <div class="flex gap-1 p-1 rounded-lg bg-muted w-fit">
       <button
         v-for="s in codexSections"
@@ -20,288 +20,122 @@
 
     <!-- ── Species ── -->
     <div v-if="codexSection === 'species'">
-      <div v-if="!allSpecies?.length" class="text-center py-12">
-        <p class="font-fell text-sm text-muted-foreground italic">
-          No species in the campaign yet.
-        </p>
-      </div>
-      <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-2 items-start">
-        <div
+      <p v-if="!allSpecies?.length" class="text-center font-fell text-sm text-muted-foreground italic py-12">
+        No species in the campaign yet.
+      </p>
+      <div v-else class="grid grid-cols-2 md:grid-cols-3 gap-2">
+        <CodexCard
           v-for="species in allSpecies"
           :key="species.id"
-          class="rounded-lg border border-border bg-card overflow-hidden"
-        >
-          <button
-            type="button"
-            class="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
-            @click="toggle(`sp:${species.id}`)"
-          >
-            <ChevronRight
-              class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200"
-              :class="open.has(`sp:${species.id}`) ? 'rotate-90' : ''"
-            />
-            <span
-              class="font-cinzel text-sm font-bold text-foreground flex-1"
-              >{{ species.name }}</span
-            >
-            <span
-              v-if="species.size"
-              class="shrink-0 px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground capitalize"
-              >{{ species.size }}</span
-            >
-            <span
-              v-if="species.subraces?.length"
-              class="shrink-0 font-cinzel text-[10px] text-muted-foreground/60"
-            >
-              {{ species.subraces.length }} variant{{
-                species.subraces.length > 1 ? "s" : ""
-              }}
-            </span>
-          </button>
+          :image-url="species.image_url"
+          :focal-point="species.focal_point ?? null"
+          :fallback-icon="Users"
+          :title="species.name"
+          :badge="species.size ?? undefined"
+          :count="species.subraces?.length ? `${species.subraces.length}v` : undefined"
+          @click="selectedSpecies = species"
+        />
+      </div>
 
+      <Teleport to="body">
+        <Transition name="modal-fade">
           <div
-            v-if="open.has(`sp:${species.id}`)"
-            class="border-t border-border flex flex-col"
+            v-if="selectedSpecies"
+            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            @click.self="selectedSpecies = null"
           >
-            <!-- Artwork banner -->
-            <div
-              v-if="species.image_url"
-              class="h-40 w-full overflow-hidden bg-muted"
-            >
-              <FocalImage
-                :src="species.image_url"
-                :alt="species.name"
-                format="landscape"
-                :focal-point="species.focal_point ?? null"
-              />
-            </div>
-
-            <div class="px-4 py-4 flex flex-col gap-4">
-              <!-- Description -->
-              <RichTextViewer
-                v-if="isRichText(species.description)"
-                :content="species.description!"
-              />
-              <p
-                v-else-if="species.description"
-                class="font-fell text-sm text-muted-foreground"
-              >
-                {{ species.description }}
-              </p>
-
-              <!-- Speed -->
-              <div v-if="species.speed" class="flex flex-wrap gap-2">
-                <span
-                  v-for="(val, mode) in species.speed"
-                  :key="mode"
-                  class="px-2 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground capitalize"
-                  >{{ mode }} {{ val }} ft</span
-                >
-              </div>
-
-              <!-- Ability score increases -->
-              <div
-                v-if="
-                  species.ability_score_increases &&
-                  Object.keys(species.ability_score_increases).length
-                "
-              >
-                <p
-                  class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5"
-                >
-                  ABILITY SCORE INCREASES
-                </p>
-                <div class="flex flex-wrap gap-1.5">
-                  <span
-                    v-for="(val, key) in species.ability_score_increases"
-                    :key="key"
-                    class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-[11px] text-primary uppercase"
-                    >{{ key }} +{{ val }}</span
-                  >
-                </div>
-              </div>
-
-              <!-- Traits -->
-              <div v-if="species.traits?.length">
-                <p
-                  class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5"
-                >
-                  TRAITS
-                </p>
-                <div class="flex flex-col gap-1">
-                  <div
-                    v-for="trait in species.traits"
-                    :key="trait.name"
-                    class="rounded-md border border-border overflow-hidden"
-                  >
-                    <button
-                      type="button"
-                      class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/20 transition-colors"
-                      :class="
-                        trait.description ? 'cursor-pointer' : 'cursor-default'
-                      "
-                      @click="
-                        trait.description &&
-                        toggle(`sp:${species.id}:t:${trait.name}`)
-                      "
-                    >
-                      <ChevronRight
-                        v-if="trait.description"
-                        class="h-3 w-3 shrink-0 text-muted-foreground/60 transition-transform"
-                        :class="
-                          open.has(`sp:${species.id}:t:${trait.name}`)
-                            ? 'rotate-90'
-                            : ''
-                        "
-                      />
-                      <span class="font-fell text-sm text-foreground">{{
-                        trait.name
-                      }}</span>
-                    </button>
-                    <div
-                      v-if="
-                        trait.description &&
-                        open.has(`sp:${species.id}:t:${trait.name}`)
-                      "
-                      class="px-3 pb-3 border-t border-border"
-                    >
-                      <RichTextViewer
-                        v-if="isRichText(trait.description)"
-                        :content="trait.description"
-                        class="mt-2"
-                      />
-                      <p
-                        v-else
-                        class="font-fell text-sm text-muted-foreground mt-2"
-                      >
-                        {{ trait.description }}
-                      </p>
-                    </div>
+            <div class="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+              <div class="flex items-start gap-3 px-5 py-4 border-b border-border shrink-0">
+                <div class="flex-1 min-w-0">
+                  <h2 class="font-cinzel text-lg font-bold text-foreground">{{ selectedSpecies.name }}</h2>
+                  <div class="flex flex-wrap gap-1.5 mt-1">
+                    <span v-if="selectedSpecies.size" class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground capitalize">{{ selectedSpecies.size }}</span>
+                    <span v-if="selectedSpecies.subraces?.length" class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground/60">{{ selectedSpecies.subraces.length }} variant{{ selectedSpecies.subraces.length > 1 ? "s" : "" }}</span>
                   </div>
                 </div>
+                <button type="button" class="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" @click="selectedSpecies = null">
+                  <X class="h-4 w-4" />
+                </button>
               </div>
-
-              <!-- Languages -->
-              <div v-if="species.languages?.length">
-                <p
-                  class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5"
-                >
-                  LANGUAGES
-                </p>
-                <div class="flex flex-wrap gap-1.5">
-                  <span
-                    v-for="lang in species.languages"
-                    :key="lang"
-                    class="px-2 py-0.5 rounded bg-muted font-fell text-xs text-muted-foreground"
-                    >{{ lang }}</span
-                  >
-                </div>
-              </div>
-
-              <!-- Subraces / Variants -->
-              <div v-if="species.subraces?.length">
-                <p
-                  class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5"
-                >
-                  VARIANTS
-                </p>
-                <div class="flex flex-col gap-1.5">
-                  <div
-                    v-for="sub in species.subraces"
-                    :key="sub.name"
-                    class="rounded-md border border-border overflow-hidden"
-                  >
-                    <button
-                      type="button"
-                      class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/20 transition-colors"
-                      @click="toggle(`sp:${species.id}:sr:${sub.name}`)"
-                    >
-                      <ChevronRight
-                        class="h-3 w-3 shrink-0 text-muted-foreground/60 transition-transform"
-                        :class="
-                          open.has(`sp:${species.id}:sr:${sub.name}`)
-                            ? 'rotate-90'
-                            : ''
-                        "
-                      />
-                      <span
-                        class="font-cinzel text-xs font-semibold text-foreground"
-                        >{{ sub.name }}</span
-                      >
-                    </button>
-                    <div
-                      v-if="open.has(`sp:${species.id}:sr:${sub.name}`)"
-                      class="px-3 pb-3 border-t border-border flex flex-col gap-2 pt-2"
-                    >
-                      <div
-                        v-if="sub.description"
-                        class="font-fell text-sm text-muted-foreground"
-                      >
-                        <RichTextViewer
-                          v-if="isRichText(sub.description)"
-                          :content="sub.description"
-                        />
-                        <p v-else class="italic">{{ sub.description }}</p>
+              <div class="flex-1 overflow-y-auto">
+                <div class="grid grid-cols-1 md:grid-cols-2 md:divide-x md:divide-border">
+                  <div class="flex flex-col gap-4 p-5">
+                    <div v-if="selectedSpecies.image_url" class="rounded-lg overflow-hidden bg-muted">
+                      <FocalImage :src="selectedSpecies.image_url" :alt="selectedSpecies.name" format="landscape" :focal-point="selectedSpecies.focal_point ?? null" lightbox />
+                    </div>
+                    <RichTextViewer v-if="isRichText(selectedSpecies.description)" :content="selectedSpecies.description!" />
+                    <p v-else-if="selectedSpecies.description" class="font-fell text-sm text-muted-foreground">{{ selectedSpecies.description }}</p>
+                    <p v-else class="font-fell text-sm text-muted-foreground italic">No description.</p>
+                  </div>
+                  <div class="flex flex-col gap-4 p-5 border-t border-border md:border-t-0">
+                    <div v-if="selectedSpecies.speed">
+                      <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5">SPEED</p>
+                      <div class="flex flex-wrap gap-2">
+                        <span v-for="(val, mode) in selectedSpecies.speed" :key="mode" class="px-2 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground capitalize">{{ mode }} {{ val }} ft</span>
                       </div>
-                      <div
-                        v-if="sub.traits?.length"
-                        class="flex flex-col gap-1"
-                      >
-                        <div
-                          v-for="trait in sub.traits"
-                          :key="trait.name"
-                          class="rounded border border-border/60 overflow-hidden"
-                        >
+                    </div>
+                    <div v-if="selectedSpecies.ability_score_increases && Object.keys(selectedSpecies.ability_score_increases).length">
+                      <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5">ABILITY SCORE INCREASES</p>
+                      <div class="flex flex-wrap gap-1.5">
+                        <span v-for="(val, key) in selectedSpecies.ability_score_increases" :key="key" class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-[11px] text-primary uppercase">{{ typeof val === "number" ? `${key} +${val}` : val }}</span>
+                      </div>
+                    </div>
+                    <div v-if="selectedSpecies.traits?.length">
+                      <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5">TRAITS</p>
+                      <div class="flex flex-col gap-1">
+                        <div v-for="trait in selectedSpecies.traits" :key="trait.name" class="rounded-md border border-border overflow-hidden">
                           <button
                             type="button"
-                            class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left hover:bg-muted/20 transition-colors"
-                            :class="
-                              trait.description
-                                ? 'cursor-pointer'
-                                : 'cursor-default'
-                            "
-                            @click="
-                              trait.description &&
-                              toggle(
-                                `sp:${species.id}:sr:${sub.name}:t:${trait.name}`,
-                              )
-                            "
+                            class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/20 transition-colors"
+                            :class="trait.description ? 'cursor-pointer' : 'cursor-default'"
+                            @click="trait.description && toggle(`sp:${selectedSpecies!.id}:t:${trait.name}`)"
                           >
-                            <ChevronRight
-                              v-if="trait.description"
-                              class="h-2.5 w-2.5 shrink-0 text-muted-foreground/60 transition-transform"
-                              :class="
-                                open.has(
-                                  `sp:${species.id}:sr:${sub.name}:t:${trait.name}`,
-                                )
-                                  ? 'rotate-90'
-                                  : ''
-                              "
-                            />
-                            <span class="font-fell text-sm text-foreground">{{
-                              trait.name
-                            }}</span>
+                            <ChevronRight v-if="trait.description" class="h-3 w-3 shrink-0 text-muted-foreground/60 transition-transform" :class="open.has(`sp:${selectedSpecies.id}:t:${trait.name}`) ? 'rotate-90' : ''" />
+                            <span class="font-fell text-sm text-foreground">{{ trait.name }}</span>
                           </button>
-                          <div
-                            v-if="
-                              trait.description &&
-                              open.has(
-                                `sp:${species.id}:sr:${sub.name}:t:${trait.name}`,
-                              )
-                            "
-                            class="px-2.5 pb-2.5 border-t border-border/60"
-                          >
-                            <RichTextViewer
-                              v-if="isRichText(trait.description)"
-                              :content="trait.description"
-                              class="mt-2"
-                            />
-                            <p
-                              v-else
-                              class="font-fell text-sm text-muted-foreground mt-2"
-                            >
-                              {{ trait.description }}
-                            </p>
+                          <div v-if="trait.description && open.has(`sp:${selectedSpecies.id}:t:${trait.name}`)" class="px-3 pb-3 border-t border-border">
+                            <RichTextViewer v-if="isRichText(trait.description)" :content="trait.description" class="mt-2" />
+                            <p v-else class="font-fell text-sm text-muted-foreground mt-2">{{ trait.description }}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-if="selectedSpecies.languages?.length">
+                      <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5">LANGUAGES</p>
+                      <div class="flex flex-wrap gap-1.5">
+                        <span v-for="lang in selectedSpecies.languages" :key="lang" class="px-2 py-0.5 rounded bg-muted font-fell text-xs text-muted-foreground">{{ lang }}</span>
+                      </div>
+                    </div>
+                    <div v-if="selectedSpecies.subraces?.length">
+                      <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5">VARIANTS</p>
+                      <div class="flex flex-col gap-1.5">
+                        <div v-for="sub in selectedSpecies.subraces" :key="sub.name" class="rounded-md border border-border overflow-hidden">
+                          <button type="button" class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/20 transition-colors" @click="toggle(`sp:${selectedSpecies!.id}:sr:${sub.name}`)">
+                            <ChevronRight class="h-3 w-3 shrink-0 text-muted-foreground/60 transition-transform" :class="open.has(`sp:${selectedSpecies.id}:sr:${sub.name}`) ? 'rotate-90' : ''" />
+                            <span class="font-cinzel text-xs font-semibold text-foreground">{{ sub.name }}</span>
+                          </button>
+                          <div v-if="open.has(`sp:${selectedSpecies.id}:sr:${sub.name}`)" class="px-3 pb-3 border-t border-border flex flex-col gap-2 pt-2">
+                            <div v-if="sub.description" class="font-fell text-sm text-muted-foreground">
+                              <RichTextViewer v-if="isRichText(sub.description)" :content="sub.description" />
+                              <p v-else class="italic">{{ sub.description }}</p>
+                            </div>
+                            <div v-if="sub.traits?.length" class="flex flex-col gap-1">
+                              <div v-for="trait in sub.traits" :key="trait.name" class="rounded border border-border/60 overflow-hidden">
+                                <button
+                                  type="button"
+                                  class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left hover:bg-muted/20 transition-colors"
+                                  :class="trait.description ? 'cursor-pointer' : 'cursor-default'"
+                                  @click="trait.description && toggle(`sp:${selectedSpecies!.id}:sr:${sub.name}:t:${trait.name}`)"
+                                >
+                                  <ChevronRight v-if="trait.description" class="h-2.5 w-2.5 shrink-0 text-muted-foreground/60 transition-transform" :class="open.has(`sp:${selectedSpecies.id}:sr:${sub.name}:t:${trait.name}`) ? 'rotate-90' : ''" />
+                                  <span class="font-fell text-sm text-foreground">{{ trait.name }}</span>
+                                </button>
+                                <div v-if="trait.description && open.has(`sp:${selectedSpecies.id}:sr:${sub.name}:t:${trait.name}`)" class="px-2.5 pb-2.5 border-t border-border/60">
+                                  <RichTextViewer v-if="isRichText(trait.description)" :content="trait.description" class="mt-2" />
+                                  <p v-else class="font-fell text-sm text-muted-foreground mt-2">{{ trait.description }}</p>
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -311,346 +145,371 @@
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        </Transition>
+      </Teleport>
     </div>
 
     <!-- ── Backgrounds ── -->
     <div v-else-if="codexSection === 'backgrounds'">
-      <div v-if="!allBackgrounds?.length" class="text-center py-12">
-        <p class="font-fell text-sm text-muted-foreground italic">
-          No backgrounds in the campaign yet.
-        </p>
-      </div>
-      <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-2 items-start">
-        <div
+      <p v-if="!allBackgrounds?.length" class="text-center font-fell text-sm text-muted-foreground italic py-12">
+        No backgrounds in the campaign yet.
+      </p>
+      <div v-else class="grid grid-cols-2 md:grid-cols-3 gap-2">
+        <CodexCard
           v-for="bg in allBackgrounds"
           :key="bg.id"
-          class="rounded-lg border border-border bg-card overflow-hidden"
-        >
-          <button
-            type="button"
-            class="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
-            @click="toggle(`bg:${bg.id}`)"
+          :image-url="bg.image_url"
+          :focal-point="bg.focal_point ?? null"
+          :fallback-icon="Scroll"
+          :title="bg.name"
+          :meta="bg.source_title ?? undefined"
+          @click="selectedBackground = bg"
+        />
+      </div>
+
+      <Teleport to="body">
+        <Transition name="modal-fade">
+          <div
+            v-if="selectedBackground"
+            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            @click.self="selectedBackground = null"
           >
-            <ChevronRight
-              class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200"
-              :class="open.has(`bg:${bg.id}`) ? 'rotate-90' : ''"
-            />
-            <span class="font-cinzel text-sm font-bold text-foreground flex-1">{{ bg.name }}</span>
-            <span v-if="bg.source_title" class="shrink-0 font-cinzel text-[10px] text-muted-foreground/60">{{ bg.source_title }}</span>
-          </button>
-
-          <div v-if="open.has(`bg:${bg.id}`)" class="border-t border-border flex flex-col">
-            <div v-if="bg.image_url" class="h-40 w-full overflow-hidden bg-muted">
-              <FocalImage :src="bg.image_url" :alt="bg.name" format="landscape" :focal-point="bg.focal_point ?? null" />
-            </div>
-            <div class="px-4 py-4 flex flex-col gap-4">
-              <RichTextViewer v-if="isRichText(bg.description)" :content="bg.description!" />
-              <p v-else-if="bg.description" class="font-fell text-sm text-muted-foreground">{{ bg.description }}</p>
-
-              <div v-if="bg.skill_proficiencies?.length">
-                <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5">SKILL PROFICIENCIES</p>
-                <div class="flex flex-wrap gap-1.5">
-                  <span v-for="s in bg.skill_proficiencies" :key="s" class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-[11px] text-primary">{{ s }}</span>
+            <div class="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+              <div class="flex items-start gap-3 px-5 py-4 border-b border-border shrink-0">
+                <div class="flex-1 min-w-0">
+                  <h2 class="font-cinzel text-lg font-bold text-foreground">{{ selectedBackground.name }}</h2>
+                  <span v-if="selectedBackground.source_title" class="font-cinzel text-[10px] text-muted-foreground tracking-wider">{{ selectedBackground.source_title }}</span>
                 </div>
+                <button type="button" class="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" @click="selectedBackground = null">
+                  <X class="h-4 w-4" />
+                </button>
               </div>
-
-              <div v-if="bg.tool_proficiencies?.length">
-                <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5">TOOL PROFICIENCIES</p>
-                <div class="flex flex-wrap gap-1.5">
-                  <span v-for="t in bg.tool_proficiencies" :key="t" class="px-2 py-0.5 rounded bg-muted font-fell text-xs text-muted-foreground">{{ t }}</span>
+              <div class="flex-1 overflow-y-auto">
+                <div class="grid grid-cols-1 md:grid-cols-2 md:divide-x md:divide-border">
+                  <div class="flex flex-col gap-4 p-5">
+                    <div v-if="selectedBackground.image_url" class="rounded-lg overflow-hidden bg-muted">
+                      <FocalImage :src="selectedBackground.image_url" :alt="selectedBackground.name" format="landscape" :focal-point="selectedBackground.focal_point ?? null" lightbox />
+                    </div>
+                    <RichTextViewer v-if="isRichText(selectedBackground.description)" :content="selectedBackground.description!" />
+                    <p v-else-if="selectedBackground.description" class="font-fell text-sm text-muted-foreground">{{ selectedBackground.description }}</p>
+                    <p v-else class="font-fell text-sm text-muted-foreground italic">No description.</p>
+                  </div>
+                  <div class="flex flex-col gap-4 p-5 border-t border-border md:border-t-0">
+                    <div v-if="selectedBackground.skill_proficiencies?.length">
+                      <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5">SKILL PROFICIENCIES</p>
+                      <div class="flex flex-wrap gap-1.5">
+                        <span v-for="s in selectedBackground.skill_proficiencies" :key="s" class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-[11px] text-primary">{{ s }}</span>
+                      </div>
+                    </div>
+                    <div v-if="selectedBackground.tool_proficiencies?.length">
+                      <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5">TOOL PROFICIENCIES</p>
+                      <div class="flex flex-wrap gap-1.5">
+                        <span v-for="t in selectedBackground.tool_proficiencies" :key="t" class="px-2 py-0.5 rounded bg-muted font-fell text-xs text-muted-foreground">{{ t }}</span>
+                      </div>
+                    </div>
+                    <div v-if="selectedBackground.languages?.length">
+                      <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5">LANGUAGES</p>
+                      <div class="flex flex-wrap gap-1.5">
+                        <span v-for="l in selectedBackground.languages" :key="l" class="px-2 py-0.5 rounded bg-muted font-fell text-xs text-muted-foreground">{{ l }}</span>
+                      </div>
+                    </div>
+                    <div v-if="selectedBackground.equipment">
+                      <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5">EQUIPMENT</p>
+                      <p class="font-fell text-sm text-muted-foreground">{{ selectedBackground.equipment }}</p>
+                    </div>
+                    <div v-if="selectedBackground.feature_name">
+                      <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5">FEATURE</p>
+                      <p class="font-cinzel text-xs font-semibold text-foreground mb-1">{{ selectedBackground.feature_name }}</p>
+                      <p v-if="selectedBackground.feature_description" class="font-fell text-sm text-muted-foreground">{{ selectedBackground.feature_description }}</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-
-              <div v-if="bg.languages?.length">
-                <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5">LANGUAGES</p>
-                <div class="flex flex-wrap gap-1.5">
-                  <span v-for="l in bg.languages" :key="l" class="px-2 py-0.5 rounded bg-muted font-fell text-xs text-muted-foreground">{{ l }}</span>
-                </div>
-              </div>
-
-              <div v-if="bg.equipment">
-                <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5">EQUIPMENT</p>
-                <p class="font-fell text-sm text-muted-foreground">{{ bg.equipment }}</p>
-              </div>
-
-              <div v-if="bg.feature_name">
-                <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5">FEATURE</p>
-                <p class="font-cinzel text-xs font-semibold text-foreground mb-1">{{ bg.feature_name }}</p>
-                <p v-if="bg.feature_description" class="font-fell text-sm text-muted-foreground">{{ bg.feature_description }}</p>
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        </Transition>
+      </Teleport>
     </div>
 
     <!-- ── Classes ── -->
     <div v-else-if="codexSection === 'classes'">
-      <div v-if="!mergedClasses.length" class="text-center py-12">
-        <p class="font-fell text-sm text-muted-foreground italic">
-          No classes in the campaign yet.
-        </p>
-      </div>
-      <div v-else class="flex flex-col gap-2">
-        <div
+      <p v-if="!mergedClasses.length" class="text-center font-fell text-sm text-muted-foreground italic py-12">
+        No classes in the campaign yet.
+      </p>
+      <div v-else class="grid grid-cols-2 md:grid-cols-3 gap-2">
+        <CodexCard
           v-for="cls in mergedClasses"
           :key="cls.class_name"
-          class="rounded-lg border border-border bg-card overflow-hidden"
-        >
-          <button
-            type="button"
-            class="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
-            @click="toggle(`cls:${cls.class_name}`)"
-          >
-            <ChevronRight
-              class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200"
-              :class="open.has(`cls:${cls.class_name}`) ? 'rotate-90' : ''"
-            />
-            <span
-              class="font-cinzel text-sm font-bold text-foreground flex-1"
-              >{{ cls.class_name }}</span
-            >
-            <span
-              class="shrink-0 px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground"
-              >d{{ cls.hit_die }}</span
-            >
-            <span
-              v-if="subclassesFor(cls.class_name).length"
-              class="shrink-0 font-cinzel text-[10px] text-muted-foreground/60"
-            >
-              {{ subclassesFor(cls.class_name).length }} subclass{{
-                subclassesFor(cls.class_name).length > 1 ? "es" : ""
-              }}
-            </span>
-          </button>
+          :fallback-icon="BookOpen"
+          :title="cls.class_name"
+          :badge="`d${cls.hit_die}`"
+          :count="subclassesFor(cls.class_name).length ? `${subclassesFor(cls.class_name).length} subclass${subclassesFor(cls.class_name).length > 1 ? 'es' : ''}` : undefined"
+          @click="selectedClass = cls"
+        />
+      </div>
 
+      <Teleport to="body">
+        <Transition name="modal-fade">
           <div
-            v-if="open.has(`cls:${cls.class_name}`)"
-            class="border-t border-border px-4 py-4 flex flex-col gap-4"
+            v-if="selectedClass"
+            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            @click.self="selectedClass = null"
           >
-            <!-- Quick stats -->
-            <div class="grid grid-cols-2 gap-3">
-              <div v-if="cls.primary_ability">
-                <p
-                  class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-0.5"
-                >
-                  PRIMARY
-                </p>
-                <p class="font-fell text-sm text-foreground">
-                  {{ cls.primary_ability }}
-                </p>
-              </div>
-              <div v-if="cls.saving_throws?.length">
-                <p
-                  class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-0.5"
-                >
-                  SAVING THROWS
-                </p>
-                <p class="font-fell text-sm text-foreground">
-                  {{ cls.saving_throws.join(", ") }}
-                </p>
-              </div>
-              <div v-if="cls.armor_proficiencies?.length">
-                <p
-                  class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-0.5"
-                >
-                  ARMOR
-                </p>
-                <p class="font-fell text-sm text-foreground">
-                  {{ cls.armor_proficiencies.join(", ") }}
-                </p>
-              </div>
-              <div v-if="cls.weapon_proficiencies?.length">
-                <p
-                  class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-0.5"
-                >
-                  WEAPONS
-                </p>
-                <p class="font-fell text-sm text-foreground">
-                  {{ cls.weapon_proficiencies.join(", ") }}
-                </p>
-              </div>
-              <div>
-                <p
-                  class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-0.5"
-                >
-                  SUBCLASS AT
-                </p>
-                <p class="font-fell text-sm text-foreground">
-                  Level {{ cls.subclass_level }}
-                </p>
-              </div>
-            </div>
-
-            <!-- Features by level -->
-            <div v-if="Object.keys(cls.features ?? {}).length">
-              <p
-                class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5"
-              >
-                CLASS FEATURES
-              </p>
-              <div class="flex flex-col gap-1">
-                <div
-                  v-for="lvl in sortedLevels(cls.features)"
-                  :key="lvl"
-                  class="flex gap-3 px-2 py-1.5 rounded bg-muted/30"
-                >
-                  <span
-                    class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-10 shrink-0 pt-0.5"
-                    >Lv {{ lvl }}</span
-                  >
-                  <div class="flex flex-wrap gap-1">
-                    <span
-                      v-for="name in resolveFeatures(cls.features[String(lvl)])"
-                      :key="name"
-                      class="inline-flex items-center rounded border bg-card border-border px-1.5 py-0.5 font-fell text-xs text-foreground"
-                      >{{ name }}</span
-                    >
+            <div class="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+              <div class="flex items-start gap-3 px-5 py-4 border-b border-border shrink-0">
+                <div class="flex-1 min-w-0">
+                  <h2 class="font-cinzel text-lg font-bold text-foreground">{{ selectedClass.class_name }}</h2>
+                  <div class="flex flex-wrap gap-1.5 mt-1">
+                    <span class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground">d{{ selectedClass.hit_die }}</span>
+                    <span v-if="subclassesFor(selectedClass.class_name).length" class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground/60">
+                      {{ subclassesFor(selectedClass.class_name).length }} subclass{{ subclassesFor(selectedClass.class_name).length > 1 ? "es" : "" }}
+                    </span>
                   </div>
                 </div>
+                <button type="button" class="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" @click="selectedClass = null">
+                  <X class="h-4 w-4" />
+                </button>
               </div>
-            </div>
-
-            <!-- Subclasses -->
-            <div v-if="subclassesFor(cls.class_name).length">
-              <p
-                class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5"
-              >
-                SUBCLASSES
-              </p>
-              <div class="flex flex-col gap-1.5">
-                <div
-                  v-for="sub in subclassesFor(cls.class_name)"
-                  :key="sub.subclass_name"
-                  class="rounded-md border border-border overflow-hidden"
-                >
-                  <button
-                    type="button"
-                    class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/20 transition-colors"
-                    @click="
-                      toggle(`sub:${cls.class_name}:${sub.subclass_name}`)
-                    "
-                  >
-                    <ChevronRight
-                      class="h-3 w-3 shrink-0 text-muted-foreground/60 transition-transform"
-                      :class="
-                        open.has(`sub:${cls.class_name}:${sub.subclass_name}`)
-                          ? 'rotate-90'
-                          : ''
-                      "
-                    />
-                    <span
-                      class="font-cinzel text-xs font-semibold text-foreground"
-                      >{{ sub.subclass_name }}</span
-                    >
-                  </button>
-                  <div
-                    v-if="
-                      open.has(`sub:${cls.class_name}:${sub.subclass_name}`)
-                    "
-                    class="px-3 pb-3 border-t border-border pt-2"
-                  >
-                    <div
-                      v-if="Object.keys(sub.features ?? {}).length"
-                      class="flex flex-col gap-1"
-                    >
-                      <div
-                        v-for="lvl in sortedLevels(sub.features)"
-                        :key="lvl"
-                        class="flex gap-3 py-1"
-                      >
-                        <span
-                          class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-10 shrink-0 pt-0.5"
-                          >Lv {{ lvl }}</span
-                        >
-                        <div class="flex flex-wrap gap-1">
-                          <span
-                            v-for="name in resolveFeatures(
-                              sub.features[String(lvl)],
-                            )"
-                            :key="name"
-                            class="inline-flex items-center rounded border bg-muted/50 border-border/60 px-1.5 py-0.5 font-fell text-xs text-foreground"
-                            >{{ name }}</span
-                          >
+              <div class="flex-1 overflow-y-auto">
+                <div class="grid grid-cols-1 md:grid-cols-2 md:divide-x md:divide-border">
+                  <!-- Left: quick stats + subclasses -->
+                  <div class="flex flex-col gap-4 p-5">
+                    <div class="grid grid-cols-2 gap-3">
+                      <div v-if="selectedClass.primary_ability">
+                        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-0.5">PRIMARY</p>
+                        <p class="font-fell text-sm text-foreground">{{ selectedClass.primary_ability }}</p>
+                      </div>
+                      <div v-if="selectedClass.saving_throws?.length">
+                        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-0.5">SAVING THROWS</p>
+                        <p class="font-fell text-sm text-foreground">{{ selectedClass.saving_throws.join(", ") }}</p>
+                      </div>
+                      <div v-if="selectedClass.armor_proficiencies?.length">
+                        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-0.5">ARMOR</p>
+                        <p class="font-fell text-sm text-foreground">{{ selectedClass.armor_proficiencies.join(", ") }}</p>
+                      </div>
+                      <div v-if="selectedClass.weapon_proficiencies?.length">
+                        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-0.5">WEAPONS</p>
+                        <p class="font-fell text-sm text-foreground">{{ selectedClass.weapon_proficiencies.join(", ") }}</p>
+                      </div>
+                      <div>
+                        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-0.5">SUBCLASS AT</p>
+                        <p class="font-fell text-sm text-foreground">Level {{ selectedClass.subclass_level }}</p>
+                      </div>
+                    </div>
+                    <div v-if="subclassesFor(selectedClass.class_name).length">
+                      <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5">SUBCLASSES</p>
+                      <div class="flex flex-col gap-1.5">
+                        <div v-for="sub in subclassesFor(selectedClass.class_name)" :key="sub.subclass_name" class="rounded-md border border-border overflow-hidden">
+                          <button type="button" class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/20 transition-colors" @click="toggle(`sub:${selectedClass!.class_name}:${sub.subclass_name}`)">
+                            <ChevronRight class="h-3 w-3 shrink-0 text-muted-foreground/60 transition-transform" :class="open.has(`sub:${selectedClass.class_name}:${sub.subclass_name}`) ? 'rotate-90' : ''" />
+                            <span class="font-cinzel text-xs font-semibold text-foreground">{{ sub.subclass_name }}</span>
+                          </button>
+                          <div v-if="open.has(`sub:${selectedClass.class_name}:${sub.subclass_name}`)" class="px-3 pb-3 border-t border-border pt-2">
+                            <div v-if="Object.keys(sub.features ?? {}).length" class="flex flex-col gap-1">
+                              <div v-for="lvl in sortedLevels(sub.features)" :key="lvl" class="flex gap-3 py-1">
+                                <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-10 shrink-0 pt-0.5">Lv {{ lvl }}</span>
+                                <div class="flex flex-wrap gap-1">
+                                  <span v-for="name in resolveFeatures(sub.features[String(lvl)])" :key="name" class="inline-flex items-center rounded border bg-muted/50 border-border/60 px-1.5 py-0.5 font-fell text-xs text-foreground">{{ name }}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <p v-else class="font-fell text-xs text-muted-foreground italic">No features defined.</p>
+                          </div>
                         </div>
                       </div>
                     </div>
-                    <p
-                      v-else
-                      class="font-fell text-xs text-muted-foreground italic"
-                    >
-                      No features defined.
-                    </p>
+                  </div>
+                  <!-- Right: class features by level -->
+                  <div class="flex flex-col gap-4 p-5 border-t border-border md:border-t-0">
+                    <div v-if="Object.keys(selectedClass.features ?? {}).length">
+                      <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5">CLASS FEATURES</p>
+                      <div class="flex flex-col gap-1">
+                        <div v-for="lvl in sortedLevels(selectedClass.features)" :key="lvl" class="flex gap-3 px-2 py-1.5 rounded bg-muted/30">
+                          <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-10 shrink-0 pt-0.5">Lv {{ lvl }}</span>
+                          <div class="flex flex-wrap gap-1">
+                            <span v-for="name in resolveFeatures(selectedClass.features[String(lvl)])" :key="name" class="inline-flex items-center rounded border bg-card border-border px-1.5 py-0.5 font-fell text-xs text-foreground">{{ name }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <p v-else class="font-fell text-sm text-muted-foreground italic">No class features defined.</p>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        </Transition>
+      </Teleport>
+    </div>
+
+    <!-- ── Deities ── -->
+    <div v-else-if="codexSection === 'deities'">
+      <div v-if="deitiesLoading" class="flex justify-center py-16">
+        <LoadingSpinner />
       </div>
+      <p v-else-if="!visibleDeities.length" class="text-center font-fell text-sm text-muted-foreground italic py-12">
+        No deities have been revealed to you yet.
+      </p>
+      <template v-else>
+        <input
+          v-model="deitySearch"
+          type="search"
+          placeholder="Filter deities…"
+          class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring mb-3"
+        />
+        <p v-if="!filteredDeities.length" class="font-fell text-sm text-muted-foreground italic text-center py-6">
+          No deities match your filter.
+        </p>
+        <div v-else class="grid grid-cols-2 md:grid-cols-3 gap-2">
+          <CodexCard
+            v-for="deity in filteredDeities"
+            :key="deity.id"
+            :image-url="deity.portrait_url"
+            :focal-point="deity.portrait_focal_point ?? null"
+            :fallback-icon="Sun"
+            :title="deity.name"
+            :subtitle="deity.titles ?? undefined"
+            :meta="deity.pantheon?.name ?? undefined"
+            @click="selectedDeity = deity"
+          />
+        </div>
+      </template>
+
+      <Teleport to="body">
+        <Transition name="modal-fade">
+          <div
+            v-if="selectedDeity"
+            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            @click.self="selectedDeity = null"
+          >
+            <div class="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+              <div class="flex items-start gap-3 px-5 py-4 border-b border-border shrink-0">
+                <div class="flex-1 min-w-0">
+                  <h2 class="font-cinzel text-lg font-bold text-foreground">{{ selectedDeity.name }}</h2>
+                  <div class="flex flex-wrap items-center gap-2 mt-1">
+                    <span v-if="selectedDeity.titles" class="font-fell text-xs text-muted-foreground italic">{{ selectedDeity.titles }}</span>
+                    <span v-if="selectedDeity.pantheon?.name" class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider">{{ selectedDeity.pantheon.name }}</span>
+                  </div>
+                </div>
+                <button type="button" class="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" @click="selectedDeity = null">
+                  <X class="h-4 w-4" />
+                </button>
+              </div>
+              <div class="flex-1 overflow-y-auto">
+                <div class="grid grid-cols-1 md:grid-cols-2 md:divide-x md:divide-border">
+                  <!-- Left: portrait + symbol + domains -->
+                  <div class="flex flex-col gap-4 p-5">
+                    <div v-if="selectedDeity.portrait_url" class="rounded-lg overflow-hidden bg-muted">
+                      <FocalImage :src="selectedDeity.portrait_url" :alt="selectedDeity.name" format="landscape" :focal-point="selectedDeity.portrait_focal_point ?? null" lightbox />
+                    </div>
+                    <div v-if="selectedDeity.symbol_image_url" class="flex justify-center">
+                      <img :src="selectedDeity.symbol_image_url" :alt="selectedDeity.name + ' symbol'" class="h-16 w-16 object-contain" />
+                    </div>
+                    <div v-if="selectedDeity.domains?.length">
+                      <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5">DOMAINS</p>
+                      <div class="flex flex-wrap gap-1">
+                        <span v-for="domain in selectedDeity.domains" :key="domain" class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-[9px] text-primary tracking-wider">{{ domain }}</span>
+                      </div>
+                    </div>
+                    <div v-if="selectedDeity.alternate_names?.length">
+                      <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1">ALSO KNOWN AS</p>
+                      <p class="font-fell text-sm text-muted-foreground">{{ selectedDeity.alternate_names.join(", ") }}</p>
+                    </div>
+                  </div>
+                  <!-- Right: meta + description -->
+                  <div class="flex flex-col gap-4 p-5 border-t border-border md:border-t-0">
+                    <div class="flex flex-col gap-3">
+                      <div v-if="selectedDeity.alignment">
+                        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-0.5">ALIGNMENT</p>
+                        <p class="font-fell text-sm text-foreground">{{ selectedDeity.alignment }}</p>
+                      </div>
+                      <div v-if="selectedDeity.symbol">
+                        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-0.5">SYMBOL</p>
+                        <p class="font-fell text-sm text-foreground">{{ selectedDeity.symbol }}</p>
+                      </div>
+                      <div v-if="selectedDeity.portfolio">
+                        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-0.5">PORTFOLIO</p>
+                        <p class="font-fell text-sm text-foreground">{{ selectedDeity.portfolio }}</p>
+                      </div>
+                    </div>
+                    <RichTextViewer v-if="isRichText(selectedDeity.description)" :content="selectedDeity.description!" />
+                    <p v-else-if="selectedDeity.description" class="font-fell text-sm text-muted-foreground">{{ selectedDeity.description }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Transition>
+      </Teleport>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, shallowRef } from "vue";
-import { ChevronRight } from "lucide-vue-next";
+import { ChevronRight, BookOpen, Scroll, Sun, Users, X } from "lucide-vue-next";
+import type { Species } from "@/types/species.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import CodexCard from "./CodexCard.vue";
 import { useAllSpecies } from "@/composables/useSpecies";
 import { useBackgrounds } from "@/composables/useBackgrounds";
-import {
-  useAllSystemClasses,
-  useAllCustomClasses,
-} from "@/composables/useCustomClasses";
+import { useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
 import { useAllCustomSubclasses } from "@/composables/useCustomSubclasses";
 import { useAllFeatures } from "@/composables/useFeatures";
 import type { CustomFeatures } from "@/levelup/customTypes";
+import { useAllDeities } from "@/composables/useDeities";
+import { useAuthStore } from "@/stores/auth";
+import type { Deity, Pantheon } from "@/types/deity.types";
 
 const codexSections = [
   { id: "species",     label: "Species" },
   { id: "backgrounds", label: "Backgrounds" },
   { id: "classes",     label: "Classes" },
+  { id: "deities",     label: "Deities" },
 ] as const;
 type CodexSection = (typeof codexSections)[number]["id"];
 const codexSection = ref<CodexSection>("species");
 
+// ── Species ──
 const { data: allSpecies } = useAllSpecies();
+const selectedSpecies = ref<Species | null>(null);
+
+// ── Backgrounds ──
 const { data: allBackgrounds } = useBackgrounds();
+type BackgroundItem = NonNullable<typeof allBackgrounds.value>[number];
+const selectedBackground = ref<BackgroundItem | null>(null);
+
+// ── Classes ──
 const { data: systemClasses } = useAllSystemClasses();
 const { data: customClasses } = useAllCustomClasses();
 const { data: allCustomSubclasses } = useAllCustomSubclasses();
 const { data: allFeatures } = useAllFeatures();
 
-const mergedClasses = computed(() => {
-  const byName = new Map<
-    string,
-    {
-      class_name: string;
-      hit_die: number;
-      primary_ability: string | null;
-      saving_throws: string[];
-      armor_proficiencies: string[];
-      weapon_proficiencies: string[];
-      subclass_level: number;
-      features: CustomFeatures;
-    }
-  >();
+type ClassItem = {
+  class_name: string;
+  hit_die: number;
+  primary_ability: string | null;
+  saving_throws: string[];
+  armor_proficiencies: string[];
+  weapon_proficiencies: string[];
+  subclass_level: number;
+  features: CustomFeatures;
+};
+const selectedClass = ref<ClassItem | null>(null);
+
+const mergedClasses = computed((): ClassItem[] => {
+  const byName = new Map<string, ClassItem>();
   for (const c of systemClasses.value ?? []) byName.set(c.class_name, c);
   for (const c of customClasses.value ?? []) {
     if (!byName.has(c.class_name)) byName.set(c.class_name, c);
   }
-  return [...byName.values()].sort((a, b) =>
-    a.class_name.localeCompare(b.class_name),
-  );
+  return [...byName.values()].sort((a, b) => a.class_name.localeCompare(b.class_name));
 });
 
 function subclassesFor(className: string) {
-  return (allCustomSubclasses.value ?? []).filter(
-    (s) => s.class_name === className,
-  );
+  return (allCustomSubclasses.value ?? []).filter((s) => s.class_name === className);
 }
 
 const featureMap = computed(() => {
@@ -670,14 +529,31 @@ function sortedLevels(features: CustomFeatures): number[] {
     .sort((a, b) => a - b);
 }
 
+// ── Deities ──
+const auth = useAuthStore();
+const { data: allDeities, isLoading: deitiesLoading } = useAllDeities();
+const deitySearch = ref("");
+const selectedDeity = ref<(Deity & { pantheon: Pick<Pantheon, "id" | "name"> | null }) | null>(null);
+const myMemberId = computed(() => auth.linkedPartyMemberId ?? "");
+const visibleDeities = computed(() =>
+  (allDeities.value ?? []).filter((d) =>
+    !!myMemberId.value && (d.player_visible_to ?? []).includes(myMemberId.value),
+  ),
+);
+const filteredDeities = computed(() => {
+  const q = deitySearch.value.trim().toLowerCase();
+  if (!q) return visibleDeities.value;
+  return visibleDeities.value.filter((d) => {
+    const haystack = [d.name, d.titles, d.portfolio, ...(d.alternate_names ?? []), ...(d.tags ?? [])]
+      .filter(Boolean).join(" ").toLowerCase();
+    return haystack.includes(q);
+  });
+});
+
+// ── Shared utilities ──
 function isRichText(value: string | null | undefined): boolean {
   if (!value) return false;
-  try {
-    JSON.parse(value);
-    return true;
-  } catch {
-    return false;
-  }
+  try { JSON.parse(value); return true; } catch { return false; }
 }
 
 const open = shallowRef(new Set<string>());
@@ -687,3 +563,14 @@ function toggle(key: string) {
   open.value = next;
 }
 </script>
+
+<style scoped>
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
+</style>
