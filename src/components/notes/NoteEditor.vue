@@ -171,6 +171,7 @@
       allow-upload
       allow-calendar-events
       :entity-mention-items="entityMentionItems"
+      :ai-context="`${category} note${title ? ` — ${title}` : ''}`"
       @insert-calendar-event="showEventModal = true"
     >
       <template v-if="isOpenAiImageProvider" #toolbar-end>

@@ -251,6 +251,7 @@
         v-model="description"
         placeholder="Describe this location…"
         min-height="120px"
+        :ai-context="`location description — ${name || 'unnamed location'}`"
       />
     </div>
 

@@ -1,6 +1,6 @@
 <template>
   <div
-    class="rich-editor flex flex-col rounded-lg border border-border bg-card overflow-clip"
+    class="rich-editor relative flex flex-col rounded-lg border border-border bg-card overflow-clip"
     :style="{ minHeight: minHeight ?? '180px' }"
   >
     <div
@@ -293,6 +293,36 @@
       @change="onFileSelected"
     />
 
+    <!-- AI Enhance bubble menu — appears on text selection when a text provider is configured -->
+    <BubbleMenu
+      v-if="editor && showEnhanceButton"
+      :editor="editor"
+      :tippy-options="{ duration: 100 }"
+    >
+      <div class="flex items-center rounded-md border border-border bg-card shadow-lg overflow-hidden">
+        <button
+          type="button"
+          :disabled="isEnhancing"
+          class="flex items-center gap-1.5 px-2.5 py-1.5 font-cinzel text-[11px] font-semibold tracking-wide text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+          @click="onEnhance"
+        >
+          <LoaderCircle v-if="isEnhancing" class="h-3 w-3 animate-spin" />
+          <Wand2 v-else class="h-3 w-3" />
+          Enhance
+        </button>
+      </div>
+    </BubbleMenu>
+
+    <!-- Inline error feedback for enhancement failures -->
+    <Transition name="enhance-error">
+      <div
+        v-if="enhanceError"
+        class="absolute bottom-2 left-2 right-2 z-30 rounded-md bg-destructive/90 px-3 py-2 font-fell text-xs text-white shadow-lg"
+      >
+        {{ enhanceError }}
+      </div>
+    </Transition>
+
     <!-- Entity mention suggestion popup -->
     <Teleport to="body">
       <div
@@ -323,11 +353,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onUnmounted } from "vue";
+import { ref, reactive, computed, onUnmounted } from "vue";
 import { getCurrentUser } from "@/lib/supabase";
 import { toWebP } from "@/lib/mediaConvert";
 import { uploadToBucket } from "@/lib/storage";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
+import { BubbleMenu } from "@tiptap/vue-3/menus";
 import { Node } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -361,6 +392,7 @@ const ResizableImage = Image.extend({
   },
 });
 import { parseMarkdown, looksLikeMarkdown, sanitizePasteText } from "@/lib/markdownToTiptap";
+import { useTextEnhancement } from "@/ai/useTextEnhancement";
 import {
   List,
   ListOrdered,
@@ -382,6 +414,8 @@ import {
   Link as LinkIcon,
   ListTodo,
   Minus,
+  Wand2,
+  LoaderCircle,
 } from "lucide-vue-next";
 import TextAlign from "@tiptap/extension-text-align";
 import { Columns } from "@/lib/tiptap/Columns";
@@ -415,6 +449,7 @@ const props = defineProps<{
   allowCalendarEvents?: boolean;
   entityMentionItems?: EntityMentionItem[];
   stickyToolbar?: boolean;
+  aiContext?: string;
 }>();
 
 const emit = defineEmits<{
@@ -706,6 +741,40 @@ function onContentAreaClick(e: MouseEvent) {
   }
 }
 
+// ── AI text enhancement ───────────────────────────────────────────────────────
+
+const { isEnhancing, hasTextProvider, enhance } = useTextEnhancement();
+const enhanceError = ref<string | null>(null);
+
+const showEnhanceButton = computed(() => {
+  if (!props.aiContext) return false;
+  return hasTextProvider();
+});
+
+async function onEnhance() {
+  if (!editor.value || isEnhancing.value) return;
+  const { from, to } = editor.value.state.selection;
+  if (from === to) return;
+
+  const selectedText = editor.value.state.doc.textBetween(from, to, " ");
+  if (!selectedText.trim()) return;
+
+  enhanceError.value = null;
+  try {
+    const markdown = await enhance(selectedText, props.aiContext ?? "general note");
+    const nodes = parseMarkdown(markdown);
+    editor.value
+      .chain()
+      .focus()
+      .deleteRange({ from, to })
+      .insertContentAt(from, nodes, { parseOptions: { preserveWhitespace: false } })
+      .run();
+  } catch (e) {
+    enhanceError.value = e instanceof Error ? e.message : "Enhancement failed";
+    setTimeout(() => { enhanceError.value = null; }, 4000);
+  }
+}
+
 function tbCls(active: boolean) {
   return [
     "p-1 rounded min-w-6.5 h-6.5 flex items-center justify-center transition-colors disabled:opacity-40",
@@ -906,6 +975,12 @@ function tbCls(active: boolean) {
   border-color: theme(colors.violet-400 / 40%);
   background: theme(colors.violet-400 / 10%);
 }
+/* ── Enhance error toast transition ─────────────────────────────────────── */
+.enhance-error-enter-active { transition: all 0.15s ease-out; }
+.enhance-error-leave-active { transition: all 0.15s ease-in; }
+.enhance-error-enter-from,
+.enhance-error-leave-to    { opacity: 0; transform: translateY(4px); }
+
 .entity-suggestion-badge--monster {
   color: theme(colors.rose-400);
   border-color: theme(colors.rose-400 / 40%);

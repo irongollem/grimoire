@@ -1,0 +1,38 @@
+import { ref } from "vue";
+import { getTextProvider } from "./providers";
+import { useCampaignStore } from "@/stores/campaign";
+
+const ENHANCE_SYSTEM_PROMPT = `You are a writing assistant for a tabletop RPG campaign. Rewrite the provided text as vivid, immersive D&D prose. Preserve all facts — do not add or remove story information. Match the tone and register of the surrounding context (backstory, session note, location description, etc.).
+
+Return only the rewritten text in Markdown. No preamble, no explanation.
+
+Context: {context}
+
+Campaign setting:
+{settingPrompt}`;
+
+export function useTextEnhancement() {
+  const isEnhancing = ref(false);
+  const campaign = useCampaignStore();
+
+  function hasTextProvider(): boolean {
+    return !!campaign.decryptedApiKey;
+  }
+
+  async function enhance(selectedText: string, context: string): Promise<string> {
+    const settingPrompt = campaign.activeCampaign?.ai_setting_prompt ?? "";
+    const systemPrompt = ENHANCE_SYSTEM_PROMPT
+      .replace("{context}", context)
+      .replace("{settingPrompt}", settingPrompt || "No setting configured.");
+
+    isEnhancing.value = true;
+    try {
+      const provider = getTextProvider();
+      return await provider.complete(systemPrompt, selectedText);
+    } finally {
+      isEnhancing.value = false;
+    }
+  }
+
+  return { isEnhancing, hasTextProvider, enhance };
+}

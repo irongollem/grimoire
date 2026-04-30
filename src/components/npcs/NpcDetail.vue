@@ -186,19 +186,19 @@
           <div v-if="activeTab === 'lore'" class="space-y-3">
             <div>
               <label class="field-label">Appearance</label>
-              <RichTextEditor v-model="form.appearance" placeholder="Physical description, clothing, distinguishing features…" min-height="100px" />
+              <RichTextEditor v-model="form.appearance" placeholder="Physical description, clothing, distinguishing features…" min-height="100px" :ai-context="`NPC appearance — ${form.name || 'unnamed NPC'}`" />
             </div>
             <div>
               <label class="field-label">Personality</label>
-              <RichTextEditor v-model="form.personality" placeholder="Traits, mannerisms, ideals, bonds, flaws…" min-height="100px" />
+              <RichTextEditor v-model="form.personality" placeholder="Traits, mannerisms, ideals, bonds, flaws…" min-height="100px" :ai-context="`NPC personality — ${form.name || 'unnamed NPC'}`" />
             </div>
             <div>
               <label class="field-label">Backstory</label>
-              <RichTextEditor v-model="form.backstory" placeholder="History, origin, formative events…" min-height="140px" />
+              <RichTextEditor v-model="form.backstory" placeholder="History, origin, formative events…" min-height="140px" :ai-context="`NPC backstory — ${form.name || 'unnamed NPC'}`" />
             </div>
             <div>
               <label class="field-label">DM Notes</label>
-              <RichTextEditor v-model="form.notes" placeholder="Session notes, secrets, loose threads…" min-height="100px" />
+              <RichTextEditor v-model="form.notes" placeholder="Session notes, secrets, loose threads…" min-height="100px" :ai-context="`NPC notes — ${form.name || 'unnamed NPC'}`" />
             </div>
           </div>
 
