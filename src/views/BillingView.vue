@@ -209,25 +209,52 @@
       </p>
     </div>
 
-    <!-- AI credits (placeholder until #289) -->
-    <div
-      class="rounded-xl border border-border bg-card p-6 space-y-3 opacity-60"
-    >
-      <div class="flex items-center gap-2">
-        <Sparkles class="h-4 w-4 text-primary shrink-0" />
-        <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
-          AI credits
-        </h2>
-        <span
-          class="px-2 py-0.5 rounded-full bg-muted font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
-          >Coming soon</span
-        >
+    <!-- AI credits -->
+    <div class="rounded-xl border border-border bg-card p-6 space-y-4">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <Sparkles class="h-4 w-4 text-primary shrink-0" />
+          <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
+            AI credits
+          </h2>
+        </div>
+        <div v-if="creditsLoading" class="flex items-center gap-1.5 text-muted-foreground">
+          <Loader2 class="h-3.5 w-3.5 animate-spin" />
+          <span class="font-cinzel text-xs">Loading…</span>
+        </div>
+        <span v-else class="font-cinzel text-lg font-bold text-primary">
+          {{ formattedBalance }}
+        </span>
       </div>
-      <p class="font-fell text-sm text-muted-foreground italic leading-relaxed">
-        Pro includes 5 AI credits per month for generating NPCs, monsters,
-        spells, items, and artwork. Additional credit packs will be available
-        for purchase.
+
+      <p class="font-fell text-xs text-muted-foreground italic leading-relaxed">
+        Pro subscribers receive 5 credits each billing period. Use credits to
+        generate NPC portraits (2 credits), text descriptions (1 credit), and
+        monster stat blocks (1 credit).
       </p>
+
+      <!-- Credit pack purchase -->
+      <div class="space-y-2">
+        <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+          Buy more credits
+        </p>
+        <div class="grid grid-cols-3 gap-2">
+          <button
+            v-for="(pack, packId) in CREDIT_PACKS"
+            :key="packId"
+            class="flex flex-col items-center gap-1 rounded-lg border border-border bg-muted/30 p-3 text-center hover:border-primary/50 hover:bg-primary/5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            :disabled="purchaseLoading"
+            @click="purchasePack(packId as CreditPackId)"
+          >
+            <span class="font-cinzel text-xs font-bold text-foreground">{{ pack.credits }} credits</span>
+            <span class="font-fell text-[11px] italic text-muted-foreground">€{{ pack.eur }}</span>
+            <span class="font-cinzel text-[9px] tracking-wider text-muted-foreground/70 uppercase">{{ pack.label }}</span>
+          </button>
+        </div>
+        <p v-if="purchaseError" class="font-fell text-xs text-red-400 italic">
+          {{ purchaseError }}
+        </p>
+      </div>
     </div>
   </div>
 </template>
@@ -238,6 +265,9 @@ import { Crown, CreditCard, Loader2, Scroll, Sparkles } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import { useSubscription } from "@/composables/useSubscription";
 import { useStripe } from "@/composables/useStripe";
+import { useAiCredits } from "@/composables/useAiCredits";
+import { CREDIT_PACKS } from "@/types/subscription.types";
+import type { CreditPackId } from "@/types/subscription.types";
 
 const { subscription, isPro, isLoading } = useSubscription();
 const {
@@ -245,6 +275,13 @@ const {
   createCheckoutSession,
   openBillingPortal,
 } = useStripe();
+const {
+  formattedBalance,
+  isLoading: creditsLoading,
+  purchasePack,
+  purchaseLoading,
+  purchaseError,
+} = useAiCredits();
 
 const annual = ref(false);
 

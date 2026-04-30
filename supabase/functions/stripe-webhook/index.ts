@@ -16,6 +16,10 @@ function toIso(unixSeconds: number): string {
   return new Date(unixSeconds * 1000).toISOString();
 }
 
+function toDateStr(unixSeconds: number): string {
+  return new Date(unixSeconds * 1000).toISOString().substring(0, 10);
+}
+
 async function updateByCustomer(
   customerId: string,
   fields: Record<string, unknown>,
@@ -24,6 +28,64 @@ async function updateByCustomer(
     .from("user_subscriptions")
     .update(fields)
     .eq("stripe_customer_id", customerId);
+  if (error) throw error;
+}
+
+async function getUserIdByCustomer(customerId: string): Promise<string | null> {
+  const { data, error } = await admin
+    .from("user_subscriptions")
+    .select("user_id")
+    .eq("stripe_customer_id", customerId)
+    .single();
+  if (error || !data) return null;
+  return data.user_id;
+}
+
+async function topUpSubscriptionCredits(
+  userId: string,
+  subscriptionId: string,
+  periodStart: string,
+) {
+  // Idempotency: only credit once per subscription period
+  const { data: existing } = await admin
+    .from("ai_credit_ledger")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("reason", "subscription_topup")
+    .eq("subscription_period_start", periodStart)
+    .maybeSingle();
+
+  if (existing) return; // already credited this period
+
+  const { error } = await admin.from("ai_credit_ledger").insert({
+    user_id: userId,
+    delta: 5,
+    reason: "subscription_topup",
+    subscription_period_start: periodStart,
+  });
+  if (error) throw error;
+}
+
+async function creditPackPurchase(
+  userId: string,
+  credits: number,
+  paymentIntentId: string,
+) {
+  // Idempotency: check payment intent uniqueness
+  const { data: existing } = await admin
+    .from("ai_credit_ledger")
+    .select("id")
+    .eq("stripe_payment_intent_id", paymentIntentId)
+    .maybeSingle();
+
+  if (existing) return; // already processed
+
+  const { error } = await admin.from("ai_credit_ledger").insert({
+    user_id: userId,
+    delta: credits,
+    reason: "pack_purchase",
+    stripe_payment_intent_id: paymentIntentId,
+  });
   if (error) throw error;
 }
 
@@ -52,17 +114,29 @@ serve(async (req: Request) => {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        if (session.mode !== "subscription" || !session.subscription) break;
 
-        const sub = await stripe.subscriptions.retrieve(
-          session.subscription as string,
-        );
-        await updateByCustomer(session.customer as string, {
-          plan_id: "pro",
-          status: "active",
-          stripe_subscription_id: sub.id,
-          current_period_end: toIso(sub.current_period_end),
-        });
+        if (session.mode === "subscription" && session.subscription) {
+          const sub = await stripe.subscriptions.retrieve(
+            session.subscription as string,
+          );
+          await updateByCustomer(session.customer as string, {
+            plan_id: "pro",
+            status: "active",
+            stripe_subscription_id: sub.id,
+            current_period_end: toIso(sub.current_period_end),
+          });
+        } else if (session.mode === "payment") {
+          // Credit pack purchase — metadata set by stripe-create-credit-checkout
+          const userId = session.metadata?.user_id;
+          const credits = parseInt(session.metadata?.credits ?? "0", 10);
+          const paymentIntentId = session.payment_intent as string | null;
+
+          if (userId && credits > 0 && paymentIntentId) {
+            await creditPackPurchase(userId, credits, paymentIntentId);
+          } else {
+            console.warn("checkout.session.completed payment: missing metadata", session.id);
+          }
+        }
         break;
       }
 
@@ -77,7 +151,13 @@ serve(async (req: Request) => {
           status: "active",
           current_period_end: toIso(sub.current_period_end),
         });
-        // TODO #289: top up 5 AI credits per billing period (idempotent by sub ID + period start)
+
+        // Top up 5 AI credits per billing period (idempotent)
+        const userId = await getUserIdByCustomer(invoice.customer as string);
+        if (userId && invoice.period_start) {
+          const periodStart = toDateStr(invoice.period_start);
+          await topUpSubscriptionCredits(userId, sub.id, periodStart);
+        }
         break;
       }
 
