@@ -51,12 +51,26 @@
     </p>
 
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-      <RouterLink
+      <div
         v-for="note in filtered"
         :key="note.id"
-        :to="`/notes/${note.id}`"
-        class="group flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
+        class="group relative flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
       >
+        <!-- Card link overlay (disabled for locked items) -->
+        <RouterLink v-if="!lockedNoteIds.has(note.id)" :to="`/notes/${note.id}`" class="absolute inset-0 z-2" />
+
+        <!-- Locked overlay for over-quota items -->
+        <div
+          v-if="lockedNoteIds.has(note.id)"
+          class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-1.5 bg-background/80 backdrop-blur-sm"
+        >
+          <Lock class="h-4 w-4 text-muted-foreground" />
+          <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">Locked</p>
+          <RouterLink to="/billing" class="font-cinzel text-[9px] tracking-wider text-primary/80 hover:text-primary transition-colors">
+            Upgrade to access
+          </RouterLink>
+        </div>
+
         <!-- Category colour bar -->
         <div class="h-1.5 w-full shrink-0" :style="{ backgroundColor: categoryColor(note.category) }" />
 
@@ -105,7 +119,7 @@
             </span>
           </div>
         </div>
-      </RouterLink>
+      </div>
     </div>
 
     <p v-if="filtered.length" class="mt-4 font-fell text-xs text-muted-foreground italic text-right">
@@ -119,7 +133,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { Search, Pin, Eye } from "lucide-vue-next";
+import { Search, Pin, Eye, Lock } from "lucide-vue-next";
 import { useNotes } from "@/composables/useNotes";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
@@ -129,7 +143,7 @@ import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/useQuota";
 
 const router = useRouter();
-const { canCreate } = useQuota("notes");
+const { canCreate, quota: noteQuota } = useQuota("notes");
 const showPaywall = ref(false);
 
 function handleNew() {
@@ -159,6 +173,16 @@ const CATEGORY_COLORS: Record<NoteCategory, string> = {
 const search = ref("");
 const categoryFilter = ref("all");
 const { data: notes, isLoading } = useNotes();
+
+const lockedNoteIds = computed((): Set<string> => {
+  const q = noteQuota.value;
+  if (!q || q.unlimited || q.current <= q.limit) return new Set();
+  const overCount = q.current - q.limit;
+  const sorted = [...(notes.value ?? [])].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
+  return new Set(sorted.slice(-overCount).map((n) => n.id));
+});
 
 const filtered = computed(() => {
   let list = [...(notes.value ?? [])];

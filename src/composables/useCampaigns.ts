@@ -19,6 +19,26 @@ async function fetchCampaigns(): Promise<Campaign[]> {
   const { data, error } = await supabase
     .from("campaigns")
     .select("*")
+    .eq("is_archived", false)
+    .order("updated_at", { ascending: false });
+  if (error) throw error;
+  return data as Campaign[];
+}
+
+async function fetchArchivedCampaigns(): Promise<Campaign[]> {
+  const { data, error } = await supabase
+    .from("campaigns")
+    .select("*")
+    .eq("is_archived", true)
+    .order("updated_at", { ascending: false });
+  if (error) throw error;
+  return data as Campaign[];
+}
+
+async function fetchAllCampaigns(): Promise<Campaign[]> {
+  const { data, error } = await supabase
+    .from("campaigns")
+    .select("*")
     .order("updated_at", { ascending: false });
   if (error) throw error;
   return data as Campaign[];
@@ -71,6 +91,14 @@ export function useCampaigns() {
   return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchCampaigns });
 }
 
+export function useArchivedCampaigns() {
+  return useQuery({ queryKey: [QUERY_KEY, "archived"], queryFn: fetchArchivedCampaigns });
+}
+
+export function useAllCampaigns() {
+  return useQuery({ queryKey: [QUERY_KEY, "all"], queryFn: fetchAllCampaigns });
+}
+
 /** Fetch a single campaign by ID — usable by players after campaigns_member_select RLS is in place */
 async function fetchCampaignById(id: string): Promise<Campaign> {
   const { data, error } = await supabase
@@ -111,6 +139,22 @@ export function useDeleteCampaign() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteCampaign,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}
+
+export function useArchiveCampaign() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => updateCampaign(id, { is_archived: true } as CampaignUpdate),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}
+
+export function useRestoreCampaign() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => updateCampaign(id, { is_archived: false } as CampaignUpdate),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }

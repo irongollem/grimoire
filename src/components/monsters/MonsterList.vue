@@ -36,8 +36,20 @@
         :key="monster.id"
         class="group relative flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
       >
-        <!-- Card link overlay -->
-        <RouterLink :to="`/monsters/${monster.id}`" class="absolute inset-0 z-2" />
+        <!-- Card link overlay (disabled for locked items) -->
+        <RouterLink v-if="!lockedMonsterIds.has(monster.id)" :to="`/monsters/${monster.id}`" class="absolute inset-0 z-2" />
+
+        <!-- Locked overlay for over-quota items -->
+        <div
+          v-if="lockedMonsterIds.has(monster.id)"
+          class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-1.5 bg-background/80 backdrop-blur-sm"
+        >
+          <Lock class="h-4 w-4 text-muted-foreground" />
+          <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">Locked</p>
+          <RouterLink to="/billing" class="font-cinzel text-[9px] tracking-wider text-primary/80 hover:text-primary transition-colors">
+            Upgrade to access
+          </RouterLink>
+        </div>
 
         <!-- CR colour bar -->
         <div
@@ -237,7 +249,7 @@
 import { ref, computed, reactive } from "vue";
 import { useRouter } from "vue-router";
 import { formatHitPoints } from "@/lib/utils";
-import { Pencil, Eye, EyeOff, Users, BarChart2 } from "lucide-vue-next";
+import { Lock, Pencil, Eye, EyeOff, Users, BarChart2 } from "lucide-vue-next";
 import { useUiStore } from "@/stores/ui";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useAllMonsters } from "@/composables/useMonsters";
@@ -250,7 +262,7 @@ import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/useQuota";
 
 const router = useRouter();
-const { canCreate } = useQuota("monsters");
+const { canCreate, quota: monsterQuota } = useQuota("monsters");
 const showPaywall = ref(false);
 
 function handleNew() {
@@ -330,6 +342,17 @@ const filtered = computed(() => {
 });
 
 const { visibleItems, sentinelRef } = useInfiniteScroll(filtered);
+
+const lockedMonsterIds = computed((): Set<string> => {
+  const q = monsterQuota.value;
+  if (!q || q.unlimited || q.current <= q.limit) return new Set();
+  const overCount = q.current - q.limit;
+  const customMonsters = (allMonsters.value ?? []).filter(m => !m.is_srd);
+  const sorted = [...customMonsters].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
+  return new Set(sorted.slice(-overCount).map(m => m.id));
+});
 
 function parseFraction(s: string): number {
   const [a, b] = s.split("/");

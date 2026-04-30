@@ -30,6 +30,7 @@ export interface Campaign {
   allow_chronicle_promotion: boolean;
   spotify_client_id: string | null;
   ical_token: string;   // UUID; used as the shared secret for the iCal subscription URL
+  is_archived: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -52,7 +53,7 @@ export type CampaignInsert = Omit<Campaign, "id" | "user_id" | "created_at" | "u
   ai_setting_prompt?: string | null;
   allow_chronicle_promotion?: boolean;
 };
-export type CampaignUpdate = Partial<CampaignInsert> & { ical_token?: string; spotify_client_id?: string | null };
+export type CampaignUpdate = Partial<CampaignInsert> & { ical_token?: string; spotify_client_id?: string | null; is_archived?: boolean };
 
 export type CampaignRole = "dm" | "player";
 

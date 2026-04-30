@@ -36,7 +36,13 @@
         </div>
 
         <p
-          v-if="isPro && renewalDate"
+          v-if="isPendingCancellation && cancelDate"
+          class="font-fell text-sm text-amber-400 italic"
+        >
+          Cancels {{ cancelDate }} — Pro access until then.
+        </p>
+        <p
+          v-else-if="isPro && renewalDate"
           class="font-fell text-sm text-muted-foreground italic"
         >
           Renews {{ renewalDate }}
@@ -48,11 +54,33 @@
           Payment failed — update your payment method to restore access.
         </p>
         <p
-          v-else-if="subscription?.status === 'cancelled'"
+          v-else-if="subscription?.status === 'canceled'"
           class="font-fell text-sm text-muted-foreground italic"
         >
           Your Pro subscription has ended.
         </p>
+
+        <!-- Pre-downgrade impact warning — shown when cancellation is pending + user is over free quotas -->
+        <div
+          v-if="isPendingCancellation && downgradeImpact.length > 0"
+          class="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 space-y-1"
+        >
+          <p class="font-cinzel text-[10px] font-semibold tracking-wider text-amber-400 uppercase">
+            On cancellation
+          </p>
+          <ul class="space-y-0.5">
+            <li
+              v-for="item in downgradeImpact"
+              :key="item.label"
+              class="font-fell text-xs text-muted-foreground italic"
+            >
+              {{ item.label }}: {{ item.current }} → limit {{ item.limit }} ({{ item.excess }} will be locked)
+            </li>
+          </ul>
+          <p class="font-fell text-[11px] text-muted-foreground italic">
+            Content over your free limits will be locked, not deleted. Upgrade to restore access.
+          </p>
+        </div>
 
         <!-- Manage billing — only once a Stripe customer exists -->
         <button
@@ -266,10 +294,12 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import { useSubscription } from "@/composables/useSubscription";
 import { useStripe } from "@/composables/useStripe";
 import { useAiCredits } from "@/composables/useAiCredits";
-import { CREDIT_PACKS } from "@/types/subscription.types";
-import type { CreditPackId } from "@/types/subscription.types";
+import { usePlan } from "@/composables/usePlan";
+import { useQuota } from "@/composables/useQuota";
+import { CREDIT_PACKS, QUOTA_RESOURCE_LABELS } from "@/types/subscription.types";
+import type { CreditPackId, QuotaResource } from "@/types/subscription.types";
 
-const { subscription, isPro, isLoading } = useSubscription();
+const { subscription, isPro, isPendingCancellation, isLoading } = useSubscription();
 const {
   loading: stripeLoading,
   createCheckoutSession,
@@ -283,12 +313,24 @@ const {
   purchaseError,
 } = useAiCredits();
 
+const { data: freePlan } = usePlan("free");
+
 const annual = ref(false);
 
 const renewalDate = computed(() => {
   const end = subscription.value?.current_period_end;
   if (!end) return null;
   return new Date(end).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+});
+
+const cancelDate = computed(() => {
+  const at = subscription.value?.cancel_at;
+  if (!at) return null;
+  return new Date(at).toLocaleDateString("en-GB", {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -303,24 +345,47 @@ const statusClass = computed(() => {
       return "bg-blue-500/15 text-blue-400";
     case "past_due":
       return "bg-orange-500/15 text-orange-400";
-    case "cancelled":
+    case "canceled":
       return "bg-muted text-muted-foreground";
     default:
       return "bg-muted text-muted-foreground";
   }
 });
 
-const freeFeatures = [
-  "All DM tools",
-  "Up to 3 campaigns",
-  "Full player portal",
-  "No player fees",
-];
+// Pre-downgrade impact: which resources are currently over the free-plan limit
+const QUOTA_RESOURCES: QuotaResource[] = [
+  "campaigns", "npcs", "monsters", "encounters", "scriptorium_documents", "notes",
+]
+const quotaResults = Object.fromEntries(
+  QUOTA_RESOURCES.map(r => [r, useQuota(r)])
+) as Record<QuotaResource, ReturnType<typeof useQuota>>
+
+const downgradeImpact = computed(() => {
+  const freeQuotas = freePlan.value?.quotas ?? {}
+  return QUOTA_RESOURCES.flatMap(r => {
+    const limit = freeQuotas[r]
+    if (limit === null || limit === undefined) return []
+    const current = quotaResults[r].quota.value?.current ?? 0
+    if (current <= limit) return []
+    return [{ label: QUOTA_RESOURCE_LABELS[r], current, limit, excess: current - limit }]
+  })
+})
+
+const freeFeatures = computed(() => {
+  const quotas = freePlan.value?.quotas ?? {}
+  const campaignLimit = quotas.campaigns ?? 1
+  return [
+    "All DM tools",
+    `Up to ${campaignLimit} campaign${campaignLimit === 1 ? "" : "s"}`,
+    "Full player portal",
+    "No player fees",
+  ]
+})
 
 const proFeatures = [
   "Unlimited campaigns & content",
   "5 AI credits / month",
   "Full player portal",
   "No player fees — ever",
-];
+]
 </script>

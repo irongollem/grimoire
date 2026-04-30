@@ -124,6 +124,8 @@ serve(async (req: Request) => {
             status: "active",
             stripe_subscription_id: sub.id,
             current_period_end: toIso(sub.current_period_end),
+            cancel_at_period_end: false,
+            cancel_at: null,
           });
         } else if (session.mode === "payment") {
           // Credit pack purchase — metadata set by stripe-create-credit-checkout
@@ -174,6 +176,8 @@ serve(async (req: Request) => {
         await updateByCustomer(sub.customer as string, {
           status: sub.status,
           current_period_end: toIso(sub.current_period_end),
+          cancel_at_period_end: sub.cancel_at_period_end,
+          cancel_at: sub.cancel_at ? toIso(sub.cancel_at) : null,
         });
         break;
       }

@@ -28,12 +28,26 @@
     </p>
 
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-      <RouterLink
+      <div
         v-for="encounter in filtered"
         :key="encounter.id"
-        :to="`/encounters/${encounter.id}`"
-        class="group flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
+        class="group relative flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
       >
+        <!-- Card link overlay (disabled for locked items) -->
+        <RouterLink v-if="!lockedEncounterIds.has(encounter.id)" :to="`/encounters/${encounter.id}`" class="absolute inset-0 z-2" />
+
+        <!-- Locked overlay for over-quota items -->
+        <div
+          v-if="lockedEncounterIds.has(encounter.id)"
+          class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-1.5 bg-background/80 backdrop-blur-sm"
+        >
+          <Lock class="h-4 w-4 text-muted-foreground" />
+          <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">Locked</p>
+          <RouterLink to="/billing" class="font-cinzel text-[9px] tracking-wider text-primary/80 hover:text-primary transition-colors">
+            Upgrade to access
+          </RouterLink>
+        </div>
+
         <!-- Difficulty colour bar -->
         <div
           class="h-1.5 w-full shrink-0"
@@ -99,7 +113,7 @@
             </span>
           </div>
         </div>
-      </RouterLink>
+      </div>
     </div>
 
     <p
@@ -116,7 +130,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { Skull, Users, CheckCheck } from "lucide-vue-next";
+import { Skull, Users, CheckCheck, Lock } from "lucide-vue-next";
 import { useEncounters } from "@/composables/useEncounters";
 import { useRunningEncounters } from "@/composables/useEncounterLive";
 import {
@@ -135,7 +149,7 @@ import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/useQuota";
 
 const router = useRouter();
-const { canCreate } = useQuota("encounters");
+const { canCreate, quota: encounterQuota } = useQuota("encounters");
 const showPaywall = ref(false);
 
 function handleNew() {
@@ -187,6 +201,16 @@ const filtered = computed(() => {
     list = list.filter((e) => ids.has(e.id));
   }
   return list;
+});
+
+const lockedEncounterIds = computed((): Set<string> => {
+  const q = encounterQuota.value;
+  if (!q || q.unlimited || q.current <= q.limit) return new Set();
+  const overCount = q.current - q.limit;
+  const sorted = [...(encounters.value ?? [])].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
+  return new Set(sorted.slice(-overCount).map((e) => e.id));
 });
 
 function descriptionText(raw: string | null | undefined): string {
