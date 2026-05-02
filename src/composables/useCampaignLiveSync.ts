@@ -39,7 +39,9 @@ export function useCampaignLiveSync() {
           .on("postgres_changes", { event: "*", schema: "public", table: "factions",        filter: f }, invalidate("factions"))
           .on("postgres_changes", { event: "*", schema: "public", table: "puzzle_rooms",    filter: f }, invalidate("puzzle_rooms"))
           .on("postgres_changes", { event: "*", schema: "public", table: "calendar_events", filter: f }, invalidate("calendar-events"))
-          .on("postgres_changes", { event: "*", schema: "public", table: "player_journal",  filter: f }, invalidate("player_journal"))
+          .on("postgres_changes", { event: "*", schema: "public", table: "player_journal",    filter: f }, invalidate("player_journal"))
+          .on("postgres_changes", { event: "*", schema: "public", table: "session_proposals",  filter: f }, invalidate("session_proposals"))
+          .on("postgres_changes", { event: "*", schema: "public", table: "session_availability", filter: f }, invalidate("session_availability"))
           .subscribe();
       },
       { immediate: true },
