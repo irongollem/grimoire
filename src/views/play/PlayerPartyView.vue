@@ -216,6 +216,7 @@
             :key="npc.id"
             :npc="npc"
             :location="npc.player_visible_fields.includes('location') ? resolvedLocation(npc) : undefined"
+            :is-new="isNpcNew(npc.id, npc.updated_at)"
             @click="openNpc(npc)"
           />
         </div>
@@ -369,6 +370,7 @@ import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useParty } from "@/composables/useParty";
 import { useSharedNpcs } from "@/composables/useNpcs";
+import { useReadItems, useMarkRead } from "@/composables/useReadItems";
 import { useAllLocations } from "@/composables/useLocations";
 import { useCompanions } from "@/composables/useCompanions";
 import { usePlayerNpcRatings } from "@/composables/usePlayerNpcRatings";
@@ -401,6 +403,8 @@ const viewerIsDm = computed(() => !ui.dmPreviewMode && auth.isDM);
 const { data: members, isLoading: partyLoading } = useParty();
 const speciesNameMap = useSpeciesNameMap();
 const { data: allSharedNpcs, isLoading: npcsLoading } = useSharedNpcs();
+const { isNew: isNpcNew } = useReadItems("npc");
+const { mutate: markNpcRead } = useMarkRead();
 const npcs = computed(() => {
   const all = allSharedNpcs.value ?? [];
   const memberId = viewerMemberId.value;
@@ -562,6 +566,7 @@ const selectedNpcDisplay = computed(() => ({
 const { data: myNpcPcNote } = useMyNpcPcNote(selectedNpcId);
 
 function openNpc(npc: Npc) {
+  markNpcRead({ entityType: "npc", entityId: npc.id });
   selectedNpc.value = npc;
 }
 

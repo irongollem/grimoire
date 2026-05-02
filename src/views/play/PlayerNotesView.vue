@@ -21,6 +21,7 @@
         <!-- Header -->
         <div class="flex items-center gap-3 px-4 py-3 cursor-pointer select-none">
           <Pin v-if="note.is_pinned" class="h-3.5 w-3.5 text-primary shrink-0" />
+          <span v-if="isNew(note.id, note.updated_at)" class="h-2.5 w-2.5 rounded-full bg-destructive shrink-0" title="New" />
           <div class="flex-1 min-w-0">
             <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ note.title }}</p>
             <p class="font-fell text-xs text-muted-foreground italic">
@@ -54,6 +55,7 @@
 import { ref, computed } from "vue";
 import { BookOpen, Pin, ChevronDown } from "lucide-vue-next";
 import { useNotes } from "@/composables/useNotes";
+import { useReadItems, useMarkRead } from "@/composables/useReadItems";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import type { NoteCategory } from "@/types/notes.types";
@@ -84,8 +86,12 @@ const notes = computed(() =>
   }),
 );
 
+const { isNew } = useReadItems("note");
+const { mutate: markRead } = useMarkRead();
+
 const selected = ref<string | null>(null);
 function toggle(id: string) {
+  if (selected.value !== id) markRead({ entityType: "note", entityId: id });
   selected.value = selected.value === id ? null : id;
 }
 </script>

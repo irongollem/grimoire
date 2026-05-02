@@ -43,6 +43,11 @@
             class="group relative rounded-lg border border-border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
             @click="openLightbox(entry.monster, entry.discovery)"
           >
+            <span
+              v-if="isNew(entry.discovery.id)"
+              class="absolute top-1.5 left-1.5 z-10 h-2.5 w-2.5 rounded-full bg-destructive"
+              title="New"
+            />
             <MonsterFormCard
               :monster="entry.monster"
               :name="entry.monster?.name ?? 'Unknown creature'"
@@ -247,6 +252,7 @@ import { ref, computed } from "vue";
 import { refDebounced } from "@vueuse/core";
 import { Pin, Search, X } from "lucide-vue-next";
 import { usePlayerDiscoveries, useAutoDiscoverMonsters } from "@/composables/useDiscoveredMonsters";
+import { useReadItems, useMarkRead } from "@/composables/useReadItems";
 import { usePinnedForms, useTogglePinnedForm } from "@/composables/usePinnedForms";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useParty } from "@/composables/useParty";
@@ -274,6 +280,8 @@ const auth = useAuthStore();
 const { sendRoll } = useCampaignMessages();
 const { promptRoll } = usePromptedRoll();
 const { data: discoveries, isLoading: isLoadingDiscoveries } = usePlayerDiscoveries();
+const { isNew } = useReadItems("discovery");
+const { mutate: markRead } = useMarkRead();
 const { data: allMonsters } = useAllMonsters();
 const { data: partyMembers } = useParty();
 const { data: playerPinnedForms } = usePinnedForms();
@@ -454,6 +462,7 @@ const lightbox = ref<LightboxState | null>(null);
 
 function openLightbox(monster: Monster | null, discovery: DiscoveredMonster | null) {
   if (!monster && !discovery) return;
+  if (discovery) markRead({ entityType: "discovery", entityId: discovery.id });
   lastRoll.value = null;
   lightbox.value = {
     monster,

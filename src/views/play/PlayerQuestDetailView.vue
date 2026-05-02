@@ -261,7 +261,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import {
   ChevronLeft,
@@ -278,6 +278,7 @@ import {
   useQuestObjectives,
   useQuestRefs,
 } from "@/composables/useQuests";
+import { useMarkRead } from "@/composables/useReadItems";
 import { useNpcs } from "@/composables/useNpcs";
 import { useAllLocations } from "@/composables/useLocations";
 import { useMonsters } from "@/composables/useMonsters";
@@ -291,6 +292,11 @@ const route = useRoute();
 const questId = computed(() => route.params.id as string);
 
 const { data: quest, isLoading } = useQuest(questId);
+const { mutate: markRead } = useMarkRead();
+
+watch(quest, (q) => {
+  if (q?.id) markRead({ entityType: "quest", entityId: q.id });
+}, { immediate: true });
 const { data: objectives } = useQuestObjectives(questId);
 const { data: questRefs } = useQuestRefs(questId);
 

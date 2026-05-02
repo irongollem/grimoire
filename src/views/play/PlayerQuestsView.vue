@@ -28,9 +28,12 @@
             class="block rounded-lg border border-border bg-card p-4 hover:border-primary/40 transition-colors"
           >
             <div class="flex items-start justify-between gap-2">
-              <p class="font-cinzel text-sm font-semibold text-foreground">
-                {{ q.title }}
-              </p>
+              <div class="flex items-center gap-2 min-w-0">
+                <span v-if="isNew(q.id, q.updated_at)" class="h-2.5 w-2.5 rounded-full bg-destructive shrink-0" title="New" />
+                <p class="font-cinzel text-sm font-semibold text-foreground">
+                  {{ q.title }}
+                </p>
+              </div>
               <div class="flex items-center gap-1.5 shrink-0">
                 <span
                   class="font-cinzel text-[10px] px-2 py-0.5 rounded-full tracking-wider"
@@ -69,11 +72,13 @@ import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { ScrollText, Star, ChevronRight } from "lucide-vue-next";
 import { usePlayerVisibleQuests } from "@/composables/useQuests";
+import { useReadItems } from "@/composables/useReadItems";
 import { QUEST_STATUS_LABELS, QUEST_STATUS_COLORS } from "@/types/quest.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import type { Quest } from "@/types/quest.types";
 
 const { data: quests, isLoading } = usePlayerVisibleQuests();
+const { isNew } = useReadItems("quest");
 
 const groups = computed<[string, Quest[]][]>(() => [
   ["Active", (quests.value ?? []).filter((q) => q.status === "active")],

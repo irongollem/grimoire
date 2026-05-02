@@ -141,6 +141,7 @@
           @toggle="toggleNote(note.id)"
         >
           <template #meta>
+            <span v-if="isNoteNew(note.id, note.updated_at)" class="h-2.5 w-2.5 rounded-full bg-destructive shrink-0" title="New" />
             <Pin v-if="note.is_pinned" class="h-2.5 w-2.5 text-primary shrink-0" />
             <span v-if="note.category === 'session' && note.session_num != null" class="font-fell text-[11px] text-muted-foreground/70 italic">Session {{ note.session_num }}</span>
             <span class="font-fell text-[11px] text-muted-foreground/70 italic">by DM</span>
@@ -348,6 +349,7 @@ import {
   useCreateJournalEntry, useUpdateJournalEntry, useDeleteJournalEntry,
   JOURNAL_CATEGORIES, JOURNAL_CATEGORY_LIST,
 } from "@/composables/usePlayerJournal";
+import { useReadItems, useMarkRead } from "@/composables/useReadItems";
 import type { JournalCategory, PlayerJournalEntry, JournalRefType } from "@/composables/usePlayerJournal";
 import { usePlayerVisibleQuests } from "@/composables/useQuests";
 import { useSharedNpcs } from "@/composables/useNpcs";
@@ -428,8 +430,12 @@ const NOTE_CATEGORIES: Record<NoteCategory, { label: string; color: string; icon
   faction:  { label: "Faction",  color: "#06b6d4", icon: Shield },
 };
 
+const { isNew: isNoteNew } = useReadItems("note");
+const { mutate: markRead } = useMarkRead();
+
 const selectedNote = ref<string | null>(null);
 function toggleNote(id: string) {
+  if (selectedNote.value !== id) markRead({ entityType: "note", entityId: id });
   selectedNote.value = selectedNote.value === id ? null : id;
 }
 

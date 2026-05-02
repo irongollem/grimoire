@@ -62,6 +62,7 @@
                 class="h-2 w-2 rounded-full shrink-0"
                 :style="{ backgroundColor: locColor(loc.location_type) }"
               />
+              <span v-if="isNew(loc.id, loc.updated_at)" class="h-2.5 w-2.5 rounded-full bg-destructive shrink-0" title="New" />
               <span class="flex-1 font-cinzel text-sm font-semibold text-foreground truncate">{{ loc.name }}</span>
               <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider shrink-0">
                 {{ locLabel(loc.location_type) }}
@@ -207,6 +208,7 @@
               class="h-2 w-2 rounded-full shrink-0"
               :style="{ backgroundColor: locColor(entry.loc.location_type) }"
             />
+            <span v-if="isNew(entry.loc.id, entry.loc.updated_at)" class="h-2.5 w-2.5 rounded-full bg-destructive shrink-0" title="New" />
             <span class="flex-1 font-cinzel text-sm font-semibold text-foreground truncate">{{ entry.loc.name }}</span>
             <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider shrink-0">
               {{ locLabel(entry.loc.location_type) }}
@@ -427,6 +429,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick } from "vue";
 import { ChevronDown, X, Eye, Search, Star } from "lucide-vue-next";
+import { useReadItems, useMarkRead } from "@/composables/useReadItems";
 import { useSharedLocations } from "@/composables/useLocations";
 import { usePlayerFavourites } from "@/composables/usePlayerFavourites";
 import { useUiStore } from "@/stores/ui";
@@ -454,6 +457,8 @@ import FocalImage from "@/components/common/FocalImage.vue";
 
 const { data: locations, isLoading } = useSharedLocations();
 const { favouriteIds, toggleFavourite } = usePlayerFavourites("location");
+const { isNew } = useReadItems("location");
+const { mutate: markRead } = useMarkRead();
 
 const search = ref("");
 const typeFilter = ref("all");
@@ -596,7 +601,10 @@ function toggleMapSize(id: string) {
 
 function toggleDetail(id: string) {
   const s = new Set(detailOpen.value);
-  if (s.has(id)) { s.delete(id); } else { s.add(id); }
+  if (s.has(id)) { s.delete(id); } else {
+    s.add(id);
+    markRead({ entityType: "location", entityId: id });
+  }
   detailOpen.value = s;
 }
 
