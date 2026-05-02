@@ -203,9 +203,10 @@
               backgroundColor: eventColor(pe.event) + '55',
               borderColor: eventColor(pe.event),
             }"
-            class="absolute border rounded cursor-pointer hover:brightness-125 transition-all z-10 overflow-hidden flex items-center justify-center"
+            class="absolute border rounded transition-all z-10 overflow-hidden flex items-center justify-center"
+            :class="!readOnly ? 'cursor-pointer hover:brightness-125' : ''"
             :title="pe.event.title"
-            @click="emit('edit-event', pe.event)"
+            @click="!readOnly && emit('edit-event', pe.event)"
           >
             <span
               v-if="Math.max(8, (pe.endX ?? pe.naturalX) - pe.naturalX) >= 36"
@@ -245,9 +246,10 @@
               backgroundColor: eventColor(pe.event) + '33',
               borderColor: eventColor(pe.event),
             }"
-            class="absolute h-5 border rounded-sm cursor-pointer hover:brightness-125 transition-all z-10"
+            class="absolute h-5 border rounded-sm transition-all z-10"
+            :class="!readOnly ? 'cursor-pointer hover:brightness-125' : ''"
             :title="pe.event.title"
-            @click="emit('edit-event', pe.event)"
+            @click="!readOnly && emit('edit-event', pe.event)"
           />
           <!-- Vertical stem -->
           <div
@@ -268,10 +270,11 @@
               top: axisY + 'px',
               backgroundColor: eventColor(pe.event),
             }"
-            class="absolute w-5 h-5 rounded-full flex items-center justify-center border-2 border-card cursor-pointer hover:scale-125 transition-transform z-20"
+            class="absolute w-5 h-5 rounded-full flex items-center justify-center border-2 border-card transition-transform z-20"
+            :class="!readOnly ? 'cursor-pointer hover:scale-125' : ''"
             style="transform: translate(-50%, -50%)"
             :title="pe.event.title"
-            @click="emit('edit-event', pe.event)"
+            @click="!readOnly && emit('edit-event', pe.event)"
           >
             <component
               :is="EVENT_ICONS[pe.event.event_type] ?? Star"
@@ -287,10 +290,11 @@
                 : axisY + pe.lane * LANE_HEIGHT + 18 + 'px',
               color: eventColor(pe.event),
             }"
-            class="absolute font-fell text-xs font-semibold cursor-pointer w-32 truncate text-center hover:underline"
+            class="absolute font-fell text-xs font-semibold w-32 truncate text-center"
+            :class="!readOnly ? 'cursor-pointer hover:underline' : ''"
             style="transform: translateX(-50%)"
             :title="pe.event.title"
-            @click="emit('edit-event', pe.event)"
+            @click="!readOnly && emit('edit-event', pe.event)"
           >
             {{ pe.event.title }}
           </div>
@@ -322,7 +326,7 @@
           ? ""
           : "s"
       }}
-      · click any to edit
+      <template v-if="!readOnly">· click any to edit</template>
     </p>
 
     <!-- Events in view list -->
@@ -336,8 +340,9 @@
         <div
           v-for="event in visibleEvents"
           :key="event.id"
-          class="flex items-center gap-2 rounded-md bg-card border border-border px-3 py-2 cursor-pointer hover:border-primary/40 transition-colors"
-          @click="emit('edit-event', event)"
+          class="flex items-center gap-2 rounded-md bg-card border border-border px-3 py-2 transition-colors"
+          :class="!readOnly ? 'cursor-pointer hover:border-primary/40' : ''"
+          @click="!readOnly && emit('edit-event', event)"
         >
           <span
             :style="{ backgroundColor: eventColor(event) }"
@@ -413,6 +418,11 @@ const ZOOM_PRESETS = computed(() => [
   { value: 50, label: "50yr" },
   { value: 100, label: "100yr" },
 ]);
+
+const { eventsOverride = null, readOnly = false } = defineProps<{
+  eventsOverride?: CalendarEvent[] | null;
+  readOnly?: boolean;
+}>();
 
 const emit = defineEmits<{
   "edit-event": [event: CalendarEvent];
@@ -525,10 +535,11 @@ function endFracForEvent(event: CalendarEvent): number | null {
   return event.end_year;
 }
 
-const { data: events, isLoading } = useCalendarEventsRange(
+const { data: fetchedEvents, isLoading } = useCalendarEventsRange(
   queryStart,
   queryEnd,
 );
+const events = computed(() => eventsOverride ?? fetchedEvents.value ?? null);
 
 // Year ticks for multi-year zoom
 const yearTicks = computed(() => {

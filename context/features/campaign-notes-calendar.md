@@ -225,39 +225,49 @@ TanStack Query key: `"player_journal"`.
 
 ## Calendar Feature
 
-### Route
+### Calendar Routes
 
-| Route       | Name       | Component                             | Access            |
-| ----------- | ---------- | ------------------------------------- | ----------------- |
-| `/calendar` | `calendar` | `src/views/calendar/CalendarView.vue` | DM (requiresAuth) |
+| Route            | Name            | Component                               | Access                  |
+| ---------------- | --------------- | --------------------------------------- | ----------------------- |
+| `/calendar`      | `calendar`      | `src/views/calendar/CalendarView.vue`   | DM (requiresAuth)       |
+| `/play/calendar` | `play-calendar` | `src/views/play/PlayerCalendarView.vue` | Player (requiresPlayer) |
 
-No player-facing calendar route exists in the player portal.
+### Player Calendar (`/play/calendar`)
+
+Shows the current in-game date prominently, a read-only Harptos month grid, and an upcoming events list. Only events with `player_visible = true` are shown. Players cannot create or edit events.
+
+- **Composable:** `usePlayerCalendarEvents(year)` — fetches `player_visible = true` events for the active campaign year
+- **Grid:** reuses `CalendarGrid` via `eventsOverride` + `readOnly` props (no create/edit interactions)
+- **Nav:** `CalendarDays` icon, positioned after Quests in `ALL_PLAYER_NAV`
+
+DMs mark events visible via the "Visible to players" checkbox in `EventModal` and `InlineCalendarEventModal`.
 
 ### Database Table: `calendar_events`
 
 Key columns:
 
-| Column                | Type                 | Notes                   |
-| --------------------- | -------------------- | ----------------------- |
-| `id`                  | uuid PK              |                         |
-| `user_id`             | uuid FK → auth.users |                         |
-| `campaign_id`         | uuid FK → campaigns  |                         |
-| `title`               | text                 | required                |
-| `description`         | text                 | Tiptap JSON (optional)  |
-| `event_type`          | text                 | see `CalendarEventType` |
-| `harptos_year`        | integer              | required                |
-| `harptos_month`       | integer              | null for festival days  |
-| `harptos_day`         | integer              | null for festival days  |
-| `festival_day`        | text                 | null for regular days   |
-| `is_multi_day`        | boolean              |                         |
-| `end_year/month/day`  | integer              | multi-day end date      |
-| `color`               | text                 | hex string              |
-| `linked_quest_id`     | uuid FK → quests     | on delete cascade       |
-| `linked_encounter_id` | uuid FK → encounters | on delete cascade       |
-| `linked_location_id`  | uuid FK → locations  | on delete cascade       |
-| `linked_note_id`      | uuid FK → notes      | on delete set null      |
+| Column                | Type                 | Notes                                   |
+| --------------------- | -------------------- | --------------------------------------- |
+| `id`                  | uuid PK              |                                         |
+| `user_id`             | uuid FK → auth.users |                                         |
+| `campaign_id`         | uuid FK → campaigns  |                                         |
+| `title`               | text                 | required                                |
+| `description`         | text                 | Tiptap JSON (optional)                  |
+| `event_type`          | text                 | see `CalendarEventType`                 |
+| `harptos_year`        | integer              | required                                |
+| `harptos_month`       | integer              | null for festival days                  |
+| `harptos_day`         | integer              | null for festival days                  |
+| `festival_day`        | text                 | null for regular days                   |
+| `is_multi_day`        | boolean              |                                         |
+| `end_year/month/day`  | integer              | multi-day end date                      |
+| `color`               | text                 | hex string (derived from `event_type`)  |
+| `player_visible`      | boolean              | default false; DM-controlled visibility |
+| `linked_quest_id`     | uuid FK → quests     | on delete cascade                       |
+| `linked_encounter_id` | uuid FK → encounters | on delete cascade                       |
+| `linked_location_id`  | uuid FK → locations  | on delete cascade                       |
+| `linked_note_id`      | uuid FK → notes      | on delete set null                      |
 
-**RLS:** Standard four-policy pattern (`auth.uid() = user_id`). No player read access — the calendar is DM-only.
+**RLS:** Standard four-policy pattern (`auth.uid() = user_id`). Player read access via `usePlayerCalendarEvents` queries `player_visible = true` with `campaign_id` scope.
 
 ### TypeScript Types — `src/types/calendar.types.ts`
 

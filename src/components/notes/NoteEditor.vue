@@ -448,6 +448,7 @@ async function syncSessionCalendarEvent(noteId: string) {
       linked_location_id: null,
       linked_note_id: noteId,
       travel_party_member_ids: [],
+      player_visible: false,
       campaign_id: activeCampaignId.value,
     };
 

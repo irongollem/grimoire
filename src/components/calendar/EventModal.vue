@@ -368,6 +368,16 @@
             </RouterLink>
           </div>
 
+          <!-- Player visibility toggle -->
+          <label class="flex items-center gap-2.5 cursor-pointer select-none">
+            <input
+              v-model="form.player_visible"
+              type="checkbox"
+              class="rounded border-border w-4 h-4 accent-primary"
+            />
+            <span class="font-fell text-sm text-foreground">Visible to players</span>
+          </label>
+
           <!-- Actions -->
           <div class="flex items-center justify-between gap-2 pt-1">
             <button
@@ -418,6 +428,7 @@ import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useNote } from "@/composables/useNotes";
+import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
 import { useCalendarStore } from "@/stores/calendar";
 import {
   useCreateCalendarEvent,
@@ -494,6 +505,7 @@ function defaultForm(): CalendarEventInsert {
     linked_location_id: null,
     linked_note_id: null,
     travel_party_member_ids: [],
+    player_visible: false,
   };
 }
 
@@ -531,6 +543,7 @@ watch(
           linked_location_id: props.editEvent.linked_location_id,
           linked_note_id: props.editEvent.linked_note_id,
           travel_party_member_ids: props.editEvent.travel_party_member_ids ?? [],
+          player_visible: props.editEvent.player_visible ?? false,
         };
         dateType.value = props.editEvent.festival_day ? "festival" : "regular";
       } else {
@@ -613,12 +626,22 @@ async function submit() {
     end_day: form.value.is_multi_day ? form.value.end_day : null,
   };
 
+  const justSharedToPlayers =
+    payload.player_visible && !(props.editEvent?.player_visible ?? false);
+
   if (props.editEvent) {
     // Exclude campaign_id: never overwrite it on update.
     const { campaign_id: _cid, ...updatePayload } = payload;
     await updateEvent({ id: props.editEvent.id, update: updatePayload });
   } else {
     await createEvent(payload);
+  }
+
+  if (justSharedToPlayers && campaign.activeCampaignId) {
+    void sendCampaignAnnouncement(
+      campaign.activeCampaignId,
+      `📅 Calendar event shared: "${payload.title}"`,
+    );
   }
 
   if (payload.event_type === "travel" && payload.travel_party_member_ids.length) {

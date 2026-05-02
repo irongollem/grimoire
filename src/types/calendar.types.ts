@@ -41,6 +41,7 @@ export interface CalendarEvent {
   linked_location_id: string | null;
   linked_note_id: string | null;
   travel_party_member_ids: string[];
+  player_visible: boolean;
   created_at: string;
   updated_at: string;
 }

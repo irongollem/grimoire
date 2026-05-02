@@ -9,17 +9,24 @@ export type TimelineZoom = number;
 
 const POSITION_KEY = "grimoire_calendar_position";
 
-function loadPosition(): { year: number; month: number; calendarId: string } {
+const DEFAULT_ZOOM = 10 / 365; // 1 week (weekSize / 365 for Harptos)
+
+function loadPosition(): { year: number; month: number; calendarId: string; zoom: number } {
   try {
     const saved = localStorage.getItem(POSITION_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      return { year: parsed.year ?? 1495, month: parsed.month ?? 1, calendarId: parsed.calendarId ?? "faerun" };
+      return {
+        year: parsed.year ?? 1495,
+        month: parsed.month ?? 1,
+        calendarId: parsed.calendarId ?? "faerun",
+        zoom: parsed.zoom ?? DEFAULT_ZOOM,
+      };
     }
   } catch {
     // ignore
   }
-  return { year: 1495, month: 1, calendarId: "faerun" };
+  return { year: 1495, month: 1, calendarId: "faerun", zoom: DEFAULT_ZOOM };
 }
 
 export const useCalendarStore = defineStore("calendar", () => {
@@ -33,14 +40,14 @@ export const useCalendarStore = defineStore("calendar", () => {
   const view = ref<CalendarView>("month");
 
   // Timeline zoom: number of years shown
-  const timelineZoom = ref<TimelineZoom>(20);
+  const timelineZoom = ref<TimelineZoom>(savedPos.zoom);
 
   // Current view position — persisted to localStorage
   const currentYear = ref<number>(savedPos.year);
   const currentMonth = ref<number>(savedPos.month);
 
-  watch([activeCalendarId, currentYear, currentMonth], ([calendarId, year, month]) => {
-    localStorage.setItem(POSITION_KEY, JSON.stringify({ calendarId, year, month }));
+  watch([activeCalendarId, currentYear, currentMonth, timelineZoom], ([calendarId, year, month, zoom]) => {
+    localStorage.setItem(POSITION_KEY, JSON.stringify({ calendarId, year, month, zoom }));
   });
 
   const adapter = computed<CalendarAdapter>(() => getCalendarAdapter(activeCalendarId.value));

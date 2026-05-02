@@ -103,6 +103,16 @@
             </div>
           </div>
 
+          <!-- Player visibility toggle -->
+          <label class="flex items-center gap-2.5 cursor-pointer select-none">
+            <input
+              v-model="form.player_visible"
+              type="checkbox"
+              class="rounded border-border w-4 h-4 accent-primary"
+            />
+            <span class="font-fell text-sm text-foreground">Visible to players</span>
+          </label>
+
           <!-- Actions -->
           <div class="flex justify-end gap-2 pt-1">
             <button
@@ -170,6 +180,7 @@ function defaultForm(): CalendarEventInsert {
     linked_location_id: null,
     linked_note_id: null,
     travel_party_member_ids: [],
+    player_visible: false,
   };
 }
 
