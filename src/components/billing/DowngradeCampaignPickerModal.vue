@@ -78,7 +78,7 @@ import { Archive } from 'lucide-vue-next'
 import { useAllCampaigns, useArchiveCampaign } from '@/composables/useCampaigns'
 import { useCampaignStore } from '@/stores/campaign'
 
-const props = defineProps<{ show: boolean; campaignLimit: number }>()
+defineProps<{ show: boolean; campaignLimit: number }>()
 
 const router = useRouter()
 const campaignStore = useCampaignStore()

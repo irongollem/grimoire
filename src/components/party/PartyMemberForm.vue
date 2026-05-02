@@ -202,6 +202,14 @@
               </div>
             </div>
           </div>
+          <label class="block">
+            <span class="field-label">Height</span>
+            <input
+              v-model="form.height"
+              class="field-input w-full"
+              placeholder="e.g. 7'4&quot; or giant-sized"
+            />
+          </label>
           <div>
             <span class="field-label">Notes</span>
             <RichTextEditor
@@ -706,6 +714,7 @@ const form = reactive<
   disguise_race: props.member?.disguise_race ?? null,
   disguise_subrace: props.member?.disguise_subrace ?? null,
   background_id: props.member?.background_id ?? null,
+  height: props.member?.height ?? null,
 });
 
 

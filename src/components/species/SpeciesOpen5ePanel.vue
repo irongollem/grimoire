@@ -323,6 +323,8 @@ function buildPayload(race: Open5eRace) {
     image_url: null,
     focal_point: null,
     is_shapeshifter: false,
+    avg_height: null,
+    avg_weight: null,
     granted_spells: [],
   };
 }

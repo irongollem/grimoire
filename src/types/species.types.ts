@@ -37,6 +37,8 @@ export interface Species {
   description: string | null;    // Tiptap JSON
   notes: string | null;          // Tiptap JSON (DM-only)
   size: SpeciesSize | null;
+  avg_height: string | null;
+  avg_weight: string | null;
   speed: SpeciesSpeed | null;
   ability_score_increases: Record<string, number | string> | null;
   traits: SpeciesTrait[] | null;

@@ -50,6 +50,7 @@ const DM_ENTITY_ROUTES: Record<EntityType, string> = {
   npc: "/npcs",
   monster: "/monsters",
   location: "/locations",
+  party: "/party",
 };
 
 // Player portal only has list pages — navigate to the list, no ID.
@@ -58,6 +59,7 @@ const PLAYER_LIST_ROUTES: Record<EntityType, string> = {
   npc: "/play/party",
   monster: "/play/bestiary",
   location: "/play/atlas",
+  party: "/play/party",
 };
 
 function navigate() {
@@ -174,5 +176,23 @@ function navigate() {
 .entity-chip--location:hover {
   background: theme(colors.emerald-400 / 20%);
   border-color: theme(colors.emerald-400 / 60%);
+}
+
+.entity-chip--party--edit {
+  border-color: theme(colors.amber-400 / 35%);
+  background: theme(colors.amber-400 / 10%);
+  color: theme(colors.amber-400);
+  cursor: default;
+}
+.entity-chip--party {
+  border-color: theme(colors.amber-400 / 40%);
+  background: theme(colors.amber-400 / 10%);
+  color: theme(colors.amber-400);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.entity-chip--party:hover {
+  background: theme(colors.amber-400 / 20%);
+  border-color: theme(colors.amber-400 / 60%);
 }
 </style>

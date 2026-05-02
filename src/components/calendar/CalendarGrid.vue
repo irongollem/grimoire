@@ -106,7 +106,7 @@
                 v-for="event in eventsForDay(day)"
                 :key="event.id"
                 :title="event.title"
-                :style="{ backgroundColor: event.color }"
+                :style="{ backgroundColor: eventColor(event) }"
                 class="w-1.5 h-1.5 rounded-full"
               />
             </div>
@@ -137,10 +137,10 @@
           <span
             v-for="event in eventsForFestival(festival.name)"
             :key="event.id"
-            :style="{ borderColor: event.color, color: event.color }"
+            :style="{ borderColor: eventColor(event), color: eventColor(event) }"
             class="inline-flex items-center gap-1 border rounded px-1.5 py-0.5 font-fell text-xs"
           >
-            <span :style="{ backgroundColor: event.color }" class="w-1.5 h-1.5 rounded-full" />
+            <span :style="{ backgroundColor: eventColor(event) }" class="w-1.5 h-1.5 rounded-full" />
             {{ event.title }}
           </span>
         </div>
@@ -161,7 +161,7 @@
             @click="!entityLink(event) && emit('edit-event', event)"
           >
             <span
-              :style="{ backgroundColor: event.color }"
+              :style="{ backgroundColor: eventColor(event) }"
               class="w-2.5 h-2.5 rounded-full shrink-0"
             />
             <component
@@ -196,7 +196,7 @@ import { RouterLink } from "vue-router";
 import { Scroll, Swords, MapPin } from "lucide-vue-next";
 import { useCalendarStore } from "@/stores/calendar";
 import { useCalendarEvents } from "@/composables/useCalendarEvents";
-import { linkedEntityType, linkedEntityId } from "@/types/calendar.types";
+import { linkedEntityType, linkedEntityId, eventColor } from "@/types/calendar.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import type { CalendarEvent } from "@/types/calendar.types";
 

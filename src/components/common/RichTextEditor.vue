@@ -439,6 +439,7 @@ const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
   npc: "NPC",
   monster: "MON",
   location: "LOC",
+  party: "PARTY",
 };
 
 const props = defineProps<{

@@ -108,6 +108,9 @@
       <div class="p-4 flex flex-col gap-5">
         <div v-for="sub in species.subraces" :key="sub.name">
           <h3 class="font-cinzel text-sm font-bold text-foreground mb-1">{{ sub.name }}</h3>
+          <p v-if="asiToString(sub.ability_score_increases ?? null)" class="font-fell text-sm text-muted-foreground mb-2">
+            {{ asiToString(sub.ability_score_increases ?? null) }}
+          </p>
           <RichTextViewer v-if="sub.description" :content="sub.description" class="mb-2" />
           <div v-if="sub.traits?.length" class="flex flex-col gap-2 pl-3 border-l border-border">
             <div v-for="trait in sub.traits" :key="trait.name">

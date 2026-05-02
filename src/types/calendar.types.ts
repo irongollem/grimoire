@@ -59,6 +59,27 @@ export function linkedEntityId(event: CalendarEvent): string | null {
   return event.linked_quest_id ?? event.linked_encounter_id ?? event.linked_location_id ?? null;
 }
 
+export const EVENT_TYPE_COLORS: Record<CalendarEventType, string> = {
+  session:      "#C9920A", // gold
+  quest:        "#7c3aed", // purple
+  discovery:    "#059669", // green
+  player_death: "#111827", // near-black
+  boss_fight:   "#be123c", // crimson
+  npc_death:    "#64748b", // slate
+  travel:       "#0284c7", // sky blue
+  encounter:    "#d97706", // amber
+  location:     "#10b981", // emerald
+  world:        "#0d9488", // teal
+  festival:     "#ea580c", // orange
+  deadline:     "#dc2626", // red
+  campaign:     "#475569", // slate (generic catch-all)
+};
+
+/** Returns the canonical display color for a calendar event, by type. */
+export function eventColor(event: Pick<CalendarEvent, "event_type">): string {
+  return EVENT_TYPE_COLORS[event.event_type];
+}
+
 export type CalendarEventInsert = Omit<
   CalendarEvent,
   "id" | "user_id" | "created_at" | "updated_at" | "linked_note_id"

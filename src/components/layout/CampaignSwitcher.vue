@@ -416,6 +416,7 @@ async function submitForm() {
       immersive_rolls: false,
       description: null,
       spotify_client_id: null,
+      is_archived: false,
     });
     if (isFirstCampaign.value && claimExisting.value) {
       await claimOrphans(created.id);

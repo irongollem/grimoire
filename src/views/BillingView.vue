@@ -54,7 +54,7 @@
           Payment failed — update your payment method to restore access.
         </p>
         <p
-          v-else-if="subscription?.status === 'canceled'"
+          v-else-if="subscription?.status === 'cancelled'"
           class="font-fell text-sm text-muted-foreground italic"
         >
           Your Pro subscription has ended.
@@ -345,7 +345,7 @@ const statusClass = computed(() => {
       return "bg-blue-500/15 text-blue-400";
     case "past_due":
       return "bg-orange-500/15 text-orange-400";
-    case "canceled":
+    case "cancelled":
       return "bg-muted text-muted-foreground";
     default:
       return "bg-muted text-muted-foreground";

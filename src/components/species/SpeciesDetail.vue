@@ -65,6 +65,26 @@
           </div>
         </div>
 
+        <!-- Avg Height + Weight row -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">AVG. HEIGHT</label>
+            <input
+              v-model="form.avg_height"
+              placeholder="e.g. 5 ft 9 in (175 cm)…"
+              class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+          <div>
+            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">AVG. WEIGHT</label>
+            <input
+              v-model="form.avg_weight"
+              placeholder="e.g. 165 lbs (75 kg)…"
+              class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+        </div>
+
         <!-- Natural Armor AC -->
         <div>
           <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">NATURAL ARMOR AC</label>
@@ -411,6 +431,8 @@ function makeForm(s?: Species | null) {
     focal_point: s?.focal_point ?? null,
     is_shapeshifter: s?.is_shapeshifter ?? false,
     natural_armor_ac: s?.natural_armor_ac ?? null as number | null,
+    avg_height: s?.avg_height ?? "",
+    avg_weight: s?.avg_weight ?? "",
     grantedSpells: (s?.granted_spells ?? []).map((g) => ({ ...g })),
   };
 }
@@ -537,6 +559,8 @@ async function save() {
       focal_point: form.focal_point,
       is_shapeshifter: form.is_shapeshifter,
       natural_armor_ac: form.natural_armor_ac || null,
+      avg_height: form.avg_height.trim() || null,
+      avg_weight: form.avg_weight.trim() || null,
       granted_spells: form.grantedSpells,
     };
 

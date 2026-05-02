@@ -28,6 +28,7 @@ export interface Campaign {
   image_provider:  string | null;
   ai_setting_prompt: string | null;
   allow_chronicle_promotion: boolean;
+  group_portrait_url: string | null;
   spotify_client_id: string | null;
   ical_token: string;   // UUID; used as the shared secret for the iCal subscription URL
   is_archived: boolean;
@@ -36,9 +37,10 @@ export interface Campaign {
 }
 
 type ApiKeyFields = "openai_api_key" | "anthropic_api_key" | "gemini_api_key" | "falai_api_key";
+type PortraitFields = "group_portrait_url";
 type ProviderFields = "text_provider" | "image_provider";
 
-export type CampaignInsert = Omit<Campaign, "id" | "user_id" | "created_at" | "updated_at" | "excluded_monster_ids" | "disabled_class_names" | "health_visibility" | "immersive_rolls" | "optional_rules" | ApiKeyFields | ProviderFields | "ai_setting_prompt" | "allow_chronicle_promotion" | "ical_token"> & {
+export type CampaignInsert = Omit<Campaign, "id" | "user_id" | "created_at" | "updated_at" | "excluded_monster_ids" | "disabled_class_names" | "health_visibility" | "immersive_rolls" | "optional_rules" | ApiKeyFields | ProviderFields | "ai_setting_prompt" | "allow_chronicle_promotion" | "ical_token" | PortraitFields> & {
   excluded_monster_ids?: string[];
   disabled_class_names?: string[];
   health_visibility?: Campaign["health_visibility"];
@@ -53,7 +55,7 @@ export type CampaignInsert = Omit<Campaign, "id" | "user_id" | "created_at" | "u
   ai_setting_prompt?: string | null;
   allow_chronicle_promotion?: boolean;
 };
-export type CampaignUpdate = Partial<CampaignInsert> & { ical_token?: string; spotify_client_id?: string | null; is_archived?: boolean };
+export type CampaignUpdate = Partial<CampaignInsert> & { ical_token?: string; spotify_client_id?: string | null; is_archived?: boolean; group_portrait_url?: string | null };
 
 export type CampaignRole = "dm" | "player";
 

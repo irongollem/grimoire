@@ -33,12 +33,17 @@ export function getTextProvider(): TextProvider {
   }
 }
 
+export const OPENAI_IMAGE_MODEL_KEY = "grimoire_openai_image_model";
+
 export function getImageProvider(): ImageProvider {
   const provider = useCampaignStore().activeCampaign?.image_provider ?? "openai";
   const key = resolveKey(provider);
   switch (provider) {
     case "falai":        return createFalAiImageProvider(key);
     case "openai-mini":  return createOpenAiImageProvider(key, "gpt-image-1-mini");
-    default:             return createOpenAiImageProvider(key);
+    default: {
+      const model = (typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) ?? "gpt-image-1.5";
+      return createOpenAiImageProvider(key, model as "gpt-image-2" | "gpt-image-1.5");
+    }
   }
 }

@@ -12,9 +12,12 @@
         <div
           class="flex items-center justify-between px-5 py-4 border-b border-border"
         >
-          <h2 class="font-cinzel text-lg font-bold text-foreground">
-            {{ editEvent ? "Edit Event" : "New Event" }}
-          </h2>
+          <div class="flex items-center gap-2">
+            <div class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: editEvent ? eventColor(editEvent) : EVENT_TYPE_COLORS['campaign'] }" />
+            <h2 class="font-cinzel text-lg font-bold text-foreground">
+              {{ isSessionNote ? (linkedNote?.title ?? 'Session Note') : (editEvent ? "Edit Event" : "New Event") }}
+            </h2>
+          </div>
           <button
             type="button"
             class="text-muted-foreground hover:text-foreground transition-colors text-xl leading-none"
@@ -24,8 +27,46 @@
           </button>
         </div>
 
+        <!-- Session note read-only view -->
+        <div v-if="isSessionNote" class="px-5 py-4 space-y-4">
+          <div v-if="linkedNoteLoading" class="flex justify-center py-8">
+            <LoadingSpinner />
+          </div>
+          <template v-else-if="linkedNote">
+            <!-- Meta badges -->
+            <div class="flex flex-wrap gap-1.5">
+              <span v-if="linkedNote.session_num" class="font-cinzel text-[10px] tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5">
+                Session {{ linkedNote.session_num }}
+              </span>
+              <span v-if="linkedNote.session_real_date" class="font-cinzel text-[10px] tracking-wider bg-muted text-muted-foreground rounded px-2 py-0.5">
+                {{ linkedNote.session_real_date }}
+              </span>
+              <span v-for="tag in linkedNote.tags" :key="tag" class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
+                {{ tag }}
+              </span>
+            </div>
+            <!-- Content -->
+            <RichTextViewer :content="linkedNote.content" />
+          </template>
+          <p v-else class="font-fell text-sm text-muted-foreground italic">Note not found.</p>
+          <!-- Footer -->
+          <div class="flex items-center justify-between pt-2 border-t border-border">
+            <button type="button" class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors" @click="close">
+              Close
+            </button>
+            <RouterLink
+              v-if="linkedNote"
+              :to="`/notes/${linkedNote.id}`"
+              class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
+              @click="close"
+            >
+              Open in Notes →
+            </RouterLink>
+          </div>
+        </div>
+
         <!-- Form -->
-        <form class="px-5 py-4 space-y-4" @submit.prevent="submit">
+        <form v-else class="px-5 py-4 space-y-4" @submit.prevent="submit">
           <!-- Title -->
           <div>
             <label
@@ -42,51 +83,37 @@
             />
           </div>
 
-          <!-- Event type + Color row -->
-          <div class="flex gap-3">
-            <div class="flex-1">
-              <label
-                class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1"
-              >
-                TYPE
-              </label>
+          <!-- Event type row -->
+          <div>
+            <label
+              class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1"
+            >
+              TYPE
+            </label>
+            <div class="flex items-center gap-2">
+              <div
+                class="w-3 h-3 rounded-full shrink-0"
+                :style="{ backgroundColor: form.color }"
+              />
               <select
                 v-model="form.event_type"
-                class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="flex-1 bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="campaign">Campaign Event</option>
-                <option value="session">Session</option>
                 <option value="world">World Event</option>
                 <option value="festival">Festival</option>
                 <option value="deadline">Deadline</option>
+                <option value="quest">Quest</option>
                 <option value="player_death">💀 Player Death</option>
                 <option value="boss_fight">⚔ Boss Fight</option>
                 <option value="discovery">🔍 Discovery</option>
                 <option value="npc_death">🗡 NPC Death</option>
                 <option value="travel">🗺 Travel</option>
               </select>
-            </div>
-            <div>
-              <label
-                class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1"
-              >
-                COLOR
-              </label>
-              <div class="flex gap-1.5 pt-1">
-                <button
-                  v-for="c in PRESET_COLORS"
-                  :key="c"
-                  type="button"
-                  :style="{ backgroundColor: c }"
-                  class="w-6 h-6 rounded-full border-2 transition-transform hover:scale-110"
-                  :class="
-                    form.color === c
-                      ? 'border-foreground scale-110'
-                      : 'border-transparent'
-                  "
-                  @click="form.color = c"
-                />
-              </div>
+              <p class="font-fell text-xs text-muted-foreground italic mt-1">
+                Session events are created automatically from
+                <RouterLink to="/notes" class="text-primary hover:underline" @click="close">session notes</RouterLink>.
+              </p>
             </div>
           </div>
 
@@ -387,14 +414,17 @@ import { ref, watch, computed } from "vue";
 import { RouterLink } from "vue-router";
 import { Scroll, Swords, MapPin } from "lucide-vue-next";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import { useNote } from "@/composables/useNotes";
 import { useCalendarStore } from "@/stores/calendar";
 import {
   useCreateCalendarEvent,
   useUpdateCalendarEvent,
   useDeleteCalendarEvent,
 } from "@/composables/useCalendarEvents";
-import { linkedEntityType, linkedEntityId } from "@/types/calendar.types";
+import { linkedEntityType, linkedEntityId, EVENT_TYPE_COLORS, eventColor } from "@/types/calendar.types";
 import type {
   CalendarEvent,
   CalendarEventInsert,
@@ -404,16 +434,6 @@ import { useAllLocations } from "@/composables/useLocations";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import { LOCATION_TYPE_LABELS, type LocationType } from "@/types/location.types";
 
-const PRESET_COLORS = [
-  "#C9920A", // gold
-  "#C0392B", // dragon red
-  "#2E7D32", // elven green
-  "#6A1B9A", // arcane purple
-  "#1B3A4B", // teal
-  "#E67E22", // orange
-  "#2980B9", // blue
-  "#7F8C8D", // stone gray
-];
 
 const props = defineProps<{
   modelValue: boolean;
@@ -444,6 +464,13 @@ const linkedLocationId = computed({
 
 const isPending = computed(() => isCreating.value || isUpdating.value || isDeleting.value);
 
+// ── Session note read-only view ───────────────────────────────────────────────
+const isSessionNote = computed(() =>
+  !!props.editEvent?.linked_note_id && props.editEvent.event_type === "session",
+);
+const linkedNoteId = computed(() => props.editEvent?.linked_note_id ?? "");
+const { data: linkedNote, isLoading: linkedNoteLoading } = useNote(linkedNoteId);
+
 type DateType = "regular" | "festival";
 const dateType = ref<DateType>("regular");
 
@@ -453,7 +480,7 @@ function defaultForm(): CalendarEventInsert {
     title: "",
     description: null,
     event_type: "campaign",
-    color: PRESET_COLORS[0],
+    color: EVENT_TYPE_COLORS["campaign"],
     harptos_year: calendar.currentYear,
     harptos_month: calendar.currentMonth,
     harptos_day: props.initialDay ?? 1,
@@ -490,7 +517,7 @@ watch(
           title: props.editEvent.title,
           description: props.editEvent.description,
           event_type: props.editEvent.event_type,
-          color: props.editEvent.color,
+          color: eventColor(props.editEvent),
           harptos_year: props.editEvent.harptos_year,
           harptos_month: props.editEvent.harptos_month,
           harptos_day: props.editEvent.harptos_day,
@@ -526,22 +553,9 @@ watch(dateType, (type) => {
   }
 });
 
-const EVENT_TYPE_COLORS: Record<string, string> = {
-  player_death: "#dc2626",
-  boss_fight: "#7c3aed",
-  discovery: "#059669",
-  npc_death: "#6b7280",
-  travel: "#2563eb",
-  session: "#C9920A",
-};
-
 watch(
   () => form.value.event_type,
-  (newType) => {
-    if (form.value.color === PRESET_COLORS[0] && newType in EVENT_TYPE_COLORS) {
-      form.value.color = EVENT_TYPE_COLORS[newType];
-    }
-  },
+  (newType) => { form.value.color = eventColor({ event_type: newType }); },
 );
 
 const ENTITY_ROUTES: Record<string, string> = {

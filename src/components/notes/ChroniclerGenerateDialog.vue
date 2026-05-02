@@ -136,12 +136,19 @@ watch(() => props.visible, (v) => {
 const { mentionItems, partyMembers, npcs, monsters } = useEntityMentionItems();
 
 const resolvedEntities = computed(() =>
-  parseSceneEntities(scenePrompt.value, npcs.value, monsters.value, partyMembers.value),
+  parseSceneEntities(
+    scenePrompt.value,
+    npcs.value,
+    monsters.value,
+    partyMembers.value,
+    campaignStore.activeCampaign?.group_portrait_url,
+  ),
 );
 
 const hasMentions = computed(() => /@[A-Za-z]/.test(scenePrompt.value));
 
-const { activeCampaignId } = storeToRefs(useCampaignStore());
+const campaignStore = useCampaignStore();
+const { activeCampaignId } = storeToRefs(campaignStore);
 const { user } = storeToRefs(useAuthStore());
 const { mutateAsync: createImage } = useCreateChroniclerImage();
 

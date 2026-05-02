@@ -118,7 +118,7 @@
               fal.ai does not support alter-ego disguise portraits — that requires OpenAI.
             </span>
             <span v-if="form.image_provider === 'openai-mini'" class="text-muted-foreground">
-              Draft mode: lower cost, same sizes and features as gpt-image-2, but lower output quality.
+              Draft mode: lower cost, same sizes and features as standard, but lower output quality.
             </span>
           </p>
           <select
@@ -138,6 +138,21 @@
             {{ activeImageCost.hint }}
             <span class="opacity-60">· prices approximate</span>
           </p>
+
+          <!-- gpt-image model toggle (only for standard OpenAI) -->
+          <div v-if="form.image_provider === 'openai'" class="mt-1 flex flex-col gap-1.5 rounded-md border border-border bg-muted/10 px-3 py-2.5">
+            <label class="font-cinzel text-xs text-muted-foreground tracking-wide">Model</label>
+            <div class="flex items-center gap-3">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" v-model="openaiImageModel" value="gpt-image-1.5" class="h-3.5 w-3.5" />
+                <span class="text-sm">gpt-image-1.5 <span class="text-muted-foreground text-xs">(default)</span></span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" v-model="openaiImageModel" value="gpt-image-2" class="h-3.5 w-3.5" />
+                <span class="text-sm">gpt-image-2 <span class="text-muted-foreground text-xs">(requires org verification)</span></span>
+              </label>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -210,6 +225,7 @@ import { encryptApiKey, primeDecryptCache } from "@/lib/apiKeyVault";
 import { getSetting } from "@/settings/index";
 import { useSubscription } from "@/composables/useSubscription";
 import { useStripe } from "@/composables/useStripe";
+import { OPENAI_IMAGE_MODEL_KEY } from "@/ai/providers/index";
 
 const { isPro } = useSubscription();
 const { loading: stripeLoading, createCheckoutSession } = useStripe();
@@ -255,6 +271,11 @@ const showKeys     = reactive<Record<string, boolean>>(Object.fromEntries(provid
 const isSaving     = ref(false);
 const localModeEnabled = ref(typeof localStorage !== "undefined" && localStorage.getItem(LOCAL_MODE_KEY) === "local");
 
+const openaiImageModel = ref<"gpt-image-1.5" | "gpt-image-2">(
+  (typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) as "gpt-image-1.5" | "gpt-image-2" ?? "gpt-image-1.5"
+);
+watch(openaiImageModel, (v) => localStorage.setItem(OPENAI_IMAGE_MODEL_KEY, v));
+
 const activeSetting       = computed(() => getSetting(campaign.activeCampaign?.calendar_id ?? ""));
 const settingDefaultPrompt = computed(() => activeSetting.value?.defaultAiPrompt ?? "");
 const settingLabel         = computed(() => activeSetting.value?.label ?? "Setting");
@@ -267,7 +288,7 @@ const TEXT_PROVIDER_OPTIONS = [
 ] as const;
 
 const IMAGE_PROVIDER_OPTIONS = [
-  { value: "openai",       label: "OpenAI — gpt-image-2",             keyProvider: "openai" },
+  { value: "openai",       label: "OpenAI",                           keyProvider: "openai" },
   { value: "openai-mini",  label: "OpenAI — gpt-image-1-mini (draft)", keyProvider: "openai" },
   { value: "falai",        label: "fal.ai — FLUX 2 Flex",             keyProvider: "falai"  },
 ] as const;
@@ -304,7 +325,7 @@ const TEXT_COSTS: Record<string, string> = {
 };
 // Cost hints — gpt-image-2 at high quality 1024×1024 is the main cost driver
 const IMAGE_COSTS: Record<string, string> = {
-  openai:        "~$0.05–0.20 per portrait · ~$0.10–0.40 with alter-ego (gpt-image-2, high quality)",
+  openai:        "~$0.02–0.07 per portrait · ~$0.04–0.14 with alter-ego (gpt-image-1.5, high quality)",
   "openai-mini": "~$0.005–0.036 per portrait · alter-ego supported (gpt-image-1-mini)",
   falai:         "~$0.025 per portrait (FLUX 2 Flex)",
 };
