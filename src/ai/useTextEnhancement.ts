@@ -11,6 +11,11 @@ Context: {context}
 Campaign setting:
 {settingPrompt}`;
 
+export interface EnhanceOptions {
+  styleHint?: string;
+  surroundingContext?: string;
+}
+
 export function useTextEnhancement() {
   const isEnhancing = ref(false);
   const campaign = useCampaignStore();
@@ -19,11 +24,22 @@ export function useTextEnhancement() {
     return !!campaign.decryptedApiKey;
   }
 
-  async function enhance(selectedText: string, context: string): Promise<string> {
+  async function enhance(
+    selectedText: string,
+    context: string,
+    options?: EnhanceOptions,
+  ): Promise<string> {
     const settingPrompt = campaign.activeCampaign?.ai_setting_prompt ?? "";
-    const systemPrompt = ENHANCE_SYSTEM_PROMPT
+    let systemPrompt = ENHANCE_SYSTEM_PROMPT
       .replace("{context}", context)
       .replace("{settingPrompt}", settingPrompt || "No setting configured.");
+
+    if (options?.styleHint) {
+      systemPrompt += `\n\nWriting style:\n${options.styleHint}`;
+    }
+    if (options?.surroundingContext) {
+      systemPrompt += `\n\nSurrounding content (use to infer section type and register — do NOT reproduce it):\n${options.surroundingContext}`;
+    }
 
     isEnhancing.value = true;
     try {
