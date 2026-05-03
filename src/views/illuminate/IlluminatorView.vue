@@ -522,6 +522,19 @@
               @click="resetDefaults"
             >Reset all to defaults</button>
 
+            <!-- Save to Scriptorium — only shown when launched from a document -->
+            <button
+              v-if="returnDocId"
+              type="button"
+              :disabled="!sourceImage || isExporting"
+              class="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-primary-foreground transition-opacity disabled:opacity-40"
+              @click="saveToScriptorium"
+            >
+              <LoaderCircle v-if="isSavingBack" class="h-3.5 w-3.5 shrink-0 animate-spin" />
+              <SaveIcon v-else class="h-3.5 w-3.5 shrink-0" />
+              {{ isSavingBack ? 'Saving…' : 'Save to Scriptorium' }}
+            </button>
+
             <button
               type="button"
               :disabled="!sourceImage || isExporting"
@@ -550,15 +563,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, shallowRef, reactive, watch } from "vue";
+import { ref, shallowRef, reactive, watch, onMounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import {
   Image as ImageIcon,
   Download as DownloadIcon,
   Clipboard as ClipboardIcon,
   Check as CheckIcon,
   ChevronRight as ChevronRightIcon,
+  Save as SaveIcon,
+  LoaderCircle,
 } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
+import { getCurrentUser } from "@/lib/supabase";
+import { toWebP } from "@/lib/mediaConvert";
+import { uploadToBucket } from "@/lib/storage";
 import {
   applyEdgeTreatmentToCtx,
   processImage,
@@ -602,9 +621,37 @@ const sourceFilename = ref("image");
 const isDragging     = ref(false);
 const isExporting    = ref(false);
 const copySuccess    = ref(false);
+const isSavingBack   = ref(false);
 
 const clipboardSupported =
   typeof ClipboardItem !== "undefined" && !!navigator.clipboard?.write;
+
+// ─── Scriptorium round-trip ───────────────────────────────────────────────────
+
+const route     = useRoute();
+const router    = useRouter();
+const returnDocId = typeof route.query.returnTo === "string" ? route.query.returnTo : null;
+const returnOldSrc = typeof route.query.oldSrc === "string" ? decodeURIComponent(route.query.oldSrc) : null;
+
+function isValidAssetImageUrl(url: string): boolean {
+  const base = (import.meta.env.VITE_SUPABASE_URL as string) + "/storage/v1/object/public/asset-images/";
+  return url.startsWith(base);
+}
+
+onMounted(() => {
+  const srcParam = typeof route.query.src === "string" ? route.query.src : null;
+  if (!srcParam) return;
+  const decoded = decodeURIComponent(srcParam);
+  if (!isValidAssetImageUrl(decoded)) return;
+
+  const stem = decoded.split("/").pop()?.replace(/\.[^.]+$/, "") ?? "image";
+  sourceFilename.value = stem;
+
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  img.onload = () => { sourceImage.value = img; };
+  img.src = decoded;
+});
 
 const opts = reactive<EdgeTreatmentOptions>(structuredClone(DEFAULT_EDGE_TREATMENT));
 
@@ -875,6 +922,36 @@ async function copyToClipboard() {
     setTimeout(() => { copySuccess.value = false; }, 2000);
   } finally {
     isExporting.value = false;
+  }
+}
+
+async function saveToScriptorium() {
+  if (!sourceImage.value || isExporting.value || !returnDocId) return;
+  isExporting.value = true;
+  isSavingBack.value = true;
+  try {
+    const user = getCurrentUser();
+    if (!user) return;
+    const blob = await processImage(sourceImage.value, opts, buildGradingFn(), buildDofFn(), buildVignetteFn(), buildTextureFn());
+    const stem = sourceFilename.value.replace(/\.[^.]+$/, "");
+    const file = new File([blob], `${stem}-illuminated-${Date.now()}.png`, { type: "image/png" });
+    const webpFile = await toWebP(file);
+    const ext = webpFile.type === "image/jpeg" ? "jpeg" : "webp";
+    const url = await uploadToBucket({
+      bucket: "assetImages",
+      blob: webpFile,
+      path: `${user.id}/rte-${Date.now()}.${ext}`,
+      contentType: webpFile.type,
+    });
+    if (!url) throw new Error("Upload failed");
+    const params = new URLSearchParams({ updatedSrc: url });
+    if (returnOldSrc) params.set("oldSrc", returnOldSrc);
+    await router.push(`/scriptorium/${returnDocId}?${params.toString()}`);
+  } catch {
+    // silently leave the user on Illuminator so they can retry
+  } finally {
+    isExporting.value = false;
+    isSavingBack.value = false;
   }
 }
 

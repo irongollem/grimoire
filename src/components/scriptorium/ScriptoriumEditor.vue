@@ -550,6 +550,18 @@
                   />
                 </label>
               </template>
+              <!-- Edit in Illuminator — only for asset-images bucket URLs -->
+              <template v-if="selectedImageIsSupabase && props.doc">
+                <div class="w-px h-5 bg-border mx-0.5" />
+                <button
+                  type="button"
+                  title="Edit in Illuminator"
+                  :class="tbCls(false)"
+                  @click="editInIlluminator"
+                >
+                  <ExternalLink class="h-3.5 w-3.5" />
+                </button>
+              </template>
             </template>
 
             <!-- History -->
@@ -823,8 +835,8 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, computed, onMounted, onUnmounted } from "vue";
-import { useRouter } from "vue-router";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { useRouter, useRoute } from "vue-router";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import { BubbleMenu } from "@tiptap/vue-3/menus";
 import StarterKit from "@tiptap/starter-kit";
@@ -858,6 +870,7 @@ import {
   ZoomOut,
   Wand2,
   LoaderCircle,
+  ExternalLink,
 } from "lucide-vue-next";
 import {
   useCreateScriptoriumDocument,
@@ -968,6 +981,15 @@ function tbCls(active: boolean) {
 
 const props = defineProps<{ doc: ScriptoriumDocument | null }>();
 const router = useRouter();
+const route  = useRoute();
+
+const ASSET_IMAGE_URL_BASE = (import.meta.env.VITE_SUPABASE_URL as string) + "/storage/v1/object/public/asset-images/";
+
+const selectedImageIsSupabase = computed(() => {
+  if (!editor.value?.isActive("image")) return false;
+  const src = editor.value.getAttributes("image").src;
+  return typeof src === "string" && src.startsWith(ASSET_IMAGE_URL_BASE);
+});
 
 // Panels
 const showAssetPanel = ref(false);
@@ -1339,6 +1361,40 @@ const isSaving = ref(false);
 const showPaywall = ref(false);
 const isDeleting = ref(false);
 const saveError = ref("");
+
+// ─── Illuminator round-trip ───────────────────────────────────────────────────
+
+function editInIlluminator() {
+  if (!editor.value || !props.doc) return;
+  const src = editor.value.getAttributes("image").src as string | undefined;
+  if (!src || !src.startsWith(ASSET_IMAGE_URL_BASE)) return;
+  const params = new URLSearchParams({
+    src: src,
+    returnTo: props.doc.id,
+    oldSrc: src,
+  });
+  void router.push(`/illuminate?${params.toString()}`);
+}
+
+// Apply a replaced image URL when returning from Illuminator via query params.
+watch(editor, (ed) => {
+  if (!ed) return;
+  const updatedSrc = typeof route.query.updatedSrc === "string" ? route.query.updatedSrc : null;
+  const oldSrc     = typeof route.query.oldSrc     === "string" ? decodeURIComponent(route.query.oldSrc) : null;
+  if (!updatedSrc || !oldSrc) return;
+
+  let nodePos = -1;
+  ed.state.doc.descendants((node, pos) => {
+    if (nodePos !== -1) return false;
+    if (node.type.name === "image" && node.attrs.src === oldSrc) {
+      nodePos = pos;
+    }
+  });
+  if (nodePos !== -1) {
+    ed.chain().setNodeSelection(nodePos).updateAttributes("image", { src: updatedSrc }).run();
+  }
+  void router.replace({ query: {} });
+}, { immediate: true });
 
 async function destroy() {
   if (!props.doc) return;
