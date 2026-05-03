@@ -149,10 +149,12 @@
             <div v-if="loc.is_npcs_shared" class="border-t border-border pt-3">
               <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-2">People in the Area</p>
               <div v-if="sharedNpcsByLocation[loc.id]?.length" class="flex flex-col gap-1.5">
-                <div
+                <button
                   v-for="npc in sharedNpcsByLocation[loc.id]"
                   :key="npc.id"
-                  class="flex items-center gap-2 rounded border border-border bg-muted/30 px-3 py-2"
+                  type="button"
+                  class="flex items-center gap-2 rounded border border-border bg-muted/30 px-3 py-2 hover:bg-muted/60 transition-colors text-left w-full"
+                  @click="openNpc(npc)"
                 >
                   <div class="flex-1 min-w-0">
                     <p class="font-cinzel text-xs font-semibold text-foreground truncate">{{ getNpcDisplayName(npc) }}</p>
@@ -160,7 +162,7 @@
                       {{ [npc.race, npc.occupation].filter(Boolean).join(" · ") }}
                     </p>
                   </div>
-                </div>
+                </button>
               </div>
               <p v-else class="font-fell text-xs text-muted-foreground italic">No one here yet.</p>
             </div>
@@ -318,10 +320,12 @@
           <div v-if="entry.loc.is_npcs_shared" class="border-t border-border pt-3">
             <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-2">People in the Area</p>
             <div v-if="sharedNpcsByLocation[entry.loc.id]?.length" class="flex flex-col gap-1.5">
-              <div
+              <button
                 v-for="npc in sharedNpcsByLocation[entry.loc.id]"
                 :key="npc.id"
-                class="flex items-center gap-2 rounded border border-border bg-muted/30 px-3 py-2"
+                type="button"
+                class="flex items-center gap-2 rounded border border-border bg-muted/30 px-3 py-2 hover:bg-muted/60 transition-colors text-left w-full"
+                @click="openNpc(npc)"
               >
                 <div class="flex-1 min-w-0">
                   <p class="font-cinzel text-xs font-semibold text-foreground truncate">{{ getNpcDisplayName(npc) }}</p>
@@ -329,7 +333,7 @@
                     {{ [npc.race, npc.occupation].filter(Boolean).join(" · ") }}
                   </p>
                 </div>
-              </div>
+              </button>
             </div>
             <p v-else class="font-fell text-xs text-muted-foreground italic">No one here yet.</p>
           </div>
@@ -353,6 +357,47 @@
       @keydown.escape="lightboxSrc = null"
     >
       <img :src="lightboxSrc" class="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl" />
+    </div>
+  </Teleport>
+
+  <!-- NPC lightbox -->
+  <Teleport to="body">
+    <div
+      v-if="selectedNpc"
+      class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+      @click.self="selectedNpc = null"
+    >
+      <div class="bg-card rounded-xl border border-border w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+        <div class="relative shrink-0">
+          <div v-if="selectedNpc.player_visible_fields?.includes('portrait') && getNpcDisplayPortrait(selectedNpc)" class="w-full h-72 overflow-hidden">
+            <FocalImage
+              :src="getNpcDisplayPortrait(selectedNpc)!"
+              :alt="getNpcDisplayName(selectedNpc)"
+              format="portrait"
+              :focal-point="getNpcDisplayFocalPoint(selectedNpc)"
+              :lightbox="true"
+            />
+          </div>
+          <button
+            class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors"
+            @click="selectedNpc = null"
+          >
+            <X class="h-4 w-4" />
+          </button>
+        </div>
+        <div class="p-4 overflow-y-auto space-y-4">
+          <div>
+            <h2 class="font-cinzel text-lg font-bold text-foreground">
+              {{ selectedNpc.player_visible_fields?.includes('name') ? getNpcDisplayName(selectedNpc) : '???' }}
+            </h2>
+            <p v-if="selectedNpc.player_visible_fields?.includes('race') && selectedNpc.race"
+              class="mt-1 font-fell text-sm text-muted-foreground italic">{{ selectedNpc.race }}</p>
+            <p v-if="selectedNpc.player_visible_fields?.includes('occupation') && selectedNpc.occupation"
+              class="font-fell text-sm text-muted-foreground">{{ selectedNpc.occupation }}</p>
+          </div>
+          <PlayerNotesWidget entity-type="npc" :entity-id="selectedNpc.id" placeholder="Your observations about this character…" />
+        </div>
+      </div>
     </div>
   </Teleport>
 
@@ -427,14 +472,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick } from "vue";
+import { ref, computed, nextTick, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { ChevronDown, X, Eye, Search, Star } from "lucide-vue-next";
 import { useReadItems, useMarkRead } from "@/composables/useReadItems";
 import { useSharedLocations } from "@/composables/useLocations";
 import { usePlayerFavourites } from "@/composables/usePlayerFavourites";
 import { useUiStore } from "@/stores/ui";
 import { useSharedNpcsByLocations } from "@/composables/useNpcs";
-import { getNpcDisplayName } from "@/lib/npcDisplay";
+import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
+import type { Npc } from "@/types/npc.types";
 import { extractTiptapText } from "@/lib/utils";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS, STORE_LOCATION_TYPES } from "@/types/location.types";
 import type { Location, LocationType } from "@/types/location.types";
@@ -460,9 +507,18 @@ const { favouriteIds, toggleFavourite } = usePlayerFavourites("location");
 const { isNew } = useReadItems("location");
 const { mutate: markRead } = useMarkRead();
 
+const route = useRoute();
+const router = useRouter();
+
 const search = ref("");
 const typeFilter = ref("all");
 const lightboxSrc = ref<string | null>(null);
+
+// NPC lightbox
+const selectedNpc = ref<Npc | null>(null);
+function openNpc(npc: Npc) {
+  selectedNpc.value = npc;
+}
 
 // Build a depth-annotated flat list preserving parent → children order.
 // A location whose parent is not in the shared set is treated as a root (depth 0)
@@ -631,6 +687,22 @@ const sharedChildIds = computed(() => new Set((locations.value ?? []).map((l) =>
 
 // Watch panel — shows art, player summary, and notes for a pinned sub-location.
 const watchingLocation = ref<WatchTarget | null>(null);
+
+// Cross-route deep-link: another view can push /play/atlas?open=<id> to open a location.
+const pendingOpenId = ref<string | null>((route.query.open as string) || null);
+if (pendingOpenId.value) {
+  void router.replace({ path: route.path });
+}
+watch(
+  [locations, pendingOpenId] as const,
+  async ([locs, openId]) => {
+    if (locs?.length && openId) {
+      pendingOpenId.value = null;
+      await goToLocation(openId);
+    }
+  },
+  { immediate: true },
+);
 
 /**
  * Expand the target location (and all its shared ancestors so it becomes visible),
