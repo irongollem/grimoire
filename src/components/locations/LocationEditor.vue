@@ -218,6 +218,68 @@
           </div>
         </div>
 
+        <!-- Related locations (non-hierarchical links) -->
+        <div v-if="!isNew" class="flex items-start gap-2">
+          <span
+            class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider shrink-0 w-16 flex items-center gap-1 pt-1.5"
+          >
+            <Link class="h-3.5 w-3.5" />Related
+          </span>
+          <div
+            class="flex-1 flex flex-wrap items-center gap-1.5 border border-border rounded-md px-3 py-1.5 min-h-8.5 bg-background relative"
+          >
+            <button
+              v-for="relId in relatedLocationIds"
+              :key="relId"
+              type="button"
+              class="inline-flex items-center gap-1.5 rounded border border-border bg-muted/50 hover:border-destructive/50 hover:bg-muted transition-colors px-2 py-0.5 max-w-full min-w-0 group"
+              :title="`Remove ${relatedLocationMap.get(relId)?.name ?? relId}`"
+              @click="removeRelated(relId)"
+            >
+              <span
+                v-if="relatedLocationMap.get(relId)"
+                class="h-1.5 w-1.5 rounded-full shrink-0"
+                :style="{ backgroundColor: LOCATION_TYPE_COLORS[relatedLocationMap.get(relId)!.location_type] }"
+              />
+              <span class="font-cinzel text-xs font-semibold text-foreground truncate">
+                {{ relatedLocationMap.get(relId)?.name ?? relId }}
+              </span>
+              <X class="h-2.5 w-2.5 text-muted-foreground group-hover:text-destructive shrink-0" />
+            </button>
+            <!-- Inline related search -->
+            <div class="relative ml-auto">
+              <input
+                v-model="relatedSearch"
+                type="text"
+                placeholder="Add related…"
+                class="font-cinzel text-xs text-foreground placeholder:text-muted-foreground/50 bg-transparent focus:outline-none w-24 focus:w-36 transition-all"
+                @focus="relatedDropdownOpen = true"
+                @blur="onRelatedBlur"
+                @keydown.escape="relatedDropdownOpen = false"
+              />
+              <div
+                v-if="relatedDropdownOpen && relatedOptions.length"
+                class="absolute right-0 top-full mt-1 z-50 w-56 rounded-md border border-border bg-popover shadow-lg overflow-hidden"
+              >
+                <button
+                  v-for="opt in relatedOptions"
+                  :key="opt.id"
+                  type="button"
+                  class="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-muted transition-colors"
+                  @mousedown.prevent="addRelated(opt)"
+                >
+                  <span
+                    class="h-1.5 w-1.5 rounded-full shrink-0"
+                    :style="{ backgroundColor: LOCATION_TYPE_COLORS[opt.location_type] }"
+                  />
+                  <span class="font-cinzel text-xs text-foreground truncate flex-1">{{ opt.name }}</span>
+                  <span class="font-fell text-[10px] text-muted-foreground shrink-0">{{ LOCATION_TYPE_LABELS[opt.location_type] }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="flex items-start gap-2">
           <span
             class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider shrink-0 w-16 flex items-center gap-1 pt-1.5"
@@ -613,6 +675,8 @@ import {
   ChevronUp,
   Tag,
   Plus,
+  Link,
+  X,
 } from "lucide-vue-next";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import { useImageUpload } from "@/composables/useImageUpload";
@@ -746,6 +810,44 @@ function createChild() {
   childSearch.value = "";
   childDropdownOpen.value = false;
   router.push({ path: "/locations/new", query });
+}
+
+// ── Related locations (non-hierarchical links) ─────────────────────────────────
+const relatedLocationIds = ref<string[]>(
+  props.location?.related_location_ids ? [...props.location.related_location_ids] : [],
+);
+
+const relatedLocationMap = computed<Map<string, Location>>(() => {
+  const m = new Map<string, Location>();
+  for (const loc of allLocations.value ?? []) m.set(loc.id, loc);
+  return m;
+});
+
+const relatedSearch = ref("");
+const relatedDropdownOpen = ref(false);
+
+const relatedOptions = computed(() => {
+  const q = relatedSearch.value.toLowerCase().trim();
+  const excluded = new Set([props.location?.id ?? "", ...relatedLocationIds.value]);
+  return (allLocations.value ?? [])
+    .filter((l) => !excluded.has(l.id) && (q === "" || l.name.toLowerCase().includes(q)))
+    .slice(0, 8);
+});
+
+function addRelated(loc: Location) {
+  relatedSearch.value = "";
+  relatedDropdownOpen.value = false;
+  if (!relatedLocationIds.value.includes(loc.id)) {
+    relatedLocationIds.value = [...relatedLocationIds.value, loc.id];
+  }
+}
+
+function removeRelated(id: string) {
+  relatedLocationIds.value = relatedLocationIds.value.filter((r) => r !== id);
+}
+
+function onRelatedBlur() {
+  setTimeout(() => { relatedDropdownOpen.value = false; }, 150);
 }
 
 // ── NPCs + Encounters at this location (includes descendants) ──────────────────
@@ -925,6 +1027,7 @@ function buildPayload() {
     is_npcs_shared: isNpcsShared.value,
     is_inventory_shared: isInventoryShared.value,
     npc_owner_id: npcOwnerId.value || null,
+    related_location_ids: relatedLocationIds.value,
   };
 }
 

@@ -114,6 +114,7 @@ export interface Location {
   is_npcs_shared: boolean;
   is_inventory_shared: boolean;
   npc_owner_id: string | null;
+  related_location_ids: string[];
   created_at: string;
   updated_at: string;
 }

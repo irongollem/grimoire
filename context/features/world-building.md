@@ -265,24 +265,25 @@ Route: `/play/factions` (embedded in player portal via `PlayerFactionsView.vue`)
 
 ### Location (`locations` table)
 
-| Field                   | Type             | Notes                                                                                                                                   |
-| ----------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`                  | string           | Required                                                                                                                                |
-| `location_type`         | enum (17 values) | World, Plane, Continent, Region, Country, City, Town, Village, District, Building, Store, Tavern, Inn, Room, Dungeon, Wilderness, Other |
-| `parent_id`             | uuid FK          | Null = top-level                                                                                                                        |
-| `description`           | Tiptap JSON      | DM-only unless `is_description_shared`                                                                                                  |
-| `notes`                 | text             | (currently unused in UI)                                                                                                                |
-| `tags`                  | string[]         |                                                                                                                                         |
-| `image_url`             | string           | Sigil/emblem (portrait)                                                                                                                 |
-| `map_url`               | string           | Map image (landscape)                                                                                                                   |
-| `map_pins`              | MapPin[]         | JSONB array; each pin has `child_location_id`, `child_name`, `child_type`, `child_image_url`, `x`, `y`, `visible_to_players`            |
-| `is_map_shared`         | boolean          |                                                                                                                                         |
-| `player_visible_to`     | uuid[]           | Party member IDs who can see this location                                                                                              |
-| `player_summary`        | string           | Plain text always shown to players                                                                                                      |
-| `is_description_shared` | boolean          |                                                                                                                                         |
-| `is_npcs_shared`        | boolean          |                                                                                                                                         |
-| `is_inventory_shared`   | boolean          | Store/tavern/inn only                                                                                                                   |
-| `npc_owner_id`          | uuid FK          | Proprietor NPC                                                                                                                          |
+| Field                   | Type             | Notes                                                                                                                                                                   |
+| ----------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`                  | string           | Required                                                                                                                                                                |
+| `location_type`         | enum (17 values) | World, Plane, Continent, Region, Country, City, Town, Village, District, Building, Store, Tavern, Inn, Room, Dungeon, Wilderness, Other                                 |
+| `parent_id`             | uuid FK          | Null = top-level                                                                                                                                                        |
+| `description`           | Tiptap JSON      | DM-only unless `is_description_shared`                                                                                                                                  |
+| `notes`                 | text             | (currently unused in UI)                                                                                                                                                |
+| `tags`                  | string[]         |                                                                                                                                                                         |
+| `image_url`             | string           | Sigil/emblem (portrait)                                                                                                                                                 |
+| `map_url`               | string           | Map image (landscape)                                                                                                                                                   |
+| `map_pins`              | MapPin[]         | JSONB array; each pin has `child_location_id`, `child_name`, `child_type`, `child_image_url`, `x`, `y`, `visible_to_players`                                            |
+| `is_map_shared`         | boolean          |                                                                                                                                                                         |
+| `player_visible_to`     | uuid[]           | Party member IDs who can see this location                                                                                                                              |
+| `player_summary`        | string           | Plain text always shown to players                                                                                                                                      |
+| `is_description_shared` | boolean          |                                                                                                                                                                         |
+| `is_npcs_shared`        | boolean          |                                                                                                                                                                         |
+| `is_inventory_shared`   | boolean          | Store/tavern/inn only                                                                                                                                                   |
+| `npc_owner_id`          | uuid FK          | Proprietor NPC                                                                                                                                                          |
+| `related_location_ids`  | uuid[]           | Non-hierarchical links to other locations (trade routes, tunnels, connected districts); shown in editor as inline chip picker and in sheet as "Related Locations" chips |
 
 ### Quest (`quests` table)
 

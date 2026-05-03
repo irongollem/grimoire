@@ -111,6 +111,28 @@
       </div>
     </section>
 
+    <!-- Related Locations — non-hierarchical links (trade routes, tunnels, etc.) -->
+    <section v-if="relatedLocations.length" class="flex flex-col gap-2">
+      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
+        Related Locations
+        <span class="font-fell font-normal text-muted-foreground">({{ relatedLocations.length }})</span>
+      </h2>
+      <div class="flex flex-wrap gap-2">
+        <RouterLink
+          v-for="rel in relatedLocations"
+          :key="rel.id"
+          :to="`/locations/${rel.id}`"
+          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
+        >
+          <span
+            class="h-2 w-2 rounded-full shrink-0"
+            :style="{ backgroundColor: LOCATION_TYPE_COLORS[rel.location_type] }"
+          />
+          <span class="font-cinzel text-xs text-foreground truncate max-w-40">{{ rel.name }}</span>
+        </RouterLink>
+      </div>
+    </section>
+
     <!-- Store inventory — self-contained editable component. Useful enough
          to keep in view mode so a DM running a shop scene doesn't need to
          enter full-edit just to restock. -->
@@ -283,6 +305,15 @@ const membersHere = computed(() =>
     (m) => m.current_location_id === props.location.id,
   ),
 );
+
+// ── Related locations ────────────────────────────────────────────────────────
+const relatedLocations = computed<Location[]>(() => {
+  const ids = props.location.related_location_ids ?? [];
+  if (!ids.length || !allLocations.value?.length) return [];
+  return ids
+    .map((id) => allLocations.value!.find((l) => l.id === id))
+    .filter((l): l is Location => !!l);
+});
 
 // ── Misc ────────────────────────────────────────────────────────────────────
 const hasDescription = computed(() => {

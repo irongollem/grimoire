@@ -59,6 +59,7 @@
 - [x] Atlas — Parent picker in location editor with live breadcrumb updates
 - [x] Atlas — Location sigil/emblem image upload (square format) displayed in editor and list cards
 - [x] Atlas — Location editor restructured: large sigil left, name/parent/child/tags/pins right; child picker as combobox to reparent existing locations; compact calendar pins row
+- [x] Atlas — `related_location_ids` field for non-hierarchical links (trade routes, tunnels, connected districts); inline chip picker in editor, "Related Locations" section on detail sheet
 
 ### Factions
 
@@ -296,6 +297,7 @@
 - [x] **Clickable NPCs in quest log** (irongollem/grimoire#207) — NPC names in the player quest detail view are now clickable, opening a lightbox with portrait, name, race/occupation, and player notes; giver NPC in the meta row is also clickable
 - [x] **Persist Atlas open state** (irongollem/grimoire#199) — expanded/collapsed locations in the player Atlas now survive navigation within the session via `useUiStore` (`atlasChildrenOpen` + `atlasDetailOpen`)
 - [x] **Favourite atlas locations** (irongollem/grimoire#316) — players can star any location; starred locations appear in a pinned "Favourites" section at the top of the Atlas (hidden while searching/filtering); persisted in new `player_favourites` table (extensible to other entity types via `entity_type` column)
+- [x] **Related locations (non-hierarchical links)** — location editor includes a "Related" section showing bidirectional cross-location links; DM can search and add related locations inline; `related_location_ids uuid[]` column on locations table; displayed with type-color indicators and remove buttons; supports linking any locations without parent-child constraints (e.g., two distant cities, or a tavern to other businesses in town)
 - [x] **Player theme override** (irongollem/grimoire#197) — players can override the DM's campaign theme with Light, Dark, or System (browser preference) via a toggle in Settings > Appearance. Listens for `prefers-color-scheme` changes in system mode.
 
 ### Rules reliquary
