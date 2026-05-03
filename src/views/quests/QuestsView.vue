@@ -5,6 +5,11 @@
   >
     <template #actions>
       <ListActionButton
+        :icon="Wand2"
+        label="Generate"
+        @click="ui.questGeneratorOpen = true"
+      />
+      <ListActionButton
         :icon="Plus"
         label="New Quest"
         mobile-label="Quest"
@@ -45,7 +50,7 @@
 </template>
 
 <script setup lang="ts">
-import { Plus, Columns2, LayoutList } from "lucide-vue-next";
+import { Plus, Columns2, LayoutList, Wand2 } from "lucide-vue-next";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";

@@ -150,6 +150,17 @@ _Right column:_
 
 **Quest nesting**: `parent_quest_id` supports one level of official nesting (sub-quests shown on parent sheet). No depth limit in the schema.
 
+**AI quest generator** (`QuestGeneratorPanel.vue`, `src/ai/useQuestGeneration.ts`):
+
+- Opened via the **Generate** button (`Wand2` icon) on the Quest Log list page
+- Always mounted in `DefaultLayout.vue` so background generation survives navigation
+- Inputs: party average level (auto-calculated from `useParty()`) + optional theme textarea
+- Campaign setting context is automatically injected via `buildCampaignContext()`
+- Produces 3–5 quest hooks, each with: title, summary, full DM narrative description (stored as Tiptap JSON), objectives, and tags
+- User picks a hook → quest record + all objectives created immediately; navigates to the new quest's detail page
+- `giver_npc_id` and `location_id` are left empty — DM links them manually on the detail page
+- Pro feature (paywall-gated); requires campaign AI key
+
 **Ref system** (`quest_refs` table): quests maintain a set of typed references (NPC / Location / Monster / Encounter), each with an `is_player_visible` flag that controls what the player portal shows. This is separate from the primary giver NPC and primary location fields.
 
 **Status lifecycle:** Undiscovered → Active → On Hold / Completed / Failed. Undiscovered quests exist in the DM's log but are excluded from the player portal query (`usePlayerVisibleQuests` filters on `player_visible_to IS NOT NULL`).

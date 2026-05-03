@@ -156,3 +156,17 @@ export interface SpellAiResult {
 export interface SpellAiGenerated extends SpellAiResult {
   image_url: string | null;
 }
+
+export interface QuestHookResult {
+  title: string;
+  summary: string;
+  /** Plain text — convert to Tiptap JSON via toTiptapJson() before storing */
+  hook_description: string;
+  /** 2–4 actionable objective strings */
+  objectives: string[];
+  tags: string[];
+}
+
+export interface QuestHooksAiResult {
+  hooks: QuestHookResult[];
+}

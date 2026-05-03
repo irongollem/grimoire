@@ -28,6 +28,7 @@
     <ItemGeneratorPanel />
     <PuzzleGeneratorPanel />
     <SpellGeneratorPanel />
+    <QuestGeneratorPanel />
 
     <!-- Shows a pill for every active/completed/errored AI generation -->
     <AiGenerationBadge />
@@ -54,6 +55,7 @@ import MonsterGeneratorPanel from "@/components/monsters/MonsterGeneratorPanel.v
 import ItemGeneratorPanel from "@/components/items/ItemGeneratorPanel.vue";
 import PuzzleGeneratorPanel from "@/components/puzzles/PuzzleGeneratorPanel.vue";
 import SpellGeneratorPanel from "@/components/spells/SpellGeneratorPanel.vue";
+import QuestGeneratorPanel from "@/components/quests/QuestGeneratorPanel.vue";
 import AiGenerationBadge from "@/components/common/AiGenerationBadge.vue";
 import SoundboardWidget from "@/components/soundboard/SoundboardWidget.vue";
 import DowngradeCampaignPickerModal from "@/components/billing/DowngradeCampaignPickerModal.vue";

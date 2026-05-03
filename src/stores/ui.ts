@@ -81,6 +81,7 @@ export const useUiStore = defineStore("ui", () => {
   }
 
   // Quest UI state
+  const questGeneratorOpen = ref(false);
   const questsSearch = ref("");
   const questsIsKanban = ref(true);
 
@@ -394,6 +395,7 @@ export const useUiStore = defineStore("ui", () => {
     spellGeneratorOpen,
 
     // Quests
+    questGeneratorOpen,
     questsSearch,
     questsIsKanban,
     questsHasActiveFilters,
