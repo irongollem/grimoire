@@ -21,6 +21,11 @@
       showAssetPanel = true;
     "
   />
+  <CoverPageInspector
+    :show="showCoverInspector"
+    :editor="editor ?? null"
+    @close="showCoverInspector = false"
+  />
 
   <div class="flex flex-col gap-3 lg:h-full">
     <!-- Metadata row -->
@@ -564,6 +569,25 @@
               </template>
             </template>
 
+            <!-- Cover page controls (shown when a cover page is selected) -->
+            <template v-if="editor.isActive('coverPage')">
+              <div class="w-px h-5 bg-border mx-0.5" />
+              <span
+                class="font-cinzel text-[9px] text-muted-foreground tracking-wider px-1 self-center"
+                >COVER</span
+              >
+              <button
+                type="button"
+                title="Edit cover page text"
+                :class="tbCls(showCoverInspector)"
+                class="gap-1 px-2 font-cinzel text-[10px] font-semibold tracking-wider"
+                @click="showCoverInspector = true"
+              >
+                <PencilLine class="h-3.5 w-3.5" />
+                Edit
+              </button>
+            </template>
+
             <!-- History -->
             <button
               type="button"
@@ -871,6 +895,7 @@ import {
   Wand2,
   LoaderCircle,
   ExternalLink,
+  PencilLine,
 } from "lucide-vue-next";
 import {
   useCreateScriptoriumDocument,
@@ -910,6 +935,7 @@ import type {
 import PdfPreviewDialog from "@/components/scriptorium/PdfPreviewDialog.vue";
 import AssetInsertPanel from "@/components/scriptorium/AssetInsertPanel.vue";
 import BlockPickerPanel from "@/components/scriptorium/BlockPickerPanel.vue";
+import CoverPageInspector from "@/components/scriptorium/CoverPageInspector.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
@@ -994,6 +1020,7 @@ const selectedImageIsSupabase = computed(() => {
 // Panels
 const showAssetPanel = ref(false);
 const showBlockPicker = ref(false);
+const showCoverInspector = ref(false);
 
 // Metadata
 const title = ref(props.doc?.title ?? "");
@@ -1453,6 +1480,7 @@ async function save() {
 const pages = computed(() => {
   const html = previewHtml.value || "";
   const parts = html.split(/<hr\s*\/?\s*>/gi);
+  while (parts.length > 1 && !parts[0].trim()) parts.shift();
   while (parts.length > 1 && !parts[parts.length - 1].trim()) parts.pop();
   const rawPages = parts.length ? parts : [""];
   return buildTocPages(rawPages);
