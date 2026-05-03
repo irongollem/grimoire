@@ -12,6 +12,20 @@
         No party members yet.
       </p>
       <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
+
+        <!-- Group portrait card — spans 2 columns -->
+        <div
+          v-if="groupPortraitUrl"
+          class="col-span-2 rounded-lg border border-border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
+          title="View group portrait"
+          @click="lightboxSrc = groupPortraitUrl"
+        >
+          <img
+            :src="groupPortraitUrl"
+            alt="Party group portrait"
+            class="w-full h-full object-cover"
+          />
+        </div>
         <template v-for="entry in sortedParty" :key="entry.data.id">
           <!-- Party member card -->
           <div
@@ -202,6 +216,7 @@
             :key="npc.id"
             :npc="npc"
             :location="npc.player_visible_fields.includes('location') ? resolvedLocation(npc) : undefined"
+            :is-new="isNpcNew(npc.id, npc.updated_at)"
             @click="openNpc(npc)"
           />
         </div>
@@ -342,16 +357,20 @@
     </Transition>
 
   </div>
+
+  <ImageLightbox :src="lightboxSrc" alt="Party group portrait" @close="lightboxSrc = null" />
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { UserIcon, XIcon, Shield, Search } from "lucide-vue-next";
+import ImageLightbox from "@/components/common/ImageLightbox.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useParty } from "@/composables/useParty";
 import { useSharedNpcs } from "@/composables/useNpcs";
+import { useReadItems, useMarkRead } from "@/composables/useReadItems";
 import { useAllLocations } from "@/composables/useLocations";
 import { useCompanions } from "@/composables/useCompanions";
 import { usePlayerNpcRatings } from "@/composables/usePlayerNpcRatings";
@@ -374,6 +393,8 @@ import type { HealthVisibility } from "@/types/encounter.types";
 const auth = useAuthStore();
 const ui = useUiStore();
 const campaign = useCampaignStore();
+const groupPortraitUrl = computed(() => campaign.activeCampaign?.group_portrait_url ?? null);
+const lightboxSrc      = ref<string | null>(null);
 const viewerMemberId = computed(() =>
   ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId
 );
@@ -382,6 +403,8 @@ const viewerIsDm = computed(() => !ui.dmPreviewMode && auth.isDM);
 const { data: members, isLoading: partyLoading } = useParty();
 const speciesNameMap = useSpeciesNameMap();
 const { data: allSharedNpcs, isLoading: npcsLoading } = useSharedNpcs();
+const { isNew: isNpcNew } = useReadItems("npc");
+const { mutate: markNpcRead } = useMarkRead();
 const npcs = computed(() => {
   const all = allSharedNpcs.value ?? [];
   const memberId = viewerMemberId.value;
@@ -543,6 +566,7 @@ const selectedNpcDisplay = computed(() => ({
 const { data: myNpcPcNote } = useMyNpcPcNote(selectedNpcId);
 
 function openNpc(npc: Npc) {
+  markNpcRead({ entityType: "npc", entityId: npc.id });
   selectedNpc.value = npc;
 }
 

@@ -34,10 +34,17 @@
 
     <!-- Soundboard floating widget — always mounted so audio survives navigation -->
     <SoundboardWidget />
+
+    <!-- Shown after downgrade when the user has more active campaigns than their free-plan limit -->
+    <DowngradeCampaignPickerModal
+      :show="showDowngradePicker"
+      :campaign-limit="campaignLimit"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import AppSidebar from "@/components/layout/AppSidebar.vue";
 import AppTopBar from "@/components/layout/AppTopBar.vue";
 import AppMobileNav from "@/components/layout/AppMobileNav.vue";
@@ -49,11 +56,27 @@ import PuzzleGeneratorPanel from "@/components/puzzles/PuzzleGeneratorPanel.vue"
 import SpellGeneratorPanel from "@/components/spells/SpellGeneratorPanel.vue";
 import AiGenerationBadge from "@/components/common/AiGenerationBadge.vue";
 import SoundboardWidget from "@/components/soundboard/SoundboardWidget.vue";
+import DowngradeCampaignPickerModal from "@/components/billing/DowngradeCampaignPickerModal.vue";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
 import { useCampaignLiveSync } from "@/composables/useCampaignLiveSync";
 import { usePartyLive } from "@/composables/useParty";
+import { useCampaigns } from "@/composables/useCampaigns";
+import { useSubscription } from "@/composables/useSubscription";
+import { usePlan } from "@/composables/usePlan";
 
 useCampaignPresence();
 useCampaignLiveSync();
 usePartyLive();
+
+const { isPro } = useSubscription();
+const { data: campaigns } = useCampaigns();
+const { data: freePlan } = usePlan("free");
+
+const campaignLimit = computed(() => freePlan.value?.quotas.campaigns ?? 1);
+
+const showDowngradePicker = computed(() => {
+  if (isPro.value) return false;
+  const count = campaigns.value?.length ?? 0;
+  return count > campaignLimit.value;
+});
 </script>

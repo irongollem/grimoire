@@ -25,7 +25,10 @@
 
       <!-- Zoom selector -->
       <div class="flex items-center gap-1">
-        <span class="font-cinzel text-xs text-muted-foreground tracking-wider mr-1">ZOOM</span>
+        <span
+          class="font-cinzel text-xs text-muted-foreground tracking-wider mr-1"
+          >ZOOM</span
+        >
         <button
           v-for="z in ZOOM_PRESETS"
           :key="z.value"
@@ -64,7 +67,11 @@
     </div>
 
     <!-- Timeline canvas -->
-    <div v-else ref="canvasWrapper" class="rounded-lg border border-border bg-card overflow-hidden">
+    <div
+      v-else
+      ref="canvasWrapper"
+      class="rounded-lg border border-border bg-card overflow-hidden"
+    >
       <div
         :style="{ width: '100%', height: containerHeight + 'px' }"
         class="relative"
@@ -84,7 +91,10 @@
             class="absolute"
             style="transform: translate(-50%, -50%)"
           >
-            <div class="bg-border mx-auto" :class="year % 10 === 0 ? 'w-px h-5' : 'w-px h-3'" />
+            <div
+              class="bg-border mx-auto"
+              :class="year % 10 === 0 ? 'w-px h-5' : 'w-px h-3'"
+            />
             <span
               class="absolute font-cinzel font-semibold text-muted-foreground whitespace-nowrap"
               :class="year % 10 === 0 ? 'text-xs' : 'text-[10px]'"
@@ -99,11 +109,17 @@
           <div
             v-for="tick in monthTicks"
             :key="tick.key"
-            :style="{ left: fractionalYearToX(tick.frac) + 'px', top: axisY + 'px' }"
+            :style="{
+              left: fractionalYearToX(tick.frac) + 'px',
+              top: axisY + 'px',
+            }"
             class="absolute"
             style="transform: translate(-50%, -50%)"
           >
-            <div class="bg-border mx-auto" :class="tick.isFirst ? 'w-px h-6' : 'w-px h-3'" />
+            <div
+              class="bg-border mx-auto"
+              :class="tick.isFirst ? 'w-px h-6' : 'w-px h-3'"
+            />
             <span
               class="absolute font-cinzel font-semibold text-muted-foreground whitespace-nowrap"
               :class="tick.isFirst ? 'text-xs' : 'text-[10px]'"
@@ -119,14 +135,30 @@
           <template v-for="tick in dayTicks" :key="tick.day">
             <div
               class="absolute bg-border"
-              :class="tick.day % calendar.adapter.weekSize === 0 ? 'w-px h-6' : 'w-px h-3'"
-              :style="{ left: fractionalYearToX(tick.frac) + 'px', top: axisY + 'px', transform: 'translate(-50%, -50%)' }"
+              :class="
+                tick.day % calendar.adapter.weekSize === 0
+                  ? 'w-px h-6'
+                  : 'w-px h-3'
+              "
+              :style="{
+                left: fractionalYearToX(tick.frac) + 'px',
+                top: axisY + 'px',
+                transform: 'translate(-50%, -50%)',
+              }"
             />
             <span
               class="absolute font-cinzel font-semibold text-muted-foreground whitespace-nowrap text-[10px]"
-              :style="{ left: fractionalYearToX(tick.frac) + 'px', top: (axisY + 8) + 'px', transform: 'translateX(-50%)' }"
+              :style="{
+                left: fractionalYearToX(tick.frac) + 'px',
+                top: axisY + 8 + 'px',
+                transform: 'translateX(-50%)',
+              }"
             >
-              {{ isWeekZoom || tick.day % 5 === 0 || tick.day === 1 ? tick.label : "" }}
+              {{
+                isWeekZoom || tick.day % 5 === 0 || tick.day === 1
+                  ? tick.label
+                  : ""
+              }}
             </span>
           </template>
         </template>
@@ -149,47 +181,48 @@
         <!-- Session strip separator -->
         <div
           class="absolute left-0 right-0 border-t border-dashed"
-          style="border-color: rgba(255,255,255,0.08);"
+          style="border-color: rgba(255, 255, 255, 0.08)"
           :style="{ top: SESSION_STRIP_Y - 22 + 'px' }"
         />
         <span
           class="absolute font-cinzel font-bold tracking-widest text-muted-foreground uppercase"
-          style="font-size: 9px; left: 4px;"
+          style="font-size: 9px; left: 4px"
           :style="{ top: SESSION_STRIP_Y - 18 + 'px' }"
-        >Chronicle</span>
+          >Chronicle</span
+        >
 
         <!-- Session events — every session is a bar in the dedicated strip -->
         <template v-for="pe in positionedSessionEvents" :key="pe.event.id">
-          <!-- Bar: spans full days if multi-day, minimum 8px for single-day -->
+          <!-- Bar: spans full days if multi-day, minimum 8px for single-day; same-day sessions hug each other -->
           <div
             :style="{
               left: pe.x + 'px',
-              width: Math.max(8, (pe.endX ?? pe.x) - pe.x) + 'px',
-              top: (SESSION_STRIP_Y - SESSION_STRIP_HEIGHT / 2) + 'px',
+              width: Math.max(8, (pe.endX ?? pe.naturalX) - pe.naturalX) + 'px',
+              top: SESSION_STRIP_Y - SESSION_STRIP_HEIGHT / 2 + 'px',
               height: SESSION_STRIP_HEIGHT + 'px',
-              backgroundColor: pe.event.color + '55',
-              borderColor: pe.event.color,
+              backgroundColor: eventColor(pe.event) + '55',
+              borderColor: eventColor(pe.event),
             }"
-            class="absolute border rounded cursor-pointer hover:brightness-125 transition-all z-10 overflow-hidden flex items-center justify-center"
+            class="absolute border rounded transition-all z-10 overflow-hidden flex items-center justify-center"
+            :class="!readOnly ? 'cursor-pointer hover:brightness-125' : ''"
             :title="pe.event.title"
-            @click="emit('edit-event', pe.event)"
+            @click="!readOnly && emit('edit-event', pe.event)"
           >
-            <!-- Label inside bar if wide enough, hidden otherwise (shows via title tooltip) -->
             <span
-              v-if="Math.max(8, (pe.endX ?? pe.x) - pe.x) >= 36"
+              v-if="Math.max(8, (pe.endX ?? pe.naturalX) - pe.naturalX) >= 36"
               class="font-fell text-[10px] font-semibold whitespace-nowrap px-1 leading-none pointer-events-none truncate"
-              :style="{ color: pe.event.color }"
+              :style="{ color: eventColor(pe.event) }"
             >
               {{ pe.event.title }}
             </span>
           </div>
           <!-- Label above the bar for narrow sessions -->
           <div
-            v-if="Math.max(8, (pe.endX ?? pe.x) - pe.x) < 36"
+            v-if="Math.max(8, (pe.endX ?? pe.naturalX) - pe.naturalX) < 36"
             :style="{
               left: pe.x + 'px',
               top: SESSION_STRIP_Y - SESSION_STRIP_HEIGHT / 2 - 14 + 'px',
-              color: pe.event.color,
+              color: eventColor(pe.event),
             }"
             class="absolute font-fell text-[10px] font-semibold pointer-events-none whitespace-nowrap"
             style="transform: translateX(-50%)"
@@ -206,21 +239,27 @@
             :style="{
               left: pe.x + 'px',
               width: pe.endX - pe.x + 'px',
-              top: (pe.above ? axisY - pe.lane * LANE_HEIGHT - 10 : axisY + pe.lane * LANE_HEIGHT - 2) + 'px',
-              backgroundColor: pe.event.color + '33',
-              borderColor: pe.event.color,
+              top:
+                (pe.above
+                  ? axisY - pe.lane * LANE_HEIGHT - 10
+                  : axisY + pe.lane * LANE_HEIGHT - 2) + 'px',
+              backgroundColor: eventColor(pe.event) + '33',
+              borderColor: eventColor(pe.event),
             }"
-            class="absolute h-5 border rounded-sm cursor-pointer hover:brightness-125 transition-all z-10"
+            class="absolute h-5 border rounded-sm transition-all z-10"
+            :class="!readOnly ? 'cursor-pointer hover:brightness-125' : ''"
             :title="pe.event.title"
-            @click="emit('edit-event', pe.event)"
+            @click="!readOnly && emit('edit-event', pe.event)"
           />
           <!-- Vertical stem -->
           <div
             :style="{
               left: pe.x + 'px',
-              backgroundColor: pe.event.color,
+              backgroundColor: eventColor(pe.event),
               height: pe.lane * LANE_HEIGHT + 18 + 'px',
-              top: pe.above ? axisY - pe.lane * LANE_HEIGHT - 18 + 'px' : axisY + 2 + 'px',
+              top: pe.above
+                ? axisY - pe.lane * LANE_HEIGHT - 18 + 'px'
+                : axisY + 2 + 'px',
             }"
             class="absolute w-px"
           />
@@ -229,14 +268,18 @@
             :style="{
               left: pe.x + 'px',
               top: axisY + 'px',
-              backgroundColor: pe.event.color,
+              backgroundColor: eventColor(pe.event),
             }"
-            class="absolute w-5 h-5 rounded-full flex items-center justify-center border-2 border-card cursor-pointer hover:scale-125 transition-transform z-20"
+            class="absolute w-5 h-5 rounded-full flex items-center justify-center border-2 border-card transition-transform z-20"
+            :class="!readOnly ? 'cursor-pointer hover:scale-125' : ''"
             style="transform: translate(-50%, -50%)"
             :title="pe.event.title"
-            @click="emit('edit-event', pe.event)"
+            @click="!readOnly && emit('edit-event', pe.event)"
           >
-            <component :is="EVENT_ICONS[pe.event.event_type] ?? Star" class="w-2.5 h-2.5 text-white" />
+            <component
+              :is="EVENT_ICONS[pe.event.event_type] ?? Star"
+              class="w-2.5 h-2.5 text-white"
+            />
           </div>
           <!-- Label -->
           <div
@@ -245,11 +288,13 @@
               top: pe.above
                 ? axisY - pe.lane * LANE_HEIGHT - 22 + 'px'
                 : axisY + pe.lane * LANE_HEIGHT + 18 + 'px',
-              color: pe.event.color,
+              color: eventColor(pe.event),
             }"
-            class="absolute font-fell text-xs font-semibold pointer-events-none max-w-32 text-center leading-tight"
+            class="absolute font-fell text-xs font-semibold w-32 truncate text-center"
+            :class="!readOnly ? 'cursor-pointer hover:underline' : ''"
             style="transform: translateX(-50%)"
             :title="pe.event.title"
+            @click="!readOnly && emit('edit-event', pe.event)"
           >
             {{ pe.event.title }}
           </div>
@@ -257,7 +302,9 @@
 
         <!-- Empty state -->
         <div
-          v-if="!positionedRegularEvents.length && !positionedSessionEvents.length"
+          v-if="
+            !positionedRegularEvents.length && !positionedSessionEvents.length
+          "
           class="absolute inset-0 flex items-center justify-center pointer-events-none"
         >
           <p class="font-fell text-sm text-muted-foreground italic">
@@ -271,26 +318,46 @@
       v-if="positionedRegularEvents.length + positionedSessionEvents.length"
       class="mt-2 font-fell text-xs text-muted-foreground italic text-right"
     >
-      {{ positionedRegularEvents.length + positionedSessionEvents.length }} event{{ positionedRegularEvents.length + positionedSessionEvents.length === 1 ? "" : "s" }} · click any
-      to edit
+      {{
+        positionedRegularEvents.length + positionedSessionEvents.length
+      }}
+      event{{
+        positionedRegularEvents.length + positionedSessionEvents.length === 1
+          ? ""
+          : "s"
+      }}
+      <template v-if="!readOnly">· click any to edit</template>
     </p>
 
     <!-- Events in view list -->
     <div v-if="visibleEvents.length" class="mt-6">
-      <p class="font-cinzel text-xs font-semibold tracking-widest text-muted-foreground mb-3">
+      <p
+        class="font-cinzel text-xs font-semibold tracking-widest text-muted-foreground mb-3"
+      >
         EVENTS IN VIEW
       </p>
       <div class="space-y-1.5">
         <div
           v-for="event in visibleEvents"
           :key="event.id"
-          class="flex items-center gap-2 rounded-md bg-card border border-border px-3 py-2 cursor-pointer hover:border-primary/40 transition-colors"
-          @click="emit('edit-event', event)"
+          class="flex items-center gap-2 rounded-md bg-card border border-border px-3 py-2 transition-colors"
+          :class="!readOnly ? 'cursor-pointer hover:border-primary/40' : ''"
+          @click="!readOnly && emit('edit-event', event)"
         >
-          <span :style="{ backgroundColor: event.color }" class="w-2.5 h-2.5 rounded-full shrink-0" />
-          <span class="font-fell text-sm text-foreground flex-1">{{ event.title }}</span>
-          <span class="font-fell text-xs text-muted-foreground italic">{{ formatEventDate(event) }}</span>
-          <span class="font-cinzel text-xs text-muted-foreground/40 uppercase tracking-wider">{{ event.event_type }}</span>
+          <span
+            :style="{ backgroundColor: eventColor(event) }"
+            class="w-2.5 h-2.5 rounded-full shrink-0"
+          />
+          <span class="font-fell text-sm text-foreground flex-1">{{
+            event.title
+          }}</span>
+          <span class="font-fell text-xs text-muted-foreground italic">{{
+            formatEventDate(event)
+          }}</span>
+          <span
+            class="font-cinzel text-xs text-muted-foreground/40 uppercase tracking-wider"
+            >{{ event.event_type }}</span
+          >
         </div>
       </div>
     </div>
@@ -308,8 +375,20 @@ import type { Component } from "vue";
 import { useCalendarStore } from "@/stores/calendar";
 import { useCalendarEventsRange } from "@/composables/useCalendarEvents";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import { eventColor } from "@/types/calendar.types";
 import type { CalendarEvent } from "@/types/calendar.types";
-import { Star, Swords, Globe2, Sparkles, Clock, Skull, Flame, Eye, Ghost, Map } from "lucide-vue-next";
+import {
+  Star,
+  Swords,
+  Globe2,
+  Sparkles,
+  Clock,
+  Skull,
+  Flame,
+  Eye,
+  Ghost,
+  Map,
+} from "lucide-vue-next";
 
 const AXIS_PADDING = 60; // px padding left + right
 const LANE_HEIGHT = 30; // px between stacked event lanes
@@ -340,6 +419,11 @@ const ZOOM_PRESETS = computed(() => [
   { value: 100, label: "100yr" },
 ]);
 
+const { eventsOverride = null, readOnly = false } = defineProps<{
+  eventsOverride?: CalendarEvent[] | null;
+  readOnly?: boolean;
+}>();
+
 const emit = defineEmits<{
   "edit-event": [event: CalendarEvent];
 }>();
@@ -352,25 +436,33 @@ const jumpYear = ref<number>(calendar.currentYear);
 const canvasWrapper = ref<HTMLElement | null>(null);
 const containerWidth = ref(900);
 let resizeObserver: ResizeObserver | null = null;
-watch(canvasWrapper, async (el) => {
-  resizeObserver?.disconnect();
-  if (el) {
-    await nextTick(); // wait for layout to settle before measuring
-    containerWidth.value = el.offsetWidth;
-    resizeObserver = new ResizeObserver((entries) => {
-      containerWidth.value = entries[0].contentRect.width;
-    });
-    resizeObserver.observe(el);
-  }
-}, { immediate: true });
+watch(
+  canvasWrapper,
+  async (el) => {
+    resizeObserver?.disconnect();
+    if (el) {
+      await nextTick(); // wait for layout to settle before measuring
+      containerWidth.value = el.offsetWidth;
+      resizeObserver = new ResizeObserver((entries) => {
+        containerWidth.value = entries[0].contentRect.width;
+      });
+      resizeObserver.observe(el);
+    }
+  },
+  { immediate: true },
+);
 onUnmounted(() => resizeObserver?.disconnect());
 
 const zoomYears = computed(() => calendar.timelineZoom);
 
 // Track which tenday (1-indexed) we're centred on for week-zoom navigation
 const currentTenday = ref(1);
-const tendaysPerMonth = computed(() => Math.floor(30 / calendar.adapter.weekSize));
-const isWeekZoom = computed(() => zoomYears.value <= calendar.adapter.weekSize / 365 * 1.5);
+const tendaysPerMonth = computed(() =>
+  Math.floor(30 / calendar.adapter.weekSize),
+);
+const isWeekZoom = computed(
+  () => zoomYears.value <= (calendar.adapter.weekSize / 365) * 1.5,
+);
 
 // Zoom mode determines which tick type to render
 const zoomMode = computed((): "days" | "months" | "years" => {
@@ -382,7 +474,9 @@ const zoomMode = computed((): "days" | "months" | "years" => {
 // Center the view on current position
 const centerFrac = computed(() => {
   if (isWeekZoom.value) {
-    const dayOfYear = (calendar.currentMonth - 1) * 30 + (currentTenday.value - 0.5) * calendar.adapter.weekSize;
+    const dayOfYear =
+      (calendar.currentMonth - 1) * 30 +
+      (currentTenday.value - 0.5) * calendar.adapter.weekSize;
     return calendar.currentYear + dayOfYear / 365;
   }
   if (zoomMode.value === "days") {
@@ -402,8 +496,8 @@ const queryStart = computed(() => Math.floor(startFrac.value));
 const queryEnd = computed(() => Math.ceil(endFrac.value));
 
 // Pixels per year — fills the measured container width exactly
-const pixelsPerYear = computed(() =>
-  (containerWidth.value - AXIS_PADDING * 2) / zoomYears.value,
+const pixelsPerYear = computed(
+  () => (containerWidth.value - AXIS_PADDING * 2) / zoomYears.value,
 );
 
 const containerHeight = CONTAINER_HEIGHT;
@@ -417,7 +511,9 @@ function fractionalYearToX(frac: number): number {
 // Convert an event's date to a fractional year
 function eventToFrac(event: CalendarEvent): number {
   if (event.festival_day) {
-    const festDay = calendar.adapter.intercalaryDays.find((d) => d.name === event.festival_day);
+    const festDay = calendar.adapter.intercalaryDays.find(
+      (d) => d.name === event.festival_day,
+    );
     if (festDay) {
       const dayOfYear = festDay.afterMonth * 30 + 0.5;
       return event.harptos_year + dayOfYear / 365;
@@ -439,7 +535,11 @@ function endFracForEvent(event: CalendarEvent): number | null {
   return event.end_year;
 }
 
-const { data: events, isLoading } = useCalendarEventsRange(queryStart, queryEnd);
+const { data: fetchedEvents, isLoading } = useCalendarEventsRange(
+  queryStart,
+  queryEnd,
+);
+const events = computed(() => eventsOverride ?? fetchedEvents.value ?? null);
 
 // Year ticks for multi-year zoom
 const yearTicks = computed(() => {
@@ -454,7 +554,12 @@ const yearTicks = computed(() => {
 
 // Month ticks for 1-year zoom
 const monthTicks = computed(() => {
-  const ticks: { key: string; frac: number; label: string; isFirst: boolean }[] = [];
+  const ticks: {
+    key: string;
+    frac: number;
+    label: string;
+    isFirst: boolean;
+  }[] = [];
   const sy = Math.floor(startFrac.value);
   const ey = Math.ceil(endFrac.value);
   for (let y = sy; y <= ey; y++) {
@@ -479,7 +584,8 @@ const dayTicks = computed(() => {
   const y = calendar.currentYear;
   const m = calendar.currentMonth;
   const weekSize = calendar.adapter.weekSize;
-  const monthName = calendar.adapter.months.find((mo) => mo.num === m)?.name ?? "";
+  const monthName =
+    calendar.adapter.months.find((mo) => mo.num === m)?.name ?? "";
 
   let dStart = 1;
   let dEnd = 30;
@@ -490,7 +596,11 @@ const dayTicks = computed(() => {
 
   for (let d = dStart; d <= dEnd; d++) {
     const frac = y + ((m - 1) * 30 + d) / 365;
-    ticks.push({ day: d, frac, label: d === dStart ? `${d} ${monthName}` : `${d}` });
+    ticks.push({
+      day: d,
+      frac,
+      label: d === dStart ? `${d} ${monthName}` : `${d}`,
+    });
   }
   return ticks;
 });
@@ -504,7 +614,9 @@ const rangeLabel = computed(() => {
   const ep = calendar.adapter.epochName;
   const weekFrac = calendar.adapter.weekSize / 365;
   if (zoomMode.value === "days") {
-    const m = calendar.adapter.months.find((mo) => mo.num === calendar.currentMonth);
+    const m = calendar.adapter.months.find(
+      (mo) => mo.num === calendar.currentMonth,
+    );
     if (zoomYears.value <= weekFrac * 1.5) {
       return `${m?.name ?? ""} – Tenday ${currentTenday.value}, ${calendar.currentYear} ${ep}`;
     }
@@ -525,9 +637,17 @@ interface PositionedEvent {
 
 interface PositionedSessionEvent {
   event: CalendarEvent;
-  x: number;
+  x: number; // display x (may be pushed right to avoid overlap)
+  naturalX: number; // true date position (used for width calc)
   endX: number | null;
 }
+
+// Max lanes that fit without overflowing: above goes up toward y=0, below must
+// not cross the session strip at SESSION_STRIP_Y.
+const MAX_ABOVE_LANE = Math.floor((axisY - 20) / LANE_HEIGHT); // ~4
+const MAX_BELOW_LANE = Math.floor(
+  (SESSION_STRIP_Y - SESSION_STRIP_HEIGHT - axisY - 20) / LANE_HEIGHT,
+); // ~2
 
 const positionedRegularEvents = computed((): PositionedEvent[] => {
   const list = (events.value ?? [])
@@ -538,54 +658,97 @@ const positionedRegularEvents = computed((): PositionedEvent[] => {
     })
     .sort((a, b) => eventToFrac(a) - eventToFrac(b));
 
-  // Lane assignment to avoid label collisions
   const aboveLanes: [number, number][][] = [];
   const belowLanes: [number, number][][] = [];
+  const labelPx = 130;
+
+  function firstFreeLane(
+    lanes: [number, number][][],
+    max: number,
+    x: number,
+  ): number | null {
+    for (let l = 1; l <= max; l++) {
+      if (!lanes[l]) return l;
+      if (!lanes[l].some(([s, e]) => x < e + 8 && x + labelPx > s)) return l;
+    }
+    return null;
+  }
 
   return list.map((event, i) => {
     const x = fractionalYearToX(eventToFrac(event));
     const ef = endFracForEvent(event);
     const endX = ef !== null ? fractionalYearToX(ef) : null;
-    const above = i % 2 === 0;
 
-    const lanes = above ? aboveLanes : belowLanes;
-    const labelPx = 130;
-    let lane = 1;
+    const preferAbove = i % 2 === 0;
+    const aboveLane = firstFreeLane(aboveLanes, MAX_ABOVE_LANE, x);
+    const belowLane = firstFreeLane(belowLanes, MAX_BELOW_LANE, x);
 
-    for (let l = 1; l <= 12; l++) {
-      if (!lanes[l]) {
-        lane = l;
-        break;
+    let above: boolean;
+    let lane: number;
+
+    if (preferAbove) {
+      if (aboveLane !== null) {
+        above = true;
+        lane = aboveLane;
+      } else if (belowLane !== null) {
+        above = false;
+        lane = belowLane;
+      } else {
+        above = true;
+        lane = MAX_ABOVE_LANE;
       }
-      const collides = lanes[l].some(([s, e]) => x < e + labelPx && x + labelPx > s);
-      if (!collides) {
-        lane = l;
-        break;
+    } else {
+      if (belowLane !== null) {
+        above = false;
+        lane = belowLane;
+      } else if (aboveLane !== null) {
+        above = true;
+        lane = aboveLane;
+      } else {
+        above = false;
+        lane = MAX_BELOW_LANE;
       }
-      lane = l + 1;
     }
 
-    if (!lanes[lane]) lanes[lane] = [];
-    lanes[lane].push([x, endX ?? x + labelPx]);
+    const lanesArr = above ? aboveLanes : belowLanes;
+    if (!lanesArr[lane]) lanesArr[lane] = [];
+    lanesArr[lane].push([x, endX ?? x + labelPx]);
 
     return { event, x, endX, above, lane };
   });
 });
 
 const positionedSessionEvents = computed((): PositionedSessionEvent[] => {
-  return (events.value ?? [])
+  const sorted = (events.value ?? [])
     .filter((e) => {
       if (e.event_type !== "session") return false;
       const frac = eventToFrac(e);
       return frac >= startFrac.value - 0.01 && frac <= endFrac.value + 0.01;
     })
-    .sort((a, b) => eventToFrac(a) - eventToFrac(b))
-    .map((event) => {
-      const x = fractionalYearToX(eventToFrac(event));
-      const ef = endFracForEvent(event);
-      const endX = ef !== null ? fractionalYearToX(ef) : null;
-      return { event, x, endX };
+    .sort((a, b) => {
+      const fracDiff = eventToFrac(a) - eventToFrac(b);
+      if (fracDiff !== 0) return fracDiff;
+      // Same start date: shorter sessions first so they stay at naturalX
+      const aEnd = endFracForEvent(a) ?? eventToFrac(a);
+      const bEnd = endFracForEvent(b) ?? eventToFrac(b);
+      if (aEnd !== bEnd) return aEnd - bEnd;
+      // Same duration: natural sort on title ("Session 5" before "Session 6")
+      return a.title.localeCompare(b.title, undefined, {
+        numeric: true,
+        sensitivity: "base",
+      });
     });
+
+  let rightEdge = -Infinity;
+  return sorted.map((event) => {
+    const naturalX = fractionalYearToX(eventToFrac(event));
+    const ef = endFracForEvent(event);
+    const endX = ef !== null ? fractionalYearToX(ef) : null;
+    const barWidth = Math.max(8, (endX ?? naturalX) - naturalX);
+    const x = Math.max(naturalX, rightEdge);
+    rightEdge = x + barWidth + 1;
+    return { event, x, naturalX, endX };
+  });
 });
 
 // ── Events list ─────────────────────────────────────────────────────────────

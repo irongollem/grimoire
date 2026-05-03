@@ -438,7 +438,7 @@ export const FAERUN_DEITIES: SettingDeityDef[] = [
     symbol: "A crescent moon",
     domains: ["Arcana", "Light"],
     portfolio: "Magic, music, arts, crafts, poetry, war-skill, the elves",
-    description: "Corellon Larethian is the progenitor of the elven race and lord of the Seldarine. His rivalry with the drow god Gruumsh is ancient — each has blinded the other at some point in elven myth. He embodies all that is beautiful and noble in the elven people: art, music, war-skill, and arcane mastery.",
+    description: "Corellon Larethian is the progenitor of the elven race and lord of the Seldarine. His rivalry with the orc god Gruumsh is ancient — Corellon shot out Gruumsh's eye, sowing eternal hatred between elves and orcs. He also cast out Lolth and the drow after her betrayal. He embodies all that is beautiful and noble in the elven people: art, music, war-skill, and arcane mastery.",
     tags: ["elves", "good", "magic", "art", "seldarine"],
   },
   {

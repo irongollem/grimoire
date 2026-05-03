@@ -23,6 +23,11 @@
         <UserIcon class="h-10 w-10" />
       </div>
       <span
+        v-if="isNew"
+        class="absolute top-1.5 left-1.5 z-10 h-2.5 w-2.5 rounded-full bg-destructive"
+        title="New"
+      />
+      <span
         v-if="npc.player_visible_fields.includes('relationship')"
         class="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] font-cinzel font-bold tracking-wider uppercase text-white"
         :style="{ backgroundColor: relColor(npc.relationship) + 'EE' }"
@@ -73,6 +78,7 @@ import type { Npc, NpcRelationship, NpcStatus } from "@/types/npc.types";
 const props = defineProps<{
   npc: Npc;
   location?: string;
+  isNew?: boolean;
 }>();
 
 defineEmits<{ click: [] }>();

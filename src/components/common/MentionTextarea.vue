@@ -47,6 +47,7 @@ const ENTITY_LABELS: Record<EntityType, string> = {
   npc:      "NPC",
   monster:  "MON",
   location: "LOC",
+  party:    "PARTY",
 };
 
 const BADGE_CLASSES: Record<EntityType, string> = {
@@ -54,6 +55,7 @@ const BADGE_CLASSES: Record<EntityType, string> = {
   npc:      "text-violet-400 border-violet-400/40 bg-violet-400/10",
   monster:  "text-rose-400 border-rose-400/40 bg-rose-400/10",
   location: "text-emerald-400 border-emerald-400/40 bg-emerald-400/10",
+  party:    "text-amber-400 border-amber-400/40 bg-amber-400/10",
 };
 
 const props = withDefaults(defineProps<{

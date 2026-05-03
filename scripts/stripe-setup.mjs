@@ -1,8 +1,9 @@
 /**
  * One-shot Stripe product + price setup for Grimoire Pro.
  *
- * Run once per environment (test + live):
- *   node --env-file=.env.local scripts/stripe-setup.mjs
+ * Live:  node --env-file=.env.local scripts/stripe-setup.mjs
+ * Test:  STRIPE_SECRET_KEY=sk_test_... node scripts/stripe-setup.mjs
+ *        (see docs/stripe-testing.md for full local test setup)
  *
  * After running, copy the printed price IDs into:
  *   - Supabase secrets (STRIPE_PRO_MONTHLY_PRICE_ID, STRIPE_PRO_ANNUAL_PRICE_ID)

@@ -82,6 +82,52 @@ export function useCalendarEvents(year: MaybeRef<number>) {
   });
 }
 
+export function usePlayerCalendarEvents(year: MaybeRef<number>) {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, "player", campaignId.value, unref(year)]),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("calendar_events")
+        .select("*")
+        .eq("campaign_id", campaignId.value!)
+        .eq("harptos_year", unref(year))
+        .or("player_visible.eq.true,event_type.eq.session")
+        .order("harptos_month", { ascending: true, nullsFirst: true })
+        .order("harptos_day", { ascending: true, nullsFirst: true });
+      if (error) throw error;
+      return data as CalendarEvent[];
+    },
+    enabled: () => !!campaignId.value,
+    refetchInterval: 15_000,
+  });
+}
+
+export function usePlayerCalendarEventsRange(startYear: MaybeRef<number>, endYear: MaybeRef<number>) {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, "player", "range", campaignId.value, unref(startYear), unref(endYear)]),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("calendar_events")
+        .select("*")
+        .eq("campaign_id", campaignId.value!)
+        .gte("harptos_year", unref(startYear))
+        .lte("harptos_year", unref(endYear))
+        .or("player_visible.eq.true,event_type.eq.session")
+        .order("harptos_year", { ascending: true })
+        .order("harptos_month", { ascending: true, nullsFirst: true })
+        .order("harptos_day", { ascending: true, nullsFirst: true });
+      if (error) throw error;
+      return data as CalendarEvent[];
+    },
+    enabled: () => !!campaignId.value,
+    refetchInterval: 15_000,
+  });
+}
+
 export function useCalendarEventsRange(startYear: MaybeRef<number>, endYear: MaybeRef<number>) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);

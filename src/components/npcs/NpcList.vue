@@ -43,8 +43,20 @@
         :key="npc.id"
         class="group relative flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
       >
-        <!-- Card link overlay -->
-        <RouterLink :to="`/npcs/${npc.id}`" class="absolute inset-0 z-2" />
+        <!-- Card link overlay (disabled for locked items) -->
+        <RouterLink v-if="!lockedNpcIds.has(npc.id)" :to="`/npcs/${npc.id}`" class="absolute inset-0 z-2" />
+
+        <!-- Locked overlay for over-quota items -->
+        <div
+          v-if="lockedNpcIds.has(npc.id)"
+          class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-1.5 bg-background/80 backdrop-blur-sm"
+        >
+          <Lock class="h-4 w-4 text-muted-foreground" />
+          <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">Locked</p>
+          <RouterLink to="/billing" class="font-cinzel text-[9px] tracking-wider text-primary/80 hover:text-primary transition-colors">
+            Upgrade to access
+          </RouterLink>
+        </div>
 
         <!-- Thumbnail (landscape) -->
         <div class="relative h-36 bg-muted overflow-hidden shrink-0">
@@ -229,7 +241,7 @@
 import { ref, computed, reactive } from "vue";
 import { useRouter } from "vue-router";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
-import { Pencil, Eye, EyeOff, Users } from "lucide-vue-next";
+import { Lock, Pencil, Eye, EyeOff, Users } from "lucide-vue-next";
 import { useNpcs, useUpdateNpc } from "@/composables/useNpcs";
 import { useParty } from "@/composables/useParty";
 import { useNpcPcNotesByPartyMember } from "@/composables/useNpcPcNotes";
@@ -245,7 +257,7 @@ import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/useQuota";
 
 const router = useRouter();
-const { canCreate } = useQuota("npcs");
+const { canCreate, quota: npcQuota } = useQuota("npcs");
 const showPaywall = ref(false);
 
 function handleNew() {
@@ -335,6 +347,16 @@ const filtered = computed(() => {
 });
 
 const { visibleItems, sentinelRef } = useInfiniteScroll(filtered);
+
+const lockedNpcIds = computed((): Set<string> => {
+  const q = npcQuota.value;
+  if (!q || q.unlimited || q.current <= q.limit) return new Set();
+  const overCount = q.current - q.limit;
+  const sorted = [...(npcs.value ?? [])].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
+  return new Set(sorted.slice(-overCount).map((n) => n.id));
+});
 
 
 function initials(name: string): string {

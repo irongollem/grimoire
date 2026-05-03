@@ -103,6 +103,42 @@
           </div>
         </div>
 
+        <!-- Archived campaigns -->
+        <div v-if="archivedCampaigns.length > 0" class="border-t border-border py-1">
+          <button
+            class="w-full flex items-center gap-2 px-3 py-1.5 text-left"
+            @click="showArchived = !showArchived"
+          >
+            <Archive class="h-3 w-3 text-muted-foreground/60" />
+            <span class="font-cinzel text-[10px] text-muted-foreground/60 tracking-wider uppercase flex-1">
+              Archived ({{ archivedCampaigns.length }})
+            </span>
+            <ChevronDown
+              class="h-3 w-3 text-muted-foreground/60 transition-transform"
+              :class="showArchived ? 'rotate-180' : ''"
+            />
+          </button>
+          <template v-if="showArchived">
+            <div
+              v-for="c in archivedCampaigns"
+              :key="c.id"
+              class="flex items-center gap-2 px-3 py-1.5"
+            >
+              <span class="flex-1 min-w-0">
+                <p class="font-cinzel text-[10px] text-muted-foreground/60 truncate">{{ c.name }}</p>
+              </span>
+              <button
+                class="font-cinzel text-[9px] tracking-wider text-primary/70 hover:text-primary transition-colors disabled:opacity-40 shrink-0"
+                :disabled="!canCreateCampaign || isRestoring"
+                :title="canCreateCampaign ? 'Restore campaign' : 'Upgrade to restore'"
+                @click.stop="restore(c.id)"
+              >
+                Restore
+              </button>
+            </div>
+          </template>
+        </div>
+
         <div class="border-t border-border py-1">
           <button
             class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-accent transition-colors"
@@ -263,13 +299,15 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { BookOpen, ChevronDown, Download, Plus, Settings } from "lucide-vue-next";
+import { Archive, BookOpen, ChevronDown, Download, Plus, Settings } from "lucide-vue-next";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
 import { useAuthStore } from "@/stores/auth";
 import {
   useCampaigns,
+  useArchivedCampaigns,
   useCreateCampaign,
   useClaimOrphanedData,
+  useRestoreCampaign,
 } from "@/composables/useCampaigns";
 import { useCampaignStore } from "@/stores/campaign";
 import { listCalendarAdapters, getCalendarAdapter } from "@/calendars/index";
@@ -289,11 +327,15 @@ const onlineCount = computed(() => {
 });
 
 const { data: campaignList, isLoading: campaignsLoading } = useCampaigns();
+const { data: archivedList } = useArchivedCampaigns();
 const { mutateAsync: createCampaign, isPending: isSaving } = useCreateCampaign();
 const { mutateAsync: claimOrphans, isPending: isClaiming } = useClaimOrphanedData();
+const { mutateAsync: restoreCampaign, isPending: isRestoring } = useRestoreCampaign();
 
 const campaigns = computed(() => campaignList.value ?? []);
+const archivedCampaigns = computed(() => archivedList.value ?? []);
 const activeCampaign = computed(() => campaignStore.activeCampaign);
+const showArchived = ref(false);
 
 const isFirstCampaign = computed(() => campaigns.value.length === 0);
 const claimExisting = ref(true);
@@ -374,6 +416,7 @@ async function submitForm() {
       immersive_rolls: false,
       description: null,
       spotify_client_id: null,
+      is_archived: false,
     });
     if (isFirstCampaign.value && claimExisting.value) {
       await claimOrphans(created.id);
@@ -389,6 +432,11 @@ async function submitForm() {
 async function claimForActive() {
   if (!campaignStore.activeCampaignId) return;
   await claimOrphans(campaignStore.activeCampaignId);
+  open.value = false;
+}
+
+async function restore(id: string) {
+  await restoreCampaign(id);
   open.value = false;
 }
 </script>

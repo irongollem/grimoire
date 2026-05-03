@@ -36,7 +36,13 @@
         </div>
 
         <p
-          v-if="isPro && renewalDate"
+          v-if="isPendingCancellation && cancelDate"
+          class="font-fell text-sm text-amber-400 italic"
+        >
+          Cancels {{ cancelDate }} — Pro access until then.
+        </p>
+        <p
+          v-else-if="isPro && renewalDate"
           class="font-fell text-sm text-muted-foreground italic"
         >
           Renews {{ renewalDate }}
@@ -53,6 +59,28 @@
         >
           Your Pro subscription has ended.
         </p>
+
+        <!-- Pre-downgrade impact warning — shown when cancellation is pending + user is over free quotas -->
+        <div
+          v-if="isPendingCancellation && downgradeImpact.length > 0"
+          class="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 space-y-1"
+        >
+          <p class="font-cinzel text-[10px] font-semibold tracking-wider text-amber-400 uppercase">
+            On cancellation
+          </p>
+          <ul class="space-y-0.5">
+            <li
+              v-for="item in downgradeImpact"
+              :key="item.label"
+              class="font-fell text-xs text-muted-foreground italic"
+            >
+              {{ item.label }}: {{ item.current }} → limit {{ item.limit }} ({{ item.excess }} will be locked)
+            </li>
+          </ul>
+          <p class="font-fell text-[11px] text-muted-foreground italic">
+            Content over your free limits will be locked, not deleted. Upgrade to restore access.
+          </p>
+        </div>
 
         <!-- Manage billing — only once a Stripe customer exists -->
         <button
@@ -209,25 +237,52 @@
       </p>
     </div>
 
-    <!-- AI credits (placeholder until #289) -->
-    <div
-      class="rounded-xl border border-border bg-card p-6 space-y-3 opacity-60"
-    >
-      <div class="flex items-center gap-2">
-        <Sparkles class="h-4 w-4 text-primary shrink-0" />
-        <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
-          AI credits
-        </h2>
-        <span
-          class="px-2 py-0.5 rounded-full bg-muted font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
-          >Coming soon</span
-        >
+    <!-- AI credits -->
+    <div class="rounded-xl border border-border bg-card p-6 space-y-4">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <Sparkles class="h-4 w-4 text-primary shrink-0" />
+          <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
+            AI credits
+          </h2>
+        </div>
+        <div v-if="creditsLoading" class="flex items-center gap-1.5 text-muted-foreground">
+          <Loader2 class="h-3.5 w-3.5 animate-spin" />
+          <span class="font-cinzel text-xs">Loading…</span>
+        </div>
+        <span v-else class="font-cinzel text-lg font-bold text-primary">
+          {{ formattedBalance }}
+        </span>
       </div>
-      <p class="font-fell text-sm text-muted-foreground italic leading-relaxed">
-        Pro includes 5 AI credits per month for generating NPCs, monsters,
-        spells, items, and artwork. Additional credit packs will be available
-        for purchase.
+
+      <p class="font-fell text-xs text-muted-foreground italic leading-relaxed">
+        Pro subscribers receive 5 credits each billing period. Use credits to
+        generate NPC portraits (2 credits), text descriptions (1 credit), and
+        monster stat blocks (1 credit).
       </p>
+
+      <!-- Credit pack purchase -->
+      <div class="space-y-2">
+        <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+          Buy more credits
+        </p>
+        <div class="grid grid-cols-3 gap-2">
+          <button
+            v-for="(pack, packId) in CREDIT_PACKS"
+            :key="packId"
+            class="flex flex-col items-center gap-1 rounded-lg border border-border bg-muted/30 p-3 text-center hover:border-primary/50 hover:bg-primary/5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            :disabled="purchaseLoading"
+            @click="purchasePack(packId as CreditPackId)"
+          >
+            <span class="font-cinzel text-xs font-bold text-foreground">{{ pack.credits }} credits</span>
+            <span class="font-fell text-[11px] italic text-muted-foreground">€{{ pack.eur }}</span>
+            <span class="font-cinzel text-[9px] tracking-wider text-muted-foreground/70 uppercase">{{ pack.label }}</span>
+          </button>
+        </div>
+        <p v-if="purchaseError" class="font-fell text-xs text-red-400 italic">
+          {{ purchaseError }}
+        </p>
+      </div>
     </div>
   </div>
 </template>
@@ -238,13 +293,27 @@ import { Crown, CreditCard, Loader2, Scroll, Sparkles } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import { useSubscription } from "@/composables/useSubscription";
 import { useStripe } from "@/composables/useStripe";
+import { useAiCredits } from "@/composables/useAiCredits";
+import { usePlan } from "@/composables/usePlan";
+import { useQuota } from "@/composables/useQuota";
+import { CREDIT_PACKS, QUOTA_RESOURCE_LABELS } from "@/types/subscription.types";
+import type { CreditPackId, QuotaResource } from "@/types/subscription.types";
 
-const { subscription, isPro, isLoading } = useSubscription();
+const { subscription, isPro, isPendingCancellation, isLoading } = useSubscription();
 const {
   loading: stripeLoading,
   createCheckoutSession,
   openBillingPortal,
 } = useStripe();
+const {
+  formattedBalance,
+  isLoading: creditsLoading,
+  purchasePack,
+  purchaseLoading,
+  purchaseError,
+} = useAiCredits();
+
+const { data: freePlan } = usePlan("free");
 
 const annual = ref(false);
 
@@ -252,6 +321,16 @@ const renewalDate = computed(() => {
   const end = subscription.value?.current_period_end;
   if (!end) return null;
   return new Date(end).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+});
+
+const cancelDate = computed(() => {
+  const at = subscription.value?.cancel_at;
+  if (!at) return null;
+  return new Date(at).toLocaleDateString("en-GB", {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -273,17 +352,40 @@ const statusClass = computed(() => {
   }
 });
 
-const freeFeatures = [
-  "All DM tools",
-  "Up to 3 campaigns",
-  "Full player portal",
-  "No player fees",
-];
+// Pre-downgrade impact: which resources are currently over the free-plan limit
+const QUOTA_RESOURCES: QuotaResource[] = [
+  "campaigns", "npcs", "monsters", "encounters", "scriptorium_documents", "notes",
+]
+const quotaResults = Object.fromEntries(
+  QUOTA_RESOURCES.map(r => [r, useQuota(r)])
+) as Record<QuotaResource, ReturnType<typeof useQuota>>
+
+const downgradeImpact = computed(() => {
+  const freeQuotas = freePlan.value?.quotas ?? {}
+  return QUOTA_RESOURCES.flatMap(r => {
+    const limit = freeQuotas[r]
+    if (limit === null || limit === undefined) return []
+    const current = quotaResults[r].quota.value?.current ?? 0
+    if (current <= limit) return []
+    return [{ label: QUOTA_RESOURCE_LABELS[r], current, limit, excess: current - limit }]
+  })
+})
+
+const freeFeatures = computed(() => {
+  const quotas = freePlan.value?.quotas ?? {}
+  const campaignLimit = quotas.campaigns ?? 1
+  return [
+    "All DM tools",
+    `Up to ${campaignLimit} campaign${campaignLimit === 1 ? "" : "s"}`,
+    "Full player portal",
+    "No player fees",
+  ]
+})
 
 const proFeatures = [
   "Unlimited campaigns & content",
   "5 AI credits / month",
   "Full player portal",
   "No player fees — ever",
-];
+]
 </script>

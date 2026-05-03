@@ -126,6 +126,7 @@ export interface PartyMember {
   age?: string | null;
   gender?: string | null;
   pronouns?: string | null;
+  height?: string | null;
   physical_description?: string | null;
   // Player-authored description visible to the whole party
   player_description?: string | null;

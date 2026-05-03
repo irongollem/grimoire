@@ -34,11 +34,11 @@
           v-for="deity in filtered"
           :key="deity.id"
           class="rounded-lg border border-border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
-          @click="selected = selected?.id === deity.id ? null : deity"
+          @click="toggleDeity(deity)"
         >
           <!-- Card header -->
           <div class="flex items-center gap-3 p-3">
-            <div class="h-14 w-14 shrink-0 rounded-md border border-border bg-muted overflow-hidden">
+            <div class="relative h-14 w-14 shrink-0 rounded-md border border-border bg-muted overflow-hidden">
               <FocalImage
                 v-if="deity.portrait_url"
                 :src="deity.portrait_url"
@@ -50,6 +50,11 @@
               <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
                 <Sun class="h-6 w-6" />
               </div>
+              <span
+                v-if="isNew(deity.id, deity.updated_at)"
+                class="absolute top-1 left-1 z-10 h-2.5 w-2.5 rounded-full bg-destructive"
+                title="New"
+              />
             </div>
             <div class="flex-1 min-w-0">
               <h3 class="font-cinzel text-sm font-bold text-foreground truncate">{{ deity.name }}</h3>
@@ -116,6 +121,7 @@ import { ref, computed } from "vue";
 import { ChevronDown, Sun } from "lucide-vue-next";
 import { useAllDeities } from "@/composables/useDeities";
 import { useAuthStore } from "@/stores/auth";
+import { useReadItems, useMarkRead } from "@/composables/useReadItems";
 import type { Deity, Pantheon } from "@/types/deity.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
@@ -123,6 +129,8 @@ import RichTextViewer from "@/components/common/RichTextViewer.vue";
 
 const auth = useAuthStore();
 const { data: deities, isLoading } = useAllDeities();
+const { isNew } = useReadItems("deity");
+const { mutate: markRead } = useMarkRead();
 
 const search   = ref("");
 const selected = ref<(Deity & { pantheon: Pick<Pantheon, "id" | "name"> | null }) | null>(null);
@@ -146,6 +154,11 @@ const filtered = computed(() => {
     return haystack.includes(q);
   });
 });
+
+function toggleDeity(deity: Deity & { pantheon: Pick<Pantheon, "id" | "name"> | null }) {
+  if (selected.value?.id !== deity.id) markRead({ entityType: "deity", entityId: deity.id });
+  selected.value = selected.value?.id === deity.id ? null : deity;
+}
 
 function hasContent(d: string | null | undefined): boolean {
   if (!d) return false;

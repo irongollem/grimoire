@@ -806,7 +806,7 @@ import { useEntityNotes } from "@/composables/useEntityNotes";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useNpcs } from "@/composables/useNpcs";
 import { useAllLocations } from "@/composables/useLocations";
-import { useMonsters } from "@/composables/useMonsters";
+import { useAllMonsters } from "@/composables/useMonsters";
 import { useItems } from "@/composables/useItems";
 import { useEncounters } from "@/composables/useEncounters";
 import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
@@ -849,7 +849,7 @@ const isNew = computed(() => !props.quest);
 // ── External data ──────────────────────────────────────────────────────────────
 const { data: npcs } = useNpcs();
 const { data: locations } = useAllLocations();
-const { data: allMonsters } = useMonsters();
+const { data: allMonsters } = useAllMonsters();
 const { data: allQuests } = useAllQuests();
 const { data: allItems } = useItems();
 const { data: allEncounters } = useEncounters();

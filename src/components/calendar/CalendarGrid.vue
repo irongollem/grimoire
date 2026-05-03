@@ -27,11 +27,16 @@
             {{ currentMonth.alias }} ·
           </p>
           <input
+            v-if="!readOnly"
             :value="calendar.currentYear"
             type="number"
             class="w-16 md:w-20 bg-transparent border-b border-border text-center font-fell text-xs md:text-sm text-muted-foreground italic focus:outline-none focus:border-primary"
             @change="onYearInput"
           />
+          <span
+            v-else
+            class="font-fell text-xs md:text-sm text-muted-foreground italic"
+          >{{ calendar.currentYear }}</span>
           <p class="font-fell text-xs md:text-sm text-muted-foreground italic">
             {{ calendar.adapter.epochName }}
           </p>
@@ -56,11 +61,11 @@
     </div>
 
     <!-- Loading -->
-    <div v-if="isLoading" class="flex justify-center py-12">
+    <div v-if="isLoading && !eventsOverride" class="flex justify-center py-12">
       <LoadingSpinner />
     </div>
 
-    <template v-else>
+    <template v-else-if="!isLoading || eventsOverride">
       <!-- Optional day-of-week column headers (Gregorian, Greyhawk, etc.) -->
       <div
         v-if="calendar.adapter.dayLabels"
@@ -87,12 +92,14 @@
             :key="colIdx"
             class="relative rounded-md border min-h-14 p-1.5 flex flex-col transition-colors"
             :class="[
-              day !== null
+              day !== null && !readOnly
                 ? 'border-border bg-card hover:border-primary/50 cursor-pointer'
-                : 'border-transparent bg-transparent',
+                : day !== null
+                  ? 'border-border bg-card'
+                  : 'border-transparent bg-transparent',
               day !== null && hasEvents(day) ? 'ring-1 ring-primary/40' : '',
             ]"
-            @click="day !== null && emit('create-event', day)"
+            @click="!readOnly && day !== null && emit('create-event', day)"
           >
             <span
               v-if="day !== null"
@@ -106,7 +113,7 @@
                 v-for="event in eventsForDay(day)"
                 :key="event.id"
                 :title="event.title"
-                :style="{ backgroundColor: event.color }"
+                :style="{ backgroundColor: eventColor(event) }"
                 class="w-1.5 h-1.5 rounded-full"
               />
             </div>
@@ -137,10 +144,10 @@
           <span
             v-for="event in eventsForFestival(festival.name)"
             :key="event.id"
-            :style="{ borderColor: event.color, color: event.color }"
+            :style="{ borderColor: eventColor(event), color: eventColor(event) }"
             class="inline-flex items-center gap-1 border rounded px-1.5 py-0.5 font-fell text-xs"
           >
-            <span :style="{ backgroundColor: event.color }" class="w-1.5 h-1.5 rounded-full" />
+            <span :style="{ backgroundColor: eventColor(event) }" class="w-1.5 h-1.5 rounded-full" />
             {{ event.title }}
           </span>
         </div>
@@ -157,11 +164,12 @@
             v-for="event in monthEvents"
             :key="event.id"
             :to="entityLink(event) ?? undefined"
-            class="flex items-center gap-2 rounded-md bg-card border border-border px-3 py-2 group cursor-pointer hover:border-primary/40 transition-colors"
-            @click="!entityLink(event) && emit('edit-event', event)"
+            class="flex items-center gap-2 rounded-md bg-card border border-border px-3 py-2 group transition-colors"
+            :class="!readOnly ? 'cursor-pointer hover:border-primary/40' : ''"
+            @click="!readOnly && !entityLink(event) && emit('edit-event', event)"
           >
             <span
-              :style="{ backgroundColor: event.color }"
+              :style="{ backgroundColor: eventColor(event) }"
               class="w-2.5 h-2.5 rounded-full shrink-0"
             />
             <component
@@ -196,9 +204,14 @@ import { RouterLink } from "vue-router";
 import { Scroll, Swords, MapPin } from "lucide-vue-next";
 import { useCalendarStore } from "@/stores/calendar";
 import { useCalendarEvents } from "@/composables/useCalendarEvents";
-import { linkedEntityType, linkedEntityId } from "@/types/calendar.types";
+import { linkedEntityType, linkedEntityId, eventColor } from "@/types/calendar.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import type { CalendarEvent } from "@/types/calendar.types";
+
+const { eventsOverride = null, readOnly = false } = defineProps<{
+  eventsOverride?: CalendarEvent[] | null;
+  readOnly?: boolean;
+}>();
 
 const emit = defineEmits<{
   "edit-event": [event: CalendarEvent];
@@ -207,7 +220,8 @@ const emit = defineEmits<{
 
 const calendar = useCalendarStore();
 const yearRef = toRef(calendar, "currentYear");
-const { data: events, isLoading } = useCalendarEvents(yearRef);
+const { data: fetchedEvents, isLoading } = useCalendarEvents(yearRef);
+const events = computed(() => eventsOverride ?? fetchedEvents.value ?? null);
 
 const currentMonth = computed(
   () =>

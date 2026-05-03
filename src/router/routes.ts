@@ -175,6 +175,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Spells" },
   },
   {
+    path: "/play/calendar",
+    name: "play-calendar",
+    component: () => import("@/views/play/PlayerCalendarView.vue"),
+    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Calendar" },
+  },
+  {
     path: "/play/settings",
     name: "play-settings",
     component: () => import("@/views/play/PlayerSettingsView.vue"),

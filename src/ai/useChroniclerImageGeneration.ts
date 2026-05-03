@@ -3,6 +3,7 @@ import { uploadToBucket } from "@/lib/storage";
 import { getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { IMAGE_BASE_PROMPT } from "./prompts";
+import { OPENAI_IMAGE_MODEL_KEY } from "@/ai/providers/index";
 import type { ChroniclerSize } from "@/types/chronicler.types";
 import type { Npc } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";
@@ -96,6 +97,7 @@ export function parseSceneEntities(
   npcs: Npc[] | undefined,
   monsters: Monster[] | undefined,
   partyMembers: PartyMember[] | undefined,
+  groupPortraitUrl?: string | null,
 ): ResolvedEntity[] {
   // Extract @Token — stops at whitespace and common punctuation
   const tokens = [...text.matchAll(/@([A-Za-z][^\s,.'":;!?@]*)/g)].map((m) => m[1]);
@@ -105,6 +107,15 @@ export function parseSceneEntities(
   const seen = new Set<string>();
 
   for (const tok of unique) {
+    // @party / @Party resolves to the stored group portrait
+    if (tok.toLowerCase() === "party" && groupPortraitUrl) {
+      if (!seen.has("Party")) {
+        seen.add("Party");
+        allEntities.push({ label: "Party", portraitUrl: groupPortraitUrl, textDescription: "The adventuring party" });
+      }
+      continue;
+    }
+
     let found: ResolvedEntity | null = null;
 
     for (const pm of partyMembers ?? []) {
@@ -190,7 +201,7 @@ export async function generateChroniclerImage(params: {
   const apiKey = store.decryptedOpenAiKey;
   const imageModel = store.activeCampaign?.image_provider === "openai-mini"
     ? "gpt-image-1-mini"
-    : "gpt-image-2";
+    : ((typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) ?? "gpt-image-1.5");
   const settingPrompt = store.activeCampaign?.ai_setting_prompt ?? "";
   if (!apiKey) throw new Error("No OpenAI API key configured. Add one in Campaign Settings → AI.");
 
@@ -202,8 +213,9 @@ export async function generateChroniclerImage(params: {
     entities.map(async (e) => {
       if (e.portraitUrl) {
         const blob = await fetchPortraitBlob(e.portraitUrl);
-        if (blob) { portraitBlobs.push(blob); return; }
+        if (blob) portraitBlobs.push(blob);
       }
+      // Always include text description (height, appearance) even when a portrait is provided
       if (e.textDescription) textDescriptions.push(e.textDescription);
     }),
   );

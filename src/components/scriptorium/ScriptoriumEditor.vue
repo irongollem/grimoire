@@ -669,8 +669,38 @@
           nested scroll trap. Desktop: flex-1 + overflow-auto so the 620px pane
           owns its own scroll like before.
         -->
-        <div class="p-4 lg:flex-1 lg:overflow-auto lg:min-h-0">
+        <div class="p-4 lg:flex-1 lg:overflow-auto lg:min-h-0 relative">
           <EditorContent :editor="editor" class="phb-editor h-full" />
+
+          <!-- AI Enhance bubble menu -->
+          <BubbleMenu
+            v-if="editor && showEnhanceButton"
+            :editor="editor"
+            :tippy-options="{ duration: 100 }"
+          >
+            <div class="flex items-center rounded-md border border-border bg-card shadow-lg overflow-hidden">
+              <button
+                type="button"
+                :disabled="isEnhancing"
+                class="flex items-center gap-1.5 px-2.5 py-1.5 font-cinzel text-[11px] font-semibold tracking-wide text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                @click="onEnhance"
+              >
+                <LoaderCircle v-if="isEnhancing" class="h-3 w-3 animate-spin" />
+                <Wand2 v-else class="h-3 w-3" />
+                Enhance
+              </button>
+            </div>
+          </BubbleMenu>
+
+          <!-- Inline error feedback -->
+          <Transition name="enhance-error">
+            <div
+              v-if="enhanceError"
+              class="absolute bottom-2 left-2 right-2 z-30 rounded-md bg-destructive/90 px-3 py-2 font-fell text-xs text-white shadow-lg"
+            >
+              {{ enhanceError }}
+            </div>
+          </Transition>
         </div>
 
         <!-- Word count footer -->
@@ -796,6 +826,7 @@ const { confirm } = useConfirm();
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
+import { BubbleMenu } from "@tiptap/vue-3/menus";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Image from "@tiptap/extension-image";
@@ -825,6 +856,8 @@ import {
   Pin,
   ZoomIn,
   ZoomOut,
+  Wand2,
+  LoaderCircle,
 } from "lucide-vue-next";
 import {
   useCreateScriptoriumDocument,
@@ -867,6 +900,8 @@ import BlockPickerPanel from "@/components/scriptorium/BlockPickerPanel.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
+import { useTextEnhancement } from "@/ai/useTextEnhancement";
+import { parseMarkdown } from "@/lib/markdownToTiptap";
 
 const IMAGE_SIZES = [
   { label: "S", w: 120 },
@@ -1412,6 +1447,59 @@ const {
   footerText,
 );
 
+// ── AI text enhancement ───────────────────────────────────────────────────────
+
+const SCRIPTORIUM_STYLE: Partial<Record<ScriptoriumDocType, string>> = {
+  spell:      "2024 Player's Handbook spell description: present tense, mechanical precision, second-person address ('you'). No preamble.",
+  monster:    "2024 Monster Manual lore: third-person, atmospheric, present tense. One to two paragraphs.",
+  item:       "2024 Dungeon Master's Guide item entry: one evocative flavour sentence followed by concise property text.",
+  adventure:  "D&D read-aloud boxed text or DM narrative: infer register from surrounding content. Present tense.",
+  background: "2024 Player's Handbook background feature: one paragraph, present tense, describes what the character can do.",
+  location:   "D&D sourcebook location description: open with the most striking sensory detail, present tense, two paragraphs.",
+  class:      "2024 Player's Handbook class feature: 'At Nth level, you gain…' voice, present tense, precise.",
+  subclass:   "2024 Player's Handbook subclass feature description, same voice as class features.",
+  race:       "2024 Player's Handbook species description: third-person, present tense, one to two paragraphs.",
+};
+
+const CONTEXT_RADIUS = 300;
+
+const { isEnhancing, hasTextProvider, enhance } = useTextEnhancement();
+const enhanceError = ref<string | null>(null);
+
+const showEnhanceButton = computed(() => hasTextProvider());
+
+async function onEnhance() {
+  if (!editor.value || isEnhancing.value) return;
+  const { from, to } = editor.value.state.selection;
+  if (from === to) return;
+
+  const selectedText = editor.value.state.doc.textBetween(from, to, " ");
+  if (!selectedText.trim()) return;
+
+  const docSize = editor.value.state.doc.content.size;
+  const before = editor.value.state.doc.textBetween(Math.max(0, from - CONTEXT_RADIUS), from, " ");
+  const after = editor.value.state.doc.textBetween(to, Math.min(docSize, to + CONTEXT_RADIUS), " ");
+  const surroundingContext = [before, "[[SELECTION]]", after].filter(Boolean).join(" ");
+
+  enhanceError.value = null;
+  try {
+    const markdown = await enhance(selectedText, "Scriptorium document", {
+      styleHint: SCRIPTORIUM_STYLE[docType.value],
+      surroundingContext: surroundingContext.trim() || undefined,
+    });
+    const nodes = parseMarkdown(markdown);
+    editor.value
+      .chain()
+      .focus()
+      .deleteRange({ from, to })
+      .insertContentAt(from, nodes, { parseOptions: { preserveWhitespace: false } })
+      .run();
+  } catch (e) {
+    enhanceError.value = e instanceof Error ? e.message : "Enhancement failed";
+    setTimeout(() => { enhanceError.value = null; }, 4000);
+  }
+}
+
 onUnmounted(() => {
   editor.value?.destroy();
   resizeObserver?.disconnect();
@@ -1430,6 +1518,11 @@ onUnmounted(() => {
 .scriptorium-toolbar > * {
   flex-shrink: 0;
 }
+
+.enhance-error-enter-active,
+.enhance-error-leave-active { transition: opacity 0.2s ease; }
+.enhance-error-enter-from,
+.enhance-error-leave-to { opacity: 0; }
 
 /* ── Form controls (#243): bind directly to runtime theme vars ── */
 /* Scoped styles are unlayered and win over Tailwind's @layer utilities,

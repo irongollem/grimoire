@@ -26,39 +26,29 @@
             />
           </div>
 
-          <!-- Event type + Color -->
-          <div class="flex gap-3">
-            <div class="flex-1">
-              <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">TYPE</label>
+          <!-- Event type -->
+          <div>
+            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">TYPE</label>
+            <div class="flex items-center gap-2">
+              <div class="w-3 h-3 rounded-full shrink-0" :style="{ backgroundColor: form.color }" />
               <select
                 v-model="form.event_type"
-                class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="flex-1 bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="campaign">Campaign Event</option>
-                <option value="session">Session</option>
                 <option value="world">World Event</option>
+                <option value="festival">Festival</option>
+                <option value="deadline">Deadline</option>
+                <option value="quest">Quest</option>
                 <option value="player_death">💀 Player Death</option>
                 <option value="boss_fight">⚔ Boss Fight</option>
                 <option value="discovery">🔍 Discovery</option>
                 <option value="npc_death">🗡 NPC Death</option>
                 <option value="travel">🗺 Travel</option>
-                <option value="quest">Quest</option>
-                <option value="encounter">Encounter</option>
               </select>
-            </div>
-            <div>
-              <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">COLOR</label>
-              <div class="flex gap-1.5 pt-1">
-                <button
-                  v-for="c in PRESET_COLORS"
-                  :key="c"
-                  type="button"
-                  :style="{ backgroundColor: c }"
-                  class="w-6 h-6 rounded-full border-2 transition-transform hover:scale-110"
-                  :class="form.color === c ? 'border-foreground scale-110' : 'border-transparent'"
-                  @click="form.color = c"
-                />
-              </div>
+              <p class="font-fell text-xs text-muted-foreground italic mt-1">
+                Session events are created automatically from session notes.
+              </p>
             </div>
           </div>
 
@@ -113,6 +103,16 @@
             </div>
           </div>
 
+          <!-- Player visibility toggle -->
+          <label class="flex items-center gap-2.5 cursor-pointer select-none">
+            <input
+              v-model="form.player_visible"
+              type="checkbox"
+              class="rounded border-border w-4 h-4 accent-primary"
+            />
+            <span class="font-fell text-sm text-foreground">Visible to players</span>
+          </label>
+
           <!-- Actions -->
           <div class="flex justify-end gap-2 pt-1">
             <button
@@ -137,21 +137,8 @@ import { ref, computed, watch } from "vue";
 import { useCalendarStore } from "@/stores/calendar";
 import { useCreateCalendarEvent } from "@/composables/useCalendarEvents";
 import { useCampaignStore } from "@/stores/campaign";
-import type { CalendarEvent, CalendarEventInsert, CalendarEventType } from "@/types/calendar.types";
-
-const PRESET_COLORS = [
-  "#C9920A", "#C0392B", "#2E7D32", "#6A1B9A",
-  "#1B3A4B", "#E67E22", "#2980B9", "#7F8C8D",
-] as const;
-
-const EVENT_TYPE_COLORS: Partial<Record<CalendarEventType, string>> = {
-  player_death: "#dc2626",
-  boss_fight: "#7c3aed",
-  discovery: "#059669",
-  npc_death: "#6b7280",
-  travel: "#2563eb",
-  session: "#C9920A",
-};
+import { EVENT_TYPE_COLORS, eventColor } from "@/types/calendar.types";
+import type { CalendarEvent, CalendarEventInsert } from "@/types/calendar.types";
 
 const props = defineProps<{ modelValue: boolean }>();
 const emit = defineEmits<{
@@ -179,7 +166,7 @@ function defaultForm(): CalendarEventInsert {
     title: "",
     description: null,
     event_type: "campaign",
-    color: PRESET_COLORS[0],
+    color: EVENT_TYPE_COLORS["campaign"],
     harptos_year: calendar.currentYear,
     harptos_month: calendar.currentMonth,
     harptos_day: 1,
@@ -193,6 +180,7 @@ function defaultForm(): CalendarEventInsert {
     linked_location_id: null,
     linked_note_id: null,
     travel_party_member_ids: [],
+    player_visible: false,
   };
 }
 
@@ -222,12 +210,7 @@ watch(dateType, (type) => {
 
 watch(
   () => form.value.event_type,
-  (newType) => {
-    const autoColor = EVENT_TYPE_COLORS[newType as CalendarEventType];
-    if (form.value.color === PRESET_COLORS[0] && autoColor) {
-      form.value.color = autoColor;
-    }
-  },
+  (newType) => { form.value.color = eventColor({ event_type: newType }); },
 );
 
 function close() {

@@ -62,76 +62,91 @@
       v-else
       class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
     >
-      <div v-for="doc in filtered" :key="doc.id" class="relative group">
-        <RouterLink
-          :to="`/scriptorium/${doc.id}`"
-          class="flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
+      <div
+        v-for="doc in filtered"
+        :key="doc.id"
+        class="group relative flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
+      >
+        <!-- Card link overlay (disabled for locked items) -->
+        <RouterLink v-if="!lockedDocIds.has(doc.id)" :to="`/scriptorium/${doc.id}`" class="absolute inset-0 z-2" />
+
+        <!-- Locked overlay for over-quota items -->
+        <div
+          v-if="lockedDocIds.has(doc.id)"
+          class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-1.5 bg-background/80 backdrop-blur-sm"
         >
-          <!-- Type colour bar -->
-          <div
-            class="h-1 w-full shrink-0"
-            :style="{ backgroundColor: typeColor(doc.doc_type) }"
-          />
+          <Lock class="h-4 w-4 text-muted-foreground" />
+          <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">Locked</p>
+          <RouterLink to="/billing" class="font-cinzel text-[9px] tracking-wider text-primary/80 hover:text-primary transition-colors">
+            Upgrade to access
+          </RouterLink>
+        </div>
 
-          <div class="p-4 flex flex-col gap-2 flex-1">
-            <!-- Header row -->
-            <div class="flex items-start justify-between gap-2">
-              <h3
-                class="font-cinzel text-sm font-bold text-foreground leading-tight line-clamp-2 flex-1"
-              >
-                {{ doc.title }}
-              </h3>
-              <span
-                class="shrink-0 px-1.5 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider uppercase"
-                :style="{
-                  backgroundColor: typeColor(doc.doc_type) + '22',
-                  color: typeColor(doc.doc_type),
-                }"
-              >
-                {{ DOC_TYPE_LABELS[doc.doc_type] }}
-              </span>
-            </div>
+        <!-- Type colour bar -->
+        <div
+          class="h-1 w-full shrink-0"
+          :style="{ backgroundColor: typeColor(doc.doc_type) }"
+        />
 
-            <!-- Tags -->
-            <div v-if="doc.tags.length" class="flex flex-wrap gap-1">
-              <span
-                v-for="tag in doc.tags.slice(0, 3)"
-                :key="tag"
-                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider"
-              >
-                {{ tag }}
-              </span>
-              <span
-                v-if="doc.tags.length > 3"
-                class="font-fell text-[10px] text-muted-foreground italic self-center"
-              >
-                +{{ doc.tags.length - 3 }}
-              </span>
-            </div>
-
-            <!-- Footer -->
-            <div class="flex items-center justify-between mt-auto pt-1">
-              <span class="font-fell text-[11px] text-muted-foreground italic">
-                {{ doc.word_count }} words
-              </span>
-              <span class="font-fell text-[11px] text-muted-foreground">
-                {{ formatDate(doc.updated_at) }}
-              </span>
-            </div>
-
-            <!-- Published badge -->
-            <div v-if="doc.is_published" class="flex items-center gap-1">
-              <Globe class="h-3 w-3 text-green-500" />
-              <span
-                class="font-cinzel text-[10px] text-green-500 font-semibold tracking-wider"
-                >Published</span
-              >
-            </div>
+        <div class="p-4 flex flex-col gap-2 flex-1">
+          <!-- Header row -->
+          <div class="flex items-start justify-between gap-2">
+            <h3
+              class="font-cinzel text-sm font-bold text-foreground leading-tight line-clamp-2 flex-1"
+            >
+              {{ doc.title }}
+            </h3>
+            <span
+              class="shrink-0 px-1.5 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider uppercase"
+              :style="{
+                backgroundColor: typeColor(doc.doc_type) + '22',
+                color: typeColor(doc.doc_type),
+              }"
+            >
+              {{ DOC_TYPE_LABELS[doc.doc_type] }}
+            </span>
           </div>
-        </RouterLink>
+
+          <!-- Tags -->
+          <div v-if="doc.tags.length" class="flex flex-wrap gap-1">
+            <span
+              v-for="tag in doc.tags.slice(0, 3)"
+              :key="tag"
+              class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider"
+            >
+              {{ tag }}
+            </span>
+            <span
+              v-if="doc.tags.length > 3"
+              class="font-fell text-[10px] text-muted-foreground italic self-center"
+            >
+              +{{ doc.tags.length - 3 }}
+            </span>
+          </div>
+
+          <!-- Footer -->
+          <div class="flex items-center justify-between mt-auto pt-1">
+            <span class="font-fell text-[11px] text-muted-foreground italic">
+              {{ doc.word_count }} words
+            </span>
+            <span class="font-fell text-[11px] text-muted-foreground">
+              {{ formatDate(doc.updated_at) }}
+            </span>
+          </div>
+
+          <!-- Published badge -->
+          <div v-if="doc.is_published" class="flex items-center gap-1">
+            <Globe class="h-3 w-3 text-green-500" />
+            <span
+              class="font-cinzel text-[10px] text-green-500 font-semibold tracking-wider"
+              >Published</span
+            >
+          </div>
+        </div>
+
         <button
           type="button"
-          class="absolute top-2 right-2 w-6 h-6 rounded flex items-center justify-center bg-card/80 border border-border text-muted-foreground [@media(hover:hover)]:opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-all"
+          class="absolute top-2 right-2 z-10 w-6 h-6 rounded flex items-center justify-center bg-card/80 border border-border text-muted-foreground [@media(hover:hover)]:opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-all"
           title="Delete document"
           @click.prevent="confirmDelete(doc.id, doc.title)"
         >
@@ -156,7 +171,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { Search, Globe, Trash2 } from "lucide-vue-next";
+import { Search, Globe, Trash2, Lock } from "lucide-vue-next";
 import {
   useScriptoriumDocuments,
   useDeleteScriptoriumDocument,
@@ -168,7 +183,7 @@ import { useQuota } from "@/composables/useQuota";
 import type { ScriptoriumDocType } from "@/types/scriptorium.types";
 
 const router = useRouter();
-const { canCreate } = useQuota("scriptorium_documents");
+const { canCreate, quota: docQuota } = useQuota("scriptorium_documents");
 const showPaywall = ref(false);
 
 function handleNew() {
@@ -224,6 +239,16 @@ const typeFilter = ref("all");
 
 const { data: docs, isLoading } = useScriptoriumDocuments();
 const { mutateAsync: deleteDoc } = useDeleteScriptoriumDocument();
+
+const lockedDocIds = computed((): Set<string> => {
+  const q = docQuota.value;
+  if (!q || q.unlimited || q.current <= q.limit) return new Set();
+  const overCount = q.current - q.limit;
+  const sorted = [...(docs.value ?? [])].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
+  return new Set(sorted.slice(-overCount).map((d) => d.id));
+});
 
 async function confirmDelete(id: string, title: string) {
   if (!(await confirm(`Delete "${title}"? This cannot be undone.`))) return;

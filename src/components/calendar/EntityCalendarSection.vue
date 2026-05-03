@@ -232,6 +232,7 @@ async function pinDate() {
     linked_encounter_id: props.entityType === "encounter" ? props.entityId : null,
     linked_location_id: props.entityType === "location" ? props.entityId : null,
     travel_party_member_ids: [],
+    player_visible: false,
     campaign_id: null, // injected by composable
   });
   showForm.value = false;

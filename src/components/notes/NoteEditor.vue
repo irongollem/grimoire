@@ -171,6 +171,7 @@
       allow-upload
       allow-calendar-events
       :entity-mention-items="entityMentionItems"
+      :ai-context="`${category} note${title ? ` — ${title}` : ''}`"
       @insert-calendar-event="showEventModal = true"
     >
       <template v-if="isOpenAiImageProvider" #toolbar-end>
@@ -447,6 +448,7 @@ async function syncSessionCalendarEvent(noteId: string) {
       linked_location_id: null,
       linked_note_id: noteId,
       travel_party_member_ids: [],
+      player_visible: false,
       campaign_id: activeCampaignId.value,
     };
 

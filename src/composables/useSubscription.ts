@@ -8,7 +8,6 @@ async function fetchSubscription(): Promise<UserSubscription | null> {
   const { data } = await supabase
     .from("user_subscriptions")
     .select("*")
-    .in("status", ["active", "trialing"])
     .maybeSingle();
   return data as UserSubscription | null;
 }
@@ -33,5 +32,10 @@ export function useSubscription() {
     );
   });
 
-  return { subscription: data, isPro, isLoading };
+  const isPendingCancellation = computed(() => {
+    const sub = data.value;
+    return !!sub?.cancel_at_period_end && !!sub.cancel_at;
+  });
+
+  return { subscription: data, isPro, isPendingCancellation, isLoading };
 }
