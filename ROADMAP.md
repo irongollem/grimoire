@@ -96,6 +96,7 @@
 - [x] Player quest notes table with private/shared toggles per entry
 - [x] Adventure Journal — player personal journal with 6 categories, context linking, private/shared entries
 - [x] Scriptorium formatter for quests (title, status, objectives, notes)
+- [x] Quest consequences (triggers) — DM configures time-delayed consequences on quest/objective completion; fires when DM advances in-game "today" date. Tables: `quest_triggers` + `quest_trigger_scheduled`. Today date tracked on `campaigns` (`current_month`, `current_day`), shown in calendar header (DM) and player portal top bar; date change broadcasts to chat.
 
 ### Party & Character Management
 

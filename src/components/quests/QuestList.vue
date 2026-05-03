@@ -153,7 +153,8 @@
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { ScrollText } from "lucide-vue-next";
-import { useAllQuests, useUpdateQuest } from "@/composables/useQuests";
+import { useAllQuests, useUpdateQuest, scheduleQuestTriggers } from "@/composables/useQuests";
+import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
@@ -167,6 +168,7 @@ import {
 
 const router = useRouter();
 const ui = useUiStore();
+const campaign = useCampaignStore();
 const search = computed(() => ui.questsSearch);
 const isKanban = computed(() => ui.questsIsKanban);
 
@@ -226,5 +228,13 @@ async function onDrop(targetStatus: QuestStatus) {
   if (!quest || quest.status === targetStatus) return;
 
   await updateQuest({ id, update: { status: targetStatus } });
+
+  if (targetStatus === "completed" && campaign.activeCampaignId) {
+    void scheduleQuestTriggers(
+      id, "quest_complete", null,
+      { year: campaign.todayYear, month: campaign.todayMonth, day: campaign.todayDay },
+      campaign.activeCampaignId,
+    );
+  }
 }
 </script>

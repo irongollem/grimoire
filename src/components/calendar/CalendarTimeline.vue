@@ -178,6 +178,29 @@
           </span>
         </div>
 
+        <!-- Today: past tint -->
+        <div
+          v-if="todayMarkerX !== null"
+          :style="{ width: todayMarkerX + 'px' }"
+          class="absolute inset-y-0 left-0 bg-muted/25 pointer-events-none z-20"
+        />
+
+        <!-- Today: full-height line + top label -->
+        <div
+          v-if="todayMarkerX !== null"
+          :style="{ left: todayMarkerX + 'px' }"
+          class="absolute inset-y-0 z-30 pointer-events-none"
+          style="transform: translateX(-50%)"
+        >
+          <div class="w-px h-full bg-amber-400/70" />
+          <span
+            class="absolute font-cinzel text-xs font-bold text-amber-400 whitespace-nowrap"
+            style="top: 4px; left: 50%; transform: translateX(-50%)"
+          >
+            ◆ Today
+          </span>
+        </div>
+
         <!-- Session strip separator -->
         <div
           class="absolute left-0 right-0 border-t border-dashed"
@@ -373,6 +396,7 @@
 import { ref, computed, watch, nextTick, onUnmounted } from "vue";
 import type { Component } from "vue";
 import { useCalendarStore } from "@/stores/calendar";
+import { useCampaignStore } from "@/stores/campaign";
 import { useCalendarEventsRange } from "@/composables/useCalendarEvents";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import { eventColor } from "@/types/calendar.types";
@@ -429,6 +453,7 @@ const emit = defineEmits<{
 }>();
 
 const calendar = useCalendarStore();
+const campaignStore = useCampaignStore();
 const jumpYear = ref<number>(calendar.currentYear);
 
 // Measure container so the timeline always fills available width.
@@ -608,6 +633,12 @@ const dayTicks = computed(() => {
 const currentMarkerX = computed(() =>
   fractionalYearToX(calendar.currentYear + (calendar.currentMonth - 1) / 12),
 );
+
+// In-game "today" marker (campaign.todayYear/Month/Day)
+const todayMarkerX = computed(() => {
+  const dayOfYear = (campaignStore.todayMonth - 1) * 30 + campaignStore.todayDay;
+  return fractionalYearToX(campaignStore.todayYear + dayOfYear / 365);
+});
 
 // Human-readable range label for the nav bar
 const rangeLabel = computed(() => {

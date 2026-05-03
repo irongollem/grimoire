@@ -11,6 +11,12 @@
 
       <div class="flex-1" />
 
+      <!-- In-game today date -->
+      <span class="hidden md:inline-flex items-center gap-1 font-fell text-xs text-muted-foreground italic shrink-0">
+        <CalendarDays class="h-3 w-3 text-primary shrink-0" />
+        {{ todayLabel }}
+      </span>
+
       <span v-if="characterName && route.path !== '/play'" class="font-cinzel text-xs text-foreground hidden sm:inline">
         {{ characterName }}
       </span>
@@ -280,7 +286,8 @@
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
-import { LogOut, X, Eye, LayoutGrid, Swords, Bug, MessageCircle, Menu, Settings } from "lucide-vue-next";
+import { LogOut, X, Eye, LayoutGrid, Swords, Bug, MessageCircle, Menu, Settings, CalendarDays } from "lucide-vue-next";
+import { useCalendarStore } from "@/stores/calendar";
 import DiceRoller from "@/components/common/DiceRoller.vue";
 import { useRunningEncounters, usePlayerEncounterLive } from "@/composables/useEncounterLive";
 import { useAuthStore } from "@/stores/auth";
@@ -388,6 +395,13 @@ watch([runningLoaded, anyRunning], ([loaded, isRunning], oldVals) => {
 
 
 const campaignName = computed(() => campaign.activeCampaign?.name ?? "Campaign");
+
+const calendarStore = useCalendarStore();
+const todayLabel = computed(() => {
+  const m = calendarStore.adapter.months.find((mo) => mo.num === campaign.todayMonth);
+  const monthName = m?.name ?? m?.alias ?? `Month ${campaign.todayMonth}`;
+  return `${monthName} ${campaign.todayDay}, ${campaign.todayYear}`;
+});
 const characterName = computed(() => {
   if (!auth.linkedPartyMemberId || !partyMembers.value) return null;
   return partyMembers.value.find((m) => m.id === auth.linkedPartyMemberId)?.name ?? null;

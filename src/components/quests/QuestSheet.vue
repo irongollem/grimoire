@@ -234,6 +234,30 @@
       </div>
     </section>
 
+    <section v-if="triggers?.length" class="flex flex-col gap-2">
+      <h2 class="font-cinzel text-sm font-bold tracking-wide text-muted-foreground flex items-center gap-1.5">
+        <Zap class="h-3.5 w-3.5" />
+        Consequences
+        <span class="font-fell font-normal">({{ triggers.length }})</span>
+      </h2>
+      <div class="rounded-lg border border-border bg-card overflow-hidden">
+        <div class="p-2 flex flex-col gap-1">
+          <div
+            v-for="trig in triggers"
+            :key="trig.id"
+            class="flex items-start gap-2 px-2 py-1.5"
+          >
+            <Zap class="h-3 w-3 text-primary shrink-0 mt-0.5" />
+            <p class="font-fell text-xs text-muted-foreground leading-snug">
+              <span class="font-semibold text-foreground">{{ trig.trigger_type === 'quest_complete' ? 'Quest complete' : 'Objective done' }}</span>
+              {{ trig.offset_days > 0 ? ` + ${trig.offset_days} days` : '' }} →
+              {{ triggerActionSummary(trig) }}
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section v-if="subQuests?.length" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
         Sub-quests
@@ -265,7 +289,7 @@ import { useRoute, useRouter, RouterLink } from "vue-router";
 import {
   Pencil, Trash2, Check, Eye, EyeOff, ChevronRight,
   UserRound, MapPin as MapPinIcon, ScrollText,
-  Swords, Skull, Package,
+  Swords, Skull, Package, Zap,
 } from "lucide-vue-next";
 import { useConfirm } from "@/composables/useConfirm";
 import {
@@ -275,7 +299,10 @@ import {
   useSubQuests,
   useQuests,
   useDeleteQuest,
+  useQuestTriggers,
+  scheduleQuestTriggers,
 } from "@/composables/useQuests";
+import { useCampaignStore } from "@/stores/campaign";
 import { useNpcs } from "@/composables/useNpcs";
 import { useAllLocations } from "@/composables/useLocations";
 import { useMonsters } from "@/composables/useMonsters";
@@ -294,8 +321,10 @@ const props = defineProps<{ quest: Quest }>();
 const route  = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();
+const campaign = useCampaignStore();
 
 const questId = computed(() => props.quest.id);
+const { data: triggers } = useQuestTriggers(questId);
 
 // ── Linked data ─────────────────────────────────────────────────────────────
 const { data: npcs }       = useNpcs();
@@ -335,7 +364,15 @@ const doneCount = computed(
 );
 
 async function toggleObjective(obj: QuestObjective) {
-  await updateObjective({ id: obj.id, questId: obj.quest_id, update: { is_done: !obj.is_done } });
+  const becomingDone = !obj.is_done;
+  await updateObjective({ id: obj.id, questId: obj.quest_id, update: { is_done: becomingDone } });
+  if (becomingDone && campaign.activeCampaignId) {
+    void scheduleQuestTriggers(
+      obj.quest_id, "objective_done", obj.id,
+      { year: campaign.todayYear, month: campaign.todayMonth, day: campaign.todayDay },
+      campaign.activeCampaignId,
+    );
+  }
 }
 
 async function toggleObjectiveVisibility(obj: QuestObjective) {
@@ -385,6 +422,15 @@ function tiptapHasContent(raw: string | null): boolean {
 }
 const hasDescription = computed(() => tiptapHasContent(props.quest.description));
 const hasNotes       = computed(() => tiptapHasContent(props.quest.notes));
+
+function triggerActionSummary(trig: { action_type: string; action_payload: unknown }): string {
+  if (trig.action_type === "create_calendar_event") {
+    const p = trig.action_payload as { title?: string };
+    return `Calendar event: "${p.title ?? ""}"`;
+  }
+  const p = trig.action_payload as { message?: string };
+  return `Broadcast: "${p.message ?? ""}"`;
+}
 
 // ── Delete ──────────────────────────────────────────────────────────────────
 const { mutateAsync: deleteQuest } = useDeleteQuest();

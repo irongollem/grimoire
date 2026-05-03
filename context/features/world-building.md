@@ -165,6 +165,10 @@ _Right column:_
 
 **Status lifecycle:** Undiscovered → Active → On Hold / Completed / Failed. Undiscovered quests exist in the DM's log but are excluded from the player portal query (`usePlayerVisibleQuests` filters on `player_visible_to IS NOT NULL`).
 
+**Consequences (quest triggers):** DM configures time-delayed consequences in the quest editor (right column, "Consequences" panel). Each trigger has a condition (`quest_complete` or `objective_done` + which objective), an `offset_days` delay, and an action (`create_calendar_event` with title + event_type, or `send_broadcast` with message). When the condition fires, a `quest_trigger_scheduled` entry is created with `fire_date = today + offset_days`. When the DM advances the in-game date to ≥ fire_date via the calendar "Today" button, pending triggers execute: calendar events are created at the fire date, broadcasts are sent to the campaign chat. Composable helpers: `scheduleQuestTriggers()`, `fireDueTriggers()` in `useQuests.ts`.
+
+**In-game "today" date:** Stored as `current_year`, `current_month`, `current_day` on the `campaigns` table. The DM sets it via the calendar page's "Today: [date]" button (top-right actions area). Changing the date posts a `📅 The date is now…` announcement to the campaign chat and fires any pending consequences. Players see the current date in the player portal top bar (read-only). Live-synced to all connected clients via `useCampaignLiveSync` (watches `campaigns` table for `UPDATE` events).
+
 ### Player View
 
 Route: `/play/quests` (list), `/play/quests/:id` (detail)
@@ -322,6 +326,29 @@ Route: `/play/factions` (embedded in player portal via `PlayerFactionsView.vue`)
 | `ref_type`          | enum    | npc, location, monster, encounter |
 | `ref_id`            | uuid    | ID of the referenced entity       |
 | `is_player_visible` | boolean | Individual ref visibility         |
+
+### QuestTrigger (`quest_triggers` table)
+
+| Field            | Type   | Notes                                                                   |
+| ---------------- | ------ | ----------------------------------------------------------------------- |
+| `quest_id`       | uuid   | Parent quest (cascade delete)                                           |
+| `objective_id`   | uuid?  | Set when `trigger_type = objective_done`                                |
+| `trigger_type`   | enum   | `quest_complete`, `objective_done`                                      |
+| `offset_days`    | int    | Days after condition fires before action executes                       |
+| `action_type`    | enum   | `create_calendar_event`, `send_broadcast`                               |
+| `action_payload` | JSONB  | `{title, event_type}` for calendar; `{message}` for broadcast           |
+
+### QuestTriggerScheduled (`quest_trigger_scheduled` table)
+
+| Field         | Type      | Notes                                           |
+| ------------- | --------- | ----------------------------------------------- |
+| `trigger_id`  | uuid      | FK → quest_triggers (cascade delete)            |
+| `quest_id`    | uuid      | Denormalised for fast lookup                    |
+| `campaign_id` | uuid      | For querying all pending triggers for a campaign|
+| `fire_year`   | int       | Computed fire date (today + offset_days)        |
+| `fire_month`  | int       |                                                 |
+| `fire_day`    | int       |                                                 |
+| `fired_at`    | timestamp | null = pending; set when fired                  |
 
 ### Faction (`factions` table)
 

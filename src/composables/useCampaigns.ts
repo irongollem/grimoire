@@ -1,6 +1,7 @@
 import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
+import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
 import type { Campaign, CampaignInsert, CampaignUpdate } from "@/types/campaign.types";
 
 // All campaign-scoped tables whose orphaned rows (campaign_id IS NULL) can be claimed
@@ -165,6 +166,45 @@ export function useRegenerateIcalToken() {
     mutationFn: (campaignId: string) =>
       updateCampaign(campaignId, { ical_token: crypto.randomUUID() } as CampaignUpdate),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}
+
+/** Update the in-game "today" date on the active campaign.
+ *  The caller is responsible for also calling fireDueTriggers() after this. */
+export function useSetCampaignToday() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      year,
+      month,
+      day,
+    }: {
+      id: string;
+      year: number;
+      month: number;
+      day: number;
+    }) => updateCampaign(id, { current_year: year, current_month: month, current_day: day } as CampaignUpdate),
+    onSuccess: (updatedCampaign, { id, year, month, day }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      import("@/stores/campaign").then(({ useCampaignStore }) => {
+        const store = useCampaignStore();
+        if (store.activeCampaign && updatedCampaign) {
+          store.activeCampaign = {
+            ...store.activeCampaign,
+            current_year:  updatedCampaign.current_year,
+            current_month: updatedCampaign.current_month,
+            current_day:   updatedCampaign.current_day,
+          };
+        }
+      });
+      // Announce the date change in the campaign chat so all players see it
+      import("@/calendars/index").then(({ getCalendarAdapter }) => {
+        const adapter = getCalendarAdapter(updatedCampaign?.calendar_id ?? "faerun");
+        const dateStr = adapter.formatDate(year, month, day, null);
+        void sendCampaignAnnouncement(id, `📅 The date is now ${dateStr}`);
+      });
+    },
   });
 }
 

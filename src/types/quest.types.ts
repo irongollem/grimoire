@@ -108,3 +108,46 @@ export interface QuestRef {
 export type QuestRefInsert = Omit<QuestRef, "id" | "is_player_visible"> & {
   is_player_visible?: boolean;
 };
+
+export type TriggerType = "quest_complete" | "objective_done";
+export type TriggerActionType = "create_calendar_event" | "send_broadcast";
+
+export interface CalendarEventTriggerPayload {
+  title: string;
+  event_type: string;
+  description?: string;
+}
+
+export interface BroadcastTriggerPayload {
+  message: string;
+}
+
+export interface QuestTrigger {
+  id: string;
+  user_id: string;
+  quest_id: string;
+  objective_id: string | null;
+  trigger_type: TriggerType;
+  offset_days: number;
+  action_type: TriggerActionType;
+  action_payload: CalendarEventTriggerPayload | BroadcastTriggerPayload;
+  created_at: string;
+  updated_at: string;
+}
+
+export type QuestTriggerInsert = Omit<QuestTrigger, "id" | "user_id" | "created_at" | "updated_at">;
+export type QuestTriggerUpdate = Partial<Omit<QuestTriggerInsert, "quest_id">>;
+
+export interface QuestTriggerScheduled {
+  id: string;
+  user_id: string;
+  campaign_id: string;
+  trigger_id: string;
+  quest_id: string;
+  fire_year: number;
+  fire_month: number;
+  fire_day: number;
+  fired_at: string | null;
+  created_at: string;
+  updated_at: string;
+}

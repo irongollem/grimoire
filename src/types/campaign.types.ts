@@ -11,6 +11,8 @@ export interface Campaign {
   description: string | null;
   setting: string;
   current_year: number;
+  current_month: number;
+  current_day: number;
   calendar_id: string;  // references CalendarAdapter.id, defaults to 'faerun'
   theme: string;        // references GrimoireTheme.id, defaults to 'grimoire'
   health_visibility: "strategic" | "immersive" | "unknown";
@@ -40,7 +42,7 @@ type ApiKeyFields = "openai_api_key" | "anthropic_api_key" | "gemini_api_key" | 
 type PortraitFields = "group_portrait_url";
 type ProviderFields = "text_provider" | "image_provider";
 
-export type CampaignInsert = Omit<Campaign, "id" | "user_id" | "created_at" | "updated_at" | "excluded_monster_ids" | "disabled_class_names" | "health_visibility" | "immersive_rolls" | "optional_rules" | ApiKeyFields | ProviderFields | "ai_setting_prompt" | "allow_chronicle_promotion" | "ical_token" | PortraitFields> & {
+export type CampaignInsert = Omit<Campaign, "id" | "user_id" | "created_at" | "updated_at" | "excluded_monster_ids" | "disabled_class_names" | "health_visibility" | "immersive_rolls" | "optional_rules" | ApiKeyFields | ProviderFields | "ai_setting_prompt" | "allow_chronicle_promotion" | "ical_token" | PortraitFields | "current_month" | "current_day"> & {
   excluded_monster_ids?: string[];
   disabled_class_names?: string[];
   health_visibility?: Campaign["health_visibility"];
@@ -54,6 +56,8 @@ export type CampaignInsert = Omit<Campaign, "id" | "user_id" | "created_at" | "u
   image_provider?: string | null;
   ai_setting_prompt?: string | null;
   allow_chronicle_promotion?: boolean;
+  current_month?: number;
+  current_day?: number;
 };
 export type CampaignUpdate = Partial<CampaignInsert> & { ical_token?: string; spotify_client_id?: string | null; is_archived?: boolean; group_portrait_url?: string | null };
 

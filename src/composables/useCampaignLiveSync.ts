@@ -42,6 +42,19 @@ export function useCampaignLiveSync() {
           .on("postgres_changes", { event: "*", schema: "public", table: "player_journal",    filter: f }, invalidate("player_journal"))
           .on("postgres_changes", { event: "*", schema: "public", table: "session_proposals",  filter: f }, invalidate("session_proposals"))
           .on("postgres_changes", { event: "*", schema: "public", table: "session_availability", filter: f }, invalidate("session_availability"))
+          // campaigns table uses `id` as the campaign identifier (not campaign_id)
+          .on("postgres_changes", { event: "UPDATE", schema: "public", table: "campaigns", filter: `id=eq.${campaignId}` }, (payload) => {
+            const updated = payload.new as import("@/types/campaign.types").Campaign;
+            if (updated && campaign.activeCampaign) {
+              campaign.activeCampaign = {
+                ...campaign.activeCampaign,
+                current_year:  updated.current_year,
+                current_month: updated.current_month,
+                current_day:   updated.current_day,
+              };
+            }
+            void qc.invalidateQueries({ queryKey: ["campaigns"] });
+          })
           .subscribe();
       },
       { immediate: true },

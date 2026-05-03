@@ -98,15 +98,21 @@
                   ? 'border-border bg-card'
                   : 'border-transparent bg-transparent',
               day !== null && hasEvents(day) ? 'ring-1 ring-primary/40' : '',
+              day !== null && day === todayDayInView ? 'ring-2 ring-primary bg-primary/5' : '',
             ]"
             @click="!readOnly && day !== null && emit('create-event', day)"
           >
             <span
               v-if="day !== null"
-              class="font-cinzel text-xs font-semibold text-muted-foreground leading-none"
+              class="font-cinzel text-xs font-semibold leading-none"
+              :class="day === todayDayInView ? 'text-primary' : 'text-muted-foreground'"
             >
               {{ day }}
             </span>
+            <span
+              v-if="day === todayDayInView"
+              class="absolute top-0.5 right-1 font-cinzel text-[8px] font-bold text-primary tracking-widest uppercase leading-none"
+            >today</span>
             <!-- Event dots -->
             <div v-if="day !== null" class="flex flex-wrap gap-0.5 mt-auto pt-1">
               <span
@@ -203,6 +209,7 @@ import { computed, toRef } from "vue";
 import { RouterLink } from "vue-router";
 import { Scroll, Swords, MapPin } from "lucide-vue-next";
 import { useCalendarStore } from "@/stores/calendar";
+import { useCampaignStore } from "@/stores/campaign";
 import { useCalendarEvents } from "@/composables/useCalendarEvents";
 import { linkedEntityType, linkedEntityId, eventColor } from "@/types/calendar.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -219,9 +226,21 @@ const emit = defineEmits<{
 }>();
 
 const calendar = useCalendarStore();
+const campaignStore = useCampaignStore();
 const yearRef = toRef(calendar, "currentYear");
 const { data: fetchedEvents, isLoading } = useCalendarEvents(yearRef);
 const events = computed(() => eventsOverride ?? fetchedEvents.value ?? null);
+
+// Today marker: show when the viewed month/year matches the campaign's in-game today
+const todayDayInView = computed<number | null>(() => {
+  if (
+    campaignStore.todayYear === calendar.currentYear &&
+    campaignStore.todayMonth === calendar.currentMonth
+  ) {
+    return campaignStore.todayDay;
+  }
+  return null;
+});
 
 const currentMonth = computed(
   () =>

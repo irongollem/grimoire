@@ -101,6 +101,10 @@ export const useCampaignStore = defineStore("campaign", () => {
     decryptedFalAiKey.value     = "";
   }
 
+  const todayYear  = computed(() => activeCampaign.value?.current_year ?? 1495);
+  const todayMonth = computed(() => activeCampaign.value?.current_month ?? 1);
+  const todayDay   = computed(() => activeCampaign.value?.current_day ?? 1);
+
   return {
     activeCampaignId,
     activeCampaign,
@@ -111,5 +115,8 @@ export const useCampaignStore = defineStore("campaign", () => {
     decryptedFalAiKey,
     switchToCampaign,
     clearActiveCampaign,
+    todayYear,
+    todayMonth,
+    todayDay,
   };
 });
