@@ -129,19 +129,21 @@ const emit = defineEmits<{
   insert: [markdown: string];
 }>();
 
-const rawText = ref("");
-const tone    = ref<ChroniclerTone>("dramatic");
-const previewMarkdown = ref<string | null>(null);
-const error   = ref("");
+const rawText          = ref("");
+const tone             = ref<ChroniclerTone>("dramatic");
+const rawGeneratedMd   = ref<string | null>(null); // AI output before preprocessing
+const previewMarkdown  = ref<string | null>(null); // preprocessed for RichTextViewer
+const error            = ref("");
 
 const { isGenerating, generate: generateChronicle } = useChroniclerTextGeneration();
 const { mentionItems, partyMembers, npcs, monsters } = useEntityMentionItems();
 
 watch(() => props.visible, (v) => {
   if (v) {
-    rawText.value       = "";
+    rawText.value        = "";
+    rawGeneratedMd.value = null;
     previewMarkdown.value = null;
-    error.value         = "";
+    error.value          = "";
   }
 });
 
@@ -161,6 +163,7 @@ async function generate() {
       monsters: monsters.value,
       partyMembers: partyMembers.value,
     });
+    rawGeneratedMd.value  = raw;
     previewMarkdown.value = preprocessChronicleMarkdown(raw);
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Generation failed.";
@@ -168,13 +171,14 @@ async function generate() {
 }
 
 function resetToInput() {
+  rawGeneratedMd.value  = null;
   previewMarkdown.value = null;
   error.value = "";
 }
 
 function insertChronicle() {
-  if (!previewMarkdown.value) return;
-  emit("insert", previewMarkdown.value);
+  if (!rawGeneratedMd.value) return;
+  emit("insert", rawGeneratedMd.value);
   emit("close");
 }
 </script>

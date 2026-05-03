@@ -173,6 +173,7 @@
       :entity-mention-items="entityMentionItems"
       :ai-context="`${category} note${title ? ` — ${title}` : ''}`"
       @insert-calendar-event="showEventModal = true"
+      @illustration-click="onIllustrationClick"
     >
       <template v-if="isOpenAiImageProvider || hasTextProvider" #toolbar-end>
         <div class="w-px h-5 bg-border mx-0.5" />
@@ -215,7 +216,8 @@
 
   <ChroniclerGenerateDialog
     :visible="showChroniclerGenerate"
-    @close="showChroniclerGenerate = false"
+    :initial-prompt="illustrationPrompt"
+    @close="showChroniclerGenerate = false; illustrationPrompt = ''"
     @generated="onChroniclerGenerated"
   />
 
@@ -402,8 +404,16 @@ function onChroniclerSelect(url: string) {
   rteRef.value?.insertImageAtCursor(url);
 }
 
-function onChroniclerWrite(markdown: string) {
-  rteRef.value?.insertMarkdownContent(markdown);
+function onChroniclerWrite(rawMarkdown: string) {
+  rteRef.value?.insertChronicleContent(rawMarkdown);
+}
+
+const illustrationPrompt = ref("");
+
+function onIllustrationClick(prompt: string) {
+  if (!isPro.value) { showAiPaywall.value = true; return; }
+  illustrationPrompt.value = prompt;
+  showChroniclerGenerate.value = true;
 }
 
 // ── Inline event modal ────────────────────────────────────────────────────────

@@ -423,6 +423,7 @@ import { CalendarEventRef } from "@/lib/tiptap/CalendarEventRef";
 import type { CalendarEventRefAttrs } from "@/lib/tiptap/CalendarEventRef";
 import { createEntityMentionExtension } from "@/lib/tiptap/EntityMention";
 import type { EntityMentionItem, EntityMentionAttrs, EntityType } from "@/lib/tiptap/EntityMention";
+import { IllustrationSuggestion } from "@/lib/tiptap/IllustrationSuggestion";
 
 
 const CustomDocument = Node.create({
@@ -456,6 +457,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   "update:modelValue": [value: string];
   "insert-calendar-event": [];
+  "illustration-click": [prompt: string];
 }>();
 
 // ── Entity mention suggestion state ──────────────────────────────────────────
@@ -608,6 +610,9 @@ const editor = useEditor({
     Typography,
     ...(props.allowCalendarEvents ? [CalendarEventRef] : []),
     entityMentionExtension,
+    IllustrationSuggestion.configure({
+      onPromptClick: (prompt) => emit("illustration-click", prompt),
+    }),
   ],
   editorProps: {
     handlePaste(view, event) {
@@ -685,6 +690,25 @@ defineExpose({
       ?.chain()
       .focus()
       .insertContentAt(pos, nodes, { parseOptions: { preserveWhitespace: false } })
+      .run();
+  },
+  insertChronicleContent(md: string): void {
+    const content: object[] = [];
+    let last = 0;
+    for (const m of md.matchAll(/^\[\[scene:\s*(.+?)\]\]\s*$/gm)) {
+      const textBefore = md.slice(last, m.index!);
+      if (textBefore.trim()) content.push(...parseMarkdown(textBefore));
+      content.push({ type: "illustrationSuggestion", attrs: { prompt: m[1].trim() } });
+      last = m.index! + m[0].length;
+    }
+    const textAfter = md.slice(last);
+    if (textAfter.trim()) content.push(...parseMarkdown(textAfter));
+    if (!content.length) return;
+    const pos = editor.value?.state.selection.to ?? editor.value?.state.doc.content.size ?? 0;
+    editor.value
+      ?.chain()
+      .focus()
+      .insertContentAt(pos, content, { parseOptions: { preserveWhitespace: false } })
       .run();
   },
 });

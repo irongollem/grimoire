@@ -109,7 +109,7 @@ import type { ChroniclerSize } from "@/types/chronicler.types";
 import MentionTextarea from "@/components/common/MentionTextarea.vue";
 import { useEntityMentionItems } from "@/composables/useEntityMentionItems";
 
-const props = defineProps<{ visible: boolean }>();
+const props = defineProps<{ visible: boolean; initialPrompt?: string }>();
 
 const emit = defineEmits<{
   close: [];
@@ -128,7 +128,7 @@ const error       = ref("");
 
 watch(() => props.visible, (v) => {
   if (v) {
-    scenePrompt.value = "";
+    scenePrompt.value = props.initialPrompt ?? "";
     error.value = "";
   }
 });
