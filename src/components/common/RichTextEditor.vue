@@ -678,6 +678,15 @@ defineExpose({
   insertImageAtCursor(src: string): void {
     editor.value?.chain().focus().setImage({ src }).run();
   },
+  insertMarkdownContent(md: string): void {
+    const nodes = parseMarkdown(md);
+    const pos = editor.value?.state.selection.to ?? editor.value?.state.doc.content.size ?? 0;
+    editor.value
+      ?.chain()
+      .focus()
+      .insertContentAt(pos, nodes, { parseOptions: { preserveWhitespace: false } })
+      .run();
+  },
 });
 
 const IMG_SIZE_PRESETS = [

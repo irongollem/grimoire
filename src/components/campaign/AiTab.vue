@@ -144,12 +144,12 @@
             <label class="font-cinzel text-xs text-muted-foreground tracking-wide">Model</label>
             <div class="flex items-center gap-3">
               <label class="flex items-center gap-2 cursor-pointer">
-                <input type="radio" v-model="openaiImageModel" value="gpt-image-1.5" class="h-3.5 w-3.5" />
-                <span class="text-sm">gpt-image-1.5 <span class="text-muted-foreground text-xs">(default)</span></span>
+                <input type="radio" v-model="openaiImageModel" value="gpt-image-2" class="h-3.5 w-3.5" />
+                <span class="text-sm">gpt-image-2 <span class="text-muted-foreground text-xs">(default)</span></span>
               </label>
               <label class="flex items-center gap-2 cursor-pointer">
-                <input type="radio" v-model="openaiImageModel" value="gpt-image-2" class="h-3.5 w-3.5" />
-                <span class="text-sm">gpt-image-2 <span class="text-muted-foreground text-xs">(requires org verification)</span></span>
+                <input type="radio" v-model="openaiImageModel" value="gpt-image-1.5" class="h-3.5 w-3.5" />
+                <span class="text-sm">gpt-image-1.5 <span class="text-muted-foreground text-xs">(legacy)</span></span>
               </label>
             </div>
           </div>
@@ -272,7 +272,7 @@ const isSaving     = ref(false);
 const localModeEnabled = ref(typeof localStorage !== "undefined" && localStorage.getItem(LOCAL_MODE_KEY) === "local");
 
 const openaiImageModel = ref<"gpt-image-1.5" | "gpt-image-2">(
-  (typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) as "gpt-image-1.5" | "gpt-image-2" ?? "gpt-image-1.5"
+  (typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) as "gpt-image-1.5" | "gpt-image-2" ?? "gpt-image-2"
 );
 watch(openaiImageModel, (v) => localStorage.setItem(OPENAI_IMAGE_MODEL_KEY, v));
 
@@ -325,7 +325,7 @@ const TEXT_COSTS: Record<string, string> = {
 };
 // Cost hints — gpt-image-2 at high quality 1024×1024 is the main cost driver
 const IMAGE_COSTS: Record<string, string> = {
-  openai:        "~$0.02–0.07 per portrait · ~$0.04–0.14 with alter-ego (gpt-image-1.5, high quality)",
+  openai:        "~$0.02–0.07 per portrait · ~$0.04–0.14 with alter-ego (gpt-image-2, high quality)",
   "openai-mini": "~$0.005–0.036 per portrait · alter-ego supported (gpt-image-1-mini)",
   falai:         "~$0.025 per portrait (FLUX 2 Flex)",
 };

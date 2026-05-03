@@ -201,7 +201,7 @@ export async function generateChroniclerImage(params: {
   const apiKey = store.decryptedOpenAiKey;
   const imageModel = store.activeCampaign?.image_provider === "openai-mini"
     ? "gpt-image-1-mini"
-    : ((typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) ?? "gpt-image-1.5");
+    : ((typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) ?? "gpt-image-2");
   const settingPrompt = store.activeCampaign?.ai_setting_prompt ?? "";
   if (!apiKey) throw new Error("No OpenAI API key configured. Add one in Campaign Settings → AI.");
 

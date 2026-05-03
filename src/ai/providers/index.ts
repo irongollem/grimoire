@@ -42,7 +42,7 @@ export function getImageProvider(): ImageProvider {
     case "falai":        return createFalAiImageProvider(key);
     case "openai-mini":  return createOpenAiImageProvider(key, "gpt-image-1-mini");
     default: {
-      const model = (typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) ?? "gpt-image-1.5";
+      const model = (typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) ?? "gpt-image-2";
       return createOpenAiImageProvider(key, model as "gpt-image-2" | "gpt-image-1.5");
     }
   }

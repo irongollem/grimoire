@@ -174,24 +174,35 @@
       :ai-context="`${category} note${title ? ` — ${title}` : ''}`"
       @insert-calendar-event="showEventModal = true"
     >
-      <template v-if="isOpenAiImageProvider" #toolbar-end>
+      <template v-if="isOpenAiImageProvider || hasTextProvider" #toolbar-end>
         <div class="w-px h-5 bg-border mx-0.5" />
         <button
+          v-if="hasTextProvider"
           type="button"
-          title="Generate scene illustration"
+          title="Write Chronicle"
           class="inline-flex items-center justify-center rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-          @click="openChroniclerGenerate"
+          @click="openChroniclerWrite"
         >
-          <Sparkles class="h-3.5 w-3.5" />
+          <BookText class="h-3.5 w-3.5" />
         </button>
-        <button
-          type="button"
-          title="Scene library"
-          class="inline-flex items-center justify-center rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-          @click="showChroniclerLibrary = true"
-        >
-          <Images class="h-3.5 w-3.5" />
-        </button>
+        <template v-if="isOpenAiImageProvider">
+          <button
+            type="button"
+            title="Generate scene illustration"
+            class="inline-flex items-center justify-center rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            @click="openChroniclerGenerate"
+          >
+            <Sparkles class="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            title="Scene library"
+            class="inline-flex items-center justify-center rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            @click="showChroniclerLibrary = true"
+          >
+            <Images class="h-3.5 w-3.5" />
+          </button>
+        </template>
       </template>
     </RichTextEditor>
   </div>
@@ -206,6 +217,12 @@
     :visible="showChroniclerGenerate"
     @close="showChroniclerGenerate = false"
     @generated="onChroniclerGenerated"
+  />
+
+  <ChroniclerWriteDialog
+    :visible="showChroniclerWrite"
+    @close="showChroniclerWrite = false"
+    @insert="onChroniclerWrite"
   />
 
   <ChroniclerLibraryPicker
@@ -228,7 +245,8 @@ import RichTextEditor from "../common/RichTextEditor.vue";
 import InlineCalendarEventModal from "@/components/calendar/InlineCalendarEventModal.vue";
 import ChroniclerGenerateDialog from "./ChroniclerGenerateDialog.vue";
 import ChroniclerLibraryPicker from "./ChroniclerLibraryPicker.vue";
-import { Save, Trash2, Pin, CalendarDays, Sparkles, Images } from "lucide-vue-next";
+import ChroniclerWriteDialog from "./ChroniclerWriteDialog.vue";
+import { Save, Trash2, Pin, CalendarDays, Sparkles, Images, BookText } from "lucide-vue-next";
 import TagInput from "@/components/common/TagInput.vue";
 import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
 import {
@@ -349,12 +367,14 @@ watch(
 // ── Chronicler ────────────────────────────────────────────────────────────────
 const showChroniclerGenerate = ref(false);
 const showChroniclerLibrary  = ref(false);
+const showChroniclerWrite    = ref(false);
 const showAiPaywall          = ref(false);
 
 const campaignStore = useCampaignStore();
 const isOpenAiImageProvider = computed(
   () => (campaignStore.activeCampaign?.image_provider ?? "openai") === "openai",
 );
+const hasTextProvider = computed(() => !!campaignStore.decryptedApiKey);
 
 const { isPro } = useSubscription();
 
@@ -366,12 +386,24 @@ function openChroniclerGenerate() {
   showChroniclerGenerate.value = true;
 }
 
+function openChroniclerWrite() {
+  if (!isPro.value) {
+    showAiPaywall.value = true;
+    return;
+  }
+  showChroniclerWrite.value = true;
+}
+
 function onChroniclerGenerated(url: string) {
   rteRef.value?.insertImageAtCursor(url);
 }
 
 function onChroniclerSelect(url: string) {
   rteRef.value?.insertImageAtCursor(url);
+}
+
+function onChroniclerWrite(markdown: string) {
+  rteRef.value?.insertMarkdownContent(markdown);
 }
 
 // ── Inline event modal ────────────────────────────────────────────────────────
