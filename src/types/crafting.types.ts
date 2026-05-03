@@ -10,7 +10,9 @@ export type CraftingDiscipline =
   | "cooking"
   | "scribing"
   | "brewing"
-  | "weaving";
+  | "weaving"
+  | "masonry"
+  | "painting";
 
 export interface CraftingRecipe {
   id: string;

@@ -12,6 +12,8 @@ import {
   Feather,
   Wine,
   Layers,
+  Pickaxe,
+  Paintbrush,
 } from "lucide-vue-next";
 import type { CraftingDiscipline } from "@/types/crafting.types";
 import type { SaveKey } from "@/types/party.types";
@@ -149,6 +151,26 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
     description: "Cloth armour, cloaks, garments, and woven goods with minor boons.",
     workspaceBonus: 2,
     workspaceLabel: "Equipped loom or tailoring room available",
+  },
+  {
+    id: "masonry",
+    label: "Masonry",
+    icon: Pickaxe,
+    tools: ["Mason's Tools"],
+    ability: "str",
+    description: "Stonecutting, construction, runestones, and carved stonework.",
+    workspaceBonus: 3,
+    workspaceLabel: "Quarry, stoneyard, or mason's workshop available",
+  },
+  {
+    id: "painting",
+    label: "Painting",
+    icon: Paintbrush,
+    tools: ["Painter's Supplies"],
+    ability: "dex",
+    description: "Pigment-work, heraldry, camouflage, warpaint, and visual deception.",
+    workspaceBonus: 2,
+    workspaceLabel: "Proper studio or scriptorium available",
   },
 ];
 

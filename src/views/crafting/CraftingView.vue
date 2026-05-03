@@ -5,6 +5,13 @@
   >
     <template #actions>
       <ListActionButton
+        v-if="auth.isDM && playerIds.length"
+        :icon="revealAllPending ? Loader2 : Eye"
+        label="Reveal All"
+        :disabled="revealAllPending"
+        @click="revealAllRecipes"
+      />
+      <ListActionButton
         :icon="importMutation.isPending.value ? Loader2 : Download"
         :label="importStatusLabel"
         :disabled="importMutation.isPending.value"
@@ -150,17 +157,20 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 
-import { Award, Download, LayoutList, Loader2, Pencil, Plus, Trash2, Wrench } from "lucide-vue-next";
+import { Award, Download, Eye, LayoutList, Loader2, Pencil, Plus, Trash2, Wrench } from "lucide-vue-next";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting-disciplines";
 import { useCraftingRecipes, useDeleteRecipe, useImportStarterRecipes, useUpdateRecipe } from "@/composables/useCrafting";
+import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import { useConfirm } from "@/composables/useConfirm";
 import { useUiStore } from "@/stores/ui";
+import { useAuthStore } from "@/stores/auth";
 import type { CraftingRecipe } from "@/types/crafting.types";
 
 const ui = useUiStore();
+const auth = useAuthStore();
 
 const activeDiscipline = computed(() =>
   ui.workshopActiveTab === "all" ? null : getDiscipline(ui.workshopActiveTab),
@@ -170,6 +180,29 @@ const { data: recipes, isLoading } = useCraftingRecipes();
 const { mutateAsync: deleteRecipe } = useDeleteRecipe();
 const { mutateAsync: updateRecipe } = useUpdateRecipe();
 const { confirm } = useConfirm();
+const { data: members } = useCampaignMembers();
+
+const playerIds = computed(() =>
+  (members.value ?? []).filter((m) => m.role === "player").map((m) => m.user_id),
+);
+
+const revealAllPending = ref(false);
+
+async function revealAllRecipes() {
+  const ids = playerIds.value;
+  if (!ids.length) return;
+  revealAllPending.value = true;
+  try {
+    const toUpdate = (recipes.value ?? []).filter(
+      (r) => !ids.every((id) => r.player_visible_to.includes(id)),
+    );
+    await Promise.all(
+      toUpdate.map((r) => updateRecipe({ id: r.id, update: { player_visible_to: ids } })),
+    );
+  } finally {
+    revealAllPending.value = false;
+  }
+}
 
 // Persist a visibility change from the list row. The toggle is wrapped in
 // `@click.stop` above so clicking inside the popover doesn't navigate to
