@@ -46,10 +46,33 @@
               <canvas
                 ref="previewCanvas"
                 class="block max-w-full lg:max-h-full"
-                :class="dofEnabled ? 'cursor-crosshair' : ''"
+                :class="canvasCursorClass"
                 @click="onCanvasClick"
+                @pointerdown="onBrushPointerDown"
+                @pointermove="onBrushPointerMove"
+                @pointerup="onBrushPointerUp"
+                @pointercancel="onBrushPointerUp"
+                @pointerenter="onBrushPointerEnter"
+                @pointerleave="onBrushPointerLeave"
+                @contextmenu.prevent
               />
             </div>
+            <!-- Brush cursor circle — teleported to body to escape overflow-hidden -->
+            <Teleport to="body">
+              <div
+                v-if="mode === 'brush' && brushCursorVisible"
+                class="pointer-events-none fixed rounded-full border border-white/80 mix-blend-difference"
+                :style="{
+                  left: `${brushCursorClientX}px`,
+                  top: `${brushCursorClientY}px`,
+                  width: `${brushCursorDiameter}px`,
+                  height: `${brushCursorDiameter}px`,
+                  transform: 'translate(-50%, -50%)',
+                  zIndex: 9999,
+                }"
+              />
+            </Teleport>
+
             <div class="flex items-center gap-2 shrink-0">
               <button
                 type="button"
@@ -66,6 +89,103 @@
 
         <!-- ── Controls column — scrolls independently on desktop ────────── -->
         <div class="flex flex-col rounded-xl border border-border bg-card overflow-hidden lg:min-h-0 lg:overflow-y-auto">
+
+          <!-- ── Mode toggle ─────────────────────────────────────────────── -->
+          <div class="px-4 py-3 border-b border-border flex items-center gap-2">
+            <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mr-1">Mode</span>
+            <button
+              v-for="m in (['auto', 'brush'] as IlluminatorMode[])"
+              :key="m"
+              type="button"
+              class="font-cinzel text-[10px] tracking-wider px-3 py-1 rounded-full border transition-colors"
+              :class="mode === m
+                ? 'border-primary text-primary bg-primary/10'
+                : 'border-border text-muted-foreground hover:border-primary/60 hover:text-foreground'"
+              @click="mode = m"
+            >{{ m === 'auto' ? 'Auto' : 'Brush' }}</button>
+          </div>
+
+          <!-- ── Brush section (brush mode only) ───────────────────────── -->
+          <div v-if="mode === 'brush'" class="border-b border-border">
+            <div
+              class="flex items-center px-4 py-3 hover:bg-muted/40 transition-colors cursor-pointer select-none"
+              @click="brushOpen = !brushOpen"
+            >
+              <ChevronRightIcon
+                class="h-3 w-3 shrink-0 text-muted-foreground transition-transform mr-2"
+                :class="brushOpen ? 'rotate-90' : ''"
+              />
+              <span class="flex-1 font-cinzel text-xs font-bold tracking-widest uppercase text-foreground">Brush</span>
+              <span v-if="brushController.hasStrokes" class="font-cinzel text-[10px] tracking-wider text-primary mr-2">strokes</span>
+            </div>
+
+            <div v-show="brushOpen" class="px-4 pb-4 flex flex-col gap-3">
+              <!-- Brush type selector -->
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mr-1">Shape</span>
+                <button
+                  v-for="bt in (['round', 'splatter', 'rough', 'chalk'] as BrushType[])"
+                  :key="bt"
+                  type="button"
+                  class="font-cinzel text-[10px] tracking-wider px-2 py-0.5 rounded border transition-colors capitalize"
+                  :class="brush.brushType === bt
+                    ? 'border-primary text-primary'
+                    : 'border-border hover:border-primary/60 hover:text-foreground text-muted-foreground'"
+                  @click="brush.brushType = bt"
+                >{{ bt }}</button>
+              </div>
+
+              <!-- Pressure target toggle -->
+              <div class="flex items-center gap-1.5">
+                <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mr-1">Pressure →</span>
+                <button
+                  v-for="pt in (['size', 'opacity'] as PressureTarget[])"
+                  :key="pt"
+                  type="button"
+                  class="font-cinzel text-[10px] tracking-wider px-2 py-0.5 rounded border transition-colors"
+                  :class="brush.pressureTarget === pt
+                    ? 'border-primary text-primary'
+                    : 'border-border hover:border-primary/60 hover:text-foreground text-muted-foreground'"
+                  @click="brush.pressureTarget = pt"
+                >{{ pt }}</button>
+              </div>
+
+              <!-- Brush sliders (hardness hidden for non-round shapes) -->
+              <div v-for="bs in activeBrushSliders" :key="bs.key">
+                <div class="flex items-center justify-between mb-1">
+                  <label class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">{{ bs.label }}</label>
+                  <span class="font-fell text-xs text-muted-foreground tabular-nums">{{ brushDisplay(bs.key) }}</span>
+                </div>
+                <input
+                  type="range"
+                  :min="bs.min"
+                  :max="bs.max"
+                  :step="bs.step"
+                  :value="brush[bs.key]"
+                  class="w-full h-1.5 rounded-full appearance-none cursor-pointer bg-border accent-primary"
+                  @input="(e) => setBrushSlider(bs.key, parseFloat((e.target as HTMLInputElement).value))"
+                />
+              </div>
+
+              <!-- Undo + Clear -->
+              <div class="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  class="font-cinzel text-[10px] tracking-wider px-3 py-1.5 rounded border border-border hover:border-primary/60 hover:text-foreground text-muted-foreground transition-colors"
+                  @click="onBrushUndo"
+                >Undo (Ctrl+Z)</button>
+                <button
+                  type="button"
+                  :disabled="!brushController.hasStrokes"
+                  class="font-cinzel text-[10px] tracking-wider px-3 py-1.5 rounded border border-border hover:border-destructive/60 hover:text-destructive text-muted-foreground transition-colors disabled:opacity-40"
+                  @click="brushController.clear(); scheduleRender()"
+                >Clear mask</button>
+              </div>
+              <p class="font-fell text-[11px] text-muted-foreground italic">
+                Left-drag erases · Right-drag restores · Ctrl+Z undo
+              </p>
+            </div>
+          </div>
 
           <!-- ── Colour Grading section ──────────────────────────────────── -->
           <div>
@@ -563,7 +683,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, shallowRef, reactive, watch, onMounted } from "vue";
+import { ref, shallowRef, reactive, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   Image as ImageIcon,
@@ -611,6 +731,13 @@ import {
   BLEND_MODE_LABELS,
   type TextureOverlayOptions,
 } from "@/lib/textureOverlay";
+import {
+  createBrushMaskController,
+  DEFAULT_BRUSH_STATE,
+  type BrushState,
+  type BrushType,
+  type PressureTarget,
+} from "@/lib/brushMask";
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -639,6 +766,8 @@ function isValidAssetImageUrl(url: string): boolean {
 }
 
 onMounted(() => {
+  window.addEventListener("keydown", onKeyDown);
+
   const srcParam = typeof route.query.src === "string" ? route.query.src : null;
   if (!srcParam) return;
   const decoded = decodeURIComponent(srcParam);
@@ -651,6 +780,10 @@ onMounted(() => {
   img.crossOrigin = "anonymous";
   img.onload = () => { sourceImage.value = img; };
   img.src = decoded;
+});
+
+onUnmounted(() => {
+  window.removeEventListener("keydown", onKeyDown);
 });
 
 const opts = reactive<EdgeTreatmentOptions>(structuredClone(DEFAULT_EDGE_TREATMENT));
@@ -683,6 +816,32 @@ const textureOpen  = ref(false);
 const dofOpen      = ref(false);
 const edgesOpen    = ref(false);
 const edgeOpen     = reactive<Record<string, boolean>>({ top: false, right: false, bottom: false, left: false });
+
+// ─── Brush mode ───────────────────────────────────────────────────────────────
+
+type IlluminatorMode = 'auto' | 'brush';
+const mode = ref<IlluminatorMode>('auto');
+const brush = reactive<BrushState>(structuredClone(DEFAULT_BRUSH_STATE));
+const brushOpen = ref(true);
+const brushController = createBrushMaskController();
+
+// Brush cursor overlay state
+const brushCursorVisible  = ref(false);
+const brushCursorClientX  = ref(0);
+const brushCursorClientY  = ref(0);
+const brushCursorDiameter = ref(0);
+const isErasing           = ref(true);
+
+const canvasCursorClass = computed(() => {
+  if (mode.value === 'brush') return 'cursor-none';
+  if (dofEnabled.value) return 'cursor-crosshair';
+  return '';
+});
+
+watch(mode, (m) => {
+  if (m !== 'brush') brushCursorVisible.value = false;
+  else brushOpen.value = true;
+});
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -721,6 +880,30 @@ function sliderDisplay(edge: EdgeKey, key: SliderKey): string {
 
 function setSlider(edge: EdgeKey, key: SliderKey, value: number): void {
   (opts[edge] as EdgeOptions)[key] = value;
+}
+
+type BrushSliderKey = 'size' | 'hardness' | 'opacity' | 'jitter' | 'spacing';
+const BRUSH_SLIDERS: Array<{ key: BrushSliderKey; label: string; min: number; max: number; step: number }> = [
+  { key: 'size',     label: 'Size',     min: 4,    max: 120,  step: 1    },
+  { key: 'hardness', label: 'Hardness', min: 0,    max: 1,    step: 0.01 },
+  { key: 'opacity',  label: 'Opacity',  min: 0.01, max: 1,    step: 0.01 },
+  { key: 'jitter',   label: 'Jitter',   min: 0,    max: 1,    step: 0.01 },
+  { key: 'spacing',  label: 'Spacing',  min: 0.05, max: 2,    step: 0.05 },
+];
+// Hardness only applies to the round brush (shape is fixed for textured presets)
+const activeBrushSliders = computed(() =>
+  BRUSH_SLIDERS.filter(bs => bs.key !== 'hardness' || brush.brushType === 'round'),
+);
+
+function brushDisplay(key: BrushSliderKey): string {
+  const v = brush[key];
+  if (key === 'size') return `${Math.round(v)}px`;
+  if (key === 'spacing') return `${v.toFixed(2)}×`;
+  return `${Math.round(v * 100)}%`;
+}
+
+function setBrushSlider(key: BrushSliderKey, value: number): void {
+  (brush as BrushState)[key] = value;
 }
 
 function gradingDisplay(key: GradingSliderKey): string {
@@ -835,6 +1018,7 @@ function renderPreview() {
   }
   if (vignetteEnabled.value) applyVignette(ctx, pw, ph, { ...vignette, enabled: true });
   applyEdgeTreatmentToCtx(ctx, pw, ph, opts);
+  brushController.applyToCtx(ctx, pw, ph);
 
   // Crosshair drawn last — visible in preview only, not in export
   if (dofEnabled.value) drawFocalCrosshair(ctx, pw, ph, dof.focalX, dof.focalY);
@@ -844,6 +1028,17 @@ let renderTimer: ReturnType<typeof setTimeout> | null = null;
 function scheduleRender() {
   if (renderTimer) clearTimeout(renderTimer);
   renderTimer = setTimeout(renderPreview, 60);
+}
+
+// rAF-based render for brush strokes — fires on next frame instead of debouncing,
+// so erased pixels appear immediately as you paint.
+let brushRafId: number | null = null;
+function scheduleBrushRender(): void {
+  if (brushRafId !== null) return;
+  brushRafId = requestAnimationFrame(() => {
+    brushRafId = null;
+    renderPreview();
+  });
 }
 
 watch(opts, scheduleRender, { deep: true });
@@ -856,17 +1051,80 @@ watch(dofEnabled, scheduleRender);
 watch(texture, scheduleRender, { deep: true });
 watch(textureEnabled, scheduleRender);
 watch(textureImage, scheduleRender);
-watch(sourceImage, () => { renderTimer = setTimeout(renderPreview, 0); });
+watch(sourceImage, (img) => {
+  if (img) {
+    const scale = Math.min(1, MAX_PREVIEW / Math.max(img.naturalWidth, img.naturalHeight));
+    brushController.resize(
+      Math.round(img.naturalWidth  * scale),
+      Math.round(img.naturalHeight * scale),
+    );
+  } else {
+    brushController.clear();
+  }
+  renderTimer = setTimeout(renderPreview, 0);
+});
 
 // ─── Canvas interaction ───────────────────────────────────────────────────────
 
 function onCanvasClick(e: MouseEvent) {
-  if (!dofEnabled.value) return;
+  if (!dofEnabled.value || mode.value === 'brush') return;
   const canvas = previewCanvas.value;
   if (!canvas) return;
   const rect = canvas.getBoundingClientRect();
   dof.focalX = Math.max(0, Math.min(1, (e.clientX - rect.left)  / rect.width));
   dof.focalY = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+}
+
+// ─── Brush pointer handlers ───────────────────────────────────────────────────
+
+function onBrushPointerDown(e: PointerEvent) {
+  if (mode.value !== 'brush') return;
+  e.preventDefault();
+  const canvas = previewCanvas.value;
+  if (!canvas || !sourceImage.value) return;
+  canvas.setPointerCapture(e.pointerId);
+  const erasing = e.button !== 2;
+  isErasing.value = erasing;
+  const rect = canvas.getBoundingClientRect();
+  brushController.onPointerDown(e, rect, canvas.width, canvas.height, rect.width, rect.height, erasing, brush);
+  scheduleBrushRender();
+}
+
+function onBrushPointerMove(e: PointerEvent) {
+  if (mode.value !== 'brush' || !sourceImage.value) return;
+  const canvas = previewCanvas.value;
+  if (!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  brushCursorClientX.value = e.clientX;
+  brushCursorClientY.value = e.clientY;
+  brushCursorDiameter.value = brush.size * 2 * (rect.width / canvas.width);
+  if (e.buttons > 0) {
+    brushController.onPointerMove(e, rect, canvas.width, canvas.height, rect.width, rect.height, isErasing.value, brush);
+    scheduleBrushRender();
+  }
+}
+
+function onBrushPointerUp() {
+  brushController.onPointerUp();
+}
+
+function onBrushPointerEnter() {
+  if (mode.value === 'brush') brushCursorVisible.value = true;
+}
+
+function onBrushPointerLeave() {
+  brushCursorVisible.value = false;
+}
+
+function onBrushUndo() {
+  if (brushController.undo()) scheduleRender();
+}
+
+function onKeyDown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && mode.value === 'brush') {
+    e.preventDefault();
+    onBrushUndo();
+  }
 }
 
 // ─── Export ───────────────────────────────────────────────────────────────────
@@ -896,11 +1154,21 @@ function buildTextureFn(): ((ctx: CanvasRenderingContext2D, w: number, h: number
   return (ctx, w, h) => applyTextureOverlay(ctx, w, h, snapshot, img);
 }
 
+function buildBrushMaskFn(): ((ctx: CanvasRenderingContext2D, w: number, h: number) => void) | undefined {
+  if (!brushController.hasStrokes) return undefined;
+  const maskCanvas = brushController.maskCanvas;
+  return (ctx, w, h) => {
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.drawImage(maskCanvas, 0, 0, w, h);
+    ctx.globalCompositeOperation = 'source-over';
+  };
+}
+
 async function downloadPng() {
   if (!sourceImage.value || isExporting.value) return;
   isExporting.value = true;
   try {
-    const blob = await processImage(sourceImage.value, opts, buildGradingFn(), buildDofFn(), buildVignetteFn(), buildTextureFn());
+    const blob = await processImage(sourceImage.value, opts, buildGradingFn(), buildDofFn(), buildVignetteFn(), buildTextureFn(), buildBrushMaskFn());
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
     a.href     = url;
@@ -916,7 +1184,7 @@ async function copyToClipboard() {
   if (!sourceImage.value || isExporting.value || !clipboardSupported) return;
   isExporting.value = true;
   try {
-    const blob = await processImage(sourceImage.value, opts, buildGradingFn(), buildDofFn(), buildVignetteFn(), buildTextureFn());
+    const blob = await processImage(sourceImage.value, opts, buildGradingFn(), buildDofFn(), buildVignetteFn(), buildTextureFn(), buildBrushMaskFn());
     await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
     copySuccess.value = true;
     setTimeout(() => { copySuccess.value = false; }, 2000);
@@ -932,7 +1200,7 @@ async function saveToScriptorium() {
   try {
     const user = getCurrentUser();
     if (!user) return;
-    const blob = await processImage(sourceImage.value, opts, buildGradingFn(), buildDofFn(), buildVignetteFn(), buildTextureFn());
+    const blob = await processImage(sourceImage.value, opts, buildGradingFn(), buildDofFn(), buildVignetteFn(), buildTextureFn(), buildBrushMaskFn());
     const stem = sourceFilename.value.replace(/\.[^.]+$/, "");
     const file = new File([blob], `${stem}-illuminated-${Date.now()}.png`, { type: "image/png" });
     const webpFile = await toWebP(file);
@@ -967,5 +1235,7 @@ function resetDefaults() {
   dofEnabled.value = false;
   clearTexture();
   Object.assign(texture, { blendMode: DEFAULT_TEXTURE_OVERLAY.blendMode, opacity: DEFAULT_TEXTURE_OVERLAY.opacity, scale: DEFAULT_TEXTURE_OVERLAY.scale });
+  brushController.clear();
+  Object.assign(brush, structuredClone(DEFAULT_BRUSH_STATE));
 }
 </script>
