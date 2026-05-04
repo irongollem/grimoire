@@ -278,6 +278,32 @@ export async function restoreInnateUses(
   );
 }
 
+/**
+ * Idempotently adds a spell granted by an Eldritch Invocation.
+ * Skips silently if the (party_member_id, spell_id, source_type='feat') row already exists.
+ */
+export async function addInvocationSpellGrant(
+  partyMemberId: string,
+  spellId: string,
+  invocationName: string,
+  usesPerDay: number | null,
+): Promise<void> {
+  const { error } = await supabase.from("character_spells").upsert(
+    {
+      party_member_id: partyMemberId,
+      spell_id: spellId,
+      is_prepared: false,
+      source_type: "feat" as InnateSourceType,
+      source_label: `Invocation: ${invocationName}`,
+      uses_per_day: usesPerDay,
+      uses_remaining: usesPerDay,
+      resets_on: usesPerDay != null ? ("long_rest" as InnateResetsOn) : null,
+    },
+    { onConflict: "party_member_id,spell_id,source_type", ignoreDuplicates: true },
+  );
+  if (error) throw error;
+}
+
 /** Returns party members who know (or have prepared) a given spell. */
 export function useSpellKnowers(spellId: MaybeRefOrGetter<string>) {
   return useQuery({

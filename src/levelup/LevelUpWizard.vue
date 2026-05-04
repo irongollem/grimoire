@@ -354,7 +354,8 @@
           class="w-full rounded border border-border bg-muted/40 px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @change="onStepChange(step, ($event.target as HTMLSelectElement).value)">
           <option value="" disabled>Select…</option>
-          <option v-for="opt in step.options" :key="opt" :value="opt">{{ opt }}</option>
+          <option v-for="opt in step.options" :key="opt" :value="opt"
+            :disabled="isSinglePickTaken(step, opt)">{{ opt }}</option>
         </select>
       </div>
 
@@ -491,7 +492,8 @@ import { getHitDie, getMulticlassSpellSlots } from "@/types/spell.types";
 import type { DieSize } from "@/lib/dice";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { useAllFeatures } from "@/composables/useFeatures";
-import { useCharacterSpells, useAddCharacterSpell } from "@/composables/useCharacterSpells";
+import { useCharacterSpells, useAddCharacterSpell, addInvocationSpellGrant } from "@/composables/useCharacterSpells";
+import { ELDRITCH_INVOCATIONS_MAP } from "@/data/eldritchInvocations";
 import { useSpellsPage } from "@/composables/useSpells";
 import type { PartyMember, PartyMemberUpdate, SpellSlotEntry, LevelChoiceEntry, LevelChoices } from "@/types/party.types";
 import type { AbilityKey, AsiMode, ClassStep, ClassResourceDef, FeatureEntry } from "./types";
@@ -906,6 +908,12 @@ function isMultiPickTaken(step: ClassStep, ownIdx: number, opt: string): boolean
   return false;
 }
 
+function isSinglePickTaken(step: ClassStep, opt: string): boolean {
+  if (step.type !== "append") return false;
+  const existing = props.member.class_choices?.[step.key];
+  return Array.isArray(existing) && (existing as string[]).includes(opt);
+}
+
 // ── Spell picker ───────────────────────────────────────────────────────────────
 const spellSearch = ref("");
 const spellFilters = computed(() => ({
@@ -1128,6 +1136,25 @@ async function confirm() {
     }
     for (const spellId of selectedCantripIds.value) {
       await addSpell({ partyMemberId: props.member.id, spellId, isPrepared: false });
+    }
+
+    // Auto-grant spells from Eldritch Invocations that were just picked
+    for (const step of classSteps.value) {
+      if (step.key !== "eldritch_invocations") continue;
+      const count = step.count ?? 1;
+      const picks = count > 1
+        ? (stepMultiValues.value[step.key] ?? []).filter(Boolean)
+        : stepValues.value[step.key] ? [stepValues.value[step.key]] : [];
+      for (const name of picks) {
+        const inv = ELDRITCH_INVOCATIONS_MAP.get(name);
+        if (!inv?.grants_spell) continue;
+        await addInvocationSpellGrant(
+          props.member.id,
+          inv.grants_spell,
+          name,
+          inv.spell_uses_per_day ?? null,
+        );
+      }
     }
 
     // Persist this level's choices so de-leveling can reverse them exactly

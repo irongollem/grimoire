@@ -370,6 +370,45 @@
       </div>
     </div>
 
+    <!-- ── Eldritch Invocations (Warlock) ──────────────────────────────────── -->
+    <div v-if="knownInvocations.length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
+      <div class="px-4 py-2.5 border-b border-border">
+        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Eldritch Invocations</p>
+      </div>
+      <div class="divide-y divide-border">
+        <div
+          v-for="inv in knownInvocations"
+          :key="inv.name"
+          class="px-4 py-2.5"
+        >
+          <button
+            class="w-full text-left flex items-center gap-2 cursor-pointer"
+            @click="toggleExpanded(`invocation-${inv.name}`)"
+          >
+            <span class="font-fell text-sm text-foreground flex-1">{{ inv.name }}</span>
+            <span
+              v-if="inv.grants_spell"
+              class="font-cinzel text-2xs tracking-wider rounded px-1.5 py-0.5 shrink-0 bg-primary/10 text-primary border border-primary/20"
+            >Spell</span>
+            <span
+              v-if="inv.min_level > 2"
+              class="font-cinzel text-2xs tracking-wider rounded px-1.5 py-0.5 shrink-0 bg-muted/50 text-muted-foreground border border-border"
+            >Lv {{ inv.min_level }}+</span>
+            <ChevronDown
+              class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
+              :class="expanded.has(`invocation-${inv.name}`) ? 'rotate-180' : ''"
+            />
+          </button>
+          <div
+            v-if="expanded.has(`invocation-${inv.name}`)"
+            class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 font-fell text-sm text-muted-foreground leading-relaxed"
+          >
+            {{ inv.description }}
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Infusions (Artificer) ──────────────────────────────────────────── -->
     <div v-if="isArtificer && artificerLevel >= 2" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-2.5 border-b border-border flex items-center justify-between">
@@ -498,6 +537,7 @@ import { ChevronDown, Sparkles } from "lucide-vue-next";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { METAMAGIC_MAP } from "@/data/metamagic";
 import { ARTIFICER_INFUSIONS, ARTIFICER_INFUSIONS_MAP } from "@/data/artificerInfusions";
+import { ELDRITCH_INVOCATIONS_MAP } from "@/data/eldritchInvocations";
 import { usePartyInventory } from "@/composables/usePartyInventory";
 import { featureName, featureDescription, mapFeatureIds, type FeatureEntry } from "@/levelup/types";
 import type { CustomStep } from "@/levelup/customTypes";
@@ -753,7 +793,7 @@ const CHOICE_LABELS: Record<string, string> = {
 const choiceEntries = computed(() => {
   const choices = props.member.class_choices ?? {};
   return Object.entries(choices)
-    .filter(([key, v]) => key !== "metamagic_options" && key !== "infusions_known" && v !== null && v !== undefined && v !== "")
+    .filter(([key, v]) => key !== "metamagic_options" && key !== "infusions_known" && key !== "eldritch_invocations" && v !== null && v !== undefined && v !== "")
     .map(([key, value]) => ({
       key,
       label: CHOICE_LABELS[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
@@ -765,6 +805,12 @@ const knownMetamagic = computed(() => {
   const raw = props.member.class_choices?.metamagic_options;
   const names: string[] = Array.isArray(raw) ? (raw as string[]) : raw ? [String(raw)] : [];
   return names.map(n => METAMAGIC_MAP.get(n)).filter(Boolean) as import("@/data/metamagic").MetamagicOption[];
+});
+
+const knownInvocations = computed(() => {
+  const raw = props.member.class_choices?.eldritch_invocations;
+  const names: string[] = Array.isArray(raw) ? (raw as string[]) : raw ? [String(raw)] : [];
+  return names.map(n => ELDRITCH_INVOCATIONS_MAP.get(n)).filter(Boolean) as import("@/data/eldritchInvocations").EldritchInvocation[];
 });
 
 // ── Resources display (hide infusion_slots — shown in Infusions card instead) ─
