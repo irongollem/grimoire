@@ -47,10 +47,17 @@
       </ListFilterBar>
     </template>
 
-    <!-- Add form (inline) -->
-    <div v-if="showForm" class="mb-4">
-      <SoundForm @saved="showForm = false" @cancel="showForm = false" />
-    </div>
+    <!-- Page tabs (always visible so the DM can create the first page) -->
+    <SoundboardPageTabs
+      v-model="ui.soundboardActivePage"
+      :pages="pages ?? []"
+    />
+
+    <AddSoundDialog
+      :open="showForm"
+      :page-id="newSoundPageId"
+      @close="showForm = false"
+    />
 
     <!-- Loading -->
     <LoadingSpinner v-if="isPending" />
@@ -103,6 +110,7 @@
           <SoundCard
             :sound="sound"
             :show-delete="true"
+            :pages="pages ?? []"
             @delete="handleDelete"
           />
         </div>
@@ -115,10 +123,13 @@
 import { ref, computed, watch, onMounted } from "vue";
 import { Plus, GripVertical, Music2 } from "lucide-vue-next";
 import { VueDraggable } from "vue-draggable-plus";
-import { useSounds, useDeleteSound, useReorderSounds } from "@/composables/useSounds";
+import { useSounds, useDeleteSound, useReorderSounds, useBulkAssignToPage } from "@/composables/useSounds";
+import { useSoundboardPages, useCreateSoundboardPage } from "@/composables/useSoundboardPages";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useUiStore } from "@/stores/ui";
+import { storeToRefs } from "pinia";
+import { useCampaignStore } from "@/stores/campaign";
 import type { Sound } from "@/types/sound.types";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
@@ -127,26 +138,62 @@ import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import SoundCard from "@/components/soundboard/SoundCard.vue";
-import SoundForm from "@/components/soundboard/SoundForm.vue";
+import AddSoundDialog from "@/components/soundboard/AddSoundDialog.vue";
 import SoundCategoryFilter from "@/components/soundboard/SoundCategoryFilter.vue";
 import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
+import SoundboardPageTabs from "@/components/soundboard/SoundboardPageTabs.vue";
 
 const ui = useUiStore();
 const soundboardStore = useSoundboardStore();
 const spotifyStore = useSpotifyStore();
+const { activeCampaignId } = storeToRefs(useCampaignStore());
 
-// Initialise the Spotify SDK as soon as the soundboard mounts (if connected).
 onMounted(() => spotifyStore.initSDK());
-const { data: sounds, isPending } = useSounds();
+
+const { data: sounds, isPending, isSuccess: soundsReady } = useSounds();
+const { data: pages, isSuccess: pagesReady } = useSoundboardPages();
 const { mutateAsync: deleteSound } = useDeleteSound();
 const { mutate: reorderSounds } = useReorderSounds();
+const { mutateAsync: createDefaultPage } = useCreateSoundboardPage();
+const { mutateAsync: bulkAssign } = useBulkAssignToPage();
+
+// Auto-init: on first load with no pages, create "Main" and assign all existing sounds to it.
+const autoInitDone = ref(false);
+watch(
+  [pagesReady, soundsReady, pages],
+  ([pr, sr, p]) => {
+    if (!pr || !sr || autoInitDone.value || !activeCampaignId.value) return;
+    if ((p ?? []).length === 0) {
+      autoInitDone.value = true;
+      createDefaultPage({ name: "Main", sort_order: 0 }).then((newPage) => {
+        ui.soundboardActivePage = newPage.id;
+        return bulkAssign({ pageId: newPage.id, campaignId: activeCampaignId.value! });
+      });
+    }
+  },
+);
 
 const showForm = ref(false);
+
+// Page to assign new sounds to:
+// - specific page active → use it
+// - "All" with exactly 1 page → auto-assign to that page
+// - "All" with multiple pages → unassigned (null)
+const newSoundPageId = computed(() => {
+  if (ui.soundboardActivePage !== null) return ui.soundboardActivePage;
+  if ((pages.value?.length ?? 0) === 1) return pages.value![0].id;
+  return null;
+});
 
 // ── Filtering ─────────────────────────────────────────────────────────────
 
 const filtered = computed(() => {
   let list = sounds.value ?? [];
+
+  // Filter by active page (null = "All", shows everything)
+  if (ui.soundboardActivePage !== null) {
+    list = list.filter((s) => s.page_id === ui.soundboardActivePage);
+  }
 
   if (ui.soundboardFilterCategory !== "all") {
     list = list.filter((s) => s.category === ui.soundboardFilterCategory);
@@ -161,10 +208,6 @@ const filtered = computed(() => {
 });
 
 // ── Drag-drop ordering ────────────────────────────────────────────────────
-//
-// orderedSounds is a local copy of filtered used as the v-model for
-// VueDraggable. It stays in sync with the server list unless the user
-// is actively reordering (filters off). After a drag we fire persistOrder.
 
 const orderedSounds = ref<Sound[]>([]);
 

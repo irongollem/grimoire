@@ -273,6 +273,8 @@ export const useUiStore = defineStore("ui", () => {
   // Soundboard UI state
   const soundboardFilterCategory = ref<SoundCategory | "all">("all");
   const soundboardSearchQuery = ref("");
+  // null = "All" virtual tab; string = specific page ID
+  const soundboardActivePage = ref<string | null>(null);
   const soundboardHasActiveFilters = computed(
     () => soundboardFilterCategory.value !== "all" || soundboardSearchQuery.value !== "",
   );
@@ -519,6 +521,7 @@ export const useUiStore = defineStore("ui", () => {
     // Soundboard
     soundboardFilterCategory,
     soundboardSearchQuery,
+    soundboardActivePage,
     soundboardHasActiveFilters,
     resetSoundboardFilters,
 

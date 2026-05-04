@@ -212,6 +212,22 @@
       </p>
     </template>
 
+    <!-- ── Page picker (only when multiple pages exist) ─────────────────── -->
+    <div
+      v-if="pages && pages.length > 1 && !sound.page_id"
+      class="flex items-center gap-1.5 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
+    >
+      <Layers class="h-3 w-3 text-muted-foreground/50 shrink-0" />
+      <select
+        class="flex-1 rounded border border-border bg-background px-1.5 py-0.5 font-fell text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-gold-500 cursor-pointer"
+        :value="sound.page_id ?? ''"
+        @change="moveSound({ id: sound.id, pageId: ($event.target as HTMLSelectElement).value || null })"
+      >
+        <option value="">— Unassigned —</option>
+        <option v-for="page in pages" :key="page.id" :value="page.id">{{ page.name }}</option>
+      </select>
+    </div>
+
     <!-- ── HTML Audio controls ─────────────────────────────────────────── -->
     <template v-else>
       <div class="flex items-center gap-2">
@@ -281,17 +297,18 @@
 
 <script setup lang="ts">
 import { computed, ref, nextTick } from "vue";
-import { Play, Pause, Square, Repeat, Repeat1, Shuffle, Trash2, AlertTriangle, Pencil, Music2, SkipBack, SkipForward } from "lucide-vue-next";
+import { Play, Pause, Square, Repeat, Repeat1, Shuffle, Trash2, AlertTriangle, Pencil, Music2, SkipBack, SkipForward, Layers } from "lucide-vue-next";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
-import { useUpdateSound } from "@/composables/useSounds";
-import type { Sound } from "@/types/sound.types";
+import { useUpdateSound, useMoveSound } from "@/composables/useSounds";
+import type { Sound, SoundboardPage } from "@/types/sound.types";
 
 const IS_SAFARI = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
 const props = defineProps<{
   sound: Sound;
   showDelete?: boolean;
+  pages?: SoundboardPage[];
 }>();
 
 defineEmits<{
@@ -301,6 +318,7 @@ defineEmits<{
 const soundboardStore = useSoundboardStore();
 const spotifyStore = useSpotifyStore();
 const { mutate: updateSound } = useUpdateSound();
+const { mutate: moveSound } = useMoveSound();
 
 // ── Routing to the right playback engine ──────────────────────────────────
 

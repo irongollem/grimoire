@@ -1,10 +1,8 @@
 <template>
   <form
-    class="rounded-lg border border-border bg-card p-4 space-y-4"
+    class="space-y-4"
     @submit.prevent="handleSubmit"
   >
-    <p class="font-cinzel text-sm font-semibold text-foreground">Add Sound</p>
-
     <!-- Name -->
     <div class="space-y-1">
       <label class="font-fell text-xs text-muted-foreground">Name</label>
@@ -153,6 +151,10 @@ import type { SoundCategory, SoundSourceType } from "@/types/sound.types";
 
 const spotifyStore = useSpotifyStore();
 
+const { pageId = null } = defineProps<{
+  pageId?: string | null;
+}>();
+
 const emit = defineEmits<{
   (e: "cancel"): void;
   (e: "saved"): void;
@@ -209,6 +211,7 @@ async function handleSubmit() {
       source_type: "url",
       file_url: form.value.external_url.trim(),
       storage_path: null,
+      page_id: pageId ?? null,
       tags: [],
       sort_order: 0,
     });
@@ -224,6 +227,7 @@ async function handleSubmit() {
       source_type: "spotify",
       file_url: form.value.external_url.trim(),
       storage_path: null,
+      page_id: pageId ?? null,
       tags: [],
       sort_order: 0,
     });
@@ -250,6 +254,7 @@ async function handleSubmit() {
     source_type: "upload",
     file_url: result.file_url,
     storage_path: result.storage_path,
+    page_id: pageId ?? null,
     tags: [],
     sort_order: 0,
   });

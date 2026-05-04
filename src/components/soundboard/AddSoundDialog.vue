@@ -1,0 +1,76 @@
+<template>
+  <Teleport to="body">
+    <Transition name="dialog-fade">
+      <div
+        v-if="open"
+        class="fixed inset-0 z-200 flex items-center justify-center p-4"
+        @mousedown.self="$emit('close')"
+      >
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+
+        <div
+          class="relative w-full max-w-md rounded-xl border border-border bg-card shadow-2xl"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="add-sound-title"
+        >
+          <!-- Header -->
+          <div class="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-border">
+            <div class="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-gold-500/15 text-gold-400">
+              <Music class="h-4.5 w-4.5" />
+            </div>
+            <h2 id="add-sound-title" class="font-cinzel text-sm font-bold text-foreground tracking-wide">
+              Add Sound
+            </h2>
+            <button
+              type="button"
+              class="ml-auto p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
+              @click="$emit('close')"
+            >
+              <X class="h-4 w-4" />
+            </button>
+          </div>
+
+          <!-- Body -->
+          <div class="px-5 py-4">
+            <SoundForm :page-id="pageId" @saved="$emit('close')" @cancel="$emit('close')" />
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
+</template>
+
+<script setup lang="ts">
+import { Music, X } from "lucide-vue-next";
+import SoundForm from "./SoundForm.vue";
+
+defineProps<{
+  open: boolean;
+  pageId?: string | null;
+}>();
+
+defineEmits<{
+  (e: "close"): void;
+}>();
+</script>
+
+<style scoped>
+.dialog-fade-enter-active,
+.dialog-fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+.dialog-fade-enter-active .relative,
+.dialog-fade-leave-active .relative {
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+.dialog-fade-enter-from,
+.dialog-fade-leave-to {
+  opacity: 0;
+}
+.dialog-fade-enter-from .relative,
+.dialog-fade-leave-to .relative {
+  transform: scale(0.95);
+  opacity: 0;
+}
+</style>

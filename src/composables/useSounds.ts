@@ -107,6 +107,38 @@ export function useDeleteSound() {
   });
 }
 
+export function useMoveSound() {
+  const qc = useQueryClient();
+  const { activeCampaignId } = storeToRefs(useCampaignStore());
+
+  return useMutation({
+    mutationFn: ({ id, pageId }: { id: string; pageId: string | null }) =>
+      updateSound(id, { page_id: pageId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QUERY_KEY, activeCampaignId.value] });
+    },
+  });
+}
+
+export function useBulkAssignToPage() {
+  const qc = useQueryClient();
+  const { activeCampaignId } = storeToRefs(useCampaignStore());
+
+  return useMutation({
+    mutationFn: async ({ pageId, campaignId }: { pageId: string; campaignId: string }) => {
+      const { error } = await supabase
+        .from("sounds")
+        .update({ page_id: pageId })
+        .eq("campaign_id", campaignId)
+        .is("page_id", null);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QUERY_KEY, activeCampaignId.value] });
+    },
+  });
+}
+
 export function useReorderSounds() {
   const qc = useQueryClient();
   const { activeCampaignId } = storeToRefs(useCampaignStore());
