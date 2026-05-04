@@ -336,6 +336,40 @@
       </div>
     </div>
 
+    <!-- ── Metamagic ─────────────────────────────────────────────────────── -->
+    <div v-if="knownMetamagic.length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
+      <div class="px-4 py-2.5 border-b border-border">
+        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Metamagic</p>
+      </div>
+      <div class="divide-y divide-border">
+        <div
+          v-for="opt in knownMetamagic"
+          :key="opt.name"
+          class="px-4 py-2.5"
+        >
+          <button
+            class="w-full text-left flex items-center gap-2 cursor-pointer"
+            @click="toggleExpanded(`metamagic-${opt.name}`)"
+          >
+            <span class="font-fell text-sm text-foreground flex-1">{{ opt.name }}</span>
+            <span class="font-cinzel text-2xs tracking-wider rounded px-1.5 py-0.5 shrink-0 bg-primary/10 text-primary border border-primary/20">
+              {{ opt.sp_cost }} SP
+            </span>
+            <ChevronDown
+              class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
+              :class="expanded.has(`metamagic-${opt.name}`) ? 'rotate-180' : ''"
+            />
+          </button>
+          <div
+            v-if="expanded.has(`metamagic-${opt.name}`)"
+            class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 font-fell text-sm text-muted-foreground leading-relaxed"
+          >
+            {{ opt.description }}
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -344,6 +378,7 @@ import { ref, computed, watch } from "vue";
 import { useRouter, RouterLink } from "vue-router";
 import { ChevronDown, Sparkles } from "lucide-vue-next";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import { METAMAGIC_MAP } from "@/data/metamagic";
 import { featureName, featureDescription, mapFeatureIds, type FeatureEntry } from "@/levelup/types";
 import type { CustomStep } from "@/levelup/customTypes";
 import { useAllFeatures } from "@/composables/useFeatures";
@@ -598,11 +633,17 @@ const CHOICE_LABELS: Record<string, string> = {
 const choiceEntries = computed(() => {
   const choices = props.member.class_choices ?? {};
   return Object.entries(choices)
-    .filter(([, v]) => v !== null && v !== undefined && v !== "")
+    .filter(([key, v]) => key !== "metamagic_options" && v !== null && v !== undefined && v !== "")
     .map(([key, value]) => ({
       key,
       label: CHOICE_LABELS[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
       values: Array.isArray(value) ? (value as string[]) : [String(value)],
     }));
+});
+
+const knownMetamagic = computed(() => {
+  const raw = props.member.class_choices?.metamagic_options;
+  const names: string[] = Array.isArray(raw) ? (raw as string[]) : raw ? [String(raw)] : [];
+  return names.map(n => METAMAGIC_MAP.get(n)).filter(Boolean) as import("@/data/metamagic").MetamagicOption[];
 });
 </script>

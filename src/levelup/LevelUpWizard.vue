@@ -898,7 +898,12 @@ function onMultiStepChange(step: ClassStep, idx: number, value: string) {
 }
 function isMultiPickTaken(step: ClassStep, ownIdx: number, opt: string): boolean {
   const picks = stepMultiValues.value[step.key] ?? [];
-  return picks.some((v, i) => i !== ownIdx && v === opt);
+  if (picks.some((v, i) => i !== ownIdx && v === opt)) return true;
+  if (step.type === "append") {
+    const existing = props.member.class_choices?.[step.key];
+    if (Array.isArray(existing) && (existing as string[]).includes(opt)) return true;
+  }
+  return false;
 }
 
 // ── Spell picker ───────────────────────────────────────────────────────────────
