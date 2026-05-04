@@ -162,7 +162,7 @@ import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting-disciplines";
-import { useCraftingRecipes, useDeleteRecipe, useImportStarterRecipes, useUpdateRecipe } from "@/composables/useCrafting";
+import { useCraftingRecipes, useDeleteRecipe, useImportStarterRecipes, useUpdateRecipe, useRevealAllRecipes } from "@/composables/useCrafting";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import { useConfirm } from "@/composables/useConfirm";
 import { useUiStore } from "@/stores/ui";
@@ -183,25 +183,16 @@ const { confirm } = useConfirm();
 const { data: members } = useCampaignMembers();
 
 const playerIds = computed(() =>
-  (members.value ?? []).filter((m) => m.role === "player").map((m) => m.user_id),
+  (members.value ?? [])
+    .filter((m) => m.role === "player" && m.party_member_id !== null)
+    .map((m) => m.party_member_id as string),
 );
 
-const revealAllPending = ref(false);
+const { mutateAsync: revealAll, isPending: revealAllPending } = useRevealAllRecipes();
 
 async function revealAllRecipes() {
-  const ids = playerIds.value;
-  if (!ids.length) return;
-  revealAllPending.value = true;
-  try {
-    const toUpdate = (recipes.value ?? []).filter(
-      (r) => !ids.every((id) => r.player_visible_to.includes(id)),
-    );
-    await Promise.all(
-      toUpdate.map((r) => updateRecipe({ id: r.id, update: { player_visible_to: ids } })),
-    );
-  } finally {
-    revealAllPending.value = false;
-  }
+  if (!playerIds.value.length) return;
+  await revealAll(playerIds.value);
 }
 
 // Persist a visibility change from the list row. The toggle is wrapped in

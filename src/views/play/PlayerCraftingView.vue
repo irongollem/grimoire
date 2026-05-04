@@ -183,7 +183,7 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import CraftAttemptDialog from "@/components/crafting/CraftAttemptDialog.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting-disciplines";
 import type { DisciplineConfig } from "@/lib/crafting-disciplines";
-import { usePlayerCraftingRecipes, useRecipeIngredients, useRecipeModifiers, useRecipeOutputs } from "@/composables/useCrafting";
+import { usePlayerCraftingRecipes, useAllRecipeIngredients, useAllRecipeModifiers, useAllRecipeOutputs } from "@/composables/useCrafting";
 import { useItems } from "@/composables/useItems";
 import { useParty } from "@/composables/useParty";
 import { usePartyInventory } from "@/composables/usePartyInventory";
@@ -254,30 +254,21 @@ const disciplineRecipes = computed(() =>
     : (recipes.value ?? []).filter((r) => r.discipline === ui.playerCraftingActiveTab),
 );
 
-// Cache ingredient/modifier/output fetches per recipe
-const ingredientCache = new Map<string, ReturnType<typeof useRecipeIngredients>>();
-const modifierCache = new Map<string, ReturnType<typeof useRecipeModifiers>>();
-const outputCache = new Map<string, ReturnType<typeof useRecipeOutputs>>();
+const allRecipeIds = computed(() => (recipes.value ?? []).map((r) => r.id));
+const ingredientsMap = useAllRecipeIngredients(allRecipeIds);
+const outputsMap = useAllRecipeOutputs(allRecipeIds);
+const modifiersMap = useAllRecipeModifiers(allRecipeIds);
 
 function ingredientsFor(recipeId: string): CraftingIngredient[] {
-  if (!ingredientCache.has(recipeId)) {
-    ingredientCache.set(recipeId, useRecipeIngredients(recipeId));
-  }
-  return ingredientCache.get(recipeId)!.data.value ?? [];
+  return ingredientsMap.value.get(recipeId) ?? [];
 }
 
 function modifiersFor(recipeId: string): CraftingModifier[] {
-  if (!modifierCache.has(recipeId)) {
-    modifierCache.set(recipeId, useRecipeModifiers(recipeId));
-  }
-  return modifierCache.get(recipeId)!.data.value ?? [];
+  return modifiersMap.value.get(recipeId) ?? [];
 }
 
 function outputsFor(recipeId: string): CraftingOutput[] {
-  if (!outputCache.has(recipeId)) {
-    outputCache.set(recipeId, useRecipeOutputs(recipeId));
-  }
-  return outputCache.get(recipeId)!.data.value ?? [];
+  return outputsMap.value.get(recipeId) ?? [];
 }
 
 function itemName(itemId: string): string {
@@ -287,7 +278,7 @@ function itemName(itemId: string): string {
 function ingredientLabel(ing: CraftingIngredient): string {
   if (ing.item_id) return itemName(ing.item_id);
   if (!ing.tags) return "Any";
-  return ing.tags.length === 1 ? `Any "${ing.tags[0]}"` : `Any [${ing.tags.join(" + ")}]`;
+  return `Any "${ing.tags.join(", ")}"`;
 }
 
 function ownedCount(ing: CraftingIngredient): number {

@@ -201,6 +201,84 @@ export function useRecipeModifiers(recipeId: MaybeRefOrGetter<string>) {
   });
 }
 
+/** Batch variants — single query per table using .in(), returns ComputedRef<Map<recipeId, data[]>> */
+export function useAllRecipeIngredients(recipeIds: MaybeRefOrGetter<string[]>) {
+  const result = useQuery({
+    queryKey: computed(() => [INGREDIENTS_KEY, "batch", [...toValue(recipeIds)].sort().join(",")]),
+    queryFn: async () => {
+      const ids = toValue(recipeIds);
+      if (ids.length === 0) return [] as CraftingIngredient[];
+      const { data, error } = await supabase
+        .from("crafting_recipe_ingredients")
+        .select("*")
+        .in("recipe_id", ids);
+      if (error) throw error;
+      return data as CraftingIngredient[];
+    },
+    enabled: () => toValue(recipeIds).length > 0,
+  });
+  return computed(() => {
+    const map = new Map<string, CraftingIngredient[]>();
+    for (const ing of result.data.value ?? []) {
+      const list = map.get(ing.recipe_id) ?? [];
+      list.push(ing);
+      map.set(ing.recipe_id, list);
+    }
+    return map;
+  });
+}
+
+export function useAllRecipeOutputs(recipeIds: MaybeRefOrGetter<string[]>) {
+  const result = useQuery({
+    queryKey: computed(() => [OUTPUTS_KEY, "batch", [...toValue(recipeIds)].sort().join(",")]),
+    queryFn: async () => {
+      const ids = toValue(recipeIds);
+      if (ids.length === 0) return [] as CraftingOutput[];
+      const { data, error } = await supabase
+        .from("crafting_recipe_outputs")
+        .select("*")
+        .in("recipe_id", ids);
+      if (error) throw error;
+      return data as CraftingOutput[];
+    },
+    enabled: () => toValue(recipeIds).length > 0,
+  });
+  return computed(() => {
+    const map = new Map<string, CraftingOutput[]>();
+    for (const out of result.data.value ?? []) {
+      const list = map.get(out.recipe_id) ?? [];
+      list.push(out);
+      map.set(out.recipe_id, list);
+    }
+    return map;
+  });
+}
+
+export function useAllRecipeModifiers(recipeIds: MaybeRefOrGetter<string[]>) {
+  const result = useQuery({
+    queryKey: computed(() => [MODIFIERS_KEY, "batch", [...toValue(recipeIds)].sort().join(",")]),
+    queryFn: async () => {
+      const ids = toValue(recipeIds);
+      if (ids.length === 0) return [] as CraftingModifier[];
+      const { data, error } = await supabase
+        .from("crafting_recipe_modifiers")
+        .select("*")
+        .in("recipe_id", ids);
+      if (error) throw error;
+      return data as CraftingModifier[];
+    },
+    enabled: () => toValue(recipeIds).length > 0,
+  });
+  return computed(() => {
+    const map = new Map<string, CraftingModifier[]>();
+    for (const mod of result.data.value ?? []) {
+      const list = map.get(mod.recipe_id) ?? [];
+      list.push(mod);
+      map.set(mod.recipe_id, list);
+    }
+    return map;
+  });
+}
 
 // ── Mutation composables ─────────────────────────────────────────────────────
 
@@ -210,6 +288,21 @@ export function useCreateRecipe() {
   return useMutation({
     mutationFn: (recipe: Omit<CraftingRecipeInsert, "campaign_id">) =>
       createRecipe({ ...recipe, campaign_id: campaign.activeCampaignId! }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [RECIPES_KEY] }),
+  });
+}
+
+export function useRevealAllRecipes() {
+  const queryClient = useQueryClient();
+  const campaign = useCampaignStore();
+  return useMutation({
+    mutationFn: async (partyMemberIds: string[]) => {
+      const { error } = await supabase
+        .from("crafting_recipes")
+        .update({ player_visible_to: partyMemberIds })
+        .eq("campaign_id", campaign.activeCampaignId!);
+      if (error) throw error;
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [RECIPES_KEY] }),
   });
 }
