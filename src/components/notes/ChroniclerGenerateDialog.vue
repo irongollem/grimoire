@@ -26,6 +26,12 @@
             :items="mentionItems"
             :disabled="generating"
           />
+          <div class="flex justify-end">
+            <span
+              class="font-fell text-xs"
+              :class="scenePrompt.length >= SCENE_LIMIT * 0.9 ? 'text-destructive' : 'text-muted-foreground/50'"
+            >{{ scenePrompt.length }} / {{ SCENE_LIMIT }}</span>
+          </div>
         </div>
 
         <!-- Resolved entities -->
@@ -85,7 +91,7 @@
           <button
             type="button"
             class="inline-flex items-center gap-1.5 px-4 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-            :disabled="generating || !scenePrompt.trim()"
+            :disabled="generating || !scenePrompt.trim() || scenePrompt.length > SCENE_LIMIT"
             @click="generate"
           >
             <Sparkles class="h-3 w-3" :class="generating ? 'animate-pulse' : ''" />
@@ -99,6 +105,9 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
+import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
+
+const SCENE_LIMIT = AI_PROMPT_LIMIT_SHORT;
 import { Sparkles } from "lucide-vue-next";
 import { parseSceneEntities, generateChroniclerImage } from "@/ai/useChroniclerImageGeneration";
 import { useCreateChroniclerImage } from "@/composables/useChroniclerImages";

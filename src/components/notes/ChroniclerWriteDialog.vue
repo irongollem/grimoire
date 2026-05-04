@@ -19,6 +19,12 @@
               :items="mentionItems"
               :disabled="isGenerating"
             />
+            <div class="flex justify-end">
+              <span
+                class="font-fell text-xs"
+                :class="rawText.length >= NOTES_LIMIT * 0.9 ? 'text-destructive' : 'text-muted-foreground/50'"
+              >{{ rawText.length }} / {{ NOTES_LIMIT }}</span>
+            </div>
           </div>
 
           <!-- Tone selector -->
@@ -56,7 +62,7 @@
             <button
               type="button"
               class="inline-flex items-center gap-1.5 px-4 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-              :disabled="isGenerating || !rawText.trim()"
+              :disabled="isGenerating || !rawText.trim() || rawText.length > NOTES_LIMIT"
               @click="generate"
             >
               <BookText class="h-3 w-3" :class="isGenerating ? 'animate-pulse' : ''" />
@@ -109,6 +115,9 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
+import { AI_PROMPT_LIMIT_LONG } from "@/ai/utils";
+
+const NOTES_LIMIT = AI_PROMPT_LIMIT_LONG;
 import { BookText } from "lucide-vue-next";
 import {
   useChroniclerTextGeneration,

@@ -43,9 +43,16 @@
           <textarea
             v-model="concept"
             rows="4"
+            :maxlength="CONCEPT_LIMIT"
             placeholder="A staff carved from petrified dragon bone, crackling with lightning and able to call storms when wielded by a chosen champion…"
             class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
           />
+          <div class="flex justify-end mt-1">
+            <span
+              class="font-fell text-xs"
+              :class="concept.length >= CONCEPT_LIMIT * 0.9 ? 'text-destructive' : 'text-muted-foreground/50'"
+            >{{ concept.length }} / {{ CONCEPT_LIMIT }}</span>
+          </div>
         </div>
 
         <div class="gold-divider" />
@@ -211,6 +218,9 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
+import { AI_PROMPT_LIMIT } from "@/ai/utils";
+
+const CONCEPT_LIMIT = AI_PROMPT_LIMIT;
 import { useRouter, RouterLink } from "vue-router";
 import { X, Sparkles } from "lucide-vue-next";
 import { useUiStore } from "@/stores/ui";

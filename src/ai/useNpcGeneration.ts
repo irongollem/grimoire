@@ -1,6 +1,6 @@
 import { useAuthStore } from "@/stores/auth";
 import { uploadWithVariants } from "@/lib/storage";
-import { NPC_SYSTEM_PROMPT, IMAGE_BASE_PROMPT, buildCampaignContext } from "./prompts";
+import { NPC_SYSTEM_PROMPT, IMAGE_BASE_PROMPT, buildCampaignContext, INJECTION_GUARD_SUFFIX } from "./prompts";
 import type { NpcAiResult, NpcAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -10,7 +10,7 @@ import {
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useUiStore } from "@/stores/ui";
 import { getTextProvider, getImageProvider } from "./providers";
-import { b64ToBlob } from "./utils";
+import { b64ToBlob, wrapUserInput } from "./utils";
 import { useCampaignStore } from "@/stores/campaign";
 
 // ── Module-level singleton state ────────────────────────────────────────────
@@ -107,11 +107,12 @@ export function useNpcGeneration() {
       // ── 1. Generate NPC text data ──────────────────────────────────
       const systemContent = `${NPC_SYSTEM_PROMPT}${buildCampaignContext({
         setting: settingPrompt,
-      })}`;
+      })}${INJECTION_GUARD_SUFFIX}`;
 
+      const wrappedPrompt = wrapUserInput(userPrompt);
       const fullPrompt = options?.generateAlterEgo
-        ? `${userPrompt}\n\nThis NPC has a disguise identity — populate disguise_name and disguise_image_prompt.`
-        : userPrompt;
+        ? `${wrappedPrompt}\n\nThis NPC has a disguise identity — populate disguise_name and disguise_image_prompt.`
+        : wrappedPrompt;
 
       const npcData = JSON.parse(
         await textProvider.complete(systemContent, fullPrompt),

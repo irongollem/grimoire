@@ -1,5 +1,6 @@
 import { ref } from "vue";
-import { QUEST_HOOKS_SYSTEM_PROMPT, buildCampaignContext } from "./prompts";
+import { wrapUserInput } from "./utils";
+import { QUEST_HOOKS_SYSTEM_PROMPT, buildCampaignContext, INJECTION_GUARD_SUFFIX } from "./prompts";
 import type { QuestHookResult, QuestHooksAiResult } from "./types";
 import {
   createAiGenerationState,
@@ -40,10 +41,10 @@ export function useQuestGeneration() {
       const textProvider = getTextProvider();
       const systemContent = `${QUEST_HOOKS_SYSTEM_PROMPT}${buildCampaignContext({
         setting: campaign.activeCampaign?.ai_setting_prompt ?? "",
-      })}`;
+      })}${INJECTION_GUARD_SUFFIX}`;
 
       const result = JSON.parse(
-        await textProvider.complete(systemContent, userPrompt),
+        await textProvider.complete(systemContent, wrapUserInput(userPrompt)),
       ) as QuestHooksAiResult;
 
       if (!Array.isArray(result.hooks) || result.hooks.length === 0) {

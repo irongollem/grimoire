@@ -4,6 +4,7 @@ import {
   FACTION_SYSTEM_PROMPT,
   IMAGE_BASE_PROMPT,
   buildCampaignContext,
+  INJECTION_GUARD_SUFFIX,
 } from "./prompts";
 import type { FactionAiResult, FactionAiGenerated } from "./types";
 import {
@@ -14,7 +15,7 @@ import {
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useUiStore } from "@/stores/ui";
 import { getTextProvider, getImageProvider } from "./providers";
-import { b64ToBlob } from "./utils";
+import { b64ToBlob, wrapUserInput } from "./utils";
 import { useCampaignStore } from "@/stores/campaign";
 
 // ── Module-level singleton state ────────────────────────────────────────────
@@ -59,7 +60,7 @@ export function useFactionGeneration() {
 
       const systemContent = `${FACTION_SYSTEM_PROMPT}${buildCampaignContext({
         setting: settingPrompt,
-      })}`;
+      })}${INJECTION_GUARD_SUFFIX}`;
 
       const constraints: string[] = [];
       if (options?.faction_type)      constraints.push(`Faction Type: ${options.faction_type}`);
@@ -67,9 +68,10 @@ export function useFactionGeneration() {
       if (options?.leader_name)       constraints.push(`Leader: ${options.leader_name}`);
       if (options?.headquarters_name) constraints.push(`Headquarters: ${options.headquarters_name}`);
 
+      const wrappedPrompt = wrapUserInput(userPrompt);
       const userContent = constraints.length
-        ? `${userPrompt}\n\nConstraints:\n${constraints.join("\n")}`
-        : userPrompt;
+        ? `${wrappedPrompt}\n\nConstraints:\n${constraints.join("\n")}`
+        : wrappedPrompt;
 
       const factionData = JSON.parse(
         await textProvider.complete(systemContent, userContent),

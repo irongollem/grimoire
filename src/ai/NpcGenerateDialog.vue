@@ -24,10 +24,17 @@
         <textarea
           v-model="prompt"
           :disabled="isGenerating"
+          :maxlength="PROMPT_LIMIT"
           rows="6"
           placeholder="e.g. A grizzled dwarven blacksmith who secretly belongs to a thieves' guild. Jovial on the surface but deeply paranoid. The party has heard rumours of him dealing in stolen magical components…"
           class="field-input resize-none disabled:opacity-50"
         />
+        <div class="flex justify-end">
+          <span
+            class="font-fell text-xs"
+            :class="prompt.length >= PROMPT_LIMIT * 0.9 ? 'text-destructive' : 'text-muted-foreground/50'"
+          >{{ prompt.length }} / {{ PROMPT_LIMIT }}</span>
+        </div>
       </div>
 
       <!-- Alter ego toggle -->
@@ -98,6 +105,9 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { X, Sparkles } from "lucide-vue-next";
+import { AI_PROMPT_LIMIT } from "./utils";
+
+const PROMPT_LIMIT = AI_PROMPT_LIMIT;
 import { useNpcGeneration } from "./useNpcGeneration";
 import { currentLoadingQuote } from "./aiGenerationState";
 import type { NpcAiGenerated } from "./types";

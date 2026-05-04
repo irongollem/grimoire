@@ -24,10 +24,17 @@
         <textarea
           v-model="prompt"
           :disabled="isGenerating"
+          :maxlength="PROMPT_LIMIT"
           rows="5"
           placeholder="e.g. A cantrip that draws a faintly glowing chalk circle on the floor — anyone crossing it sees a single illusory image of their choosing for one round…"
           class="field-input resize-none disabled:opacity-50"
         />
+        <div class="flex justify-end">
+          <span
+            class="font-fell text-xs"
+            :class="prompt.length >= PROMPT_LIMIT * 0.9 ? 'text-destructive' : 'text-muted-foreground/50'"
+          >{{ prompt.length }} / {{ PROMPT_LIMIT }}</span>
+        </div>
       </div>
 
       <!-- Optional constraints -->
@@ -108,6 +115,9 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { X, Sparkles } from "lucide-vue-next";
+import { AI_PROMPT_LIMIT } from "./utils";
+
+const PROMPT_LIMIT = AI_PROMPT_LIMIT;
 import { useSpellGeneration } from "./useSpellGeneration";
 import { currentLoadingQuote } from "./aiGenerationState";
 import type { SpellAiGenerated } from "./types";

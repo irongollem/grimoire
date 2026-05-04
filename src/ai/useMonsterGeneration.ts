@@ -1,6 +1,6 @@
 import { useAuthStore } from "@/stores/auth";
 import { uploadWithVariants } from "@/lib/storage";
-import { MONSTER_SYSTEM_PROMPT, IMAGE_BASE_PROMPT, buildCampaignContext } from "./prompts";
+import { MONSTER_SYSTEM_PROMPT, IMAGE_BASE_PROMPT, buildCampaignContext, INJECTION_GUARD_SUFFIX } from "./prompts";
 import type { MonsterAiResult, MonsterAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -10,7 +10,7 @@ import {
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useUiStore } from "@/stores/ui";
 import { getTextProvider, getImageProvider } from "./providers";
-import { b64ToBlob } from "./utils";
+import { b64ToBlob, wrapUserInput } from "./utils";
 import { useCampaignStore } from "@/stores/campaign";
 
 export interface MonsterGenerationOptions {
@@ -55,16 +55,17 @@ export function useMonsterGeneration() {
       // ── 1. Generate stat block text ───────────────────────────────────
       const systemContent = `${MONSTER_SYSTEM_PROMPT}${buildCampaignContext({
         setting: settingPrompt,
-      })}`;
+      })}${INJECTION_GUARD_SUFFIX}`;
 
       const constraints: string[] = [];
       if (options?.challenge_rating) constraints.push(`Challenge Rating: ${options.challenge_rating}`);
       if (options?.monster_type) constraints.push(`Type: ${options.monster_type}`);
       if (options?.size) constraints.push(`Size: ${options.size}`);
 
+      const wrappedPrompt = wrapUserInput(userPrompt);
       const fullPrompt = constraints.length
-        ? `${userPrompt}\n\n[Constraints — use exactly these values in the stat block: ${constraints.join(", ")}]`
-        : userPrompt;
+        ? `${wrappedPrompt}\n\n[Constraints — use exactly these values in the stat block: ${constraints.join(", ")}]`
+        : wrappedPrompt;
 
       const result = JSON.parse(
         await textProvider.complete(systemContent, fullPrompt),

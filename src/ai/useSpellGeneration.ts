@@ -4,6 +4,7 @@ import {
   SPELL_SYSTEM_PROMPT,
   IMAGE_BASE_PROMPT,
   buildCampaignContext,
+  INJECTION_GUARD_SUFFIX,
 } from "./prompts";
 import type { SpellAiResult, SpellAiGenerated } from "./types";
 import {
@@ -14,7 +15,7 @@ import {
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useUiStore } from "@/stores/ui";
 import { getTextProvider, getImageProvider } from "./providers";
-import { b64ToBlob } from "./utils";
+import { b64ToBlob, wrapUserInput } from "./utils";
 import { useCampaignStore } from "@/stores/campaign";
 import type { SpellSchool } from "@/types/spell.types";
 
@@ -63,7 +64,7 @@ export function useSpellGeneration() {
       // ── 1. Generate spell text ────────────────────────────────────────
       const systemContent = `${SPELL_SYSTEM_PROMPT}${buildCampaignContext({
         setting: settingPrompt,
-      })}`;
+      })}${INJECTION_GUARD_SUFFIX}`;
 
       const constraints: string[] = [];
       if (options?.level !== undefined) {
@@ -75,9 +76,10 @@ export function useSpellGeneration() {
       }
       if (options?.school) constraints.push(`School: ${options.school}`);
 
+      const wrappedPrompt = wrapUserInput(userPrompt);
       const fullPrompt = constraints.length
-        ? `${userPrompt}\n\n[Constraints — use exactly these values: ${constraints.join(", ")}]`
-        : userPrompt;
+        ? `${wrappedPrompt}\n\n[Constraints — use exactly these values: ${constraints.join(", ")}]`
+        : wrappedPrompt;
 
       const result = JSON.parse(
         await textProvider.complete(systemContent, fullPrompt),

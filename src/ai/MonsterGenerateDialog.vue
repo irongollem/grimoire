@@ -24,10 +24,17 @@
         <textarea
           v-model="prompt"
           :disabled="isGenerating"
+          :maxlength="PROMPT_LIMIT"
           rows="5"
           placeholder="e.g. A massive spider deity that dwells in the Underdark, commanding a web of fanatical cultists. It spins webs of illusion and feeds on the fears of its prey…"
           class="field-input resize-none disabled:opacity-50"
         />
+        <div class="flex justify-end">
+          <span
+            class="font-fell text-xs"
+            :class="prompt.length >= PROMPT_LIMIT * 0.9 ? 'text-destructive' : 'text-muted-foreground/50'"
+          >{{ prompt.length }} / {{ PROMPT_LIMIT }}</span>
+        </div>
       </div>
 
       <!-- Optional constraints -->
@@ -116,6 +123,9 @@
 <script setup lang="ts">
 import { ref, reactive } from "vue";
 import { X, Sparkles } from "lucide-vue-next";
+import { AI_PROMPT_LIMIT } from "./utils";
+
+const PROMPT_LIMIT = AI_PROMPT_LIMIT;
 import { useMonsterGeneration } from "./useMonsterGeneration";
 import { currentLoadingQuote } from "./aiGenerationState";
 import type { MonsterAiGenerated } from "./types";

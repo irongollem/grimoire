@@ -4,6 +4,7 @@ import {
   PUZZLE_SYSTEM_PROMPT,
   IMAGE_BASE_PROMPT,
   buildCampaignContext,
+  INJECTION_GUARD_SUFFIX,
 } from "./prompts";
 import type { PuzzleAiResult, PuzzleAiGenerated } from "./types";
 import {
@@ -14,7 +15,7 @@ import {
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useUiStore } from "@/stores/ui";
 import { getTextProvider, getImageProvider } from "./providers";
-import { b64ToBlob } from "./utils";
+import { b64ToBlob, wrapUserInput } from "./utils";
 import { useCampaignStore } from "@/stores/campaign";
 
 // ── Module-level singleton state ────────────────────────────────────────────
@@ -58,7 +59,7 @@ export function usePuzzleGeneration() {
       // ── 1. Generate puzzle text ───────────────────────────────────────
       const systemContent = `${PUZZLE_SYSTEM_PROMPT}${buildCampaignContext({
         setting: settingPrompt,
-      })}`;
+      })}${INJECTION_GUARD_SUFFIX}`;
 
       const constraints: string[] = [];
       if (options?.puzzle_type)
@@ -66,9 +67,10 @@ export function usePuzzleGeneration() {
       if (options?.difficulty)
         constraints.push(`Difficulty: ${options.difficulty}`);
 
+      const wrappedPrompt = wrapUserInput(userPrompt);
       const userContent = constraints.length
-        ? `${userPrompt}\n\nConstraints:\n${constraints.join("\n")}`
-        : userPrompt;
+        ? `${wrappedPrompt}\n\nConstraints:\n${constraints.join("\n")}`
+        : wrappedPrompt;
 
       const puzzleData = JSON.parse(
         await textProvider.complete(systemContent, userContent),

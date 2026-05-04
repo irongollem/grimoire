@@ -170,9 +170,16 @@
             <textarea
               v-model="theme"
               rows="3"
+              :maxlength="THEME_LIMIT"
               placeholder="A dragon cult terrorising trade routes along the northern pass…"
               class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
             />
+            <div class="flex justify-end mt-1">
+              <span
+                class="font-fell text-xs"
+                :class="theme.length >= THEME_LIMIT * 0.9 ? 'text-destructive' : 'text-muted-foreground/50'"
+              >{{ theme.length }} / {{ THEME_LIMIT }}</span>
+            </div>
           </div>
 
           <!-- No API key nudge (pro users only) -->
@@ -233,6 +240,9 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
+
+const THEME_LIMIT = AI_PROMPT_LIMIT_SHORT;
 import { useRouter } from "vue-router";
 import { X, Sparkles, Plus, CheckCircle } from "lucide-vue-next";
 import { useUiStore } from "@/stores/ui";

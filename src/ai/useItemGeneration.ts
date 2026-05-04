@@ -1,6 +1,6 @@
 import { useAuthStore } from "@/stores/auth";
 import { uploadWithVariants } from "@/lib/storage";
-import { ITEM_SYSTEM_PROMPT, IMAGE_BASE_PROMPT, buildCampaignContext } from "./prompts";
+import { ITEM_SYSTEM_PROMPT, IMAGE_BASE_PROMPT, buildCampaignContext, INJECTION_GUARD_SUFFIX } from "./prompts";
 import type { ItemAiResult, ItemAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -10,7 +10,7 @@ import {
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useUiStore } from "@/stores/ui";
 import { getTextProvider, getImageProvider } from "./providers";
-import { b64ToBlob } from "./utils";
+import { b64ToBlob, wrapUserInput } from "./utils";
 import { useCampaignStore } from "@/stores/campaign";
 
 export interface ItemGenerationOptions {
@@ -55,16 +55,17 @@ export function useItemGeneration() {
       // ── 1. Generate item text ─────────────────────────────────────────────
       const systemContent = `${ITEM_SYSTEM_PROMPT}${buildCampaignContext({
         setting: settingPrompt,
-      })}`;
+      })}${INJECTION_GUARD_SUFFIX}`;
 
       const constraints: string[] = [];
       if (options?.item_type) constraints.push(`Item Type: ${options.item_type}`);
       if (options?.rarity) constraints.push(`Rarity: ${options.rarity}`);
       if (options?.cursed) constraints.push(`This item must be cursed — populate curse_description with the curse effect, trigger, and removal method`);
 
+      const wrappedPrompt = wrapUserInput(userPrompt);
       const fullPrompt = constraints.length
-        ? `${userPrompt}\n\n[Constraints — use exactly these values: ${constraints.join(", ")}]`
-        : userPrompt;
+        ? `${wrappedPrompt}\n\n[Constraints — use exactly these values: ${constraints.join(", ")}]`
+        : wrappedPrompt;
 
       const result = JSON.parse(
         await textProvider.complete(systemContent, fullPrompt),
