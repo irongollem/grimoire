@@ -17,6 +17,11 @@
         @click="handlePopulate"
       />
       <ListActionButton
+        :icon="Sparkles"
+        label="Generate"
+        @click="ui.locationGeneratorOpen = true"
+      />
+      <ListActionButton
         :icon="Plus"
         label="New Location"
         mobile-label="Location"
@@ -40,7 +45,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Plus, Loader2, MapPin, Globe } from "lucide-vue-next";
+import { Plus, Loader2, MapPin, Globe, Sparkles } from "lucide-vue-next";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
@@ -48,7 +53,10 @@ import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import LocationList from "@/components/locations/LocationList.vue";
 import { usePopulateLocations, usePopulatePlanarLocations } from "@/composables/useLocations";
+import { useUiStore } from "@/stores/ui";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
+
+const ui = useUiStore();
 
 const TYPE_OPTIONS = [
   { value: "all", label: "All" },

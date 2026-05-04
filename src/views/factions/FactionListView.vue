@@ -3,10 +3,15 @@
     <template #actions>
       <ListActionButton
         v-if="hasSetting"
-        :icon="Sparkles"
+        :icon="populateMutation.isPending.value ? Loader2 : Globe"
         :label="populateStatusLabel"
         :disabled="populateMutation.isPending.value"
         @click="handlePopulate"
+      />
+      <ListActionButton
+        :icon="Sparkles"
+        label="Generate"
+        @click="ui.factionGeneratorOpen = true"
       />
       <ListActionButton
         :icon="Plus"
@@ -79,7 +84,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Plus, Shield, ChevronRight, Eye, Sparkles } from "lucide-vue-next";
+import { Plus, Shield, ChevronRight, Eye, Sparkles, Loader2, Globe } from "lucide-vue-next";
 import { useAllFactions, usePopulateFactions } from "@/composables/useFactions";
 import { FACTION_TYPES } from "@/types/faction.types";
 import { useUiStore } from "@/stores/ui";

@@ -1,0 +1,111 @@
+import { useAuthStore } from "@/stores/auth";
+import { uploadWithVariants } from "@/lib/storage";
+import {
+  FACTION_SYSTEM_PROMPT,
+  IMAGE_BASE_PROMPT,
+  buildCampaignContext,
+} from "./prompts";
+import type { FactionAiResult, FactionAiGenerated } from "./types";
+import {
+  createAiGenerationState,
+  startAiQuotes,
+  stopAiQuotes,
+} from "./aiGenerationState";
+import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
+import { useUiStore } from "@/stores/ui";
+import { getTextProvider, getImageProvider } from "./providers";
+import { b64ToBlob } from "./utils";
+import { useCampaignStore } from "@/stores/campaign";
+
+// ── Module-level singleton state ────────────────────────────────────────────
+const _state = createAiGenerationState();
+
+registerAiGenerator({
+  ..._state,
+  label: "Faction",
+  entityRoute: (id) => `/factions/${id}`,
+  openPanel: () => {
+    useUiStore().factionGeneratorOpen = true;
+  },
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+
+export interface FactionGenerationOptions {
+  faction_type?: string;
+  alignment?: string;
+  generateImage?: boolean;
+  leader_name?: string;
+  headquarters_name?: string;
+}
+
+export function useFactionGeneration() {
+  const auth     = useAuthStore();
+  const campaign = useCampaignStore();
+
+  async function generate(
+    userPrompt: string,
+    options?: FactionGenerationOptions,
+  ): Promise<FactionAiGenerated | null> {
+    if (isAnyAiGenerating.value) return null;
+    _state.isGenerating.value = true;
+    _state.error.value = null;
+    startAiQuotes();
+
+    const settingPrompt = campaign.activeCampaign?.ai_setting_prompt ?? "";
+
+    try {
+      const textProvider = getTextProvider();
+
+      const systemContent = `${FACTION_SYSTEM_PROMPT}${buildCampaignContext({
+        setting: settingPrompt,
+      })}`;
+
+      const constraints: string[] = [];
+      if (options?.faction_type)      constraints.push(`Faction Type: ${options.faction_type}`);
+      if (options?.alignment)         constraints.push(`Alignment: ${options.alignment}`);
+      if (options?.leader_name)       constraints.push(`Leader: ${options.leader_name}`);
+      if (options?.headquarters_name) constraints.push(`Headquarters: ${options.headquarters_name}`);
+
+      const userContent = constraints.length
+        ? `${userPrompt}\n\nConstraints:\n${constraints.join("\n")}`
+        : userPrompt;
+
+      const factionData = JSON.parse(
+        await textProvider.complete(systemContent, userContent),
+      ) as FactionAiResult;
+
+      // ── Emblem ─────────────────────────────────────────────────────────────
+      let image_url: string | null = null;
+      if (options?.generateImage && auth.user) {
+        startAiQuotes("image");
+        try {
+          const imagePrompt = [IMAGE_BASE_PROMPT, settingPrompt, factionData.image_prompt]
+            .filter(Boolean)
+            .join(" — ");
+          const imageProvider = getImageProvider();
+          const b64 = await imageProvider.generate(imagePrompt, "1024x1024");
+          if (b64) {
+            image_url = await uploadWithVariants({
+              bucket: "factionImages",
+              userId: auth.user.id,
+              blob: b64ToBlob(b64),
+            });
+          }
+        } catch {
+          // non-fatal
+        }
+      }
+
+      return { ...factionData, image_url };
+    } catch (e) {
+      _state.error.value = e instanceof Error ? e.message : "Generation failed";
+      return null;
+    } finally {
+      _state.isGenerating.value = false;
+      stopAiQuotes();
+    }
+  }
+
+  return { ..._state, generate };
+}

@@ -115,6 +115,13 @@ export const BUCKETS = {
     public: true,
     generateVariants: true,
   },
+  factionImages: {
+    id: "faction-images",
+    maxBytes: FIVE_MB,
+    mimeTypes: IMAGE_MIMES,
+    public: true,
+    generateVariants: true,
+  },
   sounds: {
     id: "sounds",
     maxBytes: TWENTY_MB,

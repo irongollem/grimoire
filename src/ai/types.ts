@@ -3,6 +3,7 @@ import type { MonsterType, MonsterSize, MonsterStatBlock } from "@/types/monster
 import type { ItemType, ItemRarity } from "@/types/item.types";
 import type { SpellSchool } from "@/types/spell.types";
 import type { DamageRoll } from "@/lib/dice";
+import type { TrapType, TrapTrigger, TrapResetType, TrapSaveType, DamageEntry } from "@/types/trap.types";
 
 export interface NpcAiResult {
   name: string;
@@ -155,6 +156,69 @@ export interface SpellAiResult {
 
 export interface SpellAiGenerated extends SpellAiResult {
   image_url: string | null;
+}
+
+export interface TrapAiResult {
+  name: string;
+  trap_type: TrapType;
+  trigger_type: TrapTrigger;
+  /** Plain text — convert to Tiptap JSON before writing to form */
+  description: string;
+  effect_description: string;
+  detection_dc: number | null;
+  disarm_dc: number | null;
+  attack_bonus: number | null;
+  save_type: TrapSaveType | null;
+  save_dc: number | null;
+  damage_entries: DamageEntry[];
+  reset_type: TrapResetType;
+  cr: string | null;
+  trap_hp: number | null;
+  trap_ac: number | null;
+  tags: string[];
+  /** Plain text — convert to Tiptap JSON before writing to form */
+  notes: string;
+  /** Subject description for image generation */
+  image_prompt: string;
+}
+
+export interface TrapAiGenerated extends TrapAiResult {
+  image_url: string | null;
+}
+
+export interface FactionAiResult {
+  name: string;
+  faction_type: string;
+  alignment: string;
+  /** Plain text — convert to Tiptap JSON before writing to form */
+  description: string;
+  tags: string[];
+  /** Square emblem description for image generation */
+  image_prompt: string;
+}
+
+export interface FactionAiGenerated extends FactionAiResult {
+  image_url: string | null;
+}
+
+export interface LocationAiResult {
+  name: string;
+  /** Plain text — convert to Tiptap JSON before writing to form */
+  description: string;
+  /** Short player-facing summary — plain text */
+  player_summary: string;
+  tags: string[];
+  /** Plain text DM notes */
+  notes: string;
+  /** Atmospheric illustration description for image generation */
+  image_prompt: string;
+  /** Top-down spatial description for map generation */
+  map_prompt: string;
+}
+
+export interface LocationAiGenerated extends LocationAiResult {
+  image_url: string | null;
+  map_url: string | null;
 }
 
 export interface QuestHookResult {

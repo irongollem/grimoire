@@ -27,6 +27,11 @@
           @click="handleTrapsPopulate"
         />
         <ListActionButton
+          :icon="Sparkles"
+          label="Generate"
+          @click="ui.trapGeneratorOpen = true"
+        />
+        <ListActionButton
           :icon="Plus"
           label="New Trap"
           mobile-label="Trap"
@@ -104,7 +109,7 @@
         :class="activeTab === tab.id
           ? 'border-primary text-foreground'
           : 'border-transparent text-muted-foreground hover:text-foreground'"
-        @click="activeTab = tab.id; closeInlineRollTable()"
+        @click="setTab(tab.id)"
       >
         {{ tab.label }}
       </button>
@@ -496,11 +501,17 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "loot-tables", label: "Loot Tables" },
 ];
 
-const rawTab = route.query.tab as string | undefined;
 const VALID_TABS: Tab[] = ["features", "traps", "puzzles", "roll-tables", "loot-tables"];
+const rawTab = route.query.tab as string | undefined;
 const activeTab = ref<Tab>(
   VALID_TABS.includes(rawTab as Tab) ? (rawTab as Tab) : "features",
 );
+
+function setTab(tab: Tab) {
+  activeTab.value = tab;
+  closeInlineRollTable();
+  router.replace({ query: tab === "features" ? {} : { tab } });
+}
 
 // ── Features ─────────────────────────────────────────────────────────────────
 const { data: features, isLoading: featuresLoading } = useDungeonFeatures();

@@ -11,6 +11,11 @@
         @click="handlePopulate"
       />
       <ListActionButton
+        :icon="Sparkles"
+        label="Generate"
+        @click="ui.trapGeneratorOpen = true"
+      />
+      <ListActionButton
         :icon="Plus"
         label="New Trap"
         mobile-label="Trap"
@@ -123,8 +128,10 @@ import {
   Loader2,
   BookOpen,
   Plus,
+  Sparkles,
 } from "lucide-vue-next";
 import { useTraps, usePopulateTraps } from "@/composables/useTraps";
+import { useUiStore } from "@/stores/ui";
 import { TRAP_TYPES, TRAP_TYPE_COLORS } from "@/types/trap.types";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
@@ -135,6 +142,7 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 
+const ui = useUiStore();
 const router = useRouter();
 const { data: traps, isLoading } = useTraps();
 

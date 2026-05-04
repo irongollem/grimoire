@@ -80,6 +80,15 @@ export const useUiStore = defineStore("ui", () => {
     vaultFilterSource.value = "";
   }
 
+  // Trap generator
+  const trapGeneratorOpen = ref(false);
+
+  // Faction generator
+  const factionGeneratorOpen = ref(false);
+
+  // Location generator
+  const locationGeneratorOpen = ref(false);
+
   // Quest UI state
   const questGeneratorOpen = ref(false);
   const questsSearch = ref("");
@@ -393,6 +402,11 @@ export const useUiStore = defineStore("ui", () => {
     itemGeneratorOpen,
     puzzleGeneratorOpen,
     spellGeneratorOpen,
+
+    // Trap / Faction / Location generators
+    trapGeneratorOpen,
+    factionGeneratorOpen,
+    locationGeneratorOpen,
 
     // Quests
     questGeneratorOpen,
