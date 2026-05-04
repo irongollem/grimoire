@@ -5,6 +5,9 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Spell, SpellInsert, SpellUpdate } from "@/types/spell.types";
 import { removeStorageImages } from "@/composables/useImageUpload";
 import { useSrdArtDefaults } from "@/composables/useSrdArtDefaults";
+import { useEnabledSources } from "@/composables/useEnabledSources";
+
+const SRD_QUERY_KEY = "srd-spells";
 
 const QUERY_KEY = "spells";
 export const SPELLS_PAGE_SIZE = 50;
@@ -171,6 +174,55 @@ export function useSpells() {
   });
 
   return { ...spellsQuery, data };
+}
+
+async function fetchSrdSpells(enabledSlugs: string[]): Promise<Spell[]> {
+  if (enabledSlugs.length === 0) return [];
+  const { data, error } = await supabase
+    .from("srd_spells")
+    .select("*")
+    .in("source", enabledSlugs)
+    .order("level", { ascending: true })
+    .order("name", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((row) => ({ ...row, user_id: "" })) as Spell[];
+}
+
+/** Returns SRD spells filtered by the campaign's enabled sources + the user's
+ *  custom spells, sorted by level then name.
+ *
+ *  Dedupe rule: if a user-created spell has the same name as an SRD row,
+ *  the user row wins — preserving any edits or custom art. */
+export function useAllSpells() {
+  const customQuery  = useSpells();
+  const enabledQuery = useEnabledSources();
+
+  const enabledSlugs = computed(() =>
+    enabledQuery.data.value?.map((e) => e.source_slug) ?? null,
+  );
+
+  const srdQuery = useQuery({
+    queryKey: computed(() => [SRD_QUERY_KEY, enabledSlugs.value]),
+    queryFn: () => fetchSrdSpells(enabledSlugs.value!),
+    enabled: () => enabledSlugs.value !== null,
+    staleTime: Infinity,
+  });
+
+  const data = computed<Spell[]>(() => {
+    // Open5e imports in the spells table are legacy — those now come from srd_spells.
+    // Only surface truly custom-created spells from the user's table.
+    const custom = (customQuery.data.value ?? []).filter((s) => !s.open5e_import);
+    const srd    = srdQuery.data.value ?? [];
+    const customNames = new Set(custom.map((s) => s.name));
+    return [...srd.filter((s) => !customNames.has(s.name)), ...custom]
+      .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
+  });
+
+  const isLoading = computed(
+    () => customQuery.isLoading.value || enabledQuery.isLoading.value || srdQuery.isLoading.value,
+  );
+
+  return { data, isLoading };
 }
 
 export function useSpell(id: string | Ref<string>) {

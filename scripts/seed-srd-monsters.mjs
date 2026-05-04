@@ -11,13 +11,9 @@
  *   SUPABASE_SERVICE_ROLE_KEY — service-role key (bypasses RLS)
  */
 
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
-const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+import { requireEnv, supabaseRequest, upsertBatch, resolveCliSlugs } from "./lib/seed-helpers.mjs";
 
-if (!SUPABASE_URL || !SERVICE_KEY) {
-  console.error("Missing VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in environment.");
-  process.exit(1);
-}
+requireEnv();
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -153,19 +149,6 @@ function transformMonster(m) {
 
 // ── fetch ─────────────────────────────────────────────────────────────────────
 
-async function fetchOpen5eDocuments() {
-  const docs = [];
-  let url = "https://api.open5e.com/v1/documents/?limit=100";
-  while (url) {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    docs.push(...json.results);
-    url = json.next;
-  }
-  return docs;
-}
-
 async function fetchMonstersForSlugs(slugs) {
   const monsters = [];
   for (const slug of slugs) {
@@ -180,43 +163,6 @@ async function fetchMonstersForSlugs(slugs) {
     }
   }
   return monsters;
-}
-
-// ── supabase REST helper ──────────────────────────────────────────────────────
-
-async function supabaseRequest(path, options = {}) {
-  const { headers: extraHeaders, ...restOptions } = options;
-  const res = await fetch(`${SUPABASE_URL}/rest/v1${path}`, {
-    ...restOptions,
-    headers: {
-      "apikey": SERVICE_KEY,
-      "Authorization": `Bearer ${SERVICE_KEY}`,
-      "Content-Type": "application/json",
-      "Prefer": "resolution=merge-duplicates",
-      ...extraHeaders,
-    },
-  });
-  const text = await res.text();
-  if (!res.ok) {
-    throw new Error(`Supabase ${path}: HTTP ${res.status} — ${text}`);
-  }
-  return text ? JSON.parse(text) : [];
-}
-
-// ── upsert in batches ─────────────────────────────────────────────────────────
-
-async function upsertBatch(rows) {
-  const BATCH = 50;
-  for (let i = 0; i < rows.length; i += BATCH) {
-    const batch = rows.slice(i, i + BATCH);
-    await supabaseRequest("/srd_monsters", {
-      method: "POST",
-      headers: { "Prefer": "resolution=merge-duplicates,return=minimal" },
-      body: JSON.stringify(batch),
-    });
-    process.stdout.write(`\r  Upserted ${Math.min(i + BATCH, rows.length)} / ${rows.length}`);
-  }
-  console.log();
 }
 
 // ── backfill art from srd_monster_art ────────────────────────────────────────
@@ -250,30 +196,7 @@ async function backfillArt() {
 // ── main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
-  const args = process.argv.slice(2);
-  const listFlag = args.includes("--list");
-  const allFlag  = args.includes("--all");
-  const slugArgs = args.filter((a) => !a.startsWith("--"));
-
-  // --list: print available Open5e document slugs and exit
-  if (listFlag) {
-    console.log("Fetching available Open5e documents…");
-    const docs = await fetchOpen5eDocuments();
-    docs.forEach((d) => console.log(`  ${d.slug.padEnd(30)} ${d.title}`));
-    return;
-  }
-
-  let slugs;
-  if (allFlag) {
-    console.log("Fetching all available Open5e document slugs…");
-    const docs = await fetchOpen5eDocuments();
-    slugs = docs.map((d) => d.slug);
-    console.log(`  Found ${slugs.length} documents.\n`);
-  } else if (slugArgs.length > 0) {
-    slugs = slugArgs;
-  } else {
-    slugs = ["wotc-srd"];
-  }
+  const slugs = await resolveCliSlugs(process.argv.slice(2));
 
   console.log(`=== Seeding srd_monsters (sources: ${slugs.join(", ")}) ===\n`);
 
@@ -282,9 +205,8 @@ async function main() {
   console.log(`  Fetched ${raw.length} monsters.\n`);
 
   console.log("Step 2: Upserting to srd_monsters table…");
-  const rows = raw.map((m) => transformMonster(m));
-  await upsertBatch(rows);
-  console.log(`  Done — ${rows.length} rows upserted.\n`);
+  await upsertBatch("srd_monsters", raw.map(transformMonster));
+  console.log(`  Done — ${raw.length} rows upserted.\n`);
 
   console.log("Step 3: Backfilling art from canonical srd_monster_art…");
   await backfillArt();

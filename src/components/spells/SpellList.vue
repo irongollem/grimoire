@@ -1,11 +1,11 @@
 <template>
   <div>
-    <div v-if="isLoading && !isFetching" class="flex justify-center py-16">
+    <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
 
     <EmptyState
-      v-else-if="!spells?.spells.length && !props.search && !props.levelFilter && !props.schoolFilter && !props.classFilter"
+      v-else-if="!filtered.length && !props.search && !props.levelFilter && !props.schoolFilter && !props.classFilter"
       title="No spells yet"
       description="Craft your spellbook — cantrips to 9th-level catastrophes."
     >
@@ -20,19 +20,16 @@
     </EmptyState>
 
     <p
-      v-else-if="!spells?.spells.length"
+      v-else-if="!filtered.length"
       class="text-center font-fell text-sm text-muted-foreground italic py-12"
     >
       No spells match your filters.
     </p>
 
     <template v-else>
-      <div
-        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
-        :class="{ 'opacity-60 pointer-events-none': isFetching && !isLoading }"
-      >
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         <div
-          v-for="spell in spells.spells"
+          v-for="spell in visibleItems"
           :key="spell.id"
           class="group relative flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
         >
@@ -103,6 +100,24 @@
                 {{ tag }}
               </span>
             </div>
+
+            <!-- Source attribution -->
+            <a
+              v-if="spell.source_url"
+              :href="spell.source_url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="relative z-10 mt-auto font-cinzel text-[9px] text-muted-foreground/60 hover:text-muted-foreground truncate transition-colors"
+              @click.stop
+            >
+              {{ spell.source_title ?? spell.source ?? "SRD" }}
+            </a>
+            <span
+              v-else-if="spell.source_title || spell.source"
+              class="mt-auto font-cinzel text-[9px] text-muted-foreground/60 truncate"
+            >
+              {{ spell.source_title ?? spell.source }}
+            </span>
           </div>
 
           <!-- Edit button — DM mode only -->
@@ -143,65 +158,25 @@
         </div>
       </div>
 
-      <!-- Footer: count + pagination -->
-      <div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
-        <p class="font-fell text-xs text-muted-foreground italic">
-          {{ rangeStart }}–{{ rangeEnd }} of {{ spells.total }} spells
-        </p>
+      <div ref="sentinelRef" />
 
-        <div v-if="totalPages > 1" class="flex items-center gap-0.5">
-          <!-- First -->
-          <button
-            :disabled="props.page === 0"
-            class="pager-btn"
-            title="First page"
-            @click="emit('update:page', 0)"
-          >«</button>
-          <!-- Prev -->
-          <button
-            :disabled="props.page === 0"
-            class="pager-btn"
-            title="Previous page"
-            @click="emit('update:page', props.page - 1)"
-          >‹</button>
-
-          <!-- Page window -->
-          <template v-for="item in pageWindow" :key="typeof item === 'number' ? item : `e-${item}`">
-            <span v-if="item === '…'" class="px-1 font-cinzel text-xs text-muted-foreground select-none">…</span>
-            <button
-              v-else
-              class="pager-btn"
-              :class="item === props.page ? 'bg-primary text-primary-foreground border-primary' : ''"
-              @click="emit('update:page', item)"
-            >{{ item + 1 }}</button>
-          </template>
-
-          <!-- Next -->
-          <button
-            :disabled="props.page >= totalPages - 1"
-            class="pager-btn"
-            title="Next page"
-            @click="emit('update:page', props.page + 1)"
-          >›</button>
-          <!-- Last -->
-          <button
-            :disabled="props.page >= totalPages - 1"
-            class="pager-btn"
-            title="Last page"
-            @click="emit('update:page', totalPages - 1)"
-          >»</button>
-        </div>
-      </div>
+      <p
+        v-if="filtered.length"
+        class="mt-4 font-fell text-xs text-muted-foreground italic text-right"
+      >
+        {{ filtered.length }} spells
+      </p>
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, toRef } from "vue";
+import { computed } from "vue";
 import { Pencil, BookPlus, Check, X } from "lucide-vue-next";
-import { useSpellsPage, SPELLS_PAGE_SIZE } from "@/composables/useSpells";
-import type { SpellFilters } from "@/composables/useSpells";
+import { refDebounced } from "@vueuse/core";
+import { useAllSpells } from "@/composables/useSpells";
 import { useAddCharacterSpell, useRemoveCharacterSpell } from "@/composables/useCharacterSpells";
+import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { SCHOOL_COLORS, spellLevelLabel } from "@/types/spell.types";
 import type { CasterType, Spell } from "@/types/spell.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -213,7 +188,6 @@ const props = defineProps<{
   schoolFilter: string;
   classFilter: string;
   sourceFilter: string;
-  page: number;
   /** Set when rendering inside the player portal — hides Edit, shows Learn/Remove button. */
   playerMemberId?: string;
   /** Caster archetype — controls button label and whether to show the button at all. */
@@ -225,7 +199,6 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: "update:page", page: number): void;
   (e: "spell-click", spell: Spell): void;
 }>();
 
@@ -246,46 +219,26 @@ function learnedLabel(isCantrip: boolean) {
   return props.casterType === "spellbook" ? "Added" : "Learned";
 }
 
-// For prepared casters the "known" check is whether the spell is prepared
 function isKnown(spellId: string): boolean {
   if (props.casterType === "prepared") return props.preparedSpellIds?.includes(spellId) ?? false;
   return props.knownSpellIds?.includes(spellId) ?? false;
 }
 
-const filters = computed<SpellFilters>(() => ({
-  search: props.search,
-  level: props.levelFilter,
-  school: props.schoolFilter,
-  class: props.classFilter,
-  source: props.sourceFilter,
-}));
+const { data: allSpells, isLoading } = useAllSpells();
 
-const pageRef = toRef(props, "page");
+// Debounce search to avoid filtering on every keystroke
+const debouncedSearch = refDebounced(computed(() => props.search), 200);
 
-const { data: spells, isLoading, isFetching } = useSpellsPage(filters, pageRef);
-
-const totalPages = computed(() => Math.ceil((spells.value?.total ?? 0) / SPELLS_PAGE_SIZE));
-const rangeStart = computed(() => props.page * SPELLS_PAGE_SIZE + 1);
-const rangeEnd = computed(() =>
-  Math.min((props.page + 1) * SPELLS_PAGE_SIZE, spells.value?.total ?? 0),
-);
-
-const pageWindow = computed<(number | "…")[]>(() => {
-  const total = totalPages.value;
-  if (total <= 9) return Array.from({ length: total }, (_, i) => i);
-
-  const cur = props.page;
-  const pages = new Set<number>();
-  pages.add(0);
-  pages.add(total - 1);
-  for (let i = Math.max(0, cur - 2); i <= Math.min(total - 1, cur + 2); i++) pages.add(i);
-
-  const sorted = [...pages].sort((a, b) => a - b);
-  const result: (number | "…")[] = [];
-  for (let i = 0; i < sorted.length; i++) {
-    if (i > 0 && sorted[i] - sorted[i - 1] > 1) result.push("…");
-    result.push(sorted[i]);
-  }
-  return result;
+const filtered = computed<Spell[]>(() => {
+  let list = allSpells.value ?? [];
+  const q = debouncedSearch.value.trim().toLowerCase();
+  if (q) list = list.filter((s) => s.name.toLowerCase().includes(q));
+  if (props.levelFilter !== "") list = list.filter((s) => s.level === parseInt(props.levelFilter));
+  if (props.schoolFilter) list = list.filter((s) => s.school === props.schoolFilter);
+  if (props.classFilter) list = list.filter((s) => s.classes.includes(props.classFilter));
+  if (props.sourceFilter && props.sourceFilter !== "all") list = list.filter((s) => s.source === props.sourceFilter);
+  return list;
 });
+
+const { visibleItems, sentinelRef } = useInfiniteScroll(filtered);
 </script>

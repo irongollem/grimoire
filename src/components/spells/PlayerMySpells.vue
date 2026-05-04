@@ -505,14 +505,14 @@ const showPrepareToggle = computed(
 
 const displayedEntries = computed(() => {
   if (!allEntries.value) return [];
-  if (props.viewMode === "prepared") return allEntries.value.filter((e) => e.is_prepared || e.spell.level === 0);
-  return allEntries.value;
+  if (props.viewMode === "prepared") return allEntries.value.filter((e) => e.is_prepared || (e.spell?.level ?? 1) === 0);
+  return allEntries.value.filter((e) => !!e.spell);
 });
 
 const levelGroups = computed(() => {
   const map = new Map<number, CharacterSpellEntry[]>();
   for (const e of displayedEntries.value) {
-    const lvl = e.spell.level;
+    const lvl = e.spell?.level ?? 0;
     if (!map.has(lvl)) map.set(lvl, []);
     map.get(lvl)!.push(e);
   }

@@ -164,3 +164,17 @@ export function useBulkPublishSrdArtDefaults() {
     },
   });
 }
+
+export function useSyncSrdSpellArtToSharedTable() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<number> => {
+      const { data, error } = await supabase.rpc("sync_srd_spell_art_to_shared_table");
+      if (error) throw error;
+      return data as number;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["srd-spells"] });
+    },
+  });
+}

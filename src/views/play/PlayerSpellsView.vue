@@ -123,13 +123,11 @@
         :level-filter="levelFilter"
         :school-filter="schoolFilter"
         :class-filter="classFilter"
-        :source-filter="''"
-        :page="page"
+        :source-filter="'all'"
         :player-member-id="resolvedMemberId ?? undefined"
         :caster-type="casterType"
         :known-spell-ids="knownSpellIds"
         :prepared-spell-ids="preparedSpellIds"
-        @update:page="page = $event"
         @spell-click="selectedSpell = $event"
       />
     </template>
@@ -241,8 +239,8 @@ const innateSpells = computed(() => (characterSpellsDetails.value ?? []).filter(
 const knownSpellIds    = computed(() => classSpells.value.map((cs) => cs.spell_id));
 const preparedSpellIds = computed(() => classSpells.value.filter((cs) => cs.is_prepared).map((cs) => cs.spell_id));
 // Cantrips and spells are separate pools — spells_known table never includes cantrips
-const knownCount    = computed(() => (characterSpellsDetails.value ?? []).filter(cs => (!cs.source_type || cs.source_type === "class") && cs.spell.level > 0).length);
-const cantripCount  = computed(() => (characterSpellsDetails.value ?? []).filter(cs => (!cs.source_type || cs.source_type === "class") && cs.spell.level === 0).length);
+const knownCount    = computed(() => (characterSpellsDetails.value ?? []).filter(cs => (!cs.source_type || cs.source_type === "class") && cs.spell?.level > 0).length);
+const cantripCount  = computed(() => (characterSpellsDetails.value ?? []).filter(cs => (!cs.source_type || cs.source_type === "class") && cs.spell?.level === 0).length);
 const preparedCount = computed(() => preparedSpellIds.value.length);
 const innateCount   = computed(() => innateSpells.value.length);
 const maxKnown      = computed(() => {
@@ -316,12 +314,10 @@ const search = refDebounced(searchInput, 400);
 const levelFilter = ref("");
 const schoolFilter = ref("");
 const classFilter = ref(memberClass.value);
-const page = ref(0);
 
 // When the previewed character changes, reset everything
 watch(resolvedMemberId, () => {
   classFilter.value = memberClass.value;
-  page.value = 0;
   activeTab.value = defaultTab.value;
 });
 
@@ -330,10 +326,7 @@ watch(partyMembers, () => {
   if (!classFilter.value) classFilter.value = memberClass.value;
 }, { once: true });
 
-watch([search, levelFilter, schoolFilter, classFilter], () => { page.value = 0; });
-
 function setLevelFilter(value: string) {
   levelFilter.value = value;
-  page.value = 0;
 }
 </script>

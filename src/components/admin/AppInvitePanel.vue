@@ -188,7 +188,7 @@ import { ShieldCheck, Plus, Trash2, Copy, Check, Upload } from "lucide-vue-next"
 import { useAppInvites, useCreateAppInvite, useDeleteAppInvite } from "@/composables/useAppInvites";
 import type { AppInvite } from "@/composables/useAppInvites";
 import type { GrantedPlan } from "@/composables/useAppInvites";
-import { useBulkPublishSrdArtDefaults, useSrdArtDefaultStats } from "@/composables/useSrdArtDefaults";
+import { useBulkPublishSrdArtDefaults, useSrdArtDefaultStats, useSyncSrdSpellArtToSharedTable } from "@/composables/useSrdArtDefaults";
 import type { SrdArtDefaultStats } from "@/composables/useSrdArtDefaults";
 import { useBulkMarkSrdMonsterArtAsCanonical, useSyncSrdArtToSharedTable } from "@/composables/useSrdMonsterArt";
 
@@ -198,8 +198,9 @@ const createInvite = useCreateAppInvite();
 const deleteInvite = useDeleteAppInvite();
 const statsQuery = useSrdArtDefaultStats();
 const bulkPublish = useBulkPublishSrdArtDefaults();
-const bulkMarkMonsters = useBulkMarkSrdMonsterArtAsCanonical();
-const syncArtToShared  = useSyncSrdArtToSharedTable();
+const bulkMarkMonsters  = useBulkMarkSrdMonsterArtAsCanonical();
+const syncArtToShared   = useSyncSrdArtToSharedTable();
+const syncSpellArt      = useSyncSrdSpellArtToSharedTable();
 const publishResult = ref<SrdArtDefaultStats | null>(null);
 
 const invites = computed(() => invitesQuery.data.value ?? []);
@@ -252,8 +253,11 @@ async function handlePublishArt() {
     bulkMarkMonsters.mutateAsync(),
     bulkPublish.mutateAsync(),
   ]);
-  // Sync canonical monster art into srd_monsters.image_url
-  await syncArtToShared.mutateAsync();
+  // Sync canonical art into shared SRD tables
+  await Promise.all([
+    syncArtToShared.mutateAsync(),
+    syncSpellArt.mutateAsync(),
+  ]);
   publishResult.value = { monsters: monsterCount, spells: contentResult.spells, items: contentResult.items };
   statsQuery.refetch();
 }

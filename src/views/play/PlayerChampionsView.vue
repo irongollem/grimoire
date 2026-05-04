@@ -119,18 +119,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { RouterLink } from 'vue-router';
 import { Crown, Plus, User as UserIcon } from 'lucide-vue-next';
-import { useMyCharacters, useSetActiveCharacter } from '@/composables/useParty';
+import { useMyCharacters, useSetActiveCharacter, useParty } from '@/composables/useParty';
 import { useSpeciesNameMap } from '@/composables/useSpecies';
 import { useAuthStore } from '@/stores/auth';
+import { useUiStore } from '@/stores/ui';
 import FocalImage from '@/components/common/FocalImage.vue';
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
 import type { PartyMember } from '@/types/party.types';
 
 const auth = useAuthStore();
-const { data: characters, isPending } = useMyCharacters();
+const ui   = useUiStore();
+const { data: myChars,   isPending: myPending }  = useMyCharacters();
+const { data: allChars,  isPending: allPending }  = useParty();
+const characters = computed(() => ui.dmPreviewMode ? allChars.value  : myChars.value);
+const isPending  = computed(() => ui.dmPreviewMode ? allPending.value : myPending.value);
 const { mutateAsync: setActiveChar } = useSetActiveCharacter();
 const speciesNameMap = useSpeciesNameMap();
 
@@ -153,6 +158,7 @@ function charSummary(char: PartyMember): string {
 }
 
 async function setActive(id: string) {
+  if (ui.dmPreviewMode) return;
   settingActive.value = id;
   setActiveError.value = '';
   try {

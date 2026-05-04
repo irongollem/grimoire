@@ -31,20 +31,40 @@ export function useCharacterSpells(partyMemberId: MaybeRef<string | null>) {
   });
 }
 
-/** Full fetch with joined spell data — used in the spellbook/prepared tabs. */
+/** Full fetch with joined spell data — used in the spellbook/prepared tabs.
+ *  spell_id is text and may reference spells.id (UUID, custom) or srd_spells.id (srd_* slug). */
 export function useCharacterSpellsWithDetails(partyMemberId: MaybeRef<string | null>) {
   return useQuery({
     queryKey: computed(() => ["characterSpellsDetails", toValue(partyMemberId)]),
     queryFn: async () => {
       const id = toValue(partyMemberId);
       if (!id) return [] as CharacterSpellEntry[];
+
       const { data, error } = await supabase
         .from("character_spells")
-        .select("*, spell:spells(*)")
+        .select("*")
         .eq("party_member_id", id)
         .order("created_at");
       if (error) throw error;
-      return data as CharacterSpellEntry[];
+
+      const rows = data as Omit<CharacterSpellEntry, "spell">[];
+      const srdIds    = rows.filter((r) => r.spell_id?.startsWith("srd_")).map((r) => r.spell_id);
+      const customIds = rows.filter((r) => !r.spell_id?.startsWith("srd_")).map((r) => r.spell_id);
+
+      const [srdRes, customRes] = await Promise.all([
+        srdIds.length > 0
+          ? supabase.from("srd_spells").select("*").in("id", srdIds)
+          : Promise.resolve({ data: [] }),
+        customIds.length > 0
+          ? supabase.from("spells").select("*").in("id", customIds)
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      const spellMap = new Map<string, CharacterSpellEntry["spell"]>();
+      for (const s of srdRes.data ?? [])    spellMap.set(s.id, { ...s, user_id: "" } as CharacterSpellEntry["spell"]);
+      for (const s of customRes.data ?? []) spellMap.set(s.id, s as CharacterSpellEntry["spell"]);
+
+      return rows.map((r) => ({ ...r, spell: spellMap.get(r.spell_id) ?? null })) as CharacterSpellEntry[];
     },
     enabled: computed(() => !!toValue(partyMemberId)),
   });

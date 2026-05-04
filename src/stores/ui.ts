@@ -60,6 +60,29 @@ export const useUiStore = defineStore("ui", () => {
     monstersFilterSource.value = "all";
   }
 
+  // Spellbook UI state
+  const spellsSearch = ref("");
+  const spellsFilterLevel = ref("");
+  const spellsFilterSchool = ref("");
+  const spellsFilterClass = ref("");
+  const spellsFilterSource = ref("all");
+
+  const spellsHasActiveFilters = computed(() =>
+    spellsSearch.value !== "" ||
+    spellsFilterLevel.value !== "" ||
+    spellsFilterSchool.value !== "" ||
+    spellsFilterClass.value !== "" ||
+    spellsFilterSource.value !== "all",
+  );
+
+  function resetSpellsFilters() {
+    spellsSearch.value = "";
+    spellsFilterLevel.value = "";
+    spellsFilterSchool.value = "";
+    spellsFilterClass.value = "";
+    spellsFilterSource.value = "all";
+  }
+
   // Vault (Items) UI state
   const vaultSearch = ref("");
   const vaultFilterType = ref<ItemType | "">("");
@@ -392,6 +415,16 @@ export const useUiStore = defineStore("ui", () => {
     resetMonstersFilters,
     monsterGeneratorOpen,
 
+    // Spells
+    spellsSearch,
+    spellsFilterLevel,
+    spellsFilterSchool,
+    spellsFilterClass,
+    spellsFilterSource,
+    spellsHasActiveFilters,
+    resetSpellsFilters,
+    spellGeneratorOpen,
+
     // Vault
     vaultSearch,
     vaultFilterType,
@@ -401,7 +434,6 @@ export const useUiStore = defineStore("ui", () => {
     resetVaultFilters,
     itemGeneratorOpen,
     puzzleGeneratorOpen,
-    spellGeneratorOpen,
 
     // Trap / Faction / Location generators
     trapGeneratorOpen,

@@ -3,8 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 
-const ENABLED_KEY   = "enabled-sources";
-const AVAILABLE_KEY = "available-srd-sources";
+const ENABLED_KEY         = "enabled-sources";
+const AVAILABLE_KEY       = "available-srd-sources";
+const AVAILABLE_SPELL_KEY = "available-srd-spell-sources";
 
 export interface EnabledSource {
   id: string;
@@ -70,6 +71,20 @@ export function useAvailableSrdSources() {
   });
 }
 
+async function fetchAvailableSrdSpellSources(): Promise<AvailableSrdSource[]> {
+  const { data, error } = await supabase.rpc("get_srd_spell_sources");
+  if (error) throw error;
+  return (data ?? []) as AvailableSrdSource[];
+}
+
+export function useAvailableSrdSpellSources() {
+  return useQuery({
+    queryKey: [AVAILABLE_SPELL_KEY],
+    queryFn: fetchAvailableSrdSpellSources,
+    staleTime: Infinity,
+  });
+}
+
 export function useEnableSource() {
   const campaign = useCampaignStore();
   const queryClient = useQueryClient();
@@ -79,6 +94,7 @@ export function useEnableSource() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [ENABLED_KEY] });
       queryClient.invalidateQueries({ queryKey: ["srd-monsters"] });
+      queryClient.invalidateQueries({ queryKey: ["srd-spells"] });
     },
   });
 }
@@ -92,6 +108,7 @@ export function useDisableSource() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [ENABLED_KEY] });
       queryClient.invalidateQueries({ queryKey: ["srd-monsters"] });
+      queryClient.invalidateQueries({ queryKey: ["srd-spells"] });
     },
   });
 }
