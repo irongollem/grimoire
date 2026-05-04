@@ -53,7 +53,7 @@
         <div
           v-for="res in displayedResources"
           :key="res.key"
-          class="flex items-center gap-3 px-4 py-2.5"
+          class="flex items-center gap-2 px-4 py-2.5 flex-wrap"
         >
           <span class="font-fell text-sm text-foreground flex-1">{{ res.label }}</span>
           <span
@@ -62,7 +62,45 @@
               ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
               : 'bg-blue-500/10 text-blue-600 border border-blue-500/20'"
           >{{ res.rest === "short" ? "Short" : "Long" }}</span>
-          <div class="flex items-center gap-1.5 shrink-0">
+
+          <!-- Variable-spend: Lay on Hands -->
+          <template v-if="res.key === 'lay_on_hands'">
+            <span class="font-cinzel text-sm text-foreground shrink-0">{{ res.current }} / {{ res.max }}</span>
+            <template v-if="pendingSpendKey === res.key">
+              <input
+                v-model.number="pendingSpendAmount"
+                type="number"
+                min="1"
+                :max="res.current"
+                class="w-14 rounded border border-border bg-muted/40 px-2 py-0.5 font-cinzel text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <span class="font-fell text-xs text-muted-foreground shrink-0">HP</span>
+              <button
+                class="h-6 px-2 rounded border border-border font-cinzel text-xs text-primary hover:border-primary/40 disabled:opacity-30 transition-colors"
+                :disabled="pendingSpendAmount < 1 || pendingSpendAmount > res.current"
+                @click="confirmSpend"
+              >✓</button>
+              <button
+                class="h-6 px-2 rounded border border-border font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors"
+                @click="cancelSpend"
+              >✗</button>
+            </template>
+            <template v-else>
+              <button
+                class="h-6 rounded border border-border font-cinzel text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 px-2 transition-colors disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                :disabled="res.current <= 0"
+                @click="openSpendInput(res.key)"
+              >Spend</button>
+              <button
+                class="h-6 w-6 rounded border border-border font-cinzel text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                :disabled="res.current >= res.max"
+                @click="restoreResource(res.key)"
+              >+</button>
+            </template>
+          </template>
+
+          <!-- Standard ±1 resource -->
+          <div v-else class="flex items-center gap-1.5 shrink-0">
             <button
               class="h-6 w-6 rounded border border-border font-cinzel text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               :disabled="res.current <= 0"
@@ -406,6 +444,23 @@
             {{ inv.description }}
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- ── Divine Smite (Paladin) ───────────────────────────────────────────── -->
+    <div v-if="isPaladin" class="rounded-lg border border-border bg-card overflow-hidden">
+      <div class="px-4 py-2.5 border-b border-border">
+        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Divine Smite</p>
+      </div>
+      <div class="divide-y divide-border">
+        <div v-for="row in DIVINE_SMITE_TABLE" :key="row.slotLevel" class="flex items-center gap-3 px-4 py-2">
+          <span class="font-cinzel text-2xs text-muted-foreground tracking-wider w-14 shrink-0">Slot {{ row.slotLevel }}</span>
+          <span class="font-cinzel text-sm font-bold text-foreground flex-1">{{ row.damage }} radiant</span>
+          <span class="font-fell text-xs text-muted-foreground italic shrink-0">{{ row.special }} vs undead/fiends</span>
+        </div>
+      </div>
+      <div class="px-4 py-2 border-t border-border">
+        <p class="font-fell text-xs text-muted-foreground italic">Expend a spell slot after a melee hit. Max 5d8 (+ 1d8 vs undead/fiends).</p>
       </div>
     </div>
 
@@ -812,6 +867,46 @@ const knownInvocations = computed(() => {
   const names: string[] = Array.isArray(raw) ? (raw as string[]) : raw ? [String(raw)] : [];
   return names.map(n => ELDRITCH_INVOCATIONS_MAP.get(n)).filter(Boolean) as import("@/data/eldritchInvocations").EldritchInvocation[];
 });
+
+// ── Paladin ───────────────────────────────────────────────────────────────────
+
+const isPaladin = computed(() =>
+  props.member.class === "Paladin" ||
+  (characterClasses.value ?? []).some(cc => cc.class_name === "Paladin"),
+);
+
+const DIVINE_SMITE_TABLE = [
+  { slotLevel: 1,   damage: "2d8", special: "3d8" },
+  { slotLevel: 2,   damage: "3d8", special: "4d8" },
+  { slotLevel: 3,   damage: "4d8", special: "5d8" },
+  { slotLevel: "4+", damage: "5d8", special: "6d8" },
+] as const;
+
+// ── Variable-spend (Lay on Hands) ─────────────────────────────────────────────
+
+const pendingSpendKey = ref<string | null>(null);
+const pendingSpendAmount = ref<number>(1);
+
+function openSpendInput(key: string) {
+  pendingSpendKey.value = key;
+  pendingSpendAmount.value = 1;
+}
+
+function cancelSpend() {
+  pendingSpendKey.value = null;
+  pendingSpendAmount.value = 1;
+}
+
+function confirmSpend() {
+  const key = pendingSpendKey.value;
+  if (!key) return;
+  const r = localResources.value.find(r => r.key === key);
+  if (!r) return;
+  const amount = Math.min(Math.max(1, pendingSpendAmount.value), r.current);
+  r.current = Math.max(0, r.current - amount);
+  persistResources();
+  cancelSpend();
+}
 
 // ── Resources display (hide infusion_slots — shown in Infusions card instead) ─
 
