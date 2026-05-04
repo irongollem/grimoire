@@ -45,13 +45,13 @@
     </div>
 
     <!-- ── Resource pools ─────────────────────────────────────────────────── -->
-    <div v-if="localResources.length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
+    <div v-if="displayedResources.length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-2.5 border-b border-border">
         <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Resources</p>
       </div>
       <div class="divide-y divide-border">
         <div
-          v-for="res in localResources"
+          v-for="res in displayedResources"
           :key="res.key"
           class="flex items-center gap-3 px-4 py-2.5"
         >
@@ -370,6 +370,124 @@
       </div>
     </div>
 
+    <!-- ── Infusions (Artificer) ──────────────────────────────────────────── -->
+    <div v-if="isArtificer && artificerLevel >= 2" class="rounded-lg border border-border bg-card overflow-hidden">
+      <div class="px-4 py-2.5 border-b border-border flex items-center justify-between">
+        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Infusions</p>
+        <span class="font-cinzel text-2xs tracking-wider text-muted-foreground">
+          {{ localActiveInfusions.length }} / {{ infusionSlotsMax }} active
+        </span>
+      </div>
+
+      <!-- Unified known infusions list — active ones highlighted, inactive show Apply -->
+      <div class="divide-y divide-border">
+        <div v-for="inf in knownInfusions" :key="inf.name" class="px-4 py-2.5">
+
+          <!-- Row: name + item name + badges + actions -->
+          <div class="flex items-center gap-2">
+            <button
+              class="flex-1 min-w-0 text-left flex items-center gap-2 cursor-pointer"
+              @click="toggleExpanded(`infusion-${inf.name}`)"
+            >
+              <span
+                class="font-fell text-sm flex-1 min-w-0 truncate"
+                :class="isInfusionActive(inf.name) ? 'text-primary' : 'text-foreground'"
+              >{{ inf.name }}</span>
+              <span
+                v-if="activeInfusionItemName(inf.name)"
+                class="font-fell text-xs text-muted-foreground italic shrink-0"
+              >{{ activeInfusionItemName(inf.name) }}</span>
+              <span
+                v-if="inf.min_level > 2"
+                class="font-cinzel text-2xs tracking-wider rounded px-1.5 py-0.5 shrink-0 bg-muted/50 text-muted-foreground border border-border"
+              >Lv {{ inf.min_level }}+</span>
+              <span
+                v-if="isInfusionActive(inf.name)"
+                class="font-cinzel text-2xs tracking-wider rounded px-1.5 py-0.5 shrink-0 bg-primary/10 text-primary border border-primary/20"
+              >Active</span>
+              <ChevronDown
+                class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
+                :class="expanded.has(`infusion-${inf.name}`) ? 'rotate-180' : ''"
+              />
+            </button>
+            <button
+              v-if="isInfusionActive(inf.name)"
+              class="font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-destructive transition-colors shrink-0"
+              @click="removeActiveInfusionByName(inf.name)"
+            >Remove</button>
+            <button
+              v-else-if="!isInfusionActive(inf.name) && localActiveInfusions.length < infusionSlotsMax"
+              class="font-cinzel text-2xs tracking-wider text-primary hover:opacity-80 transition-opacity shrink-0"
+              @click="openApplyForm(inf.name)"
+            >Apply</button>
+          </div>
+
+          <!-- Inline apply form (opens per-row) -->
+          <div v-if="pendingApplyName === inf.name" class="mt-2 space-y-2">
+            <select
+              v-model="pendingInfusionItemId"
+              class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="">No specific item</option>
+              <option v-for="item in memberInventoryItems" :key="item.id" :value="item.id">
+                {{ item.name }}
+              </option>
+            </select>
+            <div class="flex gap-2">
+              <button
+                class="font-cinzel text-2xs tracking-wider px-3 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+                @click="applyInfusion"
+              >Confirm</button>
+              <button
+                class="font-cinzel text-2xs tracking-wider px-3 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
+                @click="cancelInfusionForm"
+              >Cancel</button>
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div
+            v-if="expanded.has(`infusion-${inf.name}`)"
+            class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 font-fell text-sm text-muted-foreground leading-relaxed"
+          >
+            {{ inf.description }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Learn new infusion -->
+      <div v-if="availableInfusionsToLearn.length > 0" class="px-4 py-2.5 border-t border-border">
+        <div v-if="!showLearnForm" class="flex justify-start">
+          <button
+            class="font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            @click="showLearnForm = true"
+          >+ Learn Infusion</button>
+        </div>
+        <div v-else class="space-y-2">
+          <select
+            v-model="pendingLearnName"
+            class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="" disabled>Select infusion to learn…</option>
+            <option v-for="inf in availableInfusionsToLearn" :key="inf.name" :value="inf.name">
+              {{ inf.name }}{{ inf.min_level > 2 ? ` (Lv ${inf.min_level}+)` : '' }}
+            </option>
+          </select>
+          <div class="flex gap-2">
+            <button
+              :disabled="!pendingLearnName"
+              class="font-cinzel text-2xs tracking-wider px-3 py-1 rounded bg-primary text-primary-foreground disabled:opacity-40 hover:opacity-90 transition-opacity"
+              @click="learnInfusion"
+            >Learn</button>
+            <button
+              class="font-cinzel text-2xs tracking-wider px-3 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
+              @click="showLearnForm = false; pendingLearnName = ''"
+            >Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -379,6 +497,8 @@ import { useRouter, RouterLink } from "vue-router";
 import { ChevronDown, Sparkles } from "lucide-vue-next";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { METAMAGIC_MAP } from "@/data/metamagic";
+import { ARTIFICER_INFUSIONS, ARTIFICER_INFUSIONS_MAP } from "@/data/artificerInfusions";
+import { usePartyInventory } from "@/composables/usePartyInventory";
 import { featureName, featureDescription, mapFeatureIds, type FeatureEntry } from "@/levelup/types";
 import type { CustomStep } from "@/levelup/customTypes";
 import { useAllFeatures } from "@/composables/useFeatures";
@@ -633,7 +753,7 @@ const CHOICE_LABELS: Record<string, string> = {
 const choiceEntries = computed(() => {
   const choices = props.member.class_choices ?? {};
   return Object.entries(choices)
-    .filter(([key, v]) => key !== "metamagic_options" && v !== null && v !== undefined && v !== "")
+    .filter(([key, v]) => key !== "metamagic_options" && key !== "infusions_known" && v !== null && v !== undefined && v !== "")
     .map(([key, value]) => ({
       key,
       label: CHOICE_LABELS[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
@@ -646,4 +766,117 @@ const knownMetamagic = computed(() => {
   const names: string[] = Array.isArray(raw) ? (raw as string[]) : raw ? [String(raw)] : [];
   return names.map(n => METAMAGIC_MAP.get(n)).filter(Boolean) as import("@/data/metamagic").MetamagicOption[];
 });
+
+// ── Resources display (hide infusion_slots — shown in Infusions card instead) ─
+
+const displayedResources = computed(() =>
+  localResources.value.filter(r => !(r.key === "infusion_slots" && isArtificer.value)),
+);
+
+// ── Infusions (Artificer) ─────────────────────────────────────────────────────
+
+const isArtificer = computed(() =>
+  props.member.class === "Artificer" ||
+  (characterClasses.value ?? []).some(cc => cc.class_name === "Artificer"),
+);
+
+const artificerLevel = computed(() =>
+  (characterClasses.value ?? []).find(cc => cc.class_name === "Artificer")?.levels ??
+  (props.member.class === "Artificer" ? props.member.level : 0),
+);
+
+const { data: partyInventory } = usePartyInventory();
+
+const memberInventoryItems = computed(() =>
+  (partyInventory.value ?? []).filter(i => i.carried_by === props.member.id),
+);
+
+function inventoryItemName(invItemId: string | null): string {
+  if (!invItemId) return "";
+  return partyInventory.value?.find(i => i.id === invItemId)?.name ?? "";
+}
+
+const knownInfusions = computed(() => {
+  const raw = props.member.class_choices?.infusions_known;
+  const names: string[] = Array.isArray(raw) ? (raw as string[]) : raw ? [String(raw)] : [];
+  return names.map(n => ARTIFICER_INFUSIONS_MAP.get(n)).filter(Boolean) as import("@/data/artificerInfusions").ArtificerInfusion[];
+});
+
+const infusionSlotsMax = computed(() =>
+  props.member.class_resources?.infusion_slots?.max ?? 0,
+);
+
+const localActiveInfusions = ref<{ name: string; inv_item_id: string | null }[]>([]);
+
+watch(
+  () => [props.member.id, props.member.updated_at],
+  () => { localActiveInfusions.value = [...(props.member.active_infusions ?? [])]; },
+  { immediate: true },
+);
+
+function isInfusionActive(name: string): boolean {
+  return localActiveInfusions.value.some(a => a.name === name);
+}
+
+function activeInfusionEntry(name: string) {
+  return localActiveInfusions.value.find(a => a.name === name) ?? null;
+}
+
+function activeInfusionItemName(name: string): string {
+  const entry = activeInfusionEntry(name);
+  if (!entry?.inv_item_id) return "";
+  return inventoryItemName(entry.inv_item_id);
+}
+
+const availableInfusionsToLearn = computed(() => {
+  const known = new Set(knownInfusions.value.map(i => i.name));
+  return ARTIFICER_INFUSIONS.filter(inf =>
+    inf.min_level <= artificerLevel.value && !known.has(inf.name),
+  );
+});
+
+const showLearnForm = ref(false);
+const pendingLearnName = ref("");
+
+function learnInfusion() {
+  if (!pendingLearnName.value) return;
+  const current = props.member.class_choices?.infusions_known;
+  const existing: string[] = Array.isArray(current) ? (current as string[]) : current ? [String(current)] : [];
+  const newChoices = { ...props.member.class_choices, infusions_known: [...existing, pendingLearnName.value] };
+  updateMember({ id: props.member.id, update: { class_choices: newChoices } });
+  showLearnForm.value = false;
+  pendingLearnName.value = "";
+}
+
+const pendingApplyName = ref("");
+const pendingInfusionItemId = ref<string>("");
+
+function openApplyForm(name: string) {
+  pendingApplyName.value = name;
+  pendingInfusionItemId.value = "";
+}
+
+function cancelInfusionForm() {
+  pendingApplyName.value = "";
+  pendingInfusionItemId.value = "";
+}
+
+function persistActiveInfusions() {
+  updateMember({ id: props.member.id, update: { active_infusions: localActiveInfusions.value } });
+}
+
+function applyInfusion() {
+  if (!pendingApplyName.value) return;
+  localActiveInfusions.value = [
+    ...localActiveInfusions.value,
+    { name: pendingApplyName.value, inv_item_id: pendingInfusionItemId.value || null },
+  ];
+  persistActiveInfusions();
+  cancelInfusionForm();
+}
+
+function removeActiveInfusionByName(name: string) {
+  localActiveInfusions.value = localActiveInfusions.value.filter(a => a.name !== name);
+  persistActiveInfusions();
+}
 </script>

@@ -1302,7 +1302,13 @@ function handleReorder(items: PartyInventoryItem[]) {
 }
 
 async function removeItem(id: string) {
-  if (!(await confirm("Remove this item?"))) return;
+  const infusionHolder = (partyMembers.value ?? []).find(m =>
+    (m.active_infusions ?? []).some(a => a.inv_item_id === id),
+  );
+  const message = infusionHolder
+    ? `Remove this item? It is currently linked to an active infusion on ${infusionHolder.name} — that infusion link will be cleared automatically.`
+    : "Remove this item?";
+  if (!(await confirm(message))) return;
   await removeInventoryItem(id);
 }
 

@@ -147,6 +147,7 @@ export interface PartyMember {
   hit_dice_remaining?: number | null;
   class_resources: Record<string, { current: number; max: number; rest: "short" | "long" }>;
   class_choices: Record<string, unknown>;
+  active_infusions: { name: string; inv_item_id: string | null }[];
   level_choices: LevelChoices;
   concentration?: ConcentrationState | null;
   wildshape_state?: WildshapeState | null;
