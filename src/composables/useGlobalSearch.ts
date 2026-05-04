@@ -36,7 +36,7 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
     campaignId
       ? supabase.from("npcs").select("id, name, disguise_name").eq("campaign_id", campaignId).or(`name.ilike.${q},disguise_name.ilike.${q}`).limit(LIMIT)
       : Promise.resolve({ data: [] as { id: string; name: string; disguise_name: string | null }[], error: null }),
-    supabase.from("monsters").select("id, name").ilike("name", q).limit(LIMIT),
+    supabase.from("monsters").select("id, name").ilike("name", q).not("open5e_import", "eq", true).limit(LIMIT),
     supabase.from("srd_monsters").select("id, name").ilike("name", q).limit(LIMIT),
     supabase.from("spells").select("id, name").ilike("name", q).limit(LIMIT),
     supabase.from("items").select("id, name").ilike("name", q).limit(LIMIT),
