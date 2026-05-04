@@ -33,7 +33,12 @@
 
           <!-- Body -->
           <div class="px-5 py-4">
-            <SoundForm :page-id="pageId" @saved="$emit('close')" @cancel="$emit('close')" />
+            <SoundForm
+              :page-id="pageId"
+              :gemini-api-key="geminiApiKey"
+              @saved="$emit('close')"
+              @cancel="$emit('close')"
+            />
           </div>
         </div>
       </div>
@@ -48,6 +53,7 @@ import SoundForm from "./SoundForm.vue";
 defineProps<{
   open: boolean;
   pageId?: string | null;
+  geminiApiKey?: string | null;
 }>();
 
 defineEmits<{

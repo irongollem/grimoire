@@ -56,6 +56,7 @@
     <AddSoundDialog
       :open="showForm"
       :page-id="newSoundPageId"
+      :gemini-api-key="geminiApiKey"
       @close="showForm = false"
     />
 
@@ -146,7 +147,9 @@ import SoundboardPageTabs from "@/components/soundboard/SoundboardPageTabs.vue";
 const ui = useUiStore();
 const soundboardStore = useSoundboardStore();
 const spotifyStore = useSpotifyStore();
-const { activeCampaignId } = storeToRefs(useCampaignStore());
+const campaignStore = useCampaignStore();
+const { activeCampaignId } = storeToRefs(campaignStore);
+const geminiApiKey = computed(() => campaignStore.activeCampaign?.gemini_api_key ?? null);
 
 onMounted(() => spotifyStore.initSDK());
 
