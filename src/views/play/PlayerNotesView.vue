@@ -33,7 +33,7 @@
             <span
               v-for="tag in note.tags?.slice(0, 3)"
               :key="tag"
-              class="font-cinzel text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground tracking-wider"
+              class="font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded bg-muted text-muted-foreground tracking-wider"
             >{{ tag }}</span>
           </div>
           <ChevronDown

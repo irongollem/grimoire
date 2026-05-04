@@ -41,6 +41,10 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
 
+  /* Sub-xs text size for dense player UI — rem-based so it scales with user font prefs */
+  --text-2xs: 0.625rem;
+  --text-2xs--line-height: 1;
+
   /* Fonts */
   --font-cinzel: "Cinzel", Georgia, serif;
   --font-fell: "Crimson Pro", Georgia, serif;

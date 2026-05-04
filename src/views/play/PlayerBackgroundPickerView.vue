@@ -46,7 +46,7 @@
 
           <!-- Proficiencies granted by the new background -->
           <div v-if="propsToApply.length > 0">
-            <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-2">
+            <p class="font-cinzel text-2xs md:text-sm font-semibold text-muted-foreground tracking-wider mb-2">
               PROFICIENCIES GRANTED
             </p>
             <div class="flex flex-wrap gap-1.5">

@@ -48,7 +48,7 @@
               </div>
               <span
                 v-if="entry.data.id === auth.linkedPartyMemberId"
-                class="absolute top-2 left-2 font-cinzel text-[10px] px-1.5 py-0.5 rounded bg-primary text-primary-foreground tracking-wider"
+                class="absolute top-2 left-2 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded bg-primary text-primary-foreground tracking-wider"
               >You</span>
             </div>
             <div class="p-2.5 flex flex-col gap-1.5">
@@ -62,8 +62,8 @@
               <div>
                 <template v-if="showNumericHp(entry.data)">
                   <div class="flex items-center justify-between mb-0.5">
-                    <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">HP</span>
-                    <span class="font-cinzel text-[10px]" :class="hpColor(entry.data)">{{ entry.data.current_hp }} / {{ entry.data.max_hp }}</span>
+                    <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">HP</span>
+                    <span class="font-cinzel text-2xs md:text-sm" :class="hpColor(entry.data)">{{ entry.data.current_hp }} / {{ entry.data.max_hp }}</span>
                   </div>
                   <div class="h-1.5 rounded-full bg-muted overflow-hidden">
                     <div class="h-full rounded-full transition-all" :class="hpBarColor(entry.data)"
@@ -71,7 +71,7 @@
                   </div>
                 </template>
                 <template v-else>
-                  <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">HP</span>
+                  <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">HP</span>
                   <p class="font-fell text-xs italic" :class="hpColor(entry.data)">{{ immersiveHpLabel(entry.data) }}</p>
                 </template>
               </div>
@@ -82,9 +82,9 @@
                 </span>
                 <span
                   v-for="cond in (entry.data.conditions ?? []).slice(0, 2)" :key="cond"
-                  class="font-cinzel text-[10px] px-1 py-0.5 rounded bg-destructive/10 text-destructive tracking-wider"
+                  class="font-cinzel text-2xs md:text-sm px-1 py-0.5 rounded bg-destructive/10 text-destructive tracking-wider"
                 >{{ cond }}</span>
-                <span v-if="(entry.data.conditions?.length ?? 0) > 2" class="font-fell text-[10px] text-muted-foreground italic">
+                <span v-if="(entry.data.conditions?.length ?? 0) > 2" class="font-fell text-2xs md:text-sm text-muted-foreground italic">
                   +{{ (entry.data.conditions?.length ?? 0) - 2 }}
                 </span>
               </div>
@@ -110,7 +110,7 @@
                 <UserIcon class="h-10 w-10" />
               </div>
               <span
-                class="absolute top-2 right-2 font-cinzel text-[10px] px-1.5 py-0.5 rounded tracking-wider text-white"
+                class="absolute top-2 right-2 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded tracking-wider text-white"
                 :style="{ backgroundColor: COMPANION_TYPE_COLORS[entry.data.companion_type] + 'CC' }"
               >{{ COMPANION_TYPE_LABELS[entry.data.companion_type] }}</span>
             </div>
@@ -122,8 +122,8 @@
               <div>
                 <template v-if="showCompanionNumericHp(entry.data)">
                   <div class="flex items-center justify-between mb-0.5">
-                    <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">HP</span>
-                    <span class="font-cinzel text-[10px]" :class="companionHpColor(entry.data)">{{ entry.data.current_hp }} / {{ entry.data.max_hp }}</span>
+                    <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">HP</span>
+                    <span class="font-cinzel text-2xs md:text-sm" :class="companionHpColor(entry.data)">{{ entry.data.current_hp }} / {{ entry.data.max_hp }}</span>
                   </div>
                   <div class="h-1.5 rounded-full bg-muted overflow-hidden">
                     <div class="h-full rounded-full transition-all" :class="companionHpBarColor(entry.data)"
@@ -131,7 +131,7 @@
                   </div>
                 </template>
                 <template v-else>
-                  <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">HP</span>
+                  <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">HP</span>
                   <p class="font-fell text-xs italic" :class="companionHpColor(entry.data)">{{ companionImmersiveHpLabel(entry.data) }}</p>
                 </template>
               </div>
@@ -142,7 +142,7 @@
                 </span>
                 <span
                   v-for="cond in (entry.data.conditions ?? []).slice(0, 2)" :key="cond"
-                  class="font-cinzel text-[10px] px-1 py-0.5 rounded bg-destructive/10 text-destructive tracking-wider"
+                  class="font-cinzel text-2xs md:text-sm px-1 py-0.5 rounded bg-destructive/10 text-destructive tracking-wider"
                 >{{ cond }}</span>
               </div>
             </div>
@@ -264,12 +264,12 @@
               </div>
               <div class="flex flex-wrap gap-2 mt-1">
                 <span v-if="selectedNpc.player_visible_fields.includes('relationship')"
-                  class="px-2 py-0.5 rounded text-[11px] font-cinzel font-bold tracking-wider uppercase text-white"
+                  class="px-2 py-0.5 rounded text-xs font-cinzel font-bold tracking-wider uppercase text-white"
                   :style="{ backgroundColor: relColor(selectedNpc.relationship) + 'CC' }">
                   {{ selectedNpc.relationship }}
                 </span>
                 <span v-if="selectedNpc.player_visible_fields.includes('status')"
-                  class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-muted font-cinzel text-[11px] tracking-wider">
+                  class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-muted font-cinzel text-xs tracking-wider">
                   <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: statusColor(selectedNpc.status) }" />
                   {{ selectedNpc.status }}
                 </span>
@@ -284,7 +284,7 @@
             <!-- DM's per-PC relation note -->
             <div v-if="myNpcPcNote" class="rounded-lg border border-primary/20 bg-primary/5 overflow-hidden">
               <div class="px-3 py-2 border-b border-primary/20">
-                <p class="font-cinzel text-[10px] font-semibold tracking-widest text-primary/70">YOUR CONNECTION</p>
+                <p class="font-cinzel text-2xs md:text-sm font-semibold tracking-widest text-primary/70">YOUR CONNECTION</p>
               </div>
               <div class="px-3 py-2.5">
                 <RichTextViewer :content="myNpcPcNote" />
@@ -314,7 +314,7 @@
               <XIcon class="h-4 w-4" />
             </button>
             <span
-              class="absolute top-2 left-2 font-cinzel text-[10px] px-1.5 py-0.5 rounded tracking-wider text-white"
+              class="absolute top-2 left-2 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded tracking-wider text-white"
               :style="{ backgroundColor: COMPANION_TYPE_COLORS[selectedCompanion.companion_type] + 'CC' }"
             >{{ COMPANION_TYPE_LABELS[selectedCompanion.companion_type] }}</span>
           </div>
@@ -328,7 +328,7 @@
             <div class="grid grid-cols-2 gap-3">
               <div class="rounded-md bg-muted p-2.5">
                 <div class="flex items-center justify-between mb-1">
-                  <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">HP</span>
+                  <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">HP</span>
                   <span class="font-cinzel text-sm font-bold" :class="companionHpColor(selectedCompanion)">
                     {{ selectedCompanion.current_hp }} / {{ selectedCompanion.max_hp }}
                   </span>
@@ -341,14 +341,14 @@
               <div class="rounded-md bg-muted p-2.5 flex items-center gap-2">
                 <Shield class="h-4 w-4 text-muted-foreground shrink-0" />
                 <div>
-                  <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">AC</p>
+                  <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">AC</p>
                   <p class="font-cinzel text-sm font-bold text-foreground">{{ selectedCompanion.ac }}</p>
                 </div>
               </div>
             </div>
             <div v-if="selectedCompanion.conditions?.length" class="flex flex-wrap gap-1.5">
               <span v-for="cond in selectedCompanion.conditions" :key="cond"
-                class="font-cinzel text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive tracking-wider">{{ cond }}</span>
+                class="font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded bg-destructive/10 text-destructive tracking-wider">{{ cond }}</span>
             </div>
             <PlayerNotesWidget v-if="selectedCompanion" entity-type="companion" :entity-id="selectedCompanion.id" placeholder="Your thoughts on this companion…" />
           </div>

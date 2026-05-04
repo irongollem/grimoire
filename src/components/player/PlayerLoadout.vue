@@ -4,7 +4,7 @@
       <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">LOADOUT</span>
       <RouterLink
         to="/play/inventory"
-        class="flex items-center gap-1 font-cinzel text-[10px] text-primary tracking-wider hover:opacity-80 transition-opacity"
+        class="flex items-center gap-1 font-cinzel text-2xs md:text-sm text-primary tracking-wider hover:opacity-80 transition-opacity"
       >
         <Backpack class="h-3 w-3" />
         Manage
@@ -18,11 +18,11 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/5 pl-2 pr-1 py-0.5 max-w-full"
         :title="`${entry.inv.name} — ${SLOT_LABELS[entry.slot] ?? entry.slot}`"
       >
-        <span class="font-cinzel text-[9px] text-muted-foreground tracking-wider shrink-0 uppercase">{{ SLOT_LABELS[entry.slot] ?? entry.slot }}</span>
+        <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider shrink-0 uppercase">{{ SLOT_LABELS[entry.slot] ?? entry.slot }}</span>
         <span class="font-fell text-xs text-foreground truncate">{{ entry.inv.name }}</span>
         <span
           v-if="(entry.inv.quantity ?? 1) > 1"
-          class="font-cinzel text-[9px] text-muted-foreground shrink-0"
+          class="font-cinzel text-2xs md:text-sm text-muted-foreground shrink-0"
         >×{{ entry.inv.quantity }}</span>
         <button
           type="button"

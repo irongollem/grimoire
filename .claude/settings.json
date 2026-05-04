@@ -1,4 +1,15 @@
 {
+  "permissions": {
+    "allow": [
+      "mcp__github__get_issue",
+      "mcp__github__list_issues",
+      "mcp__context7__query-docs",
+      "mcp__context7__resolve-library-id",
+      "mcp__supabase__list_migrations",
+      "mcp__puppeteer__puppeteer_navigate",
+      "mcp__puppeteer__puppeteer_screenshot"
+    ]
+  },
   "hooks": {
     "SessionStart": [
       {

@@ -35,17 +35,17 @@
               <Puzzle class="h-8 w-8" />
             </div>
             <span
-              class="absolute top-2 left-2 font-cinzel text-[9px] px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
+              class="absolute top-2 left-2 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
               :style="{ backgroundColor: PUZZLE_TYPE_COLORS[puzzle.puzzle_type] + 'DD' }"
             >{{ puzzle.puzzle_type }}</span>
             <span
-              class="absolute bottom-2 right-2 font-cinzel text-[9px] px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
+              class="absolute bottom-2 right-2 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
               :style="{ backgroundColor: PUZZLE_DIFFICULTY_COLORS[puzzle.difficulty] + 'DD' }"
             >{{ puzzle.difficulty }}</span>
           </div>
           <div class="p-2.5">
             <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ puzzle.name }}</h3>
-            <p v-if="puzzle.shared_hints.length" class="font-fell text-[10px] text-primary mt-0.5">
+            <p v-if="puzzle.shared_hints.length" class="font-fell text-2xs md:text-sm text-primary mt-0.5">
               {{ puzzle.shared_hints.length }} hint{{ puzzle.shared_hints.length === 1 ? '' : 's' }} available
             </p>
           </div>

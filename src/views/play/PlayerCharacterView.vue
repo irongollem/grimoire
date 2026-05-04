@@ -118,7 +118,7 @@
         <!-- Usage pips -->
         <div class="rounded-lg border border-border bg-card px-4 py-3 flex items-center gap-4">
           <div class="flex items-center gap-1.5">
-            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">Uses</span>
+            <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">Uses</span>
             <div class="flex gap-1">
               <span
                 v-for="i in wildshapeMaxUses"
@@ -127,9 +127,9 @@
                 :class="i <= wildshapesUsed ? 'border-primary bg-primary/80' : 'border-muted-foreground/30'"
               />
             </div>
-            <span class="font-cinzel text-[10px] text-muted-foreground">{{ wildshapesUsed }}/{{ wildshapeMaxUses }}</span>
+            <span class="font-cinzel text-2xs md:text-sm text-muted-foreground">{{ wildshapesUsed }}/{{ wildshapeMaxUses }}</span>
           </div>
-          <span class="font-fell text-[10px] text-muted-foreground italic">Max CR {{ wildshapeCrDisplay }}<template v-if="isCircleOfMoon"> · Moon</template></span>
+          <span class="font-fell text-2xs md:text-sm text-muted-foreground italic">Max CR {{ wildshapeCrDisplay }}<template v-if="isCircleOfMoon"> · Moon</template></span>
         </div>
 
         <!-- Active form -->
@@ -139,27 +139,27 @@
             <div class="flex items-center gap-1.5">
               <button
                 type="button"
-                class="font-cinzel text-[10px] px-2 py-1 rounded border border-border hover:border-primary hover:text-primary transition-colors"
+                class="font-cinzel text-2xs md:text-sm px-2 py-1 rounded border border-border hover:border-primary hover:text-primary transition-colors"
                 @click="showWildshapePicker = !showWildshapePicker"
               >{{ showWildshapePicker ? 'Cancel' : 'Change' }}</button>
               <button
                 type="button"
-                class="font-cinzel text-[10px] px-2 py-1 rounded border border-border hover:border-destructive hover:text-destructive transition-colors"
+                class="font-cinzel text-2xs md:text-sm px-2 py-1 rounded border border-border hover:border-destructive hover:text-destructive transition-colors"
                 @click="doRevertWildshape(); showWildshapePicker = false"
               >Revert</button>
             </div>
           </div>
           <div class="flex gap-6 px-4 py-2.5">
             <div class="text-center">
-              <p class="font-cinzel text-[9px] text-muted-foreground tracking-wider">HP</p>
+              <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">HP</p>
               <p class="font-cinzel text-sm font-bold">{{ activeWildshape.beast_hp }}/{{ activeWildshape.beast_max_hp }}</p>
             </div>
             <div class="text-center">
-              <p class="font-cinzel text-[9px] text-muted-foreground tracking-wider">AC</p>
+              <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">AC</p>
               <p class="font-cinzel text-sm font-bold">{{ activeWildshape.beast_ac }}</p>
             </div>
             <div v-if="beastMonster?.stat_block?.speed" class="text-center">
-              <p class="font-cinzel text-[9px] text-muted-foreground tracking-wider">SPEED</p>
+              <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">SPEED</p>
               <p class="font-cinzel text-sm font-bold">{{ beastMonster.stat_block.speed }}</p>
             </div>
           </div>
@@ -172,7 +172,7 @@
             <button
               v-if="!activeWildshape"
               type="button"
-              class="font-cinzel text-[10px] px-2 py-1 rounded border border-border hover:border-primary hover:text-primary transition-colors"
+              class="font-cinzel text-2xs md:text-sm px-2 py-1 rounded border border-border hover:border-primary hover:text-primary transition-colors"
               :disabled="!canWildshape"
               :class="!canWildshape ? 'opacity-40 cursor-not-allowed' : ''"
               @click="showWildshapePicker = !showWildshapePicker"
@@ -191,8 +191,8 @@
                 @click="previewBeast = m"
               >
                 <span class="font-cinzel text-xs font-semibold flex-1 min-w-0 truncate">{{ m.name }}</span>
-                <span class="font-fell text-[10px] text-muted-foreground shrink-0">CR {{ m.stat_block?.challenge_rating }}</span>
-                <span class="font-fell text-[10px] text-muted-foreground shrink-0">AC {{ m.stat_block?.armor_class }}</span>
+                <span class="font-fell text-2xs md:text-sm text-muted-foreground shrink-0">CR {{ m.stat_block?.challenge_rating }}</span>
+                <span class="font-fell text-2xs md:text-sm text-muted-foreground shrink-0">AC {{ m.stat_block?.armor_class }}</span>
               </button>
             </div>
           </template>
@@ -244,7 +244,7 @@
 
           <!-- Special abilities (Flyby, Keen Senses, Pack Tactics, etc.) -->
           <div v-if="previewBeast.stat_block?.special_abilities?.length" class="space-y-2">
-            <p class="font-cinzel text-[10px] font-semibold tracking-wider text-primary/70 uppercase border-b border-primary/20 pb-1">Special Abilities</p>
+            <p class="font-cinzel text-2xs md:text-sm font-semibold tracking-wider text-primary/70 uppercase border-b border-primary/20 pb-1">Special Abilities</p>
             <div
               v-for="trait in previewBeast.stat_block.special_abilities"
               :key="trait.name"
@@ -257,7 +257,7 @@
 
           <!-- Actions -->
           <div v-if="previewBeast.stat_block?.actions?.length" class="space-y-2">
-            <p class="font-cinzel text-[10px] font-semibold tracking-wider text-primary/70 uppercase border-b border-primary/20 pb-1">Actions</p>
+            <p class="font-cinzel text-2xs md:text-sm font-semibold tracking-wider text-primary/70 uppercase border-b border-primary/20 pb-1">Actions</p>
             <div
               v-for="action in previewBeast.stat_block.actions"
               :key="action.name"
@@ -270,7 +270,7 @@
 
           <!-- Bonus Actions -->
           <div v-if="previewBeast.stat_block?.bonus_actions?.length" class="space-y-2">
-            <p class="font-cinzel text-[10px] font-semibold tracking-wider text-primary/70 uppercase border-b border-primary/20 pb-1">Bonus Actions</p>
+            <p class="font-cinzel text-2xs md:text-sm font-semibold tracking-wider text-primary/70 uppercase border-b border-primary/20 pb-1">Bonus Actions</p>
             <div
               v-for="action in previewBeast.stat_block.bonus_actions"
               :key="action.name"
@@ -283,7 +283,7 @@
 
           <!-- Reactions -->
           <div v-if="previewBeast.stat_block?.reactions?.length" class="space-y-2">
-            <p class="font-cinzel text-[10px] font-semibold tracking-wider text-primary/70 uppercase border-b border-primary/20 pb-1">Reactions</p>
+            <p class="font-cinzel text-2xs md:text-sm font-semibold tracking-wider text-primary/70 uppercase border-b border-primary/20 pb-1">Reactions</p>
             <div
               v-for="action in previewBeast.stat_block.reactions"
               :key="action.name"

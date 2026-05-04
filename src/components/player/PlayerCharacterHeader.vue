@@ -37,23 +37,23 @@
             <p class="font-fell text-xs text-muted-foreground italic">
               <template v-if="wildshape">🐺 {{ member.name }}</template>
               <template v-else>{{ [speciesName, member.subrace, classLabel].filter(Boolean).join(" · ") }}</template>
-              <span v-if="!wildshape && memberTotalLevel" class="font-cinzel text-[10px] text-primary not-italic ml-1">Lv {{ memberTotalLevel }}</span>
+              <span v-if="!wildshape && memberTotalLevel" class="font-cinzel text-2xs md:text-sm text-primary not-italic ml-1">Lv {{ memberTotalLevel }}</span>
             </p>
             <!-- XP progress -->
             <div v-if="!wildshape && ((member.experience_points ?? 0) > 0 || readyToLevelUp)" class="mt-1 flex items-center gap-1.5">
-              <span class="font-cinzel text-[9px] text-muted-foreground tracking-wider">XP</span>
+              <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">XP</span>
               <div class="flex-1 max-w-32 h-1 rounded-full bg-muted overflow-hidden">
                 <div class="h-full transition-all"
                   :class="readyToLevelUp ? 'bg-primary' : 'bg-primary/50'"
                   :style="{ width: `${xpPct}%` }" />
               </div>
-              <span class="font-cinzel text-[9px] text-muted-foreground">
+              <span class="font-cinzel text-2xs md:text-sm text-muted-foreground">
                 {{ member.experience_points ?? 0 }}<template v-if="xpToNext !== null"> / {{ xpToNext }}</template>
               </span>
               <RouterLink
                 v-if="readyToLevelUp && !hidePlayerActions"
                 :to="`/play/character/levelup?memberId=${member.id}`"
-                class="font-cinzel text-[9px] text-primary tracking-wider hover:opacity-80 ml-0.5"
+                class="font-cinzel text-2xs md:text-sm text-primary tracking-wider hover:opacity-80 ml-0.5"
               >Ready ↑</RouterLink>
             </div>
           </div>
@@ -63,8 +63,8 @@
         <div class="flex items-center flex-wrap gap-y-0.5 px-3 pb-2">
           <template v-for="(cs, csIdx) in combatStats" :key="cs.label">
             <div class="flex items-baseline gap-0.5">
-              <span class="font-cinzel text-[9px] text-muted-foreground tracking-wider">{{ cs.label }}</span>
-              <span class="font-cinzel text-xs font-bold text-foreground ml-0.5">{{ cs.value }}<span v-if="cs.suffix" class="text-[9px] text-muted-foreground">{{ cs.suffix }}</span></span>
+              <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">{{ cs.label }}</span>
+              <span class="font-cinzel text-xs font-bold text-foreground ml-0.5">{{ cs.value }}<span v-if="cs.suffix" class="text-2xs md:text-sm text-muted-foreground">{{ cs.suffix }}</span></span>
             </div>
             <span v-if="csIdx < combatStats.length - 1" class="text-border mx-1 select-none">·</span>
           </template>
@@ -76,15 +76,15 @@
           <span class="font-fell text-sm text-muted-foreground">/ {{ displayMaxHp }}</span>
           <button
             v-if="!wildshape && member.temp_hp"
-            class="font-cinzel text-[10px] text-blue-400 ml-1 hover:text-blue-300 transition-colors inline-flex items-center gap-0.5"
+            class="font-cinzel text-2xs md:text-sm text-blue-400 ml-1 hover:text-blue-300 transition-colors inline-flex items-center gap-0.5"
             title="Click to clear temp HP"
             @click="clearTempHp"
           >+{{ member.temp_hp }} tmp <span class="text-blue-400/50">×</span></button>
-          <span v-if="attackDisadvantage" class="font-cinzel text-[9px] text-amber-500 tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Disadvantage on attack rolls">⚔ Dis</span>
-          <span v-if="checkDisadvantage"  class="font-cinzel text-[9px] text-amber-500 tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Disadvantage on ability checks">✦ Dis</span>
+          <span v-if="attackDisadvantage" class="font-cinzel text-2xs md:text-sm text-amber-500 tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Disadvantage on attack rolls">⚔ Dis</span>
+          <span v-if="checkDisadvantage"  class="font-cinzel text-2xs md:text-sm text-amber-500 tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Disadvantage on ability checks">✦ Dis</span>
           <button
             v-if="member.concentration"
-            class="font-cinzel text-[9px] text-indigo-300 tracking-wider px-1.5 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/30 ml-1 hover:bg-indigo-500/20 transition-colors inline-flex items-center gap-1"
+            class="font-cinzel text-2xs md:text-sm text-indigo-300 tracking-wider px-1.5 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/30 ml-1 hover:bg-indigo-500/20 transition-colors inline-flex items-center gap-1"
             :title="`Concentrating on ${member.concentration.spellName} — click to drop`"
             @click="dropConcentration"
           >
@@ -104,9 +104,9 @@
             @keydown="blockInvalidChars"
             @focus="($event.target as HTMLInputElement).select()"
           />
-          <button class="h-6 px-1.5 rounded bg-destructive/15 border border-destructive/40 font-cinzel text-[9px] text-destructive hover:bg-destructive/25 transition-colors tracking-wider" @click="applyDamage">DMG</button>
-          <button class="h-6 px-1.5 rounded bg-elven-green/10 border border-elven-green/40 font-cinzel text-[9px] text-elven-green hover:bg-elven-green/20 transition-colors tracking-wider" @click="applyHeal">Heal</button>
-          <button v-if="!wildshape" class="h-6 px-1.5 rounded bg-blue-500/10 border border-blue-500/30 font-cinzel text-[9px] text-blue-400 hover:bg-blue-500/20 transition-colors tracking-wider" @click="applyTempHp">Tmp</button>
+          <button class="h-6 px-1.5 rounded bg-destructive/15 border border-destructive/40 font-cinzel text-2xs md:text-sm text-destructive hover:bg-destructive/25 transition-colors tracking-wider" @click="applyDamage">DMG</button>
+          <button class="h-6 px-1.5 rounded bg-elven-green/10 border border-elven-green/40 font-cinzel text-2xs md:text-sm text-elven-green hover:bg-elven-green/20 transition-colors tracking-wider" @click="applyHeal">Heal</button>
+          <button v-if="!wildshape" class="h-6 px-1.5 rounded bg-blue-500/10 border border-blue-500/30 font-cinzel text-2xs md:text-sm text-blue-400 hover:bg-blue-500/20 transition-colors tracking-wider" @click="applyTempHp">Tmp</button>
         </div>
 
         <!-- Rest + condition picker (management actions, pinned to bottom) -->
@@ -140,7 +140,7 @@
                   <button
                     v-for="cond in filteredConditions"
                     :key="cond"
-                    class="w-full text-left px-3 py-1.5 font-cinzel text-[11px] tracking-wider transition-colors"
+                    class="w-full text-left px-3 py-1.5 font-cinzel text-xs tracking-wider transition-colors"
                     :class="hasCondition(cond)
                       ? 'text-destructive/40 cursor-default'
                       : 'text-foreground hover:bg-amber-500/10 hover:text-amber-500'"

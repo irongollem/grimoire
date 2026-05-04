@@ -16,7 +16,7 @@
       class="flex items-center gap-1 rounded-full border border-destructive/40 bg-destructive/10 pl-2.5 pr-1 py-0.5"
     >
       <span
-        class="font-cinzel text-[11px] text-destructive tracking-wider leading-none"
+        class="font-cinzel text-xs text-destructive tracking-wider leading-none"
         :title="getConditionDescription(cond)"
       >{{ cond }}</span>
       <button
@@ -32,7 +32,7 @@
       :key="curse"
       class="flex items-center rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-0.5"
     >
-      <span class="font-cinzel text-[11px] text-violet-400 tracking-wider leading-none">{{ curse }}</span>
+      <span class="font-cinzel text-xs text-violet-400 tracking-wider leading-none">{{ curse }}</span>
     </div>
 
   </div>
@@ -66,7 +66,7 @@
         </div>
       </div>
       <button
-        class="ml-auto h-7 px-3 rounded border border-destructive/40 bg-destructive/10 font-cinzel text-[10px] text-destructive hover:bg-destructive/20 transition-colors tracking-wider"
+        class="ml-auto h-7 px-3 rounded border border-destructive/40 bg-destructive/10 font-cinzel text-2xs md:text-sm text-destructive hover:bg-destructive/20 transition-colors tracking-wider"
         @click="rollDeathSave"
       >Roll d20</button>
     </div>

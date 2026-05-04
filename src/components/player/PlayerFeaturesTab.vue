@@ -57,7 +57,7 @@
         >
           <span class="font-fell text-sm text-foreground flex-1">{{ res.label }}</span>
           <span
-            class="font-cinzel text-[10px] tracking-wider rounded px-1.5 py-0.5 shrink-0"
+            class="font-cinzel text-2xs md:text-sm tracking-wider rounded px-1.5 py-0.5 shrink-0"
             :class="res.rest === 'short'
               ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
               : 'bg-blue-500/10 text-blue-600 border border-blue-500/20'"
@@ -110,7 +110,7 @@
                 class="w-full text-left flex items-center gap-3 cursor-pointer"
                 @click="isSpellcasting(featureName(feat)) ? router.push('/play/spells') : featureDescription(feat) && toggleExpanded(`class-${group.class_name}-${lvl}-${featureName(feat)}`)"
               >
-                <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-10 shrink-0">Lvl {{ lvl }}</span>
+                <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider w-10 shrink-0">Lvl {{ lvl }}</span>
                 <span class="font-fell text-sm text-foreground flex-1">{{ featureName(feat) }}</span>
                 <Sparkles v-if="isSpellcasting(featureName(feat))" class="h-3 w-3 text-primary/60 shrink-0" />
                 <ChevronDown
@@ -138,9 +138,9 @@
                 class="w-full text-left flex items-center gap-3 cursor-pointer"
                 @click="isSpellcasting(featureName(feat)) ? router.push('/play/spells') : featureDescription(feat) && toggleExpanded(`sub-${group.class_name}-${lvl}-${featureName(feat)}`)"
               >
-                <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-10 shrink-0">Lvl {{ lvl }}</span>
+                <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider w-10 shrink-0">Lvl {{ lvl }}</span>
                 <span class="font-fell text-sm text-foreground flex-1">{{ featureName(feat) }}</span>
-                <span class="font-cinzel text-[9px] text-primary/60 tracking-wider shrink-0 mr-1">Subclass</span>
+                <span class="font-cinzel text-2xs md:text-sm text-primary/60 tracking-wider shrink-0 mr-1">Subclass</span>
                 <Sparkles v-if="isSpellcasting(featureName(feat))" class="h-3 w-3 text-primary/60 shrink-0" />
                 <ChevronDown
                   v-else-if="featureDescription(feat)"
@@ -168,7 +168,7 @@
       <div class="divide-y divide-border">
         <div v-for="step in spellPickSteps" :key="step.key" class="px-4 py-3 space-y-2">
           <div class="flex items-baseline gap-3">
-            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-10 shrink-0">Lvl {{ step.level }}</span>
+            <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider w-10 shrink-0">Lvl {{ step.level }}</span>
             <span class="font-fell text-sm font-semibold text-foreground">{{ step.label }}</span>
           </div>
           <p v-if="step.description" class="font-fell text-xs text-muted-foreground pl-13">{{ step.description }}</p>
@@ -191,7 +191,7 @@
             </select>
             <button
               :disabled="!pendingSpellPicks[step.key]"
-              class="px-2.5 py-1 bg-primary text-primary-foreground rounded font-cinzel text-[10px] tracking-wider disabled:opacity-40 transition-opacity hover:opacity-90"
+              class="px-2.5 py-1 bg-primary text-primary-foreground rounded font-cinzel text-2xs md:text-sm tracking-wider disabled:opacity-40 transition-opacity hover:opacity-90"
               @click="confirmSpellPick(step.key)"
             >Save</button>
           </div>
@@ -282,7 +282,7 @@
       </div>
       <div class="divide-y divide-border">
         <div v-if="member.languages?.length" class="flex gap-3 px-4 py-2.5">
-          <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-32 shrink-0 pt-0.5">Languages</span>
+          <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider w-32 shrink-0 pt-0.5">Languages</span>
           <div class="flex flex-wrap gap-1.5">
             <template v-for="lang in member.languages" :key="lang">
               <RouterLink
@@ -299,7 +299,7 @@
           </div>
         </div>
         <div v-if="member.tool_proficiencies?.length" class="flex gap-3 px-4 py-2.5">
-          <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-32 shrink-0 pt-0.5">Tools</span>
+          <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider w-32 shrink-0 pt-0.5">Tools</span>
           <div class="flex flex-wrap gap-1.5">
             <span
               v-for="tool in member.tool_proficiencies"
@@ -322,7 +322,7 @@
           :key="entry.key"
           class="flex gap-3 px-4 py-2.5"
         >
-          <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider w-32 shrink-0 pt-0.5">
+          <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider w-32 shrink-0 pt-0.5">
             {{ entry.label }}
           </span>
           <div class="flex flex-wrap gap-1.5">

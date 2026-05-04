@@ -71,7 +71,7 @@
             <template v-if="(member?.level ?? 0) < 8"> · no fly/swim speed</template>
           </p>
         </div>
-        <span v-if="isDruid && isCircleOfMoon" class="font-cinzel text-[9px] tracking-wider px-1.5 py-0.5 rounded border border-primary/40 text-primary bg-primary/10">MOON</span>
+        <span v-if="isDruid && isCircleOfMoon" class="font-cinzel text-2xs md:text-sm tracking-wider px-1.5 py-0.5 rounded border border-primary/40 text-primary bg-primary/10">MOON</span>
       </div>
 
       <!-- DM: share all eligible beasts with this druid -->
@@ -80,7 +80,7 @@
         <button
           type="button"
           :disabled="sharingBeasts"
-          class="inline-flex items-center gap-1.5 rounded px-2.5 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-primary border border-primary/40 hover:bg-primary/10 transition-colors disabled:opacity-50"
+          class="inline-flex items-center gap-1.5 rounded px-2.5 py-1 font-cinzel text-2xs md:text-sm font-semibold tracking-wider text-primary border border-primary/40 hover:bg-primary/10 transition-colors disabled:opacity-50"
           @click="shareAllEligibleBeasts"
         >
           {{ sharingBeasts ? 'Sharing…' : 'Share all eligible beasts' }}
@@ -98,7 +98,7 @@
       <template v-else>
         <!-- Pinned section -->
         <template v-if="pinnedForms.length">
-          <p class="font-cinzel text-[10px] tracking-wider text-muted-foreground">PINNED BY DM</p>
+          <p class="font-cinzel text-2xs md:text-sm tracking-wider text-muted-foreground">PINNED BY DM</p>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             <div
               v-for="entry in pinnedForms"
@@ -123,7 +123,7 @@
 
         <!-- Eligible section -->
         <template v-if="eligibleForms.length">
-          <p class="font-cinzel text-[10px] tracking-wider text-muted-foreground mt-2">ELIGIBLE FORMS</p>
+          <p class="font-cinzel text-2xs md:text-sm tracking-wider text-muted-foreground mt-2">ELIGIBLE FORMS</p>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             <div
               v-for="entry in eligibleForms"
@@ -175,7 +175,7 @@
             >{{ lightbox.name.charAt(0) }}</div>
             <span
               v-if="lightbox.monster"
-              class="absolute bottom-2 right-2 px-2 py-0.5 rounded font-cinzel text-[10px] font-bold text-white"
+              class="absolute bottom-2 right-2 px-2 py-0.5 rounded font-cinzel text-2xs md:text-sm font-bold text-white"
               :style="{ backgroundColor: crColor(lightbox.monster.stat_block.challenge_rating) }"
             >CR {{ lightbox.monster.stat_block.challenge_rating }}</span>
           </div>
@@ -191,22 +191,22 @@
             <template v-if="lightbox.monster && (lightbox.revealStats ?? activeTab === 'forms')">
               <div class="flex gap-4 font-cinzel text-sm">
                 <div class="text-center">
-                  <p class="text-[9px] text-muted-foreground tracking-wider">AC</p>
+                  <p class="text-2xs md:text-sm text-muted-foreground tracking-wider">AC</p>
                   <p class="font-bold">{{ lightbox.monster.stat_block.armor_class }}</p>
                 </div>
                 <div class="text-center">
-                  <p class="text-[9px] text-muted-foreground tracking-wider">HP</p>
+                  <p class="text-2xs md:text-sm text-muted-foreground tracking-wider">HP</p>
                   <p class="font-bold">{{ formatHitPoints(lightbox.monster.stat_block.hit_points) }}</p>
                 </div>
                 <div class="text-center">
-                  <p class="text-[9px] text-muted-foreground tracking-wider">SPD</p>
+                  <p class="text-2xs md:text-sm text-muted-foreground tracking-wider">SPD</p>
                   <p class="font-bold">{{ lightbox.monster.stat_block.speed }}</p>
                 </div>
               </div>
               <AbilityScoreTable :scores="lightboxScores" :rounded="false" />
               <template v-for="section in lightboxTraitSections" :key="section.label">
                 <div class="border-t border-border pt-3">
-                  <p class="font-cinzel text-[10px] tracking-wider text-muted-foreground mb-2">{{ section.label.toUpperCase() }}</p>
+                  <p class="font-cinzel text-2xs md:text-sm tracking-wider text-muted-foreground mb-2">{{ section.label.toUpperCase() }}</p>
                   <div v-for="t in section.traits" :key="t.name" class="mb-3 last:mb-0">
                     <div class="flex items-start gap-2 flex-wrap">
                       <p class="font-cinzel text-xs font-semibold text-foreground shrink-0">{{ t.name }}.</p>
@@ -214,13 +214,13 @@
                         <button
                           v-if="parseAttackBonus(t.description) !== null"
                           type="button"
-                          class="font-cinzel text-[9px] px-1.5 py-0.5 rounded border border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition-colors"
+                          class="font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded border border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition-colors"
                           @click.stop="rollAttack(parseAttackBonus(t.description) ?? 0, t.name)"
                         >⚔ {{ (parseAttackBonus(t.description) ?? 0) >= 0 ? '+' : '' }}{{ parseAttackBonus(t.description) ?? 0 }}</button>
                         <button
                           v-if="hasRollableDice(t.description)"
                           type="button"
-                          class="font-cinzel text-[9px] px-1.5 py-0.5 rounded border border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                          class="font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded border border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors"
                           @click.stop="rollActionDamage(t.description, t.name)"
                         >🎲 {{ actionDiceLabel(t.description) }}</button>
                       </div>

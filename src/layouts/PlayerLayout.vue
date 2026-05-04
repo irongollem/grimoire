@@ -4,7 +4,7 @@
     <header class="h-14 border-b border-border bg-card flex items-center px-4 gap-3 shrink-0">
       <div class="flex items-center gap-2 shrink-0">
         <span class="font-cinzel text-base font-bold text-gold-500 tracking-widest">Grimoire</span>
-        <span class="font-fell text-xs text-muted-foreground italic hidden sm:inline">
+        <span class="font-fell text-xs md:text-sm text-muted-foreground italic hidden sm:inline">
           · {{ campaignName }}
         </span>
       </div>
@@ -12,7 +12,7 @@
       <div class="flex-1" />
 
       <!-- In-game today date -->
-      <span class="hidden md:inline-flex items-center gap-1 font-fell text-xs text-muted-foreground italic shrink-0">
+      <span class="hidden md:inline-flex items-center gap-1 font-fell text-sm text-muted-foreground italic shrink-0">
         <CalendarDays class="h-3 w-3 text-primary shrink-0" />
         {{ todayLabel }}
       </span>
@@ -90,7 +90,7 @@
         <option v-for="m in partyMembers" :key="m.id" :value="m.id">{{ m.name }}</option>
       </select>
       <button
-        class="font-cinzel text-[10px] tracking-wider text-black font-semibold border border-black/30 hover:bg-black/10 px-2 py-0.5 rounded transition-colors shrink-0"
+        class="font-cinzel text-2xs md:text-xs tracking-wider text-black font-semibold border border-black/30 hover:bg-black/10 px-2 py-0.5 rounded transition-colors shrink-0"
         @click="exitPreview"
       >
         Exit Preview
@@ -182,7 +182,7 @@
           :class="isActive(item.to) ? 'text-primary' : 'text-muted-foreground'"
         >
           <component :is="item.icon" class="h-5 w-5 shrink-0" />
-          <span class="font-cinzel text-[9px] tracking-wider">{{ item.label }}</span>
+          <span class="font-cinzel text-2xs md:text-xs tracking-wider">{{ item.label }}</span>
         </RouterLink>
 
         <!-- Tablet+ (sm+): 7 pinned items -->
@@ -194,7 +194,7 @@
           :class="isActive(item.to) ? 'text-primary' : 'text-muted-foreground'"
         >
           <component :is="item.icon" class="h-5 w-5 shrink-0" />
-          <span class="font-cinzel text-[9px] tracking-wider">{{ item.label }}</span>
+          <span class="font-cinzel text-2xs md:text-xs tracking-wider">{{ item.label }}</span>
         </RouterLink>
 
         <!-- More button (always) -->
@@ -205,7 +205,7 @@
           @click="showMore = true"
         >
           <LayoutGrid class="h-5 w-5 shrink-0" />
-          <span class="font-cinzel text-[9px] tracking-wider">More</span>
+          <span class="font-cinzel text-2xs md:text-xs tracking-wider">More</span>
         </button>
 
       </div>
@@ -273,7 +273,7 @@
               @click="showMore = false"
             >
               <component :is="item.icon" class="h-5 w-5 shrink-0" />
-              <span class="font-cinzel text-[9px] tracking-wider text-center leading-tight">{{ item.label }}</span>
+              <span class="font-cinzel text-2xs md:text-xs tracking-wider text-center leading-tight">{{ item.label }}</span>
             </RouterLink>
           </div>
         </div>

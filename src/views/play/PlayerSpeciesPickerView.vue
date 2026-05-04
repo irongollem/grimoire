@@ -51,7 +51,7 @@
 
           <!-- Subrace picker (when species has subraces) -->
           <div v-if="pendingSpecies.subraces?.length">
-            <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-2">VARIANT</p>
+            <p class="font-cinzel text-2xs md:text-sm font-semibold text-muted-foreground tracking-wider mb-2">VARIANT</p>
             <select
               v-model="selectedSubrace"
               class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -65,7 +65,7 @@
 
           <!-- Languages to be added -->
           <div v-if="languagesToAdd.length > 0">
-            <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-2">
+            <p class="font-cinzel text-2xs md:text-sm font-semibold text-muted-foreground tracking-wider mb-2">
               LANGUAGES GRANTED
             </p>
             <div class="flex flex-wrap gap-1.5">
@@ -89,7 +89,7 @@
 
           <!-- Free-pick spell grants -->
           <div v-if="freePickGrants.length > 0">
-            <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-2">
+            <p class="font-cinzel text-2xs md:text-sm font-semibold text-muted-foreground tracking-wider mb-2">
               SPELLS REQUIRING YOUR CHOICE
             </p>
             <div class="space-y-1">
@@ -100,7 +100,7 @@
               >
                 <div class="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
                 <span class="font-fell text-sm text-foreground flex-1">{{ grant.spell_name }}</span>
-                <span class="font-cinzel text-[10px] text-amber-500">
+                <span class="font-cinzel text-2xs md:text-sm text-amber-500">
                   {{ grant.uses_per_day === null ? "At will" : `${grant.uses_per_day}/day` }}
                 </span>
               </div>

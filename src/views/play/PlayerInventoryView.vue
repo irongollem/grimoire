@@ -102,7 +102,7 @@
           <div class="flex-1 min-w-0 flex flex-col justify-between">
             <div class="space-y-1.5">
               <p
-                class="font-cinzel text-[9px] text-muted-foreground/60 tracking-widest uppercase"
+                class="font-cinzel text-2xs md:text-sm text-muted-foreground/60 tracking-widest uppercase"
               >
                 Weapons
               </p>
@@ -119,7 +119,7 @@
             </div>
             <div class="space-y-1.5 mt-3">
               <p
-                class="font-cinzel text-[9px] text-muted-foreground/60 tracking-widest uppercase"
+                class="font-cinzel text-2xs md:text-sm text-muted-foreground/60 tracking-widest uppercase"
               >
                 Other
               </p>
@@ -143,7 +143,7 @@
         <!-- Attunement slots -->
         <div v-if="member" class="mt-2 flex items-center justify-between gap-2">
           <span
-            class="font-cinzel text-[9px] text-muted-foreground/50 tracking-wider"
+            class="font-cinzel text-2xs md:text-sm text-muted-foreground/50 tracking-wider"
             >ATTUNEMENT</span
           >
           <div class="flex items-center gap-1.5">
@@ -162,7 +162,7 @@
                   : 'Empty slot'
               "
             />
-            <span class="font-cinzel text-[9px] text-muted-foreground/50"
+            <span class="font-cinzel text-2xs md:text-sm text-muted-foreground/50"
               >{{ attunedItems.length }}/3</span
             >
           </div>
@@ -171,7 +171,7 @@
         <!-- Equipped weight -->
         <p
           v-if="member && equippedWeight > 0"
-          class="font-cinzel text-[9px] text-muted-foreground/50 tracking-wider text-right"
+          class="font-cinzel text-2xs md:text-sm text-muted-foreground/50 tracking-wider text-right"
         >
           Equipped: {{ formatWeightLb(equippedWeight) }}
         </p>
@@ -206,7 +206,7 @@
           <!-- Drop form -->
           <div v-if="showCoinDrop" class="mt-3 border-t border-border pt-3">
             <p
-              class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase mb-2"
+              class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider uppercase mb-2"
             >
               Drop to Chat
             </p>
@@ -217,7 +217,7 @@
                 class="flex flex-col items-center gap-1"
               >
                 <span
-                  class="font-cinzel text-[10px] font-bold"
+                  class="font-cinzel text-2xs md:text-sm font-bold"
                   :class="coin.color"
                   :title="coin.label"
                   >{{ coin.symbol }}</span
@@ -235,7 +235,7 @@
                   "
                   :title="`Max: ${member[coin.key]}`"
                 />
-                <span class="font-cinzel text-[9px] text-muted-foreground/60"
+                <span class="font-cinzel text-2xs md:text-sm text-muted-foreground/60"
                   >/ {{ member[coin.key] }}</span
                 >
               </div>
@@ -258,7 +258,7 @@
           </div>
           <button
             v-else
-            class="mt-2 w-full flex items-center justify-center gap-1.5 py-1 border border-dashed border-border rounded font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+            class="mt-2 w-full flex items-center justify-center gap-1.5 py-1 border border-dashed border-border rounded font-cinzel text-2xs md:text-sm tracking-wider text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
             @click="openCoinDrop"
           >
             <MessageCircle class="h-3 w-3" />
@@ -287,7 +287,7 @@
         <div class="flex items-center justify-between mb-1 gap-2">
           <!-- Burden label -->
           <span
-            class="font-cinzel text-[10px] font-semibold tracking-wider transition-colors"
+            class="font-cinzel text-2xs md:text-sm font-semibold tracking-wider transition-colors"
             :class="BURDEN_META[burdenLevel].color"
           >
             {{ BURDEN_META[burdenLevel].label }}
@@ -297,13 +297,13 @@
           <div class="flex items-center gap-1.5 shrink-0">
             <span
               v-if="powerfulBuild"
-              class="font-cinzel text-[8px] text-amber-400/70 tracking-wider uppercase"
+              class="font-cinzel text-2xs md:text-sm text-amber-400/70 tracking-wider uppercase"
               >Powerful Build</span
             >
-            <span class="font-cinzel text-[10px] text-foreground">{{
+            <span class="font-cinzel text-2xs md:text-sm text-foreground">{{
               formatWeightLb(totalCarriedWeight)
             }}</span>
-            <span class="font-cinzel text-[9px] text-muted-foreground/40"
+            <span class="font-cinzel text-2xs md:text-sm text-muted-foreground/40"
               >/</span
             >
 
@@ -317,20 +317,20 @@
                 v-model="capacityDraft"
                 type="text"
                 placeholder="*2 / +30 / 150"
-                class="w-20 bg-muted/30 border border-border rounded px-1 py-0 font-cinzel text-[10px] text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-20 bg-muted/30 border border-border rounded px-1 py-0 font-cinzel text-2xs md:text-sm text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
                 autofocus
                 @keydown.escape="editingCapacity = false"
               />
               <button
                 type="submit"
-                class="font-cinzel text-[9px] text-primary hover:opacity-70"
+                class="font-cinzel text-2xs md:text-sm text-primary hover:opacity-70"
               >
                 ✓
               </button>
               <button
                 v-if="member.carry_capacity_override != null"
                 type="button"
-                class="font-cinzel text-[9px] text-muted-foreground hover:text-foreground"
+                class="font-cinzel text-2xs md:text-sm text-muted-foreground hover:text-foreground"
                 title="Reset to STR×15"
                 @click="resetCapacity"
               >
@@ -338,7 +338,7 @@
               </button>
               <button
                 type="button"
-                class="font-cinzel text-[9px] text-muted-foreground hover:text-foreground"
+                class="font-cinzel text-2xs md:text-sm text-muted-foreground hover:text-foreground"
                 @click="editingCapacity = false"
               >
                 ✕
@@ -346,7 +346,7 @@
             </form>
             <button
               v-else
-              class="font-cinzel text-[10px] hover:text-primary transition-colors flex items-center gap-0.5"
+              class="font-cinzel text-2xs md:text-sm hover:text-primary transition-colors flex items-center gap-0.5"
               :class="
                 member.carry_capacity_override != null
                   ? 'text-amber-400'
@@ -357,7 +357,7 @@
               {{ formatWeightLb(effectiveCapacity) }}
               <span
                 v-if="member.carry_capacity_override"
-                class="text-[8px] opacity-60"
+                class="text-2xs md:text-sm opacity-60"
                 >({{ member.carry_capacity_override }})</span
               >
             </button>
@@ -385,11 +385,11 @@
           <!-- threshold labels -->
           <div class="relative h-3.5 mt-0.5" aria-hidden="true">
             <span
-              class="absolute font-cinzel text-[8px] text-muted-foreground/40 -translate-x-1/2 whitespace-nowrap"
+              class="absolute font-cinzel text-2xs md:text-sm text-muted-foreground/40 -translate-x-1/2 whitespace-nowrap"
               :style="{ left: encumberedMarkerPct + '%' }"
             >{{ formatWeightLb(encumberedThreshold) }}</span>
             <span
-              class="absolute font-cinzel text-[8px] text-muted-foreground/40 -translate-x-1/2 whitespace-nowrap"
+              class="absolute font-cinzel text-2xs md:text-sm text-muted-foreground/40 -translate-x-1/2 whitespace-nowrap"
               :style="{ left: heavyMarkerPct + '%' }"
             >{{ formatWeightLb(heavyThreshold) }}</span>
           </div>
@@ -406,7 +406,7 @@
           Containers
         </p>
         <button
-          class="flex items-center gap-1 font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+          class="flex items-center gap-1 font-cinzel text-2xs md:text-sm tracking-wider text-muted-foreground hover:text-foreground transition-colors"
           @click="
             showContainerPicker = !showContainerPicker;
             containerPickerSearch = '';
@@ -421,7 +421,7 @@
         v-if="showContainerPicker"
         class="mb-2 rounded-lg border border-border bg-card p-3 flex flex-col gap-2"
       >
-        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
+        <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">
           Pick an item from your inventory:
         </p>
         <input
@@ -449,7 +449,7 @@
         </p>
         <button
           type="button"
-          class="font-cinzel text-[10px] text-muted-foreground hover:text-foreground self-end"
+          class="font-cinzel text-2xs md:text-sm text-muted-foreground hover:text-foreground self-end"
           @click="showContainerPicker = false"
         >
           Cancel
@@ -658,7 +658,7 @@
             >
               <span class="truncate">{{ it.name }}</span>
               <span
-                class="font-cinzel text-[10px] text-muted-foreground shrink-0 capitalize"
+                class="font-cinzel text-2xs md:text-sm text-muted-foreground shrink-0 capitalize"
                 >{{ it.rarity }}</span
               >
             </button>
@@ -724,7 +724,7 @@
               >{{ slotItem(slotModal)!.name }}</span
             >
             <button
-              class="shrink-0 font-cinzel text-[10px] text-destructive hover:opacity-70"
+              class="shrink-0 font-cinzel text-2xs md:text-sm text-destructive hover:opacity-70"
               @click="unequipSlot(slotModal!)"
             >
               Remove
@@ -737,7 +737,7 @@
           <!-- Items that can go in this slot (owned, not equipped elsewhere) -->
           <div v-if="candidatesForSlot(slotModal).length">
             <p
-              class="font-cinzel text-[9px] text-muted-foreground tracking-widest uppercase mb-1.5"
+              class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-widest uppercase mb-1.5"
             >
               Equip from inventory
             </p>

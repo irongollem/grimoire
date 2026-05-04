@@ -12,7 +12,7 @@
         {{ tab.label }}
         <span
           v-if="tab.count != null && tab.count > 0"
-          class="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px]"
+          class="ml-1.5 px-1.5 py-0.5 rounded-full text-2xs md:text-sm"
           :class="[
             activeTab === tab.id ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground',
             tab.max != null && tab.count > tab.max ? 'bg-destructive/20! text-destructive!' : ''

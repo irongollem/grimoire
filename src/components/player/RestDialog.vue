@@ -89,11 +89,11 @@
                   <span
                     v-for="(roll, i) in rolls"
                     :key="i"
-                    class="font-cinzel text-[10px] px-1.5 py-0.5 rounded bg-elven-green/15 text-elven-green border border-elven-green/30"
+                    class="font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded bg-elven-green/15 text-elven-green border border-elven-green/30"
                     >+{{ roll }}</span
                   >
                   <span
-                    class="font-cinzel text-[10px] px-1.5 py-0.5 rounded bg-elven-green/10 text-elven-green/80 border border-elven-green/20"
+                    class="font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded bg-elven-green/10 text-elven-green/80 border border-elven-green/20"
                   >
                     = {{ totalHealing }} hp healed
                   </span>

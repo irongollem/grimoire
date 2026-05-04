@@ -52,9 +52,9 @@
       </div>
       <div v-else-if="hasIdentity" class="p-4 space-y-2.5">
         <div class="flex flex-wrap gap-1.5">
-          <span v-if="member.age"      class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">Age {{ member.age }}</span>
-          <span v-if="member.gender"   class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">{{ member.gender }}</span>
-          <span v-if="member.pronouns" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">{{ member.pronouns }}</span>
+          <span v-if="member.age"      class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-2xs md:text-sm text-foreground tracking-wider">Age {{ member.age }}</span>
+          <span v-if="member.gender"   class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-2xs md:text-sm text-foreground tracking-wider">{{ member.gender }}</span>
+          <span v-if="member.pronouns" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-2xs md:text-sm text-foreground tracking-wider">{{ member.pronouns }}</span>
         </div>
         <p v-if="member.physical_description" class="font-fell text-sm text-foreground whitespace-pre-wrap">
           {{ member.physical_description }}
@@ -107,23 +107,23 @@
       </div>
       <div v-else-if="hasPersonality" class="p-4 space-y-3">
         <div v-if="member.alignment || member.deity" class="flex flex-wrap gap-1.5">
-          <span v-if="member.alignment" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">{{ member.alignment }}</span>
-          <span v-if="member.deity"     class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">✦ {{ member.deity }}</span>
+          <span v-if="member.alignment" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-2xs md:text-sm text-foreground tracking-wider">{{ member.alignment }}</span>
+          <span v-if="member.deity"     class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-2xs md:text-sm text-foreground tracking-wider">✦ {{ member.deity }}</span>
         </div>
         <div v-if="member.personality_traits" class="space-y-0.5">
-          <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">TRAITS</p>
+          <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">TRAITS</p>
           <p class="font-fell text-sm text-foreground whitespace-pre-wrap">{{ member.personality_traits }}</p>
         </div>
         <div v-if="member.ideals" class="space-y-0.5">
-          <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">IDEALS</p>
+          <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">IDEALS</p>
           <p class="font-fell text-sm text-foreground whitespace-pre-wrap">{{ member.ideals }}</p>
         </div>
         <div v-if="member.bonds" class="space-y-0.5">
-          <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">BONDS</p>
+          <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">BONDS</p>
           <p class="font-fell text-sm text-foreground whitespace-pre-wrap">{{ member.bonds }}</p>
         </div>
         <div v-if="member.flaws" class="space-y-0.5">
-          <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">FLAWS</p>
+          <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">FLAWS</p>
           <p class="font-fell text-sm text-foreground whitespace-pre-wrap">{{ member.flaws }}</p>
         </div>
       </div>
@@ -157,7 +157,7 @@
           </div>
           <div>
             <p class="font-cinzel text-sm font-bold text-foreground">{{ background.name }}</p>
-            <p v-if="background.source_title || background.source" class="font-cinzel text-[10px] text-muted-foreground tracking-wider mt-0.5">
+            <p v-if="background.source_title || background.source" class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider mt-0.5">
               {{ background.source_title ?? background.source }}
             </p>
           </div>
@@ -178,28 +178,28 @@
           class="border-t border-border pt-3 flex flex-col gap-2"
         >
           <div v-if="background.skill_proficiencies.length">
-            <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-1">SKILLS</p>
+            <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider mb-1">SKILLS</p>
             <div class="flex flex-wrap gap-1">
-              <span v-for="s in background.skill_proficiencies" :key="s" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">{{ s }}</span>
+              <span v-for="s in background.skill_proficiencies" :key="s" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-2xs md:text-sm text-foreground tracking-wider">{{ s }}</span>
             </div>
           </div>
           <div v-if="background.tool_proficiencies.length">
-            <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-1">TOOLS</p>
+            <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider mb-1">TOOLS</p>
             <div class="flex flex-wrap gap-1">
-              <span v-for="t in background.tool_proficiencies" :key="t" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">{{ t }}</span>
+              <span v-for="t in background.tool_proficiencies" :key="t" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-2xs md:text-sm text-foreground tracking-wider">{{ t }}</span>
             </div>
           </div>
           <div v-if="background.languages.length">
-            <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-1">LANGUAGES</p>
+            <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider mb-1">LANGUAGES</p>
             <div class="flex flex-wrap gap-1">
               <template v-for="l in background.languages" :key="l">
                 <RouterLink
                   v-if="isOwner && isChoicePlaceholder(l)"
                   to="/play/character/edit?tab=profs"
-                  class="px-2 py-0.5 rounded bg-primary/8 border border-primary/30 border-dashed font-cinzel text-[10px] text-primary/70 hover:text-primary hover:bg-primary/15 transition-colors"
+                  class="px-2 py-0.5 rounded bg-primary/8 border border-primary/30 border-dashed font-cinzel text-2xs md:text-sm text-primary/70 hover:text-primary hover:bg-primary/15 transition-colors"
                   :title="'Tap to choose a language'"
                 >{{ l }}</RouterLink>
-                <span v-else class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-[10px] text-foreground tracking-wider">{{ l }}</span>
+                <span v-else class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-2xs md:text-sm text-foreground tracking-wider">{{ l }}</span>
               </template>
             </div>
           </div>

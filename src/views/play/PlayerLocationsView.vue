@@ -29,7 +29,7 @@
         <select
           v-model="typeFilter"
           aria-label="Location type filter"
-          class="rounded-md border border-border bg-muted/40 px-2 py-1.5 font-cinzel text-[10px] tracking-wider text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="rounded-md border border-border bg-muted/40 px-2 py-1.5 font-cinzel text-2xs md:text-sm tracking-wider text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         >
           <option value="all">All types</option>
           <option v-for="opt in TYPE_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
@@ -37,14 +37,14 @@
         <button
           v-if="search || typeFilter !== 'all'"
           type="button"
-          class="font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          class="font-cinzel text-2xs md:text-sm tracking-wider text-muted-foreground hover:text-foreground transition-colors shrink-0"
           @click="search = ''; typeFilter = 'all'"
         >Clear</button>
       </div>
 
       <!-- Favourites pinned section -->
       <div v-if="!isFiltering && favouriteLocations.length" class="flex flex-col gap-1.5">
-        <p class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Favourites</p>
+        <p class="font-cinzel text-2xs md:text-sm tracking-wider text-muted-foreground uppercase">Favourites</p>
         <div
           v-for="loc in favouriteLocations"
           :key="`fav-${loc.id}`"
@@ -64,7 +64,7 @@
               />
               <span v-if="isNew(loc.id, loc.updated_at)" class="h-2.5 w-2.5 rounded-full bg-destructive shrink-0" title="New" />
               <span class="flex-1 font-cinzel text-sm font-semibold text-foreground truncate">{{ loc.name }}</span>
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider shrink-0">
+              <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider shrink-0">
                 {{ locLabel(loc.location_type) }}
               </span>
               <ChevronDown
@@ -89,7 +89,7 @@
               @click="toggleDetail(loc.id)"
             >
               <Eye class="h-3.5 w-3.5 shrink-0" />
-              <span class="hidden sm:inline font-cinzel text-[10px] tracking-wider">Details</span>
+              <span class="hidden sm:inline font-cinzel text-2xs md:text-sm tracking-wider">Details</span>
             </button>
           </div>
 
@@ -131,7 +131,7 @@
                 <span v-else />
                 <button
                   type="button"
-                  class="font-cinzel text-[10px] text-muted-foreground hover:text-foreground transition-colors tracking-wider"
+                  class="font-cinzel text-2xs md:text-sm text-muted-foreground hover:text-foreground transition-colors tracking-wider"
                   @click="toggleMapSize(loc.id)"
                 >
                   {{ fullSizeMaps.has(loc.id) ? 'Compact' : 'Full size' }}
@@ -139,15 +139,15 @@
               </div>
             </div>
             <div v-if="loc.is_description_shared && loc.description" class="border-t border-border pt-3">
-              <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-1">Description</p>
+              <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider mb-1">Description</p>
               <RichTextViewer :content="loc.description" />
             </div>
             <div v-if="STORE_LOCATION_TYPES.has(loc.location_type) && loc.is_inventory_shared" class="border-t border-border pt-3">
-              <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-2">Wares</p>
+              <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider mb-2">Wares</p>
               <PlayerStoreWares :location-id="loc.id" />
             </div>
             <div v-if="loc.is_npcs_shared" class="border-t border-border pt-3">
-              <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-2">People in the Area</p>
+              <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider mb-2">People in the Area</p>
               <div v-if="sharedNpcsByLocation[loc.id]?.length" class="flex flex-col gap-1.5">
                 <button
                   v-for="npc in sharedNpcsByLocation[loc.id]"
@@ -179,7 +179,7 @@
       <div class="flex justify-end">
         <button
           type="button"
-          class="font-cinzel text-[10px] tracking-wider transition-colors"
+          class="font-cinzel text-2xs md:text-sm tracking-wider transition-colors"
           :class="detailOpen.size > 0 || childrenOpen.size > 0
             ? 'text-muted-foreground hover:text-foreground'
             : 'invisible pointer-events-none'"
@@ -212,7 +212,7 @@
             />
             <span v-if="isNew(entry.loc.id, entry.loc.updated_at)" class="h-2.5 w-2.5 rounded-full bg-destructive shrink-0" title="New" />
             <span class="flex-1 font-cinzel text-sm font-semibold text-foreground truncate">{{ entry.loc.name }}</span>
-            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider shrink-0">
+            <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider shrink-0">
               {{ locLabel(entry.loc.location_type) }}
             </span>
             <ChevronDown
@@ -243,7 +243,7 @@
             @click="toggleDetail(entry.loc.id)"
           >
             <Eye class="h-3.5 w-3.5 shrink-0" />
-            <span class="hidden sm:inline font-cinzel text-[10px] tracking-wider">Details</span>
+            <span class="hidden sm:inline font-cinzel text-2xs md:text-sm tracking-wider">Details</span>
           </button>
         </div>
 
@@ -296,7 +296,7 @@
               <span v-else />
               <button
                 type="button"
-                class="font-cinzel text-[10px] text-muted-foreground hover:text-foreground transition-colors tracking-wider"
+                class="font-cinzel text-2xs md:text-sm text-muted-foreground hover:text-foreground transition-colors tracking-wider"
                 @click="toggleMapSize(entry.loc.id)"
               >
                 {{ fullSizeMaps.has(entry.loc.id) ? 'Compact' : 'Full size' }}
@@ -306,19 +306,19 @@
 
           <!-- Full description (when shared) -->
           <div v-if="entry.loc.is_description_shared && entry.loc.description" class="border-t border-border pt-3">
-            <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-1">Description</p>
+            <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider mb-1">Description</p>
             <RichTextViewer :content="entry.loc.description" />
           </div>
 
           <!-- Wares (store / tavern / inn when inventory shared) -->
           <div v-if="STORE_LOCATION_TYPES.has(entry.loc.location_type) && entry.loc.is_inventory_shared" class="border-t border-border pt-3">
-            <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-2">Wares</p>
+            <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider mb-2">Wares</p>
             <PlayerStoreWares :location-id="entry.loc.id" />
           </div>
 
           <!-- Linked NPCs (when shared) -->
           <div v-if="entry.loc.is_npcs_shared" class="border-t border-border pt-3">
-            <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-2">People in the Area</p>
+            <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider mb-2">People in the Area</p>
             <div v-if="sharedNpcsByLocation[entry.loc.id]?.length" class="flex flex-col gap-1.5">
               <button
                 v-for="npc in sharedNpcsByLocation[entry.loc.id]"
@@ -419,7 +419,7 @@
           <h2 class="font-cinzel text-sm font-semibold text-foreground flex-1 truncate">
             {{ watchingLocation.name }}
           </h2>
-          <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider shrink-0">
+          <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider shrink-0">
             {{ locLabel(watchingLocation.location_type) }}
           </span>
           <button

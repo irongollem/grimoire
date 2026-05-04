@@ -104,7 +104,7 @@
                   <div class="flex-1 min-w-0 self-center">
                     <div class="flex items-center gap-2 overflow-hidden">
                       <span class="combatant-name font-cinzel text-sm font-semibold text-muted-foreground italic truncate">???</span>
-                      <span class="pc-npc-badge shrink-0 font-cinzel text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wider bg-muted text-muted-foreground">NPC</span>
+                      <span class="pc-npc-badge shrink-0 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded font-bold tracking-wider bg-muted text-muted-foreground">NPC</span>
                     </div>
                   </div>
                 </div>
@@ -155,13 +155,13 @@
                     <div class="flex items-center gap-2 overflow-hidden">
                       <span class="combatant-name font-cinzel text-sm font-semibold text-foreground truncate min-w-0">{{ combatant.name }}</span>
                       <span
-                        class="pc-npc-badge shrink-0 font-cinzel text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wider"
+                        class="pc-npc-badge shrink-0 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded font-bold tracking-wider"
                         :class="combatant.type === 'player' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'"
                       >{{ combatant.type === "player" ? "PC" : "NPC" }}</span>
                       <span
                         v-for="cond in combatant.conditions"
                         :key="cond"
-                        class="shrink-0 font-cinzel text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 tracking-wider"
+                        class="shrink-0 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 tracking-wider"
                       >{{ cond }}</span>
                     </div>
                     <div
@@ -283,12 +283,12 @@
             <div class="flex flex-wrap gap-2 mt-1">
               <span
                 v-if="selectedNpc.player_visible_fields.includes('relationship')"
-                class="px-2 py-0.5 rounded text-[11px] font-cinzel font-bold tracking-wider uppercase text-white"
+                class="px-2 py-0.5 rounded text-xs font-cinzel font-bold tracking-wider uppercase text-white"
                 :style="{ backgroundColor: relColor(selectedNpc.relationship) + 'CC' }"
               >{{ selectedNpc.relationship }}</span>
               <span
                 v-if="selectedNpc.player_visible_fields.includes('status')"
-                class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-muted font-cinzel text-[11px] tracking-wider"
+                class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-muted font-cinzel text-xs tracking-wider"
               >
                 <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: statusColor(selectedNpc.status) }" />
                 {{ selectedNpc.status }}
@@ -299,7 +299,7 @@
           </div>
           <div v-if="myNpcPcNote" class="rounded-lg border border-primary/20 bg-primary/5 overflow-hidden">
             <div class="px-3 py-2 border-b border-primary/20">
-              <p class="font-cinzel text-[10px] font-semibold tracking-widest text-primary/70">YOUR CONNECTION</p>
+              <p class="font-cinzel text-2xs md:text-sm font-semibold tracking-widest text-primary/70">YOUR CONNECTION</p>
             </div>
             <div class="px-3 py-2.5">
               <RichTextViewer :content="myNpcPcNote" />

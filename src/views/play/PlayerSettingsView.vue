@@ -196,7 +196,7 @@
           <!-- 3-way toggle -->
           <div class="flex items-center gap-1 shrink-0">
             <button
-              class="inline-flex items-center gap-1 px-2 py-1 rounded font-cinzel text-[10px] tracking-wider border transition-colors"
+              class="inline-flex items-center gap-1 px-2 py-1 rounded font-cinzel text-2xs md:text-sm tracking-wider border transition-colors"
               :class="myAvailability(s.id) === true
                 ? 'border-elven-green/50 bg-elven-green/15 text-elven-green'
                 : 'border-border text-muted-foreground hover:border-elven-green/30 hover:text-elven-green'"
@@ -206,7 +206,7 @@
               Yes
             </button>
             <button
-              class="inline-flex items-center gap-1 px-2 py-1 rounded font-cinzel text-[10px] tracking-wider border transition-colors"
+              class="inline-flex items-center gap-1 px-2 py-1 rounded font-cinzel text-2xs md:text-sm tracking-wider border transition-colors"
               :class="myAvailability(s.id) === false
                 ? 'border-destructive/50 bg-destructive/10 text-destructive'
                 : 'border-border text-muted-foreground hover:border-destructive/30 hover:text-destructive'"
@@ -238,7 +238,7 @@
           @click="($event.target as HTMLInputElement).select()"
         />
         <button
-          class="shrink-0 inline-flex items-center gap-1 font-cinzel text-[10px] tracking-wider px-2.5 py-1.5 rounded border border-border hover:bg-muted transition-colors"
+          class="shrink-0 inline-flex items-center gap-1 font-cinzel text-2xs md:text-sm tracking-wider px-2.5 py-1.5 rounded border border-border hover:bg-muted transition-colors"
           :title="calCopied ? 'Copied!' : 'Copy URL'"
           @click="copyFeedUrl"
         >
@@ -252,7 +252,7 @@
       <div>
         <a
           :href="webcalUrl"
-          class="inline-flex items-center gap-1.5 font-cinzel text-[10px] tracking-wider px-3 py-1.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+          class="inline-flex items-center gap-1.5 font-cinzel text-2xs md:text-sm tracking-wider px-3 py-1.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
         >
           <CalendarPlus class="h-3 w-3" />
           Subscribe in Calendar App
@@ -293,7 +293,7 @@
           <span class="font-cinzel text-xs tracking-wider flex-1">{{ item.label }}</span>
           <span
             v-if="i < MOBILE_NAV_SLOTS"
-            class="font-cinzel text-[9px] tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary shrink-0"
+            class="font-cinzel text-2xs md:text-sm tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary shrink-0"
           >bar</span>
         </li>
       </ol>
@@ -360,7 +360,7 @@
           <p class="font-cinzel text-xs text-foreground tracking-wide">Dice source</p>
           <p class="font-fell text-xs text-muted-foreground italic">Physical mode prompts you to enter the result of dice you rolled yourself.</p>
         </div>
-        <div class="flex rounded-md border border-border overflow-hidden text-[10px] font-cinzel tracking-wider shrink-0 ml-3">
+        <div class="flex rounded-md border border-border overflow-hidden text-2xs md:text-sm font-cinzel tracking-wider shrink-0 ml-3">
           <button
             type="button"
             class="px-3 py-1 transition-colors"
@@ -387,7 +387,7 @@
       </div>
       <div class="flex items-center justify-between">
         <p class="font-cinzel text-xs text-foreground tracking-wide">Theme</p>
-        <div class="flex rounded-md border border-border overflow-hidden text-[10px] font-cinzel tracking-wider shrink-0">
+        <div class="flex rounded-md border border-border overflow-hidden text-2xs md:text-sm font-cinzel tracking-wider shrink-0">
           <button
             v-for="opt in THEME_OVERRIDE_OPTIONS"
             :key="opt.value"
@@ -430,7 +430,7 @@
             :class="wakeLockEnabled ? 'translate-x-5' : 'translate-x-0'"
           />
         </button>
-        <span v-else class="font-cinzel text-[10px] text-muted-foreground tracking-wider px-2 py-1 rounded border border-border">
+        <span v-else class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider px-2 py-1 rounded border border-border">
           Unavailable
         </span>
       </div>

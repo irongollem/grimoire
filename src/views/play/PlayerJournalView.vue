@@ -46,7 +46,7 @@
         <div class="flex flex-wrap items-center gap-2">
           <select
             v-model="formRefType"
-            class="bg-muted border border-border rounded-md px-2 py-1.5 font-cinzel text-[11px] font-semibold text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="bg-muted border border-border rounded-md px-2 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             @change="formRefId = ''"
           >
             <option value="">No context</option>
@@ -71,7 +71,7 @@
         <div class="flex items-center justify-between gap-2 pt-1">
           <button
             type="button"
-            class="inline-flex items-center gap-1.5 font-cinzel text-[11px] font-semibold tracking-wider transition-colors px-2 py-1 rounded border"
+            class="inline-flex items-center gap-1.5 font-cinzel text-xs font-semibold tracking-wider transition-colors px-2 py-1 rounded border"
             :class="formIsPrivate
               ? 'text-muted-foreground border-border hover:border-foreground/30'
               : 'text-elven-green border-elven-green/30 bg-elven-green/10'"
@@ -115,7 +115,7 @@
         @click="activeTab = tab.id"
       >
         {{ tab.label }}
-        <span v-if="tab.count > 0" class="ml-1.5 font-fell font-normal text-[10px] opacity-70">({{ tab.count }})</span>
+        <span v-if="tab.count > 0" class="ml-1.5 font-fell font-normal text-2xs md:text-sm opacity-70">({{ tab.count }})</span>
       </button>
     </div>
 
@@ -143,8 +143,8 @@
           <template #meta>
             <span v-if="isNoteNew(note.id, note.updated_at)" class="h-2.5 w-2.5 rounded-full bg-destructive shrink-0" title="New" />
             <Pin v-if="note.is_pinned" class="h-2.5 w-2.5 text-primary shrink-0" />
-            <span v-if="note.category === 'session' && note.session_num != null" class="font-fell text-[11px] text-muted-foreground/70 italic">Session {{ note.session_num }}</span>
-            <span class="font-fell text-[11px] text-muted-foreground/70 italic">by DM</span>
+            <span v-if="note.category === 'session' && note.session_num != null" class="font-fell text-xs text-muted-foreground/70 italic">Session {{ note.session_num }}</span>
+            <span class="font-fell text-xs text-muted-foreground/70 italic">by DM</span>
           </template>
           <div class="px-4 py-4">
             <RichTextViewer :content="note.content ?? ''" />
@@ -152,7 +152,7 @@
               <span
                 v-for="tag in note.tags"
                 :key="tag"
-                class="font-cinzel text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground tracking-wider"
+                class="font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded bg-muted text-muted-foreground tracking-wider"
               >{{ tag }}</span>
             </div>
           </div>
@@ -166,7 +166,7 @@
       <div class="flex flex-wrap gap-1.5">
         <button
           type="button"
-          class="px-2.5 py-1 rounded-full font-cinzel text-[10px] font-semibold tracking-wider transition-colors border"
+          class="px-2.5 py-1 rounded-full font-cinzel text-2xs md:text-sm font-semibold tracking-wider transition-colors border"
           :class="filterCategory === null
             ? 'bg-primary/15 text-primary border-primary/30'
             : 'text-muted-foreground border-border hover:border-foreground/30'"
@@ -176,7 +176,7 @@
           v-for="[key, cat] in JOURNAL_CATEGORY_LIST"
           :key="key"
           type="button"
-          class="px-2.5 py-1 rounded-full font-cinzel text-[10px] font-semibold tracking-wider transition-colors border"
+          class="px-2.5 py-1 rounded-full font-cinzel text-2xs md:text-sm font-semibold tracking-wider transition-colors border"
           :class="filterCategory === key
             ? 'border-current'
             : 'text-muted-foreground border-border hover:border-foreground/20'"
@@ -216,11 +216,11 @@
           @toggle="toggleExpand(entry.id)"
         >
           <template #meta>
-            <span v-if="entry.ref_label" class="font-fell text-[11px] text-muted-foreground/70 italic truncate max-w-32">{{ entry.ref_label }}</span>
-            <span v-if="activeTab === 'party' && authorName(entry)" class="font-fell text-[11px] text-muted-foreground/70 italic">by {{ authorName(entry) }}</span>
+            <span v-if="entry.ref_label" class="font-fell text-xs text-muted-foreground/70 italic truncate max-w-32">{{ entry.ref_label }}</span>
+            <span v-if="activeTab === 'party' && authorName(entry)" class="font-fell text-xs text-muted-foreground/70 italic">by {{ authorName(entry) }}</span>
             <span
               v-if="activeTab === 'mine'"
-              class="inline-flex items-center gap-1 font-cinzel text-[10px] tracking-wider"
+              class="inline-flex items-center gap-1 font-cinzel text-2xs md:text-sm tracking-wider"
               :class="entry.is_private ? 'text-muted-foreground/50' : 'text-elven-green'"
             >
               <Lock v-if="entry.is_private" class="h-2.5 w-2.5" />
@@ -237,19 +237,19 @@
                 <span
                   v-for="tag in entry.tags"
                   :key="tag"
-                  class="font-cinzel text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground tracking-wider"
+                  class="font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded bg-muted text-muted-foreground tracking-wider"
                 >{{ tag }}</span>
               </div>
             </div>
             <div v-if="activeTab === 'mine'" class="flex items-center gap-3 px-4 py-2 border-t border-border bg-muted/20">
               <button
                 type="button"
-                class="font-cinzel text-[11px] text-primary tracking-wider hover:opacity-80 transition-opacity"
+                class="font-cinzel text-xs text-primary tracking-wider hover:opacity-80 transition-opacity"
                 @click="startEdit(entry)"
               >Edit</button>
               <button
                 type="button"
-                class="font-cinzel text-[11px] text-muted-foreground/60 tracking-wider hover:text-destructive transition-colors"
+                class="font-cinzel text-xs text-muted-foreground/60 tracking-wider hover:text-destructive transition-colors"
                 @click="removeEntry(entry)"
               >Delete</button>
             </div>
@@ -275,7 +275,7 @@
             <div class="flex flex-wrap items-center gap-2">
               <select
                 v-model="editForm.ref_type"
-                class="bg-muted border border-border rounded-md px-2 py-1.5 font-cinzel text-[11px] font-semibold text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="bg-muted border border-border rounded-md px-2 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 @change="editForm.ref_id = ''"
               >
                 <option value="">No context</option>
@@ -298,7 +298,7 @@
             <div class="flex items-center justify-between gap-2">
               <button
                 type="button"
-                class="inline-flex items-center gap-1.5 font-cinzel text-[11px] font-semibold tracking-wider transition-colors px-2 py-1 rounded border"
+                class="inline-flex items-center gap-1.5 font-cinzel text-xs font-semibold tracking-wider transition-colors px-2 py-1 rounded border"
                 :class="editForm.is_private
                   ? 'text-muted-foreground border-border'
                   : 'text-elven-green border-elven-green/30 bg-elven-green/10'"

@@ -39,11 +39,11 @@
             <h2 class="font-cinzel text-lg font-bold text-foreground leading-tight">{{ puzzle.name }}</h2>
             <div class="flex flex-wrap gap-2">
               <span
-                class="font-cinzel text-[10px] px-2 py-0.5 rounded tracking-wider text-white font-bold"
+                class="font-cinzel text-2xs md:text-sm px-2 py-0.5 rounded tracking-wider text-white font-bold"
                 :style="{ backgroundColor: PUZZLE_TYPE_COLORS[puzzle.puzzle_type] + 'DD' }"
               >{{ puzzle.puzzle_type }}</span>
               <span
-                class="font-cinzel text-[10px] px-2 py-0.5 rounded tracking-wider text-white font-bold"
+                class="font-cinzel text-2xs md:text-sm px-2 py-0.5 rounded tracking-wider text-white font-bold"
                 :style="{ backgroundColor: PUZZLE_DIFFICULTY_COLORS[puzzle.difficulty] + 'DD' }"
               >{{ puzzle.difficulty }}</span>
             </div>
@@ -60,7 +60,7 @@
 
       <!-- Read-aloud -->
       <div v-if="puzzle.read_aloud" class="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
-        <p class="font-cinzel text-[10px] font-semibold text-primary tracking-wider mb-2">READ ALOUD</p>
+        <p class="font-cinzel text-2xs md:text-sm font-semibold text-primary tracking-wider mb-2">READ ALOUD</p>
         <p class="font-fell text-sm text-foreground leading-relaxed italic">{{ puzzle.read_aloud }}</p>
       </div>
 
@@ -88,7 +88,7 @@
             :key="hint.order"
             class="flex items-start gap-3 px-4 py-3"
           >
-            <span class="shrink-0 font-cinzel text-[10px] font-bold text-muted-foreground/60 w-4 mt-0.5">{{ hint.order }}</span>
+            <span class="shrink-0 font-cinzel text-2xs md:text-sm font-bold text-muted-foreground/60 w-4 mt-0.5">{{ hint.order }}</span>
             <div class="flex-1 min-w-0">
               <RichTextViewer :content="hint.text" />
             </div>

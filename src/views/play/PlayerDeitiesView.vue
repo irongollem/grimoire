@@ -59,7 +59,7 @@
             <div class="flex-1 min-w-0">
               <h3 class="font-cinzel text-sm font-bold text-foreground truncate">{{ deity.name }}</h3>
               <p v-if="deity.titles" class="font-fell text-xs text-muted-foreground italic truncate">{{ deity.titles }}</p>
-              <p v-if="deity.pantheon?.name" class="font-cinzel text-[10px] text-muted-foreground tracking-wider mt-0.5">
+              <p v-if="deity.pantheon?.name" class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider mt-0.5">
                 {{ deity.pantheon.name }}
               </p>
             </div>
@@ -97,7 +97,7 @@
               <span
                 v-for="domain in deity.domains"
                 :key="domain"
-                class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-[9px] text-primary tracking-wider"
+                class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-2xs md:text-sm text-primary tracking-wider"
               >{{ domain }}</span>
             </div>
 

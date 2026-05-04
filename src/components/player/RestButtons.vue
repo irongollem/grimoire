@@ -1,13 +1,13 @@
 <template>
   <div class="flex items-center gap-1">
     <button
-      class="h-6 flex items-center gap-1 px-1.5 rounded border border-border font-cinzel text-[9px] text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
+      class="h-6 flex items-center gap-1 px-1.5 rounded border border-border font-cinzel text-2xs md:text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
       title="Short Rest"
       :disabled="resting"
       @click="restDialog = 'short'"
     ><Moon class="h-3 w-3" /> Rest</button>
     <button
-      class="h-6 flex items-center gap-1 px-1.5 rounded bg-primary/10 border border-primary/30 font-cinzel text-[9px] text-primary hover:bg-primary/20 transition-colors tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
+      class="h-6 flex items-center gap-1 px-1.5 rounded bg-primary/10 border border-primary/30 font-cinzel text-2xs md:text-sm text-primary hover:bg-primary/20 transition-colors tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
       title="Long Rest"
       :disabled="resting"
       @click="restDialog = 'long'"
