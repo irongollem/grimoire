@@ -94,7 +94,7 @@ import type { EntityNote } from "@/types/faction.types";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 
-const props = defineProps<{ entityType: string; entityId: string }>();
+const props = defineProps<{ entityType: string; entityId: string; campaignId?: string | null }>();
 
 const auth = useAuthStore();
 const myUserId = computed(() => auth.user?.id ?? "");
@@ -117,6 +117,7 @@ async function create() {
       entity_id: props.entityId,
       content: newContent.value ?? "",
       is_private: newPrivate.value,
+      campaign_id: props.campaignId ?? null,
     });
     composing.value  = false;
     newContent.value = null;

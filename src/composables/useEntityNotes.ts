@@ -30,6 +30,7 @@ export function useCreateEntityNote() {
       entity_id: string;
       content: string;
       is_private: boolean;
+      campaign_id?: string | null;
     }) => {
       const user = getCurrentUser();
       const { data, error } = await supabase

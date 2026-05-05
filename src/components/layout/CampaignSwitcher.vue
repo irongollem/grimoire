@@ -159,6 +159,13 @@
               >New Campaign</span
             >
           </button>
+          <button
+            class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-accent transition-colors"
+            @click="showImport = true; open = false"
+          >
+            <UploadCloud class="h-3.5 w-3.5 text-muted-foreground" />
+            <span class="font-cinzel text-xs text-muted-foreground">Import from backup</span>
+          </button>
         </div>
       </div>
     </div>
@@ -295,11 +302,13 @@
   </Teleport>
 
   <PaywallModal v-model="showPaywall" resource="campaigns" />
+  <ImportBackupModal v-model="showImport" />
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { Archive, BookOpen, ChevronDown, Download, Plus, Settings } from "lucide-vue-next";
+import { Archive, BookOpen, ChevronDown, Download, Plus, Settings, UploadCloud } from "lucide-vue-next";
+import ImportBackupModal from "@/components/campaign/ImportBackupModal.vue";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
 import { useAuthStore } from "@/stores/auth";
 import {
@@ -353,6 +362,7 @@ const form = ref({
 const open = ref(false);
 const showModal = ref(false);
 const showPaywall = ref(false);
+const showImport = ref(false);
 
 const { canCreate: canCreateCampaign } = useQuota("campaigns");
 

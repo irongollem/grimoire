@@ -70,6 +70,9 @@
         <div v-else-if="activeTab === 'spotify'" class="max-w-lg">
           <SpotifyTab />
         </div>
+        <div v-else-if="activeTab === 'backup'" class="max-w-lg">
+          <BackupTab />
+        </div>
         <DangerZoneTab v-else-if="activeTab === 'danger'" />
       </main>
     </div>
@@ -98,6 +101,7 @@ import RulesTab from "@/components/campaign/RulesTab.vue";
 import ClassesTab from "@/components/campaign/ClassesTab.vue";
 import AiTab from "@/components/campaign/AiTab.vue";
 import SpotifyTab from "@/components/campaign/SpotifyTab.vue";
+import BackupTab from "@/components/campaign/BackupTab.vue";
 
 type SettingsTab =
   | "details"
@@ -107,6 +111,7 @@ type SettingsTab =
   | "classes"
   | "ai"
   | "spotify"
+  | "backup"
   | "danger";
 
 const tabs: { id: SettingsTab; label: string }[] = [
@@ -117,6 +122,7 @@ const tabs: { id: SettingsTab; label: string }[] = [
   { id: "classes", label: "Classes" },
   { id: "ai", label: "AI Assistant" },
   { id: "spotify", label: "Spotify" },
+  { id: "backup", label: "Backup" },
   { id: "danger", label: "Danger Zone" },
 ];
 

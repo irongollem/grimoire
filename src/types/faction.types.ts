@@ -148,6 +148,7 @@ export interface FactionRelation {
 export interface EntityNote {
   id: string;
   user_id: string;
+  campaign_id: string | null;
   entity_type: string;
   entity_id: string;
   content: string | null;

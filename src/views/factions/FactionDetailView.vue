@@ -40,7 +40,7 @@
             <FactionItemsSection :faction-id="faction.id" />
           </div>
           <div class="border-t border-border pt-6">
-            <EntityNotesPanel entity-type="faction" :entity-id="faction.id" />
+            <EntityNotesPanel entity-type="faction" :entity-id="faction.id" :campaign-id="faction.campaign_id" />
           </div>
         </template>
       </div>
