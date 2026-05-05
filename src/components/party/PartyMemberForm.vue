@@ -710,6 +710,7 @@ const form = reactive<
   class_resources: props.member?.class_resources ?? {},
   class_choices: props.member?.class_choices ?? {},
   active_infusions: props.member?.active_infusions ?? [],
+  rage_active: props.member?.rage_active ?? false,
   species_id: props.member?.species_id ?? null,
   disguise_species_id: props.member?.disguise_species_id ?? null,
   disguise_race: props.member?.disguise_race ?? null,

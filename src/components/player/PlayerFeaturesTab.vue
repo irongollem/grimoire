@@ -464,6 +464,159 @@
       </div>
     </div>
 
+    <!-- ── Rage (Barbarian) ──────────────────────────────────────────────────── -->
+    <div
+      v-if="isBarbarian"
+      class="rounded-lg border overflow-hidden"
+      :class="localRageActive ? 'border-red-500/50 bg-red-500/5' : 'border-border bg-card'"
+    >
+      <div
+        class="px-4 py-2.5 border-b flex items-center justify-between"
+        :class="localRageActive ? 'border-red-500/30' : 'border-border'"
+      >
+        <p class="font-cinzel text-xs font-semibold tracking-wider" :class="localRageActive ? 'text-red-600' : 'text-muted-foreground'">
+          Rage
+        </p>
+        <span class="font-cinzel text-2xs tracking-wider" :class="localRageActive ? 'text-red-600' : 'text-muted-foreground'">
+          {{ rageResource?.current ?? 0 }} / {{ rageResource?.max ?? 0 }} uses
+        </span>
+      </div>
+      <!-- Active rage -->
+      <div v-if="localRageActive" class="px-4 py-3 space-y-2">
+        <div class="rounded-md bg-red-500/10 border border-red-500/30 px-3 py-2 space-y-1">
+          <p class="font-cinzel text-xs font-semibold text-red-600">Raging</p>
+          <p class="font-fell text-sm text-foreground">+{{ rageBonus }} melee damage (STR-based)</p>
+          <p class="font-fell text-sm text-muted-foreground">Resistance: bludgeoning, piercing, slashing</p>
+          <p class="font-fell text-sm text-muted-foreground">Advantage on STR checks and saving throws</p>
+        </div>
+        <button
+          class="font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+          @click="endRage"
+        >End Rage</button>
+      </div>
+      <!-- Not raging -->
+      <div v-else class="px-4 py-2.5">
+        <button
+          class="font-cinzel text-2xs tracking-wider px-3 py-1 rounded bg-red-500/15 border border-red-500/30 text-red-600 hover:bg-red-500/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          :disabled="(rageResource?.current ?? 0) <= 0"
+          @click="enterRage"
+        >Enter Rage</button>
+      </div>
+    </div>
+
+    <!-- ── Ki Abilities (Monk) ─────────────────────────────────────────────────── -->
+    <div v-if="isMonk && visibleKiAbilities.length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
+      <div class="px-4 py-2.5 border-b border-border">
+        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Ki Abilities</p>
+      </div>
+      <div class="divide-y divide-border">
+        <div v-for="ability in visibleKiAbilities" :key="ability.name" class="px-4 py-2.5">
+          <button
+            class="w-full text-left flex items-center gap-2 cursor-pointer"
+            @click="toggleExpanded(`ki-${ability.name}`)"
+          >
+            <span class="font-fell text-sm text-foreground flex-1">{{ ability.name }}</span>
+            <span
+              v-if="ability.ki_cost > 0"
+              class="font-cinzel text-2xs tracking-wider rounded px-1.5 py-0.5 shrink-0 bg-primary/10 text-primary border border-primary/20"
+            >{{ ability.ki_cost }} ki</span>
+            <ChevronDown
+              class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
+              :class="expanded.has(`ki-${ability.name}`) ? 'rotate-180' : ''"
+            />
+          </button>
+          <div
+            v-if="expanded.has(`ki-${ability.name}`)"
+            class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 font-fell text-sm text-muted-foreground leading-relaxed"
+          >
+            <p class="font-fell text-xs text-primary/70 mb-1 italic">{{ ability.timing }}</p>
+            {{ ability.description }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Battle Master Maneuvers (Fighter) ──────────────────────────────────── -->
+    <div v-if="isBattleMaster" class="rounded-lg border border-border bg-card overflow-hidden">
+      <div class="px-4 py-2.5 border-b border-border flex items-center justify-between">
+        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Battle Master Maneuvers</p>
+        <div class="flex items-center gap-2">
+          <span class="font-cinzel text-2xs tracking-wider rounded px-1.5 py-0.5 bg-muted/50 text-muted-foreground border border-border">{{ superiorityDiceSize }}</span>
+        </div>
+      </div>
+      <!-- Superiority dice track -->
+      <div class="flex items-center gap-2 px-4 py-2 border-b border-border">
+        <span class="font-fell text-sm text-muted-foreground flex-1">Superiority Dice</span>
+        <button
+          class="h-6 w-6 rounded border border-border font-cinzel text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          :disabled="(superiorityDiceResource?.current ?? 0) <= 0"
+          @click="spendResource('superiority_dice')"
+        >−</button>
+        <span class="font-cinzel text-sm text-foreground w-10 text-center">
+          {{ superiorityDiceResource?.current ?? 0 }} / {{ superiorityDiceResource?.max ?? 0 }}
+        </span>
+        <button
+          class="h-6 w-6 rounded border border-border font-cinzel text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          :disabled="(superiorityDiceResource?.current ?? 0) >= (superiorityDiceResource?.max ?? 0)"
+          @click="restoreResource('superiority_dice')"
+        >+</button>
+      </div>
+      <!-- Known maneuvers -->
+      <div class="divide-y divide-border">
+        <div v-if="knownManeuvers.length === 0" class="px-4 py-3">
+          <p class="font-fell text-sm text-muted-foreground italic">No maneuvers learned yet.</p>
+        </div>
+        <div v-for="maneuver in knownManeuvers" :key="maneuver.name" class="px-4 py-2.5">
+          <button
+            class="w-full text-left flex items-center gap-2 cursor-pointer"
+            @click="toggleExpanded(`maneuver-${maneuver.name}`)"
+          >
+            <span class="font-fell text-sm text-foreground flex-1">{{ maneuver.name }}</span>
+            <ChevronDown
+              class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
+              :class="expanded.has(`maneuver-${maneuver.name}`) ? 'rotate-180' : ''"
+            />
+          </button>
+          <div
+            v-if="expanded.has(`maneuver-${maneuver.name}`)"
+            class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 font-fell text-sm text-muted-foreground leading-relaxed"
+          >
+            <p class="font-fell text-xs text-primary/70 mb-1 italic">{{ maneuver.timing }}</p>
+            {{ maneuver.description }}
+          </div>
+        </div>
+      </div>
+      <!-- Learn maneuver -->
+      <div v-if="availableManeuversToLearn.length > 0" class="px-4 py-2.5 border-t border-border">
+        <div v-if="!showLearnManeuverForm" class="flex justify-start">
+          <button
+            class="font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            @click="showLearnManeuverForm = true"
+          >+ Learn Maneuver</button>
+        </div>
+        <div v-else class="space-y-2">
+          <select
+            v-model="pendingLearnManeuver"
+            class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="" disabled>Select maneuver to learn…</option>
+            <option v-for="m in availableManeuversToLearn" :key="m.name" :value="m.name">{{ m.name }}</option>
+          </select>
+          <div class="flex gap-2">
+            <button
+              :disabled="!pendingLearnManeuver"
+              class="font-cinzel text-2xs tracking-wider px-3 py-1 rounded bg-primary text-primary-foreground disabled:opacity-40 hover:opacity-90 transition-opacity"
+              @click="learnManeuver"
+            >Learn</button>
+            <button
+              class="font-cinzel text-2xs tracking-wider px-3 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
+              @click="showLearnManeuverForm = false; pendingLearnManeuver = ''"
+            >Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Infusions (Artificer) ──────────────────────────────────────────── -->
     <div v-if="isArtificer && artificerLevel >= 2" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-2.5 border-b border-border flex items-center justify-between">
@@ -593,6 +746,8 @@ import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { METAMAGIC_MAP } from "@/data/metamagic";
 import { ARTIFICER_INFUSIONS, ARTIFICER_INFUSIONS_MAP } from "@/data/artificerInfusions";
 import { ELDRITCH_INVOCATIONS_MAP } from "@/data/eldritchInvocations";
+import { MONK_KI_ABILITIES } from "@/data/monkKiAbilities";
+import { BATTLE_MASTER_MANEUVERS, BATTLE_MASTER_MANEUVERS_MAP } from "@/data/battleMasterManeuvers";
 import { usePartyInventory } from "@/composables/usePartyInventory";
 import { featureName, featureDescription, mapFeatureIds, type FeatureEntry } from "@/levelup/types";
 import type { CustomStep } from "@/levelup/customTypes";
@@ -783,8 +938,13 @@ async function longRest() {
 
   for (const r of localResources.value) r.current = r.max;
   persistResources();
-
-  updateMember({ id: props.member.id, update: { spell_slots: effectiveSlots.value.map(s => ({ ...s, used: 0 })) } });
+  if (localRageActive.value) {
+    localRageActive.value = false;
+  }
+  updateMember({ id: props.member.id, update: {
+    spell_slots: effectiveSlots.value.map(s => ({ ...s, used: 0 })),
+    ...(props.member.rage_active ? { rage_active: false } : {}),
+  }});
 }
 
 
@@ -848,7 +1008,7 @@ const CHOICE_LABELS: Record<string, string> = {
 const choiceEntries = computed(() => {
   const choices = props.member.class_choices ?? {};
   return Object.entries(choices)
-    .filter(([key, v]) => key !== "metamagic_options" && key !== "infusions_known" && key !== "eldritch_invocations" && v !== null && v !== undefined && v !== "")
+    .filter(([key, v]) => key !== "metamagic_options" && key !== "infusions_known" && key !== "eldritch_invocations" && key !== "battle_master_maneuvers" && v !== null && v !== undefined && v !== "")
     .map(([key, value]) => ({
       key,
       label: CHOICE_LABELS[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
@@ -908,10 +1068,114 @@ function confirmSpend() {
   cancelSpend();
 }
 
-// ── Resources display (hide infusion_slots — shown in Infusions card instead) ─
+// ── Class detection ───────────────────────────────────────────────────────────
+
+const isBarbarian = computed(() =>
+  props.member.class === "Barbarian" ||
+  (characterClasses.value ?? []).some(cc => cc.class_name === "Barbarian"),
+);
+
+const isMonk = computed(() =>
+  props.member.class === "Monk" ||
+  (characterClasses.value ?? []).some(cc => cc.class_name === "Monk"),
+);
+
+const isFighter = computed(() =>
+  props.member.class === "Fighter" ||
+  (characterClasses.value ?? []).some(cc => cc.class_name === "Fighter"),
+);
+
+const isBattleMaster = computed(() => {
+  if (!isFighter.value) return false;
+  const subclass = (characterClasses.value ?? []).find(cc => cc.class_name === "Fighter")?.subclass_name
+    ?? (props.member.class === "Fighter" ? props.member.subclass : null);
+  return !!subclass && subclass.toLowerCase().includes("battle master");
+});
+
+function classLevel(className: string): number {
+  return (characterClasses.value ?? []).find(cc => cc.class_name === className)?.levels
+    ?? (props.member.class === className ? props.member.level : 0);
+}
+
+// ── Barbarian rage ────────────────────────────────────────────────────────────
+
+const rageResource = computed(() => localResources.value.find(r => r.key === "rage_uses") ?? null);
+
+const rageBonus = computed(() => {
+  const lvl = classLevel("Barbarian");
+  if (lvl >= 16) return 4;
+  if (lvl >= 9) return 3;
+  return 2;
+});
+
+const localRageActive = ref(props.member.rage_active ?? false);
+watch(() => [props.member.id, props.member.updated_at], () => {
+  localRageActive.value = props.member.rage_active ?? false;
+}, { immediate: true });
+
+function enterRage() {
+  const r = rageResource.value;
+  if (!r || r.current <= 0) return;
+  r.current--;
+  persistResources();
+  localRageActive.value = true;
+  updateMember({ id: props.member.id, update: { rage_active: true } });
+}
+
+function endRage() {
+  localRageActive.value = false;
+  updateMember({ id: props.member.id, update: { rage_active: false } });
+}
+
+// ── Monk ki ───────────────────────────────────────────────────────────────────
+
+const visibleKiAbilities = computed(() => {
+  const lvl = classLevel("Monk");
+  return MONK_KI_ABILITIES.filter(a => a.min_level <= lvl);
+});
+
+// ── Battle Master maneuvers ───────────────────────────────────────────────────
+
+const superiorityDiceResource = computed(() => localResources.value.find(r => r.key === "superiority_dice") ?? null);
+
+const superiorityDiceSize = computed(() => {
+  const lvl = classLevel("Fighter");
+  if (lvl >= 18) return "d12";
+  if (lvl >= 10) return "d10";
+  return "d8";
+});
+
+const knownManeuvers = computed(() => {
+  const raw = props.member.class_choices?.battle_master_maneuvers;
+  const names: string[] = Array.isArray(raw) ? (raw as string[]) : raw ? [String(raw)] : [];
+  return names.map(n => BATTLE_MASTER_MANEUVERS_MAP.get(n)).filter(Boolean) as import("@/data/battleMasterManeuvers").BattleManeuver[];
+});
+
+const availableManeuversToLearn = computed(() => {
+  const known = new Set(knownManeuvers.value.map(m => m.name));
+  return BATTLE_MASTER_MANEUVERS.filter(m => !known.has(m.name));
+});
+
+const showLearnManeuverForm = ref(false);
+const pendingLearnManeuver = ref("");
+
+function learnManeuver() {
+  if (!pendingLearnManeuver.value) return;
+  const current = props.member.class_choices?.battle_master_maneuvers;
+  const existing: string[] = Array.isArray(current) ? (current as string[]) : current ? [String(current)] : [];
+  updateMember({ id: props.member.id, update: { class_choices: { ...props.member.class_choices, battle_master_maneuvers: [...existing, pendingLearnManeuver.value] } } });
+  showLearnManeuverForm.value = false;
+  pendingLearnManeuver.value = "";
+}
+
+// ── Resources display ─────────────────────────────────────────────────────────
 
 const displayedResources = computed(() =>
-  localResources.value.filter(r => !(r.key === "infusion_slots" && isArtificer.value)),
+  localResources.value.filter(r => {
+    if (r.key === "infusion_slots" && isArtificer.value) return false;
+    if (r.key === "superiority_dice" && isBattleMaster.value) return false;
+    return true;
+  }),
 );
 
 // ── Infusions (Artificer) ─────────────────────────────────────────────────────

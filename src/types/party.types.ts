@@ -148,6 +148,7 @@ export interface PartyMember {
   class_resources: Record<string, { current: number; max: number; rest: "short" | "long" }>;
   class_choices: Record<string, unknown>;
   active_infusions: { name: string; inv_item_id: string | null }[];
+  rage_active?: boolean;
   level_choices: LevelChoices;
   concentration?: ConcentrationState | null;
   wildshape_state?: WildshapeState | null;

@@ -243,6 +243,7 @@ export function useCharacterCreationForm() {
     class_resources:  m?.class_resources ?? {},
     class_choices:    m?.class_choices ?? {},
     active_infusions: m?.active_infusions ?? [],
+    rage_active:      m?.rage_active ?? false,
     alignment:          m?.alignment ?? "",
     personality_traits: m?.personality_traits ?? "",
     ideals:             m?.ideals ?? "",
