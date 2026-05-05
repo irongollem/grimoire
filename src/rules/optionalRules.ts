@@ -18,6 +18,19 @@ export function getOptionalRule(key: string): OptionalRuleDef | undefined {
   return REGISTRY.get(key);
 }
 
+// ── Multiclass prerequisites ──────────────────────────────────────────────────
+registerOptionalRule({
+  key: "ignore_multiclass_prereqs",
+  name: "Ignore Multiclass Prerequisites",
+  summary:
+    "Waive the PHB ability-score thresholds for multiclassing. Players don't need STR 13 to take a Fighter level, etc.",
+  description:
+    "By default, multiclassing requires meeting minimum ability scores for both the class you're leaving and the one you're entering (PHB p.163).\n\n" +
+    "With this rule enabled, those thresholds are ignored — any character can take a level in any class regardless of their ability scores.",
+  dmOnly: true,
+  defaultEnabled: false,
+});
+
 // ── Crafting (Workshop) ───────────────────────────────────────────────────────
 registerOptionalRule({
   key: "crafting",

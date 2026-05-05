@@ -486,6 +486,7 @@ import {
   useUpdateCharacterClass,
 } from "@/composables/useCharacterClasses";
 import { useCampaignStore } from "@/stores/campaign";
+import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
 import { meetsMulticlassPrereq } from "@/types/multiclass.types";
 import type { CharacterClass } from "@/types/multiclass.types";
 import { getHitDie, getMulticlassSpellSlots } from "@/types/spell.types";
@@ -585,10 +586,10 @@ const newClassCandidates = computed<string[]>(() => {
   return all.filter(name => !existing.has(name)).sort();
 });
 
-const ignoreMulticlassPrereqs = computed<boolean>(() => {
-  const rules = (campaign.activeCampaign?.optional_rules ?? {}) as Record<string, unknown>;
-  return rules.ignore_multiclass_prereqs === true;
-});
+const { data: campaignRulesData } = useOptionalRules();
+const ignoreMulticlassPrereqs = computed<boolean>(() =>
+  isRuleEffectivelyEnabled(campaignRulesData.value, "ignore_multiclass_prereqs"),
+);
 
 /** Prereq check for the currently-selected new class. */
 const newClassPrereq = computed(() => {
