@@ -11,13 +11,13 @@ The **Character Codex** (`/codex`) is the rulebook behind character creation. It
 
 ## Five tabs
 
-| Tab | What it contains |
-|---|---|
-| Species | Player races and their subraces/variants |
-| Backgrounds | Character backgrounds with proficiencies and features |
-| Classes | SRD classes (read-only) and custom classes you design |
-| Archetypes | Subclasses — SRD and custom |
-| Abilities | Individual features, feats, fighting styles, maneuvers, invocations |
+| Tab         | What it contains                                                    |
+| ----------- | ------------------------------------------------------------------- |
+| Species     | Player races and their subraces/variants                            |
+| Backgrounds | Character backgrounds with proficiencies and features               |
+| Classes     | SRD classes (read-only) and custom classes you design               |
+| Archetypes  | Subclasses — SRD and custom                                         |
+| Abilities   | Individual features, feats, fighting styles, maneuvers, invocations |
 
 ## How they connect
 

@@ -33,12 +33,12 @@ Upload an image as a **Map** on any location. Once uploaded, you can drag to pla
 
 Every location has four independent share flags:
 
-| Toggle | What it shares |
-|---|---|
+| Toggle                 | What it shares                                                  |
+| ---------------------- | --------------------------------------------------------------- |
 | Share full description | Players see the rich text description (summary is always shown) |
-| Share linked NPCs | Players see which NPCs are in this area |
-| Share inventory | Players can see store/tavern/inn wares |
-| Share map | Players see the uploaded map and visible pins |
+| Share linked NPCs      | Players see which NPCs are in this area                         |
+| Share inventory        | Players can see store/tavern/inn wares                          |
+| Share map              | Players see the uploaded map and visible pins                   |
 
 Additionally, **Per-player visibility** (`visible_to` field) lets you share a location with specific players only.
 

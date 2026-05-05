@@ -20,6 +20,7 @@ The Encounter Runner (`/encounters/:id/run`) is the full-screen combat tracker. 
 Each row in the list represents one combatant. The active combatant has a gold border.
 
 **Per-row controls:**
+
 - **INIT** — editable; type a new value and press Enter.
 - **Reveal toggle** (monsters only) — cycles Hidden → Unseen → Revealed. Hidden: players can't see the creature at all. Unseen: appears as "???" with a placeholder. Revealed: players see name and portrait.
 - **HP** — click to edit inline. Use the **Quick HP panel** (click the row to expand) for Damage / Heal / +Temp buttons with an amount input.

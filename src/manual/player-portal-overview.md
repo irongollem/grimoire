@@ -13,22 +13,22 @@ The Player Portal is a separate, role-gated section of Grimoire available to any
 
 The portal covers the full lifecycle of a player's session experience:
 
-| Section | What players do |
-|---|---|
-| Character Sheet | View stats, HP, conditions, custom trackers |
-| Inventory | Manage gear, paper doll, coin purse, containers |
-| Spells | Prepare, track slots, browse class spell list |
-| Quests | See quests you've shared, add personal notes |
-| Party | See other characters, shared NPCs |
-| Atlas | Browse locations you've shared, leave notes |
-| Bestiary | View discovered creatures, use Wild Shape picker |
-| Crafting | Attempt revealed recipes |
-| Factions | See faction details, note memberships |
-| Puzzles | Read shared puzzles, see revealed hints |
-| Journal | Write personal entries, read party notes |
-| Rules | Access DM screen, SRD, house rules, Codex |
-| Encounter | Live combat panel during sessions |
-| Settings | Customise preferences, nav order, audio |
+| Section         | What players do                                  |
+| --------------- | ------------------------------------------------ |
+| Character Sheet | View stats, HP, conditions, custom trackers      |
+| Inventory       | Manage gear, paper doll, coin purse, containers  |
+| Spells          | Prepare, track slots, browse class spell list    |
+| Quests          | See quests you've shared, add personal notes     |
+| Party           | See other characters, shared NPCs                |
+| Atlas           | Browse locations you've shared, leave notes      |
+| Bestiary        | View discovered creatures, use Wild Shape picker |
+| Crafting        | Attempt revealed recipes                         |
+| Factions        | See faction details, note memberships            |
+| Puzzles         | Read shared puzzles, see revealed hints          |
+| Journal         | Write personal entries, read party notes         |
+| Rules           | Access DM screen, SRD, house rules, Codex        |
+| Encounter       | Live combat panel during sessions                |
+| Settings        | Customise preferences, nav order, audio          |
 
 ## What you control as DM
 

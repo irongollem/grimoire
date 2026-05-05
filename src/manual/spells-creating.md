@@ -21,11 +21,13 @@ Click **New Spell** to open the Spell Editor. The editor has three columns on de
 ### Centre column — mechanics
 
 **Identity:**
+
 - **Name** — required.
 - **Level** — 0 (Cantrip) through 9. The Spell Level Advisor (button top-right) can suggest an appropriate level based on what the spell does.
 - **School** — Abjuration, Conjuration, Divination, Enchantment, Evocation, Illusion, Necromancy, or Transmutation.
 
 **Casting:**
+
 - **Casting Time** — e.g. `1 action`, `1 bonus action`, `1 minute`, `1 reaction`.
 - **Range** — e.g. `60 feet`, `Self`, `Touch`, `Sight`.
 - **Duration** — e.g. `Instantaneous`, `1 hour`, `Until dispelled`.
@@ -33,10 +35,12 @@ Click **New Spell** to open the Spell Editor. The editor has three columns on de
 - **Ritual** toggle — marks the spell as castable as a ritual.
 
 **Components:**
+
 - **V** (Verbal), **S** (Somatic), **M** (Material) toggles.
 - **Material** — description of the material component if M is checked.
 
 **Mechanics block:**
+
 - **Attack or Targeting type** — melee spell attack, ranged spell attack, or no attack.
 - **Save attribute** — which saving throw the target makes (STR through CHA, or None).
 - **Effect on save** — Half damage, No damage, or No effect.

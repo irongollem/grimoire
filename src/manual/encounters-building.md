@@ -40,11 +40,11 @@ Add as many slots as you need. Multiple slots can reference the same monster —
 Factions give combatants a colour-coded team identity. Four defaults exist:
 
 | Faction | Colour |
-|---|---|
-| Players | Navy |
-| Enemy | Red |
-| Ally | Green |
-| Neutral | Grey |
+| ------- | ------ |
+| Players | Navy   |
+| Enemy   | Red    |
+| Ally    | Green  |
+| Neutral | Grey   |
 
 Add custom factions with any hex colour you like. Faction colours appear as a left-border stripe on combatant rows in the runner.
 
@@ -54,19 +54,19 @@ Events let you pre-script things that happen during combat. Each event has a **t
 
 **Trigger types:**
 
-| Trigger | When it fires |
-|---|---|
-| Round Start | At the start of a specified round number |
+| Trigger        | When it fires                                            |
+| -------------- | -------------------------------------------------------- |
+| Round Start    | At the start of a specified round number                 |
 | Combatant HP % | When a specific combatant drops to/below a HP percentage |
-| Combatant Dies | When a specific combatant reaches 0 HP |
-| Manual | DM clicks the play button in the runner sidebar |
+| Combatant Dies | When a specific combatant reaches 0 HP                   |
+| Manual         | DM clicks the play button in the runner sidebar          |
 
 **Action types:**
 
-| Action | What it does |
-|---|---|
-| Spawn Combatants | Adds N monsters from the bestiary to a faction mid-combat |
-| Broadcast Message | Posts a message to the campaign chat |
+| Action            | What it does                                              |
+| ----------------- | --------------------------------------------------------- |
+| Spawn Combatants  | Adds N monsters from the bestiary to a faction mid-combat |
+| Broadcast Message | Posts a message to the campaign chat                      |
 
 **Fire Once toggle** — the event won't repeat after firing (prevents re-spawning when an HP threshold is crossed multiple times).
 

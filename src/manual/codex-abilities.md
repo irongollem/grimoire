@@ -11,18 +11,18 @@ The **Abilities** tab is the pool of individual features that classes, archetype
 
 ## Ability types
 
-| Type | Typical use |
-|---|---|
-| Class Feature | Standard class progression features (Sneak Attack, Martial Arts) |
-| Species Trait | Racial abilities (Darkvision, Fey Ancestry) |
-| Background Feature | Background-granted abilities (False Identity, Researcher) |
-| Feat | Optional feats players can take at ASI levels |
-| Fighting Style | Fighter/Paladin/Ranger fighting style options |
-| Metamagic | Sorcerer metamagic options |
-| Maneuver | Battle Master maneuvers |
-| Invocation | Warlock eldritch invocations |
-| Infusion | Artificer infusion options |
-| Other | Anything that doesn't fit the above |
+| Type               | Typical use                                                      |
+| ------------------ | ---------------------------------------------------------------- |
+| Class Feature      | Standard class progression features (Sneak Attack, Martial Arts) |
+| Species Trait      | Racial abilities (Darkvision, Fey Ancestry)                      |
+| Background Feature | Background-granted abilities (False Identity, Researcher)        |
+| Feat               | Optional feats players can take at ASI levels                    |
+| Fighting Style     | Fighter/Paladin/Ranger fighting style options                    |
+| Metamagic          | Sorcerer metamagic options                                       |
+| Maneuver           | Battle Master maneuvers                                          |
+| Invocation         | Warlock eldritch invocations                                     |
+| Infusion           | Artificer infusion options                                       |
+| Other              | Anything that doesn't fit the above                              |
 
 ## Creating an ability
 

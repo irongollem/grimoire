@@ -26,6 +26,7 @@ Use trackers for homebrew mechanics that require persistent tracking:
 A numeric value within a min–max range. Examples: Corruption 0–100, Favour 0–20, Wounds 0–6.
 
 Configuration:
+
 - **Min Value** — the lowest the tracker can go (usually 0).
 - **Max Value** — the highest it can reach.
 - **DM Buttons** — named buttons with a delta value. Each button appears on the character sheet as a one-click adjustment. Examples: "+1 Corruption", "−2 Favour", "Rest (−3)".
@@ -35,6 +36,7 @@ Configuration:
 A set of named states — the character is always in exactly one level. Examples: Sanity (Composed → Unsettled → Disturbed → Broken → Shattered) or Reputation (Unknown → Known → Respected → Renowned → Legendary).
 
 Configuration:
+
 - **Levels** — an ordered list. Each level has:
   - **Value** — a numeric or short code identifier.
   - **Name** — the display name (e.g. "Broken").

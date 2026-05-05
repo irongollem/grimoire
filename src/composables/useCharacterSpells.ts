@@ -1,7 +1,12 @@
 import { computed, toValue, type MaybeRef, type MaybeRefOrGetter } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
-import type { CharacterSpell, CharacterSpellEntry, InnateSourceType, InnateResetsOn } from "@/types/spell.types";
+import type {
+  CharacterSpell,
+  CharacterSpellEntry,
+  InnateSourceType,
+  InnateResetsOn,
+} from "@/types/spell.types";
 import type { Species } from "@/types/species.types";
 
 export interface SpellKnower {
@@ -33,9 +38,14 @@ export function useCharacterSpells(partyMemberId: MaybeRef<string | null>) {
 
 /** Full fetch with joined spell data — used in the spellbook/prepared tabs.
  *  spell_id is text and may reference spells.id (UUID, custom) or srd_spells.id (srd_* slug). */
-export function useCharacterSpellsWithDetails(partyMemberId: MaybeRef<string | null>) {
+export function useCharacterSpellsWithDetails(
+  partyMemberId: MaybeRef<string | null>,
+) {
   return useQuery({
-    queryKey: computed(() => ["characterSpellsDetails", toValue(partyMemberId)]),
+    queryKey: computed(() => [
+      "characterSpellsDetails",
+      toValue(partyMemberId),
+    ]),
     queryFn: async () => {
       const id = toValue(partyMemberId);
       if (!id) return [] as CharacterSpellEntry[];
@@ -48,8 +58,12 @@ export function useCharacterSpellsWithDetails(partyMemberId: MaybeRef<string | n
       if (error) throw error;
 
       const rows = data as Omit<CharacterSpellEntry, "spell">[];
-      const srdIds    = rows.filter((r) => r.spell_id?.startsWith("srd_")).map((r) => r.spell_id);
-      const customIds = rows.filter((r) => !r.spell_id?.startsWith("srd_")).map((r) => r.spell_id);
+      const srdIds = rows
+        .filter((r) => r.spell_id?.startsWith("srd_"))
+        .map((r) => r.spell_id);
+      const customIds = rows
+        .filter((r) => !r.spell_id?.startsWith("srd_"))
+        .map((r) => r.spell_id);
 
       const [srdRes, customRes] = await Promise.all([
         srdIds.length > 0
@@ -61,10 +75,18 @@ export function useCharacterSpellsWithDetails(partyMemberId: MaybeRef<string | n
       ]);
 
       const spellMap = new Map<string, CharacterSpellEntry["spell"]>();
-      for (const s of srdRes.data ?? [])    spellMap.set(s.id, { ...s, user_id: "" } as CharacterSpellEntry["spell"]);
-      for (const s of customRes.data ?? []) spellMap.set(s.id, s as CharacterSpellEntry["spell"]);
+      for (const s of srdRes.data ?? [])
+        spellMap.set(s.id, {
+          ...s,
+          user_id: "",
+        } as CharacterSpellEntry["spell"]);
+      for (const s of customRes.data ?? [])
+        spellMap.set(s.id, s as CharacterSpellEntry["spell"]);
 
-      return rows.map((r) => ({ ...r, spell: spellMap.get(r.spell_id) ?? null })) as CharacterSpellEntry[];
+      return rows.map((r) => ({
+        ...r,
+        spell: spellMap.get(r.spell_id) ?? null,
+      })) as CharacterSpellEntry[];
     },
     enabled: computed(() => !!toValue(partyMemberId)),
   });
@@ -84,12 +106,18 @@ export function useAddCharacterSpell() {
     }) => {
       const { error } = await supabase
         .from("character_spells")
-        .insert({ party_member_id: partyMemberId, spell_id: spellId, is_prepared: isPrepared });
+        .insert({
+          party_member_id: partyMemberId,
+          spell_id: spellId,
+          is_prepared: isPrepared,
+        });
       if (error) throw error;
     },
     onSuccess: (_, { partyMemberId }) => {
       qc.invalidateQueries({ queryKey: ["characterSpells", partyMemberId] });
-      qc.invalidateQueries({ queryKey: ["characterSpellsDetails", partyMemberId] });
+      qc.invalidateQueries({
+        queryKey: ["characterSpellsDetails", partyMemberId],
+      });
     },
   });
 }
@@ -113,7 +141,9 @@ export function useRemoveCharacterSpell() {
     },
     onSuccess: (_, { partyMemberId }) => {
       qc.invalidateQueries({ queryKey: ["characterSpells", partyMemberId] });
-      qc.invalidateQueries({ queryKey: ["characterSpellsDetails", partyMemberId] });
+      qc.invalidateQueries({
+        queryKey: ["characterSpellsDetails", partyMemberId],
+      });
     },
   });
 }
@@ -137,8 +167,12 @@ export function useDeleteCharacterSpell() {
       if (error) throw error;
     },
     onSuccess: (_, { partyMemberId }) => {
-      void qc.invalidateQueries({ queryKey: ["characterSpells", partyMemberId] });
-      void qc.invalidateQueries({ queryKey: ["characterSpellsDetails", partyMemberId] });
+      void qc.invalidateQueries({
+        queryKey: ["characterSpells", partyMemberId],
+      });
+      void qc.invalidateQueries({
+        queryKey: ["characterSpellsDetails", partyMemberId],
+      });
     },
   });
 }
@@ -163,7 +197,9 @@ export function useTogglePrepared() {
     },
     onSuccess: (_, { partyMemberId }) => {
       qc.invalidateQueries({ queryKey: ["characterSpells", partyMemberId] });
-      qc.invalidateQueries({ queryKey: ["characterSpellsDetails", partyMemberId] });
+      qc.invalidateQueries({
+        queryKey: ["characterSpellsDetails", partyMemberId],
+      });
     },
   });
 }
@@ -201,7 +237,9 @@ export function useAddInnateSpell() {
     },
     onSuccess: (_, { partyMemberId }) => {
       qc.invalidateQueries({ queryKey: ["characterSpells", partyMemberId] });
-      qc.invalidateQueries({ queryKey: ["characterSpellsDetails", partyMemberId] });
+      qc.invalidateQueries({
+        queryKey: ["characterSpellsDetails", partyMemberId],
+      });
     },
   });
 }
@@ -211,12 +249,17 @@ export function useRemoveCharacterSpellById() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id }: { id: string; partyMemberId: string }) => {
-      const { error } = await supabase.from("character_spells").delete().eq("id", id);
+      const { error } = await supabase
+        .from("character_spells")
+        .delete()
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: (_, { partyMemberId }) => {
       qc.invalidateQueries({ queryKey: ["characterSpells", partyMemberId] });
-      qc.invalidateQueries({ queryKey: ["characterSpellsDetails", partyMemberId] });
+      qc.invalidateQueries({
+        queryKey: ["characterSpellsDetails", partyMemberId],
+      });
     },
   });
 }
@@ -241,7 +284,9 @@ export function useSpendInnateUse() {
     },
     onSuccess: (_, { partyMemberId }) => {
       qc.invalidateQueries({ queryKey: ["characterSpells", partyMemberId] });
-      qc.invalidateQueries({ queryKey: ["characterSpellsDetails", partyMemberId] });
+      qc.invalidateQueries({
+        queryKey: ["characterSpellsDetails", partyMemberId],
+      });
     },
   });
 }
@@ -255,7 +300,8 @@ export async function restoreInnateUses(
   partyMemberId: string,
   restType: "long" | "short",
 ): Promise<void> {
-  const resetOn: InnateResetsOn[] = restType === "long" ? ["long_rest", "short_rest"] : ["short_rest"];
+  const resetOn: InnateResetsOn[] =
+    restType === "long" ? ["long_rest", "short_rest"] : ["short_rest"];
 
   const { data, error } = await supabase
     .from("character_spells")
@@ -297,9 +343,12 @@ export async function addInvocationSpellGrant(
       source_label: `Invocation: ${invocationName}`,
       uses_per_day: usesPerDay,
       uses_remaining: usesPerDay,
-      resets_on: usesPerDay != null ? ("long_rest" as InnateResetsOn) : null,
+      resets_on: usesPerDay !== null ? ("long_rest" as InnateResetsOn) : null,
     },
-    { onConflict: "party_member_id,spell_id,source_type", ignoreDuplicates: true },
+    {
+      onConflict: "party_member_id,spell_id,source_type",
+      ignoreDuplicates: true,
+    },
   );
   if (error) throw error;
 }
@@ -313,12 +362,16 @@ export function useSpellKnowers(spellId: MaybeRefOrGetter<string>) {
       if (!id) return [];
       const { data, error } = await supabase
         .from("character_spells")
-        .select("party_member_id, is_prepared, party_member:party_members(id, name)")
+        .select(
+          "party_member_id, is_prepared, party_member:party_members(id, name)",
+        )
         .eq("spell_id", id);
       if (error) throw error;
       return (data ?? []).map((row) => ({
         party_member_id: row.party_member_id,
-        name: (row.party_member as unknown as { name: string } | null)?.name ?? "Unknown",
+        name:
+          (row.party_member as unknown as { name: string } | null)?.name ??
+          "Unknown",
         is_prepared: row.is_prepared,
       }));
     },
@@ -359,7 +412,10 @@ export async function applySpeciesSpellGrants(
 
     const { error } = await supabase
       .from("character_spells")
-      .upsert(rows, { onConflict: "party_member_id,spell_id,source_type", ignoreDuplicates: true });
+      .upsert(rows, {
+        onConflict: "party_member_id,spell_id,source_type",
+        ignoreDuplicates: true,
+      });
     if (error) throw error;
   }
 

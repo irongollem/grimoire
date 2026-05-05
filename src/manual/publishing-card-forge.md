@@ -11,10 +11,10 @@ keywords: card forge, card, print, mtg, tarot, npc, monster, item, spell, duplex
 
 ## Card sizes
 
-| Format | Dimensions | Per sheet |
-|---|---|---|
-| MTG | 63×88mm | 3×3 = 9 cards |
-| Tarot | 70×120mm | 2×2 = 4 cards |
+| Format | Dimensions | Per sheet     |
+| ------ | ---------- | ------------- |
+| MTG    | 63×88mm    | 3×3 = 9 cards |
+| Tarot  | 70×120mm   | 2×2 = 4 cards |
 
 ## Entity sources
 
@@ -23,6 +23,7 @@ Select entities from four tabs — NPC, Monster, Item, Spell. Each tab has a sea
 ## Card anatomy
 
 **NPC and Monster cards (front):**
+
 - Title bar — name and CR or level
 - Art — focal-point cropped portrait
 - Type line — species/type and alignment
@@ -31,11 +32,13 @@ Select entities from four tabs — NPC, Monster, Item, Spell. Each tab has a sea
 - Footer — tags and entity kind
 
 **NPC and Monster cards (back):**
+
 - Full stat block text
 - Trait, action, and legendary action entries
 - Flavour footer
 
 **Item cards (front):**
+
 - Title and rarity badge
 - Art
 - Type line
@@ -44,11 +47,13 @@ Select entities from four tabs — NPC, Monster, Item, Spell. Each tab has a sea
 - Footer
 
 **Item cards (back):**
+
 - Extended description
 - Properties list
 - Flavour text
 
 **Spell cards (front):**
+
 - Title and level
 - Art
 - Type line — school, ritual, concentration markers
@@ -57,6 +62,7 @@ Select entities from four tabs — NPC, Monster, Item, Spell. Each tab has a sea
 - Footer
 
 **Spell cards (back):**
+
 - Full description
 - Property list
 - Higher-level text

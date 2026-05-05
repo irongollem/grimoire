@@ -19,6 +19,7 @@ Traps in Grimoire are fully defined mechanical entries that can be linked to enc
 ## Core fields
 
 **Identity:**
+
 - **Name** — required.
 - **Type** — one of the four above.
 - **CR** — Challenge Rating (supports fractions). Drives XP calculation in encounter difficulty.
@@ -28,6 +29,7 @@ Traps in Grimoire are fully defined mechanical entries that can be linked to enc
 - **Image** — optional art.
 
 **Trigger:**
+
 - **Trigger type** — Tripwire, Pressure Plate, Proximity, Visual, Sound, Magic Sensor, Manual, or Other.
 - **Detection DC** — Perception check to notice the trap.
 - **Disarm DC** — Thieves' Tools (or other skill) check to safely disarm.
@@ -37,6 +39,7 @@ Traps in Grimoire are fully defined mechanical entries that can be linked to enc
 - **Reset** — None (one use), Automatic (resets each round), or Manual (someone has to reset it).
 
 **Effect:**
+
 - **Effect description** — what happens when the trap triggers.
 - **Attack bonus** — if the trap makes a ranged or melee attack (e.g. crossbow bolt).
 - **Save type** — the saving throw victims make (STR through CHA).

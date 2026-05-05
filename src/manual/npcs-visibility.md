@@ -21,15 +21,15 @@ The **Visible To** field on each NPC sets which players can see the NPC at all. 
 
 Even for NPCs players can see, you control which individual fields are shown. Open the **Visibility** section in the NPC editor and toggle each field independently:
 
-| Field | Description |
-|---|---|
-| Portrait | Whether the character image is shown |
-| Name | The NPC's real name (or disguise name if concealed) |
-| Status | Alive / Dead / Missing / Unknown badge |
-| Species | Race information |
-| Occupation | Job or role |
-| Relationship | Ally / Neutral / Enemy / Unknown badge |
-| Location | Current location link |
+| Field        | Description                                         |
+| ------------ | --------------------------------------------------- |
+| Portrait     | Whether the character image is shown                |
+| Name         | The NPC's real name (or disguise name if concealed) |
+| Status       | Alive / Dead / Missing / Unknown badge              |
+| Species      | Race information                                    |
+| Occupation   | Job or role                                         |
+| Relationship | Ally / Neutral / Enemy / Unknown badge              |
+| Location     | Current location link                               |
 
 This lets you share an NPC's portrait and status (a shadowy figure, clearly alive) without revealing who they are.
 

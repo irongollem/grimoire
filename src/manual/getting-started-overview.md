@@ -19,13 +19,13 @@ Grimoire is a full-stack campaign manager for Dungeons & Dragons 5e. It gives yo
 
 ## The two sides of Grimoire
 
-| DM Side | Player Portal |
-|---|---|
-| Full read/write access | Role-gated, players only see their view |
-| Campaign settings, members, invites | Character sheet, inventory, spells |
-| World-building tools | Quest log, factions, atlas (shared portions) |
-| Encounter builder & runner | Live combat panel |
-| Scriptorium, Card Forge, Mint | Crafting, bestiary, journal |
+| DM Side                             | Player Portal                                |
+| ----------------------------------- | -------------------------------------------- |
+| Full read/write access              | Role-gated, players only see their view      |
+| Campaign settings, members, invites | Character sheet, inventory, spells           |
+| World-building tools                | Quest log, factions, atlas (shared portions) |
+| Encounter builder & runner          | Live combat panel                            |
+| Scriptorium, Card Forge, Mint       | Crafting, bestiary, journal                  |
 
 Players join via an invite link you generate. Once joined, they see the Player Portal automatically — they cannot access DM screens.
 

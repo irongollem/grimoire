@@ -50,6 +50,7 @@ Simulates a camera focal point with background blur.
 Apply a torn, rough, or faded edge effect to each edge independently (Top, Right, Bottom, Left).
 
 Per edge:
+
 - **Enable** toggle.
 - **Roughness** — how irregular the edge is.
 - **Fade width** — how far inward the effect extends.

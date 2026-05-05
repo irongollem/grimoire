@@ -36,16 +36,16 @@ PCs can join factions with their own role and status. When a PC joins a faction,
 
 Model inter-faction politics in the **Relations** section. Each relation points to another faction and has a type:
 
-| Relation | Description |
-|---|---|
-| Allied | Openly friendly and cooperative |
-| Friendly | Generally positive relations |
-| Neutral | No strong feeling either way |
-| Suspicious | Wary but not hostile |
-| Rival | Competing openly |
-| Hostile | Active conflict or enmity |
-| Secret Ally | Allied publicly unknown |
-| Secret Enemy | Hostile publicly unknown |
+| Relation     | Description                     |
+| ------------ | ------------------------------- |
+| Allied       | Openly friendly and cooperative |
+| Friendly     | Generally positive relations    |
+| Neutral      | No strong feeling either way    |
+| Suspicious   | Wary but not hostile            |
+| Rival        | Competing openly                |
+| Hostile      | Active conflict or enmity       |
+| Secret Ally  | Allied publicly unknown         |
+| Secret Enemy | Hostile publicly unknown        |
 
 Relations are one-directional — faction A's view of faction B may differ from B's view of A.
 

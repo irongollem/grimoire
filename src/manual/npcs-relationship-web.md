@@ -14,6 +14,7 @@ The **Relationship Web** (`/npcs/web`) renders all NPC connections as an interac
 Each NPC appears as a node. Edges between nodes represent connections. By default the graph includes only NPCs; toggle **Show Party Members** to add the player characters as nodes too (useful for showing which NPCs the party knows personally).
 
 **Node colours** — match the NPC's relationship-to-party setting:
+
 - Blue — Ally
 - Grey — Neutral
 - Red — Enemy
@@ -49,20 +50,20 @@ Use the toolbar to filter what's displayed:
 
 ## Connection types
 
-| Type | Inverse (auto-computed) |
-|---|---|
-| Ally | Ally |
-| Family | Family |
-| Friend | Friend |
-| Rival | Rival |
-| Enemy | Enemy |
-| Mentor | Apprentice |
-| Apprentice | Mentor |
-| Lover | Lover |
-| Subordinate | Superior |
-| Superior | Subordinate |
-| Contact | Contact |
-| Former Ally | Former Ally |
-| Former Enemy | Former Enemy |
+| Type         | Inverse (auto-computed) |
+| ------------ | ----------------------- |
+| Ally         | Ally                    |
+| Family       | Family                  |
+| Friend       | Friend                  |
+| Rival        | Rival                   |
+| Enemy        | Enemy                   |
+| Mentor       | Apprentice              |
+| Apprentice   | Mentor                  |
+| Lover        | Lover                   |
+| Subordinate  | Superior                |
+| Superior     | Subordinate             |
+| Contact      | Contact                 |
+| Former Ally  | Former Ally             |
+| Former Enemy | Former Enemy            |
 
 The inverse is computed automatically when you view a connection from the other NPC's perspective — you only need to set it once.

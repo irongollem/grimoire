@@ -26,22 +26,22 @@ The Calendar has two display modes:
 
 ## Event types and colours
 
-| Type | Typical use |
-|---|---|
-| Campaign | Major story beats |
-| World | In-world historic events |
-| Session | Marks which real-world date a session happened |
-| Festival | Recurring holidays |
-| Deadline | Time-sensitive quest elements |
-| Player Death | Commemorates fallen characters |
-| Boss Fight | Marks significant combat encounters |
-| Discovery | Lore reveals, map finds |
-| NPC Death | Important NPC deaths |
-| Travel | Party movement between locations |
-| Quest | Quest start/completion points |
-| Encounter | Notable combat events |
-| Location | Arrival at a new location |
-| Custom | Anything else |
+| Type         | Typical use                                    |
+| ------------ | ---------------------------------------------- |
+| Campaign     | Major story beats                              |
+| World        | In-world historic events                       |
+| Session      | Marks which real-world date a session happened |
+| Festival     | Recurring holidays                             |
+| Deadline     | Time-sensitive quest elements                  |
+| Player Death | Commemorates fallen characters                 |
+| Boss Fight   | Marks significant combat encounters            |
+| Discovery    | Lore reveals, map finds                        |
+| NPC Death    | Important NPC deaths                           |
+| Travel       | Party movement between locations               |
+| Quest        | Quest start/completion points                  |
+| Encounter    | Notable combat events                          |
+| Location     | Arrival at a new location                      |
+| Custom       | Anything else                                  |
 
 Each type has a distinct colour across both views.
 

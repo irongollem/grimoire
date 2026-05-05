@@ -29,6 +29,7 @@ Then add **entries**. Each entry has:
 Ranges can be sparse — you don't need to cover every number. The validation system warns you about overlapping entries (two entries claiming the same number) but allows gaps. A roll that falls in a gap produces a "No match" message.
 
 For a standard wandering monster table:
+
 - Ranges of 1–2 might represent a minor encounter.
 - 3–17 might mean no encounter.
 - 18–20 might be a major encounter — each pointing to a different linked encounter.

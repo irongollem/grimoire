@@ -18,13 +18,13 @@ Your view preference persists for the session.
 
 ## Quest statuses
 
-| Status | When to use |
-|---|---|
+| Status       | When to use                                  |
+| ------------ | -------------------------------------------- |
 | Undiscovered | The party doesn't know this quest exists yet |
-| Active | The party is currently pursuing it |
-| On Hold | Paused — waiting on something |
-| Completed | Done successfully |
-| Failed | Failed or abandoned |
+| Active       | The party is currently pursuing it           |
+| On Hold      | Paused — waiting on something                |
+| Completed    | Done successfully                            |
+| Failed       | Failed or abandoned                          |
 
 ## Creating a quest
 
@@ -77,10 +77,12 @@ Players can add their own **notes** to any quest visible to them. There are two 
 Triggers let you automate what happens when a quest milestone is reached. Each trigger has:
 
 **Trigger types:**
+
 - `quest_complete` — fires when the quest status changes to Completed.
 - `objective_done` — fires when a specific objective is checked.
 
 **Action types:**
+
 - `create_calendar_event` — automatically adds an event to the campaign calendar with an optional offset in in-game days.
 - `send_broadcast` — posts a message to the campaign chat when the trigger fires.
 

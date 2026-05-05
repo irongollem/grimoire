@@ -14,6 +14,7 @@ Puzzles in Grimoire are more than notes — they're interactive experiences your
 Click **New Puzzle**. The editor has several sections:
 
 **Identity:**
+
 - **Name** — required.
 - **Type** — Logic, Physical, Arcane, Social, or Environmental.
 - **Difficulty** — Trivial, Easy, Medium, Hard, or Deadly.
@@ -21,22 +22,28 @@ Click **New Puzzle**. The editor has several sections:
 - **Image** — a square image representing the puzzle (focal-point aware).
 
 **Setup:**
+
 - **Setup** — rich text describing what the players observe when they encounter the puzzle. This is the sensory/environmental description, not the solution.
 
 **Skill Checks:**
+
 - A list of skill + DC pairs. Add as many as the puzzle requires. These are visible to players as soon as you share the puzzle, giving them a clear sense of what they might try.
 
 **Hints:**
+
 - An ordered list of rich text hints. Drag-to-reorder them. Each hint is independently revealed to players (or kept hidden).
 
 **Solution:**
+
 - Rich text. **DM-eyes only.** This section is collapsible in the editor and never visible to players.
 
 **Outcomes:**
+
 - **Success** — rich text describing what happens when players solve the puzzle.
 - **Failure / Consequence** — rich text for what happens if they fail or give up.
 
 **DM Notes:**
+
 - Private notes, variant ideas, pacing advice.
 
 ## AI puzzle generator
