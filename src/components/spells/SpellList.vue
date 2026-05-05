@@ -120,9 +120,9 @@
             </span>
           </div>
 
-          <!-- Edit button — DM mode only -->
+          <!-- Edit button — DM mode only, not shown for SRD spell cards -->
           <RouterLink
-            v-if="!props.playerMemberId"
+            v-if="!props.playerMemberId && !spell.id.startsWith('srd_')"
             :to="`/spells/${spell.id}?edit=true`"
             class="absolute top-2 left-2 z-10 flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
             title="Edit spell"

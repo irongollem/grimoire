@@ -26,6 +26,7 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
     monstersRes,
     srdMonstersRes,
     spellsRes,
+    srdSpellsRes,
     itemsRes,
     locationsRes,
     questsRes,
@@ -38,7 +39,8 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
       : Promise.resolve({ data: [] as { id: string; name: string; disguise_name: string | null }[], error: null }),
     supabase.from("monsters").select("id, name").ilike("name", q).not("open5e_import", "eq", true).limit(LIMIT),
     supabase.from("srd_monsters").select("id, name").ilike("name", q).limit(LIMIT),
-    supabase.from("spells").select("id, name").ilike("name", q).limit(LIMIT),
+    supabase.from("spells").select("id, name").ilike("name", q).not("open5e_import", "eq", true).limit(LIMIT),
+    supabase.from("srd_spells").select("id, name").ilike("name", q).limit(LIMIT),
     supabase.from("items").select("id, name").ilike("name", q).limit(LIMIT),
     campaignId
       ? supabase.from("locations").select("id, name").eq("campaign_id", campaignId).ilike("name", q).limit(LIMIT)
@@ -83,11 +85,15 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
     {
       type: "spell",
       label: "Spells",
-      items: ((spellsRes.data ?? []) as { id: string; name: string }[]).map((r) => ({
-        id: r.id,
-        name: r.name,
-        route: `/spells/${r.id}`,
-      })),
+      items: (() => {
+        const custom = (spellsRes.data ?? []) as { id: string; name: string }[];
+        const customNames = new Set(custom.map((r) => r.name.toLowerCase()));
+        const srd = ((srdSpellsRes.data ?? []) as { id: string; name: string }[])
+          .filter((r) => !customNames.has(r.name.toLowerCase()));
+        return [...custom, ...srd]
+          .slice(0, LIMIT)
+          .map((r) => ({ id: r.id, name: r.name, route: `/spells/${r.id}` }));
+      })(),
     },
     {
       type: "item",

@@ -330,25 +330,28 @@
           <ScrollText class="h-3.5 w-3.5" />
           {{ isSendingToScriptorium ? "Sending…" : "Send to Scriptorium" }}
         </button>
-        <button
-          v-if="spell"
-          type="button"
-          :disabled="isDeleting"
-          class="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors disabled:opacity-50"
-          @click="confirmDelete"
-        >
-          <Trash2 class="h-3.5 w-3.5" />
-          Delete
-        </button>
-        <button
-          type="button"
-          :disabled="isSaving || !name.trim()"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
-          @click="save"
-        >
-          <Save class="h-3.5 w-3.5" />
-          {{ isSaving ? "Saving…" : spell ? "Save" : "Create" }}
-        </button>
+        <template v-if="!isSrd">
+          <button
+            v-if="spell"
+            type="button"
+            :disabled="isDeleting"
+            class="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors disabled:opacity-50"
+            @click="confirmDelete"
+          >
+            <Trash2 class="h-3.5 w-3.5" />
+            Delete
+          </button>
+          <button
+            type="button"
+            :disabled="isSaving || !name.trim()"
+            class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+            @click="save"
+          >
+            <Save class="h-3.5 w-3.5" />
+            {{ isSaving ? "Saving…" : spell ? "Save" : "Create" }}
+          </button>
+        </template>
+        <span v-else class="font-fell text-xs text-muted-foreground italic">SRD spell — art only</span>
       </div>
     </div>
 
@@ -361,8 +364,8 @@
           :model-value="imageUrl || null"
           show-focal-point
           :focal-point="imageFocalPoint"
-          @update:model-value="imageUrl = $event ?? ''"
-          @update:focal-point="imageFocalPoint = $event"
+          @update:model-value="onImageUrlUpdate($event)"
+          @update:focal-point="onImageFocalUpdate($event)"
         />
         <div class="flex flex-col gap-1">
           <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Source</span>
@@ -389,7 +392,7 @@
       </div>
 
       <!-- ── Core spell fields ──────────────────────────────────────────── -->
-      <div class="flex flex-col gap-4">
+      <div v-if="!isSrd" class="flex flex-col gap-4">
         <!-- Name -->
         <label>
           <span class="sr-only">Spell name</span>
@@ -708,7 +711,7 @@
       </div>
 
       <!-- ── Right: Classes + Advisor ────────────────────────────────────── -->
-      <div class="flex flex-col gap-4">
+      <div v-if="!isSrd" class="flex flex-col gap-4">
         <!-- Class list -->
         <div class="rounded-lg border border-border bg-card p-4">
           <h3
@@ -1077,6 +1080,7 @@ import {
 import type { Spell, SpellSchool } from "@/types/spell.types";
 import { spellSourceLabel } from "@/types/spell.types";
 import { useCreateSpell, useUpdateSpell, useDeleteSpell } from "@/composables/useSpells";
+import { useUpsertSrdSpellArt } from "@/composables/useSrdSpellArt";
 import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
 import { formatSpellForScriptorium } from "@/lib/scriptoriumImport";
 import {
@@ -1093,8 +1097,11 @@ import {
 } from "@/lib/spellAdvisor";
 import { parseDamageExpression, type DamageRoll } from "@/lib/dice";
 
-const props = defineProps<{ spell: Spell | null }>();
+const props = defineProps<{ spell: Spell | null; isSrd?: boolean }>();
 const router = useRouter();
+
+const { mutateAsync: upsertSrdArt } = useUpsertSrdSpellArt();
+const isSrd = computed(() => !!props.isSrd);
 
 // ── Core fields ───────────────────────────────────────────────────────────────
 const name = ref(props.spell?.name ?? "");
@@ -1117,6 +1124,26 @@ const source = ref(props.spell?.source ?? "");
 const imageUrl = ref(props.spell?.image_url ?? "");
 const imageFocalPoint = ref(props.spell?.image_focal_point ?? null);
 const tags = ref<string[]>(props.spell?.tags ?? []);
+
+// When SRD art loads asynchronously, sync art fields from the updated prop
+watch(
+  () => props.spell,
+  (s) => {
+    if (isSrd.value && s) {
+      imageUrl.value = s.image_url ?? "";
+      imageFocalPoint.value = s.image_focal_point ?? null;
+    }
+  },
+);
+
+function onImageUrlUpdate(url: string | null) {
+  if (isSrd.value) upsertSrdArt({ srd_id: props.spell!.id, image_url: url });
+  else imageUrl.value = url ?? "";
+}
+function onImageFocalUpdate(pt: { x: number; y: number } | null) {
+  if (isSrd.value) upsertSrdArt({ srd_id: props.spell!.id, portrait_focal_point: pt });
+  else imageFocalPoint.value = pt;
+}
 
 // ── Mechanics ─────────────────────────────────────────────────────────────────
 const attackType = ref(props.spell?.attack_type ?? "");

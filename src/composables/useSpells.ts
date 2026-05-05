@@ -234,6 +234,23 @@ export function useSpell(id: string | Ref<string>) {
   });
 }
 
+export function useSrdSpell(id: Ref<string>) {
+  return useQuery({
+    queryKey: computed(() => [SRD_QUERY_KEY, id.value]),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("srd_spells")
+        .select("*")
+        .eq("id", id.value)
+        .single();
+      if (error) throw error;
+      return { ...data, user_id: "" } as Spell;
+    },
+    enabled: () => !!id.value,
+    staleTime: Infinity,
+  });
+}
+
 export function useCreateSpell() {
   const queryClient = useQueryClient();
   return useMutation({

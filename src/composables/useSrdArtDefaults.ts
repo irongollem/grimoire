@@ -39,7 +39,7 @@ async function fetchSrdArtDefaultStats(): Promise<SrdArtDefaultStats> {
   const user = getCurrentUser();
   if (!user) return { monsters: 0, spells: 0, items: 0 };
 
-  const [monstersRes, spellsRes, itemsRes] = await Promise.all([
+  const [monstersRes, spellsDefaultsRes, spellsArtRes, itemsRes] = await Promise.all([
     supabase
       .from("srd_monster_art")
       .select("*", { count: "exact", head: true })
@@ -51,6 +51,11 @@ async function fetchSrdArtDefaultStats(): Promise<SrdArtDefaultStats> {
       .eq("contributed_by", user.id)
       .eq("content_type", "spell"),
     supabase
+      .from("srd_spell_art")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("is_canonical", true),
+    supabase
       .from("srd_art_defaults")
       .select("*", { count: "exact", head: true })
       .eq("contributed_by", user.id)
@@ -58,12 +63,13 @@ async function fetchSrdArtDefaultStats(): Promise<SrdArtDefaultStats> {
   ]);
 
   if (monstersRes.error) throw monstersRes.error;
-  if (spellsRes.error) throw spellsRes.error;
+  if (spellsDefaultsRes.error) throw spellsDefaultsRes.error;
+  if (spellsArtRes.error) throw spellsArtRes.error;
   if (itemsRes.error) throw itemsRes.error;
 
   return {
     monsters: monstersRes.count ?? 0,
-    spells: spellsRes.count ?? 0,
+    spells: (spellsDefaultsRes.count ?? 0) + (spellsArtRes.count ?? 0),
     items: itemsRes.count ?? 0,
   };
 }

@@ -27,7 +27,7 @@
     <p v-else-if="error" class="text-destructive font-fell text-sm">Failed to load spell.</p>
     <template v-else>
       <SpellSheet v-if="!isEditing && spell" :spell="spell" />
-      <SpellDetail v-else :spell="spell ?? null" />
+      <SpellDetail v-else :spell="spell ?? null" :is-srd="isSrdId" />
     </template>
   </PageHeader>
 </template>
@@ -36,7 +36,8 @@
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { Pencil, Eye } from "lucide-vue-next";
-import { useSpell } from "@/composables/useSpells";
+import { useSpell, useSrdSpell } from "@/composables/useSpells";
+import { useSrdSpellArt } from "@/composables/useSrdSpellArt";
 import { spellLevelLabel } from "@/types/spell.types";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
@@ -54,6 +55,7 @@ const router = useRouter();
 
 const id = computed(() => route.params.id as string | undefined);
 const isNew = computed(() => !id.value || id.value === "new");
+const isSrdId = computed(() => !!id.value?.startsWith("srd_"));
 const isEditing = computed(() => (isNew.value || route.query.edit === "true") && canEdit.value);
 
 function startEditing() {
@@ -65,7 +67,23 @@ function stopEditing() {
   router.replace({ query: q });
 }
 
-const { data: spell, isLoading, error } = useSpell(computed(() => isNew.value ? "" : (id.value ?? "")));
+const srdId = computed(() => (isSrdId.value ? (id.value ?? "") : ""));
+const dbId  = computed(() => (!isSrdId.value && !isNew.value ? (id.value ?? "") : ""));
+
+const { data: srdSpell,  isLoading: srdLoading } = useSrdSpell(srdId);
+const { data: dbSpell,   isLoading: dbLoading, error } = useSpell(dbId);
+const { data: artMap } = useSrdSpellArt();
+
+const resolvedSrdSpell = computed(() => {
+  const s = srdSpell.value;
+  if (!s) return null;
+  const art = artMap.value?.[s.id];
+  if (!art) return s;
+  return { ...s, image_url: art.image_url ?? s.image_url, image_focal_point: art.portrait_focal_point ?? s.image_focal_point };
+});
+
+const spell     = computed(() => isSrdId.value ? resolvedSrdSpell.value : dbSpell.value);
+const isLoading = computed(() => isSrdId.value ? srdLoading.value : dbLoading.value);
 
 const subtitle = computed(() => {
   const s = spell.value;

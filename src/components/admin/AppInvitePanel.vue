@@ -191,6 +191,7 @@ import type { GrantedPlan } from "@/composables/useAppInvites";
 import { useBulkPublishSrdArtDefaults, useSrdArtDefaultStats, useSyncSrdSpellArtToSharedTable } from "@/composables/useSrdArtDefaults";
 import type { SrdArtDefaultStats } from "@/composables/useSrdArtDefaults";
 import { useBulkMarkSrdMonsterArtAsCanonical, useSyncSrdArtToSharedTable } from "@/composables/useSrdMonsterArt";
+import { useBulkMarkSrdSpellArtAsCanonical } from "@/composables/useSrdSpellArt";
 
 const open = ref(false);
 const invitesQuery = useAppInvites();
@@ -199,6 +200,7 @@ const deleteInvite = useDeleteAppInvite();
 const statsQuery = useSrdArtDefaultStats();
 const bulkPublish = useBulkPublishSrdArtDefaults();
 const bulkMarkMonsters  = useBulkMarkSrdMonsterArtAsCanonical();
+const bulkMarkSpells    = useBulkMarkSrdSpellArtAsCanonical();
 const syncArtToShared   = useSyncSrdArtToSharedTable();
 const syncSpellArt      = useSyncSrdSpellArtToSharedTable();
 const publishResult = ref<SrdArtDefaultStats | null>(null);
@@ -249,8 +251,9 @@ function handleCreate() {
 
 async function handlePublishArt() {
   publishResult.value = null;
-  const [monsterCount, contentResult] = await Promise.all([
+  const [monsterCount, spellArtCount, contentResult] = await Promise.all([
     bulkMarkMonsters.mutateAsync(),
+    bulkMarkSpells.mutateAsync(),
     bulkPublish.mutateAsync(),
   ]);
   // Sync canonical art into shared SRD tables
@@ -258,7 +261,7 @@ async function handlePublishArt() {
     syncArtToShared.mutateAsync(),
     syncSpellArt.mutateAsync(),
   ]);
-  publishResult.value = { monsters: monsterCount, spells: contentResult.spells, items: contentResult.items };
+  publishResult.value = { monsters: monsterCount, spells: contentResult.spells + spellArtCount, items: contentResult.items };
   statsQuery.refetch();
 }
 
