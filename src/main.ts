@@ -55,6 +55,21 @@ export const createApp = ViteSSG(
         document.addEventListener("visibilitychange", onWakeLockVisibilityChange);
       });
 
+      // File Handling API — handle .grimoire files opened from the OS (Chrome/Edge PWA only)
+      const lq = (window as Window & {
+        launchQueue?: { setConsumer: (fn: (p: { files: FileSystemFileHandle[] }) => void) => void };
+      }).launchQueue;
+      if (lq) {
+        lq.setConsumer(async ({ files }) => {
+          const [handle] = files;
+          if (!handle) return;
+          const file = await handle.getFile();
+          if (!file.name.endsWith(".grimoire")) return;
+          const { pendingBundleFile } = await import("./composables/usePendingBundle");
+          pendingBundleFile.value = file;
+        });
+      }
+
       // Service worker
       if ("serviceWorker" in navigator && import.meta.env.PROD) {
         window.addEventListener("load", () => {

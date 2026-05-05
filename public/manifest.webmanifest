@@ -19,5 +19,13 @@
   "theme_color": "#0b1525",
   "background_color": "#0b1525",
   "display": "standalone",
-  "start_url": "/"
+  "start_url": "/",
+  "file_handlers": [
+    {
+      "action": "/",
+      "accept": {
+        "application/x-grimoire": [".grimoire"]
+      }
+    }
+  ]
 }

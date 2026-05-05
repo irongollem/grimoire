@@ -6,6 +6,7 @@
     </component>
     <ConfirmDialog />
     <ManualRollPrompt />
+    <ImportBundleModal v-if="auth.isAuthenticated" v-model="bundleImportOpen" />
   </template>
 
   <!-- Pull-to-refresh indicator (touch devices only) -->
@@ -23,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
@@ -32,6 +33,8 @@ import PlayerLayout from "@/layouts/PlayerLayout.vue";
 import MarketingLayout from "@/layouts/MarketingLayout.vue";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
 import ManualRollPrompt from "@/components/common/ManualRollPrompt.vue";
+import ImportBundleModal from "@/components/campaign/ImportBundleModal.vue";
+import { pendingBundleFile } from "@/composables/usePendingBundle";
 import LoadingScreen from "@/components/auth/LoadingScreen.vue";
 import { useTheme } from "@/composables/useTheme";
 import { useAuthStore } from "@/stores/auth";
@@ -40,6 +43,9 @@ import { useCampaignById } from "@/composables/useCampaigns";
 import { usePullToRefresh } from "@/composables/usePullToRefresh";
 
 const auth = useAuthStore();
+
+const bundleImportOpen = ref(false);
+watch(pendingBundleFile, (f) => { if (f) bundleImportOpen.value = true; });
 const campaignStore = useCampaignStore();
 
 // Eagerly fetch the active campaign so it's hydrated before the app renders.

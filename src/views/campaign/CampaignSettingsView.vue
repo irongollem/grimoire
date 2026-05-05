@@ -73,6 +73,9 @@
         <div v-else-if="activeTab === 'backup'" class="max-w-lg">
           <BackupTab />
         </div>
+        <div v-else-if="activeTab === 'bundle'" class="max-w-lg">
+          <WorldBundleTab />
+        </div>
         <DangerZoneTab v-else-if="activeTab === 'danger'" />
       </main>
     </div>
@@ -102,6 +105,7 @@ import ClassesTab from "@/components/campaign/ClassesTab.vue";
 import AiTab from "@/components/campaign/AiTab.vue";
 import SpotifyTab from "@/components/campaign/SpotifyTab.vue";
 import BackupTab from "@/components/campaign/BackupTab.vue";
+import WorldBundleTab from "@/components/campaign/WorldBundleTab.vue";
 
 type SettingsTab =
   | "details"
@@ -112,6 +116,7 @@ type SettingsTab =
   | "ai"
   | "spotify"
   | "backup"
+  | "bundle"
   | "danger";
 
 const tabs: { id: SettingsTab; label: string }[] = [
@@ -123,6 +128,7 @@ const tabs: { id: SettingsTab; label: string }[] = [
   { id: "ai", label: "AI Assistant" },
   { id: "spotify", label: "Spotify" },
   { id: "backup", label: "Backup" },
+  { id: "bundle", label: "World Bundle" },
   { id: "danger", label: "Danger Zone" },
 ];
 
