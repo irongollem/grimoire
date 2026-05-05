@@ -43,7 +43,7 @@
             ? 'border-primary text-primary'
             : 'border-transparent text-muted-foreground hover:text-foreground'
         "
-        @click="activeTab = tab.id"
+        @click="setTab(tab.id)"
       >
         <component :is="tab.icon" class="h-3.5 w-3.5" />
         {{ tab.label }}
@@ -61,7 +61,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { Plus, Monitor, BookOpen, Scroll, BookMarked } from "lucide-vue-next";
 import { RouterLink } from "vue-router";
 import ScreenTab from "@/components/rules/ScreenTab.vue";
@@ -77,5 +78,18 @@ const TABS = [
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
-const activeTab = ref<TabId>("screen");
+
+const route = useRoute();
+const router = useRouter();
+
+const VALID_TABS = new Set<string>(TABS.map((t) => t.id));
+
+const activeTab = computed<TabId>(() => {
+  const q = route.query.tab;
+  return VALID_TABS.has(q as string) ? (q as TabId) : "screen";
+});
+
+function setTab(id: TabId) {
+  router.replace({ query: { ...route.query, tab: id, page: undefined } });
+}
 </script>

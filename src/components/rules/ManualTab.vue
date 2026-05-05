@@ -18,7 +18,7 @@
           :key="page.id"
           class="text-left px-2.5 py-1.5 rounded-md font-fell text-sm transition-colors"
           :class="selectedId === page.id ? 'bg-primary/10 text-primary font-semibold' : 'text-foreground hover:bg-muted/60'"
-          @click="selectedId = page.id"
+          @click="selectPage(page.id)"
         >{{ page.title }}</button>
         <p v-if="!searchResults.length" class="font-fell text-xs text-muted-foreground italic px-1">No matches.</p>
       </template>
@@ -33,14 +33,15 @@
             :key="page.id"
             class="w-full text-left px-2.5 py-1.5 rounded-md font-fell text-sm transition-colors"
             :class="selectedId === page.id ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'"
-            @click="selectedId = page.id"
+            @click="selectPage(page.id)"
           >{{ page.title }}</button>
         </div>
       </template>
     </div>
 
     <!-- Content -->
-    <div class="flex-1 overflow-y-auto px-4 pt-4 pb-4 md:px-6 md:pt-6">
+    <div ref="contentEl" class="flex-1 overflow-y-auto px-4 pt-4 pb-4 md:px-6 md:pt-6">
+      <!-- Page content -->
       <div v-if="selectedPage" class="max-w-3xl space-y-4">
         <div>
           <p class="font-cinzel text-[10px] font-bold tracking-widest text-muted-foreground uppercase mb-1">
@@ -56,21 +57,57 @@
           v-html="selectedPage.html"
         />
       </div>
-      <div v-else class="flex items-center justify-center h-full text-muted-foreground font-fell text-sm italic">
-        Select a topic from the sidebar.
+
+      <!-- Welcome CTA — shown when no pages are loaded -->
+      <div v-else class="flex items-center justify-center h-full">
+        <div class="max-w-sm text-center space-y-4 px-4">
+          <BookMarked class="h-10 w-10 text-primary/60 mx-auto" />
+          <div>
+            <h3 class="font-cinzel text-base font-bold text-foreground">New to Grimoire?</h3>
+            <p class="font-fell text-sm text-muted-foreground mt-1">
+              The DM Manual walks you through every feature — from setting up your first campaign to running live combat.
+            </p>
+          </div>
+          <button
+            v-if="introPageId"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground font-cinzel text-xs font-semibold tracking-wide hover:bg-primary/90 transition-colors"
+            @click="selectPage(introPageId)"
+          >
+            <BookOpen class="h-3.5 w-3.5" />
+            Start with the Introduction
+          </button>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import { Search } from "lucide-vue-next";
+import { ref, computed, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { Search, BookMarked, BookOpen } from "lucide-vue-next";
 import { manualSections } from "@/lib/manualLoader";
+
+const route = useRoute();
+const router = useRouter();
 
 const allPages = computed(() => manualSections.flatMap((s) => s.pages));
 
-const selectedId = ref(allPages.value[0]?.id ?? "");
+// The first page (Welcome to Grimoire / Getting Started) serves as the intro.
+const introPageId = computed(() => allPages.value[0]?.id ?? "");
+
+// selectedId is driven by the ?page= query param; falls back to the first page.
+const selectedId = computed(() => {
+  const q = route.query.page as string | undefined;
+  return q && allPages.value.some((p) => p.id === q) ? q : (allPages.value[0]?.id ?? "");
+});
+
+const contentEl = ref<HTMLElement | null>(null);
+
+watch(selectedId, () => {
+  contentEl.value?.scrollTo({ top: 0 });
+});
+
 const search = ref("");
 
 const searchResults = computed(() => {
@@ -89,6 +126,10 @@ const selectedPage = computed(() => allPages.value.find((p) => p.id === selected
 const selectedSection = computed(() =>
   manualSections.find((s) => s.pages.some((p) => p.id === selectedId.value)),
 );
+
+function selectPage(id: string) {
+  router.replace({ query: { ...route.query, page: id } });
+}
 </script>
 
 <style scoped>
