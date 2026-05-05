@@ -75,5 +75,11 @@ export interface AiCreditLedgerRow {
   reason: string
   stripe_payment_intent_id: string | null
   subscription_period_start: string | null
+  model: string | null
+  provider: string | null
+  input_tokens: number | null
+  output_tokens: number | null
+  image_count: number | null
+  is_byok: boolean
   created_at: string
 }

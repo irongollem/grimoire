@@ -2,6 +2,7 @@ import { ref } from "vue";
 import { getTextProvider } from "./providers";
 import { useCampaignStore } from "@/stores/campaign";
 import { wrapUserInput } from "./utils";
+import { logUsage } from "@/composables/useAiCredits";
 
 const ENHANCE_SYSTEM_PROMPT = `You are a writing assistant for a tabletop RPG campaign. Rewrite the provided text as vivid, immersive D&D prose. Preserve all facts — do not add or remove story information. Match the tone and register of the surrounding context (backstory, session note, location description, etc.).
 
@@ -47,7 +48,9 @@ export function useTextEnhancement() {
     isEnhancing.value = true;
     try {
       const provider = getTextProvider();
-      return await provider.complete(systemPrompt, wrapUserInput(selectedText));
+      const { content, usage: textUsage } = await provider.complete(systemPrompt, wrapUserInput(selectedText));
+      logUsage({ reason: "text_enhancement", textUsage });
+      return content;
     } finally {
       isEnhancing.value = false;
     }

@@ -8,6 +8,7 @@ import type { ChroniclerSize } from "@/types/chronicler.types";
 import type { Npc } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
+import { logUsage } from "@/composables/useAiCredits";
 
 // ── Entity mention extraction ─────────────────────────────────────────────────
 
@@ -258,6 +259,8 @@ export async function generateChroniclerImage(params: {
     }
     b64 = (await res.json()).data[0].b64_json as string;
   }
+
+  logUsage({ reason: "chronicler_image", imageUsage: { model: imageModel, provider: "openai", image_count: 1 } });
 
   // Upload to chronicle bucket
   const blob = b64ToBlob(b64, "image/webp");

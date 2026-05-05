@@ -78,6 +78,13 @@
         <p v-if="successMessage" class="text-sm text-elven-green font-fell">{{ successMessage }}</p>
         <p v-if="errorMessage" class="text-sm text-destructive font-fell">{{ errorMessage }}</p>
 
+        <p class="font-fell text-xs text-muted-foreground italic">
+          By creating an account you agree to our
+          <RouterLink to="/terms" class="underline hover:text-foreground transition-colors">Terms of Service</RouterLink>
+          and
+          <RouterLink to="/privacy" class="underline hover:text-foreground transition-colors">Privacy Policy</RouterLink>.
+        </p>
+
         <button
           type="submit"
           :disabled="auth.loading || !!successMessage"
@@ -99,7 +106,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, RouterLink } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { supabase } from "@/lib/supabase";
 

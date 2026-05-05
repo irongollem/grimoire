@@ -1,12 +1,14 @@
-import type { TextProvider, ImageProvider } from "./types";
+import type { TextProvider, ImageProvider, TextUsage, ImageUsage } from "./types";
 
 const CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const IMAGE_URL = "https://api.openai.com/v1/images/generations";
 const EDIT_URL = "https://api.openai.com/v1/images/edits";
 
+const MODEL = "gpt-4o-mini";
+
 export function createOpenAiTextProvider(apiKey: string): TextProvider {
   return {
-    async complete(systemPrompt: string, userPrompt: string): Promise<string> {
+    async complete(systemPrompt: string, userPrompt: string) {
       const res = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
@@ -14,7 +16,7 @@ export function createOpenAiTextProvider(apiKey: string): TextProvider {
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: MODEL,
           response_format: { type: "json_object" },
           messages: [
             { role: "system", content: systemPrompt },
@@ -27,7 +29,13 @@ export function createOpenAiTextProvider(apiKey: string): TextProvider {
         throw new Error(body?.error?.message ?? `OpenAI error ${res.status}`);
       }
       const data = await res.json();
-      return data.choices[0].message.content as string;
+      const usage: TextUsage = {
+        input_tokens:  data.usage?.prompt_tokens     ?? 0,
+        output_tokens: data.usage?.completion_tokens  ?? 0,
+        model: MODEL,
+        provider: "openai",
+      };
+      return { content: data.choices[0].message.content as string, usage };
     },
   };
 }
@@ -36,38 +44,33 @@ export function createOpenAiImageProvider(
   apiKey: string,
   model: "gpt-image-2" | "gpt-image-1.5" | "gpt-image-1-mini" = "gpt-image-2",
 ): ImageProvider {
+  const baseUsage: Omit<ImageUsage, "image_count"> = { model, provider: "openai" };
+
   return {
-    async generate(prompt: string, size: string): Promise<string> {
+    async generate(prompt: string, size: string) {
       const res = await fetch(IMAGE_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
-        body: JSON.stringify({
-          model,
-          prompt,
-          size,
-          output_format: "webp",
-        }),
+        body: JSON.stringify({ model, prompt, size, output_format: "webp" }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(
-          body?.error?.message ?? `Image generation error ${res.status}`,
-        );
+        throw new Error(body?.error?.message ?? `Image generation error ${res.status}`);
       }
       const data = await res.json();
-      return data.data?.[0]?.b64_json as string;
+      return {
+        b64: data.data?.[0]?.b64_json as string,
+        usage: { ...baseUsage, image_count: 1 },
+      };
     },
 
-    async edit(source: Blob, prompt: string, size: string): Promise<string> {
+    async edit(source: Blob, prompt: string, size: string) {
       const form = new FormData();
       form.append("model", model);
-      form.append(
-        "image[]",
-        new File([source], "portrait.webp", { type: "image/webp" }),
-      );
+      form.append("image[]", new File([source], "portrait.webp", { type: "image/webp" }));
       form.append("prompt", prompt);
       form.append("size", size);
       form.append("output_format", "webp");
@@ -79,12 +82,13 @@ export function createOpenAiImageProvider(
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(
-          body?.error?.message ?? `Image edit error ${res.status}`,
-        );
+        throw new Error(body?.error?.message ?? `Image edit error ${res.status}`);
       }
       const data = await res.json();
-      return data.data?.[0]?.b64_json as string;
+      return {
+        b64: data.data?.[0]?.b64_json as string,
+        usage: { ...baseUsage, image_count: 1 },
+      };
     },
   };
 }

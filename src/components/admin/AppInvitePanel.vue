@@ -176,6 +176,57 @@
               No active invite links.
             </p>
           </div>
+
+          <div class="border-t border-border" />
+
+          <!-- AI Usage Stats -->
+          <div class="space-y-3">
+            <h3 class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              AI Usage Stats
+            </h3>
+
+            <div v-if="usageStats.isPending.value" class="text-center py-4">
+              <div class="h-5 w-5 rounded-full border-2 border-primary border-t-transparent animate-spin mx-auto" />
+            </div>
+
+            <template v-else>
+              <div class="grid grid-cols-3 gap-2">
+                <div class="rounded-md bg-muted/30 border border-border px-3 py-2 text-center">
+                  <p class="font-cinzel text-base font-bold text-foreground">{{ usageStats.totalGenerations.value }}</p>
+                  <p class="font-fell text-[11px] text-muted-foreground italic">Total gens</p>
+                </div>
+                <div class="rounded-md bg-muted/30 border border-border px-3 py-2 text-center">
+                  <p class="font-cinzel text-base font-bold text-foreground">${{ usageStats.totalEstimatedCostUsd.value.toFixed(2) }}</p>
+                  <p class="font-fell text-[11px] text-muted-foreground italic">Est. cost (USD)</p>
+                </div>
+                <div class="rounded-md bg-muted/30 border border-border px-3 py-2 text-center">
+                  <p class="font-cinzel text-base font-bold text-foreground">{{ usageStats.byokCount.value }}</p>
+                  <p class="font-fell text-[11px] text-muted-foreground italic">BYOK gens</p>
+                </div>
+              </div>
+
+              <div v-if="usageStats.modelStats.value.length" class="space-y-1">
+                <div
+                  v-for="stat in usageStats.modelStats.value"
+                  :key="stat.model"
+                  class="flex items-center gap-2 rounded-md bg-muted/20 px-2.5 py-1.5"
+                >
+                  <div class="flex-1 min-w-0">
+                    <span class="font-cinzel text-xs font-semibold text-foreground">{{ stat.model }}</span>
+                    <span class="font-fell text-[11px] text-muted-foreground italic ml-1">· {{ stat.provider }}</span>
+                  </div>
+                  <span class="font-fell text-xs text-muted-foreground shrink-0">{{ stat.count }}×</span>
+                  <span class="font-cinzel text-xs text-foreground shrink-0 w-16 text-right">
+                    ${{ stat.estimated_cost_usd.toFixed(3) }}
+                  </span>
+                </div>
+              </div>
+
+              <p v-else class="font-fell text-xs text-muted-foreground italic">
+                No generation data yet.
+              </p>
+            </template>
+          </div>
         </div>
       </div>
     </div>
@@ -192,9 +243,11 @@ import { useBulkPublishSrdArtDefaults, useSrdArtDefaultStats, useSyncSrdSpellArt
 import type { SrdArtDefaultStats } from "@/composables/useSrdArtDefaults";
 import { useBulkMarkSrdMonsterArtAsCanonical, useSyncSrdArtToSharedTable } from "@/composables/useSrdMonsterArt";
 import { useBulkMarkSrdSpellArtAsCanonical } from "@/composables/useSrdSpellArt";
+import { useAiUsageStats } from "@/composables/useAiUsageStats";
 
 const open = ref(false);
 const invitesQuery = useAppInvites();
+const usageStats = useAiUsageStats();
 const createInvite = useCreateAppInvite();
 const deleteInvite = useDeleteAppInvite();
 const statsQuery = useSrdArtDefaultStats();

@@ -6,6 +6,7 @@ import { parseSceneEntities, type ResolvedEntity } from "./useChroniclerImageGen
 import type { Npc } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
+import { logUsage } from "@/composables/useAiCredits";
 
 export type ChroniclerTone = "dramatic" | "humorous" | "mysterious" | "epic";
 
@@ -90,9 +91,10 @@ export function useChroniclerTextGeneration() {
     error.value = null;
     try {
       const provider = getTextProvider();
-      const result = await provider.complete(systemPrompt, wrapUserInput(rawText));
-      const parsed = JSON.parse(result) as { chronicle?: string };
-      return parsed.chronicle ?? result;
+      const { content, usage: textUsage } = await provider.complete(systemPrompt, wrapUserInput(rawText));
+      const parsed = JSON.parse(content) as { chronicle?: string };
+      logUsage({ reason: "chronicler_text", textUsage });
+      return parsed.chronicle ?? content;
     } catch (e) {
       error.value = e instanceof Error ? e.message : "Generation failed.";
       throw e;

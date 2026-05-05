@@ -17,6 +17,8 @@ import { useUiStore } from "@/stores/ui";
 import { getTextProvider, getImageProvider } from "./providers";
 import { b64ToBlob, wrapUserInput } from "./utils";
 import { useCampaignStore } from "@/stores/campaign";
+import { logUsage } from "@/composables/useAiCredits";
+import type { TextUsage, ImageUsage } from "./providers/types";
 
 const MAP_BASE_PROMPT =
   "Top-down fantasy cartography map. Hand-drawn ink style, bird's-eye view, clean linework, labeled zones, hatching for walls and elevation, minimal colour. Readable as a functional map, not a painting.";
@@ -56,6 +58,9 @@ export function useLocationGeneration() {
     startAiQuotes();
 
     const settingPrompt = campaign.activeCampaign?.ai_setting_prompt ?? "";
+    let textUsage: TextUsage | undefined;
+    let totalImageCount = 0;
+    let lastImgUsage: ImageUsage | undefined;
 
     try {
       const textProvider = getTextProvider();
@@ -74,9 +79,9 @@ export function useLocationGeneration() {
         ? `${wrappedPrompt}\n\nConstraints:\n${constraints.join("\n")}`
         : wrappedPrompt;
 
-      const locationData = JSON.parse(
-        await textProvider.complete(systemContent, userContent),
-      ) as LocationAiResult;
+      const { content, usage: _textUsage } = await textProvider.complete(systemContent, userContent);
+      textUsage = _textUsage;
+      const locationData = JSON.parse(content) as LocationAiResult;
 
       // ── Art + map in parallel ───────────────────────────────────────────────
       if (options?.generateImage !== false || options?.generateMap) {
@@ -90,7 +95,9 @@ export function useLocationGeneration() {
             const imagePrompt = [IMAGE_BASE_PROMPT, settingPrompt, locationData.image_prompt]
               .filter(Boolean)
               .join(" — ");
-            const b64 = await imageProvider.generate(imagePrompt, "1024x1024");
+            const { b64, usage } = await imageProvider.generate(imagePrompt, "1024x1024");
+            lastImgUsage = usage;
+            totalImageCount++;
             if (!b64) return null;
             return await uploadWithVariants({
               bucket: "locationImages",
@@ -107,7 +114,9 @@ export function useLocationGeneration() {
             const mapPrompt = [MAP_BASE_PROMPT, locationData.map_prompt]
               .filter(Boolean)
               .join(" — ");
-            const b64 = await imageProvider.generate(mapPrompt, "1024x1024");
+            const { b64, usage } = await imageProvider.generate(mapPrompt, "1024x1024");
+            lastImgUsage = usage;
+            totalImageCount++;
             if (!b64) return null;
             return await uploadWithVariants({
               bucket: "locationImages",
@@ -120,6 +129,10 @@ export function useLocationGeneration() {
         })(),
       ]);
 
+      const imgUsage: ImageUsage | undefined = lastImgUsage
+        ? { ...lastImgUsage, image_count: totalImageCount }
+        : undefined;
+      logUsage({ reason: "location_generation", textUsage, imageUsage: imgUsage });
       return { ...locationData, image_url, map_url };
     } catch (e) {
       _state.error.value = e instanceof Error ? e.message : "Generation failed";

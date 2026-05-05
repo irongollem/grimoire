@@ -3,6 +3,28 @@ import { useQuery } from '@tanstack/vue-query'
 import { supabase } from '@/lib/supabase'
 import type { AiGenerationType, CreditPackId } from '@/types/subscription.types'
 import { CREDIT_COST } from '@/types/subscription.types'
+import type { TextUsage, ImageUsage } from '@/ai/providers/types'
+
+/** Log a BYOK generation for cost analytics. Fire-and-forget — never blocks the caller. */
+export function logUsage(params: {
+  reason: string;
+  textUsage?: TextUsage;
+  imageUsage?: ImageUsage;
+}): void {
+  const { reason, textUsage, imageUsage } = params
+  supabase.functions.invoke('deduct-ai-credit', {
+    body: {
+      reason,
+      amount: 0,
+      is_byok: true,
+      model:         textUsage?.model    ?? imageUsage?.model,
+      provider:      textUsage?.provider ?? imageUsage?.provider,
+      input_tokens:  textUsage?.input_tokens,
+      output_tokens: textUsage?.output_tokens,
+      image_count:   imageUsage?.image_count,
+    },
+  }).catch(() => { /* analytics logging failure is never fatal */ })
+}
 
 async function fetchBalance(): Promise<number> {
   const { data: { user } } = await supabase.auth.getUser()
@@ -69,6 +91,7 @@ export function useAiCredits() {
     isLoading,
     canGenerate,
     deductCredit,
+    logUsage: logUsage,
     purchasePack,
     purchaseLoading,
     purchaseError,

@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-background px-4">
+  <div class="min-h-screen flex flex-col items-center justify-center bg-background px-4">
     <!-- Subtle parchment texture overlay -->
     <div
       class="absolute inset-0 pointer-events-none opacity-5"
@@ -21,6 +21,27 @@
       <div class="rounded-lg border border-border bg-card p-8 shadow-gold-glow">
         <slot />
       </div>
+
+      <!-- Legal footer -->
+      <div class="mt-6 flex items-center justify-center gap-5">
+        <RouterLink
+          to="/privacy"
+          class="font-cinzel text-[11px] tracking-wide text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Privacy Policy
+        </RouterLink>
+        <span class="text-border text-xs">·</span>
+        <RouterLink
+          to="/terms"
+          class="font-cinzel text-[11px] tracking-wide text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Terms of Service
+        </RouterLink>
+      </div>
     </div>
   </div>
 </template>
+
+<script setup lang="ts">
+import { RouterLink } from "vue-router";
+</script>

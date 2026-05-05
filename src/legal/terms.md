@@ -1,0 +1,110 @@
+# Terms of Service
+
+**Grimoire** is operated by CroCode BV (info@dungeongrimoire.com), a private limited company registered in the Netherlands.  
+**Last updated:** May 2026
+
+---
+
+## 1. Acceptance
+
+By creating an account or using Grimoire at **dungeongrimoire.com** you agree to these Terms of Service. If you do not agree, do not use the service.
+
+---
+
+## 2. The service
+
+Grimoire is a campaign management tool for tabletop role-playing games. It lets Dungeon Masters and players manage campaigns, characters, NPCs, encounters, and related content, with optional AI generation features.
+
+The service is provided on an **invite-only** basis. Access requires a valid invite link issued by an existing user or by Grimoire itself.
+
+---
+
+## 3. Your account
+
+- You must provide accurate information when registering.
+- You are responsible for keeping your credentials secure. Do not share your password.
+- You may not create accounts for others or use automated means to register.
+- One account per person. Duplicate accounts may be removed.
+
+---
+
+## 4. Acceptable use
+
+You agree not to:
+
+- Use the service for unlawful purposes or in violation of any applicable law.
+- Attempt to gain unauthorised access to our systems or other users' accounts.
+- Upload malware, spam, or content that violates third-party intellectual property rights.
+- Reverse-engineer, scrape, or abuse the API.
+- Use the service to generate content that is illegal, abusive, or violates the guidelines of any AI provider you have connected.
+
+We reserve the right to suspend or terminate accounts that violate these rules.
+
+---
+
+## 5. AI features and Bring Your Own Key (BYOK)
+
+Grimoire includes optional AI-powered generation features (NPC portraits, stat blocks, campaign text, etc.).
+
+- **BYOK:** You may connect your own API key from OpenAI, Anthropic, Google, or fal.ai. By doing so, you agree to the terms and acceptable-use policies of those providers, and you are responsible for any costs they charge.
+- **Your API key** is stored encrypted and is only used to fulfil your generation requests. We do not use it for any other purpose.
+- **Local-only key mode:** In Campaign Settings you may choose to store your API key exclusively in your browser's local storage. In this mode your key is never transmitted to CroCode BV's servers — all generation requests travel directly between your browser and the AI provider. You remain responsible for securing your local device and for the costs incurred with the provider.
+- AI-generated content may be inaccurate, incomplete, or inappropriate. You are responsible for reviewing and using it appropriately.
+- We make no guarantee about the availability, quality, or cost of third-party AI services.
+
+---
+
+## 6. AI credits
+
+Some AI features require **AI credits** (platform-managed keys, when available). Credits are purchased in advance and are non-refundable once consumed. Unused credits do not expire. Credit costs per generation type are listed in the app and may change; we will give reasonable notice before changing prices.
+
+---
+
+## 7. Your content
+
+You retain ownership of all content you create in Grimoire (campaign notes, characters, maps, etc.). By using the service, you grant us a limited licence to store and process your content solely to provide the service to you.
+
+We will not access your campaign content except to resolve a technical support request you have initiated, or as required by law.
+
+---
+
+## 8. Open source
+
+Grimoire's source code is publicly available on GitHub under its stated licence. Nothing in these terms limits your rights under that licence with respect to the code itself.
+
+---
+
+## 9. Service availability
+
+We aim to provide a reliable service but make no uptime guarantees. The service is provided **"as is"**. We may perform maintenance, change features, or discontinue the service with reasonable notice.
+
+---
+
+## 10. Limitation of liability
+
+To the fullest extent permitted by Dutch law, CroCode BV is not liable for:
+
+- Loss of data (back up your campaign data using the export feature).
+- Indirect, incidental, or consequential damages.
+- Costs incurred through your use of third-party AI providers.
+
+Our total liability to you for any claim is limited to the amount you paid us in the 12 months preceding the claim.
+
+---
+
+## 11. Governing law and disputes
+
+These terms are governed by the laws of the **Netherlands**. Any disputes will be submitted to the competent court in the Netherlands. If you are a consumer in the EU, you may also use the [EU Online Dispute Resolution platform](https://ec.europa.eu/consumers/odr/).
+
+---
+
+## 12. Changes to these terms
+
+We may update these terms from time to time. We will notify you of material changes by email or in-app notice at least 14 days before they take effect. Continued use of the service after that date constitutes acceptance.
+
+---
+
+## 13. Contact
+
+**CroCode BV**  
+info@dungeongrimoire.com

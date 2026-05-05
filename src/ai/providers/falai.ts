@@ -1,4 +1,4 @@
-import type { ImageProvider } from "./types";
+import type { ImageProvider, ImageUsage } from "./types";
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
@@ -11,7 +11,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 
 export function createFalAiImageProvider(apiKey: string, model = "fal-ai/flux-2/flex"): ImageProvider {
   return {
-    async generate(prompt: string, _size: string): Promise<string> {
+    async generate(prompt: string, _size: string) {
       const res = await fetch(`https://fal.run/${model}`, {
         method: "POST",
         headers: {
@@ -27,7 +27,9 @@ export function createFalAiImageProvider(apiKey: string, model = "fal-ai/flux-2/
       const { images } = await res.json();
       const imgRes = await fetch(images[0].url);
       if (!imgRes.ok) throw new Error(`fal.ai image fetch error ${imgRes.status}`);
-      return arrayBufferToBase64(await imgRes.arrayBuffer());
+      const b64 = arrayBufferToBase64(await imgRes.arrayBuffer());
+      const usage: ImageUsage = { model, provider: "falai", image_count: 1 };
+      return { b64, usage };
     },
     // No edit() — alter-ego disguise is skipped when this provider is active
   };

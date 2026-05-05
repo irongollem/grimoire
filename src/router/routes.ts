@@ -37,6 +37,20 @@ export const routes: RouteRecordRaw[] = [
     meta: { layout: "auth" },
   },
 
+  // ── Legal (public, accessible to everyone) ────────────────────────────
+  {
+    path: "/privacy",
+    name: "privacy",
+    component: () => import("@/views/legal/LegalView.vue"),
+    meta: { layout: "marketing", doc: "privacy", title: "Privacy Policy" },
+  },
+  {
+    path: "/terms",
+    name: "terms",
+    component: () => import("@/views/legal/LegalView.vue"),
+    meta: { layout: "marketing", doc: "terms", title: "Terms of Service" },
+  },
+
   // ── Player portal ─────────────────────────────────────────────────────
   {
     path: "/play",

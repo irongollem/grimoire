@@ -17,6 +17,8 @@ import { useUiStore } from "@/stores/ui";
 import { getTextProvider, getImageProvider } from "./providers";
 import { b64ToBlob, wrapUserInput } from "./utils";
 import { useCampaignStore } from "@/stores/campaign";
+import { logUsage } from "@/composables/useAiCredits";
+import type { TextUsage, ImageUsage } from "./providers/types";
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
@@ -54,6 +56,8 @@ export function useFactionGeneration() {
     startAiQuotes();
 
     const settingPrompt = campaign.activeCampaign?.ai_setting_prompt ?? "";
+    let textUsage: TextUsage | undefined;
+    let imgUsage: ImageUsage | undefined;
 
     try {
       const textProvider = getTextProvider();
@@ -73,9 +77,9 @@ export function useFactionGeneration() {
         ? `${wrappedPrompt}\n\nConstraints:\n${constraints.join("\n")}`
         : wrappedPrompt;
 
-      const factionData = JSON.parse(
-        await textProvider.complete(systemContent, userContent),
-      ) as FactionAiResult;
+      const { content, usage: _textUsage } = await textProvider.complete(systemContent, userContent);
+      textUsage = _textUsage;
+      const factionData = JSON.parse(content) as FactionAiResult;
 
       // ── Emblem ─────────────────────────────────────────────────────────────
       let image_url: string | null = null;
@@ -86,7 +90,8 @@ export function useFactionGeneration() {
             .filter(Boolean)
             .join(" — ");
           const imageProvider = getImageProvider();
-          const b64 = await imageProvider.generate(imagePrompt, "1024x1024");
+          const { b64, usage: _imgUsage } = await imageProvider.generate(imagePrompt, "1024x1024");
+          imgUsage = _imgUsage;
           if (b64) {
             image_url = await uploadWithVariants({
               bucket: "factionImages",
@@ -99,6 +104,7 @@ export function useFactionGeneration() {
         }
       }
 
+      logUsage({ reason: "faction_generation", textUsage, imageUsage: imgUsage });
       return { ...factionData, image_url };
     } catch (e) {
       _state.error.value = e instanceof Error ? e.message : "Generation failed";

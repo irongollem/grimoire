@@ -17,6 +17,8 @@ import { useUiStore } from "@/stores/ui";
 import { getTextProvider, getImageProvider } from "./providers";
 import { b64ToBlob, wrapUserInput } from "./utils";
 import { useCampaignStore } from "@/stores/campaign";
+import { logUsage } from "@/composables/useAiCredits";
+import type { TextUsage, ImageUsage } from "./providers/types";
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
@@ -52,6 +54,8 @@ export function usePuzzleGeneration() {
     startAiQuotes();
 
     const settingPrompt = campaign.activeCampaign?.ai_setting_prompt ?? "";
+    let textUsage: TextUsage | undefined;
+    let imgUsage: ImageUsage | undefined;
 
     try {
       const textProvider = getTextProvider();
@@ -72,9 +76,9 @@ export function usePuzzleGeneration() {
         ? `${wrappedPrompt}\n\nConstraints:\n${constraints.join("\n")}`
         : wrappedPrompt;
 
-      const puzzleData = JSON.parse(
-        await textProvider.complete(systemContent, userContent),
-      ) as PuzzleAiResult;
+      const { content, usage: _textUsage } = await textProvider.complete(systemContent, userContent);
+      textUsage = _textUsage;
+      const puzzleData = JSON.parse(content) as PuzzleAiResult;
 
       // ── 2. Generate room illustration ─────────────────────────────────
       let image_url: string | null = null;
@@ -90,7 +94,8 @@ export function usePuzzleGeneration() {
           .join(" — ");
 
         try {
-          const b64 = await imageProvider.generate(imagePrompt, "1024x1536");
+          const { b64, usage: _imgUsage } = await imageProvider.generate(imagePrompt, "1024x1536");
+          imgUsage = _imgUsage;
 
           if (b64) {
             image_url = await uploadWithVariants({
@@ -104,6 +109,7 @@ export function usePuzzleGeneration() {
         }
       }
 
+      logUsage({ reason: "puzzle_generation", textUsage, imageUsage: imgUsage });
       return { ...puzzleData, image_url };
     } catch (e) {
       _state.error.value = e instanceof Error ? e.message : "Generation failed";

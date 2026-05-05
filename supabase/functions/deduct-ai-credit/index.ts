@@ -24,7 +24,6 @@ serve(async (req: Request) => {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  // Verify user via JWT
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_ANON_KEY")!,
@@ -37,16 +36,52 @@ serve(async (req: Request) => {
 
   let reason: string;
   let amount: number;
+  let is_byok: boolean;
+  let model: string | undefined;
+  let provider: string | undefined;
+  let input_tokens: number | undefined;
+  let output_tokens: number | undefined;
+  let image_count: number | undefined;
+
   try {
     const body = await req.json();
     reason = body.reason;
     amount = Number(body.amount ?? 1);
-    if (!reason || amount < 1) throw new Error("invalid");
+    is_byok = body.is_byok === true;
+    model = body.model ?? undefined;
+    provider = body.provider ?? undefined;
+    input_tokens = body.input_tokens != null ? Number(body.input_tokens) : undefined;
+    output_tokens = body.output_tokens != null ? Number(body.output_tokens) : undefined;
+    image_count = body.image_count != null ? Number(body.image_count) : undefined;
+    if (!reason || (!is_byok && amount < 1)) throw new Error("invalid");
   } catch {
     return new Response("Invalid body — need { reason, amount }", { status: 400 });
   }
 
-  // Check balance atomically — read and write using service role to bypass RLS
+  if (is_byok) {
+    // BYOK: user pays their own API cost — just log the generation for analytics, no credit deduction.
+    const { error } = await admin.from("ai_credit_ledger").insert({
+      user_id: user.id,
+      delta: 0,
+      reason,
+      is_byok: true,
+      model,
+      provider,
+      input_tokens,
+      output_tokens,
+      image_count,
+    });
+    if (error) {
+      console.error("Failed to log BYOK usage:", error);
+      return new Response("Internal server error", { status: 500 });
+    }
+    return new Response(
+      JSON.stringify({ ok: true, byok: true }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  // Platform-key path: check balance and deduct.
   const { data: balanceRow } = await admin
     .from("ai_credit_balance")
     .select("balance")
@@ -66,6 +101,12 @@ serve(async (req: Request) => {
     user_id: user.id,
     delta: -amount,
     reason,
+    is_byok: false,
+    model,
+    provider,
+    input_tokens,
+    output_tokens,
+    image_count,
   });
 
   if (error) {

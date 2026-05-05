@@ -12,6 +12,8 @@ import { useUiStore } from "@/stores/ui";
 import { getTextProvider, getImageProvider } from "./providers";
 import { b64ToBlob, wrapUserInput } from "./utils";
 import { useCampaignStore } from "@/stores/campaign";
+import { logUsage } from "@/composables/useAiCredits";
+import type { TextUsage, ImageUsage } from "./providers/types";
 
 export interface MonsterGenerationOptions {
   challenge_rating?: string;
@@ -48,6 +50,8 @@ export function useMonsterGeneration() {
     startAiQuotes();
 
     const settingPrompt = campaign.activeCampaign?.ai_setting_prompt ?? "";
+    let textUsage: TextUsage | undefined;
+    let imgUsage: ImageUsage | undefined;
 
     try {
       const textProvider = getTextProvider();
@@ -67,9 +71,9 @@ export function useMonsterGeneration() {
         ? `${wrappedPrompt}\n\n[Constraints — use exactly these values in the stat block: ${constraints.join(", ")}]`
         : wrappedPrompt;
 
-      const result = JSON.parse(
-        await textProvider.complete(systemContent, fullPrompt),
-      ) as MonsterAiResult;
+      const { content, usage: _textUsage } = await textProvider.complete(systemContent, fullPrompt);
+      textUsage = _textUsage;
+      const result = JSON.parse(content) as MonsterAiResult;
 
       // Honour explicit user overrides
       if (options?.challenge_rating) result.stat_block.challenge_rating = options.challenge_rating;
@@ -86,7 +90,8 @@ export function useMonsterGeneration() {
           .filter(Boolean)
           .join(" — ");
 
-        const b64 = await imageProvider.generate(imagePrompt, "1024x1536");
+        const { b64, usage: _imgUsage } = await imageProvider.generate(imagePrompt, "1024x1536");
+        imgUsage = _imgUsage;
 
         // ── 3. Upload to Supabase storage ─────────────────────────────
         if (b64 && auth.user) {
@@ -94,6 +99,7 @@ export function useMonsterGeneration() {
         }
       }
 
+      logUsage({ reason: "monster_generation", textUsage, imageUsage: imgUsage });
       return { ...result, image_url };
     } catch (e) {
       _state.error.value = e instanceof Error ? e.message : "Generation failed";

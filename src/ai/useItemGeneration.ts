@@ -12,6 +12,8 @@ import { useUiStore } from "@/stores/ui";
 import { getTextProvider, getImageProvider } from "./providers";
 import { b64ToBlob, wrapUserInput } from "./utils";
 import { useCampaignStore } from "@/stores/campaign";
+import { logUsage } from "@/composables/useAiCredits";
+import type { TextUsage, ImageUsage } from "./providers/types";
 
 export interface ItemGenerationOptions {
   item_type?: string;
@@ -48,6 +50,8 @@ export function useItemGeneration() {
     startAiQuotes();
 
     const settingPrompt = campaign.activeCampaign?.ai_setting_prompt ?? "";
+    let textUsage: TextUsage | undefined;
+    let imgUsage: ImageUsage | undefined;
 
     try {
       const textProvider = getTextProvider();
@@ -67,9 +71,9 @@ export function useItemGeneration() {
         ? `${wrappedPrompt}\n\n[Constraints — use exactly these values: ${constraints.join(", ")}]`
         : wrappedPrompt;
 
-      const result = JSON.parse(
-        await textProvider.complete(systemContent, fullPrompt),
-      ) as ItemAiResult;
+      const { content, usage: _textUsage } = await textProvider.complete(systemContent, fullPrompt);
+      textUsage = _textUsage;
+      const result = JSON.parse(content) as ItemAiResult;
 
       // Merge game_benefits into description as a separate paragraph
       if (result.game_benefits) {
@@ -90,7 +94,8 @@ export function useItemGeneration() {
           .filter(Boolean)
           .join(" — ");
 
-        const b64 = await imageProvider.generate(imagePrompt, "1024x1536");
+        const { b64, usage: _imgUsage } = await imageProvider.generate(imagePrompt, "1024x1536");
+        imgUsage = _imgUsage;
 
         // ── 3. Upload to Supabase storage ─────────────────────────────────
         if (b64 && auth.user) {
@@ -98,6 +103,7 @@ export function useItemGeneration() {
         }
       }
 
+      logUsage({ reason: "item_generation", textUsage, imageUsage: imgUsage });
       return { ...result, image_url };
     } catch (e) {
       _state.error.value = e instanceof Error ? e.message : "Generation failed";

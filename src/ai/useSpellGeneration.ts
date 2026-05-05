@@ -18,6 +18,8 @@ import { getTextProvider, getImageProvider } from "./providers";
 import { b64ToBlob, wrapUserInput } from "./utils";
 import { useCampaignStore } from "@/stores/campaign";
 import type { SpellSchool } from "@/types/spell.types";
+import { logUsage } from "@/composables/useAiCredits";
+import type { TextUsage, ImageUsage } from "./providers/types";
 
 export interface SpellGenerationOptions {
   /** Lock the spell level (0 = cantrip). AI fills the rest around it. */
@@ -56,6 +58,8 @@ export function useSpellGeneration() {
     startAiQuotes();
 
     const settingPrompt = campaign.activeCampaign?.ai_setting_prompt ?? "";
+    let textUsage: TextUsage | undefined;
+    let imgUsage: ImageUsage | undefined;
 
     try {
       const textProvider = getTextProvider();
@@ -81,9 +85,9 @@ export function useSpellGeneration() {
         ? `${wrappedPrompt}\n\n[Constraints — use exactly these values: ${constraints.join(", ")}]`
         : wrappedPrompt;
 
-      const result = JSON.parse(
-        await textProvider.complete(systemContent, fullPrompt),
-      ) as SpellAiResult;
+      const { content, usage: _textUsage } = await textProvider.complete(systemContent, fullPrompt);
+      textUsage = _textUsage;
+      const result = JSON.parse(content) as SpellAiResult;
 
       // Honour explicit overrides (in case the model drifts)
       if (options?.level !== undefined) result.level = options.level;
@@ -102,7 +106,8 @@ export function useSpellGeneration() {
           .filter(Boolean)
           .join(" — ");
 
-        const b64 = await imageProvider.generate(imagePrompt, "1024x1024");
+        const { b64, usage: _imgUsage } = await imageProvider.generate(imagePrompt, "1024x1024");
+        imgUsage = _imgUsage;
 
         // ── 3. Upload to Supabase storage ───────────────────────────────
         // Spells get their own bucket (see migration 20260413000014) so the
@@ -112,6 +117,7 @@ export function useSpellGeneration() {
         }
       }
 
+      logUsage({ reason: "spell_generation", textUsage, imageUsage: imgUsage });
       return { ...result, image_url };
     } catch (e) {
       _state.error.value = e instanceof Error ? e.message : "Generation failed";

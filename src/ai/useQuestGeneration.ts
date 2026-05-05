@@ -11,6 +11,7 @@ import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useUiStore } from "@/stores/ui";
 import { getTextProvider } from "./providers";
 import { useCampaignStore } from "@/stores/campaign";
+import { logUsage } from "@/composables/useAiCredits";
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
@@ -43,14 +44,17 @@ export function useQuestGeneration() {
         setting: campaign.activeCampaign?.ai_setting_prompt ?? "",
       })}${INJECTION_GUARD_SUFFIX}`;
 
-      const result = JSON.parse(
-        await textProvider.complete(systemContent, wrapUserInput(userPrompt)),
-      ) as QuestHooksAiResult;
+      const { content, usage: textUsage } = await textProvider.complete(
+        systemContent,
+        wrapUserInput(userPrompt),
+      );
+      const result = JSON.parse(content) as QuestHooksAiResult;
 
       if (!Array.isArray(result.hooks) || result.hooks.length === 0) {
         throw new Error("AI returned no quest hooks — please try again.");
       }
 
+      logUsage({ reason: "quest_generation", textUsage });
       _hooks.value = result.hooks;
       return result.hooks;
     } catch (e) {

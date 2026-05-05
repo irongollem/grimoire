@@ -17,6 +17,8 @@ import { useUiStore } from "@/stores/ui";
 import { getTextProvider, getImageProvider, OPENAI_IMAGE_MODEL_KEY } from "./providers";
 import { b64ToBlob, wrapUserInput } from "./utils";
 import { useCampaignStore } from "@/stores/campaign";
+import { logUsage } from "@/composables/useAiCredits";
+import type { TextUsage, ImageUsage } from "./providers/types";
 
 const OPENAI_EDIT_URL = "https://api.openai.com/v1/images/edits";
 
@@ -94,6 +96,8 @@ export function useTrapGeneration() {
     startAiQuotes();
 
     const settingPrompt = campaign.activeCampaign?.ai_setting_prompt ?? "";
+    let textUsage: TextUsage | undefined;
+    let imgUsage: ImageUsage | undefined;
 
     try {
       const textProvider = getTextProvider();
@@ -112,9 +116,9 @@ export function useTrapGeneration() {
         ? `${wrappedPrompt}\n\nConstraints:\n${constraints.join("\n")}`
         : wrappedPrompt;
 
-      const trapData = JSON.parse(
-        await textProvider.complete(systemContent, userContent),
-      ) as TrapAiResult;
+      const { content, usage: _textUsage } = await textProvider.complete(systemContent, userContent);
+      textUsage = _textUsage;
+      const trapData = JSON.parse(content) as TrapAiResult;
 
       let image_url: string | null = null;
 
@@ -122,21 +126,28 @@ export function useTrapGeneration() {
         startAiQuotes("image");
         try {
           let b64: string | null = null;
-
           const openAiKey = campaign.decryptedOpenAiKey;
+
           if (options?.groupPortraitUrl && openAiKey) {
             b64 = await generateWithPartyReference(
               [settingPrompt, trapData.image_prompt].filter(Boolean).join(" — "),
               options.groupPortraitUrl,
               openAiKey,
             );
+            // Direct OpenAI edit call — log as 1 image with known model
+            if (b64) {
+              const model = (typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) ?? "gpt-image-2";
+              imgUsage = { model, provider: "openai", image_count: 1 };
+            }
           }
 
           if (!b64) {
             const imagePrompt = [IMAGE_BASE_PROMPT, settingPrompt, trapData.image_prompt]
               .filter(Boolean)
               .join(" — ");
-            b64 = await imageProvider.generate(imagePrompt, "1024x1536");
+            const { b64: _b64, usage: _imgUsage } = await imageProvider.generate(imagePrompt, "1024x1536");
+            b64 = _b64;
+            imgUsage = _imgUsage;
           }
 
           if (b64) {
@@ -151,6 +162,7 @@ export function useTrapGeneration() {
         }
       }
 
+      logUsage({ reason: "trap_generation", textUsage, imageUsage: imgUsage });
       return { ...trapData, image_url };
     } catch (e) {
       _state.error.value = e instanceof Error ? e.message : "Generation failed";
