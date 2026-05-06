@@ -3,11 +3,9 @@ import { uploadWithVariants } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
 import type { NpcAiResult, NpcAiGenerated } from "./types";
 import {
-  NPC_SYSTEM_PROMPT,
-  IMAGE_BASE_PROMPT,
   buildCampaignContext,
-  INJECTION_GUARD_SUFFIX,
-} from "./prompts";
+} from "./utils";
+import { fetchSystemPrompt, fetchImageBasePrompt } from "./systemPrompts";
 import { getTextProvider, getImageProvider } from "./providers";
 import { b64ToBlob, wrapUserInput } from "./utils";
 import {
@@ -190,10 +188,14 @@ export function useNpcGeneration() {
 
     // ── 1. Text generation ─────────────────────────────────────────────────
     const textProvider = getTextProvider();
+    const [basePrompt, imageBasePrompt] = await Promise.all([
+      fetchSystemPrompt("npc"),
+      fetchImageBasePrompt(),
+    ]);
+    if (!basePrompt) throw new Error("NPC system prompt not configured.");
     const systemContent =
-      NPC_SYSTEM_PROMPT +
-      buildCampaignContext({ setting: settingPrompt }) +
-      INJECTION_GUARD_SUFFIX;
+      basePrompt +
+      buildCampaignContext({ setting: settingPrompt });
 
     const userContent = options?.generateAlterEgo
       ? `${wrapUserInput(userPrompt)}\n\nThis NPC has a disguise identity — populate disguise_name and disguise_image_prompt.`
@@ -220,7 +222,7 @@ export function useNpcGeneration() {
 
       const imageProvider = getImageProvider();
       const imagePrompt = [
-        `Style: ${IMAGE_BASE_PROMPT}`,
+        `Style: ${imageBasePrompt}`,
         settingPrompt ? `Setting: ${settingPrompt}` : null,
         `Subject: ${npcData.true_portrait_prompt}`,
       ]
@@ -248,7 +250,7 @@ export function useNpcGeneration() {
         imageProvider.edit &&
         auth.user
       ) {
-        const disguisePrompt = [IMAGE_BASE_PROMPT, settingPrompt, npcData.disguise_image_prompt]
+        const disguisePrompt = [imageBasePrompt, settingPrompt, npcData.disguise_image_prompt]
           .filter(Boolean)
           .join(" — ");
         try {

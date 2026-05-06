@@ -1,11 +1,9 @@
 import { useAuthStore } from "@/stores/auth";
 import { uploadWithVariants } from "@/lib/storage";
 import {
-  FACTION_SYSTEM_PROMPT,
-  IMAGE_BASE_PROMPT,
   buildCampaignContext,
-  INJECTION_GUARD_SUFFIX,
-} from "./prompts";
+} from "./utils";
+import { fetchSystemPrompt, fetchImageBasePrompt } from "./systemPrompts";
 import type { FactionAiResult, FactionAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -43,7 +41,7 @@ export interface FactionGenerationOptions {
 }
 
 export function useFactionGeneration() {
-  const auth     = useAuthStore();
+  const auth = useAuthStore();
   const campaign = useCampaignStore();
 
   async function generate(
@@ -62,9 +60,14 @@ export function useFactionGeneration() {
     try {
       const textProvider = getTextProvider();
 
-      const systemContent = `${FACTION_SYSTEM_PROMPT}${buildCampaignContext({
+      const [basePrompt, imageBasePrompt] = await Promise.all([
+        fetchSystemPrompt("faction"),
+        fetchImageBasePrompt(),
+      ]);
+      if (!basePrompt) throw new Error("Faction system prompt not configured.");
+      const systemContent = `${basePrompt}${buildCampaignContext({
         setting: settingPrompt,
-      })}${INJECTION_GUARD_SUFFIX}`;
+      })}`;
 
       const constraints: string[] = [];
       if (options?.faction_type)      constraints.push(`Faction Type: ${options.faction_type}`);
@@ -83,16 +86,16 @@ export function useFactionGeneration() {
 
       // ── Emblem ─────────────────────────────────────────────────────────────
       let image_url: string | null = null;
-      if (options?.generateImage && auth.user) {
+      if (options?.generateImage !== false) {
         startAiQuotes("image");
         try {
-          const imagePrompt = [IMAGE_BASE_PROMPT, settingPrompt, factionData.image_prompt]
+          const imagePrompt = [imageBasePrompt, settingPrompt, factionData.image_prompt]
             .filter(Boolean)
             .join(" — ");
           const imageProvider = getImageProvider();
           const { b64, usage: _imgUsage } = await imageProvider.generate(imagePrompt, "1024x1024");
           imgUsage = _imgUsage;
-          if (b64) {
+          if (b64 && auth.user) {
             image_url = await uploadWithVariants({
               bucket: "factionImages",
               userId: auth.user.id,

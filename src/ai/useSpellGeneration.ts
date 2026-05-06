@@ -1,11 +1,9 @@
 import { useAuthStore } from "@/stores/auth";
 import { uploadWithVariants } from "@/lib/storage";
 import {
-  SPELL_SYSTEM_PROMPT,
-  IMAGE_BASE_PROMPT,
   buildCampaignContext,
-  INJECTION_GUARD_SUFFIX,
-} from "./prompts";
+} from "./utils";
+import { fetchSystemPrompt, fetchImageBasePrompt } from "./systemPrompts";
 import type { SpellAiResult, SpellAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -63,12 +61,15 @@ export function useSpellGeneration() {
 
     try {
       const textProvider = getTextProvider();
-      const imageProvider = getImageProvider();
-
       // ── 1. Generate spell text ────────────────────────────────────────
-      const systemContent = `${SPELL_SYSTEM_PROMPT}${buildCampaignContext({
+      const [basePrompt, imageBasePrompt] = await Promise.all([
+        fetchSystemPrompt("spell"),
+        fetchImageBasePrompt(),
+      ]);
+      if (!basePrompt) throw new Error("Spell system prompt not configured.");
+      const systemContent = `${basePrompt}${buildCampaignContext({
         setting: settingPrompt,
-      })}${INJECTION_GUARD_SUFFIX}`;
+      })}`;
 
       const constraints: string[] = [];
       if (options?.level !== undefined) {
@@ -81,11 +82,11 @@ export function useSpellGeneration() {
       if (options?.school) constraints.push(`School: ${options.school}`);
 
       const wrappedPrompt = wrapUserInput(userPrompt);
-      const fullPrompt = constraints.length
-        ? `${wrappedPrompt}\n\n[Constraints — use exactly these values: ${constraints.join(", ")}]`
+      const userContent = constraints.length
+        ? `${wrappedPrompt}\n\nConstraints:\n${constraints.join("\n")}`
         : wrappedPrompt;
 
-      const { content, usage: _textUsage } = await textProvider.complete(systemContent, fullPrompt);
+      const { content, usage: _textUsage } = await textProvider.complete(systemContent, userContent);
       textUsage = _textUsage;
       const result = JSON.parse(content) as SpellAiResult;
 
@@ -102,18 +103,18 @@ export function useSpellGeneration() {
 
       if (wantImage && result.image_prompt) {
         startAiQuotes("image");
-        const imagePrompt = [IMAGE_BASE_PROMPT, result.image_prompt]
-          .filter(Boolean)
-          .join(" — ");
-
-        const { b64, usage: _imgUsage } = await imageProvider.generate(imagePrompt, "1024x1024");
-        imgUsage = _imgUsage;
-
-        // ── 3. Upload to Supabase storage ───────────────────────────────
-        // Spells get their own bucket (see migration 20260413000014) so the
-        // DM can browse spell art in isolation later.
-        if (b64 && auth.user) {
-          image_url = await uploadWithVariants({ bucket: "spellImages", userId: auth.user.id, blob: b64ToBlob(b64) });
+        try {
+          const imageProvider = getImageProvider();
+          const imagePrompt = [imageBasePrompt, result.image_prompt]
+            .filter(Boolean)
+            .join(" — ");
+          const { b64, usage: _imgUsage } = await imageProvider.generate(imagePrompt, "1024x1024");
+          imgUsage = _imgUsage;
+          if (b64 && auth.user) {
+            image_url = await uploadWithVariants({ bucket: "spellImages", userId: auth.user.id, blob: b64ToBlob(b64) });
+          }
+        } catch {
+          // non-fatal
         }
       }
 

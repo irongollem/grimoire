@@ -1,6 +1,7 @@
 import { useAuthStore } from "@/stores/auth";
 import { uploadWithVariants } from "@/lib/storage";
-import { ITEM_SYSTEM_PROMPT, IMAGE_BASE_PROMPT, buildCampaignContext, INJECTION_GUARD_SUFFIX } from "./prompts";
+import { buildCampaignContext } from "./utils";
+import { fetchSystemPrompt, fetchImageBasePrompt } from "./systemPrompts";
 import type { ItemAiResult, ItemAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -55,11 +56,15 @@ export function useItemGeneration() {
 
     try {
       const textProvider = getTextProvider();
-      const imageProvider = getImageProvider();
       // ── 1. Generate item text ─────────────────────────────────────────────
-      const systemContent = `${ITEM_SYSTEM_PROMPT}${buildCampaignContext({
+      const [basePrompt, imageBasePrompt] = await Promise.all([
+        fetchSystemPrompt("item"),
+        fetchImageBasePrompt(),
+      ]);
+      if (!basePrompt) throw new Error("Item system prompt not configured.");
+      const systemContent = `${basePrompt}${buildCampaignContext({
         setting: settingPrompt,
-      })}${INJECTION_GUARD_SUFFIX}`;
+      })}`;
 
       const constraints: string[] = [];
       if (options?.item_type) constraints.push(`Item Type: ${options.item_type}`);
@@ -67,11 +72,11 @@ export function useItemGeneration() {
       if (options?.cursed) constraints.push(`This item must be cursed — populate curse_description with the curse effect, trigger, and removal method`);
 
       const wrappedPrompt = wrapUserInput(userPrompt);
-      const fullPrompt = constraints.length
-        ? `${wrappedPrompt}\n\n[Constraints — use exactly these values: ${constraints.join(", ")}]`
+      const userContent = constraints.length
+        ? `${wrappedPrompt}\n\nConstraints:\n${constraints.join("\n")}`
         : wrappedPrompt;
 
-      const { content, usage: _textUsage } = await textProvider.complete(systemContent, fullPrompt);
+      const { content, usage: _textUsage } = await textProvider.complete(systemContent, userContent);
       textUsage = _textUsage;
       const result = JSON.parse(content) as ItemAiResult;
 
@@ -90,16 +95,18 @@ export function useItemGeneration() {
 
       if (wantImage) {
         startAiQuotes("image");
-        const imagePrompt = [IMAGE_BASE_PROMPT, settingPrompt, result.image_prompt]
-          .filter(Boolean)
-          .join(" — ");
-
-        const { b64, usage: _imgUsage } = await imageProvider.generate(imagePrompt, "1024x1536");
-        imgUsage = _imgUsage;
-
-        // ── 3. Upload to Supabase storage ─────────────────────────────────
-        if (b64 && auth.user) {
-          image_url = await uploadWithVariants({ bucket: "itemImages", userId: auth.user.id, blob: b64ToBlob(b64) });
+        try {
+          const imageProvider = getImageProvider();
+          const imagePrompt = [imageBasePrompt, settingPrompt, result.image_prompt]
+            .filter(Boolean)
+            .join(" — ");
+          const { b64, usage: _imgUsage } = await imageProvider.generate(imagePrompt, "1024x1536");
+          imgUsage = _imgUsage;
+          if (b64 && auth.user) {
+            image_url = await uploadWithVariants({ bucket: "itemImages", userId: auth.user.id, blob: b64ToBlob(b64) });
+          }
+        } catch {
+          // non-fatal
         }
       }
 

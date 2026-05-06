@@ -1,6 +1,6 @@
 import { ref } from "vue";
-import { wrapUserInput } from "./utils";
-import { QUEST_HOOKS_SYSTEM_PROMPT, buildCampaignContext, INJECTION_GUARD_SUFFIX } from "./prompts";
+import { wrapUserInput, buildCampaignContext } from "./utils";
+import { fetchSystemPrompt } from "./systemPrompts";
 import type { QuestHookResult, QuestHooksAiResult } from "./types";
 import {
   createAiGenerationState,
@@ -40,9 +40,11 @@ export function useQuestGeneration() {
 
     try {
       const textProvider = getTextProvider();
-      const systemContent = `${QUEST_HOOKS_SYSTEM_PROMPT}${buildCampaignContext({
+      const basePrompt = await fetchSystemPrompt("quest");
+      if (!basePrompt) throw new Error("Quest system prompt not configured.");
+      const systemContent = `${basePrompt}${buildCampaignContext({
         setting: campaign.activeCampaign?.ai_setting_prompt ?? "",
-      })}${INJECTION_GUARD_SUFFIX}`;
+      })}`;
 
       const { content, usage: textUsage } = await textProvider.complete(
         systemContent,

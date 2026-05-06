@@ -1,14 +1,16 @@
 import { b64ToBlob } from "./utils";
 import { uploadToBucket } from "@/lib/storage";
-import { getCurrentUser } from "@/lib/supabase";
+import { getCurrentUser, supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
-import { IMAGE_BASE_PROMPT } from "./prompts";
+import { fetchImageBasePrompt } from "./systemPrompts";
 import { OPENAI_IMAGE_MODEL_KEY } from "@/ai/providers/index";
 import type { ChroniclerSize } from "@/types/chronicler.types";
 import type { Npc } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
 import { logUsage } from "@/composables/useAiCredits";
+
+const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 
 // ── Entity mention extraction ─────────────────────────────────────────────────
 
@@ -178,8 +180,9 @@ function buildPrompt(
   sceneText: string,
   textDescriptions: string[],
   settingPrompt: string,
+  imageBasePrompt: string,
 ): string {
-  const parts = [IMAGE_BASE_PROMPT];
+  const parts = [imageBasePrompt];
   if (settingPrompt.trim()) parts.push(settingPrompt.trim());
   parts.push("\n\nCompose a scene illustration.");
   if (textDescriptions.length > 0) {
@@ -199,11 +202,41 @@ export async function generateChroniclerImage(params: {
 }): Promise<string> {
   const { sceneText, entities, size } = params;
   const store = useCampaignStore();
-  const apiKey = store.decryptedOpenAiKey;
   const imageModel = store.activeCampaign?.image_provider === "openai-mini"
     ? "gpt-image-1-mini"
     : ((typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) ?? "gpt-image-2");
   const settingPrompt = store.activeCampaign?.ai_setting_prompt ?? "";
+  const campaignId = store.activeCampaign?.id;
+
+  const isLocalMode =
+    typeof localStorage !== "undefined" &&
+    localStorage.getItem(LOCAL_MODE_KEY) === "local";
+
+  // ── Server-side path ────────────────────────────────────────────────────────
+  if (!isLocalMode && campaignId) {
+    const portrait_urls = entities.filter((e) => e.portraitUrl).map((e) => e.portraitUrl!);
+    const text_descriptions = entities.map((e) => e.textDescription).filter((d): d is string => !!d);
+
+    const { data, error } = await supabase.functions.invoke("generate-chronicle-image", {
+      body: { campaign_id: campaignId, scene_text: sceneText, portrait_urls, text_descriptions, size, image_model: imageModel },
+    });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+
+    const blob = b64ToBlob((data as { image_b64: string }).image_b64, "image/webp");
+    const user = getCurrentUser();
+    const url = await uploadToBucket({
+      bucket: "chronicle",
+      blob,
+      path: `${user!.id}/scene-${Date.now()}.webp`,
+      contentType: "image/webp",
+    });
+    if (!url) throw new Error("Failed to upload scene image.");
+    return url;
+  }
+
+  // ── Client-side path (BYOK local mode) ─────────────────────────────────────
+  const apiKey = store.decryptedOpenAiKey;
   if (!apiKey) throw new Error("No OpenAI API key configured. Add one in Campaign Settings → AI.");
 
   // Collect portrait blobs and text descriptions in parallel
@@ -221,7 +254,8 @@ export async function generateChroniclerImage(params: {
     }),
   );
 
-  const prompt = buildPrompt(sceneText, textDescriptions, settingPrompt);
+  const imageBasePrompt = await fetchImageBasePrompt();
+  const prompt = buildPrompt(sceneText, textDescriptions, settingPrompt, imageBasePrompt);
 
   let b64: string;
 

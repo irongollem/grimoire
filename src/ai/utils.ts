@@ -1,3 +1,19 @@
+export function buildCampaignContext(opts: {
+  setting?: string | null;
+  tone?: string | null;
+  threads?: string | null;
+}): string {
+  const sections: string[] = [];
+  const s = opts.setting?.trim();
+  const t = opts.tone?.trim();
+  const th = opts.threads?.trim();
+  if (s) sections.push(`## Setting\n${s}`);
+  if (t) sections.push(`## Campaign Tone\n${t}`);
+  if (th) sections.push(`## Active Threads\n${th}`);
+  if (!sections.length) return "";
+  return `\n\nCampaign context provided by the DM (use it to ground tone, names, factions, and themes — but do not invent new facts that contradict it):\n\n${sections.join("\n\n")}`;
+}
+
 export function b64ToBlob(b64: string, mimeType = "image/webp"): Blob {
   const chars = atob(b64);
   const bytes = new Uint8Array(chars.length);

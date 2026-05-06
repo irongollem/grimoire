@@ -1,6 +1,7 @@
 import { useAuthStore } from "@/stores/auth";
 import { uploadWithVariants } from "@/lib/storage";
-import { MONSTER_SYSTEM_PROMPT, IMAGE_BASE_PROMPT, buildCampaignContext, INJECTION_GUARD_SUFFIX } from "./prompts";
+import { buildCampaignContext } from "./utils";
+import { fetchSystemPrompt, fetchImageBasePrompt } from "./systemPrompts";
 import type { MonsterAiResult, MonsterAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -55,11 +56,15 @@ export function useMonsterGeneration() {
 
     try {
       const textProvider = getTextProvider();
-      const imageProvider = getImageProvider();
       // ── 1. Generate stat block text ───────────────────────────────────
-      const systemContent = `${MONSTER_SYSTEM_PROMPT}${buildCampaignContext({
+      const [basePrompt, imageBasePrompt] = await Promise.all([
+        fetchSystemPrompt("monster"),
+        fetchImageBasePrompt(),
+      ]);
+      if (!basePrompt) throw new Error("Monster system prompt not configured.");
+      const systemContent = `${basePrompt}${buildCampaignContext({
         setting: settingPrompt,
-      })}${INJECTION_GUARD_SUFFIX}`;
+      })}`;
 
       const constraints: string[] = [];
       if (options?.challenge_rating) constraints.push(`Challenge Rating: ${options.challenge_rating}`);
@@ -67,11 +72,11 @@ export function useMonsterGeneration() {
       if (options?.size) constraints.push(`Size: ${options.size}`);
 
       const wrappedPrompt = wrapUserInput(userPrompt);
-      const fullPrompt = constraints.length
-        ? `${wrappedPrompt}\n\n[Constraints — use exactly these values in the stat block: ${constraints.join(", ")}]`
+      const userContent = constraints.length
+        ? `${wrappedPrompt}\n\nConstraints:\n${constraints.join("\n")}`
         : wrappedPrompt;
 
-      const { content, usage: _textUsage } = await textProvider.complete(systemContent, fullPrompt);
+      const { content, usage: _textUsage } = await textProvider.complete(systemContent, userContent);
       textUsage = _textUsage;
       const result = JSON.parse(content) as MonsterAiResult;
 
@@ -86,16 +91,18 @@ export function useMonsterGeneration() {
 
       if (wantImage) {
         startAiQuotes("image");
-        const imagePrompt = [IMAGE_BASE_PROMPT, settingPrompt, result.image_prompt]
-          .filter(Boolean)
-          .join(" — ");
-
-        const { b64, usage: _imgUsage } = await imageProvider.generate(imagePrompt, "1024x1536");
-        imgUsage = _imgUsage;
-
-        // ── 3. Upload to Supabase storage ─────────────────────────────
-        if (b64 && auth.user) {
-          image_url = await uploadWithVariants({ bucket: "monsterImages", userId: auth.user.id, blob: b64ToBlob(b64) });
+        try {
+          const imageProvider = getImageProvider();
+          const imagePrompt = [imageBasePrompt, settingPrompt, result.image_prompt]
+            .filter(Boolean)
+            .join(" — ");
+          const { b64, usage: _imgUsage } = await imageProvider.generate(imagePrompt, "1024x1536");
+          imgUsage = _imgUsage;
+          if (b64 && auth.user) {
+            image_url = await uploadWithVariants({ bucket: "monsterImages", userId: auth.user.id, blob: b64ToBlob(b64) });
+          }
+        } catch {
+          // non-fatal
         }
       }
 

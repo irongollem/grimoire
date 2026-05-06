@@ -1,11 +1,9 @@
 import { useAuthStore } from "@/stores/auth";
 import { uploadWithVariants } from "@/lib/storage";
 import {
-  PUZZLE_SYSTEM_PROMPT,
-  IMAGE_BASE_PROMPT,
   buildCampaignContext,
-  INJECTION_GUARD_SUFFIX,
-} from "./prompts";
+} from "./utils";
+import { fetchSystemPrompt, fetchImageBasePrompt } from "./systemPrompts";
 import type { PuzzleAiResult, PuzzleAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -59,11 +57,15 @@ export function usePuzzleGeneration() {
 
     try {
       const textProvider = getTextProvider();
-      const imageProvider = getImageProvider();
       // ── 1. Generate puzzle text ───────────────────────────────────────
-      const systemContent = `${PUZZLE_SYSTEM_PROMPT}${buildCampaignContext({
+      const [basePrompt, imageBasePrompt] = await Promise.all([
+        fetchSystemPrompt("puzzle"),
+        fetchImageBasePrompt(),
+      ]);
+      if (!basePrompt) throw new Error("Puzzle system prompt not configured.");
+      const systemContent = `${basePrompt}${buildCampaignContext({
         setting: settingPrompt,
-      })}${INJECTION_GUARD_SUFFIX}`;
+      })}`;
 
       const constraints: string[] = [];
       if (options?.puzzle_type)
@@ -85,15 +87,11 @@ export function usePuzzleGeneration() {
 
       if (options?.generateImage !== false && auth.user) {
         startAiQuotes("image");
-        const imagePrompt = [
-          IMAGE_BASE_PROMPT,
-          settingPrompt,
-          puzzleData.image_prompt,
-        ]
-          .filter(Boolean)
-          .join(" — ");
-
         try {
+          const imageProvider = getImageProvider();
+          const imagePrompt = [imageBasePrompt, settingPrompt, puzzleData.image_prompt]
+            .filter(Boolean)
+            .join(" — ");
           const { b64, usage: _imgUsage } = await imageProvider.generate(imagePrompt, "1024x1536");
           imgUsage = _imgUsage;
 
