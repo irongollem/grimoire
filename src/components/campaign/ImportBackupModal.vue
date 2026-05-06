@@ -181,8 +181,8 @@ const nonZeroCounts = computed(() => {
   );
 });
 
-function formatKey(key: string): string {
-  return key.replace(/_/g, " ");
+function formatKey(key: string | number): string {
+  return String(key).replace(/_/g, " ");
 }
 
 function close() {
