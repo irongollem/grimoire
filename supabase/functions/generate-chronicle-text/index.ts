@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { decryptValue } from "../_shared/vault.ts";
+import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import {
   AI_PROMPT_LIMIT_LONG,
   INJECTION_GUARD_SUFFIX,
@@ -94,9 +95,9 @@ async function geminiText(apiKey: string, system: string, user: string): Promise
 
 // ── Usage logging ─────────────────────────────────────────────────────────────
 
-async function logUsage(userId: string, textUsage: TextUsage): Promise<void> {
+async function logUsage(userId: string, isByok: boolean, textUsage: TextUsage): Promise<void> {
   await admin.from("ai_credit_ledger").insert({
-    user_id: userId, delta: 0, reason: "chronicler_text", is_byok: true,
+    user_id: userId, delta: 0, reason: "chronicler_text", is_byok: isByok,
     model: textUsage.model, provider: textUsage.provider,
     input_tokens: textUsage.input_tokens, output_tokens: textUsage.output_tokens,
   });
@@ -170,23 +171,33 @@ serve(async (req: Request) => {
     try { return await decryptValue(enc); } catch { return null; }
   }
 
-  const [openaiKey, anthropicKey, geminiKey] = await Promise.all([
-    decryptKey(campaign.openai_api_key),
-    decryptKey(campaign.anthropic_api_key),
-    decryptKey(campaign.gemini_api_key),
+  const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys] = await Promise.all([
+    Promise.all([
+      decryptKey(campaign.openai_api_key),
+      decryptKey(campaign.anthropic_api_key),
+      decryptKey(campaign.gemini_api_key),
+    ]),
+    fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
   ]);
+  const openaiKey    = campaignOpenai    ?? platformKeys.openai    ?? null;
+  const anthropicKey = campaignAnthropic ?? platformKeys.anthropic ?? null;
+  const geminiKey    = campaignGemini    ?? platformKeys.gemini    ?? null;
 
   const textProvider = campaign.text_provider ?? "openai";
   let textResult: TextResult;
+  let textIsByok: boolean;
 
   try {
     if (textProvider === "anthropic" && anthropicKey) {
       textResult = await anthropicText(anthropicKey, systemContent, wrapUserInput(raw_text));
+      textIsByok = !!campaignAnthropic;
     } else if (textProvider === "gemini" && geminiKey) {
       textResult = await geminiText(geminiKey, systemContent, wrapUserInput(raw_text));
+      textIsByok = !!campaignGemini;
     } else {
-      if (!openaiKey) return new Response("No OpenAI API key configured for this campaign", { status: 422 });
+      if (!openaiKey) return new Response("No OpenAI API key configured", { status: 422 });
       textResult = await openaiText(openaiKey, systemContent, wrapUserInput(raw_text));
+      textIsByok = !!campaignOpenai;
     }
   } catch (e) {
     console.error("Chronicle text generation failed:", e);
@@ -196,7 +207,7 @@ serve(async (req: Request) => {
     );
   }
 
-  await logUsage(user.id, textResult.usage).catch(console.error);
+  await logUsage(user.id, textIsByok, textResult.usage).catch(console.error);
 
   const parsed = JSON.parse(textResult.content) as { chronicle?: string };
   return new Response(

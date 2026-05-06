@@ -568,6 +568,74 @@
         </div>
       </template>
 
+      <!-- ── Keys tab ────────────────────────────────────────────────────── -->
+      <template v-else-if="activeTab === 'keys'">
+        <div class="rounded-lg border border-border bg-card p-4 space-y-2 mb-4">
+          <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Platform API Keys</h2>
+          <p class="font-fell text-xs text-muted-foreground italic">
+            These keys are used when a campaign has no BYOK key configured (free and tester plans, or pro campaigns without a personal key).
+            Keys are encrypted at rest. Only admins can access this table.
+            Leave the field empty and click Save to keep the existing key unchanged.
+          </p>
+        </div>
+
+        <div v-if="keysQuery.isPending.value" class="text-muted-foreground font-fell text-sm">Loading…</div>
+        <div v-else-if="keysQuery.isError.value" class="text-destructive font-fell text-sm">Failed to load key status.</div>
+        <div v-else class="space-y-3">
+          <div
+            v-for="p in PROVIDERS"
+            :key="p.id"
+            class="rounded-lg border border-border bg-card p-4 space-y-3"
+          >
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">{{ p.label }}</h3>
+                <span v-if="isKeySet(p.id)" class="font-cinzel text-[10px] tracking-widest text-emerald-500 uppercase">
+                  Key set · updated {{ new Date(keyUpdatedAt(p.id)!).toLocaleDateString() }}
+                </span>
+                <span v-else class="font-cinzel text-[10px] tracking-widest text-muted-foreground uppercase">
+                  Not configured
+                </span>
+              </div>
+              <button
+                v-if="isKeySet(p.id)"
+                class="px-2.5 py-1 font-cinzel text-xs font-semibold tracking-wider text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 disabled:opacity-50 transition-colors"
+                :disabled="keyClearing[p.id]"
+                @click="doClrKey(p.id)"
+              >
+                {{ keyClearing[p.id] ? 'Clearing…' : 'Clear' }}
+              </button>
+            </div>
+
+            <div class="flex gap-2">
+              <div class="relative flex-1">
+                <input
+                  v-model="keyDrafts[p.id]"
+                  :type="keyVisible[p.id] ? 'text' : 'password'"
+                  :placeholder="isKeySet(p.id) ? '••••••••  (leave blank to keep current)' : p.hint"
+                  class="w-full bg-muted border border-border rounded px-2.5 py-2 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring pr-9"
+                  autocomplete="off"
+                />
+                <button
+                  type="button"
+                  class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  @click="keyVisible[p.id] = !keyVisible[p.id]"
+                >
+                  <component :is="keyVisible[p.id] ? EyeOff : Eye" class="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <button
+                class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+                :disabled="keySaving[p.id] || !keyDrafts[p.id]?.trim()"
+                @click="saveKey(p.id)"
+              >
+                {{ keySaving[p.id] ? 'Saving…' : 'Save' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </template>
+
     </div>
   </div>
 </template>
@@ -575,7 +643,7 @@
 <script setup lang="ts">
 import { ref, computed, reactive, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { LayoutGrid, Users, Coins, FileText, UserPlus, Plus, Trash2, Copy, Check, Upload, Library, Tag } from "lucide-vue-next";
+import { LayoutGrid, Users, Coins, FileText, UserPlus, Plus, Trash2, Copy, Check, Upload, Library, Tag, KeyRound, Eye, EyeOff } from "lucide-vue-next";
 import { useAdminPlans } from "@/composables/useAdminPlans";
 import { useAdminUsers } from "@/composables/useAdminUsers";
 import { useAdminPrompts } from "@/composables/useAdminPrompts";
@@ -590,12 +658,14 @@ import type { SrdArtDefaultStats } from "@/composables/useSrdArtDefaults";
 import { useBulkMarkSrdMonsterArtAsCanonical, useSyncSrdArtToSharedTable } from "@/composables/useSrdMonsterArt";
 import { useBulkMarkSrdSpellArtAsCanonical } from "@/composables/useSrdSpellArt";
 import { useAiUsageStats } from "@/composables/useAiUsageStats";
+import { useAdminKeys, PROVIDERS } from "@/composables/useAdminKeys";
+import type { KeyProvider } from "@/composables/useAdminKeys";
 
 const route = useRoute();
 const router = useRouter();
 
-type TabId = "plans" | "users" | "invites" | "content" | "pricing" | "credits" | "prompts";
-const VALID_TABS = new Set<string>(["plans", "users", "invites", "content", "pricing", "credits", "prompts"]);
+type TabId = "plans" | "users" | "invites" | "content" | "pricing" | "credits" | "prompts" | "keys";
+const VALID_TABS = new Set<string>(["plans", "users", "invites", "content", "pricing", "credits", "prompts", "keys"]);
 const TABS = [
   { id: "plans"   as TabId, label: "Plans",   icon: LayoutGrid },
   { id: "users"   as TabId, label: "Users",   icon: Users },
@@ -604,6 +674,7 @@ const TABS = [
   { id: "pricing" as TabId, label: "Pricing", icon: Tag },
   { id: "credits" as TabId, label: "Credits", icon: Coins },
   { id: "prompts" as TabId, label: "Prompts", icon: FileText },
+  { id: "keys"    as TabId, label: "Keys",    icon: KeyRound },
 ];
 
 const activeTab = computed<TabId>(() => {
@@ -798,6 +869,42 @@ async function doGrantCredits() {
   grantSuccess.value = true;
   grantAmount.value = null;
   setTimeout(() => (grantSuccess.value = false), 3000);
+}
+
+// ── Platform API Keys ──────────────────────────────────────────────────────
+const { keysQuery, setKey, clearKey } = useAdminKeys();
+const keyDrafts = reactive<Record<KeyProvider, string>>({} as Record<KeyProvider, string>);
+const keyVisible = reactive<Record<KeyProvider, boolean>>({} as Record<KeyProvider, boolean>);
+const keySaving = reactive<Record<KeyProvider, boolean>>({} as Record<KeyProvider, boolean>);
+const keyClearing = reactive<Record<KeyProvider, boolean>>({} as Record<KeyProvider, boolean>);
+
+function isKeySet(provider: KeyProvider): boolean {
+  return !!(keysQuery.data.value ?? []).find((r) => r.provider === provider);
+}
+function keyUpdatedAt(provider: KeyProvider): string | null {
+  const row = (keysQuery.data.value ?? []).find((r) => r.provider === provider);
+  return row?.updated_at ?? null;
+}
+
+async function saveKey(provider: KeyProvider) {
+  const val = keyDrafts[provider]?.trim();
+  if (!val) return;
+  keySaving[provider] = true;
+  try {
+    await setKey.mutateAsync({ provider, plaintext: val });
+    keyDrafts[provider] = "";
+  } finally {
+    keySaving[provider] = false;
+  }
+}
+
+async function doClrKey(provider: KeyProvider) {
+  keyClearing[provider] = true;
+  try {
+    await clearKey.mutateAsync(provider);
+  } finally {
+    keyClearing[provider] = false;
+  }
 }
 
 // ── AI Usage Stats ─────────────────────────────────────────────────────────

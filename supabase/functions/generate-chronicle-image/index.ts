@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { decryptValue } from "../_shared/vault.ts";
+import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -28,9 +29,9 @@ function buildPrompt(sceneText: string, textDescriptions: string[], settingPromp
 
 // ── Usage logging ─────────────────────────────────────────────────────────────
 
-async function logUsage(userId: string, model: string): Promise<void> {
+async function logUsage(userId: string, isByok: boolean, model: string): Promise<void> {
   await admin.from("ai_credit_ledger").insert({
-    user_id: userId, delta: 0, reason: "chronicler_image", is_byok: true,
+    user_id: userId, delta: 0, reason: "chronicler_image", is_byok: isByok,
     model, provider: "openai", image_count: 1,
   });
 }
@@ -82,10 +83,13 @@ serve(async (req: Request) => {
     if (!membership) return new Response("Forbidden", { status: 403 });
   }
 
-  const openaiKey = campaign.openai_api_key
+  const campaignOpenai = campaign.openai_api_key
     ? await decryptValue(campaign.openai_api_key).catch(() => null)
     : null;
-  if (!openaiKey) return new Response("No OpenAI API key configured for this campaign", { status: 422 });
+  const platformKeys = !campaignOpenai ? await fetchPlatformKeys(admin, ["openai"]) : {};
+  const openaiKey = campaignOpenai ?? platformKeys.openai ?? null;
+  const isByok = !!campaignOpenai;
+  if (!openaiKey) return new Response("No OpenAI API key configured", { status: 422 });
 
   const settingPrompt = campaign.ai_setting_prompt ?? "";
 
@@ -150,7 +154,7 @@ serve(async (req: Request) => {
     );
   }
 
-  await logUsage(user.id, image_model).catch(console.error);
+  await logUsage(user.id, isByok, image_model).catch(console.error);
 
   return new Response(
     JSON.stringify({ image_b64: b64 }),

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { decryptValue } from "../_shared/vault.ts";
+import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import {
   AI_PROMPT_LIMIT,
   INJECTION_GUARD_SUFFIX,
@@ -121,12 +122,12 @@ async function openaiImageGenerate(apiKey: string, model: string, prompt: string
 // ── Usage logging ─────────────────────────────────────────────────────────────
 
 async function logUsage(params: {
-  userId: string; reason: string;
+  userId: string; reason: string; isByok: boolean;
   textUsage?: TextUsage; imageCount?: number; imageModel?: string; imageProvider?: string;
 }): Promise<void> {
-  const { userId, reason, textUsage, imageCount, imageModel, imageProvider } = params;
+  const { userId, reason, isByok, textUsage, imageCount, imageModel, imageProvider } = params;
   await admin.from("ai_credit_ledger").insert({
-    user_id: userId, delta: 0, reason, is_byok: true,
+    user_id: userId, delta: 0, reason, is_byok: isByok,
     model: textUsage?.model ?? imageModel,
     provider: textUsage?.provider ?? imageProvider,
     input_tokens: textUsage?.input_tokens,
@@ -198,11 +199,17 @@ serve(async (req: Request) => {
     try { return await decryptValue(enc); } catch { return null; }
   }
 
-  const [openaiKey, anthropicKey, geminiKey] = await Promise.all([
-    decryptKey(campaign.openai_api_key),
-    decryptKey(campaign.anthropic_api_key),
-    decryptKey(campaign.gemini_api_key),
+  const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys] = await Promise.all([
+    Promise.all([
+      decryptKey(campaign.openai_api_key),
+      decryptKey(campaign.anthropic_api_key),
+      decryptKey(campaign.gemini_api_key),
+    ]),
+    fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
   ]);
+  const openaiKey    = campaignOpenai    ?? platformKeys.openai    ?? null;
+  const anthropicKey = campaignAnthropic ?? platformKeys.anthropic ?? null;
+  const geminiKey    = campaignGemini    ?? platformKeys.gemini    ?? null;
 
   const systemContent = promptRow.content + buildCampaignContext(campaign.ai_setting_prompt) + INJECTION_GUARD_SUFFIX;
 
@@ -214,15 +221,19 @@ serve(async (req: Request) => {
 
   const textProvider = campaign.text_provider ?? "openai";
   let textResult: TextResult;
+  let textIsByok: boolean;
 
   try {
     if (textProvider === "anthropic" && anthropicKey) {
       textResult = await anthropicText(anthropicKey, systemContent, userContent);
+      textIsByok = !!campaignAnthropic;
     } else if (textProvider === "gemini" && geminiKey) {
       textResult = await geminiText(geminiKey, systemContent, userContent);
+      textIsByok = !!campaignGemini;
     } else {
-      if (!openaiKey) return new Response("No OpenAI API key configured for this campaign", { status: 422 });
+      if (!openaiKey) return new Response("No OpenAI API key configured", { status: 422 });
       textResult = await openaiText(openaiKey, systemContent, userContent);
+      textIsByok = !!campaignOpenai;
     }
   } catch (e) {
     console.error("Location text generation failed:", e);
@@ -239,6 +250,7 @@ serve(async (req: Request) => {
   let map_b64: string | null = null;
   let imageCount = 0;
 
+  const imageIsByok = !!campaignOpenai;
   if (openaiKey && (generate_image || generate_map)) {
     const [imgResult, mapResult] = await Promise.allSettled([
       generate_image
@@ -258,10 +270,10 @@ serve(async (req: Request) => {
   }
 
   const logPromises = [
-    logUsage({ userId: user.id, reason: "location_generation", textUsage: textResult.usage }),
+    logUsage({ userId: user.id, reason: "location_generation", isByok: textIsByok, textUsage: textResult.usage }),
   ];
   if (imageCount > 0) {
-    logPromises.push(logUsage({ userId: user.id, reason: "location_image", imageCount, imageModel: image_model, imageProvider: "openai" }));
+    logPromises.push(logUsage({ userId: user.id, reason: "location_image", isByok: imageIsByok, imageCount, imageModel: image_model, imageProvider: "openai" }));
   }
   await Promise.allSettled(logPromises);
 
