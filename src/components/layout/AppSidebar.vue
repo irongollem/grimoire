@@ -79,6 +79,20 @@
         </p>
         <NavItem v-for="item in group.items" :key="item.to" :item="item" />
       </template>
+      <!-- Admin link — only visible to app admins -->
+      <template v-if="auth.isAppAdmin">
+        <p class="px-2 pt-4 pb-1 font-cinzel text-[10px] font-bold tracking-widest text-muted-foreground/60 uppercase">
+          System
+        </p>
+        <RouterLink
+          to="/admin"
+          class="flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-fell transition-colors"
+          :class="$route.path.startsWith('/admin') ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'"
+        >
+          <ShieldCheck class="h-4 w-4 shrink-0" />
+          Admin
+        </RouterLink>
+      </template>
     </nav>
 
     <!-- Gold divider -->
@@ -180,7 +194,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { LogOut, Pencil, Check, X, Loader2, Bug, CreditCard, ChevronsUpDown } from "lucide-vue-next";
+import { LogOut, Pencil, Check, X, Loader2, Bug, CreditCard, ChevronsUpDown, ShieldCheck } from "lucide-vue-next";
 import { onClickOutside } from "@vueuse/core";
 import { isAnyAiGenerating, getAiGeneratorRegistry } from "@/ai/aiGeneratorRegistry";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";

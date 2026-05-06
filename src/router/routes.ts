@@ -751,6 +751,14 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, title: "Illuminator" },
   },
 
+  // Admin
+  {
+    path: "/admin",
+    name: "admin",
+    component: () => import("@/views/admin/AdminView.vue"),
+    meta: { requiresAuth: true, title: "Admin" },
+  },
+
   // 404
   {
     path: "/:pathMatch(.*)*",
