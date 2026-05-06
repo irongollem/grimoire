@@ -485,7 +485,6 @@ import {
   useAddCharacterClass,
   useUpdateCharacterClass,
 } from "@/composables/useCharacterClasses";
-import { useCampaignStore } from "@/stores/campaign";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
 import { meetsMulticlassPrereq } from "@/types/multiclass.types";
 import type { CharacterClass } from "@/types/multiclass.types";
@@ -511,7 +510,6 @@ const router = useRouter();
 const { mutateAsync: updateMember, isPending } = useUpdatePartyMember();
 const { mutateAsync: addCharacterClass } = useAddCharacterClass();
 const { mutateAsync: updateCharacterClass } = useUpdateCharacterClass();
-const campaign = useCampaignStore();
 
 // ── Multiclass state ───────────────────────────────────────────────────────────
 const memberIdRef = computed(() => props.member.id);
