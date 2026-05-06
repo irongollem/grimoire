@@ -756,7 +756,7 @@ export const routes: RouteRecordRaw[] = [
     path: "/admin",
     name: "admin",
     component: () => import("@/views/admin/AdminView.vue"),
-    meta: { requiresAuth: true, title: "Admin" },
+    meta: { requiresAuth: true, requiresAdmin: true, title: "Admin" },
   },
 
   // 404

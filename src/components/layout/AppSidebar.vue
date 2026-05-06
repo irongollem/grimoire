@@ -111,8 +111,6 @@
           v-if="menuOpen"
           class="absolute bottom-full left-0 right-0 mb-1 rounded-xl border border-border bg-popover shadow-lg overflow-hidden py-1"
         >
-          <AppInvitePanel v-if="auth.isAppAdmin" />
-
           <!-- Edit name -->
           <div v-if="editingName" class="flex items-center gap-1.5 px-3 py-2">
             <input
@@ -209,7 +207,6 @@ import NavItem from "./NavItem.vue";
 import CampaignSwitcher from "./CampaignSwitcher.vue";
 import GlobalSearch from "./GlobalSearch.vue";
 import DiceRoller from "@/components/common/DiceRoller.vue";
-import AppInvitePanel from "@/components/admin/AppInvitePanel.vue";
 import BugReportModal from "@/components/common/BugReportModal.vue";
 
 const auth = useAuthStore();

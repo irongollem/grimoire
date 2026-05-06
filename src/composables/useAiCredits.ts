@@ -1,8 +1,8 @@
 import { computed, ref } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { supabase } from '@/lib/supabase'
-import type { AiGenerationType, CreditPackId } from '@/types/subscription.types'
 import { CREDIT_COST } from '@/types/subscription.types'
+import { useGenerationCreditCosts } from '@/composables/useCreditConfig'
 import type { TextUsage, ImageUsage } from '@/ai/providers/types'
 
 /** Log a BYOK generation for cost analytics. Fire-and-forget — never blocks the caller. */
@@ -50,8 +50,17 @@ export function useAiCredits() {
     staleTime: 30_000,
   })
 
-  function canGenerate(type: AiGenerationType): boolean {
-    return (balance.value ?? 0) >= CREDIT_COST[type]
+  const { data: generationCosts } = useGenerationCreditCosts()
+
+  function costOf(generationType: string): number {
+    const row = generationCosts.value?.find((r) => r.generation_type === generationType)
+    if (row) return row.credit_cost
+    // Fallback to hardcoded constant while DB value is loading
+    return (CREDIT_COST as Record<string, number>)[generationType] ?? 1
+  }
+
+  function canGenerate(generationType: string): boolean {
+    return (balance.value ?? 0) >= costOf(generationType)
   }
 
   async function deductCredit(reason: string, amount = 1): Promise<boolean> {
@@ -63,7 +72,7 @@ export function useAiCredits() {
     return true
   }
 
-  async function purchasePack(packId: CreditPackId): Promise<void> {
+  async function purchasePack(packId: string): Promise<void> {
     purchaseLoading.value = true
     purchaseError.value = null
     try {
@@ -90,6 +99,7 @@ export function useAiCredits() {
     formattedBalance,
     isLoading,
     canGenerate,
+    costOf,
     deductCredit,
     logUsage: logUsage,
     purchasePack,

@@ -279,14 +279,14 @@
         </p>
         <div class="grid grid-cols-3 gap-2">
           <button
-            v-for="(pack, packId) in CREDIT_PACKS"
-            :key="packId"
+            v-for="pack in creditPacks"
+            :key="pack.pack_id"
             class="flex flex-col items-center gap-1 rounded-lg border border-border bg-muted/30 p-3 text-center hover:border-primary/50 hover:bg-primary/5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             :disabled="purchaseLoading"
-            @click="purchasePack(packId as CreditPackId)"
+            @click="purchasePack(pack.pack_id)"
           >
             <span class="font-cinzel text-xs font-bold text-foreground">{{ pack.credits }} credits</span>
-            <span class="font-fell text-[11px] italic text-muted-foreground">€{{ pack.eur }}</span>
+            <span class="font-fell text-[11px] italic text-muted-foreground">€{{ pack.eur_display }}</span>
             <span class="font-cinzel text-[9px] tracking-wider text-muted-foreground/70 uppercase">{{ pack.label }}</span>
           </button>
         </div>
@@ -308,8 +308,9 @@ import { useStripe } from "@/composables/useStripe";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { usePlan } from "@/composables/usePlan";
 import { useQuota } from "@/composables/useQuota";
-import { CREDIT_PACKS, QUOTA_RESOURCE_LABELS } from "@/types/subscription.types";
-import type { CreditPackId, QuotaResource } from "@/types/subscription.types";
+import { QUOTA_RESOURCE_LABELS } from "@/types/subscription.types";
+import type { QuotaResource } from "@/types/subscription.types";
+import { useCreditPacks } from "@/composables/useCreditConfig";
 
 const route = useRoute();
 const creditPurchaseSuccess = computed(() => route.query.credit_purchase === "success");
@@ -327,6 +328,8 @@ const {
   purchaseLoading,
   purchaseError,
 } = useAiCredits();
+
+const { data: creditPacks } = useCreditPacks();
 
 const { data: freePlan } = usePlan("free");
 

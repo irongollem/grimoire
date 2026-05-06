@@ -1,0 +1,272 @@
+import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { decryptValue } from "../_shared/vault.ts";
+import {
+  AI_PROMPT_LIMIT,
+  INJECTION_GUARD_SUFFIX,
+  validatePromptInput,
+  wrapUserInput,
+} from "../_shared/ai-prompt.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const admin = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+);
+
+const MAP_BASE_PROMPT =
+  "Top-down fantasy cartography map. Hand-drawn ink style, bird's-eye view, clean linework, labeled zones, hatching for walls and elevation, minimal colour. Readable as a functional map, not a painting.";
+
+function buildCampaignContext(setting: string | null | undefined): string {
+  const s = setting?.trim();
+  if (!s) return "";
+  return `\n\nCampaign context provided by the DM (use it to ground tone, names, factions, and themes — but do not invent new facts that contradict it):\n\n## Setting\n${s}`;
+}
+
+// ── Text providers ────────────────────────────────────────────────────────────
+
+interface TextUsage { input_tokens: number; output_tokens: number; model: string; provider: string }
+interface TextResult { content: string; usage: TextUsage }
+
+async function openaiText(apiKey: string, system: string, user: string): Promise<TextResult> {
+  const model = "gpt-4o-mini";
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      response_format: { type: "json_object" },
+      messages: [{ role: "system", content: system }, { role: "user", content: user }],
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body?.error?.message ?? `OpenAI text error ${res.status}`);
+  }
+  const data = await res.json();
+  return {
+    content: data.choices[0].message.content as string,
+    usage: { input_tokens: data.usage?.prompt_tokens ?? 0, output_tokens: data.usage?.completion_tokens ?? 0, model, provider: "openai" },
+  };
+}
+
+async function anthropicText(apiKey: string, system: string, user: string): Promise<TextResult> {
+  const model = "claude-sonnet-4-6";
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({
+      model, max_tokens: 4096,
+      system: system + "\n\nRespond with a valid JSON object only, no markdown fencing.",
+      messages: [{ role: "user", content: user }],
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body?.error?.message ?? `Anthropic error ${res.status}`);
+  }
+  const data = await res.json();
+  return {
+    content: data.content[0].text as string,
+    usage: { input_tokens: data.usage?.input_tokens ?? 0, output_tokens: data.usage?.output_tokens ?? 0, model, provider: "anthropic" },
+  };
+}
+
+async function geminiText(apiKey: string, system: string, user: string): Promise<TextResult> {
+  const model = "gemini-3.1-flash";
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: system }] },
+        contents: [{ role: "user", parts: [{ text: user }] }],
+        generationConfig: { responseMimeType: "application/json" },
+      }),
+    },
+  );
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body?.error?.message ?? `Gemini error ${res.status}`);
+  }
+  const data = await res.json();
+  const meta = data.usageMetadata ?? {};
+  return {
+    content: data.candidates[0].content.parts[0].text as string,
+    usage: { input_tokens: meta.promptTokenCount ?? 0, output_tokens: meta.candidatesTokenCount ?? 0, model, provider: "google" },
+  };
+}
+
+// ── Image provider ────────────────────────────────────────────────────────────
+
+async function openaiImageGenerate(apiKey: string, model: string, prompt: string, size: string): Promise<string> {
+  const res = await fetch("https://api.openai.com/v1/images/generations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({ model, prompt, size, output_format: "webp" }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body?.error?.message ?? `OpenAI image error ${res.status}`);
+  }
+  const data = await res.json();
+  return data.data[0].b64_json as string;
+}
+
+// ── Usage logging ─────────────────────────────────────────────────────────────
+
+async function logUsage(params: {
+  userId: string; reason: string;
+  textUsage?: TextUsage; imageCount?: number; imageModel?: string; imageProvider?: string;
+}): Promise<void> {
+  const { userId, reason, textUsage, imageCount, imageModel, imageProvider } = params;
+  await admin.from("ai_credit_ledger").insert({
+    user_id: userId, delta: 0, reason, is_byok: true,
+    model: textUsage?.model ?? imageModel,
+    provider: textUsage?.provider ?? imageProvider,
+    input_tokens: textUsage?.input_tokens,
+    output_tokens: textUsage?.output_tokens,
+    image_count: imageCount,
+  });
+}
+
+// ── Handler ───────────────────────────────────────────────────────────────────
+
+serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) return new Response("Unauthorized", { status: 401 });
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    { global: { headers: { Authorization: authHeader } } },
+  );
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return new Response("Unauthorized", { status: 401 });
+
+  let campaign_id: string, prompt: string, location_type: string | undefined,
+      parent_name: string | undefined, generate_image: boolean, generate_map: boolean, image_model: string;
+
+  try {
+    const body = await req.json();
+    campaign_id    = body.campaign_id;
+    prompt         = body.prompt;
+    location_type  = body.location_type;
+    parent_name    = body.parent_name;
+    generate_image = body.generate_image !== false;
+    generate_map   = body.generate_map === true;
+    image_model    = body.image_model ?? "gpt-image-2";
+    if (!campaign_id || !prompt) throw new Error("invalid");
+  } catch {
+    return new Response("Invalid body — need { campaign_id, prompt }", { status: 400 });
+  }
+
+  const promptCheck = validatePromptInput(prompt, AI_PROMPT_LIMIT);
+  if (!promptCheck.ok) return promptCheck.errorResponse;
+
+  const { data: campaign } = await admin
+    .from("campaigns")
+    .select("id, user_id, text_provider, ai_setting_prompt, openai_api_key, anthropic_api_key, gemini_api_key")
+    .eq("id", campaign_id)
+    .maybeSingle();
+  if (!campaign) return new Response("Campaign not found", { status: 404 });
+
+  if (campaign.user_id !== user.id) {
+    const { data: membership } = await admin
+      .from("campaign_members").select("role")
+      .eq("campaign_id", campaign_id).eq("user_id", user.id).maybeSingle();
+    if (!membership) return new Response("Forbidden", { status: 403 });
+  }
+
+  const { data: promptRows } = await admin
+    .from("ai_system_prompts").select("generator_type, content")
+    .in("generator_type", ["location", "image_base"]);
+  const promptRow = promptRows?.find((r) => r.generator_type === "location");
+  const imageBasePrompt = promptRows?.find((r) => r.generator_type === "image_base")?.content ?? "";
+  if (!promptRow) return new Response("Prompt not configured", { status: 500 });
+
+  async function decryptKey(enc: string | null): Promise<string | null> {
+    if (!enc) return null;
+    try { return await decryptValue(enc); } catch { return null; }
+  }
+
+  const [openaiKey, anthropicKey, geminiKey] = await Promise.all([
+    decryptKey(campaign.openai_api_key),
+    decryptKey(campaign.anthropic_api_key),
+    decryptKey(campaign.gemini_api_key),
+  ]);
+
+  const systemContent = promptRow.content + buildCampaignContext(campaign.ai_setting_prompt) + INJECTION_GUARD_SUFFIX;
+
+  const constraints: string[] = [];
+  if (location_type) constraints.push(`Location Type: ${location_type}`);
+  if (parent_name) constraints.push(`Parent Location: ${parent_name}`);
+  const wrappedPrompt = wrapUserInput(prompt);
+  const userContent = constraints.length ? `${wrappedPrompt}\n\nConstraints:\n${constraints.join("\n")}` : wrappedPrompt;
+
+  const textProvider = campaign.text_provider ?? "openai";
+  let textResult: TextResult;
+
+  try {
+    if (textProvider === "anthropic" && anthropicKey) {
+      textResult = await anthropicText(anthropicKey, systemContent, userContent);
+    } else if (textProvider === "gemini" && geminiKey) {
+      textResult = await geminiText(geminiKey, systemContent, userContent);
+    } else {
+      if (!openaiKey) return new Response("No OpenAI API key configured for this campaign", { status: 422 });
+      textResult = await openaiText(openaiKey, systemContent, userContent);
+    }
+  } catch (e) {
+    console.error("Location text generation failed:", e);
+    return new Response(
+      JSON.stringify({ error: e instanceof Error ? e.message : "Text generation failed" }),
+      { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  const locationData = JSON.parse(textResult.content);
+
+  // ── Images in parallel ────────────────────────────────────────────────────
+  let image_b64: string | null = null;
+  let map_b64: string | null = null;
+  let imageCount = 0;
+
+  if (openaiKey && (generate_image || generate_map)) {
+    const [imgResult, mapResult] = await Promise.allSettled([
+      generate_image
+        ? openaiImageGenerate(openaiKey, image_model,
+            [imageBasePrompt, campaign.ai_setting_prompt, locationData.image_prompt].filter(Boolean).join(" — "),
+            "1024x1024")
+        : Promise.resolve(null),
+      generate_map
+        ? openaiImageGenerate(openaiKey, image_model,
+            [MAP_BASE_PROMPT, locationData.map_prompt].filter(Boolean).join(" — "),
+            "1024x1024")
+        : Promise.resolve(null),
+    ]);
+
+    if (imgResult.status === "fulfilled" && imgResult.value) { image_b64 = imgResult.value; imageCount++; }
+    if (mapResult.status === "fulfilled" && mapResult.value) { map_b64 = mapResult.value; imageCount++; }
+  }
+
+  const logPromises = [
+    logUsage({ userId: user.id, reason: "location_generation", textUsage: textResult.usage }),
+  ];
+  if (imageCount > 0) {
+    logPromises.push(logUsage({ userId: user.id, reason: "location_image", imageCount, imageModel: image_model, imageProvider: "openai" }));
+  }
+  await Promise.allSettled(logPromises);
+
+  return new Response(
+    JSON.stringify({ ...locationData, image_b64, map_b64 }),
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  );
+});

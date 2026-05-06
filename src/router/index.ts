@@ -18,6 +18,9 @@ export function setupRouterGuard(router: Router) {
     if (to.meta.requiresGuest && auth.isAuthenticated) {
       return { name: "dashboard" };
     }
+    if (to.meta.requiresAdmin && !auth.isAppAdmin) {
+      return { name: "dashboard" };
+    }
 
     // Players are redirected away from DM routes to the player portal
     if (auth.isAuthenticated && auth.isPlayer && !to.meta.requiresPlayer && !to.meta.playerReadable && to.name !== "join-campaign") {
