@@ -211,6 +211,7 @@ import { ref, computed } from "vue";
 import { useCreateSound, useSoundUpload } from "@/composables/useSounds";
 import { useSpotifyStore } from "@/stores/spotify";
 import { generateMusicWithLyria, LYRIA_MODELS, type LyriaModel } from "@/lib/aiMusic";
+import { logUsage } from "@/composables/useAiCredits";
 import type { SoundCategory } from "@/types/sound.types";
 
 const spotifyStore = useSpotifyStore();
@@ -333,6 +334,7 @@ async function handleSubmit() {
     let file: File;
     try {
       file = await generateMusicWithLyria(generatePrompt.value.trim(), generateModel.value, geminiApiKey);
+      logUsage({ reason: "music_generation", imageUsage: { model: generateModel.value, provider: "google", image_count: 1 } });
     } catch (err) {
       generateError.value = err instanceof Error ? err.message : "Generation failed.";
       return;
