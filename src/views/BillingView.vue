@@ -2,6 +2,17 @@
   <div class="max-w-2xl mx-auto px-4 py-8 space-y-6">
     <PageHeader title="Billing & Subscription" />
 
+    <!-- Credit purchase success banner -->
+    <div
+      v-if="creditPurchaseSuccess"
+      class="rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 flex items-center gap-3"
+    >
+      <Sparkles class="h-4 w-4 text-green-400 shrink-0" />
+      <p class="font-fell text-sm text-green-400">
+        Credits added to your account — thanks for your purchase!
+      </p>
+    </div>
+
     <!-- Current plan card -->
     <div class="rounded-xl border bg-card p-6 space-y-4">
       <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
@@ -289,6 +300,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { useRoute } from "vue-router";
 import { Crown, CreditCard, Loader2, Scroll, Sparkles } from "lucide-vue-next";
 import PageHeader from "@/components/common/PageHeader.vue";
 import { useSubscription } from "@/composables/useSubscription";
@@ -298,6 +310,9 @@ import { usePlan } from "@/composables/usePlan";
 import { useQuota } from "@/composables/useQuota";
 import { CREDIT_PACKS, QUOTA_RESOURCE_LABELS } from "@/types/subscription.types";
 import type { CreditPackId, QuotaResource } from "@/types/subscription.types";
+
+const route = useRoute();
+const creditPurchaseSuccess = computed(() => route.query.credit_purchase === "success");
 
 const { subscription, isPro, isPendingCancellation, isLoading } = useSubscription();
 const {
