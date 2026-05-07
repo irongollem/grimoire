@@ -80,11 +80,15 @@ serve(async (req: Request) => {
       return json({ error: "Pro plan price not configured — set stripe_price_id on the pro plan row or STRIPE_PRO_MONTHLY_PRICE_ID env var" }, 500);
     }
 
+    const { data: config } = await admin.from("checkout_config").select("promo_codes_enabled").single();
+    const promoCodesEnabled = config?.promo_codes_enabled ?? false;
+
     const appUrl = Deno.env.get("APP_URL") ?? "https://dungeongrimoire.com";
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: "subscription",
+      allow_promotion_codes: promoCodesEnabled,
       line_items: [{ price: priceId, quantity: 1 }],
       automatic_tax: { enabled: true },
       tax_id_collection: { enabled: true },

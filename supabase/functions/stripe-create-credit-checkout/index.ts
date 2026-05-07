@@ -65,12 +65,17 @@ serve(async (req: Request) => {
     return new Response("Stripe price not configured for this pack — contact support", { status: 500 });
   }
 
+  const { data: config } = await admin.from("checkout_config").select("promo_codes_enabled").single();
+  const promoCodesEnabled = config?.promo_codes_enabled ?? false;
+
   const origin = req.headers.get("origin") ?? Deno.env.get("SITE_URL") ?? "https://dungeongrimoire.com";
 
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      allow_promotion_codes: true,
+      allow_promotion_codes: promoCodesEnabled,
+      automatic_tax: { enabled: true },
+      tax_id_collection: { enabled: true },
       line_items: [{ price: pack.stripe_price_id, quantity: 1 }],
       metadata: {
         user_id: user.id,
