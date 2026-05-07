@@ -16,13 +16,13 @@
         <!-- Species tab -->
         <ListActionButton
           v-if="activeTab === 'species'"
-          :icon="Download"
+          :icon="IconDownload"
           label="Import Open5e"
           @click="ui.speciesOpen5ePanelOpen = true"
         />
         <ListActionButton
           v-if="activeTab === 'species'"
-          :icon="Plus"
+          :icon="IconAdd"
           label="New Species"
           mobile-label="Species"
           variant="primary"
@@ -38,7 +38,7 @@
               :title="selectedSources.length === 0 ? 'All sources selected' : `${selectedSources.length} source(s) selected`"
               @click="showSourcePicker = !showSourcePicker"
             >
-              <Settings2 class="size-3.5 shrink-0" />
+              <IconSettings class="size-3.5 shrink-0" />
             </button>
             <div
               v-show="showSourcePicker"
@@ -49,7 +49,7 @@
                 <p class="font-fell text-xs text-muted-foreground mt-0.5">Leave all unchecked to import everything.</p>
               </div>
               <div v-if="docsLoading" class="p-3 flex items-center justify-center">
-                <Loader2 class="size-4 animate-spin text-muted-foreground" />
+                <IconLoading class="size-4 animate-spin text-muted-foreground" />
               </div>
               <div v-else class="p-2 flex flex-col gap-0.5">
                 <label
@@ -74,13 +74,13 @@
             </div>
           </div>
           <ListActionButton
-            :icon="bgImportMutation.isPending.value ? Loader2 : Download"
+            :icon="bgImportMutation.isPending.value ? IconLoading : IconDownload"
             :label="bgImportStatusLabel"
             :disabled="bgImportMutation.isPending.value"
             @click="handleBgImport"
           />
           <ListActionButton
-            :icon="Plus"
+            :icon="IconAdd"
             label="New Background"
             mobile-label="Background"
             variant="primary"
@@ -91,34 +91,34 @@
         <!-- Classes tab -->
         <template v-if="activeTab === 'classes'">
           <ListActionButton
-            :icon="classImportMutation.isPending.value ? Loader2 : Download"
+            :icon="classImportMutation.isPending.value ? IconLoading : IconDownload"
             :label="classImportLabel"
             :disabled="classImportMutation.isPending.value"
             @click="handleClassImport"
           />
-          <ListActionButton :icon="Plus" label="New Class" mobile-label="Class" variant="primary" to="/levelup/classes/new" />
+          <ListActionButton :icon="IconAdd" label="New Class" mobile-label="Class" variant="primary" to="/levelup/classes/new" />
         </template>
 
         <!-- Archetypes tab -->
         <template v-if="activeTab === 'archetypes'">
           <ListActionButton
-            :icon="archetypeImportMutation.isPending.value ? Loader2 : Download"
+            :icon="archetypeImportMutation.isPending.value ? IconLoading : IconDownload"
             :label="archetypeImportLabel"
             :disabled="archetypeImportMutation.isPending.value"
             @click="handleArchetypeImport"
           />
-          <ListActionButton :icon="Plus" label="New Archetype" mobile-label="Archetype" variant="primary" to="/levelup/custom/new" />
+          <ListActionButton :icon="IconAdd" label="New Archetype" mobile-label="Archetype" variant="primary" to="/levelup/custom/new" />
         </template>
 
         <!-- Abilities tab -->
         <template v-if="activeTab === 'abilities'">
           <ListActionButton
-            :icon="abilityImporting ? Loader2 : Download"
+            :icon="abilityImporting ? IconLoading : IconDownload"
             :label="abilityImportLabel"
             :disabled="abilityImporting"
             @click="handleAbilityImport"
           />
-          <ListActionButton :icon="Plus" label="New Ability" mobile-label="Ability" variant="primary" to="/features/new" />
+          <ListActionButton :icon="IconAdd" label="New Ability" mobile-label="Ability" variant="primary" to="/features/new" />
         </template>
       </template>
     </template>
@@ -214,7 +214,7 @@ import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useLocalStorage, onClickOutside } from "@vueuse/core";
-import { Dna, BookUser, GraduationCap, BookOpen, Zap, Download, Plus, Settings2, Loader2 } from "lucide-vue-next";
+import { IconAdd, IconBookUser, IconDownload, IconLevel, IconLightning, IconLoading, IconPopulate, IconSettings, IconSpecies } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
@@ -241,12 +241,12 @@ import { FEATURE_TYPES, FEATURE_TYPE_LABELS } from "@/types/feature.types";
 
 type TabId = "species" | "backgrounds" | "classes" | "archetypes" | "abilities";
 
-const TABS: Array<{ id: TabId; label: string; icon: typeof Dna }> = [
-  { id: "species",     label: "Species",     icon: Dna },
-  { id: "backgrounds", label: "Backgrounds", icon: BookUser },
-  { id: "classes",     label: "Classes",     icon: BookOpen },
-  { id: "archetypes",  label: "Archetypes",  icon: GraduationCap },
-  { id: "abilities",   label: "Abilities",   icon: Zap },
+const TABS: Array<{ id: TabId; label: string; icon: typeof IconSpecies }> = [
+  { id: "species",     label: "Species",     icon: IconSpecies },
+  { id: "backgrounds", label: "Backgrounds", icon: IconBookUser },
+  { id: "classes",     label: "Classes",     icon: IconPopulate },
+  { id: "archetypes",  label: "Archetypes",  icon: IconLevel },
+  { id: "abilities",   label: "Abilities",   icon: IconLightning },
 ];
 
 const SIZE_OPTIONS = [

@@ -4,13 +4,13 @@
       <!-- Features tab actions -->
       <template v-if="activeTab === 'features'">
         <ListActionButton
-          :icon="featuresPopulate.isPending.value ? Loader2 : BookOpen"
+          :icon="featuresPopulate.isPending.value ? IconLoading : IconPopulate"
           :label="featuresPopulateLabel"
           :disabled="featuresPopulate.isPending.value"
           @click="handleFeaturesPopulate"
         />
         <ListActionButton
-          :icon="Plus"
+          :icon="IconAdd"
           label="New Feature"
           mobile-label="Feature"
           variant="primary"
@@ -21,18 +21,18 @@
       <!-- Traps tab actions -->
       <template v-else-if="activeTab === 'traps'">
         <ListActionButton
-          :icon="trapsPopulate.isPending.value ? Loader2 : BookOpen"
+          :icon="trapsPopulate.isPending.value ? IconLoading : IconPopulate"
           :label="trapsPopulateLabel"
           :disabled="trapsPopulate.isPending.value"
           @click="handleTrapsPopulate"
         />
         <ListActionButton
-          :icon="Sparkles"
+          :icon="IconGenerate"
           label="Generate"
           @click="ui.trapGeneratorOpen = true"
         />
         <ListActionButton
-          :icon="Plus"
+          :icon="IconAdd"
           label="New Trap"
           mobile-label="Trap"
           variant="primary"
@@ -44,13 +44,13 @@
       <template v-else-if="activeTab === 'roll-tables'">
         <template v-if="!selectedRollTableId && !inlineNewRollTable">
           <ListActionButton
-            :icon="rollTablesPopulate.isPending.value ? Loader2 : BookOpen"
+            :icon="rollTablesPopulate.isPending.value ? IconLoading : IconPopulate"
             :label="rollTablesPopulateLabel"
             :disabled="rollTablesPopulate.isPending.value"
             @click="handleRollTablesPopulate"
           />
           <ListActionButton
-            :icon="Plus"
+            :icon="IconAdd"
             label="New Roll Table"
             mobile-label="Roll Table"
             variant="primary"
@@ -68,7 +68,7 @@
       <!-- Loot Tables tab actions -->
       <template v-else-if="activeTab === 'loot-tables'">
         <ListActionButton
-          :icon="Plus"
+          :icon="IconAdd"
           label="New Loot Table"
           mobile-label="Loot Table"
           variant="primary"
@@ -79,18 +79,18 @@
       <!-- Puzzles tab actions -->
       <template v-else>
         <ListActionButton
-          :icon="puzzlesPopulate.isPending.value ? Loader2 : BookOpen"
+          :icon="puzzlesPopulate.isPending.value ? IconLoading : IconPopulate"
           :label="puzzlesPopulateLabel"
           :disabled="puzzlesPopulate.isPending.value"
           @click="handlePuzzlesPopulate"
         />
         <ListActionButton
-          :icon="Sparkles"
+          :icon="IconGenerate"
           label="Generate"
           @click="ui.puzzleGeneratorOpen = true"
         />
         <ListActionButton
-          :icon="Plus"
+          :icon="IconAdd"
           label="New Puzzle"
           mobile-label="Puzzle"
           variant="primary"
@@ -156,7 +156,7 @@
                 class="group-hover:scale-105 transition-transform duration-300"
               />
               <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/20">
-                <DoorOpenIcon class="h-10 w-10" />
+                <IconDungeon class="h-10 w-10" />
               </div>
               <span
                 class="absolute top-2 left-2 font-cinzel text-[9px] px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
@@ -228,7 +228,7 @@
                 class="group-hover:scale-105 transition-transform duration-300"
               />
               <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/20">
-                <CrosshairIcon class="h-10 w-10" />
+                <IconTrap class="h-10 w-10" />
               </div>
               <span
                 class="absolute top-2 left-2 font-cinzel text-[9px] px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
@@ -415,7 +415,7 @@
                 class="group-hover:scale-105 transition-transform duration-300"
               />
               <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/20">
-                <PuzzleIcon class="h-10 w-10" />
+                <IconPuzzle class="h-10 w-10" />
               </div>
               <span
                 class="absolute top-2 left-2 font-cinzel text-[9px] px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
@@ -455,15 +455,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { RouterLink, useRoute, useRouter } from "vue-router";
-import {
-  DoorOpen as DoorOpenIcon,
-  Crosshair as CrosshairIcon,
-  Puzzle as PuzzleIcon,
-  Loader2,
-  BookOpen,
-  Sparkles,
-  Plus,
-} from "lucide-vue-next";
+import { IconAdd, IconDungeon, IconGenerate, IconLoading, IconPopulate, IconPuzzle, IconTrap } from '@/lib/icons';
 
 import { useDungeonFeatures, usePopulateDungeonFeatures } from "@/composables/useDungeonFeatures";
 import { DUNGEON_FEATURE_TYPES, DUNGEON_FEATURE_TYPE_COLORS } from "@/types/dungeonFeature.types";

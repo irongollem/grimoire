@@ -118,8 +118,8 @@
                 @click.stop="toggleVisibility(pin.child_location_id)"
                 @pointerdown.stop
               >
-                <Eye v-if="pin.visible_to_players" class="h-3 w-3" />
-                <EyeOff v-else class="h-3 w-3 text-muted-foreground/50" />
+                <IconReveal v-if="pin.visible_to_players" class="h-3 w-3" />
+                <IconHide v-else class="h-3 w-3 text-muted-foreground/50" />
               </button>
               <button
                 type="button"
@@ -128,7 +128,7 @@
                 @click.stop="removePin(pin.child_location_id)"
                 @pointerdown.stop
               >
-                <X class="h-3 w-3" />
+                <IconClose class="h-3 w-3" />
               </button>
             </template>
 
@@ -143,7 +143,7 @@
                 @click.stop="emit('pin-go', pin.child_location_id)"
                 @pointerdown.stop
               >
-                <Navigation class="h-3 w-3" />
+                <IconNavigate class="h-3 w-3" />
               </button>
               <!-- Watch — always available; shows art + summary + notes -->
               <button
@@ -153,7 +153,7 @@
                 @click.stop="emit('pin-watch', pin.child_location_id)"
                 @pointerdown.stop
               >
-                <ScanEye class="h-3 w-3" />
+                <IconScan class="h-3 w-3" />
               </button>
             </template>
           </div>
@@ -194,7 +194,7 @@
         v-if="placingChildId"
         class="flex items-center gap-2 px-3 py-2 rounded-md bg-primary/10 border border-primary/30"
       >
-        <MapPinIcon class="h-3.5 w-3.5 text-primary shrink-0" />
+        <IconLocation class="h-3.5 w-3.5 text-primary shrink-0" />
         <span class="font-cinzel text-xs text-primary flex-1">
           Click the map to place
           <strong>{{ placingChildName }}</strong>
@@ -237,7 +237,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from "vue";
-import { Eye, EyeOff, X, MapPin as MapPinIcon, Navigation, ScanEye } from "lucide-vue-next";
+import { IconClose, IconHide, IconLocation, IconNavigate, IconReveal, IconScan } from '@/lib/icons';
 import { LOCATION_TYPE_COLORS } from "@/types/location.types";
 import type { MapPin as MapPinType, LocationType } from "@/types/location.types";
 
@@ -473,7 +473,7 @@ function zoomAt(factor: number, anchorX: number, anchorY: number) {
   if (!frame || !container) return;
   const frameRect = frame.getBoundingClientRect();
   const containerRect = container.getBoundingClientRect();
-  const lo = containerRect.left - frameRect.left - tx.value; // layout offset X
+  const lo = containerRect.left - frameRect.left - tx.value; // layout offset IconClose
   const lt = containerRect.top  - frameRect.top  - ty.value; // layout offset Y
   const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale.value * factor));
   // Same anchor math as pinch: keep the map-space point under (anchorX,anchorY) fixed.

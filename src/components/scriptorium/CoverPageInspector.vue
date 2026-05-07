@@ -19,7 +19,7 @@
             class="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             @click="$emit('close')"
           >
-            <X class="h-4 w-4" />
+            <IconClose class="h-4 w-4" />
           </button>
         </div>
 
@@ -152,7 +152,7 @@
 
 <script setup lang="ts">
 import { reactive, computed, watch } from "vue";
-import { X } from "lucide-vue-next";
+import { IconClose } from '@/lib/icons';
 import type { Editor } from "@tiptap/vue-3";
 import type { CoverPageAttrs, CoverPageVariant } from "@/lib/tiptap/coverPage";
 

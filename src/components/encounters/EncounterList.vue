@@ -41,7 +41,7 @@
           v-if="lockedEncounterIds.has(encounter.id)"
           class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-1.5 bg-background/80 backdrop-blur-sm"
         >
-          <Lock class="h-4 w-4 text-muted-foreground" />
+          <IconLock class="h-4 w-4 text-muted-foreground" />
           <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">Locked</p>
           <RouterLink to="/billing" class="font-cinzel text-[9px] tracking-wider text-primary/80 hover:text-primary transition-colors">
             Upgrade to access
@@ -66,7 +66,7 @@
               v-if="encounter.is_finished"
               class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider text-muted-foreground bg-muted/60 border border-border"
             >
-              <CheckCheck class="h-3 w-3" />
+              <IconCheckDouble class="h-3 w-3" />
               Done
             </span>
             <span
@@ -100,13 +100,13 @@
             class="flex gap-4 mt-auto font-cinzel text-[11px] text-muted-foreground"
           >
             <span class="flex items-center gap-1">
-              <Skull class="h-3 w-3" />
+              <IconMonster class="h-3 w-3" />
               {{ totalMonsterCount(encounter) }} monster{{
                 totalMonsterCount(encounter) !== 1 ? "s" : ""
               }}
             </span>
             <span class="flex items-center gap-1">
-              <Users class="h-3 w-3" />
+              <IconParty class="h-3 w-3" />
               {{ encounter.party_member_ids.length }} player{{
                 encounter.party_member_ids.length !== 1 ? "s" : ""
               }}
@@ -130,7 +130,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { Skull, Users, CheckCheck, Lock } from "lucide-vue-next";
+import { IconCheckDouble, IconLock, IconMonster, IconParty } from '@/lib/icons';
 import { useEncounters } from "@/composables/useEncounters";
 import { useRunningEncounters } from "@/composables/useEncounterLive";
 import {

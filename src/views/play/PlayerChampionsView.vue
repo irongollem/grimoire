@@ -11,7 +11,7 @@
         :to="{ name: 'play-character-create' }"
         class="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs font-semibold tracking-wider hover:opacity-90 transition-opacity"
       >
-        <Plus class="h-3.5 w-3.5" />
+        <IconAdd class="h-3.5 w-3.5" />
         New Character
       </RouterLink>
     </div>
@@ -23,7 +23,7 @@
 
     <!-- Empty -->
     <div v-else-if="!characters?.length" class="rounded-lg border border-border bg-card p-8 text-center space-y-3">
-      <Crown class="h-8 w-8 text-muted-foreground/40 mx-auto" />
+      <IconDM class="h-8 w-8 text-muted-foreground/40 mx-auto" />
       <div>
         <p class="font-cinzel text-sm font-semibold text-foreground">No characters yet</p>
         <p class="font-fell text-sm text-muted-foreground italic mt-1">Create your first champion to begin your adventure.</p>
@@ -32,7 +32,7 @@
         :to="{ name: 'play-character-create' }"
         class="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-primary text-primary-foreground font-cinzel text-xs font-semibold tracking-wider hover:opacity-90 transition-opacity"
       >
-        <Plus class="h-3.5 w-3.5" />
+        <IconAdd class="h-3.5 w-3.5" />
         Create Character
       </RouterLink>
     </div>
@@ -58,7 +58,7 @@
               :lightbox="true"
             />
             <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
-              <UserIcon class="h-6 w-6" />
+              <IconUser class="h-6 w-6" />
             </div>
           </div>
 
@@ -121,7 +121,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { RouterLink } from 'vue-router';
-import { Crown, Plus, User as UserIcon } from 'lucide-vue-next';
+import { IconAdd, IconDM, IconUser } from '@/lib/icons';
 import { useMyCharacters, useSetActiveCharacter, useParty } from '@/composables/useParty';
 import { useSpeciesNameMap } from '@/composables/useSpecies';
 import { useAuthStore } from '@/stores/auth';

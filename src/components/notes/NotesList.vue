@@ -3,11 +3,11 @@
     <!-- Filters -->
     <div class="flex flex-wrap items-center gap-2 mb-5">
       <div class="relative flex-1 min-w-48">
-        <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <input
           v-model="search"
           type="text"
-          placeholder="Search notes…"
+          placeholder="IconSearch notes…"
           class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
@@ -64,7 +64,7 @@
           v-if="lockedNoteIds.has(note.id)"
           class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-1.5 bg-background/80 backdrop-blur-sm"
         >
-          <Lock class="h-4 w-4 text-muted-foreground" />
+          <IconLock class="h-4 w-4 text-muted-foreground" />
           <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">Locked</p>
           <RouterLink to="/billing" class="font-cinzel text-[9px] tracking-wider text-primary/80 hover:text-primary transition-colors">
             Upgrade to access
@@ -77,8 +77,8 @@
         <div class="p-3 flex flex-col gap-2 flex-1">
           <!-- Title row -->
           <div class="flex items-start gap-1.5">
-            <Pin v-if="note.is_pinned" class="h-3 w-3 shrink-0 mt-0.5 text-primary" />
-            <Eye v-if="note.player_visible_to?.length" class="h-3 w-3 shrink-0 mt-0.5 text-elven-green" />
+            <IconPin v-if="note.is_pinned" class="h-3 w-3 shrink-0 mt-0.5 text-primary" />
+            <IconReveal v-if="note.player_visible_to?.length" class="h-3 w-3 shrink-0 mt-0.5 text-elven-green" />
             <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight line-clamp-2 flex-1">
               {{ note.title || "Untitled Note" }}
             </h3>
@@ -133,7 +133,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { Search, Pin, Eye, Lock } from "lucide-vue-next";
+import { IconLock, IconPin, IconReveal, IconSearch } from '@/lib/icons';
 import { useNotes } from "@/composables/useNotes";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";

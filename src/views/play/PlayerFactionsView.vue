@@ -44,7 +44,7 @@
             <div class="h-12 w-12 shrink-0 rounded-md border border-border bg-muted overflow-hidden">
               <img v-if="faction.emblem_url" :src="faction.emblem_url" alt="" class="w-full h-full object-cover" />
               <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
-                <Shield class="h-6 w-6" />
+                <IconShield class="h-6 w-6" />
               </div>
             </div>
             <div class="flex-1 min-w-0">
@@ -76,7 +76,7 @@
             <div class="h-14 w-14 shrink-0 rounded-md border border-border bg-muted overflow-hidden">
               <img v-if="selected.emblem_url" :src="selected.emblem_url" alt="" class="w-full h-full object-cover" />
               <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
-                <Shield class="h-7 w-7" />
+                <IconShield class="h-7 w-7" />
               </div>
             </div>
             <div class="flex-1 min-w-0">
@@ -86,7 +86,7 @@
               </p>
             </div>
             <button class="shrink-0 text-muted-foreground hover:text-foreground transition-colors" @click="close">
-              <XIcon class="h-4 w-4" />
+              <IconClose class="h-4 w-4" />
             </button>
           </div>
 
@@ -151,7 +151,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
-import { Shield, XIcon } from "lucide-vue-next";
+import { IconClose, IconShield } from '@/lib/icons';
 import { useSpeciesNameMap } from "@/composables/useSpecies";
 import { usePlayerVisibleFactions, usePartyMemberFactions, usePlayerFactionNpcs, usePlayerFactionPartyMembers } from "@/composables/useFactions";
 import { useAuthStore } from "@/stores/auth";

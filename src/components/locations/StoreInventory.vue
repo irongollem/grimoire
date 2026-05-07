@@ -20,8 +20,8 @@
             class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
             @click="toggleVisible(si)"
           >
-            <Eye v-if="si.visible" class="h-3.5 w-3.5" />
-            <EyeOff v-else class="h-3.5 w-3.5 opacity-40" />
+            <IconReveal v-if="si.visible" class="h-3.5 w-3.5" />
+            <IconHide v-else class="h-3.5 w-3.5 opacity-40" />
           </button>
 
           <!-- Item name + type (tap to preview) -->
@@ -58,7 +58,7 @@
             :class="offeringId === si.id ? 'text-emerald-400' : 'text-muted-foreground hover:text-emerald-400'"
             @click="toggleOffer(si)"
           >
-            <ShoppingBag class="h-3.5 w-3.5" />
+            <IconShop class="h-3.5 w-3.5" />
           </button>
 
           <!-- Remove -->
@@ -68,7 +68,7 @@
             title="Remove from store"
             @click="remove(si.id)"
           >
-            <X class="h-3.5 w-3.5" />
+            <IconClose class="h-3.5 w-3.5" />
           </button>
         </div>
 
@@ -114,7 +114,7 @@
     <!-- Manual add (search) -->
     <div class="relative">
       <div class="flex items-center gap-2 rounded-md border border-dashed border-border bg-background px-3 py-2">
-        <Plus class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <IconAdd class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         <input
           v-model="search"
           type="text"
@@ -173,7 +173,7 @@
         class="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 font-cinzel text-[11px] font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-40"
         @click="quickFill"
       >
-        <Shuffle class="size-3" />
+        <IconShuffle class="size-3" />
         Fill
       </button>
       <span class="font-fell text-[10px] text-muted-foreground italic">
@@ -203,7 +203,7 @@
             class="text-muted-foreground hover:text-foreground transition-colors ml-1 shrink-0"
             @click="selected = null"
           >
-            <X class="h-4 w-4" />
+            <IconClose class="h-4 w-4" />
           </button>
         </div>
         <div class="flex-1 overflow-y-auto px-4 py-4">
@@ -216,7 +216,7 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive } from "vue";
-import { Eye, EyeOff, Plus, X, ShoppingBag, Shuffle } from "lucide-vue-next";
+import { IconAdd, IconClose, IconHide, IconReveal, IconShop, IconShuffle } from '@/lib/icons';
 import ItemSheet from "@/components/items/ItemSheet.vue";
 import { useItems } from "@/composables/useItems";
 import {
@@ -324,7 +324,6 @@ const offeringId  = ref<string | null>(null);
 const offerDesc   = ref("");
 const offerPrice  = reactive<Record<CoinKey, number>>({ pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
 const offerHasPrice = computed(() => COINS.some(c => offerPrice[c.key] > 0));
-
 
 function toggleOffer(si: StoreItem) {
   if (offeringId.value === si.id) {

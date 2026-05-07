@@ -3,26 +3,26 @@
     <template #actions>
       <ListActionButton
         v-if="hasSetting"
-        :icon="Sparkles"
+        :icon="populateMutation.isPending.value ? IconLoading : IconPopulate"
         :label="populateStatusLabel"
         :disabled="populateMutation.isPending.value"
         @click="handlePopulate"
       />
       <ListActionButton
         v-if="deities?.length"
-        :icon="Eye"
+        :icon="IconReveal"
         :label="revealStatus === 'done' ? 'All Revealed' : 'Reveal All'"
         :disabled="revealMutation.isPending.value"
         @click="handleRevealAll"
       />
       <ListActionButton
-        :icon="Flame"
+        :icon="IconFire"
         label="Pantheons"
         mobile-label="Pantheons"
         to="/pantheons"
       />
       <ListActionButton
-        :icon="Plus"
+        :icon="IconAdd"
         label="New Deity"
         mobile-label="Deity"
         variant="primary"
@@ -79,7 +79,7 @@
               v-else
               class="w-full h-full flex items-center justify-center"
             >
-              <Sun class="h-10 w-10 text-muted-foreground/30" />
+              <IconSun class="h-10 w-10 text-muted-foreground/30" />
             </div>
             <!-- Alignment badge -->
             <span
@@ -87,7 +87,7 @@
               class="absolute top-1.5 right-1.5 font-cinzel text-[9px] tracking-wider bg-black/60 text-white px-1.5 py-0.5 rounded"
             >{{ deity.alignment }}</span>
             <!-- Player visible indicator -->
-            <Eye
+            <IconReveal
               v-if="deity.player_visible_to?.length"
               class="absolute top-1.5 left-1.5 h-3 w-3 text-elven-green"
             />
@@ -123,7 +123,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { Eye, Flame, Plus, Sparkles, Sun } from "lucide-vue-next";
+import { IconAdd, IconFire, IconLoading, IconPopulate, IconReveal, IconSun } from '@/lib/icons';
 import { useAllDeities, useAllPantheons, usePopulateDeities, useRevealAllDeities } from "@/composables/useDeities";
 import { CLERIC_DOMAINS } from "@/types/deity.types";
 import { useUiStore } from "@/stores/ui";

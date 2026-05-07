@@ -12,7 +12,7 @@
           class="inline-flex items-center gap-1 font-cinzel text-[10px] text-muted-foreground hover:text-foreground border border-border rounded px-2 py-1 transition-colors"
           @click="exportIcal"
         >
-          <Download class="h-3 w-3" />
+          <IconDownload class="h-3 w-3" />
           Export iCal
         </button>
       </div>
@@ -36,7 +36,7 @@
           </div>
           <!-- Normal display -->
           <div v-else class="flex items-center gap-3 px-4 py-3">
-            <CalendarCheck class="h-4 w-4 text-elven-green shrink-0" />
+            <IconCalendarCheck class="h-4 w-4 text-elven-green shrink-0" />
             <div class="flex-1 min-w-0">
               <p class="font-cinzel text-sm font-semibold text-foreground">{{ p.title }}</p>
               <p class="font-fell text-xs text-muted-foreground">{{ formatDate(p.proposed_date, p.proposed_time) }}</p>
@@ -45,10 +45,10 @@
               {{ availabilityCount(p.id) }}/{{ playerCount }} available
             </span>
             <button class="text-muted-foreground hover:text-foreground transition-colors shrink-0" title="Edit session" @click="startEdit(p)">
-              <Pencil class="h-3.5 w-3.5" />
+              <IconEdit class="h-3.5 w-3.5" />
             </button>
             <button class="text-muted-foreground hover:text-destructive transition-colors shrink-0" title="Cancel session" @click="cancelSession(p)">
-              <X class="h-4 w-4" />
+              <IconClose class="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -91,7 +91,7 @@
           <!-- Normal display -->
           <div v-else>
             <div class="flex items-center gap-3 px-4 py-3">
-              <Calendar class="h-4 w-4 text-primary shrink-0" />
+              <IconCalendar class="h-4 w-4 text-primary shrink-0" />
               <div class="flex-1 min-w-0">
                 <p class="font-cinzel text-sm font-semibold text-foreground">{{ p.title }}</p>
                 <p class="font-fell text-xs text-muted-foreground">{{ formatDate(p.proposed_date, p.proposed_time) }}</p>
@@ -110,14 +110,14 @@
                   :disabled="isUpdating"
                   @click="confirmSession(p)"
                 >
-                  <Check class="h-3 w-3" />
+                  <IconCheck class="h-3 w-3" />
                   Confirm
                 </button>
                 <button class="p-1 text-muted-foreground hover:text-foreground transition-colors rounded" title="Edit" @click="startEdit(p)">
-                  <Pencil class="h-3.5 w-3.5" />
+                  <IconEdit class="h-3.5 w-3.5" />
                 </button>
                 <button class="p-1 text-muted-foreground hover:text-destructive transition-colors rounded" title="Remove" @click="removeProposal(p.id)">
-                  <Trash2 class="h-3.5 w-3.5" />
+                  <IconDelete class="h-3.5 w-3.5" />
                 </button>
               </div>
             </div>
@@ -211,7 +211,7 @@
           class="inline-flex items-center gap-1.5 px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-40 transition-opacity"
           @click="addProposal"
         >
-          <Plus class="h-3.5 w-3.5" />
+          <IconAdd class="h-3.5 w-3.5" />
           {{ isCreating ? "Adding…" : "Add Date" }}
         </button>
       </div>
@@ -230,7 +230,7 @@
           :key="p.id"
           class="flex items-center gap-3 px-4 py-2 rounded-lg border border-border/50 opacity-50"
         >
-          <CalendarX class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <IconRemoveEvent class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <div class="flex-1 min-w-0">
             <p class="font-fell text-sm text-muted-foreground line-through">
               {{ p.title }}
@@ -244,13 +244,13 @@
             title="Delete"
             @click="removeProposal(p.id)"
           >
-            <Trash2 class="h-3.5 w-3.5" />
+            <IconDelete class="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
     </div>
 
-    <!-- ── Calendar subscription ──────────────────────────────────────── -->
+    <!-- ── IconCalendar subscription ──────────────────────────────────────── -->
     <div
       v-if="icalFeedUrl"
       class="rounded-lg border border-border bg-muted/30 p-4 space-y-3"
@@ -258,7 +258,7 @@
       <h3
         class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase"
       >
-        Calendar Subscription
+        IconCalendar Subscription
       </h3>
       <p class="font-fell text-xs text-muted-foreground">
         Subscribe once and your calendar app will automatically receive future
@@ -275,12 +275,12 @@
         />
         <button
           class="shrink-0 inline-flex items-center gap-1 font-cinzel text-[10px] tracking-wider px-2.5 py-1.5 rounded border border-border hover:bg-muted transition-colors"
-          :title="copied ? 'Copied!' : 'Copy URL'"
+          :title="copied ? 'Copied!' : 'IconCopy URL'"
           @click="copyUrl"
         >
-          <Check v-if="copied" class="h-3 w-3 text-elven-green" />
-          <Copy v-else class="h-3 w-3" />
-          {{ copied ? "Copied" : "Copy" }}
+          <IconCheck v-if="copied" class="h-3 w-3 text-elven-green" />
+          <IconCopy v-else class="h-3 w-3" />
+          {{ copied ? "Copied" : "IconCopy" }}
         </button>
       </div>
 
@@ -290,8 +290,8 @@
           :href="webcalUrl"
           class="inline-flex items-center gap-1.5 font-cinzel text-[10px] tracking-wider px-3 py-1.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
         >
-          <CalendarPlus class="h-3 w-3" />
-          Subscribe in Calendar App
+          <IconAddEvent class="h-3 w-3" />
+          Subscribe in IconCalendar App
         </a>
 
         <button
@@ -301,7 +301,7 @@
           title="Generate a new URL — existing subscriptions will stop updating"
           @click="regenerateToken"
         >
-          <RefreshCw class="h-3 w-3" />
+          <IconRefresh class="h-3 w-3" />
           {{ isRegenerating ? "Regenerating…" : "Regenerate URL" }}
         </button>
       </div>
@@ -313,20 +313,7 @@
 import { ref, computed } from "vue";
 import { VueDatePicker } from "@vuepic/vue-datepicker";
 import { useTheme } from "@/composables/useTheme";
-import {
-  Calendar,
-  CalendarCheck,
-  CalendarPlus,
-  CalendarX,
-  Check,
-  Copy,
-  Download,
-  Pencil,
-  Plus,
-  RefreshCw,
-  Trash2,
-  X,
-} from "lucide-vue-next";
+import { IconAdd, IconAddEvent, IconCalendar, IconCalendarCheck, IconCheck, IconClose, IconCopy, IconDelete, IconDownload, IconEdit, IconRefresh, IconRemoveEvent } from '@/lib/icons';
 import {
   useSessionProposals,
   useAllSessionAvailability,
@@ -495,7 +482,7 @@ async function removeProposal(id: string) {
   await deleteProposal(id);
 }
 
-// ── Calendar subscription ─────────────────────────────────────────────────────
+// ── IconCalendar subscription ─────────────────────────────────────────────────────
 
 const copied = ref(false);
 

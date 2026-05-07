@@ -26,9 +26,9 @@
           :disabled="savingName || !displayName.trim() || displayName.trim() === currentName"
           class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 disabled:opacity-40 transition-opacity"
         >
-          <Check v-if="nameSaved" class="h-3.5 w-3.5" />
-          <Save v-else class="h-3.5 w-3.5" />
-          {{ nameSaved ? "Saved" : "Save" }}
+          <IconCheck v-if="nameSaved" class="h-3.5 w-3.5" />
+          <IconSave v-else class="h-3.5 w-3.5" />
+          {{ nameSaved ? "Saved" : "IconSave" }}
         </button>
       </form>
 
@@ -50,7 +50,7 @@
         class="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity cursor-pointer"
         @click="install"
       >
-        <Download class="h-3.5 w-3.5" />
+        <IconDownload class="h-3.5 w-3.5" />
         Install
       </button>
       <!-- Fallback: manual instructions -->
@@ -94,7 +94,7 @@
             to="/play/character/create"
             class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
           >
-            <User class="h-3.5 w-3.5" />
+            <IconUser class="h-3.5 w-3.5" />
             Create character
           </RouterLink>
           <button
@@ -137,7 +137,7 @@
             class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 disabled:opacity-40 transition-opacity"
             @click="claimCharacter"
           >
-            <Check class="h-3.5 w-3.5" />
+            <IconCheck class="h-3.5 w-3.5" />
             Claim
           </button>
           <button
@@ -165,7 +165,7 @@
           :key="s.id"
           class="flex items-center gap-3 rounded-md border border-border px-3 py-2.5"
         >
-          <CalendarCheck class="h-4 w-4 text-elven-green shrink-0" />
+          <IconCalendarCheck class="h-4 w-4 text-elven-green shrink-0" />
           <div class="flex-1 min-w-0">
             <p class="font-cinzel text-sm font-semibold text-foreground">{{ s.title }}</p>
             <p class="font-fell text-xs text-muted-foreground">{{ formatSessionDate(s.proposed_date, s.proposed_time) }}</p>
@@ -202,7 +202,7 @@
                 : 'border-border text-muted-foreground hover:border-elven-green/30 hover:text-elven-green'"
               @click="setAvailability(s, true)"
             >
-              <Check class="h-3 w-3" />
+              <IconCheck class="h-3 w-3" />
               Yes
             </button>
             <button
@@ -212,7 +212,7 @@
                 : 'border-border text-muted-foreground hover:border-destructive/30 hover:text-destructive'"
               @click="setAvailability(s, false)"
             >
-              <X class="h-3 w-3" />
+              <IconClose class="h-3 w-3" />
               No
             </button>
           </div>
@@ -239,12 +239,12 @@
         />
         <button
           class="shrink-0 inline-flex items-center gap-1 font-cinzel text-2xs md:text-sm tracking-wider px-2.5 py-1.5 rounded border border-border hover:bg-muted transition-colors"
-          :title="calCopied ? 'Copied!' : 'Copy URL'"
+          :title="calCopied ? 'Copied!' : 'IconCopy URL'"
           @click="copyFeedUrl"
         >
           <CheckIcon v-if="calCopied" class="h-3 w-3 text-elven-green" />
-          <Copy v-else class="h-3 w-3" />
-          {{ calCopied ? 'Copied' : 'Copy' }}
+          <IconCopy v-else class="h-3 w-3" />
+          {{ calCopied ? 'Copied' : 'IconCopy' }}
         </button>
       </div>
 
@@ -254,7 +254,7 @@
           :href="webcalUrl"
           class="inline-flex items-center gap-1.5 font-cinzel text-2xs md:text-sm tracking-wider px-3 py-1.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
         >
-          <CalendarPlus class="h-3 w-3" />
+          <IconAddEvent class="h-3 w-3" />
           Subscribe in Calendar App
         </a>
       </div>
@@ -287,7 +287,7 @@
             class="cursor-grab active:cursor-grabbing text-muted-foreground touch-none"
             @pointerdown.prevent="onHandlePointerDown(i, $event)"
           >
-            <GripVertical class="h-4 w-4 shrink-0" />
+            <IconDrag class="h-4 w-4 shrink-0" />
           </span>
           <component :is="item.icon" class="h-4 w-4 shrink-0 text-muted-foreground" />
           <span class="font-cinzel text-xs tracking-wider flex-1">{{ item.label }}</span>
@@ -449,7 +449,7 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-border px-4 py-2 font-cinzel text-xs font-semibold text-foreground hover:border-primary/50 transition-colors"
         @click="reloadApp"
       >
-        <RotateCcw class="h-3.5 w-3.5" />
+        <IconReset class="h-3.5 w-3.5" />
         Reload app
       </button>
     </section>
@@ -500,7 +500,7 @@
         transform: 'translateY(-50%)',
       }"
     >
-      <GripVertical class="h-4 w-4 shrink-0 text-muted-foreground" />
+      <IconDrag class="h-4 w-4 shrink-0 text-muted-foreground" />
       <component :is="ghostItem.icon" class="h-4 w-4 shrink-0 text-muted-foreground" />
       <span class="font-cinzel text-xs tracking-wider flex-1">{{ ghostItem.label }}</span>
     </div>
@@ -510,8 +510,8 @@
 <script setup lang="ts">
 import { ref, computed, onBeforeUnmount } from "vue";
 import { RouterLink } from "vue-router";
-import { CalendarCheck, CalendarPlus, Check, Copy, Download, GripVertical, RotateCcw, Save, User, X } from "lucide-vue-next";
-const CheckIcon = Check;
+import { IconAddEvent, IconCalendarCheck, IconCheck, IconClose, IconCopy, IconDownload, IconDrag, IconReset, IconSave, IconUser } from '@/lib/icons';
+const CheckIcon = IconCheck;
 import { usePwaInstall } from "@/composables/usePwaInstall";
 import { useWakeLock } from "@/composables/useWakeLock";
 

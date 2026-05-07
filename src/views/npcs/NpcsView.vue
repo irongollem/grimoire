@@ -4,21 +4,21 @@
     description="The denizens of your realm — allies, enemies, and unknowns"
   >
     <template #actions>
-      <ListActionButton :icon="Network" label="Web" to="/npcs/web" />
+      <ListActionButton :icon="IconNetwork" label="Web" to="/npcs/web" />
       <ListActionButton
         v-if="hasSetting"
-        :icon="Sparkles"
+        :icon="populateMutation.isPending.value ? IconLoading : IconPopulate"
         :label="populateStatusLabel"
         :disabled="populateMutation.isPending.value"
         @click="handlePopulate"
       />
       <ListActionButton
-        :icon="Wand2"
+        :icon="IconGenerate"
         label="Generate"
         @click="ui.npcGeneratorOpen = true"
       />
       <ListActionButton
-        :icon="Plus"
+        :icon="IconAdd"
         label="New NPC"
         mobile-label="NPC"
         variant="primary"
@@ -97,7 +97,7 @@
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
-import { Plus, Wand2, Sparkles, Network } from "lucide-vue-next";
+import { IconAdd, IconGenerate, IconLoading, IconNetwork, IconPopulate } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";

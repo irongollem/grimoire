@@ -5,12 +5,12 @@
   >
     <template #actions>
       <ListActionButton
-        :icon="Wand2"
+        :icon="IconGenerate"
         label="Generate"
         @click="ui.questGeneratorOpen = true"
       />
       <ListActionButton
-        :icon="Plus"
+        :icon="IconAdd"
         label="New Quest"
         mobile-label="Quest"
         variant="primary"
@@ -33,7 +33,7 @@
           it the icon alone is ambiguous between Kanban/List).
         -->
         <ListActionButton
-          :icon="ui.questsIsKanban ? Columns2 : LayoutList"
+          :icon="ui.questsIsKanban ? IconColumns : IconListView"
           :label="ui.questsIsKanban ? 'Kanban' : 'List'"
           :collapse-on-mobile="false"
           variant="ghost"
@@ -50,7 +50,7 @@
 </template>
 
 <script setup lang="ts">
-import { Plus, Columns2, LayoutList, Wand2 } from "lucide-vue-next";
+import { IconAdd, IconColumns, IconGenerate, IconListView } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";

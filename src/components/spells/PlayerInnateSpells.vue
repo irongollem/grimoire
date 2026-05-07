@@ -5,7 +5,7 @@
       v-if="!innateEntries.length"
       class="rounded-lg border border-border bg-card px-5 py-8 text-center space-y-2"
     >
-      <Sparkles class="h-8 w-8 mx-auto text-muted-foreground/60" />
+      <IconGenerate class="h-8 w-8 mx-auto text-muted-foreground/60" />
       <p class="font-cinzel text-sm font-semibold text-foreground">No innate spells</p>
       <p class="font-fell text-sm text-muted-foreground max-w-sm mx-auto">
         Add racial traits, feats, or item-granted spells using the button above.
@@ -21,7 +21,7 @@
           :class="ui.playerInnateOpenSources.includes(group.label) ? 'rounded-t-lg border-b-0' : 'rounded-lg'"
           @click="ui.togglePlayerInnateSource(group.label)"
         >
-          <ChevronRight
+          <IconChevronRight
             class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform"
             :class="ui.playerInnateOpenSources.includes(group.label) ? 'rotate-90' : ''"
           />
@@ -109,7 +109,7 @@
               :title="castButtonTitle(entry)"
               @click="castSpell(entry)"
             >
-              <Wand2 class="h-3 w-3" />
+              <IconWand class="h-3 w-3" />
               Cast
             </button>
 
@@ -120,7 +120,7 @@
               :disabled="isRemoving"
               @click="handleRemove(entry)"
             >
-              <X class="h-3.5 w-3.5" />
+              <IconClose class="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
@@ -133,7 +133,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { ChevronRight, Wand2, X, Sparkles } from "lucide-vue-next";
+import { IconChevronRight, IconClose, IconGenerate, IconWand } from '@/lib/icons';
 import {
   useCharacterSpellsWithDetails,
   useRemoveCharacterSpellById,

@@ -7,7 +7,7 @@
         class="inline-flex items-center gap-1.5 rounded-md bg-card border border-border px-3 py-2 font-cinzel text-xs font-semibold text-foreground hover:border-primary/50 transition-colors"
         @click="rollAllInitiative"
       >
-        <Dices class="h-3.5 w-3.5 text-primary" />
+        <IconDiceRoll class="h-3.5 w-3.5 text-primary" />
         Roll All Initiative
       </button>
       <button
@@ -15,7 +15,7 @@
         class="inline-flex items-center gap-1.5 rounded-md bg-card border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
         @click="clearInitiative"
       >
-        <RotateCcw class="h-3.5 w-3.5" />
+        <IconReset class="h-3.5 w-3.5" />
         Clear Initiative
       </button>
     </div>
@@ -97,7 +97,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { ref, computed } from "vue";
-import { Dices, RotateCcw } from "lucide-vue-next";
+import { IconDiceRoll, IconReset } from '@/lib/icons';
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import { useAllLocations } from "@/composables/useLocations";
 import { useCompanions, useDeleteCompanion } from "@/composables/useCompanions";

@@ -35,7 +35,7 @@
                 class="flex items-center gap-2 rounded-md border px-3 py-2"
                 :class="ing.matched ? 'border-elven-green/40 bg-elven-green/5' : 'border-destructive/40 bg-destructive/5'"
               >
-                <component :is="ing.matched ? CheckCircle : XCircle" class="h-4 w-4 shrink-0" :class="ing.matched ? 'text-elven-green' : 'text-destructive'" />
+                <component :is="ing.matched ? IconCheckCircle : IconCloseCircle" class="h-4 w-4 shrink-0" :class="ing.matched ? 'text-elven-green' : 'text-destructive'" />
                 <div class="flex-1 min-w-0">
                   <p class="font-cinzel text-xs font-semibold text-foreground truncate" :class="{ italic: !ing.item_id }">{{ ing.itemName }}</p>
                   <p class="font-fell text-[10px] text-muted-foreground">Need {{ ing.needed }}×<span v-if="ing.matched"> · Have {{ ing.available }}×</span></p>
@@ -50,7 +50,7 @@
             v-if="!hasProficiency"
             class="flex items-start gap-2 rounded-md border border-gold-500/40 bg-gold-500/10 px-3 py-2.5"
           >
-            <AlertTriangle class="h-4 w-4 text-gold-400 shrink-0 mt-0.5" />
+            <IconWarning class="h-4 w-4 text-gold-400 shrink-0 mt-0.5" />
             <p class="font-fell text-xs text-gold-400">
               You don't have <span class="font-semibold">{{ discipline.tools.join(' or ') }}</span> proficiency.
               No proficiency bonus is added to this roll.
@@ -62,7 +62,7 @@
             v-if="!hasTools"
             class="flex items-start gap-2 rounded-md border border-gold-500/40 bg-gold-500/10 px-3 py-2.5"
           >
-            <AlertTriangle class="h-4 w-4 text-gold-400 shrink-0 mt-0.5" />
+            <IconWarning class="h-4 w-4 text-gold-400 shrink-0 mt-0.5" />
             <p class="font-fell text-xs text-gold-400">
               You don't have <span class="font-semibold">{{ discipline.tools.join(' or ') }}</span> in your inventory.
               This roll is made at <span class="font-semibold">disadvantage</span> (roll twice, take lower).
@@ -115,7 +115,7 @@
 
           <!-- Error notice -->
           <div v-if="attemptError" class="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2.5">
-            <AlertTriangle class="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+            <IconWarning class="h-4 w-4 text-destructive shrink-0 mt-0.5" />
             <p class="font-fell text-xs text-destructive">{{ attemptError }}</p>
           </div>
 
@@ -168,7 +168,7 @@
             class="inline-flex items-center gap-1.5 px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
             @click="attempt"
           >
-            <Dices class="h-3.5 w-3.5" />
+            <IconDiceRoll class="h-3.5 w-3.5" />
             {{ attempting ? "Rolling…" : "Attempt Craft" }}
           </button>
           <button
@@ -186,7 +186,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { AlertTriangle, CheckCircle, Dices, XCircle } from "lucide-vue-next";
+import { IconCheckCircle, IconCloseCircle, IconDiceRoll, IconWarning } from '@/lib/icons';
 import { getDiscipline } from "@/lib/crafting-disciplines";
 import { useAttemptCraft } from "@/composables/useCrafting";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";

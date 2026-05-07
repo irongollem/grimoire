@@ -7,14 +7,14 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
         @click="handleDelete"
       >
-        <Trash2 class="h-3.5 w-3.5" />Delete
+        <IconDelete class="h-3.5 w-3.5" />Delete
       </button>
       <button
         type="button"
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
         @click="router.push({ query: { ...route.query, edit: 'true' } })"
       >
-        <Pencil class="h-3.5 w-3.5" />Edit
+        <IconEdit class="h-3.5 w-3.5" />Edit
       </button>
     </div>
 
@@ -32,7 +32,7 @@
             :lightbox="true"
             class="w-full h-full"
           />
-          <Users v-else class="h-8 w-8 text-muted-foreground/30" />
+          <IconParty v-else class="h-8 w-8 text-muted-foreground/30" />
         </div>
         <!-- Info column -->
         <div class="flex-1 flex flex-col gap-2">
@@ -139,7 +139,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { Pencil, Trash2, Users } from "lucide-vue-next";
+import { IconDelete, IconEdit, IconParty } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteSpecies } from "@/composables/useSpecies";
 import type { Species } from "@/types/species.types";

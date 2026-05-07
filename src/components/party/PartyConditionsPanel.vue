@@ -46,7 +46,7 @@
         class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full border border-dashed border-muted-foreground/40 font-cinzel text-[10px] text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors"
         @click="toggleDropdown"
       >
-        <Plus class="h-2.5 w-2.5" /> Condition
+        <IconAdd class="h-2.5 w-2.5" /> Condition
       </button>
       <div v-if="conditionOpen" class="fixed inset-0 z-10" @click="conditionOpen = false" />
       <div
@@ -76,7 +76,7 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick } from "vue";
-import { Plus } from "lucide-vue-next";
+import { IconAdd } from '@/lib/icons';
 import { useUpdatePartyMember } from "@/composables/useParty";
 import {
   CONDITIONS,

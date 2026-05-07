@@ -18,7 +18,7 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
         @click="remove"
       >
-        <Trash2 class="h-3.5 w-3.5" />
+        <IconDelete class="h-3.5 w-3.5" />
         Delete
       </button>
       <button
@@ -27,8 +27,8 @@
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
         @click="save"
       >
-        <Save class="h-3.5 w-3.5" />
-        {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
+        <IconSave class="h-3.5 w-3.5" />
+        {{ saving ? "Saving…" : isNew ? "Create" : "IconSave" }}
       </button>
     </template>
 
@@ -135,7 +135,7 @@
           class="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs text-foreground hover:bg-muted/40 transition-colors disabled:opacity-40"
           @click="addLevel"
         >
-          <Plus class="h-3 w-3" />
+          <IconAdd class="h-3 w-3" />
           Add level
         </button>
       </div>
@@ -150,7 +150,7 @@
           class="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 font-cinzel text-[10px] tracking-wider text-foreground hover:bg-muted/40 transition-colors"
           @click="addStep"
         >
-          <Plus class="h-3 w-3" />
+          <IconAdd class="h-3 w-3" />
           Add step
         </button>
       </div>
@@ -168,7 +168,7 @@
           class="absolute top-2 right-2 text-muted-foreground hover:text-destructive transition-colors"
           @click="removeStep(i)"
         >
-          <X class="h-3.5 w-3.5" />
+          <IconClose class="h-3.5 w-3.5" />
         </button>
 
         <div class="grid grid-cols-3 gap-3">
@@ -295,7 +295,7 @@
           class="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 font-cinzel text-[10px] tracking-wider text-foreground hover:bg-muted/40 transition-colors"
           @click="addResource"
         >
-          <Plus class="h-3 w-3" />
+          <IconAdd class="h-3 w-3" />
           Add resource
         </button>
       </div>
@@ -313,7 +313,7 @@
           class="absolute top-2 right-2 text-muted-foreground hover:text-destructive transition-colors"
           @click="removeResource(i)"
         >
-          <X class="h-3.5 w-3.5" />
+          <IconClose class="h-3.5 w-3.5" />
         </button>
 
         <div class="grid grid-cols-2 gap-3">
@@ -397,7 +397,7 @@
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import PageHeader from "@/components/common/PageHeader.vue";
-import { Save, Trash2, Plus, X } from "lucide-vue-next";
+import { IconAdd, IconClose, IconDelete, IconSave } from '@/lib/icons';
 import TagInput from "@/components/common/TagInput.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useCustomSubclass, useCreateCustomSubclass, useUpdateCustomSubclass, useDeleteCustomSubclass } from "@/composables/useCustomSubclasses";
@@ -591,7 +591,7 @@ function setTableValue(res: CustomResource, idx: number, value: number) {
   res.table_values = arr;
 }
 
-// ── Save / Delete ─────────────────────────────────────────────────────────────
+// ── IconSave / Delete ─────────────────────────────────────────────────────────────
 
 const saving = ref(false);
 const saveError = ref("");

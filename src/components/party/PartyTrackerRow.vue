@@ -34,7 +34,7 @@
               title="Preview player portal as this character"
               @click="previewAsPlayer"
             >
-              <Eye class="h-3.5 w-3.5" />
+              <IconReveal class="h-3.5 w-3.5" />
             </button>
           </div>
           <p class="font-fell text-xs text-muted-foreground italic">
@@ -57,14 +57,14 @@
             :to="`/locations/${member.current_location_id}`"
             class="inline-flex items-center gap-0.5 font-cinzel text-[10px] text-muted-foreground hover:text-primary transition-colors"
           >
-            <MapPin class="h-2.5 w-2.5 shrink-0" />
+            <IconLocation class="h-2.5 w-2.5 shrink-0" />
             {{ locationNameMap.get(member.current_location_id) ?? '…' }}
           </RouterLink>
           <span
             v-else
             class="inline-flex items-center gap-0.5 font-cinzel text-[10px] text-muted-foreground/40 italic"
           >
-            <MapPin class="h-2.5 w-2.5 shrink-0" />
+            <IconLocation class="h-2.5 w-2.5 shrink-0" />
             Location unknown
           </span>
         </div>
@@ -92,7 +92,7 @@
               title="Toggle inspiration"
               @click="toggleInspiration"
             >
-              <Sparkles class="h-3.5 w-3.5" />
+              <IconGenerate class="h-3.5 w-3.5" />
             </button>
           </div>
 
@@ -220,7 +220,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { Eye, MapPin, Sparkles } from "lucide-vue-next";
+import { IconGenerate, IconLocation, IconReveal } from '@/lib/icons';
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useNpcs } from "@/composables/useNpcs";

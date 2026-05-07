@@ -16,7 +16,7 @@
       <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
         <h2 class="font-cinzel text-base font-semibold text-foreground">Import from Open5e</h2>
         <button class="text-muted-foreground hover:text-foreground" @click="ui.speciesOpen5ePanelOpen = false">
-          <X class="h-5 w-5" />
+          <IconClose class="h-5 w-5" />
         </button>
       </div>
 
@@ -28,20 +28,20 @@
           class="w-full inline-flex items-center justify-center gap-2 rounded-md border border-border bg-muted px-3 py-2 font-cinzel text-xs font-semibold text-foreground tracking-wider hover:bg-accent disabled:opacity-50 transition-colors"
           @click="seedCoreRaces"
         >
-          <LibraryBig class="h-3.5 w-3.5 shrink-0" />
+          <IconScriptorium class="h-3.5 w-3.5 shrink-0" />
           <span v-if="seeding">{{ seedProgress }}</span>
           <span v-else>Import / update core PHB races ({{ CORE_RACE_SLUGS.length }})</span>
         </button>
       </div>
 
-      <!-- Search -->
+      <!-- IconSearch -->
       <div class="px-5 py-3 border-b border-border shrink-0">
         <div class="relative">
-          <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <input
             v-model="query"
             type="text"
-            placeholder="Search races…"
+            placeholder="IconSearch races…"
             class="w-full bg-muted border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             @input="onSearch"
           />
@@ -77,7 +77,7 @@
               <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ race.name }}</p>
               <p class="font-fell text-xs text-muted-foreground italic">{{ race.document__title ?? "—" }}</p>
             </div>
-            <Download class="h-4 w-4 text-muted-foreground shrink-0" />
+            <IconDownload class="h-4 w-4 text-muted-foreground shrink-0" />
           </li>
         </ul>
       </div>
@@ -97,7 +97,7 @@
 <script setup lang="ts">
 import { ref, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
-import { X, Search, Download, LibraryBig } from "lucide-vue-next";
+import { IconClose, IconDownload, IconScriptorium, IconSearch } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCreateSpecies, useUpdateSpecies, useAllSpecies } from "@/composables/useSpecies";
 import { toTiptapJson } from "@/ai/useNpcGeneration";

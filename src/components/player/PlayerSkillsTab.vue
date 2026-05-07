@@ -34,7 +34,7 @@
             <span class="font-cinzel text-sm font-bold" :class="skillBonusValue(skill) >= 0 ? 'text-foreground' : 'text-destructive'">
               {{ signedNum(skillBonusValue(skill)) }}
             </span>
-            <ChevronRight class="h-3 w-3 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+            <IconChevronRight class="h-3 w-3 text-muted-foreground/40 group-hover:text-primary transition-colors" />
           </button>
         </div>
         <div class="divide-y divide-border">
@@ -55,7 +55,7 @@
             <span class="font-cinzel text-sm font-bold" :class="skillBonusValue(skill) >= 0 ? 'text-foreground' : 'text-destructive'">
               {{ signedNum(skillBonusValue(skill)) }}
             </span>
-            <ChevronRight class="h-3 w-3 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+            <IconChevronRight class="h-3 w-3 text-muted-foreground/40 group-hover:text-primary transition-colors" />
           </button>
         </div>
       </div>
@@ -66,7 +66,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { ChevronRight } from "lucide-vue-next";
+import { IconChevronRight } from '@/lib/icons';
 import type { RollMode } from "@/lib/roller";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";

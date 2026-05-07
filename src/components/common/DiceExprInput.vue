@@ -16,7 +16,7 @@
         class="shrink-0 h-8.5 w-8.5 rounded-md border border-border bg-card flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors"
         @click="tryRoll"
       >
-        <Dice6 class="h-4 w-4" />
+        <IconDice class="h-4 w-4" />
       </button>
     </div>
     <div v-if="!compact" class="h-4 mt-0.5">
@@ -46,7 +46,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { Dice6 } from "lucide-vue-next";
+import { IconDice } from '@/lib/icons';
 import { parseExpression, averageExpression, rollExpression } from "@/lib/dice";
 
 const props = withDefaults(

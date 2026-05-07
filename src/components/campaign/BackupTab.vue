@@ -33,7 +33,7 @@
         class="flex items-center gap-2 px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
         @click="doExport"
       >
-        <Download class="h-3.5 w-3.5" />
+        <IconDownload class="h-3.5 w-3.5" />
         {{ isExporting ? "Exporting…" : "Export Campaign" }}
       </button>
 
@@ -55,7 +55,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { Download } from "lucide-vue-next";
+import { IconDownload } from '@/lib/icons';
 import { useCampaignStore } from "@/stores/campaign";
 import { useExportCampaign } from "@/composables/useCampaignBackup";
 

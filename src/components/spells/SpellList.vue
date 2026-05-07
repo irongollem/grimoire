@@ -127,7 +127,7 @@
             class="absolute top-2 left-2 z-10 flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
             title="Edit spell"
           >
-            <Pencil class="h-3 w-3" />
+            <IconEdit class="h-3 w-3" />
             Edit
           </RouterLink>
 
@@ -139,7 +139,7 @@
               :disabled="isAdding"
               @click.prevent.stop="addSpell({ partyMemberId: props.playerMemberId!, spellId: spell.id, isPrepared: props.casterType === 'prepared' })"
             >
-              <BookPlus class="h-3 w-3" />
+              <IconAddBook class="h-3 w-3" />
               {{ learnLabel(spell.level === 0) }}
             </button>
             <button
@@ -150,8 +150,8 @@
               :title="props.casterType === 'prepared' ? 'Unprepare' : 'Remove from spellbook'"
               @click.prevent.stop="removeSpell({ partyMemberId: props.playerMemberId!, spellId: spell.id })"
             >
-              <Check v-if="!isRemoving" class="h-3 w-3" />
-              <X v-else class="h-3 w-3" />
+              <IconCheck v-if="!isRemoving" class="h-3 w-3" />
+              <IconClose v-else class="h-3 w-3" />
               {{ learnedLabel(spell.level === 0) }}
             </button>
           </template>
@@ -172,7 +172,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { Pencil, BookPlus, Check, X } from "lucide-vue-next";
+import { IconAddBook, IconCheck, IconClose, IconEdit } from '@/lib/icons';
 import { refDebounced } from "@vueuse/core";
 import { useAllSpells } from "@/composables/useSpells";
 import { useAddCharacterSpell, useRemoveCharacterSpell } from "@/composables/useCharacterSpells";

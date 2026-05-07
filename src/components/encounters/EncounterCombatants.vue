@@ -10,7 +10,7 @@
           class="inline-flex items-center gap-1 font-cinzel text-xs text-primary hover:opacity-80 transition-opacity"
           @click="showNpcSearch = !showNpcSearch; showMonsterSearch = false"
         >
-          <Plus class="h-3.5 w-3.5" />
+          <IconAdd class="h-3.5 w-3.5" />
           Add NPC
         </button>
         <button
@@ -18,7 +18,7 @@
           class="inline-flex items-center gap-1 font-cinzel text-xs text-primary hover:opacity-80 transition-opacity"
           @click="showMonsterSearch = !showMonsterSearch; showNpcSearch = false"
         >
-          <Plus class="h-3.5 w-3.5" />
+          <IconAdd class="h-3.5 w-3.5" />
           Add Monster
         </button>
       </div>
@@ -30,11 +30,11 @@
       class="rounded-md border border-border bg-muted p-3 flex flex-col gap-2"
     >
       <div class="relative">
-        <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <input
           v-model="npcSearch"
           type="text"
-          placeholder="Search NPCs with a combat profile…"
+          placeholder="IconSearch NPCs with a combat profile…"
           autofocus
           class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
@@ -67,11 +67,11 @@
       class="rounded-md border border-border bg-muted p-3 flex flex-col gap-2"
     >
       <div class="relative">
-        <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <input
           v-model="monsterSearch"
           type="text"
-          placeholder="Search monsters…"
+          placeholder="IconSearch monsters…"
           autofocus
           class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
@@ -98,7 +98,7 @@
             class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity px-2 py-2 text-muted-foreground hover:text-destructive shrink-0"
             @click.stop="emit('hideMonster', monster.id)"
           >
-            <X class="h-3.5 w-3.5" />
+            <IconClose class="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
@@ -154,7 +154,7 @@
             class="w-6 h-6 rounded bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
             @click="changeCount(entry, -1)"
           >
-            <Minus class="h-3 w-3" />
+            <IconMinus class="h-3 w-3" />
           </button>
           <span class="font-cinzel text-sm font-bold text-foreground w-6 text-center">{{ entry.count }}</span>
           <button
@@ -162,7 +162,7 @@
             class="w-6 h-6 rounded bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
             @click="changeCount(entry, 1)"
           >
-            <Plus class="h-3 w-3" />
+            <IconAdd class="h-3 w-3" />
           </button>
         </div>
 
@@ -181,7 +181,7 @@
           class="text-muted-foreground hover:text-destructive transition-colors"
           @click="removeCombatant(entry.id)"
         >
-          <X class="h-4 w-4" />
+          <IconClose class="h-4 w-4" />
         </button>
       </div>
     </div>
@@ -194,7 +194,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { Plus, X, Search, Minus } from "lucide-vue-next";
+import { IconAdd, IconClose, IconMinus, IconSearch } from '@/lib/icons';
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import type { CombatantDef, FactionDef } from "@/types/encounter.types";
 import { crToXp } from "@/types/encounter.types";

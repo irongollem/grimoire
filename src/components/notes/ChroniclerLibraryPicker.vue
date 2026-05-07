@@ -13,7 +13,7 @@
             class="text-muted-foreground hover:text-foreground transition-colors"
             @click="emit('close')"
           >
-            <X class="h-4 w-4" />
+            <IconClose class="h-4 w-4" />
           </button>
         </div>
 
@@ -40,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { X } from "lucide-vue-next";
+import { IconClose } from '@/lib/icons';
 import { useChroniclerImages } from "@/composables/useChroniclerImages";
 
 defineProps<{ visible: boolean }>();

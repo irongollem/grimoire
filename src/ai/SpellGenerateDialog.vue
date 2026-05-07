@@ -14,7 +14,7 @@
           </p>
         </div>
         <button type="button" @click="emit('close')" class="shrink-0 text-muted-foreground hover:text-foreground transition-colors mt-0.5">
-          <X class="h-4 w-4" />
+          <IconClose class="h-4 w-4" />
         </button>
       </div>
 
@@ -84,7 +84,7 @@
 
       <!-- Generating state -->
       <div v-if="isGenerating" class="flex flex-col items-center gap-3 py-6">
-        <Sparkles class="h-8 w-8 text-primary animate-pulse" />
+        <IconGenerate class="h-8 w-8 text-primary animate-pulse" />
         <p class="font-fell text-sm text-muted-foreground italic">{{ currentLoadingQuote }}</p>
       </div>
 
@@ -103,7 +103,7 @@
           @click="run"
           class="inline-flex items-center gap-1.5 px-4 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
         >
-          <Sparkles class="h-3.5 w-3.5" />
+          <IconGenerate class="h-3.5 w-3.5" />
           Generate
         </button>
       </div>
@@ -114,7 +114,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { X, Sparkles } from "lucide-vue-next";
+import { IconClose, IconGenerate } from '@/lib/icons';
 import { AI_PROMPT_LIMIT } from "./utils";
 
 const PROMPT_LIMIT = AI_PROMPT_LIMIT;

@@ -104,7 +104,7 @@
                 class="h-7 w-7 shrink-0 rounded flex items-center justify-center mt-0.5"
                 :style="{ backgroundColor: QUEST_STATUS_COLORS[quest.status] + '22' }"
               >
-                <ScrollText class="h-3.5 w-3.5" :style="{ color: QUEST_STATUS_COLORS[quest.status] }" />
+                <IconScrollText class="h-3.5 w-3.5" :style="{ color: QUEST_STATUS_COLORS[quest.status] }" />
               </div>
               <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight line-clamp-2 flex-1">
                 {{ quest.title || "Untitled Quest" }}
@@ -152,7 +152,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { ScrollText } from "lucide-vue-next";
+import { IconScrollText } from '@/lib/icons';
 import { useAllQuests, useUpdateQuest, scheduleQuestTriggers } from "@/composables/useQuests";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";

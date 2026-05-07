@@ -19,7 +19,7 @@
             :title="currentLoadingQuote"
             @click="activeGenerator.openPanel()"
           >
-            <Loader2 class="h-3 w-3 text-primary animate-spin" />
+            <IconLoading class="h-3 w-3 text-primary animate-spin" />
             <span class="font-cinzel text-[9px] text-primary tracking-wider">AI</span>
           </button>
           <!-- Live encounter indicator -->
@@ -89,7 +89,7 @@
           class="flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-fell transition-colors"
           :class="$route.path.startsWith('/admin') ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'"
         >
-          <ShieldCheck class="h-4 w-4 shrink-0" />
+          <IconShieldCheck class="h-4 w-4 shrink-0" />
           Admin
         </RouterLink>
       </template>
@@ -121,10 +121,10 @@
               @keydown.esc="editingName = false"
             />
             <button class="hover:text-foreground transition-colors shrink-0 text-muted-foreground" :disabled="nameSaving" @click="saveName">
-              <Check class="h-3.5 w-3.5" />
+              <IconCheck class="h-3.5 w-3.5" />
             </button>
             <button class="hover:text-foreground transition-colors shrink-0 text-muted-foreground" @click="editingName = false">
-              <X class="h-3.5 w-3.5" />
+              <IconClose class="h-3.5 w-3.5" />
             </button>
           </div>
           <button
@@ -132,7 +132,7 @@
             class="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
             @click="startEdit"
           >
-            <Pencil class="h-3.5 w-3.5 shrink-0" />
+            <IconEdit class="h-3.5 w-3.5 shrink-0" />
             <span class="font-fell">Edit display name</span>
           </button>
 
@@ -143,20 +143,20 @@
             class="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
             @click="menuOpen = false"
           >
-            <CreditCard class="h-3.5 w-3.5 shrink-0" />
+            <IconBilling class="h-3.5 w-3.5 shrink-0" />
             <span class="font-fell">Billing</span>
             <span v-if="isPro" class="ml-auto font-cinzel text-[9px] font-semibold tracking-wider text-amber-400 uppercase">Pro</span>
           </RouterLink>
 
           <div class="border-t border-border my-1" />
 
-          <!-- Bug report -->
+          <!-- IconBug report -->
           <button
             class="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
             @click="bugReportOpen = true; menuOpen = false"
           >
-            <Bug class="h-3.5 w-3.5 shrink-0" />
-            <span class="font-fell">Report a Bug</span>
+            <IconBug class="h-3.5 w-3.5 shrink-0" />
+            <span class="font-fell">Report a IconBug</span>
           </button>
 
           <!-- Sign out -->
@@ -164,7 +164,7 @@
             class="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400/80 hover:text-red-400 hover:bg-secondary/60 transition-colors"
             @click="handleSignOut"
           >
-            <LogOut class="h-3.5 w-3.5 shrink-0" />
+            <IconLogOut class="h-3.5 w-3.5 shrink-0" />
             <span class="font-fell">Sign out</span>
           </button>
         </div>
@@ -180,7 +180,7 @@
           <span class="font-cinzel text-xs text-foreground font-semibold">{{ userInitial }}</span>
         </div>
         <span class="flex-1 truncate font-fell text-xs text-muted-foreground text-left">{{ shownName }}</span>
-        <ChevronsUpDown class="h-3 w-3 text-muted-foreground/60 shrink-0" />
+        <IconSort class="h-3 w-3 text-muted-foreground/60 shrink-0" />
       </button>
 
       <BugReportModal v-model="bugReportOpen" />
@@ -192,7 +192,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { LogOut, Pencil, Check, X, Loader2, Bug, CreditCard, ChevronsUpDown, ShieldCheck } from "lucide-vue-next";
+import { IconBilling, IconBug, IconCheck, IconClose, IconEdit, IconLoading, IconLogOut, IconShieldCheck, IconSort } from '@/lib/icons';
 import { onClickOutside } from "@vueuse/core";
 import { isAnyAiGenerating, getAiGeneratorRegistry } from "@/ai/aiGeneratorRegistry";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";

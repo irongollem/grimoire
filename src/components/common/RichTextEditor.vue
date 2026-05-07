@@ -32,7 +32,7 @@
           :class="tbCls(editor.isActive('underline'))"
           @click="editor.chain().focus().toggleUnderline().run()"
         >
-          <UnderlineIcon class="h-3.5 w-3.5" />
+          <IconUnderline class="h-3.5 w-3.5" />
         </button>
         <button
           type="button"
@@ -40,7 +40,7 @@
           :class="tbCls(editor.isActive('highlight'))"
           @click="editor.chain().focus().toggleHighlight().run()"
         >
-          <Highlighter class="h-3.5 w-3.5" />
+          <IconHighlight class="h-3.5 w-3.5" />
         </button>
         <button
           type="button"
@@ -48,7 +48,7 @@
           :class="tbCls(editor.isActive('link'))"
           @click="toggleLink"
         >
-          <LinkIcon class="h-3.5 w-3.5" />
+          <IconLink class="h-3.5 w-3.5" />
         </button>
         <div class="w-px h-5 bg-border mx-0.5" />
         <button
@@ -57,7 +57,7 @@
           :class="tbCls(editor.isActive({ textAlign: 'left' }))"
           @click="editor.chain().focus().setTextAlign('left').run()"
         >
-          <AlignLeft class="h-3.5 w-3.5" />
+          <IconAlignLeft class="h-3.5 w-3.5" />
         </button>
         <button
           type="button"
@@ -65,7 +65,7 @@
           :class="tbCls(editor.isActive({ textAlign: 'center' }))"
           @click="editor.chain().focus().setTextAlign('center').run()"
         >
-          <AlignCenter class="h-3.5 w-3.5" />
+          <IconAlignCenter class="h-3.5 w-3.5" />
         </button>
         <button
           type="button"
@@ -73,7 +73,7 @@
           :class="tbCls(editor.isActive({ textAlign: 'right' }))"
           @click="editor.chain().focus().setTextAlign('right').run()"
         >
-          <AlignRight class="h-3.5 w-3.5" />
+          <IconAlignRight class="h-3.5 w-3.5" />
         </button>
         <div class="w-px h-5 bg-border mx-0.5" />
         <button
@@ -107,7 +107,7 @@
           :class="tbCls(editor.isActive('bulletList'))"
           @click="editor.chain().focus().toggleBulletList().run()"
         >
-          <List class="h-3.5 w-3.5" />
+          <IconList class="h-3.5 w-3.5" />
         </button>
         <button
           type="button"
@@ -115,7 +115,7 @@
           :class="tbCls(editor.isActive('orderedList'))"
           @click="editor.chain().focus().toggleOrderedList().run()"
         >
-          <ListOrdered class="h-3.5 w-3.5" />
+          <IconListOrdered class="h-3.5 w-3.5" />
         </button>
         <button
           type="button"
@@ -123,7 +123,7 @@
           :class="tbCls(editor.isActive('blockquote'))"
           @click="editor.chain().focus().toggleBlockquote().run()"
         >
-          <Quote class="h-3.5 w-3.5" />
+          <IconQuote class="h-3.5 w-3.5" />
         </button>
         <button
           type="button"
@@ -131,7 +131,7 @@
           :class="tbCls(editor.isActive('taskList'))"
           @click="editor.chain().focus().toggleTaskList().run()"
         >
-          <ListTodo class="h-3.5 w-3.5" />
+          <IconListTodo class="h-3.5 w-3.5" />
         </button>
         <button
           type="button"
@@ -139,7 +139,7 @@
           :class="tbCls(false)"
           @click="editor.chain().focus().setHorizontalRule().run()"
         >
-          <Minus class="h-3.5 w-3.5" />
+          <IconMinus class="h-3.5 w-3.5" />
         </button>
         <div class="w-px h-5 bg-border mx-0.5" />
         <!-- Table controls -->
@@ -155,7 +155,7 @@
               .run()
           "
         >
-          <TableIcon class="h-3.5 w-3.5" />
+          <IconTable class="h-3.5 w-3.5" />
         </button>
         <template v-if="editor.isActive('table')">
           <button
@@ -164,7 +164,7 @@
             :class="tbCls(false)"
             @click="editor.chain().focus().addColumnAfter().run()"
           >
-            <BetweenVerticalEnd class="h-3.5 w-3.5" />
+            <IconInsertColumn class="h-3.5 w-3.5" />
           </button>
           <button
             type="button"
@@ -172,7 +172,7 @@
             :class="tbCls(false)"
             @click="editor.chain().focus().addRowAfter().run()"
           >
-            <BetweenHorizontalEnd class="h-3.5 w-3.5" />
+            <IconInsertRow class="h-3.5 w-3.5" />
           </button>
           <button
             type="button"
@@ -202,7 +202,7 @@
             :class="tbCls(false)"
             @click="editor.chain().focus().deleteTable().run()"
           >
-            <Trash2 class="h-3.5 w-3.5 text-destructive" />
+            <IconDelete class="h-3.5 w-3.5 text-destructive" />
           </button>
         </template>
         <button
@@ -213,7 +213,7 @@
           :disabled="uploadingImage"
           @click="insertImage"
         >
-          <ImageIcon
+          <IconImage
             class="h-3.5 w-3.5"
             :class="uploadingImage ? 'animate-pulse' : ''"
           />
@@ -240,7 +240,7 @@
           :disabled="!editor.can().undo()"
           @click="editor.chain().focus().undo().run()"
         >
-          <Undo2 class="h-3.5 w-3.5" />
+          <IconUndo class="h-3.5 w-3.5" />
         </button>
         <button
           type="button"
@@ -249,7 +249,7 @@
           :disabled="!editor.can().redo()"
           @click="editor.chain().focus().redo().run()"
         >
-          <Redo2 class="h-3.5 w-3.5" />
+          <IconRedo class="h-3.5 w-3.5" />
         </button>
         <div class="w-px h-5 bg-border mx-0.5" />
         <button
@@ -258,7 +258,7 @@
           :class="tbCls(editor.isActive('columns'))"
           @click="editor.chain().focus().toggleColumns().run()"
         >
-          <Columns2 class="h-3.5 w-3.5" />
+          <IconColumns class="h-3.5 w-3.5" />
         </button>
         <!-- Calendar event ref — only when allowCalendarEvents is enabled -->
         <template v-if="allowCalendarEvents">
@@ -269,7 +269,7 @@
             :class="tbCls(false)"
             @click="emit('insert-calendar-event')"
           >
-            <CalendarDays class="h-3.5 w-3.5" />
+            <IconCalendarDays class="h-3.5 w-3.5" />
           </button>
         </template>
       </template>
@@ -306,8 +306,8 @@
           class="flex items-center gap-1.5 px-2.5 py-1.5 font-cinzel text-[11px] font-semibold tracking-wide text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
           @click="onEnhance"
         >
-          <LoaderCircle v-if="isEnhancing" class="h-3 w-3 animate-spin" />
-          <Wand2 v-else class="h-3 w-3" />
+          <IconLoadingAlt v-if="isEnhancing" class="h-3 w-3 animate-spin" />
+          <IconWand v-else class="h-3 w-3" />
           Enhance
         </button>
       </div>
@@ -393,30 +393,7 @@ const ResizableImage = Image.extend({
 });
 import { parseMarkdown, looksLikeMarkdown, sanitizePasteText } from "@/lib/markdownToTiptap";
 import { useTextEnhancement } from "@/ai/useTextEnhancement";
-import {
-  List,
-  ListOrdered,
-  Quote,
-  Undo2,
-  Redo2,
-  Table as TableIcon,
-  BetweenVerticalEnd,
-  BetweenHorizontalEnd,
-  Trash2,
-  ImageIcon,
-  Columns2,
-  CalendarDays,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  Underline as UnderlineIcon,
-  Highlighter,
-  Link as LinkIcon,
-  ListTodo,
-  Minus,
-  Wand2,
-  LoaderCircle,
-} from "lucide-vue-next";
+import { IconAlignCenter, IconAlignLeft, IconAlignRight, IconCalendarDays, IconColumns, IconDelete, IconHighlight, IconImage, IconInsertColumn, IconInsertRow, IconLink, IconList, IconListOrdered, IconListTodo, IconLoadingAlt, IconMinus, IconQuote, IconRedo, IconTable, IconUnderline, IconUndo, IconWand } from '@/lib/icons';
 import TextAlign from "@tiptap/extension-text-align";
 import { Columns } from "@/lib/tiptap/Columns";
 import { CalendarEventRef } from "@/lib/tiptap/CalendarEventRef";
@@ -424,7 +401,6 @@ import type { CalendarEventRefAttrs } from "@/lib/tiptap/CalendarEventRef";
 import { createEntityMentionExtension } from "@/lib/tiptap/EntityMention";
 import type { EntityMentionItem, EntityMentionAttrs, EntityType } from "@/lib/tiptap/EntityMention";
 import { IllustrationSuggestion } from "@/lib/tiptap/IllustrationSuggestion";
-
 
 const CustomDocument = Node.create({
   name: "doc",

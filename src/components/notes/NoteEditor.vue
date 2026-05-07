@@ -33,15 +33,15 @@
         />
       </label>
 
-      <!-- Pin toggle -->
+      <!-- IconPin toggle -->
       <button
         type="button"
-        :title="isPinned ? 'Unpin note' : 'Pin note'"
+        :title="isPinned ? 'Unpin note' : 'IconPin note'"
         class="p-2 rounded-md border border-border transition-colors"
         :class="isPinned ? 'bg-primary/10 text-primary border-primary/30' : 'bg-card text-muted-foreground hover:text-foreground'"
         @click="isPinned = !isPinned"
       >
-        <Pin class="h-3.5 w-3.5" />
+        <IconPin class="h-3.5 w-3.5" />
       </button>
 
       <!-- Player visibility toggle -->
@@ -56,8 +56,8 @@
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
         @click="save"
       >
-        <Save class="h-3.5 w-3.5" />
-        {{ saving ? "Saving…" : props.note ? "Save" : "Create" }}
+        <IconSave class="h-3.5 w-3.5" />
+        {{ saving ? "Saving…" : props.note ? "IconSave" : "Create" }}
       </button>
 
       <button
@@ -66,7 +66,7 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
         @click="remove"
       >
-        <Trash2 class="h-3.5 w-3.5" />
+        <IconDelete class="h-3.5 w-3.5" />
         Delete
       </button>
     </div>
@@ -153,7 +153,7 @@
 
         <!-- Linked calendar event indicator -->
         <div v-if="props.note?.linked_calendar_event_id" class="flex items-center gap-2 font-cinzel text-xs text-primary">
-          <CalendarDays class="h-3 w-3" />
+          <IconCalendarDays class="h-3 w-3" />
           Calendar event linked
         </div>
       </div>
@@ -184,7 +184,7 @@
           class="inline-flex items-center justify-center rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
           @click="openChroniclerWrite"
         >
-          <BookText class="h-3.5 w-3.5" />
+          <IconNote class="h-3.5 w-3.5" />
         </button>
         <template v-if="isOpenAiImageProvider">
           <button
@@ -193,7 +193,7 @@
             class="inline-flex items-center justify-center rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
             @click="openChroniclerGenerate"
           >
-            <Sparkles class="h-3.5 w-3.5" />
+            <IconGenerate class="h-3.5 w-3.5" />
           </button>
           <button
             type="button"
@@ -201,7 +201,7 @@
             class="inline-flex items-center justify-center rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
             @click="showChroniclerLibrary = true"
           >
-            <Images class="h-3.5 w-3.5" />
+            <IconImages class="h-3.5 w-3.5" />
           </button>
         </template>
       </template>
@@ -248,7 +248,7 @@ import InlineCalendarEventModal from "@/components/calendar/InlineCalendarEventM
 import ChroniclerGenerateDialog from "./ChroniclerGenerateDialog.vue";
 import ChroniclerLibraryPicker from "./ChroniclerLibraryPicker.vue";
 import ChroniclerWriteDialog from "./ChroniclerWriteDialog.vue";
-import { Save, Trash2, Pin, CalendarDays, Sparkles, Images, BookText } from "lucide-vue-next";
+import { IconCalendarDays, IconDelete, IconGenerate, IconImages, IconNote, IconPin, IconSave } from '@/lib/icons';
 import TagInput from "@/components/common/TagInput.vue";
 import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
 import {

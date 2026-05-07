@@ -32,7 +32,7 @@
             v-else
             class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground"
           >
-            <Sun class="h-8 w-8" />
+            <IconSun class="h-8 w-8" />
             <span class="font-fell text-xs italic">Upload symbol</span>
           </div>
           <div
@@ -192,7 +192,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
-import { Sun } from "lucide-vue-next";
+import { IconSun } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useImageUpload } from "@/composables/useImageUpload";
 import { useCreateDeity, useUpdateDeity, useDeleteDeity, useAllPantheons } from "@/composables/useDeities";

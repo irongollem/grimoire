@@ -13,7 +13,7 @@
         <div
           class="h-7 w-7 rounded-md bg-primary/20 flex items-center justify-center shrink-0"
         >
-          <BookOpen class="h-3.5 w-3.5 text-primary" />
+          <IconPopulate class="h-3.5 w-3.5 text-primary" />
         </div>
         <div class="flex-1 min-w-0">
           <p
@@ -43,7 +43,7 @@
             </span>
           </p>
         </div>
-        <ChevronDown
+        <IconChevronDown
           class="h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform"
           :class="open ? 'rotate-180' : ''"
         />
@@ -91,14 +91,14 @@
                 </p>
               </div>
             </button>
-            <!-- Settings icon — always faintly visible, full on hover -->
+            <!-- IconSettingsAlt icon — always faintly visible, full on hover -->
             <RouterLink
               class="p-1 rounded opacity-25 group-hover:opacity-100 hover:bg-background text-muted-foreground hover:text-foreground transition-all shrink-0"
               title="Campaign settings"
               :to="{ name: 'campaign-settings' }"
               @click.stop="select(c); open = false"
             >
-              <Settings class="h-3 w-3" />
+              <IconSettingsAlt class="h-3 w-3" />
             </RouterLink>
           </div>
         </div>
@@ -109,11 +109,11 @@
             class="w-full flex items-center gap-2 px-3 py-1.5 text-left"
             @click="showArchived = !showArchived"
           >
-            <Archive class="h-3 w-3 text-muted-foreground/60" />
+            <IconArchive class="h-3 w-3 text-muted-foreground/60" />
             <span class="font-cinzel text-[10px] text-muted-foreground/60 tracking-wider uppercase flex-1">
               Archived ({{ archivedCampaigns.length }})
             </span>
-            <ChevronDown
+            <IconChevronDown
               class="h-3 w-3 text-muted-foreground/60 transition-transform"
               :class="showArchived ? 'rotate-180' : ''"
             />
@@ -145,7 +145,7 @@
             :disabled="isClaiming"
             @click="claimForActive"
           >
-            <Download class="h-3.5 w-3.5 text-muted-foreground" />
+            <IconDownload class="h-3.5 w-3.5 text-muted-foreground" />
             <span class="font-cinzel text-xs text-muted-foreground">
               {{ isClaiming ? "Claiming…" : "Claim unclaimed data" }}
             </span>
@@ -154,7 +154,7 @@
             class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-accent transition-colors"
             @click="startCreate"
           >
-            <Plus class="h-3.5 w-3.5 text-muted-foreground" />
+            <IconAdd class="h-3.5 w-3.5 text-muted-foreground" />
             <span class="font-cinzel text-xs text-muted-foreground"
               >New Campaign</span
             >
@@ -163,7 +163,7 @@
             class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-accent transition-colors"
             @click="showImport = true; open = false"
           >
-            <UploadCloud class="h-3.5 w-3.5 text-muted-foreground" />
+            <IconUploadCloud class="h-3.5 w-3.5 text-muted-foreground" />
             <span class="font-cinzel text-xs text-muted-foreground">Import from backup</span>
           </button>
         </div>
@@ -179,7 +179,7 @@
         class="w-full flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
         @click="startCreate"
       >
-        <Plus class="h-3.5 w-3.5" />
+        <IconAdd class="h-3.5 w-3.5" />
         Create Campaign
       </button>
     </div>
@@ -307,7 +307,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { Archive, BookOpen, ChevronDown, Download, Plus, Settings, UploadCloud } from "lucide-vue-next";
+import { IconAdd, IconArchive, IconChevronDown, IconDownload, IconPopulate, IconSettingsAlt, IconUploadCloud } from '@/lib/icons';
 import ImportBackupModal from "@/components/campaign/ImportBackupModal.vue";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
 import { useAuthStore } from "@/stores/auth";

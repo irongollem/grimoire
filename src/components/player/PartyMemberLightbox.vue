@@ -12,7 +12,7 @@
             class="absolute top-2 right-2 z-10 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors"
             @click="$emit('close')"
           >
-            <X class="h-4 w-4" />
+            <IconClose class="h-4 w-4" />
           </button>
 
           <!-- Body: single scrollable area, two columns on sm+ -->
@@ -66,7 +66,7 @@
 
                   <!-- AC -->
                   <div class="rounded-md bg-muted p-2.5 flex items-center gap-2">
-                    <Shield class="h-4 w-4 text-muted-foreground shrink-0" />
+                    <IconShield class="h-4 w-4 text-muted-foreground shrink-0" />
                     <div>
                       <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">AC</p>
                       <p class="font-cinzel text-sm font-bold text-foreground">{{ member.ac }}</p>
@@ -119,7 +119,7 @@
           <div class="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
             <h3 class="font-cinzel text-sm font-bold text-foreground">{{ displaySpecies.name }}</h3>
             <button type="button" class="text-muted-foreground hover:text-foreground" @click="speciesModalOpen = false">
-              <X class="h-4 w-4" />
+              <IconClose class="h-4 w-4" />
             </button>
           </div>
           <div class="overflow-y-auto p-4 space-y-4">
@@ -185,7 +185,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { X, Shield } from "lucide-vue-next";
+import { IconClose, IconShield } from '@/lib/icons';
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";

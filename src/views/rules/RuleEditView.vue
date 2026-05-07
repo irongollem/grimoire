@@ -81,7 +81,7 @@
             class="inline-flex items-center gap-1 rounded-md border border-dashed border-border px-2.5 py-1 font-cinzel text-[11px] text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
             @click="addTracker"
           >
-            <Plus class="size-3" /> Add Tracker
+            <IconAdd class="size-3" /> Add Tracker
           </button>
           <button
             v-else
@@ -149,7 +149,7 @@
                 class="inline-flex items-center gap-1 font-cinzel text-[10px] text-muted-foreground hover:text-foreground transition-colors"
                 @click="addLevel"
               >
-                <Plus class="size-3" /> Add Level
+                <IconAdd class="size-3" /> Add Level
               </button>
             </div>
 
@@ -196,7 +196,7 @@
                   class="shrink-0 text-muted-foreground hover:text-destructive transition-colors p-1"
                   @click="removeLevel(li)"
                 >
-                  <X class="size-3.5" />
+                  <IconClose class="size-3.5" />
                 </button>
               </div>
 
@@ -276,7 +276,7 @@
                     class="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
                     @click="removeEffect(lvl, fi)"
                   >
-                    <X class="size-3" />
+                    <IconClose class="size-3" />
                   </button>
                 </div>
                 <button
@@ -299,7 +299,7 @@
                 class="inline-flex items-center gap-1 font-cinzel text-[10px] text-muted-foreground hover:text-foreground transition-colors"
                 @click="addButton"
               >
-                <Plus class="size-3" /> Add Button
+                <IconAdd class="size-3" /> Add Button
               </button>
             </div>
             <p class="font-fell text-[11px] text-muted-foreground italic">
@@ -338,7 +338,7 @@
                 class="shrink-0 text-muted-foreground hover:text-destructive transition-colors p-1"
                 @click="removeButton(bi)"
               >
-                <X class="size-3.5" />
+                <IconClose class="size-3.5" />
               </button>
             </div>
           </div>
@@ -376,7 +376,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { Plus, X } from "lucide-vue-next";
+import { IconAdd, IconClose } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useRoute, useRouter } from "vue-router";
 import { useRule, useCreateRule, useUpdateRule, useDeleteRule } from "@/composables/useRules";

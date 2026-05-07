@@ -248,14 +248,7 @@
 
 <script setup lang="ts">
 import { useHead } from "@unhead/vue";
-import {
-  Globe,
-  Users,
-  Swords,
-  Wand2,
-  Printer,
-  Gamepad2,
-} from "lucide-vue-next";
+import { IconEncounter, IconFaction, IconGamepad, IconParty, IconPrint, IconWand } from '@/lib/icons';
 
 useHead({
   title: "Grimoire — D&D Campaign Manager for Dungeon Masters",
@@ -307,37 +300,37 @@ useHead({
 
 const features = [
   {
-    icon: Globe,
+    icon: IconFaction,
     title: "A living world",
     description:
       "17 location types in a hierarchical atlas. Quest log with kanban board. Factions with directional relations and secret memberships. Map pins, store inventories, travel tracking.",
   },
   {
-    icon: Users,
+    icon: IconParty,
     title: "Every face, every bond",
     description:
       "Full D&D 5e character sheets with Wild Shape and multiclass slots. NPC profiles with stat blocks, inventory, and lore tabs. Force-directed relationship web with 13 relation types.",
   },
   {
-    icon: Swords,
+    icon: IconEncounter,
     title: "Combat, fully realised",
     description:
       "Build encounters from your bestiary, assign factions, add scripted events and boss mechanics. Run it live: HP syncs bidirectionally, players see combatants revealed in real time.",
   },
   {
-    icon: Wand2,
+    icon: IconWand,
     title: "Gear, spells & craft",
     description:
       "Item vault with dual identification portraits. Paper doll inventory with 11 anatomical slots, attunement tracker, and carry weight. Spellbook, multiclass slot calculator, and crafting workshop.",
   },
   {
-    icon: Printer,
+    icon: IconPrint,
     title: "Print-quality output",
     description:
       "Scriptorium exports PHB-styled PDFs. Card Forge prints playing cards and Tarot cards from your monsters, items, and NPCs. The Mint creates VTT tokens. Illuminator processes artwork.",
   },
   {
-    icon: Gamepad2,
+    icon: IconGamepad,
     title: "Players, fully equipped",
     description:
       "Invite link → players get their own portal: character sheet, live encounter view with turn notifications, inventory, spellbook, journal, and crafting. Always free for your whole table.",

@@ -15,7 +15,7 @@
             : 'border-border text-muted-foreground hover:text-foreground hover:border-border/80'"
           @click="ui.playerCraftingActiveTab = 'all'"
         >
-          <LayoutList class="h-3.5 w-3.5" />
+          <IconListView class="h-3.5 w-3.5" />
           All
         </button>
         <button
@@ -50,7 +50,7 @@
       <!-- Recipes -->
       <div v-if="disciplineRecipes.length === 0" class="rounded-lg border border-border border-dashed px-6 py-10 text-center">
         <component
-          :is="activeDiscipline ? activeDiscipline.icon : LayoutList"
+          :is="activeDiscipline ? activeDiscipline.icon : IconListView"
           class="h-8 w-8 text-muted-foreground/40 mx-auto mb-3"
         />
         <p class="font-cinzel text-sm font-semibold text-muted-foreground">No recipes known</p>
@@ -121,7 +121,7 @@
               class="flex items-center gap-2 mb-1"
             >
               <component
-                :is="hasEnough(ing) ? CheckCircle : XCircle"
+                :is="hasEnough(ing) ? IconCheckCircle : IconCloseCircle"
                 class="h-3.5 w-3.5 shrink-0"
                 :class="hasEnough(ing) ? 'text-elven-green' : 'text-destructive'"
               />
@@ -145,7 +145,7 @@
               class="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 disabled:opacity-40 transition-opacity"
               @click="openAttempt(recipe)"
             >
-              <Dices class="h-3.5 w-3.5" />
+              <IconDiceRoll class="h-3.5 w-3.5" />
               Attempt Craft
             </button>
           </div>
@@ -178,7 +178,7 @@
 import { ref, computed } from "vue";
 import { generateHTML } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
-import { CheckCircle, Dices, LayoutList, XCircle } from "lucide-vue-next";
+import { IconCheckCircle, IconCloseCircle, IconDiceRoll, IconListView } from '@/lib/icons';
 import PageHeader from "@/components/common/PageHeader.vue";
 import CraftAttemptDialog from "@/components/crafting/CraftAttemptDialog.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting-disciplines";

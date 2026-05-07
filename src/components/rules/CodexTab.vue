@@ -29,7 +29,7 @@
           :key="species.id"
           :image-url="species.image_url"
           :focal-point="species.focal_point ?? null"
-          :fallback-icon="Users"
+          :fallback-icon="IconParty"
           :title="species.name"
           :badge="species.size ?? undefined"
           :count="species.subraces?.length ? `${species.subraces.length}v` : undefined"
@@ -54,7 +54,7 @@
                   </div>
                 </div>
                 <button type="button" class="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" @click="selectedSpecies = null">
-                  <X class="h-4 w-4" />
+                  <IconClose class="h-4 w-4" />
                 </button>
               </div>
               <div class="flex-1 overflow-y-auto">
@@ -90,7 +90,7 @@
                             :class="trait.description ? 'cursor-pointer' : 'cursor-default'"
                             @click="trait.description && toggle(`sp:${selectedSpecies!.id}:t:${trait.name}`)"
                           >
-                            <ChevronRight v-if="trait.description" class="h-3 w-3 shrink-0 text-muted-foreground/60 transition-transform" :class="open.has(`sp:${selectedSpecies.id}:t:${trait.name}`) ? 'rotate-90' : ''" />
+                            <IconChevronRight v-if="trait.description" class="h-3 w-3 shrink-0 text-muted-foreground/60 transition-transform" :class="open.has(`sp:${selectedSpecies.id}:t:${trait.name}`) ? 'rotate-90' : ''" />
                             <span class="font-fell text-sm text-foreground">{{ trait.name }}</span>
                           </button>
                           <div v-if="trait.description && open.has(`sp:${selectedSpecies.id}:t:${trait.name}`)" class="px-3 pb-3 border-t border-border">
@@ -111,7 +111,7 @@
                       <div class="flex flex-col gap-1.5">
                         <div v-for="sub in selectedSpecies.subraces" :key="sub.name" class="rounded-md border border-border overflow-hidden">
                           <button type="button" class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/20 transition-colors" @click="toggle(`sp:${selectedSpecies!.id}:sr:${sub.name}`)">
-                            <ChevronRight class="h-3 w-3 shrink-0 text-muted-foreground/60 transition-transform" :class="open.has(`sp:${selectedSpecies.id}:sr:${sub.name}`) ? 'rotate-90' : ''" />
+                            <IconChevronRight class="h-3 w-3 shrink-0 text-muted-foreground/60 transition-transform" :class="open.has(`sp:${selectedSpecies.id}:sr:${sub.name}`) ? 'rotate-90' : ''" />
                             <span class="font-cinzel text-xs font-semibold text-foreground">{{ sub.name }}</span>
                           </button>
                           <div v-if="open.has(`sp:${selectedSpecies.id}:sr:${sub.name}`)" class="px-3 pb-3 border-t border-border flex flex-col gap-2 pt-2">
@@ -127,7 +127,7 @@
                                   :class="trait.description ? 'cursor-pointer' : 'cursor-default'"
                                   @click="trait.description && toggle(`sp:${selectedSpecies!.id}:sr:${sub.name}:t:${trait.name}`)"
                                 >
-                                  <ChevronRight v-if="trait.description" class="h-2.5 w-2.5 shrink-0 text-muted-foreground/60 transition-transform" :class="open.has(`sp:${selectedSpecies.id}:sr:${sub.name}:t:${trait.name}`) ? 'rotate-90' : ''" />
+                                  <IconChevronRight v-if="trait.description" class="h-2.5 w-2.5 shrink-0 text-muted-foreground/60 transition-transform" :class="open.has(`sp:${selectedSpecies.id}:sr:${sub.name}:t:${trait.name}`) ? 'rotate-90' : ''" />
                                   <span class="font-fell text-sm text-foreground">{{ trait.name }}</span>
                                 </button>
                                 <div v-if="trait.description && open.has(`sp:${selectedSpecies.id}:sr:${sub.name}:t:${trait.name}`)" class="px-2.5 pb-2.5 border-t border-border/60">
@@ -160,7 +160,7 @@
           :key="bg.id"
           :image-url="bg.image_url"
           :focal-point="bg.focal_point ?? null"
-          :fallback-icon="Scroll"
+          :fallback-icon="IconQuest"
           :title="bg.name"
           :meta="bg.source_title ?? undefined"
           @click="selectedBackground = bg"
@@ -181,7 +181,7 @@
                   <span v-if="selectedBackground.source_title" class="font-cinzel text-[10px] text-muted-foreground tracking-wider">{{ selectedBackground.source_title }}</span>
                 </div>
                 <button type="button" class="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" @click="selectedBackground = null">
-                  <X class="h-4 w-4" />
+                  <IconClose class="h-4 w-4" />
                 </button>
               </div>
               <div class="flex-1 overflow-y-auto">
@@ -240,7 +240,7 @@
         <CodexCard
           v-for="cls in mergedClasses"
           :key="cls.class_name"
-          :fallback-icon="BookOpen"
+          :fallback-icon="IconPopulate"
           :title="cls.class_name"
           :badge="`d${cls.hit_die}`"
           :count="subclassesFor(cls.class_name).length ? `${subclassesFor(cls.class_name).length} subclass${subclassesFor(cls.class_name).length > 1 ? 'es' : ''}` : undefined"
@@ -267,7 +267,7 @@
                   </div>
                 </div>
                 <button type="button" class="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" @click="selectedClass = null">
-                  <X class="h-4 w-4" />
+                  <IconClose class="h-4 w-4" />
                 </button>
               </div>
               <div class="flex-1 overflow-y-auto">
@@ -301,7 +301,7 @@
                       <div class="flex flex-col gap-1.5">
                         <div v-for="sub in subclassesFor(selectedClass.class_name)" :key="sub.subclass_name" class="rounded-md border border-border overflow-hidden">
                           <button type="button" class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/20 transition-colors" @click="toggle(`sub:${selectedClass!.class_name}:${sub.subclass_name}`)">
-                            <ChevronRight class="h-3 w-3 shrink-0 text-muted-foreground/60 transition-transform" :class="open.has(`sub:${selectedClass.class_name}:${sub.subclass_name}`) ? 'rotate-90' : ''" />
+                            <IconChevronRight class="h-3 w-3 shrink-0 text-muted-foreground/60 transition-transform" :class="open.has(`sub:${selectedClass.class_name}:${sub.subclass_name}`) ? 'rotate-90' : ''" />
                             <span class="font-cinzel text-xs font-semibold text-foreground">{{ sub.subclass_name }}</span>
                           </button>
                           <div v-if="open.has(`sub:${selectedClass.class_name}:${sub.subclass_name}`)" class="px-3 pb-3 border-t border-border pt-2">
@@ -366,7 +366,7 @@
             :key="deity.id"
             :image-url="deity.portrait_url"
             :focal-point="deity.portrait_focal_point ?? null"
-            :fallback-icon="Sun"
+            :fallback-icon="IconSun"
             :title="deity.name"
             :subtitle="deity.titles ?? undefined"
             :meta="deity.pantheon?.name ?? undefined"
@@ -392,7 +392,7 @@
                   </div>
                 </div>
                 <button type="button" class="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" @click="selectedDeity = null">
-                  <X class="h-4 w-4" />
+                  <IconClose class="h-4 w-4" />
                 </button>
               </div>
               <div class="flex-1 overflow-y-auto">
@@ -447,7 +447,7 @@
 
 <script setup lang="ts">
 import { ref, computed, shallowRef } from "vue";
-import { ChevronRight, BookOpen, Scroll, Sun, Users, X } from "lucide-vue-next";
+import { IconChevronRight, IconClose, IconParty, IconPopulate, IconQuest, IconSun } from '@/lib/icons';
 import type { Species } from "@/types/species.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";

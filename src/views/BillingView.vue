@@ -7,7 +7,7 @@
       v-if="creditPurchaseSuccess"
       class="rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 flex items-center gap-3"
     >
-      <Sparkles class="h-4 w-4 text-green-400 shrink-0" />
+      <IconGenerate class="h-4 w-4 text-green-400 shrink-0" />
       <p class="font-fell text-sm text-green-400">
         Credits added to your account — thanks for your purchase!
       </p>
@@ -23,14 +23,14 @@
         v-if="isLoading"
         class="flex items-center gap-2 text-muted-foreground"
       >
-        <Loader2 class="h-4 w-4 animate-spin" />
+        <IconLoading class="h-4 w-4 animate-spin" />
         <span class="font-fell text-sm italic">Loading…</span>
       </div>
 
       <template v-else>
         <div class="flex items-center gap-3">
-          <Crown v-if="isPro" class="h-5 w-5 text-amber-400 shrink-0" />
-          <Scroll v-else class="h-5 w-5 text-muted-foreground shrink-0" />
+          <IconDM v-if="isPro" class="h-5 w-5 text-amber-400 shrink-0" />
+          <IconQuest v-else class="h-5 w-5 text-muted-foreground shrink-0" />
           <span
             class="font-cinzel text-lg font-bold"
             :class="isPro ? 'text-amber-400' : 'text-foreground'"
@@ -100,8 +100,8 @@
           :disabled="stripeLoading"
           @click="openBillingPortal()"
         >
-          <Loader2 v-if="stripeLoading" class="h-3.5 w-3.5 animate-spin" />
-          <CreditCard v-else class="h-3.5 w-3.5" />
+          <IconLoading v-if="stripeLoading" class="h-3.5 w-3.5 animate-spin" />
+          <IconBilling v-else class="h-3.5 w-3.5" />
           Manage billing
         </button>
       </template>
@@ -230,7 +230,7 @@
         :disabled="stripeLoading"
         @click="createCheckoutSession(annual ? 'year' : 'month')"
       >
-        <Loader2
+        <IconLoading
           v-if="stripeLoading"
           class="inline h-3.5 w-3.5 animate-spin mr-1.5"
         />
@@ -252,13 +252,13 @@
     <div class="rounded-xl border border-border bg-card p-6 space-y-4">
       <div class="flex items-center justify-between gap-2">
         <div class="flex items-center gap-2">
-          <Sparkles class="h-4 w-4 text-primary shrink-0" />
+          <IconGenerate class="h-4 w-4 text-primary shrink-0" />
           <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
             AI credits
           </h2>
         </div>
         <div v-if="creditsLoading" class="flex items-center gap-1.5 text-muted-foreground">
-          <Loader2 class="h-3.5 w-3.5 animate-spin" />
+          <IconLoading class="h-3.5 w-3.5 animate-spin" />
           <span class="font-cinzel text-xs">Loading…</span>
         </div>
         <span v-else class="font-cinzel text-lg font-bold text-primary">
@@ -301,7 +301,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRoute } from "vue-router";
-import { Crown, CreditCard, Loader2, Scroll, Sparkles } from "lucide-vue-next";
+import { IconBilling, IconDM, IconGenerate, IconLoading, IconQuest } from '@/lib/icons';
 import PageHeader from "@/components/common/PageHeader.vue";
 import { useSubscription } from "@/composables/useSubscription";
 import { useStripe } from "@/composables/useStripe";

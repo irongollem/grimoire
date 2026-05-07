@@ -220,9 +220,9 @@
           :to="h.to"
           class="inline-flex items-center gap-1 font-cinzel text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
         >
-          <User v-if="h.type === 'npc'" class="h-2.5 w-2.5 shrink-0" />
-          <Users v-else-if="h.type === 'party_member'" class="h-2.5 w-2.5 shrink-0" />
-          <ShoppingBag v-else class="h-2.5 w-2.5 shrink-0" />
+          <IconUser v-if="h.type === 'npc'" class="h-2.5 w-2.5 shrink-0" />
+          <IconParty v-else-if="h.type === 'party_member'" class="h-2.5 w-2.5 shrink-0" />
+          <IconShop v-else class="h-2.5 w-2.5 shrink-0" />
           {{ h.name }}<span v-if="h.quantity > 1" class="ml-0.5 text-muted-foreground/60">×{{ h.quantity }}</span>
         </RouterLink>
       </div>
@@ -240,7 +240,7 @@
           :to="`/loot-tables/${table.id}`"
           class="inline-flex items-center gap-1 font-cinzel text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
         >
-          <Package class="h-2.5 w-2.5 shrink-0" />{{ table.name }}
+          <IconPackage class="h-2.5 w-2.5 shrink-0" />{{ table.name }}
         </RouterLink>
       </div>
     </div>
@@ -249,7 +249,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Package, User, Users, ShoppingBag } from "lucide-vue-next";
+import { IconPackage, IconParty, IconShop, IconUser } from '@/lib/icons';
 import { RouterLink } from "vue-router";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";

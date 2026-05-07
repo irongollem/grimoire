@@ -37,7 +37,7 @@
               class="shrink-0 ml-3 text-muted-foreground hover:text-foreground transition-colors p-1 rounded"
               @click="$emit('close')"
             >
-              <X class="h-4 w-4" />
+              <IconClose class="h-4 w-4" />
             </button>
           </div>
 
@@ -53,7 +53,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { X } from "lucide-vue-next";
+import { IconClose } from '@/lib/icons';
 import { spellLevelLabel } from "@/types/spell.types";
 import type { Spell } from "@/types/spell.types";
 import SpellSheet from "@/components/spells/SpellSheet.vue";

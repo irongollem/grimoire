@@ -2,18 +2,18 @@
   <ListPageLayout title="Vault" description="Your mundane equipment and magic items">
     <template #actions>
       <ListActionButton
-        :icon="importMutation.isPending.value ? Loader2 : Download"
+        :icon="importMutation.isPending.value ? IconLoading : IconDownload"
         :label="importStatusLabel"
         :disabled="importMutation.isPending.value"
         @click="handleImport"
       />
       <ListActionButton
-        :icon="Sparkles"
+        :icon="IconGenerate"
         label="Generate"
         @click="ui.itemGeneratorOpen = true"
       />
       <ListActionButton
-        :icon="Plus"
+        :icon="IconAdd"
         label="New Item"
         mobile-label="Item"
         variant="primary"
@@ -48,7 +48,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Plus, Loader2, Download, Sparkles } from "lucide-vue-next";
+import { IconAdd, IconDownload, IconGenerate, IconLoading } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";

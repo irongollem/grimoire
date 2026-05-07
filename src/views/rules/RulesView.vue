@@ -22,7 +22,7 @@
             to="/rules/new"
             class="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs font-semibold tracking-wide hover:bg-primary/90 transition-colors"
           >
-            <Plus class="h-3.5 w-3.5" />
+            <IconAdd class="h-3.5 w-3.5" />
             New Rule
           </RouterLink>
         </div>
@@ -63,7 +63,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { Plus, Monitor, BookOpen, Scroll, BookMarked } from "lucide-vue-next";
+import { IconAdd, IconBookMarked, IconMonitor, IconPopulate, IconQuest } from '@/lib/icons';
 import { RouterLink } from "vue-router";
 import ScreenTab from "@/components/rules/ScreenTab.vue";
 import CompendiumTab from "@/components/rules/CompendiumTab.vue";
@@ -71,10 +71,10 @@ import CustomRulesTab from "@/components/rules/CustomRulesTab.vue";
 import ManualTab from "@/components/rules/ManualTab.vue";
 
 const TABS = [
-  { id: "screen", label: "DM Screen", icon: Monitor },
-  { id: "compendium", label: "Compendium", icon: BookOpen },
-  { id: "custom", label: "Custom Rules", icon: Scroll },
-  { id: "manual", label: "DM Manual", icon: BookMarked },
+  { id: "screen", label: "DM Screen", icon: IconMonitor },
+  { id: "compendium", label: "Compendium", icon: IconPopulate },
+  { id: "custom", label: "Custom Rules", icon: IconQuest },
+  { id: "manual", label: "DM Manual", icon: IconBookMarked },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];

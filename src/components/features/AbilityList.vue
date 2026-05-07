@@ -12,7 +12,7 @@
       to="/features/new"
       class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
     >
-      <Plus class="h-3.5 w-3.5" />
+      <IconAdd class="h-3.5 w-3.5" />
       New Ability
     </RouterLink>
   </EmptyState>
@@ -46,7 +46,7 @@
           >{{ tag }}</span>
         </div>
       </div>
-      <ChevronRight class="h-4 w-4 text-muted-foreground shrink-0" />
+      <IconChevronRight class="h-4 w-4 text-muted-foreground shrink-0" />
     </RouterLink>
   </div>
 </template>
@@ -54,7 +54,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
-import { Plus, ChevronRight } from "lucide-vue-next";
+import { IconAdd, IconChevronRight } from '@/lib/icons';
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import { useUiStore } from "@/stores/ui";

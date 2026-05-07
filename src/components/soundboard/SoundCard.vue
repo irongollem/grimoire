@@ -28,7 +28,7 @@
         title="Rename"
         @click="startNameEdit"
       >
-        <Pencil class="h-3 w-3" />
+        <IconEdit class="h-3 w-3" />
       </button>
 
       <!-- WebM warning -->
@@ -37,7 +37,7 @@
         class="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-cinzel text-amber-400/80 bg-amber-500/10 border border-amber-500/20"
         title="Encoded as WebM/Opus — won't play in Safari. Re-upload on Firefox."
       >
-        <AlertTriangle class="h-2.5 w-2.5 shrink-0" />
+        <IconWarning class="h-2.5 w-2.5 shrink-0" />
         No Safari
       </span>
 
@@ -53,7 +53,7 @@
         title="Toggle loop"
         @click="soundboardStore.toggleLoop(sound.id)"
       >
-        <Repeat class="h-3.5 w-3.5" />
+        <IconRepeat class="h-3.5 w-3.5" />
       </button>
 
       <!-- Delete button -->
@@ -63,7 +63,7 @@
         title="Delete sound"
         @click="$emit('delete', sound)"
       >
-        <Trash2 class="h-3.5 w-3.5" />
+        <IconDelete class="h-3.5 w-3.5" />
       </button>
     </div>
 
@@ -72,7 +72,7 @@
       v-if="isSpotify && !spotifyStore.isEnabled"
       class="flex items-center gap-1.5 py-1 px-2 rounded-md bg-border/30"
     >
-      <Music2 class="h-3 w-3 text-muted-foreground/50 shrink-0" />
+      <IconMusicNote class="h-3 w-3 text-muted-foreground/50 shrink-0" />
       <p class="font-fell text-xs text-muted-foreground/60 italic">DM audio</p>
     </div>
 
@@ -81,7 +81,7 @@
       v-else-if="isSpotify && !spotifyStore.isConnected"
       class="flex items-center gap-2 py-1 px-2 rounded-md bg-green-500/5 border border-green-500/20"
     >
-      <Music2 class="h-3.5 w-3.5 text-green-400/70 shrink-0" />
+      <IconMusicNote class="h-3.5 w-3.5 text-green-400/70 shrink-0" />
       <p class="font-fell text-xs text-muted-foreground italic flex-1">Connect Spotify to play</p>
       <button
         class="font-fell text-[11px] text-green-400 hover:text-green-300 transition-colors shrink-0"
@@ -119,10 +119,10 @@
           title="Previous track"
           @click="spotifyStore.previousTrack()"
         >
-          <SkipBack class="h-3 w-3" />
+          <IconSkipBack class="h-3 w-3" />
         </button>
 
-        <!-- Play / Pause -->
+        <!-- IconPlay / IconPause -->
         <button
           class="flex items-center justify-center w-7 h-7 rounded-full border transition-colors shrink-0"
           :class="
@@ -132,12 +132,12 @@
               ? 'bg-green-500/20 border-green-500/50 text-green-300 hover:bg-green-500/30'
               : 'border-border text-muted-foreground hover:text-foreground hover:border-border/80'
           "
-          :title="!spotifyStore.isReady ? 'Spotify connecting…' : isActive && spotifyStore.isPlaying ? 'Pause' : 'Play'"
+          :title="!spotifyStore.isReady ? 'Spotify connecting…' : isActive && spotifyStore.isPlaying ? 'IconPause' : 'IconPlay'"
           :disabled="!spotifyStore.isReady"
           @click="toggleSpotify"
         >
-          <Pause v-if="isActive && spotifyStore.isPlaying" class="h-3.5 w-3.5" />
-          <Play v-else class="h-3.5 w-3.5 translate-x-px" />
+          <IconPause v-if="isActive && spotifyStore.isPlaying" class="h-3.5 w-3.5" />
+          <IconPlay v-else class="h-3.5 w-3.5 translate-x-px" />
         </button>
 
         <!-- Next (only when active) -->
@@ -147,7 +147,7 @@
           title="Next track"
           @click="spotifyStore.nextTrack()"
         >
-          <SkipForward class="h-3 w-3" />
+          <IconSkipForward class="h-3 w-3" />
         </button>
 
         <!-- Volume -->
@@ -182,24 +182,24 @@
         <span class="font-fell text-[10px] text-muted-foreground tabular-nums shrink-0">
           {{ formatTime(spotifyStore.durationMs) }}
         </span>
-        <!-- Repeat -->
+        <!-- IconRepeat -->
         <button
           class="shrink-0 p-0.5 rounded transition-all [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
           :class="spotifyStore.repeatMode > 0 ? 'text-green-500' : 'text-muted-foreground hover:text-foreground'"
           :title="repeatTitle"
           @click="cycleRepeat"
         >
-          <Repeat1 v-if="spotifyStore.repeatMode === 2" class="h-2.5 w-2.5" />
-          <Repeat v-else class="h-2.5 w-2.5" />
+          <IconRepeatOne v-if="spotifyStore.repeatMode === 2" class="h-2.5 w-2.5" />
+          <IconRepeat v-else class="h-2.5 w-2.5" />
         </button>
-        <!-- Shuffle -->
+        <!-- IconShuffle -->
         <button
           class="shrink-0 p-0.5 rounded transition-all [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
           :class="spotifyStore.shuffleOn ? 'text-green-500' : 'text-muted-foreground hover:text-foreground'"
-          title="Shuffle"
+          title="IconShuffle"
           @click="spotifyStore.setShuffle(!spotifyStore.shuffleOn)"
         >
-          <Shuffle class="h-2.5 w-2.5" />
+          <IconShuffle class="h-2.5 w-2.5" />
         </button>
       </div>
 
@@ -217,7 +217,7 @@
       v-if="pages && pages.length > 1 && !sound.page_id"
       class="flex items-center gap-1.5 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
     >
-      <Layers class="h-3 w-3 text-muted-foreground/50 shrink-0" />
+      <IconLayers class="h-3 w-3 text-muted-foreground/50 shrink-0" />
       <select
         class="flex-1 rounded border border-border bg-background px-1.5 py-0.5 font-fell text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-gold-500 cursor-pointer"
         :value="sound.page_id ?? ''"
@@ -231,7 +231,7 @@
     <!-- ── HTML Audio controls ─────────────────────────────────────────── -->
     <template v-else>
       <div class="flex items-center gap-2">
-        <!-- Play / Pause -->
+        <!-- IconPlay / IconPause -->
         <button
           class="flex items-center justify-center w-7 h-7 rounded-full border transition-colors shrink-0"
           :class="
@@ -241,12 +241,12 @@
               ? 'bg-gold-500/20 border-gold-500/50 text-gold-300 hover:bg-gold-500/30'
               : 'border-border text-muted-foreground hover:text-foreground hover:border-border/80'
           "
-          :title="playBlocked ? 'WebM — cannot play in Safari' : audioState.isPlaying ? 'Pause' : 'Play'"
+          :title="playBlocked ? 'WebM — cannot play in Safari' : audioState.isPlaying ? 'IconPause' : 'IconPlay'"
           :disabled="playBlocked"
           @click="togglePlay"
         >
-          <Pause v-if="audioState.isPlaying" class="h-3.5 w-3.5" />
-          <Play v-else class="h-3.5 w-3.5 translate-x-px" />
+          <IconPause v-if="audioState.isPlaying" class="h-3.5 w-3.5" />
+          <IconPlay v-else class="h-3.5 w-3.5 translate-x-px" />
         </button>
 
         <!-- Stop -->
@@ -255,7 +255,7 @@
           title="Stop"
           @click="soundboardStore.stop(sound.id)"
         >
-          <Square class="h-3 w-3" />
+          <IconStop class="h-3 w-3" />
         </button>
 
         <!-- Volume -->
@@ -297,7 +297,7 @@
 
 <script setup lang="ts">
 import { computed, ref, nextTick } from "vue";
-import { Play, Pause, Square, Repeat, Repeat1, Shuffle, Trash2, AlertTriangle, Pencil, Music2, SkipBack, SkipForward, Layers } from "lucide-vue-next";
+import { IconDelete, IconEdit, IconLayers, IconMusicNote, IconPause, IconPlay, IconRepeat, IconRepeatOne, IconShuffle, IconSkipBack, IconSkipForward, IconStop, IconWarning } from '@/lib/icons';
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useUpdateSound, useMoveSound } from "@/composables/useSounds";
@@ -397,9 +397,9 @@ function formatTime(value: number): string {
 // ── Spotify repeat / shuffle ──────────────────────────────────────────────
 
 const repeatTitle = computed(() => {
-  if (spotifyStore.repeatMode === 2) return "Repeat: Track";
-  if (spotifyStore.repeatMode === 1) return "Repeat: Context";
-  return "Repeat: Off";
+  if (spotifyStore.repeatMode === 2) return "IconRepeat: Track";
+  if (spotifyStore.repeatMode === 1) return "IconRepeat: Context";
+  return "IconRepeat: Off";
 });
 
 function cycleRepeat() {

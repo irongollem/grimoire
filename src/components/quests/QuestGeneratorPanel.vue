@@ -16,7 +16,7 @@
       <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
         <h2 class="font-cinzel text-base font-semibold text-foreground">Quest Generator</h2>
         <button class="text-muted-foreground hover:text-foreground" @click="handleClose">
-          <X class="h-5 w-5" />
+          <IconClose class="h-5 w-5" />
         </button>
       </div>
 
@@ -24,7 +24,7 @@
       <div class="flex-1 overflow-y-auto p-5 space-y-5">
         <!-- Generating state -->
         <div v-if="isGenerating" class="flex flex-col items-center gap-3 py-4">
-          <Sparkles class="h-7 w-7 text-primary animate-pulse" />
+          <IconGenerate class="h-7 w-7 text-primary animate-pulse" />
           <p class="font-fell text-sm text-muted-foreground italic text-center">
             {{ currentLoadingQuote }}
           </p>
@@ -99,12 +99,12 @@
                 class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 disabled:opacity-50 transition-opacity"
                 @click="createFromHook(hook, i)"
               >
-                <Plus class="h-3.5 w-3.5" />
+                <IconAdd class="h-3.5 w-3.5" />
                 {{ creatingIndex === i ? "Creating…" : "Create Quest" }}
               </button>
               <template v-else>
                 <span class="inline-flex items-center gap-1 font-cinzel text-xs font-semibold text-emerald-500">
-                  <CheckCircle class="h-3.5 w-3.5" />
+                  <IconCheckCircle class="h-3.5 w-3.5" />
                   Created
                 </span>
                 <button
@@ -216,7 +216,7 @@
           class="w-full inline-flex items-center justify-center gap-1.5 py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
           @click="runGenerate"
         >
-          <Sparkles class="h-3.5 w-3.5" />
+          <IconGenerate class="h-3.5 w-3.5" />
           {{ isGenerating ? "Generating…" : "Generate Quest Hooks" }}
         </button>
         <button
@@ -225,7 +225,7 @@
           class="w-full inline-flex items-center justify-center gap-1.5 py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
           @click="showPaywall = true"
         >
-          <Sparkles class="h-3.5 w-3.5" />
+          <IconGenerate class="h-3.5 w-3.5" />
           Generate Quest Hooks
         </button>
       </div>
@@ -244,7 +244,7 @@ import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 
 const THEME_LIMIT = AI_PROMPT_LIMIT_SHORT;
 import { useRouter } from "vue-router";
-import { X, Sparkles, Plus, CheckCircle } from "lucide-vue-next";
+import { IconAdd, IconCheckCircle, IconClose, IconGenerate } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useParty } from "@/composables/useParty";

@@ -227,7 +227,7 @@
             class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors"
             @click="previewBeast = null"
           >
-            <X class="h-4 w-4" />
+            <IconClose class="h-4 w-4" />
           </button>
         </div>
 
@@ -318,7 +318,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { RouterLink } from "vue-router";
-import { X } from "lucide-vue-next";
+import { IconClose } from '@/lib/icons';
 import FocalImage from "@/components/common/FocalImage.vue";
 import StatBlockPanel from "@/components/common/StatBlockPanel.vue";
 import type { WildshapeState } from "@/types/encounter.types";
@@ -386,7 +386,6 @@ const isDruid = computed(() =>
 const isCircleOfMoon = computed(() =>
   member.value?.subclass?.toLowerCase().includes("moon") ?? false,
 );
-
 
 const wildshapeMaxCr = computed(() => {
   const level = member.value?.level ?? 1;
@@ -594,7 +593,6 @@ function onRollSave(_key: string, label: string, bonus: number) {
 }
 
 </script>
-
 
 <style scoped>
 .fade-enter-active,

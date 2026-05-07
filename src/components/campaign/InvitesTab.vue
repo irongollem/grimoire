@@ -3,7 +3,7 @@
     <!-- Create new invite -->
     <div class="rounded-lg border border-border bg-card p-5 space-y-4">
       <h3 class="font-cinzel text-sm font-semibold text-foreground tracking-wide">
-        New Invite Link
+        New Invite IconLink
       </h3>
 
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -46,8 +46,8 @@
         :disabled="createInvite.isPending.value"
         @click="handleCreate"
       >
-        <Plus class="h-4 w-4" />
-        {{ createInvite.isPending.value ? 'Generating…' : 'Generate Link' }}
+        <IconAdd class="h-4 w-4" />
+        {{ createInvite.isPending.value ? 'Generating…' : 'Generate IconLink' }}
       </button>
     </div>
 
@@ -79,7 +79,7 @@
             :disabled="revokeInvite.isPending.value"
             @click="revokeInvite.mutate(invite.id)"
           >
-            <Trash2 class="h-4 w-4" />
+            <IconDelete class="h-4 w-4" />
           </button>
         </div>
 
@@ -95,9 +95,9 @@
               : 'bg-card border border-border text-foreground hover:bg-muted'"
             @click="copyLink(invite)"
           >
-            <Check v-if="copiedId === invite.id" class="h-3 w-3" />
-            <Copy v-else class="h-3 w-3" />
-            {{ copiedId === invite.id ? 'Copied!' : 'Copy' }}
+            <IconCheck v-if="copiedId === invite.id" class="h-3 w-3" />
+            <IconCopy v-else class="h-3 w-3" />
+            {{ copiedId === invite.id ? 'Copied!' : 'IconCopy' }}
           </button>
         </div>
       </div>
@@ -106,7 +106,7 @@
         v-if="invites.length === 0"
         class="rounded-lg border border-dashed border-border p-8 text-center"
       >
-        <Link class="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+        <IconLink class="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
         <p class="font-fell text-muted-foreground italic text-sm">
           No invite links yet. Generate one above to share with your players.
         </p>
@@ -117,7 +117,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Plus, Trash2, Copy, Check, Link } from "lucide-vue-next";
+import { IconAdd, IconCheck, IconCopy, IconDelete, IconLink } from '@/lib/icons';
 import {
   useCampaignInvites,
   useCreateCampaignInvite,

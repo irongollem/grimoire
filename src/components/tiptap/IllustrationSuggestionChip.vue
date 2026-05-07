@@ -7,12 +7,12 @@
       :title="isEditable ? `Click to generate illustration: ${prompt}` : prompt"
       @click="handleClick"
     >
-      <ImageIcon class="illus-icon" />
+      <IconImage class="illus-icon" />
       <span class="illus-label font-fell">
         <span class="illus-prefix font-cinzel">Illustration suggestion</span>
         <span class="illus-prompt">{{ truncated }}</span>
       </span>
-      <Sparkles v-if="isEditable" class="illus-action-icon" />
+      <IconGenerate v-if="isEditable" class="illus-action-icon" />
     </button>
   </NodeViewWrapper>
 </template>
@@ -20,7 +20,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { nodeViewProps, NodeViewWrapper } from "@tiptap/vue-3";
-import { Image as ImageIcon, Sparkles } from "lucide-vue-next";
+import { IconGenerate, IconImage } from '@/lib/icons';
 import type { IllustrationSuggestionOptions } from "@/lib/tiptap/IllustrationSuggestion";
 
 const props = defineProps({ ...nodeViewProps });

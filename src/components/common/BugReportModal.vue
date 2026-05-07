@@ -16,11 +16,11 @@
           <!-- Header -->
           <div class="flex items-center gap-3 px-5 py-4 border-b border-border shrink-0">
             <div class="flex items-center justify-center w-8 h-8 rounded-full bg-destructive/15 text-destructive shrink-0">
-              <Bug class="h-4 w-4" />
+              <IconBug class="h-4 w-4" />
             </div>
             <div class="flex-1 min-w-0">
               <h2 id="bug-report-title" class="font-cinzel text-sm font-bold text-foreground tracking-wide">
-                Report a Bug
+                Report a IconBug
               </h2>
               <p class="font-fell text-xs text-muted-foreground mt-0.5">
                 Your report opens a GitHub issue for the development team.
@@ -31,16 +31,16 @@
               aria-label="Close"
               @click="close"
             >
-              <X class="h-4 w-4" />
+              <IconClose class="h-4 w-4" />
             </button>
           </div>
 
           <!-- Success state -->
           <div v-if="submitted" class="px-5 py-10 flex flex-col items-center gap-3 text-center">
             <div class="flex items-center justify-center w-12 h-12 rounded-full bg-green-500/15 text-green-400">
-              <CircleCheck class="h-6 w-6" />
+              <IconCircleCheck class="h-6 w-6" />
             </div>
-            <h3 class="font-cinzel text-sm font-bold text-foreground tracking-wide">Bug Reported!</h3>
+            <h3 class="font-cinzel text-sm font-bold text-foreground tracking-wide">IconBug Reported!</h3>
             <p class="font-fell text-sm text-muted-foreground max-w-xs leading-relaxed">
               Thank you — issue #{{ issueNumber }} has been filed and the development team will look into it.
             </p>
@@ -125,14 +125,14 @@
                     aria-label="Remove screenshot"
                     @click="clearScreenshot"
                   >
-                    <X class="h-3 w-3" />
+                    <IconClose class="h-3 w-3" />
                   </button>
                 </div>
                 <label
                   v-else
                   class="flex items-center gap-2 px-3 py-2 rounded-md border border-dashed border-border text-xs font-fell text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors cursor-pointer"
                 >
-                  <ImagePlus class="h-4 w-4 shrink-0" />
+                  <IconAddImage class="h-4 w-4 shrink-0" />
                   <span>Add screenshot</span>
                   <input
                     ref="fileInputRef"
@@ -161,7 +161,7 @@
                 :disabled="submitting"
                 class="flex items-center gap-2 px-4 py-1.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs font-semibold tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
               >
-                <Loader2 v-if="submitting" class="h-3 w-3 animate-spin" />
+                <IconLoading v-if="submitting" class="h-3 w-3 animate-spin" />
                 <span>{{ submitting ? "Submitting…" : "Submit Report" }}</span>
               </button>
             </div>
@@ -174,7 +174,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { X, Bug, ImagePlus, Loader2, CircleCheck } from "lucide-vue-next";
+import { IconAddImage, IconBug, IconCircleCheck, IconClose, IconLoading } from '@/lib/icons';
 import { useAuthStore } from "@/stores/auth";
 import { supabase } from "@/lib/supabase";
 
@@ -264,7 +264,7 @@ async function submit() {
     submitted.value = true;
   } catch (e) {
     error.value = "Something went wrong — please try again.";
-    console.error("Bug report submit error:", e);
+    console.error("IconBug report submit error:", e);
   } finally {
     submitting.value = false;
   }

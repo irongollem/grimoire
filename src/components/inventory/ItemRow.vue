@@ -1,7 +1,7 @@
 <template>
   <div class="flex items-center gap-2 px-3 py-2.5 border-b border-border last:border-0 hover:bg-muted/10 transition-colors group select-none">
     <div class="drag-handle shrink-0 -ml-0.5 flex items-center justify-center h-9 w-8 cursor-grab active:cursor-grabbing touch-none rounded">
-      <GripVertical class="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />
+      <IconDrag class="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />
     </div>
     <div class="flex-1 min-w-0">
       <button
@@ -27,10 +27,10 @@
         class="h-4 w-4 rounded flex items-center justify-center hover:bg-muted border border-border transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100 disabled:opacity-40 disabled:cursor-not-allowed"
         :disabled="item.quantity <= 1"
         @click="$emit('adjust-qty', item, -1)"
-      ><Minus class="h-2 w-2" /></button>
+      ><IconMinus class="h-2 w-2" /></button>
       <span class="font-cinzel text-xs font-semibold text-foreground min-w-4 text-center">{{ item.quantity }}</span>
       <button class="h-4 w-4 rounded flex items-center justify-center hover:bg-muted border border-border transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100" @click="$emit('adjust-qty', item, 1)">
-        <Plus class="h-2 w-2" />
+        <IconAdd class="h-2 w-2" />
       </button>
     </div>
 
@@ -39,7 +39,7 @@
       class="h-6 w-6 flex items-center justify-center rounded text-muted-foreground/40 hover:text-amber-400 hover:bg-amber-400/10 transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
       title="Drop to chat"
       @click="$emit('drop-to-chat', item)"
-    ><ArrowUpFromLine class="h-3 w-3" /></button>
+    ><IconArrowUp class="h-3 w-3" /></button>
 
     <!-- Split stack — always rendered for consistent row width -->
     <button
@@ -48,7 +48,7 @@
       title="Split stack"
       :disabled="item.quantity <= 1"
       @click="$emit('split-stack', item)"
-    ><Scissors class="h-3 w-3" /></button>
+    ><IconScissors class="h-3 w-3" /></button>
 
     <!-- List for sale -->
     <button
@@ -56,19 +56,19 @@
       class="h-6 w-6 flex items-center justify-center rounded text-muted-foreground/40 hover:text-sky-400 hover:bg-sky-400/10 transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
       title="List for sale"
       @click="$emit('sell-item', item)"
-    ><ShoppingBag class="h-3 w-3" /></button>
+    ><IconShop class="h-3 w-3" /></button>
 
     <!-- Remove -->
     <button
       class="h-6 w-6 flex items-center justify-center rounded text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
       @click="$emit('remove', item.id)"
-    ><Trash2 class="h-3 w-3" /></button>
+    ><IconDelete class="h-3 w-3" /></button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { Plus, Minus, Trash2, ArrowUpFromLine, ShoppingBag, GripVertical, Scissors } from "lucide-vue-next";
+import { IconAdd, IconArrowUp, IconDelete, IconDrag, IconMinus, IconScissors, IconShop } from '@/lib/icons';
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { PartyMember } from "@/types/party.types";
 

@@ -48,7 +48,7 @@
                 class="w-full h-full"
               />
               <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
-                <Sun class="h-6 w-6" />
+                <IconSun class="h-6 w-6" />
               </div>
               <span
                 v-if="isNew(deity.id, deity.updated_at)"
@@ -63,7 +63,7 @@
                 {{ deity.pantheon.name }}
               </p>
             </div>
-            <ChevronDown
+            <IconChevronDown
               class="h-4 w-4 shrink-0 text-muted-foreground transition-transform"
               :class="{ 'rotate-180': selected?.id === deity.id }"
             />
@@ -118,7 +118,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { ChevronDown, Sun } from "lucide-vue-next";
+import { IconChevronDown, IconSun } from '@/lib/icons';
 import { useAllDeities } from "@/composables/useDeities";
 import { useAuthStore } from "@/stores/auth";
 import { useReadItems, useMarkRead } from "@/composables/useReadItems";

@@ -5,7 +5,7 @@
       to="/play/quests"
       class="inline-flex items-center gap-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors tracking-wider"
     >
-      <ChevronLeft class="h-3.5 w-3.5" />
+      <IconChevronLeft class="h-3.5 w-3.5" />
       Quest Log
     </RouterLink>
 
@@ -17,7 +17,7 @@
       v-else-if="!quest || !quest.player_visible_to?.length"
       class="text-center py-16 space-y-3"
     >
-      <ScrollText class="h-10 w-10 text-muted-foreground/30 mx-auto" />
+      <IconScrollText class="h-10 w-10 text-muted-foreground/30 mx-auto" />
       <p class="font-cinzel text-sm text-muted-foreground">Quest not found.</p>
     </div>
 
@@ -49,7 +49,7 @@
           class="flex items-center gap-1.5 hover:text-primary transition-colors"
           @click="openNpc(quest!.giver_npc_id!)"
         >
-          <User class="h-3.5 w-3.5 shrink-0" />
+          <IconUser class="h-3.5 w-3.5 shrink-0" />
           {{ giverName }}
         </button>
         <button
@@ -58,11 +58,11 @@
           class="flex items-center gap-1.5 hover:text-primary transition-colors"
           @click="openLocation(quest!.location_id!)"
         >
-          <MapPin class="h-3.5 w-3.5 shrink-0" />
+          <IconLocation class="h-3.5 w-3.5 shrink-0" />
           {{ primaryLocationName }}
         </button>
         <span v-else-if="primaryLocationName" class="flex items-center gap-1.5">
-          <MapPin class="h-3.5 w-3.5 shrink-0" />
+          <IconLocation class="h-3.5 w-3.5 shrink-0" />
           {{ primaryLocationName }}
         </span>
       </div>
@@ -102,7 +102,7 @@
                   : 'border-border'
               "
             >
-              <Check v-if="obj.is_done" class="h-2.5 w-2.5" />
+              <IconCheck v-if="obj.is_done" class="h-2.5 w-2.5" />
             </span>
             <span
               class="font-fell text-sm leading-snug"
@@ -159,7 +159,7 @@
             class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 transition-colors text-left"
             @click="openNpc(ref.ref_id)"
           >
-            <User class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <IconUser class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             <span class="font-fell text-sm text-foreground hover:text-primary transition-colors">{{
               npcName(ref.ref_id)
             }}</span>
@@ -186,7 +186,7 @@
               class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 transition-colors text-left w-full"
               @click="openLocation(ref.ref_id)"
             >
-              <MapPin class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <IconLocation class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               <span class="font-fell text-sm text-foreground hover:text-primary transition-colors">{{
                 locationName2(ref.ref_id)
               }}</span>
@@ -195,7 +195,7 @@
               v-else
               class="flex items-center gap-2 px-2 py-1.5"
             >
-              <MapPin class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <IconLocation class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               <span class="font-fell text-sm text-foreground">{{
                 locationName2(ref.ref_id)
               }}</span>
@@ -221,7 +221,7 @@
             :key="ref.id"
             class="flex items-center gap-2 px-2 py-1.5"
           >
-            <Skull class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <IconMonster class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             <span class="font-fell text-sm text-foreground">{{
               monsterName(ref.ref_id)
             }}</span>
@@ -261,7 +261,7 @@
             class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors"
             @click="selectedNpc = null"
           >
-            <X class="h-4 w-4" />
+            <IconClose class="h-4 w-4" />
           </button>
         </div>
         <div class="p-4 overflow-y-auto space-y-4">
@@ -284,15 +284,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { RouterLink, useRoute, useRouter } from "vue-router";
-import {
-  ChevronLeft,
-  ScrollText,
-  User,
-  MapPin,
-  Check,
-  Skull,
-  X,
-} from "lucide-vue-next";
+import { IconCheck, IconChevronLeft, IconClose, IconLocation, IconMonster, IconScrollText, IconUser } from '@/lib/icons';
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import {
   useQuest,

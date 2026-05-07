@@ -261,7 +261,7 @@
             class="mt-2 w-full flex items-center justify-center gap-1.5 py-1 border border-dashed border-border rounded font-cinzel text-2xs md:text-sm tracking-wider text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
             @click="openCoinDrop"
           >
-            <MessageCircle class="h-3 w-3" />
+            <IconMessage class="h-3 w-3" />
             Drop Coins to Chat
           </button>
         </template>
@@ -412,7 +412,7 @@
             containerPickerSearch = '';
           "
         >
-          <Plus class="h-3 w-3" />Add container
+          <IconAdd class="h-3 w-3" />Add container
         </button>
       </div>
 
@@ -771,7 +771,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, reactive, nextTick, watch } from "vue";
 import { VueDraggable } from "vue-draggable-plus";
-import { Plus, MessageCircle } from "lucide-vue-next";
+import { IconAdd, IconMessage } from '@/lib/icons';
 import { COINS, type CoinKey } from "@/lib/currency";
 import {
   parseWeightLb,

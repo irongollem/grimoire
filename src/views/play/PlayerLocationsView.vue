@@ -15,14 +15,14 @@
     </p>
 
     <div v-else class="flex flex-col gap-2">
-      <!-- Search + filter bar -->
+      <!-- IconSearch + filter bar -->
       <div class="flex items-center gap-2">
         <div class="relative flex-1">
-          <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <input
             v-model="search"
             type="text"
-            placeholder="Search locations…"
+            placeholder="IconSearch locations…"
             class="w-full rounded-md border border-border bg-muted/40 pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
@@ -67,7 +67,7 @@
               <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider shrink-0">
                 {{ locLabel(loc.location_type) }}
               </span>
-              <ChevronDown
+              <IconChevronDown
                 v-if="hasSharedChildren.has(loc.id)"
                 class="h-3.5 w-3.5 text-muted-foreground transition-transform duration-150 shrink-0"
                 :class="childrenOpen.has(loc.id) ? 'rotate-180' : ''"
@@ -79,7 +79,7 @@
               title="Remove from favourites"
               @click.stop="toggleFavourite(loc.id)"
             >
-              <Star class="h-3.5 w-3.5 shrink-0 fill-current" />
+              <IconStar class="h-3.5 w-3.5 shrink-0 fill-current" />
             </button>
             <button
               type="button"
@@ -88,7 +88,7 @@
               :title="detailOpen.has(loc.id) ? 'Hide details' : 'Show details'"
               @click="toggleDetail(loc.id)"
             >
-              <Eye class="h-3.5 w-3.5 shrink-0" />
+              <IconReveal class="h-3.5 w-3.5 shrink-0" />
               <span class="hidden sm:inline font-cinzel text-2xs md:text-sm tracking-wider">Details</span>
             </button>
           </div>
@@ -215,13 +215,13 @@
             <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider shrink-0">
               {{ locLabel(entry.loc.location_type) }}
             </span>
-            <ChevronDown
+            <IconChevronDown
               v-if="hasSharedChildren.has(entry.loc.id)"
               class="h-3.5 w-3.5 text-muted-foreground transition-transform duration-150 shrink-0"
               :class="childrenOpen.has(entry.loc.id) ? 'rotate-180' : ''"
             />
           </button>
-          <!-- Star: toggle favourite -->
+          <!-- IconStar: toggle favourite -->
           <button
             type="button"
             class="shrink-0 flex items-center gap-1.5 px-3 hover:bg-muted/30 transition-colors border-l border-border"
@@ -229,7 +229,7 @@
             :title="favouriteIds.has(entry.loc.id) ? 'Remove from favourites' : 'Add to favourites'"
             @click.stop="toggleFavourite(entry.loc.id)"
           >
-            <Star
+            <IconStar
               class="h-3.5 w-3.5 shrink-0"
               :class="favouriteIds.has(entry.loc.id) ? 'fill-current' : ''"
             />
@@ -242,7 +242,7 @@
             :title="detailOpen.has(entry.loc.id) ? 'Hide details' : 'Show details'"
             @click="toggleDetail(entry.loc.id)"
           >
-            <Eye class="h-3.5 w-3.5 shrink-0" />
+            <IconReveal class="h-3.5 w-3.5 shrink-0" />
             <span class="hidden sm:inline font-cinzel text-2xs md:text-sm tracking-wider">Details</span>
           </button>
         </div>
@@ -382,7 +382,7 @@
             class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors"
             @click="selectedNpc = null"
           >
-            <X class="h-4 w-4" />
+            <IconClose class="h-4 w-4" />
           </button>
         </div>
         <div class="p-4 overflow-y-auto space-y-4">
@@ -427,7 +427,7 @@
             class="text-muted-foreground hover:text-foreground transition-colors ml-1 shrink-0"
             @click="watchingLocation = null"
           >
-            <X class="h-4 w-4" />
+            <IconClose class="h-4 w-4" />
           </button>
         </div>
 
@@ -474,7 +474,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { ChevronDown, X, Eye, Search, Star } from "lucide-vue-next";
+import { IconChevronDown, IconClose, IconReveal, IconSearch, IconStar } from '@/lib/icons';
 import { useReadItems, useMarkRead } from "@/composables/useReadItems";
 import { useSharedLocations } from "@/composables/useLocations";
 import { usePlayerFavourites } from "@/composables/usePlayerFavourites";

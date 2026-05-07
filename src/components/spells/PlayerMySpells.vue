@@ -44,7 +44,7 @@
           :class="ui.playerSpellOpenLevels.includes(group.level) ? 'rounded-t-lg border-b-0' : 'rounded-lg'"
           @click="ui.togglePlayerSpellLevel(group.level)"
         >
-          <ChevronRight
+          <IconChevronRight
             class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform"
             :class="ui.playerSpellOpenLevels.includes(group.level) ? 'rotate-90' : ''"
           />
@@ -132,7 +132,7 @@
               :title="castButtonTitle(entry)"
               @click="startCast(entry)"
             >
-              <Wand2 class="h-3 w-3" />
+              <IconWand class="h-3 w-3" />
               Cast
             </button>
 
@@ -147,8 +147,8 @@
               :title="entry.is_prepared ? 'Unprepare' : 'Prepare'"
               @click="togglePrepare(entry)"
             >
-              <Flame v-if="entry.is_prepared" class="h-3 w-3" />
-              <Circle v-else class="h-3 w-3" />
+              <IconFire v-if="entry.is_prepared" class="h-3 w-3" />
+              <IconCircle v-else class="h-3 w-3" />
               {{ entry.is_prepared ? "Prepared" : "Prepare" }}
             </button>
 
@@ -165,7 +165,7 @@
               :disabled="isRemoving"
               @click="handleRemove(entry)"
             >
-              <X class="h-3.5 w-3.5" />
+              <IconClose class="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
@@ -238,7 +238,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Flame, Circle, X, BookOpen, ChevronRight, Wand2 } from "lucide-vue-next";
+import { IconChevronRight, IconCircle, IconClose, IconFire, IconPopulate, IconWand } from '@/lib/icons';
 import {
   useCharacterSpellsWithDetails,
   useRemoveCharacterSpell,
@@ -522,7 +522,7 @@ const levelGroups = computed(() => {
 });
 
 // ── Empty state messaging ──────────────────────────────────────────────────────
-const emptyIcon = computed(() => (props.viewMode === "prepared" ? Flame : BookOpen));
+const emptyIcon = computed(() => (props.viewMode === "prepared" ? IconFire : IconPopulate));
 
 const emptyTitle = computed(() => {
   if (props.viewMode === "prepared") return "Nothing prepared";

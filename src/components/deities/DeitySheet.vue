@@ -20,7 +20,7 @@
           v-else
           class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground/40"
         >
-          <Sun class="h-12 w-12" />
+          <IconSun class="h-12 w-12" />
         </div>
       </div>
 
@@ -175,7 +175,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
-import { Sun } from "lucide-vue-next";
+import { IconSun } from '@/lib/icons';
 import type { Deity, Pantheon } from "@/types/deity.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";

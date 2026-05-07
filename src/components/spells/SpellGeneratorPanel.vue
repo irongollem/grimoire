@@ -16,7 +16,7 @@
       <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
         <h2 class="font-cinzel text-base font-semibold text-foreground">Spell Generator</h2>
         <button class="text-muted-foreground hover:text-foreground" @click="ui.spellGeneratorOpen = false">
-          <X class="h-5 w-5" />
+          <IconClose class="h-5 w-5" />
         </button>
       </div>
 
@@ -103,7 +103,7 @@
 
         <!-- Generating state -->
         <div v-else-if="isGenerating" class="flex flex-col items-center gap-3 py-4">
-          <Sparkles class="h-7 w-7 text-primary animate-pulse" />
+          <IconGenerate class="h-7 w-7 text-primary animate-pulse" />
           <p class="font-fell text-sm text-muted-foreground italic text-center">{{ currentLoadingQuote }}</p>
           <button
             type="button"
@@ -133,7 +133,7 @@
           class="w-full inline-flex items-center justify-center gap-1.5 py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
           @click="generateAndCreate"
         >
-          <Sparkles class="h-3.5 w-3.5" />
+          <IconGenerate class="h-3.5 w-3.5" />
           {{ isGenerating ? "Generating…" : "Generate with AI" }}
         </button>
         <button
@@ -142,7 +142,7 @@
           class="w-full inline-flex items-center justify-center gap-1.5 py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
           @click="showPaywall = true"
         >
-          <Sparkles class="h-3.5 w-3.5" />
+          <IconGenerate class="h-3.5 w-3.5" />
           Generate with AI
         </button>
         <RouterLink
@@ -162,7 +162,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
 import { useRouter, RouterLink } from "vue-router";
-import { X, Sparkles } from "lucide-vue-next";
+import { IconClose, IconGenerate } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCreateSpell } from "@/composables/useSpells";

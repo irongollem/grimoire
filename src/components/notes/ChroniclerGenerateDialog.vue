@@ -94,7 +94,7 @@
             :disabled="generating || !scenePrompt.trim() || scenePrompt.length > SCENE_LIMIT"
             @click="generate"
           >
-            <Sparkles class="h-3 w-3" :class="generating ? 'animate-pulse' : ''" />
+            <IconGenerate class="h-3 w-3" :class="generating ? 'animate-pulse' : ''" />
             {{ generating ? 'Generating…' : 'Generate' }}
           </button>
         </div>
@@ -108,7 +108,7 @@ import { ref, computed, watch } from "vue";
 import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 
 const SCENE_LIMIT = AI_PROMPT_LIMIT_SHORT;
-import { Sparkles } from "lucide-vue-next";
+import { IconGenerate } from '@/lib/icons';
 import { parseSceneEntities, generateChroniclerImage } from "@/ai/useChroniclerImageGeneration";
 import { useCreateChroniclerImage } from "@/composables/useChroniclerImages";
 import { useCampaignStore } from "@/stores/campaign";

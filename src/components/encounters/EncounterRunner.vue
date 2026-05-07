@@ -20,7 +20,7 @@
           class="roll-btn"
           title="Roll Initiative"
         >
-          <Dices class="h-3.5 w-3.5" />
+          <IconDiceRoll class="h-3.5 w-3.5" />
           <span class="btn-label">Roll Initiative</span>
         </button>
         <button
@@ -29,7 +29,7 @@
           class="start-combat-btn"
           title="Start Combat"
         >
-          <Swords class="h-3.5 w-3.5" />
+          <IconEncounter class="h-3.5 w-3.5" />
           <span class="btn-label">Start Combat</span>
         </button>
         <button
@@ -40,7 +40,7 @@
           :title="isLive ? 'Live' : 'Go Live'"
           @click="handleGoLive"
         >
-          <Radio class="h-3.5 w-3.5" />
+          <IconLive class="h-3.5 w-3.5" />
           <span class="btn-label">{{ goingLive ? 'Starting…' : isLive ? '● Live' : 'Go Live' }}</span>
         </button>
         <button
@@ -48,11 +48,11 @@
           class="abandon-btn"
           title="Abandon — end run without syncing HP or discovering monsters"
         >
-          <DoorOpen class="h-3.5 w-3.5" />
+          <IconDungeon class="h-3.5 w-3.5" />
           <span class="btn-label">Abandon</span>
         </button>
         <button @click="handleEndCombat" class="end-btn" title="End Combat">
-          <Flag class="h-3.5 w-3.5" />
+          <IconFlag class="h-3.5 w-3.5" />
           <span class="btn-label">End Combat</span>
         </button>
       </div>
@@ -103,7 +103,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { Radio, Dices, Swords, DoorOpen, Flag } from "lucide-vue-next";
+import { IconDiceRoll, IconDungeon, IconEncounter, IconFlag, IconLive } from '@/lib/icons';
 import { supabase } from "@/lib/supabase";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useAllMonsters } from "@/composables/useMonsters";

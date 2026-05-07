@@ -2,12 +2,12 @@
   <ListPageLayout title="Archetypes" description="Custom subclasses & class variants">
     <template #actions>
       <ListActionButton
-        :icon="importMutation.isPending.value ? Loader2 : Download"
+        :icon="importMutation.isPending.value ? IconLoading : IconDownload"
         :label="importLabel"
         :disabled="importMutation.isPending.value"
         @click="handleImport"
       />
-      <ListActionButton :icon="Plus" label="New Archetype" mobile-label="Archetype" variant="primary" to="/levelup/custom/new" />
+      <ListActionButton :icon="IconAdd" label="New Archetype" mobile-label="Archetype" variant="primary" to="/levelup/custom/new" />
     </template>
 
     <template #filters>
@@ -46,7 +46,7 @@
           to="/levelup/custom/new"
           class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
         >
-          <Plus class="h-3.5 w-3.5" />
+          <IconAdd class="h-3.5 w-3.5" />
           New Archetype
         </RouterLink>
         <button
@@ -55,7 +55,7 @@
           class="inline-flex items-center gap-1.5 rounded-md border border-border px-4 py-2 font-cinzel text-xs text-foreground tracking-wider hover:bg-muted/40 transition-colors disabled:opacity-50"
           @click="createExample"
         >
-          <BookOpen class="h-3.5 w-3.5" />
+          <IconPopulate class="h-3.5 w-3.5" />
           {{ loadingExample ? "Creating…" : "Load example" }}
         </button>
       </div>
@@ -114,7 +114,7 @@
                 <span v-if="sc.campaign_id" class="ml-1 text-primary/70"> · campaign only</span>
               </p>
             </div>
-            <ChevronRight class="h-4 w-4 text-muted-foreground shrink-0" />
+            <IconChevronRight class="h-4 w-4 text-muted-foreground shrink-0" />
           </RouterLink>
         </div>
       </div>
@@ -131,7 +131,7 @@
 <script setup lang="ts">
 import { ref, computed, onBeforeUnmount } from "vue";
 import { RouterLink } from "vue-router";
-import { Plus, ChevronRight, BookOpen, Download, Loader2 } from "lucide-vue-next";
+import { IconAdd, IconChevronRight, IconDownload, IconLoading, IconPopulate } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";

@@ -65,7 +65,7 @@
               :disabled="isGenerating || !rawText.trim() || rawText.length > NOTES_LIMIT"
               @click="generate"
             >
-              <BookText class="h-3 w-3" :class="isGenerating ? 'animate-pulse' : ''" />
+              <IconNote class="h-3 w-3" :class="isGenerating ? 'animate-pulse' : ''" />
               {{ isGenerating ? 'Writing…' : 'Write Chronicle' }}
             </button>
           </div>
@@ -103,7 +103,7 @@
               class="inline-flex items-center gap-1.5 px-4 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
               @click="insertChronicle"
             >
-              <BookText class="h-3 w-3" />
+              <IconNote class="h-3 w-3" />
               Insert into Note
             </button>
           </div>
@@ -118,7 +118,7 @@ import { ref, computed, watch } from "vue";
 import { AI_PROMPT_LIMIT_LONG } from "@/ai/utils";
 
 const NOTES_LIMIT = AI_PROMPT_LIMIT_LONG;
-import { BookText } from "lucide-vue-next";
+import { IconNote } from '@/lib/icons';
 import {
   useChroniclerTextGeneration,
   preprocessChronicleMarkdown,

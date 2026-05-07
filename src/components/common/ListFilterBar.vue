@@ -24,14 +24,14 @@
       <slot />
 
       <!--
-        Clear is an X icon — on mobile it collapses to just the X (via
+        Clear is an IconClose icon — on mobile it collapses to just the IconClose (via
         ListActionButton's default `collapseOnMobile: true`), on desktop it
-        shows "X Clear". Keeps the row tight on narrow screens where the
+        shows "IconClose Clear". Keeps the row tight on narrow screens where the
         "Clear" label doesn't fit alongside search + filters.
       -->
       <ListActionButton
         v-if="hasActiveFilters"
-        :icon="X"
+        :icon="IconClose"
         label="Clear"
         tooltip="Clear filters"
         variant="ghost"
@@ -43,7 +43,7 @@
 
 <script setup lang="ts">
 import { computed, useSlots } from "vue";
-import { X } from "lucide-vue-next";
+import { IconClose } from '@/lib/icons';
 import ListActionButton from "@/components/common/ListActionButton.vue";
 
 const props = withDefaults(

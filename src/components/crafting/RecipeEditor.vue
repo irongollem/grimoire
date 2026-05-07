@@ -23,7 +23,7 @@
         "
         @click="form.requires_proficiency = !form.requires_proficiency"
       >
-        <Lock class="h-3.5 w-3.5" />
+        <IconLock class="h-3.5 w-3.5" />
       </button>
 
       <button
@@ -41,7 +41,7 @@
         "
         @click="form.requires_tools = !form.requires_tools"
       >
-        <Wrench class="h-3.5 w-3.5" />
+        <IconTool class="h-3.5 w-3.5" />
       </button>
 
       <PlayerVisibilityToggle
@@ -55,8 +55,8 @@
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
         @click="save"
       >
-        <Save class="h-3.5 w-3.5" />
-        {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
+        <IconSave class="h-3.5 w-3.5" />
+        {{ saving ? "Saving…" : isNew ? "Create" : "IconSave" }}
       </button>
     </div>
 
@@ -172,13 +172,13 @@
             class="text-muted-foreground hover:text-destructive transition-colors"
             @click="outputs.splice(idx, 1)"
           >
-            <Trash2 class="h-3.5 w-3.5" />
+            <IconDelete class="h-3.5 w-3.5" />
           </button>
         </div>
 
         <!-- Add output -->
         <div class="relative mt-1">
-          <Search
+          <IconSearch
             class="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none"
           />
           <input
@@ -269,13 +269,13 @@
             class="text-muted-foreground hover:text-destructive transition-colors"
             @click="removeIngredient(idx)"
           >
-            <Trash2 class="h-3.5 w-3.5" />
+            <IconDelete class="h-3.5 w-3.5" />
           </button>
         </div>
 
         <!-- Add ingredient by specific item -->
         <div class="relative mt-1">
-          <Search
+          <IconSearch
             class="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none"
           />
           <input
@@ -315,7 +315,7 @@
         <!-- Add ingredient by tag -->
         <div class="flex items-center gap-2 mt-1">
           <div class="relative flex-1">
-            <Tag
+            <IconTag
               class="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none"
             />
             <input
@@ -331,7 +331,7 @@
             class="shrink-0 inline-flex items-center gap-1 px-3 py-2 rounded-md bg-muted border border-border font-cinzel text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
             @click="addTagIngredient"
           >
-            <Plus class="h-3.5 w-3.5" />
+            <IconAdd class="h-3.5 w-3.5" />
             Add tag
           </button>
         </div>
@@ -375,7 +375,7 @@
             class="text-muted-foreground hover:text-destructive transition-colors"
             @click="modifiers.splice(idx, 1)"
           >
-            <Trash2 class="h-3.5 w-3.5" />
+            <IconDelete class="h-3.5 w-3.5" />
           </button>
         </div>
 
@@ -384,7 +384,7 @@
           class="flex items-center gap-1.5 text-xs font-cinzel text-muted-foreground hover:text-foreground transition-colors mt-1"
           @click="modifiers.push({ description: '', bonus: 2 })"
         >
-          <Plus class="h-3.5 w-3.5" />
+          <IconAdd class="h-3.5 w-3.5" />
           Add modifier
         </button>
       </div>
@@ -394,7 +394,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { Lock, Plus, Save, Search, Tag, Trash2, Wrench } from "lucide-vue-next";
+import { IconAdd, IconDelete, IconLock, IconSave, IconSearch, IconTag, IconTool } from '@/lib/icons';
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
 import {

@@ -58,8 +58,8 @@
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
         @click="save"
       >
-        <Save class="h-3.5 w-3.5" />
-        {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
+        <IconSave class="h-3.5 w-3.5" />
+        {{ saving ? "Saving…" : isNew ? "Create" : "IconSave" }}
       </button>
       <button
         v-if="!isNew"
@@ -67,7 +67,7 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
         @click="remove"
       >
-        <Trash2 class="h-3.5 w-3.5" />
+        <IconDelete class="h-3.5 w-3.5" />
         Delete
       </button>
     </div>
@@ -104,7 +104,7 @@
           <span
             class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider shrink-0 w-16 flex items-center gap-1"
           >
-            <ChevronUp class="h-3.5 w-3.5" />Parent
+            <IconChevronUp class="h-3.5 w-3.5" />Parent
           </span>
           <EntityCombobox
             v-model="parentIdStr"
@@ -132,7 +132,7 @@
           <span
             class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider shrink-0 w-16 flex items-center gap-1 pt-1.5"
           >
-            <MapPin class="h-3.5 w-3.5" />Child
+            <IconLocation class="h-3.5 w-3.5" />Child
           </span>
           <div
             class="flex-1 flex flex-wrap items-center gap-1.5 border border-border rounded-md px-3 py-1.5 min-h-8.5 bg-background relative"
@@ -204,7 +204,7 @@
                   class="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-muted transition-colors border-t border-border text-primary"
                   @mousedown.prevent="createChild"
                 >
-                  <Plus class="h-3 w-3 shrink-0" />
+                  <IconAdd class="h-3 w-3 shrink-0" />
                   <span class="font-cinzel text-xs truncate flex-1">
                     {{
                       childSearch.trim()
@@ -223,7 +223,7 @@
           <span
             class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider shrink-0 w-16 flex items-center gap-1 pt-1.5"
           >
-            <Link class="h-3.5 w-3.5" />Related
+            <IconLink class="h-3.5 w-3.5" />Related
           </span>
           <div
             class="flex-1 flex flex-wrap items-center gap-1.5 border border-border rounded-md px-3 py-1.5 min-h-8.5 bg-background relative"
@@ -244,7 +244,7 @@
               <span class="font-cinzel text-xs font-semibold text-foreground truncate">
                 {{ relatedLocationMap.get(relId)?.name ?? relId }}
               </span>
-              <X class="h-2.5 w-2.5 text-muted-foreground group-hover:text-destructive shrink-0" />
+              <IconClose class="h-2.5 w-2.5 text-muted-foreground group-hover:text-destructive shrink-0" />
             </button>
             <!-- Inline related search -->
             <div class="relative ml-auto">
@@ -284,7 +284,7 @@
           <span
             class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider shrink-0 w-16 flex items-center gap-1 pt-1.5"
           >
-            <Tag class="h-3.5 w-3.5" />Tags
+            <IconTag class="h-3.5 w-3.5" />Tags
           </span>
           <div class="flex-1"><TagInput v-model="tags" /></div>
         </div>
@@ -469,7 +469,7 @@
               }}
             </p>
           </div>
-          <ChevronRight
+          <IconChevronRight
             class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0"
           />
         </RouterLink>
@@ -502,7 +502,7 @@
             class="font-cinzel text-[10px] text-muted-foreground tracking-wider"
             >Done</span
           >
-          <ChevronRight
+          <IconChevronRight
             class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0"
           />
         </RouterLink>
@@ -667,17 +667,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import {
-  Save,
-  Trash2,
-  ChevronRight,
-  MapPin,
-  ChevronUp,
-  Tag,
-  Plus,
-  Link,
-  X,
-} from "lucide-vue-next";
+import { IconAdd, IconChevronRight, IconChevronUp, IconClose, IconDelete, IconLink, IconLocation, IconSave, IconTag } from '@/lib/icons';
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import { useImageUpload } from "@/composables/useImageUpload";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";

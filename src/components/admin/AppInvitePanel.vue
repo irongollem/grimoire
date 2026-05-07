@@ -4,7 +4,7 @@
     class="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-navy-800 transition-colors font-cinzel tracking-wide"
     @click="open = true"
   >
-    <ShieldCheck class="h-3.5 w-3.5 shrink-0" />
+    <IconShieldCheck class="h-3.5 w-3.5 shrink-0" />
     Admin
   </button>
 
@@ -52,7 +52,7 @@
               :disabled="bulkPublish.isPending.value"
               @click="handlePublishArt"
             >
-              <Upload class="h-3.5 w-3.5" />
+              <IconUpload class="h-3.5 w-3.5" />
               {{ bulkPublish.isPending.value ? 'Publishing…' : 'Publish all my SRD art' }}
             </button>
           </div>
@@ -105,7 +105,7 @@
                 :disabled="createInvite.isPending.value"
                 @click="handleCreate"
               >
-                <Plus class="h-3.5 w-3.5" />
+                <IconAdd class="h-3.5 w-3.5" />
                 Generate
               </button>
             </div>
@@ -151,7 +151,7 @@
                   :disabled="deleteInvite.isPending.value"
                   @click="deleteInvite.mutate(invite.id)"
                 >
-                  <Trash2 class="h-3.5 w-3.5" />
+                  <IconDelete class="h-3.5 w-3.5" />
                 </button>
               </div>
               <div class="flex items-center gap-2 rounded bg-background px-2 py-1.5">
@@ -165,9 +165,9 @@
                     : 'border border-border text-foreground hover:bg-muted'"
                   @click="copy(invite)"
                 >
-                  <Check v-if="copiedId === invite.id" class="h-3 w-3" />
-                  <Copy v-else class="h-3 w-3" />
-                  {{ copiedId === invite.id ? 'Copied!' : 'Copy' }}
+                  <IconCheck v-if="copiedId === invite.id" class="h-3 w-3" />
+                  <IconCopy v-else class="h-3 w-3" />
+                  {{ copiedId === invite.id ? 'Copied!' : 'IconCopy' }}
                 </button>
               </div>
             </div>
@@ -235,7 +235,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { ShieldCheck, Plus, Trash2, Copy, Check, Upload } from "lucide-vue-next";
+import { IconAdd, IconCheck, IconCopy, IconDelete, IconShieldCheck, IconUpload } from '@/lib/icons';
 import { useAppInvites, useCreateAppInvite, useDeleteAppInvite } from "@/composables/useAppInvites";
 import type { AppInvite } from "@/composables/useAppInvites";
 import type { GrantedPlan } from "@/composables/useAppInvites";

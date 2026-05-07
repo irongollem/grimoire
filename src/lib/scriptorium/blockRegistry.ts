@@ -14,34 +14,7 @@
 import type { Component } from "vue";
 import type { Editor } from "@tiptap/core";
 import type { WatercolorVariant } from "@/lib/tiptap/watercolor";
-import {
-  Award,
-  BookMarked,
-  BookOpen,
-  BookText,
-  Bookmark,
-  Droplets,
-  Gem,
-  Hash,
-  Info,
-  List,
-  Maximize2,
-  MessageSquare,
-  Minus,
-  MoveHorizontal,
-  MoveVertical,
-  Pen,
-  Quote,
-  RectangleHorizontal,
-  RefreshCw,
-  ScrollText,
-  Skull,
-  Sparkles,
-  Stamp,
-  SquareSplitVertical,
-  Table2,
-  UserRound,
-} from "lucide-vue-next";
+import { IconAward, IconBookMarked, IconBookmark, IconComment, IconGem, IconGenerate, IconHash, IconInfo, IconList, IconMaximize, IconMinus, IconMonster, IconMoveH, IconMoveV, IconNote, IconPen, IconPopulate, IconQuote, IconRect, IconRefresh, IconScrollText, IconSplitCell, IconStamp, IconTable, IconUserRound, IconWater } from '@/lib/icons';
 import {
   frontCoverTemplate,
   insideCoverTemplate,
@@ -104,7 +77,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     label: "Front Cover",
     description:
       "Full-page front cover: title, subtitle, art slot, HOMEBREW banner. Always occupies its own page.",
-    icon: BookOpen,
+    icon: IconPopulate,
     action: (editor) =>
       editor.chain().focus().insertContent(frontCoverTemplate()).run(),
   },
@@ -113,7 +86,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     label: "Inside Cover",
     description:
       "Inside cover: background art fills the upper half, title + subtitle overlay at the bottom.",
-    icon: BookMarked,
+    icon: IconBookMarked,
     action: (editor) =>
       editor.chain().focus().insertContent(insideCoverTemplate()).run(),
   },
@@ -122,7 +95,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     label: "Part Divider",
     description:
       'Section break divider: centred "PART N" number + subtitle with ornamental rules. Perfect for multi-chapter brews.',
-    icon: Bookmark,
+    icon: IconBookmark,
     action: (editor) =>
       editor.chain().focus().insertContent(partDividerTemplate()).run(),
   },
@@ -131,7 +104,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     label: "Back Cover",
     description:
       "Back cover: art strip, subtitle, three blurb paragraphs, tagline, and URL/logo bar. Page footer suppressed.",
-    icon: BookText,
+    icon: IconNote,
     action: (editor) =>
       editor.chain().focus().insertContent(backCoverTemplate()).run(),
   },
@@ -142,14 +115,14 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     label: "Wide Block",
     description:
       "Wrap content in a full-width container that spans both columns (no-op in single-column documents). Nest tables, stat blocks, or images inside to break the column flow.",
-    icon: RectangleHorizontal,
+    icon: IconRect,
     action: (editor) => editor.chain().focus().toggleWideBlock().run(),
   },
   {
     group: "Layout",
     label: "Page Break",
     description: "Split the document at this point onto a new page",
-    icon: Minus,
+    icon: IconMinus,
     action: (editor) => editor.chain().focus().setHorizontalRule().run(),
   },
   {
@@ -157,7 +130,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     label: "Column Break",
     description:
       "Force content after this point to start at the top of the next column (two-column layout only)",
-    icon: SquareSplitVertical,
+    icon: IconSplitCell,
     action: (editor) => editor.chain().focus().insertColumnBreak().run(),
   },
 
@@ -166,56 +139,56 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     group: "Layout",
     label: "Vertical Spacer \u2014 S (8 px)",
     description: "Add 8 px of empty vertical space between blocks",
-    icon: MoveVertical,
+    icon: IconMoveV,
     action: (editor) => editor.chain().focus().setSpacerVertical(8).run(),
   },
   {
     group: "Layout",
     label: "Vertical Spacer \u2014 M (16 px)",
     description: "Add 16 px of empty vertical space between blocks",
-    icon: MoveVertical,
+    icon: IconMoveV,
     action: (editor) => editor.chain().focus().setSpacerVertical(16).run(),
   },
   {
     group: "Layout",
     label: "Vertical Spacer \u2014 L (32 px)",
     description: "Add 32 px of empty vertical space between blocks",
-    icon: MoveVertical,
+    icon: IconMoveV,
     action: (editor) => editor.chain().focus().setSpacerVertical(32).run(),
   },
   {
     group: "Layout",
     label: "Vertical Spacer \u2014 XL (64 px)",
     description: "Add 64 px of empty vertical space between blocks",
-    icon: MoveVertical,
+    icon: IconMoveV,
     action: (editor) => editor.chain().focus().setSpacerVertical(64).run(),
   },
   {
     group: "Layout",
     label: "Horizontal Spacer \u2014 S (16 px)",
     description: "Insert 16 px of inline horizontal space inside a paragraph",
-    icon: MoveHorizontal,
+    icon: IconMoveH,
     action: (editor) => editor.chain().focus().setSpacerHorizontal(16).run(),
   },
   {
     group: "Layout",
     label: "Horizontal Spacer \u2014 M (32 px)",
     description: "Insert 32 px of inline horizontal space inside a paragraph",
-    icon: MoveHorizontal,
+    icon: IconMoveH,
     action: (editor) => editor.chain().focus().setSpacerHorizontal(32).run(),
   },
   {
     group: "Layout",
     label: "Horizontal Spacer \u2014 L (64 px)",
     description: "Insert 64 px of inline horizontal space inside a paragraph",
-    icon: MoveHorizontal,
+    icon: IconMoveH,
     action: (editor) => editor.chain().focus().setSpacerHorizontal(64).run(),
   },
   {
     group: "Layout",
     label: "Horizontal Spacer \u2014 XL (100 px)",
     description: "Insert 100 px of inline horizontal space inside a paragraph",
-    icon: MoveHorizontal,
+    icon: IconMoveH,
     action: (editor) => editor.chain().focus().setSpacerHorizontal(100).run(),
   },
 
@@ -224,7 +197,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     group: "Callouts",
     label: "Callout Box",
     description: "Styled inset box for rules text, flavor, or warnings",
-    icon: Quote,
+    icon: IconQuote,
     action: (editor) => editor.chain().focus().toggleBlockquote().run(),
   },
   {
@@ -232,7 +205,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     label: "Note",
     description:
       "Boxed highlight for rules reminders and DM tips. 2024 theme: teal-tinted with accent border. Classic theme: parchment with double rule. Shortcut: Mod-Alt-N.",
-    icon: Info,
+    icon: IconInfo,
     action: (editor) => editor.chain().focus().toggleNoteBlock().run(),
   },
   {
@@ -240,23 +213,23 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     label: "Descriptive (Read-Aloud)",
     description:
       "Framed box for prose read aloud to players. 2024 theme: flat darker teal. Classic theme: square-cornered parchment frame. Shortcut: Mod-Alt-D.",
-    icon: ScrollText,
+    icon: IconScrollText,
     action: (editor) => editor.chain().focus().toggleDescriptiveBlock().run(),
   },
   {
     group: "Callouts",
-    label: "Quote",
+    label: "IconQuote",
     description:
       "Italic pulled quote with optional attribution line. No decorative frame — font treatment only. Shortcut: Mod-Alt-Q.",
-    icon: MessageSquare,
+    icon: IconComment,
     action: (editor) => editor.chain().focus().toggleQuoteBlock().run(),
   },
   {
     group: "Callouts",
     label: "Attribution",
     description:
-      "Em-dash author/source line inside a Quote block. Renders in small-caps italic; classic theme uses accent red. Only meaningful inside a Quote block.",
-    icon: UserRound,
+      "Em-dash author/source line inside a IconQuote block. Renders in small-caps italic; classic theme uses accent red. Only meaningful inside a IconQuote block.",
+    icon: IconUserRound,
     action: (editor) => editor.chain().focus().insertAttribution().run(),
     enabled: (editor) => editor.isActive("quoteBlock"),
   },
@@ -267,7 +240,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     label: "Watercolor Splatter",
     description:
       "Absolutely-positioned watercolor blob overlay. Select the node to choose variant (1\u201312), position, width, tint colour, and opacity.",
-    icon: Droplets,
+    icon: IconWater,
     action: (editor) => {
       const variant = (Math.floor(Math.random() * 12) + 1) as WatercolorVariant;
       editor.chain().focus().insertWatercolor({ variant }).run();
@@ -278,7 +251,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     label: "Watermark",
     description:
       "Large diagonal text across the page (e.g. DRAFT, PLAYTEST). Sits behind body content.",
-    icon: Stamp,
+    icon: IconStamp,
     action: (editor) =>
       editor.chain().focus().insertWatermark({ text: "DRAFT" }).run(),
   },
@@ -287,7 +260,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     label: "Artist Credit",
     description:
       'Tiny italic "Art by \u2026" line in a chosen page corner. Default: bottom-right.',
-    icon: Pen,
+    icon: IconPen,
     action: (editor) =>
       editor
         .chain()
@@ -302,7 +275,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     label: "Class Table — Full Caster",
     description:
       "20-row progression table for full spellcasters (e.g. Wizard, Sorcerer): Level, Prof. Bonus, Features, Cantrips Known, and 1st–9th spell slots. Spans both columns via Wide Block.",
-    icon: Table2,
+    icon: IconTable,
     action: (editor) =>
       editor.chain().focus().insertContent(fullCasterTable()).run(),
   },
@@ -311,7 +284,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     label: "Class Table — Half Caster",
     description:
       "20-row progression table for half-casters (e.g. Paladin, Ranger): Level, Prof. Bonus, Features, and 1st–5th spell slots. Spans both columns via Wide Block.",
-    icon: Table2,
+    icon: IconTable,
     action: (editor) =>
       editor.chain().focus().insertContent(halfCasterTable()).run(),
   },
@@ -320,7 +293,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     label: "Class Table — Third Caster",
     description:
       "20-row progression table for third-casters (e.g. Arcane Trickster, Eldritch Knight): Level, Prof. Bonus, Features, and 1st–4th spell slots (spellcasting starts at L3). Spans both columns via Wide Block.",
-    icon: Table2,
+    icon: IconTable,
     action: (editor) =>
       editor.chain().focus().insertContent(thirdCasterTable()).run(),
   },
@@ -329,7 +302,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     label: "Class Table — Martial",
     description:
       "20-row progression table for martial classes (e.g. Fighter, Monk): Level, Prof. Bonus, Features, and one custom numeric column. You will be prompted for the column name (e.g. Ki Points, Sneak Attack). Spans both columns via Wide Block.",
-    icon: Table2,
+    icon: IconTable,
     action: (editor) => {
       const col = prompt("Custom column name (e.g. Ki Points):");
       if (col === null) return;
@@ -347,7 +320,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     label: "Monster Stat Block",
     description:
       "Full stat block scaffold (name, type line, AC/HP/Speed/CR, ability scores, saving throws, skills, senses, traits, actions, reactions, legendary actions) with [Bracketed] placeholders. Framed in a callout box matching Homebrewery style.",
-    icon: Skull,
+    icon: IconMonster,
     action: (editor) =>
       editor.chain().focus().insertContent(monsterStatBlockTemplate()).run(),
   },
@@ -356,7 +329,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     label: "Monster Stat Block (Wide)",
     description:
       "Same as Monster Stat Block but wrapped in a Wide Block so it spans both columns in a two-column layout. Use this for larger creatures or when you need more horizontal space.",
-    icon: Maximize2,
+    icon: IconMaximize,
     action: (editor) =>
       editor
         .chain()
@@ -369,7 +342,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     label: "Spell",
     description:
       "Spell entry scaffold (name, level + school subtitle, Casting Time, Range, Components, Duration, description, Spell Lists, At Higher Levels) with [Bracketed] placeholders. Matches the DB-sourced spell block format.",
-    icon: Sparkles,
+    icon: IconGenerate,
     action: (editor) =>
       editor.chain().focus().insertContent(spellTemplate()).run(),
   },
@@ -378,7 +351,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     label: "Magic Item",
     description:
       "Magic item entry scaffold (name, type + rarity + attunement subtitle, flavour description, mechanical effect, Charges block) with [Bracketed] placeholders. Matches the DB-sourced item block format.",
-    icon: Gem,
+    icon: IconGem,
     action: (editor) =>
       editor.chain().focus().insertContent(magicItemTemplate()).run(),
   },
@@ -387,7 +360,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     label: "Class Feature",
     description:
       "Class feature scaffold (feature name, level + class prerequisite line, description body, optional sub-feature heading) with [Bracketed] placeholders.",
-    icon: Award,
+    icon: IconAward,
     action: (editor) =>
       editor.chain().focus().insertContent(classFeatureTemplate()).run(),
   },
@@ -398,7 +371,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     label: "Table of Contents",
     description:
       "Auto-generated TOC from all H1/H2/H3 headings in the document. Place this block on its own page; the preview and PDF replace it with a live linked list with dotted leaders and page numbers.",
-    icon: List,
+    icon: IconList,
     action: (editor) => editor.chain().focus().insertTocBlock().run(),
   },
   {
@@ -406,7 +379,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     label: "Skip Page Number",
     description:
       "Marks this page so its number is omitted and the running counter does not advance (e.g. for a full-page illustration).",
-    icon: Hash,
+    icon: IconHash,
     action: (editor) => editor.chain().focus().insertSkipCounting().run(),
   },
   {
@@ -414,7 +387,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     label: "Reset Page Counter",
     description:
       "Resets the running page counter back to the document\u2019s starting number from this page onwards. Useful after a cover page or unnumbered front matter.",
-    icon: RefreshCw,
+    icon: IconRefresh,
     action: (editor) => editor.chain().focus().insertResetCounting().run(),
   },
 ];

@@ -18,7 +18,7 @@
           <slot name="meta" />
         </div>
       </div>
-      <ChevronDown
+      <IconChevronDown
         class="h-4 w-4 text-muted-foreground shrink-0 transition-transform mt-0.5"
         :class="expanded ? 'rotate-180' : ''"
       />
@@ -30,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-import { ChevronDown } from "lucide-vue-next";
+import { IconChevronDown } from '@/lib/icons';
 import type { Component } from "vue";
 
 const { color, icon, categoryLabel, title, preview, date, expanded } = defineProps<{

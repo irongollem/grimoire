@@ -259,7 +259,7 @@
                 type="button"
                 class="text-muted-foreground hover:text-destructive transition-colors"
                 @click="removeBundleItem(idx)"
-              ><X class="h-3.5 w-3.5" /></button>
+              ><IconClose class="h-3.5 w-3.5" /></button>
             </div>
           </div>
           <div class="flex gap-2">
@@ -388,7 +388,7 @@
 </template>
 
 <script setup lang="ts">
-import { X } from "lucide-vue-next";
+import { IconClose } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm, notify } = useConfirm();
 import { ref, computed } from "vue";
@@ -524,7 +524,6 @@ const isMagic = computed(() => rarity.value !== "mundane");
 const rarityPriceHint = computed(() => RARITY_PRICE_HINTS[rarity.value] ?? "");
 const isArtObject = computed(() => itemType.value === "art_object");
 const rarityColor = computed(() => RARITY_COLORS[rarity.value] ?? "#888888");
-
 
 // ── Save / Delete ─────────────────────────────────────────────────────────────
 const { mutateAsync: createItem } = useCreateItem();

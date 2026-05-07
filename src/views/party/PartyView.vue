@@ -6,14 +6,14 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
         @click="tracker?.openCompanionForm(null)"
       >
-        <PawPrint class="h-3.5 w-3.5" />
+        <IconBeast class="h-3.5 w-3.5" />
         Add Companion
       </button>
       <RouterLink
         to="/play/character/create"
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
       >
-        <Plus class="h-3.5 w-3.5" />
+        <IconAdd class="h-3.5 w-3.5" />
         Add Hero
       </RouterLink>
     </template>
@@ -33,11 +33,11 @@
             type="button"
             :disabled="generating"
             class="inline-flex items-center gap-1.5 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider rounded-md border border-border bg-background text-muted-foreground hover:text-foreground hover:border-primary/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            title="Upload your own art"
+            title="IconUpload your own art"
             @click="uploadInput?.click()"
           >
-            <Upload class="h-3.5 w-3.5" />
-            Upload
+            <IconUpload class="h-3.5 w-3.5" />
+            IconUpload
           </button>
           <button
             type="button"
@@ -46,7 +46,7 @@
             :title="!hasPartyMembers ? 'Add party members first' : groupPortraitUrl ? 'Regenerate group portrait' : 'Generate group portrait'"
             @click="generateGroupPortrait"
           >
-            <Sparkles class="h-3.5 w-3.5" :class="generating ? 'animate-pulse' : ''" />
+            <IconGenerate class="h-3.5 w-3.5" :class="generating ? 'animate-pulse' : ''" />
             {{ generating ? 'Generating…' : groupPortraitUrl ? 'Regenerate' : 'Generate' }}
           </button>
         </div>
@@ -78,7 +78,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { RouterLink } from "vue-router";
-import { Plus, PawPrint, Sparkles, Upload } from "lucide-vue-next";
+import { IconAdd, IconBeast, IconGenerate, IconUpload } from '@/lib/icons';
 import PageHeader from "@/components/common/PageHeader.vue";
 import PartyTracker from "@/components/party/PartyTracker.vue";
 import { useGroupPortrait } from "@/composables/useGroupPortrait";

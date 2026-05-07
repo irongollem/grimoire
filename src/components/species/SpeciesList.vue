@@ -50,7 +50,7 @@
           v-if="selectedId && s.id === selectedId"
           class="absolute top-2 right-2 z-10 flex items-center justify-center size-5 rounded-full bg-primary text-primary-foreground"
         >
-          <Check class="size-3" />
+          <IconCheck class="size-3" />
         </div>
 
         <!-- Portrait / placeholder -->
@@ -114,7 +114,7 @@
           class="absolute top-2 left-2 z-10 flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
           title="Edit species"
         >
-          <Pencil class="h-3 w-3" />
+          <IconEdit class="h-3 w-3" />
           Edit
         </RouterLink>
       </div>
@@ -133,7 +133,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { Pencil, Check } from "lucide-vue-next";
+import { IconCheck, IconEdit } from '@/lib/icons';
 import type { Species } from "@/types/species.types";
 import { useUiStore } from "@/stores/ui";
 import { useAllSpecies } from "@/composables/useSpecies";

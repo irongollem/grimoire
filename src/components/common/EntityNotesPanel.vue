@@ -11,8 +11,8 @@
         :class="note.is_private ? 'border-border' : 'border-primary/20'"
       >
         <div class="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-muted/30">
-          <Lock v-if="note.is_private" class="h-3 w-3 text-muted-foreground shrink-0" />
-          <Globe v-else class="h-3 w-3 text-primary/70 shrink-0" />
+          <IconLock v-if="note.is_private" class="h-3 w-3 text-muted-foreground shrink-0" />
+          <IconFaction v-else class="h-3 w-3 text-primary/70 shrink-0" />
           <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground flex-1">
             {{ note.is_private ? "Private" : "Party" }} note
             <span v-if="note.user_id !== myUserId" class="italic"> · from DM/party</span>
@@ -74,7 +74,7 @@
       class="self-start inline-flex items-center gap-1.5 rounded-md border border-dashed border-border px-3 py-1.5 font-cinzel text-xs text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors"
       @click="composing = true"
     >
-      <Plus class="h-3 w-3" />
+      <IconAdd class="h-3 w-3" />
       Add note
     </button>
   </div>
@@ -82,7 +82,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Plus, Lock, Globe } from "lucide-vue-next";
+import { IconAdd, IconFaction, IconLock } from '@/lib/icons';
 import { useAuthStore } from "@/stores/auth";
 import {
   useEntityNotes,

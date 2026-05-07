@@ -15,7 +15,7 @@
           v-else
           class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground/40"
         >
-          <Shield class="h-10 w-10" />
+          <IconShield class="h-10 w-10" />
         </div>
       </div>
 
@@ -51,7 +51,7 @@
             class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
             @click="handleDelete"
           >
-            <Trash2 class="h-3.5 w-3.5" />
+            <IconDelete class="h-3.5 w-3.5" />
             Delete
           </button>
           <button
@@ -59,7 +59,7 @@
             class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
             @click="router.push({ query: { ...route.query, edit: 'true' } })"
           >
-            <Pencil class="h-3.5 w-3.5" />
+            <IconEdit class="h-3.5 w-3.5" />
             Edit
           </button>
         </div>
@@ -84,7 +84,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { Pencil, Shield, Trash2 } from "lucide-vue-next";
+import { IconDelete, IconEdit, IconShield } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteFaction } from "@/composables/useFactions";
 import type { Faction } from "@/types/faction.types";

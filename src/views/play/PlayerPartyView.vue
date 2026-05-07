@@ -44,7 +44,7 @@
                 class="group-hover:scale-105 transition-transform duration-300"
               />
               <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
-                <UserIcon class="h-10 w-10" />
+                <IconUser class="h-10 w-10" />
               </div>
               <span
                 v-if="entry.data.id === auth.linkedPartyMemberId"
@@ -77,7 +77,7 @@
               </div>
               <div class="flex items-center gap-2 flex-wrap">
                 <span class="flex items-center gap-1">
-                  <Shield class="h-3 w-3 text-muted-foreground shrink-0" />
+                  <IconShield class="h-3 w-3 text-muted-foreground shrink-0" />
                   <span class="font-cinzel text-xs font-bold text-foreground">{{ entry.data.ac }}</span>
                 </span>
                 <span
@@ -107,7 +107,7 @@
                 class="group-hover:scale-105 transition-transform duration-300"
               />
               <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
-                <UserIcon class="h-10 w-10" />
+                <IconUser class="h-10 w-10" />
               </div>
               <span
                 class="absolute top-2 right-2 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded tracking-wider text-white"
@@ -137,7 +137,7 @@
               </div>
               <div class="flex items-center gap-2 flex-wrap">
                 <span class="flex items-center gap-1">
-                  <Shield class="h-3 w-3 text-muted-foreground shrink-0" />
+                  <IconShield class="h-3 w-3 text-muted-foreground shrink-0" />
                   <span class="font-cinzel text-xs font-bold text-foreground">{{ entry.data.ac }}</span>
                 </span>
                 <span
@@ -162,11 +162,11 @@
         <!-- Filter bar -->
         <div class="flex flex-wrap gap-2 mb-4">
           <div class="relative flex-1 min-w-48">
-            <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
             <input
               v-model="ui.playerPeopleSearch"
               type="text"
-              placeholder="Search people…"
+              placeholder="IconSearch people…"
               class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
@@ -241,7 +241,7 @@
               />
             </div>
             <button class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors" @click="closeNpc">
-              <XIcon class="h-4 w-4" />
+              <IconClose class="h-4 w-4" />
             </button>
           </div>
           <div class="p-4 overflow-y-auto space-y-4">
@@ -311,7 +311,7 @@
               />
             </div>
             <button class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors" @click="closeCompanion">
-              <XIcon class="h-4 w-4" />
+              <IconClose class="h-4 w-4" />
             </button>
             <span
               class="absolute top-2 left-2 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded tracking-wider text-white"
@@ -339,7 +339,7 @@
                 </div>
               </div>
               <div class="rounded-md bg-muted p-2.5 flex items-center gap-2">
-                <Shield class="h-4 w-4 text-muted-foreground shrink-0" />
+                <IconShield class="h-4 w-4 text-muted-foreground shrink-0" />
                 <div>
                   <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">AC</p>
                   <p class="font-cinzel text-sm font-bold text-foreground">{{ selectedCompanion.ac }}</p>
@@ -363,7 +363,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { UserIcon, XIcon, Shield, Search } from "lucide-vue-next";
+import { IconClose, IconSearch, IconShield, IconUser } from '@/lib/icons';
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
@@ -553,7 +553,6 @@ function openMember(m: PartyMember) {
 function closeMember() {
   selectedMember.value = null;
 }
-
 
 // ── NPC lightbox ─────────────────────────────────────────────────────────────
 const selectedNpc = ref<Npc | null>(null);

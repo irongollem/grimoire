@@ -2,7 +2,7 @@
   <ListPageLayout title="Encounters" description="Build and run combat encounters">
     <template #actions>
       <ListActionButton
-        :icon="Plus"
+        :icon="IconAdd"
         label="New Encounter"
         mobile-label="Encounter"
         variant="primary"
@@ -25,13 +25,13 @@
           <option v-for="q in quests" :key="q.id" :value="q.id">{{ q.title }}</option>
         </ListFilterSelect>
         <!--
-          Active/All toggle — the CheckCheck icon alone is ambiguous between
+          Active/All toggle — the IconCheckDouble icon alone is ambiguous between
           the two states, so the visible label carries the "Active" / "All"
           information. Tooltip describes the action the next tap would take.
           Primary variant when filtering-to-active so it reads as "on".
         -->
         <ListActionButton
-          :icon="CheckCheck"
+          :icon="IconCheckDouble"
           :label="ui.encountersHideFinished ? 'Active' : 'All'"
           :collapse-on-mobile="false"
           :tooltip="ui.encountersHideFinished ? 'Show all encounters' : 'Hide finished encounters'"
@@ -50,7 +50,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import { Plus, CheckCheck } from "lucide-vue-next";
+import { IconAdd, IconCheckDouble } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";

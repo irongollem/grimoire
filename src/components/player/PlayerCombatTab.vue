@@ -17,7 +17,7 @@
                   class="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors shrink-0"
                   @click="rollBeastAttack(action.name, parseBeastAttackBonus(action.description)!)"
                 >
-                  <Sword class="h-3 w-3 text-muted-foreground" />
+                  <IconSword class="h-3 w-3 text-muted-foreground" />
                   <span class="font-cinzel text-xs text-foreground">Attack</span>
                   <span class="font-cinzel text-xs" :class="parseBeastAttackBonus(action.description)! >= 0 ? 'text-elven-green' : 'text-destructive'">
                     {{ signedNum(parseBeastAttackBonus(action.description)!) }}
@@ -49,7 +49,7 @@
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors group"
               @click="rollWeaponAttack(inv, item)"
             >
-              <Sword class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+              <IconSword class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
               <span class="font-cinzel text-xs text-foreground">Attack</span>
               <span class="font-cinzel text-xs" :class="weaponAttackMod(item) >= 0 ? 'text-elven-green' : 'text-destructive'">
                 {{ signedNum(weaponAttackMod(item)) }}
@@ -61,7 +61,7 @@
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-amber-500/50 hover:bg-muted/30 transition-colors group"
               @click="rollWeaponDamage(inv, item)"
             >
-              <Zap class="h-3.5 w-3.5 text-muted-foreground group-hover:text-amber-400 transition-colors" />
+              <IconLightning class="h-3.5 w-3.5 text-muted-foreground group-hover:text-amber-400 transition-colors" />
               <span class="font-cinzel text-xs text-foreground">{{ weaponDamageExpr(item) }}</span>
               <span class="font-cinzel text-xs text-muted-foreground">{{ item.damage_rolls[0].type }}</span>
             </button>
@@ -81,7 +81,7 @@
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors group"
               @click="rollUnarmedAttack"
             >
-              <Sword class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+              <IconSword class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
               <span class="font-cinzel text-xs text-foreground">Attack</span>
               <span class="font-cinzel text-xs" :class="unarmedAttackMod >= 0 ? 'text-elven-green' : 'text-destructive'">
                 {{ signedNum(unarmedAttackMod) }}
@@ -101,7 +101,7 @@
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors group"
               @click="rollImprovisedAttack"
             >
-              <Sword class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+              <IconSword class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
               <span class="font-cinzel text-xs text-foreground">Attack</span>
               <span class="font-cinzel text-xs" :class="improvisedAttackMod >= 0 ? 'text-elven-green' : 'text-destructive'">
                 {{ signedNum(improvisedAttackMod) }}
@@ -112,7 +112,7 @@
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-amber-500/50 hover:bg-muted/30 transition-colors group"
               @click="rollImprovisedDamage"
             >
-              <Zap class="h-3.5 w-3.5 text-muted-foreground group-hover:text-amber-400 transition-colors" />
+              <IconLightning class="h-3.5 w-3.5 text-muted-foreground group-hover:text-amber-400 transition-colors" />
               <span class="font-cinzel text-xs text-foreground">1d4</span>
               <span class="font-cinzel text-xs text-muted-foreground">{{ signedNum(improvisedAttackMod) }}</span>
             </button>
@@ -125,7 +125,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { Sword, Zap } from "lucide-vue-next";
+import { IconLightning, IconSword } from '@/lib/icons';
 import { rollParsed } from "@/lib/roller";
 import type { RollMode, DieSize } from "@/lib/roller";
 import { parseExpression } from "@/lib/dice";

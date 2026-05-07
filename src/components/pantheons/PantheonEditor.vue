@@ -19,7 +19,7 @@
             v-else
             class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground"
           >
-            <Flame class="h-10 w-10" />
+            <IconFire class="h-10 w-10" />
             <span class="font-fell text-sm italic">Upload emblem</span>
           </div>
           <div
@@ -90,7 +90,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { Flame } from "lucide-vue-next";
+import { IconFire } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useImageUpload } from "@/composables/useImageUpload";
 import { useCreatePantheon, useUpdatePantheon, useDeletePantheon } from "@/composables/useDeities";

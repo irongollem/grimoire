@@ -98,7 +98,7 @@
           class="inline-flex items-center gap-1 font-cinzel text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
           :class="enc.is_finished ? 'opacity-50' : ''"
         >
-          <Swords class="h-2.5 w-2.5 shrink-0" />{{ enc.name }}
+          <IconEncounter class="h-2.5 w-2.5 shrink-0" />{{ enc.name }}
         </RouterLink>
       </div>
     </div>
@@ -115,7 +115,7 @@
           :to="`/loot-tables/${lt.id}`"
           class="inline-flex items-center gap-1 font-cinzel text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
         >
-          <Package class="h-2.5 w-2.5 shrink-0" />{{ lt.name }}
+          <IconPackage class="h-2.5 w-2.5 shrink-0" />{{ lt.name }}
         </RouterLink>
       </div>
     </div>
@@ -125,7 +125,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
-import { Swords, Package } from "lucide-vue-next";
+import { IconEncounter, IconPackage } from '@/lib/icons';
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import StatBlockPanel from "@/components/common/StatBlockPanel.vue";

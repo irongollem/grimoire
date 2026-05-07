@@ -2,13 +2,13 @@
   <PageHeader title="Dungeon Craft" description="Secret doors, hidden passages & concealed treasures">
     <template #actions>
       <ListActionButton
-        :icon="populateMutation.isPending.value ? Loader2 : BookOpen"
+        :icon="populateMutation.isPending.value ? IconLoading : IconPopulate"
         :label="populateStatusLabel"
         :disabled="populateMutation.isPending.value"
         @click="handlePopulate"
       />
       <ListActionButton
-        :icon="Plus"
+        :icon="IconAdd"
         label="New Feature"
         mobile-label="Feature"
         variant="primary"
@@ -61,7 +61,7 @@
               class="group-hover:scale-105 transition-transform duration-300"
             />
             <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/20">
-              <DoorOpenIcon class="h-10 w-10" />
+              <IconDungeon class="h-10 w-10" />
             </div>
             <!-- Type badge -->
             <span
@@ -100,7 +100,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
-import { DoorOpen as DoorOpenIcon, Loader2, BookOpen, Plus } from "lucide-vue-next";
+import { IconAdd, IconDungeon, IconLoading, IconPopulate } from '@/lib/icons';
 import { useDungeonFeatures, usePopulateDungeonFeatures } from "@/composables/useDungeonFeatures";
 import { DUNGEON_FEATURE_TYPES, DUNGEON_FEATURE_TYPE_COLORS } from "@/types/dungeonFeature.types";
 import PageHeader from "@/components/common/PageHeader.vue";

@@ -3,11 +3,11 @@
     <!-- Sidebar: rule tree -->
     <div class="w-64 shrink-0 flex flex-col gap-2 overflow-y-auto px-4 pt-4 pb-4 md:px-6 md:pt-6">
       <div class="relative">
-        <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <input
           v-model="search"
           type="text"
-          placeholder="Search rules…"
+          placeholder="IconSearch rules…"
           class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
@@ -25,7 +25,7 @@
       </p>
 
       <template v-else>
-        <!-- Search results (flat) -->
+        <!-- IconSearch results (flat) -->
         <template v-if="search.trim()">
           <button
             v-for="rule in searchResults"
@@ -91,7 +91,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Search } from "lucide-vue-next";
+import { IconSearch } from '@/lib/icons';
 import { useSrdRules } from "@/composables/useRules";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import type { SrdRule } from "@/types/rule.types";

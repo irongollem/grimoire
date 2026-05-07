@@ -31,17 +31,17 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { Monitor, BookOpen, Scroll, BookMarked } from "lucide-vue-next";
+import { IconBookMarked, IconMonitor, IconPopulate, IconQuest } from '@/lib/icons';
 import ScreenTab from "@/components/rules/ScreenTab.vue";
 import CompendiumTab from "@/components/rules/CompendiumTab.vue";
 import CodexTab from "@/components/rules/CodexTab.vue";
 import HouseRulesTab from "@/components/rules/HouseRulesTab.vue";
 
 const tabs = [
-  { id: "screen",     label: "Reference",   icon: Monitor },
-  { id: "compendium", label: "Compendium",  icon: BookOpen },
-  { id: "codex",      label: "Codex",       icon: BookMarked },
-  { id: "houserules", label: "House Rules", icon: Scroll },
+  { id: "screen",     label: "Reference",   icon: IconMonitor },
+  { id: "compendium", label: "Compendium",  icon: IconPopulate },
+  { id: "codex",      label: "Codex",       icon: IconBookMarked },
+  { id: "houserules", label: "House Rules", icon: IconQuest },
 ] as const;
 
 type TabId = (typeof tabs)[number]["id"];

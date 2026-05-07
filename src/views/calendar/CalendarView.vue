@@ -15,7 +15,7 @@
           :class="showTodayEditor ? 'border-primary/60 bg-primary/5' : ''"
           @click="toggleTodayEditor"
         >
-          <CalendarDays class="h-3.5 w-3.5 text-primary shrink-0" />
+          <IconCalendarDays class="h-3.5 w-3.5 text-primary shrink-0" />
           <span class="hidden sm:inline">Today: </span>
           <span>{{ todayLabel }}</span>
         </button>
@@ -112,7 +112,7 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs font-semibold text-foreground hover:border-primary/50 transition-colors shrink-0"
         @click="bundleModalOpen = true"
       >
-        <BookOpen class="h-3.5 w-3.5" />
+        <IconPopulate class="h-3.5 w-3.5" />
         <span class="hidden sm:inline">Setting Events</span>
         <span class="sm:hidden">Import</span>
       </button>
@@ -122,7 +122,7 @@
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity shrink-0"
         @click="openCreateModal"
       >
-        <Plus class="h-3.5 w-3.5" />
+        <IconAdd class="h-3.5 w-3.5" />
         Event
       </button>
     </template>
@@ -143,7 +143,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Plus, BookOpen, CalendarDays } from "lucide-vue-next";
+import { IconAdd, IconCalendarDays, IconPopulate } from '@/lib/icons';
 import { useCalendarStore } from "@/stores/calendar";
 import { useCampaignStore } from "@/stores/campaign";
 import { useSetCampaignToday } from "@/composables/useCampaigns";

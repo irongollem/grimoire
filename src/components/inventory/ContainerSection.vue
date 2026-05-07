@@ -8,7 +8,7 @@
       @dragleave="onHeaderDragLeave"
     >
       <button class="flex items-center gap-1.5 flex-1 text-left" @click="open = !open">
-        <ChevronRight class="h-3 w-3 text-muted-foreground transition-transform" :class="open ? 'rotate-90' : ''" />
+        <IconChevronRight class="h-3 w-3 text-muted-foreground transition-transform" :class="open ? 'rotate-90' : ''" />
         <span class="font-cinzel text-xs font-semibold text-foreground tracking-wider">{{ label }}</span>
         <span class="font-cinzel text-[9px] text-muted-foreground/60 ml-1">
           ({{ items.length }}<template v-if="weight != null"> · {{ formatWeightLb(weight) }}</template>)
@@ -19,7 +19,7 @@
         class="text-muted-foreground/60 hover:text-foreground transition-colors p-0.5"
         title="View item details"
         @click.stop="$emit('open-detail', container)"
-      ><Info class="h-3 w-3" /></button>
+      ><IconInfo class="h-3 w-3" /></button>
       <button
         class="font-cinzel text-[10px] text-muted-foreground hover:text-foreground transition-colors"
         @click="showAdd = !showAdd"
@@ -92,7 +92,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from "vue";
-import { ChevronRight, Info } from "lucide-vue-next";
+import { IconChevronRight, IconInfo } from '@/lib/icons';
 import { VueDraggable } from "vue-draggable-plus";
 import type { PartyInventoryItem, InventoryLocation } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
@@ -113,7 +113,6 @@ const props = defineProps<{
   sellable?: boolean;
   weight?: number;
 }>();
-
 
 const emit = defineEmits<{
   add: [name: string, itemId: string | null];

@@ -10,7 +10,7 @@
         class="inline-flex items-center gap-1 font-cinzel text-xs text-primary hover:opacity-80 transition-opacity"
         @click="showEventForm = !showEventForm; editingEventId = null"
       >
-        <Plus class="h-3.5 w-3.5" />
+        <IconAdd class="h-3.5 w-3.5" />
         Add
       </button>
     </div>
@@ -58,9 +58,9 @@
               />
               <div class="flex items-center gap-2">
                 <div class="flex items-center gap-1">
-                  <button type="button" class="w-6 h-6 rounded bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground" @click="editEventData.spawnCount = Math.max(1, editEventData.spawnCount - 1)"><Minus class="h-3 w-3" /></button>
+                  <button type="button" class="w-6 h-6 rounded bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground" @click="editEventData.spawnCount = Math.max(1, editEventData.spawnCount - 1)"><IconMinus class="h-3 w-3" /></button>
                   <span class="font-cinzel text-sm font-bold w-6 text-center">{{ editEventData.spawnCount }}</span>
-                  <button type="button" class="w-6 h-6 rounded bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground" @click="editEventData.spawnCount = Math.min(20, editEventData.spawnCount + 1)"><Plus class="h-3 w-3" /></button>
+                  <button type="button" class="w-6 h-6 rounded bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground" @click="editEventData.spawnCount = Math.min(20, editEventData.spawnCount + 1)"><IconAdd class="h-3 w-3" /></button>
                 </div>
                 <EntityCombobox
                   :model-value="editEventData.spawnFaction"
@@ -103,14 +103,14 @@
             :title="event.is_player_visible ? 'Visible to players' : 'Hidden from players'"
             @click="toggleVisibility(event)"
           >
-            <Eye v-if="event.is_player_visible" class="h-3.5 w-3.5" />
-            <EyeOff v-else class="h-3.5 w-3.5" />
+            <IconReveal v-if="event.is_player_visible" class="h-3.5 w-3.5" />
+            <IconHide v-else class="h-3.5 w-3.5" />
           </button>
           <button type="button" class="shrink-0 text-muted-foreground hover:text-foreground transition-colors" title="Edit" @click="startEditEvent(event)">
-            <Pencil class="h-3.5 w-3.5" />
+            <IconEdit class="h-3.5 w-3.5" />
           </button>
           <button type="button" class="shrink-0 text-muted-foreground hover:text-destructive transition-colors" @click="removeEvent(event.id)">
-            <X class="h-3.5 w-3.5" />
+            <IconClose class="h-3.5 w-3.5" />
           </button>
         </div>
 
@@ -160,9 +160,9 @@
             />
             <div class="flex items-center gap-2">
               <div class="flex items-center gap-1">
-                <button type="button" class="w-6 h-6 rounded bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground" @click="newEvent.spawnCount = Math.max(1, newEvent.spawnCount - 1)"><Minus class="h-3 w-3" /></button>
+                <button type="button" class="w-6 h-6 rounded bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground" @click="newEvent.spawnCount = Math.max(1, newEvent.spawnCount - 1)"><IconMinus class="h-3 w-3" /></button>
                 <span class="font-cinzel text-sm font-bold w-6 text-center">{{ newEvent.spawnCount }}</span>
-                <button type="button" class="w-6 h-6 rounded bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground" @click="newEvent.spawnCount = Math.min(20, newEvent.spawnCount + 1)"><Plus class="h-3 w-3" /></button>
+                <button type="button" class="w-6 h-6 rounded bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground" @click="newEvent.spawnCount = Math.min(20, newEvent.spawnCount + 1)"><IconAdd class="h-3 w-3" /></button>
               </div>
               <EntityCombobox
                 :model-value="newEvent.spawnFaction"
@@ -196,7 +196,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { Plus, X, Minus, Eye, EyeOff, Pencil } from "lucide-vue-next";
+import { IconAdd, IconClose, IconEdit, IconHide, IconMinus, IconReveal } from '@/lib/icons';
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import type {
   CombatantDef,

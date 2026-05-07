@@ -9,7 +9,7 @@
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
         @click="openNew"
       >
-        <Plus class="h-3.5 w-3.5" />
+        <IconAdd class="h-3.5 w-3.5" />
         New Entry
       </button>
     </div>
@@ -77,8 +77,8 @@
               : 'text-elven-green border-elven-green/30 bg-elven-green/10'"
             @click="formIsPrivate = !formIsPrivate"
           >
-            <Lock v-if="formIsPrivate" class="h-3 w-3" />
-            <Eye v-else class="h-3 w-3" />
+            <IconLock v-if="formIsPrivate" class="h-3 w-3" />
+            <IconReveal v-else class="h-3 w-3" />
             {{ formIsPrivate ? 'Private' : 'Shared' }}
           </button>
           <div class="flex items-center gap-2">
@@ -93,8 +93,8 @@
               class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 disabled:opacity-50 transition-opacity"
               @click="submitNew"
             >
-              <Loader2 v-if="saving" class="h-3.5 w-3.5 animate-spin" />
-              <Save v-else class="h-3.5 w-3.5" />
+              <IconLoading v-if="saving" class="h-3.5 w-3.5 animate-spin" />
+              <IconSave v-else class="h-3.5 w-3.5" />
               {{ saving ? 'Saving…' : 'Add Entry' }}
             </button>
           </div>
@@ -125,7 +125,7 @@
         <LoadingSpinner />
       </div>
       <div v-else-if="!dmNotes.length" class="text-center py-12">
-        <BookOpen class="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+        <IconPopulate class="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
         <p class="font-fell text-muted-foreground italic">No notes shared by your DM yet.</p>
       </div>
       <div v-else class="flex flex-col gap-2">
@@ -133,7 +133,7 @@
           v-for="note in dmNotes"
           :key="note.id"
           :color="NOTE_CATEGORIES[note.category]?.color ?? '#6b7280'"
-          :icon="NOTE_CATEGORIES[note.category]?.icon ?? BookOpen"
+          :icon="NOTE_CATEGORIES[note.category]?.icon ?? IconPopulate"
           :category-label="NOTE_CATEGORIES[note.category]?.label ?? ''"
           :title="note.title"
           :date="formatDate(note.created_at)"
@@ -142,7 +142,7 @@
         >
           <template #meta>
             <span v-if="isNoteNew(note.id, note.updated_at)" class="h-2.5 w-2.5 rounded-full bg-destructive shrink-0" title="New" />
-            <Pin v-if="note.is_pinned" class="h-2.5 w-2.5 text-primary shrink-0" />
+            <IconPin v-if="note.is_pinned" class="h-2.5 w-2.5 text-primary shrink-0" />
             <span v-if="note.category === 'session' && note.session_num != null" class="font-fell text-xs text-muted-foreground/70 italic">Session {{ note.session_num }}</span>
             <span class="font-fell text-xs text-muted-foreground/70 italic">by DM</span>
           </template>
@@ -192,7 +192,7 @@
 
       <!-- Empty state -->
       <div v-else-if="visibleEntries.length === 0" class="text-center py-16 space-y-3">
-        <BookOpen class="h-10 w-10 text-muted-foreground/30 mx-auto" />
+        <IconPopulate class="h-10 w-10 text-muted-foreground/30 mx-auto" />
         <p class="font-cinzel text-sm text-muted-foreground">
           {{ activeTab === 'party' ? 'No shared entries from the party yet.' : 'Your journal is empty.' }}
         </p>
@@ -223,8 +223,8 @@
               class="inline-flex items-center gap-1 font-cinzel text-2xs md:text-sm tracking-wider"
               :class="entry.is_private ? 'text-muted-foreground/50' : 'text-elven-green'"
             >
-              <Lock v-if="entry.is_private" class="h-2.5 w-2.5" />
-              <Eye v-else class="h-2.5 w-2.5" />
+              <IconLock v-if="entry.is_private" class="h-2.5 w-2.5" />
+              <IconReveal v-else class="h-2.5 w-2.5" />
               {{ entry.is_private ? 'Private' : 'Shared' }}
             </span>
           </template>
@@ -304,8 +304,8 @@
                   : 'text-elven-green border-elven-green/30 bg-elven-green/10'"
                 @click="editForm.is_private = !editForm.is_private"
               >
-                <Lock v-if="editForm.is_private" class="h-3 w-3" />
-                <Eye v-else class="h-3 w-3" />
+                <IconLock v-if="editForm.is_private" class="h-3 w-3" />
+                <IconReveal v-else class="h-3 w-3" />
                 {{ editForm.is_private ? 'Private' : 'Shared' }}
               </button>
               <div class="flex items-center gap-2">
@@ -320,9 +320,9 @@
                   class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 disabled:opacity-50"
                   @click="submitEdit"
                 >
-                  <Loader2 v-if="saving" class="h-3.5 w-3.5 animate-spin" />
-                  <Save v-else class="h-3.5 w-3.5" />
-                  {{ saving ? 'Saving…' : 'Save' }}
+                  <IconLoading v-if="saving" class="h-3.5 w-3.5 animate-spin" />
+                  <IconSave v-else class="h-3.5 w-3.5" />
+                  {{ saving ? 'Saving…' : 'IconSave' }}
                 </button>
               </div>
             </div>
@@ -337,11 +337,7 @@
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed } from "vue";
-import {
-  Plus, Save, Loader2, Lock, Eye, BookOpen, Pin,
-  Search, Star, CalendarDays, Feather, MessageCircle, ScrollText,
-  FileText, MapPin, Shield,
-} from "lucide-vue-next";
+import { IconAdd, IconCalendarDays, IconDocument, IconFeather, IconLoading, IconLocation, IconLock, IconMessage, IconPin, IconPopulate, IconReveal, IconSave, IconScrollText, IconSearch, IconShield, IconStar } from '@/lib/icons';
 import JournalCard from "@/components/player/JournalCard.vue";
 import type { Component } from "vue";
 import {
@@ -394,15 +390,15 @@ const { mutateAsync: del }    = useDeleteJournalEntry();
 
 // ── Category icon map ─────────────────────────────────────────────────────────
 const CAT_ICONS: Record<JournalCategory, Component> = {
-  adventure: ScrollText,
-  clue:      Search,
-  discovery: Star,
-  session:   CalendarDays,
-  character: Feather,
-  rumor:     MessageCircle,
+  adventure: IconScrollText,
+  clue:      IconSearch,
+  discovery: IconStar,
+  session:   IconCalendarDays,
+  character: IconFeather,
+  rumor:     IconMessage,
 };
 function categoryIcon(cat: string): Component {
-  return CAT_ICONS[cat as JournalCategory] ?? BookOpen;
+  return CAT_ICONS[cat as JournalCategory] ?? IconPopulate;
 }
 
 // ── DM Notes ──────────────────────────────────────────────────────────────────
@@ -422,12 +418,12 @@ const dmNotes = computed(() =>
 );
 
 const NOTE_CATEGORIES: Record<NoteCategory, { label: string; color: string; icon: Component }> = {
-  general:  { label: "General",  color: "#6b7280", icon: FileText },
-  session:  { label: "Session",  color: "#3b82f6", icon: CalendarDays },
-  lore:     { label: "Lore",     color: "#a855f7", icon: BookOpen },
-  location: { label: "Location", color: "#10b981", icon: MapPin },
-  quest:    { label: "Quest",    color: "#f59e0b", icon: ScrollText },
-  faction:  { label: "Faction",  color: "#06b6d4", icon: Shield },
+  general:  { label: "General",  color: "#6b7280", icon: IconDocument },
+  session:  { label: "Session",  color: "#3b82f6", icon: IconCalendarDays },
+  lore:     { label: "Lore",     color: "#a855f7", icon: IconPopulate },
+  location: { label: "Location", color: "#10b981", icon: IconLocation },
+  quest:    { label: "Quest",    color: "#f59e0b", icon: IconScrollText },
+  faction:  { label: "Faction",  color: "#06b6d4", icon: IconShield },
 };
 
 const { isNew: isNoteNew } = useReadItems("note");

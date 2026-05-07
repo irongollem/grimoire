@@ -41,7 +41,7 @@
       @pointerdown="onTabPointerDown"
     >
       <div class="relative">
-        <MessageCircle class="h-4 w-4" />
+        <IconMessage class="h-4 w-4" />
         <span v-if="ui.chatHasUnread" class="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-destructive" />
       </div>
     </button>
@@ -88,7 +88,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, onUnmounted } from "vue";
-import { MessageCircle } from "lucide-vue-next";
+import { IconMessage } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";

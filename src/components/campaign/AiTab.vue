@@ -1,7 +1,7 @@
 <template>
   <div v-if="!isPro" class="max-w-md rounded-xl border border-amber-500/30 bg-amber-500/5 p-6 flex flex-col gap-3">
     <div class="flex items-center gap-2.5">
-      <Crown class="h-5 w-5 text-amber-400 shrink-0" />
+      <IconDM class="h-5 w-5 text-amber-400 shrink-0" />
       <span class="font-cinzel text-sm font-bold text-foreground tracking-wide">Pro feature</span>
     </div>
     <p class="font-fell text-sm text-muted-foreground leading-relaxed">
@@ -74,8 +74,8 @@
               class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               @click="showKeys[p.id] = !showKeys[p.id]"
             >
-              <Eye v-if="!showKeys[p.id]" class="h-4 w-4" />
-              <EyeOff v-else class="h-4 w-4" />
+              <IconReveal v-if="!showKeys[p.id]" class="h-4 w-4" />
+              <IconHide v-else class="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -218,7 +218,7 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, watch } from "vue";
-import { Eye, EyeOff, Crown } from "lucide-vue-next";
+import { IconDM, IconHide, IconReveal } from '@/lib/icons';
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/useCampaigns";
 import { encryptApiKey, primeDecryptCache } from "@/lib/apiKeyVault";

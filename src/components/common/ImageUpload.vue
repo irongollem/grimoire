@@ -17,7 +17,7 @@
       @dragleave.self="dragOver = false"
       @drop.prevent="onDrop"
     >
-      <ImagePlus class="h-7 w-7" />
+      <IconAddImage class="h-7 w-7" />
       <span class="font-fell text-xs italic text-center px-2">
         {{ isUploading ? "Uploading…" : placeholder }}
       </span>
@@ -108,7 +108,7 @@
 
 <script setup lang="ts">
 import { ref, computed, useId } from "vue";
-import { ImagePlus } from "lucide-vue-next";
+import { IconAddImage } from '@/lib/icons';
 import { useImageUpload } from "@/composables/useImageUpload";
 import FocalPointPicker from "./FocalPointPicker.vue";
 

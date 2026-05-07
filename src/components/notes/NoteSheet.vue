@@ -7,14 +7,14 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
         @click="handleDelete"
       >
-        <Trash2 class="h-3.5 w-3.5" />Delete
+        <IconDelete class="h-3.5 w-3.5" />Delete
       </button>
       <button
         type="button"
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
         @click="router.push({ query: { ...route.query, edit: 'true' } })"
       >
-        <Pencil class="h-3.5 w-3.5" />Edit
+        <IconEdit class="h-3.5 w-3.5" />Edit
       </button>
     </div>
 
@@ -27,7 +27,7 @@
         Session {{ note.session_num }}
       </span>
       <span v-if="note.is_pinned" class="font-cinzel text-xs font-semibold tracking-wider px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
-        <Pin class="inline h-3 w-3 mr-0.5" />Pinned
+        <IconPin class="inline h-3 w-3 mr-0.5" />Pinned
       </span>
       <span v-if="note.player_visible_to?.length" class="font-cinzel text-xs font-semibold tracking-wider px-2 py-0.5 rounded bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20">
         Shared with players
@@ -54,7 +54,7 @@
 </template>
 
 <script setup lang="ts">
-import { Pencil, Trash2, Pin } from "lucide-vue-next";
+import { IconDelete, IconEdit, IconPin } from '@/lib/icons';
 import { useRoute, useRouter } from "vue-router";
 import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteNote } from "@/composables/useNotes";

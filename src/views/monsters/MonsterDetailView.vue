@@ -6,7 +6,7 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
         @click="router.push('/monsters')"
       >
-        <ChevronLeft class="h-3.5 w-3.5" />
+        <IconChevronLeft class="h-3.5 w-3.5" />
         <span class="hidden md:inline">Back</span>
       </button>
 
@@ -22,8 +22,8 @@
           : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'"
         @click="openVisPopover"
       >
-        <Eye v-if="isDiscovered" class="h-3.5 w-3.5" />
-        <EyeOff v-else class="h-3.5 w-3.5" />
+        <IconReveal v-if="isDiscovered" class="h-3.5 w-3.5" />
+        <IconHide v-else class="h-3.5 w-3.5" />
       </button>
 
       <button
@@ -32,7 +32,7 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
         @click="startEditing"
       >
-        <Pencil class="h-3.5 w-3.5" />
+        <IconEdit class="h-3.5 w-3.5" />
         Edit
       </button>
     </template>
@@ -67,7 +67,7 @@
             : 'text-foreground hover:bg-muted/50'"
           @click="setWholeParty"
         >
-          <Users class="h-3 w-3 shrink-0" />
+          <IconParty class="h-3 w-3 shrink-0" />
           Whole party
         </button>
 
@@ -83,7 +83,7 @@
               : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'"
             @click="toggleMember(member.id)"
           >
-            <component :is="isMemberVisible(member.id) ? Eye : EyeOff" class="h-3 w-3 shrink-0" />
+            <component :is="isMemberVisible(member.id) ? IconReveal : IconHide" class="h-3 w-3 shrink-0" />
             {{ member.name }}
           </button>
         </div>
@@ -98,7 +98,7 @@
               : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'"
             @click="updateStats({ id: currentDiscovery.id, revealStats: !currentDiscovery.reveal_stats })"
           >
-            <BarChart2 class="h-3 w-3 shrink-0" />
+            <IconChart class="h-3 w-3 shrink-0" />
             {{ currentDiscovery.reveal_stats ? 'Stats visible' : 'Stats hidden' }}
           </button>
         </div>
@@ -111,7 +111,7 @@
             class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left font-fell text-xs text-destructive hover:bg-destructive/10 transition-colors"
             @click="unshare"
           >
-            <EyeOff class="h-3 w-3 shrink-0" />
+            <IconHide class="h-3 w-3 shrink-0" />
             Hide from all players
           </button>
           <p v-else class="font-fell text-[10px] text-muted-foreground italic px-2">
@@ -126,7 +126,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { Pencil, Eye, EyeOff, ChevronLeft, Users, BarChart2 } from "lucide-vue-next";
+import { IconChart, IconChevronLeft, IconEdit, IconHide, IconParty, IconReveal } from '@/lib/icons';
 import { useMonster, useSrdMonster } from "@/composables/useMonsters";
 import { useSrdMonsterArt } from "@/composables/useSrdMonsterArt";
 import { useMonsterVisibility } from "@/composables/useMonsterVisibility";

@@ -18,7 +18,7 @@
       <div class="flex items-center justify-between px-4 py-5 border-b border-border">
         <h1 class="font-cinzel text-xl font-bold text-gold-500 tracking-widest">Grimoire</h1>
         <button class="text-muted-foreground hover:text-foreground" @click="ui.toggleMobileNav()">
-          <X class="h-5 w-5" />
+          <IconClose class="h-5 w-5" />
         </button>
       </div>
 
@@ -59,7 +59,7 @@
             title="Sign out"
             @click="handleSignOut"
           >
-            <LogOut class="h-4 w-4" />
+            <IconLogOut class="h-4 w-4" />
           </button>
         </div>
       </div>
@@ -70,7 +70,7 @@
 <script setup lang="ts">
 import { computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { X, LogOut } from "lucide-vue-next";
+import { IconClose, IconLogOut } from '@/lib/icons';
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { NAV_GROUPS } from "@/lib/nav";

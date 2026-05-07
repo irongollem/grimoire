@@ -28,7 +28,7 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
         @click="onDelete"
       >
-        <Trash2 class="h-3.5 w-3.5" />
+        <IconDelete class="h-3.5 w-3.5" />
         Delete
       </button>
       <button
@@ -36,7 +36,7 @@
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
         @click="router.push({ query: { ...route.query, edit: 'true' } })"
       >
-        <Pencil class="h-3.5 w-3.5" />
+        <IconEdit class="h-3.5 w-3.5" />
         Edit
       </button>
     </div>
@@ -175,7 +175,7 @@
               class="font-cinzel text-[10px] text-muted-foreground/60 tracking-wide truncate mt-0.5"
             >{{ allLocations?.find((l) => l.id === npc.location_id)?.name ?? "" }}</p>
           </div>
-          <ChevronRight class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+          <IconChevronRight class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
         </RouterLink>
       </div>
     </section>
@@ -198,7 +198,7 @@
             v-if="enc.is_finished"
             class="font-cinzel text-[10px] text-muted-foreground tracking-wider"
           >Done</span>
-          <ChevronRight class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+          <IconChevronRight class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
         </RouterLink>
       </div>
     </section>
@@ -231,7 +231,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useRoute, useRouter, RouterLink } from "vue-router";
-import { Pencil, Trash2, ChevronRight } from "lucide-vue-next";
+import { IconChevronRight, IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import {
   useLocations,

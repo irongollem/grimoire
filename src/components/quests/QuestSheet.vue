@@ -13,7 +13,7 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
         @click="onDelete"
       >
-        <Trash2 class="h-3.5 w-3.5" />
+        <IconDelete class="h-3.5 w-3.5" />
         Delete
       </button>
       <button
@@ -21,7 +21,7 @@
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
         @click="router.push({ query: { ...route.query, edit: 'true' } })"
       >
-        <Pencil class="h-3.5 w-3.5" />
+        <IconEdit class="h-3.5 w-3.5" />
         Edit
       </button>
     </div>
@@ -42,7 +42,7 @@
         :to="`/npcs/${giverNpc.id}`"
         class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
       >
-        <UserRound class="h-3.5 w-3.5 text-muted-foreground" />
+        <IconUserRound class="h-3.5 w-3.5 text-muted-foreground" />
         <span class="font-fell text-xs text-foreground">{{ giverNpc.name }}</span>
       </RouterLink>
       <RouterLink
@@ -50,7 +50,7 @@
         :to="`/locations/${questLocation.id}`"
         class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
       >
-        <MapPinIcon class="h-3.5 w-3.5 text-muted-foreground" />
+        <IconLocation class="h-3.5 w-3.5 text-muted-foreground" />
         <span class="font-fell text-xs text-foreground">{{ questLocation.name }}</span>
       </RouterLink>
       <RouterLink
@@ -58,7 +58,7 @@
         :to="`/quests/${parentQuest.id}`"
         class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
       >
-        <ScrollText class="h-3.5 w-3.5 text-muted-foreground" />
+        <IconScrollText class="h-3.5 w-3.5 text-muted-foreground" />
         <span class="font-fell text-xs text-foreground">Part of: {{ parentQuest.title }}</span>
       </RouterLink>
       <span
@@ -80,7 +80,7 @@
       <RichTextViewer :content="quest.notes" />
     </section>
 
-    <!-- Objectives — interactive. Check/uncheck + per-objective visibility
+    <!-- Objectives — interactive. IconCheck/uncheck + per-objective visibility
          are running-state toggles; the DM uses them in-session without
          flipping to edit mode. Creating / renaming objectives stays in
          the editor. -->
@@ -104,7 +104,7 @@
                 : 'border-border hover:border-primary'"
               @click="toggleObjective(obj)"
             >
-              <Check v-if="obj.is_done" class="h-2.5 w-2.5" />
+              <IconCheck v-if="obj.is_done" class="h-2.5 w-2.5" />
             </button>
             <span
               class="font-fell text-sm flex-1 leading-snug transition-colors"
@@ -117,8 +117,8 @@
               :class="obj.is_player_visible ? 'text-elven-green' : 'text-muted-foreground hover:text-foreground'"
               @click="toggleObjectiveVisibility(obj)"
             >
-              <Eye v-if="obj.is_player_visible" class="h-3.5 w-3.5" />
-              <EyeOff v-else class="h-3.5 w-3.5" />
+              <IconReveal v-if="obj.is_player_visible" class="h-3.5 w-3.5" />
+              <IconHide v-else class="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
@@ -142,7 +142,7 @@
           :to="`/vault/${it.id}`"
           class="inline-flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
         >
-          <Package class="h-3.5 w-3.5 text-muted-foreground" />
+          <IconPackage class="h-3.5 w-3.5 text-muted-foreground" />
           <span class="font-fell text-xs text-foreground">{{ it.name }}</span>
         </RouterLink>
       </div>
@@ -166,10 +166,10 @@
           :to="`/encounters/${enc.id}`"
           class="group flex items-center gap-3 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors px-4 py-3"
         >
-          <Swords class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <IconEncounter class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <span class="flex-1 font-cinzel text-sm font-semibold text-foreground truncate">{{ enc.name }}</span>
           <span v-if="enc.is_finished" class="font-cinzel text-[10px] text-muted-foreground tracking-wider">Done</span>
-          <ChevronRight class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+          <IconChevronRight class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
         </RouterLink>
       </div>
     </section>
@@ -186,7 +186,7 @@
           :to="`/npcs/${npc.id}`"
           class="group flex items-center gap-3 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors p-3"
         >
-          <UserRound class="h-4 w-4 text-muted-foreground shrink-0" />
+          <IconUserRound class="h-4 w-4 text-muted-foreground shrink-0" />
           <div class="flex-1 min-w-0">
             <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ npc.name }}</p>
             <p
@@ -210,7 +210,7 @@
           :to="`/locations/${loc.id}`"
           class="inline-flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
         >
-          <MapPinIcon class="h-3.5 w-3.5 text-muted-foreground" />
+          <IconLocation class="h-3.5 w-3.5 text-muted-foreground" />
           <span class="font-fell text-xs text-foreground truncate max-w-48">{{ loc.name }}</span>
         </RouterLink>
       </div>
@@ -228,7 +228,7 @@
           :to="`/monsters/${m.id}`"
           class="inline-flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
         >
-          <Skull class="h-3.5 w-3.5 text-muted-foreground" />
+          <IconMonster class="h-3.5 w-3.5 text-muted-foreground" />
           <span class="font-fell text-xs text-foreground truncate max-w-48">{{ m.name }}</span>
         </RouterLink>
       </div>
@@ -236,7 +236,7 @@
 
     <section v-if="triggers?.length" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-muted-foreground flex items-center gap-1.5">
-        <Zap class="h-3.5 w-3.5" />
+        <IconLightning class="h-3.5 w-3.5" />
         Consequences
         <span class="font-fell font-normal">({{ triggers.length }})</span>
       </h2>
@@ -247,7 +247,7 @@
             :key="trig.id"
             class="flex items-start gap-2 px-2 py-1.5"
           >
-            <Zap class="h-3 w-3 text-primary shrink-0 mt-0.5" />
+            <IconLightning class="h-3 w-3 text-primary shrink-0 mt-0.5" />
             <p class="font-fell text-xs text-muted-foreground leading-snug">
               <span class="font-semibold text-foreground">{{ trig.trigger_type === 'quest_complete' ? 'Quest complete' : 'Objective done' }}</span>
               {{ trig.offset_days > 0 ? ` + ${trig.offset_days} days` : '' }} →
@@ -270,13 +270,13 @@
           :to="`/quests/${sub.id}`"
           class="group flex items-center gap-3 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors px-4 py-3"
         >
-          <ScrollText class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <IconScrollText class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <span class="flex-1 font-cinzel text-sm font-semibold text-foreground truncate">{{ sub.title }}</span>
           <span
             class="font-cinzel text-[10px] tracking-wider rounded px-1.5 py-0.5 text-white"
             :style="{ backgroundColor: QUEST_STATUS_COLORS[sub.status] }"
           >{{ QUEST_STATUS_LABELS[sub.status] }}</span>
-          <ChevronRight class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+          <IconChevronRight class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
         </RouterLink>
       </div>
     </section>
@@ -286,11 +286,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useRoute, useRouter, RouterLink } from "vue-router";
-import {
-  Pencil, Trash2, Check, Eye, EyeOff, ChevronRight,
-  UserRound, MapPin as MapPinIcon, ScrollText,
-  Swords, Skull, Package, Zap,
-} from "lucide-vue-next";
+import { IconCheck, IconChevronRight, IconDelete, IconEdit, IconEncounter, IconHide, IconLightning, IconLocation, IconMonster, IconPackage, IconReveal, IconScrollText, IconUserRound } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import {
   useQuestObjectives,

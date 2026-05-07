@@ -18,8 +18,8 @@
             <div
               class="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-primary/15 text-primary"
             >
-              <Moon v-if="mode === 'short'" class="h-4.5 w-4.5" />
-              <Sun v-else class="h-4.5 w-4.5" />
+              <IconMoon v-if="mode === 'short'" class="h-4.5 w-4.5" />
+              <IconSun v-else class="h-4.5 w-4.5" />
             </div>
             <h2
               class="font-cinzel text-sm font-bold text-foreground tracking-wide"
@@ -164,7 +164,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Moon, Sun } from "lucide-vue-next";
+import { IconMoon, IconSun } from '@/lib/icons';
 import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
 import { getSlotRecovery, getHitDie } from "@/types/spell.types";
 import { useClassByName } from "@/composables/useCustomClasses";

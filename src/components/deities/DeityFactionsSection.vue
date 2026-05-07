@@ -12,7 +12,7 @@
           alt=""
           class="h-4 w-4 rounded-full object-cover shrink-0"
         />
-        <Shield v-else class="h-3 w-3 text-muted-foreground shrink-0" />
+        <IconShield v-else class="h-3 w-3 text-muted-foreground shrink-0" />
         <RouterLink
           :to="`/factions/${e.faction.id}`"
           class="font-cinzel text-[10px] font-semibold text-foreground hover:text-primary transition-colors"
@@ -35,7 +35,7 @@
         class="shrink-0 inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
         @click="add"
       >
-        <Plus class="h-3 w-3" />
+        <IconAdd class="h-3 w-3" />
         Add
       </button>
     </div>
@@ -45,7 +45,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { RouterLink } from "vue-router";
-import { Plus, Shield } from "lucide-vue-next";
+import { IconAdd, IconShield } from '@/lib/icons';
 import {
   useDeityFactions,
   useAddFactionDeity,

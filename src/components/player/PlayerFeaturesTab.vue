@@ -23,7 +23,7 @@
             @click="toggleExpanded(`beast-${trait.name}`)"
           >
             <span class="font-fell text-sm text-foreground flex-1">{{ trait.name }}</span>
-            <ChevronDown class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0" :class="expanded.has(`beast-${trait.name}`) ? 'rotate-180' : ''" />
+            <IconChevronDown class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0" :class="expanded.has(`beast-${trait.name}`) ? 'rotate-180' : ''" />
           </button>
           <div v-if="expanded.has(`beast-${trait.name}`)" class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 font-fell text-sm text-muted-foreground leading-relaxed">
             {{ trait.description }}
@@ -150,8 +150,8 @@
               >
                 <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider w-10 shrink-0">Lvl {{ lvl }}</span>
                 <span class="font-fell text-sm text-foreground flex-1">{{ featureName(feat) }}</span>
-                <Sparkles v-if="isSpellcasting(featureName(feat))" class="h-3 w-3 text-primary/60 shrink-0" />
-                <ChevronDown
+                <IconGenerate v-if="isSpellcasting(featureName(feat))" class="h-3 w-3 text-primary/60 shrink-0" />
+                <IconChevronDown
                   v-else-if="featureDescription(feat)"
                   class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
                   :class="expanded.has(`class-${group.class_name}-${lvl}-${featureName(feat)}`) ? 'rotate-180' : ''"
@@ -179,8 +179,8 @@
                 <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider w-10 shrink-0">Lvl {{ lvl }}</span>
                 <span class="font-fell text-sm text-foreground flex-1">{{ featureName(feat) }}</span>
                 <span class="font-cinzel text-2xs md:text-sm text-primary/60 tracking-wider shrink-0 mr-1">Subclass</span>
-                <Sparkles v-if="isSpellcasting(featureName(feat))" class="h-3 w-3 text-primary/60 shrink-0" />
-                <ChevronDown
+                <IconGenerate v-if="isSpellcasting(featureName(feat))" class="h-3 w-3 text-primary/60 shrink-0" />
+                <IconChevronDown
                   v-else-if="featureDescription(feat)"
                   class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
                   :class="expanded.has(`sub-${group.class_name}-${lvl}-${featureName(feat)}`) ? 'rotate-180' : ''"
@@ -257,7 +257,7 @@
             @click="trait.description && toggleExpanded(`racial-${trait.name}`)"
           >
             <span class="font-fell text-sm text-foreground flex-1">{{ trait.name }}</span>
-            <ChevronDown
+            <IconChevronDown
               v-if="trait.description"
               class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
               :class="expanded.has(`racial-${trait.name}`) ? 'rotate-180' : ''"
@@ -293,7 +293,7 @@
             @click="trait.description && toggleExpanded(`subrace-${trait.name}`)"
           >
             <span class="font-fell text-sm text-foreground flex-1">{{ trait.name }}</span>
-            <ChevronDown
+            <IconChevronDown
               v-if="trait.description"
               class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
               :class="expanded.has(`subrace-${trait.name}`) ? 'rotate-180' : ''"
@@ -308,7 +308,6 @@
         </div>
       </div>
     </div>
-
 
     <!-- ── Languages & Tool Proficiencies ───────────────────────────────────── -->
     <div
@@ -393,7 +392,7 @@
             <span class="font-cinzel text-2xs tracking-wider rounded px-1.5 py-0.5 shrink-0 bg-primary/10 text-primary border border-primary/20">
               {{ opt.sp_cost }} SP
             </span>
-            <ChevronDown
+            <IconChevronDown
               class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
               :class="expanded.has(`metamagic-${opt.name}`) ? 'rotate-180' : ''"
             />
@@ -432,7 +431,7 @@
               v-if="inv.min_level > 2"
               class="font-cinzel text-2xs tracking-wider rounded px-1.5 py-0.5 shrink-0 bg-muted/50 text-muted-foreground border border-border"
             >Lv {{ inv.min_level }}+</span>
-            <ChevronDown
+            <IconChevronDown
               class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
               :class="expanded.has(`invocation-${inv.name}`) ? 'rotate-180' : ''"
             />
@@ -520,7 +519,7 @@
               v-if="ability.ki_cost > 0"
               class="font-cinzel text-2xs tracking-wider rounded px-1.5 py-0.5 shrink-0 bg-primary/10 text-primary border border-primary/20"
             >{{ ability.ki_cost }} ki</span>
-            <ChevronDown
+            <IconChevronDown
               class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
               :class="expanded.has(`ki-${ability.name}`) ? 'rotate-180' : ''"
             />
@@ -572,7 +571,7 @@
             @click="toggleExpanded(`maneuver-${maneuver.name}`)"
           >
             <span class="font-fell text-sm text-foreground flex-1">{{ maneuver.name }}</span>
-            <ChevronDown
+            <IconChevronDown
               class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
               :class="expanded.has(`maneuver-${maneuver.name}`) ? 'rotate-180' : ''"
             />
@@ -652,7 +651,7 @@
                 v-if="isInfusionActive(inf.name)"
                 class="font-cinzel text-2xs tracking-wider rounded px-1.5 py-0.5 shrink-0 bg-primary/10 text-primary border border-primary/20"
               >Active</span>
-              <ChevronDown
+              <IconChevronDown
                 class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
                 :class="expanded.has(`infusion-${inf.name}`) ? 'rotate-180' : ''"
               />
@@ -741,7 +740,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRouter, RouterLink } from "vue-router";
-import { ChevronDown, Sparkles } from "lucide-vue-next";
+import { IconChevronDown, IconGenerate } from '@/lib/icons';
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { METAMAGIC_MAP } from "@/data/metamagic";
 import { ARTIFICER_INFUSIONS, ARTIFICER_INFUSIONS_MAP } from "@/data/artificerInfusions";
@@ -946,7 +945,6 @@ async function longRest() {
     ...(props.member.rage_active ? { rage_active: false } : {}),
   }});
 }
-
 
 const expanded = ref(new Set<string>());
 function toggleExpanded(name: string) {

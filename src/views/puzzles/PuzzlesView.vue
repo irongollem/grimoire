@@ -2,18 +2,18 @@
   <ListPageLayout title="Enigmarium" description="Puzzle rooms, riddles & dungeon conundrums">
     <template #actions>
       <ListActionButton
-        :icon="populateMutation.isPending.value ? Loader2 : BookOpen"
+        :icon="populateMutation.isPending.value ? IconLoading : IconPopulate"
         :label="populateStatusLabel"
         :disabled="populateMutation.isPending.value"
         @click="handlePopulate"
       />
       <ListActionButton
-        :icon="Sparkles"
+        :icon="IconGenerate"
         label="Generate"
         @click="ui.puzzleGeneratorOpen = true"
       />
       <ListActionButton
-        :icon="Plus"
+        :icon="IconAdd"
         label="New Puzzle"
         mobile-label="Puzzle"
         variant="primary"
@@ -61,7 +61,7 @@
               class="group-hover:scale-105 transition-transform duration-300"
             />
             <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/20">
-              <PuzzleIcon class="h-10 w-10" />
+              <IconPuzzle class="h-10 w-10" />
             </div>
             <span
               class="absolute top-2 left-2 font-cinzel text-[9px] px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
@@ -102,7 +102,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
-import { Puzzle as PuzzleIcon, Loader2, BookOpen, Sparkles, Plus } from "lucide-vue-next";
+import { IconAdd, IconGenerate, IconLoading, IconPopulate, IconPuzzle } from '@/lib/icons';
 import { usePuzzles, usePopulatePuzzles } from "@/composables/usePuzzles";
 import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES, PUZZLE_TYPE_COLORS, PUZZLE_DIFFICULTY_COLORS } from "@/types/puzzle.types";
 import { useUiStore } from "@/stores/ui";

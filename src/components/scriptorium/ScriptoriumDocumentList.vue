@@ -3,13 +3,13 @@
     <!-- Filters bar -->
     <div class="flex flex-wrap items-center gap-2 mb-5">
       <div class="relative flex-1 min-w-48">
-        <Search
+        <IconSearch
           class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"
         />
         <input
           v-model="search"
           type="text"
-          placeholder="Search documents…"
+          placeholder="IconSearch documents…"
           class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
@@ -75,7 +75,7 @@
           v-if="lockedDocIds.has(doc.id)"
           class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-1.5 bg-background/80 backdrop-blur-sm"
         >
-          <Lock class="h-4 w-4 text-muted-foreground" />
+          <IconLock class="h-4 w-4 text-muted-foreground" />
           <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">Locked</p>
           <RouterLink to="/billing" class="font-cinzel text-[9px] tracking-wider text-primary/80 hover:text-primary transition-colors">
             Upgrade to access
@@ -136,7 +136,7 @@
 
           <!-- Published badge -->
           <div v-if="doc.is_published" class="flex items-center gap-1">
-            <Globe class="h-3 w-3 text-green-500" />
+            <IconFaction class="h-3 w-3 text-green-500" />
             <span
               class="font-cinzel text-[10px] text-green-500 font-semibold tracking-wider"
               >Published</span
@@ -150,7 +150,7 @@
           title="Delete document"
           @click.prevent="confirmDelete(doc.id, doc.title)"
         >
-          <Trash2 class="h-3 w-3" />
+          <IconDelete class="h-3 w-3" />
         </button>
       </div>
     </div>
@@ -171,7 +171,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { Search, Globe, Trash2, Lock } from "lucide-vue-next";
+import { IconDelete, IconFaction, IconLock, IconSearch } from '@/lib/icons';
 import {
   useScriptoriumDocuments,
   useDeleteScriptoriumDocument,

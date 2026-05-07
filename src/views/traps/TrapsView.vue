@@ -5,18 +5,18 @@
   >
     <template #actions>
       <ListActionButton
-        :icon="populateMutation.isPending.value ? Loader2 : BookOpen"
+        :icon="populateMutation.isPending.value ? IconLoading : IconPopulate"
         :label="populateStatusLabel"
         :disabled="populateMutation.isPending.value"
         @click="handlePopulate"
       />
       <ListActionButton
-        :icon="Sparkles"
+        :icon="IconGenerate"
         label="Generate"
         @click="ui.trapGeneratorOpen = true"
       />
       <ListActionButton
-        :icon="Plus"
+        :icon="IconAdd"
         label="New Trap"
         mobile-label="Trap"
         variant="primary"
@@ -73,7 +73,7 @@
               v-else
               class="w-full h-full flex items-center justify-center text-muted-foreground/20"
             >
-              <CrosshairIcon class="h-10 w-10" />
+              <IconTrap class="h-10 w-10" />
             </div>
             <span
               class="absolute top-2 left-2 font-cinzel text-[9px] px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
@@ -123,13 +123,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
-import {
-  Crosshair as CrosshairIcon,
-  Loader2,
-  BookOpen,
-  Plus,
-  Sparkles,
-} from "lucide-vue-next";
+import { IconAdd, IconGenerate, IconLoading, IconPopulate, IconTrap } from '@/lib/icons';
 import { useTraps, usePopulateTraps } from "@/composables/useTraps";
 import { useUiStore } from "@/stores/ui";
 import { TRAP_TYPES, TRAP_TYPE_COLORS } from "@/types/trap.types";

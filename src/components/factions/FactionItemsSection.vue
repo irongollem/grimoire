@@ -8,7 +8,7 @@
         :key="e.id"
         class="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2"
       >
-        <Package class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        <IconPackage class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         <RouterLink :to="`/vault/${e.item.id}`" class="font-cinzel text-xs font-semibold text-foreground hover:text-primary transition-colors flex-1 truncate">
           {{ e.item.name }}
         </RouterLink>
@@ -25,7 +25,7 @@
         class="shrink-0 inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
         @click="add"
       >
-        <Plus class="h-3 w-3" />
+        <IconAdd class="h-3 w-3" />
         Add
       </button>
     </div>
@@ -34,7 +34,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Plus, Package } from "lucide-vue-next";
+import { IconAdd, IconPackage } from '@/lib/icons';
 import {
   useFactionItems,
   useAddFactionItem,

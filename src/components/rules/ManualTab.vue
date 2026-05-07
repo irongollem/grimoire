@@ -3,11 +3,11 @@
     <!-- Sidebar -->
     <div class="w-64 shrink-0 flex flex-col gap-1 overflow-y-auto px-4 pt-4 pb-4 md:px-6 md:pt-6">
       <div class="relative mb-1">
-        <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <input
           v-model="search"
           type="text"
-          placeholder="Search manual…"
+          placeholder="IconSearch manual…"
           class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
@@ -61,7 +61,7 @@
       <!-- Welcome CTA — shown when no pages are loaded -->
       <div v-else class="flex items-center justify-center h-full">
         <div class="max-w-sm text-center space-y-4 px-4">
-          <BookMarked class="h-10 w-10 text-primary/60 mx-auto" />
+          <IconBookMarked class="h-10 w-10 text-primary/60 mx-auto" />
           <div>
             <h3 class="font-cinzel text-base font-bold text-foreground">New to Grimoire?</h3>
             <p class="font-fell text-sm text-muted-foreground mt-1">
@@ -73,7 +73,7 @@
             class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground font-cinzel text-xs font-semibold tracking-wide hover:bg-primary/90 transition-colors"
             @click="selectPage(introPageId)"
           >
-            <BookOpen class="h-3.5 w-3.5" />
+            <IconPopulate class="h-3.5 w-3.5" />
             Start with the Introduction
           </button>
         </div>
@@ -85,7 +85,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { Search, BookMarked, BookOpen } from "lucide-vue-next";
+import { IconBookMarked, IconPopulate, IconSearch } from '@/lib/icons';
 import { manualSections } from "@/lib/manualLoader";
 
 const route = useRoute();

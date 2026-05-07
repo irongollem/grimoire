@@ -18,7 +18,7 @@
         :key="item.id"
         class="flex items-center gap-2 group rounded px-2 py-1.5 hover:bg-muted/40 transition-colors"
       >
-        <Package class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <IconPackage class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         <RouterLink
           :to="`/vault/${item.id}`"
           class="font-fell text-sm text-foreground flex-1 truncate hover:text-primary transition-colors"
@@ -30,13 +30,13 @@
             type="button"
             class="w-5 h-5 rounded bg-muted border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
             @click="decrementItem(item.id)"
-          ><Minus class="h-3 w-3" /></button>
+          ><IconMinus class="h-3 w-3" /></button>
           <span class="font-cinzel text-xs font-bold text-foreground w-5 text-center">{{ qty }}</span>
           <button
             type="button"
             class="w-5 h-5 rounded bg-muted border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
             @click="incrementItem(item.id)"
-          ><Plus class="h-3 w-3" /></button>
+          ><IconAdd class="h-3 w-3" /></button>
         </div>
 
         <button
@@ -44,13 +44,13 @@
           class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground shrink-0"
           title="Drop to chat"
           @click="emit('drop-item', { item, qty })"
-        ><Gift class="h-3.5 w-3.5" /></button>
+        ><IconLoot class="h-3.5 w-3.5" /></button>
         <button
           type="button"
           class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
           title="Remove all"
           @click="removeAllOfItem(item.id)"
-        ><X class="h-3.5 w-3.5" /></button>
+        ><IconClose class="h-3.5 w-3.5" /></button>
       </div>
 
       <!-- Currency pools -->
@@ -74,14 +74,14 @@
             class="shrink-0 inline-flex items-center gap-1 font-cinzel text-[10px] font-semibold text-amber-400 hover:opacity-80 transition-opacity disabled:opacity-30 tracking-wider"
             @click="emit('drop-pool', pool)"
           >
-            <Coins class="h-3 w-3" />
+            <IconCoins class="h-3 w-3" />
             Drop
           </button>
           <button
             type="button"
             class="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
             @click="removePool(pool.id)"
-          ><X class="h-3.5 w-3.5" /></button>
+          ><IconClose class="h-3.5 w-3.5" /></button>
         </div>
         <div class="grid grid-cols-5 gap-1.5">
           <div v-for="coin in COIN_TYPES" :key="coin.key" class="flex flex-col gap-0.5">
@@ -117,7 +117,7 @@
             :disabled="!selectedItemId"
             class="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 shrink-0"
             @click="addItem"
-          ><Plus class="h-4 w-4" /></button>
+          ><IconAdd class="h-4 w-4" /></button>
         </div>
         <!-- Add currency pool -->
         <button
@@ -125,7 +125,7 @@
           class="w-full flex items-center gap-2 rounded-md border border-border px-3 py-2 font-fell text-sm text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors"
           @click="addPool"
         >
-          <Plus class="h-3.5 w-3.5 shrink-0" />
+          <IconAdd class="h-3.5 w-3.5 shrink-0" />
           Add currency pool
         </button>
       </div>
@@ -135,7 +135,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Package, X, Plus, Minus, Coins, Gift } from "lucide-vue-next";
+import { IconAdd, IconClose, IconCoins, IconLoot, IconMinus, IconPackage } from '@/lib/icons';
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import type { Item } from "@/types/item.types";
 import type { RewardCurrencyPool } from "@/types/quest.types";

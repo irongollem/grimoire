@@ -3,11 +3,11 @@
     <!-- Filters + new button -->
     <div class="flex flex-wrap items-center gap-2 mb-5">
       <div class="relative flex-1 min-w-48">
-        <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <input
           v-model="search"
           type="text"
-          placeholder="Search custom rules…"
+          placeholder="IconSearch custom rules…"
           class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
@@ -35,7 +35,7 @@
             class="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
             @click="toggleBuiltIn(def.key)"
           >
-            <ChevronRight
+            <IconChevronRight
               class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200"
               :class="openBuiltIns.has(def.key) ? 'rotate-90' : ''"
             />
@@ -89,7 +89,7 @@
             {{ rule.title }}
           </h3>
           <div class="flex items-center gap-1 shrink-0">
-            <Eye v-if="rule.is_player_visible" class="h-3 w-3 text-primary/60" title="Visible to players" />
+            <IconReveal v-if="rule.is_player_visible" class="h-3 w-3 text-primary/60" title="Visible to players" />
             <span
               v-if="rule.category"
               class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider"
@@ -124,7 +124,7 @@
 
 <script setup lang="ts">
 import { ref, computed, shallowRef } from "vue";
-import { Search, Eye, ChevronRight } from "lucide-vue-next";
+import { IconChevronRight, IconReveal, IconSearch } from '@/lib/icons';
 import { useRules } from "@/composables/useRules";
 import { RULE_CATEGORIES } from "@/types/rule.types";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";

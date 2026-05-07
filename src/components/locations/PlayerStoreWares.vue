@@ -16,7 +16,7 @@
         <span class="font-fell text-xs text-muted-foreground shrink-0">
           {{ si.price_override ?? si.item.cost ?? '—' }}
         </span>
-        <ChevronRight class="h-3 w-3 text-muted-foreground shrink-0" />
+        <IconChevronRight class="h-3 w-3 text-muted-foreground shrink-0" />
       </button>
     </div>
     <p v-else class="font-fell text-xs text-muted-foreground italic">Nothing for sale yet.</p>
@@ -44,7 +44,7 @@
             class="text-muted-foreground hover:text-foreground transition-colors ml-1 shrink-0"
             @click="selected = null"
           >
-            <X class="h-4 w-4" />
+            <IconClose class="h-4 w-4" />
           </button>
         </div>
         <!-- Scrollable item sheet -->
@@ -58,7 +58,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { ChevronRight, X } from "lucide-vue-next";
+import { IconChevronRight, IconClose } from '@/lib/icons';
 import { useSharedStoreItems } from "@/composables/useStoreItems";
 import type { StoreItem } from "@/composables/useStoreItems";
 import { ITEM_TYPE_LABELS } from "@/types/item.types";

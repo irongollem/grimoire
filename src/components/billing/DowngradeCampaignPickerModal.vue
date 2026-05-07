@@ -8,7 +8,7 @@
         <!-- Header -->
         <div class="px-6 py-5 border-b border-border">
           <div class="flex items-center gap-2.5 mb-1">
-            <Archive class="h-5 w-5 text-amber-400 shrink-0" />
+            <IconArchive class="h-5 w-5 text-amber-400 shrink-0" />
             <h2 class="font-cinzel text-lg font-bold text-foreground">
               Choose your active campaign
             </h2>
@@ -74,7 +74,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { Archive } from 'lucide-vue-next'
+import { IconArchive } from '@/lib/icons'
 import { useAllCampaigns, useArchiveCampaign } from '@/composables/useCampaigns'
 import { useCampaignStore } from '@/stores/campaign'
 

@@ -3,7 +3,7 @@
     <!-- Icon slot or default scroll icon -->
     <div class="mb-4 text-muted-foreground/40">
       <slot name="icon">
-        <Scroll class="h-16 w-16" />
+        <IconQuest class="h-16 w-16" />
       </slot>
     </div>
 
@@ -19,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { Scroll } from "lucide-vue-next";
+import { IconQuest } from '@/lib/icons';
 
 defineProps<{
   title: string;

@@ -79,7 +79,7 @@
           class="shrink-0 flex items-center gap-1.5 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
           @click="doPopulate"
         >
-          <Sparkles class="h-3 w-3" />
+          <IconGenerate class="h-3 w-3" />
           {{ isPopulating ? "Populating…" : "Populate" }}
         </button>
       </div>
@@ -109,7 +109,7 @@
             <span class="block h-4 w-4 rounded-full border border-black/10" :style="{ background: theme.vars['--card'] }" />
           </div>
           <span class="flex-1 font-cinzel text-xs font-semibold text-foreground tracking-wide">{{ theme.label }}</span>
-          <Check v-if="form.theme === theme.id" class="h-3.5 w-3.5 text-primary shrink-0" />
+          <IconCheck v-if="form.theme === theme.id" class="h-3.5 w-3.5 text-primary shrink-0" />
         </button>
       </div>
     </div>
@@ -130,7 +130,7 @@
             <span class="font-cinzel text-xs font-semibold text-foreground tracking-wide">{{ opt.label }}</span>
             <p class="font-fell text-xs text-muted-foreground mt-0.5">{{ opt.desc }}</p>
           </div>
-          <Check v-if="form.health_visibility === opt.value" class="h-3.5 w-3.5 text-primary shrink-0" />
+          <IconCheck v-if="form.health_visibility === opt.value" class="h-3.5 w-3.5 text-primary shrink-0" />
         </button>
       </div>
     </div>
@@ -173,7 +173,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { Check, Sparkles } from "lucide-vue-next";
+import { IconCheck, IconGenerate } from '@/lib/icons';
 import { useTheme } from "@/composables/useTheme";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/useCampaigns";

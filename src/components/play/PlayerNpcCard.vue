@@ -20,7 +20,7 @@
         class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
       />
       <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
-        <UserIcon class="h-10 w-10" />
+        <IconUser class="h-10 w-10" />
       </div>
       <span
         v-if="isNew"
@@ -69,7 +69,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { UserIcon } from "lucide-vue-next";
+import { IconUser } from '@/lib/icons';
 import FocalImage from "@/components/common/FocalImage.vue";
 import { usePlayerNpcRatings } from "@/composables/usePlayerNpcRatings";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";

@@ -1,6 +1,6 @@
 <template>
   <!--
-    Search input for list-page filter bars. Every list view had its own copy
+    IconSearch input for list-page filter bars. Every list view had its own copy
     of this markup (icon + rounded border + bg-card + focus ring + min-w-48
     for inline flex layouts).
 
@@ -11,7 +11,7 @@
       the search lives on its own row above the rest of the filters.
   -->
   <div :class="wrapperClass">
-    <Search
+    <IconSearch
       class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none"
     />
     <input
@@ -27,7 +27,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { Search } from "lucide-vue-next";
+import { IconSearch } from '@/lib/icons';
 
 const props = withDefaults(
   defineProps<{
@@ -41,7 +41,7 @@ const props = withDefaults(
     inline?: boolean;
   }>(),
   {
-    placeholder: "Search…",
+    placeholder: "IconSearch…",
     inline: true,
   },
 );

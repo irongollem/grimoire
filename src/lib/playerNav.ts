@@ -1,8 +1,5 @@
 import type { Component } from "vue";
-import {
-  CalendarDays, Crown, Globe, Hammer, Landmark, Library, Package,
-  PenLine, Puzzle, ScrollText, Shield, Skull, Sparkles, User,
-} from "lucide-vue-next";
+import { IconCalendarDays, IconCraft, IconDM, IconFaction, IconGenerate, IconLandmark, IconLibrary, IconMonster, IconPackage, IconPenLine, IconPuzzle, IconScrollText, IconShield, IconUser } from '@/lib/icons';
 
 export interface PlayerNavItem {
   to: string;
@@ -11,20 +8,20 @@ export interface PlayerNavItem {
 }
 
 export const ALL_PLAYER_NAV: PlayerNavItem[] = [
-  { to: "/play",           label: "Character",  icon: User },
-  { to: "/play/champions", label: "Champions",  icon: Crown },
-  { to: "/play/party",     label: "People",     icon: Shield },
-  { to: "/play/inventory", label: "Inventory",  icon: Package },
-  { to: "/play/quests",    label: "Quests",     icon: ScrollText },
-  { to: "/play/calendar",  label: "Calendar",   icon: CalendarDays },
-  { to: "/play/journal",   label: "Journal",    icon: PenLine },
-  { to: "/play/crafting",  label: "Workshop",   icon: Hammer },
-  { to: "/play/factions",  label: "Factions",   icon: Landmark },
-  { to: "/play/puzzles",   label: "Puzzles",    icon: Puzzle },
-  { to: "/play/atlas",     label: "Atlas",      icon: Globe },
-  { to: "/play/bestiary",  label: "Bestiary",   icon: Skull },
-  { to: "/play/spells",    label: "Spells",     icon: Sparkles },
-  { to: "/play/rules",     label: "Reliquary",  icon: Library },
+  { to: "/play",           label: "Character",  icon: IconUser },
+  { to: "/play/champions", label: "Champions",  icon: IconDM },
+  { to: "/play/party",     label: "People",     icon: IconShield },
+  { to: "/play/inventory", label: "Inventory",  icon: IconPackage },
+  { to: "/play/quests",    label: "Quests",     icon: IconScrollText },
+  { to: "/play/calendar",  label: "Calendar",   icon: IconCalendarDays },
+  { to: "/play/journal",   label: "Journal",    icon: IconPenLine },
+  { to: "/play/crafting",  label: "Workshop",   icon: IconCraft },
+  { to: "/play/factions",  label: "Factions",   icon: IconLandmark },
+  { to: "/play/puzzles",   label: "Puzzles",    icon: IconPuzzle },
+  { to: "/play/atlas",     label: "Atlas",      icon: IconFaction },
+  { to: "/play/bestiary",  label: "Bestiary",   icon: IconMonster },
+  { to: "/play/spells",    label: "Spells",     icon: IconGenerate },
+  { to: "/play/rules",     label: "Reliquary",  icon: IconLibrary },
 ];
 
 export const MOBILE_NAV_SLOTS = 4;

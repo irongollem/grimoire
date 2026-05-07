@@ -297,7 +297,7 @@
                           :title="!speedObj.fly ? 'Set a fly speed to enable hover' : speedObj.hover ? 'Hover on — click to disable' : 'Hover off — click to enable'"
                           @click="speedObj.fly && (speedObj.hover = !speedObj.hover)"
                         >
-                          <Wind class="w-2.5 h-2.5 shrink-0"
+                          <IconWind class="w-2.5 h-2.5 shrink-0"
                             :class="speedObj.hover && speedObj.fly ? 'text-primary-foreground' : 'text-muted-foreground/60'" />
                         </button>
                         <input :value="speedObj.fly ?? ''" type="number" step="5" min="0" placeholder="—"
@@ -412,7 +412,7 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 import { ref, reactive, computed, watch, watchEffect } from 'vue'
-import { Wind } from 'lucide-vue-next'
+import { IconWind } from '@/lib/icons'
 import { parseSpeed, speedToString } from '@/lib/utils'
 import type { SpeedBlock } from '@/lib/utils'
 import RichTextEditor from '@/components/common/RichTextEditor.vue'

@@ -10,7 +10,7 @@
           title="Manage spell sources for this campaign"
           @click="showSourcePicker = !showSourcePicker"
         >
-          <Library class="size-3.5 shrink-0" />
+          <IconLibrary class="size-3.5 shrink-0" />
         </button>
         <div
           v-show="showSourcePicker"
@@ -23,7 +23,7 @@
             </p>
           </div>
           <div v-if="sourcesLoading" class="p-4 flex items-center justify-center">
-            <Loader2 class="size-4 animate-spin text-muted-foreground" />
+            <IconLoading class="size-4 animate-spin text-muted-foreground" />
           </div>
           <div v-else-if="availableSources.length === 0" class="p-4">
             <p class="font-fell text-xs text-muted-foreground italic">No sources available yet. Ask your admin to seed the srd_spells table.</p>
@@ -51,12 +51,12 @@
       </div>
 
       <ListActionButton
-        :icon="Wand2"
+        :icon="IconGenerate"
         label="Generate"
         @click="ui.spellGeneratorOpen = true"
       />
       <ListActionButton
-        :icon="Plus"
+        :icon="IconAdd"
         label="New Spell"
         mobile-label="Spell"
         variant="primary"
@@ -109,7 +109,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { onClickOutside } from "@vueuse/core";
-import { Plus, Wand2, Loader2, Library } from "lucide-vue-next";
+import { IconAdd, IconGenerate, IconLibrary, IconLoading } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";

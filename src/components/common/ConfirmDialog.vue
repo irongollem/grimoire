@@ -26,8 +26,8 @@
                   : 'bg-primary/15 text-primary'
               "
             >
-              <AlertTriangle v-if="dialog.danger" class="h-4.5 w-4.5" />
-              <Info v-else class="h-4.5 w-4.5" />
+              <IconWarning v-if="dialog.danger" class="h-4.5 w-4.5" />
+              <IconInfo v-else class="h-4.5 w-4.5" />
             </div>
             <div class="flex-1 min-w-0">
               <h2
@@ -74,7 +74,7 @@
 </template>
 
 <script setup lang="ts">
-import { AlertTriangle, Info } from "lucide-vue-next";
+import { IconInfo, IconWarning } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 
 const { dialog, _resolve } = useConfirm();

@@ -27,11 +27,11 @@
 
       <template v-else>
         <div class="relative">
-          <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <input
             v-model="searchInput"
             type="text"
-            placeholder="Search bestiary…"
+            placeholder="IconSearch bestiary…"
             class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
@@ -115,7 +115,7 @@
                 title="Unpin form"
                 @click.stop="togglePin(entry.monster)"
               >
-                <Pin class="h-3 w-3" />
+                <IconPin class="h-3 w-3" />
               </button>
             </div>
           </div>
@@ -137,10 +137,10 @@
                 v-if="ui.dmPreviewMode"
                 type="button"
                 class="absolute top-1.5 right-1.5 z-10 p-0.5 rounded bg-card/80 text-muted-foreground hover:bg-primary/20 hover:text-primary transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
-                title="Pin form"
+                title="IconPin form"
                 @click.stop="togglePin(entry.monster)"
               >
-                <Pin class="h-3 w-3" />
+                <IconPin class="h-3 w-3" />
               </button>
             </div>
           </div>
@@ -157,7 +157,7 @@
       >
         <div class="relative bg-card border border-border rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
           <button class="absolute top-3 right-3 z-10 text-muted-foreground hover:text-foreground" @click="lightbox = null">
-            <X class="h-4 w-4" />
+            <IconClose class="h-4 w-4" />
           </button>
 
           <div class="relative h-48 bg-muted overflow-hidden rounded-t-xl">
@@ -250,7 +250,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { refDebounced } from "@vueuse/core";
-import { Pin, Search, X } from "lucide-vue-next";
+import { IconClose, IconPin, IconSearch } from '@/lib/icons';
 import { usePlayerDiscoveries, useAutoDiscoverMonsters } from "@/composables/useDiscoveredMonsters";
 import { useReadItems, useMarkRead } from "@/composables/useReadItems";
 import { usePinnedForms, useTogglePinnedForm } from "@/composables/usePinnedForms";
@@ -338,7 +338,6 @@ const filtered = computed(() => {
 });
 
 // ── Wild Forms tab ───────────────────────────────────────────────────────────
-
 
 const maxWildshapeCr = computed(() => {
   const level = member.value?.level ?? 1;

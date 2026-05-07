@@ -21,7 +21,7 @@
             <h2
               class="font-cinzel text-sm font-bold tracking-wider text-foreground flex items-center gap-2"
             >
-              <Lightbulb class="h-4 w-4 text-primary" />
+              <IconTip class="h-4 w-4 text-primary" />
               Spell Level Advisor
             </h2>
             <button
@@ -175,10 +175,10 @@
               </select>
             </label>
 
-            <!-- 7. Save type -->
+            <!-- 7. IconSave type -->
             <label class="flex flex-col gap-1">
               <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
-                >Targeting / Save</span
+                >Targeting / IconSave</span
               >
               <select
                 v-model="adv.saveType"
@@ -317,7 +317,7 @@
           class="inline-flex items-center gap-1.5 rounded-md border border-primary/40 px-3 py-2 font-cinzel text-xs font-semibold text-primary hover:bg-primary/10 transition-colors"
           @click="showGenerateDialog = true"
         >
-          <Sparkles class="h-3.5 w-3.5" />
+          <IconGenerate class="h-3.5 w-3.5" />
           Generate
         </button>
         <button
@@ -327,7 +327,7 @@
           class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors disabled:opacity-50"
           @click="sendToScriptorium"
         >
-          <ScrollText class="h-3.5 w-3.5" />
+          <IconScrollText class="h-3.5 w-3.5" />
           {{ isSendingToScriptorium ? "Sending…" : "Send to Scriptorium" }}
         </button>
         <template v-if="!isSrd">
@@ -338,7 +338,7 @@
             class="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors disabled:opacity-50"
             @click="confirmDelete"
           >
-            <Trash2 class="h-3.5 w-3.5" />
+            <IconDelete class="h-3.5 w-3.5" />
             Delete
           </button>
           <button
@@ -347,8 +347,8 @@
             class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
             @click="save"
           >
-            <Save class="h-3.5 w-3.5" />
-            {{ isSaving ? "Saving…" : spell ? "Save" : "Create" }}
+            <IconSave class="h-3.5 w-3.5" />
+            {{ isSaving ? "Saving…" : spell ? "IconSave" : "Create" }}
           </button>
         </template>
         <span v-else class="font-fell text-xs text-muted-foreground italic">SRD spell — art only</span>
@@ -566,11 +566,11 @@
               </select>
             </label>
 
-            <!-- Save attribute + effect (only for saving throw) -->
+            <!-- IconSave attribute + effect (only for saving throw) -->
             <template v-if="attackType === 'save'">
               <label class="flex flex-col gap-1">
                 <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
-                  >Save Attribute</span
+                  >IconSave Attribute</span
                 >
                 <select
                   v-model="saveAttribute"
@@ -582,7 +582,7 @@
               </label>
               <label class="flex flex-col gap-1 col-span-2">
                 <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
-                  >Effect on Successful Save</span
+                  >Effect on Successful IconSave</span
                 >
                 <select
                   v-model="saveEffect"
@@ -700,7 +700,6 @@
           />
         </div>
 
-
         <!-- Tags -->
         <div class="flex flex-col gap-1">
           <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase"
@@ -750,13 +749,13 @@
               class="flex items-center gap-1.5 flex-1 text-left"
               @click="advisorOpen = !advisorOpen"
             >
-              <Lightbulb class="h-3.5 w-3.5 text-primary shrink-0" />
+              <IconTip class="h-3.5 w-3.5 text-primary shrink-0" />
               <h3
                 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase"
               >
                 Spell Level Advisor
               </h3>
-              <ChevronDown
+              <IconChevronDown
                 class="h-3.5 w-3.5 text-muted-foreground transition-transform ml-auto"
                 :class="advisorOpen ? 'rotate-180' : ''"
               />
@@ -867,10 +866,10 @@
               </select>
             </label>
 
-            <!-- Save type -->
+            <!-- IconSave type -->
             <label class="flex flex-col gap-1">
               <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
-                >Targeting / Save</span
+                >Targeting / IconSave</span
               >
               <select
                 v-model="adv.saveType"
@@ -1055,7 +1054,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, reactive, watch } from "vue";
 import { useRouter } from "vue-router";
-import { Save, Trash2, ScrollText, Lightbulb, ChevronDown, Sparkles } from "lucide-vue-next";
+import { IconChevronDown, IconDelete, IconGenerate, IconSave, IconScrollText, IconTip } from '@/lib/icons';
 import SpellGenerateDialog from "@/ai/SpellGenerateDialog.vue";
 import { spellInsertFromAi } from "@/ai/spellAiAdapter";
 import type { SpellAiGenerated } from "@/ai/types";
@@ -1232,7 +1231,7 @@ function applyAdvisor() {
     aoeSize.value = "";
   }
 
-  // Save/attack type
+  // IconSave/attack type
   if (adv.saveType === "automatic") {
     attackType.value = "automatic";
     saveAttribute.value = "";
@@ -1307,8 +1306,7 @@ watch(advisorOpen, (open) => {
   }
 });
 
-
-// ── Save / Delete ─────────────────────────────────────────────────────────────
+// ── IconSave / Delete ─────────────────────────────────────────────────────────────
 const { mutateAsync: create } = useCreateSpell();
 const { mutateAsync: update } = useUpdateSpell();
 const { mutateAsync: deleteSpell } = useDeleteSpell();

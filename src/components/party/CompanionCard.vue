@@ -47,7 +47,7 @@
           title="Edit companion"
           @click="$emit('edit', companion)"
         >
-          <Pencil class="h-3 w-3" />
+          <IconEdit class="h-3 w-3" />
         </button>
         <button
           type="button"
@@ -55,7 +55,7 @@
           title="Remove companion"
           @click="$emit('delete', companion)"
         >
-          <X class="h-3 w-3" />
+          <IconClose class="h-3 w-3" />
         </button>
       </div>
     </div>
@@ -160,7 +160,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Pencil, X } from "lucide-vue-next";
+import { IconClose, IconEdit } from '@/lib/icons';
 import { useUpdateCompanion } from "@/composables/useCompanions";
 import {
   CONDITIONS,

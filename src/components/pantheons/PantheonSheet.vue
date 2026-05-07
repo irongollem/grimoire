@@ -18,7 +18,7 @@
           v-else
           class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground/40"
         >
-          <Flame class="h-10 w-10" />
+          <IconFire class="h-10 w-10" />
         </div>
       </div>
 
@@ -32,7 +32,7 @@
             :to="`/deities/${d.id}`"
             class="flex items-center gap-2 text-sm font-fell text-foreground hover:text-primary transition-colors"
           >
-            <Sun class="h-3 w-3 shrink-0 text-muted-foreground" />
+            <IconSun class="h-3 w-3 shrink-0 text-muted-foreground" />
             {{ d.name }}
           </RouterLink>
         </div>
@@ -71,7 +71,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
-import { Flame, Sun } from "lucide-vue-next";
+import { IconFire, IconSun } from '@/lib/icons';
 import { useAllDeities } from "@/composables/useDeities";
 import type { Pantheon } from "@/types/deity.types";
 import FocalImage from "@/components/common/FocalImage.vue";

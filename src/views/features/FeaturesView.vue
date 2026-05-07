@@ -2,12 +2,12 @@
   <ListPageLayout title="Abilities" description="Class features & ability compendium">
     <template #actions>
       <ListActionButton
-        :icon="importMutation.isPending.value ? Loader2 : Download"
+        :icon="importMutation.isPending.value ? IconLoading : IconDownload"
         :label="importStatusLabel"
         :disabled="importMutation.isPending.value"
         @click="handleImport"
       />
-      <ListActionButton :icon="Plus" label="New Ability" mobile-label="Ability" variant="primary" to="/features/new" />
+      <ListActionButton :icon="IconAdd" label="New Ability" mobile-label="Ability" variant="primary" to="/features/new" />
     </template>
 
     <template #filters>
@@ -36,7 +36,7 @@
         to="/features/new"
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
       >
-        <Plus class="h-3.5 w-3.5" />
+        <IconAdd class="h-3.5 w-3.5" />
         New Ability
       </RouterLink>
     </EmptyState>
@@ -70,7 +70,7 @@
             >{{ tag }}</span>
           </div>
         </div>
-        <ChevronRight class="h-4 w-4 text-muted-foreground shrink-0" />
+        <IconChevronRight class="h-4 w-4 text-muted-foreground shrink-0" />
       </RouterLink>
     </div>
 
@@ -85,7 +85,7 @@
 <script setup lang="ts">
 import { ref, computed, onBeforeUnmount } from "vue";
 import { RouterLink } from "vue-router";
-import { Plus, ChevronRight, Download, Loader2 } from "lucide-vue-next";
+import { IconAdd, IconChevronRight, IconDownload, IconLoading } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";

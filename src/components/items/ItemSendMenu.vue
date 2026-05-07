@@ -8,9 +8,9 @@
       class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
       @click="open = !open"
     >
-      <Send class="h-3.5 w-3.5" />
-      Send to…
-      <ChevronDown class="h-3 w-3" />
+      <IconSend class="h-3.5 w-3.5" />
+      IconSend to…
+      <IconChevronDown class="h-3 w-3" />
     </button>
 
     <div
@@ -24,7 +24,7 @@
         class="w-full flex items-center gap-2 px-3 py-2 font-cinzel text-xs text-left text-foreground hover:bg-muted transition-colors disabled:opacity-50"
         @click="addToStash"
       >
-        <Archive class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        <IconArchive class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         {{ isAddingToStash ? "Adding…" : "Add to Party Stash" }}
       </button>
 
@@ -36,10 +36,10 @@
           @click="showPlayerPicker = !showPlayerPicker"
         >
           <span class="flex items-center gap-2">
-            <User class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <IconUser class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             Assign to Player
           </span>
-          <ChevronRight class="h-3 w-3 text-muted-foreground" :class="{ 'rotate-90': showPlayerPicker }" />
+          <IconChevronRight class="h-3 w-3 text-muted-foreground" :class="{ 'rotate-90': showPlayerPicker }" />
         </button>
 
         <div v-if="showPlayerPicker" class="border-t border-border/50 bg-muted/40">
@@ -68,7 +68,7 @@
         class="w-full flex items-center gap-2 px-3 py-2 font-cinzel text-xs text-left text-foreground hover:bg-muted transition-colors disabled:opacity-50"
         @click="dropInChat"
       >
-        <MessageSquare class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        <IconComment class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         {{ isDroppingInChat ? "Dropping…" : "Drop in Chat" }}
       </button>
     </div>
@@ -84,7 +84,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { Send, Archive, User, ChevronDown, ChevronRight, MessageSquare } from "lucide-vue-next";
+import { IconArchive, IconChevronDown, IconChevronRight, IconComment, IconSend, IconUser } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/useParty";
 import { useAddInventoryItem } from "@/composables/usePartyInventory";

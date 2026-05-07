@@ -4,7 +4,7 @@
       class="w-full flex items-center gap-2 px-2 py-1.5 rounded-md font-fell text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
       @click="open = !open"
     >
-      <Megaphone class="h-3.5 w-3.5 shrink-0" />
+      <IconAnnounce class="h-3.5 w-3.5 shrink-0" />
       Announce to players
     </button>
 
@@ -14,7 +14,7 @@
       class="absolute bottom-full left-0 right-0 mb-2 rounded-lg border border-border bg-card shadow-lg p-3 space-y-2 z-50"
     >
       <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">
-        Send Announcement
+        IconSend Announcement
       </p>
       <textarea
         v-model="text"
@@ -34,8 +34,8 @@
           class="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1 font-cinzel text-[10px] font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
           @click="send"
         >
-          <Send class="h-3 w-3" />
-          {{ sending ? "Sending…" : "Send" }}
+          <IconSend class="h-3 w-3" />
+          {{ sending ? "Sending…" : "IconSend" }}
         </button>
       </div>
       <p v-if="sent" class="font-fell text-xs text-elven-green text-right">Sent!</p>
@@ -45,7 +45,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { Megaphone, Send } from "lucide-vue-next";
+import { IconAnnounce, IconSend } from '@/lib/icons';
 import { useCampaignStore } from "@/stores/campaign";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
 

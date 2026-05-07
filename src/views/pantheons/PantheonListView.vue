@@ -2,13 +2,13 @@
   <ListPageLayout title="Pantheons" description="Named groups of deities and their divine hierarchies">
     <template #actions>
       <ListActionButton
-        :icon="Sun"
+        :icon="IconSun"
         label="All Deities"
         mobile-label="Deities"
         to="/deities"
       />
       <ListActionButton
-        :icon="Plus"
+        :icon="IconAdd"
         label="New Pantheon"
         mobile-label="Pantheon"
         variant="primary"
@@ -45,13 +45,13 @@
         >
           <div class="shrink-0 h-12 w-12 rounded-lg border border-border bg-muted overflow-hidden flex items-center justify-center">
             <img v-if="pantheon.emblem_url" :src="pantheon.emblem_url" alt="" class="w-full h-full object-cover" />
-            <Flame v-else class="h-5 w-5 text-muted-foreground/40" />
+            <IconFire v-else class="h-5 w-5 text-muted-foreground/40" />
           </div>
 
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-2">
               <p class="font-cinzel text-sm font-bold text-foreground truncate flex-1">{{ pantheon.name }}</p>
-              <Eye v-if="pantheon.player_visible_to?.length" class="h-3 w-3 shrink-0 text-elven-green" />
+              <IconReveal v-if="pantheon.player_visible_to?.length" class="h-3 w-3 shrink-0 text-elven-green" />
             </div>
             <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mt-0.5">
               {{ deityCount(pantheon.id) }} {{ deityCount(pantheon.id) === 1 ? 'deity' : 'deities' }}
@@ -65,7 +65,7 @@
             </div>
           </div>
 
-          <ChevronRight class="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
+          <IconChevronRight class="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
         </RouterLink>
       </div>
     </template>
@@ -74,7 +74,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { ChevronRight, Eye, Flame, Plus, Sun } from "lucide-vue-next";
+import { IconAdd, IconChevronRight, IconFire, IconReveal, IconSun } from '@/lib/icons';
 import { useAllPantheons, useAllDeities } from "@/composables/useDeities";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";

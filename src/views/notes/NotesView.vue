@@ -2,7 +2,7 @@
   <ListPageLayout title="Campaign Notes" description="Session logs, lore, and secrets of the realm">
     <template #actions>
       <ListActionButton
-        :icon="Plus"
+        :icon="IconAdd"
         label="New Note"
         variant="primary"
         @click="handleNew"
@@ -18,7 +18,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import { Plus } from "lucide-vue-next";
+import { IconAdd } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import NotesList from "@/components/notes/NotesList.vue";

@@ -16,9 +16,9 @@
       </span>
     </div>
 
-    <!-- Search input -->
+    <!-- IconSearch input -->
     <div class="relative">
-      <Search class="pointer-events-none absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+      <IconSearch class="pointer-events-none absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
       <input
         ref="inputRef"
         v-model="query"
@@ -101,10 +101,10 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Search } from "lucide-vue-next";
+import { IconSearch } from '@/lib/icons';
 import type { ProficiencyGroup } from "@/lib/proficiency-lists";
 
-const { modelValue, groups, placeholder = "Search…" } = defineProps<{
+const { modelValue, groups, placeholder = "IconSearch…" } = defineProps<{
   modelValue: string[];
   groups: ProficiencyGroup[];
   placeholder?: string;

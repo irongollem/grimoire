@@ -17,7 +17,7 @@
           <!-- Header -->
           <div class="flex items-start gap-3 px-5 pt-5 pb-4">
             <div class="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-amber-500/15 text-amber-400">
-              <Crown class="h-4.5 w-4.5" />
+              <IconDM class="h-4.5 w-4.5" />
             </div>
             <div class="flex-1 min-w-0">
               <h2 id="paywall-title" class="font-cinzel text-sm font-bold text-foreground tracking-wide">
@@ -37,7 +37,7 @@
               aria-label="Close"
               @click="close"
             >
-              <X class="h-4 w-4" />
+              <IconClose class="h-4 w-4" />
             </button>
           </div>
 
@@ -81,7 +81,7 @@
               :disabled="stripeLoading"
               @click="upgrade"
             >
-              <Loader2 v-if="stripeLoading" class="h-3.5 w-3.5 animate-spin" />
+              <IconLoading v-if="stripeLoading" class="h-3.5 w-3.5 animate-spin" />
               {{ stripeLoading ? 'Redirecting…' : 'Upgrade to Pro' }}
             </button>
             <button
@@ -100,7 +100,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { X, Crown, Loader2 } from "lucide-vue-next";
+import { IconClose, IconDM, IconLoading } from '@/lib/icons';
 import { useQuota } from "@/composables/useQuota";
 import { usePlan } from "@/composables/usePlan";
 import { useStripe } from "@/composables/useStripe";
@@ -119,7 +119,6 @@ const emit = defineEmits<{ "update:modelValue": [val: boolean] }>()
 const { quota } = useQuota(props.resource ?? 'npcs')
 const { data: proPlan } = usePlan('pro')
 const { loading: stripeLoading, createCheckoutSession } = useStripe()
-
 
 const currency = detectCurrency()
 

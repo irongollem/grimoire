@@ -9,7 +9,7 @@
           class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
           @click="startEditing"
         >
-          <Pencil class="h-3.5 w-3.5" />
+          <IconEdit class="h-3.5 w-3.5" />
           Edit
         </button>
         <button
@@ -18,7 +18,7 @@
           class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
           @click="stopEditing"
         >
-          <Eye class="h-3.5 w-3.5" />
+          <IconReveal class="h-3.5 w-3.5" />
           View
         </button>
       </template>
@@ -75,7 +75,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { Pencil, Eye } from "lucide-vue-next";
+import { IconEdit, IconReveal } from '@/lib/icons';
 import { usePantheon, useUpdatePantheon } from "@/composables/useDeities";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

@@ -2,7 +2,7 @@
   <div class="space-y-6">
     <!-- Current date hero -->
     <div class="rounded-lg border border-border bg-card px-5 py-4 flex flex-wrap items-center gap-4">
-      <CalendarDays class="h-8 w-8 text-primary shrink-0" />
+      <IconCalendarDays class="h-8 w-8 text-primary shrink-0" />
       <div>
         <p class="font-cinzel text-xs font-semibold tracking-widest text-muted-foreground uppercase mb-0.5">
           Current In-Game Date
@@ -46,7 +46,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { CalendarDays } from "lucide-vue-next";
+import { IconCalendarDays } from '@/lib/icons';
 import { useCalendarStore } from "@/stores/calendar";
 import { usePlayerCalendarEventsRange } from "@/composables/useCalendarEvents";
 import CalendarTimeline from "@/components/calendar/CalendarTimeline.vue";

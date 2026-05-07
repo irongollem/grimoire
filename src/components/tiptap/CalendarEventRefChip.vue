@@ -3,19 +3,19 @@
   <NodeViewWrapper as="span" class="cal-event-ref-wrapper">
     <!-- ── EDITOR MODE: static chip, deletable with backspace ─────────────── -->
     <span v-if="isEditable" class="cal-chip cal-chip--edit" contenteditable="false">
-      <CalendarDays class="cal-chip-icon" />
+      <IconCalendarDays class="cal-chip-icon" />
       <span class="cal-chip-label">{{ node.attrs.label || 'event' }}</span>
     </span>
 
     <!-- ── VIEWER MODE: loading ──────────────────────────────────────────── -->
     <span v-else-if="isLoading" class="cal-chip cal-chip--loading" contenteditable="false">
-      <CalendarDays class="cal-chip-icon" />
+      <IconCalendarDays class="cal-chip-icon" />
       <span class="cal-chip-label">…</span>
     </span>
 
     <!-- ── VIEWER MODE: event removed ───────────────────────────────────── -->
     <span v-else-if="eventData === null || eventData === undefined" class="cal-chip cal-chip--removed" contenteditable="false">
-      <CalendarX class="cal-chip-icon" />
+      <IconRemoveEvent class="cal-chip-icon" />
       <span class="cal-chip-label">[event removed]</span>
     </span>
 
@@ -28,7 +28,7 @@
       :title="`Go to calendar: ${eventData!.title}`"
       @click="navigate"
     >
-      <CalendarDays class="cal-chip-icon" />
+      <IconCalendarDays class="cal-chip-icon" />
       <span class="cal-chip-label">{{ eventData!.title }}</span>
     </button>
   </NodeViewWrapper>
@@ -37,7 +37,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { nodeViewProps, NodeViewWrapper } from "@tiptap/vue-3";
-import { CalendarDays, CalendarX } from "lucide-vue-next";
+import { IconCalendarDays, IconRemoveEvent } from '@/lib/icons';
 import { useRouter } from "vue-router";
 import { useCalendarStore } from "@/stores/calendar";
 import { useCalendarEventById } from "@/composables/useCalendarEvents";

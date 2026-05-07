@@ -48,7 +48,7 @@
               class="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
               @click="toggleBuiltIn(def.key)"
             >
-              <ChevronRight
+              <IconChevronRight
                 class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200"
                 :class="openBuiltIns.has(def.key) ? 'rotate-90' : ''"
               />
@@ -80,7 +80,7 @@
               class="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
               @click="toggleRule(rule.id)"
             >
-              <ChevronRight
+              <IconChevronRight
                 class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200"
                 :class="openRules.has(rule.id) ? 'rotate-90' : ''"
               />
@@ -124,7 +124,7 @@
 
 <script setup lang="ts">
 import { ref, computed, shallowRef } from "vue";
-import { ChevronRight } from "lucide-vue-next";
+import { IconChevronRight } from '@/lib/icons';
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";

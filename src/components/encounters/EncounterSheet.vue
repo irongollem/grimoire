@@ -6,7 +6,7 @@
         to="/encounters"
         class="inline-flex items-center gap-1 font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors"
       >
-        <ChevronLeft class="h-3.5 w-3.5" />
+        <IconChevronLeft class="h-3.5 w-3.5" />
         All Encounters
       </RouterLink>
 
@@ -24,7 +24,7 @@
             : 'border-primary/40 text-primary hover:bg-primary/10'"
           @click="toggleFinished"
         >
-          <CheckCheck class="h-3.5 w-3.5" />
+          <IconCheckDouble class="h-3.5 w-3.5" />
           {{ encounter.is_finished ? "Reopen" : "Mark Done" }}
         </button>
 
@@ -34,7 +34,7 @@
           :disabled="deleteEncounter.isPending.value"
           @click="handleDelete"
         >
-          <X class="h-3.5 w-3.5" />
+          <IconClose class="h-3.5 w-3.5" />
           Delete
         </button>
 
@@ -43,7 +43,7 @@
           class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
           @click="router.push({ query: { ...route.query, edit: 'true' } })"
         >
-          <Pencil class="h-3.5 w-3.5" />
+          <IconEdit class="h-3.5 w-3.5" />
           Edit
         </button>
 
@@ -54,7 +54,7 @@
             class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-foreground hover:border-primary/50 transition-colors"
             @click="handleRestart"
           >
-            <RotateCcw class="h-3.5 w-3.5" />
+            <IconReset class="h-3.5 w-3.5" />
             Restart
           </button>
           <button
@@ -62,7 +62,7 @@
             class="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
             @click="handleStop"
           >
-            <Square class="h-3.5 w-3.5" />
+            <IconStop class="h-3.5 w-3.5" />
             Stop
           </button>
           <button
@@ -70,7 +70,7 @@
             class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
             @click="handleRunEncounter"
           >
-            <Play class="h-3.5 w-3.5" />
+            <IconPlay class="h-3.5 w-3.5" />
             Resume
           </button>
         </template>
@@ -81,7 +81,7 @@
           class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
           @click="handleRunEncounter"
         >
-          <Play class="h-3.5 w-3.5" />
+          <IconPlay class="h-3.5 w-3.5" />
           Run Encounter
         </button>
       </div>
@@ -91,7 +91,7 @@
     <div class="flex flex-col gap-2">
       <h1 class="font-cinzel text-2xl font-bold text-foreground leading-tight">{{ encounter.name }}</h1>
       <div v-if="encounterLocation" class="flex items-center gap-2">
-        <MapPinIcon class="h-3.5 w-3.5 text-muted-foreground" />
+        <IconLocation class="h-3.5 w-3.5 text-muted-foreground" />
         <RouterLink
           :to="`/locations/${encounterLocation.id}`"
           class="font-fell text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -115,7 +115,7 @@
           :to="`/quests/${q.id}`"
           class="inline-flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
         >
-          <ScrollText class="h-3.5 w-3.5 text-muted-foreground" />
+          <IconScrollText class="h-3.5 w-3.5 text-muted-foreground" />
           <span class="font-fell text-xs text-foreground truncate max-w-64">{{ q.title }}</span>
         </RouterLink>
       </div>
@@ -155,7 +155,7 @@
           :to="m.route"
           class="group flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 hover:border-primary/50 transition-colors"
         >
-          <UserRound class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <IconUserRound class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <div class="flex-1 min-w-0">
             <p class="font-cinzel text-xs font-semibold text-foreground truncate">{{ m.name }}</p>
             <p v-if="m.factionName" class="font-fell text-[10px] text-muted-foreground italic truncate">
@@ -179,7 +179,7 @@
           :to="c.route ?? '/monsters'"
           class="group flex items-center gap-3 rounded-md border border-border bg-card px-3 py-2 hover:border-primary/50 transition-colors"
         >
-          <Skull class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <IconMonster class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <span class="font-cinzel text-sm font-bold text-primary shrink-0 w-8 text-right">{{ c.count }}×</span>
           <span class="flex-1 font-fell text-sm text-foreground truncate">{{ c.name }}</span>
           <span
@@ -205,7 +205,7 @@
           :to="`/vault/${it.id}`"
           class="inline-flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
         >
-          <Package class="h-3.5 w-3.5 text-muted-foreground" />
+          <IconPackage class="h-3.5 w-3.5 text-muted-foreground" />
           <span class="font-fell text-xs text-foreground">{{ it.name }}</span>
         </RouterLink>
       </div>
@@ -224,7 +224,7 @@
           :to="`/traps/${t.id}`"
           class="inline-flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
         >
-          <Crosshair class="h-3.5 w-3.5 text-muted-foreground" />
+          <IconTrap class="h-3.5 w-3.5 text-muted-foreground" />
           <span class="font-fell text-xs text-foreground">{{ t.name }}</span>
         </RouterLink>
       </div>
@@ -235,10 +235,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, useRouter, RouterLink } from "vue-router";
-import {
-  Pencil, X, CheckCheck, Play, Square, RotateCcw, ChevronLeft,
-  UserRound, Skull, Package, ScrollText, Crosshair, MapPin as MapPinIcon,
-} from "lucide-vue-next";
+import { IconCheckDouble, IconChevronLeft, IconClose, IconEdit, IconLocation, IconMonster, IconPackage, IconPlay, IconReset, IconScrollText, IconStop, IconTrap, IconUserRound } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { supabase } from "@/lib/supabase";
 import {

@@ -7,14 +7,14 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
         @click="handleDelete"
       >
-        <Trash2 class="h-3.5 w-3.5" />Delete
+        <IconDelete class="h-3.5 w-3.5" />Delete
       </button>
       <button
         type="button"
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
         @click="router.push({ query: { ...route.query, edit: 'true' } })"
       >
-        <Pencil class="h-3.5 w-3.5" />Edit
+        <IconEdit class="h-3.5 w-3.5" />Edit
       </button>
     </div>
 
@@ -31,7 +31,7 @@
             :lightbox="true"
             class="w-full h-full"
           />
-          <User2 v-else class="h-8 w-8 text-muted-foreground/30" />
+          <IconUser v-else class="h-8 w-8 text-muted-foreground/30" />
         </div>
         <div class="flex-1 flex flex-col gap-2">
           <h1 class="font-cinzel text-xl font-bold text-foreground leading-tight">{{ background.name }}</h1>
@@ -132,7 +132,7 @@
             class="inline-flex items-center gap-1 font-cinzel text-[10px] tracking-wider text-primary hover:text-primary/80 transition-colors"
             @click="openLootbox"
           >
-            <PackagePlus class="h-3.5 w-3.5" />
+            <IconAddItem class="h-3.5 w-3.5" />
             Grant
           </button>
         </div>
@@ -174,7 +174,7 @@
                 class="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
                 @click="lootboxItems.splice(i, 1)"
               >
-                <X class="h-3.5 w-3.5" />
+                <IconClose class="h-3.5 w-3.5" />
               </button>
             </div>
             <p v-if="lootboxItems.length === 0" class="font-fell text-xs text-muted-foreground italic">
@@ -230,7 +230,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { Pencil, Trash2, User2, PackagePlus, X } from "lucide-vue-next";
+import { IconAddItem, IconClose, IconDelete, IconEdit, IconUser } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteBackground } from "@/composables/useBackgrounds";
 import { useParty } from "@/composables/useParty";
@@ -321,7 +321,7 @@ const grantDone = ref(false);
 function parseEquipmentItems(raw: string): Array<{ name: string; quantity: number }> {
   if (!raw.trim()) return [];
   let text = raw.trim().replace(/\.$/, "");
-  // Normalise "X, and Y" and "X and Y" → split-friendly commas
+  // Normalise "IconClose, and Y" and "IconClose and Y" → split-friendly commas
   text = text.replace(/,\s*and\s+/g, ", ").replace(/\s+and\s+/g, ", ");
   return text
     .split(/,\s+/)

@@ -8,7 +8,7 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
         @click="deleteTrap"
       >
-        <Trash2 class="h-3.5 w-3.5" />
+        <IconDelete class="h-3.5 w-3.5" />
         Delete
       </button>
       <button
@@ -25,8 +25,8 @@
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
         @click="save"
       >
-        <Save class="h-3.5 w-3.5" />
-        {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
+        <IconSave class="h-3.5 w-3.5" />
+        {{ saving ? "Saving…" : isNew ? "Create" : "IconSave" }}
       </button>
     </div>
 
@@ -83,7 +83,7 @@
                   title="Open CR advisor"
                   @click="showAdvisor = true"
                 >
-                  <Sparkles class="h-3 w-3" />
+                  <IconGenerate class="h-3 w-3" />
                   Suggest
                 </button>
               </div>
@@ -164,14 +164,14 @@
               <input v-model.number="form.attack_bonus" type="number" placeholder="+5" class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
             </div>
             <div>
-              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Save Type</label>
+              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">IconSave Type</label>
               <select v-model="form.save_type" class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
                 <option :value="null">—</option>
                 <option v-for="s in TRAP_SAVE_TYPES" :key="s" :value="s">{{ s }}</option>
               </select>
             </div>
             <div>
-              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Save DC</label>
+              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">IconSave DC</label>
               <input v-model.number="form.save_dc" type="number" min="1" max="30" placeholder="15" class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
             </div>
           </div>
@@ -188,7 +188,7 @@
                   <option v-for="d in DAMAGE_TYPES" :key="d" :value="d" class="capitalize">{{ d }}</option>
                 </select>
                 <button type="button" class="shrink-0 text-muted-foreground hover:text-destructive transition-colors" @click="form.damage_entries.splice(i, 1)">
-                  <X class="h-3.5 w-3.5" />
+                  <IconClose class="h-3.5 w-3.5" />
                 </button>
               </div>
               <p v-if="!form.damage_entries.length" class="font-fell text-xs text-muted-foreground italic">No damage — add a component above.</p>
@@ -230,7 +230,7 @@
           <div class="flex items-center justify-between px-5 py-4 border-b border-border">
             <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wider">CR Advisor</h2>
             <button type="button" @click="showAdvisor = false" class="text-muted-foreground hover:text-foreground transition-colors">
-              <X class="h-4 w-4" />
+              <IconClose class="h-4 w-4" />
             </button>
           </div>
           <div class="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
@@ -300,7 +300,7 @@
               <div class="flex items-end pb-1">
                 <label class="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" v-model="advisorInputs.isInstantDeath" class="accent-primary" />
-                  <span class="font-fell text-sm text-foreground">Save-or-die mechanic</span>
+                  <span class="font-fell text-sm text-foreground">IconSave-or-die mechanic</span>
                 </label>
               </div>
             </div>
@@ -343,7 +343,7 @@
               class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
               @click="applyCr"
             >
-              <Check class="h-3.5 w-3.5" />
+              <IconCheck class="h-3.5 w-3.5" />
               Use CR {{ advisorResult.suggestedCr }}
             </button>
           </div>
@@ -356,7 +356,7 @@
 <script setup lang="ts">
 import { ref, computed, reactive, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { Save, Trash2, Sparkles, X, Check } from "lucide-vue-next";
+import { IconCheck, IconClose, IconDelete, IconGenerate, IconSave } from '@/lib/icons';
 import { useCreateTrap, useUpdateTrap, useDeleteTrap } from "@/composables/useTraps";
 import { useConfirm } from "@/composables/useConfirm";
 import {

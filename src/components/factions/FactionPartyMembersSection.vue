@@ -12,7 +12,7 @@
         <div class="h-8 w-8 shrink-0 rounded-full border border-border bg-muted overflow-hidden">
           <img v-if="m.party_member.portrait_url" :src="m.party_member.portrait_url" alt="" class="w-full h-full object-cover" />
           <div v-else class="w-full h-full flex items-center justify-center">
-            <Sword class="h-3.5 w-3.5 text-muted-foreground/50" />
+            <IconSword class="h-3.5 w-3.5 text-muted-foreground/50" />
           </div>
         </div>
 
@@ -53,7 +53,7 @@
         class="flex items-center gap-1.5 font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase hover:text-foreground transition-colors mb-1.5"
         @click="showFormer = !showFormer"
       >
-        <ChevronDown class="h-3 w-3 transition-transform" :class="showFormer && 'rotate-180'" />
+        <IconChevronDown class="h-3 w-3 transition-transform" :class="showFormer && 'rotate-180'" />
         Former Members ({{ formerMembers.length }})
       </button>
 
@@ -66,7 +66,7 @@
           <div class="h-8 w-8 shrink-0 rounded-full border border-border bg-muted overflow-hidden">
             <img v-if="m.party_member.portrait_url" :src="m.party_member.portrait_url" alt="" class="w-full h-full object-cover" />
             <div v-else class="w-full h-full flex items-center justify-center">
-              <Sword class="h-3.5 w-3.5 text-muted-foreground/50" />
+              <IconSword class="h-3.5 w-3.5 text-muted-foreground/50" />
             </div>
           </div>
 
@@ -108,7 +108,7 @@
         class="shrink-0 inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
         @click="addMember"
       >
-        <Plus class="h-3 w-3" />
+        <IconAdd class="h-3 w-3" />
         Add
       </button>
     </div>
@@ -117,7 +117,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Plus, Sword, ChevronDown } from "lucide-vue-next";
+import { IconAdd, IconChevronDown, IconSword } from '@/lib/icons';
 import {
   useFactionPartyMembers,
   useAddFactionPartyMember,

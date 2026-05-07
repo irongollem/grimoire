@@ -2,7 +2,7 @@
   <div class="mt-6 rounded-lg border border-border bg-card">
     <div class="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20">
       <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase flex items-center gap-1.5">
-        <Backpack class="h-3.5 w-3.5" /> Party Inventory
+        <IconInventory class="h-3.5 w-3.5" /> Party Inventory
       </span>
       <button
         type="button"
@@ -66,14 +66,14 @@
           title="Drop to chat"
           @click="dropInventoryItemToChat(item)"
         >
-          <ArrowUpFromLine class="h-3.5 w-3.5" />
+          <IconArrowUp class="h-3.5 w-3.5" />
         </button>
         <button
           type="button"
           class="shrink-0 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive"
           @click="removeItem(item.id)"
         >
-          <Trash2 class="h-3.5 w-3.5" />
+          <IconDelete class="h-3.5 w-3.5" />
         </button>
       </div>
     </div>
@@ -118,7 +118,7 @@
               class="w-full text-left px-3 py-1.5 font-fell text-sm text-primary hover:bg-muted transition-colors flex items-center gap-2"
               @click="router.push({ path: '/vault/new', query: { name: newItem.name.trim(), redirect: '/party' } })"
             >
-              <ExternalLink class="h-3.5 w-3.5 shrink-0" />
+              <IconExternalLink class="h-3.5 w-3.5 shrink-0" />
               Create "{{ newItem.name.trim() }}" in Vault
             </button>
           </div>
@@ -165,7 +165,7 @@
 <script setup lang="ts">
 import { ref, computed, reactive } from "vue";
 import { useRouter } from "vue-router";
-import { Backpack, Trash2, ExternalLink, ArrowUpFromLine } from "lucide-vue-next";
+import { IconArrowUp, IconDelete, IconExternalLink, IconInventory } from '@/lib/icons';
 import { usePartyInventory, useAddInventoryItem, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
 import { useItems } from "@/composables/useItems";
 import type { Item } from "@/types/item.types";

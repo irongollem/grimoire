@@ -8,10 +8,10 @@
 
     <button
       class="text-muted-foreground hover:text-foreground transition-colors"
-      aria-label="Search"
+      aria-label="IconSearch"
       @click="searchOpen = true"
     >
-      <Search class="h-5 w-5" />
+      <IconSearch class="h-5 w-5" />
     </button>
 
     <!-- DM Prep/Play toggle (#133) — mirrors the sidebar pill for mobile. -->
@@ -34,7 +34,7 @@
       aria-label="Report a bug"
       @click="bugReportOpen = true"
     >
-      <Bug class="h-5 w-5" />
+      <IconBug class="h-5 w-5" />
     </button>
     <SoundboardWidgetToggle class="px-1.5! py-1!" />
     <DiceRoller />
@@ -49,7 +49,7 @@
         aria-label="Open navigation"
         @click="ui.toggleMobileNav()"
       >
-        <Menu class="h-5 w-5" />
+        <IconMenu class="h-5 w-5" />
       </button>
     </Teleport>
 
@@ -62,12 +62,12 @@
       >
         <div class="bg-card border-b border-border px-4 py-3">
           <div class="relative">
-            <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <input
               ref="mobileInputRef"
               v-model="mobileQuery"
               type="text"
-              placeholder="Search anything…"
+              placeholder="IconSearch anything…"
               class="w-full pl-8 pr-8 py-2 rounded-md bg-background border border-border text-sm font-fell text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500"
               @keydown.escape="searchOpen = false"
             />
@@ -75,7 +75,7 @@
               class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               @click="searchOpen = false"
             >
-              <X class="h-4 w-4" />
+              <IconClose class="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -86,7 +86,7 @@
             Type at least 2 characters to search
           </div>
           <div v-else-if="isFetching" class="px-4 py-4 flex items-center gap-2 text-sm text-muted-foreground font-fell">
-            <Loader2 class="h-4 w-4 animate-spin" />
+            <IconLoading class="h-4 w-4 animate-spin" />
             Searching…
           </div>
           <div v-else-if="mobileGroups.length === 0" class="px-4 py-8 text-center text-sm text-muted-foreground font-fell">
@@ -117,7 +117,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from "vue";
 import { useRoute } from "vue-router";
-import { Menu, Search, X, Loader2, Bug } from "lucide-vue-next";
+import { IconBug, IconClose, IconLoading, IconMenu, IconSearch } from '@/lib/icons';
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import DiceRoller from "@/components/common/DiceRoller.vue";

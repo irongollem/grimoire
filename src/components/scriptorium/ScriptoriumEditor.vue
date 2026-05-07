@@ -88,8 +88,8 @@
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
         @click="save"
       >
-        <Save class="h-3.5 w-3.5" />
-        {{ isSaving ? "Saving…" : props.doc ? "Save" : "Create" }}
+        <IconSave class="h-3.5 w-3.5" />
+        {{ isSaving ? "Saving…" : props.doc ? "IconSave" : "Create" }}
       </button>
       <button
         v-if="props.doc"
@@ -98,7 +98,7 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-destructive/50 px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
         @click="destroy"
       >
-        <Trash2 class="h-3.5 w-3.5" />
+        <IconDelete class="h-3.5 w-3.5" />
         {{ isDeleting ? "Deleting…" : "Delete" }}
       </button>
     </div>
@@ -151,11 +151,11 @@
             </button>
             <button
               type="button"
-              title="Strikethrough"
+              title="IconStrikethrough"
               :class="tbCls(editor.isActive('strike'))"
               @click="editor.chain().focus().toggleStrike().run()"
             >
-              <Strikethrough class="h-3.5 w-3.5" />
+              <IconStrikethrough class="h-3.5 w-3.5" />
             </button>
             <button
               type="button"
@@ -163,7 +163,7 @@
               :class="tbCls(editor.isActive('code'))"
               @click="editor.chain().focus().toggleCode().run()"
             >
-              <Code class="h-3.5 w-3.5" />
+              <IconCodeInline class="h-3.5 w-3.5" />
             </button>
 
             <div class="w-px h-5 bg-border mx-0.5" />
@@ -209,7 +209,7 @@
               :class="tbCls(editor.isActive('bulletList'))"
               @click="editor.chain().focus().toggleBulletList().run()"
             >
-              <List class="h-3.5 w-3.5" />
+              <IconList class="h-3.5 w-3.5" />
             </button>
             <button
               type="button"
@@ -217,7 +217,7 @@
               :class="tbCls(editor.isActive('orderedList'))"
               @click="editor.chain().focus().toggleOrderedList().run()"
             >
-              <ListOrdered class="h-3.5 w-3.5" />
+              <IconListOrdered class="h-3.5 w-3.5" />
             </button>
             <button
               type="button"
@@ -225,15 +225,15 @@
               :class="tbCls(editor.isActive('blockquote'))"
               @click="editor.chain().focus().toggleBlockquote().run()"
             >
-              <Quote class="h-3.5 w-3.5" />
+              <IconQuote class="h-3.5 w-3.5" />
             </button>
             <button
               type="button"
-              title="Code block"
+              title="IconCodeInline block"
               :class="tbCls(editor.isActive('codeBlock'))"
               @click="editor.chain().focus().toggleCodeBlock().run()"
             >
-              <SquareCode class="h-3.5 w-3.5" />
+              <IconCodeBlock class="h-3.5 w-3.5" />
             </button>
             <button
               type="button"
@@ -241,7 +241,7 @@
               :class="tbCls(editor.isActive('wideBlock'))"
               @click="editor.chain().focus().toggleWideBlock().run()"
             >
-              <RectangleHorizontal class="h-3.5 w-3.5" />
+              <IconRect class="h-3.5 w-3.5" />
             </button>
             <button
               type="button"
@@ -249,7 +249,7 @@
               :class="tbCls(false)"
               @click="editor.chain().focus().setHorizontalRule().run()"
             >
-              <Minus class="h-3.5 w-3.5" />
+              <IconMinus class="h-3.5 w-3.5" />
             </button>
 
             <div class="w-px h-5 bg-border mx-0.5" />
@@ -262,7 +262,7 @@
               class="gap-1 px-2 font-cinzel text-[10px] font-semibold tracking-wider"
               @click="showAssetPanel = true"
             >
-              <PackagePlus class="h-3.5 w-3.5" />
+              <IconAddItem class="h-3.5 w-3.5" />
               Insert
             </button>
 
@@ -274,7 +274,7 @@
               class="gap-1 px-2 font-cinzel text-[10px] font-semibold tracking-wider"
               @click="showBlockPicker = true"
             >
-              <LayoutGrid class="h-3.5 w-3.5" />
+              <IconGridView class="h-3.5 w-3.5" />
               Block
             </button>
 
@@ -324,7 +324,7 @@
                     .run()
                 "
               >
-                <AlignLeft class="h-3.5 w-3.5" />
+                <IconAlignLeft class="h-3.5 w-3.5" />
               </button>
               <button
                 type="button"
@@ -343,7 +343,7 @@
                     .run()
                 "
               >
-                <AlignCenter class="h-3.5 w-3.5" />
+                <IconAlignCenter class="h-3.5 w-3.5" />
               </button>
               <button
                 type="button"
@@ -365,7 +365,7 @@
                     .run()
                 "
               >
-                <AlignRight class="h-3.5 w-3.5" />
+                <IconAlignRight class="h-3.5 w-3.5" />
               </button>
               <div class="w-px h-5 bg-border mx-0.5" />
               <!-- Layout mode controls -->
@@ -387,7 +387,7 @@
                     .run()
                 "
               >
-                <WrapText class="h-3.5 w-3.5 scale-x-[-1]" />
+                <IconWrapText class="h-3.5 w-3.5 scale-x-[-1]" />
               </button>
               <button
                 type="button"
@@ -405,7 +405,7 @@
                     .run()
                 "
               >
-                <WrapText class="h-3.5 w-3.5" />
+                <IconWrapText class="h-3.5 w-3.5" />
               </button>
               <button
                 type="button"
@@ -427,7 +427,7 @@
                     .run()
                 "
               >
-                <Pin class="h-3.5 w-3.5" />
+                <IconPin class="h-3.5 w-3.5" />
               </button>
               <!-- Bleed-into-gutter toggle (wrap modes only) -->
               <template
@@ -564,7 +564,7 @@
                   :class="tbCls(false)"
                   @click="editInIlluminator"
                 >
-                  <ExternalLink class="h-3.5 w-3.5" />
+                  <IconExternalLink class="h-3.5 w-3.5" />
                 </button>
               </template>
             </template>
@@ -583,7 +583,7 @@
                 class="gap-1 px-2 font-cinzel text-[10px] font-semibold tracking-wider"
                 @click="showCoverInspector = true"
               >
-                <PencilLine class="h-3.5 w-3.5" />
+                <IconPencilLine class="h-3.5 w-3.5" />
                 Edit
               </button>
             </template>
@@ -596,7 +596,7 @@
               :disabled="!editor.can().undo()"
               @click="editor.chain().focus().undo().run()"
             >
-              <Undo2 class="h-3.5 w-3.5" />
+              <IconUndo class="h-3.5 w-3.5" />
             </button>
             <button
               type="button"
@@ -605,7 +605,7 @@
               :disabled="!editor.can().redo()"
               @click="editor.chain().focus().redo().run()"
             >
-              <Redo2 class="h-3.5 w-3.5" />
+              <IconRedo class="h-3.5 w-3.5" />
             </button>
 
             <div class="w-px h-5 bg-border mx-0.5" />
@@ -617,7 +617,7 @@
               :class="tbCls(isTwoColumn)"
               @click="isTwoColumn = !isTwoColumn"
             >
-              <Columns2 class="h-3.5 w-3.5" />
+              <IconColumns class="h-3.5 w-3.5" />
             </button>
 
             <!-- Theme -->
@@ -694,7 +694,7 @@
               class="gap-1 px-2 font-cinzel text-[10px] font-semibold tracking-wider"
               @click="inkFriendly = !inkFriendly"
             >
-              <Printer class="h-3.5 w-3.5" />
+              <IconPrint class="h-3.5 w-3.5" />
             </button>
           </template>
         </div>
@@ -721,8 +721,8 @@
                 class="flex items-center gap-1.5 px-2.5 py-1.5 font-cinzel text-[11px] font-semibold tracking-wide text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
                 @click="onEnhance"
               >
-                <LoaderCircle v-if="isEnhancing" class="h-3 w-3 animate-spin" />
-                <Wand2 v-else class="h-3 w-3" />
+                <IconLoadingAlt v-if="isEnhancing" class="h-3 w-3 animate-spin" />
+                <IconWand v-else class="h-3 w-3" />
                 Enhance
               </button>
             </div>
@@ -782,7 +782,7 @@
                 class="px-1.5 h-6.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 @click="zoomOut"
               >
-                <ZoomOut class="h-3 w-3" />
+                <IconZoomOut class="h-3 w-3" />
               </button>
               <!-- Centre button: shows current zoom %; click to snap back to fit-to-width -->
               <button
@@ -801,7 +801,7 @@
                 class="px-1.5 h-6.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 @click="zoomIn"
               >
-                <ZoomIn class="h-3 w-3" />
+                <IconZoomIn class="h-3 w-3" />
               </button>
             </div>
 
@@ -812,8 +812,8 @@
               class="inline-flex items-center gap-1 px-2 py-1 rounded font-cinzel text-[10px] font-semibold border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors tracking-wider uppercase disabled:opacity-50 disabled:cursor-not-allowed"
               @click="exportPdf"
             >
-              <Loader2 v-if="isGeneratingPdf" class="h-3 w-3 animate-spin" />
-              <FileDown v-else class="h-3 w-3" />
+              <IconLoading v-if="isGeneratingPdf" class="h-3 w-3 animate-spin" />
+              <IconExport v-else class="h-3 w-3" />
               {{ isGeneratingPdf ? "Building…" : "PDF" }}
             </button>
           </div>
@@ -866,37 +866,7 @@ import { BubbleMenu } from "@tiptap/vue-3/menus";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Image from "@tiptap/extension-image";
-import {
-  Save,
-  Strikethrough,
-  Code,
-  SquareCode,
-  List,
-  ListOrdered,
-  Quote,
-  Minus,
-  Undo2,
-  Redo2,
-  FileDown,
-  Loader2,
-  PackagePlus,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  Trash2,
-  Columns2,
-  LayoutGrid,
-  Printer,
-  RectangleHorizontal,
-  WrapText,
-  Pin,
-  ZoomIn,
-  ZoomOut,
-  Wand2,
-  LoaderCircle,
-  ExternalLink,
-  PencilLine,
-} from "lucide-vue-next";
+import { IconAddItem, IconAlignCenter, IconAlignLeft, IconAlignRight, IconCodeBlock, IconCodeInline, IconColumns, IconDelete, IconExport, IconExternalLink, IconGridView, IconList, IconListOrdered, IconLoading, IconLoadingAlt, IconMinus, IconPencilLine, IconPin, IconPrint, IconQuote, IconRect, IconRedo, IconSave, IconStrikethrough, IconUndo, IconWand, IconWrapText, IconZoomIn, IconZoomOut } from '@/lib/icons';
 import {
   useCreateScriptoriumDocument,
   useUpdateScriptoriumDocument,
@@ -1380,7 +1350,7 @@ const editor = useEditor({
   },
 });
 
-// Save
+// IconSave
 const { mutateAsync: create } = useCreateScriptoriumDocument();
 const { mutateAsync: update } = useUpdateScriptoriumDocument();
 const { mutateAsync: deleteDoc } = useDeleteScriptoriumDocument();
@@ -2490,7 +2460,7 @@ select {
   font-style: italic;
 }
 
-/* ── Quote block ──────────────────────────────────────────────── */
+/* ── IconQuote block ──────────────────────────────────────────────── */
 
 /* Preview */
 .phb-body :deep(.sc-quote) {
@@ -2577,8 +2547,8 @@ select {
 
 /* ── 2024 ability table variant ──────────────────────────────────────────── */
 /*
- * Nine-column layout: 4 cols (name + Score + Mod + Save) · 1 gap col ·
- * 4 cols (name + Score + Mod + Save) — mirrors the D&D Beyond 2024 layout.
+ * Nine-column layout: 4 cols (name + Score + Mod + IconSave) · 1 gap col ·
+ * 4 cols (name + Score + Mod + IconSave) — mirrors the D&D Beyond 2024 layout.
  *
  * .sc-abil-name  — ability name cell (STR/DEX/… label + accent background)
  * .sc-abil-gap   — invisible spacer column between the two panels

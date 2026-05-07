@@ -5,7 +5,7 @@
     title="Toggle soundboard"
     @click="store.toggleWidget()"
   >
-    <Music2 class="h-3.5 w-3.5 shrink-0" />
+    <IconMusicNote class="h-3.5 w-3.5 shrink-0" />
     <span class="font-fell">Soundboard</span>
     <span
       v-if="totalPlaying > 0"
@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { Music2 } from "lucide-vue-next";
+import { IconMusicNote } from '@/lib/icons';
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 

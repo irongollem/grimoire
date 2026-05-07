@@ -22,7 +22,7 @@
             @dragleave.prevent="isDragging = false"
             @drop.prevent="onDrop"
           >
-            <ImageIcon class="h-10 w-10 text-muted-foreground/40" />
+            <IconImage class="h-10 w-10 text-muted-foreground/40" />
             <div class="text-center">
               <p class="font-cinzel text-sm font-semibold text-foreground">Drop an image here</p>
               <p class="font-fell text-sm text-muted-foreground mt-0.5">or click to browse — PNG, JPG, WebP</p>
@@ -111,7 +111,7 @@
               class="flex items-center px-4 py-3 hover:bg-muted/40 transition-colors cursor-pointer select-none"
               @click="brushOpen = !brushOpen"
             >
-              <ChevronRightIcon
+              <IconChevronRight
                 class="h-3 w-3 shrink-0 text-muted-foreground transition-transform mr-2"
                 :class="brushOpen ? 'rotate-90' : ''"
               />
@@ -193,7 +193,7 @@
               class="flex items-center px-4 py-3 hover:bg-muted/40 transition-colors cursor-pointer select-none"
               @click="gradingOpen = !gradingOpen"
             >
-              <ChevronRightIcon
+              <IconChevronRight
                 class="h-3 w-3 shrink-0 text-muted-foreground transition-transform mr-2"
                 :class="gradingOpen ? 'rotate-90' : ''"
               />
@@ -267,7 +267,7 @@
               class="flex items-center px-4 py-3 hover:bg-muted/40 transition-colors cursor-pointer select-none"
               @click="vignetteOpen = !vignetteOpen"
             >
-              <ChevronRightIcon
+              <IconChevronRight
                 class="h-3 w-3 shrink-0 text-muted-foreground transition-transform mr-2"
                 :class="vignetteOpen ? 'rotate-90' : ''"
               />
@@ -357,7 +357,7 @@
               class="flex items-center px-4 py-3 hover:bg-muted/40 transition-colors cursor-pointer select-none"
               @click="textureOpen = !textureOpen"
             >
-              <ChevronRightIcon
+              <IconChevronRight
                 class="h-3 w-3 shrink-0 text-muted-foreground transition-transform mr-2"
                 :class="textureOpen ? 'rotate-90' : ''"
               />
@@ -460,7 +460,7 @@
               class="flex items-center px-4 py-3 hover:bg-muted/40 transition-colors cursor-pointer select-none"
               @click="dofOpen = !dofOpen"
             >
-              <ChevronRightIcon
+              <IconChevronRight
                 class="h-3 w-3 shrink-0 text-muted-foreground transition-transform mr-2"
                 :class="dofOpen ? 'rotate-90' : ''"
               />
@@ -557,7 +557,7 @@
               class="flex items-center px-4 py-3 hover:bg-muted/40 transition-colors cursor-pointer select-none"
               @click="edgesOpen = !edgesOpen"
             >
-              <ChevronRightIcon
+              <IconChevronRight
                 class="h-3 w-3 shrink-0 text-muted-foreground transition-transform mr-2"
                 :class="edgesOpen ? 'rotate-90' : ''"
               />
@@ -583,7 +583,7 @@
                   class="flex items-center pl-8 pr-4 py-2.5 hover:bg-muted/40 transition-colors cursor-pointer select-none"
                   @click="edgeOpen[edge] = !edgeOpen[edge]"
                 >
-                  <ChevronRightIcon
+                  <IconChevronRight
                     class="h-2.5 w-2.5 shrink-0 text-muted-foreground transition-transform mr-2"
                     :class="edgeOpen[edge] ? 'rotate-90' : ''"
                   />
@@ -650,8 +650,8 @@
               class="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-primary-foreground transition-opacity disabled:opacity-40"
               @click="saveToScriptorium"
             >
-              <LoaderCircle v-if="isSavingBack" class="h-3.5 w-3.5 shrink-0 animate-spin" />
-              <SaveIcon v-else class="h-3.5 w-3.5 shrink-0" />
+              <IconLoadingAlt v-if="isSavingBack" class="h-3.5 w-3.5 shrink-0 animate-spin" />
+              <IconSave v-else class="h-3.5 w-3.5 shrink-0" />
               {{ isSavingBack ? 'Saving…' : 'Save to Scriptorium' }}
             </button>
 
@@ -661,7 +661,7 @@
               class="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-primary-foreground transition-opacity disabled:opacity-40"
               @click="downloadPng"
             >
-              <DownloadIcon class="h-3.5 w-3.5 shrink-0" />
+              <IconDownload class="h-3.5 w-3.5 shrink-0" />
               {{ isExporting ? 'Processing…' : 'Download PNG' }}
             </button>
 
@@ -671,7 +671,7 @@
               class="flex items-center justify-center gap-2 rounded-md border border-border px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-foreground transition-colors hover:bg-muted disabled:opacity-40"
               @click="copyToClipboard"
             >
-              <component :is="copySuccess ? CheckIcon : ClipboardIcon" class="h-3.5 w-3.5 shrink-0" />
+              <component :is="copySuccess ? IconCheck : IconClipboard" class="h-3.5 w-3.5 shrink-0" />
               {{ copySuccess ? 'Copied!' : 'Copy to clipboard' }}
             </button>
           </div>
@@ -685,15 +685,7 @@
 <script setup lang="ts">
 import { ref, shallowRef, reactive, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import {
-  Image as ImageIcon,
-  Download as DownloadIcon,
-  Clipboard as ClipboardIcon,
-  Check as CheckIcon,
-  ChevronRight as ChevronRightIcon,
-  Save as SaveIcon,
-  LoaderCircle,
-} from "lucide-vue-next";
+import { IconCheck, IconChevronRight, IconClipboard, IconDownload, IconImage, IconLoadingAlt, IconSave } from '@/lib/icons';
 import PageHeader from "@/components/common/PageHeader.vue";
 import { getCurrentUser } from "@/lib/supabase";
 import { toWebP } from "@/lib/mediaConvert";

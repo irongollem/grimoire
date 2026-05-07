@@ -14,7 +14,7 @@
           :title="spotifyStore.isReady ? 'Spotify connected — click to disconnect' : 'Connecting to Spotify…'"
           @click="spotifyStore.isReady ? spotifyStore.disconnect() : undefined"
         >
-          <Music2 class="h-3.5 w-3.5 shrink-0" />
+          <IconMusicNote class="h-3.5 w-3.5 shrink-0" />
           {{ spotifyStore.isReady ? "Spotify" : "Connecting…" }}
         </button>
         <button
@@ -23,14 +23,14 @@
           title="Connect your Spotify account"
           @click="spotifyStore.connect()"
         >
-          <Music2 class="h-3.5 w-3.5 shrink-0" />
+          <IconMusicNote class="h-3.5 w-3.5 shrink-0" />
           Connect Spotify
         </button>
       </template>
 
       <SoundboardWidgetToggle />
       <ListActionButton
-        :icon="Plus"
+        :icon="IconAdd"
         label="Add Sound"
         variant="primary"
         @click="showForm = !showForm"
@@ -106,7 +106,7 @@
             class="drag-handle absolute top-2 left-2 z-10 cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
             title="Drag to reorder"
           >
-            <GripVertical class="h-3.5 w-3.5" />
+            <IconDrag class="h-3.5 w-3.5" />
           </div>
           <SoundCard
             :sound="sound"
@@ -122,7 +122,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from "vue";
-import { Plus, GripVertical, Music2 } from "lucide-vue-next";
+import { IconAdd, IconDrag, IconMusicNote } from '@/lib/icons';
 import { VueDraggable } from "vue-draggable-plus";
 import { useSounds, useDeleteSound, useReorderSounds, useBulkAssignToPage } from "@/composables/useSounds";
 import { useSoundboardPages, useCreateSoundboardPage } from "@/composables/useSoundboardPages";

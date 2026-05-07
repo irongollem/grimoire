@@ -5,7 +5,7 @@
       to="/play/puzzles"
       class="inline-flex items-center gap-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors tracking-wider"
     >
-      <ChevronLeft class="h-3.5 w-3.5" />
+      <IconChevronLeft class="h-3.5 w-3.5" />
       Puzzles
     </RouterLink>
 
@@ -17,8 +17,8 @@
       v-else-if="!puzzle || !puzzle.is_shared"
       class="text-center py-16 space-y-3"
     >
-      <Puzzle class="h-10 w-10 text-muted-foreground/30 mx-auto" />
-      <p class="font-cinzel text-sm text-muted-foreground">Puzzle not found.</p>
+      <IconPuzzle class="h-10 w-10 text-muted-foreground/30 mx-auto" />
+      <p class="font-cinzel text-sm text-muted-foreground">IconPuzzle not found.</p>
     </div>
 
     <template v-else>
@@ -106,7 +106,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink, useRoute } from "vue-router";
-import { ChevronLeft, Puzzle } from "lucide-vue-next";
+import { IconChevronLeft, IconPuzzle } from '@/lib/icons';
 import { usePuzzle, usePuzzleRealtime } from "@/composables/usePuzzles";
 import { PUZZLE_TYPE_COLORS, PUZZLE_DIFFICULTY_COLORS } from "@/types/puzzle.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

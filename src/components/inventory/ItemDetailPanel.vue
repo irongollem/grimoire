@@ -17,7 +17,7 @@
                 @click="emit('unequip')"
               >Unequip</button>
               <button class="text-muted-foreground hover:text-foreground" @click="$emit('close')">
-                <X class="h-5 w-5" />
+                <IconClose class="h-5 w-5" />
               </button>
             </div>
           </div>
@@ -138,12 +138,12 @@
               class="h-7 w-7 rounded-md border border-border flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-40"
               :disabled="inv.quantity <= 1"
               @click="adjustQty(-1)"
-            ><Minus class="h-3.5 w-3.5" /></button>
+            ><IconMinus class="h-3.5 w-3.5" /></button>
             <span class="font-cinzel text-base font-bold text-foreground min-w-8 text-center">{{ inv.quantity }}</span>
             <button
               class="h-7 w-7 rounded-md border border-border flex items-center justify-center hover:bg-muted transition-colors"
               @click="adjustQty(1)"
-            ><Plus class="h-3.5 w-3.5" /></button>
+            ><IconAdd class="h-3.5 w-3.5" /></button>
           </div>
         </div>
 
@@ -210,7 +210,7 @@
                 :title="castButtonTitle"
                 @click="castFromItem(spell)"
               >
-                <Wand2 class="h-3 w-3" />
+                <IconWand class="h-3 w-3" />
                 Cast
               </button>
             </div>
@@ -281,8 +281,8 @@
                 : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'"
               @click="toggleCurseReveal"
             >
-              <Eye v-if="inv.curse_revealed" class="h-3 w-3" />
-              <EyeOff v-else class="h-3 w-3" />
+              <IconReveal v-if="inv.curse_revealed" class="h-3 w-3" />
+              <IconHide v-else class="h-3 w-3" />
               {{ inv.curse_revealed ? 'Revealed to players' : 'Hidden from players' }}
             </button>
           </div>
@@ -296,7 +296,7 @@
             class="flex items-center gap-1.5 font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors"
             @click="openSell"
           >
-            <ShoppingBag class="h-3.5 w-3.5" />
+            <IconShop class="h-3.5 w-3.5" />
             List for Sale
           </button>
           <div v-else class="space-y-2">
@@ -334,7 +334,7 @@
 
 <script setup lang="ts">
 import { computed, ref, reactive, watch } from "vue";
-import { X, Plus, Minus, ShoppingBag, Eye, EyeOff, Wand2 } from "lucide-vue-next";
+import { IconAdd, IconClose, IconHide, IconMinus, IconReveal, IconShop, IconWand } from '@/lib/icons';
 import { useQuery } from "@tanstack/vue-query";
 import { COINS, type CoinKey, parseCoinText } from "@/lib/currency";
 import FocalImage from "@/components/common/FocalImage.vue";
@@ -538,7 +538,6 @@ const castButtonTitle = computed(() => {
 });
 
 const isCasting = ref(false);
-
 
 async function castFromItem(spell: Spell) {
   if (!props.inv || !canCastSpell.value || isCasting.value) return;

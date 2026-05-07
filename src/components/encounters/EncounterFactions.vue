@@ -9,7 +9,7 @@
         class="inline-flex items-center gap-1 font-cinzel text-xs text-primary hover:opacity-80 transition-opacity"
         @click="addCustomFaction"
       >
-        <Plus class="h-3.5 w-3.5" />
+        <IconAdd class="h-3.5 w-3.5" />
         Add Custom
       </button>
     </div>
@@ -55,7 +55,7 @@
             class="text-muted-foreground hover:text-destructive transition-colors"
             @click="removeCustomFaction(faction.id)"
           >
-            <X class="h-3.5 w-3.5" />
+            <IconClose class="h-3.5 w-3.5" />
           </button>
         </div>
 
@@ -87,7 +87,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { Plus, X } from "lucide-vue-next";
+import { IconAdd, IconClose } from '@/lib/icons';
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import type { FactionDef } from "@/types/encounter.types";
 

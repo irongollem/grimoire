@@ -13,7 +13,7 @@
 
       <!-- In-game today date -->
       <span class="hidden md:inline-flex items-center gap-1 font-fell text-sm text-muted-foreground italic shrink-0">
-        <CalendarDays class="h-3 w-3 text-primary shrink-0" />
+        <IconCalendarDays class="h-3 w-3 text-primary shrink-0" />
         {{ todayLabel }}
       </span>
 
@@ -58,7 +58,7 @@
         title="Open chat"
         @click="ui.toggleChat()"
       >
-        <MessageCircle class="h-4 w-4" />
+        <IconMessage class="h-4 w-4" />
         <span v-if="ui.chatHasUnread" class="absolute top-0.5 right-0.5 h-2 w-2 rounded-full bg-destructive" />
       </button>
 
@@ -66,10 +66,10 @@
       <div class="relative">
         <button
           class="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
-          title="Menu"
+          title="IconMenu"
           @click="showMenu = !showMenu"
         >
-          <Menu class="h-4 w-4" />
+          <IconMenu class="h-4 w-4" />
         </button>
       </div>
     </header>
@@ -79,7 +79,7 @@
       v-if="ui.dmPreviewMode"
       class="bg-amber-500 px-4 py-2 flex items-center gap-3 shrink-0"
     >
-      <Eye class="h-3.5 w-3.5 text-black/70 shrink-0" />
+      <IconReveal class="h-3.5 w-3.5 text-black/70 shrink-0" />
       <span class="font-cinzel text-xs text-black font-semibold tracking-wider shrink-0">DM Preview — viewing as:</span>
       <select
         :value="ui.dmPreviewPartyMemberId ?? ''"
@@ -109,31 +109,30 @@
           class="md:hidden rounded-lg border border-green-500/40 bg-card shadow-xl px-4 py-3 flex items-start gap-3"
           @click="encounterLiveToast = false"
         >
-          <Swords class="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
+          <IconEncounter class="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
           <div class="flex-1 min-w-0">
             <p class="font-cinzel text-xs font-semibold text-green-400 tracking-wider">Encounter Started!</p>
             <p class="font-fell text-sm text-foreground mt-0.5">Your DM has started a live encounter. Tap to join.</p>
           </div>
           <button class="text-muted-foreground hover:text-foreground transition-colors shrink-0" @click.prevent="encounterLiveToast = false">
-            <X class="h-3.5 w-3.5" />
+            <IconClose class="h-3.5 w-3.5" />
           </button>
         </RouterLink>
         <!-- Tablet+: tap dismisses (panel already opened automatically) -->
         <div
           class="hidden md:flex rounded-lg border border-green-500/40 bg-card shadow-xl px-4 py-3 items-start gap-3"
         >
-          <Swords class="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
+          <IconEncounter class="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
           <div class="flex-1 min-w-0">
             <p class="font-cinzel text-xs font-semibold text-green-400 tracking-wider">Encounter Started!</p>
             <p class="font-fell text-sm text-foreground mt-0.5">Live encounter panel opened on the left.</p>
           </div>
           <button class="text-muted-foreground hover:text-foreground transition-colors shrink-0" @click="encounterLiveToast = false">
-            <X class="h-3.5 w-3.5" />
+            <IconClose class="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
     </Transition>
-
 
     <!-- Content + sidebars — reserve space above the fixed bottom nav,
          extending into the home-indicator safe area so the nav and gesture bar
@@ -204,7 +203,7 @@
           :class="showMore ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
           @click="showMore = true"
         >
-          <LayoutGrid class="h-5 w-5 shrink-0" />
+          <IconGridView class="h-5 w-5 shrink-0" />
           <span class="font-cinzel text-2xs md:text-xs tracking-wider">More</span>
         </button>
 
@@ -226,23 +225,23 @@
           class="flex items-center gap-2.5 px-4 py-3 font-cinzel text-xs font-semibold text-foreground hover:bg-muted transition-colors"
           @click="showMenu = false"
         >
-          <Settings class="h-4 w-4" />
-          Settings
+          <IconSettingsAlt class="h-4 w-4" />
+          IconSettingsAlt
         </RouterLink>
         <button
           type="button"
           class="w-full flex items-center gap-2.5 px-4 py-3 font-cinzel text-xs font-semibold text-foreground hover:bg-muted transition-colors"
           @click="showMenu = false; bugReportOpen = true"
         >
-          <Bug class="h-4 w-4" />
-          Report a Bug
+          <IconBug class="h-4 w-4" />
+          Report a IconBug
         </button>
         <button
           type="button"
           class="w-full flex items-center gap-2.5 px-4 py-3 font-cinzel text-xs font-semibold text-destructive hover:bg-muted transition-colors"
           @click="showMenu = false; handleSignOut()"
         >
-          <LogOut class="h-4 w-4" />
+          <IconLogOut class="h-4 w-4" />
           Sign Out
         </button>
       </div>
@@ -286,7 +285,7 @@
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
-import { LogOut, X, Eye, LayoutGrid, Swords, Bug, MessageCircle, Menu, Settings, CalendarDays } from "lucide-vue-next";
+import { IconBug, IconCalendarDays, IconClose, IconEncounter, IconGridView, IconLogOut, IconMenu, IconMessage, IconReveal, IconSettingsAlt } from '@/lib/icons';
 import { useCalendarStore } from "@/stores/calendar";
 import DiceRoller from "@/components/common/DiceRoller.vue";
 import { useRunningEncounters, usePlayerEncounterLive } from "@/composables/useEncounterLive";
@@ -392,7 +391,6 @@ watch([runningLoaded, anyRunning], ([loaded, isRunning], oldVals) => {
     setTimeout(() => { encounterLiveToast.value = false; }, 6000);
   }
 }, { immediate: true });
-
 
 const campaignName = computed(() => campaign.activeCampaign?.name ?? "Campaign");
 

@@ -7,7 +7,7 @@
     </div>
 
     <div v-else-if="!notes?.length" class="text-center py-12">
-      <BookOpen class="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+      <IconPopulate class="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
       <p class="font-fell text-muted-foreground italic">No notes shared by your DM yet.</p>
     </div>
 
@@ -20,7 +20,7 @@
       >
         <!-- Header -->
         <div class="flex items-center gap-3 px-4 py-3 cursor-pointer select-none">
-          <Pin v-if="note.is_pinned" class="h-3.5 w-3.5 text-primary shrink-0" />
+          <IconPin v-if="note.is_pinned" class="h-3.5 w-3.5 text-primary shrink-0" />
           <span v-if="isNew(note.id, note.updated_at)" class="h-2.5 w-2.5 rounded-full bg-destructive shrink-0" title="New" />
           <div class="flex-1 min-w-0">
             <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ note.title }}</p>
@@ -36,7 +36,7 @@
               class="font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded bg-muted text-muted-foreground tracking-wider"
             >{{ tag }}</span>
           </div>
-          <ChevronDown
+          <IconChevronDown
             class="h-4 w-4 text-muted-foreground shrink-0 transition-transform"
             :class="selected === note.id ? 'rotate-180' : ''"
           />
@@ -53,7 +53,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { BookOpen, Pin, ChevronDown } from "lucide-vue-next";
+import { IconChevronDown, IconPin, IconPopulate } from '@/lib/icons';
 import { useNotes } from "@/composables/useNotes";
 import { useReadItems, useMarkRead } from "@/composables/useReadItems";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

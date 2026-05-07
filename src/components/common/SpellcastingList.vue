@@ -13,7 +13,7 @@
       class="group"
     >
       <summary class="flex items-center gap-1 cursor-pointer list-none text-[15px] text-primary font-semibold select-none py-0.5">
-        <ChevronRight class="h-3.5 w-3.5 transition-transform group-open:rotate-90 shrink-0" />
+        <IconChevronRight class="h-3.5 w-3.5 transition-transform group-open:rotate-90 shrink-0" />
         {{ levelGroupLabel(level) }}
         <span class="ml-1 font-normal text-muted-foreground text-[13px]">({{ items.length }})</span>
       </summary>
@@ -55,7 +55,7 @@
               class="text-muted-foreground hover:text-foreground transition-colors"
               @click="modalSpell = null"
             >
-              <XIcon class="h-4 w-4" />
+              <IconClose class="h-4 w-4" />
             </button>
           </div>
           <div class="overflow-y-auto p-4">
@@ -69,7 +69,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { ChevronRight, XIcon } from "lucide-vue-next";
+import { IconChevronRight, IconClose } from '@/lib/icons';
 import { useSpells } from "@/composables/useSpells";
 import SpellSheet from "@/components/spells/SpellSheet.vue";
 import type { SpellcastingBlock } from "@/types/npc.types";

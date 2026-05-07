@@ -18,7 +18,7 @@
           class="flex items-center gap-2 px-3 py-2 border-b border-border cursor-grab active:cursor-grabbing"
           @pointerdown="startDrag"
         >
-          <Music2 class="h-3.5 w-3.5 text-gold-400 shrink-0" />
+          <IconMusicNote class="h-3.5 w-3.5 text-gold-400 shrink-0" />
           <span class="font-cinzel text-xs font-semibold text-foreground flex-1 tracking-wide">Soundboard</span>
           <button
             v-if="store.playingCount > 0 || spotifyStore.isPlaying"
@@ -32,7 +32,7 @@
             class="text-muted-foreground hover:text-foreground transition-colors p-0.5"
             @click="store.toggleWidget()"
           >
-            <X class="h-3.5 w-3.5" />
+            <IconClose class="h-3.5 w-3.5" />
           </button>
         </div>
 
@@ -68,28 +68,28 @@
                 :value="spotifyStore.volume"
                 @input="spotifyStore.setVolume(+($event.target as HTMLInputElement).value)"
               />
-              <!-- Prev / Play·Pause / Next -->
+              <!-- Prev / IconPlay·IconPause / Next -->
               <button
                 class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
                 title="Previous track"
                 @click="spotifyStore.previousTrack()"
               >
-                <SkipBack class="h-3 w-3" />
+                <IconSkipBack class="h-3 w-3" />
               </button>
               <button
                 class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                :title="spotifyStore.isPlaying ? 'Pause' : 'Resume'"
+                :title="spotifyStore.isPlaying ? 'IconPause' : 'Resume'"
                 @click="spotifyStore.isPlaying ? spotifyStore.pause() : spotifyStore.resume()"
               >
-                <Pause v-if="spotifyStore.isPlaying" class="h-3 w-3" />
-                <Play v-else class="h-3 w-3" />
+                <IconPause v-if="spotifyStore.isPlaying" class="h-3 w-3" />
+                <IconPlay v-else class="h-3 w-3" />
               </button>
               <button
                 class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
                 title="Next track"
                 @click="spotifyStore.nextTrack()"
               >
-                <SkipForward class="h-3 w-3" />
+                <IconSkipForward class="h-3 w-3" />
               </button>
             </div>
 
@@ -107,24 +107,24 @@
               <span class="font-fell text-[9px] text-muted-foreground tabular-nums">
                 {{ formatSpotifyTime(spotifyStore.durationMs) }}
               </span>
-              <!-- Repeat -->
+              <!-- IconRepeat -->
               <button
                 class="shrink-0 transition-all opacity-0 group-hover/spotify:opacity-100"
                 :class="spotifyStore.repeatMode > 0 ? 'text-green-500' : 'text-muted-foreground hover:text-foreground'"
                 :title="repeatTitle"
                 @click="cycleRepeat"
               >
-                <Repeat1 v-if="spotifyStore.repeatMode === 2" class="h-2.5 w-2.5" />
-                <Repeat v-else class="h-2.5 w-2.5" />
+                <IconRepeatOne v-if="spotifyStore.repeatMode === 2" class="h-2.5 w-2.5" />
+                <IconRepeat v-else class="h-2.5 w-2.5" />
               </button>
-              <!-- Shuffle -->
+              <!-- IconShuffle -->
               <button
                 class="shrink-0 transition-all opacity-0 group-hover/spotify:opacity-100"
                 :class="spotifyStore.shuffleOn ? 'text-green-500' : 'text-muted-foreground hover:text-foreground'"
-                title="Shuffle"
+                title="IconShuffle"
                 @click="spotifyStore.setShuffle(!spotifyStore.shuffleOn)"
               >
-                <Shuffle class="h-2.5 w-2.5" />
+                <IconShuffle class="h-2.5 w-2.5" />
               </button>
             </div>
           </div>
@@ -141,7 +141,7 @@
               </span>
             </p>
             <button class="shrink-0 text-muted-foreground hover:text-foreground" @click="spotifyStore.playError = null">
-              <X class="h-3 w-3" />
+              <IconClose class="h-3 w-3" />
             </button>
           </div>
 
@@ -169,7 +169,7 @@
                 title="Stop"
                 @click="store.stop(sound.id)"
               >
-                <Square class="h-3 w-3" />
+                <IconStop class="h-3 w-3" />
               </button>
             </div>
           </template>
@@ -179,7 +179,7 @@
             v-if="playingSounds.length === 0 && !spotifyStore.isPlaying"
             class="py-6 text-center"
           >
-            <VolumeX class="h-6 w-6 text-muted-foreground/40 mx-auto mb-1.5" />
+            <IconMute class="h-6 w-6 text-muted-foreground/40 mx-auto mb-1.5" />
             <p class="font-fell text-xs text-muted-foreground italic">No sounds playing</p>
             <RouterLink
               to="/soundboard"
@@ -197,7 +197,7 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, nextTick } from "vue";
-import { Music2, X, Square, Pause, Play, SkipBack, SkipForward, VolumeX, Repeat, Repeat1, Shuffle } from "lucide-vue-next";
+import { IconClose, IconMusicNote, IconMute, IconPause, IconPlay, IconRepeat, IconRepeatOne, IconShuffle, IconSkipBack, IconSkipForward, IconStop } from '@/lib/icons';
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useSounds } from "@/composables/useSounds";
@@ -276,9 +276,9 @@ function formatSpotifyTime(ms: number): string {
 }
 
 const repeatTitle = computed(() => {
-  if (spotifyStore.repeatMode === 2) return "Repeat: Track";
-  if (spotifyStore.repeatMode === 1) return "Repeat: Context";
-  return "Repeat: Off";
+  if (spotifyStore.repeatMode === 2) return "IconRepeat: Track";
+  if (spotifyStore.repeatMode === 1) return "IconRepeat: Context";
+  return "IconRepeat: Off";
 });
 
 function cycleRepeat() {

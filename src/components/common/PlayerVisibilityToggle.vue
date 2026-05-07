@@ -9,8 +9,8 @@
         : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'"
       @click="toggleOpen()"
     >
-      <Eye v-if="isShared" class="h-3.5 w-3.5" />
-      <EyeOff v-else class="h-3.5 w-3.5" />
+      <IconReveal v-if="isShared" class="h-3.5 w-3.5" />
+      <IconHide v-else class="h-3.5 w-3.5" />
     </button>
 
     <!-- Popover -->
@@ -34,7 +34,7 @@
             : 'border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'"
           @click="toggleAll"
         >
-          <Users class="h-3.5 w-3.5 shrink-0" />
+          <IconParty class="h-3.5 w-3.5 shrink-0" />
           All players
           <span
             v-if="allSelected"
@@ -60,7 +60,7 @@
             class="h-3.5 w-3.5 shrink-0 rounded-sm border flex items-center justify-center transition-colors"
             :class="isMemberSelected(member.id) ? 'bg-primary border-primary' : 'border-border'"
           >
-            <Check v-if="isMemberSelected(member.id)" class="h-2.5 w-2.5 text-primary-foreground" />
+            <IconCheck v-if="isMemberSelected(member.id)" class="h-2.5 w-2.5 text-primary-foreground" />
           </span>
           <span class="truncate">{{ member.name }}</span>
         </button>
@@ -82,7 +82,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from "vue";
-import { Eye, EyeOff, Users, Check } from "lucide-vue-next";
+import { IconCheck, IconHide, IconParty, IconReveal } from '@/lib/icons';
 import { useParty } from "@/composables/useParty";
 
 const props = defineProps<{

@@ -32,7 +32,7 @@
           class="page-drag-handle cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground/60 pr-0.5 [@media(hover:hover)]:opacity-0 group-hover/tab:opacity-100 transition-opacity"
           title="Drag to reorder"
         >
-          <GripVertical class="h-3 w-3" />
+          <IconDrag class="h-3 w-3" />
         </div>
 
         <!-- Tab button or inline rename input -->
@@ -67,7 +67,7 @@
           title="Delete page"
           @click.stop="deletePage(page.id)"
         >
-          <X class="h-2.5 w-2.5" />
+          <IconClose class="h-2.5 w-2.5" />
         </button>
       </div>
     </VueDraggable>
@@ -78,7 +78,7 @@
       title="Add page"
       @click="addPage"
     >
-      <Plus class="h-3 w-3" />
+      <IconAdd class="h-3 w-3" />
       Add Page
     </button>
   </div>
@@ -86,7 +86,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick } from "vue";
-import { Plus, X, GripVertical } from "lucide-vue-next";
+import { IconAdd, IconClose, IconDrag } from '@/lib/icons';
 import { VueDraggable } from "vue-draggable-plus";
 import {
   useCreateSoundboardPage,

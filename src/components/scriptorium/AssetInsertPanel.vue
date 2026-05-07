@@ -17,7 +17,7 @@
             class="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             @click="$emit('close')"
           >
-            <X class="h-4 w-4" />
+            <IconClose class="h-4 w-4" />
           </button>
         </div>
 
@@ -123,7 +123,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { X, Users, Skull, Sparkles, MapPin } from "lucide-vue-next";
+import { IconClose, IconGenerate, IconLocation, IconMonster, IconParty } from '@/lib/icons';
 import type { Editor } from "@tiptap/core";
 import { useNpcs } from "@/composables/useNpcs";
 import { useMonsters } from "@/composables/useMonsters";
@@ -167,10 +167,10 @@ const emit = defineEmits<{ close: [] }>();
 
 type TabKey = "npcs" | "monsters" | "spells" | "locations";
 const TABS = [
-  { key: "npcs" as TabKey, label: "NPCs", icon: Users },
-  { key: "monsters" as TabKey, label: "Monsters", icon: Skull },
-  { key: "spells" as TabKey, label: "Spells", icon: Sparkles },
-  { key: "locations" as TabKey, label: "Locations", icon: MapPin },
+  { key: "npcs" as TabKey, label: "NPCs", icon: IconParty },
+  { key: "monsters" as TabKey, label: "Monsters", icon: IconMonster },
+  { key: "spells" as TabKey, label: "Spells", icon: IconGenerate },
+  { key: "locations" as TabKey, label: "Locations", icon: IconLocation },
 ];
 
 const activeTab = ref<TabKey>("npcs");

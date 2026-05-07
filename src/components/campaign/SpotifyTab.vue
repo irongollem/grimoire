@@ -27,15 +27,15 @@
           <button
             type="button"
             class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-            :title="copied ? 'Copied!' : 'Copy'"
+            :title="copied ? 'Copied!' : 'IconCopy'"
             @click="copyRedirectUri"
           >
-            <Check v-if="copied" class="h-3.5 w-3.5 text-green-400" />
-            <Copy v-else class="h-3.5 w-3.5" />
+            <IconCheck v-if="copied" class="h-3.5 w-3.5 text-green-400" />
+            <IconCopy v-else class="h-3.5 w-3.5" />
           </button>
         </div>
         <p class="font-fell text-xs text-muted-foreground italic">
-          3. Copy your Client ID below and save.
+          3. IconCopy your Client ID below and save.
         </p>
       </div>
     </div>
@@ -63,8 +63,8 @@
             class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
             @click="showId = !showId"
           >
-            <Eye v-if="!showId" class="h-4 w-4" />
-            <EyeOff v-else class="h-4 w-4" />
+            <IconReveal v-if="!showId" class="h-4 w-4" />
+            <IconHide v-else class="h-4 w-4" />
           </button>
         </div>
 
@@ -112,7 +112,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { Eye, EyeOff, Copy, Check } from "lucide-vue-next";
+import { IconCheck, IconCopy, IconHide, IconReveal } from '@/lib/icons';
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/useCampaigns";
 import { useSpotifyStore } from "@/stores/spotify";

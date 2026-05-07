@@ -300,7 +300,7 @@
             @click="!readOnly && emit('edit-event', pe.event)"
           >
             <component
-              :is="EVENT_ICONS[pe.event.event_type] ?? Star"
+              :is="EVENT_ICONS[pe.event.event_type] ?? IconStar"
               class="w-2.5 h-2.5 text-white"
             />
           </div>
@@ -401,18 +401,7 @@ import { useCalendarEventsRange } from "@/composables/useCalendarEvents";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import { eventColor } from "@/types/calendar.types";
 import type { CalendarEvent } from "@/types/calendar.types";
-import {
-  Star,
-  Swords,
-  Globe2,
-  Sparkles,
-  Clock,
-  Skull,
-  Flame,
-  Eye,
-  Ghost,
-  Map,
-} from "lucide-vue-next";
+import { IconClock, IconEncounter, IconFire, IconGenerate, IconGlobe, IconMap, IconMonster, IconReveal, IconStar, IconUndead } from '@/lib/icons';
 
 const AXIS_PADDING = 60; // px padding left + right
 const LANE_HEIGHT = 30; // px between stacked event lanes
@@ -421,16 +410,16 @@ const SESSION_STRIP_Y = 280;
 const SESSION_STRIP_HEIGHT = 22;
 
 const EVENT_ICONS: Record<string, Component> = {
-  campaign: Star,
-  session: Swords,
-  world: Globe2,
-  festival: Sparkles,
-  deadline: Clock,
-  player_death: Skull,
-  boss_fight: Flame,
-  discovery: Eye,
-  npc_death: Ghost,
-  travel: Map,
+  campaign: IconStar,
+  session: IconEncounter,
+  world: IconGlobe,
+  festival: IconGenerate,
+  deadline: IconClock,
+  player_death: IconMonster,
+  boss_fight: IconFire,
+  discovery: IconReveal,
+  npc_death: IconUndead,
+  travel: IconMap,
 };
 
 const ZOOM_PRESETS = computed(() => [

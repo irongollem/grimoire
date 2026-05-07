@@ -12,7 +12,7 @@
           <!-- Header -->
           <div class="flex items-center gap-3 px-5 pt-5 pb-3 border-b border-border">
             <div class="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-violet-500/15 text-violet-400">
-              <Sparkles class="h-4.5 w-4.5" />
+              <IconGenerate class="h-4.5 w-4.5" />
             </div>
             <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">Add Innate Spell</h2>
           </div>
@@ -24,11 +24,11 @@
             <div class="space-y-1">
               <label class="font-cinzel text-xs text-muted-foreground tracking-wider">SPELL</label>
               <div class="relative">
-                <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                 <input
                   v-model="spellSearch"
                   type="text"
-                  placeholder="Search by name…"
+                  placeholder="IconSearch by name…"
                   class="w-full bg-muted/30 border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                   @input="selectedSpell = null"
                 />
@@ -42,7 +42,7 @@
                 <button type="button" class="text-muted-foreground hover:text-foreground" @click="clearSpell">×</button>
               </div>
 
-              <!-- Search results -->
+              <!-- IconSearch results -->
               <div
                 v-else-if="(searchResults?.length ?? 0) > 0 && spellSearch.length >= 2"
                 class="max-h-40 overflow-y-auto rounded-md border border-border bg-card divide-y divide-border"
@@ -165,7 +165,7 @@
 import { ref, watch } from "vue";
 import { refDebounced } from "@vueuse/core";
 import { useQuery } from "@tanstack/vue-query";
-import { Search, Sparkles } from "lucide-vue-next";
+import { IconGenerate, IconSearch } from '@/lib/icons';
 import { supabase } from "@/lib/supabase";
 import { useAddInnateSpell } from "@/composables/useCharacterSpells";
 import { SCHOOL_COLORS } from "@/types/spell.types";

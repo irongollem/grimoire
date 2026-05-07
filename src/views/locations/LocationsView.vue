@@ -5,24 +5,24 @@
   >
     <template #actions>
       <ListActionButton
-        :icon="planarMutation.isPending.value ? Loader2 : Globe"
+        :icon="planarMutation.isPending.value ? IconLoading : IconFaction"
         :label="planarStatusLabel"
         :disabled="planarMutation.isPending.value"
         @click="handlePopulatePlanes"
       />
       <ListActionButton
-        :icon="populateMutation.isPending.value ? Loader2 : MapPin"
+        :icon="populateMutation.isPending.value ? IconLoading : IconPopulate"
         :label="populateStatusLabel"
         :disabled="populateMutation.isPending.value"
         @click="handlePopulate"
       />
       <ListActionButton
-        :icon="Sparkles"
+        :icon="IconGenerate"
         label="Generate"
         @click="ui.locationGeneratorOpen = true"
       />
       <ListActionButton
-        :icon="Plus"
+        :icon="IconAdd"
         label="New Location"
         mobile-label="Location"
         variant="primary"
@@ -45,7 +45,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Plus, Loader2, MapPin, Globe, Sparkles } from "lucide-vue-next";
+import { IconAdd, IconFaction, IconGenerate, IconLoading, IconPopulate } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";

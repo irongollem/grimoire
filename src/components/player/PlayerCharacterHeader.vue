@@ -32,7 +32,7 @@
                 :class="member.inspiration ? 'text-gold-500' : 'text-muted-foreground/30 hover:text-muted-foreground/60'"
                 title="Inspiration"
                 @click="toggleInspiration"
-              ><Star class="h-3.5 w-3.5" :class="member.inspiration ? 'fill-gold-500' : ''" /></button>
+              ><IconStar class="h-3.5 w-3.5" :class="member.inspiration ? 'fill-gold-500' : ''" /></button>
             </div>
             <p class="font-fell text-xs text-muted-foreground italic">
               <template v-if="wildshape">🐺 {{ member.name }}</template>
@@ -169,7 +169,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick } from "vue";
 import { RouterLink } from "vue-router";
-import { Star } from "lucide-vue-next";
+import { IconStar } from '@/lib/icons';
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useClassByName } from "@/composables/useCustomClasses";
 import { useCharacterClasses } from "@/composables/useCharacterClasses";

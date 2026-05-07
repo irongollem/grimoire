@@ -8,7 +8,7 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
         @click="deleteFeature"
       >
-        <Trash2 class="h-3.5 w-3.5" />
+        <IconDelete class="h-3.5 w-3.5" />
         Delete
       </button>
       <button
@@ -25,8 +25,8 @@
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
         @click="save"
       >
-        <Save class="h-3.5 w-3.5" />
-        {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
+        <IconSave class="h-3.5 w-3.5" />
+        {{ saving ? "Saving…" : isNew ? "Create" : "IconSave" }}
       </button>
     </div>
 
@@ -158,7 +158,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { Save, Trash2 } from "lucide-vue-next";
+import { IconDelete, IconSave } from '@/lib/icons';
 import {
   useCreateDungeonFeature,
   useUpdateDungeonFeature,

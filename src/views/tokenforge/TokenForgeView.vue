@@ -57,8 +57,8 @@
                 class="w-full bg-transparent border-b border-border px-1 py-1 font-cinzel text-sm font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
               />
               <label class="inline-flex items-center gap-2 cursor-pointer font-cinzel text-[11px] tracking-wider text-muted-foreground hover:text-foreground transition-colors">
-                <Upload class="h-3 w-3 shrink-0" />
-                {{ customImageUrl ? 'Change image' : 'Upload image (optional)' }}
+                <IconUpload class="h-3 w-3 shrink-0" />
+                {{ customImageUrl ? 'Change image' : 'IconUpload image (optional)' }}
                 <input type="file" accept="image/*" class="sr-only" @change="onCustomImagePick" />
               </label>
               <button
@@ -217,8 +217,8 @@
               class="flex-1 inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
               @click="downloadPng"
             >
-              <Download class="h-3.5 w-3.5" />
-              Download PNG
+              <IconDownload class="h-3.5 w-3.5" />
+              IconDownload PNG
             </button>
             <button
               v-if="canCopyToClipboard"
@@ -226,17 +226,17 @@
               class="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2.5 font-cinzel text-xs font-semibold text-muted-foreground tracking-wider hover:text-foreground hover:border-foreground/30 transition-colors"
               @click="copyToClipboard"
             >
-              <Copy class="h-3.5 w-3.5" />
-              Copy
+              <IconCopy class="h-3.5 w-3.5" />
+              IconCopy
             </button>
           </div>
 
           <!-- VTT hint -->
           <div class="rounded-md bg-muted/40 border border-border px-3 py-2.5 flex gap-2.5 items-start">
-            <Info class="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+            <IconInfo class="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
             <p class="font-fell text-xs text-muted-foreground leading-relaxed">
-              Upload the PNG to your VTT — <strong>Roll20</strong>: My Library → Upload,
-              <strong>Foundry VTT</strong>: Filepicker → Upload, <strong>Owlbear Rodeo</strong>: Image drop.
+              IconUpload the PNG to your VTT — <strong>Roll20</strong>: My Library → IconUpload,
+              <strong>Foundry VTT</strong>: Filepicker → IconUpload, <strong>Owlbear Rodeo</strong>: Image drop.
               280px is standard 1×1 grid size; use 512px for large/huge creatures.
             </p>
           </div>
@@ -257,7 +257,7 @@
           class="lg:col-span-2 flex items-center justify-center rounded-lg border border-dashed border-border bg-card/50 py-20"
         >
           <div class="text-center">
-            <CircleUser class="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
+            <IconUserCircle class="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
             <p class="font-cinzel text-sm text-muted-foreground">Select an entity to forge a token.</p>
             <p class="font-fell text-xs text-muted-foreground/60 italic mt-1">
               Entities with a portrait will use it; others get an initial placeholder.
@@ -506,7 +506,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onUnmounted } from "vue";
-import { Download, Copy, Info, CircleUser, Upload } from "lucide-vue-next";
+import { IconCopy, IconDownload, IconInfo, IconUpload, IconUserCircle } from '@/lib/icons';
 import PageHeader from "@/components/common/PageHeader.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { useParty } from "@/composables/useParty";

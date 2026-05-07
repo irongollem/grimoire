@@ -14,7 +14,7 @@
         class="w-full h-full"
       />
       <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/20">
-        <component :is="fallbackIcon ?? BookMarked" class="h-10 w-10" />
+        <component :is="fallbackIcon ?? IconBookMarked" class="h-10 w-10" />
       </div>
     </div>
     <div class="h-14 px-3 flex items-center gap-2 overflow-hidden">
@@ -33,7 +33,7 @@
 
 <script setup lang="ts">
 import type { Component } from "vue";
-import { BookMarked } from "lucide-vue-next";
+import { IconBookMarked } from '@/lib/icons';
 import FocalImage from "@/components/common/FocalImage.vue";
 
 const { imageUrl, focalPoint, fallbackIcon, title, subtitle, meta, badge, count } = defineProps<{

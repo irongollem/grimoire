@@ -6,16 +6,16 @@
         to="/npcs"
         class="inline-flex items-center gap-1 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
       >
-        <ChevronLeft class="h-3.5 w-3.5" />
+        <IconChevronLeft class="h-3.5 w-3.5" />
         NPCs
       </RouterLink>
       <span class="text-border">|</span>
       <h1 class="font-cinzel text-sm font-bold tracking-wider text-foreground">Relationship Web</h1>
 
       <div class="ml-auto flex items-center gap-2 flex-wrap">
-        <!-- Search -->
+        <!-- IconSearch -->
         <div class="relative">
-          <Search class="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          <IconSearch class="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <input
             v-model="searchQuery"
             type="text"
@@ -33,7 +33,7 @@
             : 'border-border text-muted-foreground hover:text-foreground'"
           @click="showPcs = !showPcs"
         >
-          <Shield class="h-3 w-3" />
+          <IconShield class="h-3 w-3" />
           Party Members
         </button>
 
@@ -77,7 +77,7 @@
         <LoadingSpinner />
       </div>
       <div v-else-if="nodeCount === 0" class="absolute inset-0 flex flex-col items-center justify-center gap-2 text-muted-foreground">
-        <Network class="h-10 w-10 opacity-30" />
+        <IconNetwork class="h-10 w-10 opacity-30" />
         <p class="font-cinzel text-sm">No connections recorded yet.</p>
         <p class="font-fell text-xs">Add NPC relationships from any NPC sheet to populate the web.</p>
       </div>
@@ -113,14 +113,14 @@
               <div class="flex items-center justify-between gap-2">
                 <h2 class="font-cinzel text-xs font-bold tracking-wider text-primary uppercase">New Connection</h2>
                 <button type="button" @click="cancelLink" class="text-muted-foreground hover:text-foreground transition-colors">
-                  <X class="h-4 w-4" />
+                  <IconClose class="h-4 w-4" />
                 </button>
               </div>
 
               <!-- The two nodes -->
               <div class="flex items-center gap-2">
                 <span class="flex-1 min-w-0 px-2 py-1.5 rounded-md bg-muted font-cinzel text-xs font-semibold text-foreground truncate text-center">{{ linkLabelA }}</span>
-                <Link2 class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <IconLinkAlt class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 <span class="flex-1 min-w-0 px-2 py-1.5 rounded-md bg-muted font-cinzel text-xs font-semibold text-foreground truncate text-center">{{ linkLabelB }}</span>
               </div>
 
@@ -182,7 +182,7 @@
               <div class="flex items-start justify-between gap-2">
                 <h2 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ panelNpc.name }}</h2>
                 <button type="button" @click="clearSelection" class="text-muted-foreground hover:text-foreground transition-colors shrink-0">
-                  <X class="h-4 w-4" />
+                  <IconClose class="h-4 w-4" />
                 </button>
               </div>
               <div v-if="panelNpc.occupation" class="font-fell text-xs text-muted-foreground">{{ panelNpc.occupation }}</div>
@@ -197,7 +197,7 @@
 
               <!-- Shift-click hint -->
               <div class="flex items-start gap-1.5 px-2.5 py-2 rounded-md bg-muted/60 text-muted-foreground">
-                <Info class="h-3 w-3 shrink-0 mt-0.5" />
+                <IconInfo class="h-3 w-3 shrink-0 mt-0.5" />
                 <p class="font-fell text-[11px] leading-snug">Shift+click another node to define a relationship directly from this panel.</p>
               </div>
 
@@ -251,7 +251,7 @@
                       :style="{ backgroundColor: conn.color + '22', color: conn.color }"
                     >{{ conn.typeLabel }}</span>
                     <span class="font-fell text-foreground truncate flex-1 text-left">{{ conn.name }}</span>
-                    <Pencil class="h-3 w-3 shrink-0 text-muted-foreground [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <IconEdit class="h-3 w-3 shrink-0 text-muted-foreground [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity" />
                   </button>
                 </template>
               </div>
@@ -275,11 +275,11 @@
               <div class="flex items-start justify-between gap-2">
                 <h2 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ panelPc.name }}</h2>
                 <button type="button" @click="clearSelection" class="text-muted-foreground hover:text-foreground transition-colors shrink-0">
-                  <X class="h-4 w-4" />
+                  <IconClose class="h-4 w-4" />
                 </button>
               </div>
               <div class="flex items-center gap-1.5 font-cinzel text-[10px] font-bold tracking-wider text-amber-400">
-                <Shield class="h-3 w-3" />
+                <IconShield class="h-3 w-3" />
                 Party Member
               </div>
               <div v-if="panelPc.class || panelPc.species_id" class="font-fell text-xs text-muted-foreground">
@@ -304,7 +304,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { RouterLink } from "vue-router";
-import { ChevronLeft, Shield, X, Network, Link2, Info, Search, Pencil } from "lucide-vue-next";
+import { IconChevronLeft, IconClose, IconEdit, IconInfo, IconLinkAlt, IconNetwork, IconSearch, IconShield } from '@/lib/icons';
 import { VNetworkGraph, defineConfigs, type EventHandlers } from "v-network-graph";
 import { ForceLayout } from "v-network-graph/lib/force-layout";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

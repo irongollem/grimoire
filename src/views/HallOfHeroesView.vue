@@ -2,13 +2,13 @@
   <ListPageLayout title="Hall of Heroes" description="Iconic characters importable into any campaign">
     <template v-if="isAppAdmin" #actions>
       <ListActionButton
-        :icon="Sparkles"
+        :icon="IconGenerate"
         :label="populateLabel"
         :disabled="populateMutation.isPending.value"
         @click="handlePopulate"
       />
       <ListActionButton
-        :icon="Plus"
+        :icon="IconAdd"
         label="New Hero"
         mobile-label="Hero"
         variant="primary"
@@ -43,7 +43,7 @@
         to="/hall-of-heroes/new"
         class="mt-4 inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-primary-foreground hover:opacity-90 transition-opacity"
       >
-        <Plus class="h-3.5 w-3.5" />
+        <IconAdd class="h-3.5 w-3.5" />
         Add Hero
       </RouterLink>
     </EmptyState>
@@ -123,7 +123,7 @@
               class="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               title="Edit"
             >
-              <Pencil class="h-3.5 w-3.5" />
+              <IconEdit class="h-3.5 w-3.5" />
             </RouterLink>
             <button
               type="button"
@@ -131,7 +131,7 @@
               title="Delete"
               @click="handleDelete(hero)"
             >
-              <Trash2 class="h-3.5 w-3.5" />
+              <IconDelete class="h-3.5 w-3.5" />
             </button>
           </template>
         </div>
@@ -149,7 +149,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { Plus, Pencil, Trash2, Sparkles } from "lucide-vue-next";
+import { IconAdd, IconDelete, IconEdit, IconGenerate } from '@/lib/icons';
 import { useHallOfHeroes, useDeleteHero, useImportHero, usePopulateAllSettingHeroes } from "@/composables/useHallOfHeroes";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";

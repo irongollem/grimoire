@@ -6,7 +6,7 @@
         :to="`/hall-of-heroes/${hero.id}/edit`"
         class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
       >
-        <Pencil class="h-3.5 w-3.5" />
+        <IconEdit class="h-3.5 w-3.5" />
         Edit
       </RouterLink>
       <button
@@ -16,7 +16,7 @@
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold tracking-wider text-primary-foreground hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
         @click="handleImport"
       >
-        <Plus class="h-3.5 w-3.5" />
+        <IconAdd class="h-3.5 w-3.5" />
         {{ isImporting ? "Adding…" : "Add to Campaign" }}
       </button>
     </template>
@@ -168,7 +168,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { Pencil, Plus } from "lucide-vue-next";
+import { IconAdd, IconEdit } from '@/lib/icons';
 import { useHallOfHero, useImportHero } from "@/composables/useHallOfHeroes";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";

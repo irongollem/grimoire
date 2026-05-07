@@ -1,13 +1,13 @@
 <template>
   <div ref="containerRef" class="relative">
-    <!-- Search input -->
+    <!-- IconSearch input -->
     <div class="relative">
-      <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+      <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
       <input
         ref="inputRef"
         v-model="query"
         type="text"
-        placeholder="Search…"
+        placeholder="IconSearch…"
         class="w-full pl-7 pr-7 py-1.5 rounded-md bg-background border border-border text-sm font-fell text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 transition-colors"
         @focus="open = true"
         @keydown.escape="close"
@@ -21,7 +21,7 @@
         tabindex="-1"
         @click="clear"
       >
-        <X class="h-3.5 w-3.5" />
+        <IconClose class="h-3.5 w-3.5" />
       </button>
     </div>
 
@@ -32,7 +32,7 @@
     >
       <!-- Loading -->
       <div v-if="isFetching" class="px-3 py-2 text-xs text-muted-foreground font-fell flex items-center gap-2">
-        <Loader2 class="h-3.5 w-3.5 animate-spin" />
+        <IconLoading class="h-3.5 w-3.5 animate-spin" />
         Searching…
       </div>
 
@@ -72,7 +72,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
-import { Search, X, Loader2 } from "lucide-vue-next";
+import { IconClose, IconLoading, IconSearch } from '@/lib/icons';
 import { useGlobalSearch } from "@/composables/useGlobalSearch";
 import type { SearchGroup } from "@/composables/useGlobalSearch";
 

@@ -10,7 +10,7 @@
       v-else-if="!puzzles?.length"
       class="text-center py-16 space-y-3"
     >
-      <Puzzle class="h-10 w-10 text-muted-foreground/30 mx-auto" />
+      <IconPuzzle class="h-10 w-10 text-muted-foreground/30 mx-auto" />
       <p class="font-cinzel text-sm text-muted-foreground">No puzzles shared yet.</p>
     </div>
 
@@ -32,7 +32,7 @@
               class="group-hover:scale-105 transition-transform duration-300"
             />
             <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/20">
-              <Puzzle class="h-8 w-8" />
+              <IconPuzzle class="h-8 w-8" />
             </div>
             <span
               class="absolute top-2 left-2 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
@@ -57,7 +57,7 @@
 
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
-import { Puzzle } from "lucide-vue-next";
+import { IconPuzzle } from '@/lib/icons';
 import { usePlayerVisiblePuzzles } from "@/composables/usePuzzles";
 import { PUZZLE_TYPE_COLORS, PUZZLE_DIFFICULTY_COLORS } from "@/types/puzzle.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

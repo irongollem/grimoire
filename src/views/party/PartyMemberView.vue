@@ -18,7 +18,7 @@
         class="ml-auto inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
         @click="editOpen = true"
       >
-        <Pencil class="h-3.5 w-3.5" />
+        <IconEdit class="h-3.5 w-3.5" />
         Edit
       </button>
     </div>
@@ -36,7 +36,7 @@
 <script setup lang="ts">
 import { computed, ref, defineAsyncComponent } from "vue";
 import { useRoute } from "vue-router";
-import { Pencil } from "lucide-vue-next";
+import { IconEdit } from '@/lib/icons';
 import { useParty } from "@/composables/useParty";
 import PlayerCharacterView from "@/views/play/PlayerCharacterView.vue";
 

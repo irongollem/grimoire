@@ -19,7 +19,7 @@
         :to="`/encounters/${firstRunning.encounter_id}/run`"
         class="flex items-center gap-3 rounded-lg border border-green-500/40 bg-green-500/10 px-4 py-3 hover:bg-green-500/15 transition-colors"
       >
-        <Radio class="h-4 w-4 text-green-400 animate-pulse shrink-0" />
+        <IconLive class="h-4 w-4 text-green-400 animate-pulse shrink-0" />
         <span class="font-cinzel text-sm font-semibold text-green-400 tracking-wide">Encounter in progress</span>
         <span class="font-fell text-xs text-green-300/70 italic flex-1">Round {{ firstRunning.current_round }}</span>
         <span class="font-cinzel text-[10px] text-green-400 tracking-wider">Resume →</span>
@@ -41,7 +41,7 @@
           </div>
 
           <div v-else-if="!activeQuests.length" class="px-4 py-8 text-center">
-            <ScrollText class="h-6 w-6 mx-auto mb-2 text-muted-foreground/30" />
+            <IconScrollText class="h-6 w-6 mx-auto mb-2 text-muted-foreground/30" />
             <p class="font-fell text-sm text-muted-foreground italic">No active quests.</p>
             <RouterLink to="/quests/new" class="mt-2 inline-block font-cinzel text-xs text-primary tracking-wider hover:opacity-80 transition-opacity">
               + New Quest
@@ -76,7 +76,7 @@
                   </span>
                 </div>
               </div>
-              <ChevronRight class="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0 mt-1" />
+              <IconChevronRight class="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0 mt-1" />
             </RouterLink>
           </div>
         </div>
@@ -95,7 +95,7 @@
           </div>
 
           <div v-else-if="!party?.length" class="px-4 py-8 text-center">
-            <Shield class="h-6 w-6 mx-auto mb-2 text-muted-foreground/30" />
+            <IconShield class="h-6 w-6 mx-auto mb-2 text-muted-foreground/30" />
             <p class="font-fell text-sm text-muted-foreground italic">No party members yet.</p>
             <RouterLink to="/party" class="mt-2 inline-block font-cinzel text-xs text-primary tracking-wider hover:opacity-80 transition-opacity">
               + Add Members
@@ -155,11 +155,11 @@
                   AC {{ member.ac }}
                 </span>
                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider" title="Passive Perception">
-                  <Eye class="h-2.5 w-2.5" />
+                  <IconReveal class="h-2.5 w-2.5" />
                   {{ passivePerception(member) }}
                 </span>
                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider" title="Passive Insight">
-                  <Brain class="h-2.5 w-2.5" />
+                  <IconMind class="h-2.5 w-2.5" />
                   {{ passiveInsight(member) }}
                 </span>
                 <span v-if="member.inspiration" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gold-500/20 border border-gold-500/40 font-cinzel text-[10px] text-gold-500 tracking-wider" title="Has Inspiration">
@@ -215,7 +215,7 @@
         </div>
 
         <div v-else-if="!dashboardNotes.length" class="px-4 py-8 text-center">
-          <BookOpen class="h-6 w-6 mx-auto mb-2 text-muted-foreground/30" />
+          <IconPopulate class="h-6 w-6 mx-auto mb-2 text-muted-foreground/30" />
           <p class="font-fell text-sm text-muted-foreground italic">No notes yet.</p>
           <RouterLink to="/notes/new" class="mt-2 inline-block font-cinzel text-xs text-primary tracking-wider hover:opacity-80 transition-opacity">
             + New Note
@@ -230,7 +230,7 @@
             class="flex flex-col gap-1.5 px-4 py-3 hover:bg-muted/30 transition-colors group"
           >
             <div class="flex items-start gap-2">
-              <Pin v-if="note.is_pinned" class="h-3 w-3 text-gold-500 mt-0.5 shrink-0" />
+              <IconPin v-if="note.is_pinned" class="h-3 w-3 text-gold-500 mt-0.5 shrink-0" />
               <p class="font-cinzel text-sm font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-1">
                 {{ note.title || "Untitled" }}
               </p>
@@ -257,7 +257,7 @@
               {{ unidentifiedItems.length }}
             </span>
           </div>
-          <ChevronDown
+          <IconChevronDown
             class="h-4 w-4 text-amber-500/70 transition-transform"
             :class="unidentifiedOpen ? 'rotate-180' : ''"
           />
@@ -312,10 +312,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import {
-  BookOpen, Shield, Users, Swords, MapPin, ScrollText,
-  ChevronRight, Pin, Eye, Brain, Radio, ChevronDown,
-} from "lucide-vue-next";
+import { IconChevronDown, IconChevronRight, IconEncounter, IconLive, IconLocation, IconMind, IconParty, IconPin, IconPopulate, IconReveal, IconScrollText, IconShield } from '@/lib/icons';
 import { useRunningEncounters } from "@/composables/useEncounterLive";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -392,10 +389,10 @@ const dashboardNotes = computed(() => {
 });
 
 const stats = computed(() => [
-  { label: "Active Quests", value: activeQuests.value.length || "—", icon: ScrollText, to: "/quests" },
-  { label: "NPCs",          value: npcs.value?.length ?? "—",        icon: Users,      to: "/npcs" },
-  { label: "Encounters",    value: encounters.value?.length ?? "—",  icon: Swords,     to: "/encounters" },
-  { label: "Locations",     value: locations.value?.length ?? "—",   icon: MapPin,     to: "/locations" },
+  { label: "Active Quests", value: activeQuests.value.length || "—", icon: IconScrollText, to: "/quests" },
+  { label: "NPCs",          value: npcs.value?.length ?? "—",        icon: IconParty,      to: "/npcs" },
+  { label: "Encounters",    value: encounters.value?.length ?? "—",  icon: IconEncounter,     to: "/encounters" },
+  { label: "Locations",     value: locations.value?.length ?? "—",   icon: IconLocation,     to: "/locations" },
 ]);
 
 function giverName(quest: Quest): string {

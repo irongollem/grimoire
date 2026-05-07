@@ -3,7 +3,7 @@
     <!-- Private note -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/20">
-        <Lock class="h-3 w-3 text-muted-foreground shrink-0" />
+        <IconLock class="h-3 w-3 text-muted-foreground shrink-0" />
         <div>
           <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">My Private Notes</span>
           <span class="font-fell text-[10px] text-muted-foreground/50 italic ml-2">Only you can see this</span>
@@ -36,7 +36,7 @@
     <!-- Shared / party note -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/20">
-        <Globe class="h-3 w-3 text-elven-green shrink-0" />
+        <IconFaction class="h-3 w-3 text-elven-green shrink-0" />
         <div>
           <span class="font-cinzel text-xs font-semibold tracking-wider" style="color: var(--color-elven-green)">My Party Notes</span>
           <span class="font-fell text-[10px] text-muted-foreground/50 italic ml-2">Visible to everyone in the campaign</span>
@@ -91,7 +91,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { Lock, Globe } from "lucide-vue-next";
+import { IconFaction, IconLock } from '@/lib/icons';
 import { useAuthStore } from "@/stores/auth";
 import { useMemberByUserId } from "@/composables/useCampaignMembers";
 import {

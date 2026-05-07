@@ -44,7 +44,7 @@
           v-if="lockedMonsterIds.has(monster.id)"
           class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-1.5 bg-background/80 backdrop-blur-sm"
         >
-          <Lock class="h-4 w-4 text-muted-foreground" />
+          <IconLock class="h-4 w-4 text-muted-foreground" />
           <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">Locked</p>
           <RouterLink to="/billing" class="font-cinzel text-[9px] tracking-wider text-primary/80 hover:text-primary transition-colors">
             Upgrade to access
@@ -132,7 +132,7 @@
           class="absolute top-2 left-2 z-10 flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
           title="Edit monster"
         >
-          <Pencil class="h-3 w-3" />
+          <IconEdit class="h-3 w-3" />
           Edit
         </RouterLink>
         <!-- Player visibility button (floats top-right, opens share popover) -->
@@ -145,8 +145,8 @@
           :title="isDiscovered(monster) ? 'Shared — click to manage' : 'Hidden — click to share'"
           @click.prevent.stop="openPopover(monster, $event)"
         >
-          <Eye v-if="isDiscovered(monster)" class="h-3 w-3" />
-          <EyeOff v-else class="h-3 w-3" />
+          <IconReveal v-if="isDiscovered(monster)" class="h-3 w-3" />
+          <IconHide v-else class="h-3 w-3" />
         </button>
       </div>
     </div>
@@ -184,7 +184,7 @@
             : 'text-foreground hover:bg-muted/50'"
           @click="setWholeParty()"
         >
-          <Users class="h-3 w-3 shrink-0" />
+          <IconParty class="h-3 w-3 shrink-0" />
           Whole party
         </button>
 
@@ -201,7 +201,7 @@
             @click="toggleMember(member.id)"
           >
             <component
-              :is="isMemberVisible(member.id) ? Eye : EyeOff"
+              :is="isMemberVisible(member.id) ? IconReveal : IconHide"
               class="h-3 w-3 shrink-0"
             />
             {{ member.name }}
@@ -218,7 +218,7 @@
               : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'"
             @click="updateStats({ id: popoverCurrentDiscovery.id, revealStats: !popoverCurrentDiscovery.reveal_stats })"
           >
-            <BarChart2 class="h-3 w-3 shrink-0" />
+            <IconChart class="h-3 w-3 shrink-0" />
             {{ popoverCurrentDiscovery.reveal_stats ? 'Stats visible' : 'Stats hidden' }}
           </button>
         </div>
@@ -231,7 +231,7 @@
             class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left font-fell text-xs text-destructive hover:bg-destructive/10 transition-colors"
             @click="unshare"
           >
-            <EyeOff class="h-3 w-3 shrink-0" />
+            <IconHide class="h-3 w-3 shrink-0" />
             Hide from all players
           </button>
           <p v-else class="font-fell text-[10px] text-muted-foreground italic px-2">
@@ -249,7 +249,7 @@
 import { ref, computed, reactive } from "vue";
 import { useRouter } from "vue-router";
 import { formatHitPoints } from "@/lib/utils";
-import { Lock, Pencil, Eye, EyeOff, Users, BarChart2 } from "lucide-vue-next";
+import { IconChart, IconEdit, IconHide, IconLock, IconParty, IconReveal } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useAllMonsters } from "@/composables/useMonsters";

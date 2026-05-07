@@ -207,7 +207,7 @@
 <script setup lang="ts">
 import { computed, toRef } from "vue";
 import { RouterLink } from "vue-router";
-import { Scroll, Swords, MapPin } from "lucide-vue-next";
+import { IconEncounter, IconLocation, IconQuest } from '@/lib/icons';
 import { useCalendarStore } from "@/stores/calendar";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCalendarEvents } from "@/composables/useCalendarEvents";
@@ -367,9 +367,9 @@ function entityLink(event: CalendarEvent): string | null {
 
 function entityIcon(event: CalendarEvent) {
   const type = linkedEntityType(event);
-  if (type === "quest") return Scroll;
-  if (type === "encounter") return Swords;
-  if (type === "location") return MapPin;
+  if (type === "quest") return IconQuest;
+  if (type === "encounter") return IconEncounter;
+  if (type === "location") return IconLocation;
   return null;
 }
 </script>

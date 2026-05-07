@@ -16,7 +16,7 @@
         class="absolute top-4 right-4 rounded-full bg-black/40 p-1.5 text-white/70 hover:text-white transition-colors"
         @click="emit('close')"
       >
-        <X class="h-5 w-5" />
+        <IconClose class="h-5 w-5" />
       </button>
     </div>
   </Teleport>
@@ -24,7 +24,7 @@
 
 <script setup lang="ts">
 import { onUnmounted, watch } from "vue";
-import { X } from "lucide-vue-next";
+import { IconClose } from '@/lib/icons';
 
 const props = defineProps<{ src?: string | null; alt?: string }>();
 const emit = defineEmits<{ close: [] }>();

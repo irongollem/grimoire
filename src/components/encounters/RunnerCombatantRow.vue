@@ -34,9 +34,9 @@
             :title="revealBtnTitle(combatant.reveal_state)"
             @click.stop="handleCycleReveal"
           >
-            <EyeOff v-if="combatant.reveal_state === 'hidden'" class="h-2.5 w-2.5" />
-            <Eye v-else-if="combatant.reveal_state === 'unseen'" class="h-2.5 w-2.5" />
-            <Eye v-else class="h-2.5 w-2.5" />
+            <IconHide v-if="combatant.reveal_state === 'hidden'" class="h-2.5 w-2.5" />
+            <IconReveal v-else-if="combatant.reveal_state === 'unseen'" class="h-2.5 w-2.5" />
+            <IconReveal v-else class="h-2.5 w-2.5" />
           </button>
         </div>
       </div>
@@ -160,7 +160,7 @@
 </template>
 
 <script setup lang="ts">
-import { Eye, EyeOff } from "lucide-vue-next";
+import { IconHide, IconReveal } from '@/lib/icons';
 import FocalImage from "@/components/common/FocalImage.vue";
 import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
 import ConditionPicker from "@/components/encounters/ConditionPicker.vue";

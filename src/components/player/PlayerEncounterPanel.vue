@@ -7,7 +7,7 @@
           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
           <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
         </span>
-        <Swords v-else class="h-3.5 w-3.5 text-muted-foreground/40" />
+        <IconEncounter v-else class="h-3.5 w-3.5 text-muted-foreground/40" />
         <span class="font-cinzel text-xs font-bold text-foreground tracking-wider">ENCOUNTER</span>
       </div>
       <button
@@ -15,7 +15,7 @@
         title="Close encounter panel"
         @click="$emit('close')"
       >
-        <X class="h-4 w-4" />
+        <IconClose class="h-4 w-4" />
       </button>
     </div>
 
@@ -25,7 +25,7 @@
 
         <!-- No encounter in progress -->
         <div v-if="!liveState" class="text-center py-12 space-y-3">
-          <Swords class="h-8 w-8 text-muted-foreground/30 mx-auto" />
+          <IconEncounter class="h-8 w-8 text-muted-foreground/30 mx-auto" />
           <p class="font-cinzel text-sm text-muted-foreground">No encounter in progress.</p>
           <p class="font-fell text-xs text-muted-foreground italic">Your DM will start a live encounter when combat begins.</p>
         </div>
@@ -36,9 +36,9 @@
             v-if="isMyTurn && !isInLobby"
             class="flex items-center justify-center gap-2 rounded-lg border border-primary bg-primary/10 px-4 py-3 animate-pulse"
           >
-            <Swords class="h-4 w-4 text-primary shrink-0" />
+            <IconEncounter class="h-4 w-4 text-primary shrink-0" />
             <span class="font-cinzel text-sm font-bold text-primary tracking-wider">YOUR TURN!</span>
-            <Swords class="h-4 w-4 text-primary shrink-0" />
+            <IconEncounter class="h-4 w-4 text-primary shrink-0" />
           </div>
 
           <!-- Lobby header -->
@@ -46,7 +46,7 @@
             v-if="isInLobby"
             class="flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3"
           >
-            <Swords class="h-4 w-4 text-amber-500/60 shrink-0" />
+            <IconEncounter class="h-4 w-4 text-amber-500/60 shrink-0" />
             <span class="font-cinzel text-sm font-semibold text-amber-500/80 tracking-wider">Gathering Party…</span>
             <span class="font-fell text-xs text-muted-foreground italic ml-auto">DM is preparing</span>
           </div>
@@ -222,7 +222,7 @@
             class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors"
             @click="closeMonster"
           >
-            <X class="h-4 w-4" />
+            <IconClose class="h-4 w-4" />
           </button>
         </div>
         <div class="p-4 overflow-y-auto space-y-4">
@@ -259,7 +259,7 @@
             class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors"
             @click="closeNpc"
           >
-            <X class="h-4 w-4" />
+            <IconClose class="h-4 w-4" />
           </button>
         </div>
         <div class="p-4 overflow-y-auto space-y-4">
@@ -317,7 +317,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { Swords, X } from "lucide-vue-next";
+import { IconClose, IconEncounter } from '@/lib/icons';
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { useAuthStore } from "@/stores/auth";

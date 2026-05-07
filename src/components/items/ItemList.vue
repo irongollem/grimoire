@@ -117,7 +117,7 @@
           class="absolute top-2 left-2 z-10 flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
           title="Edit item"
         >
-          <Pencil class="h-3 w-3" />
+          <IconEdit class="h-3 w-3" />
           Edit
         </RouterLink>
       </div>
@@ -128,54 +128,35 @@
 
 <script setup lang="ts">
 import { computed, type Component as VueComponent } from "vue";
-import {
-  Pencil,
-  Sword,
-  Shield,
-  FlaskConical,
-  Sparkles,
-  Circle,
-  Wand2,
-  ScrollText,
-  Zap,
-  Backpack,
-  Wrench,
-  Truck,
-  Coins,
-  Gem,
-  Component,
-  Handshake,
-  UtensilsCrossed,
-  Package,
-} from "lucide-vue-next";
+import { IconCaravan, IconCircle, IconCoins, IconComponent, IconEdit, IconFood, IconGem, IconGenerate, IconInventory, IconInvite, IconLightning, IconPackage, IconPotion, IconScrollText, IconShield, IconSword, IconTool, IconWand } from '@/lib/icons';
 import FocalImage from "@/components/common/FocalImage.vue";
 import type { ItemType } from "@/types/item.types";
 
 const ITEM_TYPE_ICONS: Record<ItemType, VueComponent> = {
-  weapon: Sword,
-  armor: Shield,
-  shield: Shield,
-  potion: FlaskConical,
-  wondrous_item: Sparkles,
-  ring: Circle,
-  rod: Wand2,
-  staff: Wand2,
-  wand: Wand2,
-  scroll: ScrollText,
-  ammunition: Zap,
-  gear: Backpack,
-  tool: Wrench,
-  vehicle: Truck,
-  trade_good: Coins,
-  crafting_material: Gem,
-  provision: UtensilsCrossed,
-  art_object: Gem,
-  service: Handshake,
-  pack: Package,
+  weapon: IconSword,
+  armor: IconShield,
+  shield: IconShield,
+  potion: IconPotion,
+  wondrous_item: IconGenerate,
+  ring: IconCircle,
+  rod: IconWand,
+  staff: IconWand,
+  wand: IconWand,
+  scroll: IconScrollText,
+  ammunition: IconLightning,
+  gear: IconInventory,
+  tool: IconTool,
+  vehicle: IconCaravan,
+  trade_good: IconCoins,
+  crafting_material: IconGem,
+  provision: IconFood,
+  art_object: IconGem,
+  service: IconInvite,
+  pack: IconPackage,
 };
 
 function itemTypeIcon(type: ItemType): VueComponent {
-  return ITEM_TYPE_ICONS[type] ?? Component;
+  return ITEM_TYPE_ICONS[type] ?? IconComponent;
 }
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useItems } from "@/composables/useItems";

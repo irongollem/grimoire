@@ -26,7 +26,7 @@
               class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded font-cinzel text-[10px] font-semibold tracking-wider uppercase bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
               @click="$emit('save')"
             >
-              <Printer class="h-3 w-3" />
+              <IconPrint class="h-3 w-3" />
               Save as "{{ title || "Untitled" }}.pdf"
             </button>
             <button
@@ -34,7 +34,7 @@
               class="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               @click="$emit('close')"
             >
-              <X class="h-4 w-4" />
+              <IconClose class="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -45,7 +45,7 @@
 </template>
 
 <script setup lang="ts">
-import { Printer, X } from "lucide-vue-next";
+import { IconClose, IconPrint } from '@/lib/icons';
 
 defineProps<{ show: boolean; blobUrl: string | null; title: string }>();
 defineEmits<{ close: []; save: [] }>();

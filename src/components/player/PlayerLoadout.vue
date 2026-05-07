@@ -6,7 +6,7 @@
         to="/play/inventory"
         class="flex items-center gap-1 font-cinzel text-2xs md:text-sm text-primary tracking-wider hover:opacity-80 transition-opacity"
       >
-        <Backpack class="h-3 w-3" />
+        <IconInventory class="h-3 w-3" />
         Manage
       </RouterLink>
     </div>
@@ -31,7 +31,7 @@
           :disabled="isUnequipping"
           @click="unequip(entry.inv)"
         >
-          <X class="h-3 w-3" />
+          <IconClose class="h-3 w-3" />
         </button>
       </span>
     </div>
@@ -44,7 +44,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
-import { Backpack, X } from "lucide-vue-next";
+import { IconClose, IconInventory } from '@/lib/icons';
 import { usePartyInventory, useUpdateInventoryItem } from "@/composables/usePartyInventory";
 import type { PartyInventoryItem, InventorySlot } from "@/types/inventory.types";
 

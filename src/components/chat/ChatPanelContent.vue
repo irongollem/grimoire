@@ -5,7 +5,7 @@
       class="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/30 shrink-0"
     >
       <div class="flex items-center gap-2">
-        <MessageCircle class="h-4 w-4 text-primary" />
+        <IconMessage class="h-4 w-4 text-primary" />
         <span
           class="font-cinzel text-xs font-semibold text-foreground tracking-wider"
           >Campaign Chat</span
@@ -19,13 +19,13 @@
           title="Clear all messages"
           @click="$emit('delete-all')"
         >
-          <Trash2 class="h-3.5 w-3.5" />
+          <IconDelete class="h-3.5 w-3.5" />
         </button>
         <button
           class="text-muted-foreground hover:text-foreground transition-colors p-1"
           @click="$emit('close')"
         >
-          <X class="h-4 w-4" />
+          <IconClose class="h-4 w-4" />
         </button>
       </div>
     </div>
@@ -58,7 +58,7 @@
             title="Delete message"
             @click="$emit('delete', msg.id)"
           >
-            <Trash2 class="h-3.5 w-3.5" />
+            <IconDelete class="h-3.5 w-3.5" />
           </button>
 
           <!-- Item drop message -->
@@ -74,7 +74,7 @@
             <div
               class="px-3 py-2 border-b border-border/50 flex items-center gap-2"
             >
-              <Gift class="h-3.5 w-3.5 text-amber-400 shrink-0" />
+              <IconLoot class="h-3.5 w-3.5 text-amber-400 shrink-0" />
               <span
                 class="font-cinzel text-[10px] text-muted-foreground tracking-wider"
               >
@@ -121,7 +121,7 @@
                 class="flex items-center gap-1 font-cinzel text-[10px] text-muted-foreground hover:text-foreground transition-colors tracking-wider mb-1"
                 @click="toggleDetails(msg.id)"
               >
-                <ChevronDown
+                <IconChevronDown
                   class="h-3 w-3 transition-transform"
                   :class="expandedItems.has(msg.id) ? 'rotate-180' : ''"
                 />
@@ -243,7 +243,7 @@
             "
           >
             <div class="px-3 py-2 border-b border-border/50 flex items-center gap-2">
-              <ShoppingBag class="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+              <IconShop class="h-3.5 w-3.5 text-emerald-400 shrink-0" />
               <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
                 {{ msg.sender_name }} offers
               </span>
@@ -293,7 +293,7 @@
             "
           >
             <div class="px-3 py-2 border-b border-border/50 flex items-center gap-2">
-              <Tag class="h-3.5 w-3.5 text-sky-400 shrink-0" />
+              <IconTag class="h-3.5 w-3.5 text-sky-400 shrink-0" />
               <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
                 {{ msg.sender_name }} offers for sale
               </span>
@@ -344,7 +344,7 @@
             "
           >
             <div class="px-3 py-2 border-b border-border/50 flex items-center gap-2">
-              <PackageOpen class="h-3.5 w-3.5 text-amber-400 shrink-0" />
+              <IconPackageOpen class="h-3.5 w-3.5 text-amber-400 shrink-0" />
               <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider flex-1 truncate">
                 {{ msg.sender_name }} dropped {{ (msg.metadata as LootChestMetadata)?.loot_table_name }}
               </span>
@@ -380,7 +380,7 @@
                       :alt="atom.item_name"
                       class="w-7 h-7 rounded object-cover shrink-0"
                     />
-                    <Package v-else class="w-5 h-5 text-muted-foreground shrink-0" />
+                    <IconPackage v-else class="w-5 h-5 text-muted-foreground shrink-0" />
                     <div class="flex-1 min-w-0">
                       <div class="flex items-baseline gap-2">
                         <span class="font-fell text-sm font-semibold text-foreground truncate">{{ atom.item_name }}</span>
@@ -394,7 +394,7 @@
 
                   <!-- Currency atom -->
                   <template v-else-if="atom.type === 'currency'">
-                    <Coins class="w-5 h-5 text-amber-400 shrink-0" />
+                    <IconCoins class="w-5 h-5 text-amber-400 shrink-0" />
                     <div class="flex-1 min-w-0">
                       <div class="flex items-baseline gap-2">
                         <span class="font-fell text-sm font-semibold text-foreground truncate">
@@ -409,7 +409,7 @@
 
                   <!-- Fallback (unknown future atom types) -->
                   <template v-else>
-                    <Package class="w-5 h-5 text-muted-foreground shrink-0" />
+                    <IconPackage class="w-5 h-5 text-muted-foreground shrink-0" />
                     <div class="flex-1 min-w-0">
                       <span class="font-fell text-sm font-semibold text-foreground truncate">{{ atom.item_name }}</span>
                       <span v-if="atomClaim(msg.metadata as LootChestMetadata, atom.atom_id)" class="font-fell text-[10px] text-muted-foreground italic block">
@@ -451,7 +451,7 @@
             <div
               class="px-3 py-2 border-b border-border/50 flex items-center gap-2"
             >
-              <Coins class="h-3.5 w-3.5 text-amber-400 shrink-0" />
+              <IconCoins class="h-3.5 w-3.5 text-amber-400 shrink-0" />
               <span
                 class="font-cinzel text-[10px] text-muted-foreground tracking-wider"
               >
@@ -618,7 +618,7 @@
           >
             <!-- DM-only badge -->
             <div class="flex items-center gap-1 mb-1.5">
-              <EyeOff class="h-3 w-3 text-purple-500 dark:text-purple-400 shrink-0" />
+              <IconHide class="h-3 w-3 text-purple-500 dark:text-purple-400 shrink-0" />
               <span class="font-cinzel text-[9px] text-purple-500 dark:text-purple-400 tracking-widest">HIDDEN ROLL</span>
             </div>
             <!-- Sender row — character first -->
@@ -934,7 +934,7 @@
         title="Dice roller"
         @click="diceOpen = !diceOpen; vendorOpen = false"
       >
-        <Dices class="h-4 w-4" />
+        <IconDiceRoll class="h-4 w-4" />
       </button>
       <button
         v-if="auth.isDM"
@@ -948,7 +948,7 @@
         title="Vendor offer"
         @click="vendorOpen = !vendorOpen; diceOpen = false"
       >
-        <ShoppingBag class="h-4 w-4" />
+        <IconShop class="h-4 w-4" />
       </button>
       <textarea
         ref="inputEl"
@@ -967,7 +967,7 @@
         class="p-2 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-40 shrink-0"
         @click="send"
       >
-        <Send class="h-4 w-4" />
+        <IconSend class="h-4 w-4" />
       </button>
     </div>
   </div>
@@ -976,21 +976,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, nextTick, shallowRef, onMounted } from "vue";
 import { marked } from "marked";
-import {
-  MessageCircle,
-  X,
-  Send,
-  Dices,
-  Trash2,
-  Gift,
-  Coins,
-  ShoppingBag,
-  Tag,
-  ChevronDown,
-  Package,
-  PackageOpen,
-  EyeOff,
-} from "lucide-vue-next";
+import { IconChevronDown, IconClose, IconCoins, IconDelete, IconDiceRoll, IconHide, IconLoot, IconMessage, IconPackage, IconPackageOpen, IconSend, IconShop, IconTag } from '@/lib/icons';
 import ChatItemDropDetails from "@/components/chat/ChatItemDropDetails.vue";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { ALL_DICE } from "@/lib/dice";

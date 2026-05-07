@@ -22,7 +22,7 @@
         class="absolute right-7 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors text-base leading-none px-0.5"
         @mousedown.prevent="clear"
       >×</button>
-      <ChevronDown class="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+      <IconChevronDown class="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
     </div>
 
     <Teleport to="body">
@@ -53,7 +53,7 @@
 
 <script setup lang="ts" generic="T extends { id: string; name: string }">
 import { ref, computed, watch, nextTick, onUnmounted } from "vue";
-import { ChevronDown } from "lucide-vue-next";
+import { IconChevronDown } from '@/lib/icons';
 
 const props = withDefaults(defineProps<{
   modelValue: string;

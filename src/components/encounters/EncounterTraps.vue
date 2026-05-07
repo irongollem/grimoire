@@ -21,7 +21,7 @@
         :key="trap.id"
         class="flex items-center gap-2 group rounded px-2 py-1.5 hover:bg-muted/40 transition-colors"
       >
-        <Crosshair class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <IconTrap class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         <button
           type="button"
           class="font-fell text-sm text-foreground flex-1 truncate text-left hover:text-primary transition-colors"
@@ -38,7 +38,7 @@
             class="w-5 h-5 rounded bg-muted border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
             @click="decrement(trap.id)"
           >
-            <Minus class="h-3 w-3" />
+            <IconMinus class="h-3 w-3" />
           </button>
           <span class="font-cinzel text-xs font-bold text-foreground w-5 text-center">{{ qty }}</span>
           <button
@@ -46,7 +46,7 @@
             class="w-5 h-5 rounded bg-muted border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
             @click="increment(trap.id)"
           >
-            <Plus class="h-3 w-3" />
+            <IconAdd class="h-3 w-3" />
           </button>
         </div>
 
@@ -56,7 +56,7 @@
           title="Remove all"
           @click="removeAll(trap.id)"
         >
-          <X class="h-3.5 w-3.5" />
+          <IconClose class="h-3.5 w-3.5" />
         </button>
       </div>
 
@@ -76,7 +76,7 @@
           class="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 shrink-0"
           @click="addTrap"
         >
-          <Plus class="h-4 w-4" />
+          <IconAdd class="h-4 w-4" />
         </button>
       </div>
     </div>
@@ -87,7 +87,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Crosshair, X, Plus, Minus } from "lucide-vue-next";
+import { IconAdd, IconClose, IconMinus, IconTrap } from '@/lib/icons';
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import TrapPreviewModal from "@/components/traps/TrapPreviewModal.vue";
 import { crToXp } from "@/types/encounter.types";

@@ -8,7 +8,7 @@
           {{ isEdit ? "Edit Companion" : "Add Companion" }}
         </h2>
         <button type="button" class="text-muted-foreground hover:text-foreground transition-colors" @click="$emit('cancel')">
-          <X class="h-4 w-4" />
+          <IconClose class="h-4 w-4" />
         </button>
       </div>
 
@@ -63,7 +63,7 @@
             :focal-point="focalPoint"
           />
           <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground">
-            <ImagePlus class="h-6 w-6" />
+            <IconAddImage class="h-6 w-6" />
           </div>
           <div class="absolute inset-0 bg-black/50 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full">
             <span class="font-fell text-white text-xs italic">{{ portraitUrl ? 'Change' : 'Upload' }}</span>
@@ -250,7 +250,7 @@
 
 <script setup lang="ts">
 import { ref, reactive } from "vue";
-import { X, ImagePlus } from "lucide-vue-next";
+import { IconAddImage, IconClose } from '@/lib/icons';
 import { useCreateCompanion, useUpdateCompanion } from "@/composables/useCompanions";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useNpcs } from "@/composables/useNpcs";

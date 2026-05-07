@@ -18,18 +18,18 @@
       <button
         class="h-4 w-4 rounded flex items-center justify-center bg-muted/50 hover:bg-muted border border-border transition-colors"
         @click="adjust(-1)"
-      ><Minus class="h-2 w-2" /></button>
+      ><IconMinus class="h-2 w-2" /></button>
       <button
         class="h-4 w-4 rounded flex items-center justify-center bg-muted/50 hover:bg-muted border border-border transition-colors"
         @click="adjust(1)"
-      ><Plus class="h-2 w-2" /></button>
+      ><IconAdd class="h-2 w-2" /></button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { Plus, Minus } from "lucide-vue-next";
+import { IconAdd, IconMinus } from '@/lib/icons';
 
 const props = defineProps<{ label: string; symbol: string; color: string; value: number }>();
 const emit = defineEmits<{ commit: [value: number] }>();

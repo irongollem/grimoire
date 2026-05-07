@@ -8,7 +8,7 @@
       title="Dice Roller"
       @click="isOpen = !isOpen; primeDiceAudio()"
     >
-      <Dices class="h-4 w-4" />
+      <IconDiceRoll class="h-4 w-4" />
     </button>
 
     <!-- Foldout panel -->
@@ -154,7 +154,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
-import { Dices } from "lucide-vue-next";
+import { IconDiceRoll } from '@/lib/icons';
 import DiceResult from "@/components/common/DiceResult.vue";
 import { primeDiceAudio } from "@/lib/diceAudio";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";

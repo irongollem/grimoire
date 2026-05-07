@@ -9,7 +9,7 @@
         class="inline-flex items-center gap-1 px-2.5 py-1 font-cinzel text-xs font-semibold tracking-wider border border-border rounded-md hover:bg-muted transition-colors"
         @click="showForm = true"
       >
-        <Plus class="h-3 w-3" />
+        <IconAdd class="h-3 w-3" />
         Add
       </button>
     </div>
@@ -118,7 +118,7 @@
           class="shrink-0 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
           @click="removeRelation(rel.id)"
         >
-          <X class="h-3.5 w-3.5" />
+          <IconClose class="h-3.5 w-3.5" />
         </button>
       </div>
     </div>
@@ -127,7 +127,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Plus, X } from "lucide-vue-next";
+import { IconAdd, IconClose } from '@/lib/icons';
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import {
   useNpcRelations,

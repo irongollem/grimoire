@@ -7,7 +7,7 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
         @click="handleDelete"
       >
-        <Trash2 class="h-3.5 w-3.5" />
+        <IconDelete class="h-3.5 w-3.5" />
         Delete
       </button>
       <button
@@ -15,7 +15,7 @@
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
         @click="router.push({ query: { ...route.query, edit: 'true' } })"
       >
-        <Pencil class="h-3.5 w-3.5" />
+        <IconEdit class="h-3.5 w-3.5" />
         Edit
       </button>
     </div>
@@ -33,7 +33,7 @@
             :lightbox="true"
             class="w-full h-full"
           />
-          <Crosshair v-else class="h-8 w-8 text-muted-foreground/30" />
+          <IconTrap v-else class="h-8 w-8 text-muted-foreground/30" />
         </div>
         <div class="flex-1 flex flex-col gap-2">
           <h1 class="font-cinzel text-xl font-bold text-foreground leading-tight">{{ trap.name }}</h1>
@@ -165,7 +165,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { Pencil, Trash2, Crosshair } from "lucide-vue-next";
+import { IconDelete, IconEdit, IconTrap } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteTrap } from "@/composables/useTraps";
 import { CR_XP } from "@/types/encounter.types";

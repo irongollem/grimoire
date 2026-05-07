@@ -12,7 +12,7 @@
           class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
           @click="startEditing"
         >
-          <Pencil class="h-3.5 w-3.5" />
+          <IconEdit class="h-3.5 w-3.5" />
           Edit
         </button>
         <button
@@ -21,7 +21,7 @@
           class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
           @click="stopEditing"
         >
-          <Eye class="h-3.5 w-3.5" />
+          <IconReveal class="h-3.5 w-3.5" />
           View
         </button>
       </template>
@@ -43,7 +43,7 @@
           class="inline-flex items-center gap-1.5 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-50"
           @click="npcDetail.sendToScriptorium()"
         >
-          <ScrollText class="h-3.5 w-3.5" />
+          <IconScrollText class="h-3.5 w-3.5" />
           {{ npcDetail.isSendingToScriptorium ? 'Exporting…' : 'Scriptorium' }}
         </button>
         <PlayerVisibilityToggle
@@ -66,7 +66,7 @@
           class="inline-flex items-center gap-1.5 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-primary/40 text-primary rounded-md hover:bg-primary/10 transition-colors"
           @click="npcDetail.showGenerateDialog = true"
         >
-          <Sparkles class="h-3.5 w-3.5" />
+          <IconGenerate class="h-3.5 w-3.5" />
           Generate
         </button>
         <!-- form= attribute submits the NpcDetail form from outside it -->
@@ -99,7 +99,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { Pencil, Eye, ScrollText, Sparkles } from "lucide-vue-next";
+import { IconEdit, IconGenerate, IconReveal, IconScrollText } from '@/lib/icons';
 import { useNpc } from "@/composables/useNpcs";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

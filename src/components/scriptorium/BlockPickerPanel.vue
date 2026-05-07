@@ -23,7 +23,7 @@
             class="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             @click="$emit('close')"
           >
-            <X class="h-4 w-4" />
+            <IconClose class="h-4 w-4" />
           </button>
         </div>
 
@@ -92,7 +92,7 @@
                 <div
                   class="shrink-0 w-8 h-8 rounded-md flex items-center justify-center bg-primary/10 text-primary group-hover:bg-primary/20"
                 >
-                  <Link class="h-4 w-4" />
+                  <IconLink class="h-4 w-4" />
                 </div>
                 <div class="min-w-0">
                   <p
@@ -116,7 +116,7 @@
                 <div
                   class="shrink-0 w-8 h-8 rounded-md flex items-center justify-center bg-primary/10 text-primary group-hover:bg-primary/20"
                 >
-                  <Library class="h-4 w-4" />
+                  <IconLibrary class="h-4 w-4" />
                 </div>
                 <div class="min-w-0">
                   <p
@@ -148,7 +148,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { X, Link, Library } from "lucide-vue-next";
+import { IconClose, IconLibrary, IconLink } from '@/lib/icons';
 import type { Editor } from "@tiptap/core";
 import {
   BLOCK_REGISTRY,

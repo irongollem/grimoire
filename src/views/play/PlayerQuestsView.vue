@@ -7,7 +7,7 @@
     </div>
 
     <div v-else-if="!quests?.length" class="text-center py-12">
-      <ScrollText class="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+      <IconScrollText class="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
       <p class="font-fell text-muted-foreground italic">
         No quests shared by your DM yet.
       </p>
@@ -45,7 +45,7 @@
                 >
                   {{ QUEST_STATUS_LABELS[q.status] }}
                 </span>
-                <ChevronRight class="h-3.5 w-3.5 text-muted-foreground" />
+                <IconChevronRight class="h-3.5 w-3.5 text-muted-foreground" />
               </div>
             </div>
             <p
@@ -55,7 +55,7 @@
               {{ q.summary }}
             </p>
             <div v-if="q.rewards" class="mt-2 flex items-center gap-1.5">
-              <Star class="h-3 w-3 text-gold-500 shrink-0" />
+              <IconStar class="h-3 w-3 text-gold-500 shrink-0" />
               <span class="font-fell text-xs text-muted-foreground">{{
                 q.rewards
               }}</span>
@@ -70,7 +70,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
-import { ScrollText, Star, ChevronRight } from "lucide-vue-next";
+import { IconChevronRight, IconScrollText, IconStar } from '@/lib/icons';
 import { usePlayerVisibleQuests } from "@/composables/useQuests";
 import { useReadItems } from "@/composables/useReadItems";
 import { QUEST_STATUS_LABELS, QUEST_STATUS_COLORS } from "@/types/quest.types";

@@ -422,7 +422,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from "vue";
 import { RouterLink } from "vue-router";
-import { Scroll, Swords, MapPin } from "lucide-vue-next";
+import { IconEncounter, IconLocation, IconQuest } from '@/lib/icons';
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -444,7 +444,6 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useAllLocations } from "@/composables/useLocations";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import { LOCATION_TYPE_LABELS, type LocationType } from "@/types/location.types";
-
 
 const props = defineProps<{
   modelValue: boolean;
@@ -588,9 +587,9 @@ const entityRoute = computed(() => {
 const entityIconComponent = computed(() => {
   if (!props.editEvent) return null;
   const type = linkedEntityType(props.editEvent);
-  if (type === "quest") return Scroll;
-  if (type === "encounter") return Swords;
-  if (type === "location") return MapPin;
+  if (type === "quest") return IconQuest;
+  if (type === "encounter") return IconEncounter;
+  if (type === "location") return IconLocation;
   return null;
 });
 

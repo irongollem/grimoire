@@ -27,7 +27,7 @@
           class="p-1 rounded text-muted-foreground hover:text-foreground transition-colors shrink-0"
           @click="dropToChat(item)"
         >
-          <Gift class="h-3.5 w-3.5" />
+          <IconLoot class="h-3.5 w-3.5" />
         </button>
         <button
           type="button"
@@ -35,7 +35,7 @@
           class="p-1 rounded text-muted-foreground hover:text-destructive transition-colors shrink-0"
           @click="remove(item)"
         >
-          <Trash2 class="h-3.5 w-3.5" />
+          <IconDelete class="h-3.5 w-3.5" />
         </button>
       </div>
     </div>
@@ -56,7 +56,7 @@
         class="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 disabled:opacity-40 transition-opacity shrink-0"
         @click="addFromVault"
       >
-        <Plus class="h-3 w-3" />
+        <IconAdd class="h-3 w-3" />
         Add
       </button>
     </div>
@@ -65,7 +65,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Gift, Plus, Trash2 } from "lucide-vue-next";
+import { IconAdd, IconDelete, IconLoot } from '@/lib/icons';
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useNpcInventory, useAddNpcInventoryItem, useRemoveNpcInventoryItem } from "@/composables/useNpcInventory";
 import { useItems } from "@/composables/useItems";

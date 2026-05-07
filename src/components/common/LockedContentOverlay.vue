@@ -7,7 +7,7 @@
       v-if="locked"
       class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1.5 rounded-lg bg-background/80 backdrop-blur-sm"
     >
-      <Lock class="h-4 w-4 text-muted-foreground" />
+      <IconLock class="h-4 w-4 text-muted-foreground" />
       <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground text-center px-2">
         Locked
       </p>
@@ -22,7 +22,7 @@
 </template>
 
 <script setup lang="ts">
-import { Lock } from 'lucide-vue-next'
+import { IconLock } from '@/lib/icons'
 
 defineProps<{ locked: boolean }>()
 </script>

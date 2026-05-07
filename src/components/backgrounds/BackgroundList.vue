@@ -50,7 +50,7 @@
           v-if="selectedId && b.id === selectedId"
           class="absolute top-2 right-2 z-10 flex items-center justify-center size-5 rounded-full bg-primary text-primary-foreground"
         >
-          <Check class="size-3" />
+          <IconCheck class="size-3" />
         </div>
 
         <!-- Header / portrait -->
@@ -67,7 +67,7 @@
             v-else
             class="w-full h-full flex items-center justify-center"
           >
-            <BookUser class="h-8 w-8 text-primary/30" />
+            <IconBookUser class="h-8 w-8 text-primary/30" />
           </div>
         </div>
 
@@ -141,7 +141,7 @@
           class="absolute top-2 left-2 z-10 flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
           title="Edit background"
         >
-          <Pencil class="h-3 w-3" />
+          <IconEdit class="h-3 w-3" />
           Edit
         </RouterLink>
       </div>
@@ -160,7 +160,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { Pencil, BookUser, Check } from "lucide-vue-next";
+import { IconBookUser, IconCheck, IconEdit } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useBackgrounds } from "@/composables/useBackgrounds";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";

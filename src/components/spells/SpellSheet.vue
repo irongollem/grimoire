@@ -165,7 +165,7 @@
               :key="k.party_member_id"
               class="inline-flex items-center gap-1 font-cinzel text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground"
             >
-              <Users class="h-2.5 w-2.5 shrink-0" />
+              <IconParty class="h-2.5 w-2.5 shrink-0" />
               {{ k.name }}
               <span v-if="k.is_prepared" class="text-primary">· prepared</span>
             </span>
@@ -178,7 +178,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { Users } from "lucide-vue-next";
+import { IconParty } from '@/lib/icons';
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { useSpellKnowers } from "@/composables/useCharacterSpells";

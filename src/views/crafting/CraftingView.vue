@@ -6,19 +6,19 @@
     <template #actions>
       <ListActionButton
         v-if="auth.isDM && playerIds.length"
-        :icon="revealAllPending ? Loader2 : Eye"
+        :icon="revealAllPending ? IconLoading : IconReveal"
         label="Reveal All"
         :disabled="revealAllPending"
         @click="revealAllRecipes"
       />
       <ListActionButton
-        :icon="importMutation.isPending.value ? Loader2 : Download"
+        :icon="importMutation.isPending.value ? IconLoading : IconDownload"
         :label="importStatusLabel"
         :disabled="importMutation.isPending.value"
         @click="handleImport"
       />
       <ListActionButton
-        :icon="Plus"
+        :icon="IconAdd"
         label="New Recipe"
         variant="primary"
         to="/crafting/new"
@@ -34,7 +34,7 @@
           : 'text-muted-foreground hover:text-foreground'"
         @click="ui.workshopActiveTab = 'all'"
       >
-        <LayoutList class="h-3.5 w-3.5" />
+        <IconListView class="h-3.5 w-3.5" />
         All
       </button>
       <button
@@ -58,7 +58,7 @@
 
       <div v-else-if="disciplineRecipes.length === 0" class="rounded-lg border border-border border-dashed px-6 py-10 text-center">
         <component
-          :is="activeDiscipline ? activeDiscipline.icon : LayoutList"
+          :is="activeDiscipline ? activeDiscipline.icon : IconListView"
           class="h-8 w-8 text-muted-foreground/40 mx-auto mb-3"
         />
         <p class="font-cinzel text-sm font-semibold text-muted-foreground">
@@ -109,7 +109,7 @@
                 class="inline-flex items-center gap-1 shrink-0 font-cinzel text-[10px] tracking-wider px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
                 title="Requires tool proficiency"
               >
-                <Award class="h-3 w-3" />
+                <IconAward class="h-3 w-3" />
                 <span class="max-sm:hidden">PROF</span>
               </span>
               <span
@@ -117,7 +117,7 @@
                 class="inline-flex items-center gap-1 shrink-0 font-cinzel text-[10px] tracking-wider px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
                 title="Requires physical tools"
               >
-                <Wrench class="h-3 w-3" />
+                <IconTool class="h-3 w-3" />
                 <span class="max-sm:hidden">TOOLS</span>
               </span>
             </div>
@@ -138,14 +138,14 @@
               title="Edit recipe"
               @click="$router.push(`/crafting/${recipe.id}`)"
             >
-              <Pencil class="h-3.5 w-3.5" />
+              <IconEdit class="h-3.5 w-3.5" />
             </button>
             <button
               class="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-destructive transition-colors"
               title="Delete recipe"
               @click="remove(recipe)"
             >
-              <Trash2 class="h-3.5 w-3.5" />
+              <IconDelete class="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
@@ -157,7 +157,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 
-import { Award, Download, Eye, LayoutList, Loader2, Pencil, Plus, Trash2, Wrench } from "lucide-vue-next";
+import { IconAdd, IconAward, IconDelete, IconDownload, IconEdit, IconListView, IconLoading, IconReveal, IconTool } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";

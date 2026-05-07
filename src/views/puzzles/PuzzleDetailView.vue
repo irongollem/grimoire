@@ -8,7 +8,7 @@
           class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
           @click="mode = 'edit'"
         >
-          <Pencil class="size-3.5 shrink-0" />
+          <IconEdit class="size-3.5 shrink-0" />
           Edit
         </button>
       </template>
@@ -103,7 +103,7 @@
         <div class="rounded-lg border border-border bg-card overflow-hidden">
           <div class="px-4 py-3 border-b border-border bg-muted/20 flex items-center justify-between gap-3">
             <div class="flex items-center gap-2">
-              <Share2 class="size-3.5 text-muted-foreground shrink-0" />
+              <IconShare class="size-3.5 text-muted-foreground shrink-0" />
               <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Player Share</span>
             </div>
             <!-- Share toggle -->
@@ -181,8 +181,8 @@
                 :title="shareState.shared_hints.includes(hint.order) ? 'Hide from players' : 'Reveal to players'"
                 @click="toggleHint(hint.order)"
               >
-                <Eye v-if="shareState.shared_hints.includes(hint.order)" class="size-3" />
-                <EyeOff v-else class="size-3" />
+                <IconReveal v-if="shareState.shared_hints.includes(hint.order)" class="size-3" />
+                <IconHide v-else class="size-3" />
                 {{ shareState.shared_hints.includes(hint.order) ? 'Revealed' : 'Hidden' }}
               </button>
             </div>
@@ -347,7 +347,7 @@
                 class="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
                 @click="form.skill_checks.splice(i, 1)"
               >
-                <X class="size-3.5" />
+                <IconClose class="size-3.5" />
               </button>
             </div>
           </div>
@@ -385,7 +385,7 @@
                   class="text-muted-foreground hover:text-foreground transition-colors"
                   @click="moveHint(i, -1)"
                 >
-                  <ChevronUp class="size-3.5" />
+                  <IconChevronUp class="size-3.5" />
                 </button>
                 <button
                   v-if="i < form.hints.length - 1"
@@ -393,14 +393,14 @@
                   class="text-muted-foreground hover:text-foreground transition-colors"
                   @click="moveHint(i, 1)"
                 >
-                  <ChevronDown class="size-3.5" />
+                  <IconChevronDown class="size-3.5" />
                 </button>
                 <button
                   type="button"
                   class="text-muted-foreground hover:text-destructive transition-colors"
                   @click="removeHint(i)"
                 >
-                  <X class="size-3.5" />
+                  <IconClose class="size-3.5" />
                 </button>
               </div>
             </div>
@@ -475,7 +475,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { X, ChevronUp, ChevronDown, Pencil, Eye, EyeOff, Share2 } from "lucide-vue-next";
+import { IconChevronDown, IconChevronUp, IconClose, IconEdit, IconHide, IconReveal, IconShare } from '@/lib/icons';
 import { usePuzzle, useCreatePuzzle, useUpdatePuzzle, useDeletePuzzle } from "@/composables/usePuzzles";
 import { useCampaignStore } from "@/stores/campaign";
 import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES, PUZZLE_SKILLS, PUZZLE_TYPE_COLORS, PUZZLE_DIFFICULTY_COLORS } from "@/types/puzzle.types";

@@ -27,7 +27,7 @@
             class="shrink-0 inline-flex items-center gap-1 font-cinzel text-[10px] font-semibold text-amber-400 hover:opacity-80 transition-opacity disabled:opacity-30 tracking-wider"
             @click="drop(pool)"
           >
-            <Coins class="h-3 w-3" />
+            <IconCoins class="h-3 w-3" />
             Drop
           </button>
           <button
@@ -35,7 +35,7 @@
             class="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
             @click="remove(pool.id)"
           >
-            <X class="h-3.5 w-3.5" />
+            <IconClose class="h-3.5 w-3.5" />
           </button>
         </div>
         <div class="grid grid-cols-5 gap-1.5">
@@ -58,7 +58,7 @@
         class="flex items-center gap-1.5 font-cinzel text-[10px] font-semibold text-muted-foreground hover:text-primary transition-colors tracking-wider px-1 pt-1"
         @click="addPool"
       >
-        <Plus class="h-3.5 w-3.5" />
+        <IconAdd class="h-3.5 w-3.5" />
         Add Loot Pool
       </button>
     </div>
@@ -86,7 +86,7 @@
           class="shrink-0 inline-flex items-center gap-1 font-cinzel text-[10px] font-semibold text-amber-400 hover:opacity-80 transition-opacity disabled:opacity-30 tracking-wider"
           @click="drop(pool)"
         >
-          <Coins class="h-3 w-3" />
+          <IconCoins class="h-3 w-3" />
           Drop
         </button>
         <button
@@ -94,7 +94,7 @@
           class="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
           @click="remove(pool.id)"
         >
-          <X class="h-3.5 w-3.5" />
+          <IconClose class="h-3.5 w-3.5" />
         </button>
       </div>
       <div class="grid grid-cols-5 gap-1.5">
@@ -117,14 +117,14 @@
       class="flex items-center gap-1.5 font-cinzel text-[10px] font-semibold text-muted-foreground hover:text-primary transition-colors tracking-wider px-1 pt-1"
       @click="addPool"
     >
-      <Plus class="h-3.5 w-3.5" />
+      <IconAdd class="h-3.5 w-3.5" />
       Add Currency Pool
     </button>
   </template>
 </template>
 
 <script setup lang="ts">
-import { Coins, X, Plus } from "lucide-vue-next";
+import { IconAdd, IconClose, IconCoins } from '@/lib/icons';
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import type { RewardCurrencyPool } from "@/types/quest.types";
 

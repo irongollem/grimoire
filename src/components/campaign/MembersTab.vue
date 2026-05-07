@@ -110,7 +110,7 @@
           :disabled="removeMember.isPending.value"
           @click="confirmRemove(member)"
         >
-          <UserX class="h-4 w-4" />
+          <IconRemoveUser class="h-4 w-4" />
         </button>
       </div>
 
@@ -119,7 +119,7 @@
         v-if="members.length <= 1"
         class="rounded-lg border border-dashed border-border p-8 text-center"
       >
-        <Users class="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+        <IconParty class="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
         <p class="font-fell text-muted-foreground italic text-sm">
           No players have joined yet. Share an invite link from the
           <button
@@ -174,7 +174,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Users, UserX } from "lucide-vue-next";
+import { IconParty, IconRemoveUser } from '@/lib/icons';
 import {
   useCampaignMembers,
   useUpdateCampaignMember,

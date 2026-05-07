@@ -31,7 +31,7 @@
               class="flex flex-col items-center gap-2 border-2 border-dashed border-border rounded-lg px-6 py-8 cursor-pointer hover:border-primary/50 transition-colors"
               :class="{ 'opacity-50 cursor-not-allowed': isPending }"
             >
-              <Upload class="h-8 w-8 text-muted-foreground" />
+              <IconUpload class="h-8 w-8 text-muted-foreground" />
               <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
                 Click to select bundle file
               </span>
@@ -196,7 +196,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, shallowRef } from "vue";
 import { useRouter } from "vue-router";
-import { Upload } from "lucide-vue-next";
+import { IconUpload } from '@/lib/icons';
 import { useCampaignStore } from "@/stores/campaign";
 import { useImportWorldBundle, BUNDLE_ENTITY_TYPES } from "@/composables/useWorldBundle";
 import type { BundleEntityKey, BundlePreview } from "@/composables/useWorldBundle";

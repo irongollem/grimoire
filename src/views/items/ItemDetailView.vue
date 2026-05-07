@@ -12,7 +12,7 @@
           class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
           @click="startEditing"
         >
-          <Pencil class="h-3.5 w-3.5" />
+          <IconEdit class="h-3.5 w-3.5" />
           Edit
         </button>
       </template>
@@ -25,7 +25,7 @@
           class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
           @click="stopEditing"
         >
-          <Eye class="h-3.5 w-3.5" />
+          <IconReveal class="h-3.5 w-3.5" />
           View
         </button>
         <button
@@ -35,7 +35,7 @@
           class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors disabled:opacity-50"
           @click="itemDetail.sendToScriptorium()"
         >
-          <ScrollText class="h-3.5 w-3.5" />
+          <IconScrollText class="h-3.5 w-3.5" />
           {{ itemDetail.isSendingToScriptorium ? "Sending…" : "Scriptorium" }}
         </button>
         <button
@@ -45,7 +45,7 @@
           class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors disabled:opacity-50"
           @click="itemDetail.cloneItem()"
         >
-          <Copy class="h-3.5 w-3.5" />
+          <IconCopy class="h-3.5 w-3.5" />
           {{ itemDetail.isCloning ? "Cloning…" : "Clone" }}
         </button>
         <button
@@ -63,8 +63,8 @@
           class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
           @click="itemDetail.save()"
         >
-          <Save class="h-3.5 w-3.5" />
-          {{ itemDetail.isSaving ? "Saving…" : item ? "Save" : "Create" }}
+          <IconSave class="h-3.5 w-3.5" />
+          {{ itemDetail.isSaving ? "Saving…" : item ? "IconSave" : "Create" }}
         </button>
       </template>
     </template>
@@ -88,7 +88,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { Pencil, Eye, ScrollText, Copy, Save } from "lucide-vue-next";
+import { IconCopy, IconEdit, IconReveal, IconSave, IconScrollText } from '@/lib/icons';
 import { useItem } from "@/composables/useItems";
 import { ITEM_TYPE_LABELS, ITEM_RARITY_LABELS } from "@/types/item.types";
 import PageHeader from "@/components/common/PageHeader.vue";

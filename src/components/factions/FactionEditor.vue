@@ -17,7 +17,7 @@
           v-else
           class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground"
         >
-          <Shield class="h-10 w-10" />
+          <IconShield class="h-10 w-10" />
           <span class="font-fell text-sm italic">Upload emblem</span>
         </div>
         <div
@@ -114,7 +114,7 @@
           class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
           @click="handleDelete"
         >
-          <Trash2 class="h-3.5 w-3.5" />
+          <IconDelete class="h-3.5 w-3.5" />
           Delete
         </button>
         <button
@@ -131,8 +131,8 @@
           class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
           @click="handleSave"
         >
-          <Save class="h-3.5 w-3.5" />
-          {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
+          <IconSave class="h-3.5 w-3.5" />
+          {{ saving ? "Saving…" : isNew ? "Create" : "IconSave" }}
         </button>
       </div>
     </div>
@@ -142,7 +142,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { Save, Shield, Trash2 } from "lucide-vue-next";
+import { IconDelete, IconSave, IconShield } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useImageUpload } from "@/composables/useImageUpload";
 import {

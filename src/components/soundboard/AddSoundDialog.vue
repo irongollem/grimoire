@@ -17,7 +17,7 @@
           <!-- Header -->
           <div class="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-border">
             <div class="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-gold-500/15 text-gold-400">
-              <Music class="h-4.5 w-4.5" />
+              <IconMusic class="h-4.5 w-4.5" />
             </div>
             <h2 id="add-sound-title" class="font-cinzel text-sm font-bold text-foreground tracking-wide">
               Add Sound
@@ -27,7 +27,7 @@
               class="ml-auto p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
               @click="$emit('close')"
             >
-              <X class="h-4 w-4" />
+              <IconClose class="h-4 w-4" />
             </button>
           </div>
 
@@ -47,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { Music, X } from "lucide-vue-next";
+import { IconClose, IconMusic } from '@/lib/icons';
 import SoundForm from "./SoundForm.vue";
 
 defineProps<{

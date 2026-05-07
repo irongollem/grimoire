@@ -3,7 +3,7 @@
   <div v-if="compact" class="flex flex-col gap-2">
     <div class="flex items-start gap-2">
       <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider flex items-center gap-1 shrink-0 w-16 pt-1.5">
-        <CalendarDays class="h-3.5 w-3.5" />Pins
+        <IconCalendarDays class="h-3.5 w-3.5" />Pins
       </span>
       <div class="flex-1 flex flex-wrap items-center gap-1.5 border border-border rounded-md px-3 py-1.5 min-h-8.5 bg-background">
         <template v-if="entityId && pins?.length">
@@ -17,7 +17,7 @@
               {{ formatPin(pin) }}
             </RouterLink>
             <button type="button" class="text-muted-foreground hover:text-destructive transition-colors ml-0.5" @click="removePin(pin.id)">
-              <X class="h-3 w-3" />
+              <IconClose class="h-3 w-3" />
             </button>
           </div>
         </template>
@@ -28,7 +28,7 @@
           class="inline-flex items-center gap-1 font-cinzel text-xs text-primary hover:opacity-80 transition-opacity ml-auto shrink-0"
           @click="showForm = !showForm"
         >
-          <Plus class="h-3.5 w-3.5" />Pin date
+          <IconAdd class="h-3.5 w-3.5" />Pin date
         </button>
       </div>
     </div>
@@ -83,7 +83,7 @@
   <div v-else class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4">
     <div class="flex items-center justify-between">
       <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase flex items-center gap-2">
-        <CalendarDays class="h-4 w-4 text-muted-foreground" />
+        <IconCalendarDays class="h-4 w-4 text-muted-foreground" />
         Calendar Pins
       </h2>
       <button
@@ -92,7 +92,7 @@
         class="inline-flex items-center gap-1 font-cinzel text-xs text-primary hover:opacity-80 transition-opacity"
         @click="showForm = !showForm"
       >
-        <Plus class="h-3.5 w-3.5" />
+        <IconAdd class="h-3.5 w-3.5" />
         Pin date
       </button>
     </div>
@@ -155,7 +155,7 @@
           <span class="font-fell text-sm text-foreground flex-1">{{ formatPin(pin) }}</span>
           <RouterLink :to="calendarRoute(pin)" class="font-cinzel text-[10px] text-primary hover:opacity-80 transition-opacity shrink-0">View</RouterLink>
           <button type="button" class="text-muted-foreground hover:text-destructive transition-colors" @click="removePin(pin.id)">
-            <X class="h-3.5 w-3.5" />
+            <IconClose class="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
@@ -168,7 +168,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { CalendarDays, Plus, X } from "lucide-vue-next";
+import { IconAdd, IconCalendarDays, IconClose } from '@/lib/icons';
 import { useCalendarStore } from "@/stores/calendar";
 import {
   useEntityCalendarEvents,

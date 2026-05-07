@@ -42,8 +42,8 @@
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
         @click="save"
       >
-        <Save class="h-3.5 w-3.5" />
-        {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
+        <IconSave class="h-3.5 w-3.5" />
+        {{ saving ? "Saving…" : isNew ? "Create" : "IconSave" }}
       </button>
 
       <button
@@ -53,7 +53,7 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors disabled:opacity-50"
         @click="sendToScriptorium"
       >
-        <BookOpen class="h-3.5 w-3.5" />
+        <IconPopulate class="h-3.5 w-3.5" />
         {{ sendingToScriptorium ? "Sending…" : "Scriptorium" }}
       </button>
 
@@ -63,7 +63,7 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
         @click="remove"
       >
-        <Trash2 class="h-3.5 w-3.5" />
+        <IconDelete class="h-3.5 w-3.5" />
         Delete
       </button>
     </div>
@@ -155,7 +155,7 @@
                 class="inline-flex items-center gap-1 font-cinzel text-[10px] font-semibold text-amber-400 hover:opacity-80 transition-opacity tracking-wider"
                 @click="dropCurrencyToChat"
               >
-                <Coins class="h-3 w-3" />
+                <IconCoins class="h-3 w-3" />
                 Drop to Chat
               </button>
             </div>
@@ -241,7 +241,7 @@
                 "
                 @click="toggleObjective(obj)"
               >
-                <Check v-if="obj.is_done" class="h-2.5 w-2.5" />
+                <IconCheck v-if="obj.is_done" class="h-2.5 w-2.5" />
               </button>
               <span
                 class="font-fell text-sm flex-1 leading-snug transition-colors"
@@ -268,15 +268,15 @@
                 "
                 @click="toggleObjectiveVisibility(obj)"
               >
-                <Eye v-if="obj.is_player_visible" class="h-3.5 w-3.5" />
-                <EyeOff v-else class="h-3.5 w-3.5" />
+                <IconReveal v-if="obj.is_player_visible" class="h-3.5 w-3.5" />
+                <IconHide v-else class="h-3.5 w-3.5" />
               </button>
               <button
                 type="button"
                 class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
                 @click="removeObjective(obj)"
               >
-                <X class="h-3.5 w-3.5" />
+                <IconClose class="h-3.5 w-3.5" />
               </button>
             </div>
             <div v-if="!isNew" class="flex items-center gap-2 pt-1">
@@ -292,14 +292,14 @@
                 class="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
                 @click="addObjective"
               >
-                <Plus class="h-4 w-4" />
+                <IconAdd class="h-4 w-4" />
               </button>
             </div>
             <p
               v-else
               class="font-fell text-xs text-muted-foreground italic px-2 py-1"
             >
-              Save the quest first, then add objectives.
+              IconSave the quest first, then add objectives.
             </p>
           </div>
         </div>
@@ -342,7 +342,7 @@
               :key="ref.id"
               class="flex items-center gap-2 group rounded px-2 py-1.5 hover:bg-muted/40 transition-colors"
             >
-              <Swords class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <IconEncounter class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               <RouterLink
                 :to="`/encounters/${ref.ref_id}`"
                 class="font-fell text-sm text-foreground flex-1 truncate hover:text-primary transition-colors"
@@ -365,8 +365,8 @@
                 "
                 @click="toggleRefVisibility(ref)"
               >
-                <Eye v-if="ref.is_player_visible" class="h-3.5 w-3.5" />
-                <EyeOff v-else class="h-3.5 w-3.5" />
+                <IconReveal v-if="ref.is_player_visible" class="h-3.5 w-3.5" />
+                <IconHide v-else class="h-3.5 w-3.5" />
               </button>
               <button
                 v-if="!isNew"
@@ -374,7 +374,7 @@
                 class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
                 @click="removeRef(ref)"
               >
-                <X class="h-3.5 w-3.5" />
+                <IconClose class="h-3.5 w-3.5" />
               </button>
             </div>
             <div
@@ -392,14 +392,14 @@
                 class="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
                 @click="addEncounterRef"
               >
-                <Plus class="h-4 w-4" />
+                <IconAdd class="h-4 w-4" />
               </button>
             </div>
             <p
               v-else-if="isNew"
               class="font-fell text-xs text-muted-foreground italic px-2 py-1"
             >
-              Save the quest first, then link encounters.
+              IconSave the quest first, then link encounters.
             </p>
             <p
               v-else-if="
@@ -430,7 +430,7 @@
               :key="ref.id"
               class="flex items-center gap-2 group rounded px-2 py-1.5 hover:bg-muted/40 transition-colors"
             >
-              <User class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <IconUser class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               <RouterLink
                 :to="`/npcs/${ref.ref_id}`"
                 class="font-fell text-sm text-foreground flex-1 truncate hover:text-primary transition-colors"
@@ -453,8 +453,8 @@
                 "
                 @click="toggleRefVisibility(ref)"
               >
-                <Eye v-if="ref.is_player_visible" class="h-3.5 w-3.5" />
-                <EyeOff v-else class="h-3.5 w-3.5" />
+                <IconReveal v-if="ref.is_player_visible" class="h-3.5 w-3.5" />
+                <IconHide v-else class="h-3.5 w-3.5" />
               </button>
               <button
                 v-if="!isNew"
@@ -462,7 +462,7 @@
                 class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
                 @click="removeRef(ref)"
               >
-                <X class="h-3.5 w-3.5" />
+                <IconClose class="h-3.5 w-3.5" />
               </button>
             </div>
             <div
@@ -480,14 +480,14 @@
                 class="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
                 @click="addNpcRef"
               >
-                <Plus class="h-4 w-4" />
+                <IconAdd class="h-4 w-4" />
               </button>
             </div>
             <p
               v-else-if="isNew"
               class="font-fell text-xs text-muted-foreground italic px-2 py-1"
             >
-              Save the quest first, then link NPCs.
+              IconSave the quest first, then link NPCs.
             </p>
             <p
               v-else-if="!availableNpcs.length && !linkedNpcRefs.length"
@@ -518,7 +518,7 @@
               :key="ref.id"
               class="flex items-center gap-2 group rounded px-2 py-1.5 hover:bg-muted/40 transition-colors"
             >
-              <MapPin class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <IconLocation class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               <RouterLink
                 :to="`/atlas/${ref.ref_id}`"
                 class="font-fell text-sm text-foreground flex-1 truncate hover:text-primary transition-colors"
@@ -541,8 +541,8 @@
                 "
                 @click="toggleRefVisibility(ref)"
               >
-                <Eye v-if="ref.is_player_visible" class="h-3.5 w-3.5" />
-                <EyeOff v-else class="h-3.5 w-3.5" />
+                <IconReveal v-if="ref.is_player_visible" class="h-3.5 w-3.5" />
+                <IconHide v-else class="h-3.5 w-3.5" />
               </button>
               <button
                 v-if="!isNew"
@@ -550,7 +550,7 @@
                 class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
                 @click="removeRef(ref)"
               >
-                <X class="h-3.5 w-3.5" />
+                <IconClose class="h-3.5 w-3.5" />
               </button>
             </div>
             <div
@@ -568,14 +568,14 @@
                 class="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
                 @click="addLocationRef"
               >
-                <Plus class="h-4 w-4" />
+                <IconAdd class="h-4 w-4" />
               </button>
             </div>
             <p
               v-else-if="isNew"
               class="font-fell text-xs text-muted-foreground italic px-2 py-1"
             >
-              Save the quest first, then link locations.
+              IconSave the quest first, then link locations.
             </p>
             <p
               v-else-if="
@@ -608,7 +608,7 @@
               :key="ref.id"
               class="flex items-center gap-2 group rounded px-2 py-1.5 hover:bg-muted/40 transition-colors"
             >
-              <Skull class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <IconMonster class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               <RouterLink
                 :to="`/bestiary/${ref.ref_id}`"
                 class="font-fell text-sm text-foreground flex-1 truncate hover:text-primary transition-colors"
@@ -631,8 +631,8 @@
                 "
                 @click="toggleRefVisibility(ref)"
               >
-                <Eye v-if="ref.is_player_visible" class="h-3.5 w-3.5" />
-                <EyeOff v-else class="h-3.5 w-3.5" />
+                <IconReveal v-if="ref.is_player_visible" class="h-3.5 w-3.5" />
+                <IconHide v-else class="h-3.5 w-3.5" />
               </button>
               <button
                 v-if="!isNew"
@@ -640,7 +640,7 @@
                 class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
                 @click="removeRef(ref)"
               >
-                <X class="h-3.5 w-3.5" />
+                <IconClose class="h-3.5 w-3.5" />
               </button>
             </div>
             <div
@@ -658,14 +658,14 @@
                 class="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
                 @click="addMonsterRef"
               >
-                <Plus class="h-4 w-4" />
+                <IconAdd class="h-4 w-4" />
               </button>
             </div>
             <p
               v-else-if="isNew"
               class="font-fell text-xs text-muted-foreground italic px-2 py-1"
             >
-              Save the quest first, then link creatures.
+              IconSave the quest first, then link creatures.
             </p>
             <p
               v-else-if="!availableMonsters.length && !linkedMonsterRefs.length"
@@ -693,7 +693,7 @@
               :key="trig.id"
               class="flex items-start gap-2 group rounded px-2 py-1.5 hover:bg-muted/40 transition-colors"
             >
-              <Zap class="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+              <IconLightning class="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
               <div class="flex-1 min-w-0">
                 <p class="font-fell text-xs text-foreground leading-snug">
                   <span class="font-semibold">{{ trig.trigger_type === 'quest_complete' ? 'Quest complete' : `Objective done` }}</span>
@@ -707,7 +707,7 @@
                 class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
                 @click="removeTrigger(trig)"
               >
-                <X class="h-3.5 w-3.5" />
+                <IconClose class="h-3.5 w-3.5" />
               </button>
             </div>
 
@@ -773,7 +773,7 @@
                 class="w-full rounded-md border border-dashed border-border px-3 py-1.5 font-cinzel text-xs text-muted-foreground hover:text-primary hover:border-primary transition-colors disabled:opacity-40"
                 @click="addTrigger"
               >
-                <Plus class="h-3 w-3 inline mr-1" />
+                <IconAdd class="h-3 w-3 inline mr-1" />
                 {{ addingTrigger ? 'Adding…' : 'Add Consequence' }}
               </button>
             </div>
@@ -800,7 +800,7 @@
               :to="`/quests/new?parent=${props.quest?.id}`"
               class="inline-flex items-center gap-1 font-cinzel text-[10px] font-semibold text-primary tracking-wider hover:opacity-80 transition-opacity"
             >
-              <Plus class="h-3 w-3" />
+              <IconAdd class="h-3 w-3" />
               Add
             </RouterLink>
           </div>
@@ -824,7 +824,7 @@
               <span class="font-fell text-sm text-foreground flex-1 truncate">{{
                 sub.title || "Untitled"
               }}</span>
-              <ChevronRight
+              <IconChevronRight
                 class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary shrink-0"
               />
             </RouterLink>
@@ -873,23 +873,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import {
-  Save,
-  Trash2,
-  Plus,
-  Eye,
-  EyeOff,
-  Check,
-  X,
-  Zap,
-  ChevronRight,
-  Swords,
-  BookOpen,
-  User,
-  MapPin,
-  Skull,
-  Coins,
-} from "lucide-vue-next";
+import { IconAdd, IconCheck, IconChevronRight, IconClose, IconCoins, IconDelete, IconEncounter, IconHide, IconLightning, IconLocation, IconMonster, IconPopulate, IconReveal, IconSave, IconUser } from '@/lib/icons';
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import {

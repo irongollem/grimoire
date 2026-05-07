@@ -7,7 +7,7 @@
     >
       <!-- Generating -->
       <template v-if="entry.isGenerating.value">
-        <Sparkles class="h-4 w-4 text-primary animate-pulse shrink-0" />
+        <IconGenerate class="h-4 w-4 text-primary animate-pulse shrink-0" />
         <span class="text-foreground italic truncate max-w-50">{{ currentLoadingQuote }}</span>
         <button
           class="text-muted-foreground hover:text-foreground transition-colors shrink-0 underline underline-offset-2 text-xs font-cinzel tracking-wide"
@@ -19,7 +19,7 @@
 
       <!-- Completed -->
       <template v-else-if="entry.completedEntityId.value">
-        <CheckCircle class="h-4 w-4 text-emerald-500 shrink-0" />
+        <IconCheckCircle class="h-4 w-4 text-emerald-500 shrink-0" />
         <span class="text-foreground italic">{{ entry.label }} ready!</span>
         <button
           class="text-primary hover:opacity-80 transition-opacity shrink-0 underline underline-offset-2 text-xs font-cinzel tracking-wide"
@@ -32,13 +32,13 @@
           aria-label="Dismiss"
           @click="entry.clearCompleted()"
         >
-          <X class="h-3.5 w-3.5" />
+          <IconClose class="h-3.5 w-3.5" />
         </button>
       </template>
 
       <!-- Error -->
       <template v-else-if="entry.error.value">
-        <AlertCircle class="h-4 w-4 text-destructive shrink-0" />
+        <IconAlertCircle class="h-4 w-4 text-destructive shrink-0" />
         <span class="text-destructive italic truncate max-w-45">{{ entry.label }} generation failed</span>
         <button
           class="text-muted-foreground hover:text-foreground transition-colors shrink-0 underline underline-offset-2 text-xs font-cinzel tracking-wide"
@@ -51,7 +51,7 @@
           aria-label="Dismiss"
           @click="entry.clearError()"
         >
-          <X class="h-3.5 w-3.5" />
+          <IconClose class="h-3.5 w-3.5" />
         </button>
       </template>
     </div>
@@ -61,7 +61,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRouter } from "vue-router";
-import { Sparkles, CheckCircle, AlertCircle, X } from "lucide-vue-next";
+import { IconAlertCircle, IconCheckCircle, IconClose, IconGenerate } from '@/lib/icons';
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { getAiGeneratorRegistry } from "@/ai/aiGeneratorRegistry";
 

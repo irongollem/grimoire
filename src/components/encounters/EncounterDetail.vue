@@ -6,7 +6,7 @@
         to="/encounters"
         class="inline-flex items-center gap-1 font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors"
       >
-        <ChevronLeft class="h-3.5 w-3.5" />
+        <IconChevronLeft class="h-3.5 w-3.5" />
         All Encounters
       </RouterLink>
 
@@ -31,7 +31,7 @@
           "
           @click="toggleFinished"
         >
-          <CheckCheck class="h-3.5 w-3.5" />
+          <IconCheckDouble class="h-3.5 w-3.5" />
           {{ props.encounter.is_finished ? "Reopen" : "Mark Done" }}
         </button>
 
@@ -42,7 +42,7 @@
           :disabled="deleteEncounter.isPending.value"
           @click="handleDelete"
         >
-          <X class="h-3.5 w-3.5" />
+          <IconClose class="h-3.5 w-3.5" />
           Delete
         </button>
         <button
@@ -70,7 +70,7 @@
             class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-foreground hover:border-primary/50 transition-colors"
             @click="handleRestart"
           >
-            <RotateCcw class="h-3.5 w-3.5" />
+            <IconReset class="h-3.5 w-3.5" />
             Restart
           </button>
           <button
@@ -78,7 +78,7 @@
             class="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
             @click="handleStop"
           >
-            <Square class="h-3.5 w-3.5" />
+            <IconStop class="h-3.5 w-3.5" />
             Stop
           </button>
           <button
@@ -86,7 +86,7 @@
             class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
             @click="handleRunEncounter"
           >
-            <Play class="h-3.5 w-3.5" />
+            <IconPlay class="h-3.5 w-3.5" />
             Resume
           </button>
         </template>
@@ -99,7 +99,7 @@
           :disabled="isSaving"
           @click="handleRunEncounter"
         >
-          <Play class="h-3.5 w-3.5" />
+          <IconPlay class="h-3.5 w-3.5" />
           Run Encounter
         </button>
       </div>
@@ -381,7 +381,7 @@
               :to="`/quests/${q.id}`"
               class="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-muted/40 transition-colors group"
             >
-              <ScrollText class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <IconScrollText class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               <span
                 class="font-fell text-sm text-foreground flex-1 truncate group-hover:text-primary transition-colors"
               >
@@ -453,15 +453,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, reactive, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import {
-  ChevronLeft,
-  X,
-  Play,
-  RotateCcw,
-  Square,
-  CheckCheck,
-  ScrollText,
-} from "lucide-vue-next";
+import { IconCheckDouble, IconChevronLeft, IconClose, IconPlay, IconReset, IconScrollText, IconStop } from '@/lib/icons';
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useParty } from "@/composables/useParty";
 import { useSpeciesNameMap } from "@/composables/useSpecies";
@@ -950,7 +942,6 @@ async function handleDropLootItem(
   removeAllOfItem(item.id);
   await handleSave();
 }
-
 
 function removeAllOfItem(id: string) {
   form.item_ids = form.item_ids.filter((i) => i !== id);

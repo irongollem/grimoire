@@ -99,7 +99,7 @@
         </template>
       </template>
 
-      <!-- ── Users tab ─────────────────────────────────────────────────── -->
+      <!-- ── IconParty tab ─────────────────────────────────────────────────── -->
       <template v-else-if="activeTab === 'users'">
         <input
           v-model="userSearch"
@@ -203,7 +203,7 @@
               :disabled="createInvite.isPending.value"
               @click="handleCreate"
             >
-              <Plus class="h-3.5 w-3.5" />
+              <IconAdd class="h-3.5 w-3.5" />
               Generate
             </button>
           </div>
@@ -247,7 +247,7 @@
                 :disabled="deleteInvite.isPending.value"
                 @click="deleteInvite.mutate(invite.id)"
               >
-                <Trash2 class="h-3.5 w-3.5" />
+                <IconDelete class="h-3.5 w-3.5" />
               </button>
             </div>
             <div class="flex items-center gap-2 rounded bg-background px-2 py-1.5">
@@ -261,9 +261,9 @@
                   : 'border border-border text-foreground hover:bg-muted'"
                 @click="copyInvite(invite)"
               >
-                <Check v-if="copiedId === invite.id" class="h-3 w-3" />
-                <Copy v-else class="h-3 w-3" />
-                {{ copiedId === invite.id ? 'Copied!' : 'Copy' }}
+                <IconCheck v-if="copiedId === invite.id" class="h-3 w-3" />
+                <IconCopy v-else class="h-3 w-3" />
+                {{ copiedId === invite.id ? 'Copied!' : 'IconCopy' }}
               </button>
             </div>
           </div>
@@ -299,7 +299,7 @@
             :disabled="bulkPublish.isPending.value"
             @click="handlePublishArt"
           >
-            <Upload class="h-3.5 w-3.5" />
+            <IconUpload class="h-3.5 w-3.5" />
             {{ bulkPublish.isPending.value ? 'Publishing…' : 'Publish all my SRD art' }}
           </button>
         </div>
@@ -621,7 +621,7 @@
                   class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   @click="keyVisible[p.id] = !keyVisible[p.id]"
                 >
-                  <component :is="keyVisible[p.id] ? EyeOff : Eye" class="h-3.5 w-3.5" />
+                  <component :is="keyVisible[p.id] ? IconHide : IconReveal" class="h-3.5 w-3.5" />
                 </button>
               </div>
               <button
@@ -643,7 +643,7 @@
 <script setup lang="ts">
 import { ref, computed, reactive, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { LayoutGrid, Users, Coins, FileText, UserPlus, Plus, Trash2, Copy, Check, Upload, Library, Tag, KeyRound, Eye, EyeOff } from "lucide-vue-next";
+import { IconAdd, IconAddUser, IconCheck, IconCoins, IconCopy, IconDelete, IconDocument, IconGridView, IconHide, IconKey, IconLibrary, IconParty, IconReveal, IconTag, IconUpload } from '@/lib/icons';
 import { useAdminPlans } from "@/composables/useAdminPlans";
 import { useAdminUsers } from "@/composables/useAdminUsers";
 import { useAdminPrompts } from "@/composables/useAdminPrompts";
@@ -667,14 +667,14 @@ const router = useRouter();
 type TabId = "plans" | "users" | "invites" | "content" | "pricing" | "credits" | "prompts" | "keys";
 const VALID_TABS = new Set<string>(["plans", "users", "invites", "content", "pricing", "credits", "prompts", "keys"]);
 const TABS = [
-  { id: "plans"   as TabId, label: "Plans",   icon: LayoutGrid },
-  { id: "users"   as TabId, label: "Users",   icon: Users },
-  { id: "invites" as TabId, label: "Invites", icon: UserPlus },
-  { id: "content" as TabId, label: "Content", icon: Library },
-  { id: "pricing" as TabId, label: "Pricing", icon: Tag },
-  { id: "credits" as TabId, label: "Credits", icon: Coins },
-  { id: "prompts" as TabId, label: "Prompts", icon: FileText },
-  { id: "keys"    as TabId, label: "Keys",    icon: KeyRound },
+  { id: "plans"   as TabId, label: "Plans",   icon: IconGridView },
+  { id: "users"   as TabId, label: "IconParty",   icon: IconParty },
+  { id: "invites" as TabId, label: "Invites", icon: IconAddUser },
+  { id: "content" as TabId, label: "Content", icon: IconLibrary },
+  { id: "pricing" as TabId, label: "Pricing", icon: IconTag },
+  { id: "credits" as TabId, label: "Credits", icon: IconCoins },
+  { id: "prompts" as TabId, label: "Prompts", icon: IconDocument },
+  { id: "keys"    as TabId, label: "Keys",    icon: IconKey },
 ];
 
 const activeTab = computed<TabId>(() => {
@@ -728,7 +728,7 @@ async function savePlanQuotas(plan: Plan) {
   }
 }
 
-// ── Users ──────────────────────────────────────────────────────────────────
+// ── IconParty ──────────────────────────────────────────────────────────────────
 const { setPlan: setPlanMutation, grantCredits: grantCreditsMutation, ...usersQuery } = useAdminUsers();
 
 const PLAN_IDS: PlanId[] = ["free", "tester", "pro"];

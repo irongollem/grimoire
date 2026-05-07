@@ -21,7 +21,7 @@
             class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
             @click="editMode = true"
           >
-            <Pencil class="size-3.5" />
+            <IconEdit class="size-3.5" />
             Edit
           </button>
         </template>
@@ -164,7 +164,7 @@
                 class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 font-cinzel text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
                 @click="addEntry"
               >
-                <Plus class="size-3.5" />
+                <IconAdd class="size-3.5" />
                 Add row
               </button>
             </div>
@@ -217,7 +217,7 @@
                   title="Remove entry"
                   @click="removeEntry(idx)"
                 >
-                  <Trash2 class="size-3.5" />
+                  <IconDelete class="size-3.5" />
                 </button>
                 <textarea
                   v-if="entry.notes !== null && entry.notes !== undefined"
@@ -266,7 +266,7 @@
             class="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
             @click="onRoll"
           >
-            <Dices class="size-3.5" />
+            <IconDiceRoll class="size-3.5" />
             Roll
           </button>
 
@@ -301,7 +301,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter, RouterLink } from "vue-router";
-import { Plus, Trash2, Dices, Pencil } from "lucide-vue-next";
+import { IconAdd, IconDelete, IconDiceRoll, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import {
   useRollTable,

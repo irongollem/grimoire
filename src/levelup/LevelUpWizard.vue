@@ -99,7 +99,7 @@
               >
                 <span class="text-primary mt-0.5 shrink-0">✦</span>
                 <span class="flex-1">{{ featureName(feat) }}</span>
-                <ChevronDown
+                <IconChevronDown
                   v-if="featureDescription(feat)"
                   class="h-3 w-3 text-muted-foreground/60 mt-0.5 transition-transform shrink-0"
                   :class="wizardExpandedFeatures.has(featureName(feat)) ? 'rotate-180' : ''"
@@ -474,7 +474,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter, RouterLink } from "vue-router";
-import { ChevronDown } from "lucide-vue-next";
+import { IconChevronDown } from '@/lib/icons';
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useAllCustomSubclasses, useCustomSubclassByClassAndSubclass } from "@/composables/useCustomSubclasses";

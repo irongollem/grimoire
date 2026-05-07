@@ -19,7 +19,7 @@
             CR {{ trap.cr }} · {{ crToXp(trap.cr) }} XP
           </span>
           <button type="button" class="text-muted-foreground hover:text-foreground transition-colors ml-1 shrink-0" @click="emit('close')">
-            <X class="h-4 w-4" />
+            <IconClose class="h-4 w-4" />
           </button>
         </div>
 
@@ -147,7 +147,7 @@
             class="inline-flex items-center gap-1.5 rounded-md border border-border px-4 py-2 font-cinzel text-xs font-semibold text-foreground hover:border-primary/50 transition-colors"
             @click="emit('close')"
           >
-            <Pencil class="h-3.5 w-3.5" />
+            <IconEdit class="h-3.5 w-3.5" />
             Edit Trap
           </RouterLink>
         </div>
@@ -159,7 +159,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
-import { X, Pencil } from "lucide-vue-next";
+import { IconClose, IconEdit } from '@/lib/icons';
 import { generateHTML } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import FocalImage from "@/components/common/FocalImage.vue";

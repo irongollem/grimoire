@@ -14,7 +14,7 @@
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0"
         @click="customize"
       >
-        <Copy class="h-3.5 w-3.5" />
+        <IconCopy class="h-3.5 w-3.5" />
         {{ cloning ? "Copying…" : "Customize" }}
       </button>
     </div>
@@ -35,7 +35,7 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-primary/40 px-3 py-2 font-cinzel text-xs font-semibold text-primary hover:bg-primary/10 transition-colors"
         @click="showGenerateDialog = true"
       >
-        <Sparkles class="h-3.5 w-3.5" />
+        <IconGenerate class="h-3.5 w-3.5" />
         Generate
       </button>
       <button
@@ -44,8 +44,8 @@
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
         @click="save"
       >
-        <Save class="h-3.5 w-3.5" />
-        {{ saving ? "Saving…" : props.monster ? "Save" : "Create" }}
+        <IconSave class="h-3.5 w-3.5" />
+        {{ saving ? "Saving…" : props.monster ? "IconSave" : "Create" }}
       </button>
       <button
         v-if="props.monster"
@@ -54,7 +54,7 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-foreground hover:bg-muted transition-colors disabled:opacity-50"
         @click="sendToScriptorium"
       >
-        <ScrollText class="h-3.5 w-3.5" />
+        <IconScrollText class="h-3.5 w-3.5" />
         {{ sendingToScriptorium ? "Exporting…" : "Send to Scriptorium" }}
       </button>
       <button
@@ -64,7 +64,7 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors disabled:opacity-50"
         @click="duplicate"
       >
-        <Copy class="h-3.5 w-3.5" />
+        <IconCopy class="h-3.5 w-3.5" />
         {{ duplicating ? "Copying…" : "Duplicate" }}
       </button>
       <button
@@ -73,7 +73,7 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
         @click="remove"
       >
-        <Trash2 class="h-3.5 w-3.5" />
+        <IconDelete class="h-3.5 w-3.5" />
         Delete
       </button>
     </div>
@@ -214,7 +214,7 @@
                         :title="!speedObj.fly ? 'Set a fly speed to enable hover' : speedObj.hover ? 'Hover on — click to disable' : 'Hover off — click to enable'"
                         @click="speedObj.fly && (speedObj.hover = !speedObj.hover)"
                       >
-                        <Wind class="w-2.5 h-2.5 shrink-0"
+                        <IconWind class="w-2.5 h-2.5 shrink-0"
                           :class="speedObj.hover && speedObj.fly ? 'text-primary-foreground' : 'text-muted-foreground/60'" />
                       </button>
                       <input :value="speedObj.fly ?? ''" type="number" step="5" min="0" placeholder="—"
@@ -441,7 +441,7 @@ import { ref, reactive, computed, watch, watchEffect } from "vue";
 import { parseSpeed, speedToString } from "@/lib/utils";
 import type { SpeedBlock } from "@/lib/utils";
 import { useRouter } from "vue-router";
-import { Save, Trash2, ScrollText, Copy, Sparkles, Wind } from "lucide-vue-next";
+import { IconCopy, IconDelete, IconGenerate, IconSave, IconScrollText, IconWind } from '@/lib/icons';
 import MonsterGenerateDialog from "@/ai/MonsterGenerateDialog.vue";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { useCampaignStore } from "@/stores/campaign";
@@ -648,7 +648,7 @@ function onAiGenerated(result: MonsterAiGenerated) {
   Object.assign(sb, defaultSb(), result.stat_block);
 }
 
-// Save
+// IconSave
 const { mutateAsync: create } = useCreateMonster();
 const { mutateAsync: update } = useUpdateMonster();
 const { mutateAsync: del } = useDeleteMonster();

@@ -44,7 +44,7 @@
           class="flex items-center gap-2 px-4 py-2 font-cinzel text-xs font-semibold tracking-wider border border-border text-foreground rounded-md hover:bg-muted transition-colors"
           @click="importOpen = true"
         >
-          <Upload class="h-3.5 w-3.5" />
+          <IconUpload class="h-3.5 w-3.5" />
           Import .grimoire
         </button>
         <button
@@ -53,7 +53,7 @@
           @click="goToFirstPick"
         >
           Continue
-          <ChevronRight class="h-3.5 w-3.5" />
+          <IconChevronRight class="h-3.5 w-3.5" />
         </button>
       </div>
     </template>
@@ -66,7 +66,7 @@
           class="text-muted-foreground hover:text-foreground transition-colors"
           @click="goBack"
         >
-          <ChevronLeft class="h-4 w-4" />
+          <IconChevronLeft class="h-4 w-4" />
         </button>
         <div>
           <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
@@ -86,13 +86,13 @@
         </div>
       </div>
 
-      <!-- Search -->
+      <!-- IconSearch -->
       <div class="relative">
-        <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+        <IconSearch class="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
         <input
           v-model="search"
           type="text"
-          placeholder="Search…"
+          placeholder="IconSearch…"
           class="w-full bg-muted border border-border rounded-md pl-8 pr-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
@@ -162,7 +162,7 @@
           @click="goNext"
         >
           {{ isLastPick ? "Continue to Details" : "Next" }}
-          <ChevronRight class="h-3.5 w-3.5" />
+          <IconChevronRight class="h-3.5 w-3.5" />
         </button>
       </div>
     </template>
@@ -174,7 +174,7 @@
           class="text-muted-foreground hover:text-foreground transition-colors"
           @click="goBack"
         >
-          <ChevronLeft class="h-4 w-4" />
+          <IconChevronLeft class="h-4 w-4" />
         </button>
         <div>
           <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
@@ -244,7 +244,7 @@
           class="flex items-center gap-2 px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
           @click="doExport"
         >
-          <Download class="h-3.5 w-3.5" />
+          <IconDownload class="h-3.5 w-3.5" />
           {{ isExporting ? "Exporting…" : "Export .grimoire" }}
         </button>
       </div>
@@ -256,7 +256,7 @@
 
 <script setup lang="ts">
 import { ref, computed, shallowRef, watch } from "vue";
-import { ChevronRight, ChevronLeft, Download, Upload, Search } from "lucide-vue-next";
+import { IconChevronLeft, IconChevronRight, IconDownload, IconSearch, IconUpload } from '@/lib/icons';
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import {

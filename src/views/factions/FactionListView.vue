@@ -3,18 +3,18 @@
     <template #actions>
       <ListActionButton
         v-if="hasSetting"
-        :icon="populateMutation.isPending.value ? Loader2 : Globe"
+        :icon="populateMutation.isPending.value ? IconLoading : IconPopulate"
         :label="populateStatusLabel"
         :disabled="populateMutation.isPending.value"
         @click="handlePopulate"
       />
       <ListActionButton
-        :icon="Sparkles"
+        :icon="IconGenerate"
         label="Generate"
         @click="ui.factionGeneratorOpen = true"
       />
       <ListActionButton
-        :icon="Plus"
+        :icon="IconAdd"
         label="New Faction"
         mobile-label="Faction"
         variant="primary"
@@ -55,13 +55,13 @@
         >
           <div class="shrink-0 h-12 w-12 rounded-lg border border-border bg-muted overflow-hidden flex items-center justify-center">
             <img v-if="faction.emblem_url" :src="faction.emblem_url" alt="" class="w-full h-full object-cover" />
-            <Shield v-else class="h-5 w-5 text-muted-foreground/40" />
+            <IconShield v-else class="h-5 w-5 text-muted-foreground/40" />
           </div>
 
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-2">
               <p class="font-cinzel text-sm font-bold text-foreground truncate flex-1">{{ faction.name }}</p>
-              <Eye v-if="faction.player_visible_to?.length" class="h-3 w-3 shrink-0 text-elven-green" />
+              <IconReveal v-if="faction.player_visible_to?.length" class="h-3 w-3 shrink-0 text-elven-green" />
             </div>
             <p v-if="faction.faction_type" class="font-cinzel text-[10px] text-muted-foreground tracking-wider mt-0.5">
               {{ faction.faction_type }}
@@ -75,7 +75,7 @@
             </div>
           </div>
 
-          <ChevronRight class="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
+          <IconChevronRight class="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
         </RouterLink>
       </div>
     </template>
@@ -84,7 +84,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Plus, Shield, ChevronRight, Eye, Sparkles, Loader2, Globe } from "lucide-vue-next";
+import { IconAdd, IconChevronRight, IconGenerate, IconLoading, IconPopulate, IconReveal, IconShield } from '@/lib/icons';
 import { useAllFactions, usePopulateFactions } from "@/composables/useFactions";
 import { FACTION_TYPES } from "@/types/faction.types";
 import { useUiStore } from "@/stores/ui";
