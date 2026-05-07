@@ -299,10 +299,15 @@
       <div
         class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0"
       >
+        <p
+          v-if="effectiveCreditCost > 0 && isPro && isAiEnabled"
+          class="font-fell text-xs text-center"
+          :class="canAfford ? 'text-muted-foreground' : 'text-destructive font-semibold'"
+        >{{ creditLine }}</p>
         <button
           v-if="isPro && isAiEnabled"
           type="button"
-          :disabled="isAnyAiGenerating || !concept.trim()"
+          :disabled="isAnyAiGenerating || !concept.trim() || (effectiveCreditCost > 0 && !canAfford)"
           :title="
             isAnyAiGenerating && !isGenerating
               ? 'Another generation is already in progress'
@@ -343,6 +348,8 @@ import { useRouter } from "vue-router";
 import { IconClose, IconGenerate } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCreateNpc } from "@/composables/useNpcs";
+import { useAiCredits } from "@/composables/useAiCredits";
+import { useProviderConfig } from "@/composables/useProviderConfig";
 import {
   NPC_TEMPLATES,
   NPC_TEMPLATE_CATEGORIES,
@@ -454,6 +461,35 @@ const aiApiKey = computed(() => campaign.decryptedApiKey);
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 const { isPro } = useSubscription();
 const showPaywall = ref(false);
+
+const { costOf, balance, isLoading: creditsLoading } = useAiCredits();
+const { textMultiplierFor, imageMultiplierFor } = useProviderConfig();
+
+const textProvider   = computed(() => campaign.activeCampaign?.text_provider  ?? "openai");
+const imageProvider  = computed(() => campaign.activeCampaign?.image_provider ?? "openai");
+const textIsByok     = computed(() => !!campaign.decryptedApiKey);
+const imageIsByok    = computed(() =>
+  imageProvider.value === "falai" ? !!campaign.decryptedFalAiKey : !!campaign.decryptedOpenAiKey,
+);
+
+const effectiveCreditCost = computed(() => {
+  let cost = 0;
+  if (!textIsByok.value) {
+    cost += Math.round(costOf("npc_text") * textMultiplierFor(textProvider.value) * 100) / 100;
+  }
+  if (generateImage.value && !imageIsByok.value) {
+    const n = generateAlterEgo.value ? 2 : 1;
+    cost += Math.round(costOf("portrait") * imageMultiplierFor(imageProvider.value) * n * 100) / 100;
+  }
+  return cost;
+});
+
+const canAfford  = computed(() => creditsLoading.value || (balance.value ?? 0) >= effectiveCreditCost.value);
+const creditLine = computed(() => {
+  const cost = parseFloat(effectiveCreditCost.value.toFixed(2));
+  const bal  = parseFloat(((balance.value ?? 0) as number).toFixed(2));
+  return `${cost === 1 ? "1 credit" : `${cost} credits`} · Balance: ${bal}`;
+});
 
 function openAiSettings() {
   ui.npcGeneratorOpen = false;

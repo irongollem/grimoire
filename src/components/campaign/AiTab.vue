@@ -113,37 +113,44 @@
         <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Active Providers</span>
       </div>
       <div class="p-4 flex flex-col gap-4">
+
+        <!-- Text generation -->
         <div class="flex flex-col gap-1">
           <label class="font-cinzel text-xs text-muted-foreground tracking-wide">Text generation</label>
           <p class="font-fell text-xs text-muted-foreground italic">Used for NPCs, monsters, items, spells, and puzzles.</p>
+          <!-- BYOK: picker based on entered keys -->
           <select
-            v-if="availableTextProviders.length > 0"
+            v-if="hasByokTextKey && availableTextProviders.length > 0"
             v-model="form.text_provider"
             class="field-input text-sm"
           >
             <option v-for="o in availableTextProviders" :key="o.value" :value="o.value">{{ o.label }}</option>
           </select>
+          <!-- Platform: fixed GPT-4o mini -->
+          <div v-else-if="!hasByokTextKey" class="field-input text-sm text-muted-foreground select-none">
+            GPT-4o mini · platform credits
+          </div>
           <div v-else class="field-input text-sm opacity-50 cursor-not-allowed select-none text-muted-foreground">
             No provider selected
           </div>
-          <p v-if="availableTextProviders.length === 0" class="font-fell text-xs text-yellow-600 dark:text-yellow-500 font-semibold">
+          <p v-if="hasByokTextKey && availableTextProviders.length === 0" class="font-fell text-xs text-yellow-600 dark:text-yellow-500 font-semibold">
             ⚠ Enter an API key above to enable text generation.
           </p>
-          <p v-else class="font-fell text-xs text-muted-foreground">
-            {{ activeTextCost.hint }}
-            <span class="opacity-60">· prices approximate</span>
+          <p v-else-if="hasByokTextKey" class="font-fell text-xs text-muted-foreground">
+            Your key · no credits charged
+          </p>
+          <p v-else-if="enabledTextProviders.length > 1" class="font-fell text-xs text-muted-foreground">
+            Quality tier available — add an API key above to choose provider.
           </p>
         </div>
 
+        <!-- Image generation -->
         <div class="flex flex-col gap-1">
           <label class="font-cinzel text-xs text-muted-foreground tracking-wide">Image generation</label>
           <p class="font-fell text-xs text-muted-foreground italic">
             Used for portrait and artwork generation.
             <span v-if="form.image_provider === 'falai'" class="text-yellow-600 dark:text-yellow-500">
               fal.ai does not support alter-ego disguise portraits — that requires OpenAI.
-            </span>
-            <span v-if="form.image_provider === 'openai-mini'" class="text-muted-foreground">
-              Draft mode: lower cost, same sizes and features as standard, but lower output quality.
             </span>
           </p>
           <select
@@ -154,31 +161,16 @@
             <option v-for="o in availableImageProviders" :key="o.value" :value="o.value">{{ o.label }}</option>
           </select>
           <div v-else class="field-input text-sm opacity-50 cursor-not-allowed select-none text-muted-foreground">
-            No provider selected
+            No provider available
           </div>
-          <p v-if="availableImageProviders.length === 0" class="font-fell text-xs text-yellow-600 dark:text-yellow-500 font-semibold">
-            ⚠ Enter an API key above to enable image generation.
+          <p v-if="!hasByokImageKey" class="font-fell text-xs text-muted-foreground">
+            Using platform credits · model configured by Grimoire
           </p>
           <p v-else class="font-fell text-xs text-muted-foreground">
-            {{ activeImageCost.hint }}
-            <span class="opacity-60">· prices approximate</span>
+            Your key · no credits charged
           </p>
-
-          <!-- gpt-image model toggle (only for standard OpenAI) -->
-          <div v-if="form.image_provider === 'openai'" class="mt-1 flex flex-col gap-1.5 rounded-md border border-border bg-muted/10 px-3 py-2.5">
-            <label class="font-cinzel text-xs text-muted-foreground tracking-wide">Model</label>
-            <div class="flex items-center gap-3">
-              <label class="flex items-center gap-2 cursor-pointer">
-                <input type="radio" v-model="openaiImageModel" value="gpt-image-2" class="h-3.5 w-3.5" />
-                <span class="text-sm">gpt-image-2 <span class="text-muted-foreground text-xs">(default)</span></span>
-              </label>
-              <label class="flex items-center gap-2 cursor-pointer">
-                <input type="radio" v-model="openaiImageModel" value="gpt-image-1.5" class="h-3.5 w-3.5" />
-                <span class="text-sm">gpt-image-1.5 <span class="text-muted-foreground text-xs">(legacy)</span></span>
-              </label>
-            </div>
-          </div>
         </div>
+
       </div>
     </div>
 
@@ -252,7 +244,7 @@ import { encryptApiKey, primeDecryptCache } from "@/lib/apiKeyVault";
 import { getSetting } from "@/settings/index";
 import { useSubscription } from "@/composables/useSubscription";
 import { useStripe } from "@/composables/useStripe";
-import { OPENAI_IMAGE_MODEL_KEY } from "@/ai/providers/index";
+import { useProviderConfig, PROVIDER_DISPLAY } from "@/composables/useProviderConfig";
 
 const { isPro } = useSubscription();
 const { loading: stripeLoading, createCheckoutSession } = useStripe();
@@ -299,26 +291,22 @@ const showKeys     = reactive<Record<string, boolean>>(Object.fromEntries(provid
 const isSaving     = ref(false);
 const localModeEnabled = ref(typeof localStorage !== "undefined" && localStorage.getItem(LOCAL_MODE_KEY) === "local");
 
-const openaiImageModel = ref<"gpt-image-1.5" | "gpt-image-2">(
-  (typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) as "gpt-image-1.5" | "gpt-image-2" ?? "gpt-image-2"
-);
-watch(openaiImageModel, (v) => localStorage.setItem(OPENAI_IMAGE_MODEL_KEY, v));
-
-const activeSetting       = computed(() => getSetting(campaign.activeCampaign?.calendar_id ?? ""));
+const activeSetting        = computed(() => getSetting(campaign.activeCampaign?.calendar_id ?? ""));
 const settingDefaultPrompt = computed(() => activeSetting.value?.defaultAiPrompt ?? "");
 const settingLabel         = computed(() => activeSetting.value?.label ?? "Setting");
 
-// Provider option definitions for the dropdowns
-const TEXT_PROVIDER_OPTIONS = [
-  { value: "openai",    label: "OpenAI — GPT-4o mini" },
-  { value: "anthropic", label: "Claude — Sonnet 4.6" },
-  { value: "gemini",    label: "Google Gemini — 3.1 Flash" },
+const { enabledImageProviders, enabledTextProviders } = useProviderConfig();
+
+// BYOK provider options (shown when the user has entered their own keys)
+const BYOK_TEXT_OPTIONS = [
+  { value: "openai",    label: "OpenAI — GPT-4o mini",       keyProvider: "openai"    },
+  { value: "anthropic", label: "Anthropic — Claude Haiku 3", keyProvider: "anthropic" },
+  { value: "gemini",    label: "Google Gemini 2.5 Flash",    keyProvider: "gemini"    },
 ] as const;
 
-const IMAGE_PROVIDER_OPTIONS = [
-  { value: "openai",       label: "OpenAI",                           keyProvider: "openai" },
-  { value: "openai-mini",  label: "OpenAI — gpt-image-1-mini (draft)", keyProvider: "openai" },
-  { value: "falai",        label: "fal.ai — FLUX 2 Flex",             keyProvider: "falai"  },
+const BYOK_IMAGE_OPTIONS = [
+  { value: "openai", label: "OpenAI",          keyProvider: "openai" },
+  { value: "falai",  label: "fal.ai — FLUX",   keyProvider: "falai"  },
 ] as const;
 
 function providerHasKey(providerId: string): boolean {
@@ -330,12 +318,23 @@ function providerHasKey(providerId: string): boolean {
   return false;
 }
 
-const availableTextProviders  = computed(() => TEXT_PROVIDER_OPTIONS.filter((o) => providerHasKey(o.value)));
-const availableImageProviders = computed(() => IMAGE_PROVIDER_OPTIONS.filter((o) => providerHasKey(o.keyProvider)));
+const hasByokTextKey  = computed(() => BYOK_TEXT_OPTIONS.some((o) => providerHasKey(o.keyProvider)));
+const hasByokImageKey = computed(() => BYOK_IMAGE_OPTIONS.some((o) => providerHasKey(o.keyProvider)));
+
+const availableTextProviders  = computed(() => BYOK_TEXT_OPTIONS.filter((o) => providerHasKey(o.keyProvider)));
+// For BYOK: filter by key. For platform users: use enabled providers from DB config.
+const availableImageProviders = computed(() =>
+  hasByokImageKey.value
+    ? BYOK_IMAGE_OPTIONS.filter((o) => providerHasKey(o.keyProvider))
+    : enabledImageProviders.value.map((r) => ({
+        value: r.provider,
+        label: PROVIDER_DISPLAY[r.provider] ?? r.provider,
+      })),
+);
 
 // Auto-correct selection if the chosen provider loses its key
 watch(availableTextProviders, (options) => {
-  if (options.length > 0 && !options.some((o) => o.value === form.value.text_provider)) {
+  if (hasByokTextKey.value && options.length > 0 && !options.some((o) => o.value === form.value.text_provider)) {
     form.value.text_provider = options[0].value;
   }
 });
@@ -344,21 +343,6 @@ watch(availableImageProviders, (options) => {
     form.value.image_provider = options[0].value;
   }
 });
-
-// Cost hints — based on ~2 000 input + ~800 output tokens per text generation
-const TEXT_COSTS: Record<string, string> = {
-  openai:    "~$0.001 per generation  (GPT-4o mini: $0.15 / $0.60 per M tokens)",
-  anthropic: "~$0.02 per generation   (Sonnet 4.6: $3 / $15 per M tokens)",
-  gemini:    "~$0.0004 per generation (Gemini Flash: $0.075 / $0.30 per M tokens)",
-};
-// Cost hints — gpt-image-2 at high quality 1024×1024 is the main cost driver
-const IMAGE_COSTS: Record<string, string> = {
-  openai:        "~$0.02–0.07 per portrait · ~$0.04–0.14 with alter-ego (gpt-image-2, high quality)",
-  "openai-mini": "~$0.005–0.036 per portrait · alter-ego supported (gpt-image-1-mini)",
-  falai:         "~$0.025 per portrait (FLUX 2 Flex)",
-};
-const activeTextCost  = computed(() => ({ hint: TEXT_COSTS[form.value.text_provider]  ?? TEXT_COSTS.openai }));
-const activeImageCost = computed(() => ({ hint: IMAGE_COSTS[form.value.image_provider] ?? IMAGE_COSTS.openai }));
 
 watch(
   () => campaign.activeCampaign,

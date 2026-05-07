@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { decryptValue } from "../_shared/vault.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
+import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import { fetchCreditCost, fetchUserBalance, recordGeneration } from "../_shared/credits.ts";
 import {
   AI_PROMPT_LIMIT_LONG,
@@ -25,8 +26,7 @@ const admin = createClient(
 interface TextUsage { input_tokens: number; output_tokens: number; model: string; provider: string }
 interface TextResult { content: string; usage: TextUsage }
 
-async function openaiText(apiKey: string, system: string, user: string): Promise<TextResult> {
-  const model = "gpt-4o-mini";
+async function openaiText(apiKey: string, model: string, system: string, user: string): Promise<TextResult> {
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
@@ -46,8 +46,7 @@ async function openaiText(apiKey: string, system: string, user: string): Promise
   };
 }
 
-async function anthropicText(apiKey: string, system: string, user: string): Promise<TextResult> {
-  const model = "claude-sonnet-4-6";
+async function anthropicText(apiKey: string, model: string, system: string, user: string): Promise<TextResult> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
@@ -68,8 +67,7 @@ async function anthropicText(apiKey: string, system: string, user: string): Prom
   };
 }
 
-async function geminiText(apiKey: string, system: string, user: string): Promise<TextResult> {
-  const model = "gemini-3.1-flash";
+async function geminiText(apiKey: string, model: string, system: string, user: string): Promise<TextResult> {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
     {
@@ -162,27 +160,27 @@ serve(async (req: Request) => {
     try { return await decryptValue(enc); } catch { return null; }
   }
 
-  const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys] = await Promise.all([
+  const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
     Promise.all([
       decryptKey(campaign.openai_api_key),
       decryptKey(campaign.anthropic_api_key),
       decryptKey(campaign.gemini_api_key),
     ]),
     fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
+    fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
   const openaiKey    = campaignOpenai    ?? platformKeys.openai    ?? null;
   const anthropicKey = campaignAnthropic ?? platformKeys.anthropic ?? null;
   const geminiKey    = campaignGemini    ?? platformKeys.gemini    ?? null;
 
   const textProvider = campaign.text_provider ?? "openai";
-  const textIsByok = textProvider === "anthropic" && !!anthropicKey
-    ? !!campaignAnthropic
-    : textProvider === "gemini" && !!geminiKey
-    ? !!campaignGemini
+  const textIsByok = textProvider === "anthropic" ? !!campaignAnthropic
+    : textProvider === "gemini"    ? !!campaignGemini
     : !!campaignOpenai;
 
   // ── Pre-flight credit check ────────────────────────────────────────────────
-  const chronicleTextCost = textIsByok ? 0 : await fetchCreditCost(admin, "chronicle_text");
+  const baseChronicleTextCost = textIsByok ? 0 : await fetchCreditCost(admin, "chronicle_text");
+  const chronicleTextCost = applyMultiplier(baseChronicleTextCost, providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier);
   if (chronicleTextCost > 0) {
     const balance = await fetchUserBalance(admin, user.id);
     if (balance < chronicleTextCost) {
@@ -193,16 +191,18 @@ serve(async (req: Request) => {
     }
   }
 
+  const textModel = providerConfigs[textProvider as keyof typeof providerConfigs]?.text_model;
+
   let textResult: TextResult;
 
   try {
     if (textProvider === "anthropic" && anthropicKey) {
-      textResult = await anthropicText(anthropicKey, systemContent, wrapUserInput(raw_text));
+      textResult = await anthropicText(anthropicKey, textModel ?? "claude-haiku-3-20240307", systemContent, wrapUserInput(raw_text));
     } else if (textProvider === "gemini" && geminiKey) {
-      textResult = await geminiText(geminiKey, systemContent, wrapUserInput(raw_text));
+      textResult = await geminiText(geminiKey, textModel ?? "gemini-2.5-flash", systemContent, wrapUserInput(raw_text));
     } else {
       if (!openaiKey) return new Response("No OpenAI API key configured", { status: 422 });
-      textResult = await openaiText(openaiKey, systemContent, wrapUserInput(raw_text));
+      textResult = await openaiText(openaiKey, textModel ?? "gpt-4o-mini", systemContent, wrapUserInput(raw_text));
     }
   } catch (e) {
     console.error("Chronicle text generation failed:", e);

@@ -131,10 +131,15 @@
 
       <!-- Footer -->
       <div class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0">
+        <p
+          v-if="effectiveCreditCost > 0 && isPro && isAiEnabled"
+          class="font-fell text-xs text-center"
+          :class="canAfford ? 'text-muted-foreground' : 'text-destructive font-semibold'"
+        >{{ creditLine }}</p>
         <button
           v-if="isPro && isAiEnabled"
           type="button"
-          :disabled="isAnyAiGenerating || !concept.trim()"
+          :disabled="isAnyAiGenerating || !concept.trim() || (effectiveCreditCost > 0 && !canAfford)"
           :title="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
           class="w-full inline-flex items-center justify-center gap-1.5 py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
           @click="generateAndCreate"
@@ -184,6 +189,8 @@ import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { LocationType } from "@/types/location.types";
+import { useAiCredits } from "@/composables/useAiCredits";
+import { useProviderConfig } from "@/composables/useProviderConfig";
 
 const TYPE_OPTIONS = Object.entries(LOCATION_TYPE_LABELS) as [LocationType, string][];
 
@@ -198,6 +205,24 @@ const aiApiKey = computed(() => campaign.decryptedApiKey);
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 const { isPro } = useSubscription();
 const showPaywall = ref(false);
+
+const { costOf, balance, isLoading: creditsLoading } = useAiCredits();
+const { textMultiplierFor } = useProviderConfig();
+
+const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
+const textIsByok   = computed(() => !!campaign.decryptedApiKey);
+
+const effectiveCreditCost = computed(() => {
+  if (textIsByok.value) return 0;
+  return Math.round(costOf("location_generation") * textMultiplierFor(textProvider.value) * 100) / 100;
+});
+
+const canAfford  = computed(() => creditsLoading.value || (balance.value ?? 0) >= effectiveCreditCost.value);
+const creditLine = computed(() => {
+  const cost = parseFloat(effectiveCreditCost.value.toFixed(2));
+  const bal  = parseFloat(((balance.value ?? 0) as number).toFixed(2));
+  return `${cost === 1 ? "1 credit" : `${cost} credits`} · Balance: ${bal}`;
+});
 
 const concept          = ref("");
 const constraints      = reactive({ location_type: "" });

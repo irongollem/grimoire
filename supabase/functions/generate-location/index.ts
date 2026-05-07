@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { decryptValue } from "../_shared/vault.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
+import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import { fetchCreditCost, fetchUserBalance, recordGeneration } from "../_shared/credits.ts";
 import {
   AI_PROMPT_LIMIT,
@@ -34,8 +35,7 @@ function buildCampaignContext(setting: string | null | undefined): string {
 interface TextUsage { input_tokens: number; output_tokens: number; model: string; provider: string }
 interface TextResult { content: string; usage: TextUsage }
 
-async function openaiText(apiKey: string, system: string, user: string): Promise<TextResult> {
-  const model = "gpt-4o-mini";
+async function openaiText(apiKey: string, model: string, system: string, user: string): Promise<TextResult> {
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
@@ -56,8 +56,7 @@ async function openaiText(apiKey: string, system: string, user: string): Promise
   };
 }
 
-async function anthropicText(apiKey: string, system: string, user: string): Promise<TextResult> {
-  const model = "claude-sonnet-4-6";
+async function anthropicText(apiKey: string, model: string, system: string, user: string): Promise<TextResult> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
@@ -78,8 +77,7 @@ async function anthropicText(apiKey: string, system: string, user: string): Prom
   };
 }
 
-async function geminiText(apiKey: string, system: string, user: string): Promise<TextResult> {
-  const model = "gemini-3.1-flash";
+async function geminiText(apiKey: string, model: string, system: string, user: string): Promise<TextResult> {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
     {
@@ -138,7 +136,7 @@ serve(async (req: Request) => {
   if (authError || !user) return new Response("Unauthorized", { status: 401 });
 
   let campaign_id: string, prompt: string, location_type: string | undefined,
-      parent_name: string | undefined, generate_image: boolean, generate_map: boolean, image_model: string;
+      parent_name: string | undefined, generate_image: boolean, generate_map: boolean;
 
   try {
     const body = await req.json();
@@ -148,7 +146,6 @@ serve(async (req: Request) => {
     parent_name    = body.parent_name;
     generate_image = body.generate_image !== false;
     generate_map   = body.generate_map === true;
-    image_model    = body.image_model ?? "gpt-image-2";
     if (!campaign_id || !prompt) throw new Error("invalid");
   } catch {
     return new Response("Invalid body — need { campaign_id, prompt }", { status: 400 });
@@ -183,13 +180,14 @@ serve(async (req: Request) => {
     try { return await decryptValue(enc); } catch { return null; }
   }
 
-  const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys] = await Promise.all([
+  const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
     Promise.all([
       decryptKey(campaign.openai_api_key),
       decryptKey(campaign.anthropic_api_key),
       decryptKey(campaign.gemini_api_key),
     ]),
     fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
+    fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
   const openaiKey    = campaignOpenai    ?? platformKeys.openai    ?? null;
   const anthropicKey = campaignAnthropic ?? platformKeys.anthropic ?? null;
@@ -204,14 +202,13 @@ serve(async (req: Request) => {
   const userContent = constraints.length ? `${wrappedPrompt}\n\nConstraints:\n${constraints.join("\n")}` : wrappedPrompt;
 
   const textProvider = campaign.text_provider ?? "openai";
-  const textIsByok = textProvider === "anthropic" && !!anthropicKey
-    ? !!campaignAnthropic
-    : textProvider === "gemini" && !!geminiKey
-    ? !!campaignGemini
+  const textIsByok = textProvider === "anthropic" ? !!campaignAnthropic
+    : textProvider === "gemini"    ? !!campaignGemini
     : !!campaignOpenai;
 
   // ── Pre-flight credit check ────────────────────────────────────────────────
-  const locationCost = textIsByok ? 0 : await fetchCreditCost(admin, "location_generation");
+  const baseLocationCost = textIsByok ? 0 : await fetchCreditCost(admin, "location_generation");
+  const locationCost = applyMultiplier(baseLocationCost, providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier);
   if (locationCost > 0) {
     const balance = await fetchUserBalance(admin, user.id);
     if (balance < locationCost) {
@@ -222,16 +219,19 @@ serve(async (req: Request) => {
     }
   }
 
+  const textModel = providerConfigs[textProvider as keyof typeof providerConfigs]?.text_model;
+  const imgModel = providerConfigs.openai?.image_model ?? "gpt-image-1.5";
+
   let textResult: TextResult;
 
   try {
     if (textProvider === "anthropic" && anthropicKey) {
-      textResult = await anthropicText(anthropicKey, systemContent, userContent);
+      textResult = await anthropicText(anthropicKey, textModel ?? "claude-haiku-3-20240307", systemContent, userContent);
     } else if (textProvider === "gemini" && geminiKey) {
-      textResult = await geminiText(geminiKey, systemContent, userContent);
+      textResult = await geminiText(geminiKey, textModel ?? "gemini-2.5-flash", systemContent, userContent);
     } else {
       if (!openaiKey) return new Response("No OpenAI API key configured", { status: 422 });
-      textResult = await openaiText(openaiKey, systemContent, userContent);
+      textResult = await openaiText(openaiKey, textModel ?? "gpt-4o-mini", systemContent, userContent);
     }
   } catch (e) {
     console.error("Location text generation failed:", e);
@@ -251,12 +251,12 @@ serve(async (req: Request) => {
   if (openaiKey && (generate_image || generate_map)) {
     const [imgResult, mapResult] = await Promise.allSettled([
       generate_image
-        ? openaiImageGenerate(openaiKey, image_model,
+        ? openaiImageGenerate(openaiKey, imgModel,
             [imageBasePrompt, campaign.ai_setting_prompt, locationData.image_prompt].filter(Boolean).join(" — "),
             "1024x1024")
         : Promise.resolve(null),
       generate_map
-        ? openaiImageGenerate(openaiKey, image_model,
+        ? openaiImageGenerate(openaiKey, imgModel,
             [MAP_BASE_PROMPT, locationData.map_prompt].filter(Boolean).join(" — "),
             "1024x1024")
         : Promise.resolve(null),

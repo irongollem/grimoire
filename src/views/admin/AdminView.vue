@@ -730,6 +730,139 @@
         </div>
       </template>
 
+      <!-- ── Providers tab ───────────────────────────────────────────────── -->
+      <template v-else-if="activeTab === 'providers'">
+        <div class="rounded-lg border border-border bg-card p-4 space-y-2 mb-4">
+          <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">AI Provider Configuration</h2>
+          <p class="font-fell text-xs text-muted-foreground italic">
+            Set the model name and credit multiplier for each provider. Disabled providers are available but not shown as options to platform-key users.
+            All costs use the OpenAI entry as the 1× baseline — other multipliers are relative to that.
+          </p>
+        </div>
+
+        <div v-if="providersQuery.isPending.value" class="text-muted-foreground font-fell text-sm">Loading…</div>
+        <div v-else-if="providersQuery.isError.value" class="text-destructive font-fell text-sm">Failed to load provider config.</div>
+        <div v-else class="space-y-3">
+          <div
+            v-for="row in providersQuery.data.value"
+            :key="row.provider"
+            class="rounded-lg border border-border bg-card p-4 space-y-4"
+          >
+            <!-- Header -->
+            <div class="flex items-center justify-between">
+              <h3 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">
+                {{ PROVIDER_LABELS[row.provider] ?? row.provider }}
+              </h3>
+              <button
+                class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+                :disabled="providerSaving[row.provider]"
+                @click="saveProvider(row.provider)"
+              >
+                {{ providerSaving[row.provider] ? 'Saving…' : 'Save' }}
+              </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Text generation -->
+              <div class="space-y-2 p-3 rounded-md bg-muted/40 border border-border">
+                <div class="flex items-center justify-between">
+                  <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Text Generation</span>
+                  <template v-if="draftProviders[row.provider]?.text_model !== null">
+                    <label class="flex items-center gap-1.5 cursor-pointer">
+                      <span class="font-cinzel text-[10px] tracking-wider" :class="draftProviders[row.provider]?.text_enabled ? 'text-emerald-500' : 'text-muted-foreground'">
+                        {{ draftProviders[row.provider]?.text_enabled ? 'Enabled' : 'Disabled' }}
+                      </span>
+                      <button
+                        type="button"
+                        class="relative inline-flex h-4 w-7 shrink-0 rounded-full border-2 border-transparent transition-colors"
+                        :class="draftProviders[row.provider]?.text_enabled ? 'bg-emerald-500' : 'bg-muted-foreground/40'"
+                        @click="draftProviders[row.provider].text_enabled = !draftProviders[row.provider].text_enabled"
+                      >
+                        <span
+                          class="pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transition-transform"
+                          :class="draftProviders[row.provider]?.text_enabled ? 'translate-x-3' : 'translate-x-0'"
+                        />
+                      </button>
+                    </label>
+                  </template>
+                  <span v-else class="font-cinzel text-[10px] tracking-wider text-muted-foreground/50 uppercase">Not offered</span>
+                </div>
+                <template v-if="draftProviders[row.provider]?.text_model !== null">
+                  <div class="space-y-1">
+                    <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground">Model</label>
+                    <input
+                      v-model="draftProviders[row.provider].text_model"
+                      type="text"
+                      class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      placeholder="e.g. gpt-4o-mini"
+                    />
+                  </div>
+                  <div class="space-y-1">
+                    <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground">Multiplier</label>
+                    <input
+                      v-model.number="draftProviders[row.provider].text_multiplier"
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      placeholder="1.0"
+                    />
+                  </div>
+                </template>
+              </div>
+
+              <!-- Image generation -->
+              <div class="space-y-2 p-3 rounded-md bg-muted/40 border border-border">
+                <div class="flex items-center justify-between">
+                  <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Image Generation</span>
+                  <template v-if="draftProviders[row.provider]?.image_model !== null">
+                    <label class="flex items-center gap-1.5 cursor-pointer">
+                      <span class="font-cinzel text-[10px] tracking-wider" :class="draftProviders[row.provider]?.image_enabled ? 'text-emerald-500' : 'text-muted-foreground'">
+                        {{ draftProviders[row.provider]?.image_enabled ? 'Enabled' : 'Disabled' }}
+                      </span>
+                      <button
+                        type="button"
+                        class="relative inline-flex h-4 w-7 shrink-0 rounded-full border-2 border-transparent transition-colors"
+                        :class="draftProviders[row.provider]?.image_enabled ? 'bg-emerald-500' : 'bg-muted-foreground/40'"
+                        @click="draftProviders[row.provider].image_enabled = !draftProviders[row.provider].image_enabled"
+                      >
+                        <span
+                          class="pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transition-transform"
+                          :class="draftProviders[row.provider]?.image_enabled ? 'translate-x-3' : 'translate-x-0'"
+                        />
+                      </button>
+                    </label>
+                  </template>
+                  <span v-else class="font-cinzel text-[10px] tracking-wider text-muted-foreground/50 uppercase">Not offered</span>
+                </div>
+                <template v-if="draftProviders[row.provider]?.image_model !== null">
+                  <div class="space-y-1">
+                    <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground">Model</label>
+                    <input
+                      v-model="draftProviders[row.provider].image_model"
+                      type="text"
+                      class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      placeholder="e.g. gpt-image-1.5"
+                    />
+                  </div>
+                  <div class="space-y-1">
+                    <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground">Multiplier</label>
+                    <input
+                      v-model.number="draftProviders[row.provider].image_multiplier"
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      placeholder="1.0"
+                    />
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
     </div>
   </div>
 </template>
@@ -737,7 +870,7 @@
 <script setup lang="ts">
 import { ref, computed, reactive, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconAdd, IconAddUser, IconCheck, IconCoins, IconCopy, IconDelete, IconDocument, IconGridView, IconHide, IconKey, IconLibrary, IconParty, IconReveal, IconTag, IconUpload } from '@/lib/icons';
+import { IconAdd, IconAddUser, IconCheck, IconCoins, IconCopy, IconDelete, IconDocument, IconGridView, IconHide, IconKey, IconLibrary, IconParty, IconReveal, IconSettings, IconTag, IconUpload } from '@/lib/icons';
 import { useAdminPlans } from "@/composables/useAdminPlans";
 import { useAdminUsers } from "@/composables/useAdminUsers";
 import { useAdminPrompts } from "@/composables/useAdminPrompts";
@@ -755,21 +888,24 @@ import { useBulkMarkSrdSpellArtAsCanonical } from "@/composables/useSrdSpellArt"
 import { useAiUsageStats } from "@/composables/useAiUsageStats";
 import { useAdminKeys, PROVIDERS } from "@/composables/useAdminKeys";
 import type { KeyProvider } from "@/composables/useAdminKeys";
+import { useAdminProviders, PROVIDER_LABELS } from "@/composables/useAdminProviders";
+import type { ProviderConfig } from "@/composables/useAdminProviders";
 
 const route = useRoute();
 const router = useRouter();
 
-type TabId = "plans" | "users" | "invites" | "content" | "pricing" | "credits" | "prompts" | "keys";
-const VALID_TABS = new Set<string>(["plans", "users", "invites", "content", "pricing", "credits", "prompts", "keys"]);
+type TabId = "plans" | "users" | "invites" | "content" | "pricing" | "credits" | "prompts" | "keys" | "providers";
+const VALID_TABS = new Set<string>(["plans", "users", "invites", "content", "pricing", "credits", "prompts", "keys", "providers"]);
 const TABS = [
-  { id: "plans"   as TabId, label: "Plans",   icon: IconGridView },
-  { id: "users"   as TabId, label: "Users",   icon: IconParty },
-  { id: "invites" as TabId, label: "Invites", icon: IconAddUser },
-  { id: "content" as TabId, label: "Content", icon: IconLibrary },
-  { id: "pricing" as TabId, label: "Pricing", icon: IconTag },
-  { id: "credits" as TabId, label: "Credits", icon: IconCoins },
-  { id: "prompts" as TabId, label: "Prompts", icon: IconDocument },
-  { id: "keys"    as TabId, label: "Keys",    icon: IconKey },
+  { id: "plans"     as TabId, label: "Plans",     icon: IconGridView },
+  { id: "users"     as TabId, label: "Users",     icon: IconParty },
+  { id: "invites"   as TabId, label: "Invites",   icon: IconAddUser },
+  { id: "content"   as TabId, label: "Content",   icon: IconLibrary },
+  { id: "pricing"   as TabId, label: "Pricing",   icon: IconTag },
+  { id: "credits"   as TabId, label: "Credits",   icon: IconCoins },
+  { id: "prompts"   as TabId, label: "Prompts",   icon: IconDocument },
+  { id: "keys"      as TabId, label: "Keys",      icon: IconKey },
+  { id: "providers" as TabId, label: "Providers", icon: IconSettings },
 ];
 
 const activeTab = computed<TabId>(() => {
@@ -1107,6 +1243,43 @@ async function saveGenCost(gen: GenerationCreditCost) {
     });
   } finally {
     genCostSaving[gen.generation_type] = false;
+  }
+}
+
+// ── Provider Config ────────────────────────────────────────────────────────
+const { query: providersQuery, update: updateProvider } = useAdminProviders();
+
+type ProviderDraft = Omit<ProviderConfig, "updated_at">;
+const draftProviders = reactive<Record<string, ProviderDraft>>({});
+const providerSaving = reactive<Record<string, boolean>>({});
+
+watch(
+  () => providersQuery.data.value,
+  (rows) => {
+    if (!rows) return;
+    for (const r of rows) {
+      if (!(r.provider in draftProviders)) {
+        draftProviders[r.provider] = {
+          provider:         r.provider,
+          text_model:       r.text_model,
+          image_model:      r.image_model,
+          text_multiplier:  r.text_multiplier,
+          image_multiplier: r.image_multiplier,
+          text_enabled:     r.text_enabled,
+          image_enabled:    r.image_enabled,
+        };
+      }
+    }
+  },
+  { immediate: true },
+);
+
+async function saveProvider(provider: string) {
+  providerSaving[provider] = true;
+  try {
+    await updateProvider.mutateAsync(draftProviders[provider]);
+  } finally {
+    providerSaving[provider] = false;
   }
 }
 </script>
