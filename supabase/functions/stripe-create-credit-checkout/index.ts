@@ -12,6 +12,18 @@ const admin = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
+let checkoutConfigCache: { promo_codes_enabled: boolean } | null = null;
+let checkoutConfigExpiry = 0;
+const CONFIG_TTL_MS = 5 * 60 * 1000;
+
+async function getCheckoutConfig(): Promise<{ promo_codes_enabled: boolean }> {
+  if (checkoutConfigCache && Date.now() < checkoutConfigExpiry) return checkoutConfigCache;
+  const { data } = await admin.from("checkout_config").select("promo_codes_enabled").single();
+  checkoutConfigCache = { promo_codes_enabled: data?.promo_codes_enabled ?? false };
+  checkoutConfigExpiry = Date.now() + CONFIG_TTL_MS;
+  return checkoutConfigCache;
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -65,8 +77,7 @@ serve(async (req: Request) => {
     return new Response("Stripe price not configured for this pack — contact support", { status: 500 });
   }
 
-  const { data: config } = await admin.from("checkout_config").select("promo_codes_enabled").single();
-  const promoCodesEnabled = config?.promo_codes_enabled ?? false;
+  const { promo_codes_enabled: promoCodesEnabled } = await getCheckoutConfig();
 
   const origin = req.headers.get("origin") ?? Deno.env.get("SITE_URL") ?? "https://dungeongrimoire.com";
 

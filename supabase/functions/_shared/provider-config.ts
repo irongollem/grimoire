@@ -13,18 +13,25 @@ export interface ProviderRow {
   image_multiplier: number | null;
 }
 
+let providerCache: Partial<Record<Provider, ProviderRow>> | null = null;
+let providerCacheExpiry = 0;
+const PROVIDER_TTL_MS = 5 * 60 * 1000;
+
 export async function fetchProviderConfigs(
   admin: SupabaseClient,
   providers: Provider[],
 ): Promise<Partial<Record<Provider, ProviderRow>>> {
-  const { data } = await admin
-    .from("provider_config")
-    .select("provider, text_model, image_model, text_multiplier, image_multiplier")
-    .in("provider", providers);
-
-  if (!data?.length) return {};
+  if (!providerCache || Date.now() >= providerCacheExpiry) {
+    const { data } = await admin
+      .from("provider_config")
+      .select("provider, text_model, image_model, text_multiplier, image_multiplier");
+    providerCache = Object.fromEntries(
+      (data ?? []).map((row: { provider: string } & ProviderRow) => [row.provider, row]),
+    ) as Partial<Record<Provider, ProviderRow>>;
+    providerCacheExpiry = Date.now() + PROVIDER_TTL_MS;
+  }
   return Object.fromEntries(
-    data.map((row: { provider: string } & ProviderRow) => [row.provider, row]),
+    providers.flatMap((p) => (p in providerCache! ? [[p, providerCache![p]!]] : [])),
   ) as Partial<Record<Provider, ProviderRow>>;
 }
 

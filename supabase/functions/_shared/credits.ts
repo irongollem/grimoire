@@ -13,16 +13,27 @@ export interface CreditLogFields {
   image_count?: number;
 }
 
+let costCache: Map<string, number> | null = null;
+let costCacheExpiry = 0;
+const COST_TTL_MS = 5 * 60 * 1000;
+
 export async function fetchCreditCost(
   admin: SupabaseClient,
   generationType: string,
 ): Promise<number> {
-  const { data } = await admin
-    .from("ai_generation_credit_costs")
-    .select("credit_cost")
-    .eq("generation_type", generationType)
-    .maybeSingle();
-  return (data as { credit_cost: number } | null)?.credit_cost ?? 1;
+  if (!costCache || Date.now() >= costCacheExpiry) {
+    const { data } = await admin
+      .from("ai_generation_credit_costs")
+      .select("generation_type, credit_cost");
+    costCache = new Map(
+      (data ?? []).map((row: { generation_type: string; credit_cost: number }) => [
+        row.generation_type,
+        row.credit_cost,
+      ]),
+    );
+    costCacheExpiry = Date.now() + COST_TTL_MS;
+  }
+  return costCache.get(generationType) ?? 1;
 }
 
 export async function fetchUserBalance(

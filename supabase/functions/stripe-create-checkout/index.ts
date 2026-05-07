@@ -13,6 +13,23 @@ const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   httpClient: Stripe.createFetchHttpClient(),
 });
 
+const admin = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+);
+
+let checkoutConfigCache: { promo_codes_enabled: boolean } | null = null;
+let checkoutConfigExpiry = 0;
+const CONFIG_TTL_MS = 5 * 60 * 1000;
+
+async function getCheckoutConfig(): Promise<{ promo_codes_enabled: boolean }> {
+  if (checkoutConfigCache && Date.now() < checkoutConfigExpiry) return checkoutConfigCache;
+  const { data } = await admin.from("checkout_config").select("promo_codes_enabled").single();
+  checkoutConfigCache = { promo_codes_enabled: data?.promo_codes_enabled ?? false };
+  checkoutConfigExpiry = Date.now() + CONFIG_TTL_MS;
+  return checkoutConfigCache;
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -34,12 +51,6 @@ serve(async (req: Request) => {
     );
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return json({ error: "Unauthorized" }, 401);
-
-    // Service-role client for writes (user_subscriptions has no update RLS policy)
-    const admin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
 
     // Get or create Stripe Customer
     const { data: sub } = await admin
@@ -80,8 +91,7 @@ serve(async (req: Request) => {
       return json({ error: "Pro plan price not configured — set stripe_price_id on the pro plan row or STRIPE_PRO_MONTHLY_PRICE_ID env var" }, 500);
     }
 
-    const { data: config } = await admin.from("checkout_config").select("promo_codes_enabled").single();
-    const promoCodesEnabled = config?.promo_codes_enabled ?? false;
+    const { promo_codes_enabled: promoCodesEnabled } = await getCheckoutConfig();
 
     const appUrl = Deno.env.get("APP_URL") ?? "https://dungeongrimoire.com";
 
