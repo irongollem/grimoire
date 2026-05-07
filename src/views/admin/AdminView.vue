@@ -95,11 +95,12 @@
                 <p class="font-fell text-sm text-foreground">∞</p>
               </div>
             </div>
+
           </div>
         </template>
       </template>
 
-      <!-- ── IconParty tab ─────────────────────────────────────────────────── -->
+      <!-- ── Users tab ────────────────────────────────────────────────────── -->
       <template v-else-if="activeTab === 'users'">
         <input
           v-model="userSearch"
@@ -347,12 +348,35 @@
 
       <!-- ── Pricing tab ───────────────────────────────────────────────── -->
       <template v-else-if="activeTab === 'pricing'">
+        <!-- Promo codes toggle -->
+        <div class="rounded-lg border border-border bg-card p-4">
+          <div class="flex items-center justify-between gap-4">
+            <div>
+              <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Promotion Codes</h2>
+              <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
+                When enabled, a promo code field appears on the Stripe checkout page. Disable when no active promotion is running so users don't wonder if they're missing out.
+              </p>
+            </div>
+            <button
+              class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors focus:outline-none"
+              :class="checkoutConfig.data.value?.promo_codes_enabled ? 'bg-primary' : 'bg-muted'"
+              :disabled="checkoutConfig.update.isPending.value"
+              @click="checkoutConfig.update.mutate(!checkoutConfig.data.value?.promo_codes_enabled)"
+            >
+              <span
+                class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"
+                :class="checkoutConfig.data.value?.promo_codes_enabled ? 'translate-x-5' : 'translate-x-0.5'"
+              />
+            </button>
+          </div>
+        </div>
+
         <!-- Credit packs -->
         <div class="rounded-lg border border-border bg-card p-4 space-y-3">
           <div>
             <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Credit Packs</h2>
             <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
-              Credits, display price, and Stripe Price ID per pack. The Stripe Price ID wires checkout to the correct Stripe product — set it once after creating the product in Stripe Dashboard.
+              Enter the Stripe Price ID and click Save — price data is fetched from Stripe and cached. Credits field controls how many credits the buyer receives.
             </p>
           </div>
           <div v-if="pricingQuery.packs.isPending.value" class="text-muted-foreground font-fell text-sm">Loading…</div>
@@ -361,8 +385,8 @@
             <thead>
               <tr class="border-b border-border">
                 <th class="text-left pb-2 font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Pack</th>
-                <th class="text-right pb-2 font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase w-24">Credits</th>
-                <th class="text-right pb-2 font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase w-24">EUR (display)</th>
+                <th class="text-right pb-2 font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase w-20">Credits</th>
+                <th class="text-right pb-2 pl-3 font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase w-24">Price</th>
                 <th class="pb-2 pl-3 font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Stripe Price ID</th>
                 <th class="w-16" />
               </tr>
@@ -374,22 +398,20 @@
                   <input
                     v-model.number="draftPacks[pack.pack_id].credits"
                     type="number" min="1"
-                    class="w-20 bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                    class="w-16 bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                 </td>
-                <td class="py-2 text-right">
-                  <input
-                    v-model.number="draftPacks[pack.pack_id].eur_display"
-                    type="number" min="0" step="0.01"
-                    class="w-20 bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
-                  />
+                <td class="py-2 pl-3 text-right font-fell text-xs text-muted-foreground whitespace-nowrap">
+                  {{ pack.stripe_unit_amount && pack.stripe_currency
+                    ? new Intl.NumberFormat(undefined, { style: 'currency', currency: pack.stripe_currency.toUpperCase() }).format(pack.stripe_unit_amount / 100)
+                    : '—' }}
                 </td>
                 <td class="py-2 pl-3">
                   <input
                     v-model="draftPacks[pack.pack_id].stripe_price_id"
                     type="text"
                     placeholder="price_…"
-                    class="w-full bg-muted border border-border rounded px-2 py-1 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
+                    class="w-full bg-muted border border-border rounded px-2 py-1 font-mono text-xs placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
                     :class="draftPacks[pack.pack_id].stripe_price_id ? 'text-green-400' : 'text-amber-400'"
                   />
                 </td>
@@ -405,6 +427,68 @@
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- Subscription prices -->
+        <div class="rounded-lg border border-border bg-card p-4 space-y-3">
+          <div>
+            <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Subscription Prices</h2>
+            <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
+              Enter Stripe Price IDs for each paid plan and click Sync — amounts are fetched from Stripe and cached.
+            </p>
+          </div>
+          <div v-if="plansQuery.isPending.value" class="text-muted-foreground font-fell text-sm">Loading…</div>
+          <div v-else-if="plansQuery.isError.value" class="text-destructive font-fell text-sm">Failed to load plans.</div>
+          <template v-else>
+            <div
+              v-for="plan in (plansQuery.data.value ?? []).filter(p => p.id !== 'free')"
+              :key="plan.id"
+              class="border border-border rounded-md p-3 space-y-3"
+            >
+              <div class="flex items-center justify-between">
+                <h3 class="font-cinzel text-xs font-semibold tracking-wide text-foreground capitalize">{{ plan.name }}</h3>
+                <button
+                  class="px-2.5 py-1 font-cinzel text-[10px] font-semibold tracking-wider bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity"
+                  :disabled="planPriceSyncing[plan.id]"
+                  @click="syncPlanPrices(plan.id)"
+                >
+                  {{ planPriceSyncing[plan.id] ? 'Saving…' : 'Save' }}
+                </button>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div class="space-y-1">
+                  <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Monthly Price ID</label>
+                  <div class="flex items-center gap-2">
+                    <input
+                      v-model="draftPlanPrices[plan.id].monthlyPriceId"
+                      type="text"
+                      placeholder="price_…"
+                      class="flex-1 bg-muted border border-border rounded px-2 py-1 font-mono text-xs placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
+                      :class="draftPlanPrices[plan.id].monthlyPriceId ? 'text-green-400' : 'text-amber-400'"
+                    />
+                    <span v-if="plan.stripe_monthly_unit_amount && plan.stripe_currency" class="font-fell text-xs text-muted-foreground whitespace-nowrap">
+                      {{ new Intl.NumberFormat(undefined, { style: 'currency', currency: plan.stripe_currency.toUpperCase() }).format(plan.stripe_monthly_unit_amount / 100) }}/mo
+                    </span>
+                  </div>
+                </div>
+                <div class="space-y-1">
+                  <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Annual Price ID</label>
+                  <div class="flex items-center gap-2">
+                    <input
+                      v-model="draftPlanPrices[plan.id].annualPriceId"
+                      type="text"
+                      placeholder="price_…"
+                      class="flex-1 bg-muted border border-border rounded px-2 py-1 font-mono text-xs placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
+                      :class="draftPlanPrices[plan.id].annualPriceId ? 'text-green-400' : 'text-amber-400'"
+                    />
+                    <span v-if="plan.stripe_annual_unit_amount && plan.stripe_currency" class="font-fell text-xs text-muted-foreground whitespace-nowrap">
+                      {{ new Intl.NumberFormat(undefined, { style: 'currency', currency: plan.stripe_currency.toUpperCase() }).format(plan.stripe_annual_unit_amount / 100) }}/yr
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
         </div>
 
         <!-- Generation costs -->
@@ -658,6 +742,7 @@ import { useAdminPlans } from "@/composables/useAdminPlans";
 import { useAdminUsers } from "@/composables/useAdminUsers";
 import { useAdminPrompts } from "@/composables/useAdminPrompts";
 import { useAdminPricing } from "@/composables/useAdminPricing";
+import { useCheckoutConfig } from "@/composables/useCheckoutConfig";
 import type { CreditPackConfig, GenerationCreditCost } from "@/composables/useAdminPricing";
 import type { AiSystemPrompt } from "@/composables/useAdminPrompts";
 import type { Plan, QuotaResource, PlanId } from "@/types/subscription.types";
@@ -678,7 +763,7 @@ type TabId = "plans" | "users" | "invites" | "content" | "pricing" | "credits" |
 const VALID_TABS = new Set<string>(["plans", "users", "invites", "content", "pricing", "credits", "prompts", "keys"]);
 const TABS = [
   { id: "plans"   as TabId, label: "Plans",   icon: IconGridView },
-  { id: "users"   as TabId, label: "IconParty",   icon: IconParty },
+  { id: "users"   as TabId, label: "Users",   icon: IconParty },
   { id: "invites" as TabId, label: "Invites", icon: IconAddUser },
   { id: "content" as TabId, label: "Content", icon: IconLibrary },
   { id: "pricing" as TabId, label: "Pricing", icon: IconTag },
@@ -697,7 +782,7 @@ function setTab(id: TabId) {
 }
 
 // ── Plans ──────────────────────────────────────────────────────────────────
-const { LABELS, updateQuotas, ...plansQuery } = useAdminPlans();
+const { LABELS, updateQuotas, syncPlanPrices: syncPlanPricesMutation, ...plansQuery } = useAdminPlans();
 
 const QUOTA_RESOURCES: QuotaResource[] = [
   "campaigns",
@@ -738,7 +823,41 @@ async function savePlanQuotas(plan: Plan) {
   }
 }
 
-// ── IconParty ──────────────────────────────────────────────────────────────────
+type PlanPriceDraft = { monthlyPriceId: string; annualPriceId: string };
+const draftPlanPrices = reactive<Record<string, PlanPriceDraft>>({});
+const planPriceSyncing = reactive<Record<string, boolean>>({});
+
+watch(
+  () => plansQuery.data.value,
+  (plans) => {
+    if (!plans) return;
+    for (const plan of plans) {
+      if (plan.id !== "free" && !(plan.id in draftPlanPrices)) {
+        draftPlanPrices[plan.id] = {
+          monthlyPriceId: plan.stripe_price_id ?? "",
+          annualPriceId: plan.stripe_annual_price_id ?? "",
+        };
+      }
+    }
+  },
+  { immediate: true },
+);
+
+async function syncPlanPrices(planId: string) {
+  planPriceSyncing[planId] = true;
+  const draft = draftPlanPrices[planId];
+  try {
+    await syncPlanPricesMutation.mutateAsync({
+      planId,
+      monthlyPriceId: draft.monthlyPriceId.trim() || undefined,
+      annualPriceId: draft.annualPriceId.trim() || undefined,
+    });
+  } finally {
+    planPriceSyncing[planId] = false;
+  }
+}
+
+// ── Users ──────────────────────────────────────────────────────────────────────
 const { setPlan: setPlanMutation, grantCredits: grantCreditsMutation, ...usersQuery } = useAdminUsers();
 
 const PLAN_IDS: PlanId[] = ["free", "tester", "pro"];
@@ -922,8 +1041,9 @@ const usageStats = useAiUsageStats();
 
 // ── Pricing ────────────────────────────────────────────────────────────────
 const pricingQuery = useAdminPricing();
+const checkoutConfig = useCheckoutConfig();
 
-type PackDraft = { credits: number; eur_display: number; stripe_price_id: string };
+type PackDraft = { credits: number; stripe_price_id: string };
 const draftPacks = reactive<Record<string, PackDraft>>({});
 const packSaving = reactive<Record<string, boolean>>({});
 
@@ -933,7 +1053,7 @@ watch(
     if (!packs) return;
     for (const p of packs) {
       if (!(p.pack_id in draftPacks)) {
-        draftPacks[p.pack_id] = { credits: p.credits, eur_display: p.eur_display, stripe_price_id: p.stripe_price_id ?? "" };
+        draftPacks[p.pack_id] = { credits: p.credits, stripe_price_id: p.stripe_price_id ?? "" };
       }
     }
   },
@@ -942,13 +1062,21 @@ watch(
 
 async function savePack(pack: CreditPackConfig) {
   packSaving[pack.pack_id] = true;
+  const draft = draftPacks[pack.pack_id];
   try {
-    await pricingQuery.updatePack.mutateAsync({
-      pack_id: pack.pack_id,
-      credits: draftPacks[pack.pack_id].credits,
-      eur_display: draftPacks[pack.pack_id].eur_display,
-      stripe_price_id: draftPacks[pack.pack_id].stripe_price_id || null,
-    });
+    const priceId = draft.stripe_price_id.trim();
+    if (priceId) {
+      await pricingQuery.syncStripePrice.mutateAsync({
+        packId: pack.pack_id,
+        stripePriceId: priceId,
+        credits: draft.credits,
+      });
+    } else {
+      await pricingQuery.updatePack.mutateAsync({
+        pack_id: pack.pack_id,
+        credits: draft.credits,
+      });
+    }
   } finally {
     packSaving[pack.pack_id] = false;
   }

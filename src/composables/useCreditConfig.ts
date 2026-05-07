@@ -9,6 +9,9 @@ export interface CreditPackConfig {
   sort_order: number;
   stripe_price_id: string | null;
   stripe_product_id: string | null;
+  stripe_unit_amount: number | null;
+  stripe_currency: string | null;
+  stripe_currency_options: Record<string, { unit_amount: number }> | null;
 }
 
 export interface GenerationCreditCost {
@@ -23,7 +26,7 @@ export function useCreditPacks() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("credit_pack_config")
-        .select("pack_id, label, credits, eur_display, sort_order, stripe_price_id, stripe_product_id")
+        .select("pack_id, label, credits, eur_display, sort_order, stripe_price_id, stripe_product_id, stripe_unit_amount, stripe_currency, stripe_currency_options")
         .order("sort_order");
       if (error) throw error;
       return data as CreditPackConfig[];

@@ -11,6 +11,12 @@ export interface Plan {
   id: PlanId
   name: string
   stripe_price_id: string | null
+  stripe_annual_price_id: string | null
+  stripe_monthly_unit_amount: number | null
+  stripe_annual_unit_amount: number | null
+  stripe_currency: string | null
+  stripe_monthly_currency_options: Record<string, { unit_amount: number }> | null
+  stripe_annual_currency_options: Record<string, { unit_amount: number }> | null
   prices: Record<string, PlanPrice>
   quotas: Partial<Record<QuotaResource, number>>
 }

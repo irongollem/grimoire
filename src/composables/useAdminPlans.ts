@@ -31,5 +31,31 @@ export function useAdminPlans() {
     onSettled: () => qc.invalidateQueries({ queryKey: ['admin', 'plans'] }),
   })
 
-  return { ...query, updateQuotas, LABELS }
+  const syncPlanPrices = useMutation({
+    mutationFn: async (args: { planId: string; monthlyPriceId?: string; annualPriceId?: string }) => {
+      const { data: { session } } = await supabase.auth.getSession()
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-sync-stripe-plan-prices`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session?.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(args),
+        },
+      )
+      if (!resp.ok) {
+        const msg = await resp.text()
+        throw new Error(msg || 'Sync failed')
+      }
+      return resp.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'plans'] })
+      qc.invalidateQueries({ queryKey: ['plan'] })
+    },
+  })
+
+  return { ...query, updateQuotas, syncPlanPrices, LABELS }
 }

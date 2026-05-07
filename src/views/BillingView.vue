@@ -218,7 +218,7 @@
 
       <div class="flex items-end gap-2">
         <span class="font-cinzel text-3xl font-bold text-amber-400">{{
-          annual ? "€99" : "€12.99"
+          annual ? proAnnualDisplay : proMonthlyDisplay
         }}</span>
         <span class="font-fell text-sm text-muted-foreground italic mb-1">{{
           annual ? "/ year" : "/ month"
@@ -238,8 +238,8 @@
           stripeLoading
             ? "Redirecting…"
             : annual
-              ? "Upgrade — €99/year"
-              : "Upgrade — €12.99/month"
+              ? `Upgrade — ${proAnnualDisplay}/year`
+              : `Upgrade — ${proMonthlyDisplay}/month`
         }}
       </button>
 
@@ -286,7 +286,7 @@
             @click="purchasePack(pack.pack_id)"
           >
             <span class="font-cinzel text-xs font-bold text-foreground">{{ pack.credits }} credits</span>
-            <span class="font-fell text-[11px] italic text-muted-foreground">€{{ pack.eur_display }}</span>
+            <span class="font-fell text-[11px] italic text-muted-foreground">{{ formatPackPrice(pack) }}</span>
             <span class="font-cinzel text-[9px] tracking-wider text-muted-foreground/70 uppercase">{{ pack.label }}</span>
           </button>
         </div>
@@ -311,6 +311,17 @@ import { useQuota } from "@/composables/useQuota";
 import { QUOTA_RESOURCE_LABELS } from "@/types/subscription.types";
 import type { QuotaResource } from "@/types/subscription.types";
 import { useCreditPacks } from "@/composables/useCreditConfig";
+import type { CreditPackConfig } from "@/composables/useCreditConfig";
+
+function formatPackPrice(pack: CreditPackConfig): string {
+  if (pack.stripe_unit_amount != null && pack.stripe_currency) {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: pack.stripe_currency.toUpperCase(),
+    }).format(pack.stripe_unit_amount / 100);
+  }
+  return "";
+}
 
 const route = useRoute();
 const creditPurchaseSuccess = computed(() => route.query.credit_purchase === "success");
@@ -332,8 +343,25 @@ const {
 const { data: creditPacks } = useCreditPacks();
 
 const { data: freePlan } = usePlan("free");
+const { data: proPlan } = usePlan("pro");
 
 const annual = ref(false);
+
+const proMonthlyDisplay = computed(() => {
+  const p = proPlan.value;
+  if (p?.stripe_monthly_unit_amount != null && p.stripe_currency) {
+    return new Intl.NumberFormat(undefined, { style: "currency", currency: p.stripe_currency.toUpperCase() }).format(p.stripe_monthly_unit_amount / 100);
+  }
+  return "€12.99";
+});
+
+const proAnnualDisplay = computed(() => {
+  const p = proPlan.value;
+  if (p?.stripe_annual_unit_amount != null && p.stripe_currency) {
+    return new Intl.NumberFormat(undefined, { style: "currency", currency: p.stripe_currency.toUpperCase() }).format(p.stripe_annual_unit_amount / 100);
+  }
+  return "€99";
+});
 
 const renewalDate = computed(() => {
   const end = subscription.value?.current_period_end;

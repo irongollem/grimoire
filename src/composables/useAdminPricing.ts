@@ -32,14 +32,43 @@ export function useAdminPricing() {
   });
 
   const updatePack = useMutation({
-    mutationFn: async (update: { pack_id: string; credits: number; eur_display: number; stripe_price_id?: string | null }) => {
-      const payload: Record<string, unknown> = { credits: update.credits, eur_display: update.eur_display };
-      if ("stripe_price_id" in update) payload.stripe_price_id = update.stripe_price_id ?? null;
+    mutationFn: async (update: { pack_id: string; credits: number }) => {
       const { error } = await supabase
         .from("credit_pack_config")
-        .update(payload)
+        .update({ credits: update.credits })
         .eq("pack_id", update.pack_id);
       if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "credit-packs"] });
+      qc.invalidateQueries({ queryKey: ["credit-packs"] });
+    },
+  });
+
+  const syncStripePrice = useMutation({
+    mutationFn: async (args: { packId: string; stripePriceId: string; credits: number }) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-sync-stripe-price`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session?.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(args),
+        },
+      );
+      if (!resp.ok) {
+        const msg = await resp.text();
+        throw new Error(msg || "Sync failed");
+      }
+      return resp.json() as Promise<{
+        stripe_price_id: string;
+        stripe_unit_amount: number;
+        stripe_currency: string;
+        stripe_currency_options: unknown;
+      }>;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "credit-packs"] });
@@ -61,5 +90,5 @@ export function useAdminPricing() {
     },
   });
 
-  return { packs, generationCosts, updatePack, updateGenerationCost };
+  return { packs, generationCosts, updatePack, syncStripePrice, updateGenerationCost };
 }

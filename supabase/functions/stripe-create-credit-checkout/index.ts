@@ -70,6 +70,7 @@ serve(async (req: Request) => {
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
+      allow_promotion_codes: true,
       line_items: [{ price: pack.stripe_price_id, quantity: 1 }],
       metadata: {
         user_id: user.id,
