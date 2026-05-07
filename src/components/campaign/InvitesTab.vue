@@ -3,7 +3,7 @@
     <!-- Create new invite -->
     <div class="rounded-lg border border-border bg-card p-5 space-y-4">
       <h3 class="font-cinzel text-sm font-semibold text-foreground tracking-wide">
-        New Invite IconLink
+        New Invite Link
       </h3>
 
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -47,7 +47,7 @@
         @click="handleCreate"
       >
         <IconAdd class="h-4 w-4" />
-        {{ createInvite.isPending.value ? 'Generating…' : 'Generate IconLink' }}
+        {{ createInvite.isPending.value ? 'Generating…' : 'Generate Link' }}
       </button>
     </div>
 
