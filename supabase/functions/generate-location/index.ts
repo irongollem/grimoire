@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { decryptValue } from "../_shared/vault.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
+import { fetchCreditCost, fetchUserBalance, recordGeneration } from "../_shared/credits.ts";
 import {
   AI_PROMPT_LIMIT,
   INJECTION_GUARD_SUFFIX,
@@ -119,23 +120,6 @@ async function openaiImageGenerate(apiKey: string, model: string, prompt: string
   return data.data[0].b64_json as string;
 }
 
-// ── Usage logging ─────────────────────────────────────────────────────────────
-
-async function logUsage(params: {
-  userId: string; reason: string; isByok: boolean;
-  textUsage?: TextUsage; imageCount?: number; imageModel?: string; imageProvider?: string;
-}): Promise<void> {
-  const { userId, reason, isByok, textUsage, imageCount, imageModel, imageProvider } = params;
-  await admin.from("ai_credit_ledger").insert({
-    user_id: userId, delta: 0, reason, is_byok: isByok,
-    model: textUsage?.model ?? imageModel,
-    provider: textUsage?.provider ?? imageProvider,
-    input_tokens: textUsage?.input_tokens,
-    output_tokens: textUsage?.output_tokens,
-    image_count: imageCount,
-  });
-}
-
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 serve(async (req: Request) => {
@@ -220,20 +204,34 @@ serve(async (req: Request) => {
   const userContent = constraints.length ? `${wrappedPrompt}\n\nConstraints:\n${constraints.join("\n")}` : wrappedPrompt;
 
   const textProvider = campaign.text_provider ?? "openai";
+  const textIsByok = textProvider === "anthropic" && !!anthropicKey
+    ? !!campaignAnthropic
+    : textProvider === "gemini" && !!geminiKey
+    ? !!campaignGemini
+    : !!campaignOpenai;
+
+  // ── Pre-flight credit check ────────────────────────────────────────────────
+  const locationCost = textIsByok ? 0 : await fetchCreditCost(admin, "location_generation");
+  if (locationCost > 0) {
+    const balance = await fetchUserBalance(admin, user.id);
+    if (balance < locationCost) {
+      return new Response(
+        JSON.stringify({ error: "insufficient_credits", balance }),
+        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+  }
+
   let textResult: TextResult;
-  let textIsByok: boolean;
 
   try {
     if (textProvider === "anthropic" && anthropicKey) {
       textResult = await anthropicText(anthropicKey, systemContent, userContent);
-      textIsByok = !!campaignAnthropic;
     } else if (textProvider === "gemini" && geminiKey) {
       textResult = await geminiText(geminiKey, systemContent, userContent);
-      textIsByok = !!campaignGemini;
     } else {
       if (!openaiKey) return new Response("No OpenAI API key configured", { status: 422 });
       textResult = await openaiText(openaiKey, systemContent, userContent);
-      textIsByok = !!campaignOpenai;
     }
   } catch (e) {
     console.error("Location text generation failed:", e);
@@ -250,7 +248,6 @@ serve(async (req: Request) => {
   let map_b64: string | null = null;
   let imageCount = 0;
 
-  const imageIsByok = !!campaignOpenai;
   if (openaiKey && (generate_image || generate_map)) {
     const [imgResult, mapResult] = await Promise.allSettled([
       generate_image
@@ -269,13 +266,11 @@ serve(async (req: Request) => {
     if (mapResult.status === "fulfilled" && mapResult.value) { map_b64 = mapResult.value; imageCount++; }
   }
 
-  const logPromises = [
-    logUsage({ userId: user.id, reason: "location_generation", isByok: textIsByok, textUsage: textResult.usage }),
-  ];
-  if (imageCount > 0) {
-    logPromises.push(logUsage({ userId: user.id, reason: "location_image", isByok: imageIsByok, imageCount, imageModel: image_model, imageProvider: "openai" }));
-  }
-  await Promise.allSettled(logPromises);
+  await recordGeneration(admin, user.id, "location_generation", textIsByok, locationCost, {
+    model: textResult.usage.model, provider: textResult.usage.provider,
+    input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
+    image_count: imageCount > 0 ? imageCount : undefined,
+  });
 
   return new Response(
     JSON.stringify({ ...locationData, image_b64, map_b64 }),

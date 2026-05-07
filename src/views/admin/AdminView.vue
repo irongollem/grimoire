@@ -352,7 +352,7 @@
           <div>
             <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Credit Packs</h2>
             <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
-              How many credits each pack contains and the display price. Changing the EUR price here is cosmetic only — update the Stripe product separately to change what's actually charged.
+              Credits, display price, and Stripe Price ID per pack. The Stripe Price ID wires checkout to the correct Stripe product — set it once after creating the product in Stripe Dashboard.
             </p>
           </div>
           <div v-if="pricingQuery.packs.isPending.value" class="text-muted-foreground font-fell text-sm">Loading…</div>
@@ -361,8 +361,9 @@
             <thead>
               <tr class="border-b border-border">
                 <th class="text-left pb-2 font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Pack</th>
-                <th class="text-right pb-2 font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase w-28">Credits</th>
-                <th class="text-right pb-2 font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase w-28">EUR (display)</th>
+                <th class="text-right pb-2 font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase w-24">Credits</th>
+                <th class="text-right pb-2 font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase w-24">EUR (display)</th>
+                <th class="pb-2 pl-3 font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Stripe Price ID</th>
                 <th class="w-16" />
               </tr>
             </thead>
@@ -373,14 +374,23 @@
                   <input
                     v-model.number="draftPacks[pack.pack_id].credits"
                     type="number" min="1"
-                    class="w-24 bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                    class="w-20 bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                 </td>
                 <td class="py-2 text-right">
                   <input
                     v-model.number="draftPacks[pack.pack_id].eur_display"
                     type="number" min="0" step="0.01"
-                    class="w-24 bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                    class="w-20 bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                  />
+                </td>
+                <td class="py-2 pl-3">
+                  <input
+                    v-model="draftPacks[pack.pack_id].stripe_price_id"
+                    type="text"
+                    placeholder="price_…"
+                    class="w-full bg-muted border border-border rounded px-2 py-1 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
+                    :class="draftPacks[pack.pack_id].stripe_price_id ? 'text-green-400' : 'text-amber-400'"
                   />
                 </td>
                 <td class="py-2 pl-2 text-right">
@@ -913,7 +923,7 @@ const usageStats = useAiUsageStats();
 // ── Pricing ────────────────────────────────────────────────────────────────
 const pricingQuery = useAdminPricing();
 
-type PackDraft = { credits: number; eur_display: number };
+type PackDraft = { credits: number; eur_display: number; stripe_price_id: string };
 const draftPacks = reactive<Record<string, PackDraft>>({});
 const packSaving = reactive<Record<string, boolean>>({});
 
@@ -923,7 +933,7 @@ watch(
     if (!packs) return;
     for (const p of packs) {
       if (!(p.pack_id in draftPacks)) {
-        draftPacks[p.pack_id] = { credits: p.credits, eur_display: p.eur_display };
+        draftPacks[p.pack_id] = { credits: p.credits, eur_display: p.eur_display, stripe_price_id: p.stripe_price_id ?? "" };
       }
     }
   },
@@ -937,6 +947,7 @@ async function savePack(pack: CreditPackConfig) {
       pack_id: pack.pack_id,
       credits: draftPacks[pack.pack_id].credits,
       eur_display: draftPacks[pack.pack_id].eur_display,
+      stripe_price_id: draftPacks[pack.pack_id].stripe_price_id || null,
     });
   } finally {
     packSaving[pack.pack_id] = false;

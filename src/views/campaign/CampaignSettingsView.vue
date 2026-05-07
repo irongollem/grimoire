@@ -18,7 +18,7 @@
                 ? 'bg-muted text-foreground font-semibold'
                 : 'text-muted-foreground hover:text-foreground'
           "
-          @click="activeTab = tab.id"
+          @click="setTab(tab.id)"
         >
           {{ tab.label }}
         </button>
@@ -39,7 +39,7 @@
                 ? 'border-primary text-foreground'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
           "
-          @click="activeTab = tab.id"
+          @click="setTab(tab.id)"
         >
           {{ tab.label }}
         </button>
@@ -91,7 +91,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
 import PageHeader from "@/components/common/PageHeader.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
@@ -119,6 +120,11 @@ type SettingsTab =
   | "bundle"
   | "danger";
 
+const VALID_TABS = new Set<SettingsTab>([
+  "details", "members", "scheduling", "rules", "classes",
+  "ai", "spotify", "backup", "bundle", "danger",
+]);
+
 const tabs: { id: SettingsTab; label: string }[] = [
   { id: "details", label: "Details" },
   { id: "members", label: "Members & Invites" },
@@ -132,6 +138,16 @@ const tabs: { id: SettingsTab; label: string }[] = [
   { id: "danger", label: "Danger Zone" },
 ];
 
-const activeTab = ref<SettingsTab>("details");
+const route = useRoute();
+const router = useRouter();
 const campaignStore = useCampaignStore();
+
+const activeTab = computed<SettingsTab>(() => {
+  const t = route.query.tab as string;
+  return VALID_TABS.has(t as SettingsTab) ? (t as SettingsTab) : "details";
+});
+
+function setTab(tab: SettingsTab) {
+  router.replace({ query: { ...route.query, tab } });
+}
 </script>

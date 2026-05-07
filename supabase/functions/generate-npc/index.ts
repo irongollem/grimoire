@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { decryptValue } from "../_shared/vault.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
+import { fetchCreditCost, fetchUserBalance, recordGeneration } from "../_shared/credits.ts";
 import {
   AI_PROMPT_LIMIT,
   INJECTION_GUARD_SUFFIX,
@@ -165,31 +166,6 @@ async function openaiImageEdit(apiKey: string, model: string, sourceB64: string,
   return { b64: data.data[0].b64_json as string, usage: { model, provider: "openai", image_count: 1 } };
 }
 
-// ── Usage logging ─────────────────────────────────────────────────────────────
-
-async function logUsage(params: {
-  userId: string;
-  reason: string;
-  isByok: boolean;
-  textUsage?: TextUsage;
-  imageCount?: number;
-  imageModel?: string;
-  imageProvider?: string;
-}): Promise<void> {
-  const { userId, reason, isByok, textUsage, imageCount, imageModel, imageProvider } = params;
-  await admin.from("ai_credit_ledger").insert({
-    user_id: userId,
-    delta: 0,
-    reason,
-    is_byok: isByok,
-    model:         textUsage?.model    ?? imageModel,
-    provider:      textUsage?.provider ?? imageProvider,
-    input_tokens:  textUsage?.input_tokens,
-    output_tokens: textUsage?.output_tokens,
-    image_count:   imageCount,
-  });
-}
-
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 serve(async (req: Request) => {
@@ -275,10 +251,33 @@ serve(async (req: Request) => {
   const anthropicKey = campaignAnthropic ?? platformKeys.anthropic ?? null;
   const geminiKey    = campaignGemini    ?? platformKeys.gemini    ?? null;
 
-  // ── Select text provider ────────────────────────────────────────────────────
+  // ── Determine provider + isByok before generating (needed for credit check) ──
   const textProvider = campaign.text_provider ?? "openai";
+  const textIsByok = textProvider === "anthropic" && !!anthropicKey
+    ? !!campaignAnthropic
+    : textProvider === "gemini" && !!geminiKey
+    ? !!campaignGemini
+    : !!campaignOpenai;
+  const imageIsByok = !!campaignOpenai;
+
+  // ── Pre-flight credit check ────────────────────────────────────────────────
+  const [npcTextCost, portraitCostEach] = await Promise.all([
+    textIsByok ? Promise.resolve(0) : fetchCreditCost(admin, "npc_text"),
+    imageIsByok || !generateImage ? Promise.resolve(0) : fetchCreditCost(admin, "portrait"),
+  ]);
+  const maxImages = generateImage ? (generateAlterEgo ? 2 : 1) : 0;
+  const totalNeeded = npcTextCost + portraitCostEach * maxImages;
+  if (totalNeeded > 0) {
+    const balance = await fetchUserBalance(admin, user.id);
+    if (balance < totalNeeded) {
+      return new Response(
+        JSON.stringify({ error: "insufficient_credits", balance }),
+        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+  }
+
   let textResult: TextResult;
-  let textIsByok: boolean;
 
   const systemContent =
     promptRow.content + buildCampaignContext(campaign.ai_setting_prompt) + INJECTION_GUARD_SUFFIX;
@@ -290,14 +289,11 @@ serve(async (req: Request) => {
   try {
     if (textProvider === "anthropic" && anthropicKey) {
       textResult = await anthropicText(anthropicKey, systemContent, userContent);
-      textIsByok = !!campaignAnthropic;
     } else if (textProvider === "gemini" && geminiKey) {
       textResult = await geminiText(geminiKey, systemContent, userContent);
-      textIsByok = !!campaignGemini;
     } else {
       if (!openaiKey) return new Response("No OpenAI API key configured", { status: 422 });
       textResult = await openaiText(openaiKey, systemContent, userContent);
-      textIsByok = !!campaignOpenai;
     }
   } catch (e) {
     console.error("NPC text generation failed:", e);
@@ -322,7 +318,6 @@ serve(async (req: Request) => {
   let totalImageCount = 0;
   const imgModel = imageModel;
 
-  const imageIsByok = !!campaignOpenai;
   if (generateImage && openaiKey && npcData.true_portrait_prompt) {
     const imagePrompt = [
       `Style: ${imageBasePrompt}`,
@@ -353,22 +348,19 @@ serve(async (req: Request) => {
     }
   }
 
-  // ── Log usage ───────────────────────────────────────────────────────────────
-  // Log text + image usage in two separate rows so the model column is accurate for each.
-  const logPromises: Promise<void>[] = [
-    logUsage({ userId: user.id, reason: "npc_generation", isByok: textIsByok, textUsage: textResult.usage }),
+  // ── Record usage (deduct credits for platform-key, log-only for BYOK) ────────
+  const recordPromises: Promise<void>[] = [
+    recordGeneration(admin, user.id, "npc_text", textIsByok, npcTextCost, {
+      model: textResult.usage.model, provider: textResult.usage.provider,
+      input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
+    }),
   ];
   if (totalImageCount > 0) {
-    logPromises.push(logUsage({
-      userId: user.id,
-      reason: "npc_portrait",
-      isByok: imageIsByok,
-      imageCount: totalImageCount,
-      imageModel: imgModel,
-      imageProvider: "openai",
+    recordPromises.push(recordGeneration(admin, user.id, "portrait", imageIsByok, portraitCostEach * totalImageCount, {
+      model: imgModel, provider: "openai", image_count: totalImageCount,
     }));
   }
-  await Promise.allSettled(logPromises);
+  await Promise.allSettled(recordPromises);
 
   // ── Return result ───────────────────────────────────────────────────────────
   return new Response(

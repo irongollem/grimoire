@@ -32,10 +32,12 @@ export function useAdminPricing() {
   });
 
   const updatePack = useMutation({
-    mutationFn: async (update: { pack_id: string; credits: number; eur_display: number }) => {
+    mutationFn: async (update: { pack_id: string; credits: number; eur_display: number; stripe_price_id?: string | null }) => {
+      const payload: Record<string, unknown> = { credits: update.credits, eur_display: update.eur_display };
+      if ("stripe_price_id" in update) payload.stripe_price_id = update.stripe_price_id ?? null;
       const { error } = await supabase
         .from("credit_pack_config")
-        .update({ credits: update.credits, eur_display: update.eur_display })
+        .update(payload)
         .eq("pack_id", update.pack_id);
       if (error) throw error;
     },

@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { decryptValue } from "../_shared/vault.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
+import { fetchCreditCost, fetchUserBalance, recordGeneration } from "../_shared/credits.ts";
 import {
   AI_PROMPT_LIMIT,
   INJECTION_GUARD_SUFFIX,
@@ -144,23 +145,6 @@ async function openaiImageEdit(apiKey: string, model: string, portraitUrl: strin
   return data.data[0].b64_json as string;
 }
 
-// ── Usage logging ─────────────────────────────────────────────────────────────
-
-async function logUsage(params: {
-  userId: string; reason: string; isByok: boolean;
-  textUsage?: TextUsage; imageCount?: number; imageModel?: string; imageProvider?: string;
-}): Promise<void> {
-  const { userId, reason, isByok, textUsage, imageCount, imageModel, imageProvider } = params;
-  await admin.from("ai_credit_ledger").insert({
-    user_id: userId, delta: 0, reason, is_byok: isByok,
-    model: textUsage?.model ?? imageModel,
-    provider: textUsage?.provider ?? imageProvider,
-    input_tokens: textUsage?.input_tokens,
-    output_tokens: textUsage?.output_tokens,
-    image_count: imageCount,
-  });
-}
-
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 serve(async (req: Request) => {
@@ -246,20 +230,34 @@ serve(async (req: Request) => {
   const userContent = constraints.length ? `${wrappedPrompt}\n\nConstraints:\n${constraints.join("\n")}` : wrappedPrompt;
 
   const textProvider = campaign.text_provider ?? "openai";
+  const textIsByok = textProvider === "anthropic" && !!anthropicKey
+    ? !!campaignAnthropic
+    : textProvider === "gemini" && !!geminiKey
+    ? !!campaignGemini
+    : !!campaignOpenai;
+
+  // ── Pre-flight credit check ────────────────────────────────────────────────
+  const trapCost = textIsByok ? 0 : await fetchCreditCost(admin, "trap_generation");
+  if (trapCost > 0) {
+    const balance = await fetchUserBalance(admin, user.id);
+    if (balance < trapCost) {
+      return new Response(
+        JSON.stringify({ error: "insufficient_credits", balance }),
+        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+  }
+
   let textResult: TextResult;
-  let textIsByok: boolean;
 
   try {
     if (textProvider === "anthropic" && anthropicKey) {
       textResult = await anthropicText(anthropicKey, systemContent, userContent);
-      textIsByok = !!campaignAnthropic;
     } else if (textProvider === "gemini" && geminiKey) {
       textResult = await geminiText(geminiKey, systemContent, userContent);
-      textIsByok = !!campaignGemini;
     } else {
       if (!openaiKey) return new Response("No OpenAI API key configured", { status: 422 });
       textResult = await openaiText(openaiKey, systemContent, userContent);
-      textIsByok = !!campaignOpenai;
     }
   } catch (e) {
     console.error("Trap text generation failed:", e);
@@ -274,7 +272,6 @@ serve(async (req: Request) => {
   // ── Image generation ─────────────────────────────────────────────────────
   let image_b64: string | null = null;
 
-  const imageIsByok = !!campaignOpenai;
   if (generate_image && openaiKey) {
     try {
       const imagePrompt = [imageBasePrompt, campaign.ai_setting_prompt, trapData.image_prompt]
@@ -291,13 +288,11 @@ serve(async (req: Request) => {
     }
   }
 
-  const logPromises = [
-    logUsage({ userId: user.id, reason: "trap_generation", isByok: textIsByok, textUsage: textResult.usage }),
-  ];
-  if (image_b64) {
-    logPromises.push(logUsage({ userId: user.id, reason: "trap_image", isByok: imageIsByok, imageCount: 1, imageModel: image_model, imageProvider: "openai" }));
-  }
-  await Promise.allSettled(logPromises);
+  await recordGeneration(admin, user.id, "trap_generation", textIsByok, trapCost, {
+    model: textResult.usage.model, provider: textResult.usage.provider,
+    input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
+    image_count: image_b64 ? 1 : undefined,
+  });
 
   return new Response(
     JSON.stringify({ ...trapData, image_b64 }),

@@ -7,11 +7,10 @@ const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   httpClient: Stripe.createFetchHttpClient(),
 });
 
-const PACK_PRICE_MAP: Record<string, { priceEnvKey: string; credits: number }> = {
-  starter:  { priceEnvKey: "STRIPE_CREDIT_PACK_STARTER_PRICE_ID",  credits: 15 },
-  standard: { priceEnvKey: "STRIPE_CREDIT_PACK_STANDARD_PRICE_ID", credits: 35 },
-  bulk:     { priceEnvKey: "STRIPE_CREDIT_PACK_BULK_PRICE_ID",     credits: 80 },
-};
+const admin = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+);
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,7 +30,6 @@ serve(async (req: Request) => {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  // Verify user via JWT
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_ANON_KEY")!,
@@ -46,19 +44,25 @@ serve(async (req: Request) => {
   try {
     const body = await req.json();
     packId = body.packId;
+    if (!packId) throw new Error("missing packId");
   } catch {
-    return new Response("Invalid JSON body", { status: 400 });
+    return new Response("Invalid JSON body — need { packId }", { status: 400 });
   }
 
-  const pack = PACK_PRICE_MAP[packId];
-  if (!pack) {
+  // Look up pack from DB (price ID + credit amount stored in credit_pack_config)
+  const { data: pack, error: packError } = await admin
+    .from("credit_pack_config")
+    .select("pack_id, credits, stripe_price_id")
+    .eq("pack_id", packId)
+    .maybeSingle();
+
+  if (packError || !pack) {
     return new Response(`Unknown pack: ${packId}`, { status: 400 });
   }
 
-  const priceId = Deno.env.get(pack.priceEnvKey);
-  if (!priceId) {
-    console.error(`Missing env var: ${pack.priceEnvKey}`);
-    return new Response("Server configuration error", { status: 500 });
+  if (!pack.stripe_price_id) {
+    console.error(`No stripe_price_id configured for pack: ${packId}`);
+    return new Response("Stripe price not configured for this pack — contact support", { status: 500 });
   }
 
   const origin = req.headers.get("origin") ?? Deno.env.get("SITE_URL") ?? "https://dungeongrimoire.com";
@@ -66,7 +70,7 @@ serve(async (req: Request) => {
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [{ price: pack.stripe_price_id, quantity: 1 }],
       metadata: {
         user_id: user.id,
         credits: String(pack.credits),

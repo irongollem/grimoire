@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { decryptValue } from "../_shared/vault.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
+import { fetchCreditCost, fetchUserBalance, recordGeneration } from "../_shared/credits.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,15 +26,6 @@ function buildPrompt(sceneText: string, textDescriptions: string[], settingPromp
   }
   parts.push(`\nScene: ${sceneText}`);
   return parts.join("\n");
-}
-
-// ── Usage logging ─────────────────────────────────────────────────────────────
-
-async function logUsage(userId: string, isByok: boolean, model: string): Promise<void> {
-  await admin.from("ai_credit_ledger").insert({
-    user_id: userId, delta: 0, reason: "chronicler_image", is_byok: isByok,
-    model, provider: "openai", image_count: 1,
-  });
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -90,6 +82,18 @@ serve(async (req: Request) => {
   const openaiKey = campaignOpenai ?? platformKeys.openai ?? null;
   const isByok = !!campaignOpenai;
   if (!openaiKey) return new Response("No OpenAI API key configured", { status: 422 });
+
+  // ── Pre-flight credit check ────────────────────────────────────────────────
+  const chronicleImageCost = isByok ? 0 : await fetchCreditCost(admin, "chronicle_image");
+  if (chronicleImageCost > 0) {
+    const balance = await fetchUserBalance(admin, user.id);
+    if (balance < chronicleImageCost) {
+      return new Response(
+        JSON.stringify({ error: "insufficient_credits", balance }),
+        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+  }
 
   const settingPrompt = campaign.ai_setting_prompt ?? "";
 
@@ -154,7 +158,9 @@ serve(async (req: Request) => {
     );
   }
 
-  await logUsage(user.id, isByok, image_model).catch(console.error);
+  await recordGeneration(admin, user.id, "chronicle_image", isByok, chronicleImageCost, {
+    model: image_model, provider: "openai", image_count: 1,
+  }).catch(console.error);
 
   return new Response(
     JSON.stringify({ image_b64: b64 }),
