@@ -457,7 +457,6 @@ const { mutateAsync: addFactionNpc } = useAddFactionNpc();
 const { data: npcs } = useNpcs();
 const { mutateAsync: createNpcRelation } = useCreateNpcRelation();
 
-const aiApiKey = computed(() => campaign.decryptedApiKey);
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 const { isPro } = useSubscription();
 const showPaywall = ref(false);
@@ -490,10 +489,6 @@ const creditLine = computed(() => {
   const bal  = parseFloat(((balance.value ?? 0) as number).toFixed(2));
   return `${cost === 1 ? "1 credit" : `${cost} credits`} · Balance: ${bal}`;
 });
-
-function openAiSettings() {
-  ui.npcGeneratorOpen = false;
-}
 
 /** Close the panel while allowing generation to continue in background. */
 function dismissToBackground() {

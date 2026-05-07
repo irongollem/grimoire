@@ -1388,7 +1388,6 @@ async function confirmDelete() {
 
 // ── AI generation ─────────────────────────────────────────────────────────────
 const campaignStore = useCampaignStore();
-const aiApiKey = computed(() => campaignStore.decryptedApiKey);
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const showGenerateDialog = ref(false);
 

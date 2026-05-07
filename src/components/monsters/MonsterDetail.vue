@@ -627,7 +627,6 @@ function onPortraitFocalUpdate(pt: { x: number; y: number } | null) {
 }
 // AI generation
 const campaignStore = useCampaignStore();
-const aiApiKey = computed(() => campaignStore.decryptedApiKey);
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const showGenerateDialog = ref(false);
 

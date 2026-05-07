@@ -271,7 +271,6 @@ const {
 const { mutateAsync: createQuest } = useCreateQuest();
 const { mutateAsync: createObjective } = useCreateObjective();
 
-const aiApiKey = computed(() => campaign.decryptedApiKey);
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 
 const partyLevelDisplay = computed(() => {
