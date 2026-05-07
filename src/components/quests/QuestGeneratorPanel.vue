@@ -182,30 +182,13 @@
             </div>
           </div>
 
-          <!-- No API key nudge (pro users only) -->
-          <div
-            v-if="isPro && !aiApiKey"
-            class="rounded-md border border-border bg-muted/40 p-3"
-          >
-            <p class="font-fell text-xs text-muted-foreground italic">
-              Add an AI key in
-              <button
-                type="button"
-                class="text-primary hover:underline"
-                @click="ui.questGeneratorOpen = false"
-              >
-                Campaign Settings → AI Assistant
-              </button>
-              to unlock AI generation.
-            </p>
-          </div>
         </template>
       </div>
 
       <!-- Footer -->
       <div class="px-5 py-4 border-t border-border shrink-0">
         <button
-          v-if="isPro && aiApiKey && !hooks.length"
+          v-if="isPro && isAiEnabled && !hooks.length"
           type="button"
           :disabled="isAnyAiGenerating"
           :title="
@@ -289,6 +272,7 @@ const { mutateAsync: createQuest } = useCreateQuest();
 const { mutateAsync: createObjective } = useCreateObjective();
 
 const aiApiKey = computed(() => campaign.decryptedApiKey);
+const isAiEnabled = computed(() => campaign.isAiEnabled);
 
 const partyLevelDisplay = computed(() => {
   const levels = (party.value ?? []).map((m) => m.level);

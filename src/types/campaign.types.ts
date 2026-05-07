@@ -30,6 +30,7 @@ export interface Campaign {
   image_provider:  string | null;
   ai_setting_prompt: string | null;
   allow_chronicle_promotion: boolean;
+  ai_enabled: boolean;
   group_portrait_url: string | null;
   spotify_client_id: string | null;
   ical_token: string;   // UUID; used as the shared secret for the iCal subscription URL

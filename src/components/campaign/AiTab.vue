@@ -20,6 +20,31 @@
 
   <form v-else class="max-w-md flex flex-col gap-6" @submit.prevent="save">
 
+    <!-- AI enabled toggle -->
+    <div class="rounded-lg border border-border bg-card p-4">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <p class="font-cinzel text-xs font-semibold tracking-wide text-foreground">AI Assistant</p>
+          <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
+            When disabled, all AI generation buttons are hidden across the campaign. Players who prefer a fully hand-crafted experience won't see any AI UI.
+          </p>
+        </div>
+        <button
+          type="button"
+          class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors focus:outline-none"
+          :class="form.ai_enabled ? 'bg-primary' : 'bg-muted'"
+          @click="form.ai_enabled = !form.ai_enabled"
+        >
+          <span
+            class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"
+            :class="form.ai_enabled ? 'translate-x-5' : 'translate-x-0.5'"
+          />
+        </button>
+      </div>
+    </div>
+
+    <template v-if="form.ai_enabled">
+
     <!-- Local Mode Toggle -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/20">
@@ -203,6 +228,8 @@
       </div>
     </div>
 
+    </template><!-- end v-if="form.ai_enabled" -->
+
     <div class="flex justify-end">
       <button
         type="submit"
@@ -260,6 +287,7 @@ function initialKeys(): Record<string, string> {
 }
 
 const form = ref({
+  ai_enabled:        campaign.activeCampaign?.ai_enabled ?? true,
   text_provider:    campaign.activeCampaign?.text_provider  ?? "openai",
   image_provider:   campaign.activeCampaign?.image_provider ?? "openai",
   ai_setting_prompt: campaign.activeCampaign?.ai_setting_prompt ?? "",
@@ -336,6 +364,7 @@ watch(
   () => campaign.activeCampaign,
   (c) => {
     if (c) {
+      form.value.ai_enabled       = c.ai_enabled ?? true;
       form.value.text_provider    = c.text_provider  ?? "openai";
       form.value.image_provider   = c.image_provider ?? "openai";
       form.value.ai_setting_prompt = c.ai_setting_prompt ?? "";
@@ -379,6 +408,7 @@ async function save() {
     const updated = await updateCampaign({
       id: campaign.activeCampaignId,
       update: {
+        ai_enabled:        form.value.ai_enabled,
         openai_api_key:    encryptedKeys["openai_api_key"],
         anthropic_api_key: encryptedKeys["anthropic_api_key"],
         gemini_api_key:    encryptedKeys["gemini_api_key"],

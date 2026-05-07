@@ -221,7 +221,7 @@
 
         <!-- Alter ego toggle -->
         <div
-          v-if="aiApiKey"
+          v-if="isAiEnabled"
           class="rounded-md border border-border bg-muted/30 px-3 py-2.5 flex flex-col gap-1.5"
         >
           <label class="flex items-center gap-2.5 cursor-pointer">
@@ -249,7 +249,7 @@
         </div>
 
         <!-- Image toggle -->
-        <div v-if="aiApiKey" class="flex items-center justify-between">
+        <div v-if="isAiEnabled" class="flex items-center justify-between">
           <span class="font-fell text-xs text-muted-foreground"
             >Generate portrait art</span
           >
@@ -266,24 +266,6 @@
               :class="generateImage ? 'translate-x-4.5' : 'translate-x-0.5'"
             />
           </button>
-        </div>
-
-        <!-- No API key nudge (pro users only) -->
-        <div
-          v-if="isPro && !aiApiKey"
-          class="rounded-md border border-border bg-muted/40 p-3"
-        >
-          <p class="font-fell text-xs text-muted-foreground italic">
-            Add an OpenAI key in
-            <button
-              type="button"
-              class="text-primary hover:underline"
-              @click="openAiSettings"
-            >
-              Campaign Settings → AI Assistant
-            </button>
-            to unlock AI generation.
-          </p>
         </div>
 
         <!-- Generating state -->
@@ -318,7 +300,7 @@
         class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0"
       >
         <button
-          v-if="isPro && aiApiKey"
+          v-if="isPro && isAiEnabled"
           type="button"
           :disabled="isAnyAiGenerating || !concept.trim()"
           :title="
@@ -469,6 +451,7 @@ const { data: npcs } = useNpcs();
 const { mutateAsync: createNpcRelation } = useCreateNpcRelation();
 
 const aiApiKey = computed(() => campaign.decryptedApiKey);
+const isAiEnabled = computed(() => campaign.isAiEnabled);
 const { isPro } = useSubscription();
 const showPaywall = ref(false);
 

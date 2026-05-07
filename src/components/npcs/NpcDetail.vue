@@ -520,6 +520,7 @@ const artTab = ref<'true-form' | 'alter-ego'>(
 )
 
 const aiApiKey = computed(() => campaign.decryptedApiKey)
+const isAiEnabled = computed(() => campaign.isAiEnabled)
 
 function onAiGenerated(result: NpcAiGenerated) {
   showGenerateDialog.value = false
@@ -895,6 +896,7 @@ defineExpose({
   isSaving,
   isSendingToScriptorium,
   aiApiKey,
+  isAiEnabled,
   showGenerateDialog,
   form,
   sendToScriptorium,

@@ -30,7 +30,7 @@
         />
       </label>
       <button
-        v-if="aiApiKey"
+        v-if="isAiEnabled"
         type="button"
         class="inline-flex items-center gap-1.5 rounded-md border border-primary/40 px-3 py-2 font-cinzel text-xs font-semibold text-primary hover:bg-primary/10 transition-colors"
         @click="showGenerateDialog = true"
@@ -426,7 +426,7 @@
 
   <!-- AI generation dialog -->
   <MonsterGenerateDialog
-    v-if="showGenerateDialog && aiApiKey"
+    v-if="showGenerateDialog && isAiEnabled"
     @close="showGenerateDialog = false"
     @generated="onAiGenerated"
   />
@@ -628,6 +628,7 @@ function onPortraitFocalUpdate(pt: { x: number; y: number } | null) {
 // AI generation
 const campaignStore = useCampaignStore();
 const aiApiKey = computed(() => campaignStore.decryptedApiKey);
+const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const showGenerateDialog = ref(false);
 
 function onAiGenerated(result: MonsterAiGenerated) {

@@ -61,7 +61,7 @@
           @click="npcDetail.form.is_revealed = !npcDetail.form.is_revealed"
         >{{ npcDetail.form.is_revealed ? '✦ Revealed' : '◈ Concealed' }}</button>
         <button
-          v-if="npcDetail.aiApiKey"
+          v-if="npcDetail.isAiEnabled"
           type="button"
           class="inline-flex items-center gap-1.5 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-primary/40 text-primary rounded-md hover:bg-primary/10 transition-colors"
           @click="npcDetail.showGenerateDialog = true"

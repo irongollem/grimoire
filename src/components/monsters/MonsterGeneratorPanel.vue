@@ -79,7 +79,7 @@
         </div>
 
         <!-- Image generation toggle -->
-        <div v-if="aiApiKey" class="flex items-center justify-between">
+        <div v-if="isAiEnabled" class="flex items-center justify-between">
           <span class="font-fell text-xs text-muted-foreground">Generate portrait art</span>
           <button
             type="button"
@@ -95,20 +95,6 @@
         </div>
 
         <!-- No API key nudge -->
-        <div v-if="isPro && !aiApiKey" class="rounded-md border border-border bg-muted/40 p-3">
-          <p class="font-fell text-xs text-muted-foreground italic">
-            Add an OpenAI key in
-            <RouterLink
-              to="/campaign/settings"
-              class="text-primary hover:underline"
-              @click="ui.monsterGeneratorOpen = false"
-            >
-              Campaign Settings → AI Assistant
-            </RouterLink>
-            to unlock AI generation.
-          </p>
-        </div>
-
         <!-- Generating state -->
         <div v-else-if="isGenerating" class="flex flex-col items-center gap-3 py-4">
           <IconGenerate class="h-7 w-7 text-primary animate-pulse" />
@@ -134,7 +120,7 @@
       <!-- Footer -->
       <div class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0">
         <button
-          v-if="isPro && aiApiKey"
+          v-if="isPro && isAiEnabled"
           type="button"
           :disabled="isAnyAiGenerating || !concept.trim()"
           :title="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
@@ -195,6 +181,7 @@ const { mutateAsync: createMonster } = useCreateMonster();
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useMonsterGeneration();
 
 const aiApiKey = computed(() => campaign.decryptedApiKey);
+const isAiEnabled = computed(() => campaign.isAiEnabled);
 const { isPro } = useSubscription();
 const showPaywall = ref(false);
 

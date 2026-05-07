@@ -101,6 +101,8 @@ export const useCampaignStore = defineStore("campaign", () => {
     decryptedFalAiKey.value     = "";
   }
 
+  const isAiEnabled = computed(() => activeCampaign.value?.ai_enabled !== false);
+
   const todayYear  = computed(() => activeCampaign.value?.current_year ?? 1495);
   const todayMonth = computed(() => activeCampaign.value?.current_month ?? 1);
   const todayDay   = computed(() => activeCampaign.value?.current_day ?? 1);
@@ -109,6 +111,7 @@ export const useCampaignStore = defineStore("campaign", () => {
     activeCampaignId,
     activeCampaign,
     decryptedApiKey,
+    isAiEnabled,
     decryptedOpenAiKey,
     decryptedAnthropicKey,
     decryptedGeminiKey,
