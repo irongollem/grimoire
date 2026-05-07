@@ -5,10 +5,13 @@ export interface ProviderConfig {
   provider: string;
   text_model: string | null;
   image_model: string | null;
+  audio_model: string | null;
   text_multiplier: number | null;
   image_multiplier: number | null;
+  audio_multiplier: number | null;
   text_enabled: boolean;
   image_enabled: boolean;
+  audio_enabled: boolean;
   updated_at: string;
 }
 

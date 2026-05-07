@@ -9,6 +9,7 @@ export interface CreditLogFields {
   model?: string;
   provider?: string;
   input_tokens?: number;
+  input_image_tokens?: number;
   output_tokens?: number;
   image_count?: number;
 }

@@ -61,23 +61,13 @@
         <!-- Thumbnail (landscape) -->
         <div class="relative h-36 bg-muted overflow-hidden shrink-0">
           <FocalImage
-            v-if="getNpcDisplayPortrait(npc)"
-            :src="getNpcDisplayPortrait(npc)!"
+            :src="getNpcDisplayPortrait(npc)"
             :alt="getNpcDisplayName(npc)"
             format="landscape"
             :focal-point="getNpcDisplayFocalPoint(npc)"
+            placeholder="/assets/placeholders/npc.webp"
             class="group-hover:scale-105 transition-transform duration-300"
           />
-          <div
-            v-else
-            class="w-full h-full flex items-center justify-center text-3xl font-cinzel font-bold"
-            :style="{
-              backgroundColor: relColor(npc.relationship) + '22',
-              color: relColor(npc.relationship),
-            }"
-          >
-            {{ initials(getNpcDisplayName(npc)) }}
-          </div>
           <span
             class="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] font-cinzel font-bold tracking-wider uppercase text-white"
             :style="{ backgroundColor: relColor(npc.relationship) + 'EE' }"
@@ -358,14 +348,6 @@ const lockedNpcIds = computed((): Set<string> => {
   return new Set(sorted.slice(-overCount).map((n) => n.id));
 });
 
-function initials(name: string): string {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
 
 const REL_COLORS: Record<NpcRelationship, string> = {
   ally: "#2563eb",

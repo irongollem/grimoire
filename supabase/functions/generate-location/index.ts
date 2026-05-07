@@ -104,7 +104,9 @@ async function geminiText(apiKey: string, model: string, system: string, user: s
 
 // ── Image provider ────────────────────────────────────────────────────────────
 
-async function openaiImageGenerate(apiKey: string, model: string, prompt: string, size: string): Promise<string> {
+interface ImgResult { b64: string; input_tokens: number; input_image_tokens: number; output_tokens: number }
+
+async function openaiImageGenerate(apiKey: string, model: string, prompt: string, size: string): Promise<ImgResult> {
   const res = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
@@ -115,7 +117,12 @@ async function openaiImageGenerate(apiKey: string, model: string, prompt: string
     throw new Error(body?.error?.message ?? `OpenAI image error ${res.status}`);
   }
   const data = await res.json();
-  return data.data[0].b64_json as string;
+  return {
+    b64: data.data[0].b64_json as string,
+    input_tokens:       data.usage?.input_tokens_details?.text_tokens  ?? data.usage?.input_tokens ?? 0,
+    input_image_tokens: 0,
+    output_tokens:      data.usage?.output_tokens ?? 0,
+  };
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -246,10 +253,11 @@ serve(async (req: Request) => {
   // ── Images in parallel ────────────────────────────────────────────────────
   let image_b64: string | null = null;
   let map_b64: string | null = null;
-  let imageCount = 0;
+  let sceneImgResult: ImgResult | null = null;
+  let mapImgResult: ImgResult | null = null;
 
   if (openaiKey && (generate_image || generate_map)) {
-    const [imgResult, mapResult] = await Promise.allSettled([
+    const [imgSettled, mapSettled] = await Promise.allSettled([
       generate_image
         ? openaiImageGenerate(openaiKey, imgModel,
             [imageBasePrompt, campaign.ai_setting_prompt, locationData.image_prompt].filter(Boolean).join(" — "),
@@ -262,15 +270,36 @@ serve(async (req: Request) => {
         : Promise.resolve(null),
     ]);
 
-    if (imgResult.status === "fulfilled" && imgResult.value) { image_b64 = imgResult.value; imageCount++; }
-    if (mapResult.status === "fulfilled" && mapResult.value) { map_b64 = mapResult.value; imageCount++; }
+    if (imgSettled.status === "fulfilled" && imgSettled.value) { sceneImgResult = imgSettled.value; image_b64 = imgSettled.value.b64; }
+    else if (imgSettled.status === "rejected") console.error("Location scene image failed (non-fatal):", imgSettled.reason);
+
+    if (mapSettled.status === "fulfilled" && mapSettled.value) { mapImgResult = mapSettled.value; map_b64 = mapSettled.value.b64; }
+    else if (mapSettled.status === "rejected") console.error("Location map image failed (non-fatal):", mapSettled.reason);
   }
 
+  // Log text generation (with credit deduction)
   await recordGeneration(admin, user.id, "location_generation", textIsByok, locationCost, {
     model: textResult.usage.model, provider: textResult.usage.provider,
     input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
-    image_count: imageCount > 0 ? imageCount : undefined,
   });
+
+  // Log each image as a separate analytics-only row so image model token pricing is used
+  if (sceneImgResult) {
+    await recordGeneration(admin, user.id, "location_generation", false, 0, {
+      model: imgModel, provider: "openai", image_count: 1,
+      input_tokens:       sceneImgResult.input_tokens || undefined,
+      input_image_tokens: sceneImgResult.input_image_tokens || undefined,
+      output_tokens:      sceneImgResult.output_tokens || undefined,
+    });
+  }
+  if (mapImgResult) {
+    await recordGeneration(admin, user.id, "location_generation", false, 0, {
+      model: imgModel, provider: "openai", image_count: 1,
+      input_tokens:       mapImgResult.input_tokens || undefined,
+      input_image_tokens: mapImgResult.input_image_tokens || undefined,
+      output_tokens:      mapImgResult.output_tokens || undefined,
+    });
+  }
 
   return new Response(
     JSON.stringify({ ...locationData, image_b64, map_b64 }),

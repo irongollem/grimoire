@@ -116,6 +116,9 @@ serve(async (req: Request) => {
   }
 
   let b64: string;
+  let imageInputTokens = 0;
+  let imageOutputTokens = 0;
+  let textInputTokens = 0;
 
   try {
     if (portraitBlobs.length > 0) {
@@ -137,7 +140,11 @@ serve(async (req: Request) => {
         const body = await res.json().catch(() => ({}));
         throw new Error(body?.error?.message ?? `OpenAI image edit error ${res.status}`);
       }
-      b64 = (await res.json()).data[0].b64_json as string;
+      const data = await res.json();
+      b64 = data.data[0].b64_json as string;
+      textInputTokens  = data.usage?.input_tokens_details?.text_tokens  ?? data.usage?.input_tokens ?? 0;
+      imageInputTokens = data.usage?.input_tokens_details?.image_tokens ?? 0;
+      imageOutputTokens = data.usage?.output_tokens ?? 0;
     } else {
       const res = await fetch("https://api.openai.com/v1/images/generations", {
         method: "POST",
@@ -148,7 +155,10 @@ serve(async (req: Request) => {
         const body = await res.json().catch(() => ({}));
         throw new Error(body?.error?.message ?? `OpenAI image generation error ${res.status}`);
       }
-      b64 = (await res.json()).data[0].b64_json as string;
+      const data = await res.json();
+      b64 = data.data[0].b64_json as string;
+      textInputTokens   = data.usage?.input_tokens_details?.text_tokens ?? data.usage?.input_tokens ?? 0;
+      imageOutputTokens = data.usage?.output_tokens ?? 0;
     }
   } catch (e) {
     console.error("Chronicle image generation failed:", e);
@@ -160,6 +170,9 @@ serve(async (req: Request) => {
 
   await recordGeneration(admin, user.id, "chronicle_image", isByok, chronicleImageCost, {
     model: image_model, provider: "openai", image_count: 1,
+    input_tokens: textInputTokens,
+    input_image_tokens: imageInputTokens || undefined,
+    output_tokens: imageOutputTokens || undefined,
   }).catch(console.error);
 
   return new Response(

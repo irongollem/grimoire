@@ -264,7 +264,7 @@
               >
                 <IconCheck v-if="copiedId === invite.id" class="h-3 w-3" />
                 <IconCopy v-else class="h-3 w-3" />
-                {{ copiedId === invite.id ? 'Copied!' : 'IconCopy' }}
+                {{ copiedId === invite.id ? 'Copied!' : 'Copy' }}
               </button>
             </div>
           </div>
@@ -506,6 +506,7 @@
               <tr class="border-b border-border">
                 <th class="text-left pb-2 font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Generator</th>
                 <th class="text-right pb-2 font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase w-32">Credits</th>
+                <th class="text-right pb-2 pl-4 font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Calibration</th>
                 <th class="w-16" />
               </tr>
             </thead>
@@ -521,6 +522,34 @@
                     type="number" min="0"
                     class="w-24 bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
                   />
+                </td>
+                <td class="py-2 pl-4 text-right">
+                  <span v-if="calibrationQuery.isPending.value" class="font-fell text-[10px] text-muted-foreground/40">…</span>
+                  <span v-else-if="!calibrationHints[gen.generation_type]" class="font-fell text-[10px] text-muted-foreground/30">—</span>
+                  <!-- No suggestion yet (< 20 samples) — show raw cost as informational -->
+                  <span
+                    v-else-if="calibrationHints[gen.generation_type].suggested_cost === null"
+                    class="font-cinzel text-[10px] text-muted-foreground/50 tracking-wide whitespace-nowrap"
+                    :title="`${calibrationHints[gen.generation_type].sample_size} samples (need 20 for suggestion)`"
+                  >~${{ (calibrationHints[gen.generation_type].avg_actual_usd_cents / 100).toFixed(4) }}</span>
+                  <!-- Well calibrated — green -->
+                  <span
+                    v-else-if="calibrationStatus(calibrationHints[gen.generation_type]) === 'ok'"
+                    class="font-cinzel text-[10px] text-green-500 tracking-wide"
+                    :title="`avg actual: $${(calibrationHints[gen.generation_type].avg_actual_usd_cents / 100).toFixed(4)} (${calibrationHints[gen.generation_type].sample_size} samples)`"
+                  >✓</span>
+                  <!-- Under-charging: current cost < API cost — red, raise price -->
+                  <span
+                    v-else-if="calibrationStatus(calibrationHints[gen.generation_type]) === 'under'"
+                    class="font-cinzel text-[10px] text-red-500 tracking-wide whitespace-nowrap font-semibold"
+                    :title="`Under-charging — avg actual: $${(calibrationHints[gen.generation_type].avg_actual_usd_cents / 100).toFixed(4)} (${calibrationHints[gen.generation_type].sample_size} samples)`"
+                  >↑ {{ calibrationHints[gen.generation_type].suggested_cost }}</span>
+                  <!-- Over-charging: steep margin — blue -->
+                  <span
+                    v-else
+                    class="font-cinzel text-[10px] text-sky-400 tracking-wide whitespace-nowrap"
+                    :title="`Steep margin — avg actual: $${(calibrationHints[gen.generation_type].avg_actual_usd_cents / 100).toFixed(4)} (${calibrationHints[gen.generation_type].sample_size} samples)`"
+                  >↓ {{ calibrationHints[gen.generation_type].suggested_cost }}</span>
                 </td>
                 <td class="py-2 pl-2 text-right">
                   <button
@@ -662,87 +691,20 @@
         </div>
       </template>
 
-      <!-- ── Keys tab ────────────────────────────────────────────────────── -->
-      <template v-else-if="activeTab === 'keys'">
-        <div class="rounded-lg border border-border bg-card p-4 space-y-2 mb-4">
-          <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Platform API Keys</h2>
-          <p class="font-fell text-xs text-muted-foreground italic">
-            These keys are used when a campaign has no BYOK key configured (free and tester plans, or pro campaigns without a personal key).
-            Keys are encrypted at rest. Only admins can access this table.
-            Leave the field empty and click Save to keep the existing key unchanged.
-          </p>
-        </div>
-
-        <div v-if="keysQuery.isPending.value" class="text-muted-foreground font-fell text-sm">Loading…</div>
-        <div v-else-if="keysQuery.isError.value" class="text-destructive font-fell text-sm">Failed to load key status.</div>
-        <div v-else class="space-y-3">
-          <div
-            v-for="p in PROVIDERS"
-            :key="p.id"
-            class="rounded-lg border border-border bg-card p-4 space-y-3"
-          >
-            <div class="flex items-center justify-between">
-              <div>
-                <h3 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">{{ p.label }}</h3>
-                <span v-if="isKeySet(p.id)" class="font-cinzel text-[10px] tracking-widest text-emerald-500 uppercase">
-                  Key set · updated {{ new Date(keyUpdatedAt(p.id)!).toLocaleDateString() }}
-                </span>
-                <span v-else class="font-cinzel text-[10px] tracking-widest text-muted-foreground uppercase">
-                  Not configured
-                </span>
-              </div>
-              <button
-                v-if="isKeySet(p.id)"
-                class="px-2.5 py-1 font-cinzel text-xs font-semibold tracking-wider text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 disabled:opacity-50 transition-colors"
-                :disabled="keyClearing[p.id]"
-                @click="doClrKey(p.id)"
-              >
-                {{ keyClearing[p.id] ? 'Clearing…' : 'Clear' }}
-              </button>
-            </div>
-
-            <div class="flex gap-2">
-              <div class="relative flex-1">
-                <input
-                  v-model="keyDrafts[p.id]"
-                  :type="keyVisible[p.id] ? 'text' : 'password'"
-                  :placeholder="isKeySet(p.id) ? '••••••••  (leave blank to keep current)' : p.hint"
-                  class="w-full bg-muted border border-border rounded px-2.5 py-2 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring pr-9"
-                  autocomplete="off"
-                />
-                <button
-                  type="button"
-                  class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  @click="keyVisible[p.id] = !keyVisible[p.id]"
-                >
-                  <component :is="keyVisible[p.id] ? IconHide : IconReveal" class="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <button
-                class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-                :disabled="keySaving[p.id] || !keyDrafts[p.id]?.trim()"
-                @click="saveKey(p.id)"
-              >
-                {{ keySaving[p.id] ? 'Saving…' : 'Save' }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </template>
-
       <!-- ── Providers tab ───────────────────────────────────────────────── -->
       <template v-else-if="activeTab === 'providers'">
-        <div class="rounded-lg border border-border bg-card p-4 space-y-2 mb-4">
-          <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">AI Provider Configuration</h2>
+        <div class="rounded-lg border border-border bg-card p-4 space-y-1">
+          <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">AI Providers</h2>
           <p class="font-fell text-xs text-muted-foreground italic">
-            Set the model name and credit multiplier for each provider. Disabled providers are available but not shown as options to platform-key users.
-            All costs use the OpenAI entry as the 1× baseline — other multipliers are relative to that.
+            Platform key, model selection, credit multipliers, and API cost rates — all per provider.
+            Keys are encrypted at rest. Multipliers are relative to the OpenAI 1× baseline.
+            Save model costs to mark them verified; compare estimated totals to provider invoices monthly.
           </p>
         </div>
 
         <div v-if="providersQuery.isPending.value" class="text-muted-foreground font-fell text-sm">Loading…</div>
         <div v-else-if="providersQuery.isError.value" class="text-destructive font-fell text-sm">Failed to load provider config.</div>
-        <div v-else class="space-y-3">
+        <div v-else class="space-y-4">
           <div
             v-for="row in providersQuery.data.value"
             :key="row.provider"
@@ -758,52 +720,99 @@
                 :disabled="providerSaving[row.provider]"
                 @click="saveProvider(row.provider)"
               >
-                {{ providerSaving[row.provider] ? 'Saving…' : 'Save' }}
+                {{ providerSaving[row.provider] ? 'Saving…' : 'Save config' }}
               </button>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Platform API Key -->
+            <div class="p-3 rounded-md bg-muted/40 border border-border space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Platform API Key</span>
+                <div class="flex items-center gap-2">
+                  <span v-if="isKeySet(row.provider as KeyProvider)" class="font-cinzel text-[10px] tracking-widest text-emerald-500 uppercase">
+                    Set · {{ new Date(keyUpdatedAt(row.provider as KeyProvider)!).toLocaleDateString() }}
+                  </span>
+                  <span v-else class="font-cinzel text-[10px] tracking-widest text-muted-foreground/60 uppercase">Not configured</span>
+                  <button
+                    v-if="isKeySet(row.provider as KeyProvider)"
+                    class="px-2 py-0.5 font-cinzel text-[9px] font-semibold tracking-wider text-destructive border border-destructive/40 rounded hover:bg-destructive/10 disabled:opacity-50 transition-colors"
+                    :disabled="keyClearing[row.provider as KeyProvider]"
+                    @click="doClrKey(row.provider as KeyProvider)"
+                  >
+                    {{ keyClearing[row.provider as KeyProvider] ? '…' : 'Clear' }}
+                  </button>
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <div class="relative flex-1">
+                  <input
+                    v-model="keyDrafts[row.provider as KeyProvider]"
+                    :type="keyVisible[row.provider as KeyProvider] ? 'text' : 'password'"
+                    :placeholder="isKeySet(row.provider as KeyProvider) ? '•••••••• (leave blank to keep current)' : (PROVIDERS.find(p => p.id === row.provider)?.hint ?? '…')"
+                    class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring pr-9"
+                    autocomplete="off"
+                  />
+                  <button
+                    type="button"
+                    class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    @click="keyVisible[row.provider as KeyProvider] = !keyVisible[row.provider as KeyProvider]"
+                  >
+                    <component :is="keyVisible[row.provider as KeyProvider] ? IconHide : IconReveal" class="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <button
+                  class="shrink-0 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+                  :disabled="keySaving[row.provider as KeyProvider] || !keyDrafts[row.provider as KeyProvider]?.trim()"
+                  @click="saveKey(row.provider as KeyProvider)"
+                >
+                  {{ keySaving[row.provider as KeyProvider] ? 'Saving…' : 'Set Key' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Model config + pricing: only shown once a key is set -->
+            <template v-if="isKeySet(row.provider as KeyProvider)">
+
+            <!-- Model config: text / image / audio -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <!-- Text generation -->
               <div class="space-y-2 p-3 rounded-md bg-muted/40 border border-border">
                 <div class="flex items-center justify-between">
-                  <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Text Generation</span>
+                  <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Text</span>
                   <template v-if="draftProviders[row.provider]?.text_model !== null">
-                    <label class="flex items-center gap-1.5 cursor-pointer">
-                      <span class="font-cinzel text-[10px] tracking-wider" :class="draftProviders[row.provider]?.text_enabled ? 'text-emerald-500' : 'text-muted-foreground'">
-                        {{ draftProviders[row.provider]?.text_enabled ? 'Enabled' : 'Disabled' }}
-                      </span>
-                      <button
-                        type="button"
-                        class="relative inline-flex h-4 w-7 shrink-0 rounded-full border-2 border-transparent transition-colors"
-                        :class="draftProviders[row.provider]?.text_enabled ? 'bg-emerald-500' : 'bg-muted-foreground/40'"
-                        @click="draftProviders[row.provider].text_enabled = !draftProviders[row.provider].text_enabled"
-                      >
-                        <span
-                          class="pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transition-transform"
-                          :class="draftProviders[row.provider]?.text_enabled ? 'translate-x-3' : 'translate-x-0'"
-                        />
-                      </button>
-                    </label>
+                    <button
+                      type="button"
+                      class="relative inline-flex h-4 w-7 shrink-0 rounded-full border-2 border-transparent transition-colors"
+                      :class="draftProviders[row.provider]?.text_enabled ? 'bg-emerald-500' : 'bg-muted-foreground/40'"
+                      @click="draftProviders[row.provider].text_enabled = !draftProviders[row.provider].text_enabled"
+                    >
+                      <span
+                        class="pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transition-transform"
+                        :class="draftProviders[row.provider]?.text_enabled ? 'translate-x-3' : 'translate-x-0'"
+                      />
+                    </button>
                   </template>
-                  <span v-else class="font-cinzel text-[10px] tracking-wider text-muted-foreground/50 uppercase">Not offered</span>
+                  <span v-else class="font-cinzel text-[10px] tracking-wider text-muted-foreground/50 uppercase">N/A</span>
                 </div>
                 <template v-if="draftProviders[row.provider]?.text_model !== null">
                   <div class="space-y-1">
                     <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground">Model</label>
                     <input
                       v-model="draftProviders[row.provider].text_model"
+                      :list="`text-models-${row.provider}`"
                       type="text"
                       class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                       placeholder="e.g. gpt-4o-mini"
                     />
+                    <datalist :id="`text-models-${row.provider}`">
+                      <option v-for="m in providerModelOptions[row.provider]" :key="m" :value="m" />
+                    </datalist>
                   </div>
                   <div class="space-y-1">
                     <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground">Multiplier</label>
                     <input
                       v-model.number="draftProviders[row.provider].text_multiplier"
-                      type="number"
-                      step="0.1"
-                      min="0.1"
+                      type="number" step="0.1" min="0.1"
                       class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                       placeholder="1.0"
                     />
@@ -814,44 +823,86 @@
               <!-- Image generation -->
               <div class="space-y-2 p-3 rounded-md bg-muted/40 border border-border">
                 <div class="flex items-center justify-between">
-                  <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Image Generation</span>
+                  <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Image</span>
                   <template v-if="draftProviders[row.provider]?.image_model !== null">
-                    <label class="flex items-center gap-1.5 cursor-pointer">
-                      <span class="font-cinzel text-[10px] tracking-wider" :class="draftProviders[row.provider]?.image_enabled ? 'text-emerald-500' : 'text-muted-foreground'">
-                        {{ draftProviders[row.provider]?.image_enabled ? 'Enabled' : 'Disabled' }}
-                      </span>
-                      <button
-                        type="button"
-                        class="relative inline-flex h-4 w-7 shrink-0 rounded-full border-2 border-transparent transition-colors"
-                        :class="draftProviders[row.provider]?.image_enabled ? 'bg-emerald-500' : 'bg-muted-foreground/40'"
-                        @click="draftProviders[row.provider].image_enabled = !draftProviders[row.provider].image_enabled"
-                      >
-                        <span
-                          class="pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transition-transform"
-                          :class="draftProviders[row.provider]?.image_enabled ? 'translate-x-3' : 'translate-x-0'"
-                        />
-                      </button>
-                    </label>
+                    <button
+                      type="button"
+                      class="relative inline-flex h-4 w-7 shrink-0 rounded-full border-2 border-transparent transition-colors"
+                      :class="draftProviders[row.provider]?.image_enabled ? 'bg-emerald-500' : 'bg-muted-foreground/40'"
+                      @click="draftProviders[row.provider].image_enabled = !draftProviders[row.provider].image_enabled"
+                    >
+                      <span
+                        class="pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transition-transform"
+                        :class="draftProviders[row.provider]?.image_enabled ? 'translate-x-3' : 'translate-x-0'"
+                      />
+                    </button>
                   </template>
-                  <span v-else class="font-cinzel text-[10px] tracking-wider text-muted-foreground/50 uppercase">Not offered</span>
+                  <span v-else class="font-cinzel text-[10px] tracking-wider text-muted-foreground/50 uppercase">N/A</span>
                 </div>
                 <template v-if="draftProviders[row.provider]?.image_model !== null">
                   <div class="space-y-1">
                     <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground">Model</label>
                     <input
                       v-model="draftProviders[row.provider].image_model"
+                      :list="`image-models-${row.provider}`"
                       type="text"
                       class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                       placeholder="e.g. gpt-image-1.5"
                     />
+                    <datalist :id="`image-models-${row.provider}`">
+                      <option v-for="m in providerModelOptions[row.provider]" :key="m" :value="m" />
+                    </datalist>
                   </div>
                   <div class="space-y-1">
                     <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground">Multiplier</label>
                     <input
                       v-model.number="draftProviders[row.provider].image_multiplier"
-                      type="number"
-                      step="0.1"
-                      min="0.1"
+                      type="number" step="0.1" min="0.1"
+                      class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      placeholder="1.0"
+                    />
+                  </div>
+                </template>
+              </div>
+
+              <!-- Audio generation -->
+              <div class="space-y-2 p-3 rounded-md bg-muted/40 border border-border">
+                <div class="flex items-center justify-between">
+                  <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Audio</span>
+                  <template v-if="draftProviders[row.provider]?.audio_model !== null && draftProviders[row.provider]?.audio_model !== undefined">
+                    <button
+                      type="button"
+                      class="relative inline-flex h-4 w-7 shrink-0 rounded-full border-2 border-transparent transition-colors"
+                      :class="draftProviders[row.provider]?.audio_enabled ? 'bg-emerald-500' : 'bg-muted-foreground/40'"
+                      @click="draftProviders[row.provider].audio_enabled = !draftProviders[row.provider].audio_enabled"
+                    >
+                      <span
+                        class="pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transition-transform"
+                        :class="draftProviders[row.provider]?.audio_enabled ? 'translate-x-3' : 'translate-x-0'"
+                      />
+                    </button>
+                  </template>
+                  <span v-else class="font-cinzel text-[10px] tracking-wider text-muted-foreground/50 uppercase">N/A</span>
+                </div>
+                <template v-if="draftProviders[row.provider]?.audio_model !== null && draftProviders[row.provider]?.audio_model !== undefined">
+                  <div class="space-y-1">
+                    <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground">Model</label>
+                    <input
+                      v-model="draftProviders[row.provider].audio_model"
+                      :list="`audio-models-${row.provider}`"
+                      type="text"
+                      class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      placeholder="e.g. lyria-3-clip-preview"
+                    />
+                    <datalist :id="`audio-models-${row.provider}`">
+                      <option v-for="m in providerModelOptions[row.provider]" :key="m" :value="m" />
+                    </datalist>
+                  </div>
+                  <div class="space-y-1">
+                    <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground">Multiplier</label>
+                    <input
+                      v-model.number="draftProviders[row.provider].audio_multiplier"
+                      type="number" step="0.1" min="0.1"
                       class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                       placeholder="1.0"
                     />
@@ -859,6 +910,117 @@
                 </template>
               </div>
             </div>
+
+            <!-- Model API Costs -->
+            <div v-if="modelsByProvider[row.provider]?.length" class="border-t border-border pt-4 space-y-2">
+              <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Model API Costs</span>
+              <div class="space-y-1.5">
+                <div
+                  v-for="m in modelsByProvider[row.provider]"
+                  :key="m.model"
+                  class="flex flex-wrap items-center gap-x-3 gap-y-1.5 p-2 rounded bg-muted/30"
+                >
+                  <!-- Model name + type badge -->
+                  <span class="font-mono text-xs text-foreground truncate w-36 shrink-0">{{ m.model }}</span>
+                  <span
+                    class="font-cinzel text-[9px] tracking-wider px-1.5 py-0.5 rounded shrink-0"
+                    :class="{
+                      'text-sky-400 bg-sky-400/10':    m.model_type === 'text',
+                      'text-violet-400 bg-violet-400/10': m.model_type === 'image',
+                      'text-amber-400 bg-amber-400/10':  m.model_type === 'audio',
+                    }"
+                  >{{ m.model_type.toUpperCase() }}</span>
+
+                  <!-- Cost fields -->
+                  <template v-if="m.model_type === 'text'">
+                    <div class="flex items-center gap-1 shrink-0">
+                      <span class="font-cinzel text-[9px] text-muted-foreground">TXT-IN $</span>
+                      <input
+                        v-model.number="draftModelPricing[m.model].input_cost_per_million_tokens"
+                        type="number" step="0.001" min="0"
+                        class="w-16 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                      />
+                      <span class="font-cinzel text-[9px] text-muted-foreground">/M</span>
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0">
+                      <span class="font-cinzel text-[9px] text-muted-foreground">OUT $</span>
+                      <input
+                        v-model.number="draftModelPricing[m.model].output_cost_per_million_tokens"
+                        type="number" step="0.001" min="0"
+                        class="w-16 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                      />
+                      <span class="font-cinzel text-[9px] text-muted-foreground">/M</span>
+                    </div>
+                  </template>
+                  <template v-else-if="m.model_type === 'image'">
+                    <div class="flex items-center gap-1 shrink-0">
+                      <span class="font-cinzel text-[9px] text-muted-foreground">TXT-IN $</span>
+                      <input
+                        v-model.number="draftModelPricing[m.model].input_cost_per_million_tokens"
+                        type="number" step="0.001" min="0"
+                        class="w-14 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                      />
+                      <span class="font-cinzel text-[9px] text-muted-foreground">/M</span>
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0">
+                      <span class="font-cinzel text-[9px] text-muted-foreground">IMG-IN $</span>
+                      <input
+                        v-model.number="draftModelPricing[m.model].image_input_cost_per_million_tokens"
+                        type="number" step="0.001" min="0"
+                        class="w-14 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                      />
+                      <span class="font-cinzel text-[9px] text-muted-foreground">/M</span>
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0">
+                      <span class="font-cinzel text-[9px] text-muted-foreground">IMG-OUT $</span>
+                      <input
+                        v-model.number="draftModelPricing[m.model].image_output_cost_per_million_tokens"
+                        type="number" step="0.001" min="0"
+                        class="w-14 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                      />
+                      <span class="font-cinzel text-[9px] text-muted-foreground">/M</span>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <!-- audio: flat per-generation cost -->
+                    <div class="flex items-center gap-1 shrink-0">
+                      <span class="font-cinzel text-[9px] text-muted-foreground">PER GEN $</span>
+                      <input
+                        v-model.number="draftModelPricing[m.model].cost_per_image_usd"
+                        type="number" step="0.001" min="0"
+                        class="w-20 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                      />
+                    </div>
+                    <span class="font-cinzel text-[9px] text-amber-400/60 shrink-0">est.</span>
+                  </template>
+
+                  <!-- Usage (all-time) -->
+                  <span class="flex-1 text-right font-fell text-[10px] text-muted-foreground/50 whitespace-nowrap min-w-24">
+                    <template v-if="modelStatsByModel[m.model]">
+                      {{ modelStatsByModel[m.model].count }} gen · ~${{ modelStatsByModel[m.model].estimated_cost_usd.toFixed(2) }}
+                    </template>
+                    <template v-else>no usage yet</template>
+                  </span>
+
+                  <!-- Last verified -->
+                  <span class="font-cinzel text-[9px] text-muted-foreground/40 shrink-0 text-right w-16">
+                    {{ draftModelPricing[m.model]?.last_verified_at ? new Date(draftModelPricing[m.model].last_verified_at!).toLocaleDateString() : 'never' }}
+                  </span>
+
+                  <!-- Save (marks verified) -->
+                  <button
+                    class="px-2 py-0.5 font-cinzel text-[9px] font-semibold tracking-wider bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity shrink-0"
+                    :disabled="modelPricingSaving[m.model]"
+                    @click="saveModelPricing(m.model, row.provider, m.model_type)"
+                  >
+                    {{ modelPricingSaving[m.model] ? '…' : 'Save' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            </template><!-- /isKeySet -->
+
           </div>
         </div>
       </template>
@@ -870,7 +1032,7 @@
 <script setup lang="ts">
 import { ref, computed, reactive, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconAdd, IconAddUser, IconCheck, IconCoins, IconCopy, IconDelete, IconDocument, IconGridView, IconHide, IconKey, IconLibrary, IconParty, IconReveal, IconSettings, IconTag, IconUpload } from '@/lib/icons';
+import { IconAdd, IconAddUser, IconCheck, IconCoins, IconCopy, IconDelete, IconDocument, IconGridView, IconHide, IconLibrary, IconParty, IconReveal, IconSettings, IconTag, IconUpload } from '@/lib/icons';
 import { useAdminPlans } from "@/composables/useAdminPlans";
 import { useAdminUsers } from "@/composables/useAdminUsers";
 import { useAdminPrompts } from "@/composables/useAdminPrompts";
@@ -890,12 +1052,17 @@ import { useAdminKeys, PROVIDERS } from "@/composables/useAdminKeys";
 import type { KeyProvider } from "@/composables/useAdminKeys";
 import { useAdminProviders, PROVIDER_LABELS } from "@/composables/useAdminProviders";
 import type { ProviderConfig } from "@/composables/useAdminProviders";
+import { useAdminCalibration } from "@/composables/useAdminCalibration";
+import type { CalibrationHint } from "@/composables/useAdminCalibration";
+import { useAdminModelPricing } from "@/composables/useAdminModelPricing";
+import { useProviderModels } from "@/composables/useProviderModels";
+import type { ModelStat } from "@/composables/useAiUsageStats";
 
 const route = useRoute();
 const router = useRouter();
 
-type TabId = "plans" | "users" | "invites" | "content" | "pricing" | "credits" | "prompts" | "keys" | "providers";
-const VALID_TABS = new Set<string>(["plans", "users", "invites", "content", "pricing", "credits", "prompts", "keys", "providers"]);
+type TabId = "plans" | "users" | "invites" | "content" | "pricing" | "credits" | "prompts" | "providers";
+const VALID_TABS = new Set<string>(["plans", "users", "invites", "content", "pricing", "credits", "prompts", "providers"]);
 const TABS = [
   { id: "plans"     as TabId, label: "Plans",     icon: IconGridView },
   { id: "users"     as TabId, label: "Users",     icon: IconParty },
@@ -904,12 +1071,13 @@ const TABS = [
   { id: "pricing"   as TabId, label: "Pricing",   icon: IconTag },
   { id: "credits"   as TabId, label: "Credits",   icon: IconCoins },
   { id: "prompts"   as TabId, label: "Prompts",   icon: IconDocument },
-  { id: "keys"      as TabId, label: "Keys",      icon: IconKey },
   { id: "providers" as TabId, label: "Providers", icon: IconSettings },
 ];
 
 const activeTab = computed<TabId>(() => {
   const q = route.query.tab;
+  // 'keys' tab was merged into 'providers'
+  if (q === "keys") return "providers";
   return VALID_TABS.has(q as string) ? (q as TabId) : "plans";
 });
 
@@ -1177,6 +1345,27 @@ const usageStats = useAiUsageStats();
 
 // ── Pricing ────────────────────────────────────────────────────────────────
 const pricingQuery = useAdminPricing();
+const calibrationQuery = useAdminCalibration();
+
+const CALIBRATION_THRESHOLD = 0.20;
+
+const calibrationHints = computed(() => {
+  const map: Record<string, CalibrationHint> = {};
+  for (const h of calibrationQuery.data.value ?? []) {
+    map[h.generation_type] = h;
+  }
+  return map;
+});
+
+type CalibrationStatus = "ok" | "under" | "over";
+
+function calibrationStatus(hint: CalibrationHint): CalibrationStatus {
+  if (hint.suggested_cost === null) return "ok";
+  const deviation = (hint.current_cost - hint.suggested_cost) / hint.suggested_cost;
+  if (deviation < 0) return "under";                    // any loss is red, no buffer
+  if (deviation > CALIBRATION_THRESHOLD) return "over"; // steep margin only flagged past threshold
+  return "ok";
+}
 const checkoutConfig = useCheckoutConfig();
 
 type PackDraft = { credits: number; stripe_price_id: string };
@@ -1263,10 +1452,13 @@ watch(
           provider:         r.provider,
           text_model:       r.text_model,
           image_model:      r.image_model,
+          audio_model:      r.audio_model,
           text_multiplier:  r.text_multiplier,
           image_multiplier: r.image_multiplier,
+          audio_multiplier: r.audio_multiplier,
           text_enabled:     r.text_enabled,
           image_enabled:    r.image_enabled,
+          audio_enabled:    r.audio_enabled,
         };
       }
     }
@@ -1282,4 +1474,100 @@ async function saveProvider(provider: string) {
     providerSaving[provider] = false;
   }
 }
+
+// ── Provider Models (for model picker datalists) ───────────────────────────
+const openaiModelList    = useProviderModels("openai");
+const anthropicModelList = useProviderModels("anthropic");
+const geminiModelList    = useProviderModels("gemini");
+
+const providerModelOptions = computed<Record<string, string[]>>(() => ({
+  openai:    openaiModelList.data.value    ?? [],
+  anthropic: anthropicModelList.data.value ?? [],
+  gemini:    geminiModelList.data.value    ?? [],
+  falai:     [],
+}));
+
+// ── Model Pricing ──────────────────────────────────────────────────────────
+const modelPricingQuery = useAdminModelPricing();
+
+type ModelPricingDraft = {
+  input_cost_per_million_tokens: number | null;
+  output_cost_per_million_tokens: number | null;
+  image_input_cost_per_million_tokens: number | null;
+  image_output_cost_per_million_tokens: number | null;
+  cost_per_image_usd: number | null;
+  last_verified_at: string | null;
+};
+const draftModelPricing = reactive<Record<string, ModelPricingDraft>>({});
+const modelPricingSaving = reactive<Record<string, boolean>>({});
+
+// Merge provider config models + existing pricing data into drafts.
+// Source of truth for which models appear: what's currently SET in provider_config.
+watch(
+  [() => providersQuery.data.value, () => modelPricingQuery.query.data.value],
+  ([providers, pricingRows]) => {
+    const pricingByModel = new Map((pricingRows ?? []).map((r) => [r.model, r]));
+    for (const p of providers ?? []) {
+      const entries = [
+        [p.text_model,  "text"],
+        [p.image_model, "image"],
+        [p.audio_model, "audio"],
+      ] as const;
+      for (const [model, _type] of entries) {
+        if (!model || model in draftModelPricing) continue;
+        const pricing = pricingByModel.get(model);
+        draftModelPricing[model] = {
+          input_cost_per_million_tokens:        pricing?.input_cost_per_million_tokens        ?? null,
+          output_cost_per_million_tokens:       pricing?.output_cost_per_million_tokens       ?? null,
+          image_input_cost_per_million_tokens:  pricing?.image_input_cost_per_million_tokens  ?? null,
+          image_output_cost_per_million_tokens: pricing?.image_output_cost_per_million_tokens ?? null,
+          cost_per_image_usd:                   pricing?.cost_per_image_usd                   ?? null,
+          last_verified_at:                     pricing?.last_verified_at                     ?? null,
+        };
+      }
+    }
+  },
+  { immediate: true },
+);
+
+interface ModelConfigItem { model: string; model_type: "text" | "image" | "audio" }
+
+// Derived from currently configured models in provider_config (not from ai_model_pricing).
+// Each set model appears here; cost fields are empty until the admin saves pricing for it.
+const modelsByProvider = computed(() => {
+  const map: Record<string, ModelConfigItem[]> = {};
+  for (const [provider, draft] of Object.entries(draftProviders)) {
+    if (!draft) continue;
+    const items: ModelConfigItem[] = [];
+    if (draft.text_model)  items.push({ model: draft.text_model,  model_type: "text" });
+    if (draft.image_model) items.push({ model: draft.image_model, model_type: "image" });
+    if (draft.audio_model) items.push({ model: draft.audio_model, model_type: "audio" });
+    if (items.length) map[provider] = items;
+  }
+  return map;
+});
+
+async function saveModelPricing(model: string, provider: string, model_type: "text" | "image" | "audio") {
+  modelPricingSaving[model] = true;
+  try {
+    await modelPricingQuery.upsert.mutateAsync({
+      model,
+      provider,
+      model_type,
+      ...draftModelPricing[model],
+      last_verified_at: new Date().toISOString(),
+    });
+    draftModelPricing[model].last_verified_at = new Date().toISOString();
+  } finally {
+    modelPricingSaving[model] = false;
+  }
+}
+
+const modelStatsByModel = computed(() => {
+  const map: Record<string, ModelStat> = {};
+  for (const s of usageStats.modelStats.value) {
+    map[s.model] = s;
+  }
+  return map;
+});
 </script>

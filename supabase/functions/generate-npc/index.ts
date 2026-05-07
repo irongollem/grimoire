@@ -123,8 +123,27 @@ async function geminiText(apiKey: string, model: string, system: string, user: s
 
 // ── Image providers ───────────────────────────────────────────────────────────
 
-interface ImageUsage { model: string; provider: string; image_count: number }
+interface ImageUsage {
+  model: string;
+  provider: string;
+  image_count: number;
+  input_tokens?: number;
+  input_image_tokens?: number;
+  output_tokens?: number;
+}
 interface ImageResult { b64: string; usage: ImageUsage }
+
+function extractOpenAiImageUsage(data: { usage?: { input_tokens?: number; input_tokens_details?: { text_tokens?: number; image_tokens?: number }; output_tokens?: number } }, model: string): ImageUsage {
+  const u = data.usage;
+  return {
+    model,
+    provider: "openai",
+    image_count: 1,
+    input_tokens:       u?.input_tokens_details?.text_tokens ?? u?.input_tokens ?? 0,
+    input_image_tokens: u?.input_tokens_details?.image_tokens ?? 0,
+    output_tokens:      u?.output_tokens ?? 0,
+  };
+}
 
 async function openaiImageGenerate(apiKey: string, model: string, prompt: string, size: string): Promise<ImageResult> {
   const res = await fetch("https://api.openai.com/v1/images/generations", {
@@ -137,11 +156,10 @@ async function openaiImageGenerate(apiKey: string, model: string, prompt: string
     throw new Error(body?.error?.message ?? `OpenAI image error ${res.status}`);
   }
   const data = await res.json();
-  return { b64: data.data[0].b64_json as string, usage: { model, provider: "openai", image_count: 1 } };
+  return { b64: data.data[0].b64_json as string, usage: extractOpenAiImageUsage(data, model) };
 }
 
 async function openaiImageEdit(apiKey: string, model: string, sourceB64: string, prompt: string, size: string): Promise<ImageResult> {
-  // Decode B64 back to bytes for the multipart upload
   const bytes = Uint8Array.from(atob(sourceB64), (c) => c.charCodeAt(0));
   const blob = new Blob([bytes], { type: "image/webp" });
   const form = new FormData();
@@ -161,7 +179,7 @@ async function openaiImageEdit(apiKey: string, model: string, sourceB64: string,
     throw new Error(body?.error?.message ?? `OpenAI image edit error ${res.status}`);
   }
   const data = await res.json();
-  return { b64: data.data[0].b64_json as string, usage: { model, provider: "openai", image_count: 1 } };
+  return { b64: data.data[0].b64_json as string, usage: extractOpenAiImageUsage(data, model) };
 }
 
 async function falaiImageGenerate(apiKey: string, model: string, prompt: string): Promise<ImageResult> {

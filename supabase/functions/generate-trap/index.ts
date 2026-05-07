@@ -103,7 +103,9 @@ async function geminiText(apiKey: string, model: string, system: string, user: s
 
 // ── Image providers ───────────────────────────────────────────────────────────
 
-async function openaiImageGenerate(apiKey: string, model: string, prompt: string, size: string): Promise<string> {
+interface ImgResult { b64: string; input_tokens: number; input_image_tokens: number; output_tokens: number }
+
+async function openaiImageGenerate(apiKey: string, model: string, prompt: string, size: string): Promise<ImgResult> {
   const res = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
@@ -114,10 +116,15 @@ async function openaiImageGenerate(apiKey: string, model: string, prompt: string
     throw new Error(body?.error?.message ?? `OpenAI image error ${res.status}`);
   }
   const data = await res.json();
-  return data.data[0].b64_json as string;
+  return {
+    b64: data.data[0].b64_json as string,
+    input_tokens:       data.usage?.input_tokens_details?.text_tokens  ?? data.usage?.input_tokens ?? 0,
+    input_image_tokens: 0,
+    output_tokens:      data.usage?.output_tokens ?? 0,
+  };
 }
 
-async function openaiImageEdit(apiKey: string, model: string, portraitUrl: string, prompt: string, size: string): Promise<string> {
+async function openaiImageEdit(apiKey: string, model: string, portraitUrl: string, prompt: string, size: string): Promise<ImgResult> {
   const portraitRes = await fetch(portraitUrl);
   if (!portraitRes.ok) throw new Error(`Failed to fetch portrait: ${portraitRes.status}`);
   const blob = await portraitRes.blob();
@@ -140,7 +147,12 @@ async function openaiImageEdit(apiKey: string, model: string, portraitUrl: strin
     throw new Error(body?.error?.message ?? `OpenAI image edit error ${res.status}`);
   }
   const data = await res.json();
-  return data.data[0].b64_json as string;
+  return {
+    b64: data.data[0].b64_json as string,
+    input_tokens:       data.usage?.input_tokens_details?.text_tokens  ?? data.usage?.input_tokens ?? 0,
+    input_image_tokens: data.usage?.input_tokens_details?.image_tokens ?? 0,
+    output_tokens:      data.usage?.output_tokens ?? 0,
+  };
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -271,6 +283,7 @@ serve(async (req: Request) => {
 
   // ── Image generation ─────────────────────────────────────────────────────
   let image_b64: string | null = null;
+  let imgResult: ImgResult | null = null;
 
   if (generate_image && openaiKey) {
     try {
@@ -278,21 +291,32 @@ serve(async (req: Request) => {
         .filter(Boolean).join(" — ");
 
       if (group_portrait_url) {
-        const prompt = [imagePrompt, PARTY_SUFFIX].join(" — ");
-        image_b64 = await openaiImageEdit(openaiKey, imgModel, group_portrait_url, prompt, "1024x1536");
+        imgResult = await openaiImageEdit(openaiKey, imgModel, group_portrait_url, [imagePrompt, PARTY_SUFFIX].join(" — "), "1024x1536");
       } else {
-        image_b64 = await openaiImageGenerate(openaiKey, imgModel, imagePrompt, "1024x1536");
+        imgResult = await openaiImageGenerate(openaiKey, imgModel, imagePrompt, "1024x1536");
       }
+      image_b64 = imgResult.b64;
     } catch (e) {
       console.error("Trap image generation failed (non-fatal):", e);
     }
   }
 
+  // Log text generation (with credit deduction)
   await recordGeneration(admin, user.id, "trap_generation", textIsByok, trapCost, {
     model: textResult.usage.model, provider: textResult.usage.provider,
     input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
-    image_count: image_b64 ? 1 : undefined,
   });
+
+  // Log image generation as a separate analytics-only row so the image model's
+  // token pricing is used for cost estimation (delta=0, cost already covered above)
+  if (imgResult) {
+    await recordGeneration(admin, user.id, "trap_generation", false, 0, {
+      model: imgModel, provider: "openai", image_count: 1,
+      input_tokens:       imgResult.input_tokens || undefined,
+      input_image_tokens: imgResult.input_image_tokens || undefined,
+      output_tokens:      imgResult.output_tokens || undefined,
+    });
+  }
 
   return new Response(
     JSON.stringify({ ...trapData, image_b64 }),
