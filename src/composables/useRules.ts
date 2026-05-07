@@ -19,7 +19,7 @@ export function useSrdRules() {
   return useQuery({
     queryKey: [SRD_KEY],
     queryFn: fetchSrdRules,
-    staleTime: 1000 * 60 * 60, // 1 hour — content rarely changes
+    staleTime: Infinity,
   });
 }
 

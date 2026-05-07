@@ -132,7 +132,7 @@ export function useSpellsPage(filters: Ref<SpellFilters>, page: Ref<number>) {
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, "page", filters.value, page.value]),
     queryFn: () => fetchSpellsPage(filters.value, page.value),
-    staleTime: 5 * 60 * 1000,
+    staleTime: Infinity,
     placeholderData: keepPreviousData,
   });
 }
