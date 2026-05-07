@@ -38,8 +38,9 @@
       </p>
     </section>
 
-    <!-- Billing toggle -->
-    <div class="flex items-center justify-center gap-3 mb-10">
+    <!-- Billing toggle + currency selector -->
+    <div class="flex flex-col items-center gap-3 mb-10">
+    <div class="flex items-center gap-3">
       <button
         class="font-cinzel text-xs font-semibold tracking-wider transition-colors"
         :class="!annual ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'"
@@ -72,6 +73,16 @@
           Save {{ savedMonths }} months
         </span>
       </button>
+    </div>
+    <div v-if="planCurrencies.length > 1" class="flex gap-1">
+      <button
+        v-for="c in planCurrencies"
+        :key="c"
+        class="px-2 py-0.5 font-cinzel text-[10px] tracking-wider rounded border transition-colors"
+        :class="currency === c ? 'border-primary/60 text-foreground bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground'"
+        @click="currency = c"
+      >{{ c }}</button>
+    </div>
     </div>
 
     <!-- Plan cards -->
@@ -213,39 +224,58 @@ useHead({
 });
 import { QUOTA_RESOURCE_LABELS } from "@/types/subscription.types";
 import type { QuotaResource } from "@/types/subscription.types";
-import { detectCurrency, formatCents } from "@/lib/pricing";
+import { detectCurrency, formatCents, resolveAmount, availableCurrencies } from "@/lib/pricing";
 
 const annual = ref(false);
 
 const { data: freePlan } = usePlan("free");
 const { data: proPlan } = usePlan("pro");
 
-const currency = detectCurrency();
+const currency = ref(detectCurrency());
 
-const priceEntry = computed(() => {
-  const prices = proPlan.value?.prices;
-  if (!prices) return null;
-  return prices[currency] ?? prices["USD"] ?? null;
-});
+const planCurrencies = computed(() =>
+  availableCurrencies(
+    proPlan.value?.stripe_currency,
+    proPlan.value?.stripe_monthly_currency_options,
+    proPlan.value?.stripe_annual_currency_options,
+  )
+);
+
+const monthlyResolved = computed(() =>
+  resolveAmount(
+    proPlan.value?.stripe_monthly_unit_amount,
+    proPlan.value?.stripe_currency,
+    proPlan.value?.stripe_monthly_currency_options,
+    currency.value,
+  )
+);
+
+const annualResolved = computed(() =>
+  resolveAmount(
+    proPlan.value?.stripe_annual_unit_amount,
+    proPlan.value?.stripe_currency,
+    proPlan.value?.stripe_annual_currency_options,
+    currency.value,
+  )
+);
 
 const displayMonthlyPrice = computed(() => {
-  const p = priceEntry.value;
-  if (!p) return null;
-  if (annual.value) {
-    return formatCents(Math.round(p.yearly / 12), currency);
-  }
-  return formatCents(p.monthly, currency);
+  const r = monthlyResolved.value;
+  if (!r) return null;
+  const amount = annual.value ? Math.round(r.amount / 12) : r.amount;
+  return formatCents(amount, r.currency);
 });
 
 const displayAnnualTotal = computed(() => {
-  const p = priceEntry.value;
-  return p ? formatCents(p.yearly, currency) : null;
+  const r = annualResolved.value;
+  return r ? formatCents(r.amount, r.currency) : null;
 });
 
 const savedMonths = computed(() => {
-  const p = priceEntry.value;
-  if (!p) return 0;
-  return Math.round((p.monthly * 12 - p.yearly) / p.monthly);
+  const mo = monthlyResolved.value;
+  const yr = annualResolved.value;
+  if (!mo || !yr) return 0;
+  return Math.round((mo.amount * 12 - yr.amount) / mo.amount);
 });
 
 const QUOTA_RESOURCES: QuotaResource[] = [

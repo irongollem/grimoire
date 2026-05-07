@@ -214,6 +214,15 @@
           Annual
           <span class="ml-1 text-[10px] text-amber-400">save 4 months</span>
         </button>
+        <div v-if="pricingCurrencies.length > 1" class="ml-auto flex gap-1">
+          <button
+            v-for="c in pricingCurrencies"
+            :key="c"
+            class="px-1.5 py-px font-cinzel text-[10px] tracking-wider rounded border transition-colors"
+            :class="currency === c ? 'border-primary/60 text-foreground bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground'"
+            @click="currency = c"
+          >{{ c }}</button>
+        </div>
       </div>
 
       <div class="flex items-end gap-2">
@@ -274,9 +283,20 @@
 
       <!-- Credit pack purchase -->
       <div class="space-y-2">
-        <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
-          Buy more credits
-        </p>
+        <div class="flex items-center justify-between">
+          <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+            Buy more credits
+          </p>
+          <div v-if="pricingCurrencies.length > 1" class="flex gap-1">
+            <button
+              v-for="c in pricingCurrencies"
+              :key="c"
+              class="px-1.5 py-px font-cinzel text-[10px] tracking-wider rounded border transition-colors"
+              :class="currency === c ? 'border-primary/60 text-foreground bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground'"
+              @click="currency = c"
+            >{{ c }}</button>
+          </div>
+        </div>
         <div class="grid grid-cols-3 gap-2">
           <button
             v-for="pack in creditPacks"
@@ -311,17 +331,7 @@ import { useQuota } from "@/composables/useQuota";
 import { QUOTA_RESOURCE_LABELS } from "@/types/subscription.types";
 import type { QuotaResource } from "@/types/subscription.types";
 import { useCreditPacks } from "@/composables/useCreditConfig";
-import type { CreditPackConfig } from "@/composables/useCreditConfig";
-
-function formatPackPrice(pack: CreditPackConfig): string {
-  if (pack.stripe_unit_amount != null && pack.stripe_currency) {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: pack.stripe_currency.toUpperCase(),
-    }).format(pack.stripe_unit_amount / 100);
-  }
-  return "";
-}
+import { detectCurrency, resolveAmount, availableCurrencies, formatCents } from "@/lib/pricing";
 
 const route = useRoute();
 const creditPurchaseSuccess = computed(() => route.query.credit_purchase === "success");
@@ -346,22 +356,42 @@ const { data: freePlan } = usePlan("free");
 const { data: proPlan } = usePlan("pro");
 
 const annual = ref(false);
+const currency = ref(detectCurrency());
+
+const pricingCurrencies = computed(() =>
+  availableCurrencies(
+    proPlan.value?.stripe_currency,
+    proPlan.value?.stripe_monthly_currency_options,
+    proPlan.value?.stripe_annual_currency_options,
+    ...( creditPacks.value?.map(p => p.stripe_currency_options) ?? [] ),
+  )
+);
 
 const proMonthlyDisplay = computed(() => {
-  const p = proPlan.value;
-  if (p?.stripe_monthly_unit_amount != null && p.stripe_currency) {
-    return new Intl.NumberFormat(undefined, { style: "currency", currency: p.stripe_currency.toUpperCase() }).format(p.stripe_monthly_unit_amount / 100);
-  }
-  return "€12.99";
+  const r = resolveAmount(
+    proPlan.value?.stripe_monthly_unit_amount,
+    proPlan.value?.stripe_currency,
+    proPlan.value?.stripe_monthly_currency_options,
+    currency.value,
+  );
+  return r ? formatCents(r.amount, r.currency) : "€12.99";
 });
 
 const proAnnualDisplay = computed(() => {
-  const p = proPlan.value;
-  if (p?.stripe_annual_unit_amount != null && p.stripe_currency) {
-    return new Intl.NumberFormat(undefined, { style: "currency", currency: p.stripe_currency.toUpperCase() }).format(p.stripe_annual_unit_amount / 100);
-  }
-  return "€99";
+  const r = resolveAmount(
+    proPlan.value?.stripe_annual_unit_amount,
+    proPlan.value?.stripe_currency,
+    proPlan.value?.stripe_annual_currency_options,
+    currency.value,
+  );
+  return r ? formatCents(r.amount, r.currency) : "€99";
 });
+
+function formatPackPrice(pack: { stripe_unit_amount: number | null; stripe_currency: string | null; stripe_currency_options: Record<string, { unit_amount: number }> | null }): string {
+  if (!pack.stripe_unit_amount || !pack.stripe_currency) return "";
+  const r = resolveAmount(pack.stripe_unit_amount, pack.stripe_currency, pack.stripe_currency_options, currency.value);
+  return r ? formatCents(r.amount, r.currency) : "";
+}
 
 const renewalDate = computed(() => {
   const end = subscription.value?.current_period_end;
