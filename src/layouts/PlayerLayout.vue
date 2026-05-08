@@ -220,13 +220,21 @@
         class="absolute right-2 top-14 bg-card border border-border rounded-lg shadow-xl overflow-hidden w-44"
         @click.stop
       >
+        <button
+          type="button"
+          class="w-full flex items-center gap-2.5 px-4 py-3 font-cinzel text-xs font-semibold text-foreground hover:bg-muted transition-colors"
+          @click="showMenu = false; showCampaignSheet = true"
+        >
+          <IconPopulate class="h-4 w-4" />
+          Campaigns
+        </button>
         <RouterLink
           :to="{ name: 'play-settings' }"
           class="flex items-center gap-2.5 px-4 py-3 font-cinzel text-xs font-semibold text-foreground hover:bg-muted transition-colors"
           @click="showMenu = false"
         >
           <IconSettingsAlt class="h-4 w-4" />
-          IconSettingsAlt
+          Settings
         </RouterLink>
         <button
           type="button"
@@ -234,7 +242,7 @@
           @click="showMenu = false; bugReportOpen = true"
         >
           <IconBug class="h-4 w-4" />
-          Report a IconBug
+          Report a bug
         </button>
         <button
           type="button"
@@ -247,6 +255,70 @@
       </div>
     </div>
   </Teleport>
+
+  <!-- Campaign sheet -->
+  <Teleport to="body">
+    <Transition name="more-panel">
+      <div
+        v-if="showCampaignSheet"
+        class="fixed inset-0 z-50 flex flex-col justify-end"
+      >
+        <div class="absolute inset-0 bg-black/50" @click="showCampaignSheet = false" />
+
+        <div class="relative bg-card border-t border-border rounded-t-2xl px-5 pt-4 pb-[calc(2rem+env(safe-area-inset-bottom))] shadow-xl">
+          <div class="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto mb-4" />
+
+          <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-3">CAMPAIGNS</p>
+
+          <div class="space-y-1 mb-3">
+            <button
+              v-for="c in campaigns"
+              :key="c.id"
+              type="button"
+              class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-colors text-left"
+              :class="c.id === campaign.activeCampaignId
+                ? 'bg-primary/10 border-primary/40 text-foreground'
+                : 'border-transparent hover:bg-muted text-foreground'"
+              @click="switchCampaign(c)"
+            >
+              <span class="h-2 w-2 rounded-full shrink-0"
+                :class="c.id === campaign.activeCampaignId ? 'bg-primary' : 'bg-muted-foreground/30'" />
+              <div class="flex-1 min-w-0">
+                <p class="font-cinzel text-xs font-semibold truncate">{{ c.name }}</p>
+                <p class="font-fell text-[11px] text-muted-foreground italic truncate">{{ c.setting }}</p>
+              </div>
+              <span
+                class="font-cinzel text-[9px] tracking-wider px-1.5 py-0.5 rounded shrink-0"
+                :class="campaignRoleMap.get(c.id) === 'dm'
+                  ? 'bg-amber-500/15 text-amber-400'
+                  : 'bg-primary/15 text-primary'"
+              >
+                {{ campaignRoleMap.get(c.id) === 'dm' ? 'DM' : 'Player' }}
+              </span>
+            </button>
+
+            <p v-if="campaigns.length === 0" class="font-fell text-sm text-muted-foreground italic px-3 py-2">
+              No campaigns found.
+            </p>
+          </div>
+
+          <div class="border-t border-border pt-3">
+            <button
+              type="button"
+              class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg hover:bg-muted transition-colors"
+              @click="startCreateCampaign"
+            >
+              <IconAdd class="h-4 w-4 text-muted-foreground shrink-0" />
+              <span class="font-cinzel text-xs font-semibold text-muted-foreground">New Campaign</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
+
+  <NewCampaignModal v-model="showNewCampaignModal" @created="onCampaignCreated" />
+  <PaywallModal v-model="showCampaignPaywall" resource="campaigns" />
 
   <!-- "More" panel -->
   <Teleport to="body">
@@ -285,14 +357,15 @@
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
-import { IconBug, IconCalendarDays, IconClose, IconEncounter, IconGridView, IconLogOut, IconMenu, IconMessage, IconReveal, IconSettingsAlt } from '@/lib/icons';
+import { IconAdd, IconBug, IconCalendarDays, IconClose, IconEncounter, IconGridView, IconLogOut, IconMenu, IconMessage, IconPopulate, IconReveal, IconSettingsAlt } from '@/lib/icons';
 import { useCalendarStore } from "@/stores/calendar";
 import DiceRoller from "@/components/common/DiceRoller.vue";
 import { useRunningEncounters, usePlayerEncounterLive } from "@/composables/useEncounterLive";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
-import { useCampaignById } from "@/composables/useCampaigns";
+import { useCampaigns, useCampaignById } from "@/composables/useCampaigns";
+import { useMyMemberships } from "@/composables/useCampaignMembers";
 import { useParty, usePartyLive } from "@/composables/useParty";
 import { useCampaignLiveSync } from "@/composables/useCampaignLiveSync";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
@@ -301,6 +374,10 @@ import { MOBILE_NAV_SLOTS, TABLET_NAV_SLOTS } from "@/lib/playerNav";
 import CampaignChat from "@/components/chat/CampaignChat.vue";
 import PlayerEncounterPanel from "@/components/player/PlayerEncounterPanel.vue";
 import BugReportModal from "@/components/common/BugReportModal.vue";
+import NewCampaignModal from "@/components/campaign/NewCampaignModal.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
+import { useQuota } from "@/composables/useQuota";
+import type { Campaign } from "@/types/campaign.types";
 
 const auth = useAuthStore();
 const ui = useUiStore();
@@ -412,6 +489,38 @@ const tabletNav = computed(() => sortedNav.value.slice(0, TABLET_NAV_SLOTS));
 
 const showMore = ref(false);
 const showMenu = ref(false);
+const showCampaignSheet = ref(false);
+const showNewCampaignModal = ref(false);
+const showCampaignPaywall = ref(false);
+
+const { data: campaignList } = useCampaigns();
+const campaigns = computed(() => campaignList.value ?? []);
+const { data: myMemberships } = useMyMemberships();
+const campaignRoleMap = computed(() => {
+  const map = new Map<string, string>();
+  for (const m of myMemberships.value ?? []) map.set(m.campaign_id, m.role);
+  return map;
+});
+const { canCreate: canCreateCampaign } = useQuota("campaigns");
+
+async function switchCampaign(c: Campaign) {
+  showCampaignSheet.value = false;
+  campaign.switchToCampaign(c);
+  await auth.refreshMembership(c.id);
+  if (auth.isDM) router.push({ name: "dashboard" });
+}
+
+function startCreateCampaign() {
+  showCampaignSheet.value = false;
+  if (!canCreateCampaign.value) { showCampaignPaywall.value = true; return; }
+  showNewCampaignModal.value = true;
+}
+
+async function onCampaignCreated(c: Campaign) {
+  campaign.switchToCampaign(c);
+  await auth.refreshMembership(c.id);
+  if (auth.isDM) router.push({ name: "dashboard" });
+}
 
 function isActive(to: string): boolean {
   return to === "/play" ? route.path === "/play" : route.path.startsWith(to);

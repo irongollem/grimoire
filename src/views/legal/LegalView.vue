@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen flex flex-col">
+  <div class="h-dvh flex flex-col overflow-y-auto">
     <!-- Minimal nav -->
     <header class="border-b border-border/40 px-6 py-4 flex items-center gap-4">
       <RouterLink

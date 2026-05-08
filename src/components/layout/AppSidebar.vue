@@ -150,13 +150,13 @@
 
           <div class="border-t border-border my-1" />
 
-          <!-- IconBug report -->
+          <!-- Bug report -->
           <button
             class="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
             @click="bugReportOpen = true; menuOpen = false"
           >
             <IconBug class="h-3.5 w-3.5 shrink-0" />
-            <span class="font-fell">Report a IconBug</span>
+            <span class="font-fell">Report a bug</span>
           </button>
 
           <!-- Sign out -->

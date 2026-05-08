@@ -42,13 +42,13 @@ export const routes: RouteRecordRaw[] = [
     path: "/privacy",
     name: "privacy",
     component: () => import("@/views/legal/LegalView.vue"),
-    meta: { layout: "marketing", doc: "privacy", title: "Privacy Policy" },
+    meta: { layout: "marketing", doc: "privacy", title: "Privacy Policy", playerReadable: true },
   },
   {
     path: "/terms",
     name: "terms",
     component: () => import("@/views/legal/LegalView.vue"),
-    meta: { layout: "marketing", doc: "terms", title: "Terms of Service" },
+    meta: { layout: "marketing", doc: "terms", title: "Terms of Service", playerReadable: true },
   },
 
   // ── Player portal ─────────────────────────────────────────────────────
