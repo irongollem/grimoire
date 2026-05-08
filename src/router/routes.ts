@@ -145,12 +145,6 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Factions" },
   },
   {
-    path: "/play/deities",
-    name: "play-deities",
-    component: () => import("@/views/play/PlayerDeitiesView.vue"),
-    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Pantheon" },
-  },
-  {
     path: "/play/puzzles",
     redirect: { path: "/play/journal", query: { tab: "puzzles" } },
   },

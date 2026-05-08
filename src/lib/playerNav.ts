@@ -1,5 +1,18 @@
 import type { Component } from "vue";
-import { IconBookMarked, IconCalendarDays, IconCraft, IconDM, IconFaction, IconInventory, IconLandmark, IconLibrary, IconMonster, IconPenLine, IconShield, IconUser } from '@/lib/icons';
+import {
+  IconBookMarked,
+  IconCalendarDays,
+  IconCraft,
+  IconDM,
+  IconFaction,
+  IconInventory,
+  IconLandmark,
+  IconLibrary,
+  IconMonster,
+  IconPenLine,
+  IconShield,
+  IconUser,
+} from "@/lib/icons";
 
 export interface PlayerNavItem {
   to: string;
@@ -8,18 +21,18 @@ export interface PlayerNavItem {
 }
 
 export const ALL_PLAYER_NAV: PlayerNavItem[] = [
-  { to: "/play",           label: "Character",  icon: IconUser },
-  { to: "/play/champions", label: "Champions",  icon: IconDM },
-  { to: "/play/party",     label: "People",     icon: IconShield },
-  { to: "/play/inventory", label: "Inventory",  icon: IconInventory },
-  { to: "/play/calendar",  label: "Calendar",   icon: IconCalendarDays },
-  { to: "/play/journal",   label: "Journal",    icon: IconPenLine },
-  { to: "/play/crafting",  label: "Workshop",   icon: IconCraft },
-  { to: "/play/factions",  label: "Factions",   icon: IconLandmark },
-  { to: "/play/atlas",     label: "Atlas",      icon: IconFaction },
-  { to: "/play/bestiary",  label: "Bestiary",   icon: IconMonster },
-  { to: "/play/spells",    label: "Spellbook",  icon: IconBookMarked },
-  { to: "/play/rules",     label: "Reliquary",  icon: IconLibrary },
+  { to: "/play", label: "Character", icon: IconUser },
+  { to: "/play/inventory", label: "Inventory", icon: IconInventory },
+  { to: "/play/spells", label: "Spellbook", icon: IconBookMarked },
+  { to: "/play/party", label: "People", icon: IconShield },
+  { to: "/play/calendar", label: "Calendar", icon: IconCalendarDays },
+  { to: "/play/journal", label: "Journal", icon: IconPenLine },
+  { to: "/play/crafting", label: "Workshop", icon: IconCraft },
+  { to: "/play/atlas", label: "Atlas", icon: IconFaction },
+  { to: "/play/bestiary", label: "Bestiary", icon: IconMonster },
+  { to: "/play/rules", label: "Reliquary", icon: IconLibrary },
+  { to: "/play/champions", label: "Champions", icon: IconDM },
+  { to: "/play/factions", label: "Factions", icon: IconLandmark },
 ];
 
 export const MOBILE_NAV_SLOTS = 4;
