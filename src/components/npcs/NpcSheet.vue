@@ -3,11 +3,11 @@
     <!-- Col 1 / top: portrait + badges, never scrolls on desktop -->
     <div class="flex flex-col gap-3 lg:w-52 lg:shrink-0 lg:pb-6">
       <FocalImage
-        v-if="displayPortrait"
         :src="displayPortrait"
         :focal-point="displayFocalPoint"
         format="portrait"
         :lightbox="true"
+        placeholder="/assets/placeholders/npc.webp"
         class="w-full rounded-lg overflow-hidden max-h-80 lg:max-h-none lg:flex-1 lg:min-h-0"
       />
       <div class="flex flex-wrap gap-1">

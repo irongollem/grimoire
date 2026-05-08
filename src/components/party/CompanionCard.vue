@@ -5,12 +5,11 @@
       <!-- Token avatar -->
       <div class="shrink-0 w-8 h-8 rounded-full overflow-hidden border border-border bg-muted">
         <FocalImage
-          v-if="companion.portrait_url"
           :src="companion.portrait_url"
           format="token"
           :focal-point="companion.portrait_focal_point ?? null"
+          placeholder="/assets/placeholders/companion.webp"
         />
-        <div v-else class="w-full h-full rounded-full" :style="{ backgroundColor: COMPANION_TYPE_COLORS[companion.companion_type] + '33' }" />
       </div>
 
       <!-- Type indicator -->

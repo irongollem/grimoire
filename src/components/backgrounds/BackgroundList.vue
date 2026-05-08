@@ -56,19 +56,13 @@
         <!-- Header / portrait -->
         <div class="relative h-24 bg-muted overflow-hidden shrink-0">
           <FocalImage
-            v-if="b.image_url"
             :src="b.image_url"
             :alt="b.name"
             format="landscape"
             :focal-point="b.focal_point"
+            placeholder="/assets/placeholders/background.webp"
             class="group-hover:scale-105 transition-transform duration-300"
           />
-          <div
-            v-else
-            class="w-full h-full flex items-center justify-center"
-          >
-            <IconBookUser class="h-8 w-8 text-primary/30" />
-          </div>
         </div>
 
         <div class="p-3 flex flex-col gap-1.5 flex-1">
@@ -160,7 +154,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { IconBookUser, IconCheck, IconEdit } from '@/lib/icons';
+import { IconCheck, IconEdit } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useBackgrounds } from "@/composables/useBackgrounds";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";

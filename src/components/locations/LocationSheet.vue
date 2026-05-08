@@ -44,12 +44,13 @@
     <!-- Identity: sigil + name + tags.
          Mobile stacks (sigil above name block), desktop is side-by-side. -->
     <div class="flex flex-col gap-4 md:flex-row md:gap-6">
-      <div v-if="location.image_url" class="w-full max-w-48 mx-auto md:mx-0 md:w-48 md:shrink-0">
+      <div class="w-full max-w-48 mx-auto md:mx-0 md:w-48 md:shrink-0">
         <FocalImage
           :src="location.image_url"
           :alt="location.name"
           format="portrait"
           :lightbox="true"
+          placeholder="/assets/placeholders/location.webp"
           class="w-full rounded-lg border border-border overflow-hidden"
         />
       </div>

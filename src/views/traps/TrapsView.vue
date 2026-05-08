@@ -62,19 +62,13 @@
         >
           <div class="relative aspect-square bg-muted overflow-hidden shrink-0">
             <FocalImage
-              v-if="trap.image_url"
               :src="trap.image_url"
               :alt="trap.name"
               format="portrait"
               :focal-point="trap.image_focal_point"
+              placeholder="/assets/placeholders/trap.webp"
               class="group-hover:scale-105 transition-transform duration-300"
             />
-            <div
-              v-else
-              class="w-full h-full flex items-center justify-center text-muted-foreground/20"
-            >
-              <IconTrap class="h-10 w-10" />
-            </div>
             <span
               class="absolute top-2 left-2 font-cinzel text-[9px] px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
               :style="{
@@ -123,7 +117,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
-import { IconAdd, IconGenerate, IconLoading, IconPopulate, IconTrap } from '@/lib/icons';
+import { IconAdd, IconGenerate, IconLoading, IconPopulate } from '@/lib/icons';
 import { useTraps, usePopulateTraps } from "@/composables/useTraps";
 import { useUiStore } from "@/stores/ui";
 import { TRAP_TYPES, TRAP_TYPE_COLORS } from "@/types/trap.types";

@@ -68,19 +68,13 @@
           <!-- Portrait thumbnail -->
           <div class="relative h-32 bg-muted overflow-hidden">
             <FocalImage
-              v-if="deity.portrait_url"
               :src="deity.portrait_url"
               :focal-point="deity.portrait_focal_point ?? null"
               :alt="deity.name"
               format="landscape"
+              placeholder="/assets/placeholders/deity.webp"
               class="w-full h-full"
             />
-            <div
-              v-else
-              class="w-full h-full flex items-center justify-center"
-            >
-              <IconSun class="h-10 w-10 text-muted-foreground/30" />
-            </div>
             <!-- Alignment badge -->
             <span
               v-if="deity.alignment"
@@ -123,7 +117,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { IconAdd, IconFire, IconLoading, IconPopulate, IconReveal, IconSun } from '@/lib/icons';
+import { IconAdd, IconFire, IconLoading, IconPopulate, IconReveal } from '@/lib/icons';
 import { useAllDeities, useAllPantheons, usePopulateDeities, useRevealAllDeities } from "@/composables/useDeities";
 import { CLERIC_DOMAINS } from "@/types/deity.types";
 import { useUiStore } from "@/stores/ui";

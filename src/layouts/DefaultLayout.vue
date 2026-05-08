@@ -71,6 +71,11 @@ import { usePartyLive } from "@/composables/useParty";
 import { useCampaigns } from "@/composables/useCampaigns";
 import { useSubscription } from "@/composables/useSubscription";
 import { usePlan } from "@/composables/usePlan";
+import { initPlaceholderFocalPoints } from "@/lib/placeholderFocalPoints";
+
+// Eagerly pre-fetch admin-configured placeholder focal points so FocalImage
+// has the data available before it runs smartcrop as a fallback.
+void initPlaceholderFocalPoints();
 
 useCampaignPresence();
 useCampaignLiveSync();

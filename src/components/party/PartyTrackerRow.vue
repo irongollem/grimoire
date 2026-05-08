@@ -8,17 +8,12 @@
       <div class="flex flex-col md:w-44 md:border-r md:border-border shrink-0 overflow-hidden">
         <div class="h-31.25 bg-muted overflow-hidden">
           <FocalImage
-            v-if="member.portrait_url"
             :src="member.portrait_url"
             :alt="member.name"
             format="landscape"
             :focal-point="member.portrait_focal_point ?? null"
+            placeholder="/assets/placeholders/character.webp"
           />
-          <div v-else class="w-full h-full flex items-center justify-center">
-            <span class="font-cinzel text-3xl text-muted-foreground/30 font-bold select-none">
-              {{ member.name.charAt(0) }}
-            </span>
-          </div>
         </div>
 
         <div class="flex flex-col gap-0.5 px-3 py-2.5">

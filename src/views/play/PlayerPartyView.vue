@@ -36,16 +36,13 @@
           >
             <div class="relative aspect-3/4 bg-muted overflow-hidden shrink-0 group">
               <FocalImage
-                v-if="entry.data.portrait_url"
                 :src="entry.data.portrait_url"
                 :alt="entry.data.name"
                 format="portrait"
                 :focal-point="entry.data.portrait_focal_point ?? null"
+                placeholder="/assets/placeholders/character.webp"
                 class="group-hover:scale-105 transition-transform duration-300"
               />
-              <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
-                <IconUser class="h-10 w-10" />
-              </div>
               <span
                 v-if="entry.data.id === auth.linkedPartyMemberId"
                 class="absolute top-2 left-2 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded bg-primary text-primary-foreground tracking-wider"
@@ -99,16 +96,13 @@
           >
             <div class="relative aspect-3/4 bg-muted overflow-hidden shrink-0 group">
               <FocalImage
-                v-if="entry.data.portrait_url"
                 :src="entry.data.portrait_url"
                 :alt="entry.data.name"
                 format="portrait"
                 :focal-point="entry.data.portrait_focal_point ?? null"
+                placeholder="/assets/placeholders/companion.webp"
                 class="group-hover:scale-105 transition-transform duration-300"
               />
-              <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
-                <IconUser class="h-10 w-10" />
-              </div>
               <span
                 class="absolute top-2 right-2 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded tracking-wider text-white"
                 :style="{ backgroundColor: COMPANION_TYPE_COLORS[entry.data.companion_type] + 'CC' }"
@@ -363,7 +357,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { IconClose, IconSearch, IconShield, IconUser } from '@/lib/icons';
+import { IconClose, IconSearch, IconShield } from '@/lib/icons';
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";

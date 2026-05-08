@@ -60,23 +60,13 @@
         <!-- Thumbnail -->
         <div class="relative h-36 bg-muted overflow-hidden shrink-0">
           <FocalImage
-            v-if="monster.image_url"
             :src="monster.image_url"
             :alt="monster.name"
             format="landscape"
             :focal-point="monster.portrait_focal_point"
+            placeholder="/assets/placeholders/monster.webp"
             class="group-hover:scale-105 transition-transform duration-300"
           />
-          <div
-            v-else
-            class="w-full h-full flex items-center justify-center text-3xl font-cinzel font-bold"
-            :style="{
-              backgroundColor: crColor(monster.stat_block.challenge_rating) + '22',
-              color: crColor(monster.stat_block.challenge_rating),
-            }"
-          >
-            {{ monster.name.charAt(0).toUpperCase() }}
-          </div>
         </div>
 
         <div class="p-3 flex flex-col gap-2 flex-1">

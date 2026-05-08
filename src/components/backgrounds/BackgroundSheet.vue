@@ -23,15 +23,14 @@
       <div class="p-4 flex gap-4">
         <div class="shrink-0 w-28 aspect-square rounded-md overflow-hidden bg-muted flex items-center justify-center">
           <FocalImage
-            v-if="background.image_url"
             :src="background.image_url"
             :alt="background.name"
             format="portrait"
             :focal-point="background.focal_point ?? null"
             :lightbox="true"
+            placeholder="/assets/placeholders/background.webp"
             class="w-full h-full"
           />
-          <IconUser v-else class="h-8 w-8 text-muted-foreground/30" />
         </div>
         <div class="flex-1 flex flex-col gap-2">
           <h1 class="font-cinzel text-xl font-bold text-foreground leading-tight">{{ background.name }}</h1>
@@ -230,7 +229,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconAddItem, IconClose, IconDelete, IconEdit, IconUser } from '@/lib/icons';
+import { IconAddItem, IconClose, IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteBackground } from "@/composables/useBackgrounds";
 import { useParty } from "@/composables/useParty";

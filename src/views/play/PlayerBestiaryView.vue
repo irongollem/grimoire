@@ -162,17 +162,12 @@
 
           <div class="relative h-48 bg-muted overflow-hidden rounded-t-xl">
             <FocalImage
-              v-if="lightbox.imageUrl"
               :src="lightbox.imageUrl"
               :alt="lightbox.name"
               format="landscape"
               :focal-point="lightbox.monster?.portrait_focal_point"
+              placeholder="/assets/placeholders/monster.webp"
             />
-            <div
-              v-else
-              class="w-full h-full flex items-center justify-center font-cinzel text-5xl font-bold"
-              :style="{ color: crColor(lightbox.monster?.stat_block.challenge_rating ?? '0') }"
-            >{{ lightbox.name.charAt(0) }}</div>
             <span
               v-if="lightbox.monster"
               class="absolute bottom-2 right-2 px-2 py-0.5 rounded font-cinzel text-2xs md:text-sm font-bold text-white"

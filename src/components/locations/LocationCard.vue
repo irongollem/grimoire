@@ -14,16 +14,13 @@
           :style="loc.image_url ? {} : { backgroundColor: LOCATION_TYPE_COLORS[loc.location_type] }"
         >
           <FocalImage
-            v-if="loc.image_url"
             :src="loc.image_url"
             :alt="loc.name"
             format="portrait"
             :focal-point="null"
+            placeholder="/assets/placeholders/location.webp"
             class="w-full h-full object-cover"
           />
-          <div v-else class="w-full h-full flex items-center justify-center text-white text-sm font-cinzel font-bold">
-            {{ loc.location_type.slice(0, 2).toUpperCase() }}
-          </div>
         </div>
         <div class="flex-1 min-w-0">
           <div class="flex items-start justify-between gap-1">

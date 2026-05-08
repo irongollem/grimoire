@@ -54,12 +54,13 @@
         <div class="rounded-lg border border-border bg-card overflow-hidden">
           <div class="flex gap-0">
             <!-- Portrait -->
-            <div v-if="puzzle.image_url" class="shrink-0 w-40 sm:w-52 self-stretch">
+            <div class="shrink-0 w-40 sm:w-52 self-stretch">
               <FocalImage
                 :src="puzzle.image_url"
                 :alt="puzzle.name"
                 format="portrait"
                 :focal-point="puzzle.image_focal_point"
+                placeholder="/assets/placeholders/enigma.webp"
                 class="h-full"
               />
             </div>

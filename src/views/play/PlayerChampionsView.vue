@@ -50,16 +50,13 @@
           <!-- Portrait -->
           <div class="w-16 h-20 rounded-md overflow-hidden bg-muted shrink-0">
             <FocalImage
-              v-if="char.portrait_url"
               :src="char.portrait_url"
               :alt="char.name"
               format="portrait"
               :focal-point="char.portrait_focal_point ?? null"
               :lightbox="true"
+              placeholder="/assets/placeholders/character.webp"
             />
-            <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
-              <IconUser class="h-6 w-6" />
-            </div>
           </div>
 
           <!-- Info -->
@@ -121,7 +118,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { RouterLink } from 'vue-router';
-import { IconAdd, IconDM, IconUser } from '@/lib/icons';
+import { IconAdd, IconDM } from '@/lib/icons';
 import { useMyCharacters, useSetActiveCharacter, useParty } from '@/composables/useParty';
 import { useSpeciesNameMap } from '@/composables/useSpecies';
 import { useAuthStore } from '@/stores/auth';

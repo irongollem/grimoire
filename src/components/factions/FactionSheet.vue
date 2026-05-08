@@ -4,19 +4,13 @@
     <div class="flex flex-col gap-4">
       <div class="relative aspect-square rounded-lg border border-border overflow-hidden bg-muted">
         <FocalImage
-          v-if="faction.emblem_url"
           :src="faction.emblem_url"
           :alt="faction.name + ' emblem'"
           format="portrait"
           :lightbox="true"
+          placeholder="/assets/placeholders/faction.webp"
           class="w-full h-full"
         />
-        <div
-          v-else
-          class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground/40"
-        >
-          <IconShield class="h-10 w-10" />
-        </div>
       </div>
 
       <div class="flex flex-col gap-1.5">
@@ -84,7 +78,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconDelete, IconEdit, IconShield } from '@/lib/icons';
+import { IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteFaction } from "@/composables/useFactions";
 import type { Faction } from "@/types/faction.types";

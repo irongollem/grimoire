@@ -148,16 +148,13 @@
           >
             <div class="relative aspect-square bg-muted overflow-hidden shrink-0">
               <FocalImage
-                v-if="feature.image_url"
                 :src="feature.image_url"
                 :alt="feature.name"
                 format="portrait"
                 :focal-point="feature.image_focal_point"
+                placeholder="/assets/placeholders/dungeonfeature.webp"
                 class="group-hover:scale-105 transition-transform duration-300"
               />
-              <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/20">
-                <IconDungeon class="h-10 w-10" />
-              </div>
               <span
                 class="absolute top-2 left-2 font-cinzel text-[9px] px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
                 :style="{ backgroundColor: DUNGEON_FEATURE_TYPE_COLORS[feature.feature_type] + 'DD' }"
@@ -220,16 +217,13 @@
           >
             <div class="relative aspect-square bg-muted overflow-hidden shrink-0">
               <FocalImage
-                v-if="trap.image_url"
                 :src="trap.image_url"
                 :alt="trap.name"
                 format="portrait"
                 :focal-point="trap.image_focal_point"
+                placeholder="/assets/placeholders/trap.webp"
                 class="group-hover:scale-105 transition-transform duration-300"
               />
-              <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/20">
-                <IconTrap class="h-10 w-10" />
-              </div>
               <span
                 class="absolute top-2 left-2 font-cinzel text-[9px] px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
                 :style="{ backgroundColor: TRAP_TYPE_COLORS[trap.trap_type] + 'DD' }"
@@ -407,16 +401,13 @@
           >
             <div class="relative aspect-square bg-muted overflow-hidden shrink-0">
               <FocalImage
-                v-if="puzzle.image_url"
                 :src="puzzle.image_url"
                 :alt="puzzle.name"
                 format="portrait"
                 :focal-point="puzzle.image_focal_point"
+                placeholder="/assets/placeholders/enigma.webp"
                 class="group-hover:scale-105 transition-transform duration-300"
               />
-              <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/20">
-                <IconPuzzle class="h-10 w-10" />
-              </div>
               <span
                 class="absolute top-2 left-2 font-cinzel text-[9px] px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
                 :style="{ backgroundColor: PUZZLE_TYPE_COLORS[puzzle.puzzle_type] + 'DD' }"
@@ -455,7 +446,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { RouterLink, useRoute, useRouter } from "vue-router";
-import { IconAdd, IconDungeon, IconGenerate, IconLoading, IconPopulate, IconPuzzle, IconTrap } from '@/lib/icons';
+import { IconAdd, IconGenerate, IconLoading, IconPopulate } from '@/lib/icons';
 
 import { useDungeonFeatures, usePopulateDungeonFeatures } from "@/composables/useDungeonFeatures";
 import { DUNGEON_FEATURE_TYPES, DUNGEON_FEATURE_TYPE_COLORS } from "@/types/dungeonFeature.types";

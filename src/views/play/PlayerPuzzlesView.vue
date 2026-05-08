@@ -24,16 +24,13 @@
         >
           <div class="relative aspect-square bg-muted overflow-hidden shrink-0">
             <FocalImage
-              v-if="puzzle.image_url"
               :src="puzzle.image_url"
               :alt="puzzle.name"
               format="portrait"
               :focal-point="puzzle.image_focal_point"
+              placeholder="/assets/placeholders/enigma.webp"
               class="group-hover:scale-105 transition-transform duration-300"
             />
-            <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/20">
-              <IconPuzzle class="h-8 w-8" />
-            </div>
             <span
               class="absolute top-2 left-2 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
               :style="{ backgroundColor: PUZZLE_TYPE_COLORS[puzzle.puzzle_type] + 'DD' }"

@@ -24,15 +24,14 @@
         <!-- Portrait column -->
         <div class="shrink-0 w-28 aspect-square rounded-md overflow-hidden bg-muted flex items-center justify-center">
           <FocalImage
-            v-if="species.image_url"
             :src="species.image_url"
             :alt="species.name"
             format="portrait"
             :focal-point="species.focal_point ?? null"
             :lightbox="true"
+            placeholder="/assets/placeholders/species.webp"
             class="w-full h-full"
           />
-          <IconParty v-else class="h-8 w-8 text-muted-foreground/30" />
         </div>
         <!-- Info column -->
         <div class="flex-1 flex flex-col gap-2">
@@ -139,7 +138,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconDelete, IconEdit, IconParty } from '@/lib/icons';
+import { IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteSpecies } from "@/composables/useSpecies";
 import type { Species } from "@/types/species.types";

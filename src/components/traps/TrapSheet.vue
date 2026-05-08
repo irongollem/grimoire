@@ -25,15 +25,14 @@
       <div class="p-4 flex gap-4">
         <div class="shrink-0 w-28 aspect-square rounded-md overflow-hidden bg-muted flex items-center justify-center">
           <FocalImage
-            v-if="trap.image_url"
             :src="trap.image_url"
             :alt="trap.name"
             format="portrait"
             :focal-point="trap.image_focal_point ?? null"
             :lightbox="true"
+            placeholder="/assets/placeholders/trap.webp"
             class="w-full h-full"
           />
-          <IconTrap v-else class="h-8 w-8 text-muted-foreground/30" />
         </div>
         <div class="flex-1 flex flex-col gap-2">
           <h1 class="font-cinzel text-xl font-bold text-foreground leading-tight">{{ trap.name }}</h1>
@@ -165,7 +164,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconDelete, IconEdit, IconTrap } from '@/lib/icons';
+import { IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteTrap } from "@/composables/useTraps";
 import { CR_XP } from "@/types/encounter.types";

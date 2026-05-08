@@ -53,16 +53,13 @@
         >
           <div class="relative aspect-square bg-muted overflow-hidden shrink-0">
             <FocalImage
-              v-if="puzzle.image_url"
               :src="puzzle.image_url"
               :alt="puzzle.name"
               format="portrait"
               :focal-point="puzzle.image_focal_point"
+              placeholder="/assets/placeholders/enigma.webp"
               class="group-hover:scale-105 transition-transform duration-300"
             />
-            <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/20">
-              <IconPuzzle class="h-10 w-10" />
-            </div>
             <span
               class="absolute top-2 left-2 font-cinzel text-[9px] px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
               :style="{ backgroundColor: PUZZLE_TYPE_COLORS[puzzle.puzzle_type] + 'DD' }"
@@ -102,7 +99,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
-import { IconAdd, IconGenerate, IconLoading, IconPopulate, IconPuzzle } from '@/lib/icons';
+import { IconAdd, IconGenerate, IconLoading, IconPopulate } from '@/lib/icons';
 import { usePuzzles, usePopulatePuzzles } from "@/composables/usePuzzles";
 import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES, PUZZLE_TYPE_COLORS, PUZZLE_DIFFICULTY_COLORS } from "@/types/puzzle.types";
 import { useUiStore } from "@/stores/ui";

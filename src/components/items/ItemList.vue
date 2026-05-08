@@ -35,11 +35,11 @@
           class="relative h-36 bg-muted overflow-hidden shrink-0 rounded-t-lg"
         >
           <FocalImage
-            v-if="item.image_url"
             :src="item.image_url"
             :alt="item.name"
             format="landscape"
             :focal-point="item.image_focal_point"
+            placeholder="/assets/placeholders/item.webp"
             class="group-hover:scale-105 transition-transform duration-300"
           />
           <!-- Rarity badge — top right -->

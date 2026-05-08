@@ -304,6 +304,73 @@
             {{ bulkPublish.isPending.value ? 'Publishing…' : 'Publish all my SRD art' }}
           </button>
         </div>
+
+        <!-- Placeholder Art Focal Points -->
+        <div class="rounded-lg border border-border bg-card p-4 space-y-4">
+          <div>
+            <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Placeholder Art</h2>
+            <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
+              Click anywhere on a placeholder image to set where the focus point should be. This corrects
+              cases where smartcrop picks the wrong area (e.g. torso instead of face).
+              Changes take effect immediately for users whose smartcrop cache hasn't run yet,
+              and on next page load for those who have.
+            </p>
+          </div>
+
+          <div v-if="placeholderFpQuery.isPending.value" class="text-muted-foreground font-fell text-sm">
+            Loading…
+          </div>
+          <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            <div
+              v-for="entity in PLACEHOLDER_ENTITIES"
+              :key="entity.type"
+              class="flex flex-col gap-1.5"
+            >
+              <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+                {{ entity.label }}
+              </p>
+
+              <!-- Clickable image with crosshair overlay -->
+              <div
+                class="relative rounded-md overflow-hidden border border-border cursor-crosshair bg-muted"
+                :class="entity.aspect"
+                @click="handlePlaceholderFpClick($event, entity.type)"
+              >
+                <img
+                  :src="`/assets/placeholders/${entity.type}.webp`"
+                  :alt="entity.label"
+                  class="w-full h-full object-cover"
+                />
+                <!-- Current focal point crosshair -->
+                <div
+                  v-if="placeholderFocalPoints[entity.type]"
+                  class="absolute w-4 h-4 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                  :style="{
+                    left: `${placeholderFocalPoints[entity.type].x}%`,
+                    top: `${placeholderFocalPoints[entity.type].y}%`,
+                  }"
+                >
+                  <div class="absolute inset-0 rounded-full bg-primary/80 border-2 border-white shadow" />
+                </div>
+                <!-- Saved flash -->
+                <div
+                  v-if="placeholderFpSaved === entity.type"
+                  class="absolute inset-0 flex items-center justify-center bg-black/40"
+                >
+                  <IconCheck class="h-6 w-6 text-white" />
+                </div>
+              </div>
+
+              <!-- Coordinates -->
+              <p
+                v-if="placeholderFocalPoints[entity.type]"
+                class="font-cinzel text-[9px] text-muted-foreground/60 tracking-wider text-center"
+              >
+                {{ placeholderFocalPoints[entity.type].x }}%, {{ placeholderFocalPoints[entity.type].y }}%
+              </p>
+            </div>
+          </div>
+        </div>
       </template>
 
       <!-- ── Prompts tab ──────────────────────────────────────────────── -->
@@ -1057,6 +1124,7 @@ import type { CalibrationHint } from "@/composables/useAdminCalibration";
 import { useAdminModelPricing } from "@/composables/useAdminModelPricing";
 import { useProviderModels } from "@/composables/useProviderModels";
 import type { ModelStat } from "@/composables/useAiUsageStats";
+import { useAdminPlaceholderFocalPoints } from "@/composables/useAdminPlaceholderFocalPoints";
 
 const route = useRoute();
 const router = useRouter();
@@ -1476,9 +1544,10 @@ async function saveProvider(provider: string) {
 }
 
 // ── Provider Models (for model picker datalists) ───────────────────────────
-const openaiModelList    = useProviderModels("openai");
-const anthropicModelList = useProviderModels("anthropic");
-const geminiModelList    = useProviderModels("gemini");
+const onProvidersTab = computed(() => activeTab.value === "providers");
+const openaiModelList    = useProviderModels("openai",    onProvidersTab);
+const anthropicModelList = useProviderModels("anthropic", onProvidersTab);
+const geminiModelList    = useProviderModels("gemini",    onProvidersTab);
 
 const providerModelOptions = computed<Record<string, string[]>>(() => ({
   openai:    openaiModelList.data.value    ?? [],
@@ -1570,4 +1639,42 @@ const modelStatsByModel = computed(() => {
   }
   return map;
 });
+
+// ── Placeholder Focal Points ────────────────────────────────────────────────
+const PLACEHOLDER_ENTITIES = [
+  { type: "background",     label: "Background",      aspect: "aspect-3/4" },
+  { type: "character",      label: "Character",       aspect: "aspect-3/4" },
+  { type: "companion",      label: "Companion",       aspect: "aspect-3/4" },
+  { type: "deity",          label: "Deity",           aspect: "aspect-3/4" },
+  { type: "dungeonfeature", label: "Dungeon Feature", aspect: "aspect-square" },
+  { type: "enigma",         label: "Puzzle (Enigma)", aspect: "aspect-square" },
+  { type: "faction",        label: "Faction",         aspect: "aspect-square" },
+  { type: "item",           label: "Item",            aspect: "aspect-3/4" },
+  { type: "location",       label: "Location",        aspect: "aspect-3/4" },
+  { type: "monster",        label: "Monster",         aspect: "aspect-3/4" },
+  { type: "npc",            label: "NPC",             aspect: "aspect-3/4" },
+  { type: "species",        label: "Species",         aspect: "aspect-square" },
+  { type: "spell",          label: "Spell",           aspect: "aspect-3/4" },
+  { type: "trap",           label: "Trap",            aspect: "aspect-square" },
+] as const;
+
+const { query: placeholderFpQuery, mutation: placeholderFpMutation } = useAdminPlaceholderFocalPoints();
+const placeholderFocalPoints = computed(() => placeholderFpQuery.data.value ?? {});
+const placeholderFpSaved = ref<string | null>(null);
+
+function handlePlaceholderFpClick(event: MouseEvent, entityType: string) {
+  const el = event.currentTarget as HTMLElement;
+  const rect = el.getBoundingClientRect();
+  const x = Math.round(((event.clientX - rect.left) / rect.width) * 100);
+  const y = Math.round(((event.clientY - rect.top) / rect.height) * 100);
+  placeholderFpMutation.mutate(
+    { entityType, fp: { x, y } },
+    {
+      onSuccess: () => {
+        placeholderFpSaved.value = entityType;
+        setTimeout(() => { placeholderFpSaved.value = null; }, 1200);
+      },
+    },
+  );
+}
 </script>

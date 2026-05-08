@@ -53,16 +53,13 @@
           <!-- Image / placeholder -->
           <div class="relative aspect-square bg-muted overflow-hidden shrink-0">
             <FocalImage
-              v-if="feature.image_url"
               :src="feature.image_url"
               :alt="feature.name"
               format="portrait"
               :focal-point="feature.image_focal_point"
+              placeholder="/assets/placeholders/dungeonfeature.webp"
               class="group-hover:scale-105 transition-transform duration-300"
             />
-            <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/20">
-              <IconDungeon class="h-10 w-10" />
-            </div>
             <!-- Type badge -->
             <span
               class="absolute top-2 left-2 font-cinzel text-[9px] px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
@@ -100,7 +97,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
-import { IconAdd, IconDungeon, IconLoading, IconPopulate } from '@/lib/icons';
+import { IconAdd, IconLoading, IconPopulate } from '@/lib/icons';
 import { useDungeonFeatures, usePopulateDungeonFeatures } from "@/composables/useDungeonFeatures";
 import { DUNGEON_FEATURE_TYPES, DUNGEON_FEATURE_TYPE_COLORS } from "@/types/dungeonFeature.types";
 import PageHeader from "@/components/common/PageHeader.vue";

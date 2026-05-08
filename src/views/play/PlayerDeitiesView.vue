@@ -40,16 +40,13 @@
           <div class="flex items-center gap-3 p-3">
             <div class="relative h-14 w-14 shrink-0 rounded-md border border-border bg-muted overflow-hidden">
               <FocalImage
-                v-if="deity.portrait_url"
                 :src="deity.portrait_url"
                 :focal-point="deity.portrait_focal_point ?? null"
                 :alt="deity.name"
                 format="portrait"
+                placeholder="/assets/placeholders/deity.webp"
                 class="w-full h-full"
               />
-              <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
-                <IconSun class="h-6 w-6" />
-              </div>
               <span
                 v-if="isNew(deity.id, deity.updated_at)"
                 class="absolute top-1 left-1 z-10 h-2.5 w-2.5 rounded-full bg-destructive"
@@ -118,7 +115,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { IconChevronDown, IconSun } from '@/lib/icons';
+import { IconChevronDown } from '@/lib/icons';
 import { useAllDeities } from "@/composables/useDeities";
 import { useAuthStore } from "@/stores/auth";
 import { useReadItems, useMarkRead } from "@/composables/useReadItems";

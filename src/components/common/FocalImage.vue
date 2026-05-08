@@ -25,6 +25,16 @@
       @load="onLoad"
       @error="onError"
     />
+    <img
+      v-else-if="placeholder"
+      ref="placeholderImgRef"
+      :src="placeholder"
+      :alt="alt ?? ''"
+      class="w-full h-full object-cover opacity-40"
+      :style="{ objectPosition }"
+      loading="lazy"
+      @load="onPlaceholderLoad"
+    />
   </div>
   <ImageLightbox v-if="lightbox" :src="lightboxSrc" @close="lightboxSrc = null" />
 </template>
@@ -34,6 +44,7 @@ import { ref, computed, watch, onBeforeUnmount } from "vue";
 import smartcrop from "smartcrop";
 import { backfillVariants, type VariantWidth } from "@/lib/storage";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
+import { initPlaceholderFocalPoints, getPlaceholderFocalPoint } from "@/lib/placeholderFocalPoints";
 
 export type ImageFormat = "portrait" | "landscape" | "token" | "square";
 
@@ -74,6 +85,8 @@ const props = defineProps<{
   print?: boolean;
   /** When true, clicking the image opens a full-resolution lightbox overlay. */
   lightbox?: boolean;
+  /** Fallback image URL shown (dimmed) when src is null/undefined. */
+  placeholder?: string;
 }>();
 
 const FORMAT_RENDER_WIDTHS: Record<ImageFormat, VariantWidth> = {
@@ -117,6 +130,7 @@ const displaySrc = computed(() => {
 
 const rootRef = ref<HTMLElement | null>(null);
 const imgRef = ref<HTMLImageElement | null>(null);
+const placeholderImgRef = ref<HTMLImageElement | null>(null);
 const objectPosition = ref(FORMAT_DEFAULTS[props.format]);
 // Clipped mode: image taller than its overflow:hidden container (no h-full in chain).
 // Use translateY to center the focal point instead of object-position.
@@ -203,6 +217,12 @@ function onLoad() {
   applyFocalPoint(img, rawFocalPoint.value);
 }
 
+function onPlaceholderLoad() {
+  const img = placeholderImgRef.value;
+  if (!img || !rawFocalPoint.value) return;
+  applyFocalPoint(img, rawFocalPoint.value);
+}
+
 function onError() {
   // Variant is missing — flip to original. variantFailed causes displaySrc to
   // return props.src, so Vue re-renders cleanly without any further 4xx.
@@ -243,7 +263,8 @@ async function runSmartcrop(
       // Variant missing — fall back to original for smartcrop analysis.
       if (img.src !== src) { img.src = src; } else { resolve(); }
     };
-    img.src = toVariantUrl(src, 400);
+    // Local assets (placeholders) have no variants — skip _w400 to avoid 404s.
+    img.src = src.startsWith("http") ? toVariantUrl(src, 400) : src;
   });
 
   if (!img.naturalWidth) return null;
@@ -306,13 +327,56 @@ async function resolve(
   }
 }
 
+/** Extract entity type key from a placeholder URL: /assets/placeholders/npc.webp → "npc" */
+function entityTypeFromPlaceholder(url: string): string | null {
+  const filename = url.split("/").pop();
+  return filename ? filename.replace(/\.[^.]+$/, "") || null : null;
+}
+
+async function resolvePlaceholder(url: string) {
+  // Ensure admin-configured focal points are loaded (no-op after first call).
+  await initPlaceholderFocalPoints();
+
+  // 1. Admin DB override takes priority
+  const entityType = entityTypeFromPlaceholder(url);
+  if (entityType) {
+    const adminFp = getPlaceholderFocalPoint(entityType);
+    if (adminFp) {
+      rawFocalPoint.value = adminFp;
+      const img = placeholderImgRef.value;
+      if (img?.complete && img.naturalWidth) applyFocalPoint(img, adminFp);
+      return;
+    }
+  }
+
+  // 2. localStorage cache (previous smartcrop result)
+  const cached = readCache(url);
+  if (cached) {
+    rawFocalPoint.value = cached;
+    return;
+  }
+
+  // 3. Run smartcrop on the placeholder image (portrait targets for face detection)
+  const computed = await runSmartcrop(url);
+  if (computed) {
+    rawFocalPoint.value = computed;
+    writeCache(url, computed);
+    const img = placeholderImgRef.value;
+    if (img?.complete && img.naturalWidth) applyFocalPoint(img, computed);
+  }
+}
+
 watch(
-  [() => props.src, () => props.focalPoint],
-  ([url, fp]) => {
+  [() => props.src, () => props.placeholder, () => props.focalPoint],
+  ([url, ph, fp]) => {
     rawFocalPoint.value = null;
     objectPosition.value = FORMAT_DEFAULTS[props.format];
     variantFailed.value = false;
-    if (url) resolve(url, fp);
+    if (url) {
+      void resolve(url, fp);
+    } else if (ph) {
+      void resolvePlaceholder(ph);
+    }
   },
   { immediate: true },
 );
@@ -321,7 +385,7 @@ watch(
 // rendered image height and the container clip height, both of which change
 // when the viewport is resized.
 const resizeObserver = new ResizeObserver(() => {
-  const img = imgRef.value;
+  const img = imgRef.value ?? placeholderImgRef.value;
   if (img?.complete && img.naturalWidth && rawFocalPoint.value) {
     applyFocalPoint(img, rawFocalPoint.value);
   }

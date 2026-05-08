@@ -5,11 +5,11 @@
       <!-- Left: portrait -->
       <div class="flex flex-col gap-3 lg:sticky lg:top-6">
         <FocalImage
-          v-if="monster.image_url"
           :src="monster.image_url"
           :focal-point="monster.portrait_focal_point"
           format="portrait"
           :lightbox="true"
+          placeholder="/assets/placeholders/monster.webp"
           class="w-full rounded-lg overflow-hidden flex-1 min-h-0 max-h-[75vh]"
         />
         <div v-if="monster.tags?.length" class="flex flex-wrap gap-1">

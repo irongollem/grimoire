@@ -27,7 +27,7 @@
           </div>
         </template>
         <div
-          v-else-if="item.image_url"
+          v-else
           class="w-full rounded-lg overflow-hidden"
           style="aspect-ratio: 2/3; max-height: 75vh"
         >
@@ -36,6 +36,7 @@
             :focal-point="item.image_focal_point"
             format="portrait"
             :lightbox="true"
+            placeholder="/assets/placeholders/item.webp"
             class="h-full"
           />
         </div>

@@ -7,21 +7,15 @@
         class="relative aspect-3/4 rounded-lg border border-border overflow-hidden bg-muted max-w-150 mx-auto lg:max-w-none"
       >
         <FocalImage
-          v-if="deity.portrait_url"
           :src="deity.portrait_url"
           :focal-point="deity.portrait_focal_point ?? null"
           :alt="deity.name"
           format="portrait"
           :render-width="600"
           :lightbox="true"
+          placeholder="/assets/placeholders/deity.webp"
           class="w-full h-full"
         />
-        <div
-          v-else
-          class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground/40"
-        >
-          <IconSun class="h-12 w-12" />
-        </div>
       </div>
 
       <!-- Holy symbol image -->
@@ -175,7 +169,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
-import { IconSun } from '@/lib/icons';
 import type { Deity, Pantheon } from "@/types/deity.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
