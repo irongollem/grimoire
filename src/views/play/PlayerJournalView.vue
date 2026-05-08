@@ -4,7 +4,7 @@
     <div class="flex items-center justify-between">
       <h2 class="font-cinzel text-xl font-bold text-foreground">Adventure Journal</h2>
       <button
-        v-if="activeTab !== 'dm-notes'"
+        v-if="activeTab !== 'dm-notes' && activeTab !== 'quest-log'"
         type="button"
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
         @click="openNew"
@@ -112,15 +112,55 @@
         :class="activeTab === tab.id
           ? 'border-primary text-primary'
           : 'border-transparent text-muted-foreground hover:text-foreground'"
-        @click="activeTab = tab.id"
+        @click="setTab(tab.id)"
       >
         {{ tab.label }}
         <span v-if="tab.count > 0" class="ml-1.5 font-fell font-normal text-2xs md:text-sm opacity-70">({{ tab.count }})</span>
       </button>
     </div>
 
+    <!-- Quest Log tab -->
+    <template v-if="activeTab === 'quest-log'">
+      <div v-if="loadingQuests" class="flex justify-center py-12">
+        <LoadingSpinner />
+      </div>
+      <div v-else-if="!playerQuests?.length" class="text-center py-12">
+        <IconScrollText class="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+        <p class="font-fell text-muted-foreground italic">No quests shared by your DM yet.</p>
+      </div>
+      <template v-else>
+        <div v-for="[label, group] in questGroups" :key="label">
+          <div v-if="group.length" class="space-y-2 mb-4">
+            <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">{{ label }}</p>
+            <RouterLink
+              v-for="q in group"
+              :key="q.id"
+              :to="`/play/quests/${q.id}`"
+              class="block rounded-lg border border-border bg-card p-4 hover:border-primary/40 transition-colors"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span v-if="isQuestNew(q.id, q.updated_at)" class="h-2.5 w-2.5 rounded-full bg-destructive shrink-0" title="New" />
+                  <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ q.title }}</p>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <span
+                    class="font-cinzel text-2xs px-2 py-0.5 rounded-full tracking-wider"
+                    :style="{ color: QUEST_STATUS_COLORS[q.status], borderColor: QUEST_STATUS_COLORS[q.status] + '50' }"
+                    style="border-width: 1px"
+                  >{{ QUEST_STATUS_LABELS[q.status] }}</span>
+                  <IconChevronRight class="h-3.5 w-3.5 text-muted-foreground" />
+                </div>
+              </div>
+              <p v-if="q.summary" class="font-fell text-sm text-muted-foreground mt-1">{{ q.summary }}</p>
+            </RouterLink>
+          </div>
+        </div>
+      </template>
+    </template>
+
     <!-- DM Notes tab -->
-    <template v-if="activeTab === 'dm-notes'">
+    <template v-else-if="activeTab === 'dm-notes'">
       <div v-if="loadingNotes" class="flex justify-center py-12">
         <LoadingSpinner />
       </div>
@@ -337,7 +377,8 @@
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed } from "vue";
-import { IconAdd, IconCalendarDays, IconDocument, IconFeather, IconLoading, IconLocation, IconLock, IconMessage, IconPin, IconPopulate, IconReveal, IconSave, IconScrollText, IconSearch, IconShield, IconStar } from '@/lib/icons';
+import { useRoute, useRouter } from "vue-router";
+import { IconAdd, IconCalendarDays, IconChevronRight, IconDocument, IconFeather, IconLoading, IconLocation, IconLock, IconMessage, IconPin, IconPopulate, IconReveal, IconSave, IconScrollText, IconSearch, IconShield, IconStar } from '@/lib/icons';
 import JournalCard from "@/components/player/JournalCard.vue";
 import type { Component } from "vue";
 import {
@@ -348,6 +389,11 @@ import {
 import { useReadItems, useMarkRead } from "@/composables/useReadItems";
 import type { JournalCategory, PlayerJournalEntry, JournalRefType } from "@/composables/usePlayerJournal";
 import { usePlayerVisibleQuests } from "@/composables/useQuests";
+import { QUEST_STATUS_LABELS, QUEST_STATUS_COLORS } from "@/types/quest.types";
+import type { Quest } from "@/types/quest.types";
+import { RouterLink } from "vue-router";
+const route = useRoute();
+const router = useRouter();
 import { useSharedNpcs } from "@/composables/useNpcs";
 import { useSharedLocations } from "@/composables/useLocations";
 import { usePartyInventory } from "@/composables/usePartyInventory";
@@ -375,7 +421,7 @@ const { memberByUserId } = useMemberByUserId();
 
 // Entity data for context picker — player-scoped to avoid leaking DM data
 const auth = useAuthStore();
-const { data: playerQuests }      = usePlayerVisibleQuests();
+const { data: playerQuests, isLoading: loadingQuests } = usePlayerVisibleQuests();
 const { data: sharedNpcs }        = useSharedNpcs();
 const { data: sharedLocations }   = useSharedLocations();
 const { data: inventory }         = usePartyInventory();
@@ -427,6 +473,7 @@ const NOTE_CATEGORIES: Record<NoteCategory, { label: string; color: string; icon
 };
 
 const { isNew: isNoteNew } = useReadItems("note");
+const { isNew: isQuestNew } = useReadItems("quest");
 const { mutate: markRead } = useMarkRead();
 
 const selectedNote = ref<string | null>(null);
@@ -436,11 +483,27 @@ function toggleNote(id: string) {
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
-const activeTab = ref<"mine" | "party" | "dm-notes">("mine");
+type TabId = "mine" | "party" | "quest-log" | "dm-notes";
+const VALID_TABS: TabId[] = ["mine", "party", "quest-log", "dm-notes"];
+const activeTab = computed<TabId>(() => {
+  const q = route.query.tab as string;
+  return VALID_TABS.includes(q as TabId) ? (q as TabId) : "mine";
+});
+function setTab(id: TabId) {
+  router.replace({ query: { tab: id } });
+}
 const TABS = computed(() => [
-  { id: "mine"     as const, label: "My Journal",    count: myEntries.value?.length ?? 0 },
-  { id: "party"    as const, label: "Party Journal", count: sharedEntries.value?.length ?? 0 },
-  { id: "dm-notes" as const, label: "DM Notes",      count: dmNotes.value.length },
+  { id: "mine"      as const, label: "My Journal",    count: myEntries.value?.length ?? 0 },
+  { id: "party"     as const, label: "Party Journal", count: sharedEntries.value?.length ?? 0 },
+  { id: "quest-log" as const, label: "Quest Log",     count: playerQuests.value?.length ?? 0 },
+  { id: "dm-notes"  as const, label: "DM Notes",      count: dmNotes.value.length },
+]);
+
+const questGroups = computed<[string, Quest[]][]>(() => [
+  ["Active",    (playerQuests.value ?? []).filter((q) => q.status === "active")],
+  ["Rumors",    (playerQuests.value ?? []).filter((q) => q.status === "rumor")],
+  ["Completed", (playerQuests.value ?? []).filter((q) => q.status === "completed")],
+  ["Failed",    (playerQuests.value ?? []).filter((q) => q.status === "failed")],
 ]);
 
 // ── Filters ───────────────────────────────────────────────────────────────────

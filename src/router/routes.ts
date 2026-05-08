@@ -90,9 +90,7 @@ export const routes: RouteRecordRaw[] = [
   },
   {
     path: "/play/quests",
-    name: "play-quests",
-    component: () => import("@/views/play/PlayerQuestsView.vue"),
-    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Quest Log" },
+    redirect: "/play/journal",
   },
   {
     path: "/play/quests/:id",
@@ -186,7 +184,7 @@ export const routes: RouteRecordRaw[] = [
     path: "/play/spells",
     name: "play-spells",
     component: () => import("@/views/play/PlayerSpellsView.vue"),
-    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Spells" },
+    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Spellbook" },
   },
   {
     path: "/play/calendar",
