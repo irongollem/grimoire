@@ -52,10 +52,10 @@ async function listGeminiModels(apiKey: string): Promise<string[]> {
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+  if (req.method !== "POST") return new Response("Method not allowed", { status: 405, headers: corsHeaders });
 
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401 });
+  if (!authHeader) return new Response("Unauthorized", { status: 401, headers: corsHeaders });
 
   // Admin-only: verify the caller is authenticated and is a platform admin.
   const supabase = createClient(
@@ -64,14 +64,11 @@ serve(async (req: Request) => {
     { global: { headers: { Authorization: authHeader } } },
   );
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
+  if (authError || !user) return new Response("Unauthorized", { status: 401, headers: corsHeaders });
 
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (!profile?.is_admin) return new Response("Forbidden", { status: 403 });
+  const { data: adminUsers } = await admin.rpc("get_admin_users");
+  const adminIds: string[] = (adminUsers ?? []).map((r: { user_id: string }) => r.user_id);
+  if (!adminIds.includes(user.id)) return new Response("Forbidden", { status: 403, headers: corsHeaders });
 
   let provider: string;
   try {
@@ -79,7 +76,7 @@ serve(async (req: Request) => {
     provider = body.provider;
     if (!provider) throw new Error("invalid");
   } catch {
-    return new Response("Invalid body — need { provider }", { status: 400 });
+    return new Response("Invalid body — need { provider }", { status: 400, headers: corsHeaders });
   }
 
   const keys = await fetchPlatformKeys(admin, [provider as "openai" | "anthropic" | "gemini" | "falai"]);
@@ -104,6 +101,7 @@ serve(async (req: Request) => {
         JSON.stringify({ error: "unsupported_provider" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
+
     }
 
     return new Response(

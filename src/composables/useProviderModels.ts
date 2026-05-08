@@ -24,12 +24,12 @@ async function fetchProviderModels(provider: string): Promise<string[]> {
   return data.models as string[];
 }
 
-export function useProviderModels(provider: MaybeRef<string>) {
+export function useProviderModels(provider: MaybeRef<string>, enabled?: MaybeRef<boolean>) {
   return useQuery({
     queryKey: ["admin", "provider-models", provider],
     queryFn: () => fetchProviderModels(toValue(provider)),
     staleTime: 10 * 60 * 1000,
-    enabled: () => !!toValue(provider),
+    enabled: () => !!toValue(provider) && (enabled === undefined || toValue(enabled)),
     retry: false,
   });
 }
