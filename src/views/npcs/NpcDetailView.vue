@@ -97,10 +97,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconEdit, IconGenerate, IconReveal, IconScrollText } from '@/lib/icons';
 import { useNpc } from "@/composables/useNpcs";
+import { useRecentNpcs } from "@/composables/useRecentNpcs";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import NpcDetail from "@/components/npcs/NpcDetail.vue";
@@ -124,6 +125,8 @@ function stopEditing() {
 }
 
 const { data: npc, isLoading: npcLoading } = useNpc(id);
+const { recordVisit } = useRecentNpcs();
+watch(id, (npcId) => { if (npcId) recordVisit(npcId); }, { immediate: true });
 const isLoading = computed(() => !isNewNpc.value && npcLoading.value);
 
 // Template ref to NpcDetail — gives access to its exposed state/methods

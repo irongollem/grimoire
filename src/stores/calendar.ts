@@ -96,12 +96,12 @@ export const useCalendarStore = defineStore("calendar", () => {
     timelineZoom.value = z;
   }
 
-  /** Called by the campaign store when switching campaigns. Syncs calendar system + year. */
-  function loadFromCampaign(calendarId: string, year: number) {
+  /** Called by the campaign store when switching campaigns. Syncs calendar system + year + month. */
+  function loadFromCampaign(calendarId: string, year: number, month = 1) {
     const cal = getCalendarAdapter(calendarId);
     activeCalendarId.value = cal.id;
     currentYear.value = year;
-    currentMonth.value = 1;
+    currentMonth.value = month;
   }
 
   // ── Event highlighting (used when navigating from inline event refs) ─────────

@@ -84,6 +84,21 @@ export function useUpdatePartyMember() {
   });
 }
 
+export function useSyncPartyLocation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ memberIds, locationId }: { memberIds: string[]; locationId: string | null }) => {
+      if (!memberIds.length) return;
+      const { error } = await supabase
+        .from("party_members")
+        .update({ current_location_id: locationId } as PartyMemberUpdate)
+        .in("id", memberIds);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}
+
 // Keeps the party query fresh across browsers — e.g. DM damage updates the player's sheet.
 export function usePartyLive() {
   const campaign = useCampaignStore();

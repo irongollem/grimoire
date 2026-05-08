@@ -208,6 +208,23 @@ export function useSetCampaignToday() {
   });
 }
 
+export function useSetCampaignLocation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, locationId }: { id: string; locationId: string | null }) =>
+      updateCampaign(id, { current_location_id: locationId } as CampaignUpdate),
+    onSuccess: (updatedCampaign) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      import("@/stores/campaign").then(({ useCampaignStore }) => {
+        const store = useCampaignStore();
+        if (store.activeCampaign && updatedCampaign) {
+          store.activeCampaign = { ...store.activeCampaign, current_location_id: updatedCampaign.current_location_id };
+        }
+      });
+    },
+  });
+}
+
 export function useClaimOrphanedData() {
   const queryClient = useQueryClient();
   return useMutation({

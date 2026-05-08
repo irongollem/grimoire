@@ -1,17 +1,6 @@
 <template>
   <PageHeader title="Campaign Dashboard" description="Your realm at a glance">
-    <div class="flex flex-col gap-6">
-      <!-- Stat cards -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard
-          v-for="stat in stats"
-          :key="stat.label"
-          :label="stat.label"
-          :value="stat.value"
-          :icon="stat.icon"
-          :to="stat.to"
-        />
-      </div>
+    <div class="flex flex-col gap-4">
 
       <!-- Live encounter banner -->
       <RouterLink
@@ -25,299 +14,313 @@
         <span class="font-cinzel text-[10px] text-green-400 tracking-wider">Resume →</span>
       </RouterLink>
 
-      <!-- Main row: Active Quests + Party -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <!-- Active Quests (2/3) -->
-        <div class="lg:col-span-2 rounded-lg border border-border bg-card overflow-hidden">
-          <div class="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/20">
-            <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">Active Quests</h2>
-            <RouterLink to="/quests" class="font-cinzel text-[10px] font-semibold text-primary tracking-wider hover:opacity-80 transition-opacity">
-              View all →
-            </RouterLink>
-          </div>
-
-          <div v-if="questsLoading" class="flex justify-center py-8">
-            <LoadingSpinner />
-          </div>
-
-          <div v-else-if="!activeQuests.length" class="px-4 py-8 text-center">
-            <IconScrollText class="h-6 w-6 mx-auto mb-2 text-muted-foreground/30" />
-            <p class="font-fell text-sm text-muted-foreground italic">No active quests.</p>
-            <RouterLink to="/quests/new" class="mt-2 inline-block font-cinzel text-xs text-primary tracking-wider hover:opacity-80 transition-opacity">
-              + New Quest
-            </RouterLink>
-          </div>
-
-          <div v-else class="divide-y divide-border">
-            <RouterLink
-              v-for="quest in activeQuests"
-              :key="quest.id"
-              :to="`/quests/${quest.id}`"
-              class="flex items-start gap-3 px-4 py-3 hover:bg-muted/30 transition-colors group"
-            >
-              <div class="h-2 w-2 rounded-full mt-2 shrink-0 bg-green-500" />
-              <div class="min-w-0 flex-1">
-                <p class="font-cinzel text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
-                  {{ quest.title || "Untitled Quest" }}
-                </p>
-                <p v-if="quest.summary" class="font-fell text-xs text-muted-foreground italic truncate mt-0.5">
-                  {{ quest.summary }}
-                </p>
-                <div class="flex items-center gap-2 mt-1 flex-wrap">
-                  <span v-if="giverName(quest)" class="font-fell text-[11px] text-muted-foreground">
-                    Given by {{ giverName(quest) }}
-                  </span>
-                  <span v-if="quest.tags.length" class="flex gap-1">
-                    <span
-                      v-for="tag in quest.tags.slice(0, 2)"
-                      :key="tag"
-                      class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider"
-                    >{{ tag }}</span>
-                  </span>
-                </div>
-              </div>
-              <IconChevronRight class="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0 mt-1" />
-            </RouterLink>
-          </div>
-        </div>
-
-        <!-- Party at a Glance (1/3) -->
-        <div class="rounded-lg border border-border bg-card overflow-hidden">
-          <div class="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/20">
-            <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">Party</h2>
-            <RouterLink to="/party" class="font-cinzel text-[10px] font-semibold text-primary tracking-wider hover:opacity-80 transition-opacity">
-              Full tracker →
-            </RouterLink>
-          </div>
-
-          <div v-if="partyLoading" class="flex justify-center py-8">
-            <LoadingSpinner />
-          </div>
-
-          <div v-else-if="!party?.length" class="px-4 py-8 text-center">
-            <IconShield class="h-6 w-6 mx-auto mb-2 text-muted-foreground/30" />
-            <p class="font-fell text-sm text-muted-foreground italic">No party members yet.</p>
-            <RouterLink to="/party" class="mt-2 inline-block font-cinzel text-xs text-primary tracking-wider hover:opacity-80 transition-opacity">
-              + Add Members
-            </RouterLink>
-          </div>
-
-          <div v-else class="divide-y divide-border">
-            <div v-for="member in party" :key="member.id" class="px-4 py-3 flex flex-col gap-2">
-              <!-- Name row -->
-              <div class="flex items-center gap-2">
-                <div class="relative h-8 w-8 shrink-0">
-                  <div class="h-8 w-8 rounded-full overflow-hidden bg-secondary flex items-center justify-center">
-                    <img
-                      v-if="member.portrait_url"
-                      :src="member.portrait_url"
-                      :alt="member.name"
-                      class="h-full w-full object-cover"
-                    />
-                    <span v-else class="font-cinzel text-xs font-bold text-foreground">
-                      {{ member.name.charAt(0).toUpperCase() }}
-                    </span>
-                  </div>
-                  <span
-                    class="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-card"
-                    :class="partyMemberOnline(member.id) ? 'bg-green-500' : 'bg-muted-foreground/30'"
-                  />
-                </div>
-                <div class="min-w-0 flex-1">
-                  <p class="font-cinzel text-sm font-semibold text-foreground truncate leading-tight">
-                    {{ member.name }}
-                  </p>
-                  <p class="font-fell text-[11px] text-muted-foreground italic truncate leading-tight">
-                    {{ [speciesNameMap.get(member.species_id ?? ''), memberClassLabel(member.id, member.class), memberLevelDisplay(member.id, member.level) ? `Lvl ${memberLevelDisplay(member.id, member.level)}` : null].filter(Boolean).join(" · ") || "—" }}
-                  </p>
-                </div>
-                <!-- HP -->
-                <div class="text-right shrink-0">
-                  <span class="font-cinzel text-sm font-bold" :class="hpColor(member.current_hp, member.max_hp)">
-                    {{ member.current_hp }}
-                  </span>
-                  <span class="font-fell text-[11px] text-muted-foreground">/{{ member.max_hp }}</span>
-                </div>
-              </div>
-
-              <!-- HP bar -->
-              <div class="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                <div
-                  class="h-full rounded-full transition-all"
-                  :class="hpBarColor(member.current_hp, member.max_hp)"
-                  :style="{ width: `${Math.max(0, Math.min(100, (member.current_hp / member.max_hp) * 100))}%` }"
-                />
-              </div>
-
-              <!-- Quick stats: AC · PP · PI -->
-              <div class="flex items-center gap-1.5 flex-wrap">
-                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider" title="Armour Class">
-                  AC {{ member.ac }}
-                </span>
-                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider" title="Passive Perception">
-                  <IconReveal class="h-2.5 w-2.5" />
-                  {{ passivePerception(member) }}
-                </span>
-                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider" title="Passive Insight">
-                  <IconMind class="h-2.5 w-2.5" />
-                  {{ passiveInsight(member) }}
-                </span>
-                <span v-if="member.inspiration" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gold-500/20 border border-gold-500/40 font-cinzel text-[10px] text-gold-500 tracking-wider" title="Has Inspiration">
-                  ★ Insp.
-                </span>
-              </div>
-
-              <!-- Conditions + Curses -->
-              <div v-if="member.conditions?.length || member.curses?.length" class="flex flex-wrap gap-1">
-                <span
-                  v-for="cond in member.conditions"
-                  :key="cond"
-                  class="px-1.5 py-0.5 rounded bg-destructive/10 border border-destructive/20 font-cinzel text-[10px] text-destructive tracking-wider"
-                >
-                  {{ cond }}
-                </span>
-                <span
-                  v-for="curse in member.curses"
-                  :key="curse"
-                  class="px-1.5 py-0.5 rounded bg-violet-500/10 border border-violet-500/30 font-cinzel text-[10px] text-violet-400 tracking-wider"
-                >
-                  Cursed: {{ curse }}
-                </span>
-              </div>
-
-              <!-- DM rule tracker buttons -->
-              <DmTrackerButtons
-                v-if="authStore.isDM && campaignStore.activeCampaignId"
-                :party-member-id="member.id"
-                :campaign-id="campaignStore.activeCampaignId"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Notes -->
+      <!-- ── Party — full width, 1/2/3 col responsive ──────────────────── -->
       <div class="rounded-lg border border-border bg-card overflow-hidden">
-        <div class="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/20">
-          <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
-            Notes
-            <span v-if="pinnedNotes.length" class="font-fell font-normal text-xs text-muted-foreground ml-1">
-              {{ pinnedNotes.length }} pinned
-            </span>
-          </h2>
-          <RouterLink to="/notes" class="font-cinzel text-[10px] font-semibold text-primary tracking-wider hover:opacity-80 transition-opacity">
-            All notes →
+        <div class="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20">
+          <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">Party</h2>
+          <RouterLink to="/party" class="font-cinzel text-[10px] font-semibold text-primary tracking-wider hover:opacity-80 transition-opacity">
+            Full tracker →
           </RouterLink>
         </div>
-
-        <div v-if="notesLoading" class="flex justify-center py-8">
+        <div v-if="partyLoading" class="flex justify-center py-6">
           <LoadingSpinner />
         </div>
+        <div v-else-if="!party?.length" class="px-4 py-6 text-center">
+          <IconShield class="h-6 w-6 mx-auto mb-2 text-muted-foreground/30" />
+          <p class="font-fell text-sm text-muted-foreground italic">No party members yet.</p>
+          <RouterLink to="/party" class="mt-2 inline-block font-cinzel text-xs text-primary tracking-wider hover:opacity-80">+ Add Members</RouterLink>
+        </div>
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-px bg-border">
+          <div v-for="member in party" :key="member.id" class="bg-card px-3 py-2.5 flex flex-col gap-1.5">
+            <!-- Name row -->
+            <div class="flex items-center gap-2">
+              <div class="relative h-8 w-8 shrink-0">
+                <div class="h-8 w-8 rounded-full overflow-hidden bg-secondary">
+                  <FocalImage :src="member.portrait_url" :focal-point="member.portrait_focal_point ?? null" format="token" :alt="member.name" placeholder="/assets/placeholders/character.webp" />
+                </div>
+                <span
+                  class="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-card"
+                  :class="partyMemberOnline(member.id) ? 'bg-green-500' : 'bg-muted-foreground/30'"
+                />
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="font-cinzel text-sm font-semibold text-foreground truncate leading-tight">{{ member.name }}</p>
+                <p class="font-fell text-[11px] text-muted-foreground italic truncate leading-tight">{{ memberSubtitle(member) }}</p>
+              </div>
+              <div class="text-right shrink-0">
+                <span class="font-cinzel text-sm font-bold" :class="hpColor(member.current_hp, member.max_hp)">{{ member.current_hp }}</span>
+                <span class="font-fell text-[11px] text-muted-foreground">/{{ member.max_hp }}</span>
+              </div>
+            </div>
+            <!-- HP bar -->
+            <div class="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                class="h-full rounded-full transition-all"
+                :class="hpBarColor(member.current_hp, member.max_hp)"
+                :style="{ width: `${Math.max(0, Math.min(100, (member.current_hp / member.max_hp) * 100))}%` }"
+              />
+            </div>
+            <!-- Quick stats -->
+            <div class="flex items-center gap-1 flex-wrap">
+              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider" title="Armour Class">AC {{ member.ac }}</span>
+              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider" title="Passive Perception">
+                <IconReveal class="h-2.5 w-2.5" />{{ passivePerception(member) }}
+              </span>
+              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider" title="Passive Insight">
+                <IconMind class="h-2.5 w-2.5" />{{ passiveInsight(member) }}
+              </span>
+              <span v-if="member.inspiration" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gold-500/20 border border-gold-500/40 font-cinzel text-[10px] text-gold-500 tracking-wider">★ Insp.</span>
+            </div>
+            <!-- Conditions + Curses -->
+            <div v-if="member.conditions?.length || member.curses?.length" class="flex flex-wrap gap-1">
+              <span v-for="cond in member.conditions" :key="cond" class="px-1.5 py-0.5 rounded bg-destructive/10 border border-destructive/20 font-cinzel text-[10px] text-destructive tracking-wider">{{ cond }}</span>
+              <span v-for="curse in member.curses" :key="curse" class="px-1.5 py-0.5 rounded bg-violet-500/10 border border-violet-500/30 font-cinzel text-[10px] text-violet-400 tracking-wider">Cursed: {{ curse }}</span>
+            </div>
+            <!-- DM tracker buttons -->
+            <DmTrackerButtons
+              v-if="authStore.isDM && campaignStore.activeCampaignId"
+              :party-member-id="member.id"
+              :campaign-id="campaignStore.activeCampaignId"
+            />
+          </div>
+        </div>
+      </div>
 
-        <div v-else-if="!dashboardNotes.length" class="px-4 py-8 text-center">
-          <IconPopulate class="h-6 w-6 mx-auto mb-2 text-muted-foreground/30" />
-          <p class="font-fell text-sm text-muted-foreground italic">No notes yet.</p>
-          <RouterLink to="/notes/new" class="mt-2 inline-block font-cinzel text-xs text-primary tracking-wider hover:opacity-80 transition-opacity">
-            + New Note
-          </RouterLink>
+      <!-- ── Main 3-col row ─────────────────────────────────────────────── -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+        <!-- Active Quests (compact) -->
+        <div class="rounded-lg border border-border bg-card overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20">
+            <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">Active Quests</h2>
+            <RouterLink to="/quests" class="font-cinzel text-[10px] font-semibold text-primary tracking-wider hover:opacity-80">View all →</RouterLink>
+          </div>
+          <div v-if="questsLoading" class="flex justify-center py-6"><LoadingSpinner /></div>
+          <div v-else-if="!activeQuests.length" class="px-4 py-6 text-center">
+            <p class="font-fell text-sm text-muted-foreground italic">No active quests.</p>
+            <RouterLink to="/quests/new" class="mt-1 inline-block font-cinzel text-xs text-primary tracking-wider">+ New Quest</RouterLink>
+          </div>
+          <div v-else class="divide-y divide-border">
+            <RouterLink
+              v-for="quest in activeQuests.slice(0, 6)"
+              :key="quest.id"
+              :to="`/quests/${quest.id}`"
+              class="flex items-center gap-2.5 px-4 py-2.5 hover:bg-muted/30 transition-colors group"
+            >
+              <div class="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
+              <div class="min-w-0 flex-1">
+                <p class="font-cinzel text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{{ quest.title || "Untitled Quest" }}</p>
+                <p v-if="giverName(quest)" class="font-fell text-[11px] text-muted-foreground italic">Given by {{ giverName(quest) }}</p>
+              </div>
+            </RouterLink>
+            <div v-if="activeQuests.length > 6" class="px-4 py-2 text-center">
+              <RouterLink to="/quests" class="font-cinzel text-[10px] text-muted-foreground hover:text-primary transition-colors tracking-wider">
+                + {{ activeQuests.length - 6 }} more →
+              </RouterLink>
+            </div>
+          </div>
         </div>
 
-        <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
+        <!-- Session Status: Game Day + Location -->
+        <div class="rounded-lg border border-border bg-card overflow-hidden">
+          <div class="px-4 py-2.5 border-b border-border bg-muted/20">
+            <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">Session</h2>
+          </div>
+          <div class="px-4 py-3 flex flex-col gap-4">
+
+            <!-- Game Day -->
+            <div class="flex flex-col gap-1.5">
+              <p class="font-cinzel text-[10px] text-muted-foreground tracking-widest uppercase">Game Day</p>
+              <template v-if="!editingDate">
+                <p class="font-cinzel text-base font-semibold text-foreground">{{ todayFormatted }}</p>
+                <div class="flex items-center gap-1.5">
+                  <button
+                    class="px-2.5 py-1 rounded border border-border font-cinzel text-[10px] text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors disabled:opacity-40"
+                    :disabled="setToday.isPending.value"
+                    @click="advanceDay(-1)"
+                  >− Day</button>
+                  <button
+                    class="px-2.5 py-1 rounded border border-border font-cinzel text-[10px] text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors disabled:opacity-40"
+                    :disabled="setToday.isPending.value"
+                    @click="advanceDay(1)"
+                  >+ Day</button>
+                  <button
+                    class="ml-auto font-cinzel text-[10px] text-primary hover:opacity-70 transition-opacity"
+                    @click="openDateEdit"
+                  >Edit…</button>
+                </div>
+              </template>
+              <template v-else>
+                <div class="flex items-center gap-1">
+                  <input
+                    v-model.number="dateForm.day"
+                    type="number" min="1" :max="maxDayInSelectedMonth"
+                    class="w-14 rounded border border-border bg-background px-2 py-1 font-cinzel text-sm text-center text-foreground focus:outline-none focus:border-primary/70"
+                  />
+                  <select
+                    v-model.number="dateForm.month"
+                    class="flex-1 min-w-0 rounded border border-border bg-background px-2 py-1 font-cinzel text-sm text-foreground focus:outline-none focus:border-primary/70"
+                  >
+                    <option v-for="(m, i) in calendarMonths" :key="i" :value="i + 1">{{ m.name }}</option>
+                  </select>
+                  <input
+                    v-model.number="dateForm.year"
+                    type="number"
+                    class="w-20 rounded border border-border bg-background px-2 py-1 font-cinzel text-sm text-center text-foreground focus:outline-none focus:border-primary/70"
+                  />
+                </div>
+                <div class="flex gap-1.5">
+                  <button
+                    class="flex-1 rounded border border-primary/50 bg-primary/10 px-2 py-1 font-cinzel text-[10px] text-primary tracking-wider hover:bg-primary/20 transition-colors disabled:opacity-40"
+                    :disabled="setToday.isPending.value"
+                    @click="saveDate"
+                  >Save</button>
+                  <button
+                    class="px-3 py-1 rounded border border-border font-cinzel text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                    @click="editingDate = false"
+                  >Cancel</button>
+                </div>
+              </template>
+            </div>
+
+            <div class="border-t border-border" />
+
+            <!-- Current Location -->
+            <div class="flex flex-col gap-1.5">
+              <p class="font-cinzel text-[10px] text-muted-foreground tracking-widest uppercase">Current Location</p>
+              <EntityCombobox
+                v-model="currentLocationId"
+                :options="locationOptions"
+                placeholder="Set location…"
+              />
+              <button
+                v-if="authStore.isDM && currentLocationId"
+                class="self-start font-cinzel text-[10px] text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 tracking-wider"
+                :disabled="syncLocation.isPending.value"
+                @click="syncLocationToParty"
+              >{{ syncLocation.isPending.value ? 'Syncing…' : 'Sync to party →' }}</button>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- DM tools: Unidentified + On Hold -->
+        <div class="flex flex-col gap-3">
+          <div v-if="unidentifiedItems.length" class="rounded-lg border border-amber-500/30 bg-card overflow-hidden">
+            <div class="flex items-center gap-2 px-4 py-2.5 border-b border-amber-500/20 bg-amber-500/5">
+              <h2 class="font-cinzel text-sm font-bold text-amber-500/90 tracking-wide">Unidentified</h2>
+              <span class="font-cinzel text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 border border-amber-500/30">{{ unidentifiedItems.length }}</span>
+            </div>
+            <div class="divide-y divide-border">
+              <div v-for="entry in unidentifiedItems" :key="entry.inv.id" class="flex items-center gap-3 px-4 py-2.5">
+                <div class="min-w-0 flex-1">
+                  <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ entry.inv.name }}</p>
+                  <p class="font-fell text-xs text-muted-foreground italic">{{ entry.carrier ?? "Party stash" }}</p>
+                </div>
+                <button
+                  class="shrink-0 px-2.5 py-1 rounded font-cinzel text-[10px] tracking-wider border border-amber-500/50 text-amber-500 hover:bg-amber-500/10 transition-colors cursor-pointer"
+                  @click="identifyItem(entry.inv.id)"
+                >Identify</button>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="onHoldQuests.length" class="rounded-lg border border-border bg-card overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20">
+              <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
+                Rumors <span class="font-fell font-normal text-xs text-muted-foreground">({{ onHoldQuests.length }})</span>
+              </h2>
+              <RouterLink to="/quests" class="font-cinzel text-[10px] font-semibold text-primary tracking-wider hover:opacity-80">Quest log →</RouterLink>
+            </div>
+            <div class="flex flex-wrap gap-2 px-4 py-3">
+              <RouterLink
+                v-for="quest in onHoldQuests"
+                :key="quest.id"
+                :to="`/quests/${quest.id}`"
+                class="inline-flex items-center gap-1.5 rounded border border-border bg-muted/30 px-2 py-1 font-fell text-xs text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+              >
+                <span class="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+                {{ quest.title || "Untitled" }}
+              </RouterLink>
+            </div>
+          </div>
+
+          <div v-if="!unidentifiedItems.length && !onHoldQuests.length" class="rounded-lg border border-border bg-card/50 px-4 py-6 text-center">
+            <p class="font-fell text-sm text-muted-foreground/50 italic">No pending items.</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── Recent NPCs ──────────────────────────────────────────────────── -->
+      <div v-if="recentNpcs.length" class="rounded-lg border border-border bg-card overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20">
+          <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">Recent NPCs</h2>
+          <RouterLink to="/npcs" class="font-cinzel text-[10px] font-semibold text-primary tracking-wider hover:opacity-80">All NPCs →</RouterLink>
+        </div>
+        <div class="flex gap-4 overflow-x-auto px-4 py-3" style="scrollbar-width: none">
           <RouterLink
-            v-for="note in dashboardNotes"
+            v-for="npc in recentNpcs"
+            :key="npc.id"
+            :to="`/npcs/${npc.id}`"
+            class="flex flex-col items-center gap-1.5 shrink-0 w-14 group"
+          >
+            <div class="h-12 w-12 rounded-full overflow-hidden bg-secondary ring-2 ring-transparent group-hover:ring-primary/40 transition-all">
+              <FocalImage :src="npc.portrait_url" :focal-point="npc.portrait_focal_point ?? null" format="token" :alt="npc.name" placeholder="/assets/placeholders/npc.webp" />
+            </div>
+            <p class="font-fell text-[11px] text-center text-muted-foreground group-hover:text-foreground transition-colors line-clamp-2 leading-tight w-full">{{ npc.name }}</p>
+          </RouterLink>
+        </div>
+      </div>
+
+      <!-- ── Pinned Notes ─────────────────────────────────────────────────── -->
+      <div v-if="pinnedNotes.length" class="rounded-lg border border-border bg-card overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20">
+          <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">Pinned Notes</h2>
+          <RouterLink to="/notes" class="font-cinzel text-[10px] font-semibold text-primary tracking-wider hover:opacity-80">All notes →</RouterLink>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-border">
+          <RouterLink
+            v-for="note in pinnedNotes.slice(0, 4)"
             :key="note.id"
             :to="`/notes/${note.id}`"
-            class="flex flex-col gap-1.5 px-4 py-3 hover:bg-muted/30 transition-colors group"
+            class="bg-card flex flex-col gap-1.5 px-4 py-3 hover:bg-muted/30 transition-colors group"
           >
-            <div class="flex items-start gap-2">
-              <IconPin v-if="note.is_pinned" class="h-3 w-3 text-gold-500 mt-0.5 shrink-0" />
-              <p class="font-cinzel text-sm font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-1">
-                {{ note.title || "Untitled" }}
-              </p>
+            <div class="flex items-start gap-1.5">
+              <IconPin class="h-3 w-3 text-gold-500 mt-0.5 shrink-0" />
+              <p class="font-cinzel text-sm font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-1">{{ note.title || "Untitled" }}</p>
             </div>
-            <p v-if="note.category" class="font-fell text-[11px] text-muted-foreground italic capitalize">
-              {{ note.category.replace(/_/g, " ") }}
-            </p>
-            <p v-if="notePreview(note)" class="font-fell text-xs text-muted-foreground line-clamp-2">
-              {{ notePreview(note) }}
-            </p>
+            <p v-if="note.category" class="font-fell text-[11px] text-muted-foreground italic capitalize">{{ note.category.replace(/_/g, " ") }}</p>
+            <p v-if="notePreview(note)" class="font-fell text-xs text-muted-foreground line-clamp-2">{{ notePreview(note) }}</p>
           </RouterLink>
         </div>
       </div>
 
-      <!-- Unidentified Items (foldable, DM only) -->
-      <div v-if="unidentifiedItems.length" class="rounded-lg border border-amber-500/30 bg-card overflow-hidden">
-        <button
-          class="w-full flex items-center justify-between px-4 py-3 border-b border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 transition-colors"
-          @click="unidentifiedOpen = !unidentifiedOpen"
+      <!-- ── Stats strip ──────────────────────────────────────────────────── -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border rounded-lg overflow-hidden border border-border">
+        <RouterLink
+          v-for="stat in stats"
+          :key="stat.label"
+          :to="stat.to"
+          class="bg-card flex items-center gap-2.5 px-4 py-3 hover:bg-muted/20 transition-colors"
         >
-          <div class="flex items-center gap-2">
-            <h2 class="font-cinzel text-sm font-bold text-amber-500/90 tracking-wide">Unidentified Items</h2>
-            <span class="font-cinzel text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 border border-amber-500/30">
-              {{ unidentifiedItems.length }}
-            </span>
-          </div>
-          <IconChevronDown
-            class="h-4 w-4 text-amber-500/70 transition-transform"
-            :class="unidentifiedOpen ? 'rotate-180' : ''"
-          />
-        </button>
-
-        <div v-if="unidentifiedOpen" class="divide-y divide-border">
-          <div
-            v-for="entry in unidentifiedItems"
-            :key="entry.inv.id"
-            class="flex items-center gap-3 px-4 py-3"
-          >
-            <div class="min-w-0 flex-1">
-              <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ entry.inv.name }}</p>
-              <p class="font-fell text-xs text-muted-foreground italic truncate">
-                {{ entry.carrier ?? "Party stash" }}
-              </p>
-            </div>
-            <button
-              class="shrink-0 px-3 py-1 rounded-md font-cinzel text-[10px] tracking-wider border border-amber-500/50 text-amber-500 hover:bg-amber-500/10 transition-colors cursor-pointer"
-              @click="identifyItem(entry.inv.id)"
-            >Identify</button>
-          </div>
-        </div>
+          <component :is="stat.icon" class="h-4 w-4 text-muted-foreground/50 shrink-0" />
+          <span class="font-fell text-sm text-muted-foreground">{{ stat.label }}</span>
+          <span class="ml-auto font-cinzel text-sm font-bold text-foreground">{{ stat.value }}</span>
+        </RouterLink>
       </div>
 
-      <!-- Rumor quests chip strip -->
-      <div v-if="rumorQuests.length" class="rounded-lg border border-border bg-card overflow-hidden">
-        <div class="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/20">
-          <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
-            Rumors
-            <span class="font-fell font-normal text-xs text-muted-foreground ml-1">({{ rumorQuests.length }})</span>
-          </h2>
-          <RouterLink to="/quests" class="font-cinzel text-[10px] font-semibold text-primary tracking-wider hover:opacity-80 transition-opacity">
-            Quest log →
-          </RouterLink>
-        </div>
-        <div class="flex flex-wrap gap-2 px-4 py-3">
-          <RouterLink
-            v-for="quest in rumorQuests"
-            :key="quest.id"
-            :to="`/quests/${quest.id}`"
-            class="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2.5 py-1 font-fell text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
-          >
-            <span class="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
-            {{ quest.title || "Untitled Quest" }}
-          </RouterLink>
-        </div>
-      </div>
     </div>
   </PageHeader>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import { IconChevronDown, IconChevronRight, IconEncounter, IconLive, IconLocation, IconMind, IconParty, IconPin, IconPopulate, IconReveal, IconScrollText, IconShield } from '@/lib/icons';
+import { computed, ref, reactive } from "vue";
+import {
+  IconEncounter, IconLive, IconLocation, IconMind, IconParty,
+  IconPin, IconReveal, IconScrollText, IconShield,
+} from "@/lib/icons";
 import { useRunningEncounters } from "@/composables/useEncounterLive";
-import PageHeader from "@/components/common/PageHeader.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import StatCard from "@/components/common/StatCard.vue";
-import { extractTiptapText } from "@/lib/utils";
 import { useAllQuests } from "@/composables/useQuests";
 import { useParty } from "@/composables/useParty";
 import { useSpeciesNameMap } from "@/composables/useSpecies";
@@ -331,20 +334,47 @@ import { useEncounters } from "@/composables/useEncounters";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
 import { usePartyInventory, useUpdateInventoryItem, useInventoryLive } from "@/composables/usePartyInventory";
+import { useSetCampaignToday, useSetCampaignLocation } from "@/composables/useCampaigns";
+import { useSyncPartyLocation } from "@/composables/useParty";
+import { useRecentNpcs } from "@/composables/useRecentNpcs";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
+import { useCalendarStore } from "@/stores/calendar";
+import PageHeader from "@/components/common/PageHeader.vue";
+import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import FocalImage from "@/components/common/FocalImage.vue";
+import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import DmTrackerButtons from "@/components/rules/DmTrackerButtons.vue";
+import { extractTiptapText } from "@/lib/utils";
 import type { Note } from "@/types/notes.types";
 import type { Quest } from "@/types/quest.types";
 import type { PartyMember } from "@/types/party.types";
 
-const authStore    = useAuthStore();
+const authStore     = useAuthStore();
 const campaignStore = useCampaignStore();
+const calendarStore = useCalendarStore();
 
 const { data: allQuests,  isLoading: questsLoading } = useAllQuests();
 const { data: party,      isLoading: partyLoading }  = useParty();
+const { data: notes }      = useNotes();
+const { data: npcs }       = useNpcs();
+const { data: locations }  = useAllLocations();
+const { data: encounters } = useEncounters();
+const { data: campaignMembers } = useCampaignMembers();
+const { isOnline } = useCampaignPresence();
+const { data: inventory } = usePartyInventory();
+useInventoryLive();
+const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
 const speciesNameMap = useSpeciesNameMap();
 const { data: allCharacterClasses } = useAllCampaignCharacterClasses();
+
+const setToday       = useSetCampaignToday();
+const setLocation    = useSetCampaignLocation();
+const syncLocation   = useSyncPartyLocation();
+const { recentIds: recentNpcIds } = useRecentNpcs();
+
+// ── Party helpers ─────────────────────────────────────────────────────────────
+
 const classesByMember = computed(() => {
   const m = new Map<string, CharacterClass[]>();
   for (const cc of allCharacterClasses.value ?? []) {
@@ -354,50 +384,31 @@ const classesByMember = computed(() => {
   }
   return m;
 });
+
 function memberClassLabel(memberId: string, legacyClass: string | null): string {
   const list = classesByMember.value.get(memberId) ?? [];
   if (list.length > 1) return formatMulticlassLabel(list);
   if (list.length === 1) return list[0].class_name;
   return legacyClass ?? "";
 }
+
 function memberLevelDisplay(memberId: string, legacyLevel: number): number {
   const list = classesByMember.value.get(memberId) ?? [];
   return list.length > 0 ? totalLevel(list) : legacyLevel;
 }
-const { data: notes,      isLoading: notesLoading }  = useNotes();
-const { data: npcs }      = useNpcs();
-const { data: locations } = useAllLocations();
-const { data: encounters } = useEncounters();
-const { data: campaignMembers } = useCampaignMembers();
-const { isOnline } = useCampaignPresence();
-const { data: inventory } = usePartyInventory();
-useInventoryLive();
-const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
 
-const activeQuests = computed(() => (allQuests.value ?? []).filter((q) => q.status === "active"));
-const rumorQuests = computed(() => (allQuests.value ?? []).filter((q) => q.status === "rumor"));
+function memberSubtitle(member: PartyMember): string {
+  const lvl = memberLevelDisplay(member.id, member.level);
+  return [
+    speciesNameMap.value.get(member.species_id ?? ""),
+    memberClassLabel(member.id, member.class),
+    lvl ? `Lvl ${lvl}` : null,
+  ].filter(Boolean).join(" · ") || "—";
+}
 
-const pinnedNotes = computed(() => (notes.value ?? []).filter((n) => n.is_pinned));
-
-const dashboardNotes = computed(() => {
-  const all = [...(notes.value ?? [])];
-  all.sort((a, b) => {
-    if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
-    return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
-  });
-  return all.slice(0, 8);
-});
-
-const stats = computed(() => [
-  { label: "Active Quests", value: activeQuests.value.length || "—", icon: IconScrollText, to: "/quests" },
-  { label: "NPCs",          value: npcs.value?.length ?? "—",        icon: IconParty,      to: "/npcs" },
-  { label: "Encounters",    value: encounters.value?.length ?? "—",  icon: IconEncounter,     to: "/encounters" },
-  { label: "Locations",     value: locations.value?.length ?? "—",   icon: IconLocation,     to: "/locations" },
-]);
-
-function giverName(quest: Quest): string {
-  if (!quest.giver_npc_id) return "";
-  return (npcs.value ?? []).find((n) => n.id === quest.giver_npc_id)?.name ?? "";
+function partyMemberOnline(partyMemberId: string): boolean {
+  const m = (campaignMembers.value ?? []).find((cm) => cm.party_member_id === partyMemberId);
+  return m ? isOnline(m.user_id) : false;
 }
 
 function hpColor(current: number, max: number): string {
@@ -416,9 +427,7 @@ function hpBarColor(current: number, max: number): string {
   return "bg-green-500";
 }
 
-function abilityMod(score: number): number {
-  return Math.floor((score - 10) / 2);
-}
+function abilityMod(score: number): number { return Math.floor((score - 10) / 2); }
 
 function skillBonus(member: PartyMember, skill: "perception" | "insight"): number {
   const wisMod = abilityMod(member.wis);
@@ -428,41 +437,123 @@ function skillBonus(member: PartyMember, skill: "perception" | "insight"): numbe
   return wisMod;
 }
 
-function passivePerception(member: PartyMember): number {
-  return 10 + skillBonus(member, "perception");
-}
+function passivePerception(member: PartyMember): number { return 10 + skillBonus(member, "perception"); }
+function passiveInsight(member: PartyMember): number    { return 10 + skillBonus(member, "insight"); }
 
-function passiveInsight(member: PartyMember): number {
-  return 10 + skillBonus(member, "insight");
-}
-
-function notePreview(note: Note): string {
-  return extractTiptapText(note.content, 120);
-}
-
-function partyMemberOnline(partyMemberId: string): boolean {
-  const member = (campaignMembers.value ?? []).find((m) => m.party_member_id === partyMemberId);
-  if (!member) return false;
-  return isOnline(member.user_id);
-}
+// ── Encounter ─────────────────────────────────────────────────────────────────
 
 const { anyRunning, firstRunning } = useRunningEncounters();
 
-// Unidentified items panel
-const unidentifiedOpen = ref(true);
+// ── Quests ────────────────────────────────────────────────────────────────────
+
+const activeQuests = computed(() => (allQuests.value ?? []).filter((q) => q.status === "active"));
+const onHoldQuests = computed(() => (allQuests.value ?? []).filter((q) => q.status === "rumor"));
+
+function giverName(quest: Quest): string {
+  if (!quest.giver_npc_id) return "";
+  return (npcs.value ?? []).find((n) => n.id === quest.giver_npc_id)?.name ?? "";
+}
+
+// ── Game Day ──────────────────────────────────────────────────────────────────
+
+const calendarMonths = computed(() => calendarStore.adapter.months);
+
+const todayFormatted = computed(() => {
+  const monthName = calendarMonths.value[campaignStore.todayMonth - 1]?.name ?? "";
+  return `${campaignStore.todayDay} ${monthName}, ${campaignStore.todayYear} DR`;
+});
+
+const editingDate = ref(false);
+const dateForm = reactive({ year: 1495, month: 1, day: 1 });
+
+const maxDayInSelectedMonth = computed(() => calendarMonths.value[dateForm.month - 1]?.days ?? 30);
+
+function openDateEdit() {
+  dateForm.year  = campaignStore.todayYear;
+  dateForm.month = campaignStore.todayMonth;
+  dateForm.day   = campaignStore.todayDay;
+  editingDate.value = true;
+}
+
+function advanceDay(delta: 1 | -1) {
+  if (!campaignStore.activeCampaignId) return;
+  const months = calendarMonths.value;
+  let year  = campaignStore.todayYear;
+  let month = campaignStore.todayMonth;
+  let day   = campaignStore.todayDay + delta;
+  const daysInMonth = months[month - 1]?.days ?? 30;
+  if (day > daysInMonth) {
+    day = 1;
+    month++;
+    if (month > months.length) { month = 1; year++; }
+  } else if (day < 1) {
+    month--;
+    if (month < 1) { month = months.length; year--; }
+    day = months[month - 1]?.days ?? 30;
+  }
+  setToday.mutate({ id: campaignStore.activeCampaignId, year, month, day });
+}
+
+function saveDate() {
+  if (!campaignStore.activeCampaignId) return;
+  setToday.mutate({ id: campaignStore.activeCampaignId, year: dateForm.year, month: dateForm.month, day: dateForm.day });
+  editingDate.value = false;
+}
+
+// ── Current Location ──────────────────────────────────────────────────────────
+
+const locationOptions = computed(() =>
+  (locations.value ?? []).map((l) => ({ id: l.id, name: l.name })),
+);
+
+const currentLocationId = computed({
+  get: () => campaignStore.activeCampaign?.current_location_id ?? "",
+  set: (val: string) => {
+    if (!campaignStore.activeCampaignId) return;
+    setLocation.mutate({ id: campaignStore.activeCampaignId, locationId: val || null });
+  },
+});
+
+// ── Recent NPCs ───────────────────────────────────────────────────────────────
+
+const recentNpcs = computed(() => {
+  const npcMap = new Map((npcs.value ?? []).map((n) => [n.id, n]));
+  return recentNpcIds.value.map((id) => npcMap.get(id)).filter((n): n is NonNullable<typeof n> => n != null);
+});
+
+// ── Location sync ─────────────────────────────────────────────────────────────
+
+function syncLocationToParty() {
+  const memberIds = (party.value ?? []).map((m) => m.id);
+  const locationId = campaignStore.activeCampaign?.current_location_id ?? null;
+  syncLocation.mutate({ memberIds, locationId });
+}
+
+// ── Notes ─────────────────────────────────────────────────────────────────────
+
+const pinnedNotes = computed(() => (notes.value ?? []).filter((n) => n.is_pinned));
+
+function notePreview(note: Note): string { return extractTiptapText(note.content, 120); }
+
+// ── Inventory ─────────────────────────────────────────────────────────────────
 
 const unidentifiedItems = computed(() => {
-  const inv = inventory.value ?? [];
-  const memberNames = new Map((party.value ?? []).map(m => [m.id, m.name]));
-  return inv
+  const memberNames = new Map((party.value ?? []).map((m) => [m.id, m.name]));
+  return (inventory.value ?? [])
     .filter((i) => i.is_identified === false)
-    .map((i) => ({
-      inv: i,
-      carrier: i.carried_by ? (memberNames.get(i.carried_by) ?? null) : null,
-    }));
+    .map((i) => ({ inv: i, carrier: i.carried_by ? (memberNames.get(i.carried_by) ?? null) : null }));
 });
 
 async function identifyItem(invId: string) {
   await updateInventoryItem({ id: invId, update: { is_identified: true } });
 }
+
+// ── Stats strip ───────────────────────────────────────────────────────────────
+
+const stats = computed(() => [
+  { label: "Active Quests", value: activeQuests.value.length || "—", icon: IconScrollText, to: "/quests" },
+  { label: "NPCs",          value: npcs.value?.length ?? "—",        icon: IconParty,      to: "/npcs" },
+  { label: "Encounters",    value: encounters.value?.length ?? "—",  icon: IconEncounter,  to: "/encounters" },
+  { label: "Locations",     value: locations.value?.length ?? "—",   icon: IconLocation,   to: "/locations" },
+]);
 </script>

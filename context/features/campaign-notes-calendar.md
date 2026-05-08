@@ -1,5 +1,32 @@
 # Campaign Notes & Calendar
 
+## Dashboard (`src/views/DashboardView.vue`)
+
+Primary play-time screen. Layout (top → bottom):
+
+1. **Encounter banner** — live green bar when a run is active; links to runner.
+2. **Party grid** — full-width, responsive `grid-cols-1 md:grid-cols-2 xl:grid-cols-3`. Each card: `FocalImage format="token"` portrait (placeholder `/assets/placeholders/character.webp`), HP bar, AC/PP/PI badges, conditions/curses, DM tracker buttons. Online dot via `useCampaignPresence`.
+3. **3-col row**:
+   - *Active Quests* — compact list (title + giver, max 6), no tags/summary.
+   - *Session panel* — Game Day inline editor (`useSetCampaignToday` — `± Day` buttons + arbitrary date form using `calendarStore.adapter.months`); Current Location `EntityCombobox` (`useSetCampaignLocation` → `campaigns.current_location_id`); DM-only "Sync to party →" button (`useSyncPartyLocation` — batch updates all `party_members.current_location_id`).
+   - *DM tools* — Unidentified items (amber, always open) + Rumour quests (chip strip).
+4. **Recent NPCs strip** — horizontal scrollable row of up to 10 NPCs in visit order. Driven by `useRecentNpcs` composable (localStorage key `grimoire_recent_npcs_<campaignId>`, cap 10, per-campaign). Visit recorded in `NpcDetailView` via `watch(id)`.
+5. **Pinned Notes** — only `is_pinned` notes, max 4, hidden when none.
+6. **Stats strip** — slim 4-item row (Active Quests / NPCs / Encounters / Locations) linking to each list view.
+
+### Key composables used
+
+- `useRecentNpcs` — `src/composables/useRecentNpcs.ts` — module-level singleton, localStorage-backed.
+- `useSetCampaignToday` / `useSetCampaignLocation` — `src/composables/useCampaigns.ts`.
+- `useSyncPartyLocation` — `src/composables/useParty.ts` — batch `UPDATE party_members SET current_location_id WHERE id IN (...)`.
+
+### campaigns table additions (migration `20260508000008`)
+
+- `current_location_id uuid REFERENCES locations(id) ON DELETE SET NULL`
+- (`current_month`, `current_day` were already present; migration uses `IF NOT EXISTS`.)
+
+---
+
 ## Working on this feature? Start here
 
 Read these five files first — they cover the entire data and component surface:
