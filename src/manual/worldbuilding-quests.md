@@ -11,20 +11,20 @@ keywords: quest, quests, kanban, objectives, reward, trigger, consequence, sub-q
 
 The Quest Log supports two views, togglable from the toolbar:
 
-- **Kanban board** — drag cards between columns to update their status. Columns are Undiscovered, Active, On Hold, Completed, and Failed.
+- **Kanban board** — drag cards between columns to update their status. Columns flow left to right: Undiscovered → Rumor → Active → Completed / Failed.
 - **List view** — compact table; useful when you have many quests.
 
 Your view preference persists for the session.
 
 ## Quest statuses
 
-| Status       | When to use                                  |
-| ------------ | -------------------------------------------- |
-| Undiscovered | The party doesn't know this quest exists yet |
-| Active       | The party is currently pursuing it           |
-| On Hold      | Paused — waiting on something                |
-| Completed    | Done successfully                            |
-| Failed       | Failed or abandoned                          |
+| Status       | When to use                                        |
+| ------------ | -------------------------------------------------- |
+| Undiscovered | The DM has noted it but the party has no knowledge |
+| Rumor        | The party has heard whispers but hasn't taken it   |
+| Active       | The party is currently pursuing it                 |
+| Completed    | Done successfully                                  |
+| Failed       | Failed or abandoned                                |
 
 ## Creating a quest
 

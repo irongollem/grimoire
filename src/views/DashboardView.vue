@@ -283,12 +283,12 @@
         </div>
       </div>
 
-      <!-- On Hold quests chip strip -->
-      <div v-if="onHoldQuests.length" class="rounded-lg border border-border bg-card overflow-hidden">
+      <!-- Rumor quests chip strip -->
+      <div v-if="rumorQuests.length" class="rounded-lg border border-border bg-card overflow-hidden">
         <div class="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/20">
           <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
-            On Hold
-            <span class="font-fell font-normal text-xs text-muted-foreground ml-1">({{ onHoldQuests.length }})</span>
+            Rumors
+            <span class="font-fell font-normal text-xs text-muted-foreground ml-1">({{ rumorQuests.length }})</span>
           </h2>
           <RouterLink to="/quests" class="font-cinzel text-[10px] font-semibold text-primary tracking-wider hover:opacity-80 transition-opacity">
             Quest log →
@@ -296,7 +296,7 @@
         </div>
         <div class="flex flex-wrap gap-2 px-4 py-3">
           <RouterLink
-            v-for="quest in onHoldQuests"
+            v-for="quest in rumorQuests"
             :key="quest.id"
             :to="`/quests/${quest.id}`"
             class="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2.5 py-1 font-fell text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
@@ -375,7 +375,7 @@ useInventoryLive();
 const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
 
 const activeQuests = computed(() => (allQuests.value ?? []).filter((q) => q.status === "active"));
-const onHoldQuests = computed(() => (allQuests.value ?? []).filter((q) => q.status === "on_hold"));
+const rumorQuests = computed(() => (allQuests.value ?? []).filter((q) => q.status === "rumor"));
 
 const pinnedNotes = computed(() => (notes.value ?? []).filter((n) => n.is_pinned));
 

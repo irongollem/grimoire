@@ -1026,7 +1026,7 @@ function monsterRefName(id: string): string {
 // ── Form state ─────────────────────────────────────────────────────────────────
 const title = ref(props.quest?.title ?? "");
 const summary = ref(props.quest?.summary ?? "");
-const status = ref<QuestStatus>(props.quest?.status ?? "active");
+const status = ref<QuestStatus>(props.quest?.status ?? "undiscovered");
 const giverNpcId = ref(props.quest?.giver_npc_id ?? "");
 const locationId = ref(props.quest?.location_id ?? "");
 const parentQuestId = ref(props.quest?.parent_quest_id ?? props.parentId ?? "");

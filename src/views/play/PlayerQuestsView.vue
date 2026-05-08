@@ -82,7 +82,7 @@ const { isNew } = useReadItems("quest");
 
 const groups = computed<[string, Quest[]][]>(() => [
   ["Active", (quests.value ?? []).filter((q) => q.status === "active")],
-  ["On Hold", (quests.value ?? []).filter((q) => q.status === "on_hold")],
+  ["Rumor", (quests.value ?? []).filter((q) => q.status === "rumor")],
   ["Completed", (quests.value ?? []).filter((q) => q.status === "completed")],
   ["Failed", (quests.value ?? []).filter((q) => q.status === "failed")],
 ]);

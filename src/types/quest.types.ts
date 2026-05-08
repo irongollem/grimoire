@@ -1,30 +1,30 @@
 export type QuestStatus =
   | "undiscovered"
+  | "rumor"
   | "active"
-  | "on_hold"
   | "completed"
   | "failed";
 
 export const QUEST_STATUSES: QuestStatus[] = [
   "undiscovered",
+  "rumor",
   "active",
-  "on_hold",
   "completed",
   "failed",
 ];
 
 export const QUEST_STATUS_LABELS: Record<QuestStatus, string> = {
   undiscovered: "Undiscovered",
+  rumor: "Rumor",
   active: "Active",
-  on_hold: "On Hold",
   completed: "Completed",
   failed: "Failed",
 };
 
 export const QUEST_STATUS_COLORS: Record<QuestStatus, string> = {
   undiscovered: "#9ca3af",
+  rumor: "#ca8a04",
   active: "#16a34a",
-  on_hold: "#ca8a04",
   completed: "#0284c7",
   failed: "#dc2626",
 };
