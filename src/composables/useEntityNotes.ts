@@ -30,6 +30,7 @@ export function useCreateEntityNote() {
       entity_id: string;
       content: string;
       is_private: boolean;
+      shared_with_dm?: boolean;
       campaign_id?: string | null;
     }) => {
       const user = getCurrentUser();
@@ -53,18 +54,20 @@ export function useUpdateEntityNote() {
       id,
       content,
       is_private,
+      shared_with_dm,
       entity_type: _et,
       entity_id: _ei,
     }: {
       id: string;
       content: string;
       is_private: boolean;
+      shared_with_dm?: boolean;
       entity_type: string;
       entity_id: string;
     }) => {
       const { error } = await supabase
         .from("entity_notes")
-        .update({ content, is_private })
+        .update({ content, is_private, ...(shared_with_dm !== undefined && { shared_with_dm }) })
         .eq("id", id);
       if (error) throw error;
     },

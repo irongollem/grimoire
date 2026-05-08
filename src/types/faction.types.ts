@@ -153,6 +153,7 @@ export interface EntityNote {
   entity_id: string;
   content: string | null;
   is_private: boolean;
+  shared_with_dm: boolean;
   created_at: string;
   updated_at: string;
 }

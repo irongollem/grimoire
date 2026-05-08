@@ -185,122 +185,11 @@
     </div>
   </div>
 
-  <!-- New Campaign modal -->
-  <Teleport to="body">
-    <div
-      v-if="showModal"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-      @click.self="closeModal"
-    >
-      <div class="bg-card border border-border rounded-lg w-full max-w-md shadow-xl">
-        <div class="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h2 class="font-cinzel text-lg font-bold text-foreground">New Campaign</h2>
-          <button
-            class="text-muted-foreground hover:text-foreground transition-colors text-xl leading-none"
-            @click="closeModal"
-          >
-            ✕
-          </button>
-        </div>
-
-        <form class="px-5 py-4 space-y-4 max-h-[70vh] overflow-y-auto" @submit.prevent="submitForm">
-          <div>
-            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">NAME</label>
-            <input
-              v-model="form.name"
-              required
-              type="text"
-              placeholder="The Lost Mine of Phandelver…"
-              class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-          </div>
-
-          <div>
-            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">WORLD</label>
-            <input
-              v-model="form.setting"
-              list="campaign-settings-list"
-              type="text"
-              placeholder="Forgotten Realms, Eberron, Homebrew…"
-              class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-            <datalist id="campaign-settings-list">
-              <option value="Forgotten Realms" />
-              <option value="Eberron" />
-              <option value="Ravenloft" />
-              <option value="Dragonlance" />
-              <option value="Greyhawk" />
-              <option value="Planescape" />
-              <option value="Spelljammer" />
-              <option value="Dark Sun" />
-              <option value="Mystara" />
-              <option value="Homebrew" />
-            </datalist>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">SETTING</label>
-              <select
-                v-model="form.calendar_id"
-                class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                @change="onCalendarChange"
-              >
-                <option v-for="cal in availableCalendars" :key="cal.id" :value="cal.id">{{ cal.name }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">CURRENT YEAR</label>
-              <input
-                v-model.number="form.current_year"
-                type="number"
-                min="1"
-                class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-            </div>
-          </div>
-
-          <!-- Claim existing data — only shown when creating the first campaign -->
-          <div
-            v-if="isFirstCampaign"
-            class="rounded-md border border-border bg-muted/50 px-3 py-2.5"
-          >
-            <label class="flex items-start gap-2.5 cursor-pointer">
-              <input
-                v-model="claimExisting"
-                type="checkbox"
-                class="mt-0.5 w-4 h-4 rounded border-border accent-primary shrink-0"
-              />
-              <div>
-                <span class="font-fell text-sm text-foreground">Import existing data</span>
-                <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
-                  Assign your existing notes, NPCs, party members, calendar events, and encounters to this campaign.
-                </p>
-              </div>
-            </label>
-          </div>
-
-          <div class="flex justify-end gap-2 pt-1">
-            <button
-              type="button"
-              class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
-              @click="closeModal"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              :disabled="isSaving"
-              class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-            >
-              {{ isSaving ? "Saving…" : "Create Campaign" }}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </Teleport>
-
+  <NewCampaignModal
+    v-model="showModal"
+    :show-claim-option="isFirstCampaign"
+    @created="onCampaignCreated"
+  />
   <PaywallModal v-model="showPaywall" resource="campaigns" />
   <ImportBackupModal v-model="showImport" />
 </template>
@@ -309,22 +198,20 @@
 import { ref, computed, watch } from "vue";
 import { IconAdd, IconArchive, IconChevronDown, IconDownload, IconPopulate, IconSettingsAlt, IconUploadCloud } from '@/lib/icons';
 import ImportBackupModal from "@/components/campaign/ImportBackupModal.vue";
+import NewCampaignModal from "@/components/campaign/NewCampaignModal.vue";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
 import { useAuthStore } from "@/stores/auth";
 import {
   useCampaigns,
   useArchivedCampaigns,
-  useCreateCampaign,
   useClaimOrphanedData,
   useRestoreCampaign,
 } from "@/composables/useCampaigns";
 import { useCampaignStore } from "@/stores/campaign";
-import { listCalendarAdapters, getCalendarAdapter } from "@/calendars/index";
-import { getSetting, listSettings } from "@/settings/index";
+import { getCalendarAdapter } from "@/calendars/index";
 import type { Campaign } from "@/types/campaign.types";
 import { useQuota } from "@/composables/useQuota";
 import PaywallModal from "@/components/common/PaywallModal.vue";
-import { isQuotaExceeded } from "@/lib/quotaError";
 
 const campaignStore = useCampaignStore();
 const { onlineUsers } = useCampaignPresence();
@@ -337,7 +224,6 @@ const onlineCount = computed(() => {
 
 const { data: campaignList, isLoading: campaignsLoading } = useCampaigns();
 const { data: archivedList } = useArchivedCampaigns();
-const { mutateAsync: createCampaign, isPending: isSaving } = useCreateCampaign();
 const { mutateAsync: claimOrphans, isPending: isClaiming } = useClaimOrphanedData();
 const { mutateAsync: restoreCampaign, isPending: isRestoring } = useRestoreCampaign();
 
@@ -347,17 +233,6 @@ const activeCampaign = computed(() => campaignStore.activeCampaign);
 const showArchived = ref(false);
 
 const isFirstCampaign = computed(() => campaigns.value.length === 0);
-const claimExisting = ref(true);
-
-const availableCalendars = listCalendarAdapters();
-const defaultCalendar = availableCalendars[0];
-
-const form = ref({
-  name: "",
-  setting: "",
-  calendar_id: defaultCalendar?.id ?? "faerun",
-  current_year: defaultCalendar?.defaultYear ?? 1495,
-});
 
 const open = ref(false);
 const showModal = ref(false);
@@ -392,52 +267,11 @@ function select(campaign: Campaign) {
 function startCreate() {
   open.value = false;
   if (!canCreateCampaign.value) { showPaywall.value = true; return; }
-  form.value = {
-    name: "",
-    setting: "",
-    calendar_id: defaultCalendar?.id ?? "faerun",
-    current_year: defaultCalendar?.defaultYear ?? 1495,
-  };
   showModal.value = true;
 }
 
-function closeModal() {
-  showModal.value = false;
-}
-
-function onCalendarChange() {
-  form.value.current_year = getCalendarAdapter(form.value.calendar_id).defaultYear;
-  const newLabel = getSetting(form.value.calendar_id)?.label ?? "";
-  const knownLabels = new Set(listSettings().map((s) => s.label));
-  if (newLabel && (!form.value.setting || knownLabels.has(form.value.setting))) {
-    form.value.setting = newLabel;
-  }
-}
-
-async function submitForm() {
-  try {
-    const created = await createCampaign({
-      name: form.value.name,
-      setting: form.value.setting || "Custom Setting",
-      calendar_id: form.value.calendar_id,
-      current_year: form.value.current_year,
-      theme: "grimoire",
-      health_visibility: "strategic",
-      immersive_rolls: false,
-      description: null,
-      spotify_client_id: null,
-      is_archived: false,
-      ai_enabled: true,
-    });
-    if (isFirstCampaign.value && claimExisting.value) {
-      await claimOrphans(created.id);
-    }
-    campaignStore.switchToCampaign(created);
-    closeModal();
-  } catch (e: unknown) {
-    if (isQuotaExceeded(e)) { closeModal(); showPaywall.value = true; return; }
-    throw e;
-  }
+function onCampaignCreated(campaign: Campaign) {
+  campaignStore.switchToCampaign(campaign);
 }
 
 async function claimForActive() {

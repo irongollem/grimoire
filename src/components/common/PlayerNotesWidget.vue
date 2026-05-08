@@ -4,10 +4,21 @@
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/20">
         <IconLock class="h-3 w-3 text-muted-foreground shrink-0" />
-        <div>
+        <div class="flex-1">
           <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">My Private Notes</span>
-          <span class="font-fell text-[10px] text-muted-foreground/50 italic ml-2">Only you can see this</span>
+          <span class="font-fell text-[10px] text-muted-foreground/50 italic ml-2">
+            {{ sharedWithDm ? 'Shared with your DM' : 'Only you can see this' }}
+          </span>
         </div>
+        <label class="flex items-center gap-1.5 cursor-pointer select-none shrink-0">
+          <input
+            type="checkbox"
+            class="rounded border-border accent-primary h-3 w-3"
+            :checked="sharedWithDm"
+            @change="toggleSharedWithDm"
+          />
+          <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground">Share with DM</span>
+        </label>
       </div>
       <RichTextEditor v-model="privateContent" :placeholder="placeholder" min-height="80px" :sticky-toolbar="false">
         <template #toolbar-end>
@@ -86,6 +97,29 @@
         </div>
       </div>
     </div>
+
+    <!-- Player insights shared with DM (only DMs can see these via RLS) -->
+    <div v-if="dmSharedNotes.length" class="rounded-lg border border-amber-500/30 bg-amber-500/5 overflow-hidden">
+      <div class="flex items-center gap-2 px-3 py-2 border-b border-amber-500/20 bg-amber-500/10">
+        <IconLock class="h-3 w-3 text-amber-500/70 shrink-0" />
+        <span class="font-cinzel text-xs font-semibold text-amber-600/80 dark:text-amber-400/80 tracking-wider">
+          Player Insights
+          <span class="font-fell font-normal text-amber-500/60"> · {{ dmSharedNotes.length }}</span>
+        </span>
+        <span class="font-fell text-[10px] text-amber-500/50 italic">Shared with you privately</span>
+      </div>
+      <div class="divide-y divide-amber-500/20">
+        <div v-for="note in dmSharedNotes" :key="note.id" class="px-3 py-2.5 space-y-1">
+          <p class="font-cinzel text-[10px] font-semibold text-amber-600/70 dark:text-amber-400/70 tracking-wider">
+            {{ authorName(note.user_id) }}
+          </p>
+          <RichTextViewer :content="note.content" />
+          <p class="font-cinzel text-[10px] text-muted-foreground/40 tracking-wider">
+            {{ note.updated_at?.slice(0, 10) }}
+          </p>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -103,25 +137,23 @@ import {
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 
-const props = withDefaults(defineProps<{
+const { entityType, entityId, placeholder = "Write your note…" } = defineProps<{
   entityType: string;
   entityId: string;
   placeholder?: string;
-}>(), {
-  placeholder: "Write your note…",
-});
+}>();
 
 const auth = useAuthStore();
 const myUserId = computed(() => auth.user?.id ?? "");
 
 const { displayNameFor: authorName } = useMemberByUserId();
 
-const { data: notes } = useEntityNotes(props.entityType, props.entityId);
+const { data: notes } = useEntityNotes(entityType, entityId);
 const createMut = useCreateEntityNote();
 const updateMut = useUpdateEntityNote();
 const deleteMut = useDeleteEntityNote();
 
-// Split notes into my-private, my-shared, others'-shared
+// Split notes into my-private, my-shared, others'-shared, dm-visible
 const myPrivateNote = computed(() =>
   notes.value?.find((n) => n.user_id === myUserId.value && n.is_private) ?? null,
 );
@@ -131,16 +163,29 @@ const mySharedNote = computed(() =>
 const othersNotes = computed(() =>
   (notes.value ?? []).filter((n) => n.user_id !== myUserId.value && !n.is_private),
 );
+// Notes that others shared with the DM — only visible to DMs via RLS
+const dmSharedNotes = computed(() =>
+  (notes.value ?? []).filter((n) => n.user_id !== myUserId.value && n.shared_with_dm),
+);
 
 // ── Private note state ─────────────────────────────────────────────────────────
-const privateContent = ref<string | null>(null);
-const privateSaving  = ref(false);
-const privateSaved   = ref(true);
+const privateContent  = ref<string | null>(null);
+const privateSaving   = ref(false);
+const privateSaved    = ref(true);
+const sharedWithDm    = ref(false);
 
 watch(myPrivateNote, (note) => {
-  if (note) privateContent.value = note.content;
+  if (note) {
+    privateContent.value = note.content;
+    sharedWithDm.value   = note.shared_with_dm;
+  }
 }, { immediate: true });
 watch(privateContent, () => { privateSaved.value = false; });
+
+function toggleSharedWithDm(e: Event) {
+  sharedWithDm.value = (e.target as HTMLInputElement).checked;
+  privateSaved.value = false;
+}
 
 async function savePrivate() {
   privateSaving.value = true;
@@ -150,15 +195,17 @@ async function savePrivate() {
         id: myPrivateNote.value.id,
         content: privateContent.value ?? "",
         is_private: true,
-        entity_type: props.entityType,
-        entity_id: props.entityId,
+        shared_with_dm: sharedWithDm.value,
+        entity_type: entityType,
+        entity_id: entityId,
       });
     } else {
       await createMut.mutateAsync({
-        entity_type: props.entityType,
-        entity_id: props.entityId,
+        entity_type: entityType,
+        entity_id: entityId,
         content: privateContent.value ?? "",
         is_private: true,
+        shared_with_dm: sharedWithDm.value,
       });
     }
     privateSaved.value = true;
@@ -171,10 +218,11 @@ async function clearPrivate() {
   if (!myPrivateNote.value) return;
   await deleteMut.mutateAsync({
     id: myPrivateNote.value.id,
-    entity_type: props.entityType,
-    entity_id: props.entityId,
+    entity_type: entityType,
+    entity_id: entityId,
   });
   privateContent.value = null;
+  sharedWithDm.value   = false;
   privateSaved.value   = true;
 }
 
@@ -196,13 +244,13 @@ async function saveShared() {
         id: mySharedNote.value.id,
         content: sharedContent.value ?? "",
         is_private: false,
-        entity_type: props.entityType,
-        entity_id: props.entityId,
+        entity_type: entityType,
+        entity_id: entityId,
       });
     } else {
       await createMut.mutateAsync({
-        entity_type: props.entityType,
-        entity_id: props.entityId,
+        entity_type: entityType,
+        entity_id: entityId,
         content: sharedContent.value ?? "",
         is_private: false,
       });
@@ -217,8 +265,8 @@ async function clearShared() {
   if (!mySharedNote.value) return;
   await deleteMut.mutateAsync({
     id: mySharedNote.value.id,
-    entity_type: props.entityType,
-    entity_id: props.entityId,
+    entity_type: entityType,
+    entity_id: entityId,
   });
   sharedContent.value = null;
   sharedSaved.value   = true;

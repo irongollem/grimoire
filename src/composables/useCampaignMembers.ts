@@ -40,6 +40,22 @@ async function removeMember(id: string): Promise<void> {
   if (error) throw error;
 }
 
+export function useMyMemberships() {
+  return useQuery({
+    queryKey: ["my-memberships"] as const,
+    queryFn: async () => {
+      const user = getCurrentUser();
+      if (!user) return [] as Pick<CampaignMember, "campaign_id" | "role">[];
+      const { data, error } = await supabase
+        .from("campaign_members")
+        .select("campaign_id,role")
+        .eq("user_id", user.id);
+      if (error) throw error;
+      return (data ?? []) as Pick<CampaignMember, "campaign_id" | "role">[];
+    },
+  });
+}
+
 export function useCampaignMembers() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
