@@ -124,22 +124,12 @@
                 <div class="portrait-cell">
                   <div class="portrait-inner" :class="isActive(combatant) ? 'portrait-active' : ''">
                     <FocalImage
-                      v-if="portraitSrc(combatant)"
-                      :src="portraitSrc(combatant)!"
+                      :src="portraitSrc(combatant) ?? undefined"
+                      :placeholder="combatant.type === 'player' ? '/assets/placeholders/character.webp' : combatant.npc_id ? '/assets/placeholders/npc.webp' : '/assets/placeholders/monster.webp'"
                       :alt="portraitAlt(combatant)"
                       :focal-point="portraitHasBeastImage(combatant) ? null : (combatant.portrait_focal_point ?? null)"
                       format="square"
                     />
-                    <div
-                      v-else
-                      class="portrait-initials"
-                      :style="{
-                        backgroundColor: combatant.type === 'player' ? 'rgba(99,102,241,0.2)' : 'rgba(120,53,15,0.2)',
-                        color: combatant.type === 'player' ? '#818cf8' : '#b45309',
-                      }"
-                    >
-                      {{ combatant.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase() }}
-                    </div>
                   </div>
                 </div>
 

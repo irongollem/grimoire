@@ -17,15 +17,12 @@
           :class="store.started && combatant.instance_id === store.activeCombatant?.instance_id ? 'avatar-active' : ''"
         >
           <FocalImage
-            v-if="wildshape?.beast_image_url ?? combatant.portrait_url"
-            :src="(wildshape?.beast_image_url ?? combatant.portrait_url)!"
+            :src="wildshape?.beast_image_url ?? combatant.portrait_url ?? undefined"
+            :placeholder="combatant.type === 'player' ? '/assets/placeholders/character.webp' : combatant.npc_id ? '/assets/placeholders/npc.webp' : '/assets/placeholders/monster.webp'"
             :alt="wildshape?.beast_name ?? combatant.name"
             :focal-point="wildshape?.beast_image_url ? null : (combatant.portrait_focal_point ?? null)"
             format="square"
           />
-          <div v-else class="avatar-initials" :style="{ backgroundColor: factionColor() + '44', color: factionColor() }">
-            {{ combatantInitials() }}
-          </div>
           <button
             v-if="combatant.type === 'monster'"
             type="button"
@@ -185,7 +182,6 @@ const {
   displayAc,
   displayConditions,
   pcConcentration,
-  combatantInitials,
   factionColor,
   revealBtnClass,
   revealBtnTitle,
