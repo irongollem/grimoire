@@ -32,6 +32,7 @@ export interface PlayerJournalEntry {
   category: JournalCategory;
   tags: string[];
   is_private: boolean;
+  shared_with_dm: boolean;
   ref_type: JournalRefType | null;
   ref_id: string | null;
   ref_label: string | null;
@@ -148,5 +149,25 @@ export function useDeleteJournalEntry() {
   return useMutation({
     mutationFn: deleteEntry,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [KEY] }),
+  });
+}
+
+/** All player journal entries shared with the DM in the active campaign (DM-only via RLS). */
+export function useDmAllSharedJournalEntries() {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  return useQuery({
+    queryKey: computed(() => [KEY, "dm-shared", campaignId.value]),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("player_journal_entries")
+        .select("*")
+        .eq("campaign_id", campaignId.value!)
+        .eq("shared_with_dm", true)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as PlayerJournalEntry[];
+    },
+    enabled: () => !!campaignId.value,
   });
 }

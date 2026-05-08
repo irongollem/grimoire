@@ -31,6 +31,19 @@
             >
               <IconReveal class="h-3.5 w-3.5" />
             </button>
+            <button
+              v-if="dmSharedJournal.length"
+              class="relative shrink-0 transition-colors"
+              :class="unreadJournalCount > 0 ? 'text-amber-500' : 'text-muted-foreground/50 hover:text-amber-500'"
+              title="View player journal entries shared with DM"
+              @click="showJournalModal = true"
+            >
+              <IconScrollText class="h-3.5 w-3.5" />
+              <span
+                v-if="unreadJournalCount > 0"
+                class="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-destructive text-[8px] font-bold text-white flex items-center justify-center leading-none"
+              />
+            </button>
           </div>
           <p class="font-fell text-xs text-muted-foreground italic">
             {{
@@ -210,13 +223,23 @@
       >+ Add Companion</button>
     </div>
   </div>
+
+  <PlayerJournalDmModal
+    v-if="showJournalModal"
+    :player-name="dmPlayerName || member.player_name || member.name"
+    :entries="dmSharedJournal"
+    @close="showJournalModal = false"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { IconGenerate, IconLocation, IconReveal } from '@/lib/icons';
+import { IconGenerate, IconLocation, IconReveal, IconScrollText } from '@/lib/icons';
 import { useUpdatePartyMember } from "@/composables/useParty";
+import { useReadItems } from "@/composables/useReadItems";
+import PlayerJournalDmModal from "./PlayerJournalDmModal.vue";
+import type { PlayerJournalEntry } from "@/composables/usePlayerJournal";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useNpcs } from "@/composables/useNpcs";
 import { useUiStore } from "@/stores/ui";
@@ -235,6 +258,8 @@ const {
   classLabel,
   levelDisplay,
   companions,
+  dmSharedJournal = [],
+  dmPlayerName = "",
 } = defineProps<{
   member: PartyMember;
   speciesNameMap: Map<string, string>;
@@ -242,6 +267,8 @@ const {
   classLabel: string;
   levelDisplay: number;
   companions: Companion[];
+  dmSharedJournal?: PlayerJournalEntry[];
+  dmPlayerName?: string;
 }>();
 
 const emit = defineEmits<{
@@ -252,6 +279,12 @@ const emit = defineEmits<{
 const router = useRouter();
 const ui = useUiStore();
 const { mutateAsync: updateMember } = useUpdatePartyMember();
+
+const showJournalModal = ref(false);
+const { isNew: isJournalNew } = useReadItems("player_journal");
+const unreadJournalCount = computed(() =>
+  dmSharedJournal.filter((e) => isJournalNew(e.id, e.updated_at)).length,
+);
 const { data: allMonsters } = useAllMonsters();
 const { data: allNpcs } = useNpcs();
 

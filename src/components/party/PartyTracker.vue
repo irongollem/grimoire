@@ -51,6 +51,8 @@
         :class-label="memberClassLabel(member.id, member.class)"
         :level-display="memberLevelDisplay(member.id, member.level)"
         :companions="companionsFor(member.id)"
+        :dm-shared-journal="dmSharedEntriesFor(member.id)"
+        :dm-player-name="dmPlayerNameFor(member.id)"
         @open-companion-form="handleOpenCompanionForm"
         @delete-companion="deleteCompanion"
       />
@@ -101,6 +103,9 @@ import { IconDiceRoll, IconReset } from '@/lib/icons';
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import { useAllLocations } from "@/composables/useLocations";
 import { useCompanions, useDeleteCompanion } from "@/composables/useCompanions";
+import { useCampaignMembers } from "@/composables/useCampaignMembers";
+import { useDmAllSharedJournalEntries } from "@/composables/usePlayerJournal";
+import type { PlayerJournalEntry } from "@/composables/usePlayerJournal";
 import { useAllSpecies } from "@/composables/useSpecies";
 import { useAllCampaignCharacterClasses } from "@/composables/useCharacterClasses";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
@@ -188,6 +193,39 @@ async function clearInitiative() {
       updateMember({ id: member.id, update: { current_initiative: null } }),
     ),
   );
+}
+
+// DM journal access
+const { data: campaignMembers } = useCampaignMembers();
+const { data: dmSharedJournal } = useDmAllSharedJournalEntries();
+
+const partyMemberUserIdMap = computed(() => {
+  const m = new Map<string, string>(); // party_member_id → user_id
+  for (const cm of campaignMembers.value ?? []) {
+    if (cm.party_member_id) m.set(cm.party_member_id, cm.user_id);
+  }
+  return m;
+});
+
+const journalByUserId = computed(() => {
+  const m = new Map<string, PlayerJournalEntry[]>();
+  for (const entry of dmSharedJournal.value ?? []) {
+    const list = m.get(entry.user_id) ?? [];
+    list.push(entry);
+    m.set(entry.user_id, list);
+  }
+  return m;
+});
+
+function dmSharedEntriesFor(memberId: string): PlayerJournalEntry[] {
+  const userId = partyMemberUserIdMap.value.get(memberId);
+  return userId ? (journalByUserId.value.get(userId) ?? []) : [];
+}
+
+function dmPlayerNameFor(memberId: string): string {
+  const userId = partyMemberUserIdMap.value.get(memberId);
+  if (!userId) return "";
+  return (campaignMembers.value ?? []).find((cm) => cm.user_id === userId)?.display_name ?? "";
 }
 
 // Companions

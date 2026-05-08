@@ -69,18 +69,24 @@
 
         <!-- Footer row: privacy + actions -->
         <div class="flex items-center justify-between gap-2 pt-1">
-          <button
-            type="button"
-            class="inline-flex items-center gap-1.5 font-cinzel text-xs font-semibold tracking-wider transition-colors px-2 py-1 rounded border"
-            :class="formIsPrivate
-              ? 'text-muted-foreground border-border hover:border-foreground/30'
-              : 'text-elven-green border-elven-green/30 bg-elven-green/10'"
-            @click="formIsPrivate = !formIsPrivate"
-          >
-            <IconLock v-if="formIsPrivate" class="h-3 w-3" />
-            <IconReveal v-else class="h-3 w-3" />
-            {{ formIsPrivate ? 'Private' : 'Shared' }}
-          </button>
+          <div class="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              class="inline-flex items-center gap-1.5 font-cinzel text-xs font-semibold tracking-wider transition-colors px-2 py-1 rounded border"
+              :class="formIsPrivate
+                ? 'text-muted-foreground border-border hover:border-foreground/30'
+                : 'text-elven-green border-elven-green/30 bg-elven-green/10'"
+              @click="toggleFormPrivacy"
+            >
+              <IconLock v-if="formIsPrivate" class="h-3 w-3" />
+              <IconReveal v-else class="h-3 w-3" />
+              {{ formIsPrivate ? 'Private' : 'Shared' }}
+            </button>
+            <label v-if="formIsPrivate" class="inline-flex items-center gap-1.5 cursor-pointer select-none">
+              <input v-model="formSharedWithDm" type="checkbox" class="rounded border-border accent-amber-500 h-3 w-3" />
+              <span class="font-cinzel text-xs tracking-wider text-amber-600/80 dark:text-amber-400/80">Share with DM</span>
+            </label>
+          </div>
           <div class="flex items-center gap-2">
             <button
               type="button"
@@ -311,6 +317,10 @@
               <IconReveal v-else class="h-2.5 w-2.5" />
               {{ entry.is_private ? 'Private' : 'Shared' }}
             </span>
+            <span
+              v-if="activeTab === 'mine' && entry.is_private && entry.shared_with_dm"
+              class="font-cinzel text-2xs tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600/80 dark:text-amber-400/80 border border-amber-500/20"
+            >DM</span>
           </template>
 
           <!-- View mode (party journal or not editing) -->
@@ -380,18 +390,24 @@
               </select>
             </div>
             <div class="flex items-center justify-between gap-2">
-              <button
-                type="button"
-                class="inline-flex items-center gap-1.5 font-cinzel text-xs font-semibold tracking-wider transition-colors px-2 py-1 rounded border"
-                :class="editForm.is_private
-                  ? 'text-muted-foreground border-border'
-                  : 'text-elven-green border-elven-green/30 bg-elven-green/10'"
-                @click="editForm.is_private = !editForm.is_private"
-              >
-                <IconLock v-if="editForm.is_private" class="h-3 w-3" />
-                <IconReveal v-else class="h-3 w-3" />
-                {{ editForm.is_private ? 'Private' : 'Shared' }}
-              </button>
+              <div class="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1.5 font-cinzel text-xs font-semibold tracking-wider transition-colors px-2 py-1 rounded border"
+                  :class="editForm.is_private
+                    ? 'text-muted-foreground border-border'
+                    : 'text-elven-green border-elven-green/30 bg-elven-green/10'"
+                  @click="editForm.is_private = !editForm.is_private; if (!editForm.is_private) editForm.shared_with_dm = false"
+                >
+                  <IconLock v-if="editForm.is_private" class="h-3 w-3" />
+                  <IconReveal v-else class="h-3 w-3" />
+                  {{ editForm.is_private ? 'Private' : 'Shared' }}
+                </button>
+                <label v-if="editForm.is_private" class="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                  <input v-model="editForm.shared_with_dm" type="checkbox" class="rounded border-border accent-amber-500 h-3 w-3" />
+                  <span class="font-cinzel text-xs tracking-wider text-amber-600/80 dark:text-amber-400/80">Share with DM</span>
+                </label>
+              </div>
               <div class="flex items-center gap-2">
                 <button
                   type="button"
@@ -406,7 +422,7 @@
                 >
                   <IconLoading v-if="saving" class="h-3.5 w-3.5 animate-spin" />
                   <IconSave v-else class="h-3.5 w-3.5" />
-                  {{ saving ? 'Saving…' : 'IconSave' }}
+                  {{ saving ? 'Saving…' : 'Save' }}
                 </button>
               </div>
             </div>
@@ -588,13 +604,19 @@ const showForm   = ref(false);
 const formCategory   = ref<JournalCategory>("adventure");
 const formTitle      = ref("");
 const formContent    = ref("");
-const formIsPrivate  = ref(true);
-const formRefType    = ref<JournalRefType | "">("");
+const formIsPrivate    = ref(true);
+const formSharedWithDm = ref(false);
+const formRefType      = ref<JournalRefType | "">("");
 const formRefId      = ref("");
 const saving         = ref(false);
 
 function openNew() {
   showForm.value = true;
+}
+
+function toggleFormPrivacy() {
+  formIsPrivate.value = !formIsPrivate.value;
+  if (!formIsPrivate.value) formSharedWithDm.value = false;
 }
 
 function cancelForm() {
@@ -603,6 +625,7 @@ function cancelForm() {
   formContent.value = "";
   formRefType.value = "";
   formRefId.value = "";
+  formSharedWithDm.value = false;
 }
 
 // Context options based on selected ref type (shared between create + edit forms)
@@ -645,12 +668,13 @@ async function submitNew() {
   saving.value = true;
   try {
     await create({
-      title:      formTitle.value.trim() || null,
-      content:    formContent.value,
-      category:   formCategory.value,
-      tags:       [],
-      is_private: formIsPrivate.value,
-      ref_type:   (formRefType.value as JournalRefType) || null,
+      title:          formTitle.value.trim() || null,
+      content:        formContent.value,
+      category:       formCategory.value,
+      tags:           [],
+      is_private:     formIsPrivate.value,
+      shared_with_dm: formSharedWithDm.value,
+      ref_type:       (formRefType.value as JournalRefType) || null,
       ref_id:     formRefId.value || null,
       ref_label:  resolveLabel(formRefType.value, formRefId.value, refOptions.value),
     });
@@ -662,24 +686,26 @@ async function submitNew() {
 
 // ── Edit ──────────────────────────────────────────────────────────────────────
 const editForm = ref({
-  title:      "" as string | null,
-  content:    "",
-  category:   "adventure" as JournalCategory,
-  is_private: true,
-  ref_type:   "" as string,
-  ref_id:     "" as string,
+  title:          "" as string | null,
+  content:        "",
+  category:       "adventure" as JournalCategory,
+  is_private:     true,
+  shared_with_dm: false,
+  ref_type:       "" as string,
+  ref_id:         "" as string,
 });
 const editOriginalContent = ref<string>("");
 
 function startEdit(entry: PlayerJournalEntry) {
   editOriginalContent.value = entry.content;
   editForm.value = {
-    title:      entry.title,
-    content:    entry.content,
-    category:   entry.category,
-    is_private: entry.is_private,
-    ref_type:   entry.ref_type ?? "",
-    ref_id:     entry.ref_id ?? "",
+    title:          entry.title,
+    content:        entry.content,
+    category:       entry.category,
+    is_private:     entry.is_private,
+    shared_with_dm: entry.shared_with_dm,
+    ref_type:       entry.ref_type ?? "",
+    ref_id:         entry.ref_id ?? "",
   };
   editingId.value = entry.id;
 }
@@ -697,11 +723,12 @@ async function submitEdit() {
     await update({
       id: editingId.value,
       update: {
-        title:      editForm.value.title?.trim() || null,
-        content:    editForm.value.content,
-        category:   editForm.value.category,
-        is_private: editForm.value.is_private,
-        ref_type:   (editForm.value.ref_type as JournalRefType) || null,
+        title:          editForm.value.title?.trim() || null,
+        content:        editForm.value.content,
+        category:       editForm.value.category,
+        is_private:     editForm.value.is_private,
+        shared_with_dm: editForm.value.shared_with_dm,
+        ref_type:       (editForm.value.ref_type as JournalRefType) || null,
         ref_id:     editForm.value.ref_id || null,
         ref_label:  resolveLabel(editForm.value.ref_type, editForm.value.ref_id, editRefOptions.value),
       },
