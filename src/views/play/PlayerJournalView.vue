@@ -4,7 +4,7 @@
     <div class="flex items-center justify-between">
       <h2 class="font-cinzel text-xl font-bold text-foreground">Adventure Journal</h2>
       <button
-        v-if="activeTab !== 'dm-notes' && activeTab !== 'quest-log'"
+        v-if="activeTab !== 'dm-notes' && activeTab !== 'quest-log' && activeTab !== 'puzzles'"
         type="button"
         class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
         @click="openNew"
@@ -157,6 +157,50 @@
           </div>
         </div>
       </template>
+    </template>
+
+    <!-- Puzzles tab -->
+    <template v-else-if="activeTab === 'puzzles'">
+      <div v-if="loadingPuzzles" class="flex justify-center py-12">
+        <LoadingSpinner />
+      </div>
+      <div v-else-if="!puzzles?.length" class="text-center py-12">
+        <IconPuzzle class="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+        <p class="font-fell text-muted-foreground italic">No puzzles shared by your DM yet.</p>
+      </div>
+      <div v-else class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <RouterLink
+          v-for="puzzle in puzzles"
+          :key="puzzle.id"
+          :to="`/play/puzzles/${puzzle.id}`"
+          class="flex flex-col rounded-lg border border-border bg-card overflow-hidden hover:border-primary/50 transition-colors group"
+        >
+          <div class="relative aspect-square bg-muted overflow-hidden shrink-0">
+            <FocalImage
+              :src="puzzle.image_url"
+              :alt="puzzle.name"
+              format="portrait"
+              :focal-point="puzzle.image_focal_point"
+              placeholder="/assets/placeholders/enigma.webp"
+              class="group-hover:scale-105 transition-transform duration-300"
+            />
+            <span
+              class="absolute top-2 left-2 font-cinzel text-2xs px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
+              :style="{ backgroundColor: PUZZLE_TYPE_COLORS[puzzle.puzzle_type] + 'DD' }"
+            >{{ puzzle.puzzle_type }}</span>
+            <span
+              class="absolute bottom-2 right-2 font-cinzel text-2xs px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
+              :style="{ backgroundColor: PUZZLE_DIFFICULTY_COLORS[puzzle.difficulty] + 'DD' }"
+            >{{ puzzle.difficulty }}</span>
+          </div>
+          <div class="p-2.5">
+            <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ puzzle.name }}</h3>
+            <p v-if="puzzle.shared_hints.length" class="font-fell text-2xs text-primary mt-0.5">
+              {{ puzzle.shared_hints.length }} hint{{ puzzle.shared_hints.length === 1 ? '' : 's' }} available
+            </p>
+          </div>
+        </RouterLink>
+      </div>
     </template>
 
     <!-- DM Notes tab -->
@@ -378,7 +422,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconAdd, IconCalendarDays, IconChevronRight, IconDocument, IconFeather, IconLoading, IconLocation, IconLock, IconMessage, IconPin, IconPopulate, IconReveal, IconSave, IconScrollText, IconSearch, IconShield, IconStar } from '@/lib/icons';
+import { IconAdd, IconCalendarDays, IconChevronRight, IconDocument, IconFeather, IconLoading, IconLocation, IconLock, IconMessage, IconPin, IconPopulate, IconPuzzle, IconReveal, IconSave, IconScrollText, IconSearch, IconShield, IconStar } from '@/lib/icons';
 import JournalCard from "@/components/player/JournalCard.vue";
 import type { Component } from "vue";
 import {
@@ -391,6 +435,9 @@ import type { JournalCategory, PlayerJournalEntry, JournalRefType } from "@/comp
 import { usePlayerVisibleQuests } from "@/composables/useQuests";
 import { QUEST_STATUS_LABELS, QUEST_STATUS_COLORS } from "@/types/quest.types";
 import type { Quest } from "@/types/quest.types";
+import { usePlayerVisiblePuzzles } from "@/composables/usePuzzles";
+import { PUZZLE_TYPE_COLORS, PUZZLE_DIFFICULTY_COLORS } from "@/types/puzzle.types";
+import FocalImage from "@/components/common/FocalImage.vue";
 import { RouterLink } from "vue-router";
 const route = useRoute();
 const router = useRouter();
@@ -422,6 +469,7 @@ const { memberByUserId } = useMemberByUserId();
 // Entity data for context picker — player-scoped to avoid leaking DM data
 const auth = useAuthStore();
 const { data: playerQuests, isLoading: loadingQuests } = usePlayerVisibleQuests();
+const { data: puzzles, isLoading: loadingPuzzles } = usePlayerVisiblePuzzles();
 const { data: sharedNpcs }        = useSharedNpcs();
 const { data: sharedLocations }   = useSharedLocations();
 const { data: inventory }         = usePartyInventory();
@@ -483,8 +531,8 @@ function toggleNote(id: string) {
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
-type TabId = "mine" | "party" | "quest-log" | "dm-notes";
-const VALID_TABS: TabId[] = ["mine", "party", "quest-log", "dm-notes"];
+type TabId = "mine" | "party" | "quest-log" | "puzzles" | "dm-notes";
+const VALID_TABS: TabId[] = ["mine", "party", "quest-log", "puzzles", "dm-notes"];
 const activeTab = computed<TabId>(() => {
   const q = route.query.tab as string;
   return VALID_TABS.includes(q as TabId) ? (q as TabId) : "mine";
@@ -496,6 +544,7 @@ const TABS = computed(() => [
   { id: "mine"      as const, label: "My Journal",    count: myEntries.value?.length ?? 0 },
   { id: "party"     as const, label: "Party Journal", count: sharedEntries.value?.length ?? 0 },
   { id: "quest-log" as const, label: "Quest Log",     count: playerQuests.value?.length ?? 0 },
+  { id: "puzzles"   as const, label: "Puzzles",       count: puzzles.value?.length ?? 0 },
   { id: "dm-notes"  as const, label: "DM Notes",      count: dmNotes.value.length },
 ]);
 

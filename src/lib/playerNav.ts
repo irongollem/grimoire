@@ -1,5 +1,5 @@
 import type { Component } from "vue";
-import { IconBookMarked, IconCalendarDays, IconCraft, IconDM, IconFaction, IconInventory, IconLandmark, IconLibrary, IconMonster, IconPenLine, IconPuzzle, IconShield, IconUser } from '@/lib/icons';
+import { IconBookMarked, IconCalendarDays, IconCraft, IconDM, IconFaction, IconInventory, IconLandmark, IconLibrary, IconMonster, IconPenLine, IconShield, IconUser } from '@/lib/icons';
 
 export interface PlayerNavItem {
   to: string;
@@ -16,7 +16,6 @@ export const ALL_PLAYER_NAV: PlayerNavItem[] = [
   { to: "/play/journal",   label: "Journal",    icon: IconPenLine },
   { to: "/play/crafting",  label: "Workshop",   icon: IconCraft },
   { to: "/play/factions",  label: "Factions",   icon: IconLandmark },
-  { to: "/play/puzzles",   label: "Puzzles",    icon: IconPuzzle },
   { to: "/play/atlas",     label: "Atlas",      icon: IconFaction },
   { to: "/play/bestiary",  label: "Bestiary",   icon: IconMonster },
   { to: "/play/spells",    label: "Spellbook",  icon: IconBookMarked },
