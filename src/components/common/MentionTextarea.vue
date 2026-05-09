@@ -58,20 +58,20 @@ const BADGE_CLASSES: Record<EntityType, string> = {
   party:    "text-amber-400 border-amber-400/40 bg-amber-400/10",
 };
 
-const props = withDefaults(defineProps<{
+const {
+  items = [],
+  rows = 4,
+  placeholder = "",
+  disabled = false,
+  inputClass = "field-input resize-none text-sm",
+} = defineProps<{
   modelValue: string;
   items?: EntityMentionItem[];
   rows?: number;
   placeholder?: string;
   disabled?: boolean;
   inputClass?: string;
-}>(), {
-  items: () => [],
-  rows: 4,
-  placeholder: "",
-  disabled: false,
-  inputClass: "field-input resize-none text-sm",
-});
+}>();
 
 const emit = defineEmits<{
   "update:modelValue": [value: string];
@@ -95,7 +95,7 @@ function getMentionAt(text: string, cursor: number): { query: string; start: num
 const filteredItems = computed(() => {
   if (mentionQuery.value === null) return [];
   const q = mentionQuery.value.toLowerCase().replace(/_/g, " ");
-  return props.items
+  return items
     .filter((item) => item.label.toLowerCase().includes(q))
     .slice(0, 8);
 });

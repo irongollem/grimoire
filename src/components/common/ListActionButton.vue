@@ -50,63 +50,63 @@ const isTouch = typeof window !== "undefined" && window.matchMedia("(hover: none
 
 type Variant = "primary" | "secondary" | "ghost";
 
-const props = withDefaults(
-  defineProps<{
-    label: string;
-    icon?: Component;
-    variant?: Variant;
-    /** Makes this a <RouterLink>. Mutually exclusive with `href`. */
-    to?: string;
-    /** Makes this an <a>. Mutually exclusive with `to`. */
-    href?: string;
-    disabled?: boolean;
-    /**
-     * Whether the label text collapses on mobile (<sm). Defaults to `true`
-     * for every variant — on a list page, an icon plus its context (e.g. `+`
-     * on the Bestiary = "new monster", `wand` on NPCs = "generate NPC") is
-     * unambiguous and keeps the action row from overflowing. Pass `false`
-     * to force the label visible for toggle-state buttons like Kanban/List
-     * where the icon alone is ambiguous.
-     */
-    collapseOnMobile?: boolean;
-    /**
-     * Short label shown on mobile (<sm) instead of hiding the label entirely.
-     * Use for primary "New X" buttons: `mobileLabel="+Monster"` shows "+Monster"
-     * on narrow screens while the full label ("New Monster") shows on sm+.
-     * Only takes effect when `shouldCollapse` is true (the default).
-     */
-    mobileLabel?: string;
-    /**
-     * Override for the `title` / `aria-label`. Use when the visible label
-     * describes state ("Kanban") but the tooltip should describe action
-     * ("Switch to list view"). Defaults to `label`.
-     */
-    tooltip?: string;
-  }>(),
-  {
-    variant: "secondary",
-    disabled: false,
-  },
-);
+const {
+  variant = "secondary",
+  disabled = false,
+  to,
+  href,
+  collapseOnMobile,
+} = defineProps<{
+  label: string;
+  icon?: Component;
+  variant?: Variant;
+  /** Makes this a <RouterLink>. Mutually exclusive with `href`. */
+  to?: string;
+  /** Makes this an <a>. Mutually exclusive with `to`. */
+  href?: string;
+  disabled?: boolean;
+  /**
+   * Whether the label text collapses on mobile (<sm). Defaults to `true`
+   * for every variant — on a list page, an icon plus its context (e.g. `+`
+   * on the Bestiary = "new monster", `wand` on NPCs = "generate NPC") is
+   * unambiguous and keeps the action row from overflowing. Pass `false`
+   * to force the label visible for toggle-state buttons like Kanban/List
+   * where the icon alone is ambiguous.
+   */
+  collapseOnMobile?: boolean;
+  /**
+   * Short label shown on mobile (<sm) instead of hiding the label entirely.
+   * Use for primary "New X" buttons: `mobileLabel="+Monster"` shows "+Monster"
+   * on narrow screens while the full label ("New Monster") shows on sm+.
+   * Only takes effect when `shouldCollapse` is true (the default).
+   */
+  mobileLabel?: string;
+  /**
+   * Override for the `title` / `aria-label`. Use when the visible label
+   * describes state ("Kanban") but the tooltip should describe action
+   * ("Switch to list view"). Defaults to `label`.
+   */
+  tooltip?: string;
+}>();
 
 const emit = defineEmits<{
   (e: "click", ev: MouseEvent): void;
 }>();
 
 const rootTag = computed(() => {
-  if (props.to) return "RouterLink";
-  if (props.href) return "a";
+  if (to) return "RouterLink";
+  if (href) return "a";
   return "button";
 });
 
 const rootAttrs = computed(() => {
-  if (props.to) return { to: props.to };
-  if (props.href) return { href: props.href };
+  if (to) return { to };
+  if (href) return { href };
   return {};
 });
 
 function onClick(ev: MouseEvent) {
-  if (props.disabled) {
+  if (disabled) {
     ev.preventDefault();
     return;
   }
@@ -117,7 +117,7 @@ const base =
   "inline-flex items-center gap-1.5 rounded-md px-3 py-2 font-cinzel text-xs font-semibold tracking-wider transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0";
 
 const variantClass = computed(() => {
-  switch (props.variant) {
+  switch (variant) {
     case "primary":
       // Gold CTA — reserved for the one primary action per page (e.g. "New X").
       return "bg-primary text-primary-foreground hover:opacity-90";
@@ -134,7 +134,7 @@ const variantClass = computed(() => {
 const buttonClass = computed(() => [base, variantClass.value]);
 
 const shouldCollapse = computed(() => {
-  if (props.collapseOnMobile !== undefined) return props.collapseOnMobile;
+  if (collapseOnMobile !== undefined) return collapseOnMobile;
   // Default: collapse for every variant on <sm. An icon + its page context
   // is self-evident ("+ on Bestiary" = create monster), and freeing the
   // label space stops action rows from overflowing on narrow screens.

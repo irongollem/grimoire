@@ -12,18 +12,15 @@
 <script setup lang="ts">
 import { ref, watch, onUnmounted } from "vue";
 
-const props = withDefaults(
-  defineProps<{
-    value: number;
-    isCrit?: boolean;
-    isFumble?: boolean;
-    /** Approximate upper bound used for scramble range. Default 20. */
-    maxRandom?: number;
-  }>(),
-  { isCrit: false, isFumble: false, maxRandom: 20 },
-);
+const { value, maxRandom = 20 } = defineProps<{
+  value: number;
+  isCrit?: boolean;
+  isFumble?: boolean;
+  /** Approximate upper bound used for scramble range. Default 20. */
+  maxRandom?: number;
+}>();
 
-const displayed = ref<number>(props.value);
+const displayed = ref<number>(value);
 const isSettled = ref(true);
 
 let intervalId: ReturnType<typeof setTimeout> | null = null;
@@ -51,7 +48,7 @@ function startScramble(finalValue: number) {
   clearTimers();
   isSettled.value = false;
 
-  const max = props.maxRandom;
+  const max = maxRandom;
   const start = performance.now();
   let currentInterval = INTERVAL_START;
 
@@ -73,7 +70,7 @@ function startScramble(finalValue: number) {
   }, SCRAMBLE_MS);
 }
 
-watch(() => props.value, startScramble, { immediate: true });
+watch(() => value, startScramble, { immediate: true });
 
 onUnmounted(clearTimers);
 </script>

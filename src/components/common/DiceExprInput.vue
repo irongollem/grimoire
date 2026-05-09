@@ -49,24 +49,18 @@ import { computed, ref } from "vue";
 import { IconDice } from '@/lib/icons';
 import { parseExpression, averageExpression, rollExpression } from "@/lib/dice";
 
-const props = withDefaults(
-  defineProps<{
-    modelValue: string | null;
-    placeholder?: string;
-    compact?: boolean;
-  }>(),
-  {
-    placeholder: "2d6+3",
-    compact: false,
-  },
-);
+const { modelValue, placeholder = "2d6+3", compact = false } = defineProps<{
+  modelValue: string | null;
+  placeholder?: string;
+  compact?: boolean;
+}>();
 
 const emit = defineEmits<{ "update:modelValue": [value: string | null] }>();
 
 const rollResult = ref<number | null>(null);
 let rollTimer: ReturnType<typeof setTimeout> | null = null;
 
-const parsed = computed(() => parseExpression(props.modelValue));
+const parsed = computed(() => parseExpression(modelValue));
 const average = computed(() =>
   parsed.value ? averageExpression(parsed.value) : null,
 );

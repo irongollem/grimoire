@@ -152,7 +152,11 @@ export interface SaveEntry {
   proficient: boolean;
 }
 
-const props = withDefaults(defineProps<{
+const {
+  scores,
+  saves,
+  rounded = true,
+} = defineProps<{
   /** The six ability scores. */
   scores: { str: number; dex: number; con: number; int: number; wis: number; cha: number };
   /**
@@ -172,7 +176,7 @@ const props = withDefaults(defineProps<{
    * Use when the parent already provides the visual boundary.
    */
   borderless?: boolean;
-}>(), { rounded: true, vertical: false, borderless: false });
+}>();
 
 const emit = defineEmits<{
   /** Ability check clicked — parent handles the roll. */
@@ -182,7 +186,7 @@ const emit = defineEmits<{
 }>();
 
 function mod(key: string): number {
-  return Math.floor((props.scores[key as keyof typeof props.scores] - 10) / 2);
+  return Math.floor((scores[key as keyof typeof scores] - 10) / 2);
 }
 
 function fmt(n: number): string {
@@ -190,10 +194,10 @@ function fmt(n: number): string {
 }
 
 function saveBonus(key: string): number {
-  return props.saves?.[key]?.bonus ?? mod(key);
+  return saves?.[key]?.bonus ?? mod(key);
 }
 
 function isProficient(key: string): boolean {
-  return props.saves?.[key]?.proficient ?? false;
+  return saves?.[key]?.proficient ?? false;
 }
 </script>

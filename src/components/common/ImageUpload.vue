@@ -112,23 +112,21 @@ import { IconAddImage } from '@/lib/icons';
 import { useImageUpload } from "@/composables/useImageUpload";
 import FocalPointPicker from "./FocalPointPicker.vue";
 
-const props = withDefaults(
-  defineProps<{
-    modelValue: string | null;
-    focalPoint?: { x: number; y: number } | null;
-    bucket?: string;
-    aspect?: "portrait" | "landscape" | "square" | "auto";
-    showFocalPoint?: boolean;
-    placeholder?: string;
-  }>(),
-  {
-    bucket: "asset-images",
-    aspect: "portrait",
-    showFocalPoint: false,
-    placeholder: "Drop image or click to upload",
-    focalPoint: null,
-  },
-);
+const {
+  modelValue,
+  focalPoint = null,
+  bucket = "asset-images",
+  aspect = "portrait",
+  showFocalPoint = false,
+  placeholder = "Drop image or click to upload",
+} = defineProps<{
+  modelValue: string | null;
+  focalPoint?: { x: number; y: number } | null;
+  bucket?: string;
+  aspect?: "portrait" | "landscape" | "square" | "auto";
+  showFocalPoint?: boolean;
+  placeholder?: string;
+}>();
 
 const emit = defineEmits<{
   "update:modelValue": [value: string | null];
@@ -138,20 +136,20 @@ const emit = defineEmits<{
 const inputId = useId();
 const fileInput = ref<HTMLInputElement | null>(null);
 const dragOver = ref(false);
-const { isUploading, uploadError, upload, remove } = useImageUpload(props.bucket);
+const { isUploading, uploadError, upload, remove } = useImageUpload(bucket);
 
 const aspectClass = computed(() => {
   const map = { portrait: "aspect-3/4", landscape: "aspect-video", square: "aspect-square", auto: "min-h-24" } as const;
-  return map[props.aspect];
+  return map[aspect];
 });
 
 async function handleFile(file: File) {
-  const oldUrl = props.modelValue;
+  const oldUrl = modelValue;
   const url = await upload(file);
   if (!url) return;
   if (oldUrl) remove(oldUrl);
   emit("update:modelValue", url);
-  if (props.showFocalPoint) emit("update:focalPoint", null);
+  if (showFocalPoint) emit("update:focalPoint", null);
 }
 
 async function onFileSelected(e: Event) {
@@ -193,8 +191,8 @@ async function onDrop(e: DragEvent) {
 }
 
 function removeImage() {
-  if (props.modelValue) remove(props.modelValue);
+  if (modelValue) remove(modelValue);
   emit("update:modelValue", null);
-  if (props.showFocalPoint) emit("update:focalPoint", null);
+  if (showFocalPoint) emit("update:focalPoint", null);
 }
 </script>

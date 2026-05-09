@@ -17,7 +17,7 @@
         @keydown.arrow-down.prevent="open = true"
       />
       <button
-        v-if="props.modelValue"
+        v-if="modelValue"
         type="button"
         class="absolute right-7 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors text-base leading-none px-0.5"
         @mousedown.prevent="clear"
@@ -55,11 +55,11 @@
 import { ref, computed, watch, nextTick, onUnmounted } from "vue";
 import { IconChevronDown } from '@/lib/icons';
 
-const props = withDefaults(defineProps<{
+const { modelValue, options, placeholder = "Search…" } = defineProps<{
   modelValue: string;
   options: T[];
   placeholder?: string;
-}>(), { placeholder: "Search…" });
+}>();
 
 const emit = defineEmits<{ "update:modelValue": [value: string] }>();
 
@@ -69,13 +69,13 @@ const open    = ref(false);
 const dropdownStyle = ref<Record<string, string>>({});
 
 const selectedLabel = computed(() =>
-  props.modelValue ? (props.options.find(o => o.id === props.modelValue)?.name ?? "") : ""
+  modelValue ? (options.find(o => o.id === modelValue)?.name ?? "") : ""
 );
 
 const filtered = computed(() => {
   const q = query.value.toLowerCase().trim();
-  if (!q) return props.options.slice(0, 50);
-  return props.options.filter(o => o.name.toLowerCase().includes(q)).slice(0, 50);
+  if (!q) return options.slice(0, 50);
+  return options.filter(o => o.name.toLowerCase().includes(q)).slice(0, 50);
 });
 
 const DROPDOWN_MAX_H = 212; // matches max-h-52
@@ -132,7 +132,7 @@ watch(open, (val) => {
   }
 });
 
-watch(() => props.modelValue, (val) => {
+watch(() => modelValue, (val) => {
   if (!val) query.value = "";
 });
 </script>

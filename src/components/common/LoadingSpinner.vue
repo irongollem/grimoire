@@ -11,14 +11,8 @@
 </template>
 
 <script setup lang="ts">
-withDefaults(
-  defineProps<{
-    message?: string;
-    fullPage?: boolean;
-  }>(),
-  {
-    message: undefined,
-    fullPage: false,
-  },
-);
+defineProps<{
+  message?: string;
+  fullPage?: boolean;
+}>();
 </script>

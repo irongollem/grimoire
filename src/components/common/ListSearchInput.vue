@@ -29,28 +29,22 @@
 import { computed } from "vue";
 import { IconSearch } from '@/lib/icons';
 
-const props = withDefaults(
-  defineProps<{
-    modelValue: string;
-    placeholder?: string;
-    /**
-     * When `true` (default) the input grows to fill its flex parent down to
-     * a 12rem minimum, matching the existing inline filter-bar pattern. Set
-     * to `false` when the search lives on its own row.
-     */
-    inline?: boolean;
-  }>(),
-  {
-    placeholder: "IconSearch…",
-    inline: true,
-  },
-);
+const { inline = true, placeholder = "IconSearch…" } = defineProps<{
+  modelValue: string;
+  placeholder?: string;
+  /**
+   * When `true` (default) the input grows to fill its flex parent down to
+   * a 12rem minimum, matching the existing inline filter-bar pattern. Set
+   * to `false` when the search lives on its own row.
+   */
+  inline?: boolean;
+}>();
 
 const emit = defineEmits<{
   (e: "update:modelValue", value: string): void;
 }>();
 
 const wrapperClass = computed(() =>
-  props.inline ? "relative flex-1 min-w-48" : "relative w-full",
+  inline ? "relative flex-1 min-w-48" : "relative w-full",
 );
 </script>

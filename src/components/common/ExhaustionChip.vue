@@ -42,32 +42,29 @@ const isTouch = typeof window !== "undefined" && window.matchMedia("(hover: none
 
 type Variant = "amber" | "destructive";
 
-const props = withDefaults(
-  defineProps<{
-    level: number;
-    /** Chip colour scheme — matches the host-view's condition palette. */
-    variant?: Variant;
-  }>(),
-  { variant: "destructive" },
-);
+const { level, variant = "destructive" } = defineProps<{
+  level: number;
+  /** Chip colour scheme — matches the host-view's condition palette. */
+  variant?: Variant;
+}>();
 
 const emit = defineEmits<{
   (e: "update", newLevel: number): void;
 }>();
 
-const tooltip = computed(() => getConditionDescription(`Exhausted ${props.level}`));
+const tooltip = computed(() => getConditionDescription(`Exhausted ${level}`));
 
 const wrapperClass = computed(() => {
   const base = "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5";
-  if (props.variant === "amber") {
+  if (variant === "amber") {
     return `${base} bg-amber-500/15 border-amber-500/40 text-amber-600 dark:text-amber-400`;
   }
   return `${base} bg-destructive/10 border-destructive/30 text-destructive`;
 });
 
 function pipClass(i: number) {
-  const isFilled = i <= props.level;
-  if (props.variant === "amber") {
+  const isFilled = i <= level;
+  if (variant === "amber") {
     return isFilled
       ? "bg-amber-500 border-amber-500 hover:bg-amber-400"
       : "border-amber-500/40 hover:border-amber-500/70";
@@ -80,6 +77,6 @@ function pipClass(i: number) {
 function onPipClick(i: number) {
   // Click a pip to set the level; clicking the current max toggles it down
   // by one (same affordance as the death-save pips).
-  emit("update", i === props.level ? i - 1 : i);
+  emit("update", i === level ? i - 1 : i);
 }
 </script>

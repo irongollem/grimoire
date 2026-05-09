@@ -46,15 +46,10 @@ import { computed, useSlots } from "vue";
 import { IconClose } from '@/lib/icons';
 import ListActionButton from "@/components/common/ListActionButton.vue";
 
-const props = withDefaults(
-  defineProps<{
-    /** Controls whether the Clear button renders in the bar. */
-    hasActiveFilters?: boolean;
-  }>(),
-  {
-    hasActiveFilters: false,
-  },
-);
+defineProps<{
+  /** Controls whether the Clear button renders in the bar. */
+  hasActiveFilters?: boolean;
+}>();
 
 const emit = defineEmits<{
   (e: "clear"): void;
@@ -64,7 +59,4 @@ const slots = useSlots();
 const outerClass = computed(() =>
   slots.above ? "flex flex-col gap-2" : "",
 );
-
-// Surface `hasActiveFilters` for devtools discoverability.
-void props;
 </script>

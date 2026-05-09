@@ -142,11 +142,7 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 
-withDefaults(defineProps<{ readonly?: boolean; selectMode?: boolean; selectedId?: string }>(), {
-  readonly: false,
-  selectMode: false,
-  selectedId: undefined,
-});
+defineProps<{ readonly?: boolean; selectMode?: boolean; selectedId?: string }>();
 const emit = defineEmits<{ select: [species: Species] }>();
 
 const ui = useUiStore();
