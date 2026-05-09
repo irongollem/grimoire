@@ -25,6 +25,18 @@
             </button>
           </div>
 
+          <!-- Card style selector -->
+          <div class="size-toggle">
+            <button
+              v-for="st in CARD_STYLES"
+              :key="st.id"
+              type="button"
+              class="size-btn"
+              :class="{ active: cardStyle === st.id }"
+              @click="cardStyle = st.id"
+            >{{ st.label }}</button>
+          </div>
+
           <!-- Library actions -->
           <button
             v-if="savedLibrary.length"
@@ -139,9 +151,22 @@
               v-for="subject in selectedSubjects"
               :key="subject.kind + subject.data.id"
               class="preview-card-wrapper"
+              :class="{ tarot: cardSize === 'tarot' }"
+              :style="tiltStyle(subject.kind + subject.data.id)"
+              @click="toggleFlip(subject.kind + subject.data.id)"
+              @mousemove="onCardMouseMove(subject.kind + subject.data.id, $event)"
+              @mouseleave="onCardMouseLeave(subject.kind + subject.data.id)"
             >
-              <CardTarotFront v-if="cardSize === 'tarot'" :subject="subject" />
-              <CardFront v-else :subject="subject" />
+              <Transition name="card-flip" mode="out-in">
+                <div v-if="!flippedCards.has(subject.kind + subject.data.id)" key="front">
+                  <CardTarotFront v-if="cardSize === 'tarot'" :subject="subject" :card-style="cardStyle" />
+                  <CardFront v-else :subject="subject" :card-style="cardStyle" />
+                </div>
+                <div v-else key="back">
+                  <CardTarotBack v-if="cardSize === 'tarot'" :subject="subject" :card-style="cardStyle" />
+                  <CardBack v-else :subject="subject" :card-style="cardStyle" />
+                </div>
+              </Transition>
             </div>
           </div>
         </main>
@@ -244,9 +269,10 @@
               <CardTarotFront
                 v-if="cardSize === 'tarot'"
                 :subject="subject"
+                :card-style="cardStyle"
                 class="print-card"
               />
-              <CardFront v-else :subject="subject" class="print-card" />
+              <CardFront v-else :subject="subject" :card-style="cardStyle" class="print-card" />
             </template>
             <div v-else class="print-card print-card-empty" />
           </template>
@@ -262,9 +288,10 @@
               <CardTarotBack
                 v-if="cardSize === 'tarot'"
                 :subject="subject"
+                :card-style="cardStyle"
                 class="print-card"
               />
-              <CardBack v-else :subject="subject" class="print-card" />
+              <CardBack v-else :subject="subject" :card-style="cardStyle" class="print-card" />
             </template>
             <div v-else class="print-card print-card-empty" />
           </template>
@@ -275,16 +302,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, shallowRef } from "vue";
+import { ref, computed, shallowRef, watch } from "vue";
 import CardFront from "@/components/cardforge/CardFront.vue";
 import CardBack from "@/components/cardforge/CardBack.vue";
 import CardTarotFront from "@/components/cardforge/CardTarotFront.vue";
 import CardTarotBack from "@/components/cardforge/CardTarotBack.vue";
 import type { CardSubject } from "@/types/card.types";
 import { useNpcs } from "@/composables/useNpcs";
-import { useMonsters } from "@/composables/useMonsters";
+import { useAllMonsters } from "@/composables/useMonsters";
 import { useItems } from "@/composables/useItems";
-import { useSpells } from "@/composables/useSpells";
+import { useAllSpells } from "@/composables/useSpells";
 import type { Npc } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";
 import type { Item } from "@/types/item.types";
@@ -300,6 +327,18 @@ const CARD_SIZES = [
 type CardSizeId = "mtg" | "tarot";
 const cardSize = ref<CardSizeId>("mtg");
 
+// ── Card styles ─────────────────────────────────────────
+const CARD_STYLES = [
+  { id: "inked",  label: "Inked" },
+  { id: "modern", label: "Modern" },
+] as const;
+type CardStyleId = "inked" | "modern";
+
+const cardStyle = ref<CardStyleId>(
+  (localStorage.getItem("cardforge_style") as CardStyleId) ?? "inked"
+);
+watch(cardStyle, (v) => localStorage.setItem("cardforge_style", v));
+
 // ── Sources ─────────────────────────────────────────────
 const SOURCES = [
   { id: "npcs" as const, label: "NPCs" },
@@ -312,9 +351,9 @@ const source = ref<SourceId>("npcs");
 
 // ── Data ────────────────────────────────────────────────
 const { data: npcsData } = useNpcs();
-const { data: monstersData } = useMonsters();
+const { data: monstersData } = useAllMonsters();
 const { data: itemsData } = useItems();
-const { data: spellsData } = useSpells();
+const { data: spellsData } = useAllSpells();
 
 // ── Search + selection ──────────────────────────────────
 const search = ref("");
@@ -435,6 +474,40 @@ const selectedSubjects = computed((): CardSubject[] => {
       .map((s: Spell) => ({ kind: "spell" as const, data: s })),
   ];
 });
+
+// ── Card flip + tilt ─────────────────────────────────────
+const flippedCards = ref(new Set<string>());
+function toggleFlip(key: string) {
+  const next = new Set(flippedCards.value);
+  if (next.has(key)) next.delete(key); else next.add(key);
+  flippedCards.value = next;
+}
+
+const cardTilts = ref(new Map<string, { rx: number; ry: number }>());
+
+function onCardMouseMove(key: string, e: MouseEvent) {
+  const el = e.currentTarget as HTMLElement;
+  const rect = el.getBoundingClientRect();
+  const dx = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+  const dy = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+  const next = new Map(cardTilts.value);
+  next.set(key, { rx: -dy * 6, ry: dx * 6 });
+  cardTilts.value = next;
+}
+
+function onCardMouseLeave(key: string) {
+  const next = new Map(cardTilts.value);
+  next.delete(key);
+  cardTilts.value = next;
+}
+
+function tiltStyle(key: string): Record<string, string> {
+  const t = cardTilts.value.get(key);
+  if (!t) return {};
+  return {
+    transform: `perspective(900px) rotateX(${t.rx}deg) rotateY(${t.ry}deg) translateY(-6px)`,
+  };
+}
 
 // ── Print chunks ─────────────────────────────────────────
 const perPage = computed(
@@ -718,14 +791,19 @@ function formatDate(iso: string) {
   @apply text-xs opacity-60;
 }
 .card-preview-grid {
-  @apply flex flex-wrap gap-4 p-2 content-start;
+  @apply flex flex-wrap gap-4 p-6 content-start;
 }
 .preview-card-wrapper {
-  /* Screen preview — cards are 200×280 in their CSS */
+  cursor: pointer;
+  transition: transform 0.18s ease, filter 0.18s ease;
 }
-.tarot-wrapper .tarot-scale {
-  transform: scale(1.1);
-  transform-origin: top left;
+.card-flip-enter-active,
+.card-flip-leave-active {
+  transition: transform 0.18s ease-in-out;
+}
+.card-flip-enter-from,
+.card-flip-leave-to {
+  transform: scaleX(0);
 }
 
 /* ── Modals ─────────────────────────────────────────────── */

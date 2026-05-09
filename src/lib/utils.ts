@@ -176,6 +176,6 @@ export function extractTiptapText(json: string | null | undefined, maxLength = 1
     walk(doc);
     return texts.join(" ").slice(0, maxLength);
   } catch {
-    return "";
+    return json.slice(0, maxLength);
   }
 }
