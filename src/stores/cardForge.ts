@@ -1,9 +1,10 @@
 import { defineStore } from "pinia";
-import { ref, shallowRef } from "vue";
+import { ref, shallowRef, watch } from "vue";
 import { useLocalStorage } from "@vueuse/core";
 
 export type CardSizeId = "mtg" | "tarot";
 export type CardStyleId = "inked" | "modern";
+export type CardModeId = "collection" | "loot";
 export type SourceId = "npcs" | "monsters" | "items" | "spells";
 
 export interface CardCollection {
@@ -15,6 +16,8 @@ export interface CardCollection {
 
 const LIBRARY_KEY = "cardforge_library";
 const STYLE_KEY = "cardforge_style";
+const MODE_KEY = "cardforge_mode";
+const DECK_BACK_KEY = "cardforge_deck_back";
 
 const PAGE_STYLE_ID = "cardforge-page-rule";
 
@@ -32,10 +35,28 @@ export const useCardForgeStore = defineStore("cardForge", () => {
   const cardSize = ref<CardSizeId>("mtg");
   const cardStyle = useLocalStorage<CardStyleId>(STYLE_KEY, "inked");
 
+  /** "collection" = mixed cards, full front+back per item.
+   *  "loot"       = items only, all info on front, shared back image. */
+  const mode = useLocalStorage<CardModeId>(MODE_KEY, "collection");
+  /** Deck back id (used when mode === 'loot'). See loot/deckBacks.ts. */
+  const lootDeckBackId = useLocalStorage<string>(
+    DECK_BACK_KEY,
+    "arcane-vortex",
+  );
+
   const showSaveModal = ref(false);
   const showLoadModal = ref(false);
 
   const library = useLocalStorage<CardCollection[]>(LIBRARY_KEY, []);
+
+  /** In loot mode the source is always items — force it on entry. */
+  watch(
+    mode,
+    (m) => {
+      if (m === "loot") source.value = "items";
+    },
+    { immediate: true },
+  );
 
   function toggleSelect(id: string) {
     const src = source.value;
@@ -124,6 +145,8 @@ export const useCardForgeStore = defineStore("cardForge", () => {
     selectedIds,
     cardSize,
     cardStyle,
+    mode,
+    lootDeckBackId,
     showSaveModal,
     showLoadModal,
     library,

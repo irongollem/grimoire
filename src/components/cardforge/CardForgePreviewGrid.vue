@@ -20,30 +20,46 @@
         @mouseleave="onMouseLeave(cardKey(subject))"
       >
         <Transition name="card-flip" mode="out-in">
-          <div v-if="!flipped.has(cardKey(subject))" key="front">
-            <CardTarotFront
-              v-if="store.cardSize === 'tarot'"
-              :subject="subject"
-              :card-style="store.cardStyle"
-            />
-            <CardFront
-              v-else
-              :subject="subject"
-              :card-style="store.cardStyle"
-            />
-          </div>
-          <div v-else key="back">
-            <CardTarotBack
-              v-if="store.cardSize === 'tarot'"
-              :subject="subject"
-              :card-style="store.cardStyle"
-            />
-            <CardBack
-              v-else
-              :subject="subject"
-              :card-style="store.cardStyle"
-            />
-          </div>
+          <!-- Loot mode: LootFront on front, shared LootBack on back -->
+          <template v-if="store.mode === 'loot'">
+            <div v-if="!flipped.has(cardKey(subject))" key="front">
+              <LootFront
+                v-if="subject.kind === 'item'"
+                :data="subject.data"
+                :tarot="store.cardSize === 'tarot'"
+              />
+            </div>
+            <div v-else key="back">
+              <LootBack :tarot="store.cardSize === 'tarot'" />
+            </div>
+          </template>
+          <!-- Collection mode: per-style front/back -->
+          <template v-else>
+            <div v-if="!flipped.has(cardKey(subject))" key="front">
+              <CardTarotFront
+                v-if="store.cardSize === 'tarot'"
+                :subject="subject"
+                :card-style="store.cardStyle"
+              />
+              <CardFront
+                v-else
+                :subject="subject"
+                :card-style="store.cardStyle"
+              />
+            </div>
+            <div v-else key="back">
+              <CardTarotBack
+                v-if="store.cardSize === 'tarot'"
+                :subject="subject"
+                :card-style="store.cardStyle"
+              />
+              <CardBack
+                v-else
+                :subject="subject"
+                :card-style="store.cardStyle"
+              />
+            </div>
+          </template>
         </Transition>
       </div>
     </div>
@@ -56,6 +72,8 @@ import CardFront from "@/components/cardforge/CardFront.vue";
 import CardBack from "@/components/cardforge/CardBack.vue";
 import CardTarotFront from "@/components/cardforge/CardTarotFront.vue";
 import CardTarotBack from "@/components/cardforge/CardTarotBack.vue";
+import LootFront from "@/components/cardforge/styles/loot/LootFront.vue";
+import LootBack from "@/components/cardforge/styles/loot/LootBack.vue";
 import type { CardSubject } from "@/types/card.types";
 import { useCardForgeStore } from "@/stores/cardForge";
 import { useCardForgeData } from "@/composables/useCardForgeData";

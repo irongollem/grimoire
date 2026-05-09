@@ -7,18 +7,28 @@
       >
         <template v-for="(subject, ci) in chunk" :key="`f-${ci}`">
           <template v-if="subject">
-            <CardTarotFront
-              v-if="store.cardSize === 'tarot'"
-              :subject="subject"
-              :card-style="store.cardStyle"
+            <!-- Loot mode: items only, LootFront -->
+            <LootFront
+              v-if="store.mode === 'loot' && subject.kind === 'item'"
+              :data="subject.data"
+              :tarot="store.cardSize === 'tarot'"
               class="print-card"
             />
-            <CardFront
-              v-else
-              :subject="subject"
-              :card-style="store.cardStyle"
-              class="print-card"
-            />
+            <!-- Collection mode: per-style front -->
+            <template v-else-if="store.mode === 'collection'">
+              <CardTarotFront
+                v-if="store.cardSize === 'tarot'"
+                :subject="subject"
+                :card-style="store.cardStyle"
+                class="print-card"
+              />
+              <CardFront
+                v-else
+                :subject="subject"
+                :card-style="store.cardStyle"
+                class="print-card"
+              />
+            </template>
           </template>
           <div v-else class="print-card print-card-empty" />
         </template>
@@ -33,18 +43,27 @@
           :key="`b-${ci}`"
         >
           <template v-if="subject">
-            <CardTarotBack
-              v-if="store.cardSize === 'tarot'"
-              :subject="subject"
-              :card-style="store.cardStyle"
+            <!-- Loot mode: shared deck back, repeated for every cell -->
+            <LootBack
+              v-if="store.mode === 'loot'"
+              :tarot="store.cardSize === 'tarot'"
               class="print-card"
             />
-            <CardBack
-              v-else
-              :subject="subject"
-              :card-style="store.cardStyle"
-              class="print-card"
-            />
+            <!-- Collection mode: per-card back -->
+            <template v-else>
+              <CardTarotBack
+                v-if="store.cardSize === 'tarot'"
+                :subject="subject"
+                :card-style="store.cardStyle"
+                class="print-card"
+              />
+              <CardBack
+                v-else
+                :subject="subject"
+                :card-style="store.cardStyle"
+                class="print-card"
+              />
+            </template>
           </template>
           <div v-else class="print-card print-card-empty" />
         </template>
@@ -59,6 +78,8 @@ import CardFront from "@/components/cardforge/CardFront.vue";
 import CardBack from "@/components/cardforge/CardBack.vue";
 import CardTarotFront from "@/components/cardforge/CardTarotFront.vue";
 import CardTarotBack from "@/components/cardforge/CardTarotBack.vue";
+import LootFront from "@/components/cardforge/styles/loot/LootFront.vue";
+import LootBack from "@/components/cardforge/styles/loot/LootBack.vue";
 import type { CardSubject } from "@/types/card.types";
 import { useCardForgeStore } from "@/stores/cardForge";
 import { useCardForgeData } from "@/composables/useCardForgeData";
@@ -71,11 +92,19 @@ const SIZE_META = {
   tarot: { cols: 2, perPage: 4 },
 } as const;
 
+/** In loot mode, only items get printed (the source is forced to items
+ *  but selectedSubjects merges every bucket, so filter here as well). */
+const printSubjects = computed<CardSubject[]>(() =>
+  store.mode === "loot"
+    ? selectedSubjects.value.filter((s) => s.kind === "item")
+    : selectedSubjects.value,
+);
+
 const printChunks = computed<(CardSubject | null)[][]>(() => {
   const { perPage } = SIZE_META[store.cardSize];
   const result: (CardSubject | null)[][] = [];
-  for (let i = 0; i < selectedSubjects.value.length; i += perPage) {
-    const chunk: (CardSubject | null)[] = selectedSubjects.value.slice(
+  for (let i = 0; i < printSubjects.value.length; i += perPage) {
+    const chunk: (CardSubject | null)[] = printSubjects.value.slice(
       i,
       i + perPage,
     );

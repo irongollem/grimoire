@@ -3,11 +3,28 @@
     <div>
       <h1 class="forge-title">Card Forge</h1>
       <p class="forge-sub">
-        Craft printable cards for your NPCs, monsters, items &amp; spells
+        {{
+          store.mode === "loot"
+            ? "Build a printable loot deck — items only, full info on the front, shared back."
+            : "Craft printable cards for your NPCs, monsters, items &amp; spells"
+        }}
       </p>
     </div>
 
     <div class="topbar-actions">
+      <div class="size-toggle">
+        <button
+          v-for="m in MODES"
+          :key="m.id"
+          type="button"
+          class="size-btn"
+          :class="{ active: store.mode === m.id }"
+          @click="store.mode = m.id"
+        >
+          {{ m.label }}
+        </button>
+      </div>
+
       <div class="size-toggle">
         <button
           v-for="sz in CARD_SIZES"
@@ -35,6 +52,15 @@
       </div>
 
       <button
+        v-if="store.mode === 'loot'"
+        type="button"
+        class="lib-btn"
+        @click="showDeckBackPicker = !showDeckBackPicker"
+      >
+        Deck Back: {{ activeDeckBack?.name ?? "—" }}
+      </button>
+
+      <button
         type="button"
         class="lib-btn"
         :disabled="!store.library.length"
@@ -60,21 +86,40 @@
         Print {{ selectedCount ? `(${selectedCount})` : "" }}
       </button>
     </div>
+
+    <CardForgeDeckBackPicker
+      v-if="showDeckBackPicker && store.mode === 'loot'"
+      @close="showDeckBackPicker = false"
+    />
+
     <p class="duplex-hint">
-      Prints fronts then backs. For double-sided printing, flip on the long
-      (left) edge — backs are column-reversed so they align.
+      {{
+        store.mode === "loot"
+          ? "Prints item fronts then a sheet of identical deck backs. Flip on the long (left) edge for double-sided."
+          : "Prints fronts then backs. For double-sided printing, flip on the long (left) edge — backs are column-reversed so they align."
+      }}
     </p>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useCardForgeStore } from "@/stores/cardForge";
 import { useCardForgeData } from "@/composables/useCardForgeData";
+import { deckBackById } from "@/components/cardforge/styles/loot/deckBacks";
+import CardForgeDeckBackPicker from "./CardForgeDeckBackPicker.vue";
 
 const store = useCardForgeStore();
 const { selectedSubjects } = useCardForgeData();
 const selectedCount = computed(() => selectedSubjects.value.length);
+
+const showDeckBackPicker = ref(false);
+const activeDeckBack = computed(() => deckBackById(store.lootDeckBackId));
+
+const MODES = [
+  { id: "collection", label: "Collection" },
+  { id: "loot", label: "Loot Deck" },
+] as const;
 
 const CARD_SIZES = [
   { id: "mtg", label: "Trading card (63×88mm)" },

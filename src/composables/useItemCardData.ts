@@ -23,14 +23,12 @@ export function useItemCardData(data: MaybeRefOrGetter<Item>) {
       ).toUpperCase(),
   );
 
-  const typeLine = computed(() =>
-    [
-      ITEM_RARITY_LABELS[toValue(data).rarity],
-      toValue(data).subtype,
-    ]
-      .filter(Boolean)
-      .join(" · "),
-  );
+  const typeLine = computed(() => {
+    const d = toValue(data);
+    const type = d.subtype || ITEM_TYPE_LABELS[d.item_type] || d.item_type;
+    const wt = d.weight ? ` (${d.weight} lb.)` : "";
+    return type ? type + wt : "—";
+  });
 
   const weight = computed(() =>
     toValue(data).weight ? toValue(data).weight + " lb" : "—",
@@ -46,13 +44,7 @@ export function useItemCardData(data: MaybeRefOrGetter<Item>) {
 
   const metaRows = computed(() => {
     const d = toValue(data);
-    const rows: Array<{ label: string; value: string }> = [
-      { label: "Rarity", value: ITEM_RARITY_LABELS[d.rarity] ?? d.rarity },
-      { label: "Type", value: ITEM_TYPE_LABELS[d.item_type] ?? d.item_type },
-    ];
-    if (d.subtype) rows.push({ label: "Subtype", value: d.subtype });
-    if (d.cost) rows.push({ label: "Value", value: d.cost });
-    if (d.weight) rows.push({ label: "Weight", value: d.weight + " lb." });
+    const rows: Array<{ label: string; value: string }> = [];
     if (d.requires_attunement)
       rows.push({ label: "Attunem.", value: "Required" });
     if (d.properties?.length)
