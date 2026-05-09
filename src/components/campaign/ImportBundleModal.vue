@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <div
-      v-if="modelValue"
+      v-if="open"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       @click.self="close"
     >
@@ -202,8 +202,7 @@ import { useImportWorldBundle, BUNDLE_ENTITY_TYPES } from "@/composables/useWorl
 import type { BundleEntityKey, BundlePreview } from "@/composables/useWorldBundle";
 import { pendingBundleFile } from "@/composables/usePendingBundle";
 
-const { modelValue } = defineProps<{ modelValue: boolean }>();
-const emit = defineEmits<{ "update:modelValue": [value: boolean] }>();
+const open = defineModel<boolean>({ required: true });
 
 const router = useRouter();
 const campaignStore = useCampaignStore();
@@ -215,8 +214,8 @@ const importMode = ref<"merge" | "new-campaign">("merge");
 const newCampaignName = ref("");
 const importError = ref<string | null>(null);
 
-watch(() => modelValue, async (open) => {
-  if (!open) {
+watch(open, async (isOpen) => {
+  if (!isOpen) {
     preview.value = null;
     selectedTypes.value = new Set();
     importMode.value = "merge";
@@ -253,7 +252,7 @@ function toggleType(key: BundleEntityKey) {
 }
 
 function close() {
-  if (!isPending.value) emit("update:modelValue", false);
+  if (!isPending.value) open.value = false;
 }
 
 function resetPreview() {
@@ -297,7 +296,7 @@ async function doImport() {
       includeTypes: new Set(selectedTypes.value),
     });
 
-    emit("update:modelValue", false);
+    open.value = false;
 
     if (result.newCampaign) {
       campaignStore.switchToCampaign(result.newCampaign);

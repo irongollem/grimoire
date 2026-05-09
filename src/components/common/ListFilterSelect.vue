@@ -9,24 +9,17 @@
     stay the caller's choice.
   -->
   <select
-    :value="modelValue"
+    v-model="model"
     class="bg-card border border-border rounded-md px-2 py-1.5 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring shrink-0"
     :aria-label="ariaLabel"
-    @change="
-      emit('update:modelValue', ($event.target as HTMLSelectElement).value)
-    "
   >
     <slot />
   </select>
 </template>
 
 <script setup lang="ts">
+const model = defineModel<string>({ required: true });
 defineProps<{
-  modelValue: string;
   ariaLabel?: string;
-}>();
-
-const emit = defineEmits<{
-  (e: "update:modelValue", value: string): void;
 }>();
 </script>

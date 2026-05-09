@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <div
-      v-if="modelValue"
+      v-if="open"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       @click.self="close"
     >
@@ -445,14 +445,10 @@ import { useAllLocations } from "@/composables/useLocations";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import { LOCATION_TYPE_LABELS, type LocationType } from "@/types/location.types";
 
+const open = defineModel<boolean>({ required: true });
 const props = defineProps<{
-  modelValue: boolean;
   editEvent?: CalendarEvent | null;
   initialDay?: number | null;
-}>();
-
-const emit = defineEmits<{
-  "update:modelValue": [value: boolean];
 }>();
 
 const calendar = useCalendarStore();
@@ -518,40 +514,37 @@ const availableFestivals = computed(() =>
   ),
 );
 
-watch(
-  () => props.modelValue,
-  (open) => {
-    if (open) {
-      if (props.editEvent) {
-        form.value = {
-          campaign_id: campaign.activeCampaignId,
-          title: props.editEvent.title,
-          description: props.editEvent.description,
-          event_type: props.editEvent.event_type,
-          color: eventColor(props.editEvent),
-          harptos_year: props.editEvent.harptos_year,
-          harptos_month: props.editEvent.harptos_month,
-          harptos_day: props.editEvent.harptos_day,
-          festival_day: props.editEvent.festival_day,
-          is_multi_day: props.editEvent.is_multi_day,
-          end_year: props.editEvent.end_year,
-          end_month: props.editEvent.end_month,
-          end_day: props.editEvent.end_day,
-          linked_quest_id: props.editEvent.linked_quest_id,
-          linked_encounter_id: props.editEvent.linked_encounter_id,
-          linked_location_id: props.editEvent.linked_location_id,
-          linked_note_id: props.editEvent.linked_note_id,
-          travel_party_member_ids: props.editEvent.travel_party_member_ids ?? [],
-          player_visible: props.editEvent.player_visible ?? false,
-        };
-        dateType.value = props.editEvent.festival_day ? "festival" : "regular";
-      } else {
-        form.value = defaultForm();
-        dateType.value = "regular";
-      }
+watch(open, (isOpen) => {
+  if (isOpen) {
+    if (props.editEvent) {
+      form.value = {
+        campaign_id: campaign.activeCampaignId,
+        title: props.editEvent.title,
+        description: props.editEvent.description,
+        event_type: props.editEvent.event_type,
+        color: eventColor(props.editEvent),
+        harptos_year: props.editEvent.harptos_year,
+        harptos_month: props.editEvent.harptos_month,
+        harptos_day: props.editEvent.harptos_day,
+        festival_day: props.editEvent.festival_day,
+        is_multi_day: props.editEvent.is_multi_day,
+        end_year: props.editEvent.end_year,
+        end_month: props.editEvent.end_month,
+        end_day: props.editEvent.end_day,
+        linked_quest_id: props.editEvent.linked_quest_id,
+        linked_encounter_id: props.editEvent.linked_encounter_id,
+        linked_location_id: props.editEvent.linked_location_id,
+        linked_note_id: props.editEvent.linked_note_id,
+        travel_party_member_ids: props.editEvent.travel_party_member_ids ?? [],
+        player_visible: props.editEvent.player_visible ?? false,
+      };
+      dateType.value = props.editEvent.festival_day ? "festival" : "regular";
+    } else {
+      form.value = defaultForm();
+      dateType.value = "regular";
     }
-  },
-);
+  }
+});
 
 watch(dateType, (type) => {
   if (type === "festival") {
@@ -594,7 +587,7 @@ const entityIconComponent = computed(() => {
 });
 
 function close() {
-  emit("update:modelValue", false);
+  open.value = false;
 }
 
 async function deleteAndClose() {

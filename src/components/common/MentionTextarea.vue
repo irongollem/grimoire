@@ -2,7 +2,7 @@
   <div class="relative w-full">
     <textarea
       ref="textareaRef"
-      :value="modelValue"
+      :value="model"
       :rows="rows"
       :placeholder="placeholder"
       :disabled="disabled"
@@ -58,6 +58,7 @@ const BADGE_CLASSES: Record<EntityType, string> = {
   party:    "text-amber-400 border-amber-400/40 bg-amber-400/10",
 };
 
+const model = defineModel<string>({ required: true });
 const {
   items = [],
   rows = 4,
@@ -65,16 +66,11 @@ const {
   disabled = false,
   inputClass = "field-input resize-none text-sm",
 } = defineProps<{
-  modelValue: string;
   items?: EntityMentionItem[];
   rows?: number;
   placeholder?: string;
   disabled?: boolean;
   inputClass?: string;
-}>();
-
-const emit = defineEmits<{
-  "update:modelValue": [value: string];
 }>();
 
 const textareaRef  = ref<HTMLTextAreaElement | null>(null);
@@ -106,7 +102,7 @@ const dropdownVisible = computed(
 
 function onInput(e: Event) {
   const ta = e.target as HTMLTextAreaElement;
-  emit("update:modelValue", ta.value);
+  model.value = ta.value;
   const result = getMentionAt(ta.value, ta.selectionStart);
   if (result) {
     mentionQuery.value  = result.query;
@@ -146,7 +142,7 @@ function selectItem(item: EntityMentionItem) {
   const before    = ta.value.slice(0, mentionStart.value);
   const after     = ta.value.slice(ta.selectionStart);
   const newValue  = before + inserted + after;
-  emit("update:modelValue", newValue);
+  model.value = newValue;
   mentionQuery.value = null;
   // Restore focus and place cursor after the inserted text
   ta.value = newValue;

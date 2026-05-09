@@ -5,11 +5,11 @@
       :key="opt.value"
       class="px-3 py-1 rounded-full text-xs font-cinzel tracking-wide border transition-colors"
       :class="
-        modelValue === opt.value
+        model === opt.value
           ? 'bg-gold-500/20 border-gold-500/60 text-gold-300'
           : 'bg-transparent border-border text-muted-foreground hover:text-foreground hover:border-border/80'
       "
-      @click="$emit('update:modelValue', opt.value)"
+      @click="model = opt.value"
     >
       {{ opt.label }}
     </button>
@@ -19,13 +19,7 @@
 <script setup lang="ts">
 import type { SoundCategory } from "@/types/sound.types";
 
-defineProps<{
-  modelValue: SoundCategory | "all";
-}>();
-
-defineEmits<{
-  (e: "update:modelValue", val: SoundCategory | "all"): void;
-}>();
+const model = defineModel<SoundCategory | "all">({ required: true });
 
 const options: { label: string; value: SoundCategory | "all" }[] = [
   { label: "All", value: "all" },

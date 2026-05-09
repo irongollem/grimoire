@@ -140,15 +140,13 @@ import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import type { Item } from "@/types/item.types";
 import type { RewardCurrencyPool } from "@/types/quest.types";
 
+const itemIds = defineModel<string[]>("itemIds", { required: true });
+const currencyPools = defineModel<RewardCurrencyPool[]>("currencyPools", { required: true });
 const props = defineProps<{
-  itemIds: string[];
   allItems: Item[];
-  currencyPools: RewardCurrencyPool[];
 }>();
 
 const emit = defineEmits<{
-  "update:itemIds": [v: string[]];
-  "update:currencyPools": [v: RewardCurrencyPool[]];
   "drop-pool": [pool: RewardCurrencyPool];
   "drop-item": [payload: { item: Item; qty: number }];
 }>();
@@ -163,7 +161,7 @@ const COIN_TYPES = [
 
 const itemCounts = computed(() => {
   const counts = new Map<string, number>();
-  for (const id of props.itemIds) {
+  for (const id of itemIds.value) {
     counts.set(id, (counts.get(id) ?? 0) + 1);
   }
   return counts;
@@ -172,7 +170,7 @@ const itemCounts = computed(() => {
 const linkedItemGroups = computed(() => {
   const seen = new Set<string>();
   const groups: { item: Item; qty: number }[] = [];
-  for (const id of props.itemIds) {
+  for (const id of itemIds.value) {
     if (seen.has(id)) continue;
     seen.add(id);
     const item = props.allItems.find((i) => i.id === id);
@@ -181,45 +179,45 @@ const linkedItemGroups = computed(() => {
   return groups;
 });
 
-const totalCount = computed(() => linkedItemGroups.value.length + props.currencyPools.length);
+const totalCount = computed(() => linkedItemGroups.value.length + currencyPools.value.length);
 
 const selectedItemId = ref("");
 
 function addItem() {
   if (!selectedItemId.value) return;
-  emit("update:itemIds", [...props.itemIds, selectedItemId.value]);
+  itemIds.value = [...itemIds.value, selectedItemId.value];
   selectedItemId.value = "";
 }
 
 function incrementItem(id: string) {
-  emit("update:itemIds", [...props.itemIds, id]);
+  itemIds.value = [...itemIds.value, id];
 }
 
 function decrementItem(id: string) {
-  const idx = [...props.itemIds].lastIndexOf(id);
+  const idx = [...itemIds.value].lastIndexOf(id);
   if (idx === -1) return;
-  const next = [...props.itemIds];
+  const next = [...itemIds.value];
   next.splice(idx, 1);
-  emit("update:itemIds", next);
+  itemIds.value = next;
 }
 
 function removeAllOfItem(id: string) {
-  emit("update:itemIds", props.itemIds.filter((i) => i !== id));
+  itemIds.value = itemIds.value.filter((i) => i !== id);
 }
 
 function addPool() {
-  emit("update:currencyPools", [
-    ...props.currencyPools,
+  currencyPools.value = [
+    ...currencyPools.value,
     { id: crypto.randomUUID(), label: "", pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 },
-  ]);
+  ];
 }
 
 function removePool(id: string) {
-  emit("update:currencyPools", props.currencyPools.filter((p) => p.id !== id));
+  currencyPools.value = currencyPools.value.filter((p) => p.id !== id);
 }
 
 function updatePool(id: string, key: string, value: string | number) {
-  emit("update:currencyPools", props.currencyPools.map((p) => (p.id === id ? { ...p, [key]: value } : p)));
+  currencyPools.value = currencyPools.value.map((p) => (p.id === id ? { ...p, [key]: value } : p));
 }
 
 function hasCoins(pool: RewardCurrencyPool) {

@@ -6,7 +6,7 @@
     <div
       :class="[
         'flex flex-wrap items-center gap-0.5 p-1.5 border-b border-border bg-card shrink-0 z-20 rte-toolbar',
-        props.stickyToolbar !== false && 'sticky top-11 md:top-0',
+        stickyToolbar !== false && 'sticky top-11 md:top-0',
       ]"
     >
       <template v-if="editor">
@@ -419,7 +419,14 @@ const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
   party: "PARTY",
 };
 
-const props = defineProps<{
+const {
+  modelValue,
+  placeholder,
+  allowCalendarEvents,
+  entityMentionItems,
+  stickyToolbar,
+  aiContext,
+} = defineProps<{
   modelValue: string | null;
   placeholder?: string;
   minHeight?: string;
@@ -464,7 +471,7 @@ function selectSuggestionItem(index: number) {
 
 const entityMentionExtension = createEntityMentionExtension({
   items: ({ query }) =>
-    (props.entityMentionItems ?? [])
+    (entityMentionItems ?? [])
       .filter((i) => i.label.toLowerCase().includes(query.toLowerCase()))
       .slice(0, 8),
 
@@ -563,7 +570,7 @@ function parseContent(value: string | null): object | string | undefined {
 }
 
 const editor = useEditor({
-  content: parseContent(props.modelValue),
+  content: parseContent(modelValue),
   extensions: [
     StarterKit.configure({
       document: false,
@@ -571,7 +578,7 @@ const editor = useEditor({
     }),
     CustomDocument,
     Placeholder.configure({
-      placeholder: props.placeholder ?? "Write something…",
+      placeholder: placeholder ?? "Write something…",
     }),
     Table.configure({ resizable: true }),
     TableRow,
@@ -584,7 +591,7 @@ const editor = useEditor({
     TaskList,
     TaskItem.configure({ nested: true }),
     Typography,
-    ...(props.allowCalendarEvents ? [CalendarEventRef] : []),
+    ...(allowCalendarEvents ? [CalendarEventRef] : []),
     entityMentionExtension,
     IllustrationSuggestion.configure({
       onPromptClick: (prompt) => emit("illustration-click", prompt),
@@ -757,7 +764,7 @@ const { isEnhancing, hasTextProvider, enhance } = useTextEnhancement();
 const enhanceError = ref<string | null>(null);
 
 const showEnhanceButton = computed(() => {
-  if (!props.aiContext) return false;
+  if (!aiContext) return false;
   return hasTextProvider();
 });
 
@@ -771,7 +778,7 @@ async function onEnhance() {
 
   enhanceError.value = null;
   try {
-    const markdown = await enhance(selectedText, props.aiContext ?? "general note");
+    const markdown = await enhance(selectedText, aiContext ?? "general note");
     const nodes = parseMarkdown(markdown);
     editor.value
       .chain()

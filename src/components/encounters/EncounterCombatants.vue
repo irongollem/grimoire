@@ -201,8 +201,8 @@ import { crToXp } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import type { Npc } from "@/types/npc.types";
 
+const combatants = defineModel<CombatantDef[]>("combatants", { required: true });
 const props = defineProps<{
-  combatants: CombatantDef[];
   factions: FactionDef[];
   monsters: Monster[];
   npcs: Npc[];
@@ -210,27 +210,23 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  "update:combatants": [combatants: CombatantDef[]];
   hideMonster: [monsterId: string];
 }>();
 
 // Local mutable copy so we can do in-place edits before emitting
-const localCombatants = ref<CombatantDef[]>(props.combatants.map((c) => ({ ...c })));
+const localCombatants = ref<CombatantDef[]>(combatants.value.map((c) => ({ ...c })));
 
-watch(
-  () => props.combatants,
-  (next) => {
-    // Only sync from parent if the IDs changed (avoid clobbering in-progress edits)
-    const nextIds = next.map((c) => c.id).join(",");
-    const localIds = localCombatants.value.map((c) => c.id).join(",");
-    if (nextIds !== localIds) {
-      localCombatants.value = next.map((c) => ({ ...c }));
-    }
-  },
-);
+watch(combatants, (next) => {
+  // Only sync from parent if the IDs changed (avoid clobbering in-progress edits)
+  const nextIds = next.map((c) => c.id).join(",");
+  const localIds = localCombatants.value.map((c) => c.id).join(",");
+  if (nextIds !== localIds) {
+    localCombatants.value = next.map((c) => ({ ...c }));
+  }
+});
 
 function emitCombatants() {
-  emit("update:combatants", localCombatants.value.map((c) => ({ ...c })));
+  combatants.value = localCombatants.value.map((c) => ({ ...c }));
 }
 
 // Monster lookup

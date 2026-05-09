@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <div
-      v-if="modelValue"
+      v-if="open"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       @click.self="close"
     >
@@ -120,8 +120,7 @@ import { useCreateCalendarEvent } from "@/composables/useCalendarEvents";
 import { SETTING_BUNDLES } from "@/data/bundles/index";
 import type { BundleEvent } from "@/data/bundles/index";
 
-defineProps<{ modelValue: boolean }>();
-const emit = defineEmits<{ "update:modelValue": [value: boolean] }>();
+const open = defineModel<boolean>({ required: true });
 
 const calendar = useCalendarStore();
 const createEvent = useCreateCalendarEvent();
@@ -134,7 +133,7 @@ const result = ref<"success" | "error" | null>(null);
 
 function close() {
   if (importing.value) return;
-  emit("update:modelValue", false);
+  open.value = false;
   // Reset state after close animation
   setTimeout(() => {
     imported.value = 0;

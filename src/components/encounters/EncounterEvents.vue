@@ -207,32 +207,25 @@ import type {
 } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 
+const events = defineModel<EncounterEvent[]>("events", { required: true });
 const props = defineProps<{
-  events: EncounterEvent[];
   combatants: CombatantDef[];
   monsters: Monster[];
   factions: FactionDef[];
 }>();
 
-const emit = defineEmits<{
-  "update:events": [events: EncounterEvent[]];
-}>();
+const localEvents = ref<EncounterEvent[]>(events.value.map((e) => ({ ...e })));
 
-const localEvents = ref<EncounterEvent[]>(props.events.map((e) => ({ ...e })));
-
-watch(
-  () => props.events,
-  (next) => {
-    const nextIds = next.map((e) => e.id).join(",");
-    const localIds = localEvents.value.map((e) => e.id).join(",");
-    if (nextIds !== localIds) {
-      localEvents.value = next.map((e) => ({ ...e }));
-    }
-  },
-);
+watch(events, (next) => {
+  const nextIds = next.map((e) => e.id).join(",");
+  const localIds = localEvents.value.map((e) => e.id).join(",");
+  if (nextIds !== localIds) {
+    localEvents.value = next.map((e) => ({ ...e }));
+  }
+});
 
 function emitEvents() {
-  emit("update:events", localEvents.value.map((e) => ({ ...e })));
+  events.value = localEvents.value.map((e) => ({ ...e }));
 }
 
 // Monster map for combatantLabel

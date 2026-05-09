@@ -1,9 +1,9 @@
 <template>
   <div class="flex flex-col gap-2">
     <!-- Selected chips — no height cap, flow naturally so nothing is hidden -->
-    <div v-if="modelValue.length" class="flex flex-wrap gap-1.5">
+    <div v-if="model.length" class="flex flex-wrap gap-1.5">
       <span
-        v-for="(tag, idx) in modelValue"
+        v-for="(tag, idx) in model"
         :key="tag"
         class="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2.5 py-0.5 font-cinzel text-[10px] tracking-wide text-foreground"
       >
@@ -104,13 +104,11 @@ import { ref, computed } from "vue";
 import { IconSearch } from '@/lib/icons';
 import type { ProficiencyGroup } from "@/lib/proficiency-lists";
 
-const { modelValue, groups, placeholder = "IconSearch…" } = defineProps<{
-  modelValue: string[];
+const model = defineModel<string[]>({ required: true });
+const { groups, placeholder = "IconSearch…" } = defineProps<{
   groups: ProficiencyGroup[];
   placeholder?: string;
 }>();
-
-const emit = defineEmits<{ "update:modelValue": [string[]] }>();
 
 const query = ref("");
 const open = ref(false);
@@ -127,36 +125,36 @@ const filteredItems = computed(() => {
 const canAddCustom = computed(() => {
   const q = query.value.trim();
   if (!q) return false;
-  const already = modelValue.some((v) => v.toLowerCase() === q.toLowerCase());
+  const already = model.value.some((v) => v.toLowerCase() === q.toLowerCase());
   const exact = allItems.value.some((v) => v.toLowerCase() === q.toLowerCase());
   return !already && !exact;
 });
 
 function isSelected(item: string) {
-  return modelValue.includes(item);
+  return model.value.includes(item);
 }
 
 function add(item: string) {
-  if (!isSelected(item)) emit("update:modelValue", [...modelValue, item]);
+  if (!isSelected(item)) model.value = [...model.value, item];
   query.value = "";
 }
 
 function addCustom() {
   const val = query.value.trim();
-  if (val && !isSelected(val)) emit("update:modelValue", [...modelValue, val]);
+  if (val && !isSelected(val)) model.value = [...model.value, val];
   query.value = "";
 }
 
 function toggle(item: string) {
-  emit("update:modelValue",
-    isSelected(item) ? modelValue.filter((v) => v !== item) : [...modelValue, item],
-  );
+  model.value = isSelected(item)
+    ? model.value.filter((v) => v !== item)
+    : [...model.value, item];
 }
 
 function remove(idx: number) {
-  const next = [...modelValue];
+  const next = [...model.value];
   next.splice(idx, 1);
-  emit("update:modelValue", next);
+  model.value = next;
 }
 
 function onEnter() {

@@ -1,7 +1,7 @@
 <template>
   <div>
     <button
-      v-if="!modelValue"
+      v-if="!model"
       type="button"
       class="font-cinzel text-xs font-semibold text-primary hover:opacity-80 transition-opacity"
       @click="addSpellcasting"
@@ -15,7 +15,7 @@
         <button
           type="button"
           class="font-cinzel text-[10px] text-destructive hover:opacity-80 transition-opacity"
-          @click="emit('update:modelValue', null)"
+          @click="model = null"
         >
           Remove
         </button>
@@ -26,7 +26,7 @@
         <label class="block">
           <span class="field-label">Ability</span>
           <select
-            :value="modelValue.ability ?? ''"
+            :value="model.ability ?? ''"
             class="field-input w-full"
             @change="onAbilityChange(($event.target as HTMLSelectElement).value)"
           >
@@ -39,7 +39,7 @@
         <label class="block">
           <span class="field-label">Spell Save DC</span>
           <input
-            :value="modelValue.save_dc ?? ''"
+            :value="model.save_dc ?? ''"
             type="number"
             min="1"
             max="30"
@@ -51,7 +51,7 @@
         <label class="block">
           <span class="field-label">Attack Bonus</span>
           <input
-            :value="modelValue.attack_bonus ?? ''"
+            :value="model.attack_bonus ?? ''"
             type="number"
             min="-5"
             max="20"
@@ -65,7 +65,7 @@
       <!-- Spell groups -->
       <div class="flex flex-col gap-4">
         <div
-          v-for="(entry, i) in modelValue.entries"
+          v-for="(entry, i) in model.entries"
           :key="i"
           class="rounded-md border border-border bg-muted/30 p-3 space-y-2"
         >
@@ -161,15 +161,11 @@ import { reactive, computed, nextTick } from "vue";
 import { useSpells } from "@/composables/useSpells";
 import type { SpellcastingBlock, SpellcastingEntry, SpellcastingAbility } from "@/types/npc.types";
 
+const model = defineModel<SpellcastingBlock | null>();
 const props = defineProps<{
-  modelValue?: SpellcastingBlock | null;
   abilityScores?: { int: number; wis: number; cha: number };
   proficiencyBonus?: number | null;
   challengeRating?: string;
-}>();
-
-const emit = defineEmits<{
-  "update:modelValue": [value: SpellcastingBlock | null];
 }>();
 
 const { data: allSpells } = useSpells();
@@ -192,7 +188,7 @@ const resolvedProfBonus = computed(() => {
 });
 
 function onAbilityChange(ability: string) {
-  if (!props.modelValue) return;
+  if (!model.value) return;
   const typedAbility = (ability || undefined) as SpellcastingAbility | undefined;
   const update: Partial<SpellcastingBlock> = { ability: typedAbility };
   if (typedAbility && props.abilityScores) {
@@ -202,7 +198,7 @@ function onAbilityChange(ability: string) {
     update.save_dc = 8 + prof + abilMod;
     update.attack_bonus = prof + abilMod;
   }
-  emit("update:modelValue", { ...props.modelValue, ...update });
+  model.value = { ...model.value, ...update };
 }
 
 const spellMap = computed(() => {
@@ -222,25 +218,25 @@ function levelLabel(level: number) {
 }
 
 function addSpellcasting() {
-  emit("update:modelValue", { entries: [{ frequency: "", spell_ids: [] }] });
+  model.value = { entries: [{ frequency: "", spell_ids: [] }] };
 }
 
 function patch(partial: Partial<SpellcastingBlock>) {
-  if (!props.modelValue) return;
-  emit("update:modelValue", { ...props.modelValue, ...partial });
+  if (!model.value) return;
+  model.value = { ...model.value, ...partial };
 }
 
 function updateEntries(entries: SpellcastingEntry[]) {
-  if (!props.modelValue) return;
-  emit("update:modelValue", { ...props.modelValue, entries });
+  if (!model.value) return;
+  model.value = { ...model.value, entries };
 }
 
 function addEntry() {
-  updateEntries([...(props.modelValue?.entries ?? []), { frequency: "", spell_ids: [] }]);
+  updateEntries([...(model.value?.entries ?? []), { frequency: "", spell_ids: [] }]);
 }
 
 function removeEntry(i: number) {
-  const entries = [...(props.modelValue?.entries ?? [])];
+  const entries = [...(model.value?.entries ?? [])];
   entries.splice(i, 1);
   delete searchQuery[i];
   delete searchOpen[i];
@@ -250,14 +246,14 @@ function removeEntry(i: number) {
 }
 
 function updateFrequency(i: number, frequency: string) {
-  const entries = (props.modelValue?.entries ?? []).map((e, idx) =>
+  const entries = (model.value?.entries ?? []).map((e, idx) =>
     idx === i ? { ...e, frequency } : e
   );
   updateEntries(entries);
 }
 
 function addSpell(i: number, spellId: string) {
-  const entries = (props.modelValue?.entries ?? []).map((e, idx) => {
+  const entries = (model.value?.entries ?? []).map((e, idx) => {
     if (idx !== i || e.spell_ids.includes(spellId)) return e;
     return { ...e, spell_ids: [...e.spell_ids, spellId] };
   });
@@ -266,7 +262,7 @@ function addSpell(i: number, spellId: string) {
 }
 
 function removeSpell(i: number, spellId: string) {
-  const entries = (props.modelValue?.entries ?? []).map((e, idx) =>
+  const entries = (model.value?.entries ?? []).map((e, idx) =>
     idx === i ? { ...e, spell_ids: e.spell_ids.filter(id => id !== spellId) } : e
   );
   updateEntries(entries);
@@ -283,7 +279,7 @@ function setSearchRef(i: number, el: HTMLElement | null) {
 
 function filteredSpells(i: number) {
   const q = (searchQuery[i] ?? "").toLowerCase().trim();
-  const selectedIds = new Set(props.modelValue?.entries[i]?.spell_ids ?? []);
+  const selectedIds = new Set(model.value?.entries[i]?.spell_ids ?? []);
   const candidates = (allSpells.value ?? []).filter(s => !selectedIds.has(s.id));
   if (!q) return candidates.slice(0, 50);
   return candidates.filter(s => s.name.toLowerCase().includes(q)).slice(0, 50);

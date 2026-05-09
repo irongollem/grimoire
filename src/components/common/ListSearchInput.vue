@@ -16,11 +16,10 @@
     />
     <input
       v-no-pwm
-      :value="modelValue"
+      v-model="model"
       type="text"
       :placeholder="placeholder"
       class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
     />
   </div>
 </template>
@@ -29,8 +28,8 @@
 import { computed } from "vue";
 import { IconSearch } from '@/lib/icons';
 
+const model = defineModel<string>({ required: true });
 const { inline = true, placeholder = "IconSearch…" } = defineProps<{
-  modelValue: string;
   placeholder?: string;
   /**
    * When `true` (default) the input grows to fill its flex parent down to
@@ -38,10 +37,6 @@ const { inline = true, placeholder = "IconSearch…" } = defineProps<{
    * to `false` when the search lives on its own row.
    */
   inline?: boolean;
-}>();
-
-const emit = defineEmits<{
-  (e: "update:modelValue", value: string): void;
 }>();
 
 const wrapperClass = computed(() =>

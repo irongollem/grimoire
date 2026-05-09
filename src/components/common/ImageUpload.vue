@@ -2,7 +2,7 @@
   <div class="relative">
     <!-- No image: dashed drop zone — label activates file input natively (iOS-safe) -->
     <label
-      v-if="!modelValue"
+      v-if="!imageUrl"
       :for="inputId"
       class="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed transition-colors"
       :class="[
@@ -34,9 +34,8 @@
         @drop.prevent="onDrop"
       >
         <FocalPointPicker
-          :src="modelValue"
-          :model-value="focalPoint ?? null"
-          @update:model-value="emit('update:focalPoint', $event)"
+          :src="imageUrl"
+          v-model="focalPoint"
         />
         <div class="flex items-center gap-3 mt-1.5">
           <label
@@ -71,7 +70,7 @@
         @dragleave.self="dragOver = false"
         @drop.prevent="onDrop"
       >
-        <img :src="modelValue" alt="" :class="aspect === 'auto' ? 'w-full h-auto block' : 'w-full h-full object-cover'" />
+        <img :src="imageUrl" alt="" :class="aspect === 'auto' ? 'w-full h-auto block' : 'w-full h-full object-cover'" />
         <label
           v-if="!isUploading"
           :for="inputId"
@@ -112,25 +111,18 @@ import { IconAddImage } from '@/lib/icons';
 import { useImageUpload } from "@/composables/useImageUpload";
 import FocalPointPicker from "./FocalPointPicker.vue";
 
+const imageUrl = defineModel<string | null>({ required: true });
+const focalPoint = defineModel<{ x: number; y: number } | null>("focalPoint", { default: null });
 const {
-  modelValue,
-  focalPoint = null,
   bucket = "asset-images",
   aspect = "portrait",
   showFocalPoint = false,
   placeholder = "Drop image or click to upload",
 } = defineProps<{
-  modelValue: string | null;
-  focalPoint?: { x: number; y: number } | null;
   bucket?: string;
   aspect?: "portrait" | "landscape" | "square" | "auto";
   showFocalPoint?: boolean;
   placeholder?: string;
-}>();
-
-const emit = defineEmits<{
-  "update:modelValue": [value: string | null];
-  "update:focalPoint": [value: { x: number; y: number } | null];
 }>();
 
 const inputId = useId();
@@ -144,12 +136,12 @@ const aspectClass = computed(() => {
 });
 
 async function handleFile(file: File) {
-  const oldUrl = modelValue;
+  const oldUrl = imageUrl.value;
   const url = await upload(file);
   if (!url) return;
   if (oldUrl) remove(oldUrl);
-  emit("update:modelValue", url);
-  if (showFocalPoint) emit("update:focalPoint", null);
+  imageUrl.value = url;
+  if (showFocalPoint) focalPoint.value = null;
 }
 
 async function onFileSelected(e: Event) {
@@ -191,8 +183,8 @@ async function onDrop(e: DragEvent) {
 }
 
 function removeImage() {
-  if (modelValue) remove(modelValue);
-  emit("update:modelValue", null);
-  if (showFocalPoint) emit("update:focalPoint", null);
+  if (imageUrl.value) remove(imageUrl.value);
+  imageUrl.value = null;
+  if (showFocalPoint) focalPoint.value = null;
 }
 </script>

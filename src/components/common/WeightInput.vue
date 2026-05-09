@@ -1,7 +1,7 @@
 <template>
   <div class="relative">
     <input
-      :value="modelValue ?? ''"
+      :value="model ?? ''"
       type="number"
       step="0.01"
       min="0"
@@ -14,14 +14,10 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
-  modelValue: number | null;
-}>();
-
-const emit = defineEmits<{ "update:modelValue": [value: number | null] }>();
+const model = defineModel<number | null>({ required: true });
 
 function onInput(e: Event) {
   const raw = (e.target as HTMLInputElement).value;
-  emit("update:modelValue", raw === "" ? null : parseFloat(raw));
+  model.value = raw === "" ? null : parseFloat(raw);
 }
 </script>

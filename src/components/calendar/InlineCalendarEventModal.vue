@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <div
-      v-if="modelValue"
+      v-if="open"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       @click.self="close"
     >
@@ -140,9 +140,8 @@ import { useCampaignStore } from "@/stores/campaign";
 import { EVENT_TYPE_COLORS, eventColor } from "@/types/calendar.types";
 import type { CalendarEvent, CalendarEventInsert } from "@/types/calendar.types";
 
-const props = defineProps<{ modelValue: boolean }>();
+const open = defineModel<boolean>({ required: true });
 const emit = defineEmits<{
-  "update:modelValue": [value: boolean];
   "event-created": [event: CalendarEvent];
 }>();
 
@@ -186,15 +185,12 @@ function defaultForm(): CalendarEventInsert {
 
 const form = ref<CalendarEventInsert>(defaultForm());
 
-watch(
-  () => props.modelValue,
-  (open) => {
-    if (open) {
-      form.value = defaultForm();
-      dateType.value = "regular";
-    }
-  },
-);
+watch(open, (isOpen) => {
+  if (isOpen) {
+    form.value = defaultForm();
+    dateType.value = "regular";
+  }
+});
 
 watch(dateType, (type) => {
   if (type === "festival") {
@@ -214,7 +210,7 @@ watch(
 );
 
 function close() {
-  emit("update:modelValue", false);
+  open.value = false;
 }
 
 async function submit() {

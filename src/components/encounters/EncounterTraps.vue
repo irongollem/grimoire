@@ -93,13 +93,9 @@ import TrapPreviewModal from "@/components/traps/TrapPreviewModal.vue";
 import { crToXp } from "@/types/encounter.types";
 import type { Trap } from "@/types/trap.types";
 
+const trapIds = defineModel<string[]>("trapIds", { required: true });
 const props = defineProps<{
-  trapIds: string[];
   allTraps: Trap[];
-}>();
-
-const emit = defineEmits<{
-  "update:trapIds": [v: string[]];
 }>();
 
 const selectedId = ref("");
@@ -107,7 +103,7 @@ const previewTrap = ref<Trap | null>(null);
 
 const trapCounts = computed(() => {
   const counts = new Map<string, number>();
-  for (const id of props.trapIds) {
+  for (const id of trapIds.value) {
     counts.set(id, (counts.get(id) ?? 0) + 1);
   }
   return counts;
@@ -116,7 +112,7 @@ const trapCounts = computed(() => {
 const linkedGroups = computed(() => {
   const seen = new Set<string>();
   const groups: { trap: Trap; qty: number }[] = [];
-  for (const id of props.trapIds) {
+  for (const id of trapIds.value) {
     if (seen.has(id)) continue;
     seen.add(id);
     const trap = props.allTraps.find((t) => t.id === id);
@@ -127,23 +123,23 @@ const linkedGroups = computed(() => {
 
 function addTrap() {
   if (!selectedId.value) return;
-  emit("update:trapIds", [...props.trapIds, selectedId.value]);
+  trapIds.value = [...trapIds.value, selectedId.value];
   selectedId.value = "";
 }
 
 function increment(id: string) {
-  emit("update:trapIds", [...props.trapIds, id]);
+  trapIds.value = [...trapIds.value, id];
 }
 
 function decrement(id: string) {
-  const idx = [...props.trapIds].lastIndexOf(id);
+  const idx = [...trapIds.value].lastIndexOf(id);
   if (idx === -1) return;
-  const next = [...props.trapIds];
+  const next = [...trapIds.value];
   next.splice(idx, 1);
-  emit("update:trapIds", next);
+  trapIds.value = next;
 }
 
 function removeAll(id: string) {
-  emit("update:trapIds", props.trapIds.filter((i) => i !== id));
+  trapIds.value = trapIds.value.filter((i) => i !== id);
 }
 </script>

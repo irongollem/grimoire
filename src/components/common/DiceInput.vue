@@ -2,7 +2,7 @@
   <div class="relative">
     <input
       ref="inputEl"
-      :value="modelValue"
+      :value="model"
       v-bind="$attrs"
       autocomplete="off"
       @input="onInput"
@@ -43,8 +43,7 @@ import { DAMAGE_TYPES } from "@/types/damage.types";
 
 defineOptions({ inheritAttrs: false });
 
-const props = defineProps<{ modelValue: string }>();
-const emit = defineEmits<{ "update:modelValue": [value: string] }>();
+const model = defineModel<string>({ required: true });
 
 const inputEl = ref<HTMLInputElement | null>(null);
 const suggestions = ref<string[]>([]);
@@ -72,8 +71,8 @@ function getActiveWord(text: string, cursor: number): WordMatch | null {
 function refreshSuggestions() {
   const el = inputEl.value;
   if (!el) return;
-  const cursor = el.selectionStart ?? props.modelValue.length;
-  const match = getActiveWord(props.modelValue, cursor);
+  const cursor = el.selectionStart ?? model.value.length;
+  const match = getActiveWord(model.value, cursor);
   activeWord.value = match;
   if (match) {
     suggestions.value = (DAMAGE_TYPES as readonly string[]).filter(
@@ -87,7 +86,7 @@ function refreshSuggestions() {
 
 function onInput(e: Event) {
   const val = (e.target as HTMLInputElement).value;
-  emit("update:modelValue", val);
+  model.value = val;
   nextTick(refreshSuggestions);
 }
 
@@ -95,10 +94,10 @@ function select(type: string) {
   const el = inputEl.value;
   if (!el || !activeWord.value) return;
   const { start, end } = activeWord.value;
-  const before = props.modelValue.slice(0, start);
-  const after = props.modelValue.slice(end);
+  const before = model.value.slice(0, start);
+  const after = model.value.slice(end);
   const newVal = before + type + after;
-  emit("update:modelValue", newVal);
+  model.value = newVal;
   suggestions.value = [];
   activeWord.value = null;
   nextTick(() => {

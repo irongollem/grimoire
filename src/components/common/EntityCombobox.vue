@@ -17,7 +17,7 @@
         @keydown.arrow-down.prevent="open = true"
       />
       <button
-        v-if="modelValue"
+        v-if="selectedId"
         type="button"
         class="absolute right-7 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors text-base leading-none px-0.5"
         @mousedown.prevent="clear"
@@ -55,13 +55,11 @@
 import { ref, computed, watch, nextTick, onUnmounted } from "vue";
 import { IconChevronDown } from '@/lib/icons';
 
-const { modelValue, options, placeholder = "Search…" } = defineProps<{
-  modelValue: string;
+const selectedId = defineModel<string>({ required: true });
+const { options, placeholder = "Search…" } = defineProps<{
   options: T[];
   placeholder?: string;
 }>();
-
-const emit = defineEmits<{ "update:modelValue": [value: string] }>();
 
 const inputEl = ref<HTMLInputElement | null>(null);
 const query   = ref("");
@@ -69,7 +67,7 @@ const open    = ref(false);
 const dropdownStyle = ref<Record<string, string>>({});
 
 const selectedLabel = computed(() =>
-  modelValue ? (options.find(o => o.id === modelValue)?.name ?? "") : ""
+  selectedId.value ? (options.find(o => o.id === selectedId.value)?.name ?? "") : ""
 );
 
 const filtered = computed(() => {
@@ -99,7 +97,7 @@ function onFocus() {
 onUnmounted(() => window.removeEventListener("scroll", updatePosition, true));
 
 function select(opt: T) {
-  emit("update:modelValue", opt.id);
+  selectedId.value = opt.id;
   query.value = "";
   open.value  = false;
 }
@@ -109,7 +107,7 @@ function selectFirst() {
 }
 
 function clear() {
-  emit("update:modelValue", "");
+  selectedId.value = "";
   query.value = "";
 }
 
@@ -132,7 +130,7 @@ watch(open, (val) => {
   }
 });
 
-watch(() => modelValue, (val) => {
+watch(selectedId, (val) => {
   if (!val) query.value = "";
 });
 </script>

@@ -25,9 +25,9 @@
 
       <!-- Crosshair dot at current focal point -->
       <div
-        v-if="modelValue"
+        v-if="focalPoint"
         class="absolute w-5 h-5 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-        :style="{ left: modelValue.x + '%', top: modelValue.y + '%' }"
+        :style="{ left: focalPoint.x + '%', top: focalPoint.y + '%' }"
       >
         <!-- Outer ring -->
         <div
@@ -50,10 +50,10 @@
 
     <!-- Clear button -->
     <button
-      v-if="modelValue"
+      v-if="focalPoint"
       type="button"
       class="text-xs font-cinzel tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-      @click="$emit('update:modelValue', null)"
+      @click="focalPoint = null"
     >
       ✕ Clear (use smartcrop)
     </button>
@@ -61,19 +61,15 @@
 </template>
 
 <script setup lang="ts">
+const focalPoint = defineModel<{ x: number; y: number } | null>({ required: true });
 defineProps<{
   src: string;
-  modelValue: { x: number; y: number } | null;
-}>();
-
-const emit = defineEmits<{
-  "update:modelValue": [value: { x: number; y: number } | null];
 }>();
 
 function onPick(e: MouseEvent) {
   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
   const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
   const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
-  emit("update:modelValue", { x, y });
+  focalPoint.value = { x, y };
 }
 </script>

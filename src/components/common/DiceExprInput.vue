@@ -2,7 +2,7 @@
   <div>
     <div class="flex items-center gap-1.5">
       <input
-        :value="modelValue ?? ''"
+        :value="model ?? ''"
         type="text"
         :placeholder="placeholder"
         class="flex-1 min-w-0 bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -34,7 +34,7 @@
           >avg {{ average }}</span
         >
         <span
-          v-else-if="modelValue && !parsed"
+          v-else-if="model && !parsed"
           key="invalid"
           class="font-cinzel text-[10px] text-destructive/70 tracking-wider"
           >invalid</span
@@ -49,25 +49,23 @@ import { computed, ref } from "vue";
 import { IconDice } from '@/lib/icons';
 import { parseExpression, averageExpression, rollExpression } from "@/lib/dice";
 
-const { modelValue, placeholder = "2d6+3", compact = false } = defineProps<{
-  modelValue: string | null;
+const model = defineModel<string | null>({ required: true });
+const { placeholder = "2d6+3", compact = false } = defineProps<{
   placeholder?: string;
   compact?: boolean;
 }>();
 
-const emit = defineEmits<{ "update:modelValue": [value: string | null] }>();
-
 const rollResult = ref<number | null>(null);
 let rollTimer: ReturnType<typeof setTimeout> | null = null;
 
-const parsed = computed(() => parseExpression(modelValue));
+const parsed = computed(() => parseExpression(model.value));
 const average = computed(() =>
   parsed.value ? averageExpression(parsed.value) : null,
 );
 
 function onInput(e: Event) {
   const val = (e.target as HTMLInputElement).value;
-  emit("update:modelValue", val || null);
+  model.value = val || null;
   rollResult.value = null;
 }
 

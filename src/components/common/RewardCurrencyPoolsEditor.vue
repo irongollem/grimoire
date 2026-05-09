@@ -3,12 +3,12 @@
     <div class="px-3 py-2 border-b border-border bg-muted/20">
       <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
         Loot Pools
-        <span v-if="modelValue.length" class="font-fell font-normal">({{ modelValue.length }})</span>
+        <span v-if="model.length" class="font-fell font-normal">({{ model.length }})</span>
       </span>
     </div>
     <div class="p-2 flex flex-col gap-2">
       <div
-        v-for="pool in modelValue"
+        v-for="pool in model"
         :key="pool.id"
         class="rounded border border-border bg-muted/10 px-2 py-2 flex flex-col gap-1.5"
       >
@@ -67,7 +67,7 @@
   <!-- Embedded mode: no card wrapper, renders pool list + add button inline -->
   <template v-else>
     <div
-      v-for="pool in modelValue"
+      v-for="pool in model"
       :key="pool.id"
       class="rounded border border-border bg-muted/10 px-2 py-2 flex flex-col gap-1.5"
     >
@@ -128,8 +128,8 @@ import { IconAdd, IconClose, IconCoins } from '@/lib/icons';
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import type { RewardCurrencyPool } from "@/types/quest.types";
 
-const props = defineProps<{ modelValue: RewardCurrencyPool[]; embedded?: boolean }>();
-const emit = defineEmits<{ "update:modelValue": [v: RewardCurrencyPool[]] }>();
+const model = defineModel<RewardCurrencyPool[]>({ required: true });
+defineProps<{ embedded?: boolean }>();
 
 const { sendCurrencyDrop } = useCampaignMessages();
 
@@ -146,20 +146,20 @@ function hasCoins(pool: RewardCurrencyPool) {
 }
 
 function addPool() {
-  emit("update:modelValue", [
-    ...props.modelValue,
+  model.value = [
+    ...model.value,
     { id: crypto.randomUUID(), label: "", pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 },
-  ]);
+  ];
 }
 
 function remove(id: string) {
-  emit("update:modelValue", props.modelValue.filter(p => p.id !== id));
+  model.value = model.value.filter(p => p.id !== id);
 }
 
 function updatePool(id: string, key: string, value: string | number) {
-  emit("update:modelValue", props.modelValue.map(p =>
+  model.value = model.value.map(p =>
     p.id === id ? { ...p, [key]: value } : p
-  ));
+  );
 }
 
 async function drop(pool: RewardCurrencyPool) {

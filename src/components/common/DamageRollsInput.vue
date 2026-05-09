@@ -77,41 +77,36 @@ const SCHOOL_HINTS: Record<string, string> = {
   divination: "e.g. 2d6 radiant…",
 };
 
-const props = defineProps<{
-  modelValue: DamageRoll[];
+const model = defineModel<DamageRoll[]>({ required: true });
+const { school } = defineProps<{
   school?: string;
 }>();
-const emit = defineEmits<{ "update:modelValue": [value: DamageRoll[]] }>();
 
-const rows = computed(() => props.modelValue);
+const rows = computed(() => model.value);
 const parseInput = ref("");
 
 const parsePlaceholder = computed(
-  () => (props.school && SCHOOL_HINTS[props.school]) ?? "e.g. 2d6 fire + 1d6 slashing…",
+  () => (school && SCHOOL_HINTS[school]) ?? "e.g. 2d6 fire + 1d6 slashing…",
 );
 
-const totalAvg = computed(() => props.modelValue.reduce((sum, r) => sum + parseDiceAvg(r.dice), 0));
+const totalAvg = computed(() => model.value.reduce((sum, r) => sum + parseDiceAvg(r.dice), 0));
 
 function updateRow(i: number, field: "dice" | "type", value: string) {
-  const updated = props.modelValue.map((r, idx) => (idx === i ? { ...r, [field]: value } : r));
-  emit("update:modelValue", updated);
+  model.value = model.value.map((r, idx) => (idx === i ? { ...r, [field]: value } : r));
 }
 
 function addRow() {
-  emit("update:modelValue", [...props.modelValue, { dice: "", type: "" }]);
+  model.value = [...model.value, { dice: "", type: "" }];
 }
 
 function removeRow(i: number) {
-  emit(
-    "update:modelValue",
-    props.modelValue.filter((_, idx) => idx !== i),
-  );
+  model.value = model.value.filter((_, idx) => idx !== i);
 }
 
 function parseAndApply() {
   const parsed = parseDamageExpression(parseInput.value);
   if (parsed.length === 0) return;
-  emit("update:modelValue", [...props.modelValue, ...parsed]);
+  model.value = [...model.value, ...parsed];
   parseInput.value = "";
 }
 </script>

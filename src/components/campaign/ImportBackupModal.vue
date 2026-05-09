@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <div
-      v-if="modelValue"
+      v-if="open"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       @click.self="close"
     >
@@ -149,8 +149,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useImportCampaign } from "@/composables/useCampaignBackup";
 import type { BackupPreview } from "@/composables/useCampaignBackup";
 
-const { modelValue } = defineProps<{ modelValue: boolean }>();
-const emit = defineEmits<{ "update:modelValue": [value: boolean] }>();
+const open = defineModel<boolean>({ required: true });
 
 const router = useRouter();
 const campaignStore = useCampaignStore();
@@ -160,8 +159,8 @@ const preview = ref<BackupPreview | null>(null);
 const newName = ref("");
 const importError = ref<string | null>(null);
 
-watch(() => modelValue, (open) => {
-  if (!open) {
+watch(open, (isOpen) => {
+  if (!isOpen) {
     preview.value = null;
     newName.value = "";
     importError.value = null;
@@ -186,7 +185,7 @@ function formatKey(key: string | number): string {
 }
 
 function close() {
-  if (!isPending.value) emit("update:modelValue", false);
+  if (!isPending.value) open.value = false;
 }
 
 function resetPreview() {
@@ -214,7 +213,7 @@ async function doImport() {
   try {
     const created = await executeImport(newName.value.trim());
     campaignStore.switchToCampaign(created);
-    emit("update:modelValue", false);
+    open.value = false;
     router.push("/");
   } catch (err) {
     importError.value = err instanceof Error ? err.message : "Import failed. Please try again.";

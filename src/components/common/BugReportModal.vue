@@ -2,7 +2,7 @@
   <Teleport to="body">
     <Transition name="dialog-fade">
       <div
-        v-if="modelValue"
+        v-if="open"
         class="fixed inset-0 z-200 flex items-center justify-center p-4"
         @mousedown.self="close"
       >
@@ -178,8 +178,7 @@ import { IconAddImage, IconBug, IconCircleCheck, IconClose, IconLoading } from '
 import { useAuthStore } from "@/stores/auth";
 import { supabase } from "@/lib/supabase";
 
-defineProps<{ modelValue: boolean }>();
-const emit = defineEmits<{ "update:modelValue": [val: boolean] }>();
+const open = defineModel<boolean>({ required: true });
 
 const auth = useAuthStore();
 
@@ -193,7 +192,7 @@ const error = ref("");
 const issueNumber = ref<number | null>(null);
 
 function close() {
-  emit("update:modelValue", false);
+  open.value = false;
   setTimeout(reset, 200);
 }
 

@@ -18,14 +18,14 @@
       :key="String(opt.value)"
       type="button"
       role="radio"
-      :aria-checked="modelValue === opt.value"
+      :aria-checked="model === opt.value"
       class="px-2.5 py-1.5 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-ring"
       :class="
-        modelValue === opt.value
+        model === opt.value
           ? 'bg-primary text-primary-foreground'
           : 'bg-card text-muted-foreground hover:text-foreground'
       "
-      @click="emit('update:modelValue', opt.value)"
+      @click="model = opt.value"
     >
       {{ opt.label }}
     </button>
@@ -33,14 +33,10 @@
 </template>
 
 <script setup lang="ts" generic="T extends string | number">
+const model = defineModel<T>({ required: true });
 defineProps<{
-  modelValue: T;
   options: ReadonlyArray<{ value: T; label: string }>;
   /** Optional accessibility label for the radio group (e.g. "Status filter"). */
   ariaLabel?: string;
-}>();
-
-const emit = defineEmits<{
-  (e: "update:modelValue", value: T): void;
 }>();
 </script>

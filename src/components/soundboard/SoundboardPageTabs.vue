@@ -4,11 +4,11 @@
     <button
       class="shrink-0 px-3 py-1 rounded-md text-xs font-cinzel tracking-wide transition-colors"
       :class="
-        modelValue === null
+        activePageId === null
           ? 'bg-gold-500/20 border border-gold-500/40 text-gold-300'
           : 'border border-transparent text-muted-foreground hover:text-foreground hover:border-border'
       "
-      @click="emit('update:modelValue', null)"
+      @click="activePageId = null"
     >
       All
     </button>
@@ -50,11 +50,11 @@
           v-else
           class="px-3 py-1 rounded-md text-xs font-cinzel tracking-wide transition-colors"
           :class="
-            modelValue === page.id
+            activePageId === page.id
               ? 'bg-gold-500/20 border border-gold-500/40 text-gold-300'
               : 'border border-transparent text-muted-foreground hover:text-foreground hover:border-border'
           "
-          @click="emit('update:modelValue', page.id)"
+          @click="activePageId = page.id"
           @dblclick="startRename(page)"
           :title="page.name + ' — double-click to rename'"
         >
@@ -96,13 +96,9 @@ import {
 } from "@/composables/useSoundboardPages";
 import type { SoundboardPage } from "@/types/sound.types";
 
-const { modelValue, pages } = defineProps<{
-  modelValue: string | null;
+const activePageId = defineModel<string | null>({ required: true });
+const { pages } = defineProps<{
   pages: SoundboardPage[];
-}>();
-
-const emit = defineEmits<{
-  (e: "update:modelValue", pageId: string | null): void;
 }>();
 
 const { mutate: createPage } = useCreateSoundboardPage();
@@ -131,7 +127,7 @@ function addPage() {
     { name: "New Page", sort_order: nextOrder },
     {
       onSuccess: (page) => {
-        emit("update:modelValue", page.id);
+        activePageId.value = page.id;
         nextTick(() => startRename(page));
       },
     },
@@ -174,8 +170,8 @@ function deletePage(id: string) {
   deletePage_m(id, {
     onSuccess: () => {
       // If the deleted page was active, fall back to "All"
-      if (modelValue === id) {
-        emit("update:modelValue", null);
+      if (activePageId.value === id) {
+        activePageId.value = null;
       }
     },
   });

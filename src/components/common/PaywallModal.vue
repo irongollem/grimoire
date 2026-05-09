@@ -2,7 +2,7 @@
   <Teleport to="body">
     <Transition name="dialog-fade">
       <div
-        v-if="modelValue"
+        v-if="open"
         class="fixed inset-0 z-200 flex items-center justify-center p-4"
         @mousedown.self="close"
       >
@@ -108,13 +108,11 @@ import { QUOTA_RESOURCE_LABELS } from "@/types/subscription.types";
 import type { QuotaResource } from "@/types/subscription.types";
 import { detectCurrency, formatCents } from "@/lib/pricing";
 
+const open = defineModel<boolean>({ required: true })
 const props = defineProps<{
-  modelValue: boolean
   resource?: QuotaResource
   message?: string
 }>()
-
-const emit = defineEmits<{ "update:modelValue": [val: boolean] }>()
 
 const { quota } = useQuota(props.resource ?? 'npcs')
 const { data: proPlan } = usePlan('pro')
@@ -157,7 +155,7 @@ const BENEFITS = [
 ]
 
 function close() {
-  emit("update:modelValue", false)
+  open.value = false
 }
 
 function upgrade() {

@@ -40,7 +40,7 @@
           v-for="trap in store.traps"
           :key="trap.id"
           class="trap-row"
-          :class="{ 'trap-selected': props.selectedTrapId === trap.id }"
+          :class="{ 'trap-selected': selectedTrapId === trap.id }"
           :style="{ '--trap-color': trapTypeColor(trap.trap_type) }"
           @click="toggleTrapDetail(trap.id)"
         >
@@ -63,13 +63,7 @@
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { TRAP_TYPE_COLORS } from "@/types/trap.types";
 
-const props = defineProps<{
-  selectedTrapId: string | null;
-}>();
-
-const emit = defineEmits<{
-  "update:selectedTrapId": [id: string | null];
-}>();
+const selectedTrapId = defineModel<string | null>("selectedTrapId", { required: true });
 
 const store = useEncounterRunStore();
 
@@ -85,11 +79,7 @@ function trapTypeColor(trapType: string): string {
 }
 
 function toggleTrapDetail(id: string) {
-  if (props.selectedTrapId === id) {
-    emit("update:selectedTrapId", null);
-  } else {
-    emit("update:selectedTrapId", id);
-  }
+  selectedTrapId.value = selectedTrapId.value === id ? null : id;
 }
 </script>
 

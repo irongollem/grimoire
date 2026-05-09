@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <div
-      v-if="modelValue"
+      v-if="open"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       @click.self="close"
     >
@@ -125,13 +125,12 @@ import { isQuotaExceeded } from "@/lib/quotaError";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import type { Campaign } from "@/types/campaign.types";
 
-const { modelValue, showClaimOption = false } = defineProps<{
-  modelValue: boolean;
+const open = defineModel<boolean>({ required: true });
+const { showClaimOption = false } = defineProps<{
   showClaimOption?: boolean;
 }>();
 
 const emit = defineEmits<{
-  "update:modelValue": [value: boolean];
   created: [campaign: Campaign];
 }>();
 
@@ -150,8 +149,8 @@ const form = ref({
 const claimExisting = ref(true);
 const showPaywall = ref(false);
 
-watch(() => modelValue, (open) => {
-  if (open) {
+watch(open, (isOpen) => {
+  if (isOpen) {
     form.value = {
       name: "",
       setting: "",
@@ -163,7 +162,7 @@ watch(() => modelValue, (open) => {
 });
 
 function close() {
-  emit("update:modelValue", false);
+  open.value = false;
 }
 
 function onCalendarChange() {

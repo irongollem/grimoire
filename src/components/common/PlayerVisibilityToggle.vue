@@ -85,13 +85,7 @@ import { ref, computed, onMounted, onUnmounted } from "vue";
 import { IconCheck, IconHide, IconParty, IconReveal } from '@/lib/icons';
 import { useParty } from "@/composables/useParty";
 
-const props = defineProps<{
-  visibleTo: string[];
-}>();
-
-const emit = defineEmits<{
-  "update:visibleTo": [val: string[]];
-}>();
+const visibleTo = defineModel<string[]>("visibleTo", { required: true });
 
 const { data: partyData } = useParty();
 const party = computed(() => partyData.value ?? []);
@@ -119,39 +113,34 @@ function toggleOpen() {
   open.value = !open.value;
 }
 
-const isShared = computed(() => props.visibleTo.length > 0);
+const isShared = computed(() => visibleTo.value.length > 0);
 
 const allSelected = computed(
-  () => party.value.length > 0 && party.value.every((m) => props.visibleTo.includes(m.id)),
+  () => party.value.length > 0 && party.value.every((m) => visibleTo.value.includes(m.id)),
 );
 
 const label = computed(() => {
   if (allSelected.value) return "Visible to all players";
-  if (props.visibleTo.length) return `Visible to ${props.visibleTo.length} player(s)`;
+  if (visibleTo.value.length) return `Visible to ${visibleTo.value.length} player(s)`;
   return "Hidden from players";
 });
 
 function isMemberSelected(id: string): boolean {
-  return props.visibleTo.includes(id);
+  return visibleTo.value.includes(id);
 }
 
 function toggleAll() {
-  if (allSelected.value) {
-    emit("update:visibleTo", []);
-  } else {
-    emit("update:visibleTo", party.value.map((m) => m.id));
-  }
+  visibleTo.value = allSelected.value ? [] : party.value.map((m) => m.id);
 }
 
 function toggleMember(id: string) {
-  const next = props.visibleTo.includes(id)
-    ? props.visibleTo.filter((mid) => mid !== id)
-    : [...props.visibleTo, id];
-  emit("update:visibleTo", next);
+  visibleTo.value = visibleTo.value.includes(id)
+    ? visibleTo.value.filter((mid) => mid !== id)
+    : [...visibleTo.value, id];
 }
 
 function hide() {
-  emit("update:visibleTo", []);
+  visibleTo.value = [];
   open.value = false;
 }
 

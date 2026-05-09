@@ -241,9 +241,9 @@ import { IconClose, IconHide, IconLocation, IconNavigate, IconReveal, IconScan }
 import { LOCATION_TYPE_COLORS } from "@/types/location.types";
 import type { MapPin as MapPinType, LocationType } from "@/types/location.types";
 
+const pins = defineModel<MapPinType[]>("pins", { required: true });
 const props = defineProps<{
   mapUrl: string;
-  pins: MapPinType[];
   /** Candidate pin targets (edit mode: unplaced list + pin data population).
    *  Usually direct children, but callers can also pass descendants that were
    *  surfaced through vague container types (regions / continents / …) — in
@@ -266,7 +266,6 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  "update:pins": [pins: MapPinType[]];
   "pin-click": [childId: string];
   "pin-go": [childId: string];
   "pin-watch": [childId: string];
@@ -525,8 +524,8 @@ function resetZoom() {
 // ── Pin visibility ─────────────────────────────────────────────────────────────
 const visiblePins = computed(() =>
   props.showHiddenPins === false
-    ? props.pins.filter((p) => p.visible_to_players)
-    : props.pins,
+    ? pins.value.filter((p) => p.visible_to_players)
+    : pins.value,
 );
 
 // ── Hover state with grace period (fixes gap between dot and popup) ────────────
@@ -637,7 +636,7 @@ function tokenStyle(pin: MapPinType): Record<string, string> {
 }
 
 // ── Unplaced children (edit mode) ─────────────────────────────────────────────
-const placedIds = computed(() => new Set(props.pins.map((p) => p.child_location_id)));
+const placedIds = computed(() => new Set(pins.value.map((p) => p.child_location_id)));
 const unplacedChildren = computed(() =>
   props.children.filter((c) => !placedIds.value.has(c.id)),
 );
@@ -658,8 +657,8 @@ function onPlacePin(e: MouseEvent) {
   const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
   const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
   const child = props.children.find((c) => c.id === placingChildId.value)!;
-  const existing = props.pins.filter((p) => p.child_location_id !== placingChildId.value);
-  emit("update:pins", [
+  const existing = pins.value.filter((p) => p.child_location_id !== placingChildId.value);
+  pins.value = [
     ...existing,
     {
       child_location_id: child.id,
@@ -670,7 +669,7 @@ function onPlacePin(e: MouseEvent) {
       y,
       visible_to_players: true,
     },
-  ]);
+  ];
   placingChildId.value = null;
 }
 
@@ -700,11 +699,8 @@ function onDragMove(e: PointerEvent) {
   const rect = mapContainer.value.getBoundingClientRect();
   const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
   const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
-  emit(
-    "update:pins",
-    props.pins.map((p) =>
-      p.child_location_id === draggingId ? { ...p, x, y } : p,
-    ),
+  pins.value = pins.value.map((p) =>
+    p.child_location_id === draggingId ? { ...p, x, y } : p,
   );
 }
 
@@ -745,17 +741,14 @@ function onPinClick(childId: string) {
 
 // ── Mutation helpers ──────────────────────────────────────────────────────────
 function toggleVisibility(childId: string) {
-  emit(
-    "update:pins",
-    props.pins.map((p) =>
-      p.child_location_id === childId
-        ? { ...p, visible_to_players: !p.visible_to_players }
-        : p,
-    ),
+  pins.value = pins.value.map((p) =>
+    p.child_location_id === childId
+      ? { ...p, visible_to_players: !p.visible_to_players }
+      : p,
   );
 }
 
 function removePin(childId: string) {
-  emit("update:pins", props.pins.filter((p) => p.child_location_id !== childId));
+  pins.value = pins.value.filter((p) => p.child_location_id !== childId);
 }
 </script>
