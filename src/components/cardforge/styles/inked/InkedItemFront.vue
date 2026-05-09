@@ -1,10 +1,18 @@
 <template>
-  <div class="ik-shell" :class="{ tarot }" :style="{ '--fc': frameColor }">
+  <InkedShell :tarot :frame-color="frameColor">
     <div class="ik-art">
-      <FocalImage v-if="data.image_url" :src="data.image_url" format="portrait" :focal-point="data.image_focal_point" print />
+      <FocalImage
+        v-if="portrait"
+        :src="portrait"
+        format="portrait"
+        :focal-point="data.image_focal_point"
+        print
+      />
       <div v-else class="ik-art-ph">
-        <span class="ik-art-glyph">{{ (data.item_type ?? 'I').charAt(0).toUpperCase() }}</span>
-        <span class="ik-art-label">{{ data.item_type ?? 'Item' }}</span>
+        <span class="ik-art-glyph">
+          {{ (data.item_type ?? "I").charAt(0).toUpperCase() }}
+        </span>
+        <span class="ik-art-label">{{ data.item_type ?? "Item" }}</span>
       </div>
       <div class="ik-scrim" />
     </div>
@@ -22,88 +30,83 @@
         </span>
       </div>
     </div>
-    <div class="ik-wm">DUNGEON GRIMOIRE</div>
-  </div>
+  </InkedShell>
 </template>
+
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Item } from "@/types/item.types";
 import FocalImage from "@/components/common/FocalImage.vue";
-import { ITEM_TYPE_LABELS, ITEM_RARITY_LABELS } from "@/types/item.types";
-const RARITY_COLORS: Record<string, string> = { mundane:"#2d2820",common:"#2d2820",uncommon:"#1a3d2c",rare:"#1C2A4A",very_rare:"#3D1A5C",legendary:"#5a3510",artifact:"#5a1414" };
-const props = defineProps<{ data: Item; tarot?: boolean }>();
-const frameColor = computed(() => RARITY_COLORS[props.data.rarity] ?? "#2d2820");
-const typeTag    = computed(() => (ITEM_TYPE_LABELS[props.data.item_type] ?? props.data.item_type ?? "Item").toUpperCase() + " · " + (ITEM_RARITY_LABELS[props.data.rarity] ?? props.data.rarity).toUpperCase());
-const typeLine   = computed(() => [ITEM_RARITY_LABELS[props.data.rarity], props.data.subtype].filter(Boolean).join(" · "));
-const weight     = computed(() => props.data.weight ? props.data.weight + " lb" : "—");
-const attuneLabel = computed(() => props.data.requires_attunement ? "Yes" : "No");
-const stats      = computed(() => [{ label:"WT",value:weight.value },{ label:"ATT",value:attuneLabel.value }]);
+import InkedShell from "./InkedShell.vue";
+import { inkedTokens as T } from "./inked.tokens";
+import { useItemCardData } from "@/composables/useItemCardData";
+
+const { data, tarot } = defineProps<{ data: Item; tarot?: boolean }>();
+
+const { portrait, rarity, typeTag, typeLine, stats } = useItemCardData(
+  () => data,
+);
+
+const frameColor = computed(
+  () => T.itemFrame[rarity.value] ?? T.itemFrameDefault,
+);
 </script>
+
 <style scoped>
-.ik-shell {
-  position:relative; width:200px; height:280px;
-  border-radius:10px; overflow:hidden; background:#0a0806;
-  box-shadow:0 8px 22px rgba(0,0,0,.7),0 0 0 1px rgba(0,0,0,.5);
-  flex-shrink:0; font-family:"Cardo",serif; color:#e9dfc7;
-  -webkit-print-color-adjust:exact; print-color-adjust:exact;
-}
-.ik-shell.tarot { width:222px; height:381px; }
-.ik-art { position:absolute; inset:0; overflow:hidden; }
-.ik-art :deep(> div){ width:100%; height:100%; }
-.ik-art :deep(img){ width:100%; object-fit:cover; }
+.ik-art { position: absolute; inset: 0; overflow: hidden; }
+.ik-art :deep(> div) { width: 100%; height: 100%; }
+.ik-art :deep(img) { width: 100%; object-fit: cover; }
 .ik-art-ph {
-  width:100%; height:100%;
-  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
-  background:linear-gradient(160deg, color-mix(in srgb,var(--fc) 80%,#000), color-mix(in srgb,var(--fc) 30%,#000));
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--fc) 80%, #000), color-mix(in srgb, var(--fc) 30%, #000));
 }
-.ik-art-glyph { font-size:40px; font-weight:700; color:rgba(255,255,255,.1); line-height:1; }
-.ik-art-label { font-size:6px; color:rgba(255,255,255,.25); text-transform:uppercase; letter-spacing:.15em; }
+.ik-art-glyph { font-size: 40px; font-weight: 700; color: rgba(255, 255, 255, 0.1); line-height: 1; }
+.ik-art-label { font-size: 6px; color: rgba(255, 255, 255, 0.25); text-transform: uppercase; letter-spacing: 0.15em; }
 .ik-scrim {
-  position:absolute; inset:0;
-  background:linear-gradient(180deg,rgba(0,0,0,.65) 0%,transparent 22%,transparent 50%,rgba(0,0,0,.92) 78%,rgba(0,0,0,.98) 100%);
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.65) 0%, transparent 22%, transparent 50%, rgba(0, 0, 0, 0.92) 78%, rgba(0, 0, 0, 0.98) 100%);
 }
 .ik-top {
-  position:absolute; top:9px; left:10px; right:10px; z-index:2;
-  display:flex; align-items:center; gap:5px;
+  position: absolute; top: 9px; left: 10px; right: 10px; z-index: 2;
+  display: flex; align-items: center; gap: 5px;
 }
 .ik-type-tag {
-  background:var(--fc); color:#f0e0c0;
-  font-family:"Cinzel",serif; font-size:6px; font-weight:700;
-  letter-spacing:.12em; padding:2px 7px; border-radius:2px;
-  text-transform:uppercase; flex-shrink:0;
+  background: var(--fc); color: var(--ik-header-text);
+  font-family: "Cinzel", serif; font-size: 6px; font-weight: 700;
+  letter-spacing: 0.12em; padding: 2px 7px; border-radius: 2px;
+  text-transform: uppercase; flex-shrink: 0;
 }
-.ik-type-line {
-  flex:1; height:1px;
-  background:linear-gradient(90deg, var(--fc), transparent);
-}
+.ik-type-line { flex: 1; height: 1px; background: linear-gradient(90deg, var(--fc), transparent); }
 .ik-badge {
-  background:rgba(0,0,0,.7); border:1px solid rgba(255,255,255,.25);
-  color:#e8d89a; font-family:"Cinzel",serif; font-size:6.5px; font-weight:700;
-  padding:2px 5px; border-radius:2px; flex-shrink:0;
+  background: rgba(0, 0, 0, 0.7); border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #e8d89a; font-family: "Cinzel", serif; font-size: 6.5px; font-weight: 700;
+  padding: 2px 5px; border-radius: 2px; flex-shrink: 0;
 }
-.ik-bottom { position:absolute; left:0; right:0; bottom:0; padding:8px 11px 12px; z-index:2; }
+.ik-bottom { position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 11px 12px; z-index: 2; }
 .ik-name {
-  font-family:"UnifrakturCook","Cinzel",serif; font-size:19px; font-weight:700;
-  line-height:1.05; text-shadow:0 0 8px rgba(0,0,0,.95);
-  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
-  margin-bottom:3px;
+  font-family: "UnifrakturCook", "Cinzel", serif; font-size: 19px; font-weight: 700;
+  line-height: 1.05; text-shadow: 0 0 8px rgba(0, 0, 0, 0.95);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  margin-bottom: 3px;
 }
 .ik-sub {
-  font-family:"Cardo",serif; font-size:7.5px; font-style:italic;
-  color:rgba(233,223,199,.65); text-transform:capitalize; margin-bottom:5px;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  font-family: "Cardo", serif; font-size: 7.5px; font-style: italic;
+  color: rgba(233, 223, 199, 0.65); text-transform: capitalize; margin-bottom: 5px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .ik-stats {
-  display:flex; gap:10px; align-items:baseline;
-  border-top:1px solid color-mix(in srgb,var(--fc) 50%,rgba(255,255,255,.35)); padding-top:5px;
+  display: flex; gap: 10px; align-items: baseline;
+  border-top: 1px solid color-mix(in srgb, var(--fc) 50%, rgba(255, 255, 255, 0.35)); padding-top: 5px;
 }
 .ik-stat {
-  display:flex; align-items:baseline; gap:3px;
-  font-family:"Cinzel",serif; font-size:9.5px; font-weight:900; color:#fff;
-  text-shadow:0 1px 3px rgba(0,0,0,.9);
+  display: flex; align-items: baseline; gap: 3px;
+  font-family: "Cinzel", serif; font-size: 9.5px; font-weight: 900; color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
 }
 .ik-stat em {
-  font-style:normal; font-size:5.5px;
-  color:color-mix(in srgb,var(--fc) 30%,rgba(255,255,255,.65));
-  letter-spacing:.08em; text-transform:uppercase;
-}.ik-wm { position:absolute; bottom:4px; left:0; right:0; z-index:10; text-align:center; font-family:"Cinzel",serif; font-size:5px; font-weight:700; letter-spacing:.18em; color:rgba(255,255,255,.2); pointer-events:none; }</style>
+  font-style: normal; font-size: 5.5px;
+  color: color-mix(in srgb, var(--fc) 30%, rgba(255, 255, 255, 0.65));
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+</style>

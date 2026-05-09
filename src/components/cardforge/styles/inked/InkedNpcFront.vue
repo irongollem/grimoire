@@ -1,5 +1,5 @@
 <template>
-  <div class="ik-shell" :class="{ tarot }" :style="{ '--fc': frameColor }">
+  <InkedShell :tarot :frame-color="frameColor">
     <div class="ik-art">
       <FocalImage
         v-if="portrait"
@@ -9,9 +9,7 @@
         print
       />
       <div v-else class="ik-art-ph">
-        <span class="ik-art-glyph">{{
-          data.name.charAt(0).toUpperCase()
-        }}</span>
+        <span class="ik-art-glyph">{{ data.name.charAt(0).toUpperCase() }}</span>
         <span class="ik-art-label">{{ data.occupation ?? "NPC" }}</span>
       </div>
       <div class="ik-scrim" />
@@ -19,7 +17,6 @@
     <div class="ik-top">
       <div class="ik-type-tag">{{ typeTag }}</div>
       <div class="ik-type-line" />
-      <!-- <div v-if="badge" class="ik-badge">{{ badge }}</div> -->
     </div>
     <div class="ik-bottom">
       <div class="ik-name">{{ data.name }}</div>
@@ -30,57 +27,30 @@
         </span>
       </div>
     </div>
-    <div class="ik-wm">DUNGEON GRIMOIRE</div>
-  </div>
+  </InkedShell>
 </template>
+
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Npc } from "@/types/npc.types";
 import FocalImage from "@/components/common/FocalImage.vue";
-import { NPC_COLORS } from "@/types/card.types";
-const props = defineProps<{ data: Npc; tarot?: boolean }>();
+import InkedShell from "./InkedShell.vue";
+import { inkedTokens as T } from "./inked.tokens";
+import { useNpcCardData } from "@/composables/useNpcCardData";
+
+const { data, tarot } = defineProps<{ data: Npc; tarot?: boolean }>();
+
+const { portrait, typeTag, typeLine, stats, relationship } = useNpcCardData(
+  () => data,
+  () => tarot,
+);
+
 const frameColor = computed(
-  () => NPC_COLORS[props.data.relationship] ?? "#1f2a3a",
+  () => T.npcFrame[relationship.value] ?? T.npcFrameDefault,
 );
-const portrait = computed(() => props.data.portrait_url ?? null);
-// const badge = computed(() => props.data.occupation?.toUpperCase() ?? null);
-const typeTag = computed(
-  () => "NPC · " + props.data.relationship.toUpperCase(),
-);
-const typeLine = computed(() =>
-  [props.data.race, props.data.occupation].filter(Boolean).join(" · "),
-);
-const hp = computed(
-  () => props.data.stat_block?.hit_points?.split(" ")[0] ?? "—",
-);
-const ac = computed(() => String(props.data.stat_block?.armor_class ?? "—"));
-const cha = computed(() => String(props.data.stat_block?.cha ?? "—"));
-const stats = computed(() => [
-  { label: "HP", value: hp.value },
-  { label: "AC", value: ac.value },
-  { label: "CHA", value: cha.value },
-]);
 </script>
+
 <style scoped>
-.ik-shell {
-  position: relative;
-  width: 200px;
-  height: 280px;
-  border-radius: 10px;
-  overflow: hidden;
-  background: #0a0806;
-  box-shadow:
-    0 8px 22px rgba(0, 0, 0, 0.7),
-    0 0 0 1px rgba(0, 0, 0, 0.5);
-  flex-shrink: 0;
-  font-family: "Cardo", serif;
-  color: #e9dfc7;
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
-}
-.ik-shell.tarot {
-  width: 222px; height: 381px;
-}
 .ik-art {
   position: absolute;
   inset: 0;
@@ -144,7 +114,7 @@ const stats = computed(() => [
 }
 .ik-type-tag {
   background: var(--fc);
-  color: #f0e0c0;
+  color: var(--ik-header-text);
   font-family: "Cinzel", serif;
   font-size: 6px;
   font-weight: 700;
@@ -158,17 +128,6 @@ const stats = computed(() => [
   flex: 1;
   height: 1px;
   background: linear-gradient(90deg, var(--fc), transparent);
-}
-.ik-badge {
-  background: rgba(0, 0, 0, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: #e8d89a;
-  font-family: "Cinzel", serif;
-  font-size: 6.5px;
-  font-weight: 700;
-  padding: 2px 5px;
-  border-radius: 2px;
-  flex-shrink: 0;
 }
 .ik-bottom {
   position: absolute;
@@ -226,4 +185,4 @@ const stats = computed(() => [
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.ik-wm { position:absolute; bottom:4px; left:0; right:0; z-index:10; text-align:center; font-family:"Cinzel",serif; font-size:5px; font-weight:700; letter-spacing:.18em; color:rgba(255,255,255,.2); pointer-events:none; }</style>
+</style>
