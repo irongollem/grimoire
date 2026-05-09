@@ -671,6 +671,14 @@ function formatDate(iso: string) {
     padding: 0 !important;
     height: auto !important;
   }
+  /* Strip screen-only decorative effects from card shells.
+     CardFront/Back use fragment roots + inheritAttrs:false so print-card
+     class never reaches the shell — target shell classes directly. */
+  .ik-shell, .md-shell, .loot-shell {
+    box-shadow: none !important;
+    transition: none !important;
+    animation: none !important;
+  }
 }
 </style>
 

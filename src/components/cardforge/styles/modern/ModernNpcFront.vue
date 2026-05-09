@@ -49,9 +49,9 @@ const stats = computed(() => [{ label:"HP",value:hp.value },{ label:"AC",value:a
   flex-shrink:0; font-family:"Inter",system-ui,sans-serif; color:#dcd3c0;
   -webkit-print-color-adjust:exact; print-color-adjust:exact;
 }
-.md-shell.tarot { height:343px; }
+.md-shell.tarot { width:222px; height:381px; }
 .md-art { position:absolute; top:0; left:0; right:0; height:184px; overflow:hidden; }
-.md-shell.tarot .md-art { height:243px; }
+.md-shell.tarot .md-art { height:270px; }
 .md-art :deep(> div){ width:100%; height:100%; }
 .md-art :deep(img){ width:100%; object-fit:cover; }
 .md-art-ph {
@@ -86,7 +86,7 @@ const stats = computed(() => [{ label:"HP",value:hp.value },{ label:"AC",value:a
   padding:0 12px 10px;
   display:flex; flex-direction:column; justify-content:flex-end;
 }
-.md-shell.tarot .md-panel { top:243px; }
+.md-shell.tarot .md-panel { top:270px; }
 .md-header { margin-top:-42px; position:relative; z-index:2; margin-bottom:6px; }
 .md-name {
   font-family:"Cormorant Garamond",serif; font-size:18px; font-weight:600;

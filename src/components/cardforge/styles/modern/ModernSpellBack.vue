@@ -51,7 +51,7 @@ const metaRows = computed(() => [
   font-family:"Inter",system-ui,sans-serif; color:#ece2cc;
   -webkit-print-color-adjust:exact; print-color-adjust:exact;
 }
-.md-shell.tarot { height:343px; }
+.md-shell.tarot { width:222px; height:381px; }
 .md-art-fade {
   position:absolute; inset:0; background-size:cover; background-position:50% 30%;
   filter:grayscale(1) contrast(.9) brightness(.7) saturate(0); opacity:0.55;

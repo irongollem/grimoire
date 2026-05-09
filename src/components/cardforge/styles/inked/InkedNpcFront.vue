@@ -78,7 +78,7 @@ const stats = computed(() => [
   print-color-adjust: exact;
 }
 .ik-shell.tarot {
-  height: 343px;
+  width: 222px; height: 381px;
 }
 .ik-art {
   position: absolute;

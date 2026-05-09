@@ -32,5 +32,5 @@ defineProps<{ tarot?: boolean }>();
 </script>
 <style scoped>
 .loot-shell { position:relative; width:200px; height:280px; border-radius:10px; overflow:hidden; flex-shrink:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-.loot-shell.tarot { height:343px; }
+.loot-shell.tarot { width:222px; height:381px; }
 </style>

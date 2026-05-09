@@ -46,7 +46,7 @@ const stats = computed(() => [{ label:"CAST",value:castStat.value },{ label:"RNG
   flex-shrink:0; font-family:"Cardo",serif; color:#e9dfc7;
   -webkit-print-color-adjust:exact; print-color-adjust:exact;
 }
-.ik-shell.tarot { height:343px; }
+.ik-shell.tarot { width:222px; height:381px; }
 .ik-art { position:absolute; inset:0; overflow:hidden; }
 .ik-art :deep(> div){ width:100%; height:100%; }
 .ik-art :deep(img){ width:100%; object-fit:cover; }
