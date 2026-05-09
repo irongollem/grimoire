@@ -1,5 +1,5 @@
 <template>
-  <ModernShell :tarot face="front" :accent="accents.monster">
+  <ModernShell :tarot face="front" :accent="accentForMonster(data)">
     <div class="md-art">
       <FocalImage
         v-if="portrait"
@@ -33,7 +33,7 @@
 import type { Monster } from "@/types/monster.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import ModernShell from "./ModernShell.vue";
-import { accents } from "../tokens.shared";
+import { accentForMonster } from "../tokens.shared";
 import { useMonsterCardData } from "@/composables/useMonsterCardData";
 
 const { data, tarot } = defineProps<{ data: Monster; tarot?: boolean }>();

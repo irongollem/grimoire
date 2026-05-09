@@ -1,5 +1,5 @@
 <template>
-  <ModernShell :tarot face="back" :accent="accents.abjuration">
+  <ModernShell :tarot face="back" :accent="accentForSpell(data)">
     <div v-if="portrait" class="md-art-fade" :style="artFade" />
     <div v-if="portrait" class="md-art-overlay" />
     <div class="md-rail" />
@@ -33,7 +33,7 @@ import { computed } from "vue";
 import type { Spell } from "@/types/spell.types";
 import { extractTiptapText } from "@/lib/utils";
 import ModernShell from "./ModernShell.vue";
-import { accents } from "../tokens.shared";
+import { accentForSpell } from "../tokens.shared";
 import { useSpellCardData } from "@/composables/useSpellCardData";
 
 const { data } = defineProps<{ data: Spell; tarot?: boolean }>();

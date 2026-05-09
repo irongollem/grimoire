@@ -1,5 +1,5 @@
 <template>
-  <ModernShell :tarot face="back" :accent="accents.trade">
+  <ModernShell :tarot face="back" :accent="accentForItem(data)">
     <div v-if="portrait" class="md-art-fade" :style="artFade" />
     <div v-if="portrait" class="md-art-overlay" />
     <div class="md-rail" />
@@ -31,7 +31,7 @@ import { computed } from "vue";
 import type { Item } from "@/types/item.types";
 import { extractTiptapText } from "@/lib/utils";
 import ModernShell from "./ModernShell.vue";
-import { accents } from "../tokens.shared";
+import { accentForItem } from "../tokens.shared";
 import { useItemCardData } from "@/composables/useItemCardData";
 
 const { data } = defineProps<{ data: Item; tarot?: boolean }>();

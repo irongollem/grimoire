@@ -1,5 +1,5 @@
 <template>
-  <InkedShell :tarot :accent="accents.abjuration">
+  <InkedShell :tarot :accent="accentForSpell(data)">
     <div class="ik-art">
       <FocalImage
         v-if="portrait"
@@ -35,7 +35,7 @@
 import type { Spell } from "@/types/spell.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import InkedShell from "./InkedShell.vue";
-import { accents } from "../tokens.shared";
+import { accentForSpell } from "../tokens.shared";
 import { useSpellCardData } from "@/composables/useSpellCardData";
 
 const { data } = defineProps<{ data: Spell; tarot?: boolean }>();

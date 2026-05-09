@@ -1,5 +1,5 @@
 <template>
-  <ModernShell :tarot face="back" :accent="accents.npc">
+  <ModernShell :tarot face="back" :accent="accentForNpc(data)">
     <div v-if="portrait" class="md-art-fade" :style="artFade" />
     <div v-if="portrait" class="md-art-overlay" />
     <div class="md-rail" />
@@ -39,7 +39,7 @@
 import { computed } from "vue";
 import type { Npc } from "@/types/npc.types";
 import ModernShell from "./ModernShell.vue";
-import { accents } from "../tokens.shared";
+import { accentForNpc } from "../tokens.shared";
 import { useNpcCardData } from "@/composables/useNpcCardData";
 
 const { data, tarot } = defineProps<{ data: Npc; tarot?: boolean }>();

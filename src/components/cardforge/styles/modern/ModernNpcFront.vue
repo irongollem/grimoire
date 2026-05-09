@@ -1,5 +1,5 @@
 <template>
-  <ModernShell :tarot face="front" :accent="accents.npc">
+  <ModernShell :tarot face="front" :accent="accentForNpc(data)">
     <div class="md-art">
       <FocalImage
         v-if="portrait"
@@ -32,7 +32,7 @@
 import type { Npc } from "@/types/npc.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import ModernShell from "./ModernShell.vue";
-import { accents } from "../tokens.shared";
+import { accentForNpc } from "../tokens.shared";
 import { useNpcCardData } from "@/composables/useNpcCardData";
 
 const { data, tarot } = defineProps<{ data: Npc; tarot?: boolean }>();

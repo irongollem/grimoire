@@ -1,5 +1,5 @@
 <template>
-  <InkedShell :tarot :accent="accents.npc">
+  <InkedShell :tarot :accent="accentForNpc(data)">
     <div v-if="portrait" class="ik-art-fade" :style="artFade" />
     <div v-if="portrait" class="ik-art-overlay" />
     <div class="ik-hatch" />
@@ -39,7 +39,7 @@
 import { computed } from "vue";
 import type { Npc } from "@/types/npc.types";
 import InkedShell from "./InkedShell.vue";
-import { accents } from "../tokens.shared";
+import { accentForNpc } from "../tokens.shared";
 import { useNpcCardData } from "@/composables/useNpcCardData";
 
 const { data, tarot } = defineProps<{ data: Npc; tarot?: boolean }>();

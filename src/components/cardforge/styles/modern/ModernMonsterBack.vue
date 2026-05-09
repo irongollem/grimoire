@@ -1,5 +1,5 @@
 <template>
-  <ModernShell :tarot face="back" :accent="accents.monster">
+  <ModernShell :tarot face="back" :accent="accentForMonster(data)">
     <div v-if="portrait" class="md-art-fade" :style="artFade" />
     <div v-if="portrait" class="md-art-overlay" />
     <div class="md-rail" />
@@ -39,7 +39,7 @@
 import { computed } from "vue";
 import type { Monster } from "@/types/monster.types";
 import ModernShell from "./ModernShell.vue";
-import { accents } from "../tokens.shared";
+import { accentForMonster } from "../tokens.shared";
 import { useMonsterCardData } from "@/composables/useMonsterCardData";
 
 const { data, tarot } = defineProps<{ data: Monster; tarot?: boolean }>();

@@ -1,5 +1,5 @@
 <template>
-  <InkedShell :tarot :accent="accents.monster">
+  <InkedShell :tarot :accent="accentForMonster(data)">
     <div v-if="portrait" class="ik-art-fade" :style="artFade" />
     <div v-if="portrait" class="ik-art-overlay" />
     <div class="ik-hatch" />
@@ -39,7 +39,7 @@
 import { computed } from "vue";
 import type { Monster } from "@/types/monster.types";
 import InkedShell from "./InkedShell.vue";
-import { accents } from "../tokens.shared";
+import { accentForMonster } from "../tokens.shared";
 import { useMonsterCardData } from "@/composables/useMonsterCardData";
 
 const { data, tarot } = defineProps<{ data: Monster; tarot?: boolean }>();

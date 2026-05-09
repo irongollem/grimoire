@@ -1,5 +1,5 @@
 <template>
-  <InkedShell :tarot :accent="accents.trade">
+  <InkedShell :tarot :accent="accentForItem(data)">
     <div v-if="portrait" class="ik-art-fade" :style="artFade" />
     <div v-if="portrait" class="ik-art-overlay" />
     <div class="ik-hatch" />
@@ -31,7 +31,7 @@ import { computed } from "vue";
 import type { Item } from "@/types/item.types";
 import { extractTiptapText } from "@/lib/utils";
 import InkedShell from "./InkedShell.vue";
-import { accents } from "../tokens.shared";
+import { accentForItem } from "../tokens.shared";
 import { useItemCardData } from "@/composables/useItemCardData";
 
 const { data } = defineProps<{ data: Item; tarot?: boolean }>();

@@ -1,5 +1,5 @@
 <template>
-  <ModernShell :tarot face="front" :accent="accents.abjuration">
+  <ModernShell :tarot face="front" :accent="accentForSpell(data)">
     <div class="md-art">
       <FocalImage
         v-if="portrait"
@@ -33,7 +33,7 @@
 import type { Spell } from "@/types/spell.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import ModernShell from "./ModernShell.vue";
-import { accents } from "../tokens.shared";
+import { accentForSpell } from "../tokens.shared";
 import { useSpellCardData } from "@/composables/useSpellCardData";
 
 const { data } = defineProps<{ data: Spell; tarot?: boolean }>();

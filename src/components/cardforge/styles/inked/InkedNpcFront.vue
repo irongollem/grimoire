@@ -1,5 +1,5 @@
 <template>
-  <InkedShell :tarot :accent="accents.npc">
+  <InkedShell :tarot :accent="accentForNpc(data)">
     <div class="ik-art">
       <FocalImage
         v-if="portrait"
@@ -34,7 +34,7 @@
 import type { Npc } from "@/types/npc.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import InkedShell from "./InkedShell.vue";
-import { accents } from "../tokens.shared";
+import { accentForNpc } from "../tokens.shared";
 import { useNpcCardData } from "@/composables/useNpcCardData";
 
 const { data, tarot } = defineProps<{ data: Npc; tarot?: boolean }>();

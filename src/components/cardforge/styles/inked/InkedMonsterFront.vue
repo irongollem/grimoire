@@ -1,5 +1,5 @@
 <template>
-  <InkedShell :tarot :accent="accents.monster">
+  <InkedShell :tarot :accent="accentForMonster(data)">
     <div class="ik-art">
       <FocalImage
         v-if="portrait"
@@ -35,7 +35,7 @@
 import type { Monster } from "@/types/monster.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import InkedShell from "./InkedShell.vue";
-import { accents } from "../tokens.shared";
+import { accentForMonster } from "../tokens.shared";
 import { useMonsterCardData } from "@/composables/useMonsterCardData";
 
 const { data, tarot } = defineProps<{ data: Monster; tarot?: boolean }>();
