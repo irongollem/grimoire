@@ -8,23 +8,26 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { inkedTokens as T } from "./inked.tokens";
+import type { Accent } from "../tokens.shared";
 
-const { frameColor, tarot = false } = defineProps<{
-  frameColor: string;
+const { accent, tarot = false } = defineProps<{
+  accent: Accent;
   tarot?: boolean;
 }>();
 
 const cssVars = computed(() => ({
   "--ik-bg": T.bg,
-  "--ik-body": T.body,
+  "--ik-bg-alt": T.bgAlt,
+  "--ik-bottom-panel": T.bottomPanel,
+  "--ik-abilities-row": T.abilitiesRow,
   "--ik-text": T.text,
+  "--ik-text-sub": T.textSub,
   "--ik-text-muted": T.textMuted,
-  "--ik-divider": T.divider,
-  "--ik-border": T.border,
-  "--ik-header-text": T.headerText,
   "--ik-stat-pos": T.statPos,
   "--ik-stat-neg": T.statNeg,
-  "--fc": frameColor,
+  "--acc-tag": accent.tag,
+  "--acc-line": accent.line,
+  "--acc-text": accent.text,
 }));
 </script>
 
@@ -62,7 +65,8 @@ const cssVars = computed(() => ({
   font-size: 5px;
   font-weight: 700;
   letter-spacing: 0.18em;
-  color: rgba(255, 255, 255, 0.2);
+  color: var(--ik-text-muted);
+  opacity: 0.5;
   pointer-events: none;
 }
 </style>

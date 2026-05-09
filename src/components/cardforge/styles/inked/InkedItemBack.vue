@@ -1,5 +1,5 @@
 <template>
-  <InkedShell :tarot :frame-color="frameColor">
+  <InkedShell :tarot :accent="accents.trade">
     <div v-if="portrait" class="ik-art-fade" :style="artFade" />
     <div v-if="portrait" class="ik-art-overlay" />
     <div class="ik-hatch" />
@@ -31,17 +31,12 @@ import { computed } from "vue";
 import type { Item } from "@/types/item.types";
 import { extractTiptapText } from "@/lib/utils";
 import InkedShell from "./InkedShell.vue";
-import { inkedTokens as T } from "./inked.tokens";
+import { accents } from "../tokens.shared";
 import { useItemCardData } from "@/composables/useItemCardData";
 
 const { data } = defineProps<{ data: Item; tarot?: boolean }>();
 
-const { portrait, rarity, metaRows } = useItemCardData(() => data);
-
-const frameColor = computed(
-  () => T.itemFrame[rarity.value] ?? T.itemFrameDefault,
-);
-
+const { portrait, metaRows } = useItemCardData(() => data);
 const artFade = computed(() => ({
   backgroundImage: "url('" + (portrait.value ?? "") + "')",
 }));
@@ -62,16 +57,16 @@ const artFade = computed(() => ({
 }
 .ik-header {
   position: relative; z-index: 1; flex-shrink: 0;
-  background: var(--fc); border-bottom: 1px solid var(--ik-border);
+  background: var(--acc-line); border-bottom: 1px solid rgba(255,255,255,.12);
   display: flex; align-items: center; justify-content: space-between; padding: 4px 9px; gap: 6px;
 }
 .ik-header-name {
   font-family: "Cinzel", serif; font-size: 8px; font-weight: 700; letter-spacing: 0.04em;
-  color: var(--ik-header-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;
+  color: var(--ik-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;
 }
 .ik-back-label {
   font-family: "Cinzel", serif; font-size: 6px; font-weight: 700;
-  color: color-mix(in srgb, var(--ik-header-text) 55%, transparent);
+  color: var(--ik-text-sub);
   letter-spacing: 0.1em; flex-shrink: 0;
 }
 .ik-body {
@@ -82,17 +77,17 @@ const artFade = computed(() => ({
 .ik-stat-row { display: flex; align-items: baseline; gap: 4px; }
 .ik-stat-key {
   font-family: "Cinzel", serif; font-size: 5.5px; font-weight: 700; letter-spacing: 0.08em;
-  color: color-mix(in srgb, var(--fc) 20%, rgba(255, 255, 255, 0.6));
+  color: var(--acc-text);
   text-transform: uppercase; flex-shrink: 0; width: 38px;
 }
 .ik-stat-val {
   font-family: "Cardo", serif; font-size: 7.5px;
-  color: color-mix(in srgb, var(--ik-text) 80%, transparent); line-height: 1.2;
+  color: var(--ik-text-sub); line-height: 1.2;
 }
 .ik-entries { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 2.5px; }
 .ik-entry {
   font-family: "Cardo", serif; font-size: 7.5px; line-height: 1.3;
-  color: color-mix(in srgb, var(--ik-text) 80%, transparent); text-wrap: pretty;
+  color: var(--ik-text-sub); text-wrap: pretty;
 }
 .ik-flavor {
   font-family: "Cardo", serif; font-style: italic; font-size: 7px;

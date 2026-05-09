@@ -8,29 +8,32 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { modernTokens as T } from "./modern.tokens";
+import type { Accent } from "../tokens.shared";
 
 const {
-  frameColor,
+  accent,
   tarot = false,
   face = "front",
 } = defineProps<{
-  frameColor: string;
+  accent: Accent;
   tarot?: boolean;
   face?: "front" | "back";
 }>();
 
 const cssVars = computed(() => ({
   "--md-bg": T.bg,
-  "--md-back": T.back,
-  "--md-panel-top": T.panelTop,
-  "--md-panel-bottom": T.panelBottom,
+  "--md-bg-dark": T.bgDark,
+  "--md-bg-mid": T.bgMid,
+  "--md-rail-text": T.railText,
+  "--md-badge-bg": T.badgeBg,
   "--md-text": T.text,
-  "--md-text-back": T.textBack,
+  "--md-text-sub": T.textSub,
   "--md-text-muted": T.textMuted,
-  "--md-divider": T.divider,
   "--md-stat-pos": T.statPos,
   "--md-stat-neg": T.statNeg,
-  "--fc": frameColor,
+  "--acc-tag": accent.tag,
+  "--acc-line": accent.line,
+  "--acc-text": accent.text,
 }));
 </script>
 
@@ -55,13 +58,13 @@ const cssVars = computed(() => ({
   border-radius: 14px;
   background: var(--md-bg);
   color: var(--md-text);
-  border: 1px solid color-mix(in srgb, var(--fc) 35%, transparent);
+  border: 1px solid color-mix(in srgb, var(--acc-line) 35%, transparent);
 }
 
 .md-shell.back {
   border-radius: 11px;
-  background: var(--md-back);
-  color: var(--md-text-back);
+  background: var(--md-bg);
+  color: var(--md-text);
   display: flex;
   flex-direction: column;
 }

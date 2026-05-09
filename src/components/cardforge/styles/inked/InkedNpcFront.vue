@@ -1,5 +1,5 @@
 <template>
-  <InkedShell :tarot :frame-color="frameColor">
+  <InkedShell :tarot :accent="accents.npc">
     <div class="ik-art">
       <FocalImage
         v-if="portrait"
@@ -31,22 +31,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
 import type { Npc } from "@/types/npc.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import InkedShell from "./InkedShell.vue";
-import { inkedTokens as T } from "./inked.tokens";
+import { accents } from "../tokens.shared";
 import { useNpcCardData } from "@/composables/useNpcCardData";
 
 const { data, tarot } = defineProps<{ data: Npc; tarot?: boolean }>();
 
-const { portrait, typeTag, typeLine, stats, relationship } = useNpcCardData(
+const { portrait, typeTag, typeLine, stats } = useNpcCardData(
   () => data,
   () => tarot,
-);
-
-const frameColor = computed(
-  () => T.npcFrame[relationship.value] ?? T.npcFrameDefault,
 );
 </script>
 
@@ -74,8 +69,8 @@ const frameColor = computed(
   gap: 4px;
   background: linear-gradient(
     160deg,
-    color-mix(in srgb, var(--fc) 80%, #000),
-    color-mix(in srgb, var(--fc) 30%, #000)
+    color-mix(in srgb, var(--acc-line) 80%, #000),
+    color-mix(in srgb, var(--acc-line) 30%, #000)
   );
 }
 .ik-art-glyph {
@@ -113,8 +108,8 @@ const frameColor = computed(
   gap: 5px;
 }
 .ik-type-tag {
-  background: var(--fc);
-  color: var(--ik-header-text);
+  background: var(--acc-tag);
+  color: var(--acc-text);
   font-family: "Cinzel", serif;
   font-size: 6px;
   font-weight: 700;
@@ -127,7 +122,7 @@ const frameColor = computed(
 .ik-type-line {
   flex: 1;
   height: 1px;
-  background: linear-gradient(90deg, var(--fc), transparent);
+  background: linear-gradient(90deg, var(--acc-line), transparent);
 }
 .ik-bottom {
   position: absolute;
@@ -165,7 +160,7 @@ const frameColor = computed(
   gap: 10px;
   align-items: baseline;
   border-top: 1px solid
-    color-mix(in srgb, var(--fc) 50%, rgba(255, 255, 255, 0.35));
+    var(--acc-line);
   padding-top: 5px;
 }
 .ik-stat {
@@ -181,7 +176,7 @@ const frameColor = computed(
 .ik-stat em {
   font-style: normal;
   font-size: 5.5px;
-  color: color-mix(in srgb, var(--fc) 30%, rgba(255, 255, 255, 0.65));
+  color: var(--acc-text);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }

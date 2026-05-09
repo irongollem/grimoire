@@ -1,5 +1,5 @@
 <template>
-  <ModernShell :tarot face="back" :frame-color="frameColor">
+  <ModernShell :tarot face="back" :accent="accents.monster">
     <div v-if="portrait" class="md-art-fade" :style="artFade" />
     <div v-if="portrait" class="md-art-overlay" />
     <div class="md-rail" />
@@ -39,14 +39,13 @@
 import { computed } from "vue";
 import type { Monster } from "@/types/monster.types";
 import ModernShell from "./ModernShell.vue";
-import { modernTokens as T } from "./modern.tokens";
+import { accents } from "../tokens.shared";
 import { useMonsterCardData } from "@/composables/useMonsterCardData";
 
 const { data, tarot } = defineProps<{ data: Monster; tarot?: boolean }>();
 
 const {
   portrait,
-  monsterType,
   abilities,
   statRows,
   entries,
@@ -56,11 +55,6 @@ const {
   () => data,
   () => tarot,
 );
-
-const frameColor = computed(
-  () => T.monsterFrame[monsterType.value] ?? T.monsterFrameDefault,
-);
-
 const artFade = computed(() => ({
   backgroundImage: "url('" + (portrait.value ?? "") + "')",
 }));
@@ -75,10 +69,10 @@ const artFade = computed(() => ({
   position: absolute; inset: 0;
   background: linear-gradient(180deg, rgba(15, 12, 8, 0.55) 0%, rgba(15, 12, 8, 0.25) 30%, rgba(15, 12, 8, 0.45) 60%, rgba(15, 12, 8, 0.85) 100%);
 }
-.md-rail { position: absolute; top: 0; left: 0; bottom: 0; width: 4px; z-index: 3; background: var(--fc); }
+.md-rail { position: absolute; top: 0; left: 0; bottom: 0; width: 4px; z-index: 3; background: var(--acc-line); }
 .md-header {
   position: relative; z-index: 2; flex-shrink: 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--fc) 50%, rgba(255, 255, 255, 0.2));
+  border-bottom: 1px solid var(--acc-line);
   display: flex; align-items: center; justify-content: space-between;
   padding: 5px 10px 5px 14px; gap: 6px;
   background: rgba(15, 12, 8, 0.7);
@@ -89,7 +83,7 @@ const artFade = computed(() => ({
 }
 .md-back-label {
   font-size: 6.5px; font-weight: 800; letter-spacing: 0.1em;
-  color: var(--fc); text-transform: uppercase; flex-shrink: 0;
+  color: var(--acc-text); text-transform: uppercase; flex-shrink: 0;
 }
 .md-body {
   position: relative; z-index: 2; flex: 1; overflow: hidden;
@@ -97,13 +91,13 @@ const artFade = computed(() => ({
 }
 .md-abilities {
   display: grid; grid-template-columns: repeat(6, 1fr);
-  border-top: 1px solid color-mix(in srgb, var(--fc) 45%, rgba(255, 255, 255, 0.25));
-  border-bottom: 1px solid color-mix(in srgb, var(--fc) 45%, rgba(255, 255, 255, 0.25));
+  border-top: 1px solid var(--acc-line);
+  border-bottom: 1px solid var(--acc-line);
   padding: 3px 0; flex-shrink: 0;
 }
-.md-ab-cell { display: flex; flex-direction: column; align-items: center; border-left: 1px solid var(--md-divider); }
+.md-ab-cell { display: flex; flex-direction: column; align-items: center; border-left: 1px solid rgba(255,255,255,.06); }
 .md-ab-cell:first-child { border-left: none; }
-.md-ab-label { font-size: 5px; font-weight: 800; color: var(--fc); letter-spacing: 0.05em; }
+.md-ab-label { font-size: 5px; font-weight: 800; color: var(--acc-text); letter-spacing: 0.05em; }
 .md-ab-score { font-family: "Cormorant Garamond", serif; font-size: 11px; font-weight: 700; color: #fff; line-height: 1.05; }
 .md-ab-mod { font-size: 7px; font-weight: 700; }
 .md-ab-mod.pos { color: var(--md-stat-pos); }
@@ -113,24 +107,24 @@ const artFade = computed(() => ({
 .md-stat-row { display: flex; align-items: baseline; gap: 4px; }
 .md-stat-key {
   font-size: 5.5px; font-weight: 800; letter-spacing: 0.08em;
-  color: var(--fc); text-transform: uppercase; flex-shrink: 0; width: 38px;
+  color: var(--acc-text); text-transform: uppercase; flex-shrink: 0; width: 38px;
 }
 .md-stat-val {
   font-family: "Cormorant Garamond", serif; font-size: 8.5px;
-  color: color-mix(in srgb, var(--md-text-back) 85%, transparent); line-height: 1.3;
+  color: var(--md-text-sub); line-height: 1.3;
 }
 .md-entries { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 3px; }
 .md-entry {
   font-family: "Cormorant Garamond", serif; font-size: 8.5px; line-height: 1.35;
-  color: color-mix(in srgb, var(--md-text-back) 85%, transparent); text-wrap: pretty;
+  color: var(--md-text-sub); text-wrap: pretty;
 }
 .md-entry-name {
-  font-size: 7px; font-weight: 800; color: var(--fc);
+  font-size: 7px; font-weight: 800; color: var(--acc-text);
   letter-spacing: 0.06em; text-transform: uppercase; margin-right: 3px;
 }
 .md-flavor {
   font-family: "Cormorant Garamond", serif; font-style: italic; font-size: 7.5px;
-  color: color-mix(in srgb, var(--md-text-back) 40%, transparent); text-align: center;
+  color: var(--md-text-muted); text-align: center;
   border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 4px; flex-shrink: 0;
 }
 </style>

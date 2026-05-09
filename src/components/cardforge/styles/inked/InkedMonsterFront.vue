@@ -1,5 +1,5 @@
 <template>
-  <InkedShell :tarot :frame-color="frameColor">
+  <InkedShell :tarot :accent="accents.monster">
     <div class="ik-art">
       <FocalImage
         v-if="portrait"
@@ -32,11 +32,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
 import type { Monster } from "@/types/monster.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import InkedShell from "./InkedShell.vue";
-import { inkedTokens as T } from "./inked.tokens";
+import { accents } from "../tokens.shared";
 import { useMonsterCardData } from "@/composables/useMonsterCardData";
 
 const { data, tarot } = defineProps<{ data: Monster; tarot?: boolean }>();
@@ -46,10 +45,6 @@ const { portrait, monsterType, typeTag, typeLine, badge, stats } =
     () => data,
     () => tarot,
   );
-
-const frameColor = computed(
-  () => T.monsterFrame[monsterType.value] ?? T.monsterFrameDefault,
-);
 </script>
 
 <style scoped>
@@ -59,7 +54,7 @@ const frameColor = computed(
 .ik-art-ph {
   width: 100%; height: 100%;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-  background: linear-gradient(160deg, color-mix(in srgb, var(--fc) 80%, #000), color-mix(in srgb, var(--fc) 30%, #000));
+  background: linear-gradient(160deg, color-mix(in srgb, var(--acc-line) 80%, #000), color-mix(in srgb, var(--acc-line) 30%, #000));
 }
 .ik-art-glyph { font-size: 40px; font-weight: 700; color: rgba(255, 255, 255, 0.1); line-height: 1; }
 .ik-art-label { font-size: 6px; color: rgba(255, 255, 255, 0.25); text-transform: uppercase; letter-spacing: 0.15em; }
@@ -72,12 +67,12 @@ const frameColor = computed(
   display: flex; align-items: center; gap: 5px;
 }
 .ik-type-tag {
-  background: var(--fc); color: var(--ik-header-text);
+  background: var(--acc-tag); color: var(--acc-text);
   font-family: "Cinzel", serif; font-size: 6px; font-weight: 700;
   letter-spacing: 0.12em; padding: 2px 7px; border-radius: 2px;
   text-transform: uppercase; flex-shrink: 0;
 }
-.ik-type-line { flex: 1; height: 1px; background: linear-gradient(90deg, var(--fc), transparent); }
+.ik-type-line { flex: 1; height: 1px; background: linear-gradient(90deg, var(--acc-line), transparent); }
 .ik-badge {
   background: rgba(0, 0, 0, 0.7); border: 1px solid rgba(255, 255, 255, 0.25);
   color: #e8d89a; font-family: "Cinzel", serif; font-size: 6.5px; font-weight: 700;
@@ -97,7 +92,7 @@ const frameColor = computed(
 }
 .ik-stats {
   display: flex; gap: 10px; align-items: baseline;
-  border-top: 1px solid color-mix(in srgb, var(--fc) 50%, rgba(255, 255, 255, 0.35)); padding-top: 5px;
+  border-top: 1px solid var(--acc-line); padding-top: 5px;
 }
 .ik-stat {
   display: flex; align-items: baseline; gap: 3px;
@@ -106,7 +101,7 @@ const frameColor = computed(
 }
 .ik-stat em {
   font-style: normal; font-size: 5.5px;
-  color: color-mix(in srgb, var(--fc) 30%, rgba(255, 255, 255, 0.65));
+  color: var(--acc-text);
   letter-spacing: 0.08em; text-transform: uppercase;
 }
 </style>

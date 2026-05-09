@@ -1,5 +1,5 @@
 <template>
-  <ModernShell :tarot face="front" :frame-color="frameColor">
+  <ModernShell :tarot face="front" :accent="accents.monster">
     <div class="md-art">
       <FocalImage
         v-if="portrait"
@@ -12,15 +12,13 @@
         <span class="md-art-glyph">{{ monsterType.charAt(0).toUpperCase() }}</span>
         <span class="md-art-label">{{ monsterType }}</span>
       </div>
-      <div class="md-art-overlay" />
     </div>
+    <div class="md-scrim" />
     <div class="md-tag">{{ typeTag }}</div>
     <div v-if="badge" class="md-badge">{{ badge }}</div>
-    <div class="md-panel">
-      <div class="md-header">
-        <div class="md-name">{{ data.name }}</div>
-        <div class="md-sub">{{ typeLine }}</div>
-      </div>
+    <div class="md-bottom">
+      <div class="md-name">{{ data.name }}</div>
+      <div class="md-sub">{{ typeLine }}</div>
       <div class="md-stats">
         <div v-for="s in stats" :key="s.label" class="md-stat">
           <span class="md-stat-lbl">{{ s.label }}</span>
@@ -32,11 +30,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
 import type { Monster } from "@/types/monster.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import ModernShell from "./ModernShell.vue";
-import { modernTokens as T } from "./modern.tokens";
+import { accents } from "../tokens.shared";
 import { useMonsterCardData } from "@/composables/useMonsterCardData";
 
 const { data, tarot } = defineProps<{ data: Monster; tarot?: boolean }>();
@@ -46,72 +43,60 @@ const { portrait, monsterType, typeTag, typeLine, badge, stats } =
     () => data,
     () => tarot,
   );
-
-const frameColor = computed(
-  () => T.monsterFrame[monsterType.value] ?? T.monsterFrameDefault,
-);
 </script>
 
 <style scoped>
-.md-art { position: absolute; top: 0; left: 0; right: 0; height: 65.7%; overflow: hidden; }
-.md-shell.tarot .md-art { height: 70.9%; }
+.md-art { position: absolute; inset: 0; overflow: hidden; }
 .md-art :deep(> div) { width: 100%; height: 100%; }
 .md-art :deep(img) { width: 100%; object-fit: cover; }
 .md-art-ph {
   width: 100%; height: 100%;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
-  background: linear-gradient(160deg, color-mix(in srgb, var(--fc) 60%, #000), #0e0b08);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--acc-line) 60%, var(--md-bg)), var(--md-bg));
 }
 .md-art-glyph { font-size: 40px; font-weight: 800; color: rgba(255, 255, 255, 0.08); font-family: "Cinzel", serif; line-height: 1; }
 .md-art-label { font-size: 6px; color: rgba(255, 255, 255, 0.2); text-transform: uppercase; letter-spacing: 0.15em; }
-.md-art-overlay {
+.md-scrim {
   position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0) 24%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.85) 100%);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0%, transparent 22%, transparent 50%, rgba(0, 0, 0, 0.92) 78%, rgba(0, 0, 0, 0.98) 100%);
 }
 .md-tag {
   position: absolute; top: 10px; left: 0; z-index: 2;
-  background: var(--fc); color: var(--md-back);
+  background: var(--acc-tag); color: var(--acc-text);
   font-size: 7px; font-weight: 800; letter-spacing: 0.12em;
   padding: 3px 14px 3px 10px; text-transform: uppercase;
   clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
 }
 .md-badge {
   position: absolute; top: 10px; right: 10px; z-index: 2;
-  background: rgba(0, 0, 0, 0.55); color: #fff;
+  background: var(--md-badge-bg); color: var(--md-text);
   font-size: 7px; font-weight: 700;
   padding: 2px 6px; border-radius: 3px;
-  border: 1px solid color-mix(in srgb, var(--fc) 67%, rgba(255, 255, 255, 0.4));
+  border: 1px solid var(--acc-line);
   white-space: nowrap;
 }
-.md-panel {
-  position: absolute; left: 0; right: 0; bottom: 0; top: 65.7%;
-  background: linear-gradient(180deg, var(--md-panel-top) 0%, var(--md-panel-bottom) 100%);
-  padding: 0 12px 10px;
-  display: flex; flex-direction: column; justify-content: flex-end;
+.md-bottom {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 8px 12px 12px; z-index: 2;
 }
-.md-shell.tarot .md-panel { top: 70.9%; }
-.md-header { margin-top: -42px; position: relative; z-index: 2; margin-bottom: 6px; }
 .md-name {
   font-family: "Cormorant Garamond", serif; font-size: 18px; font-weight: 600;
-  color: #fff; line-height: 1.05; text-shadow: 0 0 8px rgba(0, 0, 0, 0.9);
+  color: var(--md-text); line-height: 1.05;
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.95);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  margin-bottom: 3px;
 }
 .md-sub {
-  font-size: 7.5px; color: var(--md-text-muted); font-style: italic; margin-top: 2px;
+  font-size: 7.5px; color: var(--md-text-sub); font-style: italic;
+  margin-bottom: 5px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .md-stats {
   display: flex; gap: 10px; align-items: baseline;
-  border-top: 1px solid color-mix(in srgb, var(--fc) 27%, rgba(255, 255, 255, 0.15));
+  border-top: 1px solid var(--acc-line);
   padding-top: 5px;
 }
 .md-stat { display: flex; align-items: baseline; gap: 4px; }
-.md-stat-lbl {
-  font-size: 6px; color: color-mix(in srgb, var(--fc) 65%, #fff);
-  font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-}
-.md-stat-val {
-  font-family: "Cormorant Garamond", serif; font-size: 13px; font-weight: 700;
-  color: #fff; line-height: 1;
-}
+.md-stat-lbl { font-size: 6px; color: var(--acc-text); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+.md-stat-val { font-family: "Cormorant Garamond", serif; font-size: 13px; font-weight: 700; color: var(--md-text); line-height: 1; }
 </style>
