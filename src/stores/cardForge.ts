@@ -1,0 +1,138 @@
+import { defineStore } from "pinia";
+import { ref, shallowRef } from "vue";
+import { useLocalStorage } from "@vueuse/core";
+
+export type CardSizeId = "mtg" | "tarot";
+export type CardStyleId = "inked" | "modern";
+export type SourceId = "npcs" | "monsters" | "items" | "spells";
+
+export interface CardCollection {
+  id: string;
+  name: string;
+  created: string;
+  items: Array<{ kind: "npc" | "monster" | "item" | "spell"; id: string }>;
+}
+
+const LIBRARY_KEY = "cardforge_library";
+const STYLE_KEY = "cardforge_style";
+
+const PAGE_STYLE_ID = "cardforge-page-rule";
+
+export const useCardForgeStore = defineStore("cardForge", () => {
+  const source = ref<SourceId>("npcs");
+  const search = ref("");
+
+  const selectedIds = shallowRef<Record<SourceId, Set<string>>>({
+    npcs: new Set(),
+    monsters: new Set(),
+    items: new Set(),
+    spells: new Set(),
+  });
+
+  const cardSize = ref<CardSizeId>("mtg");
+  const cardStyle = useLocalStorage<CardStyleId>(STYLE_KEY, "inked");
+
+  const showSaveModal = ref(false);
+  const showLoadModal = ref(false);
+
+  const library = useLocalStorage<CardCollection[]>(LIBRARY_KEY, []);
+
+  function toggleSelect(id: string) {
+    const src = source.value;
+    const next = new Set(selectedIds.value[src]);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    selectedIds.value = { ...selectedIds.value, [src]: next };
+  }
+
+  function selectAllInSource(ids: string[]) {
+    const src = source.value;
+    const next = new Set([...selectedIds.value[src], ...ids]);
+    selectedIds.value = { ...selectedIds.value, [src]: next };
+  }
+
+  function clearSourceSelection() {
+    selectedIds.value = { ...selectedIds.value, [source.value]: new Set() };
+  }
+
+  function saveCollection(
+    name: string,
+    items: CardCollection["items"],
+  ) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    library.value = [
+      {
+        id: crypto.randomUUID(),
+        name: trimmed,
+        created: new Date().toISOString(),
+        items,
+      },
+      ...library.value,
+    ];
+    showSaveModal.value = false;
+  }
+
+  function loadCollection(col: CardCollection) {
+    const buckets: Record<SourceId, Set<string>> = {
+      npcs: new Set(),
+      monsters: new Set(),
+      items: new Set(),
+      spells: new Set(),
+    };
+    for (const it of col.items) {
+      const key = (it.kind + "s") as SourceId;
+      buckets[key].add(it.id);
+    }
+    selectedIds.value = buckets;
+
+    // Switch to the tab with the most loaded cards
+    const counts: Record<SourceId, number> = {
+      npcs: buckets.npcs.size,
+      monsters: buckets.monsters.size,
+      items: buckets.items.size,
+      spells: buckets.spells.size,
+    };
+    source.value =
+      (Object.entries(counts).sort(([, a], [, b]) => b - a)[0]?.[0] as SourceId) ??
+      "npcs";
+    showLoadModal.value = false;
+  }
+
+  function deleteCollection(id: string) {
+    library.value = library.value.filter((c) => c.id !== id);
+  }
+
+  /**
+   * Inject `@page` into <head> at call-time and trigger native print.
+   * Safari sometimes ignores `@page` rules sourced from component stylesheets;
+   * a head-level <style> is always honored.
+   */
+  function printCards() {
+    if (!document.getElementById(PAGE_STYLE_ID)) {
+      const s = document.createElement("style");
+      s.id = PAGE_STYLE_ID;
+      s.textContent = "@page { size: A4 portrait; margin: 0; }";
+      document.head.appendChild(s);
+    }
+    window.print();
+  }
+
+  return {
+    source,
+    search,
+    selectedIds,
+    cardSize,
+    cardStyle,
+    showSaveModal,
+    showLoadModal,
+    library,
+    toggleSelect,
+    selectAllInSource,
+    clearSourceSelection,
+    saveCollection,
+    loadCollection,
+    deleteCollection,
+    printCards,
+  };
+});
