@@ -25,6 +25,7 @@
       <text x="100" y="202" text-anchor="middle" font-family="Cinzel,serif" font-size="5.5" fill="#c8983a" opacity=".35" letter-spacing="2">CARD VAULT</text>
       <line x1="60" y1="212" x2="140" y2="212" stroke="#c8983a" stroke-width=".5" opacity=".3"/>
     </svg>
+    <div class="loot-wm">DUNGEON GRIMOIRE</div>
   </div>
 </template>
 <script setup lang="ts">
@@ -33,4 +34,4 @@ defineProps<{ tarot?: boolean }>();
 <style scoped>
 .loot-shell { position:relative; width:200px; height:280px; border-radius:10px; overflow:hidden; flex-shrink:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 .loot-shell.tarot { width:222px; height:381px; }
-</style>
+.loot-wm { position:absolute; bottom:4px; left:0; right:0; z-index:10; text-align:center; font-family:"Cinzel",serif; font-size:5px; font-weight:700; letter-spacing:.18em; color:rgba(255,255,255,.2); pointer-events:none; }</style>

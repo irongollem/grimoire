@@ -1,4 +1,29 @@
-import { IconCalendarDays, IconCraft, IconDM, IconDashboard, IconDungeon, IconEncounter, IconFaction, IconFire, IconGenerate, IconLandmark, IconLayers, IconLibrary, IconMonster, IconMusicNote, IconPackage, IconParty, IconPopulate, IconQuest, IconScrollText, IconSettingsAlt, IconShield, IconSpecies, IconUserCircle, IconWand } from '@/lib/icons';
+import {
+  IconCalendarDays,
+  IconCraft,
+  IconDM,
+  IconDashboard,
+  IconDungeon,
+  IconEncounter,
+  IconFaction,
+  IconFire,
+  IconGenerate,
+  IconLandmark,
+  IconLayers,
+  IconLibrary,
+  IconMonster,
+  IconMusicNote,
+  IconPackage,
+  IconParty,
+  IconPopulate,
+  IconQuest,
+  IconScrollText,
+  IconSettingsAlt,
+  IconShield,
+  IconSpecies,
+  IconUserCircle,
+  IconWand,
+} from "@/lib/icons";
 import type { Component } from "vue";
 
 export interface NavItem {
@@ -112,7 +137,7 @@ export const NAV_GROUPS: NavGroup[] = [
         requiresCampaign: true,
       },
       {
-        label: "IconSettingsAlt",
+        label: "Settings",
         to: "/campaign/settings",
         icon: IconSettingsAlt,
         description: "Campaign configuration",
@@ -162,7 +187,8 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Character Codex",
         to: "/codex",
         icon: IconSpecies,
-        description: "Species, backgrounds, classes & archetypes for your players",
+        description:
+          "Species, backgrounds, classes & archetypes for your players",
       },
       {
         label: "Hall of Heroes",

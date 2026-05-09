@@ -30,6 +30,7 @@
         </span>
       </div>
     </div>
+    <div class="ik-wm">DUNGEON GRIMOIRE</div>
   </div>
 </template>
 <script setup lang="ts">
@@ -225,4 +226,4 @@ const stats = computed(() => [
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-</style>
+.ik-wm { position:absolute; bottom:4px; left:0; right:0; z-index:10; text-align:center; font-family:"Cinzel",serif; font-size:5px; font-weight:700; letter-spacing:.18em; color:rgba(255,255,255,.2); pointer-events:none; }</style>

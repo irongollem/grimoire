@@ -19,6 +19,7 @@
       </div>
       <div v-if="data.attunement_requirements" class="md-flavor">{{ data.attunement_requirements }}</div>
     </div>
+    <div class="md-wm">DUNGEON GRIMOIRE</div>
   </div>
 </template>
 <script setup lang="ts">
@@ -95,4 +96,4 @@ const metaRows = computed(() => {
 .md-flavor {
   font-family:"Cormorant Garamond",serif; font-style:italic; font-size:7.5px; color:rgba(236,226,204,.4);
   text-align:center; border-top:1px solid rgba(255,255,255,.08); padding-top:4px; flex-shrink:0;
-}</style>
+}.md-wm { position:absolute; bottom:4px; left:0; right:0; z-index:10; text-align:center; font-family:"Cinzel",serif; font-size:5px; font-weight:800; letter-spacing:.18em; color:rgba(255,255,255,.18); pointer-events:none; }</style>

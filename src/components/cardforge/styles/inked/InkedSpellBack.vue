@@ -21,6 +21,7 @@
       </div>
       <div v-if="data.higher_levels" class="ik-flavor">"{{ truncate(data.higher_levels, 80) }}"</div>
     </div>
+    <div class="ik-wm">DUNGEON GRIMOIRE</div>
   </div>
 </template>
 <script setup lang="ts">
@@ -101,4 +102,4 @@ const metaRows = computed(() => [
 .ik-flavor {
   font-family:"Cardo",serif; font-style:italic; font-size:7px; color:rgba(236,226,204,.4);
   text-align:center; border-top:1px solid rgba(255,255,255,.1); padding-top:4px; flex-shrink:0;
-}</style>
+}.ik-wm { position:absolute; bottom:4px; left:0; right:0; z-index:10; text-align:center; font-family:"Cinzel",serif; font-size:5px; font-weight:700; letter-spacing:.18em; color:rgba(255,255,255,.2); pointer-events:none; }</style>

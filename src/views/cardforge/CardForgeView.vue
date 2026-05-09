@@ -671,14 +671,6 @@ function formatDate(iso: string) {
     padding: 0 !important;
     height: auto !important;
   }
-  /* Strip screen-only decorative effects from card shells.
-     CardFront/Back use fragment roots + inheritAttrs:false so print-card
-     class never reaches the shell — target shell classes directly. */
-  .ik-shell, .md-shell, .loot-shell {
-    box-shadow: none !important;
-    transition: none !important;
-    animation: none !important;
-  }
 }
 </style>
 
@@ -899,6 +891,11 @@ function formatDate(iso: string) {
      * Since only 0.1mm remains after each sheet, the NEXT sheet can't fit
      * and is bumped to the following page — no explicit break-after/before
      * needed, which avoids Safari's blank-page bug with those properties.
+     *
+     * @page { margin: 0 } (in the global style block below) eliminates browser
+     * print margins so all measurements are from the physical page edge. This
+     * makes front/back physically symmetric and duplex-aligned without any
+     * manual "Margins: None" setting in the print dialog.
      */
     height: 296.9mm;
     max-height: 296.9mm;
@@ -926,13 +923,19 @@ function formatDate(iso: string) {
     padding: 25.95mm 32.5mm;
     gap: 5mm;
   }
-  /* Card sizing: 1mm bleed each side so colours fully cover cut lines */
+  /* Card sizing: 1mm bleed each side so colours fully cover cut lines.
+   * The dispatchers (CardFront/Back/etc.) are single-rooted so this
+   * print-card class flows down to the active shell element — designs
+   * never need their own @media print sizing. */
   .mtg-sheet .print-card {
     width: 65mm !important; /* 63mm + 1mm bleed each side */
     height: 90mm !important; /* 88mm + 1mm bleed each side */
     margin: -1mm !important;
     border-radius: 3mm !important;
     overflow: hidden;
+    box-shadow: none !important;
+    transition: none !important;
+    animation: none !important;
   }
   .tarot-sheet .print-card {
     width: 72mm !important; /* 70mm + 1mm bleed each side */
@@ -940,6 +943,9 @@ function formatDate(iso: string) {
     margin: -1mm !important;
     border-radius: 3mm !important;
     overflow: hidden;
+    box-shadow: none !important;
+    transition: none !important;
+    animation: none !important;
   }
   .print-card-empty {
     background: transparent;

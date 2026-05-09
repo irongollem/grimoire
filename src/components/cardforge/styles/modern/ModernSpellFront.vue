@@ -22,6 +22,7 @@
         </div>
       </div>
     </div>
+    <div class="md-wm">DUNGEON GRIMOIRE</div>
   </div>
 </template>
 <script setup lang="ts">
@@ -53,8 +54,8 @@ const stats = computed(() => [{ label:"CAST",value:castStat.value },{ label:"RNG
   -webkit-print-color-adjust:exact; print-color-adjust:exact;
 }
 .md-shell.tarot { width:222px; height:381px; }
-.md-art { position:absolute; top:0; left:0; right:0; height:184px; overflow:hidden; }
-.md-shell.tarot .md-art { height:270px; }
+.md-art { position:absolute; top:0; left:0; right:0; height:65.7%; overflow:hidden; }
+.md-shell.tarot .md-art { height:70.9%; }
 .md-art :deep(> div){ width:100%; height:100%; }
 .md-art :deep(img){ width:100%; object-fit:cover; }
 .md-art-ph {
@@ -84,12 +85,12 @@ const stats = computed(() => [{ label:"CAST",value:castStat.value },{ label:"RNG
   white-space:nowrap;
 }
 .md-panel {
-  position:absolute; left:0; right:0; bottom:0; top:184px;
+  position:absolute; left:0; right:0; bottom:0; top:65.7%;
   background:linear-gradient(180deg, #1a1612 0%, #0f0c09 100%);
   padding:0 12px 10px;
   display:flex; flex-direction:column; justify-content:flex-end;
 }
-.md-shell.tarot .md-panel { top:270px; }
+.md-shell.tarot .md-panel { top:70.9%; }
 .md-header { margin-top:-42px; position:relative; z-index:2; margin-bottom:6px; }
 .md-name {
   font-family:"Cormorant Garamond",serif; font-size:18px; font-weight:600;
@@ -108,4 +109,4 @@ const stats = computed(() => [{ label:"CAST",value:castStat.value },{ label:"RNG
 .md-stat { display:flex; align-items:baseline; gap:4px; }
 .md-stat-lbl { font-size:6px; color:color-mix(in srgb,var(--fc) 65%,#fff); font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
 .md-stat-val { font-family:"Cormorant Garamond",serif; font-size:13px; font-weight:700; color:#fff; line-height:1; }
-</style>
+.md-wm { position:absolute; bottom:4px; left:0; right:0; z-index:10; text-align:center; font-family:"Cinzel",serif; font-size:5px; font-weight:800; letter-spacing:.18em; color:rgba(255,255,255,.18); pointer-events:none; }</style>
