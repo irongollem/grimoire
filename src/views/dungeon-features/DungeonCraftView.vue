@@ -76,6 +76,17 @@
         />
       </template>
 
+      <!-- Cartographer tab actions -->
+      <template v-else-if="activeTab === 'cartographer'">
+        <ListActionButton
+          :icon="IconAdd"
+          label="New Map"
+          mobile-label="Map"
+          variant="primary"
+          @click="router.push('/cartographer/new')"
+        />
+      </template>
+
       <!-- Puzzles tab actions -->
       <template v-else>
         <ListActionButton
@@ -362,7 +373,7 @@
     </template>
 
     <!-- ── Puzzles tab ───────────────────────────────────────────────────── -->
-    <template v-else>
+    <template v-else-if="activeTab === 'puzzles'">
       <div v-if="puzzlesLoading" class="flex justify-center py-16">
         <LoadingSpinner />
       </div>
@@ -440,6 +451,42 @@
         @action="router.push('/puzzles/new')"
       />
     </template>
+
+    <!-- ── Cartographer tab ──────────────────────────────────────────────── -->
+    <template v-else>
+      <div v-if="cartographerMapsLoading" class="flex justify-center py-16">
+        <LoadingSpinner />
+      </div>
+      <template v-else-if="cartographerMaps?.length">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          <RouterLink
+            v-for="m in cartographerMaps"
+            :key="m.id"
+            :to="`/cartographer/${m.id}`"
+            class="flex flex-col rounded-lg border border-border bg-card p-3 hover:border-primary/50 transition-colors"
+          >
+            <div class="flex items-start justify-between gap-2 mb-1">
+              <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ m.name }}</h3>
+              <span v-if="m.default_pack_id" class="font-cinzel text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold tracking-wider shrink-0">
+                {{ m.default_pack_id }}
+              </span>
+            </div>
+            <p v-if="m.description" class="font-fell text-xs text-muted-foreground italic line-clamp-2">{{ m.description }}</p>
+            <p class="font-fell text-[10px] text-muted-foreground mt-2">
+              {{ cartographerCellCount(m) }} {{ cartographerCellCount(m) === 1 ? "cell" : "cells" }} painted
+            </p>
+          </RouterLink>
+        </div>
+      </template>
+      <EmptyState
+        v-else
+        icon="Map"
+        title="No maps yet"
+        description="Open Cartographer to paint your first tile-based battle map."
+        action-label="New Map"
+        @action="router.push('/cartographer/new')"
+      />
+    </template>
   </PageHeader>
 </template>
 
@@ -463,6 +510,9 @@ import { ROLL_TABLE_DICE } from "@/types/rollTable.types";
 import { useLootTables } from "@/composables/useLootTables";
 import { LOOT_CR_TIERS, LOOT_CR_TIER_LABELS } from "@/types/lootTable.types";
 
+import { useDungeonMaps } from "@/composables/useDungeonMaps";
+import type { DungeonMap } from "@/types/dungeonMap.types";
+
 import { useUiStore } from "@/stores/ui";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -475,16 +525,17 @@ const route  = useRoute();
 const router = useRouter();
 const ui     = useUiStore();
 
-type Tab = "features" | "traps" | "puzzles" | "roll-tables" | "loot-tables";
+type Tab = "features" | "traps" | "puzzles" | "roll-tables" | "loot-tables" | "cartographer";
 const TABS: { id: Tab; label: string }[] = [
-  { id: "features",    label: "Features" },
-  { id: "traps",       label: "Traproom" },
-  { id: "puzzles",     label: "Enigmarium" },
-  { id: "roll-tables", label: "Roll Tables" },
-  { id: "loot-tables", label: "Loot Tables" },
+  { id: "features",     label: "Features" },
+  { id: "traps",        label: "Traproom" },
+  { id: "puzzles",      label: "Enigmarium" },
+  { id: "roll-tables",  label: "Roll Tables" },
+  { id: "loot-tables",  label: "Loot Tables" },
+  { id: "cartographer", label: "Cartographer" },
 ];
 
-const VALID_TABS: Tab[] = ["features", "traps", "puzzles", "roll-tables", "loot-tables"];
+const VALID_TABS: Tab[] = ["features", "traps", "puzzles", "roll-tables", "loot-tables", "cartographer"];
 const rawTab = route.query.tab as string | undefined;
 const activeTab = ref<Tab>(
   VALID_TABS.includes(rawTab as Tab) ? (rawTab as Tab) : "features",
@@ -694,4 +745,14 @@ const filteredLootTables = computed(() => {
   );
   return list;
 });
+
+// ── Cartographer ────────────────────────────────────────────────────────────
+const { data: cartographerMaps, isLoading: cartographerMapsLoading } = useDungeonMaps();
+function cartographerCellCount(m: DungeonMap): number {
+  return (
+    Object.keys(m.layers.floor ?? {}).length +
+    Object.keys(m.layers.solidBlock ?? {}).length +
+    Object.keys(m.layers.object ?? {}).length
+  );
+}
 </script>

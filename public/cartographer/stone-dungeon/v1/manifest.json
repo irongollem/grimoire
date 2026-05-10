@@ -1,0 +1,52 @@
+{
+  "pack_id": "stone-dungeon",
+  "name": "Stone Dungeon",
+  "description": "Starter pack — dark grey weathered flagstones, dressed stone walls, wooden doors. Top-down view, seamless tileable. Tiles in this pack are placeholder-generated until the AI generation pipeline ships M1 assets.",
+  "pack_version": 1,
+  "schema_version": 1,
+  "base_tile_size": 128,
+  "assets": {
+    "floor": [
+      { "variant": 0, "url": "floor/0.webp" },
+      { "variant": 1, "url": "floor/1.webp" },
+      { "variant": 2, "url": "floor/2.webp" },
+      { "variant": 3, "url": "floor/3.webp" },
+      { "variant": 4, "url": "floor/4.webp" },
+      { "variant": 5, "url": "floor/5.webp" },
+      { "variant": 6, "url": "floor/6.webp" },
+      { "variant": 7, "url": "floor/7.webp" },
+      { "variant": 8, "url": "floor/8.webp" },
+      { "variant": 9, "url": "floor/9.webp" }
+    ],
+    "wallSegmentH": [
+      { "variant": 0, "url": "wallSegmentH/0.webp" },
+      { "variant": 1, "url": "wallSegmentH/1.webp" },
+      { "variant": 2, "url": "wallSegmentH/2.webp" },
+      { "variant": 3, "url": "wallSegmentH/3.webp" }
+    ],
+    "wallSegmentV": [
+      { "variant": 0, "url": "wallSegmentV/0.webp" },
+      { "variant": 1, "url": "wallSegmentV/1.webp" },
+      { "variant": 2, "url": "wallSegmentV/2.webp" },
+      { "variant": 3, "url": "wallSegmentV/3.webp" }
+    ],
+    "doorClosedH": [{ "variant": 0, "url": "doorClosedH/0.webp" }],
+    "doorClosedV": [{ "variant": 0, "url": "doorClosedV/0.webp" }],
+    "doorOpenH":   [{ "variant": 0, "url": "doorOpenH/0.webp" }],
+    "doorOpenV":   [{ "variant": 0, "url": "doorOpenV/0.webp" }],
+    "solidBlock": [
+      { "variant": 0, "url": "solidBlock/0.webp" },
+      { "variant": 1, "url": "solidBlock/1.webp" },
+      { "variant": 2, "url": "solidBlock/2.webp" },
+      { "variant": 3, "url": "solidBlock/3.webp" },
+      { "variant": 4, "url": "solidBlock/4.webp" },
+      { "variant": 5, "url": "solidBlock/5.webp" }
+    ],
+    "rubble": [
+      { "variant": 0, "url": "rubble/0.webp" },
+      { "variant": 1, "url": "rubble/1.webp" },
+      { "variant": 2, "url": "rubble/2.webp" },
+      { "variant": 3, "url": "rubble/3.webp" }
+    ]
+  }
+}

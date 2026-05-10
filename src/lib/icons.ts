@@ -6,16 +6,16 @@ import {
   AlertCircle, AlertTriangle, AlignCenter, AlignLeft, AlignRight,
   Archive, ArrowUpFromLine, Award, Axe,
   Backpack, BarChart2, BetweenHorizontalEnd, BetweenVerticalEnd,
-  BookMarked, BookOpen, BookPlus, BookText, BookUser, Bookmark, Brain, Bug,
+  BookMarked, BookOpen, BookPlus, BookText, BookUser, Bookmark, Box, Brain, BrickWall, Brush, Bug,
   Calendar, CalendarCheck, CalendarDays, CalendarPlus, CalendarX,
   Check, CheckCheck, CheckCircle, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
   ChevronsUpDown, Circle, CircleCheck, CircleUser, Clipboard, Clock, Code, Coins,
   Columns2, Component, Copy, CreditCard, Crosshair, Crown,
-  Dice6, Dices, Dna, DoorOpen, Download, Droplets,
-  ExternalLink, Eye, EyeOff,
+  Dice6, Dices, Dna, DoorClosed, DoorOpen, Download, Droplets,
+  Eraser, ExternalLink, Eye, EyeOff,
   Feather, FileDown, FileText, Flag, Flame, FlaskConical,
   Gamepad2, Gem, Ghost, Gift, Globe, Globe2, GraduationCap, GripVertical,
-  Hammer, Handshake, Hash, Highlighter, Home, Image, ImagePlus, Images, Info,
+  Hammer, Hand, Handshake, Hash, Highlighter, Home, Image, ImagePlus, Images, Info,
   KeyRound, Landmark, Layers, LayoutDashboard, LayoutGrid, LayoutList,
   Leaf, Library, LibraryBig, Lightbulb, Link, Link2, List, ListOrdered, ListTodo,
   Loader2, LoaderCircle, Lock, LogOut,
@@ -89,6 +89,12 @@ export { ScanEye as IconScan }
 export { Stamp as IconStamp }
 export { Scissors as IconScissors }
 export { Paintbrush as IconPaint }
+export { Brush as IconBrush }
+export { Eraser as IconEraser }
+export { Hand as IconHand }
+export { BrickWall as IconWall }
+export { DoorClosed as IconDoor }
+export { Box as IconCube }
 export { KeyRound as IconKey }
 export { Highlighter as IconHighlight }
 

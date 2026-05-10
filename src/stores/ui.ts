@@ -366,6 +366,19 @@ export const useUiStore = defineStore("ui", () => {
     atlasDetailOpen.value = new Set();
   }
 
+  // Cartographer (map editor) — list filter state
+  const cartographerSearch = ref("");
+  const cartographerFilterPack = ref("");
+
+  const cartographerHasActiveFilters = computed(() =>
+    cartographerSearch.value !== "" || cartographerFilterPack.value !== "",
+  );
+
+  function resetCartographerFilters() {
+    cartographerSearch.value = "";
+    cartographerFilterPack.value = "";
+  }
+
   function resetNotesFilters() {
     notesFilterCategory.value = "all";
     notesFilterTags.value = [];
@@ -563,5 +576,10 @@ export const useUiStore = defineStore("ui", () => {
     atlasChildrenOpen,
     atlasDetailOpen,
     resetAtlasOpenState,
+
+    cartographerSearch,
+    cartographerFilterPack,
+    cartographerHasActiveFilters,
+    resetCartographerFilters,
   };
 });

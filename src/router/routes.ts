@@ -375,6 +375,26 @@ export const routes: RouteRecordRaw[] = [
   { path: "/roll-tables/new", redirect: { path: "/dungeon-craft", query: { tab: "roll-tables" } } },
   { path: "/roll-tables/:id", redirect: { path: "/dungeon-craft", query: { tab: "roll-tables" } } },
 
+  // Cartographer — tile-based map editor (M1 skeleton; see context/features/cartographer.md)
+  {
+    path: "/cartographer",
+    name: "cartographer-list",
+    component: () => import("@/views/cartographer/CartographerListView.vue"),
+    meta: { requiresAuth: true, title: "Cartographer" },
+  },
+  {
+    path: "/cartographer/new",
+    name: "cartographer-new",
+    component: () => import("@/views/cartographer/CartographerEditorView.vue"),
+    meta: { requiresAuth: true, title: "New Map" },
+  },
+  {
+    path: "/cartographer/:id",
+    name: "cartographer-editor",
+    component: () => import("@/views/cartographer/CartographerEditorView.vue"),
+    meta: { requiresAuth: true, title: "Edit Map" },
+  },
+
   // Loot table detail
   {
     path: "/loot-tables/new",

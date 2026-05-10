@@ -1,6 +1,6 @@
 # Cartographer — Tile-Based Battle Map Builder
 
-> **Status:** Spec / not yet implemented. This document defines the M1 contracts and the full phased roadmap. Until shipped, agents should treat this as the source of truth for design intent — not the codebase.
+> **Status:** M1 (skeleton) implemented; M2–M7 pending. The spec below is the source of truth for design intent. The "As-built (M1)" appendix at the bottom records the actual file paths and where the procedural-placeholder fallback lives until real WebP assets land.
 
 ## Overview
 
@@ -756,3 +756,69 @@ The shared style guide:
 - **Infinite canvas** with crop-on-export and 3-cell black padding.
 - **Entity links** per cell preserve data for a future in-app VTT.
 - **Two entry points**: Dungeon Craft tab and Publishing Tools nav group (same view).
+
+---
+
+## As-built (M1)
+
+This appendix tracks where the M1 skeleton actually lives so future agents don't have to grep. Update on each milestone.
+
+### Files created in M1
+
+| Path | Purpose |
+| --- | --- |
+| [supabase/migrations/20260511000005_dungeon_maps_cartographer.sql](../../supabase/migrations/20260511000005_dungeon_maps_cartographer.sql) | `dungeon_maps` table + `locations.source_map_id` FK |
+| [src/types/dungeonMap.types.ts](../../src/types/dungeonMap.types.ts) | `DungeonMap`, `FloorCell`, `SolidCell`, `EdgeSeg`, `CellKey` helpers |
+| [src/cartographer/packSchema.ts](../../src/cartographer/packSchema.ts) | `TILE_PACK_SCHEMA`, `PackCategory`, `TilePackManifest`, `REQUIRED_CATEGORIES` |
+| [src/cartographer/validatePack.ts](../../src/cartographer/validatePack.ts) | `validatePack()` → `{ valid, missing, extras, warnings }` |
+| [src/cartographer/placeholderTile.ts](../../src/cartographer/placeholderTile.ts) | Procedural placeholder tiles (used when WebP asset missing or load fails) |
+| [src/cartographer/packLoader.ts](../../src/cartographer/packLoader.ts) | `loadPack(manifestUrl)` → `TilePackRuntime` with `getTile(category, variant, side?)` |
+| [public/cartographer/stone-dungeon/v1/manifest.json](../../public/cartographer/stone-dungeon/v1/manifest.json) | Starter pack manifest (declares full M1+M2 slot list) |
+| [public/cartographer/stone-dungeon/v1/README.md](../../public/cartographer/stone-dungeon/v1/README.md) | Asset list + generation guidelines for the AI pipeline |
+| [src/composables/useDungeonMaps.ts](../../src/composables/useDungeonMaps.ts) | `useDungeonMaps`, `useDungeonMap`, `useCreate/Update/DeleteDungeonMap` |
+| [src/views/cartographer/CartographerListView.vue](../../src/views/cartographer/CartographerListView.vue) | `/cartographer` list view with filter state |
+| [src/views/cartographer/CartographerEditorView.vue](../../src/views/cartographer/CartographerEditorView.vue) | `/cartographer/new` + `/cartographer/:id` editor (canvas + toolbox + inspector) |
+
+### Files modified in M1
+
+- [src/lib/icons.ts](../../src/lib/icons.ts) — added `IconBrush`, `IconEraser`, `IconHand`, `IconWall`, `IconDoor`, `IconCube`.
+- [src/router/routes.ts](../../src/router/routes.ts) — added three Cartographer routes.
+- [src/stores/ui.ts](../../src/stores/ui.ts) — added `cartographerSearch`, `cartographerFilterPack`, `cartographerHasActiveFilters`, `resetCartographerFilters`.
+- [src/views/dungeon-features/DungeonCraftView.vue](../../src/views/dungeon-features/DungeonCraftView.vue) — added the **Cartographer** tab (6th) with embedded map list.
+
+### Placeholder-asset behaviour
+
+The bundled Stone Dungeon pack ships a complete manifest but **no actual WebP files yet** — they're queued for the AI generation pipeline. The pack loader handles this gracefully:
+
+1. `validatePack(manifest)` reports the manifest as valid (URLs are declared correctly).
+2. `loadPack()` attempts to fetch each declared asset.
+3. Any asset that 404s falls back to a **procedural placeholder tile** generated in [src/cartographer/placeholderTile.ts](../../src/cartographer/placeholderTile.ts).
+4. Each placeholder's colour is derived from `hash(pack_id, category, side?, variant)` so variants stay stable across reloads.
+
+When real WebP assets land at `public/cartographer/stone-dungeon/v1/floor/0.webp` etc., they replace the placeholders automatically — **no code change required**.
+
+The editor displays a `Pack: stone-dungeon — N required slot(s) missing — using placeholders` warning in the inspector when the validator finds slots without art.
+
+### Migration apply
+
+The migration file is in place but **not yet applied to the remote Supabase project**. Run `supabase db push` from the project root when ready.
+
+### M1 acceptance status
+
+- [x] DB migration written (`dungeon_maps` + `locations.source_map_id`).
+- [x] Tile pack schema + validator + loader in `src/cartographer/`.
+- [x] Starter Stone pack manifest in `public/cartographer/stone-dungeon/v1/`.
+- [x] List + editor views with floor brush, pan, zoom, per-cell hash variant.
+- [x] Save/load via TanStack Query composable.
+- [x] DC hub tab integration (6th tab).
+- [x] Filter state in `useUiStore`.
+- [x] Stale `pack_id` placeholder rendering.
+- [ ] **Pending user action**: run `supabase db push` to apply migration.
+- [ ] **Pending external work**: real WebP floor assets in the AI-gen pipeline.
+
+### Known M1 deferrals (deliberate)
+
+- Wall / door / solid-block tools — toolbar shows them disabled with "(M2)" labels.
+- Object layer, annotation layer, entity links — M4.
+- Export, Atlas integration, Publishing Tools nav entry — M5.
+- Undo/redo — M2.
