@@ -159,6 +159,7 @@ import {
 const props = defineProps<{
   show: boolean;
   editor: Editor | undefined;
+  isTwoColumn?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -185,7 +186,7 @@ const visibleGroups = computed(() =>
 
 function isDisabled(entry: BlockEntry): boolean {
   if (!props.editor) return true;
-  return entry.enabled ? !entry.enabled(props.editor) : false;
+  return entry.enabled ? !entry.enabled(props.editor, { isTwoColumn: props.isTwoColumn }) : false;
 }
 
 // ── Actions ────────────────────────────────────────────────────────────────────

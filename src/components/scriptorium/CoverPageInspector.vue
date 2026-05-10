@@ -45,6 +45,14 @@
                 class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
+            <div class="space-y-1.5">
+              <label class="block font-cinzel text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Background Art</label>
+              <ImageUpload
+                v-model="backgroundImageModel"
+                aspect="portrait"
+                placeholder="Drop cover art or click to upload"
+              />
+            </div>
           </template>
 
           <!-- Part divider -->
@@ -125,25 +133,38 @@
                 class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
+            <div class="space-y-1.5">
+              <label class="block font-cinzel text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Background Art</label>
+              <ImageUpload
+                v-model="backgroundImageModel"
+                aspect="landscape"
+                placeholder="Drop back cover art or click to upload"
+              />
+            </div>
           </template>
         </div>
 
         <!-- Footer -->
-        <div class="flex justify-end gap-2 px-4 py-3 border-t border-border shrink-0">
-          <button
-            type="button"
-            class="px-4 py-1.5 rounded-md font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            @click="$emit('close')"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            class="px-4 py-1.5 rounded-md bg-primary font-cinzel text-xs font-semibold tracking-wider text-primary-foreground hover:opacity-90 transition-opacity"
-            @click="apply"
-          >
-            Apply
-          </button>
+        <div class="flex flex-col gap-2 px-4 py-3 border-t border-border shrink-0">
+          <p v-if="applyError" class="font-fell text-xs text-destructive italic">{{ applyError }}</p>
+          <p v-else-if="!isActiveCoverPage" class="font-fell text-xs text-muted-foreground italic">Click inside a cover page in the editor to enable Apply.</p>
+          <div class="flex justify-end gap-2">
+            <button
+              type="button"
+              class="px-4 py-1.5 rounded-md font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              @click="$emit('close')"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              :disabled="!isActiveCoverPage"
+              class="px-4 py-1.5 rounded-md bg-primary font-cinzel text-xs font-semibold tracking-wider text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+              @click="apply"
+            >
+              Apply
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -151,10 +172,11 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, watch } from "vue";
+import { reactive, computed, watch, ref } from "vue";
 import { IconClose } from '@/lib/icons';
 import type { Editor } from "@tiptap/vue-3";
 import type { CoverPageAttrs, CoverPageVariant } from "@/lib/tiptap/coverPage";
+import ImageUpload from "@/components/common/ImageUpload.vue";
 
 const props = defineProps<{
   show: boolean;
@@ -181,7 +203,10 @@ const local = reactive<Partial<CoverPageAttrs>>({
   blurb3: "",
   tagline: "",
   productUrl: "",
+  backgroundImage: "",
 });
+
+const applyError = ref("");
 
 const variant = computed<CoverPageVariant>(() => {
   return (props.editor?.getAttributes("coverPage").variant as CoverPageVariant) ?? "front";
@@ -189,10 +214,18 @@ const variant = computed<CoverPageVariant>(() => {
 
 const variantLabel = computed(() => VARIANT_LABELS[variant.value] ?? variant.value);
 
+const isActiveCoverPage = computed(() => props.editor?.isActive("coverPage") ?? false);
+
+const backgroundImageModel = computed({
+  get: () => local.backgroundImage ?? null,
+  set: (v: string | null) => { local.backgroundImage = v ?? ""; },
+});
+
 watch(
   () => props.show,
   (open) => {
     if (!open || !props.editor) return;
+    applyError.value = "";
     const attrs = props.editor.getAttributes("coverPage") as CoverPageAttrs;
     local.title = attrs.title ?? "";
     local.subtitle = attrs.subtitle ?? "";
@@ -202,11 +235,16 @@ watch(
     local.blurb3 = attrs.blurb3 ?? "";
     local.tagline = attrs.tagline ?? "";
     local.productUrl = attrs.productUrl ?? "";
+    local.backgroundImage = attrs.backgroundImage ?? "";
   },
 );
 
 function apply() {
   if (!props.editor) return;
+  if (!isActiveCoverPage.value) {
+    applyError.value = "Click inside a cover page node first, then apply.";
+    return;
+  }
   props.editor.chain().focus().updateAttributes("coverPage", { ...local }).run();
   emit("close");
 }

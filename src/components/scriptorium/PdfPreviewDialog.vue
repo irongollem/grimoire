@@ -38,6 +38,24 @@
             </button>
           </div>
         </div>
+        <!-- Broken image warning -->
+        <div
+          v-if="brokenImages.length > 0"
+          class="px-4 py-2.5 bg-destructive/10 border-b border-destructive/30 shrink-0"
+        >
+          <p class="font-cinzel text-xs font-semibold text-destructive mb-1">
+            {{ brokenImages.length }} image{{ brokenImages.length === 1 ? '' : 's' }} failed to load and may be missing from the PDF:
+          </p>
+          <ul class="space-y-0.5">
+            <li
+              v-for="url in brokenImages"
+              :key="url"
+              class="font-fell text-xs text-destructive/80 italic truncate"
+            >
+              {{ url }}
+            </li>
+          </ul>
+        </div>
         <embed :src="blobUrl ?? ''" type="application/pdf" class="flex-1 w-full" />
       </div>
     </div>
@@ -47,6 +65,6 @@
 <script setup lang="ts">
 import { IconClose, IconPrint } from '@/lib/icons';
 
-defineProps<{ show: boolean; blobUrl: string | null; title: string }>();
+defineProps<{ show: boolean; blobUrl: string | null; title: string; brokenImages: string[] }>();
 defineEmits<{ close: []; save: [] }>();
 </script>

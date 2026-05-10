@@ -7,7 +7,7 @@
       <LoadingSpinner />
     </div>
 
-    <ScriptoriumEditor v-else :doc="isNew ? null : (doc ?? null)" />
+    <ScriptoriumEditor v-else :key="id || 'new'" :doc="isNew ? null : (doc ?? null)" />
   </PageHeader>
 </template>
 

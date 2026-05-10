@@ -48,8 +48,11 @@ export interface BlockEntry {
    * false. Use for state-dependent restrictions (e.g. column break only valid
    * in two-column mode). Do NOT use for "not implemented yet" — just omit the
    * entry until the feature ships.
+   *
+   * The optional `ctx` carries editor-external state (e.g. `isTwoColumn`)
+   * that cannot be derived from the Tiptap editor instance alone.
    */
-  enabled?: (editor: Editor) => boolean;
+  enabled?: (editor: Editor, ctx?: { isTwoColumn?: boolean }) => boolean;
 }
 
 /** Controls the display order of groups in the picker. */
@@ -132,6 +135,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
       "Force content after this point to start at the top of the next column (two-column layout only)",
     icon: IconSplitCell,
     action: (editor) => editor.chain().focus().insertColumnBreak().run(),
+    enabled: (_editor, ctx) => !!ctx?.isTwoColumn,
   },
 
   // ── Spacers ─────────────────────────────────────────────────────────────────
@@ -218,7 +222,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
   },
   {
     group: "Callouts",
-    label: "IconQuote",
+    label: "Pull Quote",
     description:
       "Italic pulled quote with optional attribution line. No decorative frame — font treatment only. Shortcut: Mod-Alt-Q.",
     icon: IconComment,
@@ -228,7 +232,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     group: "Callouts",
     label: "Attribution",
     description:
-      "Em-dash author/source line inside a IconQuote block. Renders in small-caps italic; classic theme uses accent red. Only meaningful inside a IconQuote block.",
+      "Em-dash author/source line inside a pull quote block. Renders in small-caps italic; classic theme uses accent red. Only meaningful inside a pull quote block.",
     icon: IconUserRound,
     action: (editor) => editor.chain().focus().insertAttribution().run(),
     enabled: (editor) => editor.isActive("quoteBlock"),

@@ -223,7 +223,7 @@ async function buildPdfBlob(
   inkFriendly = false,
   pageFooters: (string | null)[] = [],
   footerText = "",
-): Promise<Blob> {
+): Promise<{ blob: Blob; brokenImages: string[] }> {
   const size = PAGE_SIZES[pageSize];
   const holder = document.createElement("div");
   holder.style.cssText = `position:fixed;top:-9999px;left:-9999px;width:${size.w}px;`;
@@ -299,13 +299,17 @@ async function buildPdfBlob(
 
   document.body.appendChild(holder);
   await document.fonts.ready;
+  const brokenImages: string[] = [];
   await Promise.all(
     Array.from(holder.querySelectorAll<HTMLImageElement>("img")).map((img) =>
       img.complete
         ? Promise.resolve()
         : new Promise<void>((r) => {
             img.onload = () => r();
-            img.onerror = () => r();
+            img.onerror = () => {
+              if (img.src) brokenImages.push(img.src);
+              r();
+            };
           }),
     ),
   );
@@ -325,7 +329,7 @@ async function buildPdfBlob(
   }
 
   document.body.removeChild(holder);
-  return pdf.output("blob") as Blob;
+  return { blob: pdf.output("blob") as Blob, brokenImages };
 }
 
 export function useScriptoriumPdf(
@@ -340,9 +344,11 @@ export function useScriptoriumPdf(
   const showPdfPreview = ref(false);
   const pdfBlobUrl = ref<string | null>(null);
   const isGeneratingPdf = ref(false);
+  const pdfBrokenImages = ref<string[]>([]);
 
   function closePdfPreview() {
     showPdfPreview.value = false;
+    pdfBrokenImages.value = [];
     if (pdfBlobUrl.value) {
       URL.revokeObjectURL(pdfBlobUrl.value);
       pdfBlobUrl.value = null;
@@ -362,7 +368,7 @@ export function useScriptoriumPdf(
   async function exportPdf() {
     isGeneratingPdf.value = true;
     try {
-      const blob = await buildPdfBlob(
+      const { blob, brokenImages } = await buildPdfBlob(
         pages.value,
         title.value,
         theme.value,
@@ -376,6 +382,7 @@ export function useScriptoriumPdf(
       const file = new File([blob], fileName, { type: "application/pdf" });
       if (pdfBlobUrl.value) URL.revokeObjectURL(pdfBlobUrl.value);
       pdfBlobUrl.value = URL.createObjectURL(file);
+      pdfBrokenImages.value = brokenImages;
       showPdfPreview.value = true;
     } finally {
       isGeneratingPdf.value = false;
@@ -386,5 +393,5 @@ export function useScriptoriumPdf(
     if (pdfBlobUrl.value) URL.revokeObjectURL(pdfBlobUrl.value);
   });
 
-  return { showPdfPreview, pdfBlobUrl, isGeneratingPdf, exportPdf, savePdf, closePdfPreview };
+  return { showPdfPreview, pdfBlobUrl, isGeneratingPdf, pdfBrokenImages, exportPdf, savePdf, closePdfPreview };
 }

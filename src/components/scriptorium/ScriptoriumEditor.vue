@@ -3,6 +3,7 @@
     :show="showPdfPreview"
     :blob-url="pdfBlobUrl"
     :title="title"
+    :broken-images="pdfBrokenImages"
     @close="closePdfPreview"
     @save="savePdf"
   />
@@ -15,6 +16,7 @@
   <BlockPickerPanel
     :show="showBlockPicker"
     :editor="editor"
+    :is-two-column="isTwoColumn"
     @close="showBlockPicker = false"
     @open-asset-panel="
       showBlockPicker = false;
@@ -1488,6 +1490,7 @@ const {
   showPdfPreview,
   pdfBlobUrl,
   isGeneratingPdf,
+  pdfBrokenImages,
   exportPdf,
   savePdf,
   closePdfPreview,
