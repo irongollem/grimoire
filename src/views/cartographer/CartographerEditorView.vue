@@ -39,14 +39,19 @@
                 : 'hover:bg-muted text-foreground'
           "
           :disabled="t.disabled"
+          :title="toolTitle(t)"
           @click="activeTool = t.id"
         >
           <component :is="t.icon" class="h-4 w-4 shrink-0" />
-          <span class="hidden lg:inline">{{ t.label }}</span>
+          <span class="hidden lg:inline flex-1">{{ t.label }}</span>
+          <kbd
+            v-if="toolBadge(t)"
+            class="hidden lg:inline font-cinzel text-[9px] tracking-wider text-muted-foreground bg-muted/60 border border-border rounded px-1 py-0.5"
+          >{{ toolBadge(t) }}</kbd>
         </button>
 
         <div class="hidden lg:block mt-3 border-t border-border pt-2 text-[10px] font-fell text-muted-foreground italic">
-          <p>M1 ships floor brush only. Walls, doors, and solid blocks land in M2.</p>
+          <p>Right-mouse-drag or shift-drag pans without switching tool. M2 tools (W/D/S) are pre-wired — shortcuts activate once those tools are enabled.</p>
         </div>
       </aside>
 
@@ -213,15 +218,33 @@ let lastPointer: { x: number; y: number } | null = null;
 
 // Tools
 type Tool = "floor" | "eraser" | "pan" | "wall" | "door" | "solid";
+interface ToolDef {
+  id: Tool;
+  label: string;
+  icon: unknown;
+  /** Single keyboard key that activates this tool (lowercase, plain key — no modifiers). */
+  shortcut?: string;
+  /** Override for the visible kbd badge — used for non-keyboard hints like "RMB" on Pan. */
+  displayBadge?: string;
+  disabled?: boolean;
+}
 const activeTool = ref<Tool>("floor");
-const TOOLS: { id: Tool; label: string; icon: unknown; disabled?: boolean }[] = [
-  { id: "floor", label: "Floor brush", icon: IconBrush },
-  { id: "eraser", label: "Eraser", icon: IconEraser },
-  { id: "pan", label: "Pan", icon: IconHand },
-  { id: "wall", label: "Wall (M2)", icon: IconWall, disabled: true },
-  { id: "door", label: "Door (M2)", icon: IconDoor, disabled: true },
-  { id: "solid", label: "Solid block (M2)", icon: IconCube, disabled: true },
+const TOOLS: ToolDef[] = [
+  { id: "floor",  label: "Floor brush",      icon: IconBrush,  shortcut: "b" },
+  { id: "eraser", label: "Eraser",           icon: IconEraser, shortcut: "e" },
+  { id: "pan",    label: "Pan",              icon: IconHand,   displayBadge: "RMB" },
+  { id: "wall",   label: "Wall (M2)",        icon: IconWall,   shortcut: "w", disabled: true },
+  { id: "door",   label: "Door (M2)",        icon: IconDoor,   shortcut: "d", disabled: true },
+  { id: "solid",  label: "Solid block (M2)", icon: IconCube,   shortcut: "s", disabled: true },
 ];
+
+function toolBadge(t: ToolDef): string | undefined {
+  return t.displayBadge ?? t.shortcut?.toUpperCase();
+}
+function toolTitle(t: ToolDef): string {
+  const badge = toolBadge(t);
+  return badge ? `${t.label} (${badge})` : t.label;
+}
 
 const cellsPainted = computed(() => Object.keys(layers.value.floor).length);
 const floorVariantCount = computed(() =>
@@ -441,11 +464,12 @@ function onPointerDown(ev: PointerEvent): void {
   const local = getLocalPointer(ev);
   lastPointer = local;
 
-  const isMiddle = ev.button === 1;
+  // Right-click (button 2), middle-click (button 1), or Shift+drag always pans —
+  // no need to switch to the Pan tool. Context menu is suppressed on the canvas.
+  const isPanTrigger = ev.button === 1 || ev.button === 2 || ev.shiftKey;
   const isPanTool = activeTool.value === "pan";
-  const isSpaceOrMiddle = isMiddle || ev.shiftKey;
 
-  if (isPanTool || isSpaceOrMiddle) {
+  if (isPanTool || isPanTrigger) {
     isPanning.value = true;
     canvasEl.value?.setPointerCapture(ev.pointerId);
     return;
@@ -573,14 +597,34 @@ function onResize(): void {
   scheduleRender();
 }
 
+function onKeyDown(ev: KeyboardEvent): void {
+  // Don't hijack keys while the user is typing in the name input, a textarea, or
+  // any other contenteditable target.
+  const target = ev.target as HTMLElement | null;
+  if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+    return;
+  }
+  // Leave OS shortcuts (Cmd/Ctrl/Alt combos) alone.
+  if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+
+  const key = ev.key.toLowerCase();
+  const tool = TOOLS.find((t) => t.shortcut === key);
+  if (tool && !tool.disabled) {
+    activeTool.value = tool.id;
+    ev.preventDefault();
+  }
+}
+
 onMounted(async () => {
   await ensurePackLoaded();
   window.addEventListener("resize", onResize);
+  window.addEventListener("keydown", onKeyDown);
   scheduleRender();
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener("resize", onResize);
+  window.removeEventListener("keydown", onKeyDown);
   if (rafId) cancelAnimationFrame(rafId);
 });
 </script>
