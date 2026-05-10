@@ -81,6 +81,14 @@
                 DC {{ recipe.dc }} · {{ recipe.crafting_time }} {{ recipe.crafting_time !== 1 ? recipe.crafting_time_unit : recipe.crafting_time_unit.replace(/s$/, '') }}
                 <span v-if="outputsFor(recipe.id).length"> · → {{ outputsFor(recipe.id).map(o => (o.quantity > 1 ? `${o.quantity}× ` : '') + (itemName(o.item_id))).join(', ') }}</span>
               </p>
+              <p
+                v-if="recipe.requires_tools && !hasTools(getDiscipline(recipe.discipline).tools)"
+                class="font-fell text-xs text-destructive mt-0.5"
+              >Requires {{ getDiscipline(recipe.discipline).tools[0] }}</p>
+              <p
+                v-else-if="!recipe.requires_tools && !hasTools(getDiscipline(recipe.discipline).tools)"
+                class="font-fell text-xs text-gold-400 mt-0.5"
+              >No {{ getDiscipline(recipe.discipline).tools[0] }} — disadvantage</p>
             </div>
             <span
               v-if="recipe.requires_proficiency && !hasProficiency(getDiscipline(recipe.discipline).tools)"
@@ -99,7 +107,7 @@
             <span
               v-else-if="!hasTools(getDiscipline(recipe.discipline).tools)"
               class="shrink-0 font-cinzel text-2xs md:text-sm tracking-wider px-1.5 py-0.5 rounded border border-gold-500/40 text-gold-400 bg-gold-500/10"
-              title="No tool in inventory — disadvantage"
+              :title="`Requires ${getDiscipline(recipe.discipline).tools[0]} in inventory — roll at disadvantage`"
             >
               DISADV
             </span>
