@@ -57,7 +57,7 @@
         @click="save"
       >
         <IconSave class="h-3.5 w-3.5" />
-        {{ saving ? "Saving…" : props.note ? "IconSave" : "Create" }}
+        {{ saving ? "Saving…" : props.note ? "Save" : "Create" }}
       </button>
 
       <button

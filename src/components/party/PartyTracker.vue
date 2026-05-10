@@ -1,25 +1,5 @@
 <template>
   <div>
-    <!-- Action bar -->
-    <div class="flex flex-wrap items-center gap-2 mb-5">
-      <button
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-md bg-card border border-border px-3 py-2 font-cinzel text-xs font-semibold text-foreground hover:border-primary/50 transition-colors"
-        @click="rollAllInitiative"
-      >
-        <IconDiceRoll class="h-3.5 w-3.5 text-primary" />
-        Roll All Initiative
-      </button>
-      <button
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-md bg-card border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
-        @click="clearInitiative"
-      >
-        <IconReset class="h-3.5 w-3.5" />
-        Clear Initiative
-      </button>
-    </div>
-
     <!-- Loading / Empty -->
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
@@ -97,9 +77,7 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { ref, computed } from "vue";
-import { IconDiceRoll, IconReset } from '@/lib/icons';
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import { useAllLocations } from "@/composables/useLocations";
 import { useCompanions, useDeleteCompanion } from "@/composables/useCompanions";
@@ -168,32 +146,6 @@ const sortedMembers = computed(() => {
   }
   return [...members].sort((a, b) => a.sort_order - b.sort_order);
 });
-
-const { promptRoll } = usePromptedRoll();
-
-async function rollInitiative(member: PartyMember) {
-  const r = await promptRoll({
-    counts: { 20: 1 },
-    modifier: member.initiative_bonus,
-    label: `${member.name} Initiative`,
-    silent: true,
-  });
-  if (r) await updateMember({ id: member.id, update: { current_initiative: r.total } });
-}
-
-async function rollAllInitiative() {
-  for (const member of party.value ?? []) {
-    await rollInitiative(member);
-  }
-}
-
-async function clearInitiative() {
-  await Promise.all(
-    (party.value ?? []).map((member) =>
-      updateMember({ id: member.id, update: { current_initiative: null } }),
-    ),
-  );
-}
 
 // DM journal access
 const { data: campaignMembers } = useCampaignMembers();

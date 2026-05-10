@@ -280,7 +280,7 @@
         >
           <IconCheck v-if="copied" class="h-3 w-3 text-elven-green" />
           <IconCopy v-else class="h-3 w-3" />
-          {{ copied ? "Copied" : "IconCopy" }}
+          {{ copied ? "Copied" : "Copy" }}
         </button>
       </div>
 

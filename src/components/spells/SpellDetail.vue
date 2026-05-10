@@ -348,7 +348,7 @@
             @click="save"
           >
             <IconSave class="h-3.5 w-3.5" />
-            {{ isSaving ? "Saving…" : spell ? "IconSave" : "Create" }}
+            {{ isSaving ? "Saving…" : spell ? "Save" : "Create" }}
           </button>
         </template>
         <span v-else class="font-fell text-xs text-muted-foreground italic">SRD spell — art only</span>

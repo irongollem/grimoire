@@ -15,7 +15,7 @@
       @click="detailRef.save()"
     >
       <IconSave class="h-3.5 w-3.5" />
-      {{ detailRef.saving ? "Saving…" : exists ? "IconSave" : "Create" }}
+      {{ detailRef.saving ? "Saving…" : exists ? "Save" : "Create" }}
     </button>
   </template>
 </template>

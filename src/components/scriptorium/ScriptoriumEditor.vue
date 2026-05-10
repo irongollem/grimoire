@@ -89,7 +89,7 @@
         @click="save"
       >
         <IconSave class="h-3.5 w-3.5" />
-        {{ isSaving ? "Saving…" : props.doc ? "IconSave" : "Create" }}
+        {{ isSaving ? "Saving…" : props.doc ? "Save" : "Create" }}
       </button>
       <button
         v-if="props.doc"

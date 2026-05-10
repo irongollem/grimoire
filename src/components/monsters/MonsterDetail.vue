@@ -45,7 +45,7 @@
         @click="save"
       >
         <IconSave class="h-3.5 w-3.5" />
-        {{ saving ? "Saving…" : props.monster ? "IconSave" : "Create" }}
+        {{ saving ? "Saving…" : props.monster ? "Save" : "Create" }}
       </button>
       <button
         v-if="props.monster"

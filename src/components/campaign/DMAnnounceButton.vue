@@ -35,7 +35,7 @@
           @click="send"
         >
           <IconSend class="h-3 w-3" />
-          {{ sending ? "Sending…" : "IconSend" }}
+          {{ sending ? "Sending…" : "Send" }}
         </button>
       </div>
       <p v-if="sent" class="font-fell text-xs text-elven-green text-right">Sent!</p>

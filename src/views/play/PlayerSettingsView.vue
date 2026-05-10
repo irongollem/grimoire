@@ -28,7 +28,7 @@
         >
           <IconCheck v-if="nameSaved" class="h-3.5 w-3.5" />
           <IconSave v-else class="h-3.5 w-3.5" />
-          {{ nameSaved ? "Saved" : "IconSave" }}
+          {{ nameSaved ? "Saved" : "Save" }}
         </button>
       </form>
 

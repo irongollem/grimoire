@@ -132,7 +132,7 @@
           @click="handleSave"
         >
           <IconSave class="h-3.5 w-3.5" />
-          {{ saving ? "Saving…" : isNew ? "Create" : "IconSave" }}
+          {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
         </button>
       </div>
     </div>

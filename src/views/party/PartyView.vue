@@ -18,8 +18,10 @@
       </RouterLink>
     </template>
 
+    <PartyTracker ref="tracker" />
+
     <!-- Group Portrait -->
-    <div class="mb-6 rounded-lg border border-border bg-card overflow-hidden">
+    <div class="mt-6 rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/20 flex items-center justify-between">
         <div>
           <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Group Portrait</span>
@@ -33,11 +35,11 @@
             type="button"
             :disabled="generating"
             class="inline-flex items-center gap-1.5 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider rounded-md border border-border bg-background text-muted-foreground hover:text-foreground hover:border-primary/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            title="IconUpload your own art"
+            title="Upload your own art"
             @click="uploadInput?.click()"
           >
             <IconUpload class="h-3.5 w-3.5" />
-            IconUpload
+            Upload
           </button>
           <button
             type="button"
@@ -70,8 +72,6 @@
         <p class="font-fell text-sm text-muted-foreground italic animate-pulse">Generating group portrait…</p>
       </div>
     </div>
-
-    <PartyTracker ref="tracker" />
   </PageHeader>
 </template>
 

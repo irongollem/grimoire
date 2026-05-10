@@ -20,7 +20,7 @@
             </div>
             <div class="flex-1 min-w-0">
               <h2 id="bug-report-title" class="font-cinzel text-sm font-bold text-foreground tracking-wide">
-                Report a IconBug
+                Report a Bug
               </h2>
               <p class="font-fell text-xs text-muted-foreground mt-0.5">
                 Your report opens a GitHub issue for the development team.

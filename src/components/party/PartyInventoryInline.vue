@@ -202,7 +202,11 @@ const filteredCatalogItems = computed((): Item[] => {
   const q = newItem.name.trim().toLowerCase();
   const all = catalogItems.value ?? [];
   if (!q) return all.slice(0, 8);
-  return all.filter((item) => item.name.toLowerCase().includes(q)).slice(0, 8);
+  return all.filter((item) =>
+    item.name.toLowerCase().includes(q) ||
+    (item.subtype ?? "").toLowerCase().includes(q) ||
+    item.tags.some((t) => t.toLowerCase().includes(q))
+  ).slice(0, 8);
 });
 
 function onItemSearchInput() {

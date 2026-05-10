@@ -353,6 +353,8 @@ async function resolvePlaceholder(url: string) {
   const cached = readCache(url);
   if (cached) {
     rawFocalPoint.value = cached;
+    const img = placeholderImgRef.value;
+    if (img?.complete && img.naturalWidth) applyFocalPoint(img, cached);
     return;
   }
 
