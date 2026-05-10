@@ -21,6 +21,7 @@ Each doc covers **both DM and player perspectives**, lists exact file paths, com
 | [combat-encounters.md](combat-encounters.md)             | Bestiary (monster builder + discovery), Encounter Builder, live Encounter Runner, player combat view            |
 | [items-spells-crafting.md](items-spells-crafting.md)     | Item Vault, player Paper Doll inventory, Spellbook, Workshop recipes + player crafting                          |
 | [dungeon-craft.md](dungeon-craft.md)                     | Dungeon Features, Traps (CR advisor), Puzzles (DM/player split), Roll Tables, Loot Tables                       |
+| [cartographer.md](cartographer.md)                       | **(Spec)** Tile-based battle map builder; versioned tile packs; per-brush theme; bakes to Atlas locations       |
 | [publishing-tools.md](publishing-tools.md)               | Scriptorium (document publisher), Card Forge (MTG/Tarot print), The Mint (tokens+coins), Illuminator, Reliquary |
 | [player-portal.md](player-portal.md)                     | The full player experience: all /play/\* views, layout, nav, live encounter panel, DM Preview Mode              |
 | [collaboration.md](collaboration.md)                     | Multi-user invite system, campaign members, DM/player roles, live sync, RLS security model                      |
@@ -74,6 +75,7 @@ Each doc covers **both DM and player perspectives**, lists exact file paths, com
 - **Puzzles** — DM controls hint reveals per-hint; `read_aloud` field; player portal receives realtime updates via Supabase Realtime; `shared_hints[]` array with per-hint Eye toggle
 - **Roll Tables** — range-based entries; overlap validation; optional Encounter entity link
 - **Loot Tables** — 3 entry types (specific item, currency pool, random-by-rarity); drop chance per entry; "Drop chest in chat" posts claimable loot atoms with claims cap
+- **Cartographer** *(spec, not yet built)* — tile-based battle map editor on an infinite canvas; versioned WebP tile packs with schema-validated category slots; per-brush theme switching; **edge-based walls** (thin partitions) coexisting with a **`solidBlock` layer** (thick masonry) so the builder controls wall thickness; cell-level entity links (traps, encounters, NPCs); bakes to Atlas location maps; data preserved for a future in-app VTT
 
 ### Publishing & Output Tools (desktop-only)
 

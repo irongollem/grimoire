@@ -89,6 +89,7 @@
       <div class="space-y-4">
           <!-- Portrait -->
           <ImageUpload
+            bucket="monster-images"
             :model-value="form.image_url || null"
             :focal-point="form.portrait_focal_point"
             show-focal-point

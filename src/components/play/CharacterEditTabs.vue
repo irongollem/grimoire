@@ -20,7 +20,7 @@
     <div v-if="activeTab === 'identity'" class="space-y-4">
       <div class="flex gap-4">
         <div class="w-28 shrink-0">
-          <ImageUpload :model-value="portraitUrl || null" :focal-point="focalPoint" show-focal-point
+          <ImageUpload bucket="npc-portraits" :model-value="portraitUrl || null" :focal-point="focalPoint" show-focal-point
             @update:model-value="portraitUrl = $event ?? ''" @update:focal-point="focalPoint = $event" />
         </div>
         <div class="flex-1 flex flex-col gap-2">

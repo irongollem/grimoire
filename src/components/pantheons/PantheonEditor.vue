@@ -162,7 +162,7 @@ async function handleDelete() {
   router.push("/pantheons");
 }
 
-const { upload: uploadEmblem } = useImageUpload("asset-images");
+const { upload: uploadEmblem } = useImageUpload("pantheon-emblems");
 
 async function onFileSelected(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0];

@@ -114,12 +114,12 @@ import FocalPointPicker from "./FocalPointPicker.vue";
 const imageUrl = defineModel<string | null>({ required: true });
 const focalPoint = defineModel<{ x: number; y: number } | null>("focalPoint", { default: null });
 const {
-  bucket = "asset-images",
+  bucket,
   aspect = "portrait",
   showFocalPoint = false,
   placeholder = "Drop image or click to upload",
 } = defineProps<{
-  bucket?: string;
+  bucket: string;
   aspect?: "portrait" | "landscape" | "square" | "auto";
   showFocalPoint?: boolean;
   placeholder?: string;

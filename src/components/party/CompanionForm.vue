@@ -301,7 +301,7 @@ const { data: npcs }     = useNpcs();
 
 const { mutateAsync: create } = useCreateCompanion();
 const { mutateAsync: update } = useUpdateCompanion();
-const { isUploading, upload } = useImageUpload("asset-images");
+const { isUploading, upload } = useImageUpload("npc-portraits");
 
 // Form state
 const sourceType        = ref<CompanionSourceType>(props.companion?.source_type ?? "custom");

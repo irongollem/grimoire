@@ -148,6 +148,8 @@
 - [x] Standardised image displays — NpcList, MonsterList, CardForge (all 8 card types), PartyTracker, TokenForge, and player portal all use FocalImage with the correct format
 - [x] Shared `ImageUpload` component — unified dashed drop zone, drag-and-drop, optional focal point picker, bucket cleanup on replace/remove; used across all 8 upload locations (NPCs, monsters, items, spells, party members, locations, traps); `card_art_focal_point` added to monsters table + SRD art overlay
 - [x] Egress optimisation — WebP conversion on upload (canvas, max 1920px, 85% quality); `FocalImage` lazy-loads all images (`loading="lazy"`); Supabase Pro image transforms (resize + WebP at CDN edge) gated by `VITE_SUPABASE_TRANSFORMS=true`; client-side infinite scroll (48/page, IntersectionObserver) on Monster, NPC, and Item lists
+- [x] Art Library cross-bucket browser — `ArtPickerModal.vue` lets DMs browse every uploaded image across 12 per-entity buckets (NPC, Monster, Location, Chronicle, Document, Item, Spell, Faction, Pantheon, Loot, Trap, Puzzle), pick one, and have its full-resolution URL inserted directly into Tiptap rich-text content. Wired into Scriptorium block picker ("Browse photos…") and CoverPageInspector. Display uses w200 thumbnails with `@error` fallback to the original; click emits the original URL so prints stay full-quality
+- [x] Per-entity image bucket separation — two new buckets created (`pantheon-emblems` for deity portraits + holy symbols + pantheon emblems, `loot-images` for loot table chest illustrations) so the catch-all `asset-images` no longer absorbs uploads from forms with their own clean home. `ImageUpload.vue` `bucket` prop is now required so future call sites can't silently fall back to asset-images
 
 ### Printing & Export
 

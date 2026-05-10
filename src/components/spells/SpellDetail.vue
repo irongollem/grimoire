@@ -361,6 +361,7 @@
       <!-- ── Portrait + Source ─────────────────────────────────────────── -->
       <div class="flex flex-col gap-4">
         <ImageUpload
+          bucket="spell-images"
           :model-value="imageUrl || null"
           show-focal-point
           :focal-point="imageFocalPoint"

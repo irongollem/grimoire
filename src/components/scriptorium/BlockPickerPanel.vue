@@ -131,6 +131,30 @@
                   </p>
                 </div>
               </button>
+
+              <button
+                type="button"
+                class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border bg-card text-left hover:bg-muted hover:border-primary/30 transition-colors group"
+                @click="openArtPicker"
+              >
+                <div
+                  class="shrink-0 w-8 h-8 rounded-md flex items-center justify-center bg-primary/10 text-primary group-hover:bg-primary/20"
+                >
+                  <IconGridView class="h-4 w-4" />
+                </div>
+                <div class="min-w-0">
+                  <p
+                    class="font-cinzel text-xs font-semibold text-foreground leading-tight"
+                  >
+                    Browse photos…
+                  </p>
+                  <p
+                    class="font-fell text-xs text-muted-foreground italic leading-snug mt-0.5"
+                  >
+                    Pick from your uploaded NPC, monster, location, or document art
+                  </p>
+                </div>
+              </button>
             </div>
           </section>
         </div>
@@ -148,7 +172,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { IconClose, IconLibrary, IconLink } from '@/lib/icons';
+import { IconClose, IconLibrary, IconLink, IconGridView } from '@/lib/icons';
 import type { Editor } from "@tiptap/core";
 import {
   BLOCK_REGISTRY,
@@ -165,6 +189,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: [];
   "open-asset-panel": [];
+  "open-art-picker": [];
 }>();
 
 // ── Group logic ────────────────────────────────────────────────────────────────
@@ -208,6 +233,11 @@ function insertImageFromUrl() {
 
 function openAssetLibrary() {
   emit("open-asset-panel");
+  emit("close");
+}
+
+function openArtPicker() {
+  emit("open-art-picker");
   emit("close");
 }
 </script>

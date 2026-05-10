@@ -47,6 +47,7 @@
           <div class="flex gap-4">
             <div class="w-28 shrink-0">
               <ImageUpload
+                bucket="npc-portraits"
                 :model-value="portraitUrl || null"
                 :focal-point="focalPoint"
                 show-focal-point

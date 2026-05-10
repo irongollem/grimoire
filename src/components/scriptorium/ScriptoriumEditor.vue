@@ -22,6 +22,15 @@
       showBlockPicker = false;
       showAssetPanel = true;
     "
+    @open-art-picker="
+      showBlockPicker = false;
+      showArtPicker = true;
+    "
+  />
+  <ArtPickerModal
+    :show="showArtPicker"
+    @select="editor?.chain().focus().setImage({ src: $event }).run()"
+    @close="showArtPicker = false"
   />
   <CoverPageInspector
     :show="showCoverInspector"
@@ -231,7 +240,7 @@
             </button>
             <button
               type="button"
-              title="IconCodeInline block"
+              title="Inline block"
               :class="tbCls(editor.isActive('codeBlock'))"
               @click="editor.chain().focus().toggleCodeBlock().run()"
             >
@@ -716,14 +725,19 @@
             :editor="editor"
             :tippy-options="{ duration: 100 }"
           >
-            <div class="flex items-center rounded-md border border-border bg-card shadow-lg overflow-hidden">
+            <div
+              class="flex items-center rounded-md border border-border bg-card shadow-lg overflow-hidden"
+            >
               <button
                 type="button"
                 :disabled="isEnhancing"
                 class="flex items-center gap-1.5 px-2.5 py-1.5 font-cinzel text-[11px] font-semibold tracking-wide text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
                 @click="onEnhance"
               >
-                <IconLoadingAlt v-if="isEnhancing" class="h-3 w-3 animate-spin" />
+                <IconLoadingAlt
+                  v-if="isEnhancing"
+                  class="h-3 w-3 animate-spin"
+                />
                 <IconWand v-else class="h-3 w-3" />
                 Enhance
               </button>
@@ -776,7 +790,9 @@
             </span>
 
             <!-- Zoom controls — behaves like a PDF viewer -->
-            <div class="flex items-center rounded border border-border overflow-hidden">
+            <div
+              class="flex items-center rounded border border-border overflow-hidden"
+            >
               <button
                 type="button"
                 title="Zoom out"
@@ -789,12 +805,18 @@
               <!-- Centre button: shows current zoom %; click to snap back to fit-to-width -->
               <button
                 type="button"
-                :title="zoomMode === 'fit' ? 'Fit to width' : 'Click to fit to width'"
+                :title="
+                  zoomMode === 'fit' ? 'Fit to width' : 'Click to fit to width'
+                "
                 class="px-1.5 h-6.5 font-cinzel text-[9px] font-semibold tracking-wider border-x border-border transition-colors min-w-9.5 text-center"
-                :class="zoomMode === 'fit' ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-muted'"
+                :class="
+                  zoomMode === 'fit'
+                    ? 'text-primary bg-primary/10'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                "
                 @click="zoomFit"
               >
-                {{ zoomMode === 'fit' ? 'Fit' : zoomLabel }}
+                {{ zoomMode === "fit" ? "Fit" : zoomLabel }}
               </button>
               <button
                 type="button"
@@ -814,13 +836,20 @@
               class="inline-flex items-center gap-1 px-2 py-1 rounded font-cinzel text-[10px] font-semibold border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors tracking-wider uppercase disabled:opacity-50 disabled:cursor-not-allowed"
               @click="exportPdf"
             >
-              <IconLoading v-if="isGeneratingPdf" class="h-3 w-3 animate-spin" />
+              <IconLoading
+                v-if="isGeneratingPdf"
+                class="h-3 w-3 animate-spin"
+              />
               <IconExport v-else class="h-3 w-3" />
               {{ isGeneratingPdf ? "Building…" : "PDF" }}
             </button>
           </div>
         </div>
-        <div ref="previewContainerRef" class="phb-bg lg:flex-1 lg:overflow-auto lg:min-h-0" style="touch-action: pan-x pan-y;">
+        <div
+          ref="previewContainerRef"
+          class="phb-bg lg:flex-1 lg:overflow-auto lg:min-h-0"
+          style="touch-action: pan-x pan-y"
+        >
           <!-- Wrapper gives the scroll container the correct zoomed dimensions.
                The inner .phb-page uses transform:scale so layout is unaffected
                by zoom (CSS `zoom` runs after flex layout and breaks scroll). -->
@@ -840,10 +869,20 @@
                 v-html="pageHtml"
               />
               <!-- Odd index = recto (right-hand page): # on right. Even index = verso (left-hand page): # on left. -->
-              <div v-if="pageFooters[pageIndex] !== null" class="sc-footer" :class="pageIndex % 2 === 0 ? 'sc-footer--recto' : 'sc-footer--verso'">
-                <span class="sc-footer-num sc-footer-num--left">{{ pageFooters[pageIndex] }}</span>
+              <div
+                v-if="pageFooters[pageIndex] !== null"
+                class="sc-footer"
+                :class="
+                  pageIndex % 2 === 0 ? 'sc-footer--recto' : 'sc-footer--verso'
+                "
+              >
+                <span class="sc-footer-num sc-footer-num--left">{{
+                  pageFooters[pageIndex]
+                }}</span>
                 <span class="sc-footer-text">{{ footerText }}</span>
-                <span class="sc-footer-num sc-footer-num--right">{{ pageFooters[pageIndex] }}</span>
+                <span class="sc-footer-num sc-footer-num--right">{{
+                  pageFooters[pageIndex]
+                }}</span>
               </div>
             </div>
           </div>
@@ -868,7 +907,37 @@ import { BubbleMenu } from "@tiptap/vue-3/menus";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Image from "@tiptap/extension-image";
-import { IconAddItem, IconAlignCenter, IconAlignLeft, IconAlignRight, IconCodeBlock, IconCodeInline, IconColumns, IconDelete, IconExport, IconExternalLink, IconGridView, IconList, IconListOrdered, IconLoading, IconLoadingAlt, IconMinus, IconPencilLine, IconPin, IconPrint, IconQuote, IconRect, IconRedo, IconSave, IconStrikethrough, IconUndo, IconWand, IconWrapText, IconZoomIn, IconZoomOut } from '@/lib/icons';
+import {
+  IconAddItem,
+  IconAlignCenter,
+  IconAlignLeft,
+  IconAlignRight,
+  IconCodeBlock,
+  IconCodeInline,
+  IconColumns,
+  IconDelete,
+  IconExport,
+  IconExternalLink,
+  IconGridView,
+  IconList,
+  IconListOrdered,
+  IconLoading,
+  IconLoadingAlt,
+  IconMinus,
+  IconPencilLine,
+  IconPin,
+  IconPrint,
+  IconQuote,
+  IconRect,
+  IconRedo,
+  IconSave,
+  IconStrikethrough,
+  IconUndo,
+  IconWand,
+  IconWrapText,
+  IconZoomIn,
+  IconZoomOut,
+} from "@/lib/icons";
 import {
   useCreateScriptoriumDocument,
   useUpdateScriptoriumDocument,
@@ -908,6 +977,7 @@ import PdfPreviewDialog from "@/components/scriptorium/PdfPreviewDialog.vue";
 import AssetInsertPanel from "@/components/scriptorium/AssetInsertPanel.vue";
 import BlockPickerPanel from "@/components/scriptorium/BlockPickerPanel.vue";
 import CoverPageInspector from "@/components/scriptorium/CoverPageInspector.vue";
+import ArtPickerModal from "@/components/common/ArtPickerModal.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
@@ -915,10 +985,10 @@ import { useTextEnhancement } from "@/ai/useTextEnhancement";
 import { parseMarkdown } from "@/lib/markdownToTiptap";
 
 const IMAGE_SIZES = [
-  { label: "S", w: 120 },
-  { label: "M", w: 200 },
-  { label: "L", w: 280 },
-  { label: "XL", w: 380 },
+  { label: "S", w: 160 },
+  { label: "M", w: 330 },
+  { label: "L", w: 490 },
+  { label: "XL", w: 650 },
 ] as const;
 
 const DOC_TYPES: { value: ScriptoriumDocType; label: string }[] = [
@@ -979,9 +1049,11 @@ function tbCls(active: boolean) {
 
 const props = defineProps<{ doc: ScriptoriumDocument | null }>();
 const router = useRouter();
-const route  = useRoute();
+const route = useRoute();
 
-const ASSET_IMAGE_URL_BASE = (import.meta.env.VITE_SUPABASE_URL as string) + "/storage/v1/object/public/asset-images/";
+const ASSET_IMAGE_URL_BASE =
+  (import.meta.env.VITE_SUPABASE_URL as string) +
+  "/storage/v1/object/public/asset-images/";
 
 const selectedImageIsSupabase = computed(() => {
   if (!editor.value?.isActive("image")) return false;
@@ -993,6 +1065,7 @@ const selectedImageIsSupabase = computed(() => {
 const showAssetPanel = ref(false);
 const showBlockPicker = ref(false);
 const showCoverInspector = ref(false);
+const showArtPicker = ref(false);
 
 // Metadata
 const title = ref(props.doc?.title ?? "");
@@ -1060,7 +1133,10 @@ onMounted(() => {
     if (e.ctrlKey) {
       e.preventDefault();
       const factor = 1 - e.deltaY * 0.008; // sensitivity tuned for trackpad + iOS
-      const newZoom = Math.min(2.0, Math.max(0.25, effectiveZoom.value * factor));
+      const newZoom = Math.min(
+        2.0,
+        Math.max(0.25, effectiveZoom.value * factor),
+      );
       manualZoom.value = newZoom;
       zoomMode.value = "manual";
       return;
@@ -1085,11 +1161,16 @@ onMounted(() => {
     e.preventDefault(); // prevent browser native zoom
     const d = pinchDist(e.touches);
     if (pinchStartDist === 0) return;
-    const clamped = Math.min(2.0, Math.max(0.25, pinchStartZoom * (d / pinchStartDist)));
+    const clamped = Math.min(
+      2.0,
+      Math.max(0.25, pinchStartZoom * (d / pinchStartDist)),
+    );
     manualZoom.value = clamped;
     zoomMode.value = "manual";
   };
-  previewEl.addEventListener("touchstart", pinchStartHandler, { passive: true });
+  previewEl.addEventListener("touchstart", pinchStartHandler, {
+    passive: true,
+  });
   previewEl.addEventListener("touchmove", pinchMoveHandler, { passive: false });
 });
 
@@ -1101,7 +1182,8 @@ const ZOOM_STEPS = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0] as const;
 
 const autoZoom = computed(() => {
   const { w } = PAGE_SIZES_PX[pageSize.value];
-  const available = previewContainerWidth.value > 0 ? previewContainerWidth.value - 32 : w;
+  const available =
+    previewContainerWidth.value > 0 ? previewContainerWidth.value - 32 : w;
   return Math.min(1, available / w);
 });
 
@@ -1114,14 +1196,22 @@ const zoomLabel = computed(() => `${Math.round(effectiveZoom.value * 100)}%`);
 function zoomIn() {
   const cur = effectiveZoom.value;
   const next = ZOOM_STEPS.find((s) => s > cur + 0.01);
-  if (next !== undefined) { manualZoom.value = next; zoomMode.value = "manual"; }
+  if (next !== undefined) {
+    manualZoom.value = next;
+    zoomMode.value = "manual";
+  }
 }
 function zoomOut() {
   const cur = effectiveZoom.value;
   const prev = [...ZOOM_STEPS].reverse().find((s) => s < cur - 0.01);
-  if (prev !== undefined) { manualZoom.value = prev; zoomMode.value = "manual"; }
+  if (prev !== undefined) {
+    manualZoom.value = prev;
+    zoomMode.value = "manual";
+  }
 }
-function zoomFit() { zoomMode.value = "fit"; }
+function zoomFit() {
+  zoomMode.value = "fit";
+}
 
 // Wrapper: gives the scroll container the correct zoomed layout dimensions.
 // Inner page uses transform:scale — layout-neutral, just visual scaling.
@@ -1132,8 +1222,8 @@ const pageWrapperStyle = computed(() => {
   return {
     width: `${Math.round(w * z)}px`,
     height: `${Math.round(h * z)}px`,
-    flexShrink: '0',
-    margin: '0 auto',
+    flexShrink: "0",
+    margin: "0 auto",
   };
 });
 
@@ -1144,7 +1234,7 @@ const pageInnerStyle = computed(() => {
     width: `${w}px`,
     height: `${h}px`,
     transform: `scale(${z})`,
-    transformOrigin: 'top left',
+    transformOrigin: "top left",
   };
 });
 
@@ -1376,24 +1466,37 @@ function editInIlluminator() {
 }
 
 // Apply a replaced image URL when returning from Illuminator via query params.
-watch(editor, (ed) => {
-  if (!ed) return;
-  const updatedSrc = typeof route.query.updatedSrc === "string" ? route.query.updatedSrc : null;
-  const oldSrc     = typeof route.query.oldSrc     === "string" ? decodeURIComponent(route.query.oldSrc) : null;
-  if (!updatedSrc || !oldSrc) return;
+watch(
+  editor,
+  (ed) => {
+    if (!ed) return;
+    const updatedSrc =
+      typeof route.query.updatedSrc === "string"
+        ? route.query.updatedSrc
+        : null;
+    const oldSrc =
+      typeof route.query.oldSrc === "string"
+        ? decodeURIComponent(route.query.oldSrc)
+        : null;
+    if (!updatedSrc || !oldSrc) return;
 
-  let nodePos = -1;
-  ed.state.doc.descendants((node, pos) => {
-    if (nodePos !== -1) return false;
-    if (node.type.name === "image" && node.attrs.src === oldSrc) {
-      nodePos = pos;
+    let nodePos = -1;
+    ed.state.doc.descendants((node, pos) => {
+      if (nodePos !== -1) return false;
+      if (node.type.name === "image" && node.attrs.src === oldSrc) {
+        nodePos = pos;
+      }
+    });
+    if (nodePos !== -1) {
+      ed.chain()
+        .setNodeSelection(nodePos)
+        .updateAttributes("image", { src: updatedSrc })
+        .run();
     }
-  });
-  if (nodePos !== -1) {
-    ed.chain().setNodeSelection(nodePos).updateAttributes("image", { src: updatedSrc }).run();
-  }
-  void router.replace({ query: {} });
-}, { immediate: true });
+    void router.replace({ query: {} });
+  },
+  { immediate: true },
+);
 
 async function destroy() {
   if (!props.doc) return;
@@ -1440,7 +1543,10 @@ async function save() {
       router.replace(`/scriptorium/${created.id}`);
     }
   } catch (e: unknown) {
-    if (isQuotaExceeded(e)) { showPaywall.value = true; return; }
+    if (isQuotaExceeded(e)) {
+      showPaywall.value = true;
+      return;
+    }
     saveError.value = e instanceof Error ? e.message : "Failed to save";
   } finally {
     isSaving.value = false;
@@ -1507,15 +1613,22 @@ const {
 // ── AI text enhancement ───────────────────────────────────────────────────────
 
 const SCRIPTORIUM_STYLE: Partial<Record<ScriptoriumDocType, string>> = {
-  spell:      "2024 Player's Handbook spell description: present tense, mechanical precision, second-person address ('you'). No preamble.",
-  monster:    "2024 Monster Manual lore: third-person, atmospheric, present tense. One to two paragraphs.",
-  item:       "2024 Dungeon Master's Guide item entry: one evocative flavour sentence followed by concise property text.",
-  adventure:  "D&D read-aloud boxed text or DM narrative: infer register from surrounding content. Present tense.",
-  background: "2024 Player's Handbook background feature: one paragraph, present tense, describes what the character can do.",
-  location:   "D&D sourcebook location description: open with the most striking sensory detail, present tense, two paragraphs.",
-  class:      "2024 Player's Handbook class feature: 'At Nth level, you gain…' voice, present tense, precise.",
-  subclass:   "2024 Player's Handbook subclass feature description, same voice as class features.",
-  race:       "2024 Player's Handbook species description: third-person, present tense, one to two paragraphs.",
+  spell:
+    "2024 Player's Handbook spell description: present tense, mechanical precision, second-person address ('you'). No preamble.",
+  monster:
+    "2024 Monster Manual lore: third-person, atmospheric, present tense. One to two paragraphs.",
+  item: "2024 Dungeon Master's Guide item entry: one evocative flavour sentence followed by concise property text.",
+  adventure:
+    "D&D read-aloud boxed text or DM narrative: infer register from surrounding content. Present tense.",
+  background:
+    "2024 Player's Handbook background feature: one paragraph, present tense, describes what the character can do.",
+  location:
+    "D&D sourcebook location description: open with the most striking sensory detail, present tense, two paragraphs.",
+  class:
+    "2024 Player's Handbook class feature: 'At Nth level, you gain…' voice, present tense, precise.",
+  subclass:
+    "2024 Player's Handbook subclass feature description, same voice as class features.",
+  race: "2024 Player's Handbook species description: third-person, present tense, one to two paragraphs.",
 };
 
 const CONTEXT_RADIUS = 300;
@@ -1534,9 +1647,19 @@ async function onEnhance() {
   if (!selectedText.trim()) return;
 
   const docSize = editor.value.state.doc.content.size;
-  const before = editor.value.state.doc.textBetween(Math.max(0, from - CONTEXT_RADIUS), from, " ");
-  const after = editor.value.state.doc.textBetween(to, Math.min(docSize, to + CONTEXT_RADIUS), " ");
-  const surroundingContext = [before, "[[SELECTION]]", after].filter(Boolean).join(" ");
+  const before = editor.value.state.doc.textBetween(
+    Math.max(0, from - CONTEXT_RADIUS),
+    from,
+    " ",
+  );
+  const after = editor.value.state.doc.textBetween(
+    to,
+    Math.min(docSize, to + CONTEXT_RADIUS),
+    " ",
+  );
+  const surroundingContext = [before, "[[SELECTION]]", after]
+    .filter(Boolean)
+    .join(" ");
 
   enhanceError.value = null;
   try {
@@ -1549,11 +1672,15 @@ async function onEnhance() {
       .chain()
       .focus()
       .deleteRange({ from, to })
-      .insertContentAt(from, nodes, { parseOptions: { preserveWhitespace: false } })
+      .insertContentAt(from, nodes, {
+        parseOptions: { preserveWhitespace: false },
+      })
       .run();
   } catch (e) {
     enhanceError.value = e instanceof Error ? e.message : "Enhancement failed";
-    setTimeout(() => { enhanceError.value = null; }, 4000);
+    setTimeout(() => {
+      enhanceError.value = null;
+    }, 4000);
   }
 }
 
@@ -1562,8 +1689,10 @@ onUnmounted(() => {
   resizeObserver?.disconnect();
   if (previewEl) {
     if (wheelHandler) previewEl.removeEventListener("wheel", wheelHandler);
-    if (pinchStartHandler) previewEl.removeEventListener("touchstart", pinchStartHandler);
-    if (pinchMoveHandler) previewEl.removeEventListener("touchmove", pinchMoveHandler);
+    if (pinchStartHandler)
+      previewEl.removeEventListener("touchstart", pinchStartHandler);
+    if (pinchMoveHandler)
+      previewEl.removeEventListener("touchmove", pinchMoveHandler);
   }
 });
 </script>
@@ -1577,9 +1706,13 @@ onUnmounted(() => {
 }
 
 .enhance-error-enter-active,
-.enhance-error-leave-active { transition: opacity 0.2s ease; }
+.enhance-error-leave-active {
+  transition: opacity 0.2s ease;
+}
 .enhance-error-enter-from,
-.enhance-error-leave-to { opacity: 0; }
+.enhance-error-leave-to {
+  opacity: 0;
+}
 
 /* ── Form controls (#243): bind directly to runtime theme vars ── */
 /* Scoped styles are unlayered and win over Tailwind's @layer utilities,
@@ -1640,8 +1773,8 @@ select {
   @apply bg-muted p-3 rounded my-2 text-sm;
 }
 .phb-editor :deep(.ProseMirror img) {
-  max-width: 380px;
-  max-height: 480px;
+  max-width: 100%;
+  max-height: 640px;
   border-radius: 6px;
   object-fit: cover;
 }
@@ -2153,9 +2286,13 @@ select {
 }
 
 /* Recto (right-hand, odd page number): # on right, no left # */
-.sc-footer--recto .sc-footer-num--left { display: none; }
+.sc-footer--recto .sc-footer-num--left {
+  display: none;
+}
 /* Verso (left-hand, even page number): # on left, no right # */
-.sc-footer--verso .sc-footer-num--right { display: none; }
+.sc-footer--verso .sc-footer-num--right {
+  display: none;
+}
 
 /* ── Skip / Reset counting chips (editor only) ────────────────── */
 
@@ -2588,7 +2725,8 @@ select {
   white-space: nowrap;
 }
 /* Data cells (body score/mod/save columns) */
-.phb-body :deep(.sc-ability-table--2024 tbody td:not(.sc-abil-gap):not(.sc-abil-name)) {
+.phb-body
+  :deep(.sc-ability-table--2024 tbody td:not(.sc-abil-gap):not(.sc-abil-name)) {
   font-size: 0.875rem;
   text-align: center;
   padding: 2px 4px;
@@ -2605,7 +2743,8 @@ select {
 
 /* Editor: same color treatment in the ProseMirror view */
 .phb-editor :deep(.ProseMirror .sc-ability-table--2024 td.sc-abil-name),
-.phb-editor :deep(.ProseMirror .sc-ability-table--2024 thead th:not(.sc-abil-gap)) {
+.phb-editor
+  :deep(.ProseMirror .sc-ability-table--2024 thead th:not(.sc-abil-gap)) {
   background: color-mix(in srgb, currentColor 30%, transparent);
   font-weight: 700;
   font-variant: small-caps;
@@ -2660,7 +2799,8 @@ select {
 
 /* #244: Spacer nodes are zero-height; use background fill so the ring is visible. */
 .phb-editor :deep(.ProseMirror [data-type="spacer-v"].ProseMirror-selectednode),
-.phb-editor :deep(.ProseMirror [data-type="spacer-h"].ProseMirror-selectednode) {
+.phb-editor
+  :deep(.ProseMirror [data-type="spacer-h"].ProseMirror-selectednode) {
   outline: 2px solid oklch(0.6 0.2 250);
   outline-offset: 0px;
   background: oklch(0.6 0.2 250 / 0.2);

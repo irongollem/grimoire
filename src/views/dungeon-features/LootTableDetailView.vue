@@ -854,7 +854,7 @@ function onChestFileChange(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (!file) return;
   uploadingChestImg.value = true;
-  const upload = useImageUpload("asset-images");
+  const upload = useImageUpload("loot-images");
   upload.upload(file).then((url) => {
     if (url) chestImageUrl.value = url;
     uploadingChestImg.value = false;

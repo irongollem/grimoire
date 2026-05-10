@@ -1,4 +1,9 @@
 <template>
+  <ArtPickerModal
+    :show="showArtPicker"
+    @select="backgroundImageModel = $event"
+    @close="showArtPicker = false"
+  />
   <Teleport to="body">
     <div
       v-if="show"
@@ -46,9 +51,20 @@
               />
             </div>
             <div class="space-y-1.5">
-              <label class="block font-cinzel text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Background Art</label>
+              <div class="flex items-center justify-between">
+                <label class="block font-cinzel text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Background Art</label>
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1 font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+                  @click="showArtPicker = true"
+                >
+                  <IconLibrary class="h-3 w-3" />
+                  Browse library
+                </button>
+              </div>
               <ImageUpload
                 v-model="backgroundImageModel"
+                bucket="asset-images"
                 aspect="portrait"
                 placeholder="Drop cover art or click to upload"
               />
@@ -134,9 +150,20 @@
               />
             </div>
             <div class="space-y-1.5">
-              <label class="block font-cinzel text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Background Art</label>
+              <div class="flex items-center justify-between">
+                <label class="block font-cinzel text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Background Art</label>
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1 font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+                  @click="showArtPicker = true"
+                >
+                  <IconLibrary class="h-3 w-3" />
+                  Browse library
+                </button>
+              </div>
               <ImageUpload
                 v-model="backgroundImageModel"
+                bucket="asset-images"
                 aspect="landscape"
                 placeholder="Drop back cover art or click to upload"
               />
@@ -173,10 +200,11 @@
 
 <script setup lang="ts">
 import { reactive, computed, watch, ref } from "vue";
-import { IconClose } from '@/lib/icons';
+import { IconClose, IconLibrary } from '@/lib/icons';
 import type { Editor } from "@tiptap/vue-3";
 import type { CoverPageAttrs, CoverPageVariant } from "@/lib/tiptap/coverPage";
 import ImageUpload from "@/components/common/ImageUpload.vue";
+import ArtPickerModal from "@/components/common/ArtPickerModal.vue";
 
 const props = defineProps<{
   show: boolean;
@@ -220,6 +248,8 @@ const backgroundImageModel = computed({
   get: () => local.backgroundImage ?? null,
   set: (v: string | null) => { local.backgroundImage = v ?? ""; },
 });
+
+const showArtPicker = ref(false);
 
 watch(
   () => props.show,

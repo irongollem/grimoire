@@ -122,6 +122,20 @@ export const BUCKETS = {
     public: true,
     generateVariants: true,
   },
+  pantheonEmblems: {
+    id: "pantheon-emblems",
+    maxBytes: FIVE_MB,
+    mimeTypes: IMAGE_MIMES,
+    public: true,
+    generateVariants: true,
+  },
+  lootImages: {
+    id: "loot-images",
+    maxBytes: FIVE_MB,
+    mimeTypes: IMAGE_MIMES,
+    public: true,
+    generateVariants: true,
+  },
   sounds: {
     id: "sounds",
     maxBytes: TWENTY_MB,
@@ -314,6 +328,11 @@ export async function backfillVariants(originalUrl: string): Promise<void> {
   if (_backfillAttempted.has(originalUrl)) return;
   _backfillAttempted.add(originalUrl);
 
+  // Defensive: refuse to backfill from a URL that already looks like a variant.
+  // Without this, an `_w200.png` variant URL would yield `_w200_w200.webp` etc.,
+  // permanently bloating storage with recursive variant chains.
+  if (/_w\d+(?=[._])/.test(originalUrl)) return;
+
   try {
     // Identify which bucket owns this URL.
     // Limit to image buckets only — audio (sounds) has no visual variants.
@@ -380,3 +399,4 @@ export async function deleteByPublicUrl(...urls: (string | null | undefined)[]):
     if (paths.length) await deleteFromBucket(key, pathsWithVariants(paths));
   }
 }
+

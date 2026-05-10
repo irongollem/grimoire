@@ -20,6 +20,7 @@
           </div>
           <ImageUpload
             v-if="artTab === 'identified'"
+            bucket="item-images"
             :model-value="imageUrl || null"
             show-focal-point
             :focal-point="imageFocalPoint"
@@ -28,6 +29,7 @@
           />
           <ImageUpload
             v-else
+            bucket="item-images"
             :model-value="mundaneImageUrl || null"
             show-focal-point
             :focal-point="mundaneImageFocalPoint"

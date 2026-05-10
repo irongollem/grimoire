@@ -8,7 +8,7 @@
         <ImageUpload
           :model-value="form.portrait_url || null"
           :focal-point="form.portrait_focal_point"
-          bucket="asset-images"
+          bucket="pantheon-emblems"
           show-focal-point
           @update:model-value="form.portrait_url = $event ?? ''"
           @update:focal-point="form.portrait_focal_point = $event"
@@ -317,7 +317,7 @@ async function handleDelete() {
   router.push("/deities");
 }
 
-const { upload: uploadSymbol } = useImageUpload("asset-images");
+const { upload: uploadSymbol } = useImageUpload("pantheon-emblems");
 
 async function onFileSelected(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0];
