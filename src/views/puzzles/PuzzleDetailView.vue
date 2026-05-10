@@ -18,11 +18,9 @@
         <button
           v-if="isEdit"
           type="button"
-          class="font-fell text-sm text-destructive hover:opacity-70 transition-opacity"
+          class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 transition-colors disabled:opacity-50"
           @click="handleDelete"
-        >
-          Delete
-        </button>
+        >Delete</button>
         <button
           v-if="isEdit"
           type="button"

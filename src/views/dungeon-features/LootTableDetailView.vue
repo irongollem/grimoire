@@ -6,9 +6,9 @@
         <button
           type="button"
           :disabled="isDeleting"
-          class="font-fell text-sm text-destructive hover:opacity-70 transition-opacity disabled:opacity-50"
+          class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 transition-colors disabled:opacity-50"
           @click="onDelete"
-        >Delete</button>
+        >{{ isDeleting ? "Deleting…" : "Delete" }}</button>
         <button
           type="button"
           class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
