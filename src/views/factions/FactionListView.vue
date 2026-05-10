@@ -54,7 +54,7 @@
           class="group flex items-center gap-3 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors p-4"
         >
           <div class="shrink-0 h-12 w-12 rounded-lg border border-border bg-muted overflow-hidden flex items-center justify-center">
-            <img v-if="faction.emblem_url" :src="faction.emblem_url" alt="" class="w-full h-full object-cover" />
+            <FocalImage v-if="faction.emblem_url" :src="faction.emblem_url" format="square" :render-width="200" />
             <IconShield v-else class="h-5 w-5 text-muted-foreground/40" />
           </div>
 
@@ -95,6 +95,7 @@ import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
+import FocalImage from "@/components/common/FocalImage.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 

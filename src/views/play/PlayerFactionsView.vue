@@ -42,7 +42,7 @@
           <div class="flex items-center gap-3 p-3">
             <!-- Emblem -->
             <div class="h-12 w-12 shrink-0 rounded-md border border-border bg-muted overflow-hidden">
-              <img v-if="faction.emblem_url" :src="faction.emblem_url" alt="" class="w-full h-full object-cover" />
+              <FocalImage v-if="faction.emblem_url" :src="faction.emblem_url" format="square" :render-width="200" />
               <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
                 <IconShield class="h-6 w-6" />
               </div>
@@ -74,7 +74,7 @@
           <!-- Header -->
           <div class="flex items-center gap-3 p-4 border-b border-border shrink-0">
             <div class="h-14 w-14 shrink-0 rounded-md border border-border bg-muted overflow-hidden">
-              <img v-if="selected.emblem_url" :src="selected.emblem_url" alt="" class="w-full h-full object-cover" />
+              <FocalImage v-if="selected.emblem_url" :src="selected.emblem_url" format="square" :render-width="200" lightbox />
               <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
                 <IconShield class="h-7 w-7" />
               </div>
@@ -157,6 +157,7 @@ import { usePlayerVisibleFactions, usePartyMemberFactions, usePlayerFactionNpcs,
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import type { Faction } from "@/types/faction.types";
+import FocalImage from "@/components/common/FocalImage.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
