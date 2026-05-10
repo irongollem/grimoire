@@ -27,7 +27,7 @@
           <button
             type="button"
             class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-            :title="copied ? 'Copied!' : 'IconCopy'"
+            :title="copied ? 'Copied!' : 'Copy'"
             @click="copyRedirectUri"
           >
             <IconCheck v-if="copied" class="h-3.5 w-3.5 text-green-400" />
@@ -35,7 +35,7 @@
           </button>
         </div>
         <p class="font-fell text-xs text-muted-foreground italic">
-          3. IconCopy your Client ID below and save.
+          3. Copy your Client ID below and save.
         </p>
       </div>
     </div>

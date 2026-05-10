@@ -227,7 +227,7 @@
               @click="copyToClipboard"
             >
               <IconCopy class="h-3.5 w-3.5" />
-              IconCopy
+              Copy
             </button>
           </div>
 

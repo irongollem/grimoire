@@ -97,7 +97,7 @@
           >
             <IconCheck v-if="copiedId === invite.id" class="h-3 w-3" />
             <IconCopy v-else class="h-3 w-3" />
-            {{ copiedId === invite.id ? 'Copied!' : 'IconCopy' }}
+            {{ copiedId === invite.id ? 'Copied!' : 'Copy' }}
           </button>
         </div>
       </div>

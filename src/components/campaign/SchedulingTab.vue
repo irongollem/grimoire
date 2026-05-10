@@ -275,7 +275,7 @@
         />
         <button
           class="shrink-0 inline-flex items-center gap-1 font-cinzel text-[10px] tracking-wider px-2.5 py-1.5 rounded border border-border hover:bg-muted transition-colors"
-          :title="copied ? 'Copied!' : 'IconCopy URL'"
+          :title="copied ? 'Copied!' : 'Copy URL'"
           @click="copyUrl"
         >
           <IconCheck v-if="copied" class="h-3 w-3 text-elven-green" />

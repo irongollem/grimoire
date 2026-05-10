@@ -239,12 +239,12 @@
         />
         <button
           class="shrink-0 inline-flex items-center gap-1 font-cinzel text-2xs md:text-sm tracking-wider px-2.5 py-1.5 rounded border border-border hover:bg-muted transition-colors"
-          :title="calCopied ? 'Copied!' : 'IconCopy URL'"
+          :title="calCopied ? 'Copied!' : 'Copy URL'"
           @click="copyFeedUrl"
         >
           <CheckIcon v-if="calCopied" class="h-3 w-3 text-elven-green" />
           <IconCopy v-else class="h-3 w-3" />
-          {{ calCopied ? 'Copied' : 'IconCopy' }}
+          {{ calCopied ? 'Copied' : 'Copy' }}
         </button>
       </div>
 

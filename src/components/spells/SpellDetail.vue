@@ -178,7 +178,7 @@
             <!-- 7. IconSave type -->
             <label class="flex flex-col gap-1">
               <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
-                >Targeting / IconSave</span
+                >Targeting / Save</span
               >
               <select
                 v-model="adv.saveType"
@@ -570,7 +570,7 @@
             <template v-if="attackType === 'save'">
               <label class="flex flex-col gap-1">
                 <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
-                  >IconSave Attribute</span
+                  >Save Attribute</span
                 >
                 <select
                   v-model="saveAttribute"
@@ -582,7 +582,7 @@
               </label>
               <label class="flex flex-col gap-1 col-span-2">
                 <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
-                  >Effect on Successful IconSave</span
+                  >Effect on Successful Save</span
                 >
                 <select
                   v-model="saveEffect"
@@ -869,7 +869,7 @@
             <!-- IconSave type -->
             <label class="flex flex-col gap-1">
               <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
-                >Targeting / IconSave</span
+                >Targeting / Save</span
               >
               <select
                 v-model="adv.saveType"

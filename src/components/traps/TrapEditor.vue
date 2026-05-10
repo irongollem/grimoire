@@ -164,14 +164,14 @@
               <input v-model.number="form.attack_bonus" type="number" placeholder="+5" class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
             </div>
             <div>
-              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">IconSave Type</label>
+              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Save Type</label>
               <select v-model="form.save_type" class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
                 <option :value="null">—</option>
                 <option v-for="s in TRAP_SAVE_TYPES" :key="s" :value="s">{{ s }}</option>
               </select>
             </div>
             <div>
-              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">IconSave DC</label>
+              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Save DC</label>
               <input v-model.number="form.save_dc" type="number" min="1" max="30" placeholder="15" class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
             </div>
           </div>
@@ -300,7 +300,7 @@
               <div class="flex items-end pb-1">
                 <label class="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" v-model="advisorInputs.isInstantDeath" class="accent-primary" />
-                  <span class="font-fell text-sm text-foreground">IconSave-or-die mechanic</span>
+                  <span class="font-fell text-sm text-foreground">Save-or-die mechanic</span>
                 </label>
               </div>
             </div>

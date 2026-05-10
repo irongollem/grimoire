@@ -299,7 +299,7 @@
               v-else
               class="font-fell text-xs text-muted-foreground italic px-2 py-1"
             >
-              IconSave the quest first, then add objectives.
+              Save the quest first, then add objectives.
             </p>
           </div>
         </div>
@@ -399,7 +399,7 @@
               v-else-if="isNew"
               class="font-fell text-xs text-muted-foreground italic px-2 py-1"
             >
-              IconSave the quest first, then link encounters.
+              Save the quest first, then link encounters.
             </p>
             <p
               v-else-if="
@@ -487,7 +487,7 @@
               v-else-if="isNew"
               class="font-fell text-xs text-muted-foreground italic px-2 py-1"
             >
-              IconSave the quest first, then link NPCs.
+              Save the quest first, then link NPCs.
             </p>
             <p
               v-else-if="!availableNpcs.length && !linkedNpcRefs.length"
@@ -575,7 +575,7 @@
               v-else-if="isNew"
               class="font-fell text-xs text-muted-foreground italic px-2 py-1"
             >
-              IconSave the quest first, then link locations.
+              Save the quest first, then link locations.
             </p>
             <p
               v-else-if="
@@ -665,7 +665,7 @@
               v-else-if="isNew"
               class="font-fell text-xs text-muted-foreground italic px-2 py-1"
             >
-              IconSave the quest first, then link creatures.
+              Save the quest first, then link creatures.
             </p>
             <p
               v-else-if="!availableMonsters.length && !linkedMonsterRefs.length"
