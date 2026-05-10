@@ -78,7 +78,7 @@
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed } from "vue";
-import { useParty, useUpdatePartyMember } from "@/composables/useParty";
+import { useParty } from "@/composables/useParty";
 import { useAllLocations } from "@/composables/useLocations";
 import { useCompanions, useDeleteCompanion } from "@/composables/useCompanions";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
@@ -97,10 +97,7 @@ import CompanionForm from "./CompanionForm.vue";
 import PartyTrackerRow from "./PartyTrackerRow.vue";
 import PartyInventoryInline from "./PartyInventoryInline.vue";
 import type { Companion } from "@/types/companion.types";
-import type { PartyMember } from "@/types/party.types";
-
 const { data: party, isLoading } = useParty();
-const { mutateAsync: updateMember } = useUpdatePartyMember();
 const { data: allLocations } = useAllLocations();
 const locationNameMap = computed(() => {
   const m = new Map<string, string>();

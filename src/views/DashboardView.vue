@@ -518,7 +518,7 @@ const currentLocationId = computed({
 
 const recentNpcs = computed(() => {
   const npcMap = new Map((npcs.value ?? []).map((n) => [n.id, n]));
-  return recentNpcIds.value.map((id) => npcMap.get(id)).filter((n): n is NonNullable<typeof n> => n != null);
+  return recentNpcIds.value.map((id) => npcMap.get(id)).filter((n): n is NonNullable<typeof n> => n !== null && n !== undefined);
 });
 
 // ── Location sync ─────────────────────────────────────────────────────────────
