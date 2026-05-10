@@ -11,6 +11,86 @@
       >+ Add Item</button>
     </div>
 
+    <form v-if="addItemOpen" class="flex flex-wrap gap-2 px-4 py-3 border-b border-border bg-muted/10" @submit.prevent="submitAddItem">
+      <div class="relative flex-1 min-w-32">
+        <input
+          ref="searchInputRef"
+          v-model="newItem.name"
+          placeholder="Search vault or enter custom name…"
+          required
+          autocomplete="off"
+          class="w-full bg-background border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
+          @input="onItemSearchInput"
+          @focus="onItemSearchInput"
+          @keydown.escape="showItemDropdown = false"
+          @keydown.down.prevent="focusDropdownItem(0)"
+        />
+        <div
+          v-if="showItemDropdown && (catalogItems?.length ?? 0) > 0"
+          class="absolute left-0 top-full mt-0.5 z-20 w-full rounded-md border border-border bg-card shadow-lg overflow-hidden max-h-48 overflow-y-auto"
+        >
+          <button
+            v-for="(item, idx) in filteredCatalogItems"
+            :key="item.id"
+            :ref="(el) => { if (el) dropdownItemRefs[idx] = el as HTMLButtonElement }"
+            type="button"
+            class="w-full text-left px-3 py-1.5 font-fell text-sm text-foreground hover:bg-muted transition-colors flex items-baseline gap-2"
+            @click="selectCatalogItem(item)"
+            @keydown.down.prevent="focusDropdownItem(idx + 1)"
+            @keydown.up.prevent="idx === 0 ? undefined : focusDropdownItem(idx - 1)"
+            @keydown.escape="showItemDropdown = false"
+          >
+            <span class="truncate">{{ item.name }}</span>
+            <span class="font-cinzel text-[10px] text-muted-foreground shrink-0 capitalize">{{ item.rarity }}</span>
+          </button>
+          <div v-if="newItem.name.trim()" class="border-t border-border">
+            <button
+              type="button"
+              class="w-full text-left px-3 py-1.5 font-fell text-sm text-primary hover:bg-muted transition-colors flex items-center gap-2"
+              @click="router.push({ path: '/vault/new', query: { name: newItem.name.trim(), redirect: '/party' } })"
+            >
+              <IconExternalLink class="h-3.5 w-3.5 shrink-0" />
+              Create "{{ newItem.name.trim() }}" in Vault
+            </button>
+          </div>
+        </div>
+        <div v-if="showItemDropdown" class="fixed inset-0 z-10" @click="showItemDropdown = false" />
+      </div>
+      <input
+        v-model.number="newItem.quantity"
+        type="number"
+        min="1"
+        placeholder="Qty"
+        class="w-14 bg-background border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+      />
+      <select
+        v-model="newItem.carried_by"
+        class="bg-background border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      >
+        <option value="">— party</option>
+        <option v-for="m in party" :key="m.id" :value="m.id">{{ m.name }}</option>
+      </select>
+      <input
+        v-model="newItem.notes"
+        placeholder="Notes (optional)"
+        class="flex-1 min-w-32 bg-background border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
+      />
+      <div class="flex gap-1.5 ml-auto">
+        <button type="button" class="px-3 py-1.5 rounded border border-border font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors" @click="addItemOpen = false">Cancel</button>
+        <button
+          type="button"
+          :disabled="!newItem.selectedItemId && !newItem.name.trim()"
+          class="px-3 py-1.5 rounded border border-amber-500/40 bg-amber-500/10 text-amber-400 font-cinzel text-xs font-semibold hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+          @click="dropNewItemToChat"
+        >Drop in Chat</button>
+        <button
+          type="submit"
+          :disabled="addingItem"
+          class="px-3 py-1.5 rounded bg-primary text-primary-foreground font-cinzel text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+        >Add</button>
+      </div>
+    </form>
+
     <div v-if="inventory?.length" class="divide-y divide-border">
       <div
         v-for="item in inventory"
@@ -81,89 +161,11 @@
       <p class="font-fell text-xs text-muted-foreground italic">No items yet. Add loot, equipment, or quest items.</p>
     </div>
 
-    <form v-if="addItemOpen" class="flex flex-wrap gap-2 px-4 py-3 border-t border-border bg-muted/10" @submit.prevent="submitAddItem">
-      <div class="relative flex-1 min-w-32">
-        <input
-          v-model="newItem.name"
-          placeholder="Search vault or enter custom name…"
-          required
-          autocomplete="off"
-          class="w-full bg-background border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
-          @input="onItemSearchInput"
-          @focus="onItemSearchInput"
-          @keydown.escape="showItemDropdown = false"
-          @keydown.down.prevent="focusDropdownItem(0)"
-        />
-        <div
-          v-if="showItemDropdown && (catalogItems?.length ?? 0) > 0"
-          class="absolute left-0 bottom-full mb-0.5 z-20 w-full rounded-md border border-border bg-card shadow-lg overflow-hidden max-h-48 overflow-y-auto"
-        >
-          <button
-            v-for="(item, idx) in filteredCatalogItems"
-            :key="item.id"
-            :ref="(el) => { if (el) dropdownItemRefs[idx] = el as HTMLButtonElement }"
-            type="button"
-            class="w-full text-left px-3 py-1.5 font-fell text-sm text-foreground hover:bg-muted transition-colors flex items-baseline gap-2"
-            @click="selectCatalogItem(item)"
-            @keydown.down.prevent="focusDropdownItem(idx + 1)"
-            @keydown.up.prevent="idx === 0 ? undefined : focusDropdownItem(idx - 1)"
-            @keydown.escape="showItemDropdown = false"
-          >
-            <span class="truncate">{{ item.name }}</span>
-            <span class="font-cinzel text-[10px] text-muted-foreground shrink-0 capitalize">{{ item.rarity }}</span>
-          </button>
-          <div v-if="newItem.name.trim()" class="border-t border-border">
-            <button
-              type="button"
-              class="w-full text-left px-3 py-1.5 font-fell text-sm text-primary hover:bg-muted transition-colors flex items-center gap-2"
-              @click="router.push({ path: '/vault/new', query: { name: newItem.name.trim(), redirect: '/party' } })"
-            >
-              <IconExternalLink class="h-3.5 w-3.5 shrink-0" />
-              Create "{{ newItem.name.trim() }}" in Vault
-            </button>
-          </div>
-        </div>
-        <div v-if="showItemDropdown" class="fixed inset-0 z-10" @click="showItemDropdown = false" />
-      </div>
-      <input
-        v-model.number="newItem.quantity"
-        type="number"
-        min="1"
-        placeholder="Qty"
-        class="w-14 bg-background border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
-      />
-      <select
-        v-model="newItem.carried_by"
-        class="bg-background border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      >
-        <option value="">— party</option>
-        <option v-for="m in party" :key="m.id" :value="m.id">{{ m.name }}</option>
-      </select>
-      <input
-        v-model="newItem.notes"
-        placeholder="Notes (optional)"
-        class="flex-1 min-w-32 bg-background border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
-      />
-      <div class="flex gap-1.5 ml-auto">
-        <button type="button" class="px-3 py-1.5 rounded border border-border font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors" @click="addItemOpen = false">Cancel</button>
-        <button
-          type="button"
-          :disabled="!newItem.selectedItemId && !newItem.name.trim()"
-          class="px-3 py-1.5 rounded border border-amber-500/40 bg-amber-500/10 text-amber-400 font-cinzel text-xs font-semibold hover:bg-amber-500/20 transition-colors disabled:opacity-50"
-          @click="dropNewItemToChat"
-        >Drop in Chat</button>
-        <button
-          type="submit"
-          :disabled="addingItem"
-          class="px-3 py-1.5 rounded bg-primary text-primary-foreground font-cinzel text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
-        >Add</button>
-      </div>
-    </form>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from "vue";
+import { ref, computed, reactive, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import { IconArrowUp, IconDelete, IconExternalLink, IconInventory } from '@/lib/icons';
 import { usePartyInventory, useAddInventoryItem, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
@@ -194,6 +196,7 @@ const catalogItemMap = computed(() => {
 });
 
 const addItemOpen = ref(false);
+const searchInputRef = ref<HTMLInputElement | null>(null);
 const newItem = reactive({ name: "", quantity: 1, carried_by: "", notes: "", selectedItemId: "", isAttuned: false });
 const showItemDropdown = ref(false);
 const dropdownItemRefs = reactive<Record<number, HTMLButtonElement>>({});
@@ -231,6 +234,7 @@ function openAddItem() {
   newItem.selectedItemId = ""; newItem.isAttuned = false;
   showItemDropdown.value = false;
   addItemOpen.value = true;
+  void nextTick(() => searchInputRef.value?.focus());
 }
 
 async function submitAddItem() {

@@ -33,6 +33,41 @@
 
     <!-- Items — v-show keeps VueDraggable mounted so it's always a valid Sortable drop zone -->
     <div v-show="open">
+      <!-- Inline add form -->
+      <form v-if="showAdd" class="px-4 py-2.5 border-b border-border flex items-center gap-2" @submit.prevent="submit">
+        <div class="relative flex-1 min-w-0">
+          <input
+            ref="addInputRef"
+            v-model="addName"
+            type="text"
+            placeholder="Search vault…"
+            autocomplete="off"
+            class="w-full bg-muted/30 border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            :class="addName && !addSelectedId ? 'border-amber-500/50' : ''"
+            @input="onInput"
+            @focus="onInput"
+            @keydown.escape="showSuggestions = false"
+          />
+          <div
+            v-if="showSuggestions && suggestions.length"
+            class="absolute left-0 top-full mt-0.5 z-20 w-full rounded border border-border bg-card shadow overflow-hidden max-h-40 overflow-y-auto"
+          >
+            <button
+              v-for="it in suggestions"
+              :key="it.id"
+              type="button"
+              class="w-full text-left px-2 py-1 font-fell text-xs text-foreground hover:bg-muted transition-colors"
+              @click="selectSuggestion(it)"
+            >{{ it.name }}</button>
+          </div>
+          <div v-if="showSuggestions" class="fixed inset-0 z-10" @click="showSuggestions = false" />
+        </div>
+        <button type="submit" class="px-2 py-1 bg-primary text-primary-foreground rounded font-cinzel text-[10px] tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50" :disabled="!addSelectedId">
+          Add
+        </button>
+        <button type="button" class="font-cinzel text-[10px] text-muted-foreground hover:text-foreground" @click="showAdd = false">✕</button>
+      </form>
+
       <VueDraggable v-model="localItems" group="inventory" handle=".drag-handle" :animation="150" @end="onEnd" @add="onCrossAdd">
         <ItemRow
           v-for="item in localItems"
@@ -52,46 +87,12 @@
       <div v-if="!items.length && !showAdd" class="px-4 py-3">
         <p class="font-fell text-xs text-muted-foreground/50 italic">Empty.</p>
       </div>
-
-      <!-- Inline add form -->
-      <form v-if="showAdd" class="px-4 py-2.5 border-t border-border flex items-center gap-2" @submit.prevent="submit">
-        <div class="relative flex-1 min-w-0">
-          <input
-            v-model="addName"
-            type="text"
-            placeholder="Search vault…"
-            autocomplete="off"
-            class="w-full bg-muted/30 border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            :class="addName && !addSelectedId ? 'border-amber-500/50' : ''"
-            @input="onInput"
-            @focus="onInput"
-            @keydown.escape="showSuggestions = false"
-          />
-          <div
-            v-if="showSuggestions && suggestions.length"
-            class="absolute left-0 bottom-full mb-0.5 z-20 w-full rounded border border-border bg-card shadow overflow-hidden max-h-40 overflow-y-auto"
-          >
-            <button
-              v-for="it in suggestions"
-              :key="it.id"
-              type="button"
-              class="w-full text-left px-2 py-1 font-fell text-xs text-foreground hover:bg-muted transition-colors"
-              @click="selectSuggestion(it)"
-            >{{ it.name }}</button>
-          </div>
-          <div v-if="showSuggestions" class="fixed inset-0 z-10" @click="showSuggestions = false" />
-        </div>
-        <button type="submit" class="px-2 py-1 bg-primary text-primary-foreground rounded font-cinzel text-[10px] tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50" :disabled="!addSelectedId">
-          Add
-        </button>
-        <button type="button" class="font-cinzel text-[10px] text-muted-foreground hover:text-foreground" @click="showAdd = false">✕</button>
-      </form>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from "vue";
+import { ref, computed, watch, nextTick, onUnmounted } from "vue";
 import { IconChevronRight, IconInfo } from '@/lib/icons';
 import { VueDraggable } from "vue-draggable-plus";
 import type { PartyInventoryItem, InventoryLocation } from "@/types/inventory.types";
@@ -176,14 +177,21 @@ function onCrossAdd(event: SortEvent) {
   emit('reorder', localItems.value);
 }
 const showAdd = ref(false);
+const addInputRef = ref<HTMLInputElement | null>(null);
 const addName = ref("");
 const addSelectedId = ref("");
+
+watch(showAdd, (v) => { if (v) void nextTick(() => addInputRef.value?.focus()); });
 const showSuggestions = ref(false);
 
 const suggestions = computed((): Item[] => {
   const q = addName.value.trim().toLowerCase();
   if (!q) return props.allItems.slice(0, 6);
-  return props.allItems.filter(it => it.name.toLowerCase().includes(q)).slice(0, 6);
+  return props.allItems.filter(it =>
+    it.name.toLowerCase().includes(q) ||
+    (it.subtype ?? "").toLowerCase().includes(q) ||
+    it.tags.some(t => t.toLowerCase().includes(q))
+  ).slice(0, 6);
 });
 
 function onInput() { addSelectedId.value = ""; showSuggestions.value = true; }
