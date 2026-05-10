@@ -981,6 +981,8 @@ import ChatItemDropDetails from "@/components/chat/ChatItemDropDetails.vue";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { ALL_DICE } from "@/lib/dice";
 import { formatCoinParts } from "@/lib/currency";
+import { formatChatTimestamp } from "@/lib/utils";
+import { useLocalePrefs } from "@/composables/useLocalePrefs";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import type {
@@ -1259,12 +1261,8 @@ async function rollAndPost() {
 }
 
 // ── Time ───────────────────────────────────────────────────────────────────────
-function timeLabel(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+const { chatLocale } = useLocalePrefs();
+function timeLabel(iso: string) { return formatChatTimestamp(iso, chatLocale.value); }
 
 function renderMessage(text: string): string {
   // Render inline markdown (bold, italic, code) only — no block elements.

@@ -148,6 +148,8 @@ import { useAuthStore } from "@/stores/auth";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import type { RollMetadata } from "@/types/chat.types";
 import type { CampaignMember } from "@/types/campaign.types";
+import { formatChatTimestamp } from "@/lib/utils";
+import { useLocalePrefs } from "@/composables/useLocalePrefs";
 
 const { messages, isLoading, postChat } = useCampaignChat();
 const { data: partyMembers } = useParty();
@@ -201,12 +203,8 @@ async function sendChat() {
   await postChat(text, senderName(), whisperTarget.value || null);
 }
 
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+const { chatLocale } = useLocalePrefs();
+function formatTime(iso: string) { return formatChatTimestamp(iso, chatLocale.value); }
 
 /** Extract the raw d20 value from metadata, if present. */
 function getDice(metadata: RollMetadata): number | null {

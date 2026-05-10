@@ -400,6 +400,27 @@
       </div>
     </section>
 
+    <!-- Timestamps -->
+    <section class="rounded-lg border border-border bg-card p-5 space-y-4">
+      <div>
+        <h2 class="font-cinzel text-sm font-semibold text-foreground tracking-wide">Timestamps</h2>
+        <p class="font-fell text-xs text-muted-foreground italic mt-1">
+          Chat timestamps use your browser's locale by default.
+          Override here if you prefer a different date and time format.
+        </p>
+      </div>
+      <div class="space-y-2">
+        <EntityCombobox
+          v-model="localeInput"
+          :options="LOCALE_OPTIONS"
+          placeholder="Browser default"
+        />
+        <p class="font-fell text-xs text-muted-foreground">
+          Preview: <span class="text-foreground">{{ localePreview }}</span>
+        </p>
+      </div>
+    </section>
+
     <!-- Keep screen awake -->
     <section class="rounded-lg border border-border bg-card p-5 space-y-4">
       <div>
@@ -508,7 +529,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onBeforeUnmount } from "vue";
+import { ref, computed, watch, onBeforeUnmount } from "vue";
 import { RouterLink } from "vue-router";
 import { IconAddEvent, IconCalendarCheck, IconCheck, IconClose, IconCopy, IconDownload, IconDrag, IconReset, IconSave, IconUser } from '@/lib/icons';
 const CheckIcon = IconCheck;
@@ -522,6 +543,9 @@ import { usePlayerCombatPrefs } from "@/composables/usePlayerCombatPrefs";
 import { useDicePrefs } from "@/composables/useDicePrefs";
 import { useTheme } from "@/composables/useTheme";
 import type { ThemeOverride } from "@/composables/useTheme";
+import { useLocalePrefs } from "@/composables/useLocalePrefs";
+import { formatChatTimestamp } from "@/lib/utils";
+import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { MOBILE_NAV_SLOTS } from "@/lib/playerNav";
 import PageHeader from "@/components/common/PageHeader.vue";
 import { useAuthStore } from "@/stores/auth";
@@ -544,6 +568,37 @@ const { diceAudioEnabled, setDiceAudio, diceMode, setDiceMode } = useDicePrefs()
 
 // ── Theme override ───────────────────────────────────────────────────────────
 const { themeOverride, setOverride } = useTheme();
+
+// ── Locale preference ─────────────────────────────────────────────────────────
+const FALLBACK_LOCALES = [
+  "en-US","en-GB","nl-NL","nl-BE","de-DE","fr-FR","fr-BE","es-ES","it-IT",
+  "pt-PT","pt-BR","pl-PL","sv-SE","da-DK","fi-FI","nb-NO","ja-JP","ko-KR",
+  "zh-CN","zh-TW",
+];
+
+function buildLocaleOptions(): { id: string; name: string }[] {
+  let tags: string[];
+  try {
+    tags = (Intl as unknown as { supportedValuesOf(k: string): string[] }).supportedValuesOf("locale");
+  } catch {
+    tags = FALLBACK_LOCALES;
+  }
+  const dn = new Intl.DisplayNames(undefined, { type: "language" });
+  return tags
+    .map(t => ({ id: t, name: dn.of(t) ?? t }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+const LOCALE_OPTIONS = buildLocaleOptions();
+
+const { chatLocale, setChatLocale } = useLocalePrefs();
+const localeInput = ref(chatLocale.value);
+
+watch(localeInput, val => setChatLocale(val));
+
+const localePreview = computed(() =>
+  formatChatTimestamp(new Date(Date.now() - 86_400_000).toISOString(), localeInput.value || undefined)
+);
 const currentOverride = themeOverride;
 const THEME_OVERRIDE_OPTIONS: { value: ThemeOverride; label: string }[] = [
   { value: "campaign", label: "Campaign" },

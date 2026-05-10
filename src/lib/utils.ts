@@ -125,6 +125,25 @@ export function signedNum(n: number): string {
   return n >= 0 ? `+${n}` : `${n}`;
 }
 
+export function formatChatTimestamp(iso: string, locale?: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const isToday =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+  const loc = locale?.trim() || undefined;
+  try {
+    const time = d.toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit" });
+    if (isToday) return time;
+    return `${d.toLocaleDateString(loc, { month: "short", day: "numeric" })} ${time}`;
+  } catch {
+    const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    if (isToday) return time;
+    return `${d.toLocaleDateString([], { month: "short", day: "numeric" })} ${time}`;
+  }
+}
+
 export function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
