@@ -7,7 +7,9 @@
       "mcp__context7__resolve-library-id",
       "mcp__supabase__list_migrations",
       "mcp__puppeteer__puppeteer_navigate",
-      "mcp__puppeteer__puppeteer_screenshot"
+      "mcp__puppeteer__puppeteer_screenshot",
+      "Bash(magick *)",
+      "Bash(mkdir *)"
     ]
   },
   "hooks": {

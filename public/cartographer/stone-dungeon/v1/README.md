@@ -8,19 +8,23 @@ The manifest declares the full M1+M2 slot list, but the actual WebP files are no
 
 Once the AI generation pipeline produces real assets, drop them into the matching folders below — no code change needed.
 
-## Asset list (M1 + M2)
+## Asset list
 
-| Folder            | Files needed                    | Notes                                                                                                              |
-| ----------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `floor/`          | `0.webp` … `9.webp`             | Random variants; subtle wear; dark grey weathered flagstones. Seamless tileable on all four edges.                 |
-| `wallSegmentH/`   | `0.webp` … `3.webp`             | Horizontal wall segment (see wall-tile convention below).                                                          |
-| `wallSegmentV/`   | `0.webp` … `3.webp`             | Vertical wall segment (see wall-tile convention below).                                                            |
-| `doorClosedH/`    | `0.webp`                        | Closed wooden door. Replaces a horizontal wall segment.                                                            |
-| `doorClosedV/`    | `0.webp`                        | Closed wooden door. Replaces a vertical wall segment.                                                              |
-| `doorOpenH/`      | `0.webp`                        | Open variant of the horizontal door.                                                                               |
-| `doorOpenV/`      | `0.webp`                        | Open variant of the vertical door.                                                                                 |
-| `solidBlock/`     | `0.webp` … `5.webp`             | Full-cell thick walls. Dressed stone block, sand-filled mass.                                                      |
-| `rubble/`         | `0.webp` … `3.webp`             | Decorative debris, partial-cell coverage with alpha.                                                               |
+| Folder | Files needed | Notes |
+| --- | --- | --- |
+| `floor/` | `0.webp` … `9.webp` | Random variants; subtle wear; dark grey weathered flagstones. Seamless tileable on all four edges. |
+| `wallSegmentH/` | `0.webp` … `3.webp` | Horizontal wall segment (see wall-tile convention below). |
+| `wallSegmentV/` | `0.webp` … `3.webp` | Vertical wall segment (see wall-tile convention below). |
+| `doorClosedH/` | `0.webp` | Closed wooden door. Replaces a horizontal wall segment. |
+| `doorClosedV/` | `0.webp` | Closed wooden door. Replaces a vertical wall segment. |
+| `doorOpenH/` | `0.webp` | Open variant of the horizontal door. |
+| `doorOpenV/` | `0.webp` | Open variant of the vertical door. |
+| `solidBlock/` | `0.webp` … `5.webp` | Full-cell thick walls. Dressed stone block, sand-filled mass. |
+| `rubble/` | `0.webp` … `3.webp` | Decorative debris, partial-cell coverage with alpha. |
+| `wallJoint/` | `L_NE_0.webp` … `CROSS_0.webp` | 9 directional corner joints (optional — falls back to solid square). |
+| `stairsUp/` | `N_0.webp` … `W_0.webp` | 4-directional ascending stairs (optional). |
+| `stairsDown/` | `N_0.webp` … `W_0.webp` | 4-directional descending stairs (optional). |
+| `debris/` | `0.webp` … `3.webp` | Light scatter debris, partial-cell coverage with alpha (optional). |
 
 ## Wall-tile convention
 
@@ -43,6 +47,52 @@ All assets must be:
 - Style: 2024 OneDnD aesthetic — clean, modern, not crusty parchment
 
 See `context/features/cartographer.md` § "Generation prompt template" for the shared prompt template.
+
+### wallJoint/ (9 directional files)
+
+The joint tile fills the small square gap at every H+V wall intersection. The renderer scales the full 128×128 image down to ≈22×22 display pixels, so fill the entire canvas with the joint art.
+
+File naming: `L_NE_0.webp`, `L_SE_0.webp`, `L_SW_0.webp`, `L_NW_0.webp`, `T_N_0.webp`, `T_E_0.webp`, `T_S_0.webp`, `T_W_0.webp`, `CROSS_0.webp`.
+
+Joint shape guide:
+
+- **L_NE** — wall runs E + N from corner (open SW quadrant)
+- **L_SE** — wall runs E + S from corner (open NW quadrant)
+- **L_SW** — wall runs W + S from corner (open NE quadrant)
+- **L_NW** — wall runs W + N from corner (open SE quadrant)
+- **T_N** — 3-way: E + W + N (missing S arm)
+- **T_E** — 3-way: N + S + E (missing W arm)
+- **T_S** — 3-way: E + W + S (missing N arm)
+- **T_W** — 3-way: N + S + W (missing E arm)
+- **CROSS** — full 4-way intersection
+
+```text
+Top-down orthographic wall-joint tile, 128x128px, fully opaque.
+The intersection of dressed stone walls — [SHAPE: see above].
+Dark grey stone, matches the wallSegment style. Fill entire canvas.
+2024 OneDnD RPG art style.
+```
+
+### stairsUp/ and stairsDown/ (4 directional files each)
+
+Full-cell opaque tiles. Direction = high end of the stairs. File naming: `N_0.webp`, `E_0.webp`, `S_0.webp`, `W_0.webp`.
+
+```text
+Top-down orthographic staircase tile, 128x128px, fully opaque.
+Stone dungeon stairs — [DIRECTION: steps rise toward the N/E/S/W edge].
+Weathered grey stone treads, visible risers between steps. Even ambient light.
+stairsUp: lighter at the high end. stairsDown: darker at the descending end.
+Fill entire cell. 2024 OneDnD RPG art style.
+```
+
+### debris/ (variants 0–3)
+
+```text
+Top-down orthographic debris tile, 128x128px, transparent background.
+Light scatter of stone chips, mortar dust, and small pebbles on flagstone.
+Sparse coverage, transparent where there is no debris. Dark grey palette.
+2024 OneDnD RPG art style.
+```
 
 ## Validation
 

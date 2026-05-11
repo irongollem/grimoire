@@ -846,6 +846,18 @@ The migration file is in place but **not yet applied to the remote Supabase proj
 | [src/cartographer/floodFill.test.ts](../../src/cartographer/floodFill.test.ts) | TDD: flood-fill + boundary-edge |
 | [vitest.config.ts](../../vitest.config.ts) | Vitest + happy-dom test config |
 
+### Wood Interior pack (post-M2)
+
+A second bundled pack, `wood-interior`, ships alongside `stone-dungeon`. Real WebP assets present for floor (variants 0–9), wallSegmentH/V (0–3), wallJoint (generic `0.webp` — no directional variants), solidBlock (0–4), rubble (0–3). Door assets not yet available; manifest entries exist for fallback-to-procedural. Pack path: `public/cartographer/wood-interior/v1/`.
+
+**Multi-pack bug fixes landed alongside this pack:**
+
+- `paintCell` guard now checks `pack_id` *and* `variant` — previously skipped overpainting when variant number matched even across packs.
+- `paintWallAtCellEdge` guard now allows overpainting if the existing wall belongs to a *different* pack (allows restyling a dungeon).
+- Corner joint `thickness` corrected to `tilePx * (35/128)` to match extracted art strip width (was `0.18 × tilePx`).
+- Corner joint pack detection now checks all four adjacent walls instead of just the SE pair, so corners don't flicker to `currentPackId` when the active pack changes.
+- `wallJoint` generic tile lookup: renderer tries directional side-keyed tile first, then generic variant-0 (no side field), then procedural square. Packs only need `"wallJoint": [{ "variant": 0 }]` for uniform corners.
+
 ### Known M2 deferrals (deliberate)
 
 - SolidBlock bitmask auto-tiler — deferred to M3+ (flat texture only in M2).

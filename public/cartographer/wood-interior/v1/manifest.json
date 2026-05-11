@@ -1,7 +1,7 @@
 {
-  "pack_id": "stone-dungeon",
-  "name": "Stone Dungeon",
-  "description": "Starter pack — dark grey weathered flagstones, dressed stone walls, wooden doors. Top-down view, seamless tileable. Tiles in this pack are placeholder-generated until the AI generation pipeline ships M1 assets.",
+  "pack_id": "wood-interior",
+  "name": "Wood Interior",
+  "description": "Warm timber interiors — taverns, manors, lodges, military barracks. Oak plank floors, timber-frame plank walls, arched wooden doors. Top-down orthographic view, seamless tileable.",
   "pack_version": 1,
   "schema_version": 1,
   "base_tile_size": 128,
@@ -39,8 +39,7 @@
       { "variant": 1, "url": "solidBlock/1.webp" },
       { "variant": 2, "url": "solidBlock/2.webp" },
       { "variant": 3, "url": "solidBlock/3.webp" },
-      { "variant": 4, "url": "solidBlock/4.webp" },
-      { "variant": 5, "url": "solidBlock/5.webp" }
+      { "variant": 4, "url": "solidBlock/4.webp" }
     ],
     "rubble": [
       { "variant": 0, "url": "rubble/0.webp" },
@@ -49,15 +48,7 @@
       { "variant": 3, "url": "rubble/3.webp" }
     ],
     "wallJoint": [
-      { "side": "L_NE",  "variant": 0, "url": "wallJoint/L_NE_0.webp" },
-      { "side": "L_SE",  "variant": 0, "url": "wallJoint/L_SE_0.webp" },
-      { "side": "L_SW",  "variant": 0, "url": "wallJoint/L_SW_0.webp" },
-      { "side": "L_NW",  "variant": 0, "url": "wallJoint/L_NW_0.webp" },
-      { "side": "T_N",   "variant": 0, "url": "wallJoint/T_N_0.webp" },
-      { "side": "T_E",   "variant": 0, "url": "wallJoint/T_E_0.webp" },
-      { "side": "T_S",   "variant": 0, "url": "wallJoint/T_S_0.webp" },
-      { "side": "T_W",   "variant": 0, "url": "wallJoint/T_W_0.webp" },
-      { "side": "CROSS", "variant": 0, "url": "wallJoint/CROSS_0.webp" }
+      { "variant": 0, "url": "wallJoint/0.webp" }
     ],
     "stairsUp": [
       { "side": "N", "variant": 0, "url": "stairsUp/N_0.webp" },

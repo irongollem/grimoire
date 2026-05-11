@@ -111,7 +111,7 @@
             <IconRedo class="h-3.5 w-3.5" />
           </button>
           <span>
-            Pack: <strong class="text-foreground">{{ packId }}</strong>
+            Pack: <strong class="text-foreground">{{ packRuntime?.manifest.name ?? currentPackId }}</strong>
             <span v-if="packLoadError" class="text-red-500"> ({{ packLoadError }})</span>
           </span>
           <span v-if="cellsPainted > 0">
@@ -119,9 +119,9 @@
           </span>
         </div>
 
-        <!-- Overlay hint while pack loads -->
+        <!-- Overlay hint while the default pack loads -->
         <div
-          v-if="!packRuntime"
+          v-if="!loadedRuntimes.has(DEFAULT_PACK_ID)"
           class="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm"
         >
           <LoadingSpinner />
@@ -143,30 +143,40 @@
 
         <div>
           <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
-            Pack
+            Tile Pack
           </label>
-          <div
-            v-if="packRuntime"
-            class="rounded-md border border-border bg-background px-2 py-1.5"
-          >
-            <p class="font-cinzel text-xs font-semibold text-foreground">
-              {{ packRuntime.manifest.name }}
-            </p>
-            <p class="font-fell text-[10px] text-muted-foreground italic">
-              v{{ packRuntime.manifest.pack_version }} · {{ floorVariantCount }} floor variants
-            </p>
-            <p
-              v-if="!packRuntime.validation.valid"
-              class="font-fell text-[10px] text-amber-500 mt-1"
+          <div class="space-y-1">
+            <button
+              v-for="p in BUNDLED_PACKS"
+              :key="p.pack_id"
+              type="button"
+              class="w-full flex items-center gap-2 rounded-md px-2 py-1.5 font-fell text-xs text-left transition-colors"
+              :class="currentPackId === p.pack_id
+                ? 'bg-primary/15 text-foreground ring-1 ring-inset ring-primary/40'
+                : 'hover:bg-muted text-muted-foreground'"
+              @click="currentPackId = p.pack_id"
             >
-              {{ packRuntime.validation.missing.length }} required slot(s) missing — using placeholders.
-            </p>
+              <span class="flex-1 truncate">{{ p.name }}</span>
+              <span
+                v-if="loadedRuntimes.has(p.pack_id)"
+                class="font-cinzel text-[9px] tracking-wider shrink-0"
+                :class="currentPackId === p.pack_id ? 'text-muted-foreground' : 'text-muted-foreground/50'"
+              >v{{ p.pack_version }}</span>
+              <svg v-else class="h-3 w-3 shrink-0 animate-spin text-muted-foreground/50" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="40 20" />
+              </svg>
+            </button>
           </div>
+          <p
+            v-if="packRuntime && !packRuntime.validation.valid"
+            class="font-fell text-[10px] text-amber-500 mt-1.5"
+          >
+            {{ packRuntime.validation.missing.length }} slot(s) missing — using placeholders.
+          </p>
         </div>
 
         <p class="font-fell text-[10px] text-muted-foreground italic leading-relaxed">
-          M1 paints floor cells deterministically by <code class="text-[10px]">hash(map_id, x, y)</code>.
-          Variants persist across reloads.
+          Switching packs changes future strokes only — existing cells keep their stored pack.
         </p>
       </aside>
     </div>
@@ -224,9 +234,12 @@ import { CommandStack } from "@/cartographer/commandStack";
 const route = useRoute();
 const router = useRouter();
 
-const STARTER_PACK_ID = "stone-dungeon";
-const STARTER_PACK_VERSION = 1;
-const STARTER_MANIFEST_URL = `/cartographer/${STARTER_PACK_ID}/v${STARTER_PACK_VERSION}/manifest.json`;
+const BUNDLED_PACKS = [
+  { pack_id: "stone-dungeon", pack_version: 1, name: "Stone Dungeon",  manifestUrl: "/cartographer/stone-dungeon/v1/manifest.json" },
+  { pack_id: "icy-cave",      pack_version: 1, name: "Icy Cave",       manifestUrl: "/cartographer/icy-cave/v1/manifest.json" },
+  { pack_id: "wood-interior", pack_version: 1, name: "Wood Interior",  manifestUrl: "/cartographer/wood-interior/v1/manifest.json" },
+] as const;
+const DEFAULT_PACK_ID = "stone-dungeon";
 
 const mapId = computed(() => {
   const p = route.params.id;
@@ -242,9 +255,10 @@ const { confirm } = useConfirm();
 
 const name = ref("Untitled Map");
 const layers = ref<DungeonMapLayers>(emptyLayers());
-const packId = ref(STARTER_PACK_ID);
+const currentPackId = ref(DEFAULT_PACK_ID);
 const packLoadError = ref<string | null>(null);
-const packRuntime = ref<TilePackRuntime | null>(null);
+const loadedRuntimes = ref(new Map<string, TilePackRuntime>());
+const packRuntime = computed(() => loadedRuntimes.value.get(currentPackId.value) ?? null);
 const dirty = ref(false);
 const saving = ref(false);
 const deleting = ref(false);
@@ -333,17 +347,19 @@ const statusLine = computed(() => {
 // ── Pack load ───────────────────────────────────────────────────────────────
 
 async function ensurePackLoaded(): Promise<void> {
-  if (packRuntime.value) return;
-  try {
-    const runtime = await loadPack(STARTER_MANIFEST_URL);
-    packRuntime.value = runtime;
-    if (!runtime.validation.valid) {
-      // eslint-disable-next-line no-console
-      console.warn("Stone Dungeon pack is incomplete; rendering placeholders for missing slots", runtime.validation);
-    }
-  } catch (e) {
-    packLoadError.value = e instanceof Error ? e.message : String(e);
-  }
+  const toLoad = BUNDLED_PACKS.filter((p) => !loadedRuntimes.value.has(p.pack_id));
+  await Promise.all(
+    toLoad.map(async (p) => {
+      try {
+        const runtime = await loadPack(p.manifestUrl);
+        loadedRuntimes.value.set(p.pack_id, runtime);
+      } catch (e) {
+        if (p.pack_id === DEFAULT_PACK_ID) {
+          packLoadError.value = e instanceof Error ? e.message : String(e);
+        }
+      }
+    }),
+  );
 }
 
 // ── Map load ───────────────────────────────────────────────────────────────
@@ -360,7 +376,7 @@ watch(loadedMap, (m) => {
   if (m) {
     name.value = m.name;
     layers.value = cloneLayers(m.layers);
-    packId.value = m.default_pack_id ?? STARTER_PACK_ID;
+    currentPackId.value = m.default_pack_id ?? DEFAULT_PACK_ID;
     dirty.value = false;
     cmdStack.clear();
     canUndo.value = false;
@@ -401,6 +417,10 @@ function pickDoorVariant(x: number, y: number, category: PackCategory): number {
   if (!packRuntime.value) return 0;
   const count = packRuntime.value.variantCount(category) || 1;
   return hash32(`${mapId.value || "new"}|${category}|${x}|${y}`) % count;
+}
+
+function activePackVersion(): number {
+  return BUNDLED_PACKS.find((p) => p.pack_id === currentPackId.value)?.pack_version ?? 1;
 }
 
 // ── Undo/redo helpers ──────────────────────────────────────────────────────
@@ -528,7 +548,7 @@ function paintSolidAt(x: number, y: number): void {
   const k = cellKey(x, y);
   const variant = pickSolidVariant(x, y);
   if (layers.value.solidBlock[k]?.variant === variant) return;
-  layers.value.solidBlock[k] = { pack_id: packId.value, pack_version: STARTER_PACK_VERSION, variant };
+  layers.value.solidBlock[k] = { pack_id: currentPackId.value, pack_version: activePackVersion(), variant };
   dirty.value = true;
 }
 
@@ -562,16 +582,16 @@ function paintWallAtCellEdge(edge: CellEdge): void {
 
   const ownerKey = cellKey(canon.x, canon.y);
   const ownerCell = layers.value.floor[ownerKey] ?? {};
-  // Already a wall on this edge? Skip; preserves doors etc. once they exist.
   const existing = canon.side === "N" ? ownerCell.wallN : ownerCell.wallW;
-  if (existing && existing.type === "wall") {
+  // Preserve doors. For walls, skip only if same pack — different pack restyling the edge.
+  if (existing && (existing.type !== "wall" || existing.pack_id === currentPackId.value)) {
     edgesPaintedInStroke.add(strokeKey);
     return;
   }
 
   const seg: EdgeSeg = {
-    pack_id: packId.value,
-    pack_version: STARTER_PACK_VERSION,
+    pack_id: currentPackId.value,
+    pack_version: activePackVersion(),
     type: "wall",
     variant: pickWallVariant(canon.x, canon.y, canon.side),
   };
@@ -593,8 +613,8 @@ function setWallEdgeIfEmpty(edge: CellEdge): void {
   const existing = canon.side === "N" ? ownerCell.wallN : ownerCell.wallW;
   if (existing) return; // preserve existing walls/doors
   const seg: EdgeSeg = {
-    pack_id: packId.value,
-    pack_version: STARTER_PACK_VERSION,
+    pack_id: currentPackId.value,
+    pack_version: activePackVersion(),
     type: "wall",
     variant: pickWallVariant(canon.x, canon.y, canon.side),
   };
@@ -630,7 +650,7 @@ function paintDoorAtEdge(edge: CellEdge): void {
     variant = pickDoorVariant(canon.x, canon.y, cat);
   }
 
-  const seg: EdgeSeg = { pack_id: packId.value, pack_version: STARTER_PACK_VERSION, type: newType, variant };
+  const seg: EdgeSeg = { pack_id: currentPackId.value, pack_version: activePackVersion(), type: newType, variant };
   layers.value.floor[ownerKey] = canon.side === "N"
     ? { ...ownerCell, wallN: seg }
     : { ...ownerCell, wallW: seg };
@@ -647,8 +667,8 @@ function removeDoorAtEdge(edge: CellEdge): void {
   const existing = canon.side === "N" ? ownerCell.wallN : ownerCell.wallW;
   if (!existing || existing.type === "wall") return;
   const seg: EdgeSeg = {
-    pack_id: packId.value,
-    pack_version: STARTER_PACK_VERSION,
+    pack_id: currentPackId.value,
+    pack_version: activePackVersion(),
     type: "wall",
     variant: pickWallVariant(canon.x, canon.y, canon.side),
   };
@@ -782,8 +802,11 @@ function render(): void {
 
   const { minX, minY, maxX, maxY } = visibleCellBounds();
 
+  const rt = (pid: string): TilePackRuntime | null =>
+    loadedRuntimes.value.get(pid) ?? packRuntime.value ?? null;
+
   // Floor layer
-  if (packRuntime.value) {
+  if (loadedRuntimes.value.size > 0) {
     for (let y = minY; y <= maxY; y++) {
       for (let x = minX; x <= maxX; x++) {
         const k = cellKey(x, y);
@@ -791,21 +814,25 @@ function render(): void {
         if (!cell?.floor) continue;
         const drawX = x * tilePx - viewportOffset.value.x;
         const drawY = y * tilePx - viewportOffset.value.y;
-        const tile = packRuntime.value.getTile("floor", cell.floor.variant);
+        const r = rt(cell.floor.pack_id);
+        if (!r) continue;
+        const tile = r.getTile("floor", cell.floor.variant);
         ctx.drawImage(tile.source, drawX, drawY, tilePx, tilePx);
       }
     }
   }
 
   // SolidBlock layer — full-cell thick walls rendered above the floor
-  if (packRuntime.value) {
+  if (loadedRuntimes.value.size > 0) {
     for (let y = minY; y <= maxY; y++) {
       for (let x = minX; x <= maxX; x++) {
         const solid = layers.value.solidBlock[cellKey(x, y)];
         if (!solid) continue;
         const drawX = x * tilePx - viewportOffset.value.x;
         const drawY = y * tilePx - viewportOffset.value.y;
-        const tile = packRuntime.value.getTile("solidBlock", solid.variant);
+        const r = rt(solid.pack_id);
+        if (!r) continue;
+        const tile = r.getTile("solidBlock", solid.variant);
         ctx.drawImage(tile.source, drawX, drawY, tilePx, tilePx);
       }
     }
@@ -832,7 +859,7 @@ function render(): void {
   // CENTER (vertically for H, horizontally for V). We shift the tile by
   // half a tile so the strip lands ON the gridline, straddling both
   // adjacent cells equally. NW ownership: cell stores wallN/wallW.
-  if (packRuntime.value) {
+  if (loadedRuntimes.value.size > 0) {
     const halfTile = tilePx / 2;
     for (let y = minY; y <= maxY + 1; y++) {
       for (let x = minX; x <= maxX + 1; x++) {
@@ -842,17 +869,23 @@ function render(): void {
         const drawY = y * tilePx - viewportOffset.value.y;
         if (cell.wallN) {
           const seg = cell.wallN;
-          const cat: PackCategory = seg.type === "doorClosed" ? "doorClosedH"
-            : seg.type === "doorOpen" ? "doorOpenH" : "wallSegmentH";
-          const tile = packRuntime.value.getTile(cat, seg.variant);
-          ctx.drawImage(tile.source, drawX, drawY - halfTile, tilePx, tilePx);
+          const r = rt(seg.pack_id);
+          if (r) {
+            const cat: PackCategory = seg.type === "doorClosed" ? "doorClosedH"
+              : seg.type === "doorOpen" ? "doorOpenH" : "wallSegmentH";
+            const tile = r.getTile(cat, seg.variant);
+            ctx.drawImage(tile.source, drawX, drawY - halfTile, tilePx, tilePx);
+          }
         }
         if (cell.wallW) {
           const seg = cell.wallW;
-          const cat: PackCategory = seg.type === "doorClosed" ? "doorClosedV"
-            : seg.type === "doorOpen" ? "doorOpenV" : "wallSegmentV";
-          const tile = packRuntime.value.getTile(cat, seg.variant);
-          ctx.drawImage(tile.source, drawX - halfTile, drawY, tilePx, tilePx);
+          const r = rt(seg.pack_id);
+          if (r) {
+            const cat: PackCategory = seg.type === "doorClosed" ? "doorClosedV"
+              : seg.type === "doorOpen" ? "doorOpenV" : "wallSegmentV";
+            const tile = r.getTile(cat, seg.variant);
+            ctx.drawImage(tile.source, drawX - halfTile, drawY, tilePx, tilePx);
+          }
         }
       }
     }
@@ -860,7 +893,8 @@ function render(): void {
     // Corner joints — fill / tile the gap at every grid intersection where H and
     // V wall strips meet. Uses the pack's optional wallJoint directional art when
     // available; falls back to a programmatic filled square otherwise.
-    const thickness = tilePx * 0.18;
+    // Match tile strip width: actual extracted assets use ~35/128 of tile height.
+    const thickness = tilePx * (35 / 128);
     const halfThick = thickness / 2;
     ctx.fillStyle = "rgb(40, 36, 32)"; // fallback colour matches wall placeholder
     for (let jy = minY; jy <= maxY + 1; jy++) {
@@ -873,9 +907,23 @@ function render(): void {
         const cornerX = jx * tilePx - viewportOffset.value.x;
         const cornerY = jy * tilePx - viewportOffset.value.y;
         const side = classifyJoint(wH, eH, nV, sV);
-        if (side && packRuntime.value.variantCount("wallJoint", side) > 0) {
-          const tile = packRuntime.value.getTile("wallJoint", 0, side);
-          ctx.drawImage(tile.source, cornerX - halfThick, cornerY - halfThick, thickness, thickness);
+        // Check all four adjacent walls for pack ownership — avoids falling back to
+        // currentPackId and having corners change style when the active pack switches.
+        const jointPackId =
+          layers.value.floor[cellKey(jx, jy)]?.wallN?.pack_id ??
+          layers.value.floor[cellKey(jx - 1, jy)]?.wallN?.pack_id ??
+          layers.value.floor[cellKey(jx, jy)]?.wallW?.pack_id ??
+          layers.value.floor[cellKey(jx, jy - 1)]?.wallW?.pack_id ??
+          currentPackId.value;
+        const jointRt = rt(jointPackId);
+        // Prefer directional tile, fall back to generic (no side), then procedural square.
+        const directional = side && jointRt && jointRt.variantCount("wallJoint", side) > 0
+          ? jointRt.getTile("wallJoint", 0, side) : null;
+        const generic = !directional?.source && jointRt
+          ? jointRt.getTile("wallJoint", 0) : null;
+        const jointTile = directional ?? generic;
+        if (jointTile && !jointTile.isPlaceholder) {
+          ctx.drawImage(jointTile.source, cornerX - halfThick, cornerY - halfThick, thickness, thickness);
         } else {
           ctx.fillRect(cornerX - halfThick, cornerY - halfThick, thickness, thickness);
         }
@@ -940,7 +988,7 @@ function scheduleRender(): void {
   });
 }
 
-watch([zoom, viewportOffset, layers, packRuntime, hoverCell, hoveredEdge, activeTool, previewCells], () => scheduleRender(), { deep: true });
+watch([zoom, viewportOffset, layers, loadedRuntimes, currentPackId, hoverCell, hoveredEdge, activeTool, previewCells], () => scheduleRender(), { deep: true });
 
 // ── Pointer interaction ────────────────────────────────────────────────────
 
@@ -954,12 +1002,12 @@ function paintCell(x: number, y: number): void {
   const k = cellKey(x, y);
   const existing = layers.value.floor[k];
   const variant = pickFloorVariant(x, y);
-  if (existing?.floor?.variant === variant) return;
+  if (existing?.floor?.pack_id === currentPackId.value && existing?.floor?.variant === variant) return;
   layers.value.floor[k] = {
     ...existing,
     floor: {
-      pack_id: packId.value,
-      pack_version: STARTER_PACK_VERSION,
+      pack_id: currentPackId.value,
+      pack_version: activePackVersion(),
       variant,
     },
   };
@@ -1176,7 +1224,7 @@ async function onSave(): Promise<void> {
       description: null,
       layers: layers.value,
       metadata: (loadedMap.value as DungeonMap | null)?.metadata ?? {},
-      default_pack_id: packId.value,
+      default_pack_id: currentPackId.value as string,
       tags: (loadedMap.value as DungeonMap | null)?.tags ?? [],
       notes: null as unknown,
     };
