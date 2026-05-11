@@ -1,0 +1,96 @@
+{
+  "pack_id": "underdark",
+  "name": "Underdark",
+  "description": "Bioluminescent mushroom caves and mind flayer warrens — deep purple-violet stone floors pulsing with fungal glow, jagged amethyst-veined walls, chitinous doors. Distinct from volcanic black-rock; this is the living, luminescent deep. Top-down orthographic view, seamless tileable.",
+  "pack_version": 1,
+  "schema_version": 1,
+  "base_tile_size": 128,
+  "palette": {
+    "floor":        [ 95,  60, 115],
+    "wallSegmentH": [ 55,  35,  72],
+    "wallSegmentV": [ 55,  35,  72],
+    "wallJoint":    [ 40,  25,  55],
+    "doorClosedH":  [ 70,  45,  90],
+    "doorClosedV":  [ 70,  45,  90],
+    "doorOpenH":    [115,  80, 140],
+    "doorOpenV":    [115,  80, 140],
+    "solidBlock":   [ 45,  28,  62],
+    "stairsUp":     [118,  78, 145],
+    "stairsDown":   [ 65,  42,  85],
+    "rubble":       [ 80,  52, 100],
+    "debris":       [ 68,  44,  88]
+  },
+  "assets": {
+    "floor": [
+      { "variant": 0, "url": "floor/0.webp" },
+      { "variant": 1, "url": "floor/1.webp" },
+      { "variant": 2, "url": "floor/2.webp" },
+      { "variant": 3, "url": "floor/3.webp" },
+      { "variant": 4, "url": "floor/4.webp" },
+      { "variant": 5, "url": "floor/5.webp" },
+      { "variant": 6, "url": "floor/6.webp" },
+      { "variant": 7, "url": "floor/7.webp" },
+      { "variant": 8, "url": "floor/8.webp" },
+      { "variant": 9, "url": "floor/9.webp" }
+    ],
+    "wallSegmentH": [
+      { "variant": 0, "url": "wallSegmentH/0.webp" },
+      { "variant": 1, "url": "wallSegmentH/1.webp" },
+      { "variant": 2, "url": "wallSegmentH/2.webp" },
+      { "variant": 3, "url": "wallSegmentH/3.webp" }
+    ],
+    "wallSegmentV": [
+      { "variant": 0, "url": "wallSegmentV/0.webp" },
+      { "variant": 1, "url": "wallSegmentV/1.webp" },
+      { "variant": 2, "url": "wallSegmentV/2.webp" },
+      { "variant": 3, "url": "wallSegmentV/3.webp" }
+    ],
+    "doorClosedH": [{ "variant": 0, "url": "doorClosedH/0.webp" }],
+    "doorClosedV": [{ "variant": 0, "url": "doorClosedV/0.webp" }],
+    "doorOpenH":   [{ "variant": 0, "url": "doorOpenH/0.webp" }],
+    "doorOpenV":   [{ "variant": 0, "url": "doorOpenV/0.webp" }],
+    "solidBlock": [
+      { "variant": 0, "url": "solidBlock/0.webp" },
+      { "variant": 1, "url": "solidBlock/1.webp" },
+      { "variant": 2, "url": "solidBlock/2.webp" },
+      { "variant": 3, "url": "solidBlock/3.webp" },
+      { "variant": 4, "url": "solidBlock/4.webp" },
+      { "variant": 5, "url": "solidBlock/5.webp" }
+    ],
+    "rubble": [
+      { "variant": 0, "url": "rubble/0.webp" },
+      { "variant": 1, "url": "rubble/1.webp" },
+      { "variant": 2, "url": "rubble/2.webp" },
+      { "variant": 3, "url": "rubble/3.webp" }
+    ],
+    "wallJoint": [
+      { "side": "L_NE",  "variant": 0, "url": "wallJoint/L_NE_0.webp" },
+      { "side": "L_SE",  "variant": 0, "url": "wallJoint/L_SE_0.webp" },
+      { "side": "L_SW",  "variant": 0, "url": "wallJoint/L_SW_0.webp" },
+      { "side": "L_NW",  "variant": 0, "url": "wallJoint/L_NW_0.webp" },
+      { "side": "T_N",   "variant": 0, "url": "wallJoint/T_N_0.webp" },
+      { "side": "T_E",   "variant": 0, "url": "wallJoint/T_E_0.webp" },
+      { "side": "T_S",   "variant": 0, "url": "wallJoint/T_S_0.webp" },
+      { "side": "T_W",   "variant": 0, "url": "wallJoint/T_W_0.webp" },
+      { "side": "CROSS", "variant": 0, "url": "wallJoint/CROSS_0.webp" }
+    ],
+    "stairsUp": [
+      { "side": "N", "variant": 0, "url": "stairsUp/N_0.webp" },
+      { "side": "E", "variant": 0, "url": "stairsUp/E_0.webp" },
+      { "side": "S", "variant": 0, "url": "stairsUp/S_0.webp" },
+      { "side": "W", "variant": 0, "url": "stairsUp/W_0.webp" }
+    ],
+    "stairsDown": [
+      { "side": "N", "variant": 0, "url": "stairsDown/N_0.webp" },
+      { "side": "E", "variant": 0, "url": "stairsDown/E_0.webp" },
+      { "side": "S", "variant": 0, "url": "stairsDown/S_0.webp" },
+      { "side": "W", "variant": 0, "url": "stairsDown/W_0.webp" }
+    ],
+    "debris": [
+      { "variant": 0, "url": "debris/0.webp" },
+      { "variant": 1, "url": "debris/1.webp" },
+      { "variant": 2, "url": "debris/2.webp" },
+      { "variant": 3, "url": "debris/3.webp" }
+    ]
+  }
+}

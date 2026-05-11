@@ -8,6 +8,21 @@
         class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 transition-colors disabled:opacity-50"
         @click="onDelete"
       >{{ deleting ? "Deleting…" : "Delete" }}</button>
+      <button
+        v-if="!isNew"
+        type="button"
+        :disabled="baking"
+        class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-50"
+        :title="baking ? undefined : 'Download map as PNG'"
+        @click="onDownloadPng"
+      >{{ baking ? "Baking…" : "↓ PNG" }}</button>
+      <button
+        v-if="!isNew"
+        type="button"
+        :disabled="baking"
+        class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-primary/40 text-primary rounded-md hover:bg-primary/10 transition-colors disabled:opacity-50"
+        @click="showAtlasModal = true"
+      >{{ baking ? "Baking…" : "Save to Atlas" }}</button>
       <ListActionButton label="Cancel" @click="onCancel" />
       <ListActionButton
         :icon="IconSave"
@@ -16,6 +31,53 @@
         :disabled="saving"
         @click="onSave"
       />
+
+      <!-- Save to Atlas modal -->
+      <Teleport to="body">
+        <Transition name="dialog-fade">
+          <div
+            v-if="showAtlasModal"
+            class="fixed inset-0 z-200 flex items-center justify-center p-4"
+            @mousedown.self="showAtlasModal = false"
+          >
+            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <div
+              class="relative w-full max-w-sm rounded-xl border border-border bg-card shadow-2xl"
+              role="dialog"
+              aria-modal="true"
+            >
+              <div class="px-5 pt-5 pb-3">
+                <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide mb-1">Save to Atlas</h2>
+                <p class="font-fell text-sm text-muted-foreground mb-4">
+                  Bake this map and attach it to a location in your Atlas.
+                </p>
+                <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
+                  Location
+                </label>
+                <EntityCombobox
+                  v-model="atlasLocationId"
+                  :options="locationOptions"
+                  placeholder="Search locations…"
+                />
+                <p v-if="atlasError" class="mt-2 font-fell text-xs text-destructive">{{ atlasError }}</p>
+              </div>
+              <div class="flex justify-end gap-2 px-5 pb-5 pt-2">
+                <button
+                  type="button"
+                  class="px-4 py-1.5 rounded-md border border-border font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors tracking-wider"
+                  @click="showAtlasModal = false"
+                >Cancel</button>
+                <button
+                  type="button"
+                  :disabled="!atlasLocationId || baking"
+                  class="px-4 py-1.5 rounded-md font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+                  @click="onSaveToAtlas"
+                >{{ baking ? "Baking…" : "Save to Atlas" }}</button>
+              </div>
+            </div>
+          </div>
+        </Transition>
+      </Teleport>
     </template>
 
     <div class="flex flex-col lg:flex-row gap-3 mt-2">
@@ -294,6 +356,10 @@ import {
 import { useConfirm } from "@/composables/useConfirm";
 import { useNotes } from "@/composables/useNotes";
 import { useEncounters } from "@/composables/useEncounters";
+import { useAllLocations, useUpdateLocationMapUrl } from "@/composables/useLocations";
+import { bakeMap, bakeMapAsPng } from "@/cartographer/bake";
+import { uploadToBucket } from "@/lib/storage";
+import { getCurrentUser } from "@/lib/supabase";
 import {
   emptyLayers,
   cellKey,
@@ -322,6 +388,10 @@ const BUNDLED_PACKS = [
   { pack_id: "forest",        pack_version: 1, name: "Forest",         manifestUrl: "/cartographer/forest/v1/manifest.json" },
   { pack_id: "black-rock",    pack_version: 1, name: "Black Rock",     manifestUrl: "/cartographer/black-rock/v1/manifest.json" },
   { pack_id: "lava-cavern",   pack_version: 1, name: "Lava Cavern",    manifestUrl: "/cartographer/lava-cavern/v1/manifest.json" },
+  { pack_id: "underdark",     pack_version: 1, name: "Underdark",      manifestUrl: "/cartographer/underdark/v1/manifest.json" },
+  { pack_id: "water",         pack_version: 1, name: "Water",          manifestUrl: "/cartographer/water/v1/manifest.json" },
+  { pack_id: "sewer-swamp",   pack_version: 1, name: "Sewer / Swamp",  manifestUrl: "/cartographer/sewer-swamp/v1/manifest.json" },
+  { pack_id: "marble-palace", pack_version: 1, name: "Marble Palace",  manifestUrl: "/cartographer/marble-palace/v1/manifest.json" },
 ] as const;
 const DEFAULT_PACK_ID = "stone-dungeon";
 
@@ -346,6 +416,17 @@ const packRuntime = computed(() => loadedRuntimes.value.get(currentPackId.value)
 const dirty = ref(false);
 const saving = ref(false);
 const deleting = ref(false);
+const baking = ref(false);
+
+// M5 — Save to Atlas
+const showAtlasModal = ref(false);
+const atlasLocationId = ref("");
+const atlasError = ref<string | null>(null);
+const { data: allLocationsData } = useAllLocations();
+const locationOptions = computed(() =>
+  (allLocationsData.value ?? []).map((l) => ({ id: l.id, name: l.name })),
+);
+const updateLocationMapUrl = useUpdateLocationMapUrl();
 
 const canvasEl = ref<HTMLCanvasElement | null>(null);
 
@@ -1516,6 +1597,53 @@ function onCancel(): void {
   router.push("/cartographer");
 }
 
+async function onSaveToAtlas(): Promise<void> {
+  if (baking.value || !atlasLocationId.value || !loadedMap.value) return;
+  atlasError.value = null;
+  baking.value = true;
+  try {
+    const map = { ...loadedMap.value, layers: layers.value, metadata: metadata.value };
+    const blob = await bakeMap(map, loadedRuntimes.value);
+    const user = getCurrentUser();
+    if (!user) throw new Error("Not authenticated");
+    const url = await uploadToBucket({
+      bucket: "locationImages",
+      blob,
+      userId: user.id,
+      contentType: "image/webp",
+    });
+    if (!url) throw new Error("Upload failed");
+    await updateLocationMapUrl.mutateAsync({
+      id: atlasLocationId.value,
+      mapUrl: url,
+      sourceMapId: loadedMap.value.id,
+    });
+    showAtlasModal.value = false;
+    atlasLocationId.value = "";
+  } catch (e) {
+    atlasError.value = e instanceof Error ? e.message : "Something went wrong";
+  } finally {
+    baking.value = false;
+  }
+}
+
+async function onDownloadPng(): Promise<void> {
+  if (baking.value || !loadedMap.value) return;
+  baking.value = true;
+  try {
+    const map = { ...loadedMap.value, layers: layers.value, metadata: metadata.value };
+    const blob = await bakeMapAsPng(map, loadedRuntimes.value);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${name.value || "map"}.png`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } finally {
+    baking.value = false;
+  }
+}
+
 async function onDelete(): Promise<void> {
   if (deleting.value || isNew.value || !mapId.value) return;
   const ok = await confirm(`Delete "${name.value || "this map"}"? This cannot be undone.`);
@@ -1600,3 +1728,14 @@ onBeforeUnmount(() => {
   if (rafId) cancelAnimationFrame(rafId);
 });
 </script>
+
+<style scoped>
+.dialog-fade-enter-active,
+.dialog-fade-leave-active { transition: opacity 0.15s ease; }
+.dialog-fade-enter-active .relative,
+.dialog-fade-leave-active .relative { transition: transform 0.15s ease, opacity 0.15s ease; }
+.dialog-fade-enter-from,
+.dialog-fade-leave-to { opacity: 0; }
+.dialog-fade-enter-from .relative,
+.dialog-fade-leave-to .relative { transform: scale(0.95); opacity: 0; }
+</style>
