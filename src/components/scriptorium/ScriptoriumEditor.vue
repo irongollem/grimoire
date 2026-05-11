@@ -55,7 +55,7 @@
           v-model="docType"
           class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         >
-          <option v-for="t in DOC_TYPES" :key="t.value" :value="t.value">
+          <option v-for="t in DOC_TYPE_OPTIONS" :key="t.value" :value="t.value">
             {{ t.label }}
           </option>
         </select>
@@ -484,16 +484,7 @@
                     max="1200"
                     class="w-12 h-5.5 rounded border border-border bg-card px-1 font-mono text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     placeholder="px"
-                    @change="
-                      editor
-                        .chain()
-                        .focus()
-                        .updateAttributes('image', {
-                          posTop:
-                            ($event.target as HTMLInputElement).value || null,
-                        })
-                        .run()
-                    "
+                    @change="setImagePos('posTop', ($event.target as HTMLInputElement).value)"
                   />
                 </label>
                 <label class="flex items-center gap-0.5">
@@ -507,16 +498,7 @@
                     max="800"
                     class="w-12 h-5.5 rounded border border-border bg-card px-1 font-mono text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     placeholder="px"
-                    @change="
-                      editor
-                        .chain()
-                        .focus()
-                        .updateAttributes('image', {
-                          posLeft:
-                            ($event.target as HTMLInputElement).value || null,
-                        })
-                        .run()
-                    "
+                    @change="setImagePos('posLeft', ($event.target as HTMLInputElement).value)"
                   />
                 </label>
                 <label class="flex items-center gap-0.5">
@@ -530,16 +512,7 @@
                     max="800"
                     class="w-12 h-5.5 rounded border border-border bg-card px-1 font-mono text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     placeholder="px"
-                    @change="
-                      editor
-                        .chain()
-                        .focus()
-                        .updateAttributes('image', {
-                          posRight:
-                            ($event.target as HTMLInputElement).value || null,
-                        })
-                        .run()
-                    "
+                    @change="setImagePos('posRight', ($event.target as HTMLInputElement).value)"
                   />
                 </label>
                 <label class="flex items-center gap-0.5">
@@ -553,16 +526,7 @@
                     max="1200"
                     class="w-12 h-5.5 rounded border border-border bg-card px-1 font-mono text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     placeholder="px"
-                    @change="
-                      editor
-                        .chain()
-                        .focus()
-                        .updateAttributes('image', {
-                          posBottom:
-                            ($event.target as HTMLInputElement).value || null,
-                        })
-                        .run()
-                    "
+                    @change="setImagePos('posBottom', ($event.target as HTMLInputElement).value)"
                   />
                 </label>
               </template>
@@ -776,17 +740,17 @@
           <p
             class="font-cinzel text-xs font-semibold text-muted-foreground uppercase tracking-widest"
           >
-            Preview — {{ themeLabel }}
+            Preview — {{ themeInfo.label }}
           </p>
           <div class="flex items-center gap-2">
             <span
               class="px-1.5 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider uppercase"
               :style="{
-                backgroundColor: typeColor(docType) + '22',
-                color: typeColor(docType),
+                backgroundColor: docTypeColor(docType) + '22',
+                color: docTypeColor(docType),
               }"
             >
-              {{ DOC_TYPE_LABELS[docType] }}
+              {{ docTypeLabel(docType) }}
             </span>
 
             <!-- Zoom controls — behaves like a PDF viewer -->
@@ -860,12 +824,12 @@
           >
             <div
               class="phb-page"
-              :class="[themeClass, { 'ink-friendly': inkFriendly }]"
+              :class="[themeInfo.class, { 'ink-friendly': inkFriendly }]"
               :style="pageInnerStyle"
             >
               <div
                 class="phb-body"
-                :class="[themeClass, { 'phb-two-col': isTwoColumn }]"
+                :class="[themeInfo.class, { 'phb-two-col': isTwoColumn }]"
                 v-html="pageHtml"
               />
               <!-- Odd index = recto (right-hand page): # on right. Even index = verso (left-hand page): # on left. -->
@@ -900,13 +864,19 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
-import { useRouter, useRoute } from "vue-router";
+import { ref, computed, onUnmounted } from "vue";
+import { useRouter } from "vue-router";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import { BubbleMenu } from "@tiptap/vue-3/menus";
-import StarterKit from "@tiptap/starter-kit";
-import Placeholder from "@tiptap/extension-placeholder";
-import Image from "@tiptap/extension-image";
+import { createScriptoriumExtensions } from "@/lib/scriptorium/scriptoriumExtensions";
+import {
+  IMAGE_SIZES,
+  DOC_TYPE_OPTIONS,
+  docTypeLabel,
+  docTypeColor,
+} from "@/lib/scriptorium/editorConstants";
+import { useScriptoriumZoom } from "@/composables/useScriptoriumZoom";
+import { useScriptoriumIlluminator } from "@/composables/useScriptoriumIlluminator";
 import {
   IconAddItem,
   IconAlignCenter,
@@ -948,25 +918,7 @@ import {
   cleanupRemovedRichTextImages,
 } from "@/composables/useImageUpload";
 import { useScriptoriumPdf } from "@/composables/useScriptoriumPdf";
-import { SpacerVertical } from "@/lib/tiptap/SpacerVertical";
-import { SpacerHorizontal } from "@/lib/tiptap/SpacerHorizontal";
-import { Watercolor } from "@/lib/tiptap/watercolor";
-import { Watermark } from "@/lib/tiptap/watermark";
-import { ArtistCredit } from "@/lib/tiptap/artistCredit";
-import { ColumnBreak } from "@/lib/tiptap/columnBreak";
-import { Table } from "@tiptap/extension-table";
-import TableRow from "@tiptap/extension-table-row";
-import TableCell from "@tiptap/extension-table-cell";
-import TableHeader from "@tiptap/extension-table-header";
-import { SkipCounting } from "@/lib/tiptap/skipCounting";
-import { ResetCounting } from "@/lib/tiptap/resetCounting";
-import { WideBlock } from "@/lib/tiptap/wideBlock";
-import { NoteBlock } from "@/lib/tiptap/noteBlock";
-import { DescriptiveBlock } from "@/lib/tiptap/descriptiveBlock";
-import { QuoteBlock } from "@/lib/tiptap/quoteBlock";
-import { Attribution } from "@/lib/tiptap/attribution";
-import { TocBlock, buildTocPages } from "@/lib/tiptap/tocBlock";
-import { CoverPage } from "@/lib/tiptap/coverPage";
+import { buildTocPages } from "@/lib/tiptap/tocBlock";
 import type {
   ScriptoriumDocument,
   ScriptoriumDocType,
@@ -984,60 +936,7 @@ import { isQuotaExceeded } from "@/lib/quotaError";
 import { useTextEnhancement } from "@/ai/useTextEnhancement";
 import { parseMarkdown } from "@/lib/markdownToTiptap";
 
-const IMAGE_SIZES = [
-  { label: "S", w: 160 },
-  { label: "M", w: 330 },
-  { label: "L", w: 490 },
-  { label: "XL", w: 650 },
-] as const;
 
-const DOC_TYPES: { value: ScriptoriumDocType; label: string }[] = [
-  { value: "custom", label: "Custom" },
-  { value: "spell", label: "Spell" },
-  { value: "monster", label: "Monster" },
-  { value: "item", label: "Item" },
-  { value: "class", label: "Class" },
-  { value: "subclass", label: "Subclass" },
-  { value: "race", label: "Species" },
-  { value: "background", label: "Background" },
-  { value: "adventure", label: "Adventure" },
-  { value: "npc-sheet", label: "NPC Sheet" },
-  { value: "location", label: "Location" },
-];
-
-const DOC_TYPE_LABELS: Record<ScriptoriumDocType, string> = {
-  custom: "Custom",
-  spell: "Spell",
-  monster: "Monster",
-  item: "Item",
-  class: "Class",
-  subclass: "Subclass",
-  race: "Species",
-  background: "Background",
-  adventure: "Adventure",
-  "npc-sheet": "NPC Sheet",
-  location: "Location",
-  quest: "Quest",
-};
-
-const DOC_TYPE_COLORS: Record<ScriptoriumDocType, string> = {
-  custom: "#6b7280",
-  spell: "#7c3aed",
-  monster: "#dc2626",
-  item: "#d97706",
-  class: "#2563eb",
-  subclass: "#0891b2",
-  race: "#059669",
-  background: "#9333ea",
-  adventure: "#c2410c",
-  "npc-sheet": "#0f766e",
-  location: "#0369a1",
-  quest: "#b45309",
-};
-
-function typeColor(t: ScriptoriumDocType) {
-  return DOC_TYPE_COLORS[t] ?? "#6b7280";
-}
 function tbCls(active: boolean) {
   return [
     "p-1 rounded min-w-[26px] h-[26px] flex items-center justify-center transition-colors disabled:opacity-40",
@@ -1049,17 +948,6 @@ function tbCls(active: boolean) {
 
 const props = defineProps<{ doc: ScriptoriumDocument | null }>();
 const router = useRouter();
-const route = useRoute();
-
-const ASSET_IMAGE_URL_BASE =
-  (import.meta.env.VITE_SUPABASE_URL as string) +
-  "/storage/v1/object/public/asset-images/";
-
-const selectedImageIsSupabase = computed(() => {
-  if (!editor.value?.isActive("image")) return false;
-  const src = editor.value.getAttributes("image").src;
-  return typeof src === "string" && src.startsWith(ASSET_IMAGE_URL_BASE);
-});
 
 // Panels
 const showAssetPanel = ref(false);
@@ -1080,163 +968,23 @@ const showPageNumbers = ref(props.doc?.show_page_numbers ?? false);
 const footerText = ref(props.doc?.footer_text ?? "");
 const pageNumberStart = ref(props.doc?.page_number_start ?? 1);
 
-const themeClass = computed(() =>
-  theme.value === "phb2014" ? "theme-phb2014" : "theme-onednd2024",
-);
-const themeLabel = computed(() =>
-  theme.value === "phb2014" ? "Classic PHB (2014)" : "OneDnD 2024",
+const themeInfo = computed(() =>
+  theme.value === "phb2014"
+    ? { class: "theme-phb2014", label: "Classic PHB (2014)" }
+    : { class: "theme-onednd2024", label: "OneDnD 2024" },
 );
 
-// Physical page dimensions at 96 dpi — matches PAGE_SIZES in useScriptoriumPdf.ts exactly.
-// Using the same pixel dimensions in both preview and PDF is what makes them WYSIWYG.
-const PAGE_SIZES_PX: Record<ScriptoriumPageSize, { w: number; h: number }> = {
-  A4: { w: 794, h: 1123 },
-  A5: { w: 559, h: 794 },
-  Letter: { w: 816, h: 1056 },
-} as const;
-
-// Track the preview container width so we can zoom pages to fit.
 const previewContainerRef = ref<HTMLElement | null>(null);
-const previewContainerWidth = ref(0);
-let resizeObserver: ResizeObserver | null = null;
-// Keep a direct reference for the cleanup in onUnmounted (ref may be null by then).
-let previewEl: HTMLElement | null = null;
-let wheelHandler: ((e: WheelEvent) => void) | null = null;
-let pinchStartHandler: ((e: TouchEvent) => void) | null = null;
-let pinchMoveHandler: ((e: TouchEvent) => void) | null = null;
-let pinchStartDist = 0;
-let pinchStartZoom = 0;
-
-function pinchDist(t: TouchList): number {
-  const dx = t[0].clientX - t[1].clientX;
-  const dy = t[0].clientY - t[1].clientY;
-  return Math.sqrt(dx * dx + dy * dy);
-}
-
-onMounted(() => {
-  if (!previewContainerRef.value) return;
-  previewEl = previewContainerRef.value;
-
-  resizeObserver = new ResizeObserver((entries) => {
-    previewContainerWidth.value = entries[0].contentRect.width;
-  });
-  resizeObserver.observe(previewEl);
-
-  // Block swipe-to-back/forward navigation at horizontal scroll boundaries.
-  // overscroll-behavior: contain only works when the element has overflow to absorb;
-  // at fit zoom there is no horizontal overflow so the gesture leaks through to the browser.
-  // A non-passive wheel listener intercepts purely horizontal swipes and blocks them
-  // at the left/right boundary regardless of overflow state.
-  wheelHandler = (e: WheelEvent) => {
-    // ctrlKey is set by browsers for pinch-to-zoom gestures (iOS Safari, macOS trackpad).
-    // Intercept here so we zoom the page content instead of the browser viewport.
-    if (e.ctrlKey) {
-      e.preventDefault();
-      const factor = 1 - e.deltaY * 0.008; // sensitivity tuned for trackpad + iOS
-      const newZoom = Math.min(
-        2.0,
-        Math.max(0.25, effectiveZoom.value * factor),
-      );
-      manualZoom.value = newZoom;
-      zoomMode.value = "manual";
-      return;
-    }
-    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return; // vertical — let it pass
-    // Always intercept horizontal scroll and apply it manually so the browser
-    // never sees it as a navigation swipe, even on a fast flick.
-    e.preventDefault();
-    previewEl!.scrollLeft += e.deltaX;
-  };
-  previewEl.addEventListener("wheel", wheelHandler, { passive: false });
-
-  // Pinch-to-zoom: record the starting finger distance and zoom level on
-  // two-finger touch, then scale manualZoom proportionally on touchmove.
-  pinchStartHandler = (e: TouchEvent) => {
-    if (e.touches.length !== 2) return;
-    pinchStartDist = pinchDist(e.touches);
-    pinchStartZoom = effectiveZoom.value;
-  };
-  pinchMoveHandler = (e: TouchEvent) => {
-    if (e.touches.length !== 2) return;
-    e.preventDefault(); // prevent browser native zoom
-    const d = pinchDist(e.touches);
-    if (pinchStartDist === 0) return;
-    const clamped = Math.min(
-      2.0,
-      Math.max(0.25, pinchStartZoom * (d / pinchStartDist)),
-    );
-    manualZoom.value = clamped;
-    zoomMode.value = "manual";
-  };
-  previewEl.addEventListener("touchstart", pinchStartHandler, {
-    passive: true,
-  });
-  previewEl.addEventListener("touchmove", pinchMoveHandler, { passive: false });
-});
-
-// ── Zoom controls ────────────────────────────────────────────────────────────
-// 'fit' tracks the container width automatically; 'manual' uses a fixed step.
-const zoomMode = ref<"fit" | "manual">("fit");
-const manualZoom = ref(1.0);
-const ZOOM_STEPS = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0] as const;
-
-const autoZoom = computed(() => {
-  const { w } = PAGE_SIZES_PX[pageSize.value];
-  const available =
-    previewContainerWidth.value > 0 ? previewContainerWidth.value - 32 : w;
-  return Math.min(1, available / w);
-});
-
-const effectiveZoom = computed(() =>
-  zoomMode.value === "fit" ? autoZoom.value : manualZoom.value,
-);
-
-const zoomLabel = computed(() => `${Math.round(effectiveZoom.value * 100)}%`);
-
-function zoomIn() {
-  const cur = effectiveZoom.value;
-  const next = ZOOM_STEPS.find((s) => s > cur + 0.01);
-  if (next !== undefined) {
-    manualZoom.value = next;
-    zoomMode.value = "manual";
-  }
-}
-function zoomOut() {
-  const cur = effectiveZoom.value;
-  const prev = [...ZOOM_STEPS].reverse().find((s) => s < cur - 0.01);
-  if (prev !== undefined) {
-    manualZoom.value = prev;
-    zoomMode.value = "manual";
-  }
-}
-function zoomFit() {
-  zoomMode.value = "fit";
-}
-
-// Wrapper: gives the scroll container the correct zoomed layout dimensions.
-// Inner page uses transform:scale — layout-neutral, just visual scaling.
-// (CSS `zoom` runs after flex layout and doesn't update scroll dimensions.)
-const pageWrapperStyle = computed(() => {
-  const { w, h } = PAGE_SIZES_PX[pageSize.value];
-  const z = effectiveZoom.value;
-  return {
-    width: `${Math.round(w * z)}px`,
-    height: `${Math.round(h * z)}px`,
-    flexShrink: "0",
-    margin: "0 auto",
-  };
-});
-
-const pageInnerStyle = computed(() => {
-  const { w, h } = PAGE_SIZES_PX[pageSize.value];
-  const z = effectiveZoom.value;
-  return {
-    width: `${w}px`,
-    height: `${h}px`,
-    transform: `scale(${z})`,
-    transformOrigin: "top left",
-  };
-});
+const {
+  zoomMode,
+  effectiveZoom,
+  zoomLabel,
+  zoomIn,
+  zoomOut,
+  zoomFit,
+  pageWrapperStyle,
+  pageInnerStyle,
+} = useScriptoriumZoom(pageSize, previewContainerRef);
 
 // Editor
 const previewHtml = ref("");
@@ -1256,184 +1004,7 @@ const editor = useEditor({
       return props.doc.content;
     }
   })(),
-  extensions: [
-    StarterKit,
-    Placeholder.configure({ placeholder: "Begin your document here…" }),
-    Image.extend({
-      addAttributes() {
-        return {
-          ...this.parent?.(),
-          // Explicit pixel width — html2canvas needs the attribute, not just CSS
-          width: {
-            default: "200",
-            parseHTML: (el) => el.getAttribute("width") ?? "200",
-            renderHTML: (attrs) => ({ width: attrs.width }),
-          },
-          // Alignment drives the inline style (float / centering)
-          dataAlign: {
-            default: "right",
-            parseHTML: (el) => {
-              const s = el.getAttribute("style") ?? "";
-              if (s.includes("float:left")) return "left";
-              if (s.includes("margin:8px auto")) return "center";
-              return "right";
-            },
-            renderHTML: (attrs) => {
-              const parts: string[] = [];
-              if (attrs.dataAlign === "right")
-                parts.push("float:right;margin:0 0 10px 14px");
-              else if (attrs.dataAlign === "left")
-                parts.push("float:left;margin:0 14px 10px 0");
-              else if (attrs.dataAlign === "center")
-                parts.push("display:block;margin:8px auto");
-              if (attrs.width) parts.push(`width:${attrs.width}px`);
-              return { style: parts.join(";") };
-            },
-          },
-          // Layout mode: inline (default, uses dataAlign float), wrapLeft, wrapRight, absolute
-          layoutMode: {
-            default: "inline",
-            parseHTML: (el) => el.getAttribute("data-layout-mode") ?? "inline",
-            renderHTML: (attrs) => ({
-              "data-layout-mode": attrs.layoutMode ?? "inline",
-            }),
-          },
-          // Gutter bleed: extends wrap image into the column gutter (-3cm / ~-114px)
-          gutterBleed: {
-            default: false,
-            parseHTML: (el) => el.getAttribute("data-gutter-bleed") === "true",
-            renderHTML: (attrs) => ({
-              "data-gutter-bleed": attrs.gutterBleed ? "true" : "false",
-            }),
-          },
-          // Absolute-position offsets (stored as CSS value strings, e.g. "60px")
-          posTop: {
-            default: null,
-            parseHTML: (el) => el.getAttribute("data-pos-top") ?? null,
-            renderHTML: (attrs) =>
-              attrs.posTop ? { "data-pos-top": attrs.posTop } : {},
-          },
-          posLeft: {
-            default: null,
-            parseHTML: (el) => el.getAttribute("data-pos-left") ?? null,
-            renderHTML: (attrs) =>
-              attrs.posLeft ? { "data-pos-left": attrs.posLeft } : {},
-          },
-          posRight: {
-            default: null,
-            parseHTML: (el) => el.getAttribute("data-pos-right") ?? null,
-            renderHTML: (attrs) =>
-              attrs.posRight ? { "data-pos-right": attrs.posRight } : {},
-          },
-          posBottom: {
-            default: null,
-            parseHTML: (el) => el.getAttribute("data-pos-bottom") ?? null,
-            renderHTML: (attrs) =>
-              attrs.posBottom ? { "data-pos-bottom": attrs.posBottom } : {},
-          },
-        };
-      },
-      // Override renderHTML to emit a wrapper div for wrapLeft/wrapRight/absolute
-      // so the CSS classes land on a block-level element rather than the <img> itself.
-      renderHTML({ HTMLAttributes }) {
-        const mode: string = HTMLAttributes["data-layout-mode"] ?? "inline";
-        if (mode === "inline") {
-          // Default behaviour — just an <img> with inline style from dataAlign
-          return ["img", HTMLAttributes];
-        }
-        // Build wrapper class list
-        const wrapperClass = [
-          "sc-img-wrap",
-          `sc-img-wrap--${mode}`,
-          HTMLAttributes["data-gutter-bleed"] === "true"
-            ? "sc-img-wrap--gutter"
-            : "",
-        ]
-          .filter(Boolean)
-          .join(" ");
-
-        // Build wrapper style for absolute mode
-        const wrapperStyle: string[] = [];
-        if (mode === "absolute") {
-          if (HTMLAttributes["data-pos-top"])
-            wrapperStyle.push(`top:${HTMLAttributes["data-pos-top"]}`);
-          if (HTMLAttributes["data-pos-left"])
-            wrapperStyle.push(`left:${HTMLAttributes["data-pos-left"]}`);
-          if (HTMLAttributes["data-pos-right"])
-            wrapperStyle.push(`right:${HTMLAttributes["data-pos-right"]}`);
-          if (HTMLAttributes["data-pos-bottom"])
-            wrapperStyle.push(`bottom:${HTMLAttributes["data-pos-bottom"]}`);
-          if (HTMLAttributes.width)
-            wrapperStyle.push(`width:${HTMLAttributes.width}px`);
-        }
-
-        // Strip style from img attrs in wrap/absolute mode (wrapper owns layout)
-        const imgAttrs = { ...HTMLAttributes };
-        delete imgAttrs.style;
-
-        return [
-          "div",
-          {
-            class: wrapperClass,
-            ...(wrapperStyle.length ? { style: wrapperStyle.join(";") } : {}),
-          },
-          ["img", imgAttrs],
-        ];
-      },
-    }).configure({ inline: false, allowBase64: false }),
-    SpacerVertical,
-    SpacerHorizontal,
-    Watercolor,
-    Watermark,
-    ArtistCredit,
-    ColumnBreak,
-    Table.extend({
-      addAttributes() {
-        return {
-          ...this.parent?.(),
-          class: {
-            default: null,
-            parseHTML: (el) => el.getAttribute("class") ?? null,
-            renderHTML: (attrs) => (attrs.class ? { class: attrs.class } : {}),
-          },
-        };
-      },
-    }).configure({ resizable: false }),
-    TableRow,
-    TableCell.extend({
-      addAttributes() {
-        return {
-          ...this.parent?.(),
-          class: {
-            default: null,
-            parseHTML: (el) => el.getAttribute("class") ?? null,
-            renderHTML: (attrs) => (attrs.class ? { class: attrs.class } : {}),
-          },
-        };
-      },
-    }),
-    TableHeader.extend({
-      addAttributes() {
-        return {
-          ...this.parent?.(),
-          class: {
-            default: null,
-            parseHTML: (el) => el.getAttribute("class") ?? null,
-            renderHTML: (attrs) => (attrs.class ? { class: attrs.class } : {}),
-          },
-        };
-      },
-    }),
-    SkipCounting,
-    ResetCounting,
-    WideBlock,
-    NoteBlock,
-    DescriptiveBlock,
-    QuoteBlock,
-    Attribution,
-    TocBlock,
-    CoverPage,
-  ],
+  extensions: createScriptoriumExtensions(),
   onCreate({ editor }) {
     updateDerived(editor.getHTML(), editor.getText());
   },
@@ -1441,6 +1012,17 @@ const editor = useEditor({
     updateDerived(editor.getHTML(), editor.getText());
   },
 });
+
+function setImagePos(
+  side: "posTop" | "posLeft" | "posRight" | "posBottom",
+  value: string,
+) {
+  editor.value
+    ?.chain()
+    .focus()
+    .updateAttributes("image", { [side]: value || null })
+    .run();
+}
 
 // IconSave
 const { mutateAsync: create } = useCreateScriptoriumDocument();
@@ -1451,51 +1033,9 @@ const showPaywall = ref(false);
 const isDeleting = ref(false);
 const saveError = ref("");
 
-// ─── Illuminator round-trip ───────────────────────────────────────────────────
-
-function editInIlluminator() {
-  if (!editor.value || !props.doc) return;
-  const src = editor.value.getAttributes("image").src as string | undefined;
-  if (!src || !src.startsWith(ASSET_IMAGE_URL_BASE)) return;
-  const params = new URLSearchParams({
-    src: src,
-    returnTo: props.doc.id,
-    oldSrc: src,
-  });
-  void router.push(`/illuminate?${params.toString()}`);
-}
-
-// Apply a replaced image URL when returning from Illuminator via query params.
-watch(
+const { selectedImageIsSupabase, editInIlluminator } = useScriptoriumIlluminator(
   editor,
-  (ed) => {
-    if (!ed) return;
-    const updatedSrc =
-      typeof route.query.updatedSrc === "string"
-        ? route.query.updatedSrc
-        : null;
-    const oldSrc =
-      typeof route.query.oldSrc === "string"
-        ? decodeURIComponent(route.query.oldSrc)
-        : null;
-    if (!updatedSrc || !oldSrc) return;
-
-    let nodePos = -1;
-    ed.state.doc.descendants((node, pos) => {
-      if (nodePos !== -1) return false;
-      if (node.type.name === "image" && node.attrs.src === oldSrc) {
-        nodePos = pos;
-      }
-    });
-    if (nodePos !== -1) {
-      ed.chain()
-        .setNodeSelection(nodePos)
-        .updateAttributes("image", { src: updatedSrc })
-        .run();
-    }
-    void router.replace({ query: {} });
-  },
-  { immediate: true },
+  computed(() => props.doc?.id),
 );
 
 async function destroy() {
@@ -1686,14 +1226,6 @@ async function onEnhance() {
 
 onUnmounted(() => {
   editor.value?.destroy();
-  resizeObserver?.disconnect();
-  if (previewEl) {
-    if (wheelHandler) previewEl.removeEventListener("wheel", wheelHandler);
-    if (pinchStartHandler)
-      previewEl.removeEventListener("touchstart", pinchStartHandler);
-    if (pinchMoveHandler)
-      previewEl.removeEventListener("touchmove", pinchMoveHandler);
-  }
 });
 </script>
 

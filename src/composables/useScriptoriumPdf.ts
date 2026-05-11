@@ -4,6 +4,23 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import type { ScriptoriumTheme, ScriptoriumPageSize } from "@/types/scriptorium.types";
 import { injectPageAnchors } from "@/lib/tiptap/tocBlock";
+import { EDITOR_PAGE_DIMENSIONS_PX } from "@/lib/scriptorium/editorConstants";
+
+/*
+ * Physical page dimensions in mm + jsPDF format strings.
+ *
+ * Calibrated to `EDITOR_PAGE_DIMENSIONS_PX` at 96 dpi: jsPDF receives mm,
+ * html2canvas reads the matching px dimensions from `EDITOR_PAGE_DIMENSIONS_PX`.
+ * Keep both tables in sync when changing page sizes.
+ */
+const PDF_PAGE_DIMENSIONS_MM: Record<
+  ScriptoriumPageSize,
+  { mmW: number; mmH: number; format: string }
+> = {
+  A4:     { mmW: 210, mmH: 297, format: "a4" },
+  A5:     { mmW: 148, mmH: 210, format: "a5" },
+  Letter: { mmW: 216, mmH: 279, format: "letter" },
+} as const;
 
 /** Footer bar styles shared between both themes (onednd2024 defaults; phb2014 overrides). */
 const FOOTER_CSS = `
@@ -40,17 +57,6 @@ const FOOTER_CSS = `
 }
 `;
 
-/*
- * Page dimensions at 96 dpi (px → mm mapping for jsPDF).
- *
- * html2canvas viewport: w × h pixels.
- * jsPDF page: mmW × mmH mm (portrait).
- */
-const PAGE_SIZES: Record<ScriptoriumPageSize, { w: number; h: number; mmW: number; mmH: number; format: string }> = {
-  A4:     { w: 794,  h: 1123, mmW: 210, mmH: 297, format: "a4" },
-  A5:     { w: 559,  h: 794,  mmW: 148, mmH: 210, format: "a5" },
-  Letter: { w: 816,  h: 1056, mmW: 216, mmH: 279, format: "letter" },
-} as const;
 
 /*
  * Pixel-unit styles for html2canvas rendering.
@@ -224,12 +230,12 @@ async function buildPdfBlob(
   pageFooters: (string | null)[] = [],
   footerText = "",
 ): Promise<{ blob: Blob; brokenImages: string[] }> {
-  const size = PAGE_SIZES[pageSize];
+  const px = EDITOR_PAGE_DIMENSIONS_PX[pageSize];
+  const mm = PDF_PAGE_DIMENSIONS_MM[pageSize];
   const holder = document.createElement("div");
-  holder.style.cssText = `position:fixed;top:-9999px;left:-9999px;width:${size.w}px;`;
-  // Inject page dimensions as CSS variables on the holder
-  holder.style.setProperty("--sc-page-w", `${size.w}px`);
-  holder.style.setProperty("--sc-page-h", `${size.h}px`);
+  holder.style.cssText = `position:fixed;top:-9999px;left:-9999px;width:${px.w}px;`;
+  holder.style.setProperty("--sc-page-w", `${px.w}px`);
+  holder.style.setProperty("--sc-page-h", `${px.h}px`);
   const styleEl = document.createElement("style");
   styleEl.textContent = RENDER_CSS + FOOTER_CSS;
   holder.appendChild(styleEl);
@@ -314,18 +320,18 @@ async function buildPdfBlob(
     ),
   );
 
-  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: size.format });
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: mm.format });
   pdf.setProperties({ title: title || "Untitled Document" });
   for (let i = 0; i < pageEls.length; i++) {
     const canvas = await html2canvas(pageEls[i], {
       scale: 2,
       useCORS: true,
       logging: false,
-      width: size.w,
-      height: size.h,
+      width: px.w,
+      height: px.h,
     });
     if (i > 0) pdf.addPage();
-    pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, size.mmW, size.mmH);
+    pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, mm.mmW, mm.mmH);
   }
 
   document.body.removeChild(holder);
