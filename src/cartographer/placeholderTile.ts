@@ -57,8 +57,16 @@ function resolveBase(category: string, palette?: Palette): [number, number, numb
   return palette?.[category] ?? STONE_DEFAULTS[category] ?? [120, 120, 120];
 }
 
-function jitter(base: number, seed: number, range: number): number {
-  return Math.max(0, Math.min(255, base + ((seed % (range * 2)) - range)));
+function clamp(v: number): number {
+  return Math.max(0, Math.min(255, v));
+}
+
+// Brightness-only jitter — shifts all three channels by the same amount so
+// the hue stays locked to the pack palette. Variants look lighter or darker
+// but never drift pink/green/blue.
+function lumaJitter(base: [number, number, number], seed: number, range: number): [number, number, number] {
+  const shift = (seed % (range * 2 + 1)) - range;
+  return [clamp(base[0] + shift), clamp(base[1] + shift), clamp(base[2] + shift)];
 }
 
 export function getPlaceholderTile(k: PlaceholderKey, palette?: Palette): HTMLCanvasElement {
@@ -76,9 +84,7 @@ export function getPlaceholderTile(k: PlaceholderKey, palette?: Palette): HTMLCa
 
   // Fill with jittered base colour for the floor variants and solid blocks.
   if (k.category === "floor" || k.category === "solidBlock") {
-    const r = jitter(base[0], seed, 12);
-    const g = jitter(base[1], seed >>> 8, 12);
-    const b = jitter(base[2], seed >>> 16, 12);
+    const [r, g, b] = lumaJitter(base, seed, 12);
     ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
     ctx.fillRect(0, 0, BASE_TILE_SIZE, BASE_TILE_SIZE);
 
@@ -125,9 +131,7 @@ export function getPlaceholderTile(k: PlaceholderKey, palette?: Palette): HTMLCa
 
   // ── Stairs — filled base colour + banding to suggest step treads + chevron ──
   if (k.category === "stairsUp" || k.category === "stairsDown") {
-    const r = jitter(base[0], seed, 8);
-    const g = jitter(base[1], seed >>> 8, 8);
-    const b = jitter(base[2], seed >>> 16, 8);
+    const [r, g, b] = lumaJitter(base, seed, 8);
     ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
     ctx.fillRect(0, 0, BASE_TILE_SIZE, BASE_TILE_SIZE);
     const steps = 6;
