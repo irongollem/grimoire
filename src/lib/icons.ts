@@ -164,6 +164,7 @@ export { PackageOpen as IconPackageOpen }
 export { MapPin as IconLocation }
 export { DoorOpen as IconDungeon }
 export { Crosshair as IconTrap }
+export { Crosshair as IconCenter }
 export { Puzzle as IconPuzzle }
 export { Globe as IconFaction }
 export { Globe2 as IconGlobe }

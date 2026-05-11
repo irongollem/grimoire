@@ -78,6 +78,15 @@
           <span>
             Zoom: <strong class="text-foreground">{{ Math.round(zoom * 100) }}%</strong>
           </span>
+          <button
+            type="button"
+            title="Center map (C)"
+            aria-label="Center map"
+            class="inline-flex items-center justify-center rounded-md p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            @click="centerMap"
+          >
+            <IconCenter class="h-3.5 w-3.5" />
+          </button>
           <span>
             Pack: <strong class="text-foreground">{{ packId }}</strong>
             <span v-if="packLoadError" class="text-red-500"> ({{ packLoadError }})</span>
@@ -150,6 +159,7 @@ import {
   IconBrush,
   IconEraser,
   IconHand,
+  IconCenter,
   // M2 placeholders — visually present but disabled until next milestone
   IconWall,
   IconDoor,
@@ -172,9 +182,12 @@ import {
   cellKey,
   type DungeonMap,
   type DungeonMapLayers,
+  type EdgeSeg,
 } from "@/types/dungeonMap.types";
 import { BASE_TILE_SIZE } from "@/cartographer/packSchema";
 import { loadPack, type TilePackRuntime } from "@/cartographer/packLoader";
+import { canonicaliseEdge, type CellEdge } from "@/cartographer/edges";
+import { detectHoveredEdge } from "@/cartographer/edgeHover";
 
 const route = useRoute();
 const router = useRouter();
@@ -210,11 +223,19 @@ const canvasEl = ref<HTMLCanvasElement | null>(null);
 const zoom = ref(1);
 const viewportOffset = ref({ x: 0, y: 0 }); // world-pixels at top-left of viewport
 const hoverCell = ref<[number, number] | null>(null);
+const hoveredEdge = ref<CellEdge | null>(null);
 
 // Pointer state
 const isPanning = ref(false);
 const isPainting = ref(false);
 let lastPointer: { x: number; y: number } | null = null;
+// Tracks edges already written during the current drag, so dragging over the
+// same edge doesn't re-randomise its variant.
+let edgesPaintedInStroke = new Set<string>();
+// Direction lock: once the first edge of a drag is placed, every subsequent
+// edge in the stroke must match the same direction. Prevents accidental
+// perpendicular walls when the cursor passes near a cell corner.
+let strokeDirection: "H" | "V" | null = null;
 
 // Tools
 type Tool = "floor" | "eraser" | "pan" | "wall" | "door" | "solid";
@@ -232,11 +253,15 @@ const activeTool = ref<Tool>("floor");
 const TOOLS: ToolDef[] = [
   { id: "floor",  label: "Floor brush",      icon: IconBrush,  shortcut: "b" },
   { id: "eraser", label: "Eraser",           icon: IconEraser, shortcut: "e" },
+  { id: "wall",   label: "Wall",             icon: IconWall,   shortcut: "w" },
   { id: "pan",    label: "Pan",              icon: IconHand,   displayBadge: "RMB" },
-  { id: "wall",   label: "Wall (M2)",        icon: IconWall,   shortcut: "w", disabled: true },
   { id: "door",   label: "Door (M2)",        icon: IconDoor,   shortcut: "d", disabled: true },
   { id: "solid",  label: "Solid block (M2)", icon: IconCube,   shortcut: "s", disabled: true },
 ];
+
+// Edge-hover threshold: how close the cursor must get to a cell edge for it
+// to "snap" to wall placement. 0.25 = within the outer 25% of the cell.
+const EDGE_HOVER_THRESHOLD = 0.25;
 
 function toolBadge(t: ToolDef): string | undefined {
   return t.displayBadge ?? t.shortcut?.toUpperCase();
@@ -308,6 +333,127 @@ function pickFloorVariant(x: number, y: number): number {
   return hash32(`${mapId.value || "new"}|floor|${x}|${y}`) % count;
 }
 
+function pickWallVariant(x: number, y: number, side: "N" | "W"): number {
+  if (!packRuntime.value) return 0;
+  const category = side === "N" ? "wallSegmentH" : "wallSegmentV";
+  const count = packRuntime.value.variantCount(category) || 1;
+  return hash32(`${mapId.value || "new"}|${category}|${x}|${y}`) % count;
+}
+
+// World pixel coords (canvas-pixel space) given an event on the canvas.
+function pointerToWorld(local: { x: number; y: number }): { x: number; y: number } {
+  const { dpr } = devicePixelDims();
+  return {
+    x: viewportOffset.value.x + local.x * dpr,
+    y: viewportOffset.value.y + local.y * dpr,
+  };
+}
+
+function tilePixelSize(): number {
+  return BASE_TILE_SIZE * zoom.value * (window.devicePixelRatio || 1);
+}
+
+// Centre the viewport on the painted area (or on the origin if the map is empty).
+function centerMap(): void {
+  const canvas = canvasEl.value;
+  if (!canvas) return;
+  const tilePx = tilePixelSize();
+
+  // Compute bbox over every cell that contains anything.
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let any = false;
+  for (const key of Object.keys(layers.value.floor)) {
+    const [xs, ys] = key.split(",");
+    const x = Number(xs);
+    const y = Number(ys);
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+    any = true;
+  }
+
+  // No painted cells → just center on the origin tile.
+  const cx = any ? (minX + maxX + 1) / 2 : 0.5;
+  const cy = any ? (minY + maxY + 1) / 2 : 0.5;
+
+  viewportOffset.value = {
+    x: cx * tilePx - canvas.width / 2,
+    y: cy * tilePx - canvas.height / 2,
+  };
+}
+
+// ── Wall placement (edge-based, NW ownership) ──────────────────────────────
+
+function edgeDirection(side: "N" | "E" | "S" | "W"): "H" | "V" {
+  return side === "N" || side === "S" ? "H" : "V";
+}
+
+function paintWallAtCellEdge(edge: CellEdge): void {
+  const dir = edgeDirection(edge.side);
+  // Direction lock: first paint of a stroke commits H or V; later perpendicular
+  // edges are ignored. Single clicks (no later moves) are unaffected.
+  if (isPainting.value) {
+    if (strokeDirection === null) strokeDirection = dir;
+    else if (strokeDirection !== dir) return;
+  }
+
+  const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
+  const strokeKey = `${canon.x},${canon.y},${canon.side}`;
+  if (edgesPaintedInStroke.has(strokeKey)) return;
+
+  const ownerKey = cellKey(canon.x, canon.y);
+  const ownerCell = layers.value.floor[ownerKey] ?? {};
+  // Already a wall on this edge? Skip; preserves doors etc. once they exist.
+  const existing = canon.side === "N" ? ownerCell.wallN : ownerCell.wallW;
+  if (existing && existing.type === "wall") {
+    edgesPaintedInStroke.add(strokeKey);
+    return;
+  }
+
+  const seg: EdgeSeg = {
+    pack_id: packId.value,
+    pack_version: STARTER_PACK_VERSION,
+    type: "wall",
+    variant: pickWallVariant(canon.x, canon.y, canon.side),
+  };
+
+  layers.value.floor[ownerKey] = canon.side === "N"
+    ? { ...ownerCell, wallN: seg }
+    : { ...ownerCell, wallW: seg };
+
+  edgesPaintedInStroke.add(strokeKey);
+  dirty.value = true;
+}
+
+function eraseWallAtCellEdge(edge: CellEdge): void {
+  const dir = edgeDirection(edge.side);
+  if (isPainting.value) {
+    if (strokeDirection === null) strokeDirection = dir;
+    else if (strokeDirection !== dir) return;
+  }
+
+  const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
+  const ownerKey = cellKey(canon.x, canon.y);
+  const ownerCell = layers.value.floor[ownerKey];
+  if (!ownerCell) return;
+  if (canon.side === "N" && !ownerCell.wallN) return;
+  if (canon.side === "W" && !ownerCell.wallW) return;
+  const next = { ...ownerCell };
+  if (canon.side === "N") delete next.wallN;
+  else delete next.wallW;
+  // If the cell is now empty (no floor, no walls), drop it from the map.
+  if (!next.floor && !next.wallN && !next.wallW) {
+    const newFloor = { ...layers.value.floor };
+    delete newFloor[ownerKey];
+    layers.value.floor = newFloor;
+  } else {
+    layers.value.floor[ownerKey] = next;
+  }
+  dirty.value = true;
+}
+
+
 // ── Canvas rendering ───────────────────────────────────────────────────────
 
 function devicePixelDims(): { w: number; h: number; dpr: number } {
@@ -366,7 +512,7 @@ function render(): void {
 
   const { minX, minY, maxX, maxY } = visibleCellBounds();
 
-  // Floor layer
+  // Floor layer (and edge walls below; they need the cell loop too)
   if (packRuntime.value) {
     for (let y = minY; y <= maxY; y++) {
       for (let x = minX; x <= maxX; x++) {
@@ -397,6 +543,53 @@ function render(): void {
   }
   ctx.stroke();
 
+  // Edge walls — drawn AFTER the grid so walls visually mask the gridline
+  // they sit on. The wall tile is 128×128 with the painted strip in the
+  // CENTER (vertically for H, horizontally for V). We shift the tile by
+  // half a tile so the strip lands ON the gridline, straddling both
+  // adjacent cells equally. NW ownership: cell stores wallN/wallW.
+  if (packRuntime.value) {
+    const halfTile = tilePx / 2;
+    for (let y = minY; y <= maxY + 1; y++) {
+      for (let x = minX; x <= maxX + 1; x++) {
+        const cell = layers.value.floor[cellKey(x, y)];
+        if (!cell) continue;
+        const drawX = x * tilePx - viewportOffset.value.x;
+        const drawY = y * tilePx - viewportOffset.value.y;
+        if (cell.wallN) {
+          const tile = packRuntime.value.getTile("wallSegmentH", cell.wallN.variant);
+          ctx.drawImage(tile.source, drawX, drawY - halfTile, tilePx, tilePx);
+        }
+        if (cell.wallW) {
+          const tile = packRuntime.value.getTile("wallSegmentV", cell.wallW.variant);
+          ctx.drawImage(tile.source, drawX - halfTile, drawY, tilePx, tilePx);
+        }
+      }
+    }
+
+    // Corner joints — fill the gap where H and V wall strips meet at a grid
+    // intersection. Each wall tile covers exactly one cell-width along its axis,
+    // so two abutting tiles leave a square hole at the corner; plugging it here.
+    const thickness = tilePx * 0.18;
+    const halfThick = thickness / 2;
+    ctx.fillStyle = "rgb(40, 36, 32)";
+    for (let cy = minY; cy <= maxY + 1; cy++) {
+      for (let cx = minX; cx <= maxX + 1; cx++) {
+        const hasH =
+          !!layers.value.floor[cellKey(cx - 1, cy)]?.wallN ||
+          !!layers.value.floor[cellKey(cx, cy)]?.wallN;
+        const hasV =
+          !!layers.value.floor[cellKey(cx, cy - 1)]?.wallW ||
+          !!layers.value.floor[cellKey(cx, cy)]?.wallW;
+        if (hasH && hasV) {
+          const cornerX = cx * tilePx - viewportOffset.value.x;
+          const cornerY = cy * tilePx - viewportOffset.value.y;
+          ctx.fillRect(cornerX - halfThick, cornerY - halfThick, thickness, thickness);
+        }
+      }
+    }
+  }
+
   // Origin marker
   const ox = 0 - viewportOffset.value.x;
   const oy = 0 - viewportOffset.value.y;
@@ -404,14 +597,33 @@ function render(): void {
   ctx.lineWidth = 2;
   ctx.strokeRect(ox, oy, tilePx, tilePx);
 
-  // Hover highlight
-  if (hoverCell.value) {
+  // Cell-hover highlight (only when the active tool targets cells)
+  if (hoverCell.value && (activeTool.value === "floor" || (activeTool.value === "eraser" && !hoveredEdge.value))) {
     const [hx, hy] = hoverCell.value;
     const drawX = hx * tilePx - viewportOffset.value.x;
     const drawY = hy * tilePx - viewportOffset.value.y;
     ctx.strokeStyle = activeTool.value === "eraser" ? "rgba(220, 80, 80, 0.6)" : "rgba(255, 255, 255, 0.35)";
     ctx.lineWidth = 2;
     ctx.strokeRect(drawX, drawY, tilePx, tilePx);
+  }
+
+  // Edge-hover highlight (wall / door / edge-aware eraser tools)
+  if (hoveredEdge.value) {
+    const { x, y, side } = hoveredEdge.value;
+    const baseX = x * tilePx - viewportOffset.value.x;
+    const baseY = y * tilePx - viewportOffset.value.y;
+    const isErase = activeTool.value === "eraser";
+    ctx.strokeStyle = isErase ? "rgba(220, 80, 80, 0.85)" : "rgba(255, 220, 100, 0.85)";
+    ctx.lineWidth = Math.max(3, tilePx * 0.08);
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    switch (side) {
+      case "N": ctx.moveTo(baseX, baseY);             ctx.lineTo(baseX + tilePx, baseY); break;
+      case "S": ctx.moveTo(baseX, baseY + tilePx);    ctx.lineTo(baseX + tilePx, baseY + tilePx); break;
+      case "W": ctx.moveTo(baseX, baseY);             ctx.lineTo(baseX, baseY + tilePx); break;
+      case "E": ctx.moveTo(baseX + tilePx, baseY);    ctx.lineTo(baseX + tilePx, baseY + tilePx); break;
+    }
+    ctx.stroke();
   }
 }
 
@@ -424,7 +636,7 @@ function scheduleRender(): void {
   });
 }
 
-watch([zoom, viewportOffset, layers, packRuntime, hoverCell, activeTool], () => scheduleRender(), { deep: true });
+watch([zoom, viewportOffset, layers, packRuntime, hoverCell, hoveredEdge, activeTool], () => scheduleRender(), { deep: true });
 
 // ── Pointer interaction ────────────────────────────────────────────────────
 
@@ -477,15 +689,39 @@ function onPointerDown(ev: PointerEvent): void {
 
   isPainting.value = true;
   canvasEl.value?.setPointerCapture(ev.pointerId);
+  edgesPaintedInStroke = new Set<string>();
+  strokeDirection = null;
+
   const [cx, cy] = viewportToCell(local.x, local.y);
   if (activeTool.value === "floor") paintCell(cx, cy);
-  else if (activeTool.value === "eraser") eraseCell(cx, cy);
+  else if (activeTool.value === "eraser") {
+    // Eraser: if cursor is near an edge use the edge, otherwise erase the cell.
+    if (hoveredEdge.value) eraseWallAtCellEdge(hoveredEdge.value);
+    else eraseCell(cx, cy);
+  } else if (activeTool.value === "wall" && hoveredEdge.value) {
+    paintWallAtCellEdge(hoveredEdge.value);
+  }
 }
 
 function onPointerMove(ev: PointerEvent): void {
   const local = getLocalPointer(ev);
   const [cx, cy] = viewportToCell(local.x, local.y);
   hoverCell.value = [cx, cy];
+
+  // Update edge-hover state for tools that target edges (wall, door, edge-eraser).
+  const tool = activeTool.value;
+  if (tool === "wall" || tool === "door" || tool === "eraser") {
+    const world = pointerToWorld(local);
+    let edge = detectHoveredEdge(world.x, world.y, tilePixelSize(), EDGE_HOVER_THRESHOLD);
+    // If a stroke has locked its direction, suppress highlights for the
+    // perpendicular axis — visual feedback matches what will actually paint.
+    if (edge && isPainting.value && strokeDirection !== null && edgeDirection(edge.side) !== strokeDirection) {
+      edge = null;
+    }
+    hoveredEdge.value = edge;
+  } else {
+    hoveredEdge.value = null;
+  }
 
   if (isPanning.value && lastPointer) {
     const dx = local.x - lastPointer.x;
@@ -496,8 +732,13 @@ function onPointerMove(ev: PointerEvent): void {
       y: viewportOffset.value.y - dy * dpr,
     };
   } else if (isPainting.value) {
-    if (activeTool.value === "floor") paintCell(cx, cy);
-    else if (activeTool.value === "eraser") eraseCell(cx, cy);
+    if (tool === "floor") paintCell(cx, cy);
+    else if (tool === "eraser") {
+      if (hoveredEdge.value) eraseWallAtCellEdge(hoveredEdge.value);
+      else eraseCell(cx, cy);
+    } else if (tool === "wall" && hoveredEdge.value) {
+      paintWallAtCellEdge(hoveredEdge.value);
+    }
   }
 
   lastPointer = local;
@@ -517,7 +758,9 @@ function onPointerUp(ev: PointerEvent): void {
 
 function onWheel(ev: WheelEvent): void {
   const factor = ev.deltaY < 0 ? 1.1 : 1 / 1.1;
-  const next = Math.max(0.25, Math.min(4, zoom.value * factor));
+  // 5%–400% zoom range: small enough to scan an 80×80 dungeon at a glance,
+  // large enough to paint tile-by-tile.
+  const next = Math.max(0.05, Math.min(4, zoom.value * factor));
   // Zoom around the cursor
   const rect = canvasEl.value!.getBoundingClientRect();
   const cx = ev.clientX - rect.left;
@@ -608,6 +851,11 @@ function onKeyDown(ev: KeyboardEvent): void {
   if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
 
   const key = ev.key.toLowerCase();
+  if (key === "c") {
+    centerMap();
+    ev.preventDefault();
+    return;
+  }
   const tool = TOOLS.find((t) => t.shortcut === key);
   if (tool && !tool.disabled) {
     activeTool.value = tool.id;

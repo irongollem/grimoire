@@ -13,14 +13,24 @@ Once the AI generation pipeline produces real assets, drop them into the matchin
 | Folder            | Files needed                    | Notes                                                                                                              |
 | ----------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | `floor/`          | `0.webp` … `9.webp`             | Random variants; subtle wear; dark grey weathered flagstones. Seamless tileable on all four edges.                 |
-| `wallSegmentH/`   | `0.webp` … `3.webp`             | Wall painted in the top ~15% of a 128×128 transparent tile. Terminates cleanly at left/right edges.                |
-| `wallSegmentV/`   | `0.webp` … `3.webp`             | Wall painted in the left ~15% of the tile. Terminates cleanly at top/bottom edges.                                 |
+| `wallSegmentH/`   | `0.webp` … `3.webp`             | Horizontal wall segment (see wall-tile convention below).                                                          |
+| `wallSegmentV/`   | `0.webp` … `3.webp`             | Vertical wall segment (see wall-tile convention below).                                                            |
 | `doorClosedH/`    | `0.webp`                        | Closed wooden door. Replaces a horizontal wall segment.                                                            |
 | `doorClosedV/`    | `0.webp`                        | Closed wooden door. Replaces a vertical wall segment.                                                              |
 | `doorOpenH/`      | `0.webp`                        | Open variant of the horizontal door.                                                                               |
 | `doorOpenV/`      | `0.webp`                        | Open variant of the vertical door.                                                                                 |
 | `solidBlock/`     | `0.webp` … `5.webp`             | Full-cell thick walls. Dressed stone block, sand-filled mass.                                                      |
 | `rubble/`         | `0.webp` … `3.webp`             | Decorative debris, partial-cell coverage with alpha.                                                               |
+
+## Wall-tile convention
+
+Wall segments (`wallSegmentH`, `wallSegmentV`, `doorClosedH`, `doorClosedV`, `doorOpenH`, `doorOpenV`) are **128×128 transparent tiles with the painted strip in the geometric center** of the tile — vertical center for the `*H` set, horizontal center for the `*V` set. The renderer draws each wall tile shifted by half a tile so the painted strip lands ON the gridline, straddling both adjacent cells equally rather than living entirely inside one.
+
+- For `*H` tiles: paint a horizontal strip roughly from y ≈ 53 to y ≈ 75 (≈18 % of tile height, centered on y = 64). The strip must terminate cleanly at the left and right edges so two segments along the same row abut seamlessly.
+- For `*V` tiles: paint a vertical strip from x ≈ 53 to x ≈ 75 (≈18 % of tile width, centered on x = 64). Terminate cleanly at top and bottom.
+- Outside the strip the tile must be fully transparent — anything else would visually bleed into adjacent cells.
+
+If you adopt a thicker or thinner aesthetic in a future pack, keep the strip centered; the renderer's half-tile shift assumes center-alignment.
 
 ## Generation guidelines
 

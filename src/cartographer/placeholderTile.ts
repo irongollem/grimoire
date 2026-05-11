@@ -82,6 +82,11 @@ export function getPlaceholderTile(k: PlaceholderKey): HTMLCanvasElement {
   }
 
   // Edge segments — transparent except for a strip on the relevant edge.
+  // CONVENTION: the wall strip is painted in the CENTER of the 128×128 tile
+  // (vertically for H, horizontally for V). The renderer draws each wall tile
+  // shifted by half a tile so the painted strip lands ON the gridline,
+  // straddling both adjacent cells equally. Real WebP assets must follow the
+  // same convention — see public/cartographer/stone-dungeon/v1/README.md.
   if (k.category === "wallSegmentH" || k.category === "wallSegmentV" ||
       k.category === "doorClosedH"  || k.category === "doorClosedV"  ||
       k.category === "doorOpenH"    || k.category === "doorOpenV") {
@@ -89,10 +94,11 @@ export function getPlaceholderTile(k: PlaceholderKey): HTMLCanvasElement {
     ctx.fillStyle = `rgb(${base[0]}, ${base[1]}, ${base[2]})`;
     const isHorizontal = k.category.endsWith("H");
     const thickness = Math.round(BASE_TILE_SIZE * 0.18);
+    const offset = Math.round((BASE_TILE_SIZE - thickness) / 2);
     if (isHorizontal) {
-      ctx.fillRect(0, 0, BASE_TILE_SIZE, thickness);
+      ctx.fillRect(0, offset, BASE_TILE_SIZE, thickness);
     } else {
-      ctx.fillRect(0, 0, thickness, BASE_TILE_SIZE);
+      ctx.fillRect(offset, 0, thickness, BASE_TILE_SIZE);
     }
     return finalise(canvas, id);
   }
