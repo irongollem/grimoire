@@ -1,6 +1,6 @@
 # Cartographer — Tile-Based Battle Map Builder
 
-> **Status:** M1 (skeleton) implemented; M2–M7 pending. The spec below is the source of truth for design intent. The "As-built (M1)" appendix at the bottom records the actual file paths and where the procedural-placeholder fallback lives until real WebP assets land.
+> **Status:** M1 + M2 implemented; M3–M7 pending. The spec below is the source of truth for design intent. The "As-built" appendix at the bottom records actual file paths per milestone.
 
 ## Overview
 
@@ -759,9 +759,9 @@ The shared style guide:
 
 ---
 
-## As-built (M1)
+## As-built (M1 + M2)
 
-This appendix tracks where the M1 skeleton actually lives so future agents don't have to grep. Update on each milestone.
+This appendix tracks where the implementation actually lives so future agents don't have to grep.
 
 ### Files created in M1
 
@@ -814,11 +814,41 @@ The migration file is in place but **not yet applied to the remote Supabase proj
 - [x] Filter state in `useUiStore`.
 - [x] Stale `pack_id` placeholder rendering.
 - [ ] **Pending user action**: run `supabase db push` to apply migration.
-- [ ] **Pending external work**: real WebP floor assets in the AI-gen pipeline.
+- [ ] **Pending external work**: real WebP assets in the AI-gen pipeline.
 
-### Known M1 deferrals (deliberate)
+### M2 acceptance status
 
-- Wall / door / solid-block tools — toolbar shows them disabled with "(M2)" labels.
+- [x] Wall brush (W) — edge-hover targeting, drag runs, direction-lock, NW ownership.
+- [x] Shift+click wall brush — wraps all 4 edges of the clicked cell.
+- [x] Door tool (D) — click edge: place doorClosed; click doorClosed → doorOpen; click doorOpen → doorClosed; RMB → revert to wall.
+- [x] Solid block tool (S) — paints `solidBlock` layer; flat-render in M2 (bitmask deferred to M3+).
+- [x] Rectangle tool (R) — drag fills rect with floor; Shift+drag also wraps perimeter walls.
+- [x] Line tool (L) — Bresenham floor line between two cells.
+- [x] Fill bucket (F) — floods from cursor through non-solidBlock cells planting floor (2 000-cell cap).
+- [x] Wrap walls (X) — floods the connected floor region and places walls on every boundary edge facing void.
+- [x] Undo/redo — CommandStack (100-step cap); Ctrl+Z / Ctrl+Shift+Z; undo/redo buttons in status bar. Each stroke or one-shot action is one undo unit.
+- [x] Corner joints — programmatic filled-square fallback at H+V intersections; routes to `wallJoint` pack art when available (classifyJoint: L_NE/SE/SW/NW, T_N/E/S/W, CROSS).
+- [x] SolidBlock rendering — full-cell tile above floor, below edge walls.
+- [x] Door rendering — wallN/wallW type-aware: picks doorClosedH/V or doorOpenH/V tile category.
+- [x] Zoom 5%–400%; center map (C); undo/redo indicators in status bar.
+
+### New files added in M2
+
+| Path | Purpose |
+| --- | --- |
+| [src/cartographer/edges.ts](../../src/cartographer/edges.ts) | `canonicaliseEdge` — NW ownership rule |
+| [src/cartographer/edges.test.ts](../../src/cartographer/edges.test.ts) | TDD: NW ownership + edge helpers |
+| [src/cartographer/edgeHover.ts](../../src/cartographer/edgeHover.ts) | `detectHoveredEdge` — pointer → edge snap |
+| [src/cartographer/edgeHover.test.ts](../../src/cartographer/edgeHover.test.ts) | TDD: edge-hover threshold maths |
+| [src/cartographer/commandStack.ts](../../src/cartographer/commandStack.ts) | `CommandStack` + `CompoundCommand` |
+| [src/cartographer/commandStack.test.ts](../../src/cartographer/commandStack.test.ts) | TDD: undo/redo stack |
+| [src/cartographer/floodFill.ts](../../src/cartographer/floodFill.ts) | `floodFill` + `boundaryEdges` |
+| [src/cartographer/floodFill.test.ts](../../src/cartographer/floodFill.test.ts) | TDD: flood-fill + boundary-edge |
+| [vitest.config.ts](../../vitest.config.ts) | Vitest + happy-dom test config |
+
+### Known M2 deferrals (deliberate)
+
+- SolidBlock bitmask auto-tiler — deferred to M3+ (flat texture only in M2).
+- `wallJoint` pack art — fallback is programmatic fill; joint tiles render when pack ships them.
 - Object layer, annotation layer, entity links — M4.
 - Export, Atlas integration, Publishing Tools nav entry — M5.
-- Undo/redo — M2.

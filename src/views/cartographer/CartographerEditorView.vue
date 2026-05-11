@@ -50,8 +50,9 @@
           >{{ toolBadge(t) }}</kbd>
         </button>
 
-        <div class="hidden lg:block mt-3 border-t border-border pt-2 text-[10px] font-fell text-muted-foreground italic">
-          <p>Right-mouse-drag or shift-drag pans without switching tool. M2 tools (W/D/S) are pre-wired — shortcuts activate once those tools are enabled.</p>
+        <div class="hidden lg:block mt-3 border-t border-border pt-2 text-[10px] font-fell text-muted-foreground italic space-y-1">
+          <p>RMB or shift-drag pans. Shift+click with Wall wraps all 4 edges. Rect: shift-drag adds perimeter walls.</p>
+          <p>Ctrl+Z undo · Ctrl+Shift+Z redo.</p>
         </div>
       </aside>
 
@@ -86,6 +87,28 @@
             @click="centerMap"
           >
             <IconCenter class="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            title="Undo (Ctrl+Z)"
+            aria-label="Undo"
+            :disabled="!canUndo"
+            class="inline-flex items-center justify-center rounded-md p-0.5 transition-colors"
+            :class="canUndo ? 'text-muted-foreground hover:text-foreground hover:bg-muted' : 'text-muted-foreground/30 cursor-not-allowed'"
+            @click="undoEdit"
+          >
+            <IconUndo class="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            title="Redo (Ctrl+Shift+Z)"
+            aria-label="Redo"
+            :disabled="!canRedo"
+            class="inline-flex items-center justify-center rounded-md p-0.5 transition-colors"
+            :class="canRedo ? 'text-muted-foreground hover:text-foreground hover:bg-muted' : 'text-muted-foreground/30 cursor-not-allowed'"
+            @click="redoEdit"
+          >
+            <IconRedo class="h-3.5 w-3.5" />
           </button>
           <span>
             Pack: <strong class="text-foreground">{{ packId }}</strong>
@@ -160,10 +183,15 @@ import {
   IconEraser,
   IconHand,
   IconCenter,
-  // M2 placeholders — visually present but disabled until next milestone
+  IconUndo,
+  IconRedo,
   IconWall,
   IconDoor,
   IconCube,
+  IconRect,
+  IconPenLine,
+  IconFill,
+  IconWrapWalls,
 } from "@/lib/icons";
 
 import PageHeader from "@/components/common/PageHeader.vue";
@@ -180,14 +208,18 @@ import { useConfirm } from "@/composables/useConfirm";
 import {
   emptyLayers,
   cellKey,
+  type CellKey,
   type DungeonMap,
   type DungeonMapLayers,
   type EdgeSeg,
+  type EdgeSegType,
 } from "@/types/dungeonMap.types";
-import { BASE_TILE_SIZE } from "@/cartographer/packSchema";
+import { BASE_TILE_SIZE, type PackCategory } from "@/cartographer/packSchema";
 import { loadPack, type TilePackRuntime } from "@/cartographer/packLoader";
 import { canonicaliseEdge, type CellEdge } from "@/cartographer/edges";
 import { detectHoveredEdge } from "@/cartographer/edgeHover";
+import { floodFill, boundaryEdges } from "@/cartographer/floodFill";
+import { CommandStack } from "@/cartographer/commandStack";
 
 const route = useRoute();
 const router = useRouter();
@@ -238,7 +270,7 @@ let edgesPaintedInStroke = new Set<string>();
 let strokeDirection: "H" | "V" | null = null;
 
 // Tools
-type Tool = "floor" | "eraser" | "pan" | "wall" | "door" | "solid";
+type Tool = "floor" | "eraser" | "pan" | "wall" | "door" | "solid" | "rect" | "line" | "fill" | "wrap";
 interface ToolDef {
   id: Tool;
   label: string;
@@ -251,17 +283,33 @@ interface ToolDef {
 }
 const activeTool = ref<Tool>("floor");
 const TOOLS: ToolDef[] = [
-  { id: "floor",  label: "Floor brush",      icon: IconBrush,  shortcut: "b" },
-  { id: "eraser", label: "Eraser",           icon: IconEraser, shortcut: "e" },
-  { id: "wall",   label: "Wall",             icon: IconWall,   shortcut: "w" },
-  { id: "pan",    label: "Pan",              icon: IconHand,   displayBadge: "RMB" },
-  { id: "door",   label: "Door (M2)",        icon: IconDoor,   shortcut: "d", disabled: true },
-  { id: "solid",  label: "Solid block (M2)", icon: IconCube,   shortcut: "s", disabled: true },
+  { id: "floor",  label: "Floor brush",  icon: IconBrush,     shortcut: "b" },
+  { id: "eraser", label: "Eraser",       icon: IconEraser,    shortcut: "e" },
+  { id: "wall",   label: "Wall",         icon: IconWall,      shortcut: "w" },
+  { id: "door",   label: "Door",         icon: IconDoor,      shortcut: "d" },
+  { id: "solid",  label: "Solid block",  icon: IconCube,      shortcut: "s" },
+  { id: "rect",   label: "Rectangle",    icon: IconRect,      shortcut: "r" },
+  { id: "line",   label: "Line",         icon: IconPenLine,   shortcut: "l" },
+  { id: "fill",   label: "Fill",         icon: IconFill,      shortcut: "f" },
+  { id: "wrap",   label: "Wrap walls",   icon: IconWrapWalls, shortcut: "x" },
+  { id: "pan",    label: "Pan",          icon: IconHand,      displayBadge: "RMB" },
 ];
 
 // Edge-hover threshold: how close the cursor must get to a cell edge for it
 // to "snap" to wall placement. 0.25 = within the outer 25% of the cell.
 const EDGE_HOVER_THRESHOLD = 0.25;
+
+// Undo/redo
+const cmdStack = new CommandStack(100);
+const canUndo = ref(false);
+const canRedo = ref(false);
+
+// Drag state for rect / line tools
+let dragStartCell: [number, number] | null = null;
+const previewCells = ref(new Set<CellKey>());
+
+// Snapshot of layers captured at stroke start — used to build the undo command.
+let strokeSnapshot: string | null = null; // JSON string for cheap comparison on mouseup
 
 function toolBadge(t: ToolDef): string | undefined {
   return t.displayBadge ?? t.shortcut?.toUpperCase();
@@ -314,6 +362,9 @@ watch(loadedMap, (m) => {
     layers.value = cloneLayers(m.layers);
     packId.value = m.default_pack_id ?? STARTER_PACK_ID;
     dirty.value = false;
+    cmdStack.clear();
+    canUndo.value = false;
+    canRedo.value = false;
   }
 });
 
@@ -338,6 +389,93 @@ function pickWallVariant(x: number, y: number, side: "N" | "W"): number {
   const category = side === "N" ? "wallSegmentH" : "wallSegmentV";
   const count = packRuntime.value.variantCount(category) || 1;
   return hash32(`${mapId.value || "new"}|${category}|${x}|${y}`) % count;
+}
+
+function pickSolidVariant(x: number, y: number): number {
+  if (!packRuntime.value) return 0;
+  const count = packRuntime.value.variantCount("solidBlock") || 1;
+  return hash32(`${mapId.value || "new"}|solid|${x}|${y}`) % count;
+}
+
+function pickDoorVariant(x: number, y: number, category: PackCategory): number {
+  if (!packRuntime.value) return 0;
+  const count = packRuntime.value.variantCount(category) || 1;
+  return hash32(`${mapId.value || "new"}|${category}|${x}|${y}`) % count;
+}
+
+// ── Undo/redo helpers ──────────────────────────────────────────────────────
+
+function snapshotStr(): string {
+  return JSON.stringify(layers.value);
+}
+
+function pushCommand(beforeStr: string, afterStr: string): void {
+  cmdStack.apply({
+    apply() { layers.value = JSON.parse(afterStr) as DungeonMapLayers; dirty.value = true; },
+    revert() { layers.value = JSON.parse(beforeStr) as DungeonMapLayers; dirty.value = true; },
+  });
+  canUndo.value = cmdStack.canUndo();
+  canRedo.value = cmdStack.canRedo();
+}
+
+function undoEdit(): void {
+  cmdStack.undo();
+  canUndo.value = cmdStack.canUndo();
+  canRedo.value = cmdStack.canRedo();
+}
+
+function redoEdit(): void {
+  cmdStack.redo();
+  canUndo.value = cmdStack.canUndo();
+  canRedo.value = cmdStack.canRedo();
+}
+
+// ── Geometry helpers ───────────────────────────────────────────────────────
+
+// Classifies the wallJoint type at an intersection. Returns null when no joint
+// is needed (fewer than 2 walls, or 2 collinear walls that don't form a corner).
+function classifyJoint(wH: boolean, eH: boolean, nV: boolean, sV: boolean): string | null {
+  const count = [wH, eH, nV, sV].filter(Boolean).length;
+  if (count === 4) return "CROSS";
+  if (count === 3) {
+    if (!nV) return "T_N";
+    if (!eH) return "T_E";
+    if (!sV) return "T_S";
+    if (!wH) return "T_W";
+  }
+  if (count === 2) {
+    if (nV && eH) return "L_NE";
+    if (sV && eH) return "L_SE";
+    if (sV && wH) return "L_SW";
+    if (nV && wH) return "L_NW";
+  }
+  return null; // 0, 1, or 2 collinear walls — no joint
+}
+
+function cellsInRect(ax: number, ay: number, bx: number, by: number): Array<[number, number]> {
+  const x0 = Math.min(ax, bx), x1 = Math.max(ax, bx);
+  const y0 = Math.min(ay, by), y1 = Math.max(ay, by);
+  const out: Array<[number, number]> = [];
+  for (let y = y0; y <= y1; y++)
+    for (let x = x0; x <= x1; x++)
+      out.push([x, y]);
+  return out;
+}
+
+function cellsInLine(ax: number, ay: number, bx: number, by: number): Array<[number, number]> {
+  const out: Array<[number, number]> = [];
+  let x = ax, y = ay;
+  const dx = Math.abs(bx - ax), dy = Math.abs(by - ay);
+  const sx = ax <= bx ? 1 : -1, sy = ay <= by ? 1 : -1;
+  let err = dx - dy;
+  while (true) {
+    out.push([x, y]);
+    if (x === bx && y === by) break;
+    const e2 = 2 * err;
+    if (e2 > -dy) { err -= dy; x += sx; }
+    if (e2 < dx) { err += dx; y += sy; }
+  }
+  return out;
 }
 
 // World pixel coords (canvas-pixel space) given an event on the canvas.
@@ -383,6 +521,26 @@ function centerMap(): void {
   };
 }
 
+// ── Solid block tool ───────────────────────────────────────────────────────
+
+function paintSolidAt(x: number, y: number): void {
+  if (!packRuntime.value) return;
+  const k = cellKey(x, y);
+  const variant = pickSolidVariant(x, y);
+  if (layers.value.solidBlock[k]?.variant === variant) return;
+  layers.value.solidBlock[k] = { pack_id: packId.value, pack_version: STARTER_PACK_VERSION, variant };
+  dirty.value = true;
+}
+
+function eraseSolidAt(x: number, y: number): void {
+  const k = cellKey(x, y);
+  if (!layers.value.solidBlock[k]) return;
+  const next = { ...layers.value.solidBlock };
+  delete next[k];
+  layers.value.solidBlock = next;
+  dirty.value = true;
+}
+
 // ── Wall placement (edge-based, NW ownership) ──────────────────────────────
 
 function edgeDirection(side: "N" | "E" | "S" | "W"): "H" | "V" {
@@ -424,6 +582,118 @@ function paintWallAtCellEdge(edge: CellEdge): void {
 
   edgesPaintedInStroke.add(strokeKey);
   dirty.value = true;
+}
+
+// Writes a wall edge directly, skipping stroke tracking. Used by wrap-walls,
+// rectangle perimeter, and shift+click — operations that aren't "strokes".
+function setWallEdgeIfEmpty(edge: CellEdge): void {
+  const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
+  const ownerKey = cellKey(canon.x, canon.y);
+  const ownerCell = layers.value.floor[ownerKey] ?? {};
+  const existing = canon.side === "N" ? ownerCell.wallN : ownerCell.wallW;
+  if (existing) return; // preserve existing walls/doors
+  const seg: EdgeSeg = {
+    pack_id: packId.value,
+    pack_version: STARTER_PACK_VERSION,
+    type: "wall",
+    variant: pickWallVariant(canon.x, canon.y, canon.side),
+  };
+  layers.value.floor[ownerKey] = canon.side === "N"
+    ? { ...ownerCell, wallN: seg }
+    : { ...ownerCell, wallW: seg };
+  dirty.value = true;
+}
+
+// ── Door tool (edge-based) ─────────────────────────────────────────────────
+
+function paintDoorAtEdge(edge: CellEdge): void {
+  const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
+  const strokeKey = `${canon.x},${canon.y},${canon.side}`;
+  if (edgesPaintedInStroke.has(strokeKey)) return;
+
+  const ownerKey = cellKey(canon.x, canon.y);
+  const ownerCell = layers.value.floor[ownerKey] ?? {};
+  const existing = canon.side === "N" ? ownerCell.wallN : ownerCell.wallW;
+  const isH = canon.side === "N";
+
+  let newType: EdgeSegType;
+  let variant: number;
+  if (existing?.type === "doorClosed") {
+    newType = "doorOpen";
+    variant = existing.variant; // same door model, now open
+  } else if (existing?.type === "doorOpen") {
+    newType = "doorClosed";
+    variant = existing.variant;
+  } else {
+    newType = "doorClosed";
+    const cat: PackCategory = isH ? "doorClosedH" : "doorClosedV";
+    variant = pickDoorVariant(canon.x, canon.y, cat);
+  }
+
+  const seg: EdgeSeg = { pack_id: packId.value, pack_version: STARTER_PACK_VERSION, type: newType, variant };
+  layers.value.floor[ownerKey] = canon.side === "N"
+    ? { ...ownerCell, wallN: seg }
+    : { ...ownerCell, wallW: seg };
+  edgesPaintedInStroke.add(strokeKey);
+  dirty.value = true;
+}
+
+// Right-click on door edge: revert to plain wall (preserves the edge, removes door).
+function removeDoorAtEdge(edge: CellEdge): void {
+  const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
+  const ownerKey = cellKey(canon.x, canon.y);
+  const ownerCell = layers.value.floor[ownerKey];
+  if (!ownerCell) return;
+  const existing = canon.side === "N" ? ownerCell.wallN : ownerCell.wallW;
+  if (!existing || existing.type === "wall") return;
+  const seg: EdgeSeg = {
+    pack_id: packId.value,
+    pack_version: STARTER_PACK_VERSION,
+    type: "wall",
+    variant: pickWallVariant(canon.x, canon.y, canon.side),
+  };
+  layers.value.floor[ownerKey] = canon.side === "N"
+    ? { ...ownerCell, wallN: seg }
+    : { ...ownerCell, wallW: seg };
+  dirty.value = true;
+}
+
+// ── One-shot actions ───────────────────────────────────────────────────────
+
+// Fill bucket: flood-fill from (cx, cy) through all non-solidBlock cells,
+// planting floor. Bounded by a 2 000-cell safety cap.
+function applyFill(cx: number, cy: number): void {
+  if (!packRuntime.value) return;
+  const region = floodFill(cx, cy, (x, y) => !layers.value.solidBlock[cellKey(x, y)], { maxCells: 2000 });
+  for (const key of region) {
+    const [xs, ys] = key.split(",");
+    paintCell(Number(xs), Number(ys));
+  }
+}
+
+// Wrap walls: find the connected floor region and place walls on every boundary
+// edge facing void that doesn't already have a wall/door.
+function applyWrapWalls(cx: number, cy: number): void {
+  if (!layers.value.floor[cellKey(cx, cy)]?.floor) return;
+  const region = floodFill(cx, cy, (x, y) => !!layers.value.floor[cellKey(x, y)]?.floor);
+  for (const edge of boundaryEdges(region)) setWallEdgeIfEmpty(edge);
+}
+
+// Rectangle fill: paint all cells in the bounding rect; optionally also wrap walls.
+function applyRect(ax: number, ay: number, bx: number, by: number, withWalls: boolean): void {
+  if (!packRuntime.value) return;
+  const cells = cellsInRect(ax, ay, bx, by);
+  for (const [x, y] of cells) paintCell(x, y);
+  if (withWalls) {
+    const region = new Set<CellKey>(cells.map(([x, y]) => cellKey(x, y)));
+    for (const edge of boundaryEdges(region)) setWallEdgeIfEmpty(edge);
+  }
+}
+
+// Line: Bresenham floor line between two cells.
+function applyLine(ax: number, ay: number, bx: number, by: number): void {
+  if (!packRuntime.value) return;
+  for (const [x, y] of cellsInLine(ax, ay, bx, by)) paintCell(x, y);
 }
 
 function eraseWallAtCellEdge(edge: CellEdge): void {
@@ -512,7 +782,7 @@ function render(): void {
 
   const { minX, minY, maxX, maxY } = visibleCellBounds();
 
-  // Floor layer (and edge walls below; they need the cell loop too)
+  // Floor layer
   if (packRuntime.value) {
     for (let y = minY; y <= maxY; y++) {
       for (let x = minX; x <= maxX; x++) {
@@ -522,6 +792,20 @@ function render(): void {
         const drawX = x * tilePx - viewportOffset.value.x;
         const drawY = y * tilePx - viewportOffset.value.y;
         const tile = packRuntime.value.getTile("floor", cell.floor.variant);
+        ctx.drawImage(tile.source, drawX, drawY, tilePx, tilePx);
+      }
+    }
+  }
+
+  // SolidBlock layer — full-cell thick walls rendered above the floor
+  if (packRuntime.value) {
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        const solid = layers.value.solidBlock[cellKey(x, y)];
+        if (!solid) continue;
+        const drawX = x * tilePx - viewportOffset.value.x;
+        const drawY = y * tilePx - viewportOffset.value.y;
+        const tile = packRuntime.value.getTile("solidBlock", solid.variant);
         ctx.drawImage(tile.source, drawX, drawY, tilePx, tilePx);
       }
     }
@@ -557,33 +841,42 @@ function render(): void {
         const drawX = x * tilePx - viewportOffset.value.x;
         const drawY = y * tilePx - viewportOffset.value.y;
         if (cell.wallN) {
-          const tile = packRuntime.value.getTile("wallSegmentH", cell.wallN.variant);
+          const seg = cell.wallN;
+          const cat: PackCategory = seg.type === "doorClosed" ? "doorClosedH"
+            : seg.type === "doorOpen" ? "doorOpenH" : "wallSegmentH";
+          const tile = packRuntime.value.getTile(cat, seg.variant);
           ctx.drawImage(tile.source, drawX, drawY - halfTile, tilePx, tilePx);
         }
         if (cell.wallW) {
-          const tile = packRuntime.value.getTile("wallSegmentV", cell.wallW.variant);
+          const seg = cell.wallW;
+          const cat: PackCategory = seg.type === "doorClosed" ? "doorClosedV"
+            : seg.type === "doorOpen" ? "doorOpenV" : "wallSegmentV";
+          const tile = packRuntime.value.getTile(cat, seg.variant);
           ctx.drawImage(tile.source, drawX - halfTile, drawY, tilePx, tilePx);
         }
       }
     }
 
-    // Corner joints — fill the gap where H and V wall strips meet at a grid
-    // intersection. Each wall tile covers exactly one cell-width along its axis,
-    // so two abutting tiles leave a square hole at the corner; plugging it here.
+    // Corner joints — fill / tile the gap at every grid intersection where H and
+    // V wall strips meet. Uses the pack's optional wallJoint directional art when
+    // available; falls back to a programmatic filled square otherwise.
     const thickness = tilePx * 0.18;
     const halfThick = thickness / 2;
-    ctx.fillStyle = "rgb(40, 36, 32)";
-    for (let cy = minY; cy <= maxY + 1; cy++) {
-      for (let cx = minX; cx <= maxX + 1; cx++) {
-        const hasH =
-          !!layers.value.floor[cellKey(cx - 1, cy)]?.wallN ||
-          !!layers.value.floor[cellKey(cx, cy)]?.wallN;
-        const hasV =
-          !!layers.value.floor[cellKey(cx, cy - 1)]?.wallW ||
-          !!layers.value.floor[cellKey(cx, cy)]?.wallW;
-        if (hasH && hasV) {
-          const cornerX = cx * tilePx - viewportOffset.value.x;
-          const cornerY = cy * tilePx - viewportOffset.value.y;
+    ctx.fillStyle = "rgb(40, 36, 32)"; // fallback colour matches wall placeholder
+    for (let jy = minY; jy <= maxY + 1; jy++) {
+      for (let jx = minX; jx <= maxX + 1; jx++) {
+        const wH = !!layers.value.floor[cellKey(jx - 1, jy)]?.wallN;
+        const eH = !!layers.value.floor[cellKey(jx, jy)]?.wallN;
+        const nV = !!layers.value.floor[cellKey(jx, jy - 1)]?.wallW;
+        const sV = !!layers.value.floor[cellKey(jx, jy)]?.wallW;
+        if (!(wH || eH) || !(nV || sV)) continue;
+        const cornerX = jx * tilePx - viewportOffset.value.x;
+        const cornerY = jy * tilePx - viewportOffset.value.y;
+        const side = classifyJoint(wH, eH, nV, sV);
+        if (side && packRuntime.value.variantCount("wallJoint", side) > 0) {
+          const tile = packRuntime.value.getTile("wallJoint", 0, side);
+          ctx.drawImage(tile.source, cornerX - halfThick, cornerY - halfThick, thickness, thickness);
+        } else {
           ctx.fillRect(cornerX - halfThick, cornerY - halfThick, thickness, thickness);
         }
       }
@@ -596,6 +889,17 @@ function render(): void {
   ctx.strokeStyle = "rgba(200, 160, 60, 0.5)";
   ctx.lineWidth = 2;
   ctx.strokeRect(ox, oy, tilePx, tilePx);
+
+  // Rect / line drag preview
+  if (previewCells.value.size > 0) {
+    ctx.fillStyle = "rgba(140, 220, 140, 0.25)";
+    for (const key of previewCells.value) {
+      const [xs, ys] = (key as string).split(",");
+      const px = Number(xs) * tilePx - viewportOffset.value.x;
+      const py = Number(ys) * tilePx - viewportOffset.value.y;
+      ctx.fillRect(px, py, tilePx, tilePx);
+    }
+  }
 
   // Cell-hover highlight (only when the active tool targets cells)
   if (hoverCell.value && (activeTool.value === "floor" || (activeTool.value === "eraser" && !hoveredEdge.value))) {
@@ -636,7 +940,7 @@ function scheduleRender(): void {
   });
 }
 
-watch([zoom, viewportOffset, layers, packRuntime, hoverCell, hoveredEdge, activeTool], () => scheduleRender(), { deep: true });
+watch([zoom, viewportOffset, layers, packRuntime, hoverCell, hoveredEdge, activeTool, previewCells], () => scheduleRender(), { deep: true });
 
 // ── Pointer interaction ────────────────────────────────────────────────────
 
@@ -675,31 +979,78 @@ function eraseCell(x: number, y: number): void {
 function onPointerDown(ev: PointerEvent): void {
   const local = getLocalPointer(ev);
   lastPointer = local;
+  const [cx, cy] = viewportToCell(local.x, local.y);
 
-  // Right-click (button 2), middle-click (button 1), or Shift+drag always pans —
-  // no need to switch to the Pan tool. Context menu is suppressed on the canvas.
+  // Door right-click: remove door → plain wall (before the generic pan check).
+  if (activeTool.value === "door" && ev.button === 2 && hoveredEdge.value) {
+    ev.preventDefault();
+    const before = snapshotStr();
+    removeDoorAtEdge(hoveredEdge.value);
+    const after = snapshotStr();
+    if (before !== after) pushCommand(before, after);
+    return;
+  }
+
+  // Shift+click with the wall brush: wrap all 4 edges of the clicked cell.
+  if (activeTool.value === "wall" && ev.shiftKey && ev.button === 0) {
+    const before = snapshotStr();
+    edgesPaintedInStroke = new Set<string>();
+    strokeDirection = null;
+    for (const side of ["N", "E", "S", "W"] as const)
+      paintWallAtCellEdge({ x: cx, y: cy, side });
+    const after = snapshotStr();
+    if (before !== after) pushCommand(before, after);
+    return;
+  }
+
+  // RMB / middle / shift → pan (shift already consumed above for wall tool).
   const isPanTrigger = ev.button === 1 || ev.button === 2 || ev.shiftKey;
-  const isPanTool = activeTool.value === "pan";
-
-  if (isPanTool || isPanTrigger) {
+  if (activeTool.value === "pan" || isPanTrigger) {
     isPanning.value = true;
     canvasEl.value?.setPointerCapture(ev.pointerId);
     return;
   }
 
+  // One-shot tools: apply immediately without entering stroke mode.
+  if (activeTool.value === "fill") {
+    const before = snapshotStr();
+    applyFill(cx, cy);
+    const after = snapshotStr();
+    if (before !== after) pushCommand(before, after);
+    return;
+  }
+  if (activeTool.value === "wrap") {
+    const before = snapshotStr();
+    applyWrapWalls(cx, cy);
+    const after = snapshotStr();
+    if (before !== after) pushCommand(before, after);
+    return;
+  }
+
+  // Stroke-based tools.
   isPainting.value = true;
   canvasEl.value?.setPointerCapture(ev.pointerId);
   edgesPaintedInStroke = new Set<string>();
   strokeDirection = null;
+  strokeSnapshot = snapshotStr();
 
-  const [cx, cy] = viewportToCell(local.x, local.y);
+  // Rect / line tools: record drag start; first cell is the preview seed.
+  if (activeTool.value === "rect" || activeTool.value === "line") {
+    dragStartCell = [cx, cy];
+    previewCells.value = new Set([cellKey(cx, cy)]);
+    return;
+  }
+
   if (activeTool.value === "floor") paintCell(cx, cy);
+  else if (activeTool.value === "solid") paintSolidAt(cx, cy);
   else if (activeTool.value === "eraser") {
-    // Eraser: if cursor is near an edge use the edge, otherwise erase the cell.
     if (hoveredEdge.value) eraseWallAtCellEdge(hoveredEdge.value);
+    else if (layers.value.solidBlock[cellKey(cx, cy)]) eraseSolidAt(cx, cy);
     else eraseCell(cx, cy);
   } else if (activeTool.value === "wall" && hoveredEdge.value) {
     paintWallAtCellEdge(hoveredEdge.value);
+  } else if (activeTool.value === "door" && hoveredEdge.value) {
+    paintDoorAtEdge(hoveredEdge.value);
   }
 }
 
@@ -732,12 +1083,24 @@ function onPointerMove(ev: PointerEvent): void {
       y: viewportOffset.value.y - dy * dpr,
     };
   } else if (isPainting.value) {
-    if (tool === "floor") paintCell(cx, cy);
+    if (tool === "rect" && dragStartCell) {
+      previewCells.value = new Set(
+        cellsInRect(dragStartCell[0], dragStartCell[1], cx, cy).map(([x, y]) => cellKey(x, y)),
+      );
+    } else if (tool === "line" && dragStartCell) {
+      previewCells.value = new Set(
+        cellsInLine(dragStartCell[0], dragStartCell[1], cx, cy).map(([x, y]) => cellKey(x, y)),
+      );
+    } else if (tool === "floor") paintCell(cx, cy);
+    else if (tool === "solid") paintSolidAt(cx, cy);
     else if (tool === "eraser") {
       if (hoveredEdge.value) eraseWallAtCellEdge(hoveredEdge.value);
+      else if (layers.value.solidBlock[cellKey(cx, cy)]) eraseSolidAt(cx, cy);
       else eraseCell(cx, cy);
     } else if (tool === "wall" && hoveredEdge.value) {
       paintWallAtCellEdge(hoveredEdge.value);
+    } else if (tool === "door" && hoveredEdge.value) {
+      paintDoorAtEdge(hoveredEdge.value);
     }
   }
 
@@ -750,6 +1113,27 @@ function onPointerUp(ev: PointerEvent): void {
     canvasEl.value?.releasePointerCapture(ev.pointerId);
   }
   if (isPainting.value) {
+    const tool = activeTool.value;
+
+    // Commit rect / line on release.
+    if ((tool === "rect" || tool === "line") && dragStartCell) {
+      const local = getLocalPointer(ev);
+      const [cx, cy] = viewportToCell(local.x, local.y);
+      const [ax, ay] = dragStartCell;
+      const before = strokeSnapshot ?? snapshotStr();
+      if (tool === "rect") applyRect(ax, ay, cx, cy, ev.shiftKey);
+      else applyLine(ax, ay, cx, cy);
+      const after = snapshotStr();
+      if (before !== after) pushCommand(before, after);
+      dragStartCell = null;
+      previewCells.value = new Set();
+    } else if (strokeSnapshot !== null) {
+      // Stroke-based tools: push one undo command for the whole stroke.
+      const after = snapshotStr();
+      if (strokeSnapshot !== after) pushCommand(strokeSnapshot, after);
+    }
+
+    strokeSnapshot = null;
     isPainting.value = false;
     canvasEl.value?.releasePointerCapture(ev.pointerId);
   }
@@ -841,13 +1225,19 @@ function onResize(): void {
 }
 
 function onKeyDown(ev: KeyboardEvent): void {
-  // Don't hijack keys while the user is typing in the name input, a textarea, or
-  // any other contenteditable target.
   const target = ev.target as HTMLElement | null;
   if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
     return;
   }
-  // Leave OS shortcuts (Cmd/Ctrl/Alt combos) alone.
+
+  // Undo / redo — must check before the blanket Ctrl guard below.
+  if ((ev.ctrlKey || ev.metaKey) && !ev.altKey && ev.key.toLowerCase() === "z") {
+    if (ev.shiftKey) redoEdit(); else undoEdit();
+    ev.preventDefault();
+    return;
+  }
+
+  // Leave all other OS shortcuts alone.
   if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
 
   const key = ev.key.toLowerCase();
