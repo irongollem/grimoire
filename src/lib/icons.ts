@@ -97,6 +97,9 @@ export { BrickWall as IconWrapWalls }
 export { PaintBucket as IconFill }
 export { DoorClosed as IconDoor }
 export { Box as IconCube }
+export { Package as IconObjectStamp }
+export { PenLine as IconAnnotate }
+export { Link2 as IconEntityLink }
 export { KeyRound as IconKey }
 export { Highlighter as IconHighlight }
 

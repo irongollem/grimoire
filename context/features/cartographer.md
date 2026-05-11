@@ -858,6 +858,37 @@ A second bundled pack, `wood-interior`, ships alongside `stone-dungeon`. Real We
 - Corner joint pack detection now checks all four adjacent walls instead of just the SE pair, so corners don't flicker to `currentPackId` when the active pack changes.
 - `wallJoint` generic tile lookup: renderer tries directional side-keyed tile first, then generic variant-0 (no side field), then procedural square. Packs only need `"wallJoint": [{ "variant": 0 }]` for uniform corners.
 
+### M4 acceptance status
+
+- [x] 6 optional object categories added to pack schema: `objectChest`, `objectBarrel`, `objectTable`, `objectStatue`, `objectPillar`, `objectBrazier`.
+- [x] Procedural placeholder tiles for each object type (distinct recognisable shapes, transparent background).
+- [x] Object stamp tool (O) — click to place, RMB to erase; drag paints; eraser removes object layer first.
+- [x] Per-object rotation: Q/E keyboard shortcuts + inspector buttons (0°/90°/180°/270°). Stored as `PackRef.rotation`.
+- [x] Annotation tool (T) — click a cell to select it; inspector shows text input; label rendered on canvas centered in cell with drop-shadow.
+- [x] Entity link tool (K) — click a cell to select it; inspector shows Note + Encounter pickers (EntityCombobox); blue dot rendered on linked cells.
+- [x] `metadata` ref persists entity links separately from `layers`; included in undo/redo snapshot and save payload.
+- [x] Eraser priority: object → annotation (inline erase on keydown) → solidBlock → floor/edge.
+
+### New files added in M4
+
+| Path | Purpose |
+| --- | --- |
+| *(no new files — all changes in existing files)* | |
+
+### Modified in M4
+
+- [src/cartographer/packSchema.ts](../../src/cartographer/packSchema.ts) — 6 object categories + `OBJECT_CATEGORIES` + `ObjectCategory` type.
+- [src/cartographer/placeholderTile.ts](../../src/cartographer/placeholderTile.ts) — procedural object placeholder renderer per category.
+- [src/lib/icons.ts](../../src/lib/icons.ts) — `IconObjectStamp`, `IconAnnotate`, `IconEntityLink`.
+- [src/views/cartographer/CartographerEditorView.vue](../../src/views/cartographer/CartographerEditorView.vue) — all M4 tool + rendering + inspector changes.
+
+### Known M4 deferrals (deliberate)
+
+- Minimap — deferred.
+- Per-cell rotation for floors/walls — deferred (only object stamps rotate in M4).
+- Sidebar list of all map contents — deferred to M5.
+- npc_spawn_ids / monster_spawn_ids links — only note + encounter links in M4.
+
 ### Known M2 deferrals (deliberate)
 
 - SolidBlock bitmask auto-tiler — deferred to M3+ (flat texture only in M2).
