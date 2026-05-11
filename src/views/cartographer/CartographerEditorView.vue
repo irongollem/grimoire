@@ -1,36 +1,42 @@
 <template>
   <PageHeader :title="map?.name ?? 'New Map'" :description="statusLine">
     <template #actions>
-      <button
-        v-if="!isNew"
-        type="button"
-        :disabled="deleting"
-        class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 transition-colors disabled:opacity-50"
-        @click="onDelete"
-      >{{ deleting ? "Deleting…" : "Delete" }}</button>
-      <button
-        v-if="!isNew"
-        type="button"
-        :disabled="baking"
-        class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-50"
-        :title="baking ? undefined : 'Download map as PNG'"
-        @click="onDownloadPng"
-      >{{ baking ? "Baking…" : "↓ PNG" }}</button>
-      <button
-        v-if="!isNew"
-        type="button"
-        :disabled="baking"
-        class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-primary/40 text-primary rounded-md hover:bg-primary/10 transition-colors disabled:opacity-50"
-        @click="showAtlasModal = true"
-      >{{ baking ? "Baking…" : "Save to Atlas" }}</button>
-      <ListActionButton label="Cancel" @click="onCancel" />
-      <ListActionButton
-        :icon="IconSave"
-        label="Save"
-        variant="primary"
-        :disabled="saving"
-        @click="onSave"
-      />
+      <!-- View mode: export + navigation -->
+      <template v-if="viewMode">
+        <button
+          type="button"
+          :disabled="baking"
+          class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-50"
+          title="Download map as PNG"
+          @click="onDownloadPng"
+        >{{ baking ? "Baking…" : "↓ PNG" }}</button>
+        <button
+          type="button"
+          :disabled="baking"
+          class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-primary/40 text-primary rounded-md hover:bg-primary/10 transition-colors disabled:opacity-50"
+          @click="showAtlasModal = true"
+        >{{ baking ? "Baking…" : "Save to Atlas" }}</button>
+        <ListActionButton label="Edit" @click="onEdit" />
+        <ListActionButton label="Done" variant="primary" @click="onDone" />
+      </template>
+      <!-- Edit mode -->
+      <template v-else>
+        <button
+          v-if="!isNew"
+          type="button"
+          :disabled="deleting"
+          class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 transition-colors disabled:opacity-50"
+          @click="onDelete"
+        >{{ deleting ? "Deleting…" : "Delete" }}</button>
+        <ListActionButton label="Cancel" @click="onCancel" />
+        <ListActionButton
+          :icon="IconSave"
+          label="Save"
+          variant="primary"
+          :disabled="saving"
+          @click="onSave"
+        />
+      </template>
 
       <!-- Save to Atlas modal -->
       <Teleport to="body">
@@ -83,6 +89,7 @@
     <div class="flex flex-col lg:flex-row gap-3 mt-2">
       <!-- Toolbox -->
       <aside
+        v-if="!viewMode"
         class="flex lg:flex-col flex-row gap-1 lg:w-44 shrink-0 bg-card border border-border rounded-lg p-2"
       >
         <h4 class="hidden lg:block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase px-1 pb-1">
@@ -122,7 +129,8 @@
       <div class="flex-1 min-w-0 relative bg-card border border-border rounded-lg overflow-hidden" style="min-height: 60vh">
         <canvas
           ref="canvasEl"
-          class="block w-full h-full cursor-crosshair touch-none"
+          class="block w-full h-full touch-none"
+          :class="viewMode ? 'cursor-default' : 'cursor-crosshair'"
           @pointerdown="onPointerDown"
           @pointermove="onPointerMove"
           @pointerup="onPointerUp"
@@ -191,7 +199,7 @@
       </div>
 
       <!-- Inspector -->
-      <aside class="lg:w-56 shrink-0 bg-card border border-border rounded-lg p-3 space-y-3">
+      <aside v-if="!viewMode" class="lg:w-56 shrink-0 bg-card border border-border rounded-lg p-3 space-y-3">
         <div>
           <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
             Name
@@ -282,6 +290,7 @@
             Label ({{ selectedCell[0] }}, {{ selectedCell[1] }})
           </label>
           <input
+            ref="annotationInputEl"
             v-model="annotationText"
             type="text"
             placeholder="Enter label…"
@@ -400,6 +409,11 @@ const mapId = computed(() => {
   return typeof p === "string" && p ? p : "";
 });
 const isNew = computed(() => !mapId.value);
+// View vs edit mode — derived from the URL (matches the NPC/Location/Item convention).
+// `/cartographer/:id`           → view mode
+// `/cartographer/:id?edit=true` → edit mode
+// `/cartographer/new`           → always edit mode
+const viewMode = computed(() => !isNew.value && route.query.edit !== "true");
 
 const { data: loadedMap } = useDungeonMap(mapId);
 const createMutation = useCreateDungeonMap();
@@ -499,6 +513,7 @@ const stampRotation = ref<0 | 90 | 180 | 270>(0);
 
 // M4 — Cell selection (annotate + link tools)
 const selectedCell = ref<[number, number] | null>(null);
+const annotationInputEl = ref<HTMLInputElement | null>(null);
 
 // M4 — Map metadata (entity links), lives alongside layers
 const metadata = ref<Record<CellKey, CellMetadata>>({});
@@ -1158,7 +1173,6 @@ function render(): void {
     // Match tile strip width: actual extracted assets use ~35/128 of tile height.
     const thickness = tilePx * (35 / 128);
     const halfThick = thickness / 2;
-    ctx.fillStyle = "rgb(40, 36, 32)"; // fallback colour matches wall placeholder
     for (let jy = minY; jy <= maxY + 1; jy++) {
       for (let jx = minX; jx <= maxX + 1; jx++) {
         const wH = !!layers.value.floor[cellKey(jx - 1, jy)]?.wallN;
@@ -1187,6 +1201,10 @@ function render(): void {
         if (jointTile && !jointTile.isPlaceholder) {
           ctx.drawImage(jointTile.source, cornerX - halfThick, cornerY - halfThick, thickness, thickness);
         } else {
+          // Fallback square: use pack palette colour (wallJoint → wallSegmentH → stone default).
+          const pal = jointRt?.manifest.palette;
+          const [r, g, b] = pal?.wallJoint ?? pal?.wallSegmentH ?? [40, 36, 32];
+          ctx.fillStyle = `rgb(${r},${g},${b})`;
           ctx.fillRect(cornerX - halfThick, cornerY - halfThick, thickness, thickness);
         }
       }
@@ -1279,33 +1297,35 @@ function render(): void {
     }
   }
 
-  // Cell-hover highlight (only when the active tool targets cells)
-  if (hoverCell.value && (activeTool.value === "floor" || (activeTool.value === "eraser" && !hoveredEdge.value))) {
-    const [hx, hy] = hoverCell.value;
-    const drawX = hx * tilePx - viewportOffset.value.x;
-    const drawY = hy * tilePx - viewportOffset.value.y;
-    ctx.strokeStyle = activeTool.value === "eraser" ? "rgba(220, 80, 80, 0.6)" : "rgba(255, 255, 255, 0.35)";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(drawX, drawY, tilePx, tilePx);
-  }
-
-  // Edge-hover highlight (wall / door / edge-aware eraser tools)
-  if (hoveredEdge.value) {
-    const { x, y, side } = hoveredEdge.value;
-    const baseX = x * tilePx - viewportOffset.value.x;
-    const baseY = y * tilePx - viewportOffset.value.y;
-    const isErase = activeTool.value === "eraser";
-    ctx.strokeStyle = isErase ? "rgba(220, 80, 80, 0.85)" : "rgba(255, 220, 100, 0.85)";
-    ctx.lineWidth = Math.max(3, tilePx * 0.08);
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    switch (side) {
-      case "N": ctx.moveTo(baseX, baseY);             ctx.lineTo(baseX + tilePx, baseY); break;
-      case "S": ctx.moveTo(baseX, baseY + tilePx);    ctx.lineTo(baseX + tilePx, baseY + tilePx); break;
-      case "W": ctx.moveTo(baseX, baseY);             ctx.lineTo(baseX, baseY + tilePx); break;
-      case "E": ctx.moveTo(baseX + tilePx, baseY);    ctx.lineTo(baseX + tilePx, baseY + tilePx); break;
+  if (!viewMode.value) {
+    // Cell-hover highlight (only when the active tool targets cells)
+    if (hoverCell.value && (activeTool.value === "floor" || (activeTool.value === "eraser" && !hoveredEdge.value))) {
+      const [hx, hy] = hoverCell.value;
+      const drawX = hx * tilePx - viewportOffset.value.x;
+      const drawY = hy * tilePx - viewportOffset.value.y;
+      ctx.strokeStyle = activeTool.value === "eraser" ? "rgba(220, 80, 80, 0.6)" : "rgba(255, 255, 255, 0.35)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(drawX, drawY, tilePx, tilePx);
     }
-    ctx.stroke();
+
+    // Edge-hover highlight (wall / door / edge-aware eraser tools)
+    if (hoveredEdge.value) {
+      const { x, y, side } = hoveredEdge.value;
+      const baseX = x * tilePx - viewportOffset.value.x;
+      const baseY = y * tilePx - viewportOffset.value.y;
+      const isErase = activeTool.value === "eraser";
+      ctx.strokeStyle = isErase ? "rgba(220, 80, 80, 0.85)" : "rgba(255, 220, 100, 0.85)";
+      ctx.lineWidth = Math.max(3, tilePx * 0.08);
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      switch (side) {
+        case "N": ctx.moveTo(baseX, baseY);             ctx.lineTo(baseX + tilePx, baseY); break;
+        case "S": ctx.moveTo(baseX, baseY + tilePx);    ctx.lineTo(baseX + tilePx, baseY + tilePx); break;
+        case "W": ctx.moveTo(baseX, baseY);             ctx.lineTo(baseX, baseY + tilePx); break;
+        case "E": ctx.moveTo(baseX + tilePx, baseY);    ctx.lineTo(baseX + tilePx, baseY + tilePx); break;
+      }
+      ctx.stroke();
+    }
   }
 }
 
@@ -1318,7 +1338,7 @@ function scheduleRender(): void {
   });
 }
 
-watch([zoom, viewportOffset, layers, loadedRuntimes, currentPackId, hoverCell, hoveredEdge, activeTool, previewCells, metadata, selectedCell], () => scheduleRender(), { deep: true });
+watch([zoom, viewportOffset, layers, loadedRuntimes, currentPackId, hoverCell, hoveredEdge, activeTool, previewCells, metadata, selectedCell, viewMode], () => scheduleRender(), { deep: true });
 
 // ── Pointer interaction ────────────────────────────────────────────────────
 
@@ -1357,6 +1377,13 @@ function eraseCell(x: number, y: number): void {
 function onPointerDown(ev: PointerEvent): void {
   const local = getLocalPointer(ev);
   lastPointer = local;
+
+  // View mode: pan only — skip all painting logic.
+  if (viewMode.value) {
+    isPanning.value = true;
+    return;
+  }
+
   const [cx, cy] = viewportToCell(local.x, local.y);
 
   // Stamp right-click: erase object at cell.
@@ -1369,9 +1396,12 @@ function onPointerDown(ev: PointerEvent): void {
     return;
   }
 
-  // Link / annotate: select cell, update inspector (no stroke painting).
-  if (activeTool.value === "link" || activeTool.value === "annotate") {
+  // Link / annotate: LMB selects cell; RMB falls through to pan.
+  if ((activeTool.value === "link" || activeTool.value === "annotate") && ev.button !== 2) {
     selectedCell.value = [cx, cy];
+    if (activeTool.value === "annotate") {
+      setTimeout(() => annotationInputEl.value?.focus(), 0);
+    }
     return;
   }
 
@@ -1582,18 +1612,43 @@ async function onSave(): Promise<void> {
       notes: null as unknown,
     };
     if (isNew.value) {
-      await createMutation.mutateAsync(payload);
+      const result = await createMutation.mutateAsync(payload);
+      dirty.value = false;
+      // Navigate to the saved map URL (no ?edit=true → view mode).
+      await router.replace(`/cartographer/${result.id}`);
     } else {
       await updateMutation.mutateAsync({ id: mapId.value, update: payload });
+      dirty.value = false;
+      // Drop ?edit=true → view mode.
+      await router.replace({ query: {} });
     }
-    dirty.value = false;
-    router.push("/cartographer");
   } finally {
     saving.value = false;
   }
 }
 
 function onCancel(): void {
+  if (mapId.value) {
+    // Editing an existing map — restore saved state and return to view mode.
+    if (loadedMap.value) {
+      layers.value = cloneLayers(loadedMap.value.layers);
+      metadata.value = JSON.parse(JSON.stringify(loadedMap.value.metadata ?? {})) as Record<CellKey, CellMetadata>;
+    }
+    dirty.value = false;
+    cmdStack.clear();
+    canUndo.value = false;
+    canRedo.value = false;
+    router.replace({ query: {} });
+  } else {
+    router.push("/cartographer");
+  }
+}
+
+function onEdit(): void {
+  router.push({ query: { edit: "true" } });
+}
+
+function onDone(): void {
   router.push("/cartographer");
 }
 
@@ -1659,7 +1714,7 @@ async function onDelete(): Promise<void> {
 }
 
 onBeforeRouteLeave((_to, _from, next) => {
-  if (!dirty.value || saving.value || deleting.value) return next();
+  if (!dirty.value || saving.value || deleting.value || viewMode.value) return next();
   const ok = window.confirm("Unsaved changes will be lost. Leave anyway?");
   next(ok);
 });

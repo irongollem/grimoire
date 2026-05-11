@@ -649,6 +649,15 @@
           >
             Remove
           </button>
+          <template v-if="props.location?.source_map_id">
+            <span class="text-muted-foreground/40 text-xs">·</span>
+            <RouterLink
+              :to="`/cartographer/${props.location.source_map_id}`"
+              class="font-cinzel text-[10px] tracking-wider text-primary hover:opacity-80 transition-opacity"
+            >
+              Edit in Cartographer
+            </RouterLink>
+          </template>
           <input
             ref="mapFileInput"
             type="file"

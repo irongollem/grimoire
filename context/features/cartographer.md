@@ -682,6 +682,68 @@ Done = beyond-rectangular maps possible.
 
 Done = users own their aesthetic.
 
+### M8 — AI Map Styler (PRO)
+
+> **Source:** GitHub issue #386
+
+A PRO-gated "✦ AI Style" button in the M5 export panel. After the DM bakes a clean tile map, they can pass it through an img2img pipeline to apply a cohesive artistic style — charcoal sketch, illustrated atlas, aged parchment, or woodcut print — without touching the underlying cell data.
+
+#### UX flow
+
+1. Export panel → **✦ AI Style** button (hidden for free users; shows upgrade nudge).
+2. **Style Picker** modal:
+   - 4 preset swatches (labelled, with thumbnail previews):
+     - `charcoal` — Charcoal sketch
+     - `atlas` — Illustrated atlas
+     - `parchment` — Aged parchment
+     - `woodcut` — Woodcut print
+   - Optional freeform suffix textarea: "add details or mood (e.g. 'with blood stains and torchlight')"
+3. **Generate** → spinner while the img2img call runs.
+4. **Result preview** with four actions:
+   - **Save to Atlas** — same upload + `locations.map_url` update as M5 flow.
+   - **Download** — client-side PNG download.
+   - **Retry** — re-runs with same settings (different seed).
+   - **Back** — returns to Style Picker.
+
+#### Prompt composition
+
+The map's **theme** field (e.g. "stone dungeon", "forest clearing") is auto-prepended, so the DM doesn't need to repeat it:
+
+```ts
+const prompt = `${map.theme ?? "dungeon"}, ${preset.promptSegment}, ${suffix ?? ""}`.trim()
+```
+
+#### Style presets (`src/cartographer/stylePresets.ts`)
+
+```ts
+export const CARTOGRAPHER_STYLE_PRESETS = [
+  { id: "charcoal",  label: "Charcoal sketch",    promptSegment: "hand-drawn charcoal sketch, ink line art, black and white"  },
+  { id: "atlas",     label: "Illustrated atlas",   promptSegment: "richly illustrated fantasy atlas, vivid colour, painterly"  },
+  { id: "parchment", label: "Aged parchment",      promptSegment: "aged parchment map, sepia tones, vintage cartography style" },
+  { id: "woodcut",   label: "Woodcut print",        promptSegment: "woodcut print, high contrast, bold lines, limited palette"  },
+] as const satisfies readonly StylePreset[]
+```
+
+#### Implementation notes
+
+- Composable: `useCartographerStyling` — mirrors the pattern in `useLocationGeneration` (same `getImageProvider()` call path).
+- Input: the baked WebP blob from `bakeMap()`, passed as the img2img `init_image`.
+- Output: WebP blob — stored and displayed the same way as any other export.
+- **No new DB columns needed** — the styled result goes to `locations.map_url` via the same M5 Save to Atlas flow; the source map data is unchanged.
+- Free users see the button but it's disabled with a "PRO" badge and upgrade tooltip.
+
+#### Acceptance criteria
+
+- [ ] `CARTOGRAPHER_STYLE_PRESETS` exported from `src/cartographer/stylePresets.ts`.
+- [ ] `useCartographerStyling(mapBlob, presetId, suffix?)` composable — returns `{ generate, result, isLoading, error }`.
+- [ ] "✦ AI Style" button appears in M5 export panel after bake.
+- [ ] PRO gate: disabled + tooltip for free users.
+- [ ] Style Picker shows 4 preset swatches + optional freeform suffix.
+- [ ] Result preview with Save to Atlas / Download / Retry / Back.
+- [ ] Map theme auto-prepended to prompt.
+
+Done = a clean tile map becomes a publishable hand-crafted-looking illustration in seconds.
+
 ### Future (post-M7)
 
 - Player view of maps (`/play/maps/:id`) — gated by `is_shared`.
@@ -889,9 +951,42 @@ A second bundled pack, `wood-interior`, ships alongside `stone-dungeon`. Real We
 - Sidebar list of all map contents — deferred to M5.
 - npc_spawn_ids / monster_spawn_ids links — only note + encounter links in M4.
 
+### M5 acceptance status
+
+- [x] `src/cartographer/bake.ts` — `bakeMap()` (WebP, 5 MB cap + quality retry) + `bakeMapAsPng()` (PNG, client download).
+- [x] "↓ PNG" button in PageHeader actions — downloads full-res PNG to disk without uploading.
+- [x] "Save to Atlas" button — opens modal with location picker (EntityCombobox against all locations).
+- [x] Save to Atlas flow: bakes map → uploads WebP to `location-images` bucket → updates `locations.map_url` + `source_map_id` via `useUpdateLocationMapUrl`.
+- [x] "Edit in Cartographer" link in LocationEditor map section when `source_map_id` is set.
+- [x] `source_map_id` added to `Location` TS type.
+- [x] `useUpdateLocationMapUrl()` mutation in `useLocations.ts`.
+- [x] Cartographer added to Publishing Tools ("Publish") nav group.
+- [x] Re-export: subsequent "Save to Atlas" overwrites `locations.map_url` + `source_map_id` for the chosen location.
+
+### New files added in M5
+
+| Path | Purpose |
+| --- | --- |
+| [src/cartographer/bake.ts](../../src/cartographer/bake.ts) | `bakeMap()` + `bakeMapAsPng()` — offline OffscreenCanvas composite |
+
+### Modified in M5
+
+- [src/types/location.types.ts](../../src/types/location.types.ts) — `source_map_id: string | null` added to `Location`.
+- [src/composables/useLocations.ts](../../src/composables/useLocations.ts) — `useUpdateLocationMapUrl()` mutation.
+- [src/lib/nav.ts](../../src/lib/nav.ts) — Cartographer entry in Publish nav group.
+- [src/views/cartographer/CartographerEditorView.vue](../../src/views/cartographer/CartographerEditorView.vue) — Save to Atlas button + modal + Download PNG button + bake/upload logic.
+- [src/components/locations/LocationEditor.vue](../../src/components/locations/LocationEditor.vue) — "Edit in Cartographer" link when `source_map_id` is set.
+
+### Known M5 deferrals (deliberate)
+
+- VTT-friendly export options (strip brand frame, no padding, 70 px/cell) — deferred; `bakeMap()` takes `BakeOptions` for easy extension.
+- Brand frame watermark — deferred.
+- Re-export conflict prompt (different `source_map_id`) — silently overwrites; improve UX in a follow-up.
+- Sidebar list of map contents — deferred.
+
 ### Known M2 deferrals (deliberate)
 
 - SolidBlock bitmask auto-tiler — deferred to M3+ (flat texture only in M2).
 - `wallJoint` pack art — fallback is programmatic fill; joint tiles render when pack ships them.
 - Object layer, annotation layer, entity links — M4.
-- Export, Atlas integration, Publishing Tools nav entry — M5.
+- Export, Atlas integration, Publishing Tools nav entry — M5 ✓

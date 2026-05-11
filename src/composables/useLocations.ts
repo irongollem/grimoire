@@ -277,6 +277,19 @@ export function useSharedLocations() {
   });
 }
 
+/** Update a location's map_url + source_map_id from a Cartographer bake. */
+export function useUpdateLocationMapUrl() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, mapUrl, sourceMapId }: { id: string; mapUrl: string; sourceMapId: string }) =>
+      updateLocation(id, { map_url: mapUrl, source_map_id: sourceMapId }),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });
+    },
+  });
+}
+
 export function useDeleteLocation() {
   const queryClient = useQueryClient();
   return useMutation({
