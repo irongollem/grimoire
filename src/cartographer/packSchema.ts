@@ -40,8 +40,25 @@ export const TILE_PACK_SCHEMA = {
     stairsDown:     { kind: "directional", sides: ["N","E","S","W"], optional: true },
     rubble:         { kind: "optional",    min: 0,  max: 4  },
     debris:         { kind: "optional",    min: 0,  max: 4  },
+    objectChest:    { kind: "optional",    min: 0,  max: 4  },
+    objectBarrel:   { kind: "optional",    min: 0,  max: 4  },
+    objectTable:    { kind: "optional",    min: 0,  max: 4  },
+    objectStatue:   { kind: "optional",    min: 0,  max: 4  },
+    objectPillar:   { kind: "optional",    min: 0,  max: 4  },
+    objectBrazier:  { kind: "optional",    min: 0,  max: 4  },
   },
 } as const satisfies { version: number; categories: Record<string, CategoryDef> };
+
+export const OBJECT_CATEGORIES = [
+  "objectChest",
+  "objectBarrel",
+  "objectTable",
+  "objectStatue",
+  "objectPillar",
+  "objectBrazier",
+] as const satisfies readonly PackCategory[];
+
+export type ObjectCategory = (typeof OBJECT_CATEGORIES)[number];
 
 export type PackCategory = keyof typeof TILE_PACK_SCHEMA.categories;
 
@@ -72,6 +89,10 @@ export interface TilePackManifest {
   schema_version: number;
   base_tile_size: typeof BASE_TILE_SIZE;
   assets: Partial<Record<PackCategory, AssetSlot[]>>;
+  /** Per-category RGB base colour for procedural placeholder tiles. When absent,
+   *  placeholderTile falls back to the built-in stone-dungeon defaults. Image
+   *  generators may also read this palette for colour-aware prompt construction. */
+  palette?: Partial<Record<PackCategory, [number, number, number]>>;
 }
 
 export function categoryDef(cat: PackCategory): CategoryDef {

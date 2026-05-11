@@ -178,6 +178,79 @@
         <p class="font-fell text-[10px] text-muted-foreground italic leading-relaxed">
           Switching packs changes future strokes only — existing cells keep their stored pack.
         </p>
+
+        <!-- Object stamp picker -->
+        <div v-if="activeTool === 'stamp'">
+          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
+            Object
+          </label>
+          <div class="grid grid-cols-3 gap-1 mb-2">
+            <button
+              v-for="cat in OBJECT_CATEGORIES"
+              :key="cat"
+              type="button"
+              class="flex flex-col items-center gap-0.5 rounded-md py-1.5 px-1 font-fell text-[10px] transition-colors capitalize"
+              :class="activeObjectCategory === cat
+                ? 'bg-primary/15 text-foreground ring-1 ring-inset ring-primary/40'
+                : 'hover:bg-muted text-muted-foreground'"
+              @click="activeObjectCategory = cat"
+            >{{ cat.replace('object', '') }}</button>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="font-cinzel text-[9px] tracking-wider text-muted-foreground uppercase">Rotate</span>
+            <button
+              type="button"
+              title="Rotate CCW (Q)"
+              class="rounded px-1.5 py-0.5 font-cinzel text-[9px] bg-muted hover:bg-muted/80 text-foreground"
+              @click="stampRotation = ((stampRotation + 270) % 360) as 0|90|180|270"
+            >↺ Q</button>
+            <span class="font-fell text-xs text-foreground w-7 text-center">{{ stampRotation }}°</span>
+            <button
+              type="button"
+              title="Rotate CW (E)"
+              class="rounded px-1.5 py-0.5 font-cinzel text-[9px] bg-muted hover:bg-muted/80 text-foreground"
+              @click="stampRotation = ((stampRotation + 90) % 360) as 0|90|180|270"
+            >↻ E</button>
+          </div>
+        </div>
+
+        <!-- Annotation editor -->
+        <div v-if="activeTool === 'annotate' && selectedCell">
+          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
+            Label ({{ selectedCell[0] }}, {{ selectedCell[1] }})
+          </label>
+          <input
+            v-model="annotationText"
+            type="text"
+            placeholder="Enter label…"
+            maxlength="32"
+            class="w-full bg-background border border-border rounded-md px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+          <p class="font-fell text-[10px] text-muted-foreground mt-1">Click a cell to select it.</p>
+        </div>
+        <div v-else-if="activeTool === 'annotate'">
+          <p class="font-fell text-[10px] text-muted-foreground italic">Click a cell to add a label.</p>
+        </div>
+
+        <!-- Entity link inspector -->
+        <div v-if="activeTool === 'link' && selectedCell">
+          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
+            Links ({{ selectedCell[0] }}, {{ selectedCell[1] }})
+          </label>
+          <div class="space-y-2">
+            <div>
+              <span class="block font-cinzel text-[9px] tracking-wider text-muted-foreground mb-0.5">Note</span>
+              <EntityCombobox v-model="linkedNoteId" :options="noteOptions" placeholder="Search notes…" />
+            </div>
+            <div>
+              <span class="block font-cinzel text-[9px] tracking-wider text-muted-foreground mb-0.5">Encounter</span>
+              <EntityCombobox v-model="linkedEncounterId" :options="encounterOptions" placeholder="Search encounters…" />
+            </div>
+          </div>
+        </div>
+        <div v-else-if="activeTool === 'link'">
+          <p class="font-fell text-[10px] text-muted-foreground italic">Click a cell to attach entities.</p>
+        </div>
       </aside>
     </div>
   </PageHeader>
@@ -202,11 +275,15 @@ import {
   IconPenLine,
   IconFill,
   IconWrapWalls,
+  IconObjectStamp,
+  IconAnnotate,
+  IconEntityLink,
 } from "@/lib/icons";
 
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
+import EntityCombobox from "@/components/common/EntityCombobox.vue";
 
 import {
   useDungeonMap,
@@ -215,6 +292,8 @@ import {
   useDeleteDungeonMap,
 } from "@/composables/useDungeonMaps";
 import { useConfirm } from "@/composables/useConfirm";
+import { useNotes } from "@/composables/useNotes";
+import { useEncounters } from "@/composables/useEncounters";
 import {
   emptyLayers,
   cellKey,
@@ -223,8 +302,9 @@ import {
   type DungeonMapLayers,
   type EdgeSeg,
   type EdgeSegType,
+  type CellMetadata,
 } from "@/types/dungeonMap.types";
-import { BASE_TILE_SIZE, type PackCategory } from "@/cartographer/packSchema";
+import { BASE_TILE_SIZE, type PackCategory, OBJECT_CATEGORIES, type ObjectCategory } from "@/cartographer/packSchema";
 import { loadPack, type TilePackRuntime } from "@/cartographer/packLoader";
 import { canonicaliseEdge, type CellEdge } from "@/cartographer/edges";
 import { detectHoveredEdge } from "@/cartographer/edgeHover";
@@ -238,6 +318,10 @@ const BUNDLED_PACKS = [
   { pack_id: "stone-dungeon", pack_version: 1, name: "Stone Dungeon",  manifestUrl: "/cartographer/stone-dungeon/v1/manifest.json" },
   { pack_id: "icy-cave",      pack_version: 1, name: "Icy Cave",       manifestUrl: "/cartographer/icy-cave/v1/manifest.json" },
   { pack_id: "wood-interior", pack_version: 1, name: "Wood Interior",  manifestUrl: "/cartographer/wood-interior/v1/manifest.json" },
+  { pack_id: "sandy-ruins",   pack_version: 1, name: "Sandy Ruins",    manifestUrl: "/cartographer/sandy-ruins/v1/manifest.json" },
+  { pack_id: "forest",        pack_version: 1, name: "Forest",         manifestUrl: "/cartographer/forest/v1/manifest.json" },
+  { pack_id: "black-rock",    pack_version: 1, name: "Black Rock",     manifestUrl: "/cartographer/black-rock/v1/manifest.json" },
+  { pack_id: "lava-cavern",   pack_version: 1, name: "Lava Cavern",    manifestUrl: "/cartographer/lava-cavern/v1/manifest.json" },
 ] as const;
 const DEFAULT_PACK_ID = "stone-dungeon";
 
@@ -284,7 +368,7 @@ let edgesPaintedInStroke = new Set<string>();
 let strokeDirection: "H" | "V" | null = null;
 
 // Tools
-type Tool = "floor" | "eraser" | "pan" | "wall" | "door" | "solid" | "rect" | "line" | "fill" | "wrap";
+type Tool = "floor" | "eraser" | "pan" | "wall" | "door" | "solid" | "rect" | "line" | "fill" | "wrap" | "stamp" | "annotate" | "link";
 interface ToolDef {
   id: Tool;
   label: string;
@@ -297,16 +381,19 @@ interface ToolDef {
 }
 const activeTool = ref<Tool>("floor");
 const TOOLS: ToolDef[] = [
-  { id: "floor",  label: "Floor brush",  icon: IconBrush,     shortcut: "b" },
-  { id: "eraser", label: "Eraser",       icon: IconEraser,    shortcut: "e" },
-  { id: "wall",   label: "Wall",         icon: IconWall,      shortcut: "w" },
-  { id: "door",   label: "Door",         icon: IconDoor,      shortcut: "d" },
-  { id: "solid",  label: "Solid block",  icon: IconCube,      shortcut: "s" },
-  { id: "rect",   label: "Rectangle",    icon: IconRect,      shortcut: "r" },
-  { id: "line",   label: "Line",         icon: IconPenLine,   shortcut: "l" },
-  { id: "fill",   label: "Fill",         icon: IconFill,      shortcut: "f" },
-  { id: "wrap",   label: "Wrap walls",   icon: IconWrapWalls, shortcut: "x" },
-  { id: "pan",    label: "Pan",          icon: IconHand,      displayBadge: "RMB" },
+  { id: "floor",    label: "Floor brush",   icon: IconBrush,        shortcut: "b" },
+  { id: "eraser",   label: "Eraser",        icon: IconEraser,       shortcut: "e" },
+  { id: "wall",     label: "Wall",          icon: IconWall,         shortcut: "w" },
+  { id: "door",     label: "Door",          icon: IconDoor,         shortcut: "d" },
+  { id: "solid",    label: "Solid block",   icon: IconCube,         shortcut: "s" },
+  { id: "stamp",    label: "Object stamp",  icon: IconObjectStamp,  shortcut: "o" },
+  { id: "rect",     label: "Rectangle",     icon: IconRect,         shortcut: "r" },
+  { id: "line",     label: "Line",          icon: IconPenLine,      shortcut: "l" },
+  { id: "fill",     label: "Fill",          icon: IconFill,         shortcut: "f" },
+  { id: "wrap",     label: "Wrap walls",    icon: IconWrapWalls,    shortcut: "x" },
+  { id: "annotate", label: "Annotate",      icon: IconAnnotate,     shortcut: "t" },
+  { id: "link",     label: "Link entity",   icon: IconEntityLink,   shortcut: "k" },
+  { id: "pan",      label: "Pan",           icon: IconHand,         displayBadge: "RMB" },
 ];
 
 // Edge-hover threshold: how close the cursor must get to a cell edge for it
@@ -324,6 +411,63 @@ const previewCells = ref(new Set<CellKey>());
 
 // Snapshot of layers captured at stroke start — used to build the undo command.
 let strokeSnapshot: string | null = null; // JSON string for cheap comparison on mouseup
+
+// M4 — Object stamp tool state
+const activeObjectCategory = ref<ObjectCategory>("objectChest");
+const stampRotation = ref<0 | 90 | 180 | 270>(0);
+
+// M4 — Cell selection (annotate + link tools)
+const selectedCell = ref<[number, number] | null>(null);
+
+// M4 — Map metadata (entity links), lives alongside layers
+const metadata = ref<Record<CellKey, CellMetadata>>({});
+
+// M4 — Entity options for the link picker
+const { data: notesData } = useNotes();
+const { data: encountersData } = useEncounters();
+const noteOptions = computed(() =>
+  (notesData.value ?? []).map((n) => ({ id: n.id, name: (n as { id: string; title: string }).title })),
+);
+const encounterOptions = computed(() =>
+  (encountersData.value ?? []).map((e) => ({ id: e.id, name: e.name })),
+);
+
+// Writable computeds for the inspector's link pickers
+const linkedNoteId = computed({
+  get: () => (selectedCell.value ? (metadata.value[cellKey(...selectedCell.value)]?.note_id ?? "") : ""),
+  set: (id: string) => {
+    if (!selectedCell.value) return;
+    const k = cellKey(...selectedCell.value);
+    metadata.value[k] = { ...metadata.value[k], note_id: id || undefined };
+    dirty.value = true;
+  },
+});
+const linkedEncounterId = computed({
+  get: () => (selectedCell.value ? (metadata.value[cellKey(...selectedCell.value)]?.encounter_id ?? "") : ""),
+  set: (id: string) => {
+    if (!selectedCell.value) return;
+    const k = cellKey(...selectedCell.value);
+    metadata.value[k] = { ...metadata.value[k], encounter_id: id || undefined };
+    dirty.value = true;
+  },
+});
+
+// Annotation text for the selected cell — updates layers live, undo pushed on blur
+const annotationText = computed({
+  get: () => (selectedCell.value ? (layers.value.annotation[cellKey(...selectedCell.value)]?.text ?? "") : ""),
+  set: (v: string) => {
+    if (!selectedCell.value) return;
+    const k = cellKey(...selectedCell.value);
+    if (!v.trim()) {
+      const next = { ...layers.value.annotation };
+      delete next[k];
+      layers.value.annotation = next;
+    } else {
+      layers.value.annotation[k] = { text: v.trim() };
+    }
+    dirty.value = true;
+  },
+});
 
 function toolBadge(t: ToolDef): string | undefined {
   return t.displayBadge ?? t.shortcut?.toUpperCase();
@@ -376,6 +520,7 @@ watch(loadedMap, (m) => {
   if (m) {
     name.value = m.name;
     layers.value = cloneLayers(m.layers);
+    metadata.value = JSON.parse(JSON.stringify(m.metadata ?? {})) as Record<CellKey, CellMetadata>;
     currentPackId.value = m.default_pack_id ?? DEFAULT_PACK_ID;
     dirty.value = false;
     cmdStack.clear();
@@ -426,13 +571,19 @@ function activePackVersion(): number {
 // ── Undo/redo helpers ──────────────────────────────────────────────────────
 
 function snapshotStr(): string {
-  return JSON.stringify(layers.value);
+  return JSON.stringify({ layers: layers.value, metadata: metadata.value });
 }
 
 function pushCommand(beforeStr: string, afterStr: string): void {
   cmdStack.apply({
-    apply() { layers.value = JSON.parse(afterStr) as DungeonMapLayers; dirty.value = true; },
-    revert() { layers.value = JSON.parse(beforeStr) as DungeonMapLayers; dirty.value = true; },
+    apply() {
+      const s = JSON.parse(afterStr) as { layers: DungeonMapLayers; metadata: Record<CellKey, CellMetadata> };
+      layers.value = s.layers; metadata.value = s.metadata; dirty.value = true;
+    },
+    revert() {
+      const s = JSON.parse(beforeStr) as { layers: DungeonMapLayers; metadata: Record<CellKey, CellMetadata> };
+      layers.value = s.layers; metadata.value = s.metadata; dirty.value = true;
+    },
   });
   canUndo.value = cmdStack.canUndo();
   canRedo.value = cmdStack.canRedo();
@@ -558,6 +709,36 @@ function eraseSolidAt(x: number, y: number): void {
   const next = { ...layers.value.solidBlock };
   delete next[k];
   layers.value.solidBlock = next;
+  dirty.value = true;
+}
+
+// ── Object stamp tool ─────────────────────────────────────────────────────
+
+function pickObjectVariant(cat: ObjectCategory, x: number, y: number): number {
+  if (!packRuntime.value) return 0;
+  const count = packRuntime.value.variantCount(cat) || 1;
+  return hash32(`${mapId.value || "new"}|${cat}|${x}|${y}`) % count;
+}
+
+function paintObjectAt(x: number, y: number): void {
+  const k = cellKey(x, y);
+  const variant = pickObjectVariant(activeObjectCategory.value, x, y);
+  layers.value.object[k] = {
+    pack_id: currentPackId.value,
+    pack_version: activePackVersion(),
+    category: activeObjectCategory.value,
+    variant,
+    ...(stampRotation.value ? { rotation: stampRotation.value } : {}),
+  };
+  dirty.value = true;
+}
+
+function eraseObjectAt(x: number, y: number): void {
+  const k = cellKey(x, y);
+  if (!layers.value.object[k]) return;
+  const next = { ...layers.value.object };
+  delete next[k];
+  layers.value.object = next;
   dirty.value = true;
 }
 
@@ -931,6 +1112,74 @@ function render(): void {
     }
   }
 
+  // Object layer — stamps drawn above walls
+  if (loadedRuntimes.value.size > 0) {
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        const obj = layers.value.object[cellKey(x, y)];
+        if (!obj) continue;
+        const drawX = x * tilePx - viewportOffset.value.x;
+        const drawY = y * tilePx - viewportOffset.value.y;
+        const objRt = rt(obj.pack_id);
+        if (!objRt) continue;
+        const tile = objRt.getTile(obj.category as PackCategory, obj.variant);
+        const rotation = (obj as { rotation?: number }).rotation ?? 0;
+        if (rotation) {
+          ctx.save();
+          ctx.translate(drawX + tilePx / 2, drawY + tilePx / 2);
+          ctx.rotate((rotation * Math.PI) / 180);
+          ctx.drawImage(tile.source, -tilePx / 2, -tilePx / 2, tilePx, tilePx);
+          ctx.restore();
+        } else {
+          ctx.drawImage(tile.source, drawX, drawY, tilePx, tilePx);
+        }
+      }
+    }
+  }
+
+  // Annotation layer — text labels centered in each cell
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      const ann = layers.value.annotation[cellKey(x, y)];
+      if (!ann?.text) continue;
+      const drawX = x * tilePx - viewportOffset.value.x;
+      const drawY = y * tilePx - viewportOffset.value.y;
+      const fontSize = Math.max(9, Math.round(tilePx * 0.16));
+      ctx.font = `bold ${fontSize}px sans-serif`;
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.fillText(ann.text, drawX + tilePx / 2 + 1, drawY + tilePx / 2 + 1, tilePx - 8);
+      ctx.fillStyle = "rgba(255,240,180,0.95)";
+      ctx.fillText(ann.text, drawX + tilePx / 2, drawY + tilePx / 2, tilePx - 8);
+    }
+  }
+
+  // Entity link indicator — small blue dot in top-right corner when a cell has links
+  const dotR = Math.max(4, tilePx * 0.07);
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      const meta = metadata.value[cellKey(x, y)];
+      if (!meta?.note_id && !meta?.encounter_id) continue;
+      const drawX = x * tilePx - viewportOffset.value.x;
+      const drawY = y * tilePx - viewportOffset.value.y;
+      ctx.fillStyle = "rgba(80,180,255,0.9)";
+      ctx.beginPath();
+      ctx.arc(drawX + tilePx - dotR * 2, drawY + dotR * 2, dotR, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Selected-cell highlight (link + annotate tools)
+  if (selectedCell.value && (activeTool.value === "link" || activeTool.value === "annotate")) {
+    const [sx, sy] = selectedCell.value;
+    const drawX = sx * tilePx - viewportOffset.value.x;
+    const drawY = sy * tilePx - viewportOffset.value.y;
+    ctx.strokeStyle = "rgba(80,180,255,0.85)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(drawX + 1, drawY + 1, tilePx - 2, tilePx - 2);
+  }
+
   // Origin marker
   const ox = 0 - viewportOffset.value.x;
   const oy = 0 - viewportOffset.value.y;
@@ -988,7 +1237,7 @@ function scheduleRender(): void {
   });
 }
 
-watch([zoom, viewportOffset, layers, loadedRuntimes, currentPackId, hoverCell, hoveredEdge, activeTool, previewCells], () => scheduleRender(), { deep: true });
+watch([zoom, viewportOffset, layers, loadedRuntimes, currentPackId, hoverCell, hoveredEdge, activeTool, previewCells, metadata, selectedCell], () => scheduleRender(), { deep: true });
 
 // ── Pointer interaction ────────────────────────────────────────────────────
 
@@ -1028,6 +1277,22 @@ function onPointerDown(ev: PointerEvent): void {
   const local = getLocalPointer(ev);
   lastPointer = local;
   const [cx, cy] = viewportToCell(local.x, local.y);
+
+  // Stamp right-click: erase object at cell.
+  if (activeTool.value === "stamp" && ev.button === 2) {
+    ev.preventDefault();
+    const before = snapshotStr();
+    eraseObjectAt(cx, cy);
+    const after = snapshotStr();
+    if (before !== after) pushCommand(before, after);
+    return;
+  }
+
+  // Link / annotate: select cell, update inspector (no stroke painting).
+  if (activeTool.value === "link" || activeTool.value === "annotate") {
+    selectedCell.value = [cx, cy];
+    return;
+  }
 
   // Door right-click: remove door → plain wall (before the generic pan check).
   if (activeTool.value === "door" && ev.button === 2 && hoveredEdge.value) {
@@ -1091,8 +1356,13 @@ function onPointerDown(ev: PointerEvent): void {
 
   if (activeTool.value === "floor") paintCell(cx, cy);
   else if (activeTool.value === "solid") paintSolidAt(cx, cy);
+  else if (activeTool.value === "stamp") paintObjectAt(cx, cy);
   else if (activeTool.value === "eraser") {
     if (hoveredEdge.value) eraseWallAtCellEdge(hoveredEdge.value);
+    else if (layers.value.object[cellKey(cx, cy)]) eraseObjectAt(cx, cy);
+    else if (layers.value.annotation[cellKey(cx, cy)]) {
+      const next = { ...layers.value.annotation }; delete next[cellKey(cx, cy)]; layers.value.annotation = next; dirty.value = true;
+    }
     else if (layers.value.solidBlock[cellKey(cx, cy)]) eraseSolidAt(cx, cy);
     else eraseCell(cx, cy);
   } else if (activeTool.value === "wall" && hoveredEdge.value) {
@@ -1141,8 +1411,10 @@ function onPointerMove(ev: PointerEvent): void {
       );
     } else if (tool === "floor") paintCell(cx, cy);
     else if (tool === "solid") paintSolidAt(cx, cy);
+    else if (tool === "stamp") paintObjectAt(cx, cy);
     else if (tool === "eraser") {
       if (hoveredEdge.value) eraseWallAtCellEdge(hoveredEdge.value);
+      else if (layers.value.object[cellKey(cx, cy)]) eraseObjectAt(cx, cy);
       else if (layers.value.solidBlock[cellKey(cx, cy)]) eraseSolidAt(cx, cy);
       else eraseCell(cx, cy);
     } else if (tool === "wall" && hoveredEdge.value) {
@@ -1223,7 +1495,7 @@ async function onSave(): Promise<void> {
       name: name.value.trim() || "Untitled Map",
       description: null,
       layers: layers.value,
-      metadata: (loadedMap.value as DungeonMap | null)?.metadata ?? {},
+      metadata: metadata.value,
       default_pack_id: currentPackId.value as string,
       tags: (loadedMap.value as DungeonMap | null)?.tags ?? [],
       notes: null as unknown,
@@ -1293,6 +1565,20 @@ function onKeyDown(ev: KeyboardEvent): void {
     centerMap();
     ev.preventDefault();
     return;
+  }
+
+  // Q/E: rotate stamp tool CCW/CW
+  if (activeTool.value === "stamp") {
+    if (key === "q") {
+      stampRotation.value = ((stampRotation.value + 270) % 360) as 0 | 90 | 180 | 270;
+      ev.preventDefault();
+      return;
+    }
+    if (key === "e") {
+      stampRotation.value = ((stampRotation.value + 90) % 360) as 0 | 90 | 180 | 270;
+      ev.preventDefault();
+      return;
+    }
   }
   const tool = TOOLS.find((t) => t.shortcut === key);
   if (tool && !tool.disabled) {

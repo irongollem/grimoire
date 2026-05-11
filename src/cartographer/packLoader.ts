@@ -82,7 +82,7 @@ async function buildRuntime(manifest: TilePackManifest, manifestUrl: string): Pr
       const real = slotImages.get(slotKey(category, variant, side));
       if (real) return { source: real, isPlaceholder: false };
       return {
-        source: getPlaceholderTile({ pack_id: manifest.pack_id, category, side, variant }),
+        source: getPlaceholderTile({ pack_id: manifest.pack_id, category, side, variant }, manifest.palette),
         isPlaceholder: true,
       };
     },

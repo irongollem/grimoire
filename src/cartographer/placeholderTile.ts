@@ -27,28 +27,41 @@ function hash32(s: string): number {
   return h >>> 0;
 }
 
-// Per-category base colours — placeholder pack feels visually structured even without art.
-const CATEGORY_BASE: Record<string, [number, number, number]> = {
-  floor:        [82, 76, 68],   // warm grey stone
-  wallSegmentH: [40, 36, 32],
-  wallSegmentV: [40, 36, 32],
-  wallJoint:    [30, 28, 26],
-  doorClosedH:  [110, 70, 35],
-  doorClosedV:  [110, 70, 35],
-  doorOpenH:    [150, 110, 70],
-  doorOpenV:    [150, 110, 70],
-  solidBlock:   [55, 50, 45],
-  stairsUp:     [95, 85, 70],
-  stairsDown:   [70, 62, 52],
-  rubble:       [90, 80, 65],
-  debris:       [90, 80, 65],
+// Stone-dungeon defaults — used when a pack's manifest has no palette entry for a category.
+// Image generators may also read the manifest palette for colour-aware prompt construction.
+const STONE_DEFAULTS: Record<string, [number, number, number]> = {
+  floor:         [82, 76, 68],
+  wallSegmentH:  [40, 36, 32],
+  wallSegmentV:  [40, 36, 32],
+  wallJoint:     [30, 28, 26],
+  doorClosedH:   [110, 70, 35],
+  doorClosedV:   [110, 70, 35],
+  doorOpenH:     [150, 110, 70],
+  doorOpenV:     [150, 110, 70],
+  solidBlock:    [55, 50, 45],
+  stairsUp:      [95, 85, 70],
+  stairsDown:    [70, 62, 52],
+  rubble:        [90, 80, 65],
+  debris:        [90, 80, 65],
+  objectChest:   [110, 75, 30],
+  objectBarrel:  [100, 65, 30],
+  objectTable:   [130, 100, 55],
+  objectStatue:  [140, 135, 125],
+  objectPillar:  [120, 115, 108],
+  objectBrazier: [180, 120, 40],
 };
+
+type Palette = Partial<Record<string, [number, number, number]>>;
+
+function resolveBase(category: string, palette?: Palette): [number, number, number] {
+  return palette?.[category] ?? STONE_DEFAULTS[category] ?? [120, 120, 120];
+}
 
 function jitter(base: number, seed: number, range: number): number {
   return Math.max(0, Math.min(255, base + ((seed % (range * 2)) - range)));
 }
 
-export function getPlaceholderTile(k: PlaceholderKey): HTMLCanvasElement {
+export function getPlaceholderTile(k: PlaceholderKey, palette?: Palette): HTMLCanvasElement {
   const id = keyString(k);
   const cached = cache.get(id);
   if (cached) return cached;
@@ -59,7 +72,7 @@ export function getPlaceholderTile(k: PlaceholderKey): HTMLCanvasElement {
   const ctx = canvas.getContext("2d")!;
 
   const seed = hash32(id);
-  const base = CATEGORY_BASE[k.category] ?? [120, 120, 120];
+  const base = resolveBase(k.category, palette);
 
   // Fill with jittered base colour for the floor variants and solid blocks.
   if (k.category === "floor" || k.category === "solidBlock") {
@@ -99,6 +112,138 @@ export function getPlaceholderTile(k: PlaceholderKey): HTMLCanvasElement {
       ctx.fillRect(0, offset, BASE_TILE_SIZE, thickness);
     } else {
       ctx.fillRect(offset, 0, thickness, BASE_TILE_SIZE);
+    }
+    return finalise(canvas, id);
+  }
+
+  // ── Wall joint — solid square matching wall colour ──
+  if (k.category === "wallJoint") {
+    ctx.fillStyle = `rgb(${base[0]}, ${base[1]}, ${base[2]})`;
+    ctx.fillRect(0, 0, BASE_TILE_SIZE, BASE_TILE_SIZE);
+    return finalise(canvas, id);
+  }
+
+  // ── Stairs — filled base colour + banding to suggest step treads + chevron ──
+  if (k.category === "stairsUp" || k.category === "stairsDown") {
+    const r = jitter(base[0], seed, 8);
+    const g = jitter(base[1], seed >>> 8, 8);
+    const b = jitter(base[2], seed >>> 16, 8);
+    ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+    ctx.fillRect(0, 0, BASE_TILE_SIZE, BASE_TILE_SIZE);
+    const steps = 6;
+    const band = Math.round(BASE_TILE_SIZE / steps);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
+    for (let i = 0; i < steps; i += 2) {
+      ctx.fillRect(0, i * band, BASE_TILE_SIZE, Math.round(band * 0.55));
+    }
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.45)";
+    ctx.lineWidth = 3;
+    const scx = BASE_TILE_SIZE / 2;
+    const scy = BASE_TILE_SIZE / 2;
+    const dir = k.category === "stairsUp" ? -1 : 1;
+    ctx.beginPath();
+    ctx.moveTo(scx - 14, scy + dir * 9);
+    ctx.lineTo(scx, scy - dir * 9);
+    ctx.lineTo(scx + 14, scy + dir * 9);
+    ctx.stroke();
+    return finalise(canvas, id);
+  }
+
+  // ── Rubble & debris — transparent overlay, scattered semi-opaque blobs ──
+  if (k.category === "rubble" || k.category === "debris") {
+    ctx.clearRect(0, 0, BASE_TILE_SIZE, BASE_TILE_SIZE);
+    ctx.fillStyle = `rgba(${base[0]}, ${base[1]}, ${base[2]}, 0.55)`;
+    const count = 4 + (seed % 5);
+    for (let i = 0; i < count; i++) {
+      const bx = (seed >>> (i * 5)) % BASE_TILE_SIZE;
+      const by = (seed >>> (i * 5 + 7)) % BASE_TILE_SIZE;
+      const bw = 8 + ((seed >>> (i * 3)) % 16);
+      const bh = 6 + ((seed >>> (i * 3 + 5)) % 12);
+      ctx.fillRect(bx - bw / 2, by - bh / 2, bw, bh);
+    }
+    return finalise(canvas, id);
+  }
+
+  // Object stamps — drawn at cell center on a transparent background.
+  if (k.category.startsWith("object")) {
+    ctx.clearRect(0, 0, BASE_TILE_SIZE, BASE_TILE_SIZE);
+    const cx = BASE_TILE_SIZE / 2;
+    const cy = BASE_TILE_SIZE / 2;
+    const [r, g, b] = base;
+    const fill = `rgb(${r},${g},${b})`;
+    const dark = `rgb(${Math.round(r * 0.6)},${Math.round(g * 0.6)},${Math.round(b * 0.6)})`;
+
+    if (k.category === "objectChest") {
+      // Rectangle body with a darker lid stripe
+      ctx.fillStyle = fill;
+      ctx.fillRect(cx - 32, cy - 22, 64, 44);
+      ctx.fillStyle = dark;
+      ctx.fillRect(cx - 32, cy - 22, 64, 18); // lid
+      ctx.fillStyle = "rgb(200,170,80)";
+      ctx.fillRect(cx - 6, cy - 6, 12, 10); // latch
+    } else if (k.category === "objectBarrel") {
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 34, 38, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = dark;
+      ctx.lineWidth = 4;
+      for (const oy of [-14, 0, 14]) {
+        ctx.beginPath();
+        ctx.ellipse(cx, cy + oy, 34, 12, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    } else if (k.category === "objectTable") {
+      ctx.fillStyle = fill;
+      ctx.fillRect(cx - 38, cy - 24, 76, 48);
+      ctx.fillStyle = dark;
+      for (const [tx, ty] of [[-34, -20], [30, -20], [-34, 16], [30, 16]] as [number, number][]) {
+        ctx.fillRect(cx + tx, cy + ty, 8, 8); // legs
+      }
+    } else if (k.category === "objectStatue") {
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 38);
+      ctx.lineTo(cx + 28, cy);
+      ctx.lineTo(cx + 18, cy + 36);
+      ctx.lineTo(cx - 18, cy + 36);
+      ctx.lineTo(cx - 28, cy);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = dark;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    } else if (k.category === "objectPillar") {
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 36, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = dark;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 22, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 12, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (k.category === "objectBrazier") {
+      // Tripod base
+      ctx.strokeStyle = dark;
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 8); ctx.lineTo(cx - 22, cy + 30);
+      ctx.moveTo(cx, cy - 8); ctx.lineTo(cx + 22, cy + 30);
+      ctx.moveTo(cx, cy - 8); ctx.lineTo(cx, cy + 30);
+      ctx.stroke();
+      // Flame
+      ctx.fillStyle = "rgb(220,140,30)";
+      ctx.beginPath();
+      ctx.arc(cx, cy - 18, 20, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgb(255,210,60)";
+      ctx.beginPath();
+      ctx.arc(cx, cy - 22, 11, 0, Math.PI * 2);
+      ctx.fill();
     }
     return finalise(canvas, id);
   }

@@ -5,6 +5,21 @@
   "pack_version": 1,
   "schema_version": 1,
   "base_tile_size": 128,
+  "palette": {
+    "floor":        [165, 120, 75],
+    "wallSegmentH": [100,  65, 35],
+    "wallSegmentV": [100,  65, 35],
+    "wallJoint":    [80,   50, 25],
+    "doorClosedH":  [140,  90, 45],
+    "doorClosedV":  [140,  90, 45],
+    "doorOpenH":    [190, 145, 90],
+    "doorOpenV":    [190, 145, 90],
+    "solidBlock":   [90,   58, 28],
+    "stairsUp":     [180, 140, 90],
+    "stairsDown":   [120,  85, 48],
+    "rubble":       [130, 100, 60],
+    "debris":       [115,  88, 52]
+  },
   "assets": {
     "floor": [
       { "variant": 0, "url": "floor/0.webp" },
