@@ -237,12 +237,21 @@ function onImageLoad() {
   naturalW.value = img.value.naturalWidth;
   naturalH.value = img.value.naturalHeight;
   imageReady.value = true;
-  // Seed handles to span exactly one cell using existing calibration so the
-  // dialog opens "where the DM left off" for re-calibration.
-  if (existing && existing.cells_per_image_width > 0) {
-    const cellWidthPct = 1 / existing.cells_per_image_width;
-    pointA.value = { x: 0.4, y: 0.5 };
-    pointB.value = { x: 0.4 + cellWidthPct, y: 0.5 };
+  // Seed handles to the existing calibration so re-opening + Save without
+  // changes round-trips to the same {cells_per_image_width, origin}. We
+  // place handle A on the grid intersection nearest the image centre and
+  // handle B one cell to its right; both sit on grid lines, so saving with
+  // cellsBetween=1 reproduces the stored calibration exactly.
+  if (existing && existing.cells_per_image_width > 0 && naturalW.value > 0) {
+    const cellPx = naturalW.value / existing.cells_per_image_width;
+    const originXpx = existing.origin_x_pct * naturalW.value;
+    const originYpx = existing.origin_y_pct * naturalH.value;
+    const centreX = naturalW.value / 2;
+    const centreY = naturalH.value / 2;
+    const ax = originXpx + Math.round((centreX - originXpx) / cellPx) * cellPx;
+    const ay = originYpx + Math.round((centreY - originYpx) / cellPx) * cellPx;
+    pointA.value = { x: ax / naturalW.value, y: ay / naturalH.value };
+    pointB.value = { x: (ax + cellPx) / naturalW.value, y: ay / naturalH.value };
     cellsBetween.value = 1;
   }
   gridOpacity.value = existing?.grid_opacity ?? DEFAULT_GRID_OPACITY;
