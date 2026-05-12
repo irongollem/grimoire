@@ -137,7 +137,16 @@ export interface GridCalibration {
   cells_per_image_width: number;
   origin_x_pct: number;
   origin_y_pct: number;
+  /**
+   * Display opacity for grid line overlays on this map, 0..1. Useful for
+   * maps that already ship with painted gridlines (Cartographer bakes,
+   * pre-printed tile maps) — the DM can dim or hide the overlay so the
+   * underlying grid does the visual work. Defaults to 0.35 when omitted.
+   */
+  grid_opacity?: number;
 }
+
+export const DEFAULT_GRID_OPACITY = 0.35;
 
 export type LocationInsert = Omit<
   Location,

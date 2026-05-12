@@ -100,7 +100,8 @@
             :y1="0"
             :x2="x"
             :y2="hostH"
-            stroke="rgba(0,0,0,0.35)"
+            stroke="#000"
+            :stroke-opacity="gridStrokeOpacity"
             stroke-width="1"
           />
           <line
@@ -110,7 +111,8 @@
             :y1="y"
             :x2="hostW"
             :y2="y"
-            stroke="rgba(0,0,0,0.35)"
+            stroke="#000"
+            :stroke-opacity="gridStrokeOpacity"
             stroke-width="1"
           />
         </g>
@@ -180,6 +182,7 @@ import {
   type BrushMode,
   type CellKey,
 } from "@/lib/fogMask";
+import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 
 const route = useRoute();
 const encounterId = computed(() => route.params.id as string);
@@ -432,6 +435,9 @@ const gridVerticals = computed(() =>
 );
 const gridHorizontals = computed(() =>
   cellPx.value > 0 ? gridLinePositions(gridOrigin.value.y, hostH.value, cellPx.value) : [],
+);
+const gridStrokeOpacity = computed(
+  () => location.value?.grid_calibration?.grid_opacity ?? DEFAULT_GRID_OPACITY,
 );
 
 let resizeObserver: ResizeObserver | null = null;

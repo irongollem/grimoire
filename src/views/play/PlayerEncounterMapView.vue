@@ -42,7 +42,8 @@
             :y1="0"
             :x2="x"
             :y2="hostH"
-            stroke="rgba(0,0,0,0.35)"
+            stroke="#000"
+            :stroke-opacity="gridStrokeOpacity"
             stroke-width="1"
           />
           <line
@@ -52,7 +53,8 @@
             :y1="y"
             :x2="hostW"
             :y2="y"
-            stroke="rgba(0,0,0,0.35)"
+            stroke="#000"
+            :stroke-opacity="gridStrokeOpacity"
             stroke-width="1"
           />
         </g>
@@ -106,6 +108,7 @@ import { useAuthStore } from "@/stores/auth";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
 import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
 import { decodeFogMask } from "@/lib/fogMask";
+import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import type { RunCombatant } from "@/types/encounter.types";
 import {
   gridLinePositions,
@@ -289,6 +292,9 @@ const gridVerticals = computed(() =>
 );
 const gridHorizontals = computed(() =>
   cellPx.value > 0 ? gridLinePositions(gridOrigin.value.y, hostH.value, cellPx.value) : [],
+);
+const gridStrokeOpacity = computed(
+  () => location.value?.grid_calibration?.grid_opacity ?? DEFAULT_GRID_OPACITY,
 );
 
 let resizeObserver: ResizeObserver | null = null;

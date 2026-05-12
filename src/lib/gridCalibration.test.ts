@@ -54,11 +54,39 @@ describe("calibrateGrid", () => {
     expect(result.cells_per_image_width).toBeCloseTo(20);
   });
 
-  it("defaults the origin to the top-left of the image (0%, 0%)", () => {
+  it("anchors the origin to handle A so its pixel coord sits on a grid line", () => {
+    // A at (37,30), B at (137,30) → 100px = 2 cells → 50 px/cell.
+    // origin_x_px = 37 mod 50 = 37; origin_y_px = 30 mod 50 = 30.
     const result = calibrateGrid({
-      pointAPct: { x: 0.1, y: 0.1 },
-      pointBPct: { x: 0.2, y: 0.1 },
-      cellsBetween: 1,
+      pointAPct: { x: 37 / 1000, y: 30 / 1000 },
+      pointBPct: { x: 137 / 1000, y: 30 / 1000 },
+      cellsBetween: 2,
+      imageNaturalWidth: 1000,
+      imageNaturalHeight: 1000,
+    });
+    expect(result.cells_per_image_width).toBeCloseTo(20);
+    expect(result.origin_x_pct).toBeCloseTo(0.037);
+    expect(result.origin_y_pct).toBeCloseTo(0.030);
+  });
+
+  it("wraps the origin into [0, cellSize) for handles past the first cell", () => {
+    // A at (237,30), B at (337,30) → still 50 px/cell. 237 mod 50 = 37.
+    const result = calibrateGrid({
+      pointAPct: { x: 237 / 1000, y: 30 / 1000 },
+      pointBPct: { x: 337 / 1000, y: 30 / 1000 },
+      cellsBetween: 2,
+      imageNaturalWidth: 1000,
+      imageNaturalHeight: 1000,
+    });
+    expect(result.origin_x_pct).toBeCloseTo(0.037);
+  });
+
+  it("returns origin (0%, 0%) when handle A already sits on the implicit grid", () => {
+    // A at (0,0), B at (100,0) → 50 px/cell → 0 mod 50 = 0.
+    const result = calibrateGrid({
+      pointAPct: { x: 0, y: 0 },
+      pointBPct: { x: 100 / 1000, y: 0 },
+      cellsBetween: 2,
       imageNaturalWidth: 1000,
       imageNaturalHeight: 1000,
     });

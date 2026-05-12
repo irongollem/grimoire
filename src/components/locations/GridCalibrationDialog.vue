@@ -59,7 +59,7 @@
                 :y2="canvasH"
                 stroke="#fbbf24"
                 stroke-width="1"
-                stroke-opacity="0.45"
+                :stroke-opacity="gridOpacity"
                 vector-effect="non-scaling-stroke"
               />
               <!-- Live grid preview — horizontal -->
@@ -72,7 +72,7 @@
                 :y2="y"
                 stroke="#fbbf24"
                 stroke-width="1"
-                stroke-opacity="0.45"
+                :stroke-opacity="gridOpacity"
                 vector-effect="non-scaling-stroke"
               />
               <!-- Calibration line between the two handles -->
@@ -131,6 +131,22 @@
                 class="w-32 bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </label>
+            <label class="flex flex-col gap-1 min-w-48">
+              <span class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">
+                GRID OPACITY · {{ Math.round(gridOpacity * 100) }}%
+              </span>
+              <input
+                v-model.number="gridOpacity"
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                class="w-48"
+              />
+              <span class="font-fell text-[11px] text-muted-foreground/70 italic">
+                Lower if the map already has its own gridlines.
+              </span>
+            </label>
             <p v-if="preview" class="font-fell text-sm text-muted-foreground">
               ≈ <span class="text-foreground font-semibold">{{ preview.cells_per_image_width.toFixed(1) }}</span>
               squares across the image width.
@@ -167,7 +183,7 @@
 import { computed, ref, watch } from "vue";
 import { calibrateGrid } from "@/lib/gridCalibration";
 import { gridLinePositions } from "@/lib/battleMapGeometry";
-import type { GridCalibration } from "@/types/location.types";
+import { DEFAULT_GRID_OPACITY, type GridCalibration } from "@/types/location.types";
 
 const { open, mapUrl, existing } = defineProps<{
   open: boolean;
@@ -198,6 +214,7 @@ const canvasH = computed(() => naturalH.value || 1);
 const pointA = ref({ x: 0.4, y: 0.5 });
 const pointB = ref({ x: 0.6, y: 0.5 });
 const cellsBetween = ref<number | null>(1);
+const gridOpacity = ref<number>(DEFAULT_GRID_OPACITY);
 const dragging = ref<"A" | "B" | null>(null);
 const saving = ref(false);
 const errorMessage = ref<string | null>(null);
@@ -228,6 +245,7 @@ function onImageLoad() {
     pointB.value = { x: 0.4 + cellWidthPct, y: 0.5 };
     cellsBetween.value = 1;
   }
+  gridOpacity.value = existing?.grid_opacity ?? DEFAULT_GRID_OPACITY;
 }
 
 function startDrag(which: "A" | "B", e: PointerEvent) {
@@ -303,7 +321,7 @@ function cancel() {
 function save() {
   if (!preview.value) return;
   saving.value = true;
-  emit("save", preview.value);
+  emit("save", { ...preview.value, grid_opacity: gridOpacity.value });
 }
 </script>
 

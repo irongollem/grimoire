@@ -29,9 +29,17 @@ export function calibrateGrid(input: CalibrateGridInput): GridCalibration {
   }
 
   const pixelsPerCell = distPx / cellsBetween;
+  // Anchor the grid so handle A sits exactly on a grid intersection: the
+  // origin is A's pixel coordinate taken modulo the cell size. Since 5e
+  // cells are square, the same pixelsPerCell applies on both axes, so B
+  // also lands on a grid intersection when the A→B line is axis-aligned
+  // (the common case).
+  const mod = (n: number, m: number) => ((n % m) + m) % m;
+  const originXpx = mod(ax, pixelsPerCell);
+  const originYpx = mod(ay, pixelsPerCell);
   return {
     cells_per_image_width: imageNaturalWidth / pixelsPerCell,
-    origin_x_pct: 0,
-    origin_y_pct: 0,
+    origin_x_pct: imageNaturalWidth > 0 ? originXpx / imageNaturalWidth : 0,
+    origin_y_pct: imageNaturalHeight > 0 ? originYpx / imageNaturalHeight : 0,
   };
 }
