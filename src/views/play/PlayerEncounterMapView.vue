@@ -166,6 +166,7 @@ const loadingState = computed(() => {
   if (!encounter.value.location_id) return "This encounter has no battle map.";
   if (!location.value) return "Loading location…";
   if (!location.value.map_url) return "The battle map has no image yet.";
+  if (!location.value.is_battle_map) return "This isn't a battle map.";
   if (!location.value.grid_calibration) return "The DM hasn't calibrated this map yet.";
   return null;
 });

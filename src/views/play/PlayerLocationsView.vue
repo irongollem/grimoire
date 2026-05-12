@@ -113,7 +113,7 @@
                 {{ loc.player_summary }}
               </p>
             </div>
-            <div v-if="loc.map_url">
+            <div v-if="loc.map_url && !loc.is_battle_map">
               <LocationMap
                 :map-url="loc.map_url"
                 :pins="playerPins(loc)"
@@ -272,8 +272,8 @@
             </p>
           </div>
 
-          <!-- Map -->
-          <div v-if="entry.loc.map_url">
+          <!-- Map (suppressed for battle maps — tactical detail stays in the VTT) -->
+          <div v-if="entry.loc.map_url && !entry.loc.is_battle_map">
             <LocationMap
               :map-url="entry.loc.map_url"
               :pins="playerPins(entry.loc)"

@@ -151,6 +151,9 @@ const loadingState = computed(() => {
   if (!location.value.map_url) {
     return "The linked location has no map. Upload or bake a map for this location first.";
   }
+  if (!location.value.is_battle_map) {
+    return "This location's map isn't marked as a battle map. Open the location and tick \"Battle map\" to use it in the VTT.";
+  }
   if (!location.value.grid_calibration) {
     return "This map is not calibrated yet. Open the location and click \"Calibrate grid\" to set the 5-ft scale.";
   }

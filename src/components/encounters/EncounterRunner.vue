@@ -162,11 +162,14 @@ const battleMapLocationId = computed(() => encounter.value?.location_id ?? "");
 const { data: battleMapLocation } = useLocation(battleMapLocationId);
 
 const canOpenBattleMap = computed(() =>
-  !!battleMapLocation.value?.map_url && !!battleMapLocation.value?.grid_calibration,
+  !!battleMapLocation.value?.is_battle_map &&
+  !!battleMapLocation.value?.map_url &&
+  !!battleMapLocation.value?.grid_calibration,
 );
 const battleMapDisabledReason = computed(() => {
   if (!encounter.value?.location_id) return "Link this encounter to a location to use the battle map";
   if (!battleMapLocation.value?.map_url) return "The linked location has no map";
+  if (!battleMapLocation.value?.is_battle_map) return 'Toggle "Battle map" on the location to enable the VTT';
   if (!battleMapLocation.value?.grid_calibration) return "Calibrate the location's map first";
   return "";
 });

@@ -351,7 +351,11 @@ const { data: battleEncounter } = useEncounter(battleEncounterIdRef);
 const battleLocationIdRef = computed(() => battleEncounter.value?.location_id ?? "");
 const { data: battleLocation } = useLocation(battleLocationIdRef);
 const canShowBattleMap = computed(
-  () => !!liveState.value && !!battleLocation.value?.map_url && !!battleLocation.value?.grid_calibration,
+  () =>
+    !!liveState.value &&
+    !!battleLocation.value?.is_battle_map &&
+    !!battleLocation.value?.map_url &&
+    !!battleLocation.value?.grid_calibration,
 );
 const { turnAudioEnabled } = usePlayerCombatPrefs();
 const { playTurnChime } = useTurnChime();

@@ -660,17 +660,31 @@
           </template>
           <template v-if="props.location?.id">
             <span class="text-muted-foreground/40 text-xs">·</span>
-            <button
-              type="button"
-              class="font-cinzel text-[10px] tracking-wider transition-colors"
-              :class="props.location.grid_calibration
-                ? 'text-muted-foreground hover:text-foreground'
-                : 'text-primary hover:opacity-80'"
-              :title="props.location.grid_calibration ? 'Re-calibrate the 5-ft grid' : 'Set the 5-ft grid scale for the VTT'"
-              @click="calibrationOpen = true"
+            <label
+              class="inline-flex items-center gap-1 font-cinzel text-[10px] tracking-wider text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
+              :title="isBattleMap ? 'This map is a tactical battle map: hidden from the player atlas, available in the VTT.' : 'Mark this map as a tactical battle map (hidden from the player atlas; enables VTT + fog).'"
             >
-              {{ props.location.grid_calibration ? 'Re-calibrate grid' : 'Calibrate grid' }}
-            </button>
+              <input
+                v-model="isBattleMap"
+                type="checkbox"
+                class="h-3 w-3"
+              />
+              Battle map
+            </label>
+            <template v-if="isBattleMap">
+              <span class="text-muted-foreground/40 text-xs">·</span>
+              <button
+                type="button"
+                class="font-cinzel text-[10px] tracking-wider transition-colors"
+                :class="props.location.grid_calibration
+                  ? 'text-muted-foreground hover:text-foreground'
+                  : 'text-primary hover:opacity-80'"
+                :title="props.location.grid_calibration ? 'Re-calibrate the 5-ft grid' : 'Set the 5-ft grid scale for the VTT'"
+                @click="calibrationOpen = true"
+              >
+                {{ props.location.grid_calibration ? 'Re-calibrate grid' : 'Calibrate grid' }}
+              </button>
+            </template>
           </template>
           <input
             ref="mapFileInput"
@@ -978,6 +992,7 @@ const mapPins = ref<MapPinType[]>(
   props.location?.map_pins ? [...props.location.map_pins] : [],
 );
 const isMapShared = ref<boolean>(props.location?.is_map_shared ?? false);
+const isBattleMap = ref<boolean>(props.location?.is_battle_map ?? false);
 const mapCompact = ref(true);
 
 // Keep denormalized pin metadata (type/name/image) in sync with live children data
@@ -1054,6 +1069,7 @@ function buildPayload() {
     map_url: mapUrl.value,
     map_pins: mapPins.value,
     is_map_shared: isMapShared.value,
+    is_battle_map: isBattleMap.value,
     player_visible_to: playerVisibleTo.value,
     player_summary: playerSummary.value || null,
     is_description_shared: isDescriptionShared.value,
