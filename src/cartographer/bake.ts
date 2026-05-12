@@ -227,3 +227,22 @@ export async function bakeMapAsPng(
   const canvas = renderToCanvas(map, runtimes, options.paddingCells ?? 3);
   return canvas.convertToBlob({ type: "image/png" });
 }
+
+/** Bake a map to a max-1024px PNG Blob for AI image input. */
+export async function bakeMapForAI(
+  map: DungeonMap,
+  runtimes: Map<string, TilePackRuntime>,
+  options: BakeOptions = {},
+): Promise<Blob> {
+  const canvas = renderToCanvas(map, runtimes, options.paddingCells ?? 3);
+  const MAX_DIM = 1024;
+  if (canvas.width <= MAX_DIM && canvas.height <= MAX_DIM) {
+    return canvas.convertToBlob({ type: "image/png" });
+  }
+  const scale = MAX_DIM / Math.max(canvas.width, canvas.height);
+  const w = Math.round(canvas.width * scale);
+  const h = Math.round(canvas.height * scale);
+  const scaled = new OffscreenCanvas(w, h);
+  scaled.getContext("2d")!.drawImage(canvas, 0, 0, w, h);
+  return scaled.convertToBlob({ type: "image/png" });
+}

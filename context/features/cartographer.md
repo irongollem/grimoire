@@ -606,7 +606,7 @@ For now (image-creation focus) these links are informational — they help the D
 
 Each milestone is shippable on its own.
 
-### M1 — Skeleton (foundations)
+### M1 — Skeleton (foundations) ✅ shipped
 
 - DB: `dungeon_maps` table + `locations.source_map_id` column. Single migration via `/new-migration`.
 - Tile pack schema + validator in code (`src/cartographer/`).
@@ -618,7 +618,7 @@ Each milestone is shippable on its own.
 
 Done = paint floor, save, reload, see the same floor.
 
-### M2 — Walls and primary tools
+### M2 — Walls and primary tools ✅ shipped
 
 - Edge-based wall brush (hover-edge targeting, drag-along-edges, Shift+click for full-cell wrap).
 - Door tool (closed/open toggle on edges).
@@ -630,7 +630,7 @@ Done = paint floor, save, reload, see the same floor.
 
 Done = a 30×30 dungeon with rooms and corridors can be built in <2 minutes.
 
-### M3 — Multi-pack & storage migration
+### M3 — Multi-pack & storage migration ✅ shipped
 
 - Tile pack loader fetches from Supabase Storage bucket `tile-packs/`.
 - IndexedDB cache for loaded packs.
@@ -640,7 +640,7 @@ Done = a 30×30 dungeon with rooms and corridors can be built in <2 minutes.
 
 Done = paint with two packs on one map; pack updates apply cleanly.
 
-### M4 — Object layer & entity links
+### M4 — Object layer & entity links ✅ shipped
 
 - Object stamps (chests, statues, braziers, etc. — bundled with each pack).
 - Annotation layer (text + icons).
@@ -652,7 +652,7 @@ Done = paint with two packs on one map; pack updates apply cleanly.
 
 Done = maps feel like real prepped dungeons, not just floors and walls.
 
-### M5 — Export & Atlas integration
+### M5 — Export & Atlas integration ✅ shipped
 
 - `bakeMap()` pipeline.
 - WebP export with size cap + quality retry.
@@ -682,67 +682,60 @@ Done = beyond-rectangular maps possible.
 
 Done = users own their aesthetic.
 
-### M8 — AI Map Styler (PRO)
+### M8 — AI Map Styler ✅ shipped
 
 > **Source:** GitHub issue #386
 
-A PRO-gated "✦ AI Style" button in the M5 export panel. After the DM bakes a clean tile map, they can pass it through an img2img pipeline to apply a cohesive artistic style — charcoal sketch, illustrated atlas, aged parchment, or woodcut print — without touching the underlying cell data.
+A credit-gated "✦ AI Style" button in the view-mode export bar. The DM bakes a clean tile map and passes it through an img2img pipeline (`/v1/images/edits`, `gpt-image-1`) to apply a cohesive artistic style without touching the underlying cell data.
 
-#### UX flow
+**Gating:** credit-charged (not PRO-gated — credits are already paid for). BYOK campaigns skip the credit charge.
 
-1. Export panel → **✦ AI Style** button (hidden for free users; shows upgrade nudge).
-2. **Style Picker** modal:
-   - 4 preset swatches (labelled, with thumbnail previews):
-     - `charcoal` — Charcoal sketch
-     - `atlas` — Illustrated atlas
-     - `parchment` — Aged parchment
-     - `woodcut` — Woodcut print
-   - Optional freeform suffix textarea: "add details or mood (e.g. 'with blood stains and torchlight')"
-3. **Generate** → spinner while the img2img call runs.
-4. **Result preview** with four actions:
-   - **Save to Atlas** — same upload + `locations.map_url` update as M5 flow.
-   - **Download** — client-side PNG download.
-   - **Retry** — re-runs with same settings (different seed).
-   - **Back** — returns to Style Picker.
+#### UX flow (as built)
+
+1. View mode header → **✦ AI Style** button.
+2. **Style Picker** modal opens:
+   - 6 preset swatches (icon + label + description):
+     - `playable` — Modern illustrated, warm lighting, fully readable (default)
+     - `explorer` — Hand-drawn parchment field sketch, cartographic imperfections
+     - `isometric` — 3D axonometric cutaway, may reinterpret layout spatially
+     - `tactical` — VTT-ready battle grid, bold zone outlines
+     - `tome` — Medieval illuminated manuscript, gilded borders
+     - `woodcut` — Bold 15th century woodcut, cross-hatching
+   - Optional freeform suffix textarea (max 300 chars)
+3. **Generate** → spinner inline in modal while edge function runs.
+4. **Result preview** modal with four actions:
+   - **Save to Atlas** — inline location combobox + upload to `locationImages` bucket
+   - **↓ Download** — client-side WebP download
+   - **Retry** — re-runs with same settings
+   - **Back** — returns to Style Picker
+
+All outputs include a `dungeongrimoire.com` watermark via a fixed prompt suffix.
 
 #### Prompt composition
 
-The map's **theme** field (e.g. "stone dungeon", "forest clearing") is auto-prepended, so the DM doesn't need to repeat it:
-
 ```ts
-const prompt = `${map.theme ?? "dungeon"}, ${preset.promptSegment}, ${suffix ?? ""}`.trim()
+// Edge function builds: name + description + presetPrompt + userSuffix + watermark
+[mapName, mapDescription, presetPrompt, suffix, WATERMARK_SUFFIX].filter(Boolean).join(", ")
 ```
 
-#### Style presets (`src/cartographer/stylePresets.ts`)
+`DungeonMap` has no `theme` field — `name` + `description` are used instead.
 
-```ts
-export const CARTOGRAPHER_STYLE_PRESETS = [
-  { id: "charcoal",  label: "Charcoal sketch",    promptSegment: "hand-drawn charcoal sketch, ink line art, black and white"  },
-  { id: "atlas",     label: "Illustrated atlas",   promptSegment: "richly illustrated fantasy atlas, vivid colour, painterly"  },
-  { id: "parchment", label: "Aged parchment",      promptSegment: "aged parchment map, sepia tones, vintage cartography style" },
-  { id: "woodcut",   label: "Woodcut print",        promptSegment: "woodcut print, high contrast, bold lines, limited palette"  },
-] as const satisfies readonly StylePreset[]
-```
+#### Files (as built)
+
+- `src/cartographer/stylePresets.ts` — `StylePreset` interface + `CARTOGRAPHER_STYLE_PRESETS` array + `WATERMARK_SUFFIX`
+- `src/cartographer/bake.ts` — `bakeMapForAI()` added: downscales to max 1024 px, returns PNG
+- `supabase/functions/style-map/index.ts` — edge function: auth, key resolution, credit check, OpenAI images/edits call, usage recording
+- `src/views/cartographer/CartographerEditorView.vue` — Style Picker modal, Result modal, `onGenerateStyle`, `onRetryStyle`, `onDownloadStyled`, `onSaveStyledToAtlas`
+- `src/manual/cartographer-overview.md` — DM guide: tools, layers, view/edit mode
+- `src/manual/cartographer-export.md` — DM guide: PNG download, Save to Atlas, AI Style presets + tips
 
 #### Implementation notes
 
-- Composable: `useCartographerStyling` — mirrors the pattern in `useLocationGeneration` (same `getImageProvider()` call path).
-- Input: the baked WebP blob from `bakeMap()`, passed as the img2img `init_image`.
-- Output: WebP blob — stored and displayed the same way as any other export.
-- **No new DB columns needed** — the styled result goes to `locations.map_url` via the same M5 Save to Atlas flow; the source map data is unchanged.
-- Free users see the button but it's disabled with a "PRO" badge and upgrade tooltip.
-
-#### Acceptance criteria
-
-- [ ] `CARTOGRAPHER_STYLE_PRESETS` exported from `src/cartographer/stylePresets.ts`.
-- [ ] `useCartographerStyling(mapBlob, presetId, suffix?)` composable — returns `{ generate, result, isLoading, error }`.
-- [ ] "✦ AI Style" button appears in M5 export panel after bake.
-- [ ] PRO gate: disabled + tooltip for free users.
-- [ ] Style Picker shows 4 preset swatches + optional freeform suffix.
-- [ ] Result preview with Save to Atlas / Download / Retry / Back.
-- [ ] Map theme auto-prepended to prompt.
-
-Done = a clean tile map becomes a publishable hand-crafted-looking illustration in seconds.
+- No composable extracted — logic lives inline in the view (same pattern as M5 Save to Atlas).
+- Input: PNG from `bakeMapForAI()` (max 1024 px, downscaled if needed).
+- Output: WebP blob from OpenAI — object URL for preview, uploadable to `locationImages` bucket.
+- Credit type: `map_style_generation` — defaults to 1 credit if no admin entry exists.
+- No new DB columns needed.
 
 ### Future (post-M7)
 

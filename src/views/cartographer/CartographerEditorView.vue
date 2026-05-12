@@ -12,6 +12,16 @@
         >{{ baking ? "Baking…" : "↓ PNG" }}</button>
         <button
           type="button"
+          :disabled="baking || styleGenerating"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-primary/40 text-primary rounded-md hover:bg-primary/10 transition-colors disabled:opacity-50"
+          title="Re-render this map in an artistic style using AI"
+          @click="showStylePicker = true"
+        >
+          <IconGenerate class="h-3.5 w-3.5" :class="{ 'animate-pulse': styleGenerating }" />
+          {{ styleGenerating ? "Styling…" : "AI Style" }}
+        </button>
+        <button
+          type="button"
           :disabled="baking"
           class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-primary/40 text-primary rounded-md hover:bg-primary/10 transition-colors disabled:opacity-50"
           @click="showAtlasModal = true"
@@ -65,6 +75,7 @@
                   :options="locationOptions"
                   placeholder="Search locations…"
                 />
+                <p v-if="atlasTargetHasMap" class="mt-2 font-fell text-xs text-amber-500">This location already has a map — saving will replace it.</p>
                 <p v-if="atlasError" class="mt-2 font-fell text-xs text-destructive">{{ atlasError }}</p>
               </div>
               <div class="flex justify-end gap-2 px-5 pb-5 pt-2">
@@ -79,6 +90,145 @@
                   class="px-4 py-1.5 rounded-md font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
                   @click="onSaveToAtlas"
                 >{{ baking ? "Baking…" : "Save to Atlas" }}</button>
+              </div>
+            </div>
+          </div>
+        </Transition>
+      </Teleport>
+
+      <!-- AI Style — Preset Picker modal -->
+      <Teleport to="body">
+        <Transition name="dialog-fade">
+          <div
+            v-if="showStylePicker"
+            class="fixed inset-0 z-9999 flex items-center justify-center p-4"
+            @mousedown.self="showStylePicker = false"
+          >
+            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <div
+              class="relative w-full max-w-lg rounded-xl border border-border bg-card shadow-2xl"
+              role="dialog"
+              aria-modal="true"
+            >
+              <div class="px-5 pt-5 pb-3">
+                <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide mb-1">✦ AI Map Style</h2>
+                <p class="font-fell text-sm text-muted-foreground mb-4">
+                  Re-render this map in an artistic style. The result is a new image — your tile map is unchanged.
+                </p>
+                <!-- Preset grid -->
+                <div class="grid grid-cols-3 gap-2 mb-4">
+                  <button
+                    v-for="preset in CARTOGRAPHER_STYLE_PRESETS"
+                    :key="preset.id"
+                    type="button"
+                    :title="preset.description"
+                    :class="[
+                      'flex flex-col items-center gap-1 rounded-lg border p-3 text-center transition-colors',
+                      selectedPresetId === preset.id
+                        ? 'border-amber-500/60 bg-amber-500/10 text-amber-400'
+                        : 'border-border bg-background text-muted-foreground hover:border-amber-500/30 hover:text-foreground',
+                    ]"
+                    @click="selectedPresetId = preset.id"
+                  >
+                    <span class="text-lg leading-none">{{ preset.icon }}</span>
+                    <span class="font-cinzel text-[10px] font-semibold tracking-wider leading-tight">{{ preset.label }}</span>
+                    <span class="font-fell text-[9px] leading-tight opacity-70">{{ preset.description }}</span>
+                  </button>
+                </div>
+                <!-- Freeform suffix -->
+                <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
+                  Additional details <span class="normal-case">(optional)</span>
+                </label>
+                <textarea
+                  v-model="stylePromptSuffix"
+                  rows="2"
+                  maxlength="300"
+                  placeholder="e.g. 'flooded corridors, green bioluminescent fungus, caved-in east wing'"
+                  class="w-full bg-background border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+                <p v-if="styleError" class="mt-2 font-fell text-xs text-destructive">{{ styleError }}</p>
+              </div>
+              <div class="flex justify-end gap-2 px-5 pb-5 pt-2">
+                <button
+                  type="button"
+                  class="px-4 py-1.5 rounded-md border border-border font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors tracking-wider"
+                  @click="showStylePicker = false"
+                >Cancel</button>
+                <button
+                  type="button"
+                  :disabled="styleGenerating"
+                  class="px-4 py-1.5 rounded-md font-cinzel text-xs font-semibold tracking-wider bg-amber-500 text-black hover:bg-amber-400 transition-colors disabled:opacity-50"
+                  @click="onGenerateStyle"
+                >{{ styleGenerating ? "Generating…" : "Generate" }}</button>
+              </div>
+            </div>
+          </div>
+        </Transition>
+      </Teleport>
+
+      <!-- AI Style — Result preview modal -->
+      <Teleport to="body">
+        <Transition name="dialog-fade">
+          <div
+            v-if="showStyleResult"
+            class="fixed inset-0 z-9999 flex items-center justify-center p-4"
+            @mousedown.self="showStyleResult = false"
+          >
+            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <div
+              class="relative w-full max-w-xl rounded-xl border border-border bg-card shadow-2xl"
+              role="dialog"
+              aria-modal="true"
+            >
+              <div class="px-5 pt-5 pb-3">
+                <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide mb-3">✦ Styled Result</h2>
+                <!-- Preview image -->
+                <div class="mb-4 rounded-lg overflow-hidden border border-border bg-black aspect-square">
+                  <img
+                    v-if="styleResultUrl"
+                    :src="styleResultUrl"
+                    alt="AI-styled map"
+                    class="w-full h-full object-contain"
+                  />
+                </div>
+                <!-- Save to Atlas inline -->
+                <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
+                  Save to location
+                </label>
+                <EntityCombobox
+                  v-model="styleAtlasLocationId"
+                  :options="locationOptions"
+                  placeholder="Search locations…"
+                />
+                <p v-if="styleAtlasTargetHasMap" class="mt-2 font-fell text-xs text-amber-500">This location already has a map — saving will replace it.</p>
+                <p v-if="styleAtlasError" class="mt-2 font-fell text-xs text-destructive">{{ styleAtlasError }}</p>
+              </div>
+              <div class="flex flex-wrap justify-between gap-2 px-5 pb-5 pt-2">
+                <div class="flex gap-2">
+                  <button
+                    type="button"
+                    class="px-3 py-1.5 rounded-md border border-border font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors tracking-wider"
+                    @click="onRetryStyle"
+                  >Retry</button>
+                  <button
+                    type="button"
+                    class="px-3 py-1.5 rounded-md border border-border font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors tracking-wider"
+                    @click="showStyleResult = false; showStylePicker = true"
+                  >Back</button>
+                </div>
+                <div class="flex gap-2">
+                  <button
+                    type="button"
+                    class="px-3 py-1.5 rounded-md border border-border font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors tracking-wider"
+                    @click="onDownloadStyled"
+                  >↓ Download</button>
+                  <button
+                    type="button"
+                    :disabled="!styleAtlasLocationId || styleAtlasSaving"
+                    class="px-4 py-1.5 rounded-md font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+                    @click="onSaveStyledToAtlas"
+                  >{{ styleAtlasSaving ? "Saving…" : "Save to Atlas" }}</button>
+                </div>
               </div>
             </div>
           </div>
@@ -333,6 +483,7 @@ import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router";
 
 import {
   IconSave,
+  IconGenerate,
   IconBrush,
   IconEraser,
   IconHand,
@@ -366,9 +517,10 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useNotes } from "@/composables/useNotes";
 import { useEncounters } from "@/composables/useEncounters";
 import { useAllLocations, useUpdateLocationMapUrl } from "@/composables/useLocations";
-import { bakeMap, bakeMapAsPng } from "@/cartographer/bake";
+import { bakeMap, bakeMapAsPng, bakeMapForAI } from "@/cartographer/bake";
+import { CARTOGRAPHER_STYLE_PRESETS } from "@/cartographer/stylePresets";
 import { uploadToBucket } from "@/lib/storage";
-import { getCurrentUser } from "@/lib/supabase";
+import { getCurrentUser, supabase } from "@/lib/supabase";
 import {
   emptyLayers,
   cellKey,
@@ -440,7 +592,28 @@ const { data: allLocationsData } = useAllLocations();
 const locationOptions = computed(() =>
   (allLocationsData.value ?? []).map((l) => ({ id: l.id, name: l.name })),
 );
+const atlasTargetHasMap = computed(() =>
+  !!atlasLocationId.value &&
+  !!(allLocationsData.value ?? []).find((l) => l.id === atlasLocationId.value)?.map_url,
+);
 const updateLocationMapUrl = useUpdateLocationMapUrl();
+
+// M8 — AI Map Styler
+const showStylePicker = ref(false);
+const showStyleResult = ref(false);
+const selectedPresetId = ref("playable");
+const stylePromptSuffix = ref("");
+const styleGenerating = ref(false);
+const styleResultBlob = ref<Blob | null>(null);
+const styleResultUrl = ref<string | null>(null);
+const styleError = ref<string | null>(null);
+const styleAtlasLocationId = ref("");
+const styleAtlasError = ref<string | null>(null);
+const styleAtlasSaving = ref(false);
+const styleAtlasTargetHasMap = computed(() =>
+  !!styleAtlasLocationId.value &&
+  !!(allLocationsData.value ?? []).find((l) => l.id === styleAtlasLocationId.value)?.map_url,
+);
 
 const canvasEl = ref<HTMLCanvasElement | null>(null);
 
@@ -623,7 +796,7 @@ watch(loadedMap, (m) => {
     canUndo.value = false;
     canRedo.value = false;
   }
-});
+}, { immediate: true });
 
 // ── Deterministic variant picking ──────────────────────────────────────────
 
@@ -1696,6 +1869,91 @@ async function onDownloadPng(): Promise<void> {
     URL.revokeObjectURL(url);
   } finally {
     baking.value = false;
+  }
+}
+
+async function onGenerateStyle(): Promise<void> {
+  if (styleGenerating.value || !loadedMap.value) return;
+  styleError.value = null;
+  styleGenerating.value = true;
+  try {
+    const map = { ...loadedMap.value, layers: layers.value, metadata: metadata.value };
+    const pngBlob = await bakeMapForAI(map, loadedRuntimes.value);
+    // Convert PNG blob to base64
+    const ab = await pngBlob.arrayBuffer();
+    const bytes = new Uint8Array(ab);
+    let bin = "";
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    const image_b64 = btoa(bin);
+
+    const { data, error } = await supabase.functions.invoke("style-map", {
+      body: {
+        campaign_id: loadedMap.value.id, // placeholder — edge fn doesn't use it for map auth
+        image_b64,
+        preset_id: selectedPresetId.value,
+        map_name: name.value,
+        map_description: loadedMap.value.description,
+        prompt_suffix: stylePromptSuffix.value.trim() || null,
+      },
+    });
+    if (error || !data?.image_b64) throw new Error(error?.message ?? data?.error ?? "Generation failed");
+
+    const resultBytes = Uint8Array.from(atob(data.image_b64 as string), (c) => c.charCodeAt(0));
+    styleResultBlob.value = new Blob([resultBytes], { type: "image/webp" });
+    if (styleResultUrl.value) URL.revokeObjectURL(styleResultUrl.value);
+    styleResultUrl.value = URL.createObjectURL(styleResultBlob.value);
+    showStylePicker.value = false;
+    showStyleResult.value = true;
+  } catch (e) {
+    styleError.value = e instanceof Error ? e.message : "Something went wrong";
+  } finally {
+    styleGenerating.value = false;
+  }
+}
+
+async function onRetryStyle(): Promise<void> {
+  if (styleResultUrl.value) URL.revokeObjectURL(styleResultUrl.value);
+  styleResultBlob.value = null;
+  styleResultUrl.value = null;
+  showStyleResult.value = false;
+  await onGenerateStyle();
+}
+
+function onDownloadStyled(): void {
+  if (!styleResultBlob.value) return;
+  const url = URL.createObjectURL(styleResultBlob.value);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${name.value || "map"}-styled.webp`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function onSaveStyledToAtlas(): Promise<void> {
+  if (styleAtlasSaving.value || !styleAtlasLocationId.value || !styleResultBlob.value || !loadedMap.value) return;
+  styleAtlasError.value = null;
+  styleAtlasSaving.value = true;
+  try {
+    const user = getCurrentUser();
+    if (!user) throw new Error("Not authenticated");
+    const url = await uploadToBucket({
+      bucket: "locationImages",
+      blob: styleResultBlob.value,
+      userId: user.id,
+      contentType: "image/webp",
+    });
+    if (!url) throw new Error("Upload failed");
+    await updateLocationMapUrl.mutateAsync({
+      id: styleAtlasLocationId.value,
+      mapUrl: url,
+      sourceMapId: loadedMap.value.id,
+    });
+    showStyleResult.value = false;
+    styleAtlasLocationId.value = "";
+  } catch (e) {
+    styleAtlasError.value = e instanceof Error ? e.message : "Something went wrong";
+  } finally {
+    styleAtlasSaving.value = false;
   }
 }
 

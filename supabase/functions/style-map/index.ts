@@ -1,0 +1,177 @@
+import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { decryptValue } from "../_shared/vault.ts";
+import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
+import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
+import { fetchCreditCost, fetchUserBalance, recordGeneration } from "../_shared/credits.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const admin = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+);
+
+const WATERMARK_SUFFIX = "small 'dungeongrimoire.com' text watermark in the bottom-right corner";
+
+const PRESET_PROMPTS: Record<string, string> = {
+  playable:
+    "modern illustrated dungeon map, warm candlelight color palette, clean readable encounter zones, detailed environmental dressing, fully spatially accurate, OneDnD 2024 Player's Handbook art style",
+  explorer:
+    "weathered field sketch on aged crinkled parchment, brown ink and pencil strokes, hand-written margin annotations, compass rose, cartographic imperfections as if drawn from memory mid-expedition",
+  isometric:
+    "isometric 3D dungeon cutaway, axonometric projection, painted stone walls and wooden floors, deep dramatic shadows, D&D 5e adventure module interior art style — may reinterpret room layout in 3D perspective",
+  tactical:
+    "tactical battle map, bold encounter zone outlines, numbered encounter areas, high-contrast surface textures, neutral gridded background, optimised for Foundry VTT and Roll20 display",
+  tome:
+    "medieval illuminated manuscript page, intricate decorative parchment border, gilded drop-cap details, scriptorium brown ink illustration with subtle gold leaf accents, monastic cartography style",
+  woodcut:
+    "woodcut print on aged paper, bold black ink lines, cross-hatching for shadows and depth, stark limited ink palette, 15th century cartographic broadside style",
+};
+
+function buildPrompt(
+  presetId: string,
+  mapName: string,
+  mapDescription: string | null | undefined,
+  suffix: string | null | undefined,
+): string {
+  const presetPrompt = PRESET_PROMPTS[presetId] ?? PRESET_PROMPTS["playable"];
+  const parts: string[] = [];
+  if (mapName) parts.push(mapName);
+  if (mapDescription?.trim()) parts.push(mapDescription.trim());
+  parts.push(presetPrompt);
+  if (suffix?.trim()) parts.push(suffix.trim());
+  parts.push(WATERMARK_SUFFIX);
+  return parts.join(", ");
+}
+
+serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) return new Response("Unauthorized", { status: 401 });
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    { global: { headers: { Authorization: authHeader } } },
+  );
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return new Response("Unauthorized", { status: 401 });
+
+  let campaign_id: string, preset_id: string, image_b64: string,
+      map_name: string, map_description: string | null, prompt_suffix: string | null;
+
+  try {
+    const body = await req.json();
+    campaign_id     = body.campaign_id;
+    preset_id       = body.preset_id       ?? "playable";
+    image_b64       = body.image_b64;
+    map_name        = body.map_name        ?? "dungeon";
+    map_description = body.map_description ?? null;
+    prompt_suffix   = body.prompt_suffix   ?? null;
+    if (!campaign_id || !image_b64) throw new Error("invalid");
+  } catch {
+    return new Response("Invalid body — need { campaign_id, image_b64 }", { status: 400 });
+  }
+
+  const { data: campaign } = await admin
+    .from("campaigns")
+    .select("id, user_id, openai_api_key")
+    .eq("id", campaign_id)
+    .maybeSingle();
+  if (!campaign) return new Response("Campaign not found", { status: 404 });
+
+  if (campaign.user_id !== user.id) {
+    const { data: membership } = await admin
+      .from("campaign_members").select("role")
+      .eq("campaign_id", campaign_id).eq("user_id", user.id).maybeSingle();
+    if (!membership) return new Response("Forbidden", { status: 403 });
+  }
+
+  async function decryptKey(enc: string | null): Promise<string | null> {
+    if (!enc) return null;
+    try { return await decryptValue(enc); } catch { return null; }
+  }
+
+  const [campaignOpenai, platformKeys, providerConfigs] = await Promise.all([
+    decryptKey(campaign.openai_api_key),
+    fetchPlatformKeys(admin, ["openai"]),
+    fetchProviderConfigs(admin, ["openai"]),
+  ]);
+  const openaiKey = campaignOpenai ?? platformKeys.openai ?? null;
+  if (!openaiKey) {
+    return new Response("No OpenAI API key configured", { status: 422 });
+  }
+  const isByok = !!campaignOpenai;
+
+  const imgModel = providerConfigs.openai?.image_model ?? "gpt-image-1";
+  const baseCost = isByok ? 0 : await fetchCreditCost(admin, "map_style_generation");
+  const cost = applyMultiplier(baseCost, providerConfigs.openai?.image_multiplier);
+
+  if (cost > 0) {
+    const balance = await fetchUserBalance(admin, user.id);
+    if (balance < cost) {
+      return new Response(
+        JSON.stringify({ error: "insufficient_credits", balance }),
+        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+  }
+
+  const prompt = buildPrompt(preset_id, map_name, map_description, prompt_suffix);
+
+  // Decode base64 PNG to bytes for multipart upload
+  const byteStr = atob(image_b64);
+  const bytes = new Uint8Array(byteStr.length);
+  for (let i = 0; i < byteStr.length; i++) bytes[i] = byteStr.charCodeAt(i);
+  const imageBlob = new Blob([bytes], { type: "image/png" });
+
+  const form = new FormData();
+  form.append("model", imgModel);
+  form.append("image", imageBlob, "map.png");
+  form.append("prompt", prompt);
+  form.append("n", "1");
+  form.append("size", "1024x1024");
+  form.append("output_format", "webp");
+
+  const imgRes = await fetch("https://api.openai.com/v1/images/edits", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${openaiKey}` },
+    body: form,
+  });
+
+  if (!imgRes.ok) {
+    const body = await imgRes.json().catch(() => ({}));
+    const msg = (body as { error?: { message?: string } })?.error?.message ?? `OpenAI error ${imgRes.status}`;
+    return new Response(
+      JSON.stringify({ error: msg }),
+      { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  const imgData = await imgRes.json() as {
+    data: Array<{ b64_json: string }>;
+    usage?: { input_tokens?: number; input_image_tokens?: number; output_tokens?: number };
+  };
+  const result_b64 = imgData.data[0].b64_json;
+  const usage = imgData.usage ?? {};
+
+  await recordGeneration(admin, user.id, "map_style_generation", isByok, cost, {
+    model: imgModel,
+    provider: "openai",
+    image_count: 1,
+    input_tokens:       usage.input_tokens       ?? undefined,
+    input_image_tokens: usage.input_image_tokens ?? undefined,
+    output_tokens:      usage.output_tokens      ?? undefined,
+  });
+
+  return new Response(
+    JSON.stringify({ image_b64: result_b64 }),
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  );
+});
