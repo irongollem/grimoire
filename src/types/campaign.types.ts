@@ -17,6 +17,10 @@ export interface Campaign {
   theme: string;        // references GrimoireTheme.id, defaults to 'grimoire'
   health_visibility: "strategic" | "immersive" | "unknown";
   immersive_rolls: boolean;
+  /** When false, hide the VTT token layer from players entirely. The DM
+   *  still sees their own view normally. Useful for in-person sessions
+   *  where the VTT is used for map + fog only. */
+  battle_map_show_tokens: boolean;
   optional_rules: CampaignOptionalRules;
   excluded_monster_ids: string[];
   disabled_class_names: string[];

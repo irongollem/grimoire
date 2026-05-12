@@ -109,6 +109,7 @@ import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue
 import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
 import { decodeFogMask } from "@/lib/fogMask";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
+import { useCampaignStore } from "@/stores/campaign";
 import type { RunCombatant } from "@/types/encounter.types";
 import {
   gridLinePositions,
@@ -142,7 +143,15 @@ const fogMask = computed(() => decodeFogMask(liveState.value?.fog_mask ?? null))
 // hidden, regardless of reveal_state. This is the "monsters walk out of
 // sight" feature without LoS — just a cell membership check. Tokens with
 // no position render at the origin row (visible by default).
+const campaignStore = useCampaignStore();
+const showTokens = computed(
+  () => campaignStore.activeCampaign?.battle_map_show_tokens ?? true,
+);
+
 const liveCombatants = computed<RunCombatant[] | null>(() => {
+  // Campaign-level kill switch: when the DM has disabled VTT tokens for
+  // players, omit the token layer entirely (map + fog only).
+  if (!showTokens.value) return [];
   const list = liveState.value?.combatants_live;
   if (!list) return null;
   const mask = fogMask.value;
