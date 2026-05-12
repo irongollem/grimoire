@@ -31,6 +31,7 @@
       :spell-slots="effectiveSpellSlots"
       :spell-attack-bonus="spellAttackBonus"
       :spell-save-dc="spellSaveDc"
+      :spellcasting-by-class="spellcastingByClass"
       :max-prepared="maxPrepared"
       :member-level="memberLevel"
       view-mode="prepared"
@@ -46,6 +47,7 @@
       :spell-slots="effectiveSpellSlots"
       :spell-attack-bonus="spellAttackBonus"
       :spell-save-dc="spellSaveDc"
+      :spellcasting-by-class="spellcastingByClass"
       :max-prepared="maxPrepared"
       view-mode="spellbook"
     />
@@ -154,6 +156,7 @@ import type { Spell } from "@/types/spell.types";
 import { SPELL_SCHOOLS, SPELL_CLASSES, getCasterType, computeMaxPrepared, getDefaultSpellSlots, getMulticlassSpellSlots } from "@/types/spell.types";
 import { useCharacterClasses } from "@/composables/useCharacterClasses";
 import { useClassByName } from "@/composables/useCustomClasses";
+import { computeSpellcastingPerClass } from "@/types/multiclass.types";
 
 const addInnateOpen = ref(false);
 
@@ -225,6 +228,18 @@ const spellAttackBonus = computed(() => {
 const spellSaveDc = computed(() => {
   const bonus = spellAttackBonus.value;
   return bonus !== null ? 8 + bonus : null;
+});
+
+// Per-class spell DC / attack for multiclass casters. PlayerMySpells picks
+// the right row for each spell entry via source_class_id. Empty for single-
+// class characters — the legacy spellAttackBonus / spellSaveDc props remain
+// the source of truth in that case.
+const spellcastingByClass = computed(() => {
+  const m = member.value;
+  if (!m) return [];
+  const list = characterClasses.value ?? [];
+  if (list.length === 0) return [];
+  return computeSpellcastingPerClass(m, list);
 });
 
 // Character spells — IDs used for button state in browse tab
