@@ -49,6 +49,33 @@
               :viewBox="`0 0 ${canvasW} ${canvasH}`"
               preserveAspectRatio="none"
             >
+              <!-- Live grid preview — vertical -->
+              <line
+                v-for="(x, i) in gridPreviewVerticals"
+                :key="`gv-${i}`"
+                :x1="x"
+                :y1="0"
+                :x2="x"
+                :y2="canvasH"
+                stroke="#fbbf24"
+                stroke-width="1"
+                stroke-opacity="0.45"
+                vector-effect="non-scaling-stroke"
+              />
+              <!-- Live grid preview — horizontal -->
+              <line
+                v-for="(y, i) in gridPreviewHorizontals"
+                :key="`gh-${i}`"
+                :x1="0"
+                :y1="y"
+                :x2="canvasW"
+                :y2="y"
+                stroke="#fbbf24"
+                stroke-width="1"
+                stroke-opacity="0.45"
+                vector-effect="non-scaling-stroke"
+              />
+              <!-- Calibration line between the two handles -->
               <line
                 :x1="pointA.x * canvasW"
                 :y1="pointA.y * canvasH"
@@ -57,6 +84,7 @@
                 stroke="#fbbf24"
                 stroke-width="2"
                 stroke-dasharray="6 4"
+                vector-effect="non-scaling-stroke"
               />
             </svg>
 
@@ -138,6 +166,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { calibrateGrid } from "@/lib/gridCalibration";
+import { gridLinePositions } from "@/lib/battleMapGeometry";
 import type { GridCalibration } from "@/types/location.types";
 
 const { open, mapUrl, existing } = defineProps<{
@@ -239,6 +268,33 @@ const preview = computed<GridCalibration | null>(() => {
     return null;
   }
 });
+
+// Live grid overlay derived from the current preview calibration. Lines are
+// expressed in image-natural-pixel space so they align with the SVG viewBox;
+// non-scaling-stroke (in the template) keeps them ~1 display pixel thick.
+const previewCellPx = computed(() =>
+  preview.value && preview.value.cells_per_image_width > 0 && naturalW.value > 0
+    ? naturalW.value / preview.value.cells_per_image_width
+    : 0,
+);
+const gridPreviewVerticals = computed(() =>
+  previewCellPx.value > 0
+    ? gridLinePositions(
+        preview.value!.origin_x_pct * naturalW.value,
+        canvasW.value,
+        previewCellPx.value,
+      )
+    : [],
+);
+const gridPreviewHorizontals = computed(() =>
+  previewCellPx.value > 0
+    ? gridLinePositions(
+        preview.value!.origin_y_pct * naturalH.value,
+        canvasH.value,
+        previewCellPx.value,
+      )
+    : [],
+);
 
 function cancel() {
   emit("cancel");
