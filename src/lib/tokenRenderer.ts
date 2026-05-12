@@ -177,25 +177,38 @@ export async function renderMysteryBack(ringColor: string, size = 512): Promise<
   return tmp.toDataURL("image/png");
 }
 
+// In-memory cache of decoded portraits keyed by source URL. Drawing the same
+// token across many re-renders (faction-ring re-tint, zoom, neighbour-drag)
+// would otherwise re-fetch + re-decode the portrait each time. blob: URLs
+// are session-scoped so caching them is safe; remote URLs assume the
+// underlying asset doesn't change for a given URL string.
+const imageCache = new Map<string, HTMLImageElement>();
+
 async function loadRemoteImage(
   url: string,
   signal?: AbortSignal,
 ): Promise<HTMLImageElement | null> {
   if (signal?.aborted) return null;
+  const cached = imageCache.get(url);
+  if (cached) return cached;
   try {
+    let img: HTMLImageElement | null;
     if (url.startsWith("blob:")) {
-      return await loadImage(url);
+      img = await loadImage(url);
+    } else {
+      const res = await fetch(url, { signal });
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      if (signal?.aborted) return null;
+      const objUrl = URL.createObjectURL(blob);
+      try {
+        img = await loadImage(objUrl);
+      } finally {
+        URL.revokeObjectURL(objUrl);
+      }
     }
-    const res = await fetch(url, { signal });
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    if (signal?.aborted) return null;
-    const objUrl = URL.createObjectURL(blob);
-    try {
-      return await loadImage(objUrl);
-    } finally {
-      URL.revokeObjectURL(objUrl);
-    }
+    if (img) imageCache.set(url, img);
+    return img;
   } catch {
     return null;
   }

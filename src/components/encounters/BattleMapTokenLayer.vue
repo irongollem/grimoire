@@ -87,7 +87,9 @@ interface DraggingToken {
   startClientY: number;
 }
 const dragging = ref<DraggingToken | null>(null);
-const dragOverridePx = ref<Map<string, { x: number; y: number }>>(new Map());
+// Only one token drags at a time, so a single-slot override beats a Map
+// (no re-allocation on every pointermove).
+const dragOverridePx = ref<{ instanceId: string; x: number; y: number } | null>(null);
 
 interface RenderedToken {
   combatant: RunCombatant;
@@ -101,18 +103,28 @@ interface RenderedToken {
   silhouette: boolean;
 }
 
+// O(1) lookup maps. Without these, every renderedTokens recompute (60×/s
+// during drag) does N × M Array.find calls; with 10 tokens and 50 monsters
+// that's 500 finds per frame.
+const monstersById = computed(() => {
+  const m = new Map<string, Monster>();
+  for (const monster of monsters) m.set(monster.id, monster);
+  return m;
+});
+const factionColorById = computed(() => {
+  const m = new Map<string, string>();
+  const list = factions.length ? factions : DEFAULT_FACTIONS;
+  for (const f of list) m.set(f.id, f.color);
+  return m;
+});
+
 function getFootprint(combatant: RunCombatant): number {
-  if (combatant.monster_id) {
-    const monster = monsters.find((m) => m.id === combatant.monster_id);
-    return sizeToFootprint(monster?.size);
-  }
-  // NPCs don't carry a size — treat as Medium (1×1).
-  return 1;
+  if (!combatant.monster_id) return 1; // NPCs are treated as Medium.
+  return sizeToFootprint(monstersById.value.get(combatant.monster_id)?.size);
 }
 
 function getFactionColor(factionId: string): string {
-  const list = factions.length ? factions : DEFAULT_FACTIONS;
-  return list.find((f) => f.id === factionId)?.color ?? "#3b82f6";
+  return factionColorById.value.get(factionId) ?? "#3b82f6";
 }
 
 function combatantToEntity(c: RunCombatant): TokenEntity {
@@ -137,11 +149,10 @@ function isDraggable(instanceId: string): boolean {
 const renderedTokens = computed<RenderedToken[]>(() => {
   if (cellPx <= 0) return [];
   let originIndex = 0;
-  const visible = combatants.filter((c) => {
-    if (hideHidden && (c.reveal_state ?? "revealed") === "hidden") return false;
-    return true;
-  });
-  return visible.map((c) => {
+  const override = dragOverridePx.value;
+  const result: RenderedToken[] = [];
+  for (const c of combatants) {
+    if (hideHidden && (c.reveal_state ?? "revealed") === "hidden") continue;
     const footprint = getFootprint(c);
     let cellX: number;
     let cellY: number;
@@ -154,19 +165,20 @@ const renderedTokens = computed<RenderedToken[]>(() => {
       originIndex += 1;
     }
     const anchor = cellToPixel({ cellX, cellY, cellPx, originX, originY });
-    const override = dragOverridePx.value.get(c.instance_id);
-    return {
+    const dragMatch = override && override.instanceId === c.instance_id ? override : null;
+    result.push({
       combatant: c,
       footprint,
-      pxX: override?.x ?? anchor.x,
-      pxY: override?.y ?? anchor.y,
+      pxX: dragMatch?.x ?? anchor.x,
+      pxY: dragMatch?.y ?? anchor.y,
       factionColor: getFactionColor(c.faction_id),
       active: c.instance_id === activeInstanceId,
       dead: c.hp <= 0 && c.type === "monster",
       draggable: isDraggable(c.instance_id),
       silhouette: silhouetteUnseen && (c.reveal_state ?? "revealed") === "unseen",
-    };
-  });
+    });
+  }
+  return result;
 });
 
 // ── Canvas rendering ──────────────────────────────────────────────────────
@@ -202,10 +214,37 @@ async function renderTokenCanvas(tok: RenderedToken) {
   });
 }
 
+// Position changes via CSS, not the canvas, so dragging a token shouldn't
+// redraw any token's canvas. Only redraw when a render-relevant input changes
+// (faction colour, active glow, silhouette state, portrait, footprint, name).
+const lastRenderKey = new Map<string, string>();
+function renderKey(tok: RenderedToken): string {
+  return [
+    tok.factionColor,
+    tok.active ? "1" : "0",
+    tok.silhouette ? "1" : "0",
+    tok.combatant.portrait_url ?? "",
+    tok.footprint,
+    tok.combatant.name,
+  ].join("|");
+}
+
 watch(
   renderedTokens,
   (tokens) => {
-    for (const tok of tokens) void renderTokenCanvas(tok);
+    const liveIds = new Set<string>();
+    for (const tok of tokens) {
+      const id = tok.combatant.instance_id;
+      liveIds.add(id);
+      const key = renderKey(tok);
+      if (lastRenderKey.get(id) === key) continue;
+      lastRenderKey.set(id, key);
+      void renderTokenCanvas(tok);
+    }
+    // Drop cache entries for tokens that no longer exist (mid-combat despawn).
+    for (const id of lastRenderKey.keys()) {
+      if (!liveIds.has(id)) lastRenderKey.delete(id);
+    }
   },
   { deep: true, immediate: true },
 );
@@ -236,11 +275,11 @@ function onWindowPointerMove(e: PointerEvent) {
   if (!drag || e.pointerId !== drag.pointerId) return;
   const dx = e.clientX - drag.startClientX;
   const dy = e.clientY - drag.startClientY;
-  dragOverridePx.value.set(drag.instanceId, {
+  dragOverridePx.value = {
+    instanceId: drag.instanceId,
     x: drag.startPxX + dx,
     y: drag.startPxY + dy,
-  });
-  dragOverridePx.value = new Map(dragOverridePx.value);
+  };
 }
 
 function onWindowPointerUp(e: PointerEvent) {
@@ -267,7 +306,7 @@ function onWindowPointerUp(e: PointerEvent) {
 
 function cleanupDrag() {
   dragging.value = null;
-  dragOverridePx.value = new Map();
+  dragOverridePx.value = null;
   window.removeEventListener("pointermove", onWindowPointerMove);
   window.removeEventListener("pointerup", onWindowPointerUp);
   window.removeEventListener("pointercancel", onWindowPointerUp);

@@ -14,10 +14,10 @@
       ref="canvasHost"
       class="map-canvas-host"
       @wheel.prevent="onWheel"
-      @pointerdown="onPointerDown"
-      @pointermove="onPointerMove"
-      @pointerup="onPointerUp"
-      @pointerleave="onPointerUp"
+      @pointerdown="startPan"
+      @pointermove="continuePan"
+      @pointerup="endPan"
+      @pointerleave="endPan"
     >
       <div v-if="loadingState" class="empty-state">{{ loadingState }}</div>
 
@@ -99,11 +99,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useEncounter } from "@/composables/useEncounters";
 import { useLocation } from "@/composables/useLocations";
 import { liveState, updateOwnCombatantPosition } from "@/composables/useEncounterLive";
+import { useMapCanvas } from "@/composables/useMapCanvas";
 import { useAuthStore } from "@/stores/auth";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
 import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
@@ -137,7 +138,15 @@ const { data: encounter } = useEncounter(encounterIdRef);
 const locationIdRef = computed(() => encounter.value?.location_id ?? "");
 const { data: location } = useLocation(locationIdRef);
 
-const fogMask = computed(() => decodeFogMask(liveState.value?.fog_mask ?? null));
+// Decode only when the source string actually changes (a plain `computed`
+// would re-decode on every liveState mutation, including unrelated token
+// HP / position pushes that happen many times per second during combat).
+const fogMask = ref<Set<string>>(new Set());
+watch(
+  () => liveState.value?.fog_mask ?? null,
+  (src) => { fogMask.value = decodeFogMask(src); },
+  { immediate: true },
+);
 
 // Player view: combatants whose anchor cell sits in a fogged cell are
 // hidden, regardless of reveal_state. This is the "monsters walk out of
@@ -186,20 +195,23 @@ async function onOwnTokenMoved(instanceId: string, position: { x: number; y: num
   }
 }
 
-const canvasHost = ref<HTMLElement | null>(null);
-const hostW = ref(0);
-const hostH = ref(0);
-const imageNaturalW = ref(0);
-const imageNaturalH = ref(0);
-const imageReady = ref(false);
-
-const panX = ref(0);
-const panY = ref(0);
-const scale = ref(1);
-
-const dragging = ref(false);
-const dragLastX = ref(0);
-const dragLastY = ref(0);
+const {
+  canvasHost,
+  hostW,
+  hostH,
+  imageNaturalW,
+  imageNaturalH,
+  imageReady,
+  panX,
+  panY,
+  scale,
+  onImageLoad,
+  onWheel,
+  startPan,
+  continuePan,
+  endPan,
+  resetView,
+} = useMapCanvas();
 
 const loadingState = computed(() => {
   if (!liveState.value) return "No live encounter right now.";
@@ -211,66 +223,6 @@ const loadingState = computed(() => {
   if (!location.value.grid_calibration) return "The DM hasn't calibrated this map yet.";
   return null;
 });
-
-function onImageLoad(e: Event) {
-  const img = e.target as HTMLImageElement;
-  imageNaturalW.value = img.naturalWidth;
-  imageNaturalH.value = img.naturalHeight;
-  imageReady.value = true;
-  fitImageToHost();
-}
-
-function measureHost() {
-  if (!canvasHost.value) return;
-  const rect = canvasHost.value.getBoundingClientRect();
-  hostW.value = rect.width;
-  hostH.value = rect.height;
-}
-
-function fitImageToHost() {
-  if (!imageReady.value || !hostW.value || !hostH.value) return;
-  const fitScale = Math.min(hostW.value / imageNaturalW.value, hostH.value / imageNaturalH.value);
-  scale.value = fitScale;
-  panX.value = (hostW.value - imageNaturalW.value * fitScale) / 2;
-  panY.value = (hostH.value - imageNaturalH.value * fitScale) / 2;
-}
-
-function resetView() {
-  fitImageToHost();
-}
-
-function onWheel(e: WheelEvent) {
-  if (!imageReady.value) return;
-  const factor = Math.exp(-e.deltaY * 0.001);
-  const newScale = Math.min(8, Math.max(0.1, scale.value * factor));
-  const ratio = newScale / scale.value;
-  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-  const cx = e.clientX - rect.left;
-  const cy = e.clientY - rect.top;
-  panX.value = cx - (cx - panX.value) * ratio;
-  panY.value = cy - (cy - panY.value) * ratio;
-  scale.value = newScale;
-}
-
-function onPointerDown(e: PointerEvent) {
-  if (!imageReady.value) return;
-  dragging.value = true;
-  dragLastX.value = e.clientX;
-  dragLastY.value = e.clientY;
-  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-}
-
-function onPointerMove(e: PointerEvent) {
-  if (!dragging.value) return;
-  panX.value += e.clientX - dragLastX.value;
-  panY.value += e.clientY - dragLastY.value;
-  dragLastX.value = e.clientX;
-  dragLastY.value = e.clientY;
-}
-
-function onPointerUp() {
-  dragging.value = false;
-}
 
 const cellPx = computed(() =>
   location.value?.grid_calibration
@@ -305,29 +257,6 @@ const gridHorizontals = computed(() =>
 const gridStrokeOpacity = computed(
   () => location.value?.grid_calibration?.grid_opacity ?? DEFAULT_GRID_OPACITY,
 );
-
-let resizeObserver: ResizeObserver | null = null;
-
-onMounted(() => {
-  measureHost();
-  if (canvasHost.value) {
-    resizeObserver = new ResizeObserver(() => {
-      measureHost();
-      if (imageReady.value && panX.value === 0 && panY.value === 0) {
-        fitImageToHost();
-      }
-    });
-    resizeObserver.observe(canvasHost.value);
-  }
-});
-
-onUnmounted(() => {
-  resizeObserver?.disconnect();
-});
-
-watch(imageReady, (ready) => {
-  if (ready) fitImageToHost();
-});
 </script>
 
 <style scoped>

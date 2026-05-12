@@ -36,10 +36,10 @@
           class="relative w-full bg-muted rounded-md overflow-hidden select-none"
           style="aspect-ratio: 16 / 9; min-height: 24rem;"
           @wheel.prevent="onWheel"
-          @pointerdown="onPointerDown"
-          @pointermove="onPointerMove"
-          @pointerup="onPointerUp"
-          @pointerleave="onPointerUp"
+          @pointerdown="startPan"
+          @pointermove="continuePan"
+          @pointerup="endPan"
+          @pointerleave="endPan"
         >
           <svg
             v-if="imageReady"
@@ -105,8 +105,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, watch } from "vue";
 import { useLocation } from "@/composables/useLocations";
+import { useMapCanvas } from "@/composables/useMapCanvas";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import {
   cellSizeInDisplay,
@@ -245,78 +246,24 @@ function clearPositions() {
   );
 }
 
-// ── Map canvas (pan/zoom/grid — same model as EncounterMapView) ──────────
+// ── Map canvas (pan/zoom/grid via shared composable) ─────────────────────
 
-const canvasHost = ref<HTMLElement | null>(null);
-const hostW = ref(0);
-const hostH = ref(0);
-const imageNaturalW = ref(0);
-const imageNaturalH = ref(0);
-const imageReady = ref(false);
-const panX = ref(0);
-const panY = ref(0);
-const scale = ref(1);
-const dragging = ref(false);
-const dragLastX = ref(0);
-const dragLastY = ref(0);
-
-function onImageLoad(e: Event) {
-  const img = e.target as HTMLImageElement;
-  imageNaturalW.value = img.naturalWidth;
-  imageNaturalH.value = img.naturalHeight;
-  imageReady.value = true;
-  fitImageToHost();
-}
-
-function measureHost() {
-  if (!canvasHost.value) return;
-  const rect = canvasHost.value.getBoundingClientRect();
-  hostW.value = rect.width;
-  hostH.value = rect.height;
-}
-
-function fitImageToHost() {
-  if (!imageReady.value || !hostW.value || !hostH.value) return;
-  const fitScale = Math.min(hostW.value / imageNaturalW.value, hostH.value / imageNaturalH.value);
-  scale.value = fitScale;
-  panX.value = (hostW.value - imageNaturalW.value * fitScale) / 2;
-  panY.value = (hostH.value - imageNaturalH.value * fitScale) / 2;
-}
-
-function onWheel(e: WheelEvent) {
-  if (!imageReady.value) return;
-  const factor = Math.exp(-e.deltaY * 0.001);
-  const newScale = Math.min(8, Math.max(0.1, scale.value * factor));
-  const ratio = newScale / scale.value;
-  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-  const cx = e.clientX - rect.left;
-  const cy = e.clientY - rect.top;
-  panX.value = cx - (cx - panX.value) * ratio;
-  panY.value = cy - (cy - panY.value) * ratio;
-  scale.value = newScale;
-}
-
-function onPointerDown(e: PointerEvent) {
-  if (!imageReady.value) return;
-  // Tokens stop propagation on their own pointerdown, so pan only fires on
-  // empty-canvas drag.
-  dragging.value = true;
-  dragLastX.value = e.clientX;
-  dragLastY.value = e.clientY;
-  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-}
-
-function onPointerMove(e: PointerEvent) {
-  if (!dragging.value) return;
-  panX.value += e.clientX - dragLastX.value;
-  panY.value += e.clientY - dragLastY.value;
-  dragLastX.value = e.clientX;
-  dragLastY.value = e.clientY;
-}
-
-function onPointerUp() {
-  dragging.value = false;
-}
+const {
+  canvasHost,
+  hostW,
+  hostH,
+  imageNaturalW,
+  imageNaturalH,
+  imageReady,
+  panX,
+  panY,
+  scale,
+  onImageLoad,
+  onWheel,
+  startPan,
+  continuePan,
+  endPan,
+} = useMapCanvas();
 
 const cellPx = computed(() =>
   location.value?.grid_calibration
@@ -349,29 +296,6 @@ const gridHorizontals = computed(() =>
 const gridStrokeOpacity = computed(
   () => location.value?.grid_calibration?.grid_opacity ?? DEFAULT_GRID_OPACITY,
 );
-
-let resizeObserver: ResizeObserver | null = null;
-
-onMounted(() => {
-  measureHost();
-  if (canvasHost.value) {
-    resizeObserver = new ResizeObserver(() => {
-      measureHost();
-      if (imageReady.value && panX.value === 0 && panY.value === 0) {
-        fitImageToHost();
-      }
-    });
-    resizeObserver.observe(canvasHost.value);
-  }
-});
-
-onUnmounted(() => {
-  resizeObserver?.disconnect();
-});
-
-watch(imageReady, (ready) => {
-  if (ready) fitImageToHost();
-});
 
 // Reset imageReady when the location's map_url changes so a different map
 // re-fits and re-renders cleanly.
