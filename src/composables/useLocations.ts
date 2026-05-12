@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
-import type { Location, LocationInsert, LocationUpdate } from "@/types/location.types";
+import type { GridCalibration, Location, LocationInsert, LocationUpdate } from "@/types/location.types";
 import { deleteByPublicUrl } from "@/lib/storage";
 import { VAGUE_LOCATION_TYPES } from "@/types/location.types";
 import { SETTING_LOCATIONS, PLANAR_LOCATIONS } from "@/data/settingLocations";
@@ -283,6 +283,19 @@ export function useUpdateLocationMapUrl() {
   return useMutation({
     mutationFn: ({ id, mapUrl, sourceMapId }: { id: string; mapUrl: string; sourceMapId: string }) =>
       updateLocation(id, { map_url: mapUrl, source_map_id: sourceMapId }),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });
+    },
+  });
+}
+
+/** Set or clear the VTT grid calibration on a location. */
+export function useUpdateLocationGridCalibration() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, calibration }: { id: string; calibration: GridCalibration | null }) =>
+      updateLocation(id, { grid_calibration: calibration }),
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });

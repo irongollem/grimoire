@@ -658,6 +658,20 @@
               Edit in Cartographer
             </RouterLink>
           </template>
+          <template v-if="props.location?.id">
+            <span class="text-muted-foreground/40 text-xs">·</span>
+            <button
+              type="button"
+              class="font-cinzel text-[10px] tracking-wider transition-colors"
+              :class="props.location.grid_calibration
+                ? 'text-muted-foreground hover:text-foreground'
+                : 'text-primary hover:opacity-80'"
+              :title="props.location.grid_calibration ? 'Re-calibrate the 5-ft grid' : 'Set the 5-ft grid scale for the VTT'"
+              @click="calibrationOpen = true"
+            >
+              {{ props.location.grid_calibration ? 'Re-calibrate grid' : 'Calibrate grid' }}
+            </button>
+          </template>
           <input
             ref="mapFileInput"
             type="file"
@@ -668,6 +682,14 @@
         </div>
       </template>
     </div>
+
+    <GridCalibrationDialog
+      :open="calibrationOpen"
+      :map-url="mapUrl"
+      :existing="props.location?.grid_calibration ?? null"
+      @cancel="calibrationOpen = false"
+      @save="onCalibrationSave"
+    />
   </div>
 </template>
 
@@ -684,6 +706,7 @@ import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.v
 import TagInput from "@/components/common/TagInput.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
+import GridCalibrationDialog from "@/components/locations/GridCalibrationDialog.vue";
 import StoreInventory from "@/components/locations/StoreInventory.vue";
 import { useNpcs, useNpcsByLocations } from "@/composables/useNpcs";
 import { useEncountersByLocation } from "@/composables/useEncounters";
@@ -693,9 +716,11 @@ import {
   useAllLocations,
   useCreateLocation,
   useUpdateLocation,
+  useUpdateLocationGridCalibration,
   useDeleteLocation,
   getPinnableDescendants,
 } from "@/composables/useLocations";
+import type { GridCalibration } from "@/types/location.types";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import {
   LOCATION_TYPE_LABELS,

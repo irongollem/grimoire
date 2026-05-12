@@ -516,8 +516,8 @@ import {
 import { useConfirm } from "@/composables/useConfirm";
 import { useNotes } from "@/composables/useNotes";
 import { useEncounters } from "@/composables/useEncounters";
-import { useAllLocations, useUpdateLocationMapUrl } from "@/composables/useLocations";
-import { bakeMap, bakeMapAsPng, bakeMapForAI } from "@/cartographer/bake";
+import { useAllLocations, useUpdateLocationMapUrl, useUpdateLocationGridCalibration } from "@/composables/useLocations";
+import { bakeMap, bakeMapAsPng, bakeMapForAI, computeBakedDimensions } from "@/cartographer/bake";
 import { CARTOGRAPHER_STYLE_PRESETS } from "@/cartographer/stylePresets";
 import { uploadToBucket } from "@/lib/storage";
 import { getCurrentUser, supabase } from "@/lib/supabase";
@@ -597,6 +597,7 @@ const atlasTargetHasMap = computed(() =>
   !!(allLocationsData.value ?? []).find((l) => l.id === atlasLocationId.value)?.map_url,
 );
 const updateLocationMapUrl = useUpdateLocationMapUrl();
+const updateLocationGridCalibration = useUpdateLocationGridCalibration();
 
 // M8 — AI Map Styler
 const showStylePicker = ref(false);
@@ -1845,6 +1846,18 @@ async function onSaveToAtlas(): Promise<void> {
       id: atlasLocationId.value,
       mapUrl: url,
       sourceMapId: loadedMap.value.id,
+    });
+    // Auto-populate VTT grid calibration: the bake produces an image where
+    // every column is one 5-ft cell at BASE_TILE_SIZE px and cell (0,0) sits
+    // at the image's top-left, so cells_per_image_width == cols.
+    const dims = computeBakedDimensions(map);
+    await updateLocationGridCalibration.mutateAsync({
+      id: atlasLocationId.value,
+      calibration: {
+        cells_per_image_width: dims.cols,
+        origin_x_pct: 0,
+        origin_y_pct: 0,
+      },
     });
     showAtlasModal.value = false;
     atlasLocationId.value = "";

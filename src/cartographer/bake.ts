@@ -16,6 +16,40 @@ export interface BakeOptions {
   paddingCells?: number;
 }
 
+export const DEFAULT_BAKE_PADDING_CELLS = 3;
+
+/**
+ * Computes the dimensions (in cells) the bake will produce for a given map.
+ * Useful for downstream consumers like VTT grid calibration that need to know
+ * the cell count without re-rasterising the map.
+ */
+export function computeBakedDimensions(
+  map: DungeonMap,
+  paddingCells: number = DEFAULT_BAKE_PADDING_CELLS,
+): { cols: number; rows: number } {
+  const allKeys = [
+    ...Object.keys(map.layers.floor),
+    ...Object.keys(map.layers.solidBlock),
+    ...Object.keys(map.layers.object),
+    ...Object.keys(map.layers.annotation),
+  ];
+  let minX = 0, minY = 0, maxX = 0, maxY = 0;
+  let any = false;
+  for (const k of allKeys) {
+    const [xs, ys] = k.split(",");
+    const x = Number(xs), y = Number(ys);
+    if (!any || x < minX) minX = x;
+    if (!any || y < minY) minY = y;
+    if (!any || x > maxX) maxX = x;
+    if (!any || y > maxY) maxY = y;
+    any = true;
+  }
+  return {
+    cols: maxX - minX + 1 + paddingCells * 2,
+    rows: maxY - minY + 1 + paddingCells * 2,
+  };
+}
+
 // ── Internal helpers ───────────────────────────────────────────────────────
 
 function classifyJoint(
