@@ -2,17 +2,14 @@
   <div class="map-root">
     <!-- Top bar -->
     <div class="map-topbar">
-      <RouterLink :to="`/encounters/${encounterId}/run`" class="back-link">
-        ← Back to Runner
-      </RouterLink>
-      <span class="encounter-name">{{ encounter?.name ?? "" }}</span>
+      <RouterLink to="/play/encounter" class="back-link">← Back</RouterLink>
+      <span class="encounter-name">{{ encounter?.name ?? "Battle Map" }}</span>
       <div class="topbar-right">
         <span class="hint">{{ Math.round(scale * 100) }}%</span>
         <button class="zoom-btn" title="Reset view" @click="resetView">Reset</button>
       </div>
     </div>
 
-    <!-- Body -->
     <div
       ref="canvasHost"
       class="map-canvas-host"
@@ -22,10 +19,8 @@
       @pointerup="onPointerUp"
       @pointerleave="onPointerUp"
     >
-      <!-- Empty / error states -->
       <div v-if="loadingState" class="empty-state">{{ loadingState }}</div>
 
-      <!-- Map + grid via SVG (single layer, simple, accessible) -->
       <svg
         v-else-if="location && imageReady"
         class="map-svg"
@@ -63,23 +58,21 @@
         </g>
       </svg>
 
-      <!-- Token layer (DM-side: renders all combatants regardless of reveal_state) -->
       <BattleMapTokenLayer
-        v-if="location && imageReady && cellPx > 0"
+        v-if="location && imageReady && cellPx > 0 && liveCombatants"
         :host-w="hostW"
         :host-h="hostH"
         :cell-px="cellPx"
         :origin-x="gridOrigin.x"
         :origin-y="gridOrigin.y"
-        :combatants="store.combatants"
-        :factions="store.factions"
-        :monsters="store.availableMonsters"
-        :npcs="store.availableNpcs"
-        :active-instance-id="store.activeCombatant?.instance_id ?? null"
-        :on-position-change="onTokenMoved"
+        :combatants="liveCombatants"
+        :factions="encounter?.factions ?? []"
+        :active-instance-id="activeInstanceId"
+        :draggable-instance-ids="emptyDragSet"
+        :hide-hidden="true"
+        :silhouette-unseen="true"
       />
 
-      <!-- Off-screen loader to read naturalWidth/Height -->
       <img
         v-if="location?.map_url && !imageReady"
         :src="location.map_url"
@@ -91,12 +84,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onMounted, onUnmounted } from "vue";
-import { useRoute, RouterLink } from "vue-router";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { useRouter } from "vue-router";
 import { useEncounter } from "@/composables/useEncounters";
 import { useLocation } from "@/composables/useLocations";
-import { useEncounterRunStore } from "@/stores/encounterRun";
-import { useEncounterLive } from "@/composables/useEncounterLive";
+import { liveState } from "@/composables/useEncounterLive";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
 import {
   gridLinePositions,
@@ -104,28 +96,35 @@ import {
   gridOriginInDisplay,
 } from "@/lib/battleMapGeometry";
 
-const route = useRoute();
-const encounterId = computed(() => route.params.id as string);
-const { data: encounter } = useEncounter(encounterId);
+const router = useRouter();
+
+const MOBILE_BREAKPOINT_PX = 768;
+
+function isMobile(): boolean {
+  return typeof window !== "undefined" && window.innerWidth < MOBILE_BREAKPOINT_PX;
+}
+
+onMounted(() => {
+  // Phones don't see the battle map — bounce back to the stats panel.
+  if (isMobile()) {
+    router.replace("/play/encounter");
+  }
+});
+
+const encounterIdRef = computed(() => liveState.value?.encounter_id ?? "");
+const { data: encounter } = useEncounter(encounterIdRef);
 const locationIdRef = computed(() => encounter.value?.location_id ?? "");
 const { data: location } = useLocation(locationIdRef);
-const store = useEncounterRunStore();
-const { schedulePush, isLive } = useEncounterLive(encounterId.value);
 
-function onTokenMoved(instanceId: string, position: { x: number; y: number }) {
-  const target = store.combatants.find((c) => c.instance_id === instanceId);
-  if (!target) return;
-  target.position = position;
-  // Only push when live; otherwise the position update lives in the local
-  // store and will be persisted on next "Go Live" / schedulePush.
-  if (!isLive.value) return;
-  schedulePush({
-    round: store.round,
-    activeIndex: store.activeIndex,
-    combatants: store.combatants,
-    eventsFired: store.eventsFired,
-  });
-}
+const liveCombatants = computed(() => liveState.value?.combatants_live ?? null);
+const activeInstanceId = computed(() => {
+  if (!liveState.value || !liveCombatants.value) return null;
+  return liveCombatants.value[liveState.value.active_combatant_index ?? 0]?.instance_id ?? null;
+});
+
+// Empty Set keeps the token layer's drag logic disabled on the player side
+// until #394 makes the player's own token draggable.
+const emptyDragSet = new Set<string>();
 
 const canvasHost = ref<HTMLElement | null>(null);
 const hostW = ref(0);
@@ -143,17 +142,12 @@ const dragLastX = ref(0);
 const dragLastY = ref(0);
 
 const loadingState = computed(() => {
+  if (!liveState.value) return "No live encounter right now.";
   if (!encounter.value) return "Loading encounter…";
-  if (!encounter.value.location_id) {
-    return "This encounter is not linked to a location. Set a location with a calibrated map to use the battle view.";
-  }
+  if (!encounter.value.location_id) return "This encounter has no battle map.";
   if (!location.value) return "Loading location…";
-  if (!location.value.map_url) {
-    return "The linked location has no map. Upload or bake a map for this location first.";
-  }
-  if (!location.value.grid_calibration) {
-    return "This map is not calibrated yet. Open the location and click \"Calibrate grid\" to set the 5-ft scale.";
-  }
+  if (!location.value.map_url) return "The battle map has no image yet.";
+  if (!location.value.grid_calibration) return "The DM hasn't calibrated this map yet.";
   return null;
 });
 
@@ -189,7 +183,6 @@ function onWheel(e: WheelEvent) {
   const factor = Math.exp(-e.deltaY * 0.001);
   const newScale = Math.min(8, Math.max(0.1, scale.value * factor));
   const ratio = newScale / scale.value;
-  // Zoom relative to cursor position so the cursor cell stays under the cursor.
   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
   const cx = e.clientX - rect.left;
   const cy = e.clientY - rect.top;
@@ -256,7 +249,7 @@ onMounted(() => {
   if (canvasHost.value) {
     resizeObserver = new ResizeObserver(() => {
       measureHost();
-      if (imageReady.value && (panX.value === 0 && panY.value === 0)) {
+      if (imageReady.value && panX.value === 0 && panY.value === 0) {
         fitImageToHost();
       }
     });
@@ -370,8 +363,6 @@ watch(imageReady, (ready) => {
   color: rgba(255, 255, 255, 0.55);
   padding: 2rem;
   line-height: 1.6;
-  max-width: 32rem;
-  margin: 0 auto;
 }
 
 .hidden-loader {

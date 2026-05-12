@@ -4,15 +4,15 @@
       v-for="tok in renderedTokens"
       :key="tok.combatant.instance_id"
       class="token"
-      :class="{ 'token-dead': tok.dead }"
+      :class="{ 'token-dead': tok.dead, 'token-draggable': tok.draggable }"
       :style="tokenStyle(tok)"
       :title="tok.combatant.name"
-      @pointerdown.stop.prevent="onTokenPointerDown(tok.combatant.instance_id, $event)"
+      @pointerdown="tok.draggable ? onTokenPointerDown(tok.combatant.instance_id, $event) : undefined"
     >
       <canvas
         :ref="(el) => registerCanvas(tok.combatant.instance_id, el as HTMLCanvasElement | null)"
-        :width="tokenCanvasSize"
-        :height="tokenCanvasSize"
+        :width="canvasPx(tok.footprint)"
+        :height="canvasPx(tok.footprint)"
         class="token-canvas"
       />
     </div>
@@ -21,11 +21,16 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
-import { useEncounterRunStore } from "@/stores/encounterRun";
 import { drawToken, type TokenEntity } from "@/lib/tokenRenderer";
 import { sizeToFootprint } from "@/lib/tokenFootprint";
 import { cellToPixel, snapPixelToCell } from "@/lib/tokenSnap";
-import { DEFAULT_FACTIONS, type RunCombatant } from "@/types/encounter.types";
+import {
+  DEFAULT_FACTIONS,
+  type FactionDef,
+  type RunCombatant,
+} from "@/types/encounter.types";
+import type { Monster } from "@/types/monster.types";
+import type { Npc } from "@/types/npc.types";
 
 const {
   hostW,
@@ -33,6 +38,14 @@ const {
   cellPx,
   originX,
   originY,
+  combatants,
+  factions = [],
+  monsters = [],
+  npcs = [],
+  activeInstanceId = null,
+  draggableInstanceIds = null,
+  hideHidden = false,
+  silhouetteUnseen = false,
   onPositionChange,
 } = defineProps<{
   hostW: number;
@@ -40,21 +53,31 @@ const {
   cellPx: number;
   originX: number;
   originY: number;
-  /**
-   * Called after a drag finishes and the store has been updated locally so
-   * the host can push state over the realtime channel.
-   */
-  onPositionChange?: () => void;
+  combatants: RunCombatant[];
+  factions?: FactionDef[];
+  monsters?: Monster[];
+  npcs?: Npc[];
+  activeInstanceId?: string | null;
+  /** If null, all tokens are draggable. Pass an empty Set to make all
+   *  read-only, or a specific set to limit drag to one combatant (player
+   *  view: their own PC). */
+  draggableInstanceIds?: Set<string> | null;
+  /** When true, combatants with reveal_state="hidden" are omitted entirely
+   *  (player view). DM view leaves this false. */
+  hideHidden?: boolean;
+  /** When true, combatants with reveal_state="unseen" render the "???"
+   *  silhouette (player view). DM view leaves this false. */
+  silhouetteUnseen?: boolean;
+  onPositionChange?: (instanceId: string, position: { x: number; y: number }) => void;
 }>();
 
-const store = useEncounterRunStore();
-
-// Render token canvases at a fixed pixel resolution and CSS-scale them to the
-// current cell size. 256 px per cell is high-DPI-friendly without thrashing
-// the renderer on every zoom step.
+// Token canvases render at a fixed pixel resolution per footprint cell.
+// CSS scales them down to the current cellPx. 256 px is high-DPI-friendly
+// without thrashing the renderer on every zoom step.
 const TOKEN_CANVAS_PX_PER_CELL = 256;
-
-const tokenCanvasSize = computed(() => TOKEN_CANVAS_PX_PER_CELL); // square per footprint cell
+function canvasPx(footprint: number): number {
+  return TOKEN_CANVAS_PX_PER_CELL * footprint;
+}
 
 interface DraggingToken {
   instanceId: string;
@@ -67,8 +90,6 @@ interface DraggingToken {
 const dragging = ref<DraggingToken | null>(null);
 const dragOverridePx = ref<Map<string, { x: number; y: number }>>(new Map());
 
-// ── Token data ────────────────────────────────────────────────────────────
-
 interface RenderedToken {
   combatant: RunCombatant;
   footprint: number;
@@ -77,23 +98,22 @@ interface RenderedToken {
   factionColor: string;
   active: boolean;
   dead: boolean;
+  draggable: boolean;
+  silhouette: boolean;
 }
 
 function getFootprint(combatant: RunCombatant): number {
   if (combatant.monster_id) {
-    const monster = store.availableMonsters.find((m) => m.id === combatant.monster_id);
-    return sizeToFootprint(monster?.stat_block?.size as string | undefined);
+    const monster = monsters.find((m) => m.id === combatant.monster_id);
+    return sizeToFootprint(monster?.size);
   }
-  if (combatant.npc_id) {
-    const npc = store.availableNpcs.find((n) => n.id === combatant.npc_id);
-    return sizeToFootprint(npc?.stat_block?.size as string | undefined);
-  }
+  // NPCs don't carry a size — treat as Medium (1×1).
   return 1;
 }
 
 function getFactionColor(factionId: string): string {
-  const factions = store.factions.length ? store.factions : DEFAULT_FACTIONS;
-  return factions.find((f) => f.id === factionId)?.color ?? "#3b82f6";
+  const list = factions.length ? factions : DEFAULT_FACTIONS;
+  return list.find((f) => f.id === factionId)?.color ?? "#3b82f6";
 }
 
 function combatantToEntity(c: RunCombatant): TokenEntity {
@@ -110,12 +130,19 @@ function combatantToEntity(c: RunCombatant): TokenEntity {
   };
 }
 
-const activeInstanceId = computed(() => store.activeCombatant?.instance_id ?? null);
+function isDraggable(instanceId: string): boolean {
+  if (draggableInstanceIds === null) return true;
+  return draggableInstanceIds.has(instanceId);
+}
 
 const renderedTokens = computed<RenderedToken[]>(() => {
   if (cellPx <= 0) return [];
   let originIndex = 0;
-  return store.combatants.map((c) => {
+  const visible = combatants.filter((c) => {
+    if (hideHidden && (c.reveal_state ?? "revealed") === "hidden") return false;
+    return true;
+  });
+  return visible.map((c) => {
     const footprint = getFootprint(c);
     let cellX: number;
     let cellY: number;
@@ -123,7 +150,6 @@ const renderedTokens = computed<RenderedToken[]>(() => {
       cellX = c.position.x;
       cellY = c.position.y;
     } else {
-      // Stagger unplaced combatants at the origin row.
       cellX = originIndex;
       cellY = 0;
       originIndex += 1;
@@ -136,8 +162,10 @@ const renderedTokens = computed<RenderedToken[]>(() => {
       pxX: override?.x ?? anchor.x,
       pxY: override?.y ?? anchor.y,
       factionColor: getFactionColor(c.faction_id),
-      active: c.instance_id === activeInstanceId.value,
+      active: c.instance_id === activeInstanceId,
       dead: c.hp <= 0 && c.type === "monster",
+      draggable: isDraggable(c.instance_id),
+      silhouette: silhouetteUnseen && (c.reveal_state ?? "revealed") === "unseen",
     };
   });
 });
@@ -159,13 +187,10 @@ async function renderTokenCanvas(tok: RenderedToken) {
   await nextTick();
   const canvas = canvasRefs.get(tok.combatant.instance_id);
   if (!canvas) return;
-  // Pixel size scales with footprint so the rendered token's resolution
-  // stays sharp for Large/Huge/Gargantuan creatures.
-  const px = TOKEN_CANVAS_PX_PER_CELL * tok.footprint;
+  const px = canvasPx(tok.footprint);
   if (canvas.width !== px) canvas.width = px;
   if (canvas.height !== px) canvas.height = px;
 
-  // Abort an earlier in-flight render for the same token.
   renderControllers.get(tok.combatant.instance_id)?.abort();
   const controller = new AbortController();
   renderControllers.set(tok.combatant.instance_id, controller);
@@ -173,7 +198,7 @@ async function renderTokenCanvas(tok: RenderedToken) {
   await drawToken(canvas, combatantToEntity(tok.combatant), {
     ringColor: tok.factionColor,
     activeTurn: tok.active,
-    revealState: tok.combatant.reveal_state ?? "revealed",
+    revealState: tok.silhouette ? "unseen" : "revealed",
     signal: controller.signal,
   });
 }
@@ -189,6 +214,8 @@ watch(
 // ── Drag handling ─────────────────────────────────────────────────────────
 
 function onTokenPointerDown(instanceId: string, e: PointerEvent) {
+  e.stopPropagation();
+  e.preventDefault();
   const tok = renderedTokens.value.find((t) => t.combatant.instance_id === instanceId);
   if (!tok) return;
   dragging.value = {
@@ -214,7 +241,6 @@ function onWindowPointerMove(e: PointerEvent) {
     x: drag.startPxX + dx,
     y: drag.startPxY + dy,
   });
-  // Trigger reactivity (Map mutation isn't reactive in Vue's deep-equality model)
   dragOverridePx.value = new Map(dragOverridePx.value);
 }
 
@@ -226,7 +252,6 @@ function onWindowPointerUp(e: PointerEvent) {
     cleanupDrag();
     return;
   }
-  // Snap drop center (token center, not top-left) to nearest cell.
   const dropCenterX = tok.pxX + (tok.footprint * cellPx) / 2;
   const dropCenterY = tok.pxY + (tok.footprint * cellPx) / 2;
   const snapped = snapPixelToCell({
@@ -237,11 +262,7 @@ function onWindowPointerUp(e: PointerEvent) {
     originY,
     footprint: tok.footprint,
   });
-  const target = store.combatants.find((c) => c.instance_id === drag.instanceId);
-  if (target) {
-    target.position = snapped;
-    onPositionChange?.();
-  }
+  onPositionChange?.(drag.instanceId, snapped);
   cleanupDrag();
 }
 
@@ -252,8 +273,6 @@ function cleanupDrag() {
   window.removeEventListener("pointerup", onWindowPointerUp);
   window.removeEventListener("pointercancel", onWindowPointerUp);
 }
-
-// ── Styling ───────────────────────────────────────────────────────────────
 
 function tokenStyle(tok: RenderedToken): Record<string, string> {
   const sizePx = tok.footprint * cellPx;
@@ -276,13 +295,17 @@ function tokenStyle(tok: RenderedToken): Record<string, string> {
 .token {
   position: absolute;
   pointer-events: auto;
-  cursor: grab;
+  cursor: default;
   touch-action: none;
   user-select: none;
   transition: opacity 200ms ease;
 }
 
-.token:active {
+.token-draggable {
+  cursor: grab;
+}
+
+.token-draggable:active {
   cursor: grabbing;
 }
 

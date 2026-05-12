@@ -139,6 +139,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Live Encounter" },
   },
   {
+    path: "/play/encounter/map",
+    name: "player-encounter-map",
+    component: () => import("@/views/play/PlayerEncounterMapView.vue"),
+    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Battle Map" },
+  },
+  {
     path: "/play/factions",
     name: "play-factions",
     component: () => import("@/views/play/PlayerFactionsView.vue"),

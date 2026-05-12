@@ -31,6 +31,16 @@
         </div>
 
         <template v-else>
+          <!-- View battle map (tablet+ only) — phones stay on the stats panel -->
+          <RouterLink
+            v-if="canShowBattleMap"
+            to="/play/encounter/map"
+            class="battle-map-cta hidden md:flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 hover:bg-primary/10 transition-colors"
+          >
+            <IconMap class="h-4 w-4 text-primary shrink-0" />
+            <span class="font-cinzel text-xs font-semibold text-primary tracking-wider">View battle map</span>
+          </RouterLink>
+
           <!-- Your Turn! banner -->
           <div
             v-if="isMyTurn && !isInLobby"
@@ -307,7 +317,9 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { IconClose, IconEncounter } from '@/lib/icons';
+import { IconClose, IconEncounter, IconMap } from '@/lib/icons';
+import { useEncounter } from "@/composables/useEncounters";
+import { useLocation } from "@/composables/useLocations";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { useAuthStore } from "@/stores/auth";
@@ -330,6 +342,17 @@ defineEmits<{ close: [] }>();
 
 const campaign = useCampaignStore();
 const auth = useAuthStore();
+
+// Battle map availability — fetches the encounter + its location to determine
+// whether the "View battle map" CTA should appear. Drives a boolean only;
+// the actual map view re-fetches when the player navigates there.
+const battleEncounterIdRef = computed(() => liveState.value?.encounter_id ?? "");
+const { data: battleEncounter } = useEncounter(battleEncounterIdRef);
+const battleLocationIdRef = computed(() => battleEncounter.value?.location_id ?? "");
+const { data: battleLocation } = useLocation(battleLocationIdRef);
+const canShowBattleMap = computed(
+  () => !!liveState.value && !!battleLocation.value?.map_url && !!battleLocation.value?.grid_calibration,
+);
 const { turnAudioEnabled } = usePlayerCombatPrefs();
 const { playTurnChime } = useTurnChime();
 const { isShaking, triggerShake } = useScreenShake();

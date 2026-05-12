@@ -1010,6 +1010,15 @@ const {
   remove: removeMapFile,
 } = useImageUpload("location-images");
 
+// VTT grid calibration dialog state
+const calibrationOpen = ref(false);
+const updateGridCalibration = useUpdateLocationGridCalibration();
+async function onCalibrationSave(calibration: GridCalibration) {
+  if (!props.location?.id) return;
+  await updateGridCalibration.mutateAsync({ id: props.location.id, calibration });
+  calibrationOpen.value = false;
+}
+
 async function onMapFileChange(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (!file) return;
@@ -1052,6 +1061,8 @@ function buildPayload() {
     is_inventory_shared: isInventoryShared.value,
     npc_owner_id: npcOwnerId.value || null,
     related_location_ids: relatedLocationIds.value,
+    source_map_id: props.location?.source_map_id ?? null,
+    grid_calibration: props.location?.grid_calibration ?? null,
   };
 }
 
