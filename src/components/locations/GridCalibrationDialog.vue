@@ -63,21 +63,31 @@
             <button
               v-if="imageReady"
               type="button"
-              class="absolute h-7 w-7 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-amber-400 shadow-lg cursor-grab active:cursor-grabbing touch-none"
-              :class="{ 'cursor-grabbing': dragging === 'A' }"
+              class="calib-handle handle-a"
+              :class="{ 'is-dragging': dragging === 'A' }"
               :style="{ left: `${pointA.x * 100}%`, top: `${pointA.y * 100}%` }"
               :aria-label="'Handle A'"
               @pointerdown.prevent="startDrag('A', $event)"
-            />
+            >
+              <span class="arm arm-h" />
+              <span class="arm arm-v" />
+              <span class="ring" />
+              <span class="dot" />
+            </button>
             <button
               v-if="imageReady"
               type="button"
-              class="absolute h-7 w-7 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-sky-400 shadow-lg cursor-grab active:cursor-grabbing touch-none"
-              :class="{ 'cursor-grabbing': dragging === 'B' }"
+              class="calib-handle handle-b"
+              :class="{ 'is-dragging': dragging === 'B' }"
               :style="{ left: `${pointB.x * 100}%`, top: `${pointB.y * 100}%` }"
               :aria-label="'Handle B'"
               @pointerdown.prevent="startDrag('B', $event)"
-            />
+            >
+              <span class="arm arm-h" />
+              <span class="arm arm-v" />
+              <span class="ring" />
+              <span class="dot" />
+            </button>
           </div>
 
           <div class="flex flex-wrap items-end gap-4">
@@ -240,3 +250,87 @@ function save() {
   emit("save", preview.value);
 }
 </script>
+
+<style scoped>
+/* Precision calibration handle: large invisible click target with a thin
+ * crosshair and a small centre dot so the DM can see the exact pixel they
+ * anchor on. The handle's centre is the anchor (matches translate(-50%)). */
+.calib-handle {
+  position: absolute;
+  width: 2.5rem;
+  height: 2.5rem;
+  transform: translate(-50%, -50%);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  display: block;
+  cursor: grab;
+  touch-action: none;
+  /* keep handle above the SVG preview line */
+  z-index: 2;
+}
+.calib-handle.is-dragging {
+  cursor: grabbing;
+}
+
+.calib-handle .ring {
+  position: absolute;
+  inset: 0.625rem;
+  border-radius: 9999px;
+  border: 1.5px solid var(--handle-color);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.7), 0 0 6px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
+.calib-handle .arm {
+  position: absolute;
+  background: var(--handle-color);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+/* Crosshair arms stop short of the centre so the anchor pixel itself stays
+ * unobscured — only the dot marks it. */
+.calib-handle .arm-h {
+  left: 0;
+  right: 0;
+  top: calc(50% - 0.5px);
+  height: 1px;
+  /* gap in the middle via two linear segments — we use a mask */
+  background:
+    linear-gradient(to right, var(--handle-color) 0, var(--handle-color) calc(50% - 0.25rem), transparent calc(50% - 0.25rem), transparent calc(50% + 0.25rem), var(--handle-color) calc(50% + 0.25rem));
+}
+.calib-handle .arm-v {
+  top: 0;
+  bottom: 0;
+  left: calc(50% - 0.5px);
+  width: 1px;
+  background:
+    linear-gradient(to bottom, var(--handle-color) 0, var(--handle-color) calc(50% - 0.25rem), transparent calc(50% - 0.25rem), transparent calc(50% + 0.25rem), var(--handle-color) calc(50% + 0.25rem));
+}
+
+.calib-handle .dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  border-radius: 9999px;
+  background: var(--handle-color);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+}
+
+/* Hover/active emphasis without obscuring the anchor */
+.calib-handle:hover .ring,
+.calib-handle.is-dragging .ring {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.85), 0 0 10px var(--handle-color);
+}
+
+.handle-a {
+  --handle-color: #fbbf24; /* amber-400 */
+}
+.handle-b {
+  --handle-color: #38bdf8; /* sky-400 */
+}
+</style>
