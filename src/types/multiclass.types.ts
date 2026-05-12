@@ -100,3 +100,64 @@ export function totalLevel(classes: CharacterClass[]): number {
 export function primaryClass(classes: CharacterClass[]): CharacterClass | null {
   return classes.find((c) => c.is_primary) ?? classes[0] ?? null;
 }
+
+import { getCastingAbility } from "@/types/spell.types";
+
+/**
+ * Per-class spellcasting stats (DC and attack bonus). A multiclass character
+ * has one entry per casting class — e.g. a Paladin 3 / Wizard 5 casts Paladin
+ * spells off CHA and Wizard spells off INT, so each spell uses its own
+ * class's DC.
+ */
+export interface SpellcastingClassStats {
+  /** character_classes row id — matches character_spells.source_class_id */
+  classId: string;
+  className: string;
+  castingAbility: "int" | "wis" | "cha";
+  dc: number;
+  attack: number;
+}
+
+/**
+ * Compute per-class spell DC and attack bonus from a character's ability
+ * scores + classes. Non-casters are omitted. Proficiency bonus comes from
+ * the character (single value, shared across classes per 5e RAW).
+ */
+export function computeSpellcastingPerClass(
+  member: AbilityScores & { proficiency_bonus: number },
+  classes: CharacterClass[],
+): SpellcastingClassStats[] {
+  const out: SpellcastingClassStats[] = [];
+  for (const c of classes) {
+    const ability = getCastingAbility(c.class_name);
+    if (!ability) continue;
+    const mod = Math.floor((member[ability] - 10) / 2);
+    const attack = member.proficiency_bonus + mod;
+    out.push({
+      classId: c.id,
+      className: c.class_name,
+      castingAbility: ability,
+      attack,
+      dc: 8 + attack,
+    });
+  }
+  return out;
+}
+
+/**
+ * Resolve the right stats row for a spell entry. Matches by `sourceClassId`
+ * (the `character_spells.source_class_id` FK); falls back to the first entry
+ * for legacy rows that have no source class. Returns null when the array is
+ * empty — callers should then fall back to single-class numbers.
+ */
+export function pickSpellcastingStats(
+  entries: SpellcastingClassStats[],
+  sourceClassId: string | null | undefined,
+): SpellcastingClassStats | null {
+  if (entries.length === 0) return null;
+  if (sourceClassId) {
+    const hit = entries.find((e) => e.classId === sourceClassId);
+    if (hit) return hit;
+  }
+  return entries[0] ?? null;
+}

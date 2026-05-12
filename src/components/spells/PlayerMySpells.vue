@@ -113,15 +113,15 @@
               class="shrink-0 font-cinzel text-[10px] tracking-wider text-primary/70 border border-primary/30 rounded px-1"
             >C</span>
 
-            <!-- Attack / save info -->
+            <!-- Attack / save info (multiclass-aware via source class) -->
             <span
-              v-if="isCastable(entry) && spellAttackBonus !== null && (entry.spell.attack_type === 'ranged_spell' || entry.spell.attack_type === 'melee_spell')"
+              v-if="isCastable(entry) && attackBonusFor(entry) !== null && (entry.spell.attack_type === 'ranged_spell' || entry.spell.attack_type === 'melee_spell')"
               class="shrink-0 font-cinzel text-[10px] text-muted-foreground"
-            >Atk {{ signedNum(spellAttackBonus) }}</span>
+            >Atk {{ signedNum(attackBonusFor(entry)!) }}</span>
             <span
-              v-else-if="isCastable(entry) && spellSaveDc !== null && entry.spell.attack_type === 'save'"
+              v-else-if="isCastable(entry) && saveDcFor(entry) !== null && entry.spell.attack_type === 'save'"
               class="shrink-0 font-cinzel text-[10px] text-muted-foreground"
-            >DC {{ spellSaveDc }}</span>
+            >DC {{ saveDcFor(entry) }}</span>
 
             <!-- Cast button (castable spells) -->
             <button
@@ -256,6 +256,7 @@ import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { cantripDiceMultiplier } from "@/types/spell.types";
 import type { CasterType, CharacterSpellEntry, Spell } from "@/types/spell.types";
 import type { SpellSlotEntry } from "@/types/party.types";
+import { pickSpellcastingStats, type SpellcastingClassStats } from "@/types/multiclass.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
 
@@ -269,6 +270,13 @@ const props = defineProps<{
   spellSlots: SpellSlotEntry[];
   spellAttackBonus: number | null;
   spellSaveDc: number | null;
+  /**
+   * Per-class spellcasting stats. Each spell entry picks the stats for its
+   * source class via `source_class_id` (falling back to the first entry).
+   * Empty array → fall back to the single-class spellAttackBonus / spellSaveDc
+   * props.
+   */
+  spellcastingByClass?: SpellcastingClassStats[];
   /**
    * "spellbook" — show all character_spells (Wizard spellbook tab + Known tab for known casters)
    * "prepared"  — show only is_prepared = true (Wizard/Cleric/etc. prepared tab)
@@ -317,6 +325,19 @@ async function togglePip(level: number, pip: number) {
     return { ...s, used: newUsed };
   });
   await updateMember({ id: props.partyMemberId, update: { spell_slots: updated } });
+}
+
+// ── Multiclass-aware stat lookup ───────────────────────────────────────────────
+
+/** Pick the spellcasting stats for a spell entry, matching on source_class_id. */
+function statsFor(entry: CharacterSpellEntry): SpellcastingClassStats | null {
+  return pickSpellcastingStats(props.spellcastingByClass ?? [], entry.source_class_id);
+}
+function attackBonusFor(entry: CharacterSpellEntry): number | null {
+  return statsFor(entry)?.attack ?? props.spellAttackBonus;
+}
+function saveDcFor(entry: CharacterSpellEntry): number | null {
+  return statsFor(entry)?.dc ?? props.spellSaveDc;
 }
 
 // ── Cast ───────────────────────────────────────────────────────────────────────
@@ -429,11 +450,13 @@ async function castSpell(entry: CharacterSpellEntry, castLevel: number) {
     // Flavor text
     let text = `casts ${spell.name}`;
     if (extraLevels > 0) text += ` (upcast ${SLOT_LEVEL_LABELS[castLevel - 1]})`;
-    if (castLevel > 0 && props.spellAttackBonus !== null
+    const atk = attackBonusFor(entry);
+    const dc  = saveDcFor(entry);
+    if (castLevel > 0 && atk !== null
       && (spell.attack_type === "ranged_spell" || spell.attack_type === "melee_spell")) {
-      text += ` — Atk ${signedNum(props.spellAttackBonus)}`;
-    } else if (castLevel > 0 && props.spellSaveDc !== null && spell.attack_type === "save") {
-      text += ` — DC ${props.spellSaveDc} ${spell.save_attribute ?? ""}`;
+      text += ` — Atk ${signedNum(atk)}`;
+    } else if (castLevel > 0 && dc !== null && spell.attack_type === "save") {
+      text += ` — DC ${dc} ${spell.save_attribute ?? ""}`;
     }
     await sendFlavorMessage(text, "spell");
 
