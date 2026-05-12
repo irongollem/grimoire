@@ -43,7 +43,7 @@ function combatant(id: string, monsterId: string, factionId = "enemy"): RunComba
   };
 }
 
-function monster(id: string, name: string, size: Monster["size"] = "Medium"): Monster {
+function monster(id: string, name: string, size: Monster["size"] = "medium"): Monster {
   return {
     id,
     user_id: "u",
@@ -81,7 +81,7 @@ function baseProps() {
       combatant("m-2-0", "ogre"),
     ],
     factions,
-    monsters: [monster("goblin", "Goblin"), monster("ogre", "Ogre", "Large")],
+    monsters: [monster("goblin", "Goblin"), monster("ogre", "Ogre", "large")],
     npcs: [],
     activeInstanceId: null,
     draggableInstanceIds: null,

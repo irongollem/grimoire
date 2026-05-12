@@ -188,6 +188,7 @@ async function submit() {
       spotify_client_id: null,
       is_archived: false,
       ai_enabled: true,
+      battle_map_show_tokens: true,
     });
     if (showClaimOption && claimExisting.value) {
       await claimOrphans(created.id);
