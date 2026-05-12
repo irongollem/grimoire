@@ -74,6 +74,18 @@
         :on-position-change="onOwnTokenMoved"
       />
 
+      <!-- Fog layer (always opaque on the player side) -->
+      <BattleMapFogLayer
+        v-if="location && imageReady && cellPx > 0"
+        :host-w="hostW"
+        :host-h="hostH"
+        :cell-px="cellPx"
+        :origin-x="gridOrigin.x"
+        :origin-y="gridOrigin.y"
+        :mask="fogMask"
+        :opaque="true"
+      />
+
       <img
         v-if="location?.map_url && !imageReady"
         :src="location.map_url"
@@ -92,6 +104,9 @@ import { useLocation } from "@/composables/useLocations";
 import { liveState, updateOwnCombatantPosition } from "@/composables/useEncounterLive";
 import { useAuthStore } from "@/stores/auth";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
+import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
+import { decodeFogMask } from "@/lib/fogMask";
+import type { RunCombatant } from "@/types/encounter.types";
 import {
   gridLinePositions,
   cellSizeInDisplay,
@@ -118,7 +133,21 @@ const { data: encounter } = useEncounter(encounterIdRef);
 const locationIdRef = computed(() => encounter.value?.location_id ?? "");
 const { data: location } = useLocation(locationIdRef);
 
-const liveCombatants = computed(() => liveState.value?.combatants_live ?? null);
+const fogMask = computed(() => decodeFogMask(liveState.value?.fog_mask ?? null));
+
+// Player view: combatants whose anchor cell sits in a fogged cell are
+// hidden, regardless of reveal_state. This is the "monsters walk out of
+// sight" feature without LoS — just a cell membership check. Tokens with
+// no position render at the origin row (visible by default).
+const liveCombatants = computed<RunCombatant[] | null>(() => {
+  const list = liveState.value?.combatants_live;
+  if (!list) return null;
+  const mask = fogMask.value;
+  return list.filter((c) => {
+    if (!c.position) return true;
+    return mask.has(`${c.position.x},${c.position.y}`);
+  });
+});
 const activeInstanceId = computed(() => {
   if (!liveState.value || !liveCombatants.value) return null;
   return liveCombatants.value[liveState.value.active_combatant_index ?? 0]?.instance_id ?? null;

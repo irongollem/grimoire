@@ -6,6 +6,59 @@
         ← Back to Runner
       </RouterLink>
       <span class="encounter-name">{{ encounter?.name ?? "" }}</span>
+
+      <!-- Fog toolbox -->
+      <div class="fog-toolbox">
+        <span class="fog-label">Fog</span>
+        <div class="tool-group" role="radiogroup" aria-label="Tool">
+          <button
+            v-for="t in TOOLS"
+            :key="t.id"
+            type="button"
+            class="tool-btn"
+            :class="{ 'tool-btn-active': tool === t.id }"
+            :title="t.label"
+            @click="tool = t.id"
+          >
+            {{ t.icon }}
+          </button>
+        </div>
+        <template v-if="tool !== 'pan'">
+          <div class="tool-group" role="radiogroup" aria-label="Brush shape">
+            <button
+              v-for="s in BRUSH_SHAPES"
+              :key="s.id"
+              type="button"
+              class="tool-btn"
+              :class="{ 'tool-btn-active': brushShape === s.id }"
+              :title="s.label"
+              @click="brushShape = s.id"
+            >
+              {{ s.icon }}
+            </button>
+          </div>
+          <div class="tool-group" role="radiogroup" aria-label="Brush size">
+            <button
+              v-for="n in BRUSH_SIZES"
+              :key="n"
+              type="button"
+              class="tool-btn"
+              :class="{ 'tool-btn-active': brushSize === n }"
+              :title="`${n} cells`"
+              @click="brushSize = n"
+            >
+              {{ n }}
+            </button>
+          </div>
+        </template>
+        <button class="zoom-btn" title="Reveal everything (clear fog)" @click="resetFog('reveal')">Reveal all</button>
+        <button class="zoom-btn" title="Re-hide everything (reset fog)" @click="resetFog('hide')">Hide all</button>
+        <label class="fog-label inline-flex items-center gap-1 cursor-pointer">
+          <input v-model="previewAsPlayer" type="checkbox" />
+          <span>As player</span>
+        </label>
+      </div>
+
       <div class="topbar-right">
         <span class="hint">{{ Math.round(scale * 100) }}%</span>
         <button class="zoom-btn" title="Reset view" @click="resetView">Reset</button>
@@ -76,7 +129,21 @@
         :monsters="store.availableMonsters"
         :npcs="store.availableNpcs"
         :active-instance-id="store.activeCombatant?.instance_id ?? null"
+        :draggable-instance-ids="tool === 'pan' ? null : emptyDragSet"
         :on-position-change="onTokenMoved"
+        :class="{ 'pointer-events-none': tool !== 'pan' }"
+      />
+
+      <!-- Fog layer (DM: translucent unless previewing as player) -->
+      <BattleMapFogLayer
+        v-if="location && imageReady && cellPx > 0"
+        :host-w="hostW"
+        :host-h="hostH"
+        :cell-px="cellPx"
+        :origin-x="gridOrigin.x"
+        :origin-y="gridOrigin.y"
+        :mask="fogMask"
+        :opaque="previewAsPlayer"
       />
 
       <!-- Off-screen loader to read naturalWidth/Height -->
@@ -96,13 +163,23 @@ import { useRoute, RouterLink } from "vue-router";
 import { useEncounter } from "@/composables/useEncounters";
 import { useLocation } from "@/composables/useLocations";
 import { useEncounterRunStore } from "@/stores/encounterRun";
-import { useEncounterLive } from "@/composables/useEncounterLive";
+import { useEncounterLive, liveState } from "@/composables/useEncounterLive";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
+import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
 import {
   gridLinePositions,
   cellSizeInDisplay,
   gridOriginInDisplay,
 } from "@/lib/battleMapGeometry";
+import {
+  applyBrush,
+  cellBrushCells,
+  decodeFogMask,
+  encodeFogMask,
+  roundBrushCells,
+  type BrushMode,
+  type CellKey,
+} from "@/lib/fogMask";
 
 const route = useRoute();
 const encounterId = computed(() => route.params.id as string);
@@ -125,6 +202,98 @@ function onTokenMoved(instanceId: string, position: { x: number; y: number }) {
     combatants: store.combatants,
     eventsFired: store.eventsFired,
   });
+}
+
+// ── Fog of war ────────────────────────────────────────────────────────────
+
+type Tool = "pan" | "reveal" | "rehide";
+type BrushShape = "round" | "cell";
+
+const TOOLS: { id: Tool; label: string; icon: string }[] = [
+  { id: "pan", label: "Pan map", icon: "✋" },
+  { id: "reveal", label: "Reveal brush", icon: "💡" },
+  { id: "rehide", label: "Re-hide brush", icon: "🌑" },
+];
+const BRUSH_SHAPES: { id: BrushShape; label: string; icon: string }[] = [
+  { id: "round", label: "Round brush", icon: "●" },
+  { id: "cell", label: "Cell brush", icon: "▦" },
+];
+const BRUSH_SIZES = [1, 3, 5] as const;
+
+const tool = ref<Tool>("pan");
+const brushShape = ref<BrushShape>("round");
+const brushSize = ref<1 | 3 | 5>(3);
+const previewAsPlayer = ref(false);
+const emptyDragSet = new Set<string>();
+
+// Local fog mask, seeded from live state and pushed back on every stroke.
+// Mirroring locally lets brush strokes feel instant while the 300ms-debounced
+// push catches up.
+const fogMask = ref<Set<CellKey>>(new Set());
+
+watch(
+  () => liveState.value?.fog_mask,
+  (encoded) => {
+    fogMask.value = decodeFogMask(encoded ?? null);
+  },
+  { immediate: true },
+);
+
+function brushedCells(clientX: number, clientY: number): Set<CellKey> {
+  const host = canvasHost.value;
+  if (!host) return new Set();
+  const rect = host.getBoundingClientRect();
+  const px = clientX - rect.left;
+  const py = clientY - rect.top;
+  const fn = brushShape.value === "round" ? roundBrushCells : cellBrushCells;
+  return fn({
+    pixelX: px,
+    pixelY: py,
+    cellPx: cellPx.value,
+    originX: gridOrigin.value.x,
+    originY: gridOrigin.value.y,
+    brushCells: brushSize.value,
+  });
+}
+
+function applyStrokeAt(clientX: number, clientY: number) {
+  if (tool.value === "pan") return;
+  const mode: BrushMode = tool.value === "reveal" ? "reveal" : "rehide";
+  fogMask.value = applyBrush(fogMask.value, brushedCells(clientX, clientY), mode);
+  pushFog();
+}
+
+function pushFog() {
+  if (!isLive.value) return;
+  schedulePush({
+    round: store.round,
+    activeIndex: store.activeIndex,
+    combatants: store.combatants,
+    eventsFired: store.eventsFired,
+    fogMask: encodeFogMask(fogMask.value),
+  });
+}
+
+function resetFog(mode: "reveal" | "hide") {
+  // "Reveal all" can't enumerate every theoretical cell on an infinite grid,
+  // so it just sets a very large pre-populated rect over the visible map
+  // bounds. For practical maps this covers everything the player would see.
+  if (mode === "reveal") {
+    if (!location.value?.grid_calibration) return;
+    const cellsAcross = location.value.grid_calibration.cells_per_image_width;
+    if (!cellsAcross || imageNaturalH.value <= 0) return;
+    const cellsDown = Math.ceil(
+      cellsAcross * (imageNaturalH.value / imageNaturalW.value),
+    );
+    const next = new Set<CellKey>();
+    for (let y = 0; y < cellsDown; y++) {
+      for (let x = 0; x < cellsAcross; x++) next.add(`${x},${y}`);
+    }
+    fogMask.value = next;
+  } else {
+    fogMask.value = new Set();
+  }
+  pushFog();
 }
 
 const canvasHost = ref<HTMLElement | null>(null);
@@ -201,8 +370,16 @@ function onWheel(e: WheelEvent) {
   scale.value = newScale;
 }
 
+const brushing = ref(false);
+
 function onPointerDown(e: PointerEvent) {
   if (!imageReady.value) return;
+  if (tool.value !== "pan") {
+    brushing.value = true;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    applyStrokeAt(e.clientX, e.clientY);
+    return;
+  }
   dragging.value = true;
   dragLastX.value = e.clientX;
   dragLastY.value = e.clientY;
@@ -210,6 +387,10 @@ function onPointerDown(e: PointerEvent) {
 }
 
 function onPointerMove(e: PointerEvent) {
+  if (brushing.value) {
+    applyStrokeAt(e.clientX, e.clientY);
+    return;
+  }
   if (!dragging.value) return;
   panX.value += e.clientX - dragLastX.value;
   panY.value += e.clientY - dragLastY.value;
@@ -219,6 +400,7 @@ function onPointerMove(e: PointerEvent) {
 
 function onPointerUp() {
   dragging.value = false;
+  brushing.value = false;
 }
 
 const cellPx = computed(() =>
@@ -338,6 +520,44 @@ watch(imageReady, (ready) => {
 }
 .zoom-btn:hover {
   border-color: rgba(255, 255, 255, 0.4);
+  color: #fff;
+}
+
+.fog-toolbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.fog-label {
+  font-family: var(--font-cinzel, "Cinzel", serif);
+  font-size: 0.6875rem;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.55);
+}
+.tool-group {
+  display: inline-flex;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0.25rem;
+  overflow: hidden;
+}
+.tool-btn {
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  font-size: 0.875rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.tool-btn:hover {
+  color: #fff;
+}
+.tool-btn-active {
+  background: rgba(255, 255, 255, 0.15);
   color: #fff;
 }
 

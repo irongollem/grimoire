@@ -111,25 +111,34 @@ export function useEncounterLive(encounterId: string) {
     liveState.value = data as EncounterState;
   }
 
-  function schedulePush(state: { round: number; activeIndex: number; combatants: RunCombatant[]; eventsFired: string[] }) {
+  interface PushableState {
+    round: number;
+    activeIndex: number;
+    combatants: RunCombatant[];
+    eventsFired: string[];
+    fogMask?: string | null;
+  }
+
+  function schedulePush(state: PushableState) {
     if (pushTimer) clearTimeout(pushTimer);
     pushTimer = setTimeout(() => void pushState(state), 300);
   }
 
-  async function pushState(state: { round: number; activeIndex: number; combatants: RunCombatant[]; eventsFired: string[] }) {
+  async function pushState(state: PushableState) {
     if (!liveState.value) return;
-    const patch = {
+    const patch: Record<string, unknown> = {
       current_round: state.round,
       active_combatant_index: state.activeIndex,
       combatants_live: state.combatants,
       events_fired: state.eventsFired,
     };
+    if (state.fogMask !== undefined) patch.fog_mask = state.fogMask;
     const { error } = await supabase
       .from("encounter_state")
       .update(patch)
       .eq("encounter_id", encounterId);
     if (error) throw error;
-    liveState.value = { ...liveState.value, ...patch };
+    liveState.value = { ...liveState.value, ...(patch as Partial<EncounterState>) };
   }
 
   async function endLive() {

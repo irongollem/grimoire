@@ -305,6 +305,9 @@ export interface EncounterState {
   active_combatant_index: number;
   combatants_live: RunCombatant[];
   events_fired?: string[];
+  /** VTT fog of war — semicolon-joined list of revealed "x,y" cell keys.
+   *  null/empty = nothing revealed (full fog). See `src/lib/fogMask.ts`. */
+  fog_mask?: string | null;
   started_at: string | null;
   updated_at: string;
 }
