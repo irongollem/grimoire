@@ -584,6 +584,12 @@ export const routes: RouteRecordRaw[] = [
     component: () => import("@/views/encounters/EncounterRunView.vue"),
     meta: { requiresAuth: true, title: "Combat Tracker" },
   },
+  {
+    path: "/encounters/:id/run/map",
+    name: "encounter-run-map",
+    component: () => import("@/views/encounters/EncounterMapView.vue"),
+    meta: { requiresAuth: true, title: "Battle Map" },
+  },
 
   // Quests
   {

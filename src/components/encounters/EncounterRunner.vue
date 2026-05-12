@@ -43,6 +43,32 @@
           <IconLive class="h-3.5 w-3.5" />
           <span class="btn-label">{{ goingLive ? 'Starting…' : isLive ? '● Live' : 'Go Live' }}</span>
         </button>
+        <RouterLink
+          v-if="canOpenBattleMap"
+          :to="`/encounters/${encounterId}/run/map`"
+          class="map-btn"
+          title="Open battle map"
+        >
+          <IconMap class="h-3.5 w-3.5" />
+          <span class="btn-label">Battle Map</span>
+        </RouterLink>
+        <button
+          v-else
+          class="map-btn"
+          disabled
+          :title="battleMapDisabledReason"
+        >
+          <IconMap class="h-3.5 w-3.5" />
+          <span class="btn-label">Battle Map</span>
+        </button>
+        <button
+          v-if="canOpenBattleMap"
+          class="map-btn-secondary"
+          title="Open battle map in a new window (for a second monitor)"
+          @click="openBattleMapInNewWindow"
+        >
+          ↗
+        </button>
         <button
           @click="handleAbandon"
           class="abandon-btn"
@@ -103,7 +129,9 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { IconDiceRoll, IconDungeon, IconEncounter, IconFlag, IconLive } from '@/lib/icons';
+import { IconDiceRoll, IconDungeon, IconEncounter, IconFlag, IconLive, IconMap } from '@/lib/icons';
+import { useEncounter } from "@/composables/useEncounters";
+import { useLocation } from "@/composables/useLocations";
 import { supabase } from "@/lib/supabase";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useAllMonsters } from "@/composables/useMonsters";
@@ -129,6 +157,23 @@ const auth = useAuthStore();
 
 const { data: monsters } = useAllMonsters();
 const { data: partyMembers } = useParty();
+const { data: encounter } = useEncounter(encounterId);
+const battleMapLocationId = computed(() => encounter.value?.location_id ?? "");
+const { data: battleMapLocation } = useLocation(battleMapLocationId);
+
+const canOpenBattleMap = computed(() =>
+  !!battleMapLocation.value?.map_url && !!battleMapLocation.value?.grid_calibration,
+);
+const battleMapDisabledReason = computed(() => {
+  if (!encounter.value?.location_id) return "Link this encounter to a location to use the battle map";
+  if (!battleMapLocation.value?.map_url) return "The linked location has no map";
+  if (!battleMapLocation.value?.grid_calibration) return "Calibrate the location's map first";
+  return "";
+});
+
+function openBattleMapInNewWindow() {
+  window.open(`/encounters/${encounterId.value}/run/map`, "_blank", "noopener,noreferrer");
+}
 const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
 const { mutateAsync: autoDiscover } = useAutoDiscoverMonsters();
 
@@ -391,6 +436,14 @@ async function handleEndCombat() {
 
 .abandon-btn {
   @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-muted-foreground font-cinzel text-xs font-semibold hover:bg-muted transition-colors;
+}
+
+.map-btn {
+  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-muted-foreground font-cinzel text-xs font-semibold hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-border disabled:hover:text-muted-foreground;
+}
+
+.map-btn-secondary {
+  @apply inline-flex items-center justify-center px-2 py-1.5 rounded-md border border-border text-muted-foreground font-cinzel text-xs font-semibold hover:border-primary hover:text-primary transition-colors;
 }
 
 .end-btn {
