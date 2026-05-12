@@ -226,6 +226,7 @@
 Epic [irongollem/grimoire#387](https://github.com/irongollem/grimoire/issues/387) — turn the encounter runner into a true VTT (battle map, tokens, fog of war, realtime sync) on top of the existing `encounter_states` + Cartographer infrastructure.
 
 - [x] **Shared `tokenRenderer` extracted from The Mint** ([#388](https://github.com/irongollem/grimoire/issues/388)) — `src/lib/tokenRenderer.ts` is now the single source of truth for circular token rendering; consumed by both The Mint and the upcoming VTT layer. VTT-specific options added: faction `ringColor`, `activeTurn` gold accent, `revealState: 'unseen'` silhouette, `AbortSignal` for race-safe re-renders. TokenForgeView refactored to consume it (no visual change); 8 vitest tests for silhouette + defaults + active-turn + abort.
+- [x] **Battle map state model** ([#389](https://github.com/irongollem/grimoire/issues/389)) — migration `20260512000002_vtt_battle_map_state.sql` adds `encounter_state.fog_mask text` (revealed-cell mask for fog of war) and `locations.grid_calibration jsonb` (`{cells_per_image_width, origin_x_pct, origin_y_pct}`). `RunCombatant.position?: {x,y}` added in [encounter.types.ts](src/types/encounter.types.ts) for anchor-cell token positions — footprint is derived from creature size at render time, not stored. `Location.grid_calibration: GridCalibration | null` added in [location.types.ts](src/types/location.types.ts). All fields optional/nullable so existing flows are untouched.
 
 ### Encounters
 

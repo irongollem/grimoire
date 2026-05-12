@@ -154,6 +154,11 @@ export interface RunCombatant {
   legendary_actions_remaining?: number;
   // Reaction — one per round; reset at the start of each new round.
   reactionUsed?: boolean;
+  // VTT battle map — anchor cell (top-left of footprint) on the encounter's
+  // location map. Footprint is derived from creature size at render time, not
+  // stored. Null/undefined = unplaced; the runner stages unplaced combatants
+  // near the map origin so the DM can drag them in.
+  position?: { x: number; y: number } | null;
 }
 
 // ── XP / CR tables (D&D 5e) ──────────────────────────────────────────────────

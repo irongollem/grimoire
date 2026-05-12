@@ -116,8 +116,21 @@ export interface Location {
   npc_owner_id: string | null;
   related_location_ids: string[];
   source_map_id: string | null;
+  /**
+   * VTT battle map grid calibration for `map_url`. When set, the VTT layer can
+   * overlay a 5-ft grid and snap tokens. `cells_per_image_width` is the count
+   * of 5-ft squares spanning the image's natural width; `origin_x_pct` /
+   * `origin_y_pct` (0–1) place cell (0,0) on the image.
+   */
+  grid_calibration: GridCalibration | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface GridCalibration {
+  cells_per_image_width: number;
+  origin_x_pct: number;
+  origin_y_pct: number;
 }
 
 export type LocationInsert = Omit<
