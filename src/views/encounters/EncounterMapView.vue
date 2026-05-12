@@ -63,6 +63,17 @@
         </g>
       </svg>
 
+      <!-- Token layer (DM-side: renders all combatants regardless of reveal_state) -->
+      <BattleMapTokenLayer
+        v-if="location && imageReady && cellPx > 0"
+        :host-w="hostW"
+        :host-h="hostH"
+        :cell-px="cellPx"
+        :origin-x="gridOrigin.x"
+        :origin-y="gridOrigin.y"
+        :on-position-change="onTokenMoved"
+      />
+
       <!-- Off-screen loader to read naturalWidth/Height -->
       <img
         v-if="location?.map_url && !imageReady"
@@ -79,6 +90,9 @@ import { computed, ref, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, RouterLink } from "vue-router";
 import { useEncounter } from "@/composables/useEncounters";
 import { useLocation } from "@/composables/useLocations";
+import { useEncounterRunStore } from "@/stores/encounterRun";
+import { useEncounterLive } from "@/composables/useEncounterLive";
+import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
 import {
   gridLinePositions,
   cellSizeInDisplay,
@@ -90,6 +104,20 @@ const encounterId = computed(() => route.params.id as string);
 const { data: encounter } = useEncounter(encounterId);
 const locationIdRef = computed(() => encounter.value?.location_id ?? "");
 const { data: location } = useLocation(locationIdRef);
+const store = useEncounterRunStore();
+const { schedulePush, isLive } = useEncounterLive(encounterId.value);
+
+function onTokenMoved() {
+  // Only push when live; otherwise the position update lives in the local
+  // store and will be persisted on next "Go Live" / schedulePush.
+  if (!isLive.value) return;
+  schedulePush({
+    round: store.round,
+    activeIndex: store.activeIndex,
+    combatants: store.combatants,
+    eventsFired: store.eventsFired,
+  });
+}
 
 const canvasHost = ref<HTMLElement | null>(null);
 const hostW = ref(0);
