@@ -265,6 +265,8 @@ async function generateAndCreate() {
     is_inventory_shared:   false,
     npc_owner_id:          null,
     related_location_ids:  [],
+    source_map_id:         null,
+    grid_calibration:      null,
   });
 
   completedEntityId.value = location.id;

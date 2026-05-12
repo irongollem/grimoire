@@ -41,7 +41,6 @@ const {
   combatants,
   factions = [],
   monsters = [],
-  npcs = [],
   activeInstanceId = null,
   draggableInstanceIds = null,
   hideHidden = false,
