@@ -513,6 +513,7 @@ import { useParty } from "@/composables/useParty";
 import { useSpeciesNameMap } from "@/composables/useSpecies";
 import { useNpcs } from "@/composables/useNpcs";
 import { useMonsters } from "@/composables/useMonsters";
+import { drawToken, renderMysteryBack, type TokenEntity } from "@/lib/tokenRenderer";
 import CoinFace from "@/components/mint/CoinFace.vue";
 import { COIN_METALS, COIN_MOTIFS, COIN_PRINT_SIZES } from "@/types/coin.types";
 import type { CoinDesign } from "@/types/coin.types";
@@ -655,41 +656,6 @@ function removeFromQueue(idx: number) {
   tokenPrintQueue.value.splice(idx, 1);
 }
 
-async function renderMysteryBack(ringColor: string): Promise<string> {
-  const size = 512;
-  const tmp = document.createElement("canvas");
-  tmp.width  = size;
-  tmp.height = size;
-  const ctx = tmp.getContext("2d")!;
-  const cx = size / 2;
-  const rw = 20;
-  const R  = size / 2;
-  const ir = R - rw;
-
-  ctx.beginPath();
-  ctx.arc(cx, cx, R, 0, Math.PI * 2);
-  ctx.fillStyle = ringColor;
-  ctx.fill();
-
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx, cx, ir, 0, Math.PI * 2);
-  ctx.clip();
-  const grad = ctx.createRadialGradient(cx, cx * 0.6, 0, cx, cx, ir);
-  grad.addColorStop(0, "#1e1e2e");
-  grad.addColorStop(1, "#06060f");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, size, size);
-  ctx.fillStyle = "rgba(255,255,255,0.15)";
-  ctx.font = `bold ${Math.round(size * 0.38)}px Georgia, serif`;
-  ctx.textAlign    = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("?", cx, cx);
-  ctx.restore();
-
-  return tmp.toDataURL("image/png");
-}
-
 async function renderAndPrint() {
   if (!tokenPrintQueue.value.length) return;
   printMode.value = "tokens";
@@ -701,8 +667,11 @@ async function renderAndPrint() {
       const frontCanvas = document.createElement("canvas");
       frontCanvas.width  = 512;
       frontCanvas.height = 512;
-      const v = ++renderVersion;
-      await drawToken(frontCanvas, entry.entity, v);
+      await drawToken(frontCanvas, entry.entity, {
+        ringColor: entry.ringColor,
+        ringWidth: settings.value.ringWidth,
+        showName: settings.value.showName,
+      });
       const front = frontCanvas.toDataURL("image/png");
 
       // Render back
@@ -753,17 +722,6 @@ const tokenFrontSheet = computed(() => {
 });
 
 const tokenBackSheet = computed(() => tokenBackOrder(renderedTokenUrls.value));
-
-// ── Entity abstraction (tokens) ───────────────────────────────────────────────
-
-interface TokenEntity {
-  id: string;
-  name: string;
-  subtitle: string;
-  imageUrl: string | null;
-  focalPoint: { x: number; y: number } | null;
-  bgGradient: [string, string];
-}
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
@@ -873,158 +831,24 @@ const settings = ref({
 
 // ── Canvas rendering ──────────────────────────────────────────────────────────
 
-let renderVersion = 0;
+let activeRender: AbortController | null = null;
 
-async function loadRemoteImage(url: string): Promise<HTMLImageElement | null> {
-  try {
-    if (url.startsWith("blob:")) {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = () => resolve(null);
-        img.src = url;
-      });
-    }
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const blob  = await res.blob();
-    const objUrl = URL.createObjectURL(blob);
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload  = () => { URL.revokeObjectURL(objUrl); resolve(img); };
-      img.onerror = () => { URL.revokeObjectURL(objUrl); resolve(null); };
-      img.src = objUrl;
-    });
-  } catch {
-    return null;
-  }
-}
-
-async function drawToken(canvas: HTMLCanvasElement, entity: TokenEntity, version: number) {
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-
-  const S  = canvas.width;
-  const cx = S / 2;
-  const cy = S / 2;
-  const R  = S / 2;
-  const rw = settings.value.ringWidth;
-  const ir = R - rw;
-
-  ctx.clearRect(0, 0, S, S);
-
-  ctx.beginPath();
-  ctx.arc(cx, cy, R, 0, Math.PI * 2);
-  ctx.fillStyle = settings.value.ringColor;
-  ctx.fill();
-
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx, cy, ir, 0, Math.PI * 2);
-  ctx.clip();
-
-  const grad = ctx.createRadialGradient(cx, cy * 0.6, 0, cx, cy, ir);
-  grad.addColorStop(0, entity.bgGradient[0]);
-  grad.addColorStop(1, entity.bgGradient[1]);
-  ctx.fillStyle = grad;
-  ctx.fillRect(cx - ir, cy - ir, ir * 2, ir * 2);
-
-  if (entity.imageUrl) {
-    const img = await loadRemoteImage(entity.imageUrl);
-    if (version !== renderVersion) return;
-    if (img) {
-      const diam   = ir * 2;
-      const aspect = img.naturalWidth / img.naturalHeight;
-      let dw: number, dh: number;
-      if (aspect > 1) { dh = diam; dw = diam * aspect; }
-      else             { dw = diam; dh = diam / aspect; }
-
-      // Use focal point to center the subject in the circle.
-      // fp is 0-100% of the source image; clamp so image fully covers the inner circle.
-      const fp = entity.focalPoint;
-      const drawX = fp
-        ? Math.min(cx - ir, Math.max(cx + ir - dw, cx - (fp.x / 100) * dw))
-        : cx - dw / 2;
-      const drawY = fp
-        ? Math.min(cy - ir, Math.max(cy + ir - dh, cy - (fp.y / 100) * dh))
-        : cy - dh / 2;
-      ctx.drawImage(img, drawX, drawY, dw, dh);
-    }
-  }
-
-  if (!entity.imageUrl) {
-    ctx.fillStyle = "rgba(255,255,255,0.18)";
-    ctx.font      = `bold ${Math.round(S * 0.34)}px Georgia, serif`;
-    ctx.textAlign    = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(entity.name.charAt(0).toUpperCase(), cx, cy);
-  }
-
-  ctx.restore();
-
-  if (settings.value.showName) {
-    const fontSize = Math.round(S * 0.083);
-    ctx.font = `bold ${fontSize}px Georgia, serif`;
-
-    let label = entity.name;
-    const arcR = ir - fontSize * 0.55;
-    const maxW = arcR * Math.PI * 1.4;
-    while (ctx.measureText(label).width > maxW && label.length > 1) {
-      label = label.slice(0, -1);
-    }
-    if (label !== entity.name) label += "…";
-
-    const chars   = label.split("");
-    const cWidths = chars.map((c) => ctx.measureText(c).width);
-    const totalW  = cWidths.reduce((a, b) => a + b, 0);
-    const totalA  = totalW / arcR;
-
-    const bandH  = fontSize * 1.9;
-    const pad    = 0.15;
-    const bStart = Math.PI / 2 - totalA / 2 - pad;
-    const bEnd   = Math.PI / 2 + totalA / 2 + pad;
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(cx, cy, ir,         bStart, bEnd);
-    ctx.arc(cx, cy, ir - bandH, bEnd, bStart, true);
-    ctx.closePath();
-    const bandGrad = ctx.createRadialGradient(cx, cy, ir - bandH, cx, cy, ir);
-    bandGrad.addColorStop(0,    "rgba(0,0,0,0)");
-    bandGrad.addColorStop(0.22, "rgba(0,0,0,0.72)");
-    bandGrad.addColorStop(1,    "rgba(0,0,0,0.92)");
-    ctx.fillStyle = bandGrad;
-    ctx.fill();
-    ctx.restore();
-
-    ctx.save();
-    ctx.font         = `bold ${fontSize}px Georgia, serif`;
-    ctx.textAlign    = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle    = "#ffffff";
-    ctx.shadowColor  = "rgba(0,0,0,0.95)";
-    ctx.shadowBlur   = 8;
-
-    let angle = Math.PI / 2 + totalA / 2;
-    for (let i = 0; i < chars.length; i++) {
-      const ca = angle - cWidths[i] / arcR / 2;
-      ctx.save();
-      ctx.translate(cx + arcR * Math.cos(ca), cy + arcR * Math.sin(ca));
-      ctx.rotate(ca - Math.PI / 2);
-      ctx.fillText(chars[i], 0, 0);
-      ctx.restore();
-      angle -= cWidths[i] / arcR;
-    }
-    ctx.restore();
-  }
+function currentRenderOpts() {
+  return {
+    ringColor: settings.value.ringColor,
+    ringWidth: settings.value.ringWidth,
+    showName: settings.value.showName,
+  };
 }
 
 async function renderToken() {
   const canvas = tokenCanvas.value;
   const entity = selected.value;
   if (!canvas || !entity) return;
-  const version = ++renderVersion;
-  await drawToken(canvas, entity, version);
+  activeRender?.abort();
+  const controller = new AbortController();
+  activeRender = controller;
+  await drawToken(canvas, entity, { ...currentRenderOpts(), signal: controller.signal });
 }
 
 watch(
@@ -1046,8 +870,7 @@ async function getExportCanvas(): Promise<HTMLCanvasElement | null> {
   const tmp = document.createElement("canvas");
   tmp.width  = exportSize;
   tmp.height = exportSize;
-  const version = ++renderVersion;
-  await drawToken(tmp, entity, version);
+  await drawToken(tmp, entity, currentRenderOpts());
   return tmp;
 }
 

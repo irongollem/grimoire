@@ -217,6 +217,12 @@
 - [x] **Cartographer M1 — tile-based battle map builder** (irongollem/grimoire#378, epic #377) — sixth tab on `/dungeon-craft`; schema-validated WebP tile packs with per-cell hash-based variant picking; canvas editor with pan/zoom, floor brush, eraser; procedural placeholder fallback for missing assets (so the editor is usable before AI-generated WebPs land); B/E keyboard shortcuts plus W/D/S pre-wired for M2; right-mouse-drag pans without tool switch; `dungeon_maps` user-scoped table + `locations.source_map_id` FK for future Atlas baking. Walls, doors, solid blocks, undo/redo, export are queued for M2–M5
 - [x] **Cartographer M5 — Atlas baking & export** — `bakeMap()` (WebP, 5 MB cap + quality retry) + `bakeMapAsPng()` (PNG, client download); "↓ PNG" button downloads full-res PNG; "Save to Atlas" opens location picker modal; bake → upload WebP to `location-images` → update `locations.map_url` + `source_map_id`; "Edit in Cartographer" link in LocationEditor when `source_map_id` set; Cartographer added to Publishing Tools nav; subsequent exports overwrite existing location map
 
+### VTT (Battle Map)
+
+Epic [irongollem/grimoire#387](https://github.com/irongollem/grimoire/issues/387) — turn the encounter runner into a true VTT (battle map, tokens, fog of war, realtime sync) on top of the existing `encounter_states` + Cartographer infrastructure.
+
+- [x] **Shared `tokenRenderer` extracted from The Mint** ([#388](https://github.com/irongollem/grimoire/issues/388)) — `src/lib/tokenRenderer.ts` is now the single source of truth for circular token rendering; consumed by both The Mint and the upcoming VTT layer. VTT-specific options added: faction `ringColor`, `activeTurn` gold accent, `revealState: 'unseen'` silhouette, `AbortSignal` for race-safe re-renders. TokenForgeView refactored to consume it (no visual change); 8 vitest tests for silhouette + defaults + active-turn + abort.
+
 ### Encounters
 
 - [x] **Health info visibility** — campaign-level setting (strategic/immersive/unknown); strategic: PCs exact HP + bar, non-PCs bar + label; immersive: PCs exact, others label only; unknown: PCs exact, others nothing
