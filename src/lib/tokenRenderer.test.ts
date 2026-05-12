@@ -149,3 +149,53 @@ describe("drawToken — signal abort", () => {
     ).resolves.toBeUndefined();
   });
 });
+
+// ── Performance regression guards ─────────────────────────────────────────
+// These tests pin the perf wins from the /simplify pass so a future refactor
+// doesn't silently reintroduce N×duplicate portrait fetches.
+
+describe("drawToken — image cache (regression guard)", () => {
+  it("fetches the same imageUrl only once across repeated draws", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(new Blob([new Uint8Array([0])], { type: "image/webp" }), { status: 200 }),
+    );
+    const urlSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:mock");
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+
+    // happy-dom's Image doesn't auto-fire load for blob: URLs, so stub it
+    // with a microtask-firing version that mirrors browser semantics.
+    class StubImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = 64;
+      naturalHeight = 64;
+      private _src = "";
+      set src(v: string) {
+        this._src = v;
+        queueMicrotask(() => this.onload?.());
+      }
+      get src() {
+        return this._src;
+      }
+    }
+    vi.stubGlobal("Image", StubImage);
+
+    const entity: TokenEntity = {
+      ...baseEntity,
+      imageUrl: "https://example.com/cache-regression.webp",
+    };
+
+    const c1 = makeCanvas();
+    await drawToken(c1.canvas, entity);
+    const c2 = makeCanvas();
+    await drawToken(c2.canvas, entity);
+    const c3 = makeCanvas();
+    await drawToken(c3.canvas, entity);
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    fetchSpy.mockRestore();
+    urlSpy.mockRestore();
+    vi.unstubAllGlobals();
+  });
+});
