@@ -1,6 +1,6 @@
 # Cartographer — Tile-Based Battle Map Builder
 
-> **Status:** M1 + M2 implemented; M3–M7 pending. The spec below is the source of truth for design intent. The "As-built" appendix at the bottom records actual file paths per milestone.
+> **Status:** M1–M6 + M8 implemented; M7 pending. The spec below is the source of truth for design intent. The "As-built" appendix at the bottom records actual file paths per milestone.
 
 ## Overview
 
@@ -664,14 +664,56 @@ Done = maps feel like real prepped dungeons, not just floors and walls.
 
 Done = maps leave the app; Atlas locations carry maps that round-trip.
 
-### M6 — Curves & advanced brushes
+### M6 — Curves & advanced brushes ✅ shipped
 
-- Rounded room corners (uses an extended `wallRound*` category set).
-- Circular / octagonal room templates.
-- Organic cave brush (Perlin-noise-driven irregular edges).
-- Free-rotate stamp objects.
+> **Source:** GitHub issue #383
 
-Done = beyond-rectangular maps possible.
+Adds organic and curved shapes beyond the rectilinear M1–M5 toolkit. Pack schema bumped to **v2** with an optional `wallRoundJoint` category; rounded corners are auto-detected at L-corners and fall back to the standard `wallJoint` when round variants aren't present.
+
+#### Tools (as built)
+
+| Tool | Hotkey | Behaviour |
+| --- | --- | --- |
+| Room template | `m` | Click center, drag to size. Three shapes: **Circle**, **Octagon**, **Hex**. Fills floor + auto-wraps walls around the perimeter. |
+| Cave brush | `v` | Drag to paint organic floor blobs driven by smooth value noise. Brush sizes 3/5/7/9 cells. New noise seed per stroke. |
+| Stamp rotation | Q/E + `[`/`]` | Existing 90° rotation, now joined by `[` / `]` for ±1° fine rotation. `PackRef.rotation` widened from a literal union to arbitrary degrees. |
+
+#### Schema v2 — `wallRoundJoint`
+
+Added to `TILE_PACK_SCHEMA.categories` as an **optional directional** category with sides `['L_NE', 'L_SE', 'L_SW', 'L_NW']`. When a pack ships these tiles:
+
+1. The renderer detects L-corners via the existing `classifyJoint()` function.
+2. If the pack has a `wallRoundJoint` variant for that L-corner side, the tile is drawn at full `tilePx × tilePx` size centered on the grid intersection.
+3. Otherwise the renderer falls through to the standard `wallJoint` (or procedural square) path.
+
+The placeholder tile renders a quarter-circle arc carved into the wall mass, producing a recognisable smooth corner even before real WebP art lands.
+
+#### Geometry — `src/cartographer/geometry.ts`
+
+Pure functions, fully unit-tested:
+
+- `cellsInCircle(cx, cy, r)` — Euclidean distance fill.
+- `cellsInOctagon(cx, cy, r)` — bounding square with diagonal corners clipped at ~30% of r.
+- `cellsInHex(cx, cy, r)` — pointy-top hex on a square grid; row width narrows by 1 every 2 rows from the equator.
+- `cellsForTemplate(cx, cy, r, shape)` — dispatcher.
+- `valueNoise2D(x, y, seed)` — smoothstep-interpolated value noise in `[0, 1]`; deterministic per `(coord, seed)`.
+- `caveBrushCells(cx, cy, radius, seed)` — radial noise threshold; centre cells included reliably, edge cells fade out organically.
+
+#### Files added/modified in M6
+
+- `src/cartographer/geometry.ts` — new pure-functions module (room shapes + value noise + cave brush).
+- `src/cartographer/geometry.test.ts` — 13 unit tests.
+- `src/cartographer/packSchema.ts` — `TILE_PACK_SCHEMA.version` bumped to 2; `wallRoundJoint` category added.
+- `src/cartographer/placeholderTile.ts` — rounded-corner placeholder renderer (`wallRoundJoint` branch + palette default).
+- `src/types/dungeonMap.types.ts` — `PackRef.rotation` widened from `0 | 90 | 180 | 270` to `number`.
+- `src/lib/icons.ts` — `IconRoomTemplate` (Hexagon) + `IconCave` (Cloud).
+- `public/cartographer/stone-dungeon/v1/manifest.json` — `schema_version` bumped to 2; `wallRoundJoint` slots declared (use placeholder art until WebP lands).
+- `src/views/cartographer/CartographerEditorView.vue` — two new tools wired into TOOLS, pointer handlers, inspector panels; round-corner rendering branch in `render()`; fine-rotation `[` / `]` hotkeys.
+
+#### Open items
+
+- Real WebP art for `wallRoundJoint` on Stone Dungeon and other packs — falls back to placeholder until the AI generation pipeline produces them.
+- Other bundled packs still ship `schema_version: 1` and lack `wallRoundJoint` slots; corners on those packs render as before (sharp wallJoint).
 
 ### M7 — Community / custom packs (PRO)
 

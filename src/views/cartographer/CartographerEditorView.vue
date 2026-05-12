@@ -416,21 +416,33 @@
               @click="activeObjectCategory = cat"
             >{{ cat.replace('object', '') }}</button>
           </div>
-          <div class="flex items-center gap-1.5">
-            <span class="font-cinzel text-[9px] tracking-wider text-muted-foreground uppercase">Rotate</span>
+          <div class="flex flex-wrap items-center gap-1">
+            <span class="font-cinzel text-[9px] tracking-wider text-muted-foreground uppercase w-full">Rotate</span>
             <button
               type="button"
-              title="Rotate CCW (Q)"
+              title="–1° ([)"
               class="rounded px-1.5 py-0.5 font-cinzel text-[9px] bg-muted hover:bg-muted/80 text-foreground"
-              @click="stampRotation = ((stampRotation + 270) % 360) as 0|90|180|270"
+              @click="stampRotation = (stampRotation + 359) % 360"
+            >–1°</button>
+            <button
+              type="button"
+              title="Rotate CCW 90° (Q)"
+              class="rounded px-1.5 py-0.5 font-cinzel text-[9px] bg-muted hover:bg-muted/80 text-foreground"
+              @click="stampRotation = (stampRotation + 270) % 360"
             >↺ Q</button>
-            <span class="font-fell text-xs text-foreground w-7 text-center">{{ stampRotation }}°</span>
+            <span class="font-fell text-xs text-foreground w-9 text-center">{{ stampRotation }}°</span>
             <button
               type="button"
-              title="Rotate CW (E)"
+              title="Rotate CW 90° (E)"
               class="rounded px-1.5 py-0.5 font-cinzel text-[9px] bg-muted hover:bg-muted/80 text-foreground"
-              @click="stampRotation = ((stampRotation + 90) % 360) as 0|90|180|270"
+              @click="stampRotation = (stampRotation + 90) % 360"
             >↻ E</button>
+            <button
+              type="button"
+              title="+1° (])"
+              class="rounded px-1.5 py-0.5 font-cinzel text-[9px] bg-muted hover:bg-muted/80 text-foreground"
+              @click="stampRotation = (stampRotation + 1) % 360"
+            >+1°</button>
           </div>
         </div>
 
@@ -472,6 +484,49 @@
         <div v-else-if="activeTool === 'link'">
           <p class="font-fell text-[10px] text-muted-foreground italic">Click a cell to attach entities.</p>
         </div>
+
+        <!-- M6 Room template shape picker -->
+        <div v-if="activeTool === 'template'">
+          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
+            Shape
+          </label>
+          <div class="grid grid-cols-3 gap-1 mb-2">
+            <button
+              v-for="shape in TEMPLATE_SHAPES"
+              :key="shape.id"
+              type="button"
+              class="flex flex-col items-center gap-0.5 rounded-md py-1.5 px-1 font-fell text-xs transition-colors"
+              :class="activeTemplateShape === shape.id
+                ? 'bg-primary/15 text-foreground ring-1 ring-inset ring-primary/40'
+                : 'hover:bg-muted text-muted-foreground'"
+              @click="activeTemplateShape = shape.id"
+            >
+              <span class="text-base leading-none">{{ shape.icon }}</span>
+              <span class="font-cinzel text-[9px] tracking-wide">{{ shape.label }}</span>
+            </button>
+          </div>
+          <p class="font-fell text-[10px] text-muted-foreground">Click center, drag to size. Walls auto-added.</p>
+        </div>
+
+        <!-- M6 Cave brush radius picker -->
+        <div v-if="activeTool === 'cave'">
+          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
+            Brush size
+          </label>
+          <div class="flex gap-1 mb-2">
+            <button
+              v-for="size in [3, 5, 7, 9]"
+              :key="size"
+              type="button"
+              class="flex-1 rounded-md py-1 font-cinzel text-[10px] font-semibold transition-colors"
+              :class="caveRadius === size
+                ? 'bg-primary/15 text-foreground ring-1 ring-inset ring-primary/40'
+                : 'hover:bg-muted text-muted-foreground'"
+              @click="caveRadius = size"
+            >{{ size }}</button>
+          </div>
+          <p class="font-fell text-[10px] text-muted-foreground">Each stroke uses a different noise seed — repaint to vary the organic shape.</p>
+        </div>
       </aside>
     </div>
   </PageHeader>
@@ -500,6 +555,8 @@ import {
   IconObjectStamp,
   IconAnnotate,
   IconEntityLink,
+  IconRoomTemplate,
+  IconCave,
 } from "@/lib/icons";
 
 import PageHeader from "@/components/common/PageHeader.vue";
@@ -537,6 +594,7 @@ import { canonicaliseEdge, type CellEdge } from "@/cartographer/edges";
 import { detectHoveredEdge } from "@/cartographer/edgeHover";
 import { floodFill, boundaryEdges } from "@/cartographer/floodFill";
 import { CommandStack } from "@/cartographer/commandStack";
+import { cellsForTemplate, caveBrushCells } from "@/cartographer/geometry";
 
 const route = useRoute();
 const router = useRouter();
@@ -637,7 +695,7 @@ let edgesPaintedInStroke = new Set<string>();
 let strokeDirection: "H" | "V" | null = null;
 
 // Tools
-type Tool = "floor" | "eraser" | "pan" | "wall" | "door" | "solid" | "rect" | "line" | "fill" | "wrap" | "stamp" | "annotate" | "link";
+type Tool = "floor" | "eraser" | "pan" | "wall" | "door" | "solid" | "rect" | "line" | "fill" | "wrap" | "stamp" | "annotate" | "link" | "template" | "cave";
 interface ToolDef {
   id: Tool;
   label: string;
@@ -660,9 +718,11 @@ const TOOLS: ToolDef[] = [
   { id: "line",     label: "Line",          icon: IconPenLine,      shortcut: "l" },
   { id: "fill",     label: "Fill",          icon: IconFill,         shortcut: "f" },
   { id: "wrap",     label: "Wrap walls",    icon: IconWrapWalls,    shortcut: "x" },
-  { id: "annotate", label: "Annotate",      icon: IconAnnotate,     shortcut: "t" },
-  { id: "link",     label: "Link entity",   icon: IconEntityLink,   shortcut: "k" },
-  { id: "pan",      label: "Pan",           icon: IconHand,         displayBadge: "RMB" },
+  { id: "annotate",  label: "Annotate",       icon: IconAnnotate,     shortcut: "t" },
+  { id: "link",      label: "Link entity",    icon: IconEntityLink,   shortcut: "k" },
+  { id: "template",  label: "Room template",  icon: IconRoomTemplate, shortcut: "m" },
+  { id: "cave",      label: "Cave brush",     icon: IconCave,         shortcut: "v" },
+  { id: "pan",       label: "Pan",            icon: IconHand,         displayBadge: "RMB" },
 ];
 
 // Edge-hover threshold: how close the cursor must get to a cell edge for it
@@ -683,7 +743,20 @@ let strokeSnapshot: string | null = null; // JSON string for cheap comparison on
 
 // M4 — Object stamp tool state
 const activeObjectCategory = ref<ObjectCategory>("objectChest");
-const stampRotation = ref<0 | 90 | 180 | 270>(0);
+const stampRotation = ref(0); // degrees; M6 free rotation (any integer 0–359)
+
+// M6 — Room template tool state
+type TemplateShape = "circle" | "octagon" | "hex";
+const activeTemplateShape = ref<TemplateShape>("circle");
+const TEMPLATE_SHAPES: { id: TemplateShape; label: string; icon: string }[] = [
+  { id: "circle",  label: "Circle",   icon: "○" },
+  { id: "octagon", label: "Octagon",  icon: "⬡" },
+  { id: "hex",     label: "Hex",      icon: "⬢" },
+];
+
+// M6 — Cave brush state; seed increments each stroke for variety
+const caveRadius = ref(5);
+let caveSeed = 0;
 
 // M4 — Cell selection (annotate + link tools)
 const selectedCell = ref<[number, number] | null>(null);
@@ -1167,6 +1240,28 @@ function applyLine(ax: number, ay: number, bx: number, by: number): void {
   for (const [x, y] of cellsInLine(ax, ay, bx, by)) paintCell(x, y);
 }
 
+// M6 — Room template: fill the chosen shape centered on (ax, ay) and wrap walls.
+function applyTemplate(ax: number, ay: number, bx: number, by: number): void {
+  if (!packRuntime.value) return;
+  const r = Math.max(Math.abs(bx - ax), Math.abs(by - ay));
+  const keys = cellsForTemplate(ax, ay, r, activeTemplateShape.value);
+  for (const key of keys) {
+    const [xs, ys] = (key as string).split(",");
+    paintCell(Number(xs), Number(ys));
+  }
+  const region = new Set(keys);
+  for (const edge of boundaryEdges(region)) setWallEdgeIfEmpty(edge);
+}
+
+// M6 — Cave brush: paint an organic blob at (cx, cy) using value noise.
+function paintCaveAt(cx: number, cy: number): void {
+  if (!packRuntime.value) return;
+  for (const key of caveBrushCells(cx, cy, caveRadius.value, caveSeed)) {
+    const [xs, ys] = (key as string).split(",");
+    paintCell(Number(xs), Number(ys));
+  }
+}
+
 function eraseWallAtCellEdge(edge: CellEdge): void {
   const dir = edgeDirection(edge.side);
   if (isPainting.value) {
@@ -1366,6 +1461,19 @@ function render(): void {
           layers.value.floor[cellKey(jx, jy - 1)]?.wallW?.pack_id ??
           currentPackId.value;
         const jointRt = rt(jointPackId);
+
+        // M6 schema v2: wallRoundJoint — drawn at full tile size centered on the corner.
+        // Only honoured when the pack ships REAL art for it — procedural placeholders
+        // fall through to the standard wallJoint handling so rectangular rooms don't
+        // unexpectedly grow rounded corners before real round-corner art exists.
+        if (side?.startsWith("L_") && jointRt && jointRt.variantCount("wallRoundJoint", side) > 0) {
+          const roundTile = jointRt.getTile("wallRoundJoint", 0, side);
+          if (!roundTile.isPlaceholder) {
+            ctx.drawImage(roundTile.source, cornerX - tilePx / 2, cornerY - tilePx / 2, tilePx, tilePx);
+            continue;
+          }
+        }
+
         // Prefer directional tile, fall back to generic (no side), then procedural square.
         const directional = side && jointRt && jointRt.variantCount("wallJoint", side) > 0
           ? jointRt.getTile("wallJoint", 0, side) : null;
@@ -1473,7 +1581,7 @@ function render(): void {
 
   if (!viewMode.value) {
     // Cell-hover highlight (only when the active tool targets cells)
-    if (hoverCell.value && (activeTool.value === "floor" || (activeTool.value === "eraser" && !hoveredEdge.value))) {
+    if (hoverCell.value && (activeTool.value === "floor" || activeTool.value === "cave" || activeTool.value === "template" || (activeTool.value === "eraser" && !hoveredEdge.value))) {
       const [hx, hy] = hoverCell.value;
       const drawX = hx * tilePx - viewportOffset.value.x;
       const drawY = hy * tilePx - viewportOffset.value.y;
@@ -1632,10 +1740,17 @@ function onPointerDown(ev: PointerEvent): void {
   strokeDirection = null;
   strokeSnapshot = snapshotStr();
 
-  // Rect / line tools: record drag start; first cell is the preview seed.
-  if (activeTool.value === "rect" || activeTool.value === "line") {
+  // Rect / line / template tools: record drag start; first cell is the preview seed.
+  if (activeTool.value === "rect" || activeTool.value === "line" || activeTool.value === "template") {
     dragStartCell = [cx, cy];
     previewCells.value = new Set([cellKey(cx, cy)]);
+    return;
+  }
+
+  // Cave brush: new seed per stroke so consecutive passes vary.
+  if (activeTool.value === "cave") {
+    caveSeed++;
+    paintCaveAt(cx, cy);
     return;
   }
 
@@ -1694,6 +1809,11 @@ function onPointerMove(ev: PointerEvent): void {
       previewCells.value = new Set(
         cellsInLine(dragStartCell[0], dragStartCell[1], cx, cy).map(([x, y]) => cellKey(x, y)),
       );
+    } else if (tool === "template" && dragStartCell) {
+      const r = Math.max(Math.abs(cx - dragStartCell[0]), Math.abs(cy - dragStartCell[1]));
+      previewCells.value = new Set(cellsForTemplate(dragStartCell[0], dragStartCell[1], r, activeTemplateShape.value));
+    } else if (tool === "cave") {
+      paintCaveAt(cx, cy);
     } else if (tool === "floor") paintCell(cx, cy);
     else if (tool === "solid") paintSolidAt(cx, cy);
     else if (tool === "stamp") paintObjectAt(cx, cy);
@@ -1720,14 +1840,15 @@ function onPointerUp(ev: PointerEvent): void {
   if (isPainting.value) {
     const tool = activeTool.value;
 
-    // Commit rect / line on release.
-    if ((tool === "rect" || tool === "line") && dragStartCell) {
+    // Commit rect / line / template on release.
+    if ((tool === "rect" || tool === "line" || tool === "template") && dragStartCell) {
       const local = getLocalPointer(ev);
       const [cx, cy] = viewportToCell(local.x, local.y);
       const [ax, ay] = dragStartCell;
       const before = strokeSnapshot ?? snapshotStr();
       if (tool === "rect") applyRect(ax, ay, cx, cy, ev.shiftKey);
-      else applyLine(ax, ay, cx, cy);
+      else if (tool === "line") applyLine(ax, ay, cx, cy);
+      else applyTemplate(ax, ay, cx, cy);
       const after = snapshotStr();
       if (before !== after) pushCommand(before, after);
       dragStartCell = null;
@@ -2021,15 +2142,25 @@ function onKeyDown(ev: KeyboardEvent): void {
     return;
   }
 
-  // Q/E: rotate stamp tool CCW/CW
+  // Q/E: rotate stamp by 90° CCW/CW. M6: [/] for ±1° fine rotation.
   if (activeTool.value === "stamp") {
     if (key === "q") {
-      stampRotation.value = ((stampRotation.value + 270) % 360) as 0 | 90 | 180 | 270;
+      stampRotation.value = (stampRotation.value + 270) % 360;
       ev.preventDefault();
       return;
     }
     if (key === "e") {
-      stampRotation.value = ((stampRotation.value + 90) % 360) as 0 | 90 | 180 | 270;
+      stampRotation.value = (stampRotation.value + 90) % 360;
+      ev.preventDefault();
+      return;
+    }
+    if (key === "[") {
+      stampRotation.value = (stampRotation.value + 359) % 360;
+      ev.preventDefault();
+      return;
+    }
+    if (key === "]") {
+      stampRotation.value = (stampRotation.value + 1) % 360;
       ev.preventDefault();
       return;
     }

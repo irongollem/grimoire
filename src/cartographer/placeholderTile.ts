@@ -34,6 +34,7 @@ const STONE_DEFAULTS: Record<string, [number, number, number]> = {
   wallSegmentH:  [40, 36, 32],
   wallSegmentV:  [40, 36, 32],
   wallJoint:     [30, 28, 26],
+  wallRoundJoint:[30, 28, 26],
   doorClosedH:   [110, 70, 35],
   doorClosedV:   [110, 70, 35],
   doorOpenH:     [150, 110, 70],
@@ -126,6 +127,49 @@ export function getPlaceholderTile(k: PlaceholderKey, palette?: Palette): HTMLCa
   if (k.category === "wallJoint") {
     ctx.fillStyle = `rgb(${base[0]}, ${base[1]}, ${base[2]})`;
     ctx.fillRect(0, 0, BASE_TILE_SIZE, BASE_TILE_SIZE);
+    return finalise(canvas, id);
+  }
+
+  // ── Rounded wall corner — full-tile piece with a quarter-circle arc ──
+  // The tile is drawn at full tilePx size centered on the grid intersection.
+  // Wall mass fills three quadrants; the interior "room" corner is carved out
+  // as a convex quarter-circle arc, giving a smooth rounded corner appearance.
+  if (k.category === "wallRoundJoint") {
+    const S = BASE_TILE_SIZE;
+    const arcR = Math.round(S * 0.65); // interior arc radius (~65% of tile)
+    ctx.fillStyle = `rgb(${base[0]}, ${base[1]}, ${base[2]})`;
+    ctx.fillRect(0, 0, S, S);
+    // Carve the interior arc with destination-out compositing.
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.beginPath();
+    switch (k.side) {
+      case "L_NE": // walls N+E → interior SW → arc centered at bottom-left (0, S)
+        ctx.moveTo(0, S);
+        ctx.arc(0, S, arcR, -Math.PI / 2, 0);
+        ctx.lineTo(0, S);
+        break;
+      case "L_SE": // walls S+E → interior NW → arc centered at top-left (0, 0)
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, arcR, 0, Math.PI / 2);
+        ctx.lineTo(0, 0);
+        break;
+      case "L_SW": // walls S+W → interior NE → arc centered at top-right (S, 0)
+        ctx.moveTo(S, 0);
+        ctx.arc(S, 0, arcR, Math.PI / 2, Math.PI);
+        ctx.lineTo(S, 0);
+        break;
+      case "L_NW": // walls N+W → interior SE → arc centered at bottom-right (S, S)
+        ctx.moveTo(S, S);
+        ctx.arc(S, S, arcR, Math.PI, 3 * Math.PI / 2);
+        ctx.lineTo(S, S);
+        break;
+      default:
+        ctx.globalCompositeOperation = "source-over";
+        return finalise(canvas, id);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
     return finalise(canvas, id);
   }
 

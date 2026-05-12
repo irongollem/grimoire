@@ -8,7 +8,7 @@ export interface PackRef {
   pack_id: string;
   pack_version: number;
   variant: number;
-  rotation?: 0 | 90 | 180 | 270;
+  rotation?: number;
 }
 
 export type EdgeSegType = "wall" | "doorClosed" | "doorOpen";

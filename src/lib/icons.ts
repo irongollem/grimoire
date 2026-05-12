@@ -15,7 +15,8 @@ import {
   Eraser, ExternalLink, Eye, EyeOff,
   Feather, FileDown, FileText, Flag, Flame, FlaskConical,
   Gamepad2, Gem, Ghost, Gift, Globe, Globe2, GraduationCap, GripVertical,
-  Hammer, Hand, Handshake, Hash, Highlighter, Home, Image, ImagePlus, Images, Info,
+  Hammer, Hand, Handshake, Hash, Hexagon, Highlighter, Home, Image, ImagePlus, Images, Info,
+  Cloud,
   KeyRound, Landmark, Layers, LayoutDashboard, LayoutGrid, LayoutList,
   Leaf, Library, LibraryBig, Lightbulb, Link, Link2, List, ListOrdered, ListTodo,
   Loader2, LoaderCircle, Lock, LogOut,
@@ -100,6 +101,8 @@ export { Box as IconCube }
 export { Package as IconObjectStamp }
 export { PenLine as IconAnnotate }
 export { Link2 as IconEntityLink }
+export { Hexagon as IconRoomTemplate }
+export { Cloud as IconCave }
 export { KeyRound as IconKey }
 export { Highlighter as IconHighlight }
 

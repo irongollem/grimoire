@@ -25,12 +25,15 @@ export interface OptionalCategoryDef {
 export type CategoryDef = RandomCategoryDef | DirectionalCategoryDef | OptionalCategoryDef;
 
 export const TILE_PACK_SCHEMA = {
-  version: 1,
+  version: 2,
   categories: {
     floor:          { kind: "random",      min: 8,  max: 16 },
     wallSegmentH:   { kind: "random",      min: 2,  max: 6  },
     wallSegmentV:   { kind: "random",      min: 2,  max: 6  },
     wallJoint:      { kind: "directional", sides: ["L_NE","L_SE","L_SW","L_NW","T_N","T_E","T_S","T_W","CROSS"], optional: true },
+    // Schema v2: rounded corner art for L-corners. When a pack ships these,
+    // the renderer uses them at right-angle corners instead of wallJoint.
+    wallRoundJoint: { kind: "directional", sides: ["L_NE","L_SE","L_SW","L_NW"], optional: true },
     doorClosedH:    { kind: "random",      min: 1,  max: 3  },
     doorClosedV:    { kind: "random",      min: 1,  max: 3  },
     doorOpenH:      { kind: "random",      min: 1,  max: 3  },
