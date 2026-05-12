@@ -68,9 +68,10 @@
         :combatants="liveCombatants"
         :factions="encounter?.factions ?? []"
         :active-instance-id="activeInstanceId"
-        :draggable-instance-ids="emptyDragSet"
+        :draggable-instance-ids="draggableSet"
         :hide-hidden="true"
         :silhouette-unseen="true"
+        :on-position-change="onOwnTokenMoved"
       />
 
       <img
@@ -88,7 +89,8 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useEncounter } from "@/composables/useEncounters";
 import { useLocation } from "@/composables/useLocations";
-import { liveState } from "@/composables/useEncounterLive";
+import { liveState, updateOwnCombatantPosition } from "@/composables/useEncounterLive";
+import { useAuthStore } from "@/stores/auth";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
 import {
   gridLinePositions,
@@ -122,9 +124,26 @@ const activeInstanceId = computed(() => {
   return liveCombatants.value[liveState.value.active_combatant_index ?? 0]?.instance_id ?? null;
 });
 
-// Empty Set keeps the token layer's drag logic disabled on the player side
-// until #394 makes the player's own token draggable.
-const emptyDragSet = new Set<string>();
+// Players may only drag their own combatant. The set is computed reactively
+// from the auth store's linkedPartyMemberId, matching the `p-{id}` format
+// the server expects.
+const auth = useAuthStore();
+const ownInstanceId = computed(() =>
+  auth.linkedPartyMemberId ? `p-${auth.linkedPartyMemberId}` : null,
+);
+const draggableSet = computed(() =>
+  ownInstanceId.value ? new Set([ownInstanceId.value]) : new Set<string>(),
+);
+
+async function onOwnTokenMoved(instanceId: string, position: { x: number; y: number }) {
+  if (!liveState.value) return;
+  if (instanceId !== ownInstanceId.value) return;
+  try {
+    await updateOwnCombatantPosition(liveState.value.id, instanceId, position);
+  } catch (e) {
+    console.error("Failed to update token position", e);
+  }
+}
 
 const canvasHost = ref<HTMLElement | null>(null);
 const hostW = ref(0);

@@ -221,3 +221,21 @@ export function usePlayerEncounterLive(campaignId: string) {
 
   return { liveState };
 }
+
+/**
+ * RLS-safe RPC for players to move their own token on the battle map.
+ * The Postgres function `update_combatant_position` validates that the
+ * caller's linked party_member_id matches the `instance_id` before writing.
+ */
+export async function updateOwnCombatantPosition(
+  encounterStateId: string,
+  instanceId: string,
+  position: { x: number; y: number } | null,
+): Promise<void> {
+  const { error } = await supabase.rpc("update_combatant_position", {
+    p_encounter_state_id: encounterStateId,
+    p_instance_id: instanceId,
+    p_position: position,
+  });
+  if (error) throw error;
+}
