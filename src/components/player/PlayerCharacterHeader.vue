@@ -50,8 +50,16 @@
               <span class="font-cinzel text-2xs md:text-sm text-muted-foreground">
                 {{ member.experience_points ?? 0 }}<template v-if="xpToNext !== null"> / {{ xpToNext }}</template>
               </span>
+              <!-- DM: emit event (player /play/* routes aren't accessible to DMs) -->
+              <button
+                v-if="readyToLevelUp && auth.isDM"
+                type="button"
+                class="font-cinzel text-2xs md:text-sm text-primary tracking-wider hover:opacity-80 ml-0.5"
+                @click="emit('level-up')"
+              >Ready ↑</button>
+              <!-- Player: link to the level-up flow -->
               <RouterLink
-                v-if="readyToLevelUp && !hidePlayerActions"
+                v-else-if="readyToLevelUp && !hidePlayerActions"
                 :to="`/play/character/levelup?memberId=${member.id}`"
                 class="font-cinzel text-2xs md:text-sm text-primary tracking-wider hover:opacity-80 ml-0.5"
               >Ready ↑</RouterLink>
@@ -170,6 +178,7 @@
 import { ref, computed, nextTick } from "vue";
 import { RouterLink } from "vue-router";
 import { IconStar } from '@/lib/icons';
+import { useAuthStore } from "@/stores/auth";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useClassByName } from "@/composables/useCustomClasses";
 import { useCharacterClasses } from "@/composables/useCharacterClasses";
@@ -193,12 +202,14 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import RestButtons from "@/components/player/RestButtons.vue";
 
 const props = defineProps<{ member: PartyMember; wildshape?: WildshapeState; hidePlayerActions?: boolean }>();
+const emit = defineEmits<{ (e: "level-up"): void }>();
 
 const { data: allSpecies } = useAllSpecies();
 const speciesName = computed(() =>
   (allSpecies.value ?? []).find(s => s.id === props.member.species_id)?.name ?? null,
 );
 
+const auth = useAuthStore();
 const { mutateAsync: updateMember } = useUpdatePartyMember();
 const { rollConcentrationSave, endConcentration } = useConcentration();
 

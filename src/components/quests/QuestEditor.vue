@@ -1192,7 +1192,9 @@ async function save() {
           campaign.activeCampaignId,
           `📋 Quest shared: "${title.value.trim()}"`,
         );
-      router.push("/quests");
+      // Return to view mode (strip ?edit=true), not the list
+      const { edit: _edit, ...rest } = route.query;
+      router.push({ query: rest });
     } else {
       const created = await create(buildPayload());
       if (playerVisibleTo.value.length > 0 && campaign.activeCampaignId)
