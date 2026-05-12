@@ -328,6 +328,16 @@
           @hide-monster="toggleHideMonster"
         />
 
+        <!-- Battlefield Setup — pre-place monster tokens on the battle map -->
+        <EncounterBattlefieldSetup
+          :location-id="form.location_id"
+          :combatants="form.combatants"
+          :factions="form.factions"
+          :monsters="monsters ?? []"
+          :npcs="npcs ?? []"
+          @update:combatants="form.combatants = $event"
+        />
+
         <!-- Boss Mechanics (legendary/lair) -->
         <div class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4">
           <div class="flex items-start justify-between gap-3">
@@ -494,6 +504,7 @@ import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
 import EncounterCombatants from "@/components/encounters/EncounterCombatants.vue";
+import EncounterBattlefieldSetup from "@/components/encounters/EncounterBattlefieldSetup.vue";
 import EncounterDifficulty from "@/components/encounters/EncounterDifficulty.vue";
 import EncounterEvents from "@/components/encounters/EncounterEvents.vue";
 import EncounterFactions from "@/components/encounters/EncounterFactions.vue";

@@ -33,6 +33,13 @@ export interface CombatantDef {
   count: number;        // how many of this combatant
   faction_id: string;
   custom_name: string | null;
+  /**
+   * Optional pre-encounter token positions on the battlefield map. Length
+   * matches `count`; null entries spawn at the map origin in the runner.
+   * Pure plan data — not consumed until the runner hydrates a fresh
+   * encounter state.
+   */
+  starting_positions?: Array<{ x: number; y: number } | null>;
 }
 
 export interface Encounter {

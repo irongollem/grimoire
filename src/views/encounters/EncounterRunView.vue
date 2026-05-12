@@ -186,6 +186,7 @@ function initStore(enc: Encounter, mons: Monster[], par: PartyMember[], npcList:
           reveal_state: "hidden",
           portrait_url: monster.image_url ?? null,
           portrait_focal_point: monster.portrait_focal_point ?? null,
+          position: entry.starting_positions?.[i] ?? null,
         });
       }
     } else if (entry.npc_id) {
@@ -219,6 +220,7 @@ function initStore(enc: Encounter, mons: Monster[], par: PartyMember[], npcList:
           reveal_state: "hidden",
           portrait_url: npc.portrait_url ?? null,
           portrait_focal_point: npc.portrait_focal_point ?? null,
+          position: entry.starting_positions?.[i] ?? null,
         });
       }
     }
