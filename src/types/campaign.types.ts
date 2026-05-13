@@ -24,6 +24,7 @@ export interface Campaign {
   optional_rules: CampaignOptionalRules;
   excluded_monster_ids: string[];
   disabled_class_names: string[];
+  disabled_species_ids: string[];
   // AI keys — one slot per provider
   openai_api_key:     string | null;
   anthropic_api_key:  string | null;
@@ -48,9 +49,10 @@ type ApiKeyFields = "openai_api_key" | "anthropic_api_key" | "gemini_api_key" | 
 type PortraitFields = "group_portrait_url";
 type ProviderFields = "text_provider" | "image_provider";
 
-export type CampaignInsert = Omit<Campaign, "id" | "user_id" | "created_at" | "updated_at" | "excluded_monster_ids" | "disabled_class_names" | "health_visibility" | "immersive_rolls" | "optional_rules" | ApiKeyFields | ProviderFields | "ai_setting_prompt" | "allow_chronicle_promotion" | "ical_token" | PortraitFields | "current_month" | "current_day" | "current_location_id"> & {
+export type CampaignInsert = Omit<Campaign, "id" | "user_id" | "created_at" | "updated_at" | "excluded_monster_ids" | "disabled_class_names" | "disabled_species_ids" | "health_visibility" | "immersive_rolls" | "optional_rules" | ApiKeyFields | ProviderFields | "ai_setting_prompt" | "allow_chronicle_promotion" | "ical_token" | PortraitFields | "current_month" | "current_day" | "current_location_id"> & {
   excluded_monster_ids?: string[];
   disabled_class_names?: string[];
+  disabled_species_ids?: string[];
   health_visibility?: Campaign["health_visibility"];
   immersive_rolls?: boolean;
   optional_rules?: CampaignOptionalRules;

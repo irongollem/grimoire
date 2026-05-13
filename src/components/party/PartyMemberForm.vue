@@ -620,7 +620,17 @@ const allClassNames = computed<string[]>(() => {
 });
 
 const { data: allSpecies } = useAllSpecies();
-const speciesOptions  = computed(() => (allSpecies.value ?? []).map(s => ({ id: s.id, name: s.name })));
+const speciesOptions = computed(() => {
+  const campaignId = campaignStore.activeCampaignId;
+  const disabledIds = new Set(campaignStore.activeCampaign?.disabled_species_ids ?? []);
+  return (allSpecies.value ?? [])
+    .filter((s) => {
+      if (disabledIds.has(s.id)) return false;
+      if (s.campaign_id !== null && s.campaign_id !== campaignId) return false;
+      return true;
+    })
+    .map((s) => ({ id: s.id, name: s.name }));
+});
 // form.race stores the denormalised species *name* (readable everywhere — dashboard,
 // NPC-by-race, etc.). form.species_id stores the FK to the species table, which is
 // what the combobox binds to. When the DM picks a species we write both.

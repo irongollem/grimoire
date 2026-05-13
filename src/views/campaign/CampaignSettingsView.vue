@@ -64,6 +64,9 @@
         <div v-else-if="activeTab === 'classes'" class="max-w-lg">
           <ClassesTab />
         </div>
+        <div v-else-if="activeTab === 'species'" class="max-w-lg">
+          <SpeciesTab />
+        </div>
         <div v-else-if="activeTab === 'ai'" class="max-w-lg">
           <AiTab />
         </div>
@@ -103,6 +106,7 @@ import InvitesTab from "@/components/campaign/InvitesTab.vue";
 import SchedulingTab from "@/components/campaign/SchedulingTab.vue";
 import RulesTab from "@/components/campaign/RulesTab.vue";
 import ClassesTab from "@/components/campaign/ClassesTab.vue";
+import SpeciesTab from "@/components/campaign/SpeciesTab.vue";
 import AiTab from "@/components/campaign/AiTab.vue";
 import SpotifyTab from "@/components/campaign/SpotifyTab.vue";
 import BackupTab from "@/components/campaign/BackupTab.vue";
@@ -114,6 +118,7 @@ type SettingsTab =
   | "scheduling"
   | "rules"
   | "classes"
+  | "species"
   | "ai"
   | "spotify"
   | "backup"
@@ -121,7 +126,7 @@ type SettingsTab =
   | "danger";
 
 const VALID_TABS = new Set<SettingsTab>([
-  "details", "members", "scheduling", "rules", "classes",
+  "details", "members", "scheduling", "rules", "classes", "species",
   "ai", "spotify", "backup", "bundle", "danger",
 ]);
 
@@ -131,6 +136,7 @@ const tabs: { id: SettingsTab; label: string }[] = [
   { id: "scheduling", label: "Scheduling" },
   { id: "rules", label: "Rules" },
   { id: "classes", label: "Classes" },
+  { id: "species", label: "Species" },
   { id: "ai", label: "AI Assistant" },
   { id: "spotify", label: "Spotify" },
   { id: "backup", label: "Backup" },
