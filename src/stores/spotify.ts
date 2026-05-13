@@ -8,7 +8,7 @@
 // soundboard.ts for HTMLAudioElement).
 
 import { defineStore } from "pinia";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import {
@@ -157,7 +157,9 @@ export const useSpotifyStore = defineStore("spotify", () => {
 
   /** Call this once when the soundboard mounts and a token exists. */
   function initSDK() {
-    if (sdkPlayer || !isConnected.value) return;
+    // Without a client ID the SDK's getOAuthToken callback can't validate
+    // tokens — wait for the campaign store to hydrate (see watcher below).
+    if (sdkPlayer || !isConnected.value || !clientId.value) return;
 
     window.onSpotifyWebPlaybackSDKReady = _createPlayer;
 
@@ -201,12 +203,27 @@ export const useSpotifyStore = defineStore("spotify", () => {
       _applyState(state);
     });
 
-    sdkPlayer.addListener("authentication_error", () => {
-      disconnect();
+    sdkPlayer.addListener("authentication_error", async () => {
+      isReady.value = false;
+      // Force-refresh once before nuking the session — Spotify can emit this
+      // for transient reasons while the refresh token is still good.
+      const refreshed = await getValidToken(clientId.value, true);
+      if (refreshed && sdkPlayer) {
+        sdkPlayer.connect();
+      } else {
+        disconnect();
+      }
     });
 
     sdkPlayer.connect();
   }
+
+  // On a fresh page refresh the soundboard mounts before the campaign store
+  // hydrates, so clientId starts empty. Re-attempt SDK init the moment the
+  // client ID becomes available.
+  watch(clientId, (id) => {
+    if (id && isConnected.value && !sdkPlayer) initSDK();
+  });
 
   function _applyState(state: SpotifyState | null) {
     if (!state) {

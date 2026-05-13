@@ -166,7 +166,7 @@
           min="0"
           max="1"
           step="0.02"
-          class="flex-1 h-1 accent-green-500"
+          class="flex-1 min-w-0 h-1 accent-green-500"
           :value="spotifyStore.volume"
           @input="spotifyStore.setVolume(+($event.target as HTMLInputElement).value)"
         />
@@ -274,7 +274,7 @@
           min="0"
           max="1"
           step="0.02"
-          class="flex-1 h-1 accent-gold-500"
+          class="flex-1 min-w-0 h-1 accent-gold-500"
           :value="audioState.volume"
           @input="soundboardStore.setVolume(sound.id, +($event.target as HTMLInputElement).value)"
         />

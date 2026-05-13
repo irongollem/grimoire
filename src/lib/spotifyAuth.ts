@@ -152,9 +152,12 @@ export function clearTokens(): void {
 }
 
 /** Returns a valid access token, refreshing silently if expired. Null = not logged in. */
-export async function getValidToken(clientId: string): Promise<string | null> {
+export async function getValidToken(clientId: string, forceRefresh = false): Promise<string | null> {
   const tokens = getStoredTokens();
   if (!tokens) return null;
+  // Campaign hasn't loaded yet — don't compare against an empty client ID,
+  // that would mistakenly wipe perfectly valid tokens.
+  if (!clientId) return null;
   // Tokens were issued for a different app — clear and force re-auth.
   if (tokens.client_id && tokens.client_id !== clientId) {
     clearTokens();
@@ -162,7 +165,7 @@ export async function getValidToken(clientId: string): Promise<string | null> {
   }
 
   // Refresh 60 s before expiry to avoid mid-session token death
-  if (Date.now() < tokens.expires_at - 60_000) {
+  if (!forceRefresh && Date.now() < tokens.expires_at - 60_000) {
     return tokens.access_token;
   }
 
