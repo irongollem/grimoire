@@ -2,6 +2,22 @@
   <div class="max-w-2xl mx-auto px-4 py-8 space-y-6">
     <PageHeader title="Billing & Subscription" />
 
+    <!-- Patreon connected success banner -->
+    <div
+      v-if="patreonConnected"
+      class="rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 flex items-center gap-3"
+    >
+      <span class="font-fell text-sm text-green-400">Patreon connected! Your patron benefits are now active.</span>
+    </div>
+
+    <!-- Patreon callback error banner -->
+    <div
+      v-if="patreonError"
+      class="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 flex items-center gap-3"
+    >
+      <span class="font-fell text-sm text-red-400">{{ patreonError }}</span>
+    </div>
+
     <!-- Credit purchase success banner -->
     <div
       v-if="creditPurchaseSuccess"
@@ -29,13 +45,13 @@
 
       <template v-else>
         <div class="flex items-center gap-3">
-          <IconDM v-if="isPro" class="h-5 w-5 text-amber-400 shrink-0" />
+          <IconDM v-if="isPro" class="h-5 w-5 shrink-0" :class="isPatron ? 'text-[#f96854]' : 'text-amber-400'" />
           <IconQuest v-else class="h-5 w-5 text-muted-foreground shrink-0" />
           <span
             class="font-cinzel text-lg font-bold"
-            :class="isPro ? 'text-amber-400' : 'text-foreground'"
+            :class="isPatron ? 'text-[#f96854]' : isPro ? 'text-amber-400' : 'text-foreground'"
           >
-            {{ isPro ? "Pro DM" : "Free DM" }}
+            {{ isPatron ? "Patron DM" : isPro ? "Pro DM" : "Free DM" }}
           </span>
           <span
             v-if="subscription"
@@ -105,6 +121,91 @@
           Manage billing
         </button>
       </template>
+    </div>
+
+    <!-- Patreon connection card -->
+    <div class="rounded-xl border border-border bg-card p-6 space-y-4">
+      <div class="flex items-center gap-2">
+        <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="currentColor" style="color: #f96854;">
+          <path d="M14.82 2.41C11.58 2.41 8.96 5.03 8.96 8.28c0 3.24 2.62 5.87 5.86 5.87 3.23 0 5.86-2.63 5.86-5.87 0-3.25-2.63-5.87-5.86-5.87zM3.18 21.59h3.64V2.41H3.18v19.18z"/>
+        </svg>
+        <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
+          Patreon
+        </h2>
+      </div>
+
+      <div v-if="patreonLoading" class="flex items-center gap-2 text-muted-foreground">
+        <IconLoading class="h-4 w-4 animate-spin" />
+        <span class="font-fell text-sm italic">Loading…</span>
+      </div>
+
+      <template v-else-if="isPatronLinked">
+        <!-- Connected state -->
+        <div class="flex items-center gap-2">
+          <span class="h-2 w-2 rounded-full bg-green-400 shrink-0" />
+          <span class="font-fell text-sm text-foreground">
+            Connected{{ patreonConnection?.full_name ? ` as ${patreonConnection.full_name}` : '' }}
+          </span>
+          <span v-if="isPatron" class="ml-1 px-2 py-0.5 rounded-full font-cinzel text-[10px] font-semibold tracking-wider uppercase bg-[#f96854]/15 text-[#f96854]">
+            Patron active
+          </span>
+        </div>
+
+        <p v-if="isPatron" class="font-fell text-xs text-muted-foreground italic leading-relaxed">
+          Your Patreon membership is active — thank you for your support! You have access to all Patron features including monthly content drops.
+        </p>
+        <p v-else class="font-fell text-xs text-muted-foreground italic leading-relaxed">
+          Your Patreon account is linked but no active membership was found. Become a patron to unlock Patron features.
+        </p>
+
+        <button
+          class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-xs font-cinzel font-semibold tracking-wider text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors disabled:opacity-60"
+          :disabled="patreonActionLoading"
+          @click="disconnectPatreon"
+        >
+          <IconLoading v-if="patreonActionLoading" class="h-3 w-3 animate-spin" />
+          Disconnect Patreon
+        </button>
+      </template>
+
+      <template v-else>
+        <!-- Unlinked state -->
+        <p class="font-fell text-xs text-muted-foreground italic leading-relaxed">
+          Support us on Patreon to unlock Patron-exclusive features and monthly content drops. Link your account to activate your benefits automatically.
+        </p>
+        <button
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-md font-cinzel text-xs font-semibold tracking-wider text-white transition-colors disabled:opacity-60"
+          style="background-color: #f96854;"
+          :disabled="patreonActionLoading"
+          @click="linkPatreon"
+        >
+          <IconLoading v-if="patreonActionLoading" class="h-3.5 w-3.5 animate-spin" />
+          Connect Patreon
+        </button>
+      </template>
+
+      <p v-if="patreonActionError" class="font-fell text-xs text-red-400 italic">{{ patreonActionError }}</p>
+    </div>
+
+    <!-- Patreon → Stripe swap CTA -->
+    <div
+      v-if="!isLoading && isPatron && isPatronBilling"
+      class="rounded-xl border border-border bg-card p-6 space-y-3"
+    >
+      <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
+        Switch to direct billing
+      </h2>
+      <p class="font-fell text-xs text-muted-foreground italic leading-relaxed">
+        Prefer to pay directly? Switching to Stripe removes the Patreon platform fee, meaning more of your money goes to development. You can cancel your Patreon pledge after switching.
+      </p>
+      <button
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-amber-500/50 text-sm font-cinzel font-semibold tracking-wider text-amber-400 hover:bg-amber-500/10 transition-colors disabled:opacity-60"
+        :disabled="stripeLoading"
+        @click="createCheckoutSession('month')"
+      >
+        <IconLoading v-if="stripeLoading" class="h-3.5 w-3.5 animate-spin" />
+        Switch to direct billing
+      </button>
     </div>
 
     <!-- Upgrade CTA (free / lapsed users) -->
@@ -328,6 +429,7 @@ import { useStripe } from "@/composables/useStripe";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { usePlan } from "@/composables/usePlan";
 import { useQuota } from "@/composables/useQuota";
+import { usePatreon } from "@/composables/usePatreon";
 import { QUOTA_RESOURCE_LABELS } from "@/types/subscription.types";
 import type { QuotaResource } from "@/types/subscription.types";
 import { useCreditPacks } from "@/composables/useCreditConfig";
@@ -335,8 +437,24 @@ import { detectCurrency, resolveAmount, availableCurrencies, formatCents } from 
 
 const route = useRoute();
 const creditPurchaseSuccess = computed(() => route.query.credit_purchase === "success");
+const patreonConnected = computed(() => route.query.patreon === "connected");
+const patreonError = computed(() => {
+  if (route.query.patreon === "error") return "Failed to connect Patreon. Please try again.";
+  if (route.query.patreon === "cancelled") return null;
+  return null;
+});
 
-const { subscription, isPro, isPendingCancellation, isLoading } = useSubscription();
+const { subscription, isPro, isPatron, isPatronBilling, isPendingCancellation, isLoading } = useSubscription();
+
+const {
+  connection: patreonConnection,
+  isLinked: isPatronLinked,
+  isLoading: patreonLoading,
+  loading: patreonActionLoading,
+  error: patreonActionError,
+  startOAuth: linkPatreon,
+  disconnect: disconnectPatreon,
+} = usePatreon();
 const {
   loading: stripeLoading,
   createCheckoutSession,

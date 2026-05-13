@@ -119,9 +119,11 @@ serve(async (req: Request) => {
           const sub = await stripe.subscriptions.retrieve(
             session.subscription as string,
           );
+          // subscription_provider switches to stripe here — handles Patreon→Stripe migration
           await updateByCustomer(session.customer as string, {
             plan_id: "pro",
             status: "active",
+            subscription_provider: "stripe",
             stripe_subscription_id: sub.id,
             current_period_end: toIso(sub.current_period_end),
             cancel_at_period_end: false,
