@@ -47,8 +47,9 @@ export interface SettingCalendarDef {
   epochName: string;
   defaultYear: number;
   weekStyle: WeekStyle;
-  /** 7 labels for weekly calendars, e.g. ["Mon","Tue",…] */
-  dayLabels?: [string, string, string, string, string, string, string];
+  /** Labels for each day of the week in weekly calendars, e.g. ["Mon","Tue",…].
+   *  Array length determines the week size when weekStyle is "weekly" or "weekly-offset". */
+  dayLabels?: string[];
   /** 3 row labels for tenday calendars, e.g. ["First Tenday",…] */
   weekRowNames?: [string, string, string];
   months: SettingMonthDef[];
@@ -141,11 +142,10 @@ export interface DndSettingDef {
 
 // ── Derivation helpers ───────────────────────────────────────────────────────
 
-/** Derives a full CalendarAdapter (with logic functions) from a plain DndSettingDef.
- *  Called at app startup for built-in settings and at runtime for custom settings. */
-export function toCalendarAdapter(def: DndSettingDef): CalendarAdapter {
-  const c = def.calendar;
-
+/** Derives a full CalendarAdapter (with logic functions) from a plain SettingCalendarDef
+ *  plus a stable id. Use this for runtime custom calendars (stored on a campaign as JSON)
+ *  where there is no surrounding DndSettingDef. */
+export function calendarDefToAdapter(id: string, c: SettingCalendarDef): CalendarAdapter {
   const months: CalendarMonth[] = c.months.map((m, i) => ({
     num: i + 1,
     name: m.name,
@@ -175,6 +175,9 @@ export function toCalendarAdapter(def: DndSettingDef): CalendarAdapter {
         }
       : undefined;
 
+  const weekSize =
+    c.weekStyle === "tenday" ? 10 : (c.dayLabels?.length || 7);
+
   const ep = c.epochName;
 
   function formatDate(
@@ -195,26 +198,50 @@ export function toCalendarAdapter(def: DndSettingDef): CalendarAdapter {
           (tenday === 1 ? "First Tenday" : tenday === 2 ? "Second Tenday" : "Third Tenday");
         return `Day ${dayInTenday} of ${rowLabel}, ${monthName}, ${year} ${ep}`;
       }
-      const week = Math.ceil(day / 7);
-      const dayInWeek = ((day - 1) % 7) + 1;
+      const week = Math.ceil(day / weekSize);
+      const dayInWeek = ((day - 1) % weekSize) + 1;
       return `Day ${dayInWeek} of Week ${week}, ${monthName}, ${year} ${ep}`;
     }
     return `${year} ${ep}`;
   }
 
   return {
-    id: def.id,
+    id,
     name: c.name,
     epochName: c.epochName,
     defaultYear: c.defaultYear,
     months,
     intercalaryDays,
-    weekSize: c.weekStyle === "tenday" ? 10 : 7,
+    weekSize,
     dayLabels: c.dayLabels,
     weekRowNames: c.weekRowNames,
     weekdayOffset,
     isLeapYear,
     formatDate,
+  };
+}
+
+/** Derives a full CalendarAdapter (with logic functions) from a plain DndSettingDef.
+ *  Called at app startup for built-in settings and at runtime for custom settings. */
+export function toCalendarAdapter(def: DndSettingDef): CalendarAdapter {
+  return calendarDefToAdapter(def.id, def.calendar);
+}
+
+/** A sensible starter SettingCalendarDef for the custom-calendar editor.
+ *  Twelve 30-day months, weekly 7-day calendar, no leap years. */
+export function createDefaultCustomCalendarDef(): SettingCalendarDef {
+  return {
+    name: "Custom Calendar",
+    epochName: "AY",
+    defaultYear: 1,
+    weekStyle: "weekly",
+    dayLabels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    months: Array.from({ length: 12 }, (_, i) => ({
+      name: `Month ${i + 1}`,
+      days: 30,
+    })),
+    intercalaryDays: [],
+    leapYearRule: "none",
   };
 }
 

@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { ref, computed, watch } from "vue";
 import { getCalendarAdapter, listCalendarAdapters } from "@/calendars/index";
 import type { CalendarAdapter } from "@/types/calendar.types";
+import type { SettingCalendarDef } from "@/settings/types";
 
 export type CalendarView = "month" | "timeline";
 // Number of years shown in timeline. Sub-year values: 1/12 ≈ 0.083 (1 month), 1 = 1 year.
@@ -36,6 +37,9 @@ export const useCalendarStore = defineStore("calendar", () => {
   // Which calendar system is active (per campaign, defaults to Faerûn)
   const activeCalendarId = ref<string>(savedPos.calendarId);
 
+  // When activeCalendarId === 'custom', this holds the per-campaign calendar definition.
+  const customCalendarDef = ref<SettingCalendarDef | null>(null);
+
   // Active view
   const view = ref<CalendarView>("month");
 
@@ -50,13 +54,16 @@ export const useCalendarStore = defineStore("calendar", () => {
     localStorage.setItem(POSITION_KEY, JSON.stringify({ calendarId, year, month, zoom }));
   });
 
-  const adapter = computed<CalendarAdapter>(() => getCalendarAdapter(activeCalendarId.value));
+  const adapter = computed<CalendarAdapter>(() =>
+    getCalendarAdapter(activeCalendarId.value, customCalendarDef.value),
+  );
 
   const availableCalendars = computed(() => listCalendarAdapters());
 
-  function setCalendar(id: string) {
-    const cal = getCalendarAdapter(id);
-    activeCalendarId.value = cal.id;
+  function setCalendar(id: string, customDef: SettingCalendarDef | null = null) {
+    customCalendarDef.value = id === "custom" ? customDef : null;
+    const cal = getCalendarAdapter(id, customCalendarDef.value);
+    activeCalendarId.value = id === "custom" ? "custom" : cal.id;
     currentYear.value = cal.defaultYear;
     currentMonth.value = 1;
   }
@@ -97,9 +104,15 @@ export const useCalendarStore = defineStore("calendar", () => {
   }
 
   /** Called by the campaign store when switching campaigns. Syncs calendar system + year + month. */
-  function loadFromCampaign(calendarId: string, year: number, month = 1) {
-    const cal = getCalendarAdapter(calendarId);
-    activeCalendarId.value = cal.id;
+  function loadFromCampaign(
+    calendarId: string,
+    year: number,
+    month = 1,
+    customDef: SettingCalendarDef | null = null,
+  ) {
+    customCalendarDef.value = calendarId === "custom" ? customDef : null;
+    const cal = getCalendarAdapter(calendarId, customCalendarDef.value);
+    activeCalendarId.value = calendarId === "custom" ? "custom" : cal.id;
     currentYear.value = year;
     currentMonth.value = month;
   }
@@ -114,6 +127,7 @@ export const useCalendarStore = defineStore("calendar", () => {
 
   return {
     activeCalendarId,
+    customCalendarDef,
     view,
     timelineZoom,
     currentYear,

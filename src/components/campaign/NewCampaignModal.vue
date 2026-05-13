@@ -5,7 +5,10 @@
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       @click.self="close"
     >
-      <div class="bg-card border border-border rounded-lg w-full max-w-md shadow-xl">
+      <div
+        class="bg-card border border-border rounded-lg w-full shadow-xl"
+        :class="form.calendar_id === 'custom' ? 'max-w-3xl' : 'max-w-md'"
+      >
         <div class="flex items-center justify-between px-5 py-4 border-b border-border">
           <h2 class="font-cinzel text-lg font-bold text-foreground">New Campaign</h2>
           <button
@@ -53,13 +56,14 @@
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">SETTING</label>
+              <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">CALENDAR</label>
               <select
                 v-model="form.calendar_id"
                 class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 @change="onCalendarChange"
               >
                 <option v-for="cal in availableCalendars" :key="cal.id" :value="cal.id">{{ cal.name }}</option>
+                <option value="custom">— Custom calendar…</option>
               </select>
             </div>
             <div>
@@ -72,6 +76,11 @@
               />
             </div>
           </div>
+
+          <CalendarEditor
+            v-if="form.calendar_id === 'custom' && customCalendarDef"
+            v-model="customCalendarDef"
+          />
 
           <div
             v-if="showClaimOption"
@@ -118,11 +127,13 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { listCalendarAdapters, getCalendarAdapter } from "@/calendars/index";
+import { listCalendarAdapters, getCalendarAdapter, createDefaultCustomCalendarDef } from "@/calendars/index";
 import { getSetting, listSettings } from "@/settings/index";
+import type { SettingCalendarDef } from "@/settings/types";
 import { useCreateCampaign, useClaimOrphanedData } from "@/composables/useCampaigns";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import PaywallModal from "@/components/common/PaywallModal.vue";
+import CalendarEditor from "@/components/calendar/CalendarEditor.vue";
 import type { Campaign } from "@/types/campaign.types";
 
 const open = defineModel<boolean>({ required: true });
@@ -146,6 +157,7 @@ const form = ref({
   calendar_id: defaultCalendar?.id ?? "faerun",
   current_year: defaultCalendar?.defaultYear ?? 1495,
 });
+const customCalendarDef = ref<SettingCalendarDef | null>(null);
 const claimExisting = ref(true);
 const showPaywall = ref(false);
 
@@ -157,6 +169,7 @@ watch(open, (isOpen) => {
       calendar_id: defaultCalendar?.id ?? "faerun",
       current_year: defaultCalendar?.defaultYear ?? 1495,
     };
+    customCalendarDef.value = null;
     claimExisting.value = true;
   }
 });
@@ -166,6 +179,12 @@ function close() {
 }
 
 function onCalendarChange() {
+  if (form.value.calendar_id === "custom") {
+    if (!customCalendarDef.value) customCalendarDef.value = createDefaultCustomCalendarDef();
+    form.value.current_year = customCalendarDef.value.defaultYear;
+    return;
+  }
+  customCalendarDef.value = null;
   form.value.current_year = getCalendarAdapter(form.value.calendar_id).defaultYear;
   const newLabel = getSetting(form.value.calendar_id)?.label ?? "";
   const knownLabels = new Set(listSettings().map((s) => s.label));
@@ -189,6 +208,7 @@ async function submit() {
       is_archived: false,
       ai_enabled: true,
       battle_map_show_tokens: true,
+      custom_calendar: form.value.calendar_id === "custom" ? customCalendarDef.value : null,
     });
     if (showClaimOption && claimExisting.value) {
       await claimOrphans(created.id);

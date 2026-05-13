@@ -70,6 +70,7 @@
       <div
         v-if="calendar.adapter.dayLabels"
         :class="gridColsClass"
+        :style="gridColsStyle"
         class="grid gap-1 mb-1 px-0"
       >
         <div
@@ -86,7 +87,7 @@
         <p class="font-cinzel text-xs font-semibold tracking-widest text-muted-foreground mb-2">
           {{ weekRowLabel(rowIdx) }}
         </p>
-        <div :class="gridColsClass" class="grid gap-1">
+        <div :class="gridColsClass" :style="gridColsStyle" class="grid gap-1">
           <div
             v-for="(day, colIdx) in row"
             :key="colIdx"
@@ -248,11 +249,20 @@ const currentMonth = computed(
     calendar.adapter.months[0],
 );
 
-// Dynamic Tailwind grid class based on week size.
-// 10-day (Harptos) tendays show 5 columns on mobile so each tenday
-// wraps into two rows of 5 instead of squashing 10 cells onto a phone screen.
+// Grid columns derive from the adapter's weekSize. The 10-day Harptos preset
+// wraps into 5 mobile columns so it doesn't squash; everything else uses
+// weekSize directly via an inline style so any custom width renders.
 const gridColsClass = computed(() =>
-  calendar.adapter.weekSize === 7 ? "grid-cols-7" : "grid-cols-5 md:grid-cols-10",
+  calendar.adapter.weekSize === 7
+    ? "grid-cols-7"
+    : calendar.adapter.weekSize === 10
+      ? "grid-cols-5 md:grid-cols-10"
+      : "",
+);
+const gridColsStyle = computed(() =>
+  calendar.adapter.weekSize === 7 || calendar.adapter.weekSize === 10
+    ? undefined
+    : { gridTemplateColumns: `repeat(${calendar.adapter.weekSize}, minmax(0, 1fr))` },
 );
 
 // Build grid rows: each row is an array of day numbers (or null for empty offset cells).

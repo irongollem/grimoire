@@ -1,29 +1,29 @@
 <template>
-  <div v-if="editor" class="rte-content" @click="onContentClick">
-    <EditorContent :editor="editor" />
-  </div>
+  <div class="rte-content" @click="onContentClick">
+    <EditorContent v-if="editor" :editor="editor" />
 
-  <!-- Image lightbox -->
-  <Teleport to="body">
-    <div
-      v-if="lightboxSrc"
-      class="fixed inset-0 z-200 flex items-center justify-center bg-black/80 p-4 cursor-zoom-out"
-      @click="lightboxSrc = null"
-    >
-      <img
-        :src="lightboxSrc"
-        class="max-w-full max-h-full rounded-lg shadow-2xl object-contain cursor-default"
-        @click.stop
-      />
-      <button
-        type="button"
-        class="absolute top-4 right-4 text-white/70 hover:text-white text-2xl leading-none transition-colors"
+    <!-- Image lightbox -->
+    <Teleport to="body">
+      <div
+        v-if="lightboxSrc"
+        class="fixed inset-0 z-200 flex items-center justify-center bg-black/80 p-4 cursor-zoom-out"
         @click="lightboxSrc = null"
       >
-        ✕
-      </button>
-    </div>
-  </Teleport>
+        <img
+          :src="lightboxSrc"
+          class="max-w-full max-h-full rounded-lg shadow-2xl object-contain cursor-default"
+          @click.stop
+        />
+        <button
+          type="button"
+          class="absolute top-4 right-4 text-white/70 hover:text-white text-2xl leading-none transition-colors"
+          @click="lightboxSrc = null"
+        >
+          ✕
+        </button>
+      </div>
+    </Teleport>
+  </div>
 </template>
 
 <script setup lang="ts">

@@ -1,3 +1,5 @@
+import type { SettingCalendarDef } from "@/settings/types";
+
 /** Per-campaign house-rule toggles. Shape is open-ended; known keys are typed. */
 export interface CampaignOptionalRules {
   /** PHB multiclass prereqs waived — any character can multiclass regardless of ability scores. */
@@ -13,8 +15,10 @@ export interface Campaign {
   current_year: number;
   current_month: number;
   current_day: number;
-  calendar_id: string;  // references CalendarAdapter.id, defaults to 'faerun'
-  theme: string;        // references GrimoireTheme.id, defaults to 'grimoire'
+  calendar_id: string; // references CalendarAdapter.id, defaults to 'faerun'; 'custom' uses custom_calendar
+  /** When calendar_id === 'custom', this holds the per-campaign calendar definition used to build a runtime adapter. */
+  custom_calendar: SettingCalendarDef | null;
+  theme: string; // references GrimoireTheme.id, defaults to 'grimoire'
   health_visibility: "strategic" | "immersive" | "unknown";
   immersive_rolls: boolean;
   /** When false, hide the VTT token layer from players entirely. The DM
@@ -26,30 +30,56 @@ export interface Campaign {
   disabled_class_names: string[];
   disabled_species_ids: string[];
   // AI keys — one slot per provider
-  openai_api_key:     string | null;
-  anthropic_api_key:  string | null;
-  gemini_api_key:     string | null;
-  falai_api_key:      string | null;
+  openai_api_key: string | null;
+  anthropic_api_key: string | null;
+  gemini_api_key: string | null;
+  falai_api_key: string | null;
   // Active provider selection
-  text_provider:   string | null;
-  image_provider:  string | null;
+  text_provider: string | null;
+  image_provider: string | null;
   ai_setting_prompt: string | null;
   allow_chronicle_promotion: boolean;
   ai_enabled: boolean;
   group_portrait_url: string | null;
   spotify_client_id: string | null;
-  ical_token: string;   // UUID; used as the shared secret for the iCal subscription URL
+  ical_token: string; // UUID; used as the shared secret for the iCal subscription URL
   current_location_id: string | null;
   is_archived: boolean;
   created_at: string;
   updated_at: string;
 }
 
-type ApiKeyFields = "openai_api_key" | "anthropic_api_key" | "gemini_api_key" | "falai_api_key";
+type ApiKeyFields =
+  | "openai_api_key"
+  | "anthropic_api_key"
+  | "gemini_api_key"
+  | "falai_api_key";
 type PortraitFields = "group_portrait_url";
 type ProviderFields = "text_provider" | "image_provider";
 
-export type CampaignInsert = Omit<Campaign, "id" | "user_id" | "created_at" | "updated_at" | "excluded_monster_ids" | "disabled_class_names" | "disabled_species_ids" | "health_visibility" | "immersive_rolls" | "optional_rules" | ApiKeyFields | ProviderFields | "ai_setting_prompt" | "allow_chronicle_promotion" | "ical_token" | PortraitFields | "current_month" | "current_day" | "current_location_id"> & {
+export type CampaignInsert = Omit<
+  Campaign,
+  | "id"
+  | "user_id"
+  | "created_at"
+  | "updated_at"
+  | "excluded_monster_ids"
+  | "disabled_class_names"
+  | "disabled_species_ids"
+  | "health_visibility"
+  | "immersive_rolls"
+  | "optional_rules"
+  | ApiKeyFields
+  | ProviderFields
+  | "ai_setting_prompt"
+  | "allow_chronicle_promotion"
+  | "ical_token"
+  | PortraitFields
+  | "current_month"
+  | "current_day"
+  | "current_location_id"
+  | "custom_calendar"
+> & {
   excluded_monster_ids?: string[];
   disabled_class_names?: string[];
   disabled_species_ids?: string[];
@@ -67,8 +97,14 @@ export type CampaignInsert = Omit<Campaign, "id" | "user_id" | "created_at" | "u
   current_month?: number;
   current_day?: number;
   current_location_id?: string | null;
+  custom_calendar?: SettingCalendarDef | null;
 };
-export type CampaignUpdate = Partial<CampaignInsert> & { ical_token?: string; spotify_client_id?: string | null; is_archived?: boolean; group_portrait_url?: string | null };
+export type CampaignUpdate = Partial<CampaignInsert> & {
+  ical_token?: string;
+  spotify_client_id?: string | null;
+  is_archived?: boolean;
+  group_portrait_url?: string | null;
+};
 
 export type CampaignRole = "dm" | "player";
 
@@ -83,7 +119,9 @@ export interface CampaignMember {
   updated_at: string;
 }
 
-export type CampaignMemberUpdate = Partial<Pick<CampaignMember, "display_name" | "party_member_id">>;
+export type CampaignMemberUpdate = Partial<
+  Pick<CampaignMember, "display_name" | "party_member_id">
+>;
 
 export interface CampaignInvite {
   id: string;

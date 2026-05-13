@@ -6,6 +6,8 @@ export {
   CALENDAR_REGISTRY,
   getCalendarAdapter,
   listCalendarAdapters,
+  calendarDefToAdapter,
+  createDefaultCustomCalendarDef,
 } from "@/settings/index";
 
 export { gregorianAdapter } from "./gregorian";

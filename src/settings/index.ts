@@ -8,7 +8,8 @@
  */
 
 import type { CalendarAdapter } from "@/types/calendar.types";
-import { toCalendarAdapter } from "./types";
+import { toCalendarAdapter, calendarDefToAdapter } from "./types";
+import type { SettingCalendarDef } from "./types";
 import { faerunSetting }      from "./faerun";
 import { eberronSetting }     from "./eberron";
 import { greyhawkSetting }    from "./greyhawk";
@@ -61,8 +62,12 @@ export const CALENDAR_REGISTRY: Record<string, CalendarAdapter> = Object.fromEnt
   ["gregorian", gregorianAdapter],
 ]);
 
-/** Get a CalendarAdapter by ID, falling back to Faerûn. */
-export function getCalendarAdapter(id: string): CalendarAdapter {
+/** Get a CalendarAdapter by ID, falling back to Faerûn.
+ *  Pass a `customDef` to resolve id === 'custom' to a runtime adapter built from that JSON. */
+export function getCalendarAdapter(id: string, customDef?: SettingCalendarDef | null): CalendarAdapter {
+  if (id === "custom" && customDef) {
+    return calendarDefToAdapter("custom", customDef);
+  }
   return CALENDAR_REGISTRY[id] ?? CALENDAR_REGISTRY["faerun"]!;
 }
 
@@ -96,5 +101,10 @@ export const SETTING_LOCATIONS: Record<string, SettingLocationDef[]> = Object.fr
 
 // ── Re-exports for backward compatibility ─────────────────────────────────────
 
-export type { DndSettingDef } from "./types";
-export { toCalendarAdapter, toHallOfHeroInserts } from "./types";
+export type { DndSettingDef, SettingCalendarDef } from "./types";
+export {
+  toCalendarAdapter,
+  calendarDefToAdapter,
+  createDefaultCustomCalendarDef,
+  toHallOfHeroInserts,
+} from "./types";

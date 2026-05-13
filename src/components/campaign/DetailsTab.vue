@@ -39,13 +39,14 @@
     <!-- Calendar + Year -->
     <div class="grid grid-cols-2 gap-3">
       <div>
-        <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">SETTING</label>
+        <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">CALENDAR</label>
         <select
           v-model="form.calendar_id"
           class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @change="onCalendarChange"
         >
           <option v-for="cal in availableCalendars" :key="cal.id" :value="cal.id">{{ cal.name }}</option>
+          <option value="custom">— Custom calendar…</option>
         </select>
       </div>
       <div>
@@ -57,6 +58,11 @@
           class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
+    </div>
+
+    <!-- Custom calendar editor -->
+    <div v-if="form.calendar_id === 'custom' && form.custom_calendar" class="max-w-3xl -mx-2 sm:mx-0">
+      <CalendarEditor v-model="form.custom_calendar" />
     </div>
 
     <!-- Populate from Setting -->
@@ -200,8 +206,10 @@ import { IconCheck, IconGenerate } from '@/lib/icons';
 import { useTheme } from "@/composables/useTheme";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/useCampaigns";
-import { listCalendarAdapters } from "@/calendars/index";
+import { listCalendarAdapters, createDefaultCustomCalendarDef } from "@/calendars/index";
 import { getSetting, listSettings } from "@/settings/index";
+import type { SettingCalendarDef } from "@/settings/types";
+import CalendarEditor from "@/components/calendar/CalendarEditor.vue";
 import { usePopulateLocations } from "@/composables/useLocations";
 import { usePopulateFactions } from "@/composables/useFactions";
 import { usePopulateSettingNpcs } from "@/composables/useNpcs";
@@ -229,6 +237,7 @@ function buildForm(c: typeof campaign.value) {
     health_visibility: (c?.health_visibility as "strategic" | "immersive" | "unknown") ?? "strategic",
     immersive_rolls: c?.immersive_rolls ?? false,
     battle_map_show_tokens: c?.battle_map_show_tokens ?? true,
+    custom_calendar: (c?.custom_calendar ?? null) as SettingCalendarDef | null,
   };
 }
 
@@ -242,6 +251,11 @@ watch(
 const populateSetting = computed(() => getSetting(form.value.calendar_id));
 
 function onCalendarChange() {
+  if (form.value.calendar_id === "custom") {
+    if (!form.value.custom_calendar) form.value.custom_calendar = createDefaultCustomCalendarDef();
+    return;
+  }
+  form.value.custom_calendar = null;
   const newLabel = getSetting(form.value.calendar_id)?.label ?? "";
   const knownLabels = new Set(listSettings().map((s) => s.label));
   if (newLabel && (!form.value.setting || knownLabels.has(form.value.setting))) {
@@ -262,6 +276,7 @@ async function submitForm() {
       health_visibility: form.value.health_visibility,
       immersive_rolls: form.value.immersive_rolls,
       battle_map_show_tokens: form.value.battle_map_show_tokens,
+      custom_calendar: form.value.calendar_id === "custom" ? form.value.custom_calendar : null,
     },
   });
   campaignStore.switchToCampaign(updated);

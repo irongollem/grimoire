@@ -88,7 +88,12 @@ export const useCampaignStore = defineStore("campaign", () => {
 
     import("@/stores/calendar").then(({ useCalendarStore }) => {
       const calendarStore = useCalendarStore();
-      calendarStore.loadFromCampaign(campaign.calendar_id, campaign.current_year, campaign.current_month);
+      calendarStore.loadFromCampaign(
+        campaign.calendar_id,
+        campaign.current_year,
+        campaign.current_month,
+        campaign.custom_calendar ?? null,
+      );
     });
   }
 

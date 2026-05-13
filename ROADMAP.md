@@ -16,6 +16,7 @@
 - [x] Pull-to-refresh for iOS PWA — `usePullToRefresh` composable detects downward touch drag on any scroll-container-at-top, shows a themed indicator pill, and reloads on release past threshold; wired globally in `App.vue`; player settings also has an explicit "Reload app" button as fallback
 - [x] DM Notes tracker (Tiptap editor, categories, tags, pinning)
 - [x] Faerûn Calendar / timeline (Calendar of Harptos, adapter pattern for future settings)
+- [x] Custom calendars — campaign creation and Details tab expose a "Custom calendar…" option that opens an inline editor (name, epoch, default year, days per week 1-30, day names, optional every-4-year leap, months with name/alias/days, festival days with after-month/leap-only); stored per-campaign as `campaigns.custom_calendar` JSONB and built into a runtime adapter via `calendarDefToAdapter()` so CalendarGrid / CalendarView / calendar store treat it identically to a built-in preset; CalendarGrid now renders arbitrary week sizes via inline `grid-template-columns`; seed-from-preset available.
 
 ### Rules Reliquary
 
