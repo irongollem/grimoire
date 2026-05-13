@@ -11,11 +11,15 @@ import type { SoundPlaybackState } from "@/types/sound.types";
 //
 const audioInstances = new Map<string, HTMLAudioElement>();
 
-function getOrCreate(soundId: string, fileUrl: string): HTMLAudioElement {
-  if (!audioInstances.has(soundId)) {
-    audioInstances.set(soundId, new Audio(fileUrl));
-  }
-  return audioInstances.get(soundId)!;
+// Tracks which sound IDs have already been retried once after a load error.
+// CDN 502s from Freesound are usually transient — a single retry catches most.
+const retriedIds = new Set<string>();
+
+function makeAudio(fileUrl: string): HTMLAudioElement {
+  const audio = new Audio();
+  audio.preload = "auto";
+  audio.src = fileUrl;
+  return audio;
 }
 
 function destroyAudio(soundId: string): void {
@@ -43,9 +47,33 @@ export const useSoundboardStore = defineStore("soundboard", () => {
 
   function getState(soundId: string): SoundPlaybackState {
     if (!playbackStates.value[soundId]) {
-      playbackStates.value[soundId] = { isPlaying: false, volume: 0.8, isLooping: false, currentTime: 0, duration: 0 };
+      playbackStates.value[soundId] = { isPlaying: false, volume: 0.8, isLooping: false, currentTime: 0, duration: 0, loadError: false };
     }
     return playbackStates.value[soundId];
+  }
+
+  function getOrCreate(soundId: string, fileUrl: string): HTMLAudioElement {
+    if (!audioInstances.has(soundId)) {
+      const audio = makeAudio(fileUrl);
+      audio.onerror = () => handleLoadError(soundId, fileUrl);
+      audioInstances.set(soundId, audio);
+    }
+    return audioInstances.get(soundId)!;
+  }
+
+  function handleLoadError(soundId: string, fileUrl: string): void {
+    if (retriedIds.has(soundId)) {
+      // Already retried once — surface the failure to the UI.
+      getState(soundId).loadError = true;
+      return;
+    }
+    retriedIds.add(soundId);
+    // Recreate the element to re-trigger the network fetch. Same URL — most
+    // 502s are transient CDN blips that resolve on the next request.
+    destroyAudio(soundId);
+    const fresh = makeAudio(fileUrl);
+    fresh.onerror = () => handleLoadError(soundId, fileUrl);
+    audioInstances.set(soundId, fresh);
   }
 
   function play(soundId: string, fileUrl: string): void {
@@ -122,11 +150,20 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   /** Call when a sound is deleted from the library to clean up the engine. */
   function releaseSound(soundId: string): void {
     destroyAudio(soundId);
+    retriedIds.delete(soundId);
     delete playbackStates.value[soundId];
   }
 
   function toggleWidget(): void {
     widgetOpen.value = !widgetOpen.value;
+  }
+
+  /**
+   * Eagerly create the Audio element so the browser starts buffering the file
+   * before the DM hits play. Idempotent — safe to call on every card mount.
+   */
+  function warmup(soundId: string, fileUrl: string): void {
+    getOrCreate(soundId, fileUrl);
   }
 
   return {
@@ -142,5 +179,6 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     stopAll,
     releaseSound,
     toggleWidget,
+    warmup,
   };
 });

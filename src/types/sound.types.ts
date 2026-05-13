@@ -1,5 +1,5 @@
 export type SoundCategory = "ambient" | "music" | "effects" | "misc";
-export type SoundSourceType = "upload" | "url" | "spotify";
+export type SoundSourceType = "upload" | "url" | "spotify" | "freesound";
 
 export interface SoundboardPage {
   id: string;
@@ -26,6 +26,8 @@ export interface Sound {
   storage_path: string | null; // only set for uploads; null for external URLs and Spotify
   tags: string[];
   sort_order: number;
+  attribution: string | null; // e.g. "Sound by FreesoundUser (CC-BY)" — only set when license requires it
+  attribution_url: string | null; // link back to the source page
   created_at: string;
   updated_at: string;
 }
@@ -39,4 +41,5 @@ export interface SoundPlaybackState {
   isLooping: boolean;
   currentTime: number; // seconds
   duration: number;    // seconds (0 = unknown / not yet loaded)
+  loadError: boolean;  // true after a load failure persists past one retry
 }

@@ -41,6 +41,16 @@
         No Safari
       </span>
 
+      <!-- Source unavailable (e.g. Freesound 502 after retry) -->
+      <span
+        v-if="audioState.loadError"
+        class="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-cinzel text-amber-400/80 bg-amber-500/10 border border-amber-500/20"
+        title="The source server didn't return this file. May be temporary — try again later, or delete and re-add."
+      >
+        <IconWarning class="h-2.5 w-2.5 shrink-0" />
+        Source error
+      </span>
+
       <!-- Loop toggle (audio only) -->
       <button
         v-if="!isSpotify"
@@ -292,11 +302,23 @@
         </span>
       </div>
     </template>
+
+    <!-- Attribution (Freesound CC-BY etc.) -->
+    <a
+      v-if="sound.attribution"
+      :href="sound.attribution_url ?? undefined"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="font-fell text-[10px] text-muted-foreground/70 hover:text-muted-foreground italic truncate"
+      :title="sound.attribution"
+    >
+      {{ sound.attribution }}
+    </a>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, nextTick } from "vue";
+import { computed, ref, nextTick, onMounted } from "vue";
 import { IconDelete, IconEdit, IconLayers, IconMusicNote, IconPause, IconPlay, IconRepeat, IconRepeatOne, IconShuffle, IconSkipBack, IconSkipForward, IconStop, IconWarning } from '@/lib/icons';
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
@@ -324,6 +346,14 @@ const { mutate: moveSound } = useMoveSound();
 
 const isSpotify = computed(() => props.sound.source_type === "spotify");
 
+// Kick off the network fetch as soon as the card is mounted so the file is
+// already buffered when the DM clicks play. Skipped for Spotify (no <audio>).
+onMounted(() => {
+  if (!isSpotify.value) {
+    soundboardStore.warmup(props.sound.id, props.sound.file_url);
+  }
+});
+
 // A card is "active" if it's currently the one driving the Spotify player or
 // if it's an audio card that is playing.
 const isActive = computed(() => {
@@ -342,7 +372,7 @@ const isWebM = computed(() => {
   return path.endsWith(".webm");
 });
 
-const playBlocked = computed(() => isWebM.value && IS_SAFARI);
+const playBlocked = computed(() => (isWebM.value && IS_SAFARI) || audioState.value.loadError);
 
 function togglePlay() {
   if (playBlocked.value) return;

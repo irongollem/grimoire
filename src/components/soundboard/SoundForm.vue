@@ -4,7 +4,7 @@
     @submit.prevent="handleSubmit"
   >
     <!-- Name -->
-    <div class="space-y-1">
+    <div v-if="activeSourceTab !== 'browse'" class="space-y-1">
       <label class="font-fell text-xs text-muted-foreground">Name</label>
       <input
         v-model="form.name"
@@ -16,7 +16,7 @@
     </div>
 
     <!-- Category -->
-    <div class="space-y-1">
+    <div v-if="activeSourceTab !== 'browse'" class="space-y-1">
       <label class="font-fell text-xs text-muted-foreground">Category</label>
       <select
         v-model="form.category"
@@ -82,6 +82,18 @@
           @click="activeSourceTab = 'generate'"
         >
           Generate
+        </button>
+        <button
+          type="button"
+          class="flex-1 py-1.5 rounded-md border text-xs font-cinzel tracking-wide transition-colors"
+          :class="
+            activeSourceTab === 'browse'
+              ? 'bg-sky-500/20 border-sky-500/60 text-sky-300'
+              : 'border-border text-muted-foreground hover:text-foreground'
+          "
+          @click="activeSourceTab = 'browse'"
+        >
+          Browse SFX
         </button>
       </div>
 
@@ -158,6 +170,11 @@
         <p v-if="generateError" class="font-fell text-xs text-destructive">{{ generateError }}</p>
       </div>
 
+      <!-- Browse Freesound -->
+      <div v-else-if="activeSourceTab === 'browse'">
+        <SoundFreesoundBrowser :page-id="pageId" @saved="$emit('saved')" />
+      </div>
+
       <!-- File upload -->
       <div v-else class="space-y-1">
         <label
@@ -188,9 +205,10 @@
         class="px-3 py-1.5 rounded-md border border-border text-xs font-cinzel text-muted-foreground hover:text-foreground transition-colors"
         @click="$emit('cancel')"
       >
-        Cancel
+        {{ activeSourceTab === "browse" ? "Done" : "Cancel" }}
       </button>
       <button
+        v-if="activeSourceTab !== 'browse'"
         type="submit"
         :disabled="submitDisabled"
         class="px-3 py-1.5 rounded-md border text-xs font-cinzel transition-colors disabled:opacity-50"
@@ -212,6 +230,7 @@ import { useCreateSound, useSoundUpload } from "@/composables/useSounds";
 import { useSpotifyStore } from "@/stores/spotify";
 import { generateMusicWithLyria, LYRIA_MODELS, type LyriaModel } from "@/lib/aiMusic";
 import { logUsage } from "@/composables/useAiCredits";
+import SoundFreesoundBrowser from "@/components/soundboard/SoundFreesoundBrowser.vue";
 import type { SoundCategory } from "@/types/sound.types";
 
 const spotifyStore = useSpotifyStore();
@@ -229,7 +248,7 @@ const emit = defineEmits<{
 const { mutateAsync, isPending } = useCreateSound();
 const { isBusy, statusText, upload } = useSoundUpload();
 
-type SourceTab = "url" | "upload" | "spotify" | "generate";
+type SourceTab = "url" | "upload" | "spotify" | "generate" | "browse";
 
 const activeSourceTab = ref<SourceTab>("url");
 
@@ -296,6 +315,9 @@ async function handleSubmit() {
   uploadError.value = "";
   generateError.value = "";
 
+  // Browse tab has its own per-row add flow; nothing for the form to do.
+  if (activeSourceTab.value === "browse") return;
+
   if (activeSourceTab.value === "url") {
     await mutateAsync({
       name: form.value.name.trim(),
@@ -306,6 +328,8 @@ async function handleSubmit() {
       page_id: pageId ?? null,
       tags: [],
       sort_order: 0,
+      attribution: null,
+      attribution_url: null,
     });
     emit("saved");
     resetForm();
@@ -322,6 +346,8 @@ async function handleSubmit() {
       page_id: pageId ?? null,
       tags: [],
       sort_order: 0,
+      attribution: null,
+      attribution_url: null,
     });
     emit("saved");
     resetForm();
@@ -356,6 +382,8 @@ async function handleSubmit() {
       page_id: pageId ?? null,
       tags: [],
       sort_order: 0,
+      attribution: null,
+      attribution_url: null,
     });
     emit("saved");
     resetForm();
@@ -381,6 +409,8 @@ async function handleSubmit() {
     page_id: pageId ?? null,
     tags: [],
     sort_order: 0,
+    attribution: null,
+    attribution_url: null,
   });
   emit("saved");
   resetForm();
