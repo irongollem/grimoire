@@ -33,6 +33,7 @@ export interface SpeciesSubrace {
 export interface Species {
   id: string;
   user_id: string;
+  campaign_id: string | null;
   name: string;
   description: string | null;    // Tiptap JSON
   notes: string | null;          // Tiptap JSON (DM-only)
@@ -55,5 +56,5 @@ export interface Species {
   updated_at: string;
 }
 
-export type SpeciesInsert = Omit<Species, "id" | "user_id" | "created_at" | "updated_at">;
+export type SpeciesInsert = Omit<Species, "id" | "user_id" | "created_at" | "updated_at" | "campaign_id"> & { campaign_id?: string | null };
 export type SpeciesUpdate = Partial<SpeciesInsert>;

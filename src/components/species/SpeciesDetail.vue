@@ -39,6 +39,17 @@
           <input type="checkbox" v-model="form.is_shapeshifter" class="rounded" />
           <span class="font-fell text-sm text-muted-foreground italic">Shapeshifter (player can polymorph)</span>
         </label>
+
+        <!-- Campaign-specific flag -->
+        <div v-if="campaignStore.activeCampaignId" class="rounded-md border border-border/60 bg-muted/20 p-3 space-y-1">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" :checked="form.campaign_id === campaignStore.activeCampaignId" class="rounded" @change="toggleCampaignSpecific" />
+            <span class="font-fell text-sm text-foreground">Campaign-only</span>
+          </label>
+          <p class="font-fell text-xs text-muted-foreground italic pl-6">
+            Restrict this species to <strong>{{ campaignStore.activeCampaign?.name }}</strong>. It won't appear in other campaigns.
+          </p>
+        </div>
       </div>
 
       <!-- Right: Fields -->
@@ -344,6 +355,7 @@ import { useQuery } from "@tanstack/vue-query";
 import { useRouter } from "vue-router";
 import { useCreateSpecies, useUpdateSpecies, useDeleteSpecies } from "@/composables/useSpecies";
 import { useConfirm } from "@/composables/useConfirm";
+import { useCampaignStore } from "@/stores/campaign";
 import { supabase } from "@/lib/supabase";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
@@ -356,6 +368,7 @@ const props = defineProps<{ species?: Species | null }>();
 
 const router = useRouter();
 const { confirm } = useConfirm();
+const campaignStore = useCampaignStore();
 const { mutateAsync: createSpecies } = useCreateSpecies();
 const { mutateAsync: updateSpecies } = useUpdateSpecies();
 const { mutate: deleteSpecies } = useDeleteSpecies();
@@ -434,7 +447,14 @@ function makeForm(s?: Species | null) {
     avg_height: s?.avg_height ?? "",
     avg_weight: s?.avg_weight ?? "",
     grantedSpells: (s?.granted_spells ?? []).map((g) => ({ ...g })),
+    campaign_id: s?.campaign_id ?? null as string | null,
   };
+}
+
+function toggleCampaignSpecific() {
+  const id = campaignStore.activeCampaignId;
+  if (!id) return;
+  form.campaign_id = form.campaign_id === id ? null : id;
 }
 
 // ── Spell grants ──────────────────────────────────────────────────────────────
@@ -562,6 +582,7 @@ async function save() {
       avg_height: form.avg_height.trim() || null,
       avg_weight: form.avg_weight.trim() || null,
       granted_spells: form.grantedSpells,
+      campaign_id: form.campaign_id,
     };
 
     if (props.species) {
