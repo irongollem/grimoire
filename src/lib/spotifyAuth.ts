@@ -57,10 +57,10 @@ const CLIENT_ID_KEY = "spotify_client_id_pending";
 export async function buildAuthUrl(clientId: string): Promise<string> {
   const verifier = await generateCodeVerifier();
   const challenge = await generateCodeChallenge(verifier);
-  sessionStorage.setItem(VERIFIER_KEY, verifier);
-  // Also stash the client ID so the callback page can complete the exchange
-  // without needing the campaign store (which may not be loaded yet).
-  sessionStorage.setItem(CLIENT_ID_KEY, clientId);
+  // localStorage (not sessionStorage) so the verifier survives when iOS PWA
+  // hands the Spotify callback off to Safari and back — different session contexts.
+  localStorage.setItem(VERIFIER_KEY, verifier);
+  localStorage.setItem(CLIENT_ID_KEY, clientId);
 
   const params = new URLSearchParams({
     client_id: clientId,
@@ -77,11 +77,11 @@ export async function buildAuthUrl(clientId: string): Promise<string> {
 
 /** Exchange the auth code for tokens. Client ID is read from sessionStorage if not provided. */
 export async function exchangeCode(code: string, clientId?: string): Promise<SpotifyTokens | null> {
-  const verifier = sessionStorage.getItem(VERIFIER_KEY);
+  const verifier = localStorage.getItem(VERIFIER_KEY);
   if (!verifier) return null;
-  sessionStorage.removeItem(VERIFIER_KEY);
-  const id = clientId ?? sessionStorage.getItem(CLIENT_ID_KEY) ?? "";
-  sessionStorage.removeItem(CLIENT_ID_KEY);
+  localStorage.removeItem(VERIFIER_KEY);
+  const id = clientId ?? localStorage.getItem(CLIENT_ID_KEY) ?? "";
+  localStorage.removeItem(CLIENT_ID_KEY);
   if (!id) return null;
 
   const res = await fetch("https://accounts.spotify.com/api/token", {
