@@ -162,10 +162,14 @@ export interface RunCombatant {
   // Reaction — one per round; reset at the start of each new round.
   reactionUsed?: boolean;
   // VTT battle map — anchor cell (top-left of footprint) on the encounter's
-  // location map. Footprint is derived from creature size at render time, not
-  // stored. Null/undefined = unplaced; the runner stages unplaced combatants
-  // near the map origin so the DM can drag them in.
+  // location map. Null/undefined = unplaced; the runner stages unplaced
+  // combatants near the map origin so the DM can drag them in.
   position?: { x: number; y: number } | null;
+  // Cells the token occupies on the grid (1 = Medium, 2 = Large, 3 = Huge,
+  // 4 = Gargantuan). Baked at spawn time from the source monster's size so
+  // players — who don't have access to the monsters table — render Large+
+  // tokens at the correct footprint.
+  footprint?: number;
 }
 
 // ── XP / CR tables (D&D 5e) ──────────────────────────────────────────────────

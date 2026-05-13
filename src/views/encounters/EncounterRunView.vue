@@ -12,6 +12,7 @@ import { computed, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useEncounter } from "@/composables/useEncounters";
 import { useAllMonsters } from "@/composables/useMonsters";
+import { sizeToFootprint } from "@/lib/tokenFootprint";
 import { useParty } from "@/composables/useParty";
 import { useCompanions } from "@/composables/useCompanions";
 import { useNpcs } from "@/composables/useNpcs";
@@ -187,6 +188,7 @@ function initStore(enc: Encounter, mons: Monster[], par: PartyMember[], npcList:
           portrait_url: monster.image_url ?? null,
           portrait_focal_point: monster.portrait_focal_point ?? null,
           position: entry.starting_positions?.[i] ?? null,
+          footprint: sizeToFootprint(monster.size),
         });
       }
     } else if (entry.npc_id) {
@@ -221,6 +223,7 @@ function initStore(enc: Encounter, mons: Monster[], par: PartyMember[], npcList:
           portrait_url: npc.portrait_url ?? null,
           portrait_focal_point: npc.portrait_focal_point ?? null,
           position: entry.starting_positions?.[i] ?? null,
+          footprint: 1,
         });
       }
     }

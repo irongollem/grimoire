@@ -147,3 +147,44 @@ describe("BattleMapTokenLayer — render-key memoization", () => {
     expect(drawTokenMock).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("BattleMapTokenLayer — footprint persistence", () => {
+  it("uses combatant.footprint when no monster data is available (player path)", () => {
+    // Simulates the player view: liveState combatants carry a baked footprint
+    // but the `monsters` prop is empty because players can't read the monsters
+    // table. The token must still render at the right footprint.
+    const largeCombatant: RunCombatant = {
+      ...combatant("m-dragon-0", "dragon"),
+      footprint: 3, // Huge — baked at spawn time by the DM's runner.
+    };
+    const wrapper = mount(BattleMapTokenLayer, {
+      props: {
+        ...baseProps(),
+        combatants: [largeCombatant],
+        monsters: [], // player has no monster data
+      },
+    });
+    const tok = wrapper.find(".token");
+    expect(tok.exists()).toBe(true);
+    // Footprint 3 × cellPx 50 = 150 px.
+    expect((tok.element as HTMLElement).style.width).toBe("150px");
+    expect((tok.element as HTMLElement).style.height).toBe("150px");
+  });
+
+  it("falls back to monster size when footprint is absent (legacy combatant)", () => {
+    // A combatant that predates the footprint bake should still render
+    // correctly on the DM side via the monsters lookup.
+    const legacy: RunCombatant = combatant("m-ogre-0", "ogre");
+    // explicitly drop footprint so the fallback path is exercised
+    delete (legacy as { footprint?: number }).footprint;
+    const wrapper = mount(BattleMapTokenLayer, {
+      props: {
+        ...baseProps(),
+        combatants: [legacy],
+        // Ogre is large → 2×2 → 100 px at cellPx 50.
+      },
+    });
+    const tok = wrapper.find(".token");
+    expect((tok.element as HTMLElement).style.width).toBe("100px");
+  });
+});

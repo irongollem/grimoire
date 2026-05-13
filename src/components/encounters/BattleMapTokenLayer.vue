@@ -119,7 +119,12 @@ const factionColorById = computed(() => {
 });
 
 function getFootprint(combatant: RunCombatant): number {
-  if (!combatant.monster_id) return 1; // NPCs are treated as Medium.
+  // Prefer the footprint baked at spawn time (lives on combatants_live, so
+  // travels to players who don't have access to the monsters table). Fall
+  // back to a fresh lookup for cases where the live state predates the bake
+  // or the prop array carries hand-built combatants (e.g. builder preview).
+  if (combatant.footprint && combatant.footprint > 0) return combatant.footprint;
+  if (!combatant.monster_id) return 1;
   return sizeToFootprint(monstersById.value.get(combatant.monster_id)?.size);
 }
 

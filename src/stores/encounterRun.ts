@@ -5,6 +5,7 @@ import type { Monster } from "@/types/monster.types";
 import type { Npc } from "@/types/npc.types";
 import type { Trap } from "@/types/trap.types";
 import { supabase } from "@/lib/supabase";
+import { sizeToFootprint } from "@/lib/tokenFootprint";
 
 /** Fire-and-forget write to party_members for player combatants.
  *  The store is the immediate source of truth for DM display; this call
@@ -287,6 +288,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
         reveal_state: "hidden",
         portrait_url: monster.image_url ?? null,
         portrait_focal_point: monster.portrait_focal_point ?? null,
+        footprint: sizeToFootprint(monster.size),
         ...(legendaryCap !== undefined && {
           legendary_action_cap: legendaryCap,
           legendary_actions_remaining: legendaryCap,
@@ -323,6 +325,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
         reveal_state: "hidden",
         portrait_url: npc.portrait_url ?? null,
         portrait_focal_point: npc.portrait_focal_point ?? null,
+        footprint: 1,
       });
     }
   }
@@ -356,6 +359,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
         reveal_state: "hidden",
         portrait_url: monster.image_url ?? null,
         portrait_focal_point: monster.portrait_focal_point ?? null,
+        footprint: sizeToFootprint(monster.size),
       });
     }
   }

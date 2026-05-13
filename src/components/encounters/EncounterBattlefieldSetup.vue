@@ -108,6 +108,7 @@
 import { computed, watch } from "vue";
 import { useLocation } from "@/composables/useLocations";
 import { useMapCanvas } from "@/composables/useMapCanvas";
+import { sizeToFootprint } from "@/lib/tokenFootprint";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import {
   cellSizeInDisplay,
@@ -183,6 +184,7 @@ const previewCombatants = computed<RunCombatant[]>(() => {
           portrait_url: monster.image_url ?? null,
           portrait_focal_point: monster.portrait_focal_point ?? null,
           position: def.starting_positions?.[i] ?? null,
+          footprint: sizeToFootprint(monster.size),
         });
       }
     } else if (def.npc_id) {
@@ -211,6 +213,7 @@ const previewCombatants = computed<RunCombatant[]>(() => {
           portrait_url: npc.portrait_url ?? null,
           portrait_focal_point: npc.portrait_focal_point ?? null,
           position: def.starting_positions?.[i] ?? null,
+          footprint: 1,
         });
       }
     }
