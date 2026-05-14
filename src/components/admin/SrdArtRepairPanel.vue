@@ -1,21 +1,19 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useQuery, useQueryClient } from "@tanstack/vue-query";
-import {
-  CheckIcon,
-  ChevronDownIcon,
-  UploadIcon,
-  AlertCircleIcon,
-  Loader2Icon,
-  Trash2Icon,
-  CrosshairIcon,
-  ImagePlusIcon,
-} from "lucide-vue-next";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { uploadWithVariants } from "@/lib/storage";
 import { toWebP } from "@/lib/mediaConvert";
-import FocalImage from "@/components/common/FocalImage.vue";
-import FocalPointPicker from "@/components/common/FocalPointPicker.vue";
+import SrdArtStagingCard from "@/components/admin/SrdArtStagingCard.vue";
+import SrdArtUploadPanel from "@/components/admin/SrdArtUploadPanel.vue";
+import SrdArtLibraryRow from "@/components/admin/SrdArtLibraryRow.vue";
+import SrdArtPreviewModal from "@/components/admin/SrdArtPreviewModal.vue";
+import SrdArtTabBar from "@/components/admin/SrdArtTabBar.vue";
+import SrdArtPanelHeader from "@/components/admin/SrdArtPanelHeader.vue";
+import { useSrdMonster } from "@/composables/useMonsters";
+import { useSrdSpell } from "@/composables/useSpells";
+import type { Monster } from "@/types/monster.types";
+import type { Spell } from "@/types/spell.types";
 
 // ── Props & config ────────────────────────────────────────────────────────────
 
@@ -81,10 +79,18 @@ const rowDragging = ref<Record<string, boolean>>({});
 const rowExpanded = ref<Record<string, boolean>>({});
 const rowFocalPoints = ref<Record<string, { x: number; y: number } | null>>({});
 const rowUploadedUrls = ref<Record<string, string>>({});
-const fileInputRefs = ref<Record<string, HTMLInputElement | null>>({});
+
+// preview modal
+const previewId = ref<string | null>(null);
+const previewIdRef = computed(() => previewId.value ?? "");
+const { data: previewMonster } = mode === "monster"
+  ? useSrdMonster(previewIdRef)
+  : { data: ref<Monster | null>(null) };
+const { data: previewSpell } = mode === "spell"
+  ? useSrdSpell(previewIdRef)
+  : { data: ref<Spell | null>(null) };
 
 // staging
-const stagingFileInputRef = ref<HTMLInputElement | null>(null);
 const stagingDragging = ref(false);
 const stagingUploading = ref(false);
 const stagingProgress = ref({ total: 0, done: 0 });
@@ -216,10 +222,6 @@ const withArtCount = computed(
 
 // ── Library: upload ───────────────────────────────────────────────────────────
 
-function triggerUpload(srdId: string) {
-  fileInputRefs.value[srdId]?.click();
-}
-
 async function processFile(srdId: string, file: File) {
   rowStatuses.value[srdId] = "uploading";
   rowErrors.value[srdId] = "";
@@ -252,15 +254,7 @@ async function processFile(srdId: string, file: File) {
     rowStatuses.value[srdId] = "error";
     rowErrors.value[srdId] =
       err instanceof Error ? err.message : "Upload failed";
-  } finally {
-    const el = fileInputRefs.value[srdId];
-    if (el) el.value = "";
   }
-}
-
-function handleInputChange(srdId: string, event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0];
-  if (file) processFile(srdId, file);
 }
 
 async function clearArt(srdId: string) {
@@ -308,12 +302,6 @@ function canExpandFocal(m: SrdEntityEntry) {
 function toggleFocal(m: SrdEntityEntry) {
   if (!canExpandFocal(m)) return;
   rowExpanded.value[m.srd_id] = !rowExpanded.value[m.srd_id];
-}
-
-function getLocalFocalPoint(m: SrdEntityEntry) {
-  return m.srd_id in rowFocalPoints.value
-    ? rowFocalPoints.value[m.srd_id]
-    : m.portrait_focal_point;
 }
 
 async function setFocalPoint(
@@ -372,30 +360,6 @@ async function uploadStagingFiles(files: FileList | File[]) {
   queryClient.invalidateQueries({ queryKey: [cfg.stagingQueryKey] });
 }
 
-function handleStagingInputChange(event: Event) {
-  const files = (event.target as HTMLInputElement).files;
-  if (files?.length) uploadStagingFiles(files);
-  (event.target as HTMLInputElement).value = "";
-}
-
-function onStagingDragEnter(event: DragEvent) {
-  event.preventDefault();
-  stagingDragging.value = true;
-}
-function onStagingDragOver(event: DragEvent) {
-  event.preventDefault();
-}
-function onStagingDragLeave(event: DragEvent) {
-  const el = event.currentTarget as HTMLElement;
-  if (!el.contains(event.relatedTarget as Node)) stagingDragging.value = false;
-}
-function onStagingDrop(event: DragEvent) {
-  event.preventDefault();
-  stagingDragging.value = false;
-  const files = event.dataTransfer?.files;
-  if (files?.length) uploadStagingFiles(files);
-}
-
 // ── Staging: assign ───────────────────────────────────────────────────────────
 
 interface MonsterOption {
@@ -411,14 +375,6 @@ const monsterOptions = computed<MonsterOption[]>(() =>
     source: m.source,
   })),
 );
-
-function filteredForItem(itemId: string): MonsterOption[] {
-  const q = (stagingSearches.value[itemId] ?? "").toLowerCase().trim();
-  if (q.length < 2) return [];
-  return monsterOptions.value
-    .filter((o) => o.name.toLowerCase().includes(q))
-    .slice(0, 20);
-}
 
 function toggleStagingSelection(itemId: string, monsterId: string) {
   const cur = stagingSelected.value[itemId] ?? [];
@@ -491,70 +447,24 @@ async function discardStaged(item: StagingItem) {
 <template>
   <div class="rounded-lg border border-border bg-card p-4 space-y-4">
     <!-- header (always visible, click to expand/collapse) -->
-    <button
-      type="button"
-      class="flex items-center justify-between gap-4 w-full text-left"
-      @click="panelOpen = !panelOpen"
-    >
-      <div>
-        <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">
-          {{ cfg.title }}
-        </h2>
-        <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
-          Manage canonical SRD art. Dump images from your phone, assign on desktop.
-        </p>
-      </div>
-      <div class="flex items-center gap-2 shrink-0">
-        <div v-if="total > 0" class="font-cinzel text-xs text-muted-foreground tabular-nums">
-          {{ withArtCount }}&thinsp;/&thinsp;{{ total }}
-        </div>
-        <div
-          v-if="(stagingItems?.length ?? 0) > 0"
-          class="font-cinzel text-[10px] text-primary tabular-nums"
-        >
-          {{ stagingItems!.length }} staged
-        </div>
-        <ChevronDownIcon
-          class="h-4 w-4 text-muted-foreground transition-transform duration-200"
-          :class="panelOpen ? 'rotate-180' : ''"
-        />
-      </div>
-    </button>
+    <SrdArtPanelHeader
+      :title="cfg.title"
+      :open="panelOpen"
+      :with-art-count="withArtCount"
+      :total="total"
+      :staging-count="stagingItems?.length ?? 0"
+      @toggle="panelOpen = !panelOpen"
+    />
 
     <!-- body — v-if keeps FocalImage components unmounted when collapsed -->
     <template v-if="panelOpen">
 
     <!-- tab bar -->
-    <div class="flex gap-1 border-b border-border pb-0.5">
-      <button
-        class="px-3 py-1.5 font-cinzel text-[11px] tracking-wide rounded-t transition-colors"
-        :class="
-          activeTab === 'library'
-            ? 'bg-muted text-foreground'
-            : 'text-muted-foreground hover:text-foreground'
-        "
-        @click="activeTab = 'library'"
-      >
-        Library
-      </button>
-      <button
-        class="relative px-3 py-1.5 font-cinzel text-[11px] tracking-wide rounded-t transition-colors"
-        :class="
-          activeTab === 'staging'
-            ? 'bg-muted text-foreground'
-            : 'text-muted-foreground hover:text-foreground'
-        "
-        @click="activeTab = 'staging'"
-      >
-        Staging
-        <span
-          v-if="(stagingItems?.length ?? 0) > 0"
-          class="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] font-bold"
-        >
-          {{ stagingItems!.length }}
-        </span>
-      </button>
-    </div>
+    <SrdArtTabBar
+      :active-tab="activeTab"
+      :staging-count="stagingItems?.length ?? 0"
+      @update:active-tab="activeTab = $event"
+    />
 
     <!-- ══ LIBRARY TAB ══ -->
     <template v-if="activeTab === 'library'">
@@ -586,143 +496,26 @@ async function discardStaged(item: StagingItem) {
         v-else-if="visibleMonsters.length > 0"
         class="divide-y divide-border rounded-md border border-border overflow-hidden max-h-[60vh] overflow-y-auto"
       >
-        <div
+        <SrdArtLibraryRow
           v-for="m in visibleMonsters"
           :key="m.srd_id"
-          class="relative transition-colors"
-          :class="rowDragging[m.srd_id] ? 'bg-primary/10' : 'bg-card'"
-          @dragenter="onRowDragEnter(m.srd_id, $event)"
-          @dragover="onRowDragOver"
-          @dragleave="onRowDragLeave(m.srd_id, $event)"
+          :entity="m"
+          :status="rowStatuses[m.srd_id]"
+          :error-msg="rowErrors[m.srd_id]"
+          :dragging="rowDragging[m.srd_id]"
+          :expanded="rowExpanded[m.srd_id]"
+          :focal-point="rowFocalPoints[m.srd_id]"
+          :uploaded-url="rowUploadedUrls[m.srd_id]"
+          @upload="processFile(m.srd_id, $event)"
+          @clear="clearArt(m.srd_id)"
+          @toggle-focal="toggleFocal(m)"
+          @set-focal="setFocalPoint(m, $event)"
+          @preview="previewId = m.srd_id"
+          @drag-enter="onRowDragEnter(m.srd_id, $event)"
+          @drag-over="onRowDragOver"
+          @drag-leave="onRowDragLeave(m.srd_id, $event)"
           @drop="onRowDrop(m.srd_id, $event)"
-        >
-          <input
-            type="file"
-            accept="image/*"
-            class="sr-only"
-            :ref="
-              (el) => {
-                fileInputRefs[m.srd_id] = el as HTMLInputElement | null;
-              }
-            "
-            @change="handleInputChange(m.srd_id, $event)"
-          />
-
-          <div
-            v-if="rowDragging[m.srd_id]"
-            class="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
-          >
-            <span class="font-cinzel text-[10px] text-primary tracking-wide"
-              >Drop to upload</span
-            >
-          </div>
-
-          <!-- main row -->
-          <div
-            class="flex items-center gap-3 px-3 py-2"
-            :class="rowStatuses[m.srd_id] !== 'uploading' ? 'cursor-copy' : ''"
-          >
-            <!-- thumbnail -->
-            <button
-              type="button"
-              class="w-10 h-10 shrink-0 rounded overflow-hidden bg-muted relative group/thumb"
-              :class="
-                canExpandFocal(m)
-                  ? 'cursor-pointer ring-1 ring-transparent hover:ring-primary/60 transition-all'
-                  : 'cursor-copy'
-              "
-              @click.stop="canExpandFocal(m) ? toggleFocal(m) : undefined"
-            >
-              <FocalImage
-                :src="m.image_url"
-                :alt="m.name"
-                format="portrait"
-                placeholder="/assets/placeholders/monster.webp"
-              />
-              <div
-                v-if="canExpandFocal(m)"
-                class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity"
-              >
-                <CrosshairIcon class="h-4 w-4 text-white" />
-              </div>
-            </button>
-
-            <div class="flex-1 min-w-0">
-              <span
-                class="font-cinzel text-xs font-semibold text-foreground truncate block"
-                >{{ m.name }}</span
-              >
-              <span
-                class="font-fell text-[10px] text-muted-foreground capitalize"
-                >{{ m.subtitle }}</span
-              >
-            </div>
-
-            <span
-              v-if="rowErrors[m.srd_id]"
-              class="font-fell text-[10px] text-destructive truncate max-w-30"
-              :title="rowErrors[m.srd_id]"
-            >
-              {{ rowErrors[m.srd_id] }}
-            </span>
-
-            <div class="shrink-0 flex items-center gap-1">
-              <Loader2Icon
-                v-if="rowStatuses[m.srd_id] === 'uploading'"
-                class="h-4 w-4 animate-spin text-muted-foreground"
-              />
-              <template v-else>
-                <button
-                  class="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-cinzel tracking-wide border transition-colors"
-                  :class="
-                    rowStatuses[m.srd_id] === 'error'
-                      ? 'border-destructive text-destructive hover:bg-destructive/10'
-                      : rowDragging[m.srd_id]
-                        ? 'border-primary text-primary'
-                        : 'border-border text-foreground hover:bg-muted'
-                  "
-                  @click.stop="triggerUpload(m.srd_id)"
-                >
-                  <AlertCircleIcon
-                    v-if="rowStatuses[m.srd_id] === 'error'"
-                    class="h-3 w-3 shrink-0"
-                  />
-                  <CheckIcon
-                    v-else-if="rowStatuses[m.srd_id] === 'done' || m.has_user_art"
-                    class="h-3 w-3 shrink-0 text-green-500"
-                  />
-                  <UploadIcon v-else class="h-3 w-3 shrink-0" />
-                  <span v-if="rowStatuses[m.srd_id] === 'error'">Retry</span>
-                  <span v-else-if="rowStatuses[m.srd_id] === 'done' || m.has_user_art">Replace</span>
-                  <span v-else>Upload</span>
-                </button>
-
-                <!-- Clear art — only when there is art to clear -->
-                <button
-                  v-if="m.image_url || m.has_user_art || rowStatuses[m.srd_id] === 'done'"
-                  class="flex items-center justify-center w-7 h-7 rounded border border-border text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-colors"
-                  title="Clear art"
-                  @click.stop="clearArt(m.srd_id)"
-                >
-                  <Trash2Icon class="h-3 w-3" />
-                </button>
-              </template>
-            </div>
-          </div>
-
-          <!-- inline focal picker -->
-          <div
-            v-if="rowExpanded[m.srd_id] && canExpandFocal(m)"
-            class="px-3 pb-3 ml-13"
-          >
-            <FocalPointPicker
-              :src="rowUploadedUrls[m.srd_id] ?? m.image_url ?? ''"
-              :model-value="getLocalFocalPoint(m)"
-              class="max-w-36"
-              @update:model-value="(fp) => setFocalPoint(m, fp)"
-            />
-          </div>
-        </div>
+        />
       </div>
 
       <p
@@ -736,50 +529,14 @@ async function discardStaged(item: StagingItem) {
     <!-- ══ STAGING TAB ══ -->
     <template v-else>
       <!-- drop zone / dump area -->
-      <div
-        class="relative rounded-lg border-2 border-dashed transition-colors p-6 flex flex-col items-center justify-center gap-3 min-h-36 cursor-pointer"
-        :class="
-          stagingDragging
-            ? 'border-primary bg-primary/5'
-            : 'border-border hover:border-primary/50'
-        "
-        @dragenter="onStagingDragEnter"
-        @dragover="onStagingDragOver"
-        @dragleave="onStagingDragLeave"
-        @drop="onStagingDrop"
-        @click="stagingFileInputRef?.click()"
-      >
-        <input
-          ref="stagingFileInputRef"
-          type="file"
-          accept="image/*"
-          multiple
-          class="sr-only"
-          @change="handleStagingInputChange"
-        />
-
-        <template v-if="stagingUploading">
-          <Loader2Icon class="h-8 w-8 text-primary animate-spin" />
-          <p class="font-cinzel text-sm text-primary tracking-wide">
-            Converting {{ stagingProgress.done }}&thinsp;/&thinsp;{{
-              stagingProgress.total
-            }}…
-          </p>
-          <p class="font-fell text-xs text-muted-foreground italic">
-            Converting to WebP and uploading
-          </p>
-        </template>
-        <template v-else>
-          <ImagePlusIcon class="h-8 w-8 text-muted-foreground" />
-          <p class="font-cinzel text-sm text-foreground tracking-wide">
-            Drop images here or tap to pick
-          </p>
-          <p class="font-fell text-xs text-muted-foreground italic text-center">
-            Select as many as you like. Each is converted to WebP and held in
-            staging until you assign it on desktop.
-          </p>
-        </template>
-      </div>
+      <SrdArtUploadPanel
+        :uploading="stagingUploading"
+        :progress-done="stagingProgress.done"
+        :progress-total="stagingProgress.total"
+        :dragging="stagingDragging"
+        @files="uploadStagingFiles"
+        @update:dragging="stagingDragging = $event"
+      />
 
       <!-- staged queue -->
       <div
@@ -798,124 +555,21 @@ async function discardStaged(item: StagingItem) {
         </p>
 
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          <div
+          <SrdArtStagingCard
             v-for="item in stagingItems"
             :key="item.id"
-            class="rounded-lg border border-border bg-card overflow-hidden flex flex-col"
-          >
-            <!-- preview — plain img to avoid backfillVariants on staging files -->
-            <div class="relative h-44 bg-muted overflow-hidden">
-              <img
-                :src="item.image_url"
-                alt=""
-                class="w-full h-full object-cover object-top"
-              />
-            </div>
-
-            <!-- controls -->
-            <div class="p-2 flex flex-col gap-2">
-              <!-- search -->
-              <input
-                :value="stagingSearches[item.id] ?? ''"
-                type="text"
-                placeholder="Search monsters…"
-                class="w-full rounded border border-border bg-background px-2 py-1 font-fell text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
-                @input="
-                  stagingSearches[item.id] = (
-                    $event.target as HTMLInputElement
-                  ).value
-                "
-              />
-
-              <!-- checkbox results -->
-              <div
-                v-if="filteredForItem(item.id).length"
-                class="max-h-32 overflow-y-auto flex flex-col gap-0.5 rounded border border-border bg-muted/30 p-1"
-              >
-                <label
-                  v-for="opt in filteredForItem(item.id)"
-                  :key="opt.id"
-                  class="flex items-center gap-1.5 px-1.5 py-1 rounded cursor-pointer hover:bg-muted/60 font-fell text-xs"
-                  :class="
-                    (stagingSelected[item.id] ?? []).includes(opt.id)
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-foreground'
-                  "
-                >
-                  <input
-                    type="checkbox"
-                    class="h-3 w-3 accent-primary shrink-0"
-                    :checked="(stagingSelected[item.id] ?? []).includes(opt.id)"
-                    @change="toggleStagingSelection(item.id, opt.id)"
-                  />
-                  <span class="truncate">{{ opt.name }}</span>
-                  <span
-                    class="ml-auto shrink-0 font-cinzel text-[9px] text-muted-foreground tracking-wide"
-                    >{{ opt.source }}</span
-                  >
-                </label>
-              </div>
-              <p
-                v-else-if="(stagingSearches[item.id] ?? '').length >= 2"
-                class="font-fell text-[10px] text-muted-foreground italic"
-              >
-                No matches
-              </p>
-
-              <div
-                v-if="stagingErrors[item.id]"
-                class="font-fell text-[10px] text-destructive"
-              >
-                {{ stagingErrors[item.id] }}
-              </div>
-
-              <div class="flex gap-1.5">
-                <!-- Assign selected -->
-                <button
-                  class="flex-1 flex items-center justify-center gap-1 py-1 rounded font-cinzel text-[11px] tracking-wide border transition-colors"
-                  :disabled="
-                    !(stagingSelected[item.id] ?? []).length ||
-                    assignStatuses[item.id] === 'assigning'
-                  "
-                  :class="
-                    assignStatuses[item.id] === 'error'
-                      ? 'border-destructive text-destructive hover:bg-destructive/10'
-                      : !(stagingSelected[item.id] ?? []).length
-                        ? 'border-border text-muted-foreground cursor-not-allowed'
-                        : 'border-primary text-primary hover:bg-primary/10'
-                  "
-                  @click="assignStagedToSelected(item)"
-                >
-                  <Loader2Icon
-                    v-if="assignStatuses[item.id] === 'assigning'"
-                    class="h-3 w-3 animate-spin"
-                  />
-                  <AlertCircleIcon
-                    v-else-if="assignStatuses[item.id] === 'error'"
-                    class="h-3 w-3"
-                  />
-                  <UploadIcon v-else class="h-3 w-3" />
-                  <template v-if="assignStatuses[item.id] === 'error'"
-                    >Retry</template
-                  >
-                  <template v-else-if="(stagingSelected[item.id] ?? []).length">
-                    Assign
-                    {{ (stagingSelected[item.id] ?? []).length }} selected
-                  </template>
-                  <template v-else>Assign</template>
-                </button>
-
-                <!-- Discard without assigning -->
-                <button
-                  class="flex items-center gap-1 px-2 py-1 rounded border border-border font-cinzel text-[11px] tracking-wide text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-colors"
-                  title="Discard"
-                  @click="discardStaged(item)"
-                >
-                  <Trash2Icon class="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
+            :item="item"
+            :options="monsterOptions"
+            :search="stagingSearches[item.id] ?? ''"
+            :selected="stagingSelected[item.id] ?? []"
+            :assign-status="assignStatuses[item.id] ?? 'idle'"
+            :error="stagingErrors[item.id] ?? ''"
+            @update:search="stagingSearches[item.id] = $event"
+            @toggle-selection="toggleStagingSelection(item.id, $event)"
+            @assign="assignStagedToSelected(item)"
+            @discard="discardStaged(item)"
+            @preview-entity="previewId = $event"
+          />
         </div>
       </template>
 
@@ -929,4 +583,12 @@ async function discardStaged(item: StagingItem) {
 
     </template> <!-- /panelOpen -->
   </div>
+
+  <!-- Entity preview modal -->
+  <SrdArtPreviewModal
+    v-if="previewId"
+    :monster="previewMonster ?? null"
+    :spell="previewSpell ?? null"
+    @close="previewId = null"
+  />
 </template>

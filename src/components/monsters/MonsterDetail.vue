@@ -20,67 +20,51 @@
     </div>
 
     <!-- Top bar (editable monsters only) -->
-    <div v-else class="flex flex-wrap items-center gap-2">
-      <label class="flex-1 min-w-48">
-        <span class="sr-only">Monster name</span>
-        <input
-          v-model="form.name"
-          placeholder="Monster name…"
-          class="w-full bg-card border border-border rounded-md px-3 py-2 font-cinzel text-lg font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
-      </label>
-      <button
-        v-if="isAiEnabled"
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-md border border-primary/40 px-3 py-2 font-cinzel text-xs font-semibold text-primary hover:bg-primary/10 transition-colors"
-        @click="showGenerateDialog = true"
-      >
-        <IconGenerate class="h-3.5 w-3.5" />
-        Generate
-      </button>
-      <button
-        type="button"
-        :disabled="saving || !form.name.trim()"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
-        @click="save"
-      >
-        <IconSave class="h-3.5 w-3.5" />
-        {{ saving ? "Saving…" : props.monster ? "Save" : "Create" }}
-      </button>
-      <button
-        v-if="props.monster"
-        type="button"
-        :disabled="sendingToScriptorium"
-        class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-foreground hover:bg-muted transition-colors disabled:opacity-50"
-        @click="sendToScriptorium"
-      >
-        <IconScrollText class="h-3.5 w-3.5" />
-        {{ sendingToScriptorium ? "Exporting…" : "Send to Scriptorium" }}
-      </button>
-      <button
-        v-if="props.monster"
-        type="button"
-        :disabled="duplicating"
-        class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors disabled:opacity-50"
-        @click="duplicate"
-      >
-        <IconCopy class="h-3.5 w-3.5" />
-        {{ duplicating ? "Copying…" : "Duplicate" }}
-      </button>
-      <button
-        v-if="props.monster"
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
-        @click="remove"
-      >
-        <IconDelete class="h-3.5 w-3.5" />
-        Delete
-      </button>
-    </div>
-
-    <p v-if="saveError" class="text-destructive font-fell text-sm">
-      {{ saveError }}
-    </p>
+    <EntityEditorActionBar
+      v-else
+      :title="form.name"
+      title-placeholder="Monster name…"
+      :exists="!!props.monster"
+      :can-save="!!form.name.trim()"
+      :saving="saving"
+      create-label="Create"
+      :error="saveError"
+      @update:title="form.name = $event"
+      @save="save"
+      @delete="remove"
+    >
+      <template #extra-actions>
+        <button
+          v-if="isAiEnabled"
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-md border border-primary/40 px-3 py-2 font-cinzel text-xs font-semibold text-primary hover:bg-primary/10 transition-colors"
+          @click="showGenerateDialog = true"
+        >
+          <IconGenerate class="h-3.5 w-3.5" />
+          Generate
+        </button>
+        <button
+          v-if="props.monster"
+          type="button"
+          :disabled="sendingToScriptorium"
+          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+          @click="sendToScriptorium"
+        >
+          <IconScrollText class="h-3.5 w-3.5" />
+          {{ sendingToScriptorium ? "Exporting…" : "Send to Scriptorium" }}
+        </button>
+        <button
+          v-if="props.monster"
+          type="button"
+          :disabled="duplicating"
+          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors disabled:opacity-50"
+          @click="duplicate"
+        >
+          <IconCopy class="h-3.5 w-3.5" />
+          {{ duplicating ? "Copying…" : "Duplicate" }}
+        </button>
+      </template>
+    </EntityEditorActionBar>
 
     <!-- Two-column body: portrait sidebar + stat block content -->
     <!-- Left col is NOT in fieldset — ImageUploads must remain interactive for SRD art -->
@@ -88,10 +72,10 @@
       <!-- Left: Portrait + Tags -->
       <div class="space-y-4">
           <!-- Portrait -->
-          <ImageUpload
-            bucket="monster-images"
-            :model-value="form.image_url || null"
+          <EntityImageBlock
+            :model-value="form.image_url"
             :focal-point="form.portrait_focal_point"
+            bucket="monster-images"
             show-focal-point
             @update:model-value="onPortraitUrlUpdate($event)"
             @update:focal-point="onPortraitFocalUpdate($event)"
@@ -172,233 +156,7 @@
           <!-- Divider -->
           <div class="gold-divider" />
 
-          <!-- Combat stats -->
-          <section>
-            <p class="section-heading">Combat Statistics</p>
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <label class="block">
-                <span class="field-label">Challenge Rating</span>
-                <input
-                  v-model="sb.challenge_rating"
-                  class="field-input w-full font-bold"
-                  placeholder="1/4"
-                />
-              </label>
-              <label class="block">
-                <span class="field-label">Armor Class</span>
-                <input
-                  v-model.number="sb.armor_class"
-                  type="number"
-                  class="field-input w-full"
-                  @focus="($event.target as HTMLInputElement).select()"
-                />
-              </label>
-              <div class="block">
-                <span class="field-label">Hit Points</span>
-                <DiceExprInput
-                  :model-value="sb.hit_points || null"
-                  placeholder="8d8+16"
-                  @update:model-value="sb.hit_points = $event ?? ''"
-                />
-              </div>
-              <div class="block col-span-full">
-                <span class="field-label">Speed</span>
-                <div class="grid grid-cols-5 gap-2 mt-1">
-                  <div v-for="sp in SPEED_TYPES" :key="sp.key" class="flex flex-col items-center gap-1">
-                    <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">{{ sp.label }}</span>
-                    <!-- Fly: left-edge hover toggle embedded in the box -->
-                    <div v-if="sp.key === 'fly'"
-                      class="relative w-full rounded-md overflow-hidden border border-border bg-muted focus-within:ring-1 focus-within:ring-ring">
-                      <button type="button"
-                        class="absolute inset-y-0 left-0 w-4 transition-colors flex items-center justify-center"
-                        :class="speedObj.hover && speedObj.fly ? 'bg-primary/70' : 'bg-border/50 hover:bg-border/80'"
-                        :title="!speedObj.fly ? 'Set a fly speed to enable hover' : speedObj.hover ? 'Hover on — click to disable' : 'Hover off — click to enable'"
-                        @click="speedObj.fly && (speedObj.hover = !speedObj.hover)"
-                      >
-                        <IconWind class="w-2.5 h-2.5 shrink-0"
-                          :class="speedObj.hover && speedObj.fly ? 'text-primary-foreground' : 'text-muted-foreground/60'" />
-                      </button>
-                      <input :value="speedObj.fly ?? ''" type="number" step="5" min="0" placeholder="—"
-                        class="speed-input w-full bg-transparent pl-6 pr-8 py-1.5 font-fell text-sm text-foreground text-center placeholder:text-muted-foreground/40 focus:outline-none"
-                        @focus="($event.target as HTMLInputElement).select()"
-                        @input="setSpeed('fly', ($event.target as HTMLInputElement).value)" />
-                      <span class="absolute inset-y-0 right-1.5 flex items-center pointer-events-none font-cinzel text-[10px] text-muted-foreground">ft.</span>
-                    </div>
-                    <!-- Other speeds: standard -->
-                    <div v-else class="relative w-full">
-                      <input :value="speedObj[sp.key] ?? ''" type="number" step="5" min="0" placeholder="—"
-                        class="field-input speed-input w-full text-center"
-                        @focus="($event.target as HTMLInputElement).select()"
-                        @input="setSpeed(sp.key, ($event.target as HTMLInputElement).value)" />
-                      <span class="absolute inset-y-0 right-1.5 flex items-center pointer-events-none font-cinzel text-[10px] text-muted-foreground">ft.</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <!-- Ability scores -->
-          <section>
-            <p class="section-heading">Ability Scores</p>
-            <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
-              <label
-                v-for="stat in ABILITY_STATS"
-                :key="stat.key"
-                class="flex flex-col items-center gap-1"
-              >
-                <span class="field-label">{{ stat.label }}</span>
-                <input
-                  v-model.number="sb[stat.key]"
-                  type="number"
-                  min="1"
-                  max="30"
-                  class="field-input w-full text-center"
-                  @focus="($event.target as HTMLInputElement).select()"
-                />
-                <span
-                  class="font-cinzel text-xs font-bold"
-                  :class="
-                    mod(sb[stat.key]) >= 0
-                      ? 'text-green-500'
-                      : 'text-destructive'
-                  "
-                >
-                  {{ mod(sb[stat.key]) >= 0 ? "+" : "" }}{{ mod(sb[stat.key]) }}
-                </span>
-              </label>
-            </div>
-          </section>
-
-          <!-- Proficiencies & traits (text fields) -->
-          <section class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <label class="block">
-              <span class="field-label">Saving Throws</span>
-              <input
-                v-model="sb.saving_throws"
-                class="field-input w-full"
-                placeholder="Con +5, Wis +3"
-              />
-            </label>
-            <label class="block">
-              <span class="field-label">Proficiency Bonus</span>
-              <input
-                v-model.number="sb.proficiency_bonus"
-                type="number"
-                min="0"
-                class="field-input w-full"
-                placeholder="2"
-                @focus="($event.target as HTMLInputElement).select()"
-              />
-            </label>
-            <label class="block">
-              <span class="field-label">Skills</span>
-              <input
-                :value="skillsText"
-                class="field-input w-full"
-                placeholder="Perception +3, Stealth +5"
-                @input="parseSkills(($event.target as HTMLInputElement).value)"
-              />
-            </label>
-            <label class="block">
-              <span class="field-label">Damage Vulnerabilities</span>
-              <input
-                v-model="sb.damage_vulnerabilities"
-                class="field-input w-full"
-                placeholder="bludgeoning"
-              />
-            </label>
-            <label class="block">
-              <span class="field-label">Damage Resistances</span>
-              <input
-                v-model="sb.damage_resistances"
-                class="field-input w-full"
-                placeholder="fire, cold"
-              />
-            </label>
-            <label class="block">
-              <span class="field-label">Damage Immunities</span>
-              <input
-                v-model="sb.damage_immunities"
-                class="field-input w-full"
-                placeholder="poison, psychic"
-              />
-            </label>
-            <label class="block">
-              <span class="field-label">Condition Immunities</span>
-              <input
-                v-model="sb.condition_immunities"
-                class="field-input w-full"
-                placeholder="charmed, exhaustion"
-              />
-            </label>
-            <label class="block">
-              <span class="field-label">Senses</span>
-              <input
-                v-model="sb.senses"
-                class="field-input w-full"
-                placeholder="darkvision 60 ft., passive Perception 13"
-              />
-            </label>
-            <label class="block">
-              <span class="field-label">Languages</span>
-              <input
-                v-model="sb.languages"
-                class="field-input w-full"
-                placeholder="Common, Giant"
-              />
-            </label>
-          </section>
-
-          <div class="gold-divider" />
-
-          <!-- Trait sections -->
-          <section class="flex flex-col gap-4">
-            <TraitSection
-              v-model="sb.special_abilities"
-              label="Special Abilities"
-            />
-            <TraitSection v-model="sb.actions" label="Actions" />
-            <TraitSection v-model="sb.bonus_actions" label="Bonus Actions" />
-            <TraitSection v-model="sb.reactions" label="Reactions" />
-          </section>
-
-          <!-- Legendary -->
-          <section>
-            <p class="section-heading">Legendary</p>
-            <label class="flex items-center gap-3 mb-4">
-              <span class="field-label whitespace-nowrap"
-                >Legendary Resistance (uses/day)</span
-              >
-              <input
-                v-model.number="sb.legendary_resistance"
-                type="number"
-                min="0"
-                max="5"
-                class="field-input w-20"
-                @focus="($event.target as HTMLInputElement).select()"
-              />
-            </label>
-            <TraitSection
-              v-model="sb.legendary_actions"
-              label="Legendary Actions"
-            />
-          </section>
-
-          <!-- Lair -->
-          <section>
-            <TraitSection v-model="sb.lair_actions" label="Lair Actions" />
-          </section>
-
-          <!-- Spellcasting -->
-          <section>
-            <SpellcastingSection
-              v-model="sb.spellcasting"
-              :ability-scores="{ int: sb.int, wis: sb.wis, cha: sb.cha }"
-              :proficiency-bonus="sb.proficiency_bonus ?? null"
-              :challenge-rating="sb.challenge_rating"
-            />
-          </section>
+          <StatBlockEditor :sb="sb" show-legendary show-lair />
 
           <!-- Description -->
           <section>
@@ -438,19 +196,18 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, reactive, computed, watch, watchEffect } from "vue";
-import { parseSpeed, speedToString } from "@/lib/utils";
-import type { SpeedBlock } from "@/lib/utils";
+import { ref, reactive, computed, watch } from "vue";
 import { useRouter } from "vue-router";
-import { IconCopy, IconDelete, IconGenerate, IconSave, IconScrollText, IconWind } from '@/lib/icons';
+import { IconCopy, IconGenerate, IconScrollText } from '@/lib/icons';
 import MonsterGenerateDialog from "@/ai/MonsterGenerateDialog.vue";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { useCampaignStore } from "@/stores/campaign";
 import type { MonsterAiGenerated } from "@/ai/types";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagInput from "@/components/common/TagInput.vue";
-import ImageUpload from "@/components/common/ImageUpload.vue";
-import DiceExprInput from "@/components/common/DiceExprInput.vue";
+import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
+import EntityEditorActionBar from "@/components/common/EntityEditorActionBar.vue";
+import StatBlockEditor from "@/components/common/StatBlockEditor.vue";
 import {
   useCreateMonster,
   useUpdateMonster,
@@ -460,8 +217,6 @@ import {
 import { useUpsertSrdMonsterArt } from "@/composables/useSrdMonsterArt";
 import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
 import { formatMonsterForScriptorium } from "@/lib/scriptoriumImport";
-import TraitSection from "@/components/npcs/TraitSection.vue";
-import SpellcastingSection from "@/components/common/SpellcastingSection.vue";
 import type {
   Monster,
   MonsterType,
@@ -545,7 +300,7 @@ function defaultSb(): MonsterStatBlock {
   return {
     armor_class: 10,
     hit_points: "10 (2d8+1)",
-    speed: "30 ft.", // serialized string; speedObj is the edit state
+    speed: "30 ft.",
     str: 10,
     dex: 10,
     con: 10,
@@ -577,47 +332,7 @@ const sb = reactive<MonsterStatBlock>(
     : defaultSb(),
 );
 
-// Speed structured editor state — parsed from sb.speed on init,
-// kept in sync so buildPayload() always gets the right string.
-const speedObj = reactive<SpeedBlock>(parseSpeed(sb.speed));
-watchEffect(() => {
-  sb.speed = speedToString(speedObj);
-});
-
-const SPEED_TYPES = [
-  { key: "walk", label: "Walk" },
-  { key: "fly",  label: "Fly"  },
-  { key: "swim", label: "Swim" },
-  { key: "climb",label: "Climb"},
-  { key: "burrow",label:"Burrow"},
-] as const;
-
-function setSpeed(key: "walk" | "fly" | "swim" | "climb" | "burrow", val: string) {
-  speedObj[key] = val === "" ? undefined : parseInt(val, 10);
-  if (key === "fly" && !speedObj.fly) speedObj.hover = undefined;
-}
-
-// Skills string <-> Record conversion
-const skillsText = computed(() =>
-  Object.entries(sb.skills ?? {})
-    .map(([k, v]) => `${k} ${v}`)
-    .join(", "),
-);
-function parseSkills(text: string) {
-  const rec: Record<string, string> = {};
-  text.split(",").forEach((part) => {
-    const m = part.trim().match(/^(.+?)\s+([+-]\d+)$/);
-    if (m) rec[m[1].toLowerCase().trim()] = m[2];
-  });
-  sb.skills = rec;
-}
-
-// Ability modifier
-function mod(score: number) {
-  return Math.floor((score - 10) / 2);
-}
-
-// Image upload handlers (ImageUpload component handles bucket upload/delete internally)
+// Image upload handlers
 function onPortraitUrlUpdate(url: string | null) {
   if (isSrd.value) upsertSrdArt({ srd_id: props.monster!.id, image_url: url });
   else form.image_url = url ?? "";

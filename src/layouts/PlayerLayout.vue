@@ -166,49 +166,7 @@
       <CampaignChat :contained="true" :hide-tab="true" />
     </div>
 
-    <!-- ── Bottom navigation bar ──────────────────────────────────────────── -->
-    <!-- pb-safe pushes the nav's inner content above the iOS home indicator;
-         pl-safe / pr-safe keep the edge buttons off landscape notches. -->
-    <nav class="fixed bottom-0 inset-x-0 z-40 bg-card border-t border-border h-[calc(4rem+env(safe-area-inset-bottom))] pb-safe pl-safe pr-safe">
-      <div class="flex items-stretch justify-around">
-
-        <!-- Mobile (< sm): 4 pinned items -->
-        <RouterLink
-          v-for="item in mobileNav"
-          :key="'mob-' + item.to"
-          :to="item.to"
-          class="sm:hidden flex flex-col items-center justify-center gap-0.5 flex-1 py-2.5 transition-colors"
-          :class="isActive(item.to) ? 'text-primary' : 'text-muted-foreground'"
-        >
-          <component :is="item.icon" class="h-5 w-5 shrink-0" />
-          <span class="font-cinzel text-2xs md:text-xs tracking-wider">{{ item.label }}</span>
-        </RouterLink>
-
-        <!-- Tablet+ (sm+): 7 pinned items -->
-        <RouterLink
-          v-for="item in tabletNav"
-          :key="'tab-' + item.to"
-          :to="item.to"
-          class="hidden sm:flex flex-col items-center justify-center gap-0.5 flex-1 py-3 transition-colors"
-          :class="isActive(item.to) ? 'text-primary' : 'text-muted-foreground'"
-        >
-          <component :is="item.icon" class="h-5 w-5 shrink-0" />
-          <span class="font-cinzel text-2xs md:text-xs tracking-wider">{{ item.label }}</span>
-        </RouterLink>
-
-        <!-- More button (always) -->
-        <button
-          type="button"
-          class="flex flex-col items-center justify-center gap-0.5 flex-1 py-2.5 sm:py-3 transition-colors"
-          :class="showMore ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
-          @click="showMore = true"
-        >
-          <IconGridView class="h-5 w-5 shrink-0" />
-          <span class="font-cinzel text-2xs md:text-xs tracking-wider">More</span>
-        </button>
-
-      </div>
-    </nav>
+    <PlayerBottomNav :show-more="showMore" @open-more="showMore = true" />
   </div>
 
   <BugReportModal v-model="bugReportOpen" />
@@ -329,24 +287,7 @@
       >
         <div class="absolute inset-0 bg-black/50" @click="showMore = false" />
 
-        <div class="relative bg-card border-t border-border rounded-t-2xl px-5 pt-4 pb-[calc(2rem+env(safe-area-inset-bottom))] shadow-xl">
-          <div class="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto mb-5" />
-
-          <div class="grid grid-cols-4 sm:grid-cols-7 gap-1">
-            <RouterLink
-              v-for="item in sortedNav"
-              :key="item.to"
-              :to="item.to"
-              class="flex flex-col items-center gap-1.5 rounded-xl px-1 py-3 transition-colors"
-              :class="isActive(item.to)
-                ? 'bg-primary/15 text-primary'
-                : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'"
-              @click="showMore = false"
-            >
-              <component :is="item.icon" class="h-5 w-5 shrink-0" />
-              <span class="font-cinzel text-2xs md:text-xs tracking-wider text-center leading-tight">{{ item.label }}</span>
-            </RouterLink>
-          </div>
+        <PlayerNavGrid @close="showMore = false" />
         </div>
       </div>
     </Transition>
@@ -357,7 +298,7 @@
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
-import { IconAdd, IconBug, IconCalendarDays, IconClose, IconEncounter, IconGridView, IconLogOut, IconMenu, IconMessage, IconPopulate, IconReveal, IconSettingsAlt } from '@/lib/icons';
+import { IconAdd, IconBug, IconCalendarDays, IconClose, IconEncounter, IconLogOut, IconMenu, IconMessage, IconPopulate, IconReveal, IconSettingsAlt } from '@/lib/icons';
 import { useCalendarStore } from "@/stores/calendar";
 import DiceRoller from "@/components/common/DiceRoller.vue";
 import { useRunningEncounters, usePlayerEncounterLive } from "@/composables/useEncounterLive";
@@ -369,10 +310,10 @@ import { useMyMemberships } from "@/composables/useCampaignMembers";
 import { useParty, usePartyLive } from "@/composables/useParty";
 import { useCampaignLiveSync } from "@/composables/useCampaignLiveSync";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
-import { usePlayerNavPrefs } from "@/composables/usePlayerNavPrefs";
-import { MOBILE_NAV_SLOTS, TABLET_NAV_SLOTS } from "@/lib/playerNav";
 import CampaignChat from "@/components/chat/CampaignChat.vue";
 import PlayerEncounterPanel from "@/components/player/PlayerEncounterPanel.vue";
+import PlayerBottomNav from "@/components/layout/PlayerBottomNav.vue";
+import PlayerNavGrid from "@/components/layout/PlayerNavGrid.vue";
 import BugReportModal from "@/components/common/BugReportModal.vue";
 import NewCampaignModal from "@/components/campaign/NewCampaignModal.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
@@ -482,11 +423,6 @@ const characterName = computed(() => {
   return partyMembers.value.find((m) => m.id === auth.linkedPartyMemberId)?.name ?? null;
 });
 
-const { sortedNav } = usePlayerNavPrefs();
-
-const mobileNav = computed(() => sortedNav.value.slice(0, MOBILE_NAV_SLOTS));
-const tabletNav = computed(() => sortedNav.value.slice(0, TABLET_NAV_SLOTS));
-
 const showMore = ref(false);
 const showMenu = ref(false);
 const showCampaignSheet = ref(false);
@@ -520,10 +456,6 @@ async function onCampaignCreated(c: Campaign) {
   campaign.switchToCampaign(c);
   await auth.refreshMembership(c.id);
   if (auth.isDM) router.push({ name: "dashboard" });
-}
-
-function isActive(to: string): boolean {
-  return to === "/play" ? route.path === "/play" : route.path.startsWith(to);
 }
 
 watch(() => route.path, () => { showMore.value = false; });

@@ -163,177 +163,14 @@
         </div>
 
         <!-- Entries -->
-        <div class="space-y-2">
-          <div class="flex items-center justify-between gap-2">
-            <h2 class="font-cinzel text-sm font-bold text-foreground">Entries ({{ form.entries.length }})</h2>
-            <div class="flex items-center gap-1.5">
-              <button
-                type="button"
-                class="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1.5 font-cinzel text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
-                @click="addEntry('item')"
-              >
-                <IconAdd class="size-3" />Item
-              </button>
-              <button
-                type="button"
-                class="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1.5 font-cinzel text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
-                @click="addEntry('currency')"
-              >
-                <IconAdd class="size-3" />Currency
-              </button>
-              <button
-                type="button"
-                class="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1.5 font-cinzel text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
-                @click="addEntry('random')"
-              >
-                <IconAdd class="size-3" />Random
-              </button>
-            </div>
-          </div>
-
-          <p v-if="entriesError" class="font-fell text-xs text-destructive italic">
-            {{ entriesError }}
-          </p>
-
-          <div v-if="!form.entries.length" class="rounded-md border border-dashed border-border px-4 py-8 text-center font-fell text-sm text-muted-foreground italic">
-            No entries yet. Add items, currency pools, or art objects — each gets its own drop chance.
-          </div>
-
-          <div v-else class="flex flex-col gap-2">
-            <div
-              v-for="(entry, idx) in form.entries"
-              :key="entry.id"
-              class="rounded-md border border-border bg-card p-2 flex flex-col gap-1.5"
-            >
-              <!-- ── Item entry ───────────────────────────────────────── -->
-              <template v-if="(entry.type ?? 'item') === 'item'">
-                <div class="grid grid-cols-[1fr_90px_120px_auto] gap-2 items-center">
-                  <EntityCombobox
-                    :model-value="entry.item_id ?? ''"
-                    :options="itemOptions"
-                    placeholder="Pick an item from the Vault…"
-                    @update:model-value="entry.item_id = $event"
-                  />
-                  <div class="flex items-center gap-1">
-                    <input
-                      v-model.number="entry.drop_chance"
-                      type="number" min="1" max="100"
-                      class="w-14 bg-muted border border-border rounded px-1.5 py-1 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
-                    />
-                    <span class="font-fell text-xs text-muted-foreground">%</span>
-                  </div>
-                  <input
-                    :value="entry.dice ?? ''"
-                    placeholder="2d4 or 3"
-                    class="w-full bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                    @input="(e) => onQuantityInput(entry, (e.target as HTMLInputElement).value)"
-                  />
-                  <button type="button" class="text-muted-foreground hover:text-destructive transition-colors p-1" @click="removeEntry(idx)">
-                    <IconDelete class="size-3.5" />
-                  </button>
-                </div>
-              </template>
-
-              <!-- ── Currency entry ───────────────────────────────────── -->
-              <template v-else-if="entry.type === 'currency'">
-                <div class="grid grid-cols-[1fr_90px_auto] gap-2 items-center">
-                  <input
-                    v-model="entry.currency_label"
-                    placeholder="Label (e.g. Belt pouch)"
-                    class="w-full bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                  />
-                  <div class="flex items-center gap-1">
-                    <input
-                      v-model.number="entry.drop_chance"
-                      type="number" min="1" max="100"
-                      class="w-14 bg-muted border border-border rounded px-1.5 py-1 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
-                    />
-                    <span class="font-fell text-xs text-muted-foreground">%</span>
-                  </div>
-                  <button type="button" class="text-muted-foreground hover:text-destructive transition-colors p-1" @click="removeEntry(idx)">
-                    <IconDelete class="size-3.5" />
-                  </button>
-                </div>
-                <!-- Coin amounts -->
-                <div class="grid grid-cols-5 gap-1.5">
-                  <div v-for="coin in COINS" :key="coin.key" class="flex flex-col gap-0.5">
-                    <span class="font-cinzel text-[9px] font-semibold tracking-wider text-muted-foreground uppercase text-center">{{ coin.symbol }}</span>
-                    <input
-                      :value="getCoinVal(entry, coin.key)"
-                      type="number" min="0"
-                      class="w-full bg-muted border border-border rounded px-1.5 py-1 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
-                      placeholder="0"
-                      @input="setCoinVal(entry, coin.key, ($event.target as HTMLInputElement).value)"
-                    />
-                  </div>
-                </div>
-              </template>
-
-              <!-- ── Random-pick entry ───────────────────────────────── -->
-              <template v-else-if="entry.type === 'random'">
-                <div class="grid grid-cols-[1fr_90px_120px_auto] gap-2 items-center">
-                  <!-- Rarity + type filter -->
-                  <div class="flex gap-1.5">
-                    <select
-                      v-model="entry.rarity"
-                      class="flex-1 min-w-0 bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                    >
-                      <option value="">— rarity —</option>
-                      <option v-for="r in ITEM_RARITIES" :key="r" :value="r">{{ ITEM_RARITY_LABELS[r] }}</option>
-                    </select>
-                    <select
-                      v-model="entry.item_type_filter"
-                      class="flex-1 min-w-0 bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                    >
-                      <option :value="null">any type</option>
-                      <option v-for="t in ITEM_TYPES" :key="t" :value="t">{{ ITEM_TYPE_LABELS[t] }}</option>
-                    </select>
-                  </div>
-                  <!-- Drop chance -->
-                  <div class="flex items-center gap-1">
-                    <input
-                      v-model.number="entry.drop_chance"
-                      type="number" min="1" max="100"
-                      class="w-14 bg-muted border border-border rounded px-1.5 py-1 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
-                    />
-                    <span class="font-fell text-xs text-muted-foreground">%</span>
-                  </div>
-                  <!-- Qty -->
-                  <input
-                    :value="entry.dice ?? ''"
-                    placeholder="2d4 or 1"
-                    class="w-full bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                    @input="(e) => onQuantityInput(entry, (e.target as HTMLInputElement).value)"
-                  />
-                  <button type="button" class="text-muted-foreground hover:text-destructive transition-colors p-1" @click="removeEntry(idx)">
-                    <IconDelete class="size-3.5" />
-                  </button>
-                </div>
-                <!-- Pool size hint -->
-                <p class="font-fell text-[10px] text-muted-foreground italic">
-                  {{ randomPoolSizes.get(entry.id) ?? 0 }} matching item{{ randomPoolSizes.get(entry.id) === 1 ? '' : 's' }} in vault
-                </p>
-              </template>
-
-              <!-- ── Notes row (all types) ────────────────────────────── -->
-              <textarea
-                v-if="entry.notes !== null && entry.notes !== undefined"
-                v-model="entry.notes"
-                rows="1"
-                placeholder="Notes (optional)"
-                class="w-full bg-muted border border-border rounded px-2 py-1 font-fell text-xs text-muted-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
-              />
-              <button
-                v-else
-                type="button"
-                class="text-left font-fell text-[10px] text-muted-foreground hover:text-foreground italic"
-                @click="entry.notes = ''"
-              >
-                + add note
-              </button>
-            </div>
-          </div>
-        </div>
+        <LootTableEntryEditor
+          :entries="form.entries"
+          :item-options="itemOptions"
+          :entries-error="entriesError"
+          :random-pool-sizes="randomPoolSizes"
+          @add="addEntry"
+          @remove="removeEntry"
+        />
 
         <div class="space-y-1.5">
           <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Tags</label>
@@ -432,116 +269,19 @@
     </div>
 
     <!-- ── Drop dialog ─────────────────────────────────────────────────────── -->
-    <Teleport to="body">
-      <div
-        v-if="dropDialogOpen"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4"
-        @keydown.esc="closeDropDialog"
-      >
-        <div class="absolute inset-0 bg-black/70" @click="closeDropDialog" />
-        <div class="relative z-10 w-full max-w-md rounded-xl border border-border bg-card shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
-          <div class="flex items-center justify-between gap-3 px-5 pt-5 pb-3 border-b border-border shrink-0">
-            <h2 class="font-cinzel text-sm font-bold tracking-wider text-foreground flex items-center gap-2">
-              <IconPackageOpen class="h-4 w-4 text-primary" />
-              Drop chest in chat
-            </h2>
-            <button class="text-muted-foreground hover:text-foreground" @click="closeDropDialog">
-              <IconClose class="h-4 w-4" />
-            </button>
-          </div>
-
-          <div class="overflow-y-auto px-5 py-4 flex flex-col gap-3">
-            <!-- How it works -->
-            <div class="rounded-md border border-border bg-muted/30 px-3 py-2.5 flex flex-col gap-1">
-              <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">How it works</span>
-              <ol class="font-fell text-xs text-muted-foreground list-decimal list-inside space-y-0.5 leading-relaxed">
-                <li>The table is rolled now — the <strong class="text-foreground">preview</strong> below shows what drops.</li>
-                <li><strong class="text-foreground">Claims</strong> sets how many times players can take an item before the chest closes.</li>
-                <li>Players click items in the chat chest one at a time; each claim removes one slot.</li>
-                <li>The chest closes when claims run out <em>or</em> all items are taken, whichever comes first.</li>
-              </ol>
-            </div>
-
-            <div class="space-y-1.5">
-              <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Claims (dice or fixed)</label>
-              <input
-                v-model="claimsDice"
-                placeholder="1d4, 2, 1d6+1…"
-                class="w-full bg-muted border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-              <p class="font-fell text-[10px] text-muted-foreground italic">
-                Fixed number or dice expression. Capped at the number of items that actually rolled.
-              </p>
-            </div>
-
-            <div class="space-y-1.5">
-              <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Chest art (optional)</label>
-              <div v-if="chestImageUrl" class="relative w-24 h-24 rounded border border-border overflow-hidden bg-muted">
-                <img :src="chestImageUrl" alt="Chest" class="w-full h-full object-cover" />
-                <button
-                  type="button"
-                  class="absolute top-1 right-1 rounded bg-black/60 text-white p-0.5 hover:bg-black/80"
-                  @click="chestImageUrl = null"
-                >
-                  <IconClose class="h-3 w-3" />
-                </button>
-              </div>
-              <input
-                v-else
-                type="file"
-                accept="image/*"
-                class="font-fell text-xs text-muted-foreground"
-                @change="onChestFileChange"
-              />
-              <p v-if="uploadingChestImg" class="font-fell text-[10px] text-muted-foreground italic">Uploading…</p>
-            </div>
-
-            <button
-              type="button"
-              class="self-start font-fell text-[11px] text-muted-foreground hover:text-foreground italic"
-              @click="reroll"
-            >
-              ↻ re-roll preview
-            </button>
-
-            <div class="rounded-md border border-border bg-muted/40 p-3 flex flex-col gap-1.5">
-              <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
-                Preview ({{ dropPreviewAtoms.length }} {{ dropPreviewAtoms.length === 1 ? "item" : "items" }})
-              </span>
-              <ul v-if="dropPreviewAtoms.length" class="flex flex-col gap-0.5">
-                <li v-for="atom in dropPreviewAtoms" :key="atom.atom_id" class="font-fell text-sm text-foreground truncate">
-                  <template v-if="(atom.type ?? 'item') === 'item'">· {{ atom.item_name }}</template>
-                  <template v-else-if="atom.type === 'currency'">
-                    💰 {{ atom.currency_label ? atom.currency_label + ': ' : '' }}{{ formatCoinParts(atom.pp ?? 0, atom.gp ?? 0, atom.ep ?? 0, atom.sp ?? 0, atom.cp ?? 0).join(', ') || '0 GP' }}
-                  </template>
-                  <template v-else>· {{ atom.item_name }}</template>
-                </li>
-              </ul>
-              <p v-else class="font-fell text-xs text-muted-foreground italic">Nothing rolled — chest will be empty.</p>
-            </div>
-          </div>
-
-          <div class="px-5 py-4 border-t border-border flex items-center justify-end gap-2">
-            <button
-              type="button"
-              class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-              @click="closeDropDialog"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              :disabled="dropping || !dropPreviewAtoms.length || effectiveCap === null || effectiveCap <= 0"
-              class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
-              @click="onDrop"
-            >
-              <IconPackageOpen class="size-3.5" />
-              {{ dropping ? "Dropping…" : `Drop chest (${effectiveCap} ${effectiveCap === 1 ? 'claim' : 'claims'})` }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+    <LootTableDropDialog
+      :open="dropDialogOpen"
+      :atoms="dropPreviewAtoms"
+      :claims-dice="claimsDice"
+      :chest-image-url="chestImageUrl"
+      :effective-cap="effectiveCap"
+      :dropping="dropping"
+      @close="closeDropDialog"
+      @drop="onDrop"
+      @reroll="reroll"
+      @update:claims-dice="claimsDice = $event"
+      @update:chest-image-url="chestImageUrl = $event"
+    />
   </PageHeader>
 </template>
 
@@ -549,7 +289,7 @@
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { RouterLink } from "vue-router";
-import { IconAdd, IconClose, IconDelete, IconDiceRoll, IconEdit, IconMonster, IconPackageOpen } from '@/lib/icons';
+import { IconClose, IconDiceRoll, IconEdit, IconMonster, IconPackageOpen } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import {
   useLootTable,
@@ -559,7 +299,6 @@ import {
 } from "@/composables/useLootTables";
 import { useItems } from "@/composables/useItems";
 import { useMonsters } from "@/composables/useMonsters";
-import { useImageUpload } from "@/composables/useImageUpload";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import {
   LOOT_CR_TIERS,
@@ -571,12 +310,10 @@ import {
   type LootTableInsert,
 } from "@/types/lootTable.types";
 import {
-  ITEM_TYPES,
   ITEM_TYPE_LABELS,
-  ITEM_RARITIES,
   ITEM_RARITY_LABELS,
 } from "@/types/item.types";
-import { COINS, formatCoinParts, type CoinKey } from "@/lib/currency";
+import { formatCoinParts } from "@/lib/currency";
 import type { LootChestAtom, LootChestMetadata } from "@/types/chat.types";
 import { rollLootTable, type RolledLootEntry } from "@/lib/lootTableRoll";
 import { parseExpression, rollExpression } from "@/lib/dice";
@@ -584,6 +321,8 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import TagInput from "@/components/common/TagInput.vue";
+import LootTableEntryEditor from "@/components/dungeon-features/LootTableEntryEditor.vue";
+import LootTableDropDialog from "@/components/dungeon-features/LootTableDropDialog.vue";
 
 const route   = useRoute();
 const router  = useRouter();
@@ -688,32 +427,8 @@ function addEntry(type: LootEntryType) {
   }
 }
 
-function getCoinVal(entry: LootEntry, key: CoinKey): number {
-  return (entry as Record<CoinKey, number | undefined>)[key] ?? 0;
-}
-function setCoinVal(entry: LootEntry, key: CoinKey, raw: string) {
-  const n = parseInt(raw, 10);
-  (entry as Record<CoinKey, number | undefined>)[key] = Number.isFinite(n) ? Math.max(0, n) : 0;
-}
-
 function removeEntry(idx: number) {
   form.value.entries.splice(idx, 1);
-}
-
-function onQuantityInput(entry: LootEntry, raw: string) {
-  const trimmed = raw.trim();
-  if (!trimmed) {
-    entry.dice = null;
-    return;
-  }
-  // Pure integer input → record as fixed_qty (faster + clearer than 1d1+N).
-  const n = Number(trimmed);
-  if (Number.isInteger(n) && n >= 0 && /^\d+$/.test(trimmed)) {
-    entry.fixed_qty = n;
-    entry.dice = null;
-  } else {
-    entry.dice = trimmed;
-  }
 }
 
 // ── Roll panel ─────────────────────────────────────────────────────────────
@@ -778,7 +493,6 @@ const claimsDice        = ref("1");
 const claimsRolled      = ref<number | null>(1);
 const chestImageUrl     = ref<string | null>(null);
 const dropping          = ref(false);
-const uploadingChestImg = ref(false);
 
 function rollClaims() {
   const raw = claimsDice.value.trim();
@@ -790,13 +504,11 @@ function rollClaims() {
   claimsRolled.value = Math.max(0, Math.floor(rollExpression(parsed)));
 }
 
-// Re-roll the table (and claims) whenever the dialog opens so the DM gets a fresh preview.
 const dropPreview = ref<RolledLootEntry[]>([]);
 watch(dropDialogOpen, (open) => {
   if (open) reroll();
 });
 
-// Re-roll claims whenever the dice expression changes.
 watch(claimsDice, rollClaims);
 
 function reroll() {
@@ -812,9 +524,6 @@ function reroll() {
   rollClaims();
 }
 
-// Expand rolled entries into claimable atoms.
-// Items: one atom per qty unit (3 potions → 3 atoms).
-// Currency + art objects: always one atom (the whole pool / piece drops at once).
 const dropPreviewAtoms = computed<LootChestAtom[]>(() => {
   const atoms: LootChestAtom[] = [];
   for (const r of dropPreview.value) {
@@ -842,29 +551,13 @@ const dropPreviewAtoms = computed<LootChestAtom[]>(() => {
   return atoms;
 });
 
-// Effective cap = min(rolled claims, number of atoms) — the exact value
-// stored as claims_total when the chest is dropped. Used in the button label
-// so the DM sees what players will actually get.
 const effectiveCap = computed<number | null>(() => {
   if (claimsRolled.value === null) return null;
   return Math.min(claimsRolled.value, dropPreviewAtoms.value.length);
 });
 
-function onChestFileChange(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (!file) return;
-  uploadingChestImg.value = true;
-  const upload = useImageUpload("loot-images");
-  upload.upload(file).then((url) => {
-    if (url) chestImageUrl.value = url;
-    uploadingChestImg.value = false;
-  });
-}
-
 function closeDropDialog() {
   dropDialogOpen.value = false;
-  // Reset transient state but keep claimsDice + image so re-opening doesn't
-  // forget the DM's last setup.
   dropping.value = false;
 }
 

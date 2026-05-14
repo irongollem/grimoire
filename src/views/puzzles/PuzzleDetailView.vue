@@ -49,101 +49,15 @@
       <div class="flex flex-col gap-5 max-w-2xl">
 
         <!-- Art + Identity card -->
-        <div class="rounded-lg border border-border bg-card overflow-hidden">
-          <div class="flex gap-0">
-            <!-- Portrait -->
-            <div class="shrink-0 w-40 sm:w-52 self-stretch">
-              <FocalImage
-                :src="puzzle.image_url"
-                :alt="puzzle.name"
-                format="portrait"
-                :focal-point="puzzle.image_focal_point"
-                placeholder="/assets/placeholders/enigma.webp"
-                class="h-full"
-              />
-            </div>
-
-            <!-- Title + meta -->
-            <div class="flex-1 p-4 flex flex-col gap-2 min-w-0">
-              <h2 class="font-cinzel text-xl font-bold text-foreground leading-tight">{{ puzzle.name }}</h2>
-              <div class="flex flex-wrap gap-2">
-                <span
-                  class="font-cinzel text-[10px] px-2 py-0.5 rounded tracking-wider text-white font-bold"
-                  :style="{ backgroundColor: PUZZLE_TYPE_COLORS[puzzle.puzzle_type] + 'DD' }"
-                >{{ puzzle.puzzle_type }}</span>
-                <span
-                  class="font-cinzel text-[10px] px-2 py-0.5 rounded tracking-wider text-white font-bold"
-                  :style="{ backgroundColor: PUZZLE_DIFFICULTY_COLORS[puzzle.difficulty] + 'DD' }"
-                >{{ puzzle.difficulty }}</span>
-              </div>
-              <div v-if="puzzle.tags.length" class="flex flex-wrap gap-1 mt-auto">
-                <span
-                  v-for="tag in puzzle.tags"
-                  :key="tag"
-                  class="font-cinzel text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground tracking-wider"
-                >{{ tag }}</span>
-              </div>
-
-              <!-- Skill checks -->
-              <div v-if="puzzle.skill_checks.length" class="flex flex-wrap gap-2 mt-1">
-                <span
-                  v-for="sc in puzzle.skill_checks"
-                  :key="sc.skill"
-                  class="font-fell text-[11px] text-muted-foreground"
-                >
-                  {{ sc.skill }} DC {{ sc.dc }}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <PuzzleIdentityCard :puzzle="puzzle" />
 
         <!-- Share panel -->
-        <div class="rounded-lg border border-border bg-card overflow-hidden">
-          <div class="px-4 py-3 border-b border-border bg-muted/20 flex items-center justify-between gap-3">
-            <div class="flex items-center gap-2">
-              <IconShare class="size-3.5 text-muted-foreground shrink-0" />
-              <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Player Share</span>
-            </div>
-            <!-- Share toggle -->
-            <button
-              type="button"
-              class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
-              :class="shareState.is_shared ? 'bg-primary' : 'bg-muted border border-border'"
-              @click="toggleShare"
-            >
-              <span
-                class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow-sm"
-                :class="shareState.is_shared ? 'translate-x-4.5' : 'translate-x-0.5'"
-              />
-            </button>
-          </div>
-          <div class="p-4 space-y-3">
-            <p v-if="!shareState.is_shared" class="font-fell text-xs text-muted-foreground italic">
-              Toggle sharing to make this puzzle visible to players in your campaign.
-            </p>
-            <template v-else>
-              <p class="font-fell text-xs text-muted-foreground">
-                Shared with players in your campaign. Revealed hints: {{ shareState.shared_hints.length }} / {{ puzzle.hints.length }}
-              </p>
-
-              <!-- Read aloud -->
-              <div>
-                <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1.5">
-                  Read-Aloud Text
-                  <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(players will see this)</span>
-                </label>
-                <textarea
-                  v-model="shareState.read_aloud"
-                  rows="3"
-                  placeholder="Read this aloud as the party enters the room…"
-                  class="w-full bg-background border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
-                  @blur="saveShareState"
-                />
-              </div>
-            </template>
-          </div>
-        </div>
+        <PuzzleSharePanel
+          :share-state="shareState"
+          :total-hints="puzzle.hints.length"
+          @toggle-share="toggleShare"
+          @save-share-state="saveShareState"
+        />
 
         <!-- Setup description -->
         <div v-if="puzzle.description" class="rounded-lg border border-border bg-card overflow-hidden">
@@ -245,12 +159,11 @@
           <div class="p-4 flex gap-4">
             <!-- Image -->
             <div class="shrink-0 w-28">
-              <ImageUpload
+              <EntityImageBlock
                 :model-value="form.image_url"
                 :focal-point="form.image_focal_point"
-                aspect="square"
-                show-focal-point
                 bucket="puzzle-images"
+                show-focal-point
                 @update:model-value="form.image_url = $event"
                 @update:focal-point="form.image_focal_point = $event"
               />
@@ -311,100 +224,20 @@
         </div>
 
         <!-- Skill Checks -->
-        <div class="rounded-lg border border-border bg-card overflow-hidden">
-          <div class="px-3 py-2 border-b border-border bg-muted/20 flex items-center justify-between">
-            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Skill Checks</span>
-            <button
-              type="button"
-              class="font-cinzel text-[10px] font-semibold text-primary hover:opacity-80 transition-opacity tracking-wider"
-              @click="addSkillCheck"
-            >
-              + Add
-            </button>
-          </div>
-          <div class="p-4 space-y-2">
-            <p v-if="!form.skill_checks.length" class="font-fell text-xs text-muted-foreground italic">
-              No skill checks yet.
-            </p>
-            <div v-for="(check, i) in form.skill_checks" :key="i" class="flex items-center gap-2">
-              <select
-                v-model="check.skill"
-                class="flex-1 bg-background border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option v-for="s in PUZZLE_SKILLS" :key="s" :value="s">{{ s }}</option>
-              </select>
-              <span class="font-cinzel text-xs text-muted-foreground shrink-0">DC</span>
-              <input
-                v-model.number="check.dc"
-                type="number"
-                min="1"
-                max="30"
-                class="w-16 bg-background border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center"
-              />
-              <button
-                type="button"
-                class="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
-                @click="form.skill_checks.splice(i, 1)"
-              >
-                <IconClose class="size-3.5" />
-              </button>
-            </div>
-          </div>
-        </div>
+        <PuzzleSkillChecksEditor
+          :checks="form.skill_checks"
+          @add-skill-check="addSkillCheck"
+          @remove-skill-check="(i) => form.skill_checks.splice(i, 1)"
+        />
 
         <!-- Hints -->
-        <div class="rounded-lg border border-border bg-card overflow-hidden">
-          <div class="px-3 py-2 border-b border-border bg-muted/20 flex items-center justify-between">
-            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Hints</span>
-            <button
-              type="button"
-              class="font-cinzel text-[10px] font-semibold text-primary hover:opacity-80 transition-opacity tracking-wider"
-              @click="addHint"
-            >
-              + Add Hint
-            </button>
-          </div>
-          <div class="p-4 space-y-3">
-            <p v-if="!form.hints.length" class="font-fell text-xs text-muted-foreground italic">
-              No hints yet. Add tiered hints from subtle to obvious.
-            </p>
-            <div v-for="(hint, i) in sortedHints" :key="hint.order" class="flex items-start gap-2">
-              <span class="shrink-0 mt-1.5 font-cinzel text-[10px] font-bold text-muted-foreground w-6 text-right">{{ hint.order }}</span>
-              <RichTextEditor
-                :model-value="hint.text"
-                :placeholder="`Hint ${hint.order}…`"
-                min-height="80px"
-                class="flex-1"
-                @update:model-value="hint.text = $event"
-              />
-              <div class="shrink-0 flex flex-col gap-0.5 mt-1">
-                <button
-                  v-if="i > 0"
-                  type="button"
-                  class="text-muted-foreground hover:text-foreground transition-colors"
-                  @click="moveHint(i, -1)"
-                >
-                  <IconChevronUp class="size-3.5" />
-                </button>
-                <button
-                  v-if="i < form.hints.length - 1"
-                  type="button"
-                  class="text-muted-foreground hover:text-foreground transition-colors"
-                  @click="moveHint(i, 1)"
-                >
-                  <IconChevronDown class="size-3.5" />
-                </button>
-                <button
-                  type="button"
-                  class="text-muted-foreground hover:text-destructive transition-colors"
-                  @click="removeHint(i)"
-                >
-                  <IconClose class="size-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <PuzzleHintsEditor
+          :sorted-hints="sortedHints"
+          @add-hint="addHint"
+          @remove-hint="removeHint"
+          @move-hint="moveHint"
+          @update-hint-text="updateHintText"
+        />
 
         <!-- Solution -->
         <div class="rounded-lg border border-border bg-card overflow-hidden">
@@ -474,18 +307,21 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconChevronDown, IconChevronUp, IconClose, IconEdit, IconHide, IconReveal, IconShare } from '@/lib/icons';
+import { IconEdit, IconHide, IconReveal } from '@/lib/icons';
 import { usePuzzle, useCreatePuzzle, useUpdatePuzzle, useDeletePuzzle } from "@/composables/usePuzzles";
 import { useCampaignStore } from "@/stores/campaign";
-import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES, PUZZLE_SKILLS, PUZZLE_TYPE_COLORS, PUZZLE_DIFFICULTY_COLORS } from "@/types/puzzle.types";
+import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES } from "@/types/puzzle.types";
 import type { PuzzleHint, PuzzleSkillCheck } from "@/types/puzzle.types";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import ImageUpload from "@/components/common/ImageUpload.vue";
+import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
+import PuzzleIdentityCard from "@/components/puzzles/PuzzleIdentityCard.vue";
+import PuzzleSharePanel from "@/components/puzzles/PuzzleSharePanel.vue";
+import PuzzleHintsEditor from "@/components/puzzles/PuzzleHintsEditor.vue";
+import PuzzleSkillChecksEditor from "@/components/puzzles/PuzzleSkillChecksEditor.vue";
 
 const route    = useRoute();
 const router   = useRouter();
@@ -618,6 +454,11 @@ function moveHint(sortedIndex: number, direction: -1 | 1) {
   const bHint = form.hints.find((h) => h.order === bOrder)!;
   aHint.order = bOrder;
   bHint.order = aOrder;
+}
+
+function updateHintText(order: number, text: string) {
+  const hint = form.hints.find((h) => h.order === order);
+  if (hint) hint.text = text;
 }
 
 function addSkillCheck() {

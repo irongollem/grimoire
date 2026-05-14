@@ -109,214 +109,31 @@
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
       <!-- Left column (col-span-2) -->
       <div class="xl:col-span-2 flex flex-col gap-6">
-        <!-- Name + Description -->
-        <div
-          class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4"
-        >
-          <h2
-            class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase"
-          >
-            Details
-          </h2>
-          <div class="flex flex-col gap-3">
-            <div>
-              <label
-                class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1"
-              >
-                ENCOUNTER NAME
-              </label>
-              <input
-                v-model="form.name"
-                type="text"
-                placeholder="Name your encounter…"
-                class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-            </div>
-            <div>
-              <label
-                class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1"
-              >
-                DESCRIPTION
-              </label>
-              <RichTextEditor
-                v-model="form.description"
-                placeholder="Scene-setting notes, terrain, objectives…"
-                min-height="120px"
-              />
-            </div>
-            <div>
-              <label
-                class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1"
-              >
-                LOCATION
-              </label>
-              <EntityCombobox
-                :model-value="form.location_id ?? ''"
-                :options="allLocations ?? []"
-                placeholder="— no location —"
-                @update:model-value="form.location_id = $event || null"
-              />
-            </div>
-          </div>
-        </div>
+        <!-- Name + Description + Location -->
+        <EncounterMetadata
+          :name="form.name"
+          :description="form.description"
+          :location-id="form.location_id"
+          :all-locations="allLocations ?? []"
+          @update:name="form.name = $event"
+          @update:description="form.description = $event"
+          @update:location-id="form.location_id = $event"
+        />
 
         <!-- Party Members -->
-        <div
-          class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4"
-        >
-          <h2
-            class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase"
-          >
-            Party Members
-          </h2>
-          <div v-if="partyLoading" class="flex justify-center py-4">
-            <LoadingSpinner />
-          </div>
-          <p
-            v-else-if="!party?.length"
-            class="font-fell text-sm text-muted-foreground italic"
-          >
-            No party members found. Add heroes in the Party Tracker first.
-          </p>
-          <div v-else class="flex flex-col gap-2">
-            <label
-              v-for="member in party"
-              :key="member.id"
-              class="flex items-center gap-3 rounded-md border border-border p-3 cursor-pointer hover:border-primary/40 transition-colors"
-              :class="
-                form.party_member_ids.includes(member.id)
-                  ? 'border-primary/50 bg-primary/5'
-                  : ''
-              "
-            >
-              <input
-                type="checkbox"
-                :checked="form.party_member_ids.includes(member.id)"
-                class="accent-primary"
-                @change="togglePartyMember(member.id)"
-              />
-              <div class="flex-1 min-w-0">
-                <span
-                  class="font-cinzel text-sm font-semibold text-foreground"
-                  >{{ member.name }}</span
-                >
-                <span
-                  class="ml-2 font-fell text-xs text-muted-foreground italic"
-                >
-                  {{
-                    [
-                      speciesNameMap.get(member.species_id ?? '') ?? null,
-                      memberClassLabel(member.id, member.class),
-                      memberLevelDisplay(member.id, member.level) ? `Lv${memberLevelDisplay(member.id, member.level)}` : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")
-                  }}
-                </span>
-              </div>
-              <span
-                class="font-cinzel text-[10px] text-muted-foreground shrink-0"
-              >
-                Lv {{ memberLevelDisplay(member.id, member.level) }}
-              </span>
-              <select
-                v-if="form.party_member_ids.includes(member.id)"
-                :value="form.party_member_factions[member.id] ?? 'players'"
-                class="shrink-0 bg-muted border border-border rounded px-2 py-0.5 font-cinzel text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                :style="{
-                  borderColor:
-                    form.factions.find(
-                      (f) =>
-                        f.id ===
-                        (form.party_member_factions[member.id] ?? 'players'),
-                    )?.color ?? undefined,
-                }"
-                @click.stop
-                @change="
-                  (e) =>
-                    setMemberFaction(
-                      member.id,
-                      (e.target as HTMLSelectElement).value,
-                    )
-                "
-              >
-                <option v-for="f in form.factions" :key="f.id" :value="f.id">
-                  {{ f.name }}
-                </option>
-              </select>
-            </label>
-
-            <!-- Companions -->
-            <template v-if="companions?.length">
-              <div class="mt-1 mb-0.5 flex items-center gap-2">
-                <div class="h-px flex-1 bg-border" />
-                <span
-                  class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase shrink-0"
-                  >Companions</span
-                >
-                <div class="h-px flex-1 bg-border" />
-              </div>
-              <label
-                v-for="comp in companions"
-                :key="comp.id"
-                class="flex items-center gap-3 rounded-md border border-border p-3 cursor-pointer hover:border-primary/40 transition-colors"
-                :class="
-                  form.companion_ids.includes(comp.id)
-                    ? 'border-primary/50 bg-primary/5'
-                    : ''
-                "
-              >
-                <input
-                  type="checkbox"
-                  :checked="form.companion_ids.includes(comp.id)"
-                  class="accent-primary"
-                  @change="toggleCompanion(comp.id)"
-                />
-                <div class="flex-1 min-w-0">
-                  <span
-                    class="font-cinzel text-sm font-semibold text-foreground"
-                    >{{ comp.name }}</span
-                  >
-                  <span
-                    class="ml-2 font-fell text-xs text-muted-foreground italic capitalize"
-                  >
-                    {{ comp.companion_type.replace("_", " ") }}
-                  </span>
-                </div>
-                <span
-                  class="font-cinzel text-[10px] text-muted-foreground shrink-0"
-                >
-                  {{ comp.current_hp }}/{{ comp.max_hp }} HP
-                </span>
-                <select
-                  v-if="form.companion_ids.includes(comp.id)"
-                  :value="form.party_member_factions[comp.id] ?? 'players'"
-                  class="shrink-0 bg-muted border border-border rounded px-2 py-0.5 font-cinzel text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                  :style="{
-                    borderColor:
-                      form.factions.find(
-                        (f) =>
-                          f.id ===
-                          (form.party_member_factions[comp.id] ?? 'players'),
-                      )?.color ?? undefined,
-                  }"
-                  @click.stop
-                  @change="
-                    (e) =>
-                      setMemberFaction(
-                        comp.id,
-                        (e.target as HTMLSelectElement).value,
-                      )
-                  "
-                >
-                  <option v-for="f in form.factions" :key="f.id" :value="f.id">
-                    {{ f.name }}
-                  </option>
-                </select>
-              </label>
-            </template>
-          </div>
-        </div>
+        <EncounterPartyRoster
+          :party="party"
+          :party-loading="partyLoading"
+          :companions="companions"
+          :party-member-ids="form.party_member_ids"
+          :companion-ids="form.companion_ids"
+          :party-member-factions="form.party_member_factions"
+          :factions="form.factions"
+          :species-name-map="speciesNameMap"
+          @toggle-party-member="togglePartyMember"
+          @toggle-companion="toggleCompanion"
+          @set-member-faction="setMemberFaction"
+        />
 
         <!-- Combatants -->
         <EncounterCombatants
@@ -339,67 +156,19 @@
         />
 
         <!-- Boss Mechanics (legendary/lair) -->
-        <div class="rounded-lg border border-border bg-card p-5 flex flex-col gap-4">
-          <div class="flex items-start justify-between gap-3">
-            <div>
-              <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase">Boss Mechanics</h2>
-              <p class="font-fell text-xs text-muted-foreground mt-1">
-                Lair actions fire at initiative 20 each round. Legendary actions auto-enable on any combatant whose stat block has them.
-              </p>
-            </div>
-            <label class="flex items-center gap-2 cursor-pointer shrink-0">
-              <input type="checkbox" v-model="form.lair_enabled" class="h-4 w-4 rounded border-border bg-muted" />
-              <span class="font-cinzel text-xs font-semibold text-foreground tracking-wide">Lair Actions</span>
-            </label>
-          </div>
-          <div v-if="form.lair_enabled" class="flex flex-col gap-2">
-            <label class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">LAIR OWNER</label>
-            <EntityCombobox
-              :model-value="form.lair_owner_def_id ?? ''"
-              :options="lairOwnerOptions"
-              placeholder="Search combatants…"
-              @update:model-value="form.lair_owner_def_id = $event || null"
-            />
-            <p v-if="form.lair_enabled && !form.lair_owner_def_id" class="font-fell text-[11px] text-amber-500/80 italic">
-              Pick a combatant whose stat block has Lair Actions. Without one, the runner won't show the lair card.
-            </p>
-          </div>
-        </div>
+        <EncounterBossMechanics
+          :lair-enabled="form.lair_enabled"
+          :lair-owner-def-id="form.lair_owner_def_id"
+          :lair-owner-options="lairOwnerOptions"
+          @update:lair-enabled="form.lair_enabled = $event"
+          @update:lair-owner-def-id="form.lair_owner_def_id = $event"
+        />
       </div>
 
       <!-- Right column -->
       <div class="flex flex-col gap-6">
         <!-- Linked Quests (back-reference) -->
-        <div
-          v-if="linkedQuests?.length"
-          class="rounded-lg border border-border bg-card overflow-hidden"
-        >
-          <div class="px-3 py-2 border-b border-border bg-muted/20">
-            <span
-              class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
-            >
-              Part of Quest
-              <span class="font-fell font-normal"
-                >({{ linkedQuests.length }})</span
-              >
-            </span>
-          </div>
-          <div class="p-2 flex flex-col gap-1">
-            <RouterLink
-              v-for="q in linkedQuests"
-              :key="q.id"
-              :to="`/quests/${q.id}`"
-              class="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-muted/40 transition-colors group"
-            >
-              <IconScrollText class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <span
-                class="font-fell text-sm text-foreground flex-1 truncate group-hover:text-primary transition-colors"
-              >
-                {{ q.title || "Untitled Quest" }}
-              </span>
-            </RouterLink>
-          </div>
-        </div>
+        <EncounterLinkedQuests :quests="linkedQuests ?? []" />
         <!-- Difficulty Analysis -->
         <EncounterDifficulty
           :difficulty="difficulty"
@@ -463,14 +232,12 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, reactive, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconCheckDouble, IconChevronLeft, IconClose, IconPlay, IconReset, IconScrollText, IconStop } from '@/lib/icons';
+import { IconCheckDouble, IconChevronLeft, IconClose, IconPlay, IconReset, IconStop } from '@/lib/icons';
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useParty } from "@/composables/useParty";
 import { useSpeciesNameMap } from "@/composables/useSpecies";
-import { useAllCampaignCharacterClasses } from "@/composables/useCharacterClasses";
-import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
-import type { CharacterClass } from "@/types/multiclass.types";
 import { useCompanions } from "@/composables/useCompanions";
+import { useEncounterDifficulty } from "@/composables/useEncounterDifficulty";
 import { useNpcs } from "@/composables/useNpcs";
 import { useItems } from "@/composables/useItems";
 import { useTraps } from "@/composables/useTraps";
@@ -491,18 +258,14 @@ import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { supabase } from "@/lib/supabase";
 import {
   DEFAULT_FACTIONS,
-  calculateDifficulty,
-  crToXp,
 } from "@/types/encounter.types";
 import type {
   Encounter,
   CombatantDef,
   EncounterEvent,
 } from "@/types/encounter.types";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
+import EncounterMetadata from "@/components/encounters/EncounterMetadata.vue";
 import EncounterCombatants from "@/components/encounters/EncounterCombatants.vue";
 import EncounterBattlefieldSetup from "@/components/encounters/EncounterBattlefieldSetup.vue";
 import EncounterDifficulty from "@/components/encounters/EncounterDifficulty.vue";
@@ -510,6 +273,9 @@ import EncounterEvents from "@/components/encounters/EncounterEvents.vue";
 import EncounterFactions from "@/components/encounters/EncounterFactions.vue";
 import EncounterLoot from "@/components/encounters/EncounterLoot.vue";
 import EncounterTraps from "@/components/encounters/EncounterTraps.vue";
+import EncounterPartyRoster from "@/components/encounters/EncounterPartyRoster.vue";
+import EncounterBossMechanics from "@/components/encounters/EncounterBossMechanics.vue";
+import EncounterLinkedQuests from "@/components/encounters/EncounterLinkedQuests.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
 
@@ -679,180 +445,18 @@ function toggleCompanion(companionId: string) {
   else form.companion_ids.push(companionId);
 }
 
-// Monster / NPC lookup helpers (needed for difficulty computeds)
-const monsterMap = computed(
-  () => new Map((monsters.value ?? []).map((m) => [m.id, m])),
-);
-const npcMap = computed(
-  () => new Map((npcs.value ?? []).map((n) => [n.id, n])),
-);
-
-function monsterCr(monsterId: string | null): string {
-  if (!monsterId) return "0";
-  return monsterMap.value.get(monsterId)?.stat_block.challenge_rating ?? "0";
-}
-function crXp(monsterId: string | null): number {
-  if (!monsterId) return 0;
-  return crToXp(monsterMap.value.get(monsterId)?.stat_block.challenge_rating);
-}
-function npcCr(npcId: string | null): string {
-  if (!npcId) return "0";
-  return npcMap.value.get(npcId)?.stat_block?.challenge_rating ?? "0";
-}
-function npcCrXp(npcId: string | null): number {
-  if (!npcId) return 0;
-  return crToXp(npcMap.value.get(npcId)?.stat_block?.challenge_rating);
-}
-function combatantLabel(entry: CombatantDef): string {
-  if (entry.npc_id)
-    return (
-      entry.custom_name || (npcMap.value.get(entry.npc_id)?.name ?? "Unknown")
-    );
-  return (
-    entry.custom_name ||
-    (monsterMap.value.get(entry.monster_id ?? "")?.name ?? "Unknown")
-  );
-}
-
-// Difficulty calculation
-const enemyFactionIds = computed(() => {
-  const ids = new Set<string>(["enemy"]);
-  form.factions.forEach((f) => {
-    if (f.hostile_to.includes("players")) ids.add(f.id);
-  });
-  return ids;
-});
-
-const enemyEntries = computed(() =>
-  form.combatants
-    .filter((c) => enemyFactionIds.value.has(c.faction_id))
-    .map((c) => ({
-      id: c.id,
-      name: combatantLabel(c),
-      cr: c.npc_id ? npcCr(c.npc_id) : monsterCr(c.monster_id),
-      count: c.count,
-      xpEach: c.npc_id ? npcCrXp(c.npc_id) : crXp(c.monster_id),
-    })),
-);
-
-const { data: allCharacterClasses } = useAllCampaignCharacterClasses();
-const classesByMember = computed(() => {
-  const m = new Map<string, CharacterClass[]>();
-  for (const cc of allCharacterClasses.value ?? []) {
-    const list = m.get(cc.party_member_id) ?? [];
-    list.push(cc);
-    m.set(cc.party_member_id, list);
-  }
-  return m;
-});
-
-function memberClassLabel(memberId: string, legacyClass: string | null): string {
-  const list = classesByMember.value.get(memberId) ?? [];
-  if (list.length > 1) return formatMulticlassLabel(list);
-  if (list.length === 1) return list[0].class_name;
-  return legacyClass ?? "";
-}
-
-function memberLevelDisplay(memberId: string, legacyLevel: number): number {
-  const list = classesByMember.value.get(memberId) ?? [];
-  return list.length > 0 ? totalLevel(list) : legacyLevel;
-}
-
-const partyLevels = computed(() => {
-  const members = party.value ?? [];
-  return form.party_member_ids.map((id) => {
-    const m = members.find((mem) => mem.id === id);
-    if (!m) return 1;
-    return memberLevelDisplay(m.id, m.level);
-  });
-});
-
-const allyFactionIds = computed(() => {
-  const ids = new Set<string>();
-  for (const faction of form.factions) {
-    if (faction.id === "players") continue;
-    if (faction.hostile_to.some((id) => enemyFactionIds.value.has(id))) {
-      ids.add(faction.id);
-    }
-  }
-  return ids;
-});
-
-const allyEntries = computed(() => {
-  const entries: { cr: string | null | undefined; count: number }[] = [];
-  for (const c of form.combatants.filter((c) =>
-    allyFactionIds.value.has(c.faction_id),
-  )) {
-    const cr = c.npc_id ? npcCr(c.npc_id) : monsterCr(c.monster_id);
-    entries.push({ cr, count: c.count });
-  }
-  for (const compId of form.companion_ids) {
-    const comp = (companions.value ?? []).find((c) => c.id === compId);
-    if (!comp) continue;
-    let cr: string | null = null;
-    if (comp.source_monster_id) {
-      cr =
-        monsterMap.value.get(comp.source_monster_id)?.stat_block
-          .challenge_rating ?? null;
-    } else if (comp.source_npc_id) {
-      cr =
-        npcMap.value.get(comp.source_npc_id)?.stat_block?.challenge_rating ??
-        null;
-    }
-    entries.push({ cr, count: 1 });
-  }
-  return entries;
-});
-
-const trapMap = computed(
-  () => new Map((allTraps.value ?? []).map((t) => [t.id, t])),
-);
-
-const hazardXp = computed(() =>
-  form.trap_ids.reduce((sum, id) => {
-    const trap = trapMap.value.get(id);
-    return sum + crToXp(trap?.cr);
-  }, 0),
-);
-
-const difficulty = computed(() =>
-  calculateDifficulty(
-    enemyEntries.value.map((e) => ({ cr: e.cr, count: e.count })),
-    partyLevels.value.length ? partyLevels.value : [3],
-    allyEntries.value,
-    hazardXp.value,
-  ),
-);
-
-const thresholdTiers = computed(() => {
-  const t = difficulty.value.partyThresholds;
-  const max = t.deadly * 1.5 || 1;
-  return [
-    {
-      label: "Easy",
-      value: t.easy,
-      color: "#16A34A",
-      pct: Math.min(100, (t.easy / max) * 100),
-    },
-    {
-      label: "Medium",
-      value: t.medium,
-      color: "#CA8A04",
-      pct: Math.min(100, (t.medium / max) * 100),
-    },
-    {
-      label: "Hard",
-      value: t.hard,
-      color: "#EA580C",
-      pct: Math.min(100, (t.hard / max) * 100),
-    },
-    {
-      label: "Deadly",
-      value: t.deadly,
-      color: "#DC2626",
-      pct: Math.min(100, (t.deadly / max) * 100),
-    },
-  ];
+// Difficulty calculation (delegated to composable)
+const { difficulty, thresholdTiers, enemyEntries } = useEncounterDifficulty({
+  combatants: computed(() => form.combatants),
+  factions: computed(() => form.factions),
+  partyMemberIds: computed(() => form.party_member_ids),
+  companionIds: computed(() => form.companion_ids),
+  trapIds: computed(() => form.trap_ids),
+  monsters: computed(() => monsters.value ?? []),
+  npcs: computed(() => npcs.value ?? []),
+  party,
+  companions,
+  allTraps,
 });
 
 // Loot

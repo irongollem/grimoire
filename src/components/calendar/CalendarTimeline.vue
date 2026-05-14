@@ -1,65 +1,16 @@
 <template>
   <div>
     <!-- Controls bar -->
-    <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
-      <!-- Year/month navigation -->
-      <div class="flex items-center gap-2">
-        <button
-          class="rounded-md border border-border px-2.5 py-1 font-fell text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-          @click="shiftBack"
-        >
-          ←
-        </button>
-        <div class="text-center min-w-36">
-          <p class="font-cinzel text-sm font-semibold text-foreground">
-            {{ rangeLabel }}
-          </p>
-        </div>
-        <button
-          class="rounded-md border border-border px-2.5 py-1 font-fell text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-          @click="shiftForward"
-        >
-          →
-        </button>
-      </div>
-
-      <!-- Zoom selector -->
-      <div class="flex items-center gap-1">
-        <span
-          class="font-cinzel text-xs text-muted-foreground tracking-wider mr-1"
-          >ZOOM</span
-        >
-        <button
-          v-for="z in ZOOM_PRESETS"
-          :key="z.value"
-          class="rounded border px-2 py-0.5 font-cinzel text-xs font-semibold tracking-wider transition-colors"
-          :class="
-            zoomYears === z.value
-              ? 'border-primary bg-primary/10 text-primary'
-              : 'border-border text-muted-foreground hover:text-foreground'
-          "
-          @click="setZoom(z.value)"
-        >
-          {{ z.label }}
-        </button>
-      </div>
-
-      <!-- Jump to year -->
-      <form class="flex items-center gap-1.5" @submit.prevent="jumpToYear">
-        <input
-          v-model.number="jumpYear"
-          type="number"
-          placeholder="Jump to year…"
-          class="w-32 bg-muted border border-border rounded-md px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
-        <button
-          type="submit"
-          class="rounded-md border border-border px-2.5 py-1 font-cinzel text-xs font-semibold text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-        >
-          Go
-        </button>
-      </form>
-    </div>
+    <CalendarTimelineControls
+      :range-label="rangeLabel"
+      :zoom-years="zoomYears"
+      :zoom-presets="ZOOM_PRESETS"
+      :initial-year="calendar.currentYear"
+      @shift-back="shiftBack"
+      @shift-forward="shiftForward"
+      @set-zoom="setZoom"
+      @jump-to-year="jumpToYear"
+    />
 
     <!-- Loading -->
     <div v-if="isLoading" class="flex justify-center py-16">
@@ -353,42 +304,13 @@
     </p>
 
     <!-- Events in view list -->
-    <div v-if="visibleEvents.length" class="mt-6">
-      <p
-        class="font-cinzel text-xs font-semibold tracking-widest text-muted-foreground mb-3"
-      >
-        EVENTS IN VIEW
-      </p>
-      <div class="space-y-1.5">
-        <div
-          v-for="event in visibleEvents"
-          :key="event.id"
-          class="flex items-center gap-2 rounded-md bg-card border border-border px-3 py-2 transition-colors"
-          :class="!readOnly ? 'cursor-pointer hover:border-primary/40' : ''"
-          @click="!readOnly && emit('edit-event', event)"
-        >
-          <span
-            :style="{ backgroundColor: eventColor(event) }"
-            class="w-2.5 h-2.5 rounded-full shrink-0"
-          />
-          <span class="font-fell text-sm text-foreground flex-1">{{
-            event.title
-          }}</span>
-          <span class="font-fell text-xs text-muted-foreground italic">{{
-            formatEventDate(event)
-          }}</span>
-          <span
-            class="font-cinzel text-xs text-muted-foreground/40 uppercase tracking-wider"
-            >{{ event.event_type }}</span
-          >
-        </div>
-      </div>
-    </div>
-    <div v-else-if="!isLoading" class="mt-6">
-      <p class="font-fell text-sm text-muted-foreground italic text-center">
-        No events in this period.
-      </p>
-    </div>
+    <CalendarTimelineEventList
+      :events="visibleEvents"
+      :read-only="readOnly"
+      :is-loading="isLoading"
+      :format-event-date="formatEventDate"
+      @edit-event="emit('edit-event', $event)"
+    />
   </div>
 </template>
 
@@ -399,6 +321,8 @@ import { useCalendarStore } from "@/stores/calendar";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCalendarEventsRange } from "@/composables/useCalendarEvents";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import CalendarTimelineControls from "@/components/calendar/CalendarTimelineControls.vue";
+import CalendarTimelineEventList from "@/components/calendar/CalendarTimelineEventList.vue";
 import { eventColor } from "@/types/calendar.types";
 import type { CalendarEvent } from "@/types/calendar.types";
 import { IconClock, IconEncounter, IconFire, IconGenerate, IconGlobe, IconMap, IconMonster, IconReveal, IconStar, IconUndead } from '@/lib/icons';
@@ -443,7 +367,6 @@ const emit = defineEmits<{
 
 const calendar = useCalendarStore();
 const campaignStore = useCampaignStore();
-const jumpYear = ref<number>(calendar.currentYear);
 
 // Measure container so the timeline always fills available width.
 // Uses watch() instead of onMounted() so it fires when the v-else div appears (after loading).
@@ -840,9 +763,9 @@ function setZoom(z: number) {
   currentTenday.value = 1; // reset tenday position when changing zoom
 }
 
-function jumpToYear() {
-  if (jumpYear.value) {
-    calendar.goToYear(jumpYear.value);
+function jumpToYear(year: number) {
+  if (year) {
+    calendar.goToYear(year);
   }
 }
 </script>

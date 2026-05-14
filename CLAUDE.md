@@ -72,11 +72,11 @@ The local files are a curated history log. GitHub issues are the source of truth
 
 Images for entities that are **shared/canonical** (SRD content managed by admin) and **private** (user-created content) live under different prefixes in the same bucket. Mixing them up risks wiping all canonical art when clearing a user's files, or exposing a user's private art to everyone.
 
-| Entity type                          | Storage prefix | `is_canonical` | Example path                              |
-| ------------------------------------ | -------------- | -------------- | ----------------------------------------- |
-| Canonical/SRD (admin-managed)        | `srd/`         | `true`         | `monster-images/srd/{uuid}.webp`          |
-| DM personal override of SRD content  | `{userId}/`    | `false`        | `monster-images/{userId}/{uuid}.webp`     |
-| User-created private entity          | `{userId}/`    | n/a            | `monster-images/{userId}/{uuid}.webp`     |
+| Entity type                         | Storage prefix | `is_canonical` | Example path                          |
+| ----------------------------------- | -------------- | -------------- | ------------------------------------- |
+| Canonical/SRD (admin-managed)       | `srd/`         | `true`         | `monster-images/srd/{uuid}.webp`      |
+| DM personal override of SRD content | `{userId}/`    | `false`        | `monster-images/{userId}/{uuid}.webp` |
+| User-created private entity         | `{userId}/`    | n/a            | `monster-images/{userId}/{uuid}.webp` |
 
 A DM can replace a canonical SRD image with their own — that override lives in `srd_monster_art` / `srd_spell_art` under their `user_id` with `is_canonical: false`. It does **not** touch the `srd/` canonical file and does not affect other users.
 
@@ -93,18 +93,20 @@ A DM can replace a canonical SRD image with their own — that override lives in
 
 **CRITICAL — extract shared UI, never duplicate it:**
 
-If two pieces of UI share structure and differ only in a few values, the structure becomes a component and the diff becomes props. Identify this *before* writing a second copy, not after.
+If two pieces of UI share structure and differ only in a few values, the structure becomes a component and the diff becomes props. Identify this _before_ writing a second copy, not after.
 
 - A list row with an image and action buttons → component
-- A staging card with preview + search + checkboxes → component  
+- A staging card with preview + search + checkboxes → component
 - A collapsible panel with tabs → component
 
 **Hard rules:**
 
 - Template >300 lines is a signal to split, not a sign of completeness
+- **Soft file max: 600 lines total.** If a file exceeds 600 lines, evaluate whether splitting is warranted before adding more code. If the file is already over 600 lines and you are about to add non-trivial code, propose a split first. Exceptions: pure data files (`src/data/*.ts`), generated types, and files where the size is intrinsic to the domain (e.g. a canvas renderer that cannot be meaningfully split). Always call out the exception explicitly.
 - If two files share >30% of their markup, the shared part belongs in a component
 - The parent (page/panel) wires data and config; the child owns layout and interaction
 - Never create two half-baked copies that will silently diverge — one component with props beats two files every time
+- We leave our plate clean. We never say "we'll refactor later" or "we'll extract this when we do the next one". We don't defer hard topics unless verified by the user as a preference. We don't knowingly add technical debt. We never say "this wasn't part of our work" and fix bugs we encounter instead
 
 ## Filter State Pattern
 

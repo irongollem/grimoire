@@ -108,328 +108,76 @@
       </div>
     </div>
 
-    <!-- Tab bar: My Journal / Party Journal / DM Notes -->
-    <div class="flex items-center gap-0 border-b border-border">
-      <button
-        v-for="tab in TABS"
-        :key="tab.id"
-        type="button"
-        class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider border-b-2 -mb-px transition-colors"
-        :class="activeTab === tab.id
-          ? 'border-primary text-primary'
-          : 'border-transparent text-muted-foreground hover:text-foreground'"
-        @click="setTab(tab.id)"
-      >
-        {{ tab.label }}
-        <span v-if="tab.count > 0" class="ml-1.5 font-fell font-normal text-2xs md:text-sm opacity-70">({{ tab.count }})</span>
-      </button>
-    </div>
+    <!-- Tab bar -->
+    <TabBar :tabs="TABS" :model-value="activeTab" @update:model-value="setTab" />
 
     <!-- Quest Log tab -->
-    <template v-if="activeTab === 'quest-log'">
-      <div v-if="loadingQuests" class="flex justify-center py-12">
-        <LoadingSpinner />
-      </div>
-      <div v-else-if="!playerQuests?.length" class="text-center py-12">
-        <IconScrollText class="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-        <p class="font-fell text-muted-foreground italic">No quests shared by your DM yet.</p>
-      </div>
-      <template v-else>
-        <div v-for="[label, group] in questGroups" :key="label">
-          <div v-if="group.length" class="space-y-2 mb-4">
-            <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">{{ label }}</p>
-            <RouterLink
-              v-for="q in group"
-              :key="q.id"
-              :to="`/play/quests/${q.id}`"
-              class="block rounded-lg border border-border bg-card p-4 hover:border-primary/40 transition-colors"
-            >
-              <div class="flex items-start justify-between gap-2">
-                <div class="flex items-center gap-2 min-w-0">
-                  <span v-if="isQuestNew(q.id, q.updated_at)" class="h-2.5 w-2.5 rounded-full bg-destructive shrink-0" title="New" />
-                  <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ q.title }}</p>
-                </div>
-                <div class="flex items-center gap-1.5 shrink-0">
-                  <span
-                    class="font-cinzel text-2xs px-2 py-0.5 rounded-full tracking-wider"
-                    :style="{ color: QUEST_STATUS_COLORS[q.status], borderColor: QUEST_STATUS_COLORS[q.status] + '50' }"
-                    style="border-width: 1px"
-                  >{{ QUEST_STATUS_LABELS[q.status] }}</span>
-                  <IconChevronRight class="h-3.5 w-3.5 text-muted-foreground" />
-                </div>
-              </div>
-              <p v-if="q.summary" class="font-fell text-sm text-muted-foreground mt-1">{{ q.summary }}</p>
-            </RouterLink>
-          </div>
-        </div>
-      </template>
-    </template>
+    <PlayerJournalQuestLogTab
+      v-if="activeTab === 'quest-log'"
+      :is-loading="loadingQuests"
+      :quests="playerQuests ?? []"
+      :quest-groups="questGroups"
+      :is-quest-new="isQuestNew"
+    />
 
     <!-- Puzzles tab -->
-    <template v-else-if="activeTab === 'puzzles'">
-      <div v-if="loadingPuzzles" class="flex justify-center py-12">
-        <LoadingSpinner />
-      </div>
-      <div v-else-if="!puzzles?.length" class="text-center py-12">
-        <IconPuzzle class="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-        <p class="font-fell text-muted-foreground italic">No puzzles shared by your DM yet.</p>
-      </div>
-      <div v-else class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <RouterLink
-          v-for="puzzle in puzzles"
-          :key="puzzle.id"
-          :to="`/play/puzzles/${puzzle.id}`"
-          class="flex flex-col rounded-lg border border-border bg-card overflow-hidden hover:border-primary/50 transition-colors group"
-        >
-          <div class="relative aspect-square bg-muted overflow-hidden shrink-0">
-            <FocalImage
-              :src="puzzle.image_url"
-              :alt="puzzle.name"
-              format="portrait"
-              :focal-point="puzzle.image_focal_point"
-              placeholder="/assets/placeholders/enigma.webp"
-              class="group-hover:scale-105 transition-transform duration-300"
-            />
-            <span
-              class="absolute top-2 left-2 font-cinzel text-2xs px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
-              :style="{ backgroundColor: PUZZLE_TYPE_COLORS[puzzle.puzzle_type] + 'DD' }"
-            >{{ puzzle.puzzle_type }}</span>
-            <span
-              class="absolute bottom-2 right-2 font-cinzel text-2xs px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
-              :style="{ backgroundColor: PUZZLE_DIFFICULTY_COLORS[puzzle.difficulty] + 'DD' }"
-            >{{ puzzle.difficulty }}</span>
-          </div>
-          <div class="p-2.5">
-            <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ puzzle.name }}</h3>
-            <p v-if="puzzle.shared_hints.length" class="font-fell text-2xs text-primary mt-0.5">
-              {{ puzzle.shared_hints.length }} hint{{ puzzle.shared_hints.length === 1 ? '' : 's' }} available
-            </p>
-          </div>
-        </RouterLink>
-      </div>
-    </template>
+    <PlayerJournalPuzzlesTab
+      v-else-if="activeTab === 'puzzles'"
+      :is-loading="loadingPuzzles"
+      :puzzles="puzzles ?? []"
+    />
 
     <!-- DM Notes tab -->
-    <template v-else-if="activeTab === 'dm-notes'">
-      <div v-if="loadingNotes" class="flex justify-center py-12">
-        <LoadingSpinner />
-      </div>
-      <div v-else-if="!dmNotes.length" class="text-center py-12">
-        <IconPopulate class="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-        <p class="font-fell text-muted-foreground italic">No notes shared by your DM yet.</p>
-      </div>
-      <div v-else class="flex flex-col gap-2">
-        <JournalCard
-          v-for="note in dmNotes"
-          :key="note.id"
-          :color="NOTE_CATEGORIES[note.category]?.color ?? '#6b7280'"
-          :icon="NOTE_CATEGORIES[note.category]?.icon ?? IconPopulate"
-          :category-label="NOTE_CATEGORIES[note.category]?.label ?? ''"
-          :title="note.title"
-          :date="formatDate(note.created_at)"
-          :expanded="selectedNote === note.id"
-          @toggle="toggleNote(note.id)"
-        >
-          <template #meta>
-            <span v-if="isNoteNew(note.id, note.updated_at)" class="h-2.5 w-2.5 rounded-full bg-destructive shrink-0" title="New" />
-            <IconPin v-if="note.is_pinned" class="h-2.5 w-2.5 text-primary shrink-0" />
-            <span v-if="note.category === 'session' && note.session_num != null" class="font-fell text-xs text-muted-foreground/70 italic">Session {{ note.session_num }}</span>
-            <span class="font-fell text-xs text-muted-foreground/70 italic">by DM</span>
-          </template>
-          <div class="px-4 py-4">
-            <RichTextViewer :content="note.content ?? ''" />
-            <div v-if="note.tags?.length" class="flex flex-wrap gap-1 mt-3">
-              <span
-                v-for="tag in note.tags"
-                :key="tag"
-                class="font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded bg-muted text-muted-foreground tracking-wider"
-              >{{ tag }}</span>
-            </div>
-          </div>
-        </JournalCard>
-      </div>
-    </template>
+    <PlayerJournalDmNotesTab
+      v-else-if="activeTab === 'dm-notes'"
+      :is-loading="loadingNotes"
+      :dm-notes="dmNotes"
+      :selected-note="selectedNote"
+      :is-note-new="isNoteNew"
+      :format-date="formatDate"
+      :NOTE_CATEGORIES="NOTE_CATEGORIES"
+      @toggle-note="toggleNote"
+    />
 
-    <!-- Journal tabs (mine + party) -->
-    <template v-else>
-      <!-- Category filter -->
-      <div class="flex flex-wrap gap-1.5">
-        <button
-          type="button"
-          class="px-2.5 py-1 rounded-full font-cinzel text-2xs md:text-sm font-semibold tracking-wider transition-colors border"
-          :class="filterCategory === null
-            ? 'bg-primary/15 text-primary border-primary/30'
-            : 'text-muted-foreground border-border hover:border-foreground/30'"
-          @click="filterCategory = null"
-        >All</button>
-        <button
-          v-for="[key, cat] in JOURNAL_CATEGORY_LIST"
-          :key="key"
-          type="button"
-          class="px-2.5 py-1 rounded-full font-cinzel text-2xs md:text-sm font-semibold tracking-wider transition-colors border"
-          :class="filterCategory === key
-            ? 'border-current'
-            : 'text-muted-foreground border-border hover:border-foreground/20'"
-          :style="filterCategory === key ? { color: cat.color, backgroundColor: cat.color + '18', borderColor: cat.color + '60' } : {}"
-          @click="filterCategory = (filterCategory === key ? null : key)"
-        >{{ cat.label }}</button>
-      </div>
+    <!-- Party Journal tab -->
+    <PlayerJournalPartyTab
+      v-else-if="activeTab === 'party'"
+      :is-loading="isLoading"
+      :visible-entries="visibleEntries"
+      :filter-category="filterCategory"
+      :expanded="expanded"
+      :category-icon="categoryIcon"
+      :content-preview="contentPreview"
+      :format-date="formatDate"
+      :author-name="authorName"
+      @update:filter-category="filterCategory = $event"
+      @toggle="toggleExpand"
+    />
 
-      <!-- Loading -->
-      <div v-if="isLoading" class="flex justify-center py-12">
-        <LoadingSpinner />
-      </div>
-
-      <!-- Empty state -->
-      <div v-else-if="visibleEntries.length === 0" class="text-center py-16 space-y-3">
-        <IconPopulate class="h-10 w-10 text-muted-foreground/30 mx-auto" />
-        <p class="font-cinzel text-sm text-muted-foreground">
-          {{ activeTab === 'party' ? 'No shared entries from the party yet.' : 'Your journal is empty.' }}
-        </p>
-        <p v-if="activeTab === 'mine'" class="font-fell text-xs text-muted-foreground italic">
-          Record your adventures, clues, and discoveries.
-        </p>
-      </div>
-
-      <!-- Entry feed -->
-      <div v-else class="flex flex-col gap-2">
-        <JournalCard
-          v-for="entry in visibleEntries"
-          :key="entry.id"
-          :color="JOURNAL_CATEGORIES[entry.category]?.color ?? '#6b7280'"
-          :icon="categoryIcon(entry.category)"
-          :category-label="JOURNAL_CATEGORIES[entry.category]?.label ?? ''"
-          :title="entry.title || contentPreview(entry.content)"
-          :preview="entry.title ? contentPreview(entry.content) : undefined"
-          :date="formatDate(entry.created_at)"
-          :expanded="expanded === entry.id"
-          @toggle="toggleExpand(entry.id)"
-        >
-          <template #meta>
-            <span v-if="entry.ref_label" class="font-fell text-xs text-muted-foreground/70 italic truncate max-w-32">{{ entry.ref_label }}</span>
-            <span v-if="activeTab === 'party' && authorName(entry)" class="font-fell text-xs text-muted-foreground/70 italic">by {{ authorName(entry) }}</span>
-            <span
-              v-if="activeTab === 'mine'"
-              class="inline-flex items-center gap-1 font-cinzel text-2xs md:text-sm tracking-wider"
-              :class="entry.is_private ? 'text-muted-foreground/50' : 'text-elven-green'"
-            >
-              <IconLock v-if="entry.is_private" class="h-2.5 w-2.5" />
-              <IconReveal v-else class="h-2.5 w-2.5" />
-              {{ entry.is_private ? 'Private' : 'Shared' }}
-            </span>
-            <span
-              v-if="activeTab === 'mine' && entry.is_private && entry.shared_with_dm"
-              class="font-cinzel text-2xs tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600/80 dark:text-amber-400/80 border border-amber-500/20"
-            >DM</span>
-          </template>
-
-          <!-- View mode (party journal or not editing) -->
-          <template v-if="activeTab === 'party' || editingId !== entry.id">
-            <div class="px-4 py-4">
-              <RichTextViewer :content="entry.content" />
-              <div v-if="entry.tags?.length" class="flex flex-wrap gap-1 mt-3">
-                <span
-                  v-for="tag in entry.tags"
-                  :key="tag"
-                  class="font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded bg-muted text-muted-foreground tracking-wider"
-                >{{ tag }}</span>
-              </div>
-            </div>
-            <div v-if="activeTab === 'mine'" class="flex items-center gap-3 px-4 py-2 border-t border-border bg-muted/20">
-              <button
-                type="button"
-                class="font-cinzel text-xs text-primary tracking-wider hover:opacity-80 transition-opacity"
-                @click="startEdit(entry)"
-              >Edit</button>
-              <button
-                type="button"
-                class="font-cinzel text-xs text-muted-foreground/60 tracking-wider hover:text-destructive transition-colors"
-                @click="removeEntry(entry)"
-              >Delete</button>
-            </div>
-          </template>
-
-          <!-- Edit mode -->
-          <div v-else class="p-4 flex flex-col gap-3">
-            <div class="flex flex-wrap items-center gap-2">
-              <select
-                v-model="editForm.category"
-                class="bg-muted border border-border rounded-md px-2 py-1.5 font-cinzel text-xs font-semibold focus:outline-none"
-                :style="{ color: JOURNAL_CATEGORIES[editForm.category as JournalCategory]?.color }"
-              >
-                <option v-for="[key, cat] in JOURNAL_CATEGORY_LIST" :key="key" :value="key">{{ cat.label }}</option>
-              </select>
-              <input
-                v-model="editForm.title"
-                placeholder="Entry title (optional)…"
-                class="flex-1 min-w-32 bg-transparent border-b border-border px-1 py-1 font-cinzel text-sm font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
-              />
-            </div>
-            <RichTextEditor v-model="editForm.content" min-height="160px" allow-upload :entity-mention-items="mentionItems" />
-            <div class="flex flex-wrap items-center gap-2">
-              <select
-                v-model="editForm.ref_type"
-                class="bg-muted border border-border rounded-md px-2 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                @change="editForm.ref_id = ''"
-              >
-                <option value="">No context</option>
-                <option value="quest">Quest</option>
-                <option value="npc">NPC</option>
-                <option value="location">Location</option>
-                <option value="item">Item</option>
-                <option value="monster">Monster</option>
-                <option value="encounter">Encounter</option>
-              </select>
-              <select
-                v-if="editForm.ref_type"
-                v-model="editForm.ref_id"
-                class="flex-1 min-w-32 bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option value="">— Select —</option>
-                <option v-for="opt in editRefOptions" :key="opt.id" :value="opt.id">{{ opt.name }}</option>
-              </select>
-            </div>
-            <div class="flex items-center justify-between gap-2">
-              <div class="flex items-center gap-2 flex-wrap">
-                <button
-                  type="button"
-                  class="inline-flex items-center gap-1.5 font-cinzel text-xs font-semibold tracking-wider transition-colors px-2 py-1 rounded border"
-                  :class="editForm.is_private
-                    ? 'text-muted-foreground border-border'
-                    : 'text-elven-green border-elven-green/30 bg-elven-green/10'"
-                  @click="editForm.is_private = !editForm.is_private; if (!editForm.is_private) editForm.shared_with_dm = false"
-                >
-                  <IconLock v-if="editForm.is_private" class="h-3 w-3" />
-                  <IconReveal v-else class="h-3 w-3" />
-                  {{ editForm.is_private ? 'Private' : 'Shared' }}
-                </button>
-                <label v-if="editForm.is_private" class="inline-flex items-center gap-1.5 cursor-pointer select-none">
-                  <input v-model="editForm.shared_with_dm" type="checkbox" class="rounded border-border accent-amber-500 h-3 w-3" />
-                  <span class="font-cinzel text-xs tracking-wider text-amber-600/80 dark:text-amber-400/80">Share with DM</span>
-                </label>
-              </div>
-              <div class="flex items-center gap-2">
-                <button
-                  type="button"
-                  class="font-cinzel text-xs text-muted-foreground hover:text-foreground tracking-wider"
-                  @click="cancelEdit"
-                >Cancel</button>
-                <button
-                  type="button"
-                  :disabled="isRteEmpty(editForm.content) || saving"
-                  class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 disabled:opacity-50"
-                  @click="submitEdit"
-                >
-                  <IconLoading v-if="saving" class="h-3.5 w-3.5 animate-spin" />
-                  <IconSave v-else class="h-3.5 w-3.5" />
-                  {{ saving ? 'Saving…' : 'Save' }}
-                </button>
-              </div>
-            </div>
-          </div>
-        </JournalCard>
-      </div>
-    </template>
+    <!-- My Journal tab (default) -->
+    <PlayerJournalMyTab
+      v-else
+      :is-loading="isLoading"
+      :visible-entries="visibleEntries"
+      :filter-category="filterCategory"
+      :expanded="expanded"
+      :editing-id="editingId"
+      :edit-form="editForm"
+      :edit-ref-options="editRefOptions"
+      :saving="saving"
+      :mention-items="mentionItems"
+      :category-icon="categoryIcon"
+      :content-preview="contentPreview"
+      :format-date="formatDate"
+      :is-rte-empty="isRteEmpty"
+      @update:filter-category="filterCategory = $event"
+      @toggle="toggleExpand"
+      @start-edit="startEdit"
+      @remove-entry="removeEntry"
+      @edit-form-change="(patch) => Object.assign(editForm, patch)"
+      @cancel-edit="cancelEdit"
+      @submit-edit="submitEdit"
+    />
   </div>
 </template>
 
@@ -438,8 +186,13 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconAdd, IconCalendarDays, IconChevronRight, IconDocument, IconFeather, IconLoading, IconLocation, IconLock, IconMessage, IconPin, IconPopulate, IconPuzzle, IconReveal, IconSave, IconScrollText, IconSearch, IconShield, IconStar } from '@/lib/icons';
-import JournalCard from "@/components/player/JournalCard.vue";
+import { IconAdd, IconCalendarDays, IconDocument, IconFeather, IconLoading, IconLocation, IconLock, IconMessage, IconPin, IconPopulate, IconReveal, IconSave, IconScrollText, IconSearch, IconShield, IconStar } from '@/lib/icons';
+import TabBar from "@/components/common/TabBar.vue";
+import PlayerJournalMyTab from "./PlayerJournalMyTab.vue";
+import PlayerJournalPartyTab from "./PlayerJournalPartyTab.vue";
+import PlayerJournalDmNotesTab from "./PlayerJournalDmNotesTab.vue";
+import PlayerJournalQuestLogTab from "./PlayerJournalQuestLogTab.vue";
+import PlayerJournalPuzzlesTab from "./PlayerJournalPuzzlesTab.vue";
 import type { Component } from "vue";
 import {
   useMyJournalEntries, useSharedJournalEntries,
@@ -453,10 +206,6 @@ import { QUEST_STATUS_LABELS, QUEST_STATUS_COLORS } from "@/types/quest.types";
 import type { Quest } from "@/types/quest.types";
 import { usePlayerVisiblePuzzles } from "@/composables/usePuzzles";
 import { PUZZLE_TYPE_COLORS, PUZZLE_DIFFICULTY_COLORS } from "@/types/puzzle.types";
-import FocalImage from "@/components/common/FocalImage.vue";
-import { RouterLink } from "vue-router";
-const route = useRoute();
-const router = useRouter();
 import { useSharedNpcs } from "@/composables/useNpcs";
 import { useSharedLocations } from "@/composables/useLocations";
 import { usePartyInventory } from "@/composables/usePartyInventory";
@@ -468,9 +217,7 @@ import { usePlayerEntityMentionItems } from "@/composables/usePlayerEntityMentio
 import type { NoteCategory } from "@/types/notes.types";
 import { useAuthStore } from "@/stores/auth";
 import { useMemberByUserId } from "@/composables/useCampaignMembers";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { removeRichTextImages, cleanupRemovedRichTextImages } from "@/composables/useImageUpload";
 
 // ── Mention items ─────────────────────────────────────────────────────────────
@@ -547,6 +294,9 @@ function toggleNote(id: string) {
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
+const route = useRoute();
+const router = useRouter();
+
 type TabId = "mine" | "party" | "quest-log" | "puzzles" | "dm-notes";
 const VALID_TABS: TabId[] = ["mine", "party", "quest-log", "puzzles", "dm-notes"];
 const activeTab = computed<TabId>(() => {
