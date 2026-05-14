@@ -246,6 +246,8 @@ export interface UploadWithVariantsParams {
   bucket: BucketKey;
   blob: Blob;
   userId: string;
+  /** Override the storage folder prefix. Defaults to `userId`. Use e.g. "srd" for canonical admin-managed art. */
+  folderPrefix?: string;
 }
 
 /**
@@ -260,9 +262,10 @@ export async function uploadWithVariants({
   bucket,
   blob,
   userId,
+  folderPrefix,
 }: UploadWithVariantsParams): Promise<string | null> {
   const ext = blob.type === "image/jpeg" ? "jpeg" : "webp";
-  const originalPath = `${userId}/${crypto.randomUUID()}.${ext}`;
+  const originalPath = `${folderPrefix ?? userId}/${crypto.randomUUID()}.${ext}`;
 
   const originalUrl = await uploadToBucket({ bucket, blob, path: originalPath, contentType: blob.type });
   if (!originalUrl) return null;

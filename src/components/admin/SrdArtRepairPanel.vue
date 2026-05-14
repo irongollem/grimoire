@@ -1,13 +1,21 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useQuery, useQueryClient } from "@tanstack/vue-query";
-import { CheckIcon, UploadIcon, AlertCircleIcon, Loader2Icon, Trash2Icon, CrosshairIcon, ImagePlusIcon } from "lucide-vue-next";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  UploadIcon,
+  AlertCircleIcon,
+  Loader2Icon,
+  Trash2Icon,
+  CrosshairIcon,
+  ImagePlusIcon,
+} from "lucide-vue-next";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { uploadWithVariants } from "@/lib/storage";
 import { toWebP } from "@/lib/mediaConvert";
 import FocalImage from "@/components/common/FocalImage.vue";
 import FocalPointPicker from "@/components/common/FocalPointPicker.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -28,7 +36,7 @@ interface StagingItem {
   created_at: string;
 }
 
-type RowStatus   = "idle" | "uploading" | "done" | "error";
+type RowStatus = "idle" | "uploading" | "done" | "error";
 type AssignStatus = "idle" | "assigning" | "done" | "error";
 
 const BUCKET = "monster-images";
@@ -36,47 +44,81 @@ const BUCKET = "monster-images";
 // ── State ─────────────────────────────────────────────────────────────────────
 
 const queryClient = useQueryClient();
-const activeTab = ref<"library" | "staging">("library");
+const panelOpen = ref(false);
+const activeTab = ref<"library" | "staging">("staging");
 
 // library
-const rowStatuses     = ref<Record<string, RowStatus>>({});
-const rowErrors       = ref<Record<string, string>>({});
-const rowDragging     = ref<Record<string, boolean>>({});
-const rowExpanded     = ref<Record<string, boolean>>({});
-const rowFocalPoints  = ref<Record<string, { x: number; y: number } | null>>({});
+const rowStatuses = ref<Record<string, RowStatus>>({});
+const rowErrors = ref<Record<string, string>>({});
+const rowDragging = ref<Record<string, boolean>>({});
+const rowExpanded = ref<Record<string, boolean>>({});
+const rowFocalPoints = ref<Record<string, { x: number; y: number } | null>>({});
 const rowUploadedUrls = ref<Record<string, string>>({});
-const fileInputRefs   = ref<Record<string, HTMLInputElement | null>>({});
+const fileInputRefs = ref<Record<string, HTMLInputElement | null>>({});
 
 // staging
-const stagingFileInputRef  = ref<HTMLInputElement | null>(null);
-const stagingDragging      = ref(false);
-const stagingUploading     = ref(false);
-const stagingProgress      = ref({ total: 0, done: 0 });
-const assignTargets        = ref<Record<string, string>>({});
-const assignStatuses       = ref<Record<string, AssignStatus>>({});
-const stagingErrors        = ref<Record<string, string>>({});
+const stagingFileInputRef = ref<HTMLInputElement | null>(null);
+const stagingDragging = ref(false);
+const stagingUploading = ref(false);
+const stagingProgress = ref({ total: 0, done: 0 });
+const assignStatuses = ref<Record<string, AssignStatus>>({});
+const stagingErrors = ref<Record<string, string>>({});
+const assignedUrls = ref<Record<string, string>>({});
+const stagingSearches = ref<Record<string, string>>({});
+const stagingSelected = ref<Record<string, string[]>>({});
 
 // ── Queries ───────────────────────────────────────────────────────────────────
 
 const { data: monsters, isPending: libraryPending } = useQuery({
   queryKey: ["srd-art-repair-list"],
   queryFn: async (): Promise<SrdMonsterEntry[]> => {
-    const [artRes, monRes] = await Promise.all([
-      supabase.from("srd_monster_art").select("srd_id, image_url, portrait_focal_point").not("image_url", "is", null),
-      supabase.from("srd_monsters").select("id, name, monster_type, source, image_url"),
+    // srd_monsters has 3000+ rows — must paginate past PostgREST's 1000-row cap
+    const PAGE = 1000;
+    const [artRes, allMonsters] = await Promise.all([
+      supabase
+        .from("srd_monster_art")
+        .select("srd_id, image_url, portrait_focal_point")
+        .not("image_url", "is", null),
+      (async () => {
+        const rows: {
+          id: string;
+          name: string;
+          monster_type: string;
+          source: string;
+          image_url: string | null;
+        }[] = [];
+        let offset = 0;
+        while (true) {
+          const { data, error } = await supabase
+            .from("srd_monsters")
+            .select("id, name, monster_type, source, image_url")
+            .order("name", { ascending: true })
+            .range(offset, offset + PAGE - 1);
+          if (error) throw error;
+          rows.push(...(data ?? []));
+          if ((data ?? []).length < PAGE) break;
+          offset += PAGE;
+        }
+        return rows;
+      })(),
     ]);
     if (artRes.error) throw artRes.error;
-    if (monRes.error) throw monRes.error;
 
     const userArtMap = new Map(
-      (artRes.data ?? []).map(r => [r.srd_id, {
-        image_url: r.image_url as string,
-        portrait_focal_point: r.portrait_focal_point as { x: number; y: number } | null,
-      }]),
+      (artRes.data ?? []).map((r) => [
+        r.srd_id,
+        {
+          image_url: r.image_url as string,
+          portrait_focal_point: r.portrait_focal_point as {
+            x: number;
+            y: number;
+          } | null,
+        },
+      ]),
     );
 
-    return (monRes.data ?? [])
-      .map(row => {
+    return allMonsters
+      .map((row) => {
         const userArt = userArtMap.get(row.id);
         return {
           srd_id: row.id,
@@ -101,11 +143,13 @@ const { data: stagingItems, isPending: stagingPending } = useQuery({
       .select("id, storage_path, created_at")
       .order("created_at", { ascending: false });
     if (error) throw error;
-    return (data ?? []).map(row => ({
+    return (data ?? []).map((row) => ({
       id: row.id as string,
       storage_path: row.storage_path as string,
       created_at: row.created_at as string,
-      image_url: supabase.storage.from(BUCKET).getPublicUrl(row.storage_path as string).data.publicUrl,
+      image_url: supabase.storage
+        .from(BUCKET)
+        .getPublicUrl(row.storage_path as string).data.publicUrl,
     }));
   },
   staleTime: 0,
@@ -116,26 +160,34 @@ const { data: stagingItems, isPending: stagingPending } = useQuery({
 const selectedSource = ref<string | null>(null);
 
 const sources = computed(() =>
-  [...new Set((monsters.value ?? []).map(m => m.source).filter(Boolean))].sort(),
+  [
+    ...new Set((monsters.value ?? []).map((m) => m.source).filter(Boolean)),
+  ].sort(),
 );
 
-watch(sources, (list) => {
-  if (selectedSource.value === null && list.length > 0) {
-    selectedSource.value = list.find(s => /5\.1|core|srd/i.test(s)) ?? list[0];
-  }
-}, { immediate: true });
+watch(
+  sources,
+  (list) => {
+    if (selectedSource.value === null && list.length > 0) {
+      selectedSource.value =
+        list.find((s) => /5\.1|core|srd/i.test(s)) ?? list[0];
+    }
+  },
+  { immediate: true },
+);
 
 const visibleMonsters = computed(() =>
-  (monsters.value ?? []).filter(m =>
-    selectedSource.value === null || m.source === selectedSource.value,
+  (monsters.value ?? []).filter(
+    (m) => selectedSource.value === null || m.source === selectedSource.value,
   ),
 );
 
-const total        = computed(() => visibleMonsters.value.length);
-const withArtCount = computed(() =>
-  visibleMonsters.value.filter(m =>
-    m.has_user_art || rowStatuses.value[m.srd_id] === "done",
-  ).length,
+const total = computed(() => visibleMonsters.value.length);
+const withArtCount = computed(
+  () =>
+    visibleMonsters.value.filter(
+      (m) => m.has_user_art || rowStatuses.value[m.srd_id] === "done",
+    ).length,
 );
 
 // ── Library: upload ───────────────────────────────────────────────────────────
@@ -146,20 +198,30 @@ function triggerUpload(srdId: string) {
 
 async function processFile(srdId: string, file: File) {
   rowStatuses.value[srdId] = "uploading";
-  rowErrors.value[srdId]   = "";
+  rowErrors.value[srdId] = "";
   try {
     const userId = getCurrentUser()!.id;
-    const blob   = await toWebP(file);
-    const url    = await uploadWithVariants({ bucket: "monsterImages", blob, userId });
+    const blob = await toWebP(file);
+    const url = await uploadWithVariants({
+      bucket: "monsterImages",
+      blob,
+      userId,
+      folderPrefix: "srd",
+    });
     if (!url) throw new Error("Upload returned null");
 
-    const { error: artErr } = await supabase.from("srd_monster_art").upsert(
-      { srd_id: srdId, image_url: url, user_id: userId, is_canonical: true },
-      { onConflict: "user_id,srd_id" },
-    );
+    const { error: artErr } = await supabase
+      .from("srd_monster_art")
+      .upsert(
+        { srd_id: srdId, image_url: url, user_id: userId, is_canonical: true },
+        { onConflict: "user_id,srd_id" },
+      );
     if (artErr) throw artErr;
 
-    const { error: monErr } = await supabase.from("srd_monsters").update({ image_url: url }).eq("id", srdId);
+    const { error: monErr } = await supabase
+      .from("srd_monsters")
+      .update({ image_url: url })
+      .eq("id", srdId);
     if (monErr) throw monErr;
 
     rowUploadedUrls.value[srdId] = url;
@@ -168,7 +230,8 @@ async function processFile(srdId: string, file: File) {
     queryClient.invalidateQueries({ queryKey: ["srd-art-repair-list"] });
   } catch (err) {
     rowStatuses.value[srdId] = "error";
-    rowErrors.value[srdId]   = err instanceof Error ? err.message : "Upload failed";
+    rowErrors.value[srdId] =
+      err instanceof Error ? err.message : "Upload failed";
   } finally {
     const el = fileInputRefs.value[srdId];
     if (el) el.value = "";
@@ -187,10 +250,13 @@ function onRowDragEnter(srdId: string, event: DragEvent) {
   if (rowStatuses.value[srdId] === "uploading") return;
   rowDragging.value[srdId] = true;
 }
-function onRowDragOver(event: DragEvent) { event.preventDefault(); }
+function onRowDragOver(event: DragEvent) {
+  event.preventDefault();
+}
 function onRowDragLeave(srdId: string, event: DragEvent) {
   const el = event.currentTarget as HTMLElement;
-  if (!el.contains(event.relatedTarget as Node)) rowDragging.value[srdId] = false;
+  if (!el.contains(event.relatedTarget as Node))
+    rowDragging.value[srdId] = false;
 }
 function onRowDrop(srdId: string, event: DragEvent) {
   event.preventDefault();
@@ -203,7 +269,9 @@ function onRowDrop(srdId: string, event: DragEvent) {
 // ── Library: focal point ──────────────────────────────────────────────────────
 
 function canExpandFocal(m: SrdMonsterEntry) {
-  return !!(rowUploadedUrls.value[m.srd_id] ?? (m.has_user_art ? m.image_url : null));
+  return !!(
+    rowUploadedUrls.value[m.srd_id] ?? (m.has_user_art ? m.image_url : null)
+  );
 }
 
 function toggleFocal(m: SrdMonsterEntry) {
@@ -212,45 +280,67 @@ function toggleFocal(m: SrdMonsterEntry) {
 }
 
 function getLocalFocalPoint(m: SrdMonsterEntry) {
-  return m.srd_id in rowFocalPoints.value ? rowFocalPoints.value[m.srd_id] : m.portrait_focal_point;
+  return m.srd_id in rowFocalPoints.value
+    ? rowFocalPoints.value[m.srd_id]
+    : m.portrait_focal_point;
 }
 
-async function setFocalPoint(m: SrdMonsterEntry, fp: { x: number; y: number } | null) {
+async function setFocalPoint(
+  m: SrdMonsterEntry,
+  fp: { x: number; y: number } | null,
+) {
   rowFocalPoints.value[m.srd_id] = fp;
   const imageUrl = rowUploadedUrls.value[m.srd_id] ?? m.image_url!;
-  const userId   = getCurrentUser()!.id;
-  const { error } = await supabase.from("srd_monster_art").upsert(
-    { srd_id: m.srd_id, image_url: imageUrl, portrait_focal_point: fp, user_id: userId, is_canonical: true },
-    { onConflict: "user_id,srd_id" },
-  );
+  const userId = getCurrentUser()!.id;
+  const { error } = await supabase
+    .from("srd_monster_art")
+    .upsert(
+      {
+        srd_id: m.srd_id,
+        image_url: imageUrl,
+        portrait_focal_point: fp,
+        user_id: userId,
+        is_canonical: true,
+      },
+      { onConflict: "user_id,srd_id" },
+    );
   if (!error) queryClient.invalidateQueries({ queryKey: ["srd-monster-art"] });
 }
 
 // ── Staging: upload dump ──────────────────────────────────────────────────────
 
 async function uploadStagingFiles(files: FileList | File[]) {
-  const userId    = getCurrentUser()!.id;
+  const userId = getCurrentUser()!.id;
   const fileArray = Array.from(files);
-  stagingUploading.value    = true;
-  stagingProgress.value     = { total: fileArray.length, done: 0 };
+  stagingUploading.value = true;
+  stagingProgress.value = { total: fileArray.length, done: 0 };
 
-  await Promise.all(fileArray.map(async (file) => {
-    try {
-      const webpFile = await toWebP(file);
-      const path = `${userId}/staging/${crypto.randomUUID()}.webp`;
+  // Process 4 at a time — avoids decoding 60+ full-res iPhone photos simultaneously
+  const CONCURRENCY = 4;
+  let idx = 0;
 
-      const { error: storageErr } = await supabase.storage
-        .from(BUCKET)
-        .upload(path, webpFile, { contentType: "image/webp" });
-      if (storageErr) throw storageErr;
+  async function worker() {
+    while (idx < fileArray.length) {
+      const file = fileArray[idx++];
+      try {
+        const webpFile = await toWebP(file);
+        const path = `${userId}/staging/${crypto.randomUUID()}.webp`;
+        const { error: storageErr } = await supabase.storage
+          .from(BUCKET)
+          .upload(path, webpFile, { contentType: "image/webp" });
+        if (storageErr) throw storageErr;
+        const { error: dbErr } = await supabase
+          .from("srd_art_staging")
+          .insert({ user_id: userId, storage_path: path });
+        if (dbErr) throw dbErr;
+      } catch (_) {
+        /* individual failure — still advance counter */
+      }
+      stagingProgress.value.done++;
+    }
+  }
 
-      const { error: dbErr } = await supabase
-        .from("srd_art_staging")
-        .insert({ user_id: userId, storage_path: path });
-      if (dbErr) throw dbErr;
-    } catch (_) { /* individual file failure — still count done */ }
-    stagingProgress.value.done++;
-  }));
+  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
 
   stagingUploading.value = false;
   queryClient.invalidateQueries({ queryKey: ["srd-art-staging"] });
@@ -266,7 +356,9 @@ function onStagingDragEnter(event: DragEvent) {
   event.preventDefault();
   stagingDragging.value = true;
 }
-function onStagingDragOver(event: DragEvent) { event.preventDefault(); }
+function onStagingDragOver(event: DragEvent) {
+  event.preventDefault();
+}
 function onStagingDragLeave(event: DragEvent) {
   const el = event.currentTarget as HTMLElement;
   if (!el.contains(event.relatedTarget as Node)) stagingDragging.value = false;
@@ -280,46 +372,97 @@ function onStagingDrop(event: DragEvent) {
 
 // ── Staging: assign ───────────────────────────────────────────────────────────
 
-const monsterOptions = computed(() =>
-  (monsters.value ?? []).map(m => ({ id: m.srd_id, name: m.name })),
+interface MonsterOption {
+  id: string;
+  name: string;
+  source: string;
+}
+
+const monsterOptions = computed<MonsterOption[]>(() =>
+  (monsters.value ?? []).map((m) => ({
+    id: m.srd_id,
+    name: m.name,
+    source: m.source,
+  })),
 );
 
-async function assignStaged(item: StagingItem) {
-  const srdId = assignTargets.value[item.id];
-  if (!srdId) return;
+function filteredForItem(itemId: string): MonsterOption[] {
+  const q = (stagingSearches.value[itemId] ?? "").toLowerCase().trim();
+  if (q.length < 2) return [];
+  return monsterOptions.value
+    .filter((o) => o.name.toLowerCase().includes(q))
+    .slice(0, 20);
+}
+
+function toggleStagingSelection(itemId: string, monsterId: string) {
+  const cur = stagingSelected.value[itemId] ?? [];
+  stagingSelected.value[itemId] = cur.includes(monsterId)
+    ? cur.filter((id) => id !== monsterId)
+    : [...cur, monsterId];
+}
+
+async function assignStagedToSelected(item: StagingItem) {
+  const selected = stagingSelected.value[item.id] ?? [];
+  if (!selected.length) return;
   assignStatuses.value[item.id] = "assigning";
-  stagingErrors.value[item.id]  = "";
+  stagingErrors.value[item.id] = "";
 
   try {
     const userId = getCurrentUser()!.id;
 
-    const response = await fetch(item.image_url);
-    if (!response.ok) throw new Error("Could not fetch staged image");
-    const fetchedBlob = await response.blob();
-    const file = new File([fetchedBlob], "staged.webp", { type: "image/webp" });
+    // First assignment fetches + generates variants; subsequent ones reuse the URL
+    let url: string | null = assignedUrls.value[item.id];
+    if (!url) {
+      const response = await fetch(item.image_url);
+      if (!response.ok) throw new Error("Could not fetch staged image");
+      const fetchedBlob = await response.blob();
+      const file = new File([fetchedBlob], "staged.webp", {
+        type: "image/webp",
+      });
+      url = await uploadWithVariants({
+        bucket: "monsterImages",
+        blob: file,
+        userId,
+        folderPrefix: "srd",
+      });
+      if (!url) throw new Error("Upload returned null");
+      assignedUrls.value[item.id] = url!;
+    }
 
-    const url = await uploadWithVariants({ bucket: "monsterImages", blob: file, userId });
-    if (!url) throw new Error("Upload returned null");
-
-    const { error: artErr } = await supabase.from("srd_monster_art").upsert(
-      { srd_id: srdId, image_url: url, user_id: userId, is_canonical: true },
-      { onConflict: "user_id,srd_id" },
+    await Promise.all(
+      selected.map(async (srdId) => {
+        const { error: artErr } = await supabase
+          .from("srd_monster_art")
+          .upsert(
+            {
+              srd_id: srdId,
+              image_url: url,
+              user_id: userId,
+              is_canonical: true,
+            },
+            { onConflict: "user_id,srd_id" },
+          );
+        if (artErr) throw artErr;
+        const { error: monErr } = await supabase
+          .from("srd_monsters")
+          .update({ image_url: url })
+          .eq("id", srdId);
+        if (monErr) throw monErr;
+      }),
     );
-    if (artErr) throw artErr;
 
-    const { error: monErr } = await supabase.from("srd_monsters").update({ image_url: url }).eq("id", srdId);
-    if (monErr) throw monErr;
-
+    // Auto-discard after successful assignment — keeps staging queue accurate
+    // across page refreshes (in-memory state can't track this persistently).
     await supabase.from("srd_art_staging").delete().eq("id", item.id);
     await supabase.storage.from(BUCKET).remove([item.storage_path]);
 
-    assignStatuses.value[item.id] = "done";
     queryClient.invalidateQueries({ queryKey: ["srd-art-staging"] });
     queryClient.invalidateQueries({ queryKey: ["srd-monster-art"] });
     queryClient.invalidateQueries({ queryKey: ["srd-art-repair-list"] });
   } catch (err) {
     assignStatuses.value[item.id] = "error";
-    stagingErrors.value[item.id]  = err instanceof Error ? err.message : "Failed";
+    stagingErrors.value[item.id] =
+      err instanceof Error ? err.message : "Failed";
   }
 }
 
@@ -332,39 +475,64 @@ async function discardStaged(item: StagingItem) {
 
 <template>
   <div class="rounded-lg border border-border bg-card p-4 space-y-4">
-
-    <!-- header + tabs -->
-    <div class="flex items-center justify-between gap-4">
+    <!-- header (always visible, click to expand/collapse) -->
+    <button
+      type="button"
+      class="flex items-center justify-between gap-4 w-full text-left"
+      @click="panelOpen = !panelOpen"
+    >
       <div>
-        <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">SRD Monster Art</h2>
+        <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">
+          SRD Monster Art
+        </h2>
         <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
           Manage canonical SRD monster images. Dump images from your phone, assign on desktop.
         </p>
       </div>
       <div class="flex items-center gap-2 shrink-0">
-        <div v-if="activeTab === 'library' && total > 0" class="font-cinzel text-xs text-muted-foreground tabular-nums">
-          {{ withArtCount }}&thinsp;/&thinsp;{{ total }}
-        </div>
-        <div v-if="(stagingItems?.length ?? 0) > 0" class="font-cinzel text-[10px] text-primary tabular-nums">
+        <div
+          v-if="(stagingItems?.length ?? 0) > 0"
+          class="font-cinzel text-[10px] text-primary tabular-nums"
+        >
           {{ stagingItems!.length }} staged
         </div>
+        <ChevronDownIcon
+          class="h-4 w-4 text-muted-foreground transition-transform duration-200"
+          :class="panelOpen ? 'rotate-180' : ''"
+        />
       </div>
-    </div>
+    </button>
+
+    <!-- body — v-if keeps FocalImage components unmounted when collapsed -->
+    <template v-if="panelOpen">
 
     <!-- tab bar -->
     <div class="flex gap-1 border-b border-border pb-0.5">
       <button
         class="px-3 py-1.5 font-cinzel text-[11px] tracking-wide rounded-t transition-colors"
-        :class="activeTab === 'library' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'"
+        :class="
+          activeTab === 'library'
+            ? 'bg-muted text-foreground'
+            : 'text-muted-foreground hover:text-foreground'
+        "
         @click="activeTab = 'library'"
-      >Library</button>
+      >
+        Library
+      </button>
       <button
         class="relative px-3 py-1.5 font-cinzel text-[11px] tracking-wide rounded-t transition-colors"
-        :class="activeTab === 'staging' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'"
+        :class="
+          activeTab === 'staging'
+            ? 'bg-muted text-foreground'
+            : 'text-muted-foreground hover:text-foreground'
+        "
         @click="activeTab = 'staging'"
       >
         Staging
-        <span v-if="(stagingItems?.length ?? 0) > 0" class="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] font-bold">
+        <span
+          v-if="(stagingItems?.length ?? 0) > 0"
+          class="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] font-bold"
+        >
           {{ stagingItems!.length }}
         </span>
       </button>
@@ -378,14 +546,23 @@ async function discardStaged(item: StagingItem) {
           v-for="src in sources"
           :key="src"
           class="px-2.5 py-1 rounded font-cinzel text-[11px] tracking-wide border transition-colors"
-          :class="selectedSource === src
-            ? 'bg-primary text-primary-foreground border-primary'
-            : 'border-border text-muted-foreground hover:bg-muted'"
+          :class="
+            selectedSource === src
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'border-border text-muted-foreground hover:bg-muted'
+          "
           @click="selectedSource = src"
-        >{{ src }}</button>
+        >
+          {{ src }}
+        </button>
       </div>
 
-      <div v-if="libraryPending" class="font-fell text-xs text-muted-foreground italic">Loading…</div>
+      <div
+        v-if="libraryPending"
+        class="font-fell text-xs text-muted-foreground italic"
+      >
+        Loading…
+      </div>
 
       <div
         v-else-if="visibleMonsters.length > 0"
@@ -401,61 +578,117 @@ async function discardStaged(item: StagingItem) {
           @dragleave="onRowDragLeave(m.srd_id, $event)"
           @drop="onRowDrop(m.srd_id, $event)"
         >
-          <input type="file" accept="image/*" class="sr-only"
-            :ref="(el) => { fileInputRefs[m.srd_id] = el as HTMLInputElement | null }"
+          <input
+            type="file"
+            accept="image/*"
+            class="sr-only"
+            :ref="
+              (el) => {
+                fileInputRefs[m.srd_id] = el as HTMLInputElement | null;
+              }
+            "
             @change="handleInputChange(m.srd_id, $event)"
           />
 
-          <div v-if="rowDragging[m.srd_id]" class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-            <span class="font-cinzel text-[10px] text-primary tracking-wide">Drop to upload</span>
+          <div
+            v-if="rowDragging[m.srd_id]"
+            class="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
+          >
+            <span class="font-cinzel text-[10px] text-primary tracking-wide"
+              >Drop to upload</span
+            >
           </div>
 
           <!-- main row -->
-          <div class="flex items-center gap-3 px-3 py-2" :class="rowStatuses[m.srd_id] !== 'uploading' ? 'cursor-copy' : ''">
+          <div
+            class="flex items-center gap-3 px-3 py-2"
+            :class="rowStatuses[m.srd_id] !== 'uploading' ? 'cursor-copy' : ''"
+          >
             <!-- thumbnail -->
             <button
               type="button"
               class="w-10 h-10 shrink-0 rounded overflow-hidden bg-muted relative group/thumb"
-              :class="canExpandFocal(m) ? 'cursor-pointer ring-1 ring-transparent hover:ring-primary/60 transition-all' : 'cursor-copy'"
+              :class="
+                canExpandFocal(m)
+                  ? 'cursor-pointer ring-1 ring-transparent hover:ring-primary/60 transition-all'
+                  : 'cursor-copy'
+              "
               @click.stop="canExpandFocal(m) ? toggleFocal(m) : undefined"
             >
-              <FocalImage :src="m.image_url" :alt="m.name" format="portrait" placeholder="/assets/placeholders/monster.webp" />
-              <div v-if="canExpandFocal(m)" class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity">
+              <FocalImage
+                :src="m.image_url"
+                :alt="m.name"
+                format="portrait"
+                placeholder="/assets/placeholders/monster.webp"
+              />
+              <div
+                v-if="canExpandFocal(m)"
+                class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity"
+              >
                 <CrosshairIcon class="h-4 w-4 text-white" />
               </div>
             </button>
 
             <div class="flex-1 min-w-0">
-              <span class="font-cinzel text-xs font-semibold text-foreground truncate block">{{ m.name }}</span>
-              <span class="font-fell text-[10px] text-muted-foreground capitalize">{{ m.monster_type }}</span>
+              <span
+                class="font-cinzel text-xs font-semibold text-foreground truncate block"
+                >{{ m.name }}</span
+              >
+              <span
+                class="font-fell text-[10px] text-muted-foreground capitalize"
+                >{{ m.monster_type }}</span
+              >
             </div>
 
-            <span v-if="rowErrors[m.srd_id]" class="font-fell text-[10px] text-destructive truncate max-w-30" :title="rowErrors[m.srd_id]">
+            <span
+              v-if="rowErrors[m.srd_id]"
+              class="font-fell text-[10px] text-destructive truncate max-w-30"
+              :title="rowErrors[m.srd_id]"
+            >
               {{ rowErrors[m.srd_id] }}
             </span>
 
             <div class="shrink-0">
-              <Loader2Icon v-if="rowStatuses[m.srd_id] === 'uploading'" class="h-4 w-4 animate-spin text-muted-foreground" />
+              <Loader2Icon
+                v-if="rowStatuses[m.srd_id] === 'uploading'"
+                class="h-4 w-4 animate-spin text-muted-foreground"
+              />
               <button
                 v-else
                 class="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-cinzel tracking-wide border transition-colors"
-                :class="rowStatuses[m.srd_id] === 'error'
-                  ? 'border-destructive text-destructive hover:bg-destructive/10'
-                  : rowDragging[m.srd_id] ? 'border-primary text-primary' : 'border-border text-foreground hover:bg-muted'"
+                :class="
+                  rowStatuses[m.srd_id] === 'error'
+                    ? 'border-destructive text-destructive hover:bg-destructive/10'
+                    : rowDragging[m.srd_id]
+                      ? 'border-primary text-primary'
+                      : 'border-border text-foreground hover:bg-muted'
+                "
                 @click.stop="triggerUpload(m.srd_id)"
               >
-                <AlertCircleIcon v-if="rowStatuses[m.srd_id] === 'error'" class="h-3 w-3 shrink-0" />
-                <CheckIcon v-else-if="rowStatuses[m.srd_id] === 'done' || m.has_user_art" class="h-3 w-3 shrink-0 text-green-500" />
+                <AlertCircleIcon
+                  v-if="rowStatuses[m.srd_id] === 'error'"
+                  class="h-3 w-3 shrink-0"
+                />
+                <CheckIcon
+                  v-else-if="rowStatuses[m.srd_id] === 'done' || m.has_user_art"
+                  class="h-3 w-3 shrink-0 text-green-500"
+                />
                 <UploadIcon v-else class="h-3 w-3 shrink-0" />
                 <span v-if="rowStatuses[m.srd_id] === 'error'">Retry</span>
-                <span v-else-if="rowStatuses[m.srd_id] === 'done' || m.has_user_art">Replace</span>
+                <span
+                  v-else-if="rowStatuses[m.srd_id] === 'done' || m.has_user_art"
+                  >Replace</span
+                >
                 <span v-else>Upload</span>
               </button>
             </div>
           </div>
 
           <!-- inline focal picker -->
-          <div v-if="rowExpanded[m.srd_id] && canExpandFocal(m)" class="px-3 pb-3 ml-13">
+          <div
+            v-if="rowExpanded[m.srd_id] && canExpandFocal(m)"
+            class="px-3 pb-3 ml-13"
+          >
             <FocalPointPicker
               :src="rowUploadedUrls[m.srd_id] ?? m.image_url ?? ''"
               :model-value="getLocalFocalPoint(m)"
@@ -466,16 +699,24 @@ async function discardStaged(item: StagingItem) {
         </div>
       </div>
 
-      <p v-else-if="!libraryPending" class="font-fell text-xs text-muted-foreground italic">No SRD monsters found.</p>
+      <p
+        v-else-if="!libraryPending"
+        class="font-fell text-xs text-muted-foreground italic"
+      >
+        No SRD monsters found.
+      </p>
     </template>
 
     <!-- ══ STAGING TAB ══ -->
     <template v-else>
-
       <!-- drop zone / dump area -->
       <div
         class="relative rounded-lg border-2 border-dashed transition-colors p-6 flex flex-col items-center justify-center gap-3 min-h-36 cursor-pointer"
-        :class="stagingDragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'"
+        :class="
+          stagingDragging
+            ? 'border-primary bg-primary/5'
+            : 'border-border hover:border-primary/50'
+        "
         @dragenter="onStagingDragEnter"
         @dragover="onStagingDragOver"
         @dragleave="onStagingDragLeave"
@@ -494,25 +735,40 @@ async function discardStaged(item: StagingItem) {
         <template v-if="stagingUploading">
           <Loader2Icon class="h-8 w-8 text-primary animate-spin" />
           <p class="font-cinzel text-sm text-primary tracking-wide">
-            Converting {{ stagingProgress.done }}&thinsp;/&thinsp;{{ stagingProgress.total }}…
+            Converting {{ stagingProgress.done }}&thinsp;/&thinsp;{{
+              stagingProgress.total
+            }}…
           </p>
-          <p class="font-fell text-xs text-muted-foreground italic">Converting to WebP and uploading</p>
+          <p class="font-fell text-xs text-muted-foreground italic">
+            Converting to WebP and uploading
+          </p>
         </template>
         <template v-else>
           <ImagePlusIcon class="h-8 w-8 text-muted-foreground" />
-          <p class="font-cinzel text-sm text-foreground tracking-wide">Drop images here or tap to pick</p>
+          <p class="font-cinzel text-sm text-foreground tracking-wide">
+            Drop images here or tap to pick
+          </p>
           <p class="font-fell text-xs text-muted-foreground italic text-center">
-            Select as many as you like. Each is converted to WebP and held in staging until you assign it on desktop.
+            Select as many as you like. Each is converted to WebP and held in
+            staging until you assign it on desktop.
           </p>
         </template>
       </div>
 
       <!-- staged queue -->
-      <div v-if="stagingPending" class="font-fell text-xs text-muted-foreground italic">Loading…</div>
+      <div
+        v-if="stagingPending"
+        class="font-fell text-xs text-muted-foreground italic"
+      >
+        Loading…
+      </div>
 
       <template v-else-if="stagingItems && stagingItems.length > 0">
         <p class="font-cinzel text-xs text-muted-foreground tracking-wide">
-          {{ stagingItems.length }} image{{ stagingItems.length === 1 ? '' : 's' }} waiting — pick a monster and assign
+          {{ stagingItems.length }} image{{
+            stagingItems.length === 1 ? "" : "s"
+          }}
+          waiting — pick a monster and assign
         </p>
 
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -521,44 +777,111 @@ async function discardStaged(item: StagingItem) {
             :key="item.id"
             class="rounded-lg border border-border bg-card overflow-hidden flex flex-col"
           >
-            <!-- preview -->
-            <div class="relative h-28 bg-muted overflow-hidden">
-              <FocalImage :src="item.image_url" alt="" format="landscape" placeholder="/assets/placeholders/monster.webp" />
+            <!-- preview — plain img to avoid backfillVariants on staging files -->
+            <div class="relative h-44 bg-muted overflow-hidden">
+              <img
+                :src="item.image_url"
+                alt=""
+                class="w-full h-full object-cover object-top"
+              />
             </div>
 
             <!-- controls -->
             <div class="p-2 flex flex-col gap-2">
-              <EntityCombobox
-                v-model="assignTargets[item.id]"
-                :options="monsterOptions"
-                placeholder="Pick a monster…"
+              <!-- search -->
+              <input
+                :value="stagingSearches[item.id] ?? ''"
+                type="text"
+                placeholder="Search monsters…"
+                class="w-full rounded border border-border bg-background px-2 py-1 font-fell text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+                @input="
+                  stagingSearches[item.id] = (
+                    $event.target as HTMLInputElement
+                  ).value
+                "
               />
 
-              <div v-if="stagingErrors[item.id]" class="font-fell text-[10px] text-destructive">
+              <!-- checkbox results -->
+              <div
+                v-if="filteredForItem(item.id).length"
+                class="max-h-32 overflow-y-auto flex flex-col gap-0.5 rounded border border-border bg-muted/30 p-1"
+              >
+                <label
+                  v-for="opt in filteredForItem(item.id)"
+                  :key="opt.id"
+                  class="flex items-center gap-1.5 px-1.5 py-1 rounded cursor-pointer hover:bg-muted/60 font-fell text-xs"
+                  :class="
+                    (stagingSelected[item.id] ?? []).includes(opt.id)
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-foreground'
+                  "
+                >
+                  <input
+                    type="checkbox"
+                    class="h-3 w-3 accent-primary shrink-0"
+                    :checked="(stagingSelected[item.id] ?? []).includes(opt.id)"
+                    @change="toggleStagingSelection(item.id, opt.id)"
+                  />
+                  <span class="truncate">{{ opt.name }}</span>
+                  <span
+                    class="ml-auto shrink-0 font-cinzel text-[9px] text-muted-foreground tracking-wide"
+                    >{{ opt.source }}</span
+                  >
+                </label>
+              </div>
+              <p
+                v-else-if="(stagingSearches[item.id] ?? '').length >= 2"
+                class="font-fell text-[10px] text-muted-foreground italic"
+              >
+                No matches
+              </p>
+
+              <div
+                v-if="stagingErrors[item.id]"
+                class="font-fell text-[10px] text-destructive"
+              >
                 {{ stagingErrors[item.id] }}
               </div>
 
               <div class="flex gap-1.5">
+                <!-- Assign selected -->
                 <button
                   class="flex-1 flex items-center justify-center gap-1 py-1 rounded font-cinzel text-[11px] tracking-wide border transition-colors"
-                  :disabled="!assignTargets[item.id] || assignStatuses[item.id] === 'assigning'"
-                  :class="assignStatuses[item.id] === 'done'
-                    ? 'border-green-500/50 text-green-500'
-                    : assignStatuses[item.id] === 'error'
+                  :disabled="
+                    !(stagingSelected[item.id] ?? []).length ||
+                    assignStatuses[item.id] === 'assigning'
+                  "
+                  :class="
+                    assignStatuses[item.id] === 'error'
                       ? 'border-destructive text-destructive hover:bg-destructive/10'
-                      : !assignTargets[item.id]
+                      : !(stagingSelected[item.id] ?? []).length
                         ? 'border-border text-muted-foreground cursor-not-allowed'
-                        : 'border-primary text-primary hover:bg-primary/10'"
-                  @click="assignStaged(item)"
+                        : 'border-primary text-primary hover:bg-primary/10'
+                  "
+                  @click="assignStagedToSelected(item)"
                 >
-                  <Loader2Icon v-if="assignStatuses[item.id] === 'assigning'" class="h-3 w-3 animate-spin" />
-                  <CheckIcon v-else-if="assignStatuses[item.id] === 'done'" class="h-3 w-3" />
+                  <Loader2Icon
+                    v-if="assignStatuses[item.id] === 'assigning'"
+                    class="h-3 w-3 animate-spin"
+                  />
+                  <AlertCircleIcon
+                    v-else-if="assignStatuses[item.id] === 'error'"
+                    class="h-3 w-3"
+                  />
                   <UploadIcon v-else class="h-3 w-3" />
-                  {{ assignStatuses[item.id] === 'done' ? 'Done' : assignStatuses[item.id] === 'error' ? 'Retry' : 'Assign' }}
+                  <template v-if="assignStatuses[item.id] === 'error'"
+                    >Retry</template
+                  >
+                  <template v-else-if="(stagingSelected[item.id] ?? []).length">
+                    Assign
+                    {{ (stagingSelected[item.id] ?? []).length }} selected
+                  </template>
+                  <template v-else>Assign</template>
                 </button>
 
+                <!-- Discard without assigning -->
                 <button
-                  class="p-1 rounded border border-border text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-colors"
+                  class="flex items-center gap-1 px-2 py-1 rounded border border-border font-cinzel text-[11px] tracking-wide text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-colors"
                   title="Discard"
                   @click="discardStaged(item)"
                 >
@@ -570,10 +893,14 @@ async function discardStaged(item: StagingItem) {
         </div>
       </template>
 
-      <p v-else-if="!stagingPending && !stagingUploading" class="font-fell text-xs text-muted-foreground italic">
+      <p
+        v-else-if="!stagingPending && !stagingUploading"
+        class="font-fell text-xs text-muted-foreground italic"
+      >
         No images in staging. Dump some from your phone to get started.
       </p>
     </template>
 
+    </template> <!-- /panelOpen -->
   </div>
 </template>
