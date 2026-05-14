@@ -699,7 +699,7 @@ async function discardStaged(item: StagingItem) {
 
                 <!-- Clear art — only when there is art to clear -->
                 <button
-                  v-if="m.has_user_art || rowStatuses[m.srd_id] === 'done'"
+                  v-if="m.image_url || m.has_user_art || rowStatuses[m.srd_id] === 'done'"
                   class="flex items-center justify-center w-7 h-7 rounded border border-border text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-colors"
                   title="Clear art"
                   @click.stop="clearArt(m.srd_id)"

@@ -68,6 +68,44 @@ Open work is tracked as GitHub issues on `irongollem/grimoire`. Do NOT add new `
 
 The local files are a curated history log. GitHub issues are the source of truth for what needs doing.
 
+## Storage Path Convention — Shared vs. Private Entities
+
+Images for entities that are **shared/canonical** (SRD content managed by admin) and **private** (user-created content) live under different prefixes in the same bucket. Mixing them up risks wiping all canonical art when clearing a user's files, or exposing a user's private art to everyone.
+
+| Entity type                          | Storage prefix | `is_canonical` | Example path                              |
+| ------------------------------------ | -------------- | -------------- | ----------------------------------------- |
+| Canonical/SRD (admin-managed)        | `srd/`         | `true`         | `monster-images/srd/{uuid}.webp`          |
+| DM personal override of SRD content  | `{userId}/`    | `false`        | `monster-images/{userId}/{uuid}.webp`     |
+| User-created private entity          | `{userId}/`    | n/a            | `monster-images/{userId}/{uuid}.webp`     |
+
+A DM can replace a canonical SRD image with their own — that override lives in `srd_monster_art` / `srd_spell_art` under their `user_id` with `is_canonical: false`. It does **not** touch the `srd/` canonical file and does not affect other users.
+
+**Rules:**
+
+- Admin canonical uploads → `folderPrefix: "srd"`, `is_canonical: true`. Use the admin panel only.
+- DM overrides of SRD content → default `{userId}/` folder, `is_canonical: false`. Never write to `srd/`.
+- User-created entities → default `{userId}/` folder, no art table override needed.
+- Every bucket that holds canonical art needs a storage policy for the `srd/` prefix gated on `is_app_admin()`. See migrations `20260514000003` (monster-images) and `20260514000004` (spell-images) as the reference pattern.
+- Never store canonical art under a user UUID — if that account changes, every canonical URL in the DB breaks.
+- When adding a new entity type that will have SRD defaults and user overrides, add the `srd/` storage policy to its bucket in the same migration that creates the entity table.
+
+## Component Granularity
+
+**CRITICAL — extract shared UI, never duplicate it:**
+
+If two pieces of UI share structure and differ only in a few values, the structure becomes a component and the diff becomes props. Identify this *before* writing a second copy, not after.
+
+- A list row with an image and action buttons → component
+- A staging card with preview + search + checkboxes → component  
+- A collapsible panel with tabs → component
+
+**Hard rules:**
+
+- Template >300 lines is a signal to split, not a sign of completeness
+- If two files share >30% of their markup, the shared part belongs in a component
+- The parent (page/panel) wires data and config; the child owns layout and interaction
+- Never create two half-baked copies that will silently diverge — one component with props beats two files every time
+
 ## Filter State Pattern
 
 Any list view with filters **must** store its state in `useUiStore` (`src/stores/ui.ts`) — not in local `ref`s, not in `useLocalStorage`. This ensures filters survive navigation within a session without permanently polluting localStorage.
