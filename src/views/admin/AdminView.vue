@@ -279,6 +279,7 @@
       <template v-else-if="activeTab === 'content'">
         <!-- SRD Art Repair -->
         <SrdArtRepairPanel />
+        <SrdArtRepairPanel mode="spell" />
 
         <!-- SRD Art Defaults -->
         <div class="rounded-lg border border-border bg-card p-4 space-y-3">

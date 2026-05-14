@@ -17,12 +17,39 @@ import { toWebP } from "@/lib/mediaConvert";
 import FocalImage from "@/components/common/FocalImage.vue";
 import FocalPointPicker from "@/components/common/FocalPointPicker.vue";
 
+// ── Props & config ────────────────────────────────────────────────────────────
+
+const { mode = "monster" } = defineProps<{ mode?: "monster" | "spell" }>();
+
+// mode never changes at runtime — plain object is sufficient, avoids computed/ref wrapping issues
+const cfg = mode === "spell"
+  ? {
+      title: "SRD Spell Art",
+      entityTable: "srd_spells" as const,
+      artTable: "srd_spell_art" as const,
+      bucket: "spellImages" as const,
+      subtitleCol: "school" as const,
+      stagingQueryKey: "srd-art-staging-spell",
+      repairQueryKey: "srd-art-repair-list-spells",
+      artQueryKey: "srd-spell-art",
+    }
+  : {
+      title: "SRD Monster Art",
+      entityTable: "srd_monsters" as const,
+      artTable: "srd_monster_art" as const,
+      bucket: "monsterImages" as const,
+      subtitleCol: "monster_type" as const,
+      stagingQueryKey: "srd-art-staging-monster",
+      repairQueryKey: "srd-art-repair-list",
+      artQueryKey: "srd-monster-art",
+    };
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface SrdMonsterEntry {
+interface SrdEntityEntry {
   srd_id: string;
   name: string;
-  monster_type: string;
+  subtitle: string;
   source: string;
   image_url: string | null;
   portrait_focal_point: { x: number; y: number } | null;
@@ -39,7 +66,7 @@ interface StagingItem {
 type RowStatus = "idle" | "uploading" | "done" | "error";
 type AssignStatus = "idle" | "assigning" | "done" | "error";
 
-const BUCKET = "monster-images";
+const STAGING_BUCKET = "monster-images"; // staging always lives here regardless of mode
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -70,32 +97,31 @@ const stagingSelected = ref<Record<string, string[]>>({});
 // ── Queries ───────────────────────────────────────────────────────────────────
 
 const { data: monsters, isPending: libraryPending } = useQuery({
-  queryKey: ["srd-art-repair-list"],
-  queryFn: async (): Promise<SrdMonsterEntry[]> => {
-    // srd_monsters has 3000+ rows — must paginate past PostgREST's 1000-row cap
+  queryKey: [cfg.repairQueryKey],
+  queryFn: async (): Promise<SrdEntityEntry[]> => {
+    // srd_* tables can exceed 1000 rows — paginate past PostgREST's cap
     const PAGE = 1000;
-    const [artRes, allMonsters] = await Promise.all([
+    const [artRes, allEntities] = await Promise.all([
       supabase
-        .from("srd_monster_art")
+        .from(cfg.artTable)
         .select("srd_id, image_url, portrait_focal_point")
         .not("image_url", "is", null),
       (async () => {
-        const rows: {
-          id: string;
-          name: string;
-          monster_type: string;
-          source: string;
-          image_url: string | null;
-        }[] = [];
+        const rows: { id: string; name: string; subtitle: string; source: string; image_url: string | null }[] = [];
         let offset = 0;
         while (true) {
-          const { data, error } = await supabase
-            .from("srd_monsters")
-            .select("id, name, monster_type, source, image_url")
-            .order("name", { ascending: true })
-            .range(offset, offset + PAGE - 1);
+          // Explicit selects per table — template literals break Supabase's type parser
+          const { data, error } = cfg.entityTable === "srd_spells"
+            ? await supabase.from("srd_spells").select("id, name, school, source, image_url").order("name").range(offset, offset + PAGE - 1)
+            : await supabase.from("srd_monsters").select("id, name, monster_type, source, image_url").order("name").range(offset, offset + PAGE - 1);
           if (error) throw error;
-          rows.push(...(data ?? []));
+          (data ?? []).forEach((r) => rows.push({
+            id: r.id as string,
+            name: r.name as string,
+            subtitle: (("school" in r ? r.school : (r as { monster_type?: string }).monster_type) ?? "") as string,
+            source: (r.source ?? "") as string,
+            image_url: r.image_url as string | null,
+          }));
           if ((data ?? []).length < PAGE) break;
           offset += PAGE;
         }
@@ -109,23 +135,20 @@ const { data: monsters, isPending: libraryPending } = useQuery({
         r.srd_id,
         {
           image_url: r.image_url as string,
-          portrait_focal_point: r.portrait_focal_point as {
-            x: number;
-            y: number;
-          } | null,
+          portrait_focal_point: r.portrait_focal_point as { x: number; y: number } | null,
         },
       ]),
     );
 
-    return allMonsters
+    return allEntities
       .map((row) => {
         const userArt = userArtMap.get(row.id);
         return {
           srd_id: row.id,
-          name: row.name as string,
-          monster_type: row.monster_type as string,
-          source: (row.source as string) ?? "",
-          image_url: userArt?.image_url ?? (row.image_url as string | null),
+          name: row.name,
+          subtitle: row.subtitle,
+          source: row.source,
+          image_url: userArt?.image_url ?? row.image_url,
           portrait_focal_point: userArt?.portrait_focal_point ?? null,
           has_user_art: !!userArt,
         };
@@ -136,11 +159,12 @@ const { data: monsters, isPending: libraryPending } = useQuery({
 });
 
 const { data: stagingItems, isPending: stagingPending } = useQuery({
-  queryKey: ["srd-art-staging"],
+  queryKey: [cfg.stagingQueryKey],
   queryFn: async (): Promise<StagingItem[]> => {
     const { data, error } = await supabase
       .from("srd_art_staging")
       .select("id, storage_path, created_at")
+      .eq("entity_type", mode)
       .order("created_at", { ascending: false });
     if (error) throw error;
     return (data ?? []).map((row) => ({
@@ -148,7 +172,7 @@ const { data: stagingItems, isPending: stagingPending } = useQuery({
       storage_path: row.storage_path as string,
       created_at: row.created_at as string,
       image_url: supabase.storage
-        .from(BUCKET)
+        .from(STAGING_BUCKET)
         .getPublicUrl(row.storage_path as string).data.publicUrl,
     }));
   },
@@ -202,16 +226,12 @@ async function processFile(srdId: string, file: File) {
   try {
     const userId = getCurrentUser()!.id;
     const blob = await toWebP(file);
-    const url = await uploadWithVariants({
-      bucket: "monsterImages",
-      blob,
-      userId,
-      folderPrefix: "srd",
-    });
+    const { bucket, artTable, entityTable, artQueryKey, repairQueryKey } = cfg;
+    const url = await uploadWithVariants({ bucket, blob, userId, folderPrefix: "srd" });
     if (!url) throw new Error("Upload returned null");
 
     const { error: artErr } = await supabase
-      .from("srd_monster_art")
+      .from(artTable)
       .upsert(
         { srd_id: srdId, image_url: url, user_id: userId, is_canonical: true },
         { onConflict: "user_id,srd_id" },
@@ -219,15 +239,15 @@ async function processFile(srdId: string, file: File) {
     if (artErr) throw artErr;
 
     const { error: monErr } = await supabase
-      .from("srd_monsters")
+      .from(entityTable)
       .update({ image_url: url })
       .eq("id", srdId);
     if (monErr) throw monErr;
 
     rowUploadedUrls.value[srdId] = url;
     rowStatuses.value[srdId] = "done";
-    queryClient.invalidateQueries({ queryKey: ["srd-monster-art"] });
-    queryClient.invalidateQueries({ queryKey: ["srd-art-repair-list"] });
+    queryClient.invalidateQueries({ queryKey: [artQueryKey] });
+    queryClient.invalidateQueries({ queryKey: [repairQueryKey] });
   } catch (err) {
     rowStatuses.value[srdId] = "error";
     rowErrors.value[srdId] =
@@ -241,6 +261,17 @@ async function processFile(srdId: string, file: File) {
 function handleInputChange(srdId: string, event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (file) processFile(srdId, file);
+}
+
+async function clearArt(srdId: string) {
+  const userId = getCurrentUser()!.id;
+  const { artTable, entityTable, artQueryKey, repairQueryKey } = cfg;
+  await supabase.from(artTable).delete().eq("srd_id", srdId).eq("user_id", userId);
+  await supabase.from(entityTable).update({ image_url: null }).eq("id", srdId);
+  delete rowStatuses.value[srdId];
+  delete rowUploadedUrls.value[srdId];
+  queryClient.invalidateQueries({ queryKey: [artQueryKey] });
+  queryClient.invalidateQueries({ queryKey: [repairQueryKey] });
 }
 
 // ── Library: drag & drop ──────────────────────────────────────────────────────
@@ -268,43 +299,38 @@ function onRowDrop(srdId: string, event: DragEvent) {
 
 // ── Library: focal point ──────────────────────────────────────────────────────
 
-function canExpandFocal(m: SrdMonsterEntry) {
+function canExpandFocal(m: SrdEntityEntry) {
   return !!(
     rowUploadedUrls.value[m.srd_id] ?? (m.has_user_art ? m.image_url : null)
   );
 }
 
-function toggleFocal(m: SrdMonsterEntry) {
+function toggleFocal(m: SrdEntityEntry) {
   if (!canExpandFocal(m)) return;
   rowExpanded.value[m.srd_id] = !rowExpanded.value[m.srd_id];
 }
 
-function getLocalFocalPoint(m: SrdMonsterEntry) {
+function getLocalFocalPoint(m: SrdEntityEntry) {
   return m.srd_id in rowFocalPoints.value
     ? rowFocalPoints.value[m.srd_id]
     : m.portrait_focal_point;
 }
 
 async function setFocalPoint(
-  m: SrdMonsterEntry,
+  m: SrdEntityEntry,
   fp: { x: number; y: number } | null,
 ) {
   rowFocalPoints.value[m.srd_id] = fp;
   const imageUrl = rowUploadedUrls.value[m.srd_id] ?? m.image_url!;
   const userId = getCurrentUser()!.id;
+  const { artTable, artQueryKey } = cfg;
   const { error } = await supabase
-    .from("srd_monster_art")
+    .from(artTable)
     .upsert(
-      {
-        srd_id: m.srd_id,
-        image_url: imageUrl,
-        portrait_focal_point: fp,
-        user_id: userId,
-        is_canonical: true,
-      },
+      { srd_id: m.srd_id, image_url: imageUrl, portrait_focal_point: fp, user_id: userId, is_canonical: true },
       { onConflict: "user_id,srd_id" },
     );
-  if (!error) queryClient.invalidateQueries({ queryKey: ["srd-monster-art"] });
+  if (!error) queryClient.invalidateQueries({ queryKey: [artQueryKey] });
 }
 
 // ── Staging: upload dump ──────────────────────────────────────────────────────
@@ -326,12 +352,12 @@ async function uploadStagingFiles(files: FileList | File[]) {
         const webpFile = await toWebP(file);
         const path = `${userId}/staging/${crypto.randomUUID()}.webp`;
         const { error: storageErr } = await supabase.storage
-          .from(BUCKET)
+          .from(STAGING_BUCKET)
           .upload(path, webpFile, { contentType: "image/webp" });
         if (storageErr) throw storageErr;
         const { error: dbErr } = await supabase
           .from("srd_art_staging")
-          .insert({ user_id: userId, storage_path: path });
+          .insert({ user_id: userId, storage_path: path, entity_type: mode });
         if (dbErr) throw dbErr;
       } catch (_) {
         /* individual failure — still advance counter */
@@ -343,7 +369,7 @@ async function uploadStagingFiles(files: FileList | File[]) {
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
 
   stagingUploading.value = false;
-  queryClient.invalidateQueries({ queryKey: ["srd-art-staging"] });
+  queryClient.invalidateQueries({ queryKey: [cfg.stagingQueryKey] });
 }
 
 function handleStagingInputChange(event: Event) {
@@ -419,46 +445,35 @@ async function assignStagedToSelected(item: StagingItem) {
       const file = new File([fetchedBlob], "staged.webp", {
         type: "image/webp",
       });
-      url = await uploadWithVariants({
-        bucket: "monsterImages",
-        blob: file,
-        userId,
-        folderPrefix: "srd",
-      });
+      url = await uploadWithVariants({ bucket: cfg.bucket, blob: file, userId, folderPrefix: "srd" });
       if (!url) throw new Error("Upload returned null");
       assignedUrls.value[item.id] = url!;
     }
 
+    const { artTable, entityTable, artQueryKey, repairQueryKey } = cfg;
     await Promise.all(
       selected.map(async (srdId) => {
         const { error: artErr } = await supabase
-          .from("srd_monster_art")
+          .from(artTable)
           .upsert(
-            {
-              srd_id: srdId,
-              image_url: url,
-              user_id: userId,
-              is_canonical: true,
-            },
+            { srd_id: srdId, image_url: url, user_id: userId, is_canonical: true },
             { onConflict: "user_id,srd_id" },
           );
         if (artErr) throw artErr;
         const { error: monErr } = await supabase
-          .from("srd_monsters")
+          .from(entityTable)
           .update({ image_url: url })
           .eq("id", srdId);
         if (monErr) throw monErr;
       }),
     );
 
-    // Auto-discard after successful assignment — keeps staging queue accurate
-    // across page refreshes (in-memory state can't track this persistently).
     await supabase.from("srd_art_staging").delete().eq("id", item.id);
-    await supabase.storage.from(BUCKET).remove([item.storage_path]);
+    await supabase.storage.from(STAGING_BUCKET).remove([item.storage_path]);
 
-    queryClient.invalidateQueries({ queryKey: ["srd-art-staging"] });
-    queryClient.invalidateQueries({ queryKey: ["srd-monster-art"] });
-    queryClient.invalidateQueries({ queryKey: ["srd-art-repair-list"] });
+    queryClient.invalidateQueries({ queryKey: [cfg.stagingQueryKey] });
+    queryClient.invalidateQueries({ queryKey: [artQueryKey] });
+    queryClient.invalidateQueries({ queryKey: [repairQueryKey] });
   } catch (err) {
     assignStatuses.value[item.id] = "error";
     stagingErrors.value[item.id] =
@@ -468,8 +483,8 @@ async function assignStagedToSelected(item: StagingItem) {
 
 async function discardStaged(item: StagingItem) {
   await supabase.from("srd_art_staging").delete().eq("id", item.id);
-  await supabase.storage.from(BUCKET).remove([item.storage_path]);
-  queryClient.invalidateQueries({ queryKey: ["srd-art-staging"] });
+  await supabase.storage.from(STAGING_BUCKET).remove([item.storage_path]);
+  queryClient.invalidateQueries({ queryKey: [cfg.stagingQueryKey] });
 }
 </script>
 
@@ -483,10 +498,10 @@ async function discardStaged(item: StagingItem) {
     >
       <div>
         <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">
-          SRD Monster Art
+          {{ cfg.title }}
         </h2>
         <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
-          Manage canonical SRD monster images. Dump images from your phone, assign on desktop.
+          Manage canonical SRD art. Dump images from your phone, assign on desktop.
         </p>
       </div>
       <div class="flex items-center gap-2 shrink-0">
@@ -639,7 +654,7 @@ async function discardStaged(item: StagingItem) {
               >
               <span
                 class="font-fell text-[10px] text-muted-foreground capitalize"
-                >{{ m.monster_type }}</span
+                >{{ m.subtitle }}</span
               >
             </div>
 
@@ -651,39 +666,47 @@ async function discardStaged(item: StagingItem) {
               {{ rowErrors[m.srd_id] }}
             </span>
 
-            <div class="shrink-0">
+            <div class="shrink-0 flex items-center gap-1">
               <Loader2Icon
                 v-if="rowStatuses[m.srd_id] === 'uploading'"
                 class="h-4 w-4 animate-spin text-muted-foreground"
               />
-              <button
-                v-else
-                class="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-cinzel tracking-wide border transition-colors"
-                :class="
-                  rowStatuses[m.srd_id] === 'error'
-                    ? 'border-destructive text-destructive hover:bg-destructive/10'
-                    : rowDragging[m.srd_id]
-                      ? 'border-primary text-primary'
-                      : 'border-border text-foreground hover:bg-muted'
-                "
-                @click.stop="triggerUpload(m.srd_id)"
-              >
-                <AlertCircleIcon
-                  v-if="rowStatuses[m.srd_id] === 'error'"
-                  class="h-3 w-3 shrink-0"
-                />
-                <CheckIcon
-                  v-else-if="rowStatuses[m.srd_id] === 'done' || m.has_user_art"
-                  class="h-3 w-3 shrink-0 text-green-500"
-                />
-                <UploadIcon v-else class="h-3 w-3 shrink-0" />
-                <span v-if="rowStatuses[m.srd_id] === 'error'">Retry</span>
-                <span
-                  v-else-if="rowStatuses[m.srd_id] === 'done' || m.has_user_art"
-                  >Replace</span
+              <template v-else>
+                <button
+                  class="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-cinzel tracking-wide border transition-colors"
+                  :class="
+                    rowStatuses[m.srd_id] === 'error'
+                      ? 'border-destructive text-destructive hover:bg-destructive/10'
+                      : rowDragging[m.srd_id]
+                        ? 'border-primary text-primary'
+                        : 'border-border text-foreground hover:bg-muted'
+                  "
+                  @click.stop="triggerUpload(m.srd_id)"
                 >
-                <span v-else>Upload</span>
-              </button>
+                  <AlertCircleIcon
+                    v-if="rowStatuses[m.srd_id] === 'error'"
+                    class="h-3 w-3 shrink-0"
+                  />
+                  <CheckIcon
+                    v-else-if="rowStatuses[m.srd_id] === 'done' || m.has_user_art"
+                    class="h-3 w-3 shrink-0 text-green-500"
+                  />
+                  <UploadIcon v-else class="h-3 w-3 shrink-0" />
+                  <span v-if="rowStatuses[m.srd_id] === 'error'">Retry</span>
+                  <span v-else-if="rowStatuses[m.srd_id] === 'done' || m.has_user_art">Replace</span>
+                  <span v-else>Upload</span>
+                </button>
+
+                <!-- Clear art — only when there is art to clear -->
+                <button
+                  v-if="m.has_user_art || rowStatuses[m.srd_id] === 'done'"
+                  class="flex items-center justify-center w-7 h-7 rounded border border-border text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-colors"
+                  title="Clear art"
+                  @click.stop="clearArt(m.srd_id)"
+                >
+                  <Trash2Icon class="h-3 w-3" />
+                </button>
+              </template>
             </div>
           </div>
 
