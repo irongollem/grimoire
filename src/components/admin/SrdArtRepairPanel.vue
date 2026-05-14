@@ -490,6 +490,9 @@ async function discardStaged(item: StagingItem) {
         </p>
       </div>
       <div class="flex items-center gap-2 shrink-0">
+        <div v-if="total > 0" class="font-cinzel text-xs text-muted-foreground tabular-nums">
+          {{ withArtCount }}&thinsp;/&thinsp;{{ total }}
+        </div>
         <div
           v-if="(stagingItems?.length ?? 0) > 0"
           class="font-cinzel text-[10px] text-primary tabular-nums"

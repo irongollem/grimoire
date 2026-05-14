@@ -74,6 +74,6 @@
     "@rolldown/binding-darwin-arm64": "^1.0.0-rc.15"
   },
   "engines": {
-    "node": ">=24.0.0"
+    "node": "^24.0.0"
   }
 }
