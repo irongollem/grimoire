@@ -44,6 +44,23 @@
         </template>
       </nav>
 
+      <!-- Admin link -->
+      <template v-if="auth.isAppAdmin">
+        <div class="gold-divider mx-3" />
+        <div class="px-2 py-2">
+          <p class="px-2 pb-1 font-cinzel text-[10px] font-bold tracking-widest text-muted-foreground/60 uppercase">System</p>
+          <RouterLink
+            to="/admin"
+            class="flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-fell transition-colors"
+            :class="$route.path.startsWith('/admin') ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'"
+            @click="ui.toggleMobileNav()"
+          >
+            <IconShieldCheck class="h-4 w-4 shrink-0" />
+            Admin
+          </RouterLink>
+        </div>
+      </template>
+
       <!-- User -->
       <div class="gold-divider mx-3" />
       <div class="px-3 py-4">
@@ -70,7 +87,7 @@
 <script setup lang="ts">
 import { computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconClose, IconLogOut } from '@/lib/icons';
+import { IconClose, IconLogOut, IconShieldCheck } from '@/lib/icons';
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { NAV_GROUPS } from "@/lib/nav";
