@@ -277,6 +277,9 @@
 
       <!-- ── Content tab ───────────────────────────────────────────────── -->
       <template v-else-if="activeTab === 'content'">
+        <!-- SRD Art Repair -->
+        <SrdArtRepairPanel />
+
         <!-- SRD Art Defaults -->
         <div class="rounded-lg border border-border bg-card p-4 space-y-3">
           <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">SRD Art Defaults</h2>
@@ -1113,6 +1116,7 @@ import type { AppInvite, GrantedPlan } from "@/composables/useAppInvites";
 import { useBulkPublishSrdArtDefaults, useSrdArtDefaultStats, useSyncSrdSpellArtToSharedTable } from "@/composables/useSrdArtDefaults";
 import type { SrdArtDefaultStats } from "@/composables/useSrdArtDefaults";
 import { useBulkMarkSrdMonsterArtAsCanonical, useSyncSrdArtToSharedTable } from "@/composables/useSrdMonsterArt";
+import SrdArtRepairPanel from "@/components/admin/SrdArtRepairPanel.vue";
 import { useBulkMarkSrdSpellArtAsCanonical } from "@/composables/useSrdSpellArt";
 import { useAiUsageStats } from "@/composables/useAiUsageStats";
 import { useAdminKeys, PROVIDERS } from "@/composables/useAdminKeys";
