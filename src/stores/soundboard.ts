@@ -113,6 +113,14 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     }
   }
 
+  function pause(soundId: string): void {
+    const audio = audioInstances.get(soundId);
+    if (audio) audio.pause();
+    if (playbackStates.value[soundId]) {
+      playbackStates.value[soundId].isPlaying = false;
+    }
+  }
+
   function seek(soundId: string, time: number): void {
     const audio = audioInstances.get(soundId);
     if (audio) {
@@ -172,6 +180,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     playingCount,
     getState,
     play,
+    pause,
     stop,
     seek,
     setVolume,

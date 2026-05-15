@@ -222,9 +222,9 @@
       </p>
     </template>
 
-    <!-- ── Page picker (only when multiple pages exist) ─────────────────── -->
+    <!-- ── Page picker (audio sounds only; multiple pages exist) ────────── -->
     <div
-      v-if="pages && pages.length > 1 && !sound.page_id"
+      v-if="!isSpotify && pages && pages.length > 1 && !sound.page_id"
       class="flex items-center gap-1.5 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
     >
       <IconLayers class="h-3 w-3 text-muted-foreground/50 shrink-0" />
@@ -238,8 +238,8 @@
       </select>
     </div>
 
-    <!-- ── HTML Audio controls ─────────────────────────────────────────── -->
-    <template v-else>
+    <!-- ── HTML Audio controls (non-Spotify sounds only) ────────────────── -->
+    <template v-if="!isSpotify">
       <div class="flex items-center gap-2">
         <!-- IconPlay / IconPause -->
         <button
@@ -251,7 +251,7 @@
               ? 'bg-gold-500/20 border-gold-500/50 text-gold-300 hover:bg-gold-500/30'
               : 'border-border text-muted-foreground hover:text-foreground hover:border-border/80'
           "
-          :title="playBlocked ? 'WebM — cannot play in Safari' : audioState.isPlaying ? 'IconPause' : 'IconPlay'"
+          :title="playBlocked ? 'WebM — cannot play in Safari' : audioState.isPlaying ? 'Pause' : 'Play'"
           :disabled="playBlocked"
           @click="togglePlay"
         >
@@ -377,7 +377,7 @@ const playBlocked = computed(() => (isWebM.value && IS_SAFARI) || audioState.val
 function togglePlay() {
   if (playBlocked.value) return;
   if (audioState.value.isPlaying) {
-    soundboardStore.stop(props.sound.id);
+    soundboardStore.pause(props.sound.id);
   } else {
     soundboardStore.play(props.sound.id, props.sound.file_url);
   }
