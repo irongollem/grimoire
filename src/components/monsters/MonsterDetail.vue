@@ -71,28 +71,29 @@
     <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
       <!-- Left: Portrait + Tags -->
       <div class="space-y-4">
-          <!-- Portrait -->
-          <EntityImageBlock
-            :model-value="form.image_url"
-            :focal-point="form.portrait_focal_point"
-            bucket="monster-images"
-            show-focal-point
-            @update:model-value="onPortraitUrlUpdate($event)"
-            @update:focal-point="onPortraitFocalUpdate($event)"
-          />
+        <!-- Portrait -->
+        <EntityImageBlock
+          :model-value="form.image_url"
+          :focal-point="form.portrait_focal_point"
+          bucket="monster-images"
+          show-focal-point
+          @update:model-value="onPortraitUrlUpdate($event)"
+          @update:focal-point="onPortraitFocalUpdate($event)"
+        />
 
-          <!-- Tags -->
-          <div>
-            <p class="field-label">Tags</p>
-            <TagInput v-if="!isSrd" v-model="form.tags" />
-            <div v-else class="flex flex-wrap gap-1 mt-1">
-              <span
-                v-for="tag in form.tags"
-                :key="tag"
-                class="inline-flex items-center px-2 py-0.5 rounded bg-muted font-cinzel text-[11px] text-muted-foreground tracking-wider"
-              >{{ tag }}</span>
-            </div>
+        <!-- Tags -->
+        <div>
+          <p class="field-label">Tags</p>
+          <TagInput v-if="!isSrd" v-model="form.tags" />
+          <div v-else class="flex flex-wrap gap-1 mt-1">
+            <span
+              v-for="tag in form.tags"
+              :key="tag"
+              class="inline-flex items-center px-2 py-0.5 rounded bg-muted font-cinzel text-[11px] text-muted-foreground tracking-wider"
+              >{{ tag }}</span
+            >
           </div>
+        </div>
       </div>
 
       <!-- Right: Identity + stat block — fieldset[disabled] makes inputs read-only for SRD -->
@@ -132,7 +133,13 @@
             <label class="block">
               <span class="field-label">Alignment</span>
               <select v-model="form.alignment" class="field-input w-full">
-                <option v-for="a in ALIGNMENTS" :key="a" :value="a.toLowerCase()">{{ a }}</option>
+                <option
+                  v-for="a in ALIGNMENTS"
+                  :key="a"
+                  :value="a.toLowerCase()"
+                >
+                  {{ a }}
+                </option>
               </select>
             </label>
             <label class="block">
@@ -180,7 +187,6 @@
         </div>
       </fieldset>
     </div>
-
   </div>
 
   <!-- AI generation dialog -->
@@ -198,7 +204,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, reactive, computed, watch } from "vue";
 import { useRouter } from "vue-router";
-import { IconCopy, IconGenerate, IconScrollText } from '@/lib/icons';
+import { IconCopy, IconGenerate, IconScrollText } from "@/lib/icons";
 import MonsterGenerateDialog from "@/ai/MonsterGenerateDialog.vue";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { useCampaignStore } from "@/stores/campaign";
@@ -227,9 +233,16 @@ import PaywallModal from "@/components/common/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
 
 const ALIGNMENTS = [
-  "Lawful Good", "Neutral Good", "Chaotic Good",
-  "Lawful Neutral", "True Neutral", "Chaotic Neutral",
-  "Lawful Evil", "Neutral Evil", "Chaotic Evil", "Unaligned",
+  "Lawful Good",
+  "Neutral Good",
+  "Chaotic Good",
+  "Lawful Neutral",
+  "True Neutral",
+  "Chaotic Neutral",
+  "Lawful Evil",
+  "Neutral Evil",
+  "Chaotic Evil",
+  "Unaligned",
 ];
 const MONSTER_TYPES: MonsterType[] = [
   "aberration",
@@ -338,7 +351,8 @@ function onPortraitUrlUpdate(url: string | null) {
   else form.image_url = url ?? "";
 }
 function onPortraitFocalUpdate(pt: { x: number; y: number } | null) {
-  if (isSrd.value) upsertSrdArt({ srd_id: props.monster!.id, portrait_focal_point: pt });
+  if (isSrd.value)
+    upsertSrdArt({ srd_id: props.monster!.id, portrait_focal_point: pt });
   else form.portrait_focal_point = pt;
 }
 // AI generation
@@ -364,7 +378,6 @@ function onAiGenerated(result: MonsterAiGenerated) {
   Object.assign(sb, defaultSb(), result.stat_block);
 }
 
-// IconSave
 const { mutateAsync: create } = useCreateMonster();
 const { mutateAsync: update } = useUpdateMonster();
 const { mutateAsync: del } = useDeleteMonster();
@@ -381,7 +394,10 @@ async function duplicate() {
   if (!props.monster) return;
   duplicating.value = true;
   try {
-    const copy = await create({ ...buildPayload(), name: `${props.monster.name} (copy)` });
+    const copy = await create({
+      ...buildPayload(),
+      name: `${props.monster.name} (copy)`,
+    });
     router.push(`/monsters/${copy.id}`);
   } finally {
     duplicating.value = false;
@@ -441,7 +457,10 @@ async function save() {
       router.push(`/monsters/${created.id}`);
     }
   } catch (e: unknown) {
-    if (isQuotaExceeded(e)) { showPaywall.value = true; return; }
+    if (isQuotaExceeded(e)) {
+      showPaywall.value = true;
+      return;
+    }
     saveError.value = e instanceof Error ? e.message : "Failed to save";
   } finally {
     saving.value = false;
@@ -472,7 +491,11 @@ async function remove() {
 .gold-divider {
   @apply border-t border-primary/30;
 }
-.speed-input { -moz-appearance: textfield; }
+.speed-input {
+  -moz-appearance: textfield;
+}
 .speed-input::-webkit-outer-spin-button,
-.speed-input::-webkit-inner-spin-button { appearance: none; }
+.speed-input::-webkit-inner-spin-button {
+  appearance: none;
+}
 </style>

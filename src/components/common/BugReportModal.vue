@@ -14,12 +14,19 @@
           aria-labelledby="bug-report-title"
         >
           <!-- Header -->
-          <div class="flex items-center gap-3 px-5 py-4 border-b border-border shrink-0">
-            <div class="flex items-center justify-center w-8 h-8 rounded-full bg-destructive/15 text-destructive shrink-0">
+          <div
+            class="flex items-center gap-3 px-5 py-4 border-b border-border shrink-0"
+          >
+            <div
+              class="flex items-center justify-center w-8 h-8 rounded-full bg-destructive/15 text-destructive shrink-0"
+            >
               <IconBug class="h-4 w-4" />
             </div>
             <div class="flex-1 min-w-0">
-              <h2 id="bug-report-title" class="font-cinzel text-sm font-bold text-foreground tracking-wide">
+              <h2
+                id="bug-report-title"
+                class="font-cinzel text-sm font-bold text-foreground tracking-wide"
+              >
                 Report a Bug
               </h2>
               <p class="font-fell text-xs text-muted-foreground mt-0.5">
@@ -36,13 +43,25 @@
           </div>
 
           <!-- Success state -->
-          <div v-if="submitted" class="px-5 py-10 flex flex-col items-center gap-3 text-center">
-            <div class="flex items-center justify-center w-12 h-12 rounded-full bg-green-500/15 text-green-400">
+          <div
+            v-if="submitted"
+            class="px-5 py-10 flex flex-col items-center gap-3 text-center"
+          >
+            <div
+              class="flex items-center justify-center w-12 h-12 rounded-full bg-green-500/15 text-green-400"
+            >
               <IconCircleCheck class="h-6 w-6" />
             </div>
-            <h3 class="font-cinzel text-sm font-bold text-foreground tracking-wide">IconBug Reported!</h3>
-            <p class="font-fell text-sm text-muted-foreground max-w-xs leading-relaxed">
-              Thank you — issue #{{ issueNumber }} has been filed and the development team will look into it.
+            <h3
+              class="font-cinzel text-sm font-bold text-foreground tracking-wide"
+            >
+              Bug Reported!
+            </h3>
+            <p
+              class="font-fell text-sm text-muted-foreground max-w-xs leading-relaxed"
+            >
+              Thank you — issue #{{ issueNumber }} has been filed and the
+              development team will look into it.
             </p>
             <button
               class="mt-2 px-4 py-1.5 rounded-md border border-border font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors tracking-wider"
@@ -53,10 +72,16 @@
           </div>
 
           <!-- Form -->
-          <form v-else class="overflow-y-auto flex-1 flex flex-col" @submit.prevent="submit">
+          <form
+            v-else
+            class="overflow-y-auto flex-1 flex flex-col"
+            @submit.prevent="submit"
+          >
             <div class="px-5 py-4 space-y-4 flex-1">
               <div class="space-y-1.5">
-                <label class="font-cinzel text-xs font-semibold text-foreground tracking-wide">
+                <label
+                  class="font-cinzel text-xs font-semibold text-foreground tracking-wide"
+                >
                   Where in the app?
                 </label>
                 <input
@@ -69,7 +94,9 @@
               </div>
 
               <div class="space-y-1.5">
-                <label class="font-cinzel text-xs font-semibold text-foreground tracking-wide">
+                <label
+                  class="font-cinzel text-xs font-semibold text-foreground tracking-wide"
+                >
                   What were you doing?
                 </label>
                 <textarea
@@ -82,7 +109,9 @@
               </div>
 
               <div class="space-y-1.5">
-                <label class="font-cinzel text-xs font-semibold text-foreground tracking-wide">
+                <label
+                  class="font-cinzel text-xs font-semibold text-foreground tracking-wide"
+                >
                   What did you expect?
                 </label>
                 <textarea
@@ -95,7 +124,9 @@
               </div>
 
               <div class="space-y-1.5">
-                <label class="font-cinzel text-xs font-semibold text-foreground tracking-wide">
+                <label
+                  class="font-cinzel text-xs font-semibold text-foreground tracking-wide"
+                >
                   What actually happened?
                 </label>
                 <textarea
@@ -109,11 +140,19 @@
 
               <!-- Screenshot -->
               <div class="space-y-1.5">
-                <label class="font-cinzel text-xs font-semibold text-foreground tracking-wide">
+                <label
+                  class="font-cinzel text-xs font-semibold text-foreground tracking-wide"
+                >
                   Screenshot
-                  <span class="font-fell text-muted-foreground normal-case tracking-normal font-normal">(optional)</span>
+                  <span
+                    class="font-fell text-muted-foreground normal-case tracking-normal font-normal"
+                    >(optional)</span
+                  >
                 </label>
-                <div v-if="screenshotPreview" class="relative rounded-md overflow-hidden border border-border bg-background">
+                <div
+                  v-if="screenshotPreview"
+                  class="relative rounded-md overflow-hidden border border-border bg-background"
+                >
                   <img
                     :src="screenshotPreview"
                     alt="Screenshot preview"
@@ -146,8 +185,12 @@
             </div>
 
             <!-- Footer -->
-            <div class="flex items-center gap-3 px-5 py-4 border-t border-border shrink-0">
-              <p v-if="error" class="flex-1 font-fell text-xs text-destructive">{{ error }}</p>
+            <div
+              class="flex items-center gap-3 px-5 py-4 border-t border-border shrink-0"
+            >
+              <p v-if="error" class="flex-1 font-fell text-xs text-destructive">
+                {{ error }}
+              </p>
               <div v-else class="flex-1" />
               <button
                 type="button"
@@ -174,7 +217,13 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { IconAddImage, IconBug, IconCircleCheck, IconClose, IconLoading } from '@/lib/icons';
+import {
+  IconAddImage,
+  IconBug,
+  IconCircleCheck,
+  IconClose,
+  IconLoading,
+} from "@/lib/icons";
 import { useAuthStore } from "@/stores/auth";
 import { supabase } from "@/lib/supabase";
 
@@ -222,7 +271,11 @@ function clearScreenshot() {
 }
 
 // Resize to max 1200px wide and compress to JPEG to keep the payload small.
-function compressImage(file: File, maxWidth = 1200, quality = 0.85): Promise<string> {
+function compressImage(
+  file: File,
+  maxWidth = 1200,
+  quality = 0.85,
+): Promise<string> {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
@@ -246,24 +299,28 @@ async function submit() {
   error.value = "";
   submitting.value = true;
   try {
-    const submittedBy = auth.membership?.display_name || auth.userEmail || undefined;
-    const { data, error: fnError } = await supabase.functions.invoke("create-bug-report", {
-      body: {
-        where: form.value.where,
-        action: form.value.action,
-        expected: form.value.expected,
-        actual: form.value.actual,
-        screenshot: screenshotPreview.value ?? undefined,
-        screenshotName: screenshotFile.value?.name,
-        submittedBy,
+    const submittedBy =
+      auth.membership?.display_name || auth.userEmail || undefined;
+    const { data, error: fnError } = await supabase.functions.invoke(
+      "create-bug-report",
+      {
+        body: {
+          where: form.value.where,
+          action: form.value.action,
+          expected: form.value.expected,
+          actual: form.value.actual,
+          screenshot: screenshotPreview.value ?? undefined,
+          screenshotName: screenshotFile.value?.name,
+          submittedBy,
+        },
       },
-    });
+    );
     if (fnError) throw fnError;
     issueNumber.value = (data as { issueNumber: number })?.issueNumber ?? null;
     submitted.value = true;
   } catch (e) {
     error.value = "Something went wrong — please try again.";
-    console.error("IconBug report submit error:", e);
+    console.error("Bug report submit error:", e);
   } finally {
     submitting.value = false;
   }
@@ -277,7 +334,9 @@ async function submit() {
 }
 .dialog-fade-enter-active .relative,
 .dialog-fade-leave-active .relative {
-  transition: transform 0.15s ease, opacity 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease;
 }
 .dialog-fade-enter-from,
 .dialog-fade-leave-to {
