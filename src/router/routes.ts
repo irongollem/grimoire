@@ -319,6 +319,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, title: "Party Tracker" },
   },
   {
+    path: "/party/new",
+    name: "party-member-new",
+    component: () => import("@/views/play/PlayerCharacterCreateView.vue"),
+    meta: { requiresAuth: true, title: "Create Character" },
+  },
+  {
     path: "/party/:id",
     name: "party-member",
     component: () => import("@/views/party/PartyMemberView.vue"),

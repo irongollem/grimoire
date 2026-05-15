@@ -164,6 +164,7 @@ export function useCharacterCreationForm() {
   const derivedInitiative = computed(() => mod(f.dex));
 
   const isEditMode = computed(() => route.name === "play-character-edit");
+  const isDmCreate = computed(() => route.name === "party-member-new");
   const { data: partyMembers }    = useParty();
   const { data: campaignMembers } = useCampaignMembers();
   const { mutateAsync: create }               = useCreatePartyMember();
@@ -180,7 +181,7 @@ export function useCharacterCreationForm() {
       ? (partyMembers.value.find((m) => m.id === editMemberId.value) ?? null)
       : null,
   );
-  const backRoute = (route.query.memberId as string | undefined) ? "/party" : "/play";
+  const backRoute = isDmCreate.value || (route.query.memberId as string | undefined) ? "/party" : "/play";
 
   const tabParam = route.query.tab as string | undefined;
   const activeTab  = ref<"identity" | "stats" | "profs">(
@@ -549,10 +550,12 @@ export function useCharacterCreationForm() {
         // ── Create flow ───────────────────────────────────────────────────────
         const created = await create({ ...basePayload, owner_user_id: auth.user?.id ?? null });
 
-        // Link as active character for this player
-        const myMembership = (campaignMembers.value ?? []).find((cm) => cm.user_id === auth.user?.id);
-        if (myMembership) {
-          await updateCampaignMember({ id: myMembership.id, update: { party_member_id: created.id } });
+        // Link as active character for this player (skip when DM creates an unclaimed character)
+        if (!isDmCreate.value) {
+          const myMembership = (campaignMembers.value ?? []).find((cm) => cm.user_id === auth.user?.id);
+          if (myMembership) {
+            await updateCampaignMember({ id: myMembership.id, update: { party_member_id: created.id } });
+          }
         }
 
         // Seed level 1 character_classes row
@@ -600,7 +603,9 @@ export function useCharacterCreationForm() {
         }
 
         await auth.refreshMembership();
-        if (levelUp) {
+        if (isDmCreate.value) {
+          router.push("/party");
+        } else if (levelUp) {
           router.push(`/play/character/levelup?targetLevel=2&memberId=${created.id}`);
         } else {
           router.push("/play/champions");
@@ -638,7 +643,7 @@ export function useCharacterCreationForm() {
     // ASI (new chars)
     asiMode, customAsi, customAsiTotal, adjustCustomAsi,
     // computed
-    isEditMode, existingMember, backRoute,
+    isEditMode, isDmCreate, existingMember, backRoute,
     allSpecies, allBackgrounds,
     speciesOptions, backgroundOptions, selectedSpecies, subraceOptions,
     selectedClass, selectedBg, selectedSubrace,
