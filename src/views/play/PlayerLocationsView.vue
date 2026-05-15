@@ -51,12 +51,12 @@
           :data-location-id="loc.id"
           class="rounded-lg border border-amber-400/40 bg-card overflow-hidden"
         >
-          <!-- Header row -->
+          <!-- Header row — favourites are a flat list, so no children-toggle here -->
           <div class="w-full flex items-stretch">
             <button
               type="button"
               class="flex-1 flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left min-w-0"
-              @click="toggleChildren(loc.id)"
+              @click="toggleDetail(loc.id)"
             >
               <span
                 class="h-2 w-2 rounded-full shrink-0"
@@ -67,11 +67,6 @@
               <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider shrink-0">
                 {{ locLabel(loc.location_type) }}
               </span>
-              <IconChevronDown
-                v-if="hasSharedChildren.has(loc.id)"
-                class="h-3.5 w-3.5 text-muted-foreground transition-transform duration-150 shrink-0"
-                :class="childrenOpen.has(loc.id) ? 'rotate-180' : ''"
-              />
             </button>
             <button
               type="button"
