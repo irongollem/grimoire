@@ -548,7 +548,7 @@ export function useCharacterCreationForm() {
         router.push(freePicks.length > 0 ? "/play/spells?tab=innate" : "/play/champions");
       } else {
         // ── Create flow ───────────────────────────────────────────────────────
-        const created = await create({ ...basePayload, owner_user_id: auth.user?.id ?? null });
+        const created = await create({ ...basePayload, owner_user_id: isDmCreate.value ? null : (auth.user?.id ?? null) });
 
         // Link as active character for this player (skip when DM creates an unclaimed character)
         if (!isDmCreate.value) {
