@@ -294,7 +294,7 @@ interface NamedOption {
   name: string;
 }
 
-const props = defineProps<{
+const { allEncounters, allNpcs, allLocations, allMonsters } = defineProps<{
   isNew: boolean;
   linkedEncounters: QuestRef[];
   linkedNpcRefs: QuestRef[];
@@ -322,16 +322,16 @@ const selectedLocationId = ref("");
 const selectedMonsterId = ref("");
 
 function encounterName(id: string): string {
-  return props.allEncounters.find((e) => e.id === id)?.name ?? id;
+  return allEncounters.find((e) => e.id === id)?.name ?? id;
 }
 function npcName(id: string): string {
-  return props.allNpcs.find((n) => n.id === id)?.name ?? id;
+  return allNpcs.find((n) => n.id === id)?.name ?? id;
 }
 function locationName(id: string): string {
-  return props.allLocations.find((l) => l.id === id)?.name ?? id;
+  return allLocations.find((l) => l.id === id)?.name ?? id;
 }
 function monsterName(id: string): string {
-  return props.allMonsters.find((m) => m.id === id)?.name ?? id;
+  return allMonsters.find((m) => m.id === id)?.name ?? id;
 }
 
 function addEncounter() {

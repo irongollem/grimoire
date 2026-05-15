@@ -35,10 +35,12 @@
 </template>
 
 <script setup lang="ts">
+import type { Component } from "vue";
+
 interface ToolDef {
   id: string;
   label: string;
-  icon: unknown;
+  icon: Component;
   shortcut?: string;
   displayBadge?: string;
   disabled?: boolean;

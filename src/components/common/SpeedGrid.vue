@@ -69,7 +69,7 @@ const SPEED_TYPES = [
   { key: "burrow", label: "Burrow" },
 ] as const;
 
-const props = defineProps<{
+const { modelValue } = defineProps<{
   modelValue: string;
 }>();
 
@@ -77,10 +77,10 @@ const emit = defineEmits<{
   (e: "update:modelValue", value: string): void;
 }>();
 
-const speed = reactive<SpeedBlock>(parseSpeed(props.modelValue));
+const speed = reactive<SpeedBlock>(parseSpeed(modelValue));
 
 watch(
-  () => props.modelValue,
+  () => modelValue,
   (next) => {
     const parsed = parseSpeed(next);
     if (speedToString(speed) === next) return;

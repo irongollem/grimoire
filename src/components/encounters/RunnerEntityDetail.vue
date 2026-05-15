@@ -55,6 +55,7 @@
       v-else-if="selectedCombatant.type === 'player' && selectedMember"
       :combatant="selectedCombatant"
       :member="selectedMember"
+      :monsters="props.monsters"
       @roll-check="performCheck"
       @roll-attack="rollAttack"
       @roll-damage="rollActionDamage"
@@ -193,9 +194,9 @@ import RunnerMonsterPanel from "@/components/encounters/RunnerMonsterPanel.vue";
 import RunnerNpcPanel from "@/components/encounters/RunnerNpcPanel.vue";
 import RunnerCompanionPanel from "@/components/encounters/RunnerCompanionPanel.vue";
 import RunnerPcPanel from "@/components/encounters/RunnerPcPanel.vue";
+import type { Monster } from "@/types/monster.types";
+import type { PartyMember } from "@/types/party.types";
 import { useEncounterRunStore } from "@/stores/encounterRun";
-import { useAllMonsters } from "@/composables/useMonsters";
-import { useParty } from "@/composables/useParty";
 import { useCompanions } from "@/composables/useCompanions";
 import { TRAP_TYPE_COLORS } from "@/types/trap.types";
 import { useCampaignStore } from "@/stores/campaign";
@@ -211,6 +212,8 @@ import StarterKit from "@tiptap/starter-kit";
 const props = defineProps<{
   selectedId: string | null;
   selectedTrapId: string | null;
+  monsters: Monster[];
+  partyMembers: PartyMember[];
 }>();
 
 const emit = defineEmits<{
@@ -220,8 +223,6 @@ const emit = defineEmits<{
 const store = useEncounterRunStore();
 const campaign = useCampaignStore();
 const auth = useAuthStore();
-const { data: monsters } = useAllMonsters();
-const { data: party } = useParty();
 const { data: companions } = useCompanions();
 
 // ── Trap detail ───────────────────────────────────────────────────────────────
@@ -375,7 +376,7 @@ const selectedCombatant = computed(() =>
 
 const selectedMonster = computed(() => {
   if (!selectedCombatant.value?.monster_id) return null;
-  return monsters.value?.find((m) => m.id === selectedCombatant.value!.monster_id) ?? null;
+  return props.monsters.find((m) => m.id === selectedCombatant.value!.monster_id) ?? null;
 });
 
 const selectedNpc = computed(() => {
@@ -385,7 +386,7 @@ const selectedNpc = computed(() => {
 
 const selectedMember = computed(() => {
   if (!selectedCombatant.value?.party_member_id) return null;
-  return party.value?.find((m) => m.id === selectedCombatant.value!.party_member_id) ?? null;
+  return props.partyMembers.find((m) => m.id === selectedCombatant.value!.party_member_id) ?? null;
 });
 
 const selectedCompanion = computed(() => {

@@ -85,14 +85,14 @@ import RunnerTraitSection from "@/components/encounters/RunnerTraitSection.vue";
 import type { PartyMember } from "@/types/party.types";
 import type { RunCombatant } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
-import { useAllMonsters } from "@/composables/useMonsters";
 import { useDiscoveredKeys } from "@/composables/useDiscoveredMonsters";
 import { useDmPinnedForms } from "@/composables/usePinnedForms";
 import { parseCr } from "@/lib/utils";
 
-const { combatant, member } = defineProps<{
+const { combatant, member, monsters } = defineProps<{
   combatant: RunCombatant;
   member: PartyMember;
+  monsters: Monster[];
 }>();
 
 const emit = defineEmits<{
@@ -105,7 +105,6 @@ const emit = defineEmits<{
 
 // ── Composables ───────────────────────────────────────────────────────────────
 
-const { data: monsters } = useAllMonsters();
 const discoveredKeys = useDiscoveredKeys();
 const memberId = computed(() => member.id);
 const { data: pinnedForms } = useDmPinnedForms(memberId);
@@ -145,7 +144,7 @@ const wildshapeForms = computed<Monster[]>(() => {
   const level = member.level ?? 1;
   const maxCr = wildshapeMaxCr.value;
   const dkeys = discoveredKeys.value;
-  return (monsters.value ?? [])
+  return monsters
     .filter((m) => {
       if (!dkeys.has(m.id) && !pinnedKeys.value.has(m.id)) return false;
       if ((m.monster_type ?? "").toLowerCase() !== "beast") return false;
@@ -166,7 +165,7 @@ const showWildshapePicker = ref(false);
 const wildshapeMonster = computed<Monster | null>(() => {
   const ws = combatant.wildshape;
   if (!ws) return null;
-  return monsters.value?.find((m) => m.id === ws.monster_id) ?? null;
+  return monsters.find((m) => m.id === ws.monster_id) ?? null;
 });
 
 const ABILITY_KEYS = [

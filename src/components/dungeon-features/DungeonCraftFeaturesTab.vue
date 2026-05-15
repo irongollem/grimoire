@@ -1,15 +1,18 @@
 <template>
-  <div v-if="featuresLoading" class="flex justify-center py-16">
-    <LoadingSpinner />
-  </div>
-  <template v-else-if="features?.length">
-    <div class="flex flex-wrap items-center gap-2 mb-4">
-      <input
-        v-model="featuresSearch"
-        type="search"
-        placeholder="Search features…"
-        class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      />
+  <DungeonCraftEntityGrid
+    :items="features"
+    :is-loading="featuresLoading"
+    v-model:search="featuresSearch"
+    :filtered-count="filteredFeatures.length"
+    search-placeholder="Search features…"
+    no-match-text="No features match your filter."
+    empty-icon="DoorOpen"
+    empty-title="No dungeon features yet"
+    empty-description="Add secret doors, hidden passages, treasure chests and more."
+    empty-action-label="New Feature"
+    @empty-action="router.push('/dungeon-features/new')"
+  >
+    <template #filters>
       <select
         v-model="featuresTypeFilter"
         class="bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -17,11 +20,8 @@
         <option value="">All Types</option>
         <option v-for="t in DUNGEON_FEATURE_TYPES" :key="t" :value="t">{{ t }}</option>
       </select>
-    </div>
-    <p v-if="!filteredFeatures.length" class="text-center font-fell text-sm text-muted-foreground italic py-8">
-      No features match your filter.
-    </p>
-    <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+    </template>
+    <template #card>
       <RouterLink
         v-for="feature in filteredFeatures"
         :key="feature.id"
@@ -54,16 +54,8 @@
           </div>
         </div>
       </RouterLink>
-    </div>
-  </template>
-  <EmptyState
-    v-else
-    icon="DoorOpen"
-    title="No dungeon features yet"
-    description="Add secret doors, hidden passages, treasure chests and more."
-    action-label="New Feature"
-    @action="router.push('/dungeon-features/new')"
-  />
+    </template>
+  </DungeonCraftEntityGrid>
 </template>
 
 <script setup lang="ts">
@@ -72,8 +64,7 @@ import { RouterLink, useRouter } from "vue-router";
 import { useDungeonFeatures } from "@/composables/useDungeonFeatures";
 import { DUNGEON_FEATURE_TYPES, DUNGEON_FEATURE_TYPE_COLORS } from "@/types/dungeonFeature.types";
 import FocalImage from "@/components/common/FocalImage.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
+import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
 
 const router = useRouter();
 const { data: features, isLoading: featuresLoading } = useDungeonFeatures();

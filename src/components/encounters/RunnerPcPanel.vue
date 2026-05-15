@@ -65,6 +65,7 @@
       v-if="isDruid || combatant.wildshape"
       :combatant="combatant"
       :member="member"
+      :monsters="monsters"
       @roll-check="(mod, label) => emit('roll-check', mod, label)"
       @roll-attack="(bonus, name) => emit('roll-attack', bonus, name)"
       @roll-damage="(desc, name) => emit('roll-damage', desc, name)"
@@ -107,9 +108,10 @@ import { useSpeciesNameMap } from "@/composables/useSpecies";
 import { useCharacterSpellsWithDetails } from "@/composables/useCharacterSpells";
 import { useClassByName } from "@/composables/useCustomClasses";
 
-const { combatant, member } = defineProps<{
+const { combatant, member, monsters } = defineProps<{
   combatant: RunCombatant;
   member: PartyMember;
+  monsters: Monster[];
 }>();
 
 const emit = defineEmits<{

@@ -181,7 +181,7 @@ import TraitSection from "@/components/npcs/TraitSection.vue";
 import type { MonsterStatBlock } from "@/types/monster.types";
 import type { StatBlock } from "@/types/npc.types";
 
-const props = defineProps<{
+const { sb } = defineProps<{
   sb: MonsterStatBlock | StatBlock;
   showLegendary?: boolean;
   showLair?: boolean;
@@ -191,9 +191,9 @@ const props = defineProps<{
 
 defineOptions({ inheritAttrs: false });
 
-const skillsText = computed(() => skillsToString(props.sb.skills));
+const skillsText = computed(() => skillsToString(sb.skills));
 
 function onSkillsInput(raw: string) {
-  props.sb.skills = skillsToRecord(raw);
+  sb.skills = skillsToRecord(raw);
 }
 </script>

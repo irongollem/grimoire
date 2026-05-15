@@ -45,7 +45,7 @@ import { ref, computed, watch } from "vue";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import type { PartyMember } from "@/types/party.types";
 
-const props = defineProps<{
+const { member, barbarianLevel, rageUsesCurrent } = defineProps<{
   member: PartyMember;
   barbarianLevel: number;
   rageUsesCurrent: number;
@@ -58,29 +58,29 @@ const emit = defineEmits<{
 
 const { mutate: updateMember } = useUpdatePartyMember();
 
-const localActive = ref(props.member.rage_active ?? false);
+const localActive = ref(member.rage_active ?? false);
 watch(
-  () => [props.member.id, props.member.updated_at],
-  () => { localActive.value = props.member.rage_active ?? false; },
+  () => [member.id, member.updated_at],
+  () => { localActive.value = member.rage_active ?? false; },
   { immediate: true },
 );
 
 const rageBonus = computed(() => {
-  if (props.barbarianLevel >= 16) return 4;
-  if (props.barbarianLevel >= 9) return 3;
+  if (barbarianLevel >= 16) return 4;
+  if (barbarianLevel >= 9) return 3;
   return 2;
 });
 
 function enterRage() {
-  if (props.rageUsesCurrent <= 0) return;
+  if (rageUsesCurrent <= 0) return;
   emit("spend-use");
   localActive.value = true;
-  updateMember({ id: props.member.id, update: { rage_active: true } });
+  updateMember({ id: member.id, update: { rage_active: true } });
 }
 
 function endRage() {
   localActive.value = false;
-  updateMember({ id: props.member.id, update: { rage_active: false } });
+  updateMember({ id: member.id, update: { rage_active: false } });
 }
 
 /** Called by parent on long rest to sync rage off without emitting spend. */

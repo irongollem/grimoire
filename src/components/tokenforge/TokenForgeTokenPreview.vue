@@ -15,10 +15,14 @@
 
     <!-- Settings panel -->
     <TokenForgeTokenSettings
-      v-model:ringColor="ringColor"
-      v-model:ringWidth="ringWidth"
-      v-model:showName="showName"
-      v-model:exportSize="exportSize"
+      :ring-color="ringColor"
+      :ring-width="ringWidth"
+      :show-name="showName"
+      :export-size="exportSize"
+      @update:ring-color="emit('update:ringColor', $event)"
+      @update:ring-width="emit('update:ringWidth', $event)"
+      @update:show-name="emit('update:showName', $event)"
+      @update:export-size="emit('update:exportSize', $event)"
     />
 
     <!-- Export buttons -->

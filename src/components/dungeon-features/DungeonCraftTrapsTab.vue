@@ -1,15 +1,18 @@
 <template>
-  <div v-if="trapsLoading" class="flex justify-center py-16">
-    <LoadingSpinner />
-  </div>
-  <template v-else-if="traps?.length">
-    <div class="flex flex-wrap items-center gap-2 mb-4">
-      <input
-        v-model="trapsSearch"
-        type="search"
-        placeholder="Search traps…"
-        class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      />
+  <DungeonCraftEntityGrid
+    :items="traps"
+    :is-loading="trapsLoading"
+    v-model:search="trapsSearch"
+    :filtered-count="filteredTraps.length"
+    search-placeholder="Search traps…"
+    no-match-text="No traps match your filter."
+    empty-icon="Crosshair"
+    empty-title="No traps yet"
+    empty-description="Build your first trap — set the trigger, DCs, damage, and CR."
+    empty-action-label="New Trap"
+    @empty-action="router.push('/traps/new')"
+  >
+    <template #filters>
       <select
         v-model="trapsTypeFilter"
         class="bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -17,11 +20,8 @@
         <option value="">All Types</option>
         <option v-for="t in TRAP_TYPES" :key="t" :value="t">{{ t }}</option>
       </select>
-    </div>
-    <p v-if="!filteredTraps.length" class="text-center font-fell text-sm text-muted-foreground italic py-8">
-      No traps match your filter.
-    </p>
-    <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+    </template>
+    <template #card>
       <RouterLink
         v-for="trap in filteredTraps"
         :key="trap.id"
@@ -50,16 +50,8 @@
           </div>
         </div>
       </RouterLink>
-    </div>
-  </template>
-  <EmptyState
-    v-else
-    icon="Crosshair"
-    title="No traps yet"
-    description="Build your first trap — set the trigger, DCs, damage, and CR."
-    action-label="New Trap"
-    @action="router.push('/traps/new')"
-  />
+    </template>
+  </DungeonCraftEntityGrid>
 </template>
 
 <script setup lang="ts">
@@ -68,8 +60,7 @@ import { RouterLink, useRouter } from "vue-router";
 import { useTraps } from "@/composables/useTraps";
 import { TRAP_TYPES, TRAP_TYPE_COLORS } from "@/types/trap.types";
 import FocalImage from "@/components/common/FocalImage.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
+import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
 
 const router = useRouter();
 const { data: traps, isLoading: trapsLoading } = useTraps();

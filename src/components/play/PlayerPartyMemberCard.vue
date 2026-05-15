@@ -64,9 +64,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
 import { IconShield } from "@/lib/icons";
 import FocalImage from "@/components/common/FocalImage.vue";
+import { useHpDisplay } from "@/composables/useHpDisplay";
 import type { PartyMember } from "@/types/party.types";
 
 const { member, isOwn, showNumericHp, subtitle } = defineProps<{
@@ -78,24 +78,8 @@ const { member, isOwn, showNumericHp, subtitle } = defineProps<{
 
 defineEmits<{ click: [] }>();
 
-const hpPct = computed(() => (member.max_hp === 0 ? 0 : member.current_hp / member.max_hp));
-
-const hpColor = computed(() => {
-  const p = hpPct.value;
-  return p < 0.33 ? "text-destructive" : p < 0.66 ? "text-amber-400" : "text-elven-green";
-});
-
-const hpBarColor = computed(() => {
-  const p = hpPct.value;
-  return p < 0.33 ? "bg-destructive" : p < 0.66 ? "bg-amber-400" : "bg-elven-green";
-});
-
-const immersiveHpLabel = computed(() => {
-  const p = hpPct.value * 100;
-  if (p <= 0) return "Dead";
-  if (p <= 25) return "Bloodied";
-  if (p <= 50) return "Wounded";
-  if (p <= 75) return "Hurt";
-  return "Healthy";
-});
+const { hpColor, hpBarColor, immersiveHpLabel } = useHpDisplay(
+  () => member.current_hp,
+  () => member.max_hp
+);
 </script>

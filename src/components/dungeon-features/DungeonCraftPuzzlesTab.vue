@@ -1,15 +1,18 @@
 <template>
-  <div v-if="puzzlesLoading" class="flex justify-center py-16">
-    <LoadingSpinner />
-  </div>
-  <template v-else-if="puzzles?.length">
-    <div class="flex flex-wrap items-center gap-2 mb-4">
-      <input
-        v-model="puzzlesSearch"
-        type="search"
-        placeholder="Search puzzles…"
-        class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      />
+  <DungeonCraftEntityGrid
+    :items="puzzles"
+    :is-loading="puzzlesLoading"
+    v-model:search="puzzlesSearch"
+    :filtered-count="filteredPuzzles.length"
+    search-placeholder="Search puzzles…"
+    no-match-text="No puzzles match your filter."
+    empty-icon="Puzzle"
+    empty-title="No puzzles yet"
+    empty-description="Build your first puzzle room — set the riddle, add tiered hints, and record the solution."
+    empty-action-label="New Puzzle"
+    @empty-action="router.push('/puzzles/new')"
+  >
+    <template #filters>
       <select
         v-model="puzzlesTypeFilter"
         class="bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -24,11 +27,8 @@
         <option value="">All Difficulties</option>
         <option v-for="d in PUZZLE_DIFFICULTIES" :key="d" :value="d">{{ d }}</option>
       </select>
-    </div>
-    <p v-if="!filteredPuzzles.length" class="text-center font-fell text-sm text-muted-foreground italic py-8">
-      No puzzles match your filter.
-    </p>
-    <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+    </template>
+    <template #card>
       <RouterLink
         v-for="puzzle in filteredPuzzles"
         :key="puzzle.id"
@@ -65,16 +65,8 @@
           </div>
         </div>
       </RouterLink>
-    </div>
-  </template>
-  <EmptyState
-    v-else
-    icon="Puzzle"
-    title="No puzzles yet"
-    description="Build your first puzzle room — set the riddle, add tiered hints, and record the solution."
-    action-label="New Puzzle"
-    @action="router.push('/puzzles/new')"
-  />
+    </template>
+  </DungeonCraftEntityGrid>
 </template>
 
 <script setup lang="ts">
@@ -83,8 +75,7 @@ import { RouterLink, useRouter } from "vue-router";
 import { usePuzzles } from "@/composables/usePuzzles";
 import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES, PUZZLE_TYPE_COLORS, PUZZLE_DIFFICULTY_COLORS } from "@/types/puzzle.types";
 import FocalImage from "@/components/common/FocalImage.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
+import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
 
 const router = useRouter();
 const { data: puzzles, isLoading: puzzlesLoading } = usePuzzles();

@@ -157,12 +157,13 @@ import TokenForgeEntityList from "@/components/tokenforge/TokenForgeEntityList.v
 import TokenForgeCoinEditor from "@/components/tokenforge/TokenForgeCoinEditor.vue";
 import TokenForgeCoinPrintLayout from "@/components/tokenforge/TokenForgeCoinPrintLayout.vue";
 import TokenForgeTokenPrintLayout from "@/components/tokenforge/TokenForgeTokenPrintLayout.vue";
-import TokenForgePrintQueue, {
+import TokenForgePrintQueue from "@/components/tokenforge/TokenForgePrintQueue.vue";
+import {
   TOKEN_PRINT_SIZES,
   type TokenPrintSizeId,
   type TokenBackStyleId,
   type PrintQueueEntry,
-} from "@/components/tokenforge/TokenForgePrintQueue.vue";
+} from "@/components/tokenforge/tokenForgePrint";
 
 // ── Main tabs ──────────────────────────────────────────────────────────────────
 

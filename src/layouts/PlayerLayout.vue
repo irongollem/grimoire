@@ -288,7 +288,6 @@
         <div class="absolute inset-0 bg-black/50" @click="showMore = false" />
 
         <PlayerNavGrid @close="showMore = false" />
-        </div>
       </div>
     </Transition>
   </Teleport>
