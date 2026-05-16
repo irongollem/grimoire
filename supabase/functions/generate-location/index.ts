@@ -10,6 +10,7 @@ import {
   validatePromptInput,
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
+import { buildSimpleImagePrompt } from "../_shared/image-prompt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -260,7 +261,11 @@ serve(async (req: Request) => {
     const [imgSettled, mapSettled] = await Promise.allSettled([
       generate_image
         ? openaiImageGenerate(openaiKey, imgModel,
-            [imageBasePrompt, campaign.ai_setting_prompt, locationData.image_prompt].filter(Boolean).join(" — "),
+            buildSimpleImagePrompt({
+              base: imageBasePrompt,
+              setting: campaign.ai_setting_prompt ?? "",
+              subject: locationData.image_prompt,
+            }),
             "1024x1024")
         : Promise.resolve(null),
       generate_map

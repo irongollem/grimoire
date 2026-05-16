@@ -10,6 +10,7 @@ import {
   validatePromptInput,
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
+import { buildSimpleImagePrompt } from "../_shared/image-prompt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -287,8 +288,11 @@ serve(async (req: Request) => {
 
   if (generate_image && openaiKey) {
     try {
-      const imagePrompt = [imageBasePrompt, campaign.ai_setting_prompt, trapData.image_prompt]
-        .filter(Boolean).join(" — ");
+      const imagePrompt = buildSimpleImagePrompt({
+        base: imageBasePrompt,
+        setting: campaign.ai_setting_prompt ?? "",
+        subject: trapData.image_prompt,
+      });
 
       if (group_portrait_url) {
         imgResult = await openaiImageEdit(openaiKey, imgModel, group_portrait_url, [imagePrompt, PARTY_SUFFIX].join(" — "), "1024x1536");
