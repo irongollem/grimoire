@@ -17,6 +17,7 @@ import { b64ToBlob, wrapUserInput } from "./utils";
 import { useCampaignStore } from "@/stores/campaign";
 import { logUsage } from "@/composables/useAiCredits";
 import { fetchSystemPrompt, fetchImageBasePrompt } from "./systemPrompts";
+import { buildSimpleImagePrompt } from "./imagePrompt";
 import type { ImageUsage } from "./providers/types";
 
 const LOCAL_MODE_KEY = "grimoire_key_local_mode";
@@ -200,7 +201,9 @@ export function useTrapGeneration() {
 
         if (options?.groupPortraitUrl && openAiKey) {
           b64 = await generateWithPartyReference(
-            [settingPrompt, trapData.image_prompt].filter(Boolean).join(" — "),
+            // base is supplied by generateWithPartyReference itself; pass "" so
+            // the helper only emits setting + precedence directive + subject.
+            buildSimpleImagePrompt({ base: "", setting: settingPrompt, subject: trapData.image_prompt }),
             options.groupPortraitUrl,
             openAiKey,
             imageBasePrompt,
@@ -212,9 +215,11 @@ export function useTrapGeneration() {
         }
 
         if (!b64) {
-          const imagePrompt = [imageBasePrompt, settingPrompt, trapData.image_prompt]
-            .filter(Boolean)
-            .join(" — ");
+          const imagePrompt = buildSimpleImagePrompt({
+            base: imageBasePrompt,
+            setting: settingPrompt,
+            subject: trapData.image_prompt,
+          });
           const { b64: _b64, usage: _imgUsage } = await imageProvider.generate(imagePrompt, "1024x1536");
           b64 = _b64;
           imgUsage = _imgUsage;
