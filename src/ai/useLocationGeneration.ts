@@ -5,6 +5,7 @@ import {
   buildCampaignContext,
 } from "./utils";
 import { fetchSystemPrompt, fetchImageBasePrompt } from "./systemPrompts";
+import { buildSimpleImagePrompt } from "./imagePrompt";
 import type { LocationAiResult, LocationAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -165,9 +166,11 @@ export function useLocationGeneration() {
       (async (): Promise<string | null> => {
         if (options?.generateImage === false || !auth.user) return null;
         try {
-          const imagePrompt = [imageBasePrompt, settingPrompt, locationData.image_prompt]
-            .filter(Boolean)
-            .join(" — ");
+          const imagePrompt = buildSimpleImagePrompt({
+            base: imageBasePrompt,
+            setting: settingPrompt,
+            subject: locationData.image_prompt,
+          });
           const { b64, usage } = await imageProvider.generate(imagePrompt, "1024x1024");
           lastImgUsage = usage;
           totalImageCount++;

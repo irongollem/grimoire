@@ -16,6 +16,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Tells the image model that the Subject is canonical when it conflicts with
+// the Setting. Without this, the model averages the two — e.g. a butler
+// described by the user gets rendered in winter survivalist gear because the
+// campaign setting is "rugged wintry landscape".
+const SUBJECT_OVERRIDES_SETTING = "If the Subject describes clothing, profession, or appearance that does not fit the Setting (for example, a butler or noble indoors in an otherwise wintry land), render the Subject exactly as described. The Setting is only background atmosphere, not a wardrobe override.";
+
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -365,6 +371,7 @@ serve(async (req: Request) => {
     const imagePrompt = [
       `Style: ${imageBasePrompt}`,
       campaign.ai_setting_prompt ? `Setting: ${campaign.ai_setting_prompt}` : null,
+      campaign.ai_setting_prompt ? `Precedence: ${SUBJECT_OVERRIDES_SETTING}` : null,
       `Subject: ${npcData.true_portrait_prompt}`,
     ].filter(Boolean).join("\n");
 
@@ -385,7 +392,12 @@ serve(async (req: Request) => {
 
     // Alter-ego disguise uses OpenAI edit — skip if using fal.ai (no edit endpoint)
     if (imageProvider !== "falai" && generateAlterEgo && portrait_b64 && npcData.disguise_image_prompt && openaiKey) {
-      const disguisePrompt = [imageBasePrompt, campaign.ai_setting_prompt, npcData.disguise_image_prompt]
+      const disguisePrompt = [
+        imageBasePrompt,
+        campaign.ai_setting_prompt,
+        campaign.ai_setting_prompt ? SUBJECT_OVERRIDES_SETTING : null,
+        npcData.disguise_image_prompt,
+      ]
         .filter(Boolean)
         .join(" — ");
       try {

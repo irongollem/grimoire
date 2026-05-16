@@ -2,6 +2,7 @@ import { useAuthStore } from "@/stores/auth";
 import { uploadWithVariants } from "@/lib/storage";
 import { buildCampaignContext } from "./utils";
 import { fetchSystemPrompt, fetchImageBasePrompt } from "./systemPrompts";
+import { buildSimpleImagePrompt } from "./imagePrompt";
 import type { ItemAiResult, ItemAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -97,9 +98,11 @@ export function useItemGeneration() {
         startAiQuotes("image");
         try {
           const imageProvider = getImageProvider();
-          const imagePrompt = [imageBasePrompt, settingPrompt, result.image_prompt]
-            .filter(Boolean)
-            .join(" — ");
+          const imagePrompt = buildSimpleImagePrompt({
+            base: imageBasePrompt,
+            setting: settingPrompt,
+            subject: result.image_prompt,
+          });
           const { b64, usage: _imgUsage } = await imageProvider.generate(imagePrompt, "1024x1536");
           imgUsage = _imgUsage;
           if (b64 && auth.user) {

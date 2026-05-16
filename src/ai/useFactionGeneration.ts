@@ -4,6 +4,7 @@ import {
   buildCampaignContext,
 } from "./utils";
 import { fetchSystemPrompt, fetchImageBasePrompt } from "./systemPrompts";
+import { buildSimpleImagePrompt } from "./imagePrompt";
 import type { FactionAiResult, FactionAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -89,9 +90,11 @@ export function useFactionGeneration() {
       if (options?.generateImage !== false) {
         startAiQuotes("image");
         try {
-          const imagePrompt = [imageBasePrompt, settingPrompt, factionData.image_prompt]
-            .filter(Boolean)
-            .join(" — ");
+          const imagePrompt = buildSimpleImagePrompt({
+            base: imageBasePrompt,
+            setting: settingPrompt,
+            subject: factionData.image_prompt,
+          });
           const imageProvider = getImageProvider();
           const { b64, usage: _imgUsage } = await imageProvider.generate(imagePrompt, "1024x1024");
           imgUsage = _imgUsage;
