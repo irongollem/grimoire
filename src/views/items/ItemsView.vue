@@ -39,10 +39,14 @@
           <option value="">All sources</option>
           <option v-for="s in sources" :key="s.slug" :value="s.slug">{{ itemSourceLabel(s.slug, s.title) }}</option>
         </ListFilterSelect>
+        <label class="inline-flex items-center gap-1.5 cursor-pointer">
+          <input type="checkbox" v-model="showAllScopes" class="rounded" />
+          <span class="font-cinzel text-[11px] tracking-wider text-muted-foreground">Show items from all campaigns</span>
+        </label>
       </ListFilterBar>
     </template>
 
-    <ItemList :search="search" :type-filter="typeFilter" :rarity-filter="rarityFilter" :source-filter="sourceFilter" />
+    <ItemList :search="search" :type-filter="typeFilter" :rarity-filter="rarityFilter" :source-filter="sourceFilter" :show-all-scopes="showAllScopes" />
   </ListPageLayout>
 </template>
 
@@ -75,6 +79,10 @@ const rarityFilter = computed({
 const sourceFilter = computed({
   get: () => ui.vaultFilterSource,
   set: (v) => { ui.vaultFilterSource = v; },
+});
+const showAllScopes = computed({
+  get: () => ui.vaultShowAllScopes,
+  set: (v) => { ui.vaultShowAllScopes = v; },
 });
 
 const hasActiveFilters = computed(() => ui.vaultHasActiveFilters);

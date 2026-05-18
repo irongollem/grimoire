@@ -334,6 +334,19 @@
           />
         </div>
 
+        <!-- DM notes — never shown to players -->
+        <div class="rounded-lg border border-amber-700/40 bg-amber-950/10 p-4 flex flex-col gap-2">
+          <h3 class="font-cinzel text-[11px] font-bold tracking-wider text-amber-300/80 uppercase">
+            DM Notes
+            <span class="normal-case font-fell font-normal text-muted-foreground/70"> — never shown to players</span>
+          </h3>
+          <RichTextEditor
+            v-model="dmNotes"
+            placeholder="GM-side notes, foreshadowing, structural beats this item serves…"
+            min-height="100px"
+          />
+        </div>
+
         <!-- Curse -->
         <div v-if="isMagic && !isArtObject" class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3">
           <div class="flex items-center justify-between gap-2">
@@ -356,6 +369,30 @@
               Reveal the curse to players via the party inventory panel once a player attunes or triggers it.
             </p>
           </template>
+        </div>
+
+        <!-- Scope -->
+        <div class="flex flex-col gap-2">
+          <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Scope</span>
+          <div class="flex gap-2">
+            <button
+              type="button"
+              class="flex-1 py-2 rounded-md border text-xs font-cinzel tracking-wide transition-colors"
+              :class="campaignId === null
+                ? 'bg-primary/15 border-primary/60 text-primary'
+                : 'border-border text-muted-foreground hover:text-foreground'"
+              @click="campaignId = null"
+            >General — all campaigns</button>
+            <button
+              type="button"
+              :disabled="!activeCampaignId && !campaignId"
+              class="flex-1 py-2 rounded-md border text-xs font-cinzel tracking-wide transition-colors disabled:opacity-40"
+              :class="campaignId !== null
+                ? 'bg-primary/15 border-primary/60 text-primary'
+                : 'border-border text-muted-foreground hover:text-foreground'"
+              @click="campaignId = campaignId ?? activeCampaignId"
+            >Campaign{{ scopeCampaignName ? ` — ${scopeCampaignName}` : '' }}</button>
+          </div>
         </div>
 
         <!-- Source -->
@@ -398,6 +435,9 @@ import { useRouter, useRoute } from "vue-router";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import { useCreateItem, useUpdateItem, useDeleteItem } from "@/composables/useItems";
 import { useSpells } from "@/composables/useSpells";
+import { useCampaigns } from "@/composables/useCampaigns";
+import { useCampaignStore } from "@/stores/campaign";
+import { storeToRefs } from "pinia";
 import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
 import { formatItemForScriptorium } from "@/lib/scriptoriumImport";
 import DamageRollsInput from "@/components/common/DamageRollsInput.vue";
@@ -484,6 +524,18 @@ function removeBundleItem(idx: number) {
 // ── Curse fields ──────────────────────────────────────────────────────────────
 const isCursed = ref(!!(props.item?.curse_description));
 const curseDescription = ref(props.item?.curse_description ?? "");
+
+// ── Scope + DM notes ──────────────────────────────────────────────────────────
+const campaignStore = useCampaignStore();
+const { activeCampaign, activeCampaignId } = storeToRefs(campaignStore);
+const { data: allCampaigns } = useCampaigns();
+const campaignId = ref<string | null>(props.item?.campaign_id ?? activeCampaignId.value ?? null);
+const dmNotes = ref(props.item?.dm_notes ?? "");
+const scopeCampaignName = computed(() => {
+  if (!campaignId.value) return null;
+  if (campaignId.value === activeCampaignId.value) return activeCampaign.value?.name ?? null;
+  return allCampaigns.value?.find((c) => c.id === campaignId.value)?.name ?? null;
+});
 
 // ── Magic fields ──────────────────────────────────────────────────────────────
 const requiresAttunement = ref(props.item?.requires_attunement ?? false);
@@ -573,6 +625,8 @@ function buildPayload() {
     bundle_items: isPack.value && bundleItems.value.length
       ? bundleItems.value.map(e => ({ name: e.name, quantity: e.quantity }))
       : null,
+    campaign_id: campaignId.value,
+    dm_notes: dmNotes.value.trim() ? dmNotes.value : null,
   };
 }
 

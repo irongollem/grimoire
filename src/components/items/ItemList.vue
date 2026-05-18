@@ -170,9 +170,10 @@ const props = defineProps<{
   typeFilter: string;
   rarityFilter: string;
   sourceFilter: string;
+  showAllScopes?: boolean;
 }>();
 
-const { data: items, isLoading } = useItems();
+const { data: items, isLoading } = useItems(() => ({ includeAllScopes: !!props.showAllScopes }));
 
 const filtered = computed(() => {
   const q = props.search.trim().toLowerCase();
