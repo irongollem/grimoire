@@ -226,7 +226,7 @@ import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import TraitSection from "@/components/npcs/TraitSection.vue";
 import SpeciesSpellGrants from "@/components/species/SpeciesSpellGrants.vue";
-import type { Species, SpeciesSize, SpeciesSpellGrant } from "@/types/species.types";
+import type { Species, SpeciesSize } from "@/types/species.types";
 
 const props = defineProps<{ species?: Species | null }>();
 

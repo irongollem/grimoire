@@ -305,7 +305,6 @@ import {
   LOOT_CR_TIER_LABELS,
   validateEntries,
   type LootCrTier,
-  type LootEntry,
   type LootEntryType,
   type LootTableInsert,
 } from "@/types/lootTable.types";

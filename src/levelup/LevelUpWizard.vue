@@ -369,7 +369,7 @@ const {
   cantripsKnownTotal,
   maxCastableLevel,
 } = useLevelUpSpellSlots({
-  customClass,
+  customClass: computed(() => customClass.value ?? null),
   systemClass,
   levelInChosenClass,
   memberClassEntries,

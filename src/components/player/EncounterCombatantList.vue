@@ -102,7 +102,6 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import type { RunCombatant, HealthVisibility } from "@/types/encounter.types";
 import type { PartyMember } from "@/types/party.types";

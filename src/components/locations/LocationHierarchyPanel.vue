@@ -135,7 +135,7 @@
         type="button"
         class="inline-flex items-center gap-1.5 rounded border border-border bg-muted/50 hover:border-destructive/50 hover:bg-muted transition-colors px-2 py-0.5 max-w-full min-w-0 group"
         :title="`Remove ${relatedLocationMap.get(relId)?.name ?? relId}`"
-        @click="$emit('remove-related', relId)"
+        @click="$emit('update:relatedLocationIds', relatedLocationIds.filter((id) => id !== relId))"
       >
         <span
           v-if="relatedLocationMap.get(relId)"
@@ -184,7 +184,6 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
 import { IconAdd, IconChevronUp, IconClose, IconLink, IconLocation } from '@/lib/icons';
 import EntityCombobox from '@/components/common/EntityCombobox.vue';
 import { useLocations, useUpdateLocation } from '@/composables/useLocations';
@@ -216,7 +215,6 @@ const emit = defineEmits<{
   'create-child': [name: string];
 }>();
 
-const router = useRouter();
 
 // ── Parent combobox bridge ─────────────────────────────────────────────────────
 const parentIdStr = computed(() => parentId ?? '');

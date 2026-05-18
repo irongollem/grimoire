@@ -203,7 +203,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch, type Component } from "vue";
 import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router";
 
 import {
@@ -310,6 +310,7 @@ const currentPackId = ref(DEFAULT_PACK_ID);
 const packLoadError = ref<string | null>(null);
 const loadedRuntimes = ref(new Map<string, TilePackRuntime>());
 const packRuntime = computed(() => loadedRuntimes.value.get(currentPackId.value) ?? null);
+const loadedPackIds = computed(() => new Set(loadedRuntimes.value.keys()));
 const dirty = ref(false);
 const saving = ref(false);
 const deleting = ref(false);
@@ -372,7 +373,7 @@ type Tool = "floor" | "eraser" | "pan" | "wall" | "door" | "solid" | "rect" | "l
 interface ToolDef {
   id: Tool;
   label: string;
-  icon: unknown;
+  icon: Component;
   /** Single keyboard key that activates this tool (lowercase, plain key — no modifiers). */
   shortcut?: string;
   /** Override for the visible kbd badge — used for non-keyboard hints like "RMB" on Pan. */
@@ -485,13 +486,6 @@ const annotationText = computed({
   },
 });
 
-function toolBadge(t: ToolDef): string | undefined {
-  return t.displayBadge ?? t.shortcut?.toUpperCase();
-}
-function toolTitle(t: ToolDef): string {
-  const badge = toolBadge(t);
-  return badge ? `${t.label} (${badge})` : t.label;
-}
 
 const cellsPainted = computed(() => Object.keys(layers.value.floor).length);
 const floorVariantCount = computed(() =>

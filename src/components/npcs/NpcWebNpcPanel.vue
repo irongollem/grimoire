@@ -104,7 +104,7 @@ interface NpcPanelData {
   relationship: string;
   status: string;
   portrait_url?: string | null;
-  portrait_focal_point?: unknown;
+  portrait_focal_point?: { x: number; y: number } | null;
 }
 
 interface Connection {

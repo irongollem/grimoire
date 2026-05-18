@@ -286,7 +286,6 @@ import { parseExpression, parsedToCounts } from "@/lib/dice";
 import { rollParsed } from "@/lib/roller";
 import { SCHOOL_COLORS } from "@/types/spell.types";
 import type { Spell } from "@/types/spell.types";
-import { RARITY_BADGE_COLORS } from "@/types/item.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 

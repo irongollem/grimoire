@@ -282,7 +282,7 @@ const identitySlice = computed<IdentityFormSlice>(() => ({
   disguise_race: form.disguise_race,
   disguise_subrace: form.disguise_subrace,
   background_id: form.background_id,
-  height: form.height,
+  height: form.height ?? null,
   notes: form.notes ?? "",
 }));
 

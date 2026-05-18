@@ -76,22 +76,22 @@
           @update:vignette-enabled="vignetteEnabled = $event"
           @vignette-mode="vignette.mode = $event"
           @vignette-colour="vignette.colour = $event"
-          @vignette-field="(key, value) => { vignette[key] = value; }"
+          @vignette-field="(key, value) => { (vignette as unknown as Record<string, number>)[key] = value; }"
           @toggle-texture="textureOpen = !textureOpen"
           @update:texture-enabled="textureEnabled = $event"
           @texture-pick="textureFileInput?.click()"
           @texture-drop="onTextureDrop"
           @texture-clear="clearTexture"
-          @texture-blend-mode="texture.blendMode = $event"
-          @texture-field="(key, value) => { texture[key] = value; }"
+          @texture-blend-mode="texture.blendMode = $event as typeof texture.blendMode"
+          @texture-field="(key, value) => { (texture as unknown as Record<string, number>)[key] = value; }"
           @toggle-dof="dofOpen = !dofOpen"
           @update:dof-enabled="dofEnabled = $event"
-          @dof-falloff="dof.falloff = $event"
-          @dof-field="(key, value) => { dof[key] = value; }"
+          @dof-falloff="dof.falloff = $event as typeof dof.falloff"
+          @dof-field="(key, value) => { (dof as unknown as Record<string, number>)[key] = value; }"
           @toggle-edges="edgesOpen = !edgesOpen"
           @toggle-edge="(edge) => { edgeOpen[edge] = !edgeOpen[edge]; }"
-          @edge-enabled="(edge, value) => { opts[edge].enabled = value; }"
-          @edge-slider="(edge, key, value) => { (opts[edge] as EdgeOptions)[key] = value; }"
+          @edge-enabled="(edge, value) => { (opts as unknown as Record<string, EdgeOptions>)[edge].enabled = value; }"
+          @edge-slider="(edge, key, value) => { ((opts as unknown as Record<string, EdgeOptions>)[edge] as unknown as Record<string, number>)[key] = value; }"
           @reset="resetDefaults"
           @save-scriptorium="saveToScriptorium"
           @download="downloadPng"
@@ -285,10 +285,6 @@ function loadFile(file: File) {
   img.src = url;
 }
 
-function onFileChange(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (file) loadFile(file);
-}
 
 function onDrop(e: DragEvent) {
   const file = e.dataTransfer?.files[0];

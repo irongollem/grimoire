@@ -248,7 +248,7 @@ const sortedParty = computed((): PartyEntry[] => {
   return result;
 });
 
-const { getRating, setRating, ratingTick } = usePlayerNpcRatings(() => npcs.value ?? []);
+const { getRating, ratingTick } = usePlayerNpcRatings(() => npcs.value ?? []);
 
 const sortedNpcs = computed(() => {
   void ratingTick.value;

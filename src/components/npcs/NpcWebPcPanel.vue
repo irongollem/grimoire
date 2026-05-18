@@ -45,7 +45,7 @@ interface PcPanelData {
   class?: string | null;
   level: number;
   portrait_url?: string | null;
-  portrait_focal_point?: unknown;
+  portrait_focal_point?: { x: number; y: number } | null;
 }
 
 const {

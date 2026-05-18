@@ -97,7 +97,7 @@
             :value="editForm.category"
             class="bg-muted border border-border rounded-md px-2 py-1.5 font-cinzel text-xs font-semibold focus:outline-none"
             :style="{ color: JOURNAL_CATEGORIES[editForm.category as JournalCategory]?.color }"
-            @change="$emit('editFormChange', { category: ($event.target as HTMLSelectElement).value })"
+            @change="$emit('editFormChange', { category: ($event.target as HTMLSelectElement).value as JournalCategory })"
           >
             <option v-for="[key, cat] in JOURNAL_CATEGORY_LIST" :key="key" :value="key">{{ cat.label }}</option>
           </select>

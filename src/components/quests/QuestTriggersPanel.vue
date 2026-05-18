@@ -106,7 +106,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconAdd, IconClose, IconLightning } from "@/lib/icons";
-import { useCreateQuestTrigger, useDeleteQuestTrigger } from "@/composables/useQuests";
+import { useCreateQuestTrigger } from "@/composables/useQuests";
 import type { QuestObjective } from "@/types/quest.types";
 
 const CALENDAR_EVENT_TYPES = [
@@ -139,7 +139,6 @@ const emit = defineEmits<{
 }>();
 
 const { mutateAsync: createTrigger } = useCreateQuestTrigger();
-const { mutateAsync: deleteTrigger } = useDeleteQuestTrigger();
 
 const newTrigger = ref<{
   trigger_type: "quest_complete" | "objective_done";

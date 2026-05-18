@@ -45,10 +45,10 @@
       :has-capacity-override="member?.carry_capacity_override != null"
       :capacity-override="member?.carry_capacity_override ?? null"
       @open-capacity="openCapacityEdit"
-      @save-capacity="(draft) => { capacityDraftRef.value = draft; void saveCapacity(); }"
+      @save-capacity="onSaveCapacity"
       @reset-capacity="resetCapacity"
       @cancel-capacity="editingCapacity = false"
-      @update-capacity-draft="(v) => { capacityDraftRef.value = v }"
+      @update-capacity-draft="onUpdateCapacityDraft"
     />
 
     <!-- ═══ INVENTORY GRID (containers + stored + stash) ═══ -->
@@ -360,6 +360,15 @@ function resetCapacity() {
   editingCapacity.value = false;
 }
 
+function onSaveCapacity(draft: string) {
+  capacityDraftRef.value = draft;
+  void saveCapacity();
+}
+
+function onUpdateCapacityDraft(v: string) {
+  capacityDraftRef.value = v;
+}
+
 // ── Currency ───────────────────────────────────────────────────────────────────
 const memberCoins = computed((): Record<CoinKey, number> => ({
   pp: member.value?.pp ?? 0,
@@ -460,7 +469,7 @@ const {
   member,
   myItems,
   allItems,
-  partyMembers,
+  partyMembers: computed(() => partyMembers.value),
   selectedInv,
 });
 </script>

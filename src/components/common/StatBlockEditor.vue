@@ -62,7 +62,7 @@
           >
             <span class="field-label">{{ stat.label }}</span>
             <input
-              v-model.number="(sb as Record<string, unknown>)[stat.key]"
+              v-model.number="(sb as unknown as Record<string, unknown>)[stat.key]"
               type="number"
               min="1"
               max="30"
@@ -71,11 +71,11 @@
             />
             <span
               class="font-cinzel text-xs font-bold"
-              :class="(((sb as Record<string, number>)[stat.key] - 10) / 2 | 0) >= 0
+              :class="(((sb as unknown as Record<string, number>)[stat.key] - 10) / 2 | 0) >= 0
                 ? 'text-elven-green'
                 : 'text-destructive'"
             >
-              {{ abilityModifier((sb as Record<string, number>)[stat.key] || 0) }}
+              {{ abilityModifier((sb as unknown as Record<string, number>)[stat.key] || 0) }}
             </span>
           </label>
         </div>
@@ -142,7 +142,7 @@
         <label class="flex items-center gap-3 mb-4">
           <span class="field-label whitespace-nowrap">Legendary Resistance (uses/day)</span>
           <input
-            v-model.number="sb.legendary_resistance"
+            v-model.number="(sb as unknown as Record<string, number>).legendary_resistance"
             type="number"
             min="0"
             max="5"

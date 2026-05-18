@@ -157,7 +157,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { AbilitiesFormSlice } from "./partyMemberForm.types";
-import type { SkillProficiencies, SaveKey } from "@/types/party.types";
+import type { SkillProficiencies } from "@/types/party.types";
 
 const SLOT_LEVEL_LABELS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"] as const;
 

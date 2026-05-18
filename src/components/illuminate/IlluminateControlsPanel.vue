@@ -148,7 +148,7 @@ import IlluminateEdgePanel from "@/components/illuminate/IlluminateEdgePanel.vue
 import type { ColourGradingOptions } from "@/lib/colourGrading";
 import type { EdgeTreatmentOptions, EdgeOptions } from "@/lib/edgeTreatment";
 import type { VignetteOptions } from "@/lib/vignette";
-import type { DofBlurOptions } from "@/lib/dofBlur";
+import type { DofBlurOptions, FalloffCurve } from "@/lib/dofBlur";
 import type { TextureOverlayOptions } from "@/lib/textureOverlay";
 import type { BrushState } from "@/lib/brushMask";
 
@@ -237,7 +237,7 @@ const emit = defineEmits<{
   'texture-field': [key: keyof Omit<TextureOverlayOptions, 'enabled' | 'blendMode'>, value: number];
   'toggle-dof': [];
   'update:dofEnabled': [value: boolean];
-  'dof-falloff': [value: number];
+  'dof-falloff': [value: FalloffCurve];
   'dof-field': [key: keyof DofBlurOptions, value: number];
   'toggle-edges': [];
   'toggle-edge': [edge: string];

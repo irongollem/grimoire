@@ -52,7 +52,7 @@
       <select
         :value="typeFilter"
         class="px-2.5 py-1.5 rounded-md border border-border bg-card font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @change="$emit('update:typeFilter', ($event.target as HTMLSelectElement).value)"
+        @change="$emit('update:typeFilter', ($event.target as HTMLSelectElement).value as NpcRelationshipType | '')"
       >
         <option value="">All Relationships</option>
         <option v-for="[k, label] in typeOptions" :key="k" :value="k">{{ label }}</option>

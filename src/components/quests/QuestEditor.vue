@@ -288,10 +288,6 @@ const sharedNotes = computed(() =>
   (allEntityNotes.value ?? []).filter((n) => !n.is_private),
 );
 
-const doneCount = computed(
-  () => (objectives.value ?? []).filter((o) => o.is_done).length,
-);
-
 // ── Refs derived lists ─────────────────────────────────────────────────────────
 const linkedEncounters = computed(() =>
   (questRefs.value ?? []).filter((r) => r.ref_type === "encounter"),

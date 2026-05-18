@@ -10,7 +10,7 @@
       <button
         type="button"
         class="flex-1 flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left min-w-0"
-        @click="$emit(hasChildren ? 'toggle-children' : 'toggle-detail', loc.id)"
+        @click="onMainClick"
       >
         <span
           class="h-2 w-2 rounded-full shrink-0"
@@ -74,7 +74,7 @@ const { loc, isNew = false, isFavourite = false, hasChildren = false, childrenOp
   depth?: number;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   'toggle-children': [id: string];
   'toggle-favourite': [id: string];
   'toggle-detail': [id: string];
@@ -82,4 +82,9 @@ defineEmits<{
 
 const locColor = computed(() => LOCATION_TYPE_COLORS[loc.location_type]);
 const locLabel = computed(() => LOCATION_TYPE_LABELS[loc.location_type]);
+
+function onMainClick() {
+  if (hasChildren) emit('toggle-children', loc.id);
+  else emit('toggle-detail', loc.id);
+}
 </script>

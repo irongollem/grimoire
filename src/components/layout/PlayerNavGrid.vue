@@ -11,7 +11,7 @@
         :class="isActive(item.to)
           ? 'bg-primary/15 text-primary'
           : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'"
-        @click="emit('close')"
+        @click="$emit('close')"
       >
         <component :is="item.icon" class="h-5 w-5 shrink-0" />
         <span class="font-cinzel text-2xs md:text-xs tracking-wider text-center leading-tight">{{ item.label }}</span>
