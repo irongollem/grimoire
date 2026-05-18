@@ -44,10 +44,13 @@ async function updateSound(id: string, update: SoundUpdate): Promise<Sound> {
   return data as Sound;
 }
 
-async function deleteSound(sound: Sound): Promise<void> {
+async function deleteSound(sound: Sound, currentUserId: string): Promise<void> {
   const { error } = await supabase.from("sounds").delete().eq("id", sound.id);
   if (error) throw error;
-  if (sound.storage_path) {
+  // Only the file's owner removes the underlying object. If a shared-campaign
+  // viewer ever gains a way to "remove" a sound from their view, that should
+  // drop their reference, not the upload that everyone else still points at.
+  if (sound.storage_path && sound.user_id === currentUserId) {
     await deleteFromBucket("sounds", [sound.storage_path]);
   }
 }
@@ -98,9 +101,10 @@ export function useUpdateSound() {
 export function useDeleteSound() {
   const qc = useQueryClient();
   const { activeCampaignId } = storeToRefs(useCampaignStore());
+  const auth = useAuthStore();
 
   return useMutation({
-    mutationFn: (sound: Sound) => deleteSound(sound),
+    mutationFn: (sound: Sound) => deleteSound(sound, auth.user!.id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY, activeCampaignId.value] });
     },
