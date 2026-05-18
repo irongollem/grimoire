@@ -68,8 +68,10 @@
                   </div>
                 </template>
                 <template v-else>
-                  <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">HP</span>
-                  <p class="font-fell text-xs italic" :class="hpColor(entry.data)">{{ immersiveHpLabel(entry.data) }}</p>
+                  <div class="flex items-center justify-between">
+                    <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">HP</span>
+                    <span class="font-fell text-xs italic" :class="hpColor(entry.data)">{{ immersiveHpLabel(entry.data) }}</span>
+                  </div>
                 </template>
               </div>
               <div class="flex items-center gap-2 flex-wrap">
