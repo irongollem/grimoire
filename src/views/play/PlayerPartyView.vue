@@ -276,12 +276,13 @@
                 class="font-fell text-sm text-muted-foreground">{{ selectedNpc.occupation }}</p>
             </div>
             <!-- DM's per-PC relation note -->
-            <div v-if="myNpcPcNote" class="rounded-lg border border-primary/20 bg-primary/5 overflow-hidden">
+            <div v-if="myNpcPcNote || (myNoteLoading && selectedNpcId)" class="rounded-lg border border-primary/20 bg-primary/5 overflow-hidden">
               <div class="px-3 py-2 border-b border-primary/20">
                 <p class="font-cinzel text-2xs md:text-sm font-semibold tracking-widest text-primary/70">YOUR CONNECTION</p>
               </div>
               <div class="px-3 py-2.5">
-                <RichTextViewer :content="myNpcPcNote" />
+                <RichTextViewer v-if="myNpcPcNote" :content="myNpcPcNote" />
+                <div v-else class="h-3 rounded bg-muted/40 animate-pulse w-2/3" />
               </div>
             </div>
             <PlayerNotesWidget v-if="selectedNpc" entity-type="npc" :entity-id="selectedNpc.id" placeholder="Your observations about this character…" />
@@ -556,7 +557,7 @@ const selectedNpcDisplay = computed(() => ({
   portrait: selectedNpc.value ? getNpcDisplayPortrait(selectedNpc.value) : null,
   focalPoint: selectedNpc.value ? getNpcDisplayFocalPoint(selectedNpc.value) : null,
 }));
-const { data: myNpcPcNote } = useMyNpcPcNote(selectedNpcId);
+const { data: myNpcPcNote, isLoading: myNoteLoading } = useMyNpcPcNote(selectedNpcId);
 
 function openNpc(npc: Npc) {
   markNpcRead({ entityType: "npc", entityId: npc.id });

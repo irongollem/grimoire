@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col gap-5">
+  <div class="flex flex-col gap-5 min-w-0 max-w-full">
     <!-- Read-only SRD banner -->
     <div
       v-if="isSrd"

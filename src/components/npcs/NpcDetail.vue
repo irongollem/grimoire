@@ -1,5 +1,5 @@
 <template>
-  <form id="npc-detail-form" @submit.prevent="save">
+  <form id="npc-detail-form" class="max-w-full min-w-0" @submit.prevent="save">
 
     <!-- Reveal fields (visible when NPC is shared with anyone) -->
     <div
@@ -107,7 +107,7 @@
       </div>
 
       <!-- ── Right: form sections ──────────────────────────────────── -->
-      <div class="space-y-7">
+      <div class="space-y-7 min-w-0">
 
         <!-- Identity -->
         <section>
