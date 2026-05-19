@@ -12,7 +12,9 @@
     "lint:fix": "oxlint --config oxlint.json --fix src/",
     "test": "vitest run",
     "test:watch": "vitest",
-    "stripe:setup": "node --env-file=.env.local scripts/stripe-setup.mjs"
+    "stripe:setup": "node --env-file=.env.local scripts/stripe-setup.mjs",
+    "import-chapter-npcs": "tsx --env-file=.env.local scripts/import-chapter-npcs.ts",
+    "import-faiths": "tsx --env-file=.env.local scripts/import-faiths.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
@@ -64,6 +66,7 @@
     "portless": "^0.10.2",
     "stripe": "^22.1.0",
     "tailwindcss": "^4.0.0",
+    "tsx": "^4.22.1",
     "typescript": "~5.7.2",
     "vite": "^8.0.8",
     "vite-ssg": "^28.3.0",
