@@ -17,6 +17,14 @@
       "parent_name": "Sothery",
       "description": "A Sugarspun town adjacent to the Sugar Carnival valley, home of the masters' conservatory where Sugarspun performers train. Sugarwell trades in pulled-sugar work, conservatory tuition, and traveler hospitality. The chapter's third-option exhibit: a Sugarspun life lived without the Carnival's nightly dissolution.",
       "tags": ["chapter-5","sugarwell","sothery","sugarspun","conservatory","third-option","town"]
+    },
+    {
+      "key": "quiverglass_townhouse",
+      "name": "Quiverglass Townhouse",
+      "type": "building",
+      "parent_name": "Marrow City",
+      "description": "Three-story Marrow townhouse in Marrow City's University District. Home of the Quiverglass household — a glassmaker lineage that turned scholarly two generations back, holders of the heritable noble-style \"Lady of the Winged Crown.\" Currently inhabited by Lady Quiverglass and her daughter Vellette. The household maintains a small library of correspondence with Dr. Vellum Pen and a personal moth-garden in the inner courtyard. Visitable in Ch7-adjacent Marrow City scenes per Quiverglass's open invitation if the party engaged her at the Carnival.",
+      "tags": ["chapter-5","marrow-city","university-district","quiverglass","townhouse","noble-household","library","moth-garden","ch7-hook","future-use"]
     }
   ],
   "npcs": {
@@ -70,6 +78,30 @@
       "display_name": "Floss",
       "location": "sugarwell", "status": "alive", "relationship": "ally", "relevance": 3,
       "tags": ["chapter-5","sugarspun","tuft","mid-stage","innkeeper","sugarwell","pulled-sugar-inn","hospitable","third-option","former-trapeze"]
+    },
+    "Master Cantor (Sugarwell Locus NPC)": {
+      "display_name": "Master Cantor",
+      "location": "sugarwell", "status": "alive", "relationship": "ally", "relevance": 3,
+      "tags": ["chapter-5","sugarspun","tuft","mid-stage","conservatory","music-wing-chair","sugarwell","carnival-music-archivist","founders-score","fifteen-years-trying"]
+    },
+    "Master Cadenza (Sugarwell Locus NPC, new male)": {
+      "display_name": "Master Cadenza",
+      "location": "sugarwell", "status": "alive", "relationship": "neutral", "relevance": 2,
+      "tags": ["chapter-5","sugarspun","tuft","early-mid-stage","apprentice","sugarwell","conservatory","composer","cantor-successor","music-wing","promising"]
+    },
+    "Toffee (Carnival child, new male)": {
+      "display_name": "Toffee",
+      "location": "carnival", "status": "alive", "relationship": "ally", "relevance": 2,
+      "tags": ["chapter-5","sugarspun","tuft","undissolved","carnival","child","carousel-rider","jeweled-costume","brittle-cotton-friend","age-twin"]
+    },
+    "Marzipan the Elder (Visiting traveler, new male)": {
+      "display_name": "Marzipan the Elder",
+      "location": "carnival", "status": "alive", "relationship": "neutral", "relevance": 3,
+      "tags": ["chapter-5","sugarspun","tuft","late-stage","traveler","marzipane-brother","chose-the-road","seasonal-visitor","contrast-figure","road-not-chair","row-3-d-companion"]
+    },
+    "Vellette Quiverglass": {
+      "location": "carnival", "status": "alive", "relationship": "ally", "relevance": 4,
+      "tags": ["chapter-5","marrow","untaught","young","marrow-noble","quiverglass-household","anticipation-crown","sweet-memory-scene","coming-of-age","mother-daughter","quiverglass-daughter","pre-pedagogy"]
     }
   }
 }
