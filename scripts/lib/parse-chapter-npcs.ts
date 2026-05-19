@@ -125,35 +125,12 @@ export function slug(s: string): string {
   return s.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
-/** Case-insensitive trimmed comparison key for idempotency checks. */
-export function normalizeName(s: string): string {
-  return s.trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-/**
- * Find existing NPC names that look like potential duplicates of `candidate`.
- *
- * Catches the "Madame Petrichor" vs "Madame Petrichor & Cinder" class of bug —
- * different exact names that obviously refer to the same character. Returns
- * any existing name where one is a substring of the other (case-insensitive),
- * minus exact matches (those are handled separately as the idempotent-skip
- * path).
- */
-export function findPotentialDuplicates(
-  candidate: string,
-  existingNormalizedNames: Iterable<string>,
-): string[] {
-  const candNorm = normalizeName(candidate);
-  if (!candNorm) return [];
-  const hits: string[] = [];
-  for (const existing of existingNormalizedNames) {
-    if (existing === candNorm) continue; // exact match — caller handles
-    if (existing.includes(candNorm) || candNorm.includes(existing)) {
-      hits.push(existing);
-    }
-  }
-  return hits;
-}
+// Re-export the shared name-matching primitives so existing import sites
+// (`import { normalizeName, findPotentialDuplicates } from "./parse-chapter-npcs"`)
+// keep working. The actual implementation — substring + Levenshtein fuzzy
+// matching — lives in `./name-matching.ts` and is shared with the faiths
+// importer's parser.
+export { normalizeName, findPotentialDuplicates } from "./name-matching";
 
 /** Remove a trailing `---` horizontal-rule fragment. */
 function stripTrailingHr(text: string): string {

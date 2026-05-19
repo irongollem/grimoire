@@ -98,24 +98,10 @@ export function slug(s: string): string {
   return s.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
-export function normalizeName(s: string): string {
-  return s.trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-/** Substring-name duplicate detection (matches NPC importer behaviour). */
-export function findPotentialDuplicates(
-  candidate: string,
-  existingNormalizedNames: Iterable<string>,
-): string[] {
-  const candNorm = normalizeName(candidate);
-  if (!candNorm) return [];
-  const hits: string[] = [];
-  for (const existing of existingNormalizedNames) {
-    if (existing === candNorm) continue;
-    if (existing.includes(candNorm) || candNorm.includes(existing)) hits.push(existing);
-  }
-  return hits;
-}
+// Re-export the shared name-matching primitives so existing import sites
+// keep working. Implementation (substring + Levenshtein fuzzy matching)
+// lives in `./name-matching.ts` and is shared with the chapter-NPC importer.
+export { normalizeName, findPotentialDuplicates } from "./name-matching";
 
 /** Split markdown on top-level `## ` headings. Returns (heading, body) pairs. */
 export function splitFaithBlocks(text: string): Array<{ heading: string; body: string }> {
