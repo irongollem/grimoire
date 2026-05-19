@@ -1,5 +1,5 @@
 <template>
-  <form id="npc-detail-form" @submit.prevent="save">
+  <form id="npc-detail-form" class="max-w-full min-w-0" @submit.prevent="save">
 
     <RevealedFieldsPanel
       v-if="npc?.id"

@@ -26,7 +26,6 @@
             class="w-full h-full object-cover"
           />
         </div>
-
         <template v-for="entry in sortedParty" :key="entry.data.id">
           <PlayerPartyMemberCard
             v-if="entry.kind === 'member'"

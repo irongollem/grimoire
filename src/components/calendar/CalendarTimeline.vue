@@ -72,6 +72,7 @@
               :class="tick.isFirst ? 'w-px h-6' : 'w-px h-3'"
             />
             <span
+              v-if="tick.isFirst || pixelsPerYear / 12 >= 50"
               class="absolute font-cinzel font-semibold text-muted-foreground whitespace-nowrap"
               :class="tick.isFirst ? 'text-xs' : 'text-[10px]'"
               style="top: 16px; left: 50%; transform: translateX(-50%)"
@@ -478,9 +479,16 @@ const { data: fetchedEvents, isLoading } = useCalendarEventsRange(
 );
 const events = computed(() => eventsOverride ?? fetchedEvents.value ?? null);
 
-// Year ticks for multi-year zoom
+// Year ticks for multi-year zoom — step is chosen so labels never overlap
+// (~40px per label is the minimum readable spacing for a 4-digit year).
 const yearTicks = computed(() => {
-  const step = zoomYears.value >= 50 ? 5 : zoomYears.value >= 20 ? 2 : 1;
+  const minPx = 40;
+  const ppy = pixelsPerYear.value;
+  let step = 1;
+  for (const s of [1, 2, 5, 10, 25, 50, 100]) {
+    if (ppy * s >= minPx) { step = s; break; }
+    step = s;
+  }
   const first = Math.ceil(queryStart.value / step) * step;
   const ticks: number[] = [];
   for (let y = first; y <= queryEnd.value; y += step) {

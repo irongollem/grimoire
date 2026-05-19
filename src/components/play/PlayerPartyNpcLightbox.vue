@@ -46,13 +46,15 @@
         class="font-fell text-sm text-muted-foreground"
       >{{ npc.occupation }}</p>
     </div>
-    <!-- DM's per-PC relation note -->
-    <div v-if="pcNote" class="rounded-lg border border-primary/20 bg-primary/5 overflow-hidden">
+    <!-- DM's per-PC relation note — show skeleton while loading so players
+         don't close the dialog thinking there's no note -->
+    <div v-if="pcNote || (pcNoteLoading && npcId)" class="rounded-lg border border-primary/20 bg-primary/5 overflow-hidden">
       <div class="px-3 py-2 border-b border-primary/20">
         <p class="font-cinzel text-2xs md:text-sm font-semibold tracking-widest text-primary/70">YOUR CONNECTION</p>
       </div>
       <div class="px-3 py-2.5">
-        <RichTextViewer :content="pcNote" />
+        <RichTextViewer v-if="pcNote" :content="pcNote" />
+        <div v-else class="h-3 rounded bg-muted/40 animate-pulse w-2/3" />
       </div>
     </div>
     <PlayerNotesWidget v-if="npc" entity-type="npc" :entity-id="npc.id" placeholder="Your observations about this character…" />
@@ -76,7 +78,7 @@ defineEmits<{ close: [] }>();
 const { setRating, ratingMap } = usePlayerNpcRatings();
 
 const npcId = computed(() => npc?.id ?? "");
-const { data: pcNote } = useMyNpcPcNote(npcId);
+const { data: pcNote, isLoading: pcNoteLoading } = useMyNpcPcNote(npcId);
 
 const displayName = computed(() => (npc ? getNpcDisplayName(npc) : "???"));
 const displayPortrait = computed(() => (npc ? getNpcDisplayPortrait(npc) : null));
