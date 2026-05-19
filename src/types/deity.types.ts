@@ -6,6 +6,7 @@ export const CLERIC_DOMAINS = [
   "Knowledge",
   "Life",
   "Light",
+  "Mercy",
   "Nature",
   "Order",
   "Peace",
