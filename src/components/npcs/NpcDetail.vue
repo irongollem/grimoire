@@ -19,7 +19,7 @@
       </div>
     </RevealedFieldsPanel>
 
-    <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6 lg:items-start">
+    <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6 lg:items-start min-w-0 max-w-full">
       <!-- ── Left: portrait + meta ────────────────────────────────── -->
       <NpcSidebar
         :art-tab="artTab"
@@ -41,7 +41,7 @@
       />
 
       <!-- ── Right: form sections ──────────────────────────────────── -->
-      <div class="space-y-7">
+      <div class="space-y-7 min-w-0">
 
         <!-- Identity -->
         <NpcIdentitySection
