@@ -48,232 +48,50 @@
         />
       </template>
 
-      <!-- Save to Atlas modal -->
-      <Teleport to="body">
-        <Transition name="dialog-fade">
-          <div
-            v-if="showAtlasModal"
-            class="fixed inset-0 z-200 flex items-center justify-center p-4"
-            @mousedown.self="showAtlasModal = false"
-          >
-            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            <div
-              class="relative w-full max-w-sm rounded-xl border border-border bg-card shadow-2xl"
-              role="dialog"
-              aria-modal="true"
-            >
-              <div class="px-5 pt-5 pb-3">
-                <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide mb-1">Save to Atlas</h2>
-                <p class="font-fell text-sm text-muted-foreground mb-4">
-                  Bake this map and attach it to a location in your Atlas.
-                </p>
-                <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
-                  Location
-                </label>
-                <EntityCombobox
-                  v-model="atlasLocationId"
-                  :options="locationOptions"
-                  placeholder="Search locations…"
-                />
-                <p v-if="atlasTargetHasMap" class="mt-2 font-fell text-xs text-amber-500">This location already has a map — saving will replace it.</p>
-                <p v-if="atlasError" class="mt-2 font-fell text-xs text-destructive">{{ atlasError }}</p>
-              </div>
-              <div class="flex justify-end gap-2 px-5 pb-5 pt-2">
-                <button
-                  type="button"
-                  class="px-4 py-1.5 rounded-md border border-border font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors tracking-wider"
-                  @click="showAtlasModal = false"
-                >Cancel</button>
-                <button
-                  type="button"
-                  :disabled="!atlasLocationId || baking"
-                  class="px-4 py-1.5 rounded-md font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
-                  @click="onSaveToAtlas"
-                >{{ baking ? "Baking…" : "Save to Atlas" }}</button>
-              </div>
-            </div>
-          </div>
-        </Transition>
-      </Teleport>
+      <CartographerSaveAtlasModal
+        v-model="showAtlasModal"
+        v-model:locationId="atlasLocationId"
+        :location-options="locationOptions"
+        :baking="baking"
+        :error="atlasError"
+        :target-has-map="atlasTargetHasMap"
+        @save="onSaveToAtlas"
+      />
 
-      <!-- AI Style — Preset Picker modal -->
-      <Teleport to="body">
-        <Transition name="dialog-fade">
-          <div
-            v-if="showStylePicker"
-            class="fixed inset-0 z-9999 flex items-center justify-center p-4"
-            @mousedown.self="showStylePicker = false"
-          >
-            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            <div
-              class="relative w-full max-w-lg rounded-xl border border-border bg-card shadow-2xl"
-              role="dialog"
-              aria-modal="true"
-            >
-              <div class="px-5 pt-5 pb-3">
-                <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide mb-1">✦ AI Map Style</h2>
-                <p class="font-fell text-sm text-muted-foreground mb-4">
-                  Re-render this map in an artistic style. The result is a new image — your tile map is unchanged.
-                </p>
-                <!-- Preset grid -->
-                <div class="grid grid-cols-3 gap-2 mb-4">
-                  <button
-                    v-for="preset in CARTOGRAPHER_STYLE_PRESETS"
-                    :key="preset.id"
-                    type="button"
-                    :title="preset.description"
-                    :class="[
-                      'flex flex-col items-center gap-1 rounded-lg border p-3 text-center transition-colors',
-                      selectedPresetId === preset.id
-                        ? 'border-amber-500/60 bg-amber-500/10 text-amber-400'
-                        : 'border-border bg-background text-muted-foreground hover:border-amber-500/30 hover:text-foreground',
-                    ]"
-                    @click="selectedPresetId = preset.id"
-                  >
-                    <span class="text-lg leading-none">{{ preset.icon }}</span>
-                    <span class="font-cinzel text-[10px] font-semibold tracking-wider leading-tight">{{ preset.label }}</span>
-                    <span class="font-fell text-[9px] leading-tight opacity-70">{{ preset.description }}</span>
-                  </button>
-                </div>
-                <!-- Freeform suffix -->
-                <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
-                  Additional details <span class="normal-case">(optional)</span>
-                </label>
-                <textarea
-                  v-model="stylePromptSuffix"
-                  rows="2"
-                  maxlength="300"
-                  placeholder="e.g. 'flooded corridors, green bioluminescent fungus, caved-in east wing'"
-                  class="w-full bg-background border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-1 focus:ring-ring"
-                />
-                <p v-if="styleError" class="mt-2 font-fell text-xs text-destructive">{{ styleError }}</p>
-              </div>
-              <div class="flex justify-end gap-2 px-5 pb-5 pt-2">
-                <button
-                  type="button"
-                  class="px-4 py-1.5 rounded-md border border-border font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors tracking-wider"
-                  @click="showStylePicker = false"
-                >Cancel</button>
-                <button
-                  type="button"
-                  :disabled="styleGenerating"
-                  class="px-4 py-1.5 rounded-md font-cinzel text-xs font-semibold tracking-wider bg-amber-500 text-black hover:bg-amber-400 transition-colors disabled:opacity-50"
-                  @click="onGenerateStyle"
-                >{{ styleGenerating ? "Generating…" : "Generate" }}</button>
-              </div>
-            </div>
-          </div>
-        </Transition>
-      </Teleport>
-
-      <!-- AI Style — Result preview modal -->
-      <Teleport to="body">
-        <Transition name="dialog-fade">
-          <div
-            v-if="showStyleResult"
-            class="fixed inset-0 z-9999 flex items-center justify-center p-4"
-            @mousedown.self="showStyleResult = false"
-          >
-            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            <div
-              class="relative w-full max-w-xl rounded-xl border border-border bg-card shadow-2xl"
-              role="dialog"
-              aria-modal="true"
-            >
-              <div class="px-5 pt-5 pb-3">
-                <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide mb-3">✦ Styled Result</h2>
-                <!-- Preview image -->
-                <div class="mb-4 rounded-lg overflow-hidden border border-border bg-black aspect-square">
-                  <img
-                    v-if="styleResultUrl"
-                    :src="styleResultUrl"
-                    alt="AI-styled map"
-                    class="w-full h-full object-contain"
-                  />
-                </div>
-                <!-- Save to Atlas inline -->
-                <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
-                  Save to location
-                </label>
-                <EntityCombobox
-                  v-model="styleAtlasLocationId"
-                  :options="locationOptions"
-                  placeholder="Search locations…"
-                />
-                <p v-if="styleAtlasTargetHasMap" class="mt-2 font-fell text-xs text-amber-500">This location already has a map — saving will replace it.</p>
-                <p v-if="styleAtlasError" class="mt-2 font-fell text-xs text-destructive">{{ styleAtlasError }}</p>
-              </div>
-              <div class="flex flex-wrap justify-between gap-2 px-5 pb-5 pt-2">
-                <div class="flex gap-2">
-                  <button
-                    type="button"
-                    class="px-3 py-1.5 rounded-md border border-border font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors tracking-wider"
-                    @click="onRetryStyle"
-                  >Retry</button>
-                  <button
-                    type="button"
-                    class="px-3 py-1.5 rounded-md border border-border font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors tracking-wider"
-                    @click="showStyleResult = false; showStylePicker = true"
-                  >Back</button>
-                </div>
-                <div class="flex gap-2">
-                  <button
-                    type="button"
-                    class="px-3 py-1.5 rounded-md border border-border font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors tracking-wider"
-                    @click="onDownloadStyled"
-                  >↓ Download</button>
-                  <button
-                    type="button"
-                    :disabled="!styleAtlasLocationId || styleAtlasSaving"
-                    class="px-4 py-1.5 rounded-md font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
-                    @click="onSaveStyledToAtlas"
-                  >{{ styleAtlasSaving ? "Saving…" : "Save to Atlas" }}</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Transition>
-      </Teleport>
+      <CartographerAiStyleModal
+        v-model:atlasLocationId="styleAtlasLocationId"
+        :show-picker="showStylePicker"
+        :show-result="showStyleResult"
+        :presets="CARTOGRAPHER_STYLE_PRESETS"
+        :selected-preset-id="selectedPresetId"
+        :prompt-suffix="stylePromptSuffix"
+        :generating="styleGenerating"
+        :error="styleError"
+        :result-url="styleResultUrl"
+        :location-options="locationOptions"
+        :atlas-target-has-map="styleAtlasTargetHasMap"
+        :atlas-error="styleAtlasError"
+        :atlas-saving="styleAtlasSaving"
+        @close-picker="showStylePicker = false"
+        @close-result="showStyleResult = false"
+        @generate="onGenerateStyle"
+        @retry="onRetryStyle"
+        @back-to-picker="showStyleResult = false; showStylePicker = true"
+        @download-styled="onDownloadStyled"
+        @save-to-atlas="onSaveStyledToAtlas"
+        @update:selected-preset-id="selectedPresetId = $event"
+        @update:prompt-suffix="stylePromptSuffix = $event"
+      />
     </template>
 
     <div class="flex flex-col lg:flex-row gap-3 mt-2">
       <!-- Toolbox -->
-      <aside
+      <CartographerToolPalette
         v-if="!viewMode"
-        class="flex lg:flex-col flex-row gap-1 lg:w-44 shrink-0 bg-card border border-border rounded-lg p-2"
-      >
-        <h4 class="hidden lg:block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase px-1 pb-1">
-          Tools
-        </h4>
-        <button
-          v-for="t in TOOLS"
-          :key="t.id"
-          type="button"
-          class="flex items-center gap-2 rounded-md px-2 py-1.5 font-fell text-xs transition-colors text-left"
-          :class="
-            activeTool === t.id
-              ? 'bg-primary/15 text-foreground'
-              : t.disabled
-                ? 'text-muted-foreground/50 cursor-not-allowed'
-                : 'hover:bg-muted text-foreground'
-          "
-          :disabled="t.disabled"
-          :title="toolTitle(t)"
-          @click="activeTool = t.id"
-        >
-          <component :is="t.icon" class="h-4 w-4 shrink-0" />
-          <span class="hidden lg:inline flex-1">{{ t.label }}</span>
-          <kbd
-            v-if="toolBadge(t)"
-            class="hidden lg:inline font-cinzel text-[9px] tracking-wider text-muted-foreground bg-muted/60 border border-border rounded px-1 py-0.5"
-          >{{ toolBadge(t) }}</kbd>
-        </button>
-
-        <div class="hidden lg:block mt-3 border-t border-border pt-2 text-[10px] font-fell text-muted-foreground italic space-y-1">
-          <p>RMB or shift-drag pans. Shift+click with Wall wraps all 4 edges. Rect: shift-drag adds perimeter walls.</p>
-          <p>Ctrl+Z undo · Ctrl+Shift+Z redo.</p>
-        </div>
-      </aside>
+        :tools="TOOLS"
+        :active-tool="activeTool"
+        @update:active-tool="activeTool = $event as Tool"
+      />
 
       <!-- Canvas -->
       <div class="flex-1 min-w-0 relative bg-card border border-border rounded-lg overflow-hidden" style="min-height: 60vh">
@@ -349,191 +167,43 @@
       </div>
 
       <!-- Inspector -->
-      <aside v-if="!viewMode" class="lg:w-56 shrink-0 bg-card border border-border rounded-lg p-3 space-y-3">
-        <div>
-          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
-            Name
-          </label>
-          <input
-            v-model="name"
-            type="text"
-            class="w-full bg-background border border-border rounded-md px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-        </div>
-
-        <div>
-          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
-            Tile Pack
-          </label>
-          <div class="space-y-1">
-            <button
-              v-for="p in BUNDLED_PACKS"
-              :key="p.pack_id"
-              type="button"
-              class="w-full flex items-center gap-2 rounded-md px-2 py-1.5 font-fell text-xs text-left transition-colors"
-              :class="currentPackId === p.pack_id
-                ? 'bg-primary/15 text-foreground ring-1 ring-inset ring-primary/40'
-                : 'hover:bg-muted text-muted-foreground'"
-              @click="currentPackId = p.pack_id"
-            >
-              <span class="flex-1 truncate">{{ p.name }}</span>
-              <span
-                v-if="loadedRuntimes.has(p.pack_id)"
-                class="font-cinzel text-[9px] tracking-wider shrink-0"
-                :class="currentPackId === p.pack_id ? 'text-muted-foreground' : 'text-muted-foreground/50'"
-              >v{{ p.pack_version }}</span>
-              <svg v-else class="h-3 w-3 shrink-0 animate-spin text-muted-foreground/50" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="40 20" />
-              </svg>
-            </button>
-          </div>
-          <p
-            v-if="packRuntime && !packRuntime.validation.valid"
-            class="font-fell text-[10px] text-amber-500 mt-1.5"
-          >
-            {{ packRuntime.validation.missing.length }} slot(s) missing — using placeholders.
-          </p>
-        </div>
-
-        <p class="font-fell text-[10px] text-muted-foreground italic leading-relaxed">
-          Switching packs changes future strokes only — existing cells keep their stored pack.
-        </p>
-
-        <!-- Object stamp picker -->
-        <div v-if="activeTool === 'stamp'">
-          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
-            Object
-          </label>
-          <div class="grid grid-cols-3 gap-1 mb-2">
-            <button
-              v-for="cat in OBJECT_CATEGORIES"
-              :key="cat"
-              type="button"
-              class="flex flex-col items-center gap-0.5 rounded-md py-1.5 px-1 font-fell text-[10px] transition-colors capitalize"
-              :class="activeObjectCategory === cat
-                ? 'bg-primary/15 text-foreground ring-1 ring-inset ring-primary/40'
-                : 'hover:bg-muted text-muted-foreground'"
-              @click="activeObjectCategory = cat"
-            >{{ cat.replace('object', '') }}</button>
-          </div>
-          <div class="flex flex-wrap items-center gap-1">
-            <span class="font-cinzel text-[9px] tracking-wider text-muted-foreground uppercase w-full">Rotate</span>
-            <button
-              type="button"
-              title="–1° ([)"
-              class="rounded px-1.5 py-0.5 font-cinzel text-[9px] bg-muted hover:bg-muted/80 text-foreground"
-              @click="stampRotation = (stampRotation + 359) % 360"
-            >–1°</button>
-            <button
-              type="button"
-              title="Rotate CCW 90° (Q)"
-              class="rounded px-1.5 py-0.5 font-cinzel text-[9px] bg-muted hover:bg-muted/80 text-foreground"
-              @click="stampRotation = (stampRotation + 270) % 360"
-            >↺ Q</button>
-            <span class="font-fell text-xs text-foreground w-9 text-center">{{ stampRotation }}°</span>
-            <button
-              type="button"
-              title="Rotate CW 90° (E)"
-              class="rounded px-1.5 py-0.5 font-cinzel text-[9px] bg-muted hover:bg-muted/80 text-foreground"
-              @click="stampRotation = (stampRotation + 90) % 360"
-            >↻ E</button>
-            <button
-              type="button"
-              title="+1° (])"
-              class="rounded px-1.5 py-0.5 font-cinzel text-[9px] bg-muted hover:bg-muted/80 text-foreground"
-              @click="stampRotation = (stampRotation + 1) % 360"
-            >+1°</button>
-          </div>
-        </div>
-
-        <!-- Annotation editor -->
-        <div v-if="activeTool === 'annotate' && selectedCell">
-          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
-            Label ({{ selectedCell[0] }}, {{ selectedCell[1] }})
-          </label>
-          <input
-            ref="annotationInputEl"
-            v-model="annotationText"
-            type="text"
-            placeholder="Enter label…"
-            maxlength="32"
-            class="w-full bg-background border border-border rounded-md px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-          <p class="font-fell text-[10px] text-muted-foreground mt-1">Click a cell to select it.</p>
-        </div>
-        <div v-else-if="activeTool === 'annotate'">
-          <p class="font-fell text-[10px] text-muted-foreground italic">Click a cell to add a label.</p>
-        </div>
-
-        <!-- Entity link inspector -->
-        <div v-if="activeTool === 'link' && selectedCell">
-          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
-            Links ({{ selectedCell[0] }}, {{ selectedCell[1] }})
-          </label>
-          <div class="space-y-2">
-            <div>
-              <span class="block font-cinzel text-[9px] tracking-wider text-muted-foreground mb-0.5">Note</span>
-              <EntityCombobox v-model="linkedNoteId" :options="noteOptions" placeholder="Search notes…" />
-            </div>
-            <div>
-              <span class="block font-cinzel text-[9px] tracking-wider text-muted-foreground mb-0.5">Encounter</span>
-              <EntityCombobox v-model="linkedEncounterId" :options="encounterOptions" placeholder="Search encounters…" />
-            </div>
-          </div>
-        </div>
-        <div v-else-if="activeTool === 'link'">
-          <p class="font-fell text-[10px] text-muted-foreground italic">Click a cell to attach entities.</p>
-        </div>
-
-        <!-- M6 Room template shape picker -->
-        <div v-if="activeTool === 'template'">
-          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
-            Shape
-          </label>
-          <div class="grid grid-cols-3 gap-1 mb-2">
-            <button
-              v-for="shape in TEMPLATE_SHAPES"
-              :key="shape.id"
-              type="button"
-              class="flex flex-col items-center gap-0.5 rounded-md py-1.5 px-1 font-fell text-xs transition-colors"
-              :class="activeTemplateShape === shape.id
-                ? 'bg-primary/15 text-foreground ring-1 ring-inset ring-primary/40'
-                : 'hover:bg-muted text-muted-foreground'"
-              @click="activeTemplateShape = shape.id"
-            >
-              <span class="text-base leading-none">{{ shape.icon }}</span>
-              <span class="font-cinzel text-[9px] tracking-wide">{{ shape.label }}</span>
-            </button>
-          </div>
-          <p class="font-fell text-[10px] text-muted-foreground">Click center, drag to size. Walls auto-added.</p>
-        </div>
-
-        <!-- M6 Cave brush radius picker -->
-        <div v-if="activeTool === 'cave'">
-          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
-            Brush size
-          </label>
-          <div class="flex gap-1 mb-2">
-            <button
-              v-for="size in [3, 5, 7, 9]"
-              :key="size"
-              type="button"
-              class="flex-1 rounded-md py-1 font-cinzel text-[10px] font-semibold transition-colors"
-              :class="caveRadius === size
-                ? 'bg-primary/15 text-foreground ring-1 ring-inset ring-primary/40'
-                : 'hover:bg-muted text-muted-foreground'"
-              @click="caveRadius = size"
-            >{{ size }}</button>
-          </div>
-          <p class="font-fell text-[10px] text-muted-foreground">Each stroke uses a different noise seed — repaint to vary the organic shape.</p>
-        </div>
-      </aside>
+      <CartographerInspectorPanel
+        v-if="!viewMode"
+        ref="inspectorPanelRef"
+        :name="name"
+        :current-pack-id="currentPackId"
+        :bundled-packs="BUNDLED_PACKS"
+        :loaded-pack-ids="loadedPackIds"
+        :pack-validation-missing="packRuntime?.validation.missing.length ?? 0"
+        :active-tool="activeTool"
+        :active-object-category="activeObjectCategory"
+        :object-categories="OBJECT_CATEGORIES"
+        :stamp-rotation="stampRotation"
+        :selected-cell="selectedCell"
+        :annotation-text="annotationText"
+        :linked-note-id="linkedNoteId"
+        :linked-encounter-id="linkedEncounterId"
+        :note-options="noteOptions"
+        :encounter-options="encounterOptions"
+        :active-template-shape="activeTemplateShape"
+        :template-shapes="TEMPLATE_SHAPES"
+        :cave-radius="caveRadius"
+        @update:name="name = $event"
+        @update:current-pack-id="currentPackId = $event"
+        @update:active-object-category="activeObjectCategory = $event as ObjectCategory"
+        @update:stamp-rotation="stampRotation = $event"
+        @update:annotation-text="annotationText = $event"
+        @update:linked-note-id="linkedNoteId = $event"
+        @update:linked-encounter-id="linkedEncounterId = $event"
+        @update:active-template-shape="activeTemplateShape = $event as TemplateShape"
+        @update:cave-radius="caveRadius = $event"
+      />
     </div>
   </PageHeader>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch, type Component } from "vue";
 import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router";
 
 import {
@@ -562,7 +232,10 @@ import {
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import CartographerSaveAtlasModal from "@/components/cartographer/CartographerSaveAtlasModal.vue";
+import CartographerAiStyleModal from "@/components/cartographer/CartographerAiStyleModal.vue";
+import CartographerToolPalette from "@/components/cartographer/CartographerToolPalette.vue";
+import CartographerInspectorPanel from "@/components/cartographer/CartographerInspectorPanel.vue";
 
 import {
   useDungeonMap,
@@ -637,6 +310,7 @@ const currentPackId = ref(DEFAULT_PACK_ID);
 const packLoadError = ref<string | null>(null);
 const loadedRuntimes = ref(new Map<string, TilePackRuntime>());
 const packRuntime = computed(() => loadedRuntimes.value.get(currentPackId.value) ?? null);
+const loadedPackIds = computed(() => new Set(loadedRuntimes.value.keys()));
 const dirty = ref(false);
 const saving = ref(false);
 const deleting = ref(false);
@@ -699,7 +373,7 @@ type Tool = "floor" | "eraser" | "pan" | "wall" | "door" | "solid" | "rect" | "l
 interface ToolDef {
   id: Tool;
   label: string;
-  icon: unknown;
+  icon: Component;
   /** Single keyboard key that activates this tool (lowercase, plain key — no modifiers). */
   shortcut?: string;
   /** Override for the visible kbd badge — used for non-keyboard hints like "RMB" on Pan. */
@@ -812,13 +486,6 @@ const annotationText = computed({
   },
 });
 
-function toolBadge(t: ToolDef): string | undefined {
-  return t.displayBadge ?? t.shortcut?.toUpperCase();
-}
-function toolTitle(t: ToolDef): string {
-  const badge = toolBadge(t);
-  return badge ? `${t.label} (${badge})` : t.label;
-}
 
 const cellsPainted = computed(() => Object.keys(layers.value.floor).length);
 const floorVariantCount = computed(() =>

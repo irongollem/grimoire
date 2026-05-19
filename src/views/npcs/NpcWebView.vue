@@ -1,75 +1,15 @@
 <template>
   <div class="flex flex-col h-[calc(100vh-3.5rem)] overflow-hidden">
     <!-- Top bar -->
-    <div class="shrink-0 px-4 py-3 border-b border-border bg-background flex items-center gap-3 flex-wrap">
-      <RouterLink
-        to="/npcs"
-        class="inline-flex items-center gap-1 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <IconChevronLeft class="h-3.5 w-3.5" />
-        NPCs
-      </RouterLink>
-      <span class="text-border">|</span>
-      <h1 class="font-cinzel text-sm font-bold tracking-wider text-foreground">Relationship Web</h1>
-
-      <div class="ml-auto flex items-center gap-2 flex-wrap">
-        <!-- IconSearch -->
-        <div class="relative">
-          <IconSearch class="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Filter nodes…"
-            class="pl-7 pr-3 py-1.5 rounded-md border border-border bg-card font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring w-36"
-          />
-        </div>
-
-        <!-- Show PCs toggle -->
-        <button
-          type="button"
-          class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border font-cinzel text-xs font-semibold tracking-wider transition-colors"
-          :class="showPcs
-            ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
-            : 'border-border text-muted-foreground hover:text-foreground'"
-          @click="showPcs = !showPcs"
-        >
-          <IconShield class="h-3 w-3" />
-          Party Members
-        </button>
-
-        <!-- Location filter -->
-        <select
-          v-model="locationFilter"
-          class="px-2.5 py-1.5 rounded-md border border-border bg-card font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
-          <option value="">All Locations</option>
-          <option v-for="loc in locationOptions" :key="loc.id" :value="loc.id">
-            {{ '\u00a0\u00a0'.repeat(loc.depth) }}{{ loc.name }}
-          </option>
-        </select>
-
-        <!-- Relationship type filter -->
-        <select
-          v-model="typeFilter"
-          class="px-2.5 py-1.5 rounded-md border border-border bg-card font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
-          <option value="">All Relationships</option>
-          <option v-for="[k, label] in typeOptions" :key="k" :value="k">{{ label }}</option>
-        </select>
-
-        <!-- Legend -->
-        <div class="flex items-center gap-3 pl-2 border-l border-border">
-          <span v-for="[type, color] in legendItems" :key="type" class="flex items-center gap-1.5 font-cinzel text-[10px] tracking-wider text-muted-foreground">
-            <span class="inline-block h-2.5 w-2.5 rounded-full" :style="{ backgroundColor: color }" />
-            {{ type }}
-          </span>
-          <span class="flex items-center gap-1.5 font-cinzel text-[10px] tracking-wider text-muted-foreground">
-            <span class="inline-block w-5 border-t-2 border-dashed border-muted-foreground/70" />
-            PC link
-          </span>
-        </div>
-      </div>
-    </div>
+    <NpcWebTopBar
+      v-model:search-query="searchQuery"
+      v-model:show-pcs="showPcs"
+      v-model:location-filter="locationFilter"
+      v-model:type-filter="typeFilter"
+      :location-options="locationOptions"
+      :type-options="typeOptions"
+      :legend-items="legendItems"
+    />
 
     <!-- Graph area (fills remaining space; panel overlays it so the graph never resizes) -->
     <div class="flex-1 relative bg-muted/10 overflow-hidden">
@@ -106,195 +46,46 @@
           v-if="panelVisible"
           class="absolute right-0 top-0 h-full w-64 border-l border-border bg-card flex flex-col overflow-y-auto shadow-xl"
         >
-
           <!-- ── Link form ────────────────────────────────── -->
-          <template v-if="linkFormVisible">
-            <div class="p-4 space-y-4">
-              <div class="flex items-center justify-between gap-2">
-                <h2 class="font-cinzel text-xs font-bold tracking-wider text-primary uppercase">New Connection</h2>
-                <button type="button" @click="cancelLink" class="text-muted-foreground hover:text-foreground transition-colors">
-                  <IconClose class="h-4 w-4" />
-                </button>
-              </div>
-
-              <!-- The two nodes -->
-              <div class="flex items-center gap-2">
-                <span class="flex-1 min-w-0 px-2 py-1.5 rounded-md bg-muted font-cinzel text-xs font-semibold text-foreground truncate text-center">{{ linkLabelA }}</span>
-                <IconLinkAlt class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                <span class="flex-1 min-w-0 px-2 py-1.5 rounded-md bg-muted font-cinzel text-xs font-semibold text-foreground truncate text-center">{{ linkLabelB }}</span>
-              </div>
-
-              <!-- Relationship type -->
-              <div>
-                <label class="field-label">Relationship</label>
-                <select v-model="linkType" class="field-input">
-                  <option v-for="[k, label] in typeOptions" :key="k" :value="k">{{ label }}</option>
-                </select>
-              </div>
-
-              <!-- Notes -->
-              <div>
-                <label class="field-label">
-                  {{ isNpcPcLink ? 'Notes' : 'Notes' }}
-                  <span class="font-fell font-normal normal-case text-muted-foreground">(optional)</span>
-                </label>
-                <input v-model="linkNotes" placeholder="Brief context…" class="field-input" />
-              </div>
-
-              <!-- Actions -->
-              <div class="flex gap-2 pt-1 flex-wrap">
-                <button
-                  type="button"
-                  class="flex-1 px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground border border-border rounded-md hover:text-foreground transition-colors"
-                  @click="cancelLink"
-                >Cancel</button>
-                <button
-                  type="button"
-                  :disabled="isSavingLink"
-                  class="flex-1 px-3 py-1.5 font-cinzel text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-                  @click="saveLink"
-                >{{ isSavingLink ? 'Saving…' : 'Save' }}</button>
-                <button
-                  v-if="editingLinkRelId"
-                  type="button"
-                  :disabled="isSavingLink"
-                  class="w-full px-3 py-1.5 font-cinzel text-xs font-semibold text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 disabled:opacity-50 transition-colors"
-                  @click="deleteLinkRel"
-                >Delete connection</button>
-              </div>
-            </div>
-          </template>
+          <NpcWebLinkForm
+            v-if="linkFormVisible"
+            v-model:link-type="linkType"
+            v-model:link-notes="linkNotes"
+            :label-a="linkLabelA"
+            :label-b="linkLabelB"
+            :is-saving="isSavingLink"
+            :can-delete="!!editingLinkRelId || !!editingLinkPcNoteId"
+            :type-options="typeOptions"
+            @cancel="cancelLink"
+            @save="saveLink"
+            @delete="deleteLinkRel"
+          />
 
           <!-- ── NPC panel ───────────────────────────────── -->
-          <template v-else-if="panelNpc">
-            <!-- Portrait -->
-            <div v-if="panelNpc.portrait_url" class="w-full h-36 shrink-0 bg-muted overflow-hidden">
-              <FocalImage
-                :src="panelNpc.portrait_url"
-                :focal-point="panelNpc.portrait_focal_point ?? undefined"
-                :alt="panelNpc.name"
-                format="square"
-                class="w-full h-full"
-              />
-            </div>
-
-            <div class="p-4 space-y-3">
-              <div class="flex items-start justify-between gap-2">
-                <h2 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ panelNpc.name }}</h2>
-                <button type="button" @click="clearSelection" class="text-muted-foreground hover:text-foreground transition-colors shrink-0">
-                  <IconClose class="h-4 w-4" />
-                </button>
-              </div>
-              <div v-if="panelNpc.occupation" class="font-fell text-xs text-muted-foreground">{{ panelNpc.occupation }}</div>
-              <div v-if="panelNpc.race" class="font-fell text-xs text-foreground">{{ panelNpc.race }}</div>
-              <div class="flex gap-1.5 flex-wrap">
-                <span
-                  class="px-1.5 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider"
-                  :style="{ backgroundColor: relColor(panelNpc.relationship) + '22', color: relColor(panelNpc.relationship) }"
-                >{{ panelNpc.relationship }}</span>
-                <span class="px-1.5 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider bg-muted text-muted-foreground">{{ panelNpc.status }}</span>
-              </div>
-
-              <!-- Shift-click hint -->
-              <div class="flex items-start gap-1.5 px-2.5 py-2 rounded-md bg-muted/60 text-muted-foreground">
-                <IconInfo class="h-3 w-3 shrink-0 mt-0.5" />
-                <p class="font-fell text-[11px] leading-snug">Shift+click another node to define a relationship directly from this panel.</p>
-              </div>
-
-              <RouterLink
-                :to="`/npcs/${panelNpc.id}`"
-                class="block text-center px-3 py-1.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs font-semibold hover:opacity-90 transition-opacity"
-              >
-                Open Sheet
-              </RouterLink>
-            </div>
-
-            <!-- Connected to this NPC -->
-            <div v-if="panelNpcConnections.length" class="px-4 pb-4">
-              <div class="font-cinzel text-[10px] font-bold tracking-wider text-muted-foreground mb-2">CONNECTIONS</div>
-              <div class="space-y-1.5">
-                <template v-for="conn in panelNpcConnections" :key="conn.id">
-                  <!-- Inline edit form -->
-                  <div v-if="editingRelId === conn.id" class="rounded-lg border border-border bg-muted/30 p-2.5 space-y-2">
-                    <select v-model="editRelType" class="field-input text-xs">
-                      <option v-for="[k, label] in typeOptions" :key="k" :value="k">{{ label }}</option>
-                    </select>
-                    <input v-model="editRelNotes" placeholder="Notes…" class="field-input text-xs" />
-                    <div class="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        class="flex-1 px-2 py-1 font-cinzel text-[10px] font-semibold bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity"
-                        @click="saveEditRel(conn)"
-                      >Save</button>
-                      <button
-                        type="button"
-                        class="px-2 py-1 font-cinzel text-[10px] font-semibold border border-border rounded text-muted-foreground hover:text-foreground transition-colors"
-                        @click="cancelEditRel"
-                      >Cancel</button>
-                      <button
-                        type="button"
-                        class="px-2 py-1 font-cinzel text-[10px] font-semibold text-destructive hover:opacity-80 transition-opacity"
-                        @click="confirmDeleteRel(conn.id)"
-                      >Delete</button>
-                    </div>
-                  </div>
-
-                  <!-- Normal row — click to edit -->
-                  <button
-                    v-else
-                    type="button"
-                    class="w-full flex items-center gap-2 text-xs rounded-lg px-1.5 py-1 hover:bg-muted/50 transition-colors group"
-                    @click="startEditRel(conn)"
-                  >
-                    <span
-                      class="shrink-0 px-1.5 py-0.5 rounded font-cinzel text-[9px] font-bold"
-                      :style="{ backgroundColor: conn.color + '22', color: conn.color }"
-                    >{{ conn.typeLabel }}</span>
-                    <span class="font-fell text-foreground truncate flex-1 text-left">{{ conn.name }}</span>
-                    <IconEdit class="h-3 w-3 shrink-0 text-muted-foreground [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </button>
-                </template>
-              </div>
-            </div>
-          </template>
+          <NpcWebNpcPanel
+            v-else-if="panelNpc"
+            :npc="panelNpc"
+            :connections="panelNpcConnections"
+            :editing-rel-id="editingRelId"
+            :edit-rel-type="editRelType"
+            :edit-rel-notes="editRelNotes"
+            :type-options="typeOptions"
+            @close="clearSelection"
+            @start-edit-rel="startEditRel"
+            @save-edit-rel="saveEditRel"
+            @cancel-edit-rel="cancelEditRel"
+            @delete-rel="confirmDeleteRel"
+            @update:edit-rel-type="editRelType = $event as NpcRelationshipType"
+            @update:edit-rel-notes="editRelNotes = $event"
+          />
 
           <!-- ── PC panel ────────────────────────────────── -->
-          <template v-else-if="panelPc">
-            <!-- Portrait -->
-            <div v-if="panelPc.portrait_url" class="w-full h-36 shrink-0 bg-muted overflow-hidden">
-              <FocalImage
-                :src="panelPc.portrait_url"
-                :focal-point="panelPc.portrait_focal_point ?? undefined"
-                :alt="panelPc.name"
-                format="square"
-                class="w-full h-full"
-              />
-            </div>
-
-            <div class="p-4 space-y-3">
-              <div class="flex items-start justify-between gap-2">
-                <h2 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ panelPc.name }}</h2>
-                <button type="button" @click="clearSelection" class="text-muted-foreground hover:text-foreground transition-colors shrink-0">
-                  <IconClose class="h-4 w-4" />
-                </button>
-              </div>
-              <div class="flex items-center gap-1.5 font-cinzel text-[10px] font-bold tracking-wider text-amber-400">
-                <IconShield class="h-3 w-3" />
-                Party Member
-              </div>
-              <div v-if="panelPc.class || panelPc.species_id" class="font-fell text-xs text-muted-foreground">
-                {{ [panelPc.class, speciesNameMap.get(panelPc.species_id ?? '')].filter(Boolean).join(' · ') }}
-              </div>
-              <div class="font-cinzel text-xs text-foreground">Level {{ panelPc.level }}</div>
-              <RouterLink
-                :to="`/party/${panelPc.id}`"
-                class="block mt-2 text-center px-3 py-1.5 rounded-md bg-amber-600 text-white font-cinzel text-xs font-semibold hover:opacity-90 transition-opacity"
-              >
-                Open Sheet
-              </RouterLink>
-            </div>
-          </template>
-
+          <NpcWebPcPanel
+            v-else-if="panelPc"
+            :pc="panelPc"
+            :species-name="speciesNameMap.get(panelPc.species_id ?? '') ?? null"
+            @close="clearSelection"
+          />
         </div>
       </transition>
     </div>
@@ -303,12 +94,14 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from "vue";
-import { RouterLink } from "vue-router";
-import { IconChevronLeft, IconClose, IconEdit, IconInfo, IconLinkAlt, IconNetwork, IconSearch, IconShield } from '@/lib/icons';
+import { IconNetwork } from '@/lib/icons';
 import { VNetworkGraph, defineConfigs, type EventHandlers } from "v-network-graph";
 import { ForceLayout } from "v-network-graph/lib/force-layout";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
+import NpcWebTopBar from "@/components/npcs/NpcWebTopBar.vue";
+import NpcWebLinkForm from "@/components/npcs/NpcWebLinkForm.vue";
+import NpcWebNpcPanel from "@/components/npcs/NpcWebNpcPanel.vue";
+import NpcWebPcPanel from "@/components/npcs/NpcWebPcPanel.vue";
 import { useNpcs } from "@/composables/useNpcs";
 import { useParty } from "@/composables/useParty";
 import { useSpeciesNameMap } from "@/composables/useSpecies";
@@ -807,13 +600,5 @@ const legendItems: [string, string][] = [
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
-}
-
-@reference "@/assets/main.css";
-.field-input {
-  @apply w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
-}
-.field-label {
-  @apply block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1;
 }
 </style>

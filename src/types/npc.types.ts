@@ -1,5 +1,29 @@
 export type NpcStatus = "alive" | "dead" | "missing" | "unknown";
-export type NpcRelationship = "ally" | "neutral" | "enemy" | "unknown";
+export type NpcRelationship =
+  | "hostile"
+  | "unfriendly"
+  | "indifferent"
+  | "friendly"
+  | "helpful"
+  | "unknown";
+
+export const NPC_RELATIONSHIP_LABELS: Record<NpcRelationship, string> = {
+  hostile:      "Hostile",
+  unfriendly:   "Unfriendly",
+  indifferent:  "Indifferent",
+  friendly:     "Friendly",
+  helpful:      "Helpful",
+  unknown:      "Unknown",
+};
+
+export const NPC_RELATIONSHIP_COLORS: Record<NpcRelationship, string> = {
+  hostile:      "#dc2626", // red
+  unfriendly:   "#ea580c", // orange
+  indifferent:  "#6b7280", // gray
+  friendly:     "#0891b2", // teal
+  helpful:      "#16a34a", // green
+  unknown:      "#9333ea", // purple (matches old "?" treatment)
+};
 
 export type NpcRelationshipType =
   | "family"

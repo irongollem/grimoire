@@ -2,35 +2,10 @@
   <div class="space-y-4">
 
     <!-- ── Beast traits (only when wildshaped) ──────────────────────────────── -->
-    <div
+    <PlayerWildshapeTraits
       v-if="wildshapeMonster?.stat_block?.special_abilities?.length"
-      class="rounded-lg border border-primary/30 bg-card overflow-hidden"
-    >
-      <div class="px-4 py-2.5 border-b border-border">
-        <p class="font-cinzel text-xs font-semibold text-primary/80 tracking-wider">
-          Beast Traits
-          <span class="normal-case font-fell font-normal tracking-normal ml-1 text-muted-foreground/70">({{ wildshapeMonster.name }})</span>
-        </p>
-      </div>
-      <div class="divide-y divide-border">
-        <div
-          v-for="trait in wildshapeMonster.stat_block.special_abilities"
-          :key="trait.name"
-          class="px-4 py-2.5"
-        >
-          <button
-            class="w-full text-left flex items-center gap-2 cursor-pointer"
-            @click="toggleExpanded(`beast-${trait.name}`)"
-          >
-            <span class="font-fell text-sm text-foreground flex-1">{{ trait.name }}</span>
-            <IconChevronDown class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0" :class="expanded.has(`beast-${trait.name}`) ? 'rotate-180' : ''" />
-          </button>
-          <div v-if="expanded.has(`beast-${trait.name}`)" class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 font-fell text-sm text-muted-foreground leading-relaxed">
-            {{ trait.description }}
-          </div>
-        </div>
-      </div>
-    </div>
+      :monster="wildshapeMonster"
+    />
 
     <!-- ── Rest buttons (hidden when header already provides them) ────────── -->
     <div v-if="showRestButtons" class="flex gap-2">
@@ -45,269 +20,27 @@
     </div>
 
     <!-- ── Resource pools ─────────────────────────────────────────────────── -->
-    <div v-if="displayedResources.length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="px-4 py-2.5 border-b border-border">
-        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Resources</p>
-      </div>
-      <div class="divide-y divide-border">
-        <div
-          v-for="res in displayedResources"
-          :key="res.key"
-          class="flex items-center gap-2 px-4 py-2.5 flex-wrap"
-        >
-          <span class="font-fell text-sm text-foreground flex-1">{{ res.label }}</span>
-          <span
-            class="font-cinzel text-2xs md:text-sm tracking-wider rounded px-1.5 py-0.5 shrink-0"
-            :class="res.rest === 'short'
-              ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
-              : 'bg-blue-500/10 text-blue-600 border border-blue-500/20'"
-          >{{ res.rest === "short" ? "Short" : "Long" }}</span>
-
-          <!-- Variable-spend: Lay on Hands -->
-          <template v-if="res.key === 'lay_on_hands'">
-            <span class="font-cinzel text-sm text-foreground shrink-0">{{ res.current }} / {{ res.max }}</span>
-            <template v-if="pendingSpendKey === res.key">
-              <input
-                v-model.number="pendingSpendAmount"
-                type="number"
-                min="1"
-                :max="res.current"
-                class="w-14 rounded border border-border bg-muted/40 px-2 py-0.5 font-cinzel text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-              <span class="font-fell text-xs text-muted-foreground shrink-0">HP</span>
-              <button
-                class="h-6 px-2 rounded border border-border font-cinzel text-xs text-primary hover:border-primary/40 disabled:opacity-30 transition-colors"
-                :disabled="pendingSpendAmount < 1 || pendingSpendAmount > res.current"
-                @click="confirmSpend"
-              >✓</button>
-              <button
-                class="h-6 px-2 rounded border border-border font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors"
-                @click="cancelSpend"
-              >✗</button>
-            </template>
-            <template v-else>
-              <button
-                class="h-6 rounded border border-border font-cinzel text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 px-2 transition-colors disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
-                :disabled="res.current <= 0"
-                @click="openSpendInput(res.key)"
-              >Spend</button>
-              <button
-                class="h-6 w-6 rounded border border-border font-cinzel text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                :disabled="res.current >= res.max"
-                @click="restoreResource(res.key)"
-              >+</button>
-            </template>
-          </template>
-
-          <!-- Standard ±1 resource -->
-          <div v-else class="flex items-center gap-1.5 shrink-0">
-            <button
-              class="h-6 w-6 rounded border border-border font-cinzel text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              :disabled="res.current <= 0"
-              @click="spendResource(res.key)"
-            >−</button>
-            <span class="font-cinzel text-sm text-foreground w-10 text-center">
-              {{ res.current }} / {{ res.max }}
-            </span>
-            <button
-              class="h-6 w-6 rounded border border-border font-cinzel text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              :disabled="res.current >= res.max"
-              @click="restoreResource(res.key)"
-            >+</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <PlayerResourcePools
+      v-if="displayedResources.length > 0"
+      :resources="displayedResources"
+      @spend="spendResource"
+      @restore="restoreResource"
+      @spend-amount="confirmVariableSpend"
+    />
 
     <!-- ── Class features (one card per class, grouped for multiclass) ──────── -->
-    <template v-for="group in classFeatureGroups" :key="group.class_name">
-      <div class="rounded-lg border border-border bg-card overflow-hidden">
-        <div class="px-4 py-2.5 border-b border-border">
-          <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
-            {{ group.class_name || 'Class' }} Features
-            <span v-if="group.subclass_name" class="normal-case font-fell font-normal tracking-normal ml-1 text-muted-foreground/70">({{ group.subclass_name }})</span>
-          </p>
-        </div>
-
-        <div
-          v-if="Object.keys(group.featuresByLevel).length === 0 && Object.keys(group.subclassFeaturesByLevel).length === 0"
-          class="px-4 py-3"
-        >
-          <p class="font-fell text-sm text-muted-foreground italic">No class features defined yet.</p>
-        </div>
-
-        <div v-else class="divide-y divide-border">
-          <!-- Class features -->
-          <template v-for="(features, lvl) in group.featuresByLevel" :key="lvl">
-            <div
-              v-for="feat in features"
-              :key="`${group.class_name}-${lvl}-${featureName(feat)}`"
-              class="px-4 py-2.5"
-            >
-              <button
-                class="w-full text-left flex items-center gap-3 cursor-pointer"
-                @click="isSpellcasting(featureName(feat)) ? router.push('/play/spells') : featureDescription(feat) && toggleExpanded(`class-${group.class_name}-${lvl}-${featureName(feat)}`)"
-              >
-                <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider w-10 shrink-0">Lvl {{ lvl }}</span>
-                <span class="font-fell text-sm text-foreground flex-1">{{ featureName(feat) }}</span>
-                <IconGenerate v-if="isSpellcasting(featureName(feat))" class="h-3 w-3 text-primary/60 shrink-0" />
-                <IconChevronDown
-                  v-else-if="featureDescription(feat)"
-                  class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
-                  :class="expanded.has(`class-${group.class_name}-${lvl}-${featureName(feat)}`) ? 'rotate-180' : ''"
-                />
-              </button>
-              <div
-                v-if="!isSpellcasting(featureName(feat)) && featureDescription(feat) && expanded.has(`class-${group.class_name}-${lvl}-${featureName(feat)}`)"
-                class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2"
-              >
-                <RichTextViewer :content="featureDescription(feat)!" />
-              </div>
-            </div>
-          </template>
-          <!-- Subclass features inline (subtle tint + "Subclass" badge) -->
-          <template v-for="(subFeats, lvl) in group.subclassFeaturesByLevel" :key="`sub-${lvl}`">
-            <div
-              v-for="feat in subFeats"
-              :key="`${group.class_name}-sub-${lvl}-${featureName(feat)}`"
-              class="px-4 py-2.5 bg-primary/3"
-            >
-              <button
-                class="w-full text-left flex items-center gap-3 cursor-pointer"
-                @click="isSpellcasting(featureName(feat)) ? router.push('/play/spells') : featureDescription(feat) && toggleExpanded(`sub-${group.class_name}-${lvl}-${featureName(feat)}`)"
-              >
-                <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider w-10 shrink-0">Lvl {{ lvl }}</span>
-                <span class="font-fell text-sm text-foreground flex-1">{{ featureName(feat) }}</span>
-                <span class="font-cinzel text-2xs md:text-sm text-primary/60 tracking-wider shrink-0 mr-1">Subclass</span>
-                <IconGenerate v-if="isSpellcasting(featureName(feat))" class="h-3 w-3 text-primary/60 shrink-0" />
-                <IconChevronDown
-                  v-else-if="featureDescription(feat)"
-                  class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
-                  :class="expanded.has(`sub-${group.class_name}-${lvl}-${featureName(feat)}`) ? 'rotate-180' : ''"
-                />
-              </button>
-              <div
-                v-if="!isSpellcasting(featureName(feat)) && featureDescription(feat) && expanded.has(`sub-${group.class_name}-${lvl}-${featureName(feat)}`)"
-                class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2"
-              >
-                <RichTextViewer :content="featureDescription(feat)!" />
-              </div>
-            </div>
-          </template>
-        </div>
-      </div>
-    </template>
+    <PlayerClassFeaturesList
+      v-for="group in classFeatureGroups"
+      :key="group.class_name"
+      :group="group"
+      @navigate-spells="router.push('/play/spells')"
+    />
 
     <!-- ── Spell choices ─────────────────────────────────────────────────── -->
-    <div v-if="spellPickSteps.length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="px-4 py-2.5 border-b border-border">
-        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Spell Choices</p>
-      </div>
-      <div class="divide-y divide-border">
-        <div v-for="step in spellPickSteps" :key="step.key" class="px-4 py-3 space-y-2">
-          <div class="flex items-baseline gap-3">
-            <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider w-10 shrink-0">Lvl {{ step.level }}</span>
-            <span class="font-fell text-sm font-semibold text-foreground">{{ step.label }}</span>
-          </div>
-          <p v-if="step.description" class="font-fell text-xs text-muted-foreground pl-13">{{ step.description }}</p>
-          <!-- Already picked -->
-          <div v-if="spellChoicesForStep(step.key).length" class="pl-13 flex flex-wrap gap-1.5">
-            <span
-              v-for="(name, i) in spellChoicesForStep(step.key)"
-              :key="i"
-              class="inline-flex items-center rounded-md bg-primary/10 border border-primary/20 px-2 py-0.5 font-fell text-sm text-foreground"
-            >{{ name }}</span>
-          </div>
-          <!-- Not yet picked -->
-          <div v-else class="pl-13 flex items-center gap-2">
-            <select
-              v-model="pendingSpellPicks[step.key]"
-              class="flex-1 bg-muted/40 border border-border rounded px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="" disabled>Choose a spell…</option>
-              <option v-for="opt in step.options" :key="opt" :value="opt">{{ opt }}</option>
-            </select>
-            <button
-              :disabled="!pendingSpellPicks[step.key]"
-              class="px-2.5 py-1 bg-primary text-primary-foreground rounded font-cinzel text-2xs md:text-sm tracking-wider disabled:opacity-40 transition-opacity hover:opacity-90"
-              @click="confirmSpellPick(step.key)"
-            >Save</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <PlayerSpellChoices :member="member" :steps="spellPickSteps" />
 
-    <!-- ── Racial traits ─────────────────────────────────────────────────────── -->
-    <div v-if="linkedSpecies && linkedSpecies.traits?.length" class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="px-4 py-2.5 border-b border-border">
-        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
-          Racial Traits
-          <span class="normal-case font-fell font-normal tracking-normal ml-1 text-muted-foreground/70">({{ linkedSpecies.name }})</span>
-        </p>
-      </div>
-      <div class="divide-y divide-border">
-        <div
-          v-for="trait in linkedSpecies.traits"
-          :key="trait.name"
-          class="px-4 py-2.5"
-        >
-          <button
-            class="w-full text-left flex items-center gap-2"
-            :class="trait.description ? 'cursor-pointer' : 'cursor-default'"
-            @click="trait.description && toggleExpanded(`racial-${trait.name}`)"
-          >
-            <span class="font-fell text-sm text-foreground flex-1">{{ trait.name }}</span>
-            <IconChevronDown
-              v-if="trait.description"
-              class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
-              :class="expanded.has(`racial-${trait.name}`) ? 'rotate-180' : ''"
-            />
-          </button>
-          <div
-            v-if="trait.description && expanded.has(`racial-${trait.name}`)"
-            class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 font-fell text-sm text-muted-foreground leading-relaxed"
-          >
-            <RichTextViewer :content="trait.description" />
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── Subrace traits ─────────────────────────────────────────────────────── -->
-    <div v-if="linkedSubrace && linkedSubrace.traits?.length" class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="px-4 py-2.5 border-b border-border">
-        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
-          Variant Traits
-          <span class="normal-case font-fell font-normal tracking-normal ml-1 text-muted-foreground/70">({{ linkedSubrace.name }})</span>
-        </p>
-      </div>
-      <div class="divide-y divide-border">
-        <div
-          v-for="trait in linkedSubrace.traits"
-          :key="trait.name"
-          class="px-4 py-2.5"
-        >
-          <button
-            class="w-full text-left flex items-center gap-2"
-            :class="trait.description ? 'cursor-pointer' : 'cursor-default'"
-            @click="trait.description && toggleExpanded(`subrace-${trait.name}`)"
-          >
-            <span class="font-fell text-sm text-foreground flex-1">{{ trait.name }}</span>
-            <IconChevronDown
-              v-if="trait.description"
-              class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
-              :class="expanded.has(`subrace-${trait.name}`) ? 'rotate-180' : ''"
-            />
-          </button>
-          <div
-            v-if="trait.description && expanded.has(`subrace-${trait.name}`)"
-            class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 font-fell text-sm text-muted-foreground leading-relaxed"
-          >
-            <RichTextViewer :content="trait.description" />
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- ── Racial / Subrace traits ───────────────────────────────────────────── -->
+    <PlayerRacialTraits v-if="racialTraitGroups.length" :groups="racialTraitGroups" />
 
     <!-- ── Languages & Tool Proficiencies ───────────────────────────────────── -->
     <div
@@ -374,77 +107,18 @@
     </div>
 
     <!-- ── Metamagic ─────────────────────────────────────────────────────── -->
-    <div v-if="knownMetamagic.length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="px-4 py-2.5 border-b border-border">
-        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Metamagic</p>
-      </div>
-      <div class="divide-y divide-border">
-        <div
-          v-for="opt in knownMetamagic"
-          :key="opt.name"
-          class="px-4 py-2.5"
-        >
-          <button
-            class="w-full text-left flex items-center gap-2 cursor-pointer"
-            @click="toggleExpanded(`metamagic-${opt.name}`)"
-          >
-            <span class="font-fell text-sm text-foreground flex-1">{{ opt.name }}</span>
-            <span class="font-cinzel text-2xs tracking-wider rounded px-1.5 py-0.5 shrink-0 bg-primary/10 text-primary border border-primary/20">
-              {{ opt.sp_cost }} SP
-            </span>
-            <IconChevronDown
-              class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
-              :class="expanded.has(`metamagic-${opt.name}`) ? 'rotate-180' : ''"
-            />
-          </button>
-          <div
-            v-if="expanded.has(`metamagic-${opt.name}`)"
-            class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 font-fell text-sm text-muted-foreground leading-relaxed"
-          >
-            {{ opt.description }}
-          </div>
-        </div>
-      </div>
-    </div>
+    <PlayerExpandableList
+      v-if="metamagicItems.length > 0"
+      title="Metamagic"
+      :items="metamagicItems"
+    />
 
     <!-- ── Eldritch Invocations (Warlock) ──────────────────────────────────── -->
-    <div v-if="knownInvocations.length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="px-4 py-2.5 border-b border-border">
-        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Eldritch Invocations</p>
-      </div>
-      <div class="divide-y divide-border">
-        <div
-          v-for="inv in knownInvocations"
-          :key="inv.name"
-          class="px-4 py-2.5"
-        >
-          <button
-            class="w-full text-left flex items-center gap-2 cursor-pointer"
-            @click="toggleExpanded(`invocation-${inv.name}`)"
-          >
-            <span class="font-fell text-sm text-foreground flex-1">{{ inv.name }}</span>
-            <span
-              v-if="inv.grants_spell"
-              class="font-cinzel text-2xs tracking-wider rounded px-1.5 py-0.5 shrink-0 bg-primary/10 text-primary border border-primary/20"
-            >Spell</span>
-            <span
-              v-if="inv.min_level > 2"
-              class="font-cinzel text-2xs tracking-wider rounded px-1.5 py-0.5 shrink-0 bg-muted/50 text-muted-foreground border border-border"
-            >Lv {{ inv.min_level }}+</span>
-            <IconChevronDown
-              class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
-              :class="expanded.has(`invocation-${inv.name}`) ? 'rotate-180' : ''"
-            />
-          </button>
-          <div
-            v-if="expanded.has(`invocation-${inv.name}`)"
-            class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 font-fell text-sm text-muted-foreground leading-relaxed"
-          >
-            {{ inv.description }}
-          </div>
-        </div>
-      </div>
-    </div>
+    <PlayerExpandableList
+      v-if="invocationItems.length > 0"
+      title="Eldritch Invocations"
+      :items="invocationItems"
+    />
 
     <!-- ── Divine Smite (Paladin) ───────────────────────────────────────────── -->
     <div v-if="isPaladin" class="rounded-lg border border-border bg-card overflow-hidden">
@@ -464,275 +138,48 @@
     </div>
 
     <!-- ── Rage (Barbarian) ──────────────────────────────────────────────────── -->
-    <div
+    <PlayerBarbarianRage
       v-if="isBarbarian"
-      class="rounded-lg border overflow-hidden"
-      :class="localRageActive ? 'border-red-500/50 bg-red-500/5' : 'border-border bg-card'"
-    >
-      <div
-        class="px-4 py-2.5 border-b flex items-center justify-between"
-        :class="localRageActive ? 'border-red-500/30' : 'border-border'"
-      >
-        <p class="font-cinzel text-xs font-semibold tracking-wider" :class="localRageActive ? 'text-red-600' : 'text-muted-foreground'">
-          Rage
-        </p>
-        <span class="font-cinzel text-2xs tracking-wider" :class="localRageActive ? 'text-red-600' : 'text-muted-foreground'">
-          {{ rageResource?.current ?? 0 }} / {{ rageResource?.max ?? 0 }} uses
-        </span>
-      </div>
-      <!-- Active rage -->
-      <div v-if="localRageActive" class="px-4 py-3 space-y-2">
-        <div class="rounded-md bg-red-500/10 border border-red-500/30 px-3 py-2 space-y-1">
-          <p class="font-cinzel text-xs font-semibold text-red-600">Raging</p>
-          <p class="font-fell text-sm text-foreground">+{{ rageBonus }} melee damage (STR-based)</p>
-          <p class="font-fell text-sm text-muted-foreground">Resistance: bludgeoning, piercing, slashing</p>
-          <p class="font-fell text-sm text-muted-foreground">Advantage on STR checks and saving throws</p>
-        </div>
-        <button
-          class="font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-          @click="endRage"
-        >End Rage</button>
-      </div>
-      <!-- Not raging -->
-      <div v-else class="px-4 py-2.5">
-        <button
-          class="font-cinzel text-2xs tracking-wider px-3 py-1 rounded bg-red-500/15 border border-red-500/30 text-red-600 hover:bg-red-500/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          :disabled="(rageResource?.current ?? 0) <= 0"
-          @click="enterRage"
-        >Enter Rage</button>
-      </div>
-    </div>
+      ref="rageRef"
+      :member="member"
+      :barbarian-level="classLevel('Barbarian')"
+      :rage-uses-current="rageResource?.current ?? 0"
+      :rage-uses-max="rageResource?.max ?? 0"
+      @spend-use="spendResource('rage_uses')"
+    />
 
     <!-- ── Ki Abilities (Monk) ─────────────────────────────────────────────────── -->
-    <div v-if="isMonk && visibleKiAbilities.length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="px-4 py-2.5 border-b border-border">
-        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Ki Abilities</p>
-      </div>
-      <div class="divide-y divide-border">
-        <div v-for="ability in visibleKiAbilities" :key="ability.name" class="px-4 py-2.5">
-          <button
-            class="w-full text-left flex items-center gap-2 cursor-pointer"
-            @click="toggleExpanded(`ki-${ability.name}`)"
-          >
-            <span class="font-fell text-sm text-foreground flex-1">{{ ability.name }}</span>
-            <span
-              v-if="ability.ki_cost > 0"
-              class="font-cinzel text-2xs tracking-wider rounded px-1.5 py-0.5 shrink-0 bg-primary/10 text-primary border border-primary/20"
-            >{{ ability.ki_cost }} ki</span>
-            <IconChevronDown
-              class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
-              :class="expanded.has(`ki-${ability.name}`) ? 'rotate-180' : ''"
-            />
-          </button>
-          <div
-            v-if="expanded.has(`ki-${ability.name}`)"
-            class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 font-fell text-sm text-muted-foreground leading-relaxed"
-          >
-            <p class="font-fell text-xs text-primary/70 mb-1 italic">{{ ability.timing }}</p>
-            {{ ability.description }}
-          </div>
-        </div>
-      </div>
-    </div>
+    <PlayerExpandableList
+      v-if="isMonk && kiItems.length > 0"
+      title="Ki Abilities"
+      :items="kiItems"
+    />
 
     <!-- ── Battle Master Maneuvers (Fighter) ──────────────────────────────────── -->
-    <div v-if="isBattleMaster" class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="px-4 py-2.5 border-b border-border flex items-center justify-between">
-        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Battle Master Maneuvers</p>
-        <div class="flex items-center gap-2">
-          <span class="font-cinzel text-2xs tracking-wider rounded px-1.5 py-0.5 bg-muted/50 text-muted-foreground border border-border">{{ superiorityDiceSize }}</span>
-        </div>
-      </div>
-      <!-- Superiority dice track -->
-      <div class="flex items-center gap-2 px-4 py-2 border-b border-border">
-        <span class="font-fell text-sm text-muted-foreground flex-1">Superiority Dice</span>
-        <button
-          class="h-6 w-6 rounded border border-border font-cinzel text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          :disabled="(superiorityDiceResource?.current ?? 0) <= 0"
-          @click="spendResource('superiority_dice')"
-        >−</button>
-        <span class="font-cinzel text-sm text-foreground w-10 text-center">
-          {{ superiorityDiceResource?.current ?? 0 }} / {{ superiorityDiceResource?.max ?? 0 }}
-        </span>
-        <button
-          class="h-6 w-6 rounded border border-border font-cinzel text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          :disabled="(superiorityDiceResource?.current ?? 0) >= (superiorityDiceResource?.max ?? 0)"
-          @click="restoreResource('superiority_dice')"
-        >+</button>
-      </div>
-      <!-- Known maneuvers -->
-      <div class="divide-y divide-border">
-        <div v-if="knownManeuvers.length === 0" class="px-4 py-3">
-          <p class="font-fell text-sm text-muted-foreground italic">No maneuvers learned yet.</p>
-        </div>
-        <div v-for="maneuver in knownManeuvers" :key="maneuver.name" class="px-4 py-2.5">
-          <button
-            class="w-full text-left flex items-center gap-2 cursor-pointer"
-            @click="toggleExpanded(`maneuver-${maneuver.name}`)"
-          >
-            <span class="font-fell text-sm text-foreground flex-1">{{ maneuver.name }}</span>
-            <IconChevronDown
-              class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
-              :class="expanded.has(`maneuver-${maneuver.name}`) ? 'rotate-180' : ''"
-            />
-          </button>
-          <div
-            v-if="expanded.has(`maneuver-${maneuver.name}`)"
-            class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 font-fell text-sm text-muted-foreground leading-relaxed"
-          >
-            <p class="font-fell text-xs text-primary/70 mb-1 italic">{{ maneuver.timing }}</p>
-            {{ maneuver.description }}
-          </div>
-        </div>
-      </div>
-      <!-- Learn maneuver -->
-      <div v-if="availableManeuversToLearn.length > 0" class="px-4 py-2.5 border-t border-border">
-        <div v-if="!showLearnManeuverForm" class="flex justify-start">
-          <button
-            class="font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-            @click="showLearnManeuverForm = true"
-          >+ Learn Maneuver</button>
-        </div>
-        <div v-else class="space-y-2">
-          <select
-            v-model="pendingLearnManeuver"
-            class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          >
-            <option value="" disabled>Select maneuver to learn…</option>
-            <option v-for="m in availableManeuversToLearn" :key="m.name" :value="m.name">{{ m.name }}</option>
-          </select>
-          <div class="flex gap-2">
-            <button
-              :disabled="!pendingLearnManeuver"
-              class="font-cinzel text-2xs tracking-wider px-3 py-1 rounded bg-primary text-primary-foreground disabled:opacity-40 hover:opacity-90 transition-opacity"
-              @click="learnManeuver"
-            >Learn</button>
-            <button
-              class="font-cinzel text-2xs tracking-wider px-3 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
-              @click="showLearnManeuverForm = false; pendingLearnManeuver = ''"
-            >Cancel</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <PlayerBattleMasterManeuvers
+      v-if="isBattleMaster"
+      :known-maneuvers="knownManeuvers"
+      :available-to-learn="availableManeuversToLearn"
+      :superiority-dice-size="superiorityDiceSize"
+      :superiority-dice-current="superiorityDiceResource?.current ?? 0"
+      :superiority-dice-max="superiorityDiceResource?.max ?? 0"
+      @spend-superiority-die="spendResource('superiority_dice')"
+      @restore-superiority-die="restoreResource('superiority_dice')"
+      @learn-maneuver="learnManeuver"
+    />
 
     <!-- ── Infusions (Artificer) ──────────────────────────────────────────── -->
-    <div v-if="isArtificer && artificerLevel >= 2" class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="px-4 py-2.5 border-b border-border flex items-center justify-between">
-        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Infusions</p>
-        <span class="font-cinzel text-2xs tracking-wider text-muted-foreground">
-          {{ localActiveInfusions.length }} / {{ infusionSlotsMax }} active
-        </span>
-      </div>
-
-      <!-- Unified known infusions list — active ones highlighted, inactive show Apply -->
-      <div class="divide-y divide-border">
-        <div v-for="inf in knownInfusions" :key="inf.name" class="px-4 py-2.5">
-
-          <!-- Row: name + item name + badges + actions -->
-          <div class="flex items-center gap-2">
-            <button
-              class="flex-1 min-w-0 text-left flex items-center gap-2 cursor-pointer"
-              @click="toggleExpanded(`infusion-${inf.name}`)"
-            >
-              <span
-                class="font-fell text-sm flex-1 min-w-0 truncate"
-                :class="isInfusionActive(inf.name) ? 'text-primary' : 'text-foreground'"
-              >{{ inf.name }}</span>
-              <span
-                v-if="activeInfusionItemName(inf.name)"
-                class="font-fell text-xs text-muted-foreground italic shrink-0"
-              >{{ activeInfusionItemName(inf.name) }}</span>
-              <span
-                v-if="inf.min_level > 2"
-                class="font-cinzel text-2xs tracking-wider rounded px-1.5 py-0.5 shrink-0 bg-muted/50 text-muted-foreground border border-border"
-              >Lv {{ inf.min_level }}+</span>
-              <span
-                v-if="isInfusionActive(inf.name)"
-                class="font-cinzel text-2xs tracking-wider rounded px-1.5 py-0.5 shrink-0 bg-primary/10 text-primary border border-primary/20"
-              >Active</span>
-              <IconChevronDown
-                class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
-                :class="expanded.has(`infusion-${inf.name}`) ? 'rotate-180' : ''"
-              />
-            </button>
-            <button
-              v-if="isInfusionActive(inf.name)"
-              class="font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-destructive transition-colors shrink-0"
-              @click="removeActiveInfusionByName(inf.name)"
-            >Remove</button>
-            <button
-              v-else-if="!isInfusionActive(inf.name) && localActiveInfusions.length < infusionSlotsMax"
-              class="font-cinzel text-2xs tracking-wider text-primary hover:opacity-80 transition-opacity shrink-0"
-              @click="openApplyForm(inf.name)"
-            >Apply</button>
-          </div>
-
-          <!-- Inline apply form (opens per-row) -->
-          <div v-if="pendingApplyName === inf.name" class="mt-2 space-y-2">
-            <select
-              v-model="pendingInfusionItemId"
-              class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="">No specific item</option>
-              <option v-for="item in memberInventoryItems" :key="item.id" :value="item.id">
-                {{ item.name }}
-              </option>
-            </select>
-            <div class="flex gap-2">
-              <button
-                class="font-cinzel text-2xs tracking-wider px-3 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
-                @click="applyInfusion"
-              >Confirm</button>
-              <button
-                class="font-cinzel text-2xs tracking-wider px-3 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
-                @click="cancelInfusionForm"
-              >Cancel</button>
-            </div>
-          </div>
-
-          <!-- Description -->
-          <div
-            v-if="expanded.has(`infusion-${inf.name}`)"
-            class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 font-fell text-sm text-muted-foreground leading-relaxed"
-          >
-            {{ inf.description }}
-          </div>
-        </div>
-      </div>
-
-      <!-- Learn new infusion -->
-      <div v-if="availableInfusionsToLearn.length > 0" class="px-4 py-2.5 border-t border-border">
-        <div v-if="!showLearnForm" class="flex justify-start">
-          <button
-            class="font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-            @click="showLearnForm = true"
-          >+ Learn Infusion</button>
-        </div>
-        <div v-else class="space-y-2">
-          <select
-            v-model="pendingLearnName"
-            class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          >
-            <option value="" disabled>Select infusion to learn…</option>
-            <option v-for="inf in availableInfusionsToLearn" :key="inf.name" :value="inf.name">
-              {{ inf.name }}{{ inf.min_level > 2 ? ` (Lv ${inf.min_level}+)` : '' }}
-            </option>
-          </select>
-          <div class="flex gap-2">
-            <button
-              :disabled="!pendingLearnName"
-              class="font-cinzel text-2xs tracking-wider px-3 py-1 rounded bg-primary text-primary-foreground disabled:opacity-40 hover:opacity-90 transition-opacity"
-              @click="learnInfusion"
-            >Learn</button>
-            <button
-              class="font-cinzel text-2xs tracking-wider px-3 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
-              @click="showLearnForm = false; pendingLearnName = ''"
-            >Cancel</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <PlayerArtificerInfusions
+      v-if="isArtificer && artificerLevel >= 2"
+      :known-infusions="knownInfusions"
+      :available-to-learn="availableInfusionsToLearn"
+      :active-infusions="localActiveInfusions"
+      :slots-max="infusionSlotsMax"
+      :inventory-items="memberInventoryItems"
+      @remove="removeActiveInfusionByName"
+      @apply="applyInfusion"
+      @learn="learnInfusion"
+    />
 
   </div>
 </template>
@@ -740,15 +187,23 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRouter, RouterLink } from "vue-router";
-import { IconChevronDown, IconGenerate } from '@/lib/icons';
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import PlayerWildshapeTraits from "./PlayerWildshapeTraits.vue";
+import PlayerResourcePools from "./PlayerResourcePools.vue";
+import PlayerClassFeaturesList from "./PlayerClassFeaturesList.vue";
+import PlayerBattleMasterManeuvers from "./PlayerBattleMasterManeuvers.vue";
+import PlayerArtificerInfusions from "./PlayerArtificerInfusions.vue";
+import PlayerBarbarianRage from "./PlayerBarbarianRage.vue";
+import PlayerSpellChoices from "./PlayerSpellChoices.vue";
+import PlayerRacialTraits from "./PlayerRacialTraits.vue";
+import type { TraitGroup } from "./PlayerRacialTraits.vue";
+import PlayerExpandableList from "./PlayerExpandableList.vue";
+import type { ExpandableItem } from "./PlayerExpandableList.vue";
 import { METAMAGIC_MAP } from "@/data/metamagic";
-import { ARTIFICER_INFUSIONS, ARTIFICER_INFUSIONS_MAP } from "@/data/artificerInfusions";
 import { ELDRITCH_INVOCATIONS_MAP } from "@/data/eldritchInvocations";
 import { MONK_KI_ABILITIES } from "@/data/monkKiAbilities";
 import { BATTLE_MASTER_MANEUVERS, BATTLE_MASTER_MANEUVERS_MAP } from "@/data/battleMasterManeuvers";
-import { usePartyInventory } from "@/composables/usePartyInventory";
-import { featureName, featureDescription, mapFeatureIds, type FeatureEntry } from "@/levelup/types";
+import { useArtificerState } from "@/composables/useArtificerState";
+import { mapFeatureIds, type FeatureEntry } from "@/levelup/types";
 import type { CustomStep } from "@/levelup/customTypes";
 import { useAllFeatures } from "@/composables/useFeatures";
 import { getDefaultSpellSlots, getSlotRecovery, getMulticlassSpellSlots } from "@/types/spell.types";
@@ -761,6 +216,8 @@ import { useAllSpecies } from "@/composables/useSpecies";
 import { useConfirm } from "@/composables/useConfirm";
 import type { PartyMember, SpellSlotEntry } from "@/types/party.types";
 import type { Monster } from "@/types/monster.types";
+import type { ClassFeatureGroup } from "./PlayerClassFeaturesList.vue";
+import type { ResourceRow } from "./PlayerResourcePools.vue";
 
 const props = defineProps<{ member: PartyMember; showRestButtons?: boolean; wildshapeMonster?: Monster; isOwner?: boolean }>();
 
@@ -768,11 +225,6 @@ const router = useRouter();
 
 function isChoicePlaceholder(s: string): boolean {
   return s.toLowerCase().includes("choice");
-}
-
-function isSpellcasting(name: string): boolean {
-  const n = name.toLowerCase();
-  return n.includes("spellcasting") || n === "pact magic";
 }
 
 const memberClassRef    = computed(() => props.member.class ?? "");
@@ -820,14 +272,6 @@ const subclassDataMap = computed(() => {
   return map;
 });
 
-interface ClassFeatureGroup {
-  class_name: string;
-  subclass_name: string | null;
-  levels: number;
-  featuresByLevel: Record<number, FeatureEntry[]>;
-  subclassFeaturesByLevel: Record<number, FeatureEntry[]>;
-}
-
 function buildFeaturesByLevel(
   cls: { features: Record<string, string[]> } | null | undefined,
   maxLevel: number,
@@ -856,15 +300,7 @@ const classFeatureGroups = computed<ClassFeatureGroup[]>(() =>
 
 // ── Local optimistic state ────────────────────────────────────────────────────
 
-interface LocalResource {
-  key: string;
-  label: string;
-  current: number;
-  max: number;
-  rest: "short" | "long";
-}
-
-const localResources = ref<LocalResource[]>([]);
+const localResources = ref<ResourceRow[]>([]);
 
 function syncFromProps() {
   localResources.value = Object.entries(props.member.class_resources ?? {}).map(([key, res]) => ({
@@ -913,6 +349,13 @@ function restoreResource(key: string) {
   persistResources();
 }
 
+function confirmVariableSpend(key: string, amount: number) {
+  const r = localResources.value.find(r => r.key === key);
+  if (!r) return;
+  r.current = Math.max(0, r.current - Math.min(Math.max(1, amount), r.current));
+  persistResources();
+}
+
 // ── Rest ──────────────────────────────────────────────────────────────────────
 
 function shortRest() {
@@ -937,20 +380,11 @@ async function longRest() {
 
   for (const r of localResources.value) r.current = r.max;
   persistResources();
-  if (localRageActive.value) {
-    localRageActive.value = false;
-  }
+  rageRef.value?.deactivate();
   updateMember({ id: props.member.id, update: {
     spell_slots: effectiveSlots.value.map(s => ({ ...s, used: 0 })),
     ...(props.member.rage_active ? { rage_active: false } : {}),
   }});
-}
-
-const expanded = ref(new Set<string>());
-function toggleExpanded(name: string) {
-  if (expanded.value.has(name)) expanded.value.delete(name);
-  else expanded.value.add(name);
-  expanded.value = new Set(expanded.value); // trigger reactivity
 }
 
 // ── Spell pick steps ──────────────────────────────────────────────────────────
@@ -963,21 +397,6 @@ const spellPickSteps = computed((): CustomStep[] => {
   ] as CustomStep[];
   return allSteps.filter(s => s.step_type === "spell_pick" && s.level <= props.member.level);
 });
-
-function spellChoicesForStep(stepKey: string): string[] {
-  const v = (props.member.class_choices ?? {})[stepKey];
-  if (!v) return [];
-  return Array.isArray(v) ? (v as string[]) : [String(v)];
-}
-
-const pendingSpellPicks = ref<Record<string, string>>({});
-
-function confirmSpellPick(stepKey: string) {
-  const picked = pendingSpellPicks.value[stepKey];
-  if (!picked) return;
-  const newChoices = { ...props.member.class_choices, [stepKey]: picked };
-  updateMember({ id: props.member.id, update: { class_choices: newChoices } });
-}
 
 // ── Class choices (read-only) ─────────────────────────────────────────────────
 
@@ -1026,6 +445,40 @@ const knownInvocations = computed(() => {
   return names.map(n => ELDRITCH_INVOCATIONS_MAP.get(n)).filter(Boolean) as import("@/data/eldritchInvocations").EldritchInvocation[];
 });
 
+// ── Racial trait groups (for PlayerRacialTraits) ───────────────────────────────
+
+const racialTraitGroups = computed<TraitGroup[]>(() => {
+  const groups: TraitGroup[] = [];
+  if (linkedSpecies.value?.traits?.length) {
+    groups.push({ heading: "Racial Traits", subheading: linkedSpecies.value.name, traits: linkedSpecies.value.traits });
+  }
+  if (linkedSubrace.value?.traits?.length) {
+    groups.push({ heading: "Variant Traits", subheading: linkedSubrace.value.name, traits: linkedSubrace.value.traits });
+  }
+  return groups;
+});
+
+// ── Expandable list items (for PlayerExpandableList) ──────────────────────────
+
+const metamagicItems = computed<ExpandableItem[]>(() =>
+  knownMetamagic.value.map(opt => ({
+    name: opt.name,
+    description: opt.description,
+    badges: [{ label: `${opt.sp_cost} SP`, variant: "primary" as const }],
+  })),
+);
+
+const invocationItems = computed<ExpandableItem[]>(() =>
+  knownInvocations.value.map(inv => ({
+    name: inv.name,
+    description: inv.description,
+    badges: [
+      ...(inv.grants_spell ? [{ label: "Spell", variant: "primary" as const }] : []),
+      ...(inv.min_level > 2 ? [{ label: `Lv ${inv.min_level}+`, variant: "muted" as const }] : []),
+    ],
+  })),
+);
+
 // ── Paladin ───────────────────────────────────────────────────────────────────
 
 const isPaladin = computed(() =>
@@ -1039,32 +492,6 @@ const DIVINE_SMITE_TABLE = [
   { slotLevel: 3,   damage: "4d8", special: "5d8" },
   { slotLevel: "4+", damage: "5d8", special: "6d8" },
 ] as const;
-
-// ── Variable-spend (Lay on Hands) ─────────────────────────────────────────────
-
-const pendingSpendKey = ref<string | null>(null);
-const pendingSpendAmount = ref<number>(1);
-
-function openSpendInput(key: string) {
-  pendingSpendKey.value = key;
-  pendingSpendAmount.value = 1;
-}
-
-function cancelSpend() {
-  pendingSpendKey.value = null;
-  pendingSpendAmount.value = 1;
-}
-
-function confirmSpend() {
-  const key = pendingSpendKey.value;
-  if (!key) return;
-  const r = localResources.value.find(r => r.key === key);
-  if (!r) return;
-  const amount = Math.min(Math.max(1, pendingSpendAmount.value), r.current);
-  r.current = Math.max(0, r.current - amount);
-  persistResources();
-  cancelSpend();
-}
 
 // ── Class detection ───────────────────────────────────────────────────────────
 
@@ -1098,38 +525,20 @@ function classLevel(className: string): number {
 // ── Barbarian rage ────────────────────────────────────────────────────────────
 
 const rageResource = computed(() => localResources.value.find(r => r.key === "rage_uses") ?? null);
-
-const rageBonus = computed(() => {
-  const lvl = classLevel("Barbarian");
-  if (lvl >= 16) return 4;
-  if (lvl >= 9) return 3;
-  return 2;
-});
-
-const localRageActive = ref(props.member.rage_active ?? false);
-watch(() => [props.member.id, props.member.updated_at], () => {
-  localRageActive.value = props.member.rage_active ?? false;
-}, { immediate: true });
-
-function enterRage() {
-  const r = rageResource.value;
-  if (!r || r.current <= 0) return;
-  r.current--;
-  persistResources();
-  localRageActive.value = true;
-  updateMember({ id: props.member.id, update: { rage_active: true } });
-}
-
-function endRage() {
-  localRageActive.value = false;
-  updateMember({ id: props.member.id, update: { rage_active: false } });
-}
+const rageRef = ref<InstanceType<typeof PlayerBarbarianRage> | null>(null);
 
 // ── Monk ki ───────────────────────────────────────────────────────────────────
 
-const visibleKiAbilities = computed(() => {
+const kiItems = computed<ExpandableItem[]>(() => {
   const lvl = classLevel("Monk");
-  return MONK_KI_ABILITIES.filter(a => a.min_level <= lvl);
+  return MONK_KI_ABILITIES
+    .filter(a => a.min_level <= lvl)
+    .map(a => ({
+      name: a.name,
+      description: a.description,
+      subtext: a.timing,
+      badges: a.ki_cost > 0 ? [{ label: `${a.ki_cost} ki`, variant: "primary" as const }] : [],
+    }));
 });
 
 // ── Battle Master maneuvers ───────────────────────────────────────────────────
@@ -1154,16 +563,10 @@ const availableManeuversToLearn = computed(() => {
   return BATTLE_MASTER_MANEUVERS.filter(m => !known.has(m.name));
 });
 
-const showLearnManeuverForm = ref(false);
-const pendingLearnManeuver = ref("");
-
-function learnManeuver() {
-  if (!pendingLearnManeuver.value) return;
+function learnManeuver(name: string) {
   const current = props.member.class_choices?.battle_master_maneuvers;
   const existing: string[] = Array.isArray(current) ? (current as string[]) : current ? [String(current)] : [];
-  updateMember({ id: props.member.id, update: { class_choices: { ...props.member.class_choices, battle_master_maneuvers: [...existing, pendingLearnManeuver.value] } } });
-  showLearnManeuverForm.value = false;
-  pendingLearnManeuver.value = "";
+  updateMember({ id: props.member.id, update: { class_choices: { ...props.member.class_choices, battle_master_maneuvers: [...existing, name] } } });
 }
 
 // ── Resources display ─────────────────────────────────────────────────────────
@@ -1178,108 +581,17 @@ const displayedResources = computed(() =>
 
 // ── Infusions (Artificer) ─────────────────────────────────────────────────────
 
-const isArtificer = computed(() =>
-  props.member.class === "Artificer" ||
-  (characterClasses.value ?? []).some(cc => cc.class_name === "Artificer"),
-);
-
-const artificerLevel = computed(() =>
-  (characterClasses.value ?? []).find(cc => cc.class_name === "Artificer")?.levels ??
-  (props.member.class === "Artificer" ? props.member.level : 0),
-);
-
-const { data: partyInventory } = usePartyInventory();
-
-const memberInventoryItems = computed(() =>
-  (partyInventory.value ?? []).filter(i => i.carried_by === props.member.id),
-);
-
-function inventoryItemName(invItemId: string | null): string {
-  if (!invItemId) return "";
-  return partyInventory.value?.find(i => i.id === invItemId)?.name ?? "";
-}
-
-const knownInfusions = computed(() => {
-  const raw = props.member.class_choices?.infusions_known;
-  const names: string[] = Array.isArray(raw) ? (raw as string[]) : raw ? [String(raw)] : [];
-  return names.map(n => ARTIFICER_INFUSIONS_MAP.get(n)).filter(Boolean) as import("@/data/artificerInfusions").ArtificerInfusion[];
-});
-
-const infusionSlotsMax = computed(() =>
-  props.member.class_resources?.infusion_slots?.max ?? 0,
-);
-
-const localActiveInfusions = ref<{ name: string; inv_item_id: string | null }[]>([]);
-
-watch(
-  () => [props.member.id, props.member.updated_at],
-  () => { localActiveInfusions.value = [...(props.member.active_infusions ?? [])]; },
-  { immediate: true },
-);
-
-function isInfusionActive(name: string): boolean {
-  return localActiveInfusions.value.some(a => a.name === name);
-}
-
-function activeInfusionEntry(name: string) {
-  return localActiveInfusions.value.find(a => a.name === name) ?? null;
-}
-
-function activeInfusionItemName(name: string): string {
-  const entry = activeInfusionEntry(name);
-  if (!entry?.inv_item_id) return "";
-  return inventoryItemName(entry.inv_item_id);
-}
-
-const availableInfusionsToLearn = computed(() => {
-  const known = new Set(knownInfusions.value.map(i => i.name));
-  return ARTIFICER_INFUSIONS.filter(inf =>
-    inf.min_level <= artificerLevel.value && !known.has(inf.name),
-  );
-});
-
-const showLearnForm = ref(false);
-const pendingLearnName = ref("");
-
-function learnInfusion() {
-  if (!pendingLearnName.value) return;
-  const current = props.member.class_choices?.infusions_known;
-  const existing: string[] = Array.isArray(current) ? (current as string[]) : current ? [String(current)] : [];
-  const newChoices = { ...props.member.class_choices, infusions_known: [...existing, pendingLearnName.value] };
-  updateMember({ id: props.member.id, update: { class_choices: newChoices } });
-  showLearnForm.value = false;
-  pendingLearnName.value = "";
-}
-
-const pendingApplyName = ref("");
-const pendingInfusionItemId = ref<string>("");
-
-function openApplyForm(name: string) {
-  pendingApplyName.value = name;
-  pendingInfusionItemId.value = "";
-}
-
-function cancelInfusionForm() {
-  pendingApplyName.value = "";
-  pendingInfusionItemId.value = "";
-}
-
-function persistActiveInfusions() {
-  updateMember({ id: props.member.id, update: { active_infusions: localActiveInfusions.value } });
-}
-
-function applyInfusion() {
-  if (!pendingApplyName.value) return;
-  localActiveInfusions.value = [
-    ...localActiveInfusions.value,
-    { name: pendingApplyName.value, inv_item_id: pendingInfusionItemId.value || null },
-  ];
-  persistActiveInfusions();
-  cancelInfusionForm();
-}
-
-function removeActiveInfusionByName(name: string) {
-  localActiveInfusions.value = localActiveInfusions.value.filter(a => a.name !== name);
-  persistActiveInfusions();
-}
+const memberRef = computed(() => props.member);
+const {
+  isArtificer,
+  artificerLevel,
+  memberInventoryItems,
+  knownInfusions,
+  infusionSlotsMax,
+  localActiveInfusions,
+  availableInfusionsToLearn,
+  learnInfusion,
+  applyInfusion,
+  removeActiveInfusionByName,
+} = useArtificerState(memberRef, characterClasses);
 </script>

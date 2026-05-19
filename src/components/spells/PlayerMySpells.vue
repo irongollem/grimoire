@@ -181,59 +181,13 @@
   </div>
 
   <!-- Upcast slot picker -->
-  <Teleport to="body">
-    <div v-if="pendingCastEntry" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-      <div class="absolute inset-0 bg-black/60" @click="pendingCastEntry = null" />
-      <div class="relative z-10 w-full max-w-sm rounded-xl border border-border bg-background shadow-2xl p-5 space-y-4">
-        <!-- Header -->
-        <div class="flex items-center gap-2">
-          <div
-            class="h-2.5 w-2.5 shrink-0 rounded-full"
-            :style="{ backgroundColor: SCHOOL_COLORS[pendingCastEntry.spell.school] }"
-          />
-          <h2 class="font-cinzel text-base font-bold text-foreground">{{ pendingCastEntry.spell.name }}</h2>
-        </div>
-
-        <!-- Slot level picker -->
-        <div>
-          <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-2">CAST AT LEVEL</p>
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-for="lvl in upcastLevels"
-              :key="lvl"
-              class="flex flex-col items-center px-3 py-2 rounded-lg border font-cinzel text-xs font-semibold transition-colors"
-              :class="selectedUpcastLevel === lvl
-                ? 'bg-primary/15 border-primary text-primary'
-                : 'bg-muted border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'"
-              @click="selectedUpcastLevel = lvl"
-            >
-              <span>{{ SLOT_LEVEL_LABELS[lvl - 1] }}</span>
-              <span v-if="scaledDiceLabel(pendingCastEntry, lvl)" class="font-fell text-[10px] font-normal mt-0.5 opacity-80">
-                {{ scaledDiceLabel(pendingCastEntry, lvl) }}
-              </span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Action buttons -->
-        <div class="flex gap-3 pt-1">
-          <button
-            type="button"
-            class="flex-1 px-4 py-2 font-cinzel text-xs font-semibold border border-border rounded-md text-muted-foreground hover:text-foreground transition-colors"
-            @click="pendingCastEntry = null"
-          >Cancel</button>
-          <button
-            type="button"
-            :disabled="isCasting"
-            class="flex-1 px-4 py-2 font-cinzel text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
-            @click="confirmCast"
-          >
-            {{ isCasting ? "Casting…" : "Cast" }}
-          </button>
-        </div>
-      </div>
-    </div>
-  </Teleport>
+  <SpellUpcastPicker
+    :entry="pendingCastEntry"
+    :spell-slots="props.spellSlots"
+    :is-casting="isCasting"
+    @cast="confirmCast"
+    @cancel="pendingCastEntry = null"
+  />
 </template>
 
 <script setup lang="ts">
@@ -259,6 +213,7 @@ import type { SpellSlotEntry } from "@/types/party.types";
 import { pickSpellcastingStats, type SpellcastingClassStats } from "@/types/multiclass.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
+import SpellUpcastPicker from "@/components/spells/SpellUpcastPicker.vue";
 
 const SLOT_LEVEL_LABELS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"] as const;
 
@@ -376,34 +331,6 @@ function castButtonTitle(entry: CharacterSpellEntry): string {
 
 // ── Upcast picker ──────────────────────────────────────────────────────────────
 const pendingCastEntry = ref<CharacterSpellEntry | null>(null);
-const selectedUpcastLevel = ref(1);
-
-/** All slot levels ≥ spell's base that have at least one use remaining. */
-const upcastLevels = computed(() => {
-  if (!pendingCastEntry.value) return [];
-  const base = pendingCastEntry.value.spell.level;
-  return props.spellSlots
-    .filter((s) => s.level >= base && s.used < s.max)
-    .map((s) => s.level);
-});
-
-/** Human-readable scaled dice label shown under each level button in the picker. */
-function scaledDiceLabel(entry: CharacterSpellEntry, castLevel: number): string {
-  const extra = castLevel - entry.spell.level;
-  if (extra === 0) {
-    // Base level — show base dice if available
-    if (entry.spell.damage_rolls?.length) return entry.spell.damage_rolls[0].dice;
-    if (entry.spell.healing_dice) return entry.spell.healing_dice;
-    return "";
-  }
-  if (entry.spell.higher_level_damage && entry.spell.damage_rolls?.length) {
-    return scaleExpression(entry.spell.damage_rolls[0].dice, extra, entry.spell.higher_level_damage.dice_per_level);
-  }
-  if (entry.spell.higher_level_healing && entry.spell.healing_dice) {
-    return scaleExpression(entry.spell.healing_dice, extra, entry.spell.higher_level_healing);
-  }
-  return "";
-}
 
 /** Decide whether to show the upcast picker or cast immediately. */
 function startCast(entry: CharacterSpellEntry) {
@@ -423,13 +350,11 @@ function startCast(entry: CharacterSpellEntry) {
   }
   // Multiple levels available → show picker
   pendingCastEntry.value = entry;
-  selectedUpcastLevel.value = base;
 }
 
-function confirmCast() {
+function confirmCast(level: number) {
   if (!pendingCastEntry.value) return;
   const entry = pendingCastEntry.value;
-  const level = selectedUpcastLevel.value;
   pendingCastEntry.value = null;
   void castSpell(entry, level);
 }

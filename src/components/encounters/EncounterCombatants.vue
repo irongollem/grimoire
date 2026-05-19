@@ -34,7 +34,7 @@
         <input
           v-model="npcSearch"
           type="text"
-          placeholder="IconSearch NPCs with a combat profile…"
+          placeholder="Search NPCs with a combat profile…"
           autofocus
           class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
@@ -318,8 +318,22 @@ const filteredNpcs = computed(() => {
 });
 
 function addNpcToCombatants(npc: Npc) {
-  const factionId =
-    (npc.relationship === "unknown" ? "neutral" : npc.relationship) ?? "neutral";
+  // Map the 5e reaction scale onto the encounter's faction model
+  // (which only knows players / ally / enemy / neutral).
+  const factionId = (() => {
+    switch (npc.relationship) {
+      case "hostile":
+      case "unfriendly":
+        return "enemy";
+      case "friendly":
+      case "helpful":
+        return "ally";
+      case "indifferent":
+      case "unknown":
+      default:
+        return "neutral";
+    }
+  })();
   localCombatants.value.push({
     id: crypto.randomUUID(),
     monster_id: null,

@@ -286,7 +286,7 @@ function blankForm(): HallOfHeroInsert {
     backstory: null,
     notes: null,
     status: "alive",
-    relationship: "neutral",
+    relationship: "unknown",
     portrait_url: null,
     card_art_url: null,
     portrait_focal_point: null,

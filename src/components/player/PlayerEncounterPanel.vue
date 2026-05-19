@@ -94,107 +94,14 @@
           </template>
 
           <!-- Combatant list -->
-          <div class="rounded-lg border border-border bg-card overflow-hidden">
-            <template v-for="combatant in visibleCombatants" :key="combatant.instance_id">
-              <!-- Unseen slot -->
-              <div
-                v-if="combatant.reveal_state === 'unseen' && combatant.type === 'monster'"
-                class="player-row opacity-50"
-                data-combatant-type="monster"
-              >
-                <div class="portrait-cell">
-                  <div class="portrait-inner">
-                    <div class="portrait-initials" style="background: rgba(100, 100, 100, 0.3); color: #888">?</div>
-                  </div>
-                </div>
-                <div class="row-content">
-                  <div class="shrink-0 w-8 text-center self-center">
-                    <span class="font-cinzel text-sm font-bold text-muted-foreground">{{ combatant.initiative ?? "—" }}</span>
-                  </div>
-                  <div class="flex-1 min-w-0 self-center">
-                    <div class="flex items-center gap-2 overflow-hidden">
-                      <span class="combatant-name font-cinzel text-sm font-semibold text-muted-foreground italic truncate">???</span>
-                      <span class="pc-npc-badge shrink-0 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded font-bold tracking-wider bg-muted text-muted-foreground">NPC</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Normal row -->
-              <div
-                v-else
-                class="player-row"
-                :data-combatant-type="combatant.type"
-                :class="[
-                  isActive(combatant) ? 'bg-primary/8 ring-1 ring-inset ring-primary/20' : 'hover:bg-muted/20',
-                  (combatant.npc_id || combatant.monster_id || combatant.party_member_id || combatant.companion_id) ? 'cursor-pointer' : '',
-                ]"
-                @click="onCombatantClick(combatant)"
-              >
-                <div class="portrait-cell">
-                  <div class="portrait-inner" :class="isActive(combatant) ? 'portrait-active' : ''">
-                    <FocalImage
-                      :src="portraitSrc(combatant) ?? undefined"
-                      :placeholder="combatant.type === 'player' ? '/assets/placeholders/character.webp' : combatant.npc_id ? '/assets/placeholders/npc.webp' : '/assets/placeholders/monster.webp'"
-                      :alt="portraitAlt(combatant)"
-                      :focal-point="portraitHasBeastImage(combatant) ? null : (combatant.portrait_focal_point ?? null)"
-                      format="square"
-                    />
-                  </div>
-                </div>
-
-                <div class="row-content">
-                  <div class="shrink-0 w-8 text-center self-center">
-                    <span
-                      class="font-cinzel text-sm font-bold"
-                      :class="isActive(combatant) ? 'text-primary' : 'text-muted-foreground'"
-                    >{{ combatant.initiative ?? "—" }}</span>
-                  </div>
-
-                  <div class="flex-1 min-w-0 self-center">
-                    <div class="flex items-center gap-2 overflow-hidden">
-                      <span class="combatant-name font-cinzel text-sm font-semibold text-foreground truncate min-w-0">{{ combatant.name }}</span>
-                      <span
-                        class="pc-npc-badge shrink-0 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded font-bold tracking-wider"
-                        :class="combatant.type === 'player' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'"
-                      >{{ combatant.type === "player" ? "PC" : "NPC" }}</span>
-                      <span
-                        v-for="cond in combatant.conditions"
-                        :key="cond"
-                        class="shrink-0 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 tracking-wider"
-                      >{{ cond }}</span>
-                    </div>
-                    <div
-                      v-if="healthVis === 'strategic' || (healthVis === 'immersive' && combatant.type === 'player')"
-                      class="mt-1.5 h-1.5 w-full rounded-full bg-muted overflow-hidden"
-                    >
-                      <div
-                        class="h-full rounded-full transition-all duration-300"
-                        :class="hpBarColor(combatant)"
-                        :style="{ width: `${Math.max(0, Math.min(100, (displayHp(combatant) / displayMaxHp(combatant)) * 100))}%` }"
-                      />
-                    </div>
-                  </div>
-
-                  <div class="shrink-0 text-right self-center pr-3">
-                    <template v-if="healthVis === 'strategic'">
-                      <template v-if="combatant.type === 'player'">
-                        <span class="font-cinzel text-sm font-bold" :class="hpColor(combatant)">{{ displayHp(combatant) }}</span>
-                        <span class="font-fell text-xs text-muted-foreground">/{{ displayMaxHp(combatant) }}</span>
-                      </template>
-                      <template v-else>
-                        <span class="font-fell text-xs text-muted-foreground italic">{{ hpLabel(combatant) }}</span>
-                      </template>
-                    </template>
-                    <template v-else-if="healthVis === 'immersive' && combatant.type !== 'player'">
-                      <span class="font-fell text-xs text-muted-foreground italic">{{ hpLabel(combatant) }}</span>
-                    </template>
-                  </div>
-                </div>
-              </div>
-            </template>
-
-          </div>
+          <EncounterCombatantList
+            :visible-combatants="visibleCombatants"
+            :active-instance-id="activeCombatant?.instance_id ?? null"
+            :is-in-lobby="isInLobby"
+            :health-vis="healthVis"
+            :party-map="partyMap"
+            @combatant-click="onCombatantClick"
+          />
         </template>
 
       </div>
@@ -202,114 +109,10 @@
   </div>
 
   <!-- Monster lightbox -->
-  <Transition name="fade">
-    <div
-      v-if="selectedMonsterCombatant"
-      class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
-      @click.self="closeMonster"
-    >
-      <div class="bg-card rounded-xl border border-border w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-        <div class="relative shrink-0">
-          <div v-if="selectedMonsterCombatant.portrait_url" class="w-full h-72 overflow-hidden">
-            <FocalImage
-              :src="selectedMonsterCombatant.portrait_url"
-              :alt="selectedMonsterCombatant.name"
-              :focal-point="selectedMonsterCombatant.portrait_focal_point ?? null"
-              format="portrait"
-            />
-          </div>
-          <button
-            class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors"
-            @click="closeMonster"
-          >
-            <IconClose class="h-4 w-4" />
-          </button>
-        </div>
-        <div class="p-4 overflow-y-auto space-y-4">
-          <h2 class="font-cinzel text-lg font-bold text-foreground">{{ selectedMonsterCombatant.name }}</h2>
-          <PlayerNotesWidget
-            v-if="selectedMonsterCombatant.monster_id"
-            entity-type="monster"
-            :entity-id="selectedMonsterCombatant.monster_id"
-            placeholder="Your observations about this creature…"
-          />
-        </div>
-      </div>
-    </div>
-  </Transition>
+  <EncounterMonsterLightbox :combatant="selectedMonsterCombatant" @close="selectedMonsterCombatant = null" />
 
   <!-- NPC lightbox -->
-  <Transition name="fade">
-    <div
-      v-if="selectedNpc"
-      class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
-      @click.self="closeNpc"
-    >
-      <div class="bg-card rounded-xl border border-border w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-        <div class="relative shrink-0">
-          <div v-if="selectedNpc.player_visible_fields.includes('portrait') && selectedNpcDisplay.portrait" class="w-full h-72 overflow-hidden">
-            <FocalImage
-              :src="selectedNpcDisplay.portrait!"
-              :alt="selectedNpc.player_visible_fields.includes('name') ? selectedNpcDisplay.name : '???'"
-              format="portrait"
-              :focal-point="selectedNpcDisplay.focalPoint"
-            />
-          </div>
-          <button
-            class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors"
-            @click="closeNpc"
-          >
-            <IconClose class="h-4 w-4" />
-          </button>
-        </div>
-        <div class="p-4 overflow-y-auto space-y-4">
-          <div>
-            <div class="flex items-start justify-between gap-3">
-              <h2 class="font-cinzel text-lg font-bold text-foreground">
-                {{ selectedNpc.player_visible_fields.includes('name') ? selectedNpcDisplay.name : '???' }}
-              </h2>
-              <div class="flex items-center gap-0.5 shrink-0 pt-1" @click.stop>
-                <button
-                  v-for="n in [1,2,3,4,5]"
-                  :key="n"
-                  type="button"
-                  class="text-lg leading-none transition-colors"
-                  :class="n <= (getRating(selectedNpc.id)) ? 'text-yellow-400' : 'text-muted-foreground/25 hover:text-yellow-400/60'"
-                  :title="n === 1 ? 'Not relevant' : n === 5 ? 'Very relevant' : `Relevance ${n}`"
-                  @click="setRating(selectedNpc.id, n)"
-                >★</button>
-              </div>
-            </div>
-            <div class="flex flex-wrap gap-2 mt-1">
-              <span
-                v-if="selectedNpc.player_visible_fields.includes('relationship')"
-                class="px-2 py-0.5 rounded text-xs font-cinzel font-bold tracking-wider uppercase text-white"
-                :style="{ backgroundColor: relColor(selectedNpc.relationship) + 'CC' }"
-              >{{ selectedNpc.relationship }}</span>
-              <span
-                v-if="selectedNpc.player_visible_fields.includes('status')"
-                class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-muted font-cinzel text-xs tracking-wider"
-              >
-                <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: statusColor(selectedNpc.status) }" />
-                {{ selectedNpc.status }}
-              </span>
-            </div>
-            <p v-if="selectedNpc.player_visible_fields.includes('race') && selectedNpc.race" class="mt-1 font-fell text-sm text-muted-foreground italic">{{ selectedNpc.race }}</p>
-            <p v-if="selectedNpc.player_visible_fields.includes('occupation') && selectedNpc.occupation" class="font-fell text-sm text-muted-foreground">{{ selectedNpc.occupation }}</p>
-          </div>
-          <div v-if="myNpcPcNote" class="rounded-lg border border-primary/20 bg-primary/5 overflow-hidden">
-            <div class="px-3 py-2 border-b border-primary/20">
-              <p class="font-cinzel text-2xs md:text-sm font-semibold tracking-widest text-primary/70">YOUR CONNECTION</p>
-            </div>
-            <div class="px-3 py-2.5">
-              <RichTextViewer :content="myNpcPcNote" />
-            </div>
-          </div>
-          <PlayerNotesWidget entity-type="npc" :entity-id="selectedNpc.id" placeholder="Your observations about this character…" />
-        </div>
-      </div>
-    </div>
-  </Transition>
+  <EncounterNpcLightbox :npc="selectedNpc" @close="selectedNpc = null" />
 
   <!-- Party member / companion lightbox -->
   <PartyMemberLightbox :member="selectedMember" @close="selectedMemberCombatant = null" />
@@ -320,32 +123,27 @@ import { computed, ref, watch } from "vue";
 import { IconClose, IconEncounter, IconMap } from '@/lib/icons';
 import { useEncounter } from "@/composables/useEncounters";
 import { useLocation } from "@/composables/useLocations";
-import FocalImage from "@/components/common/FocalImage.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { liveState } from "@/composables/useEncounterLive";
 import type { RunCombatant, HealthVisibility } from "@/types/encounter.types";
-import type { Npc, NpcRelationship, NpcStatus } from "@/types/npc.types";
-import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
+import type { Npc } from "@/types/npc.types";
 import { usePlayerCombatPrefs } from "@/composables/usePlayerCombatPrefs";
 import { useTurnChime } from "@/composables/useTurnChime";
 import { useScreenShake } from "@/composables/useScreenShake";
 import { useNpcs } from "@/composables/useNpcs";
 import { useParty } from "@/composables/useParty";
 import PartyMemberLightbox from "@/components/player/PartyMemberLightbox.vue";
-import { usePlayerNpcRatings } from "@/composables/usePlayerNpcRatings";
-import { useMyNpcPcNote } from "@/composables/useNpcPcNotes";
-import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
+import EncounterCombatantList from "@/components/player/EncounterCombatantList.vue";
+import EncounterNpcLightbox from "@/components/player/EncounterNpcLightbox.vue";
+import EncounterMonsterLightbox from "@/components/player/EncounterMonsterLightbox.vue";
 
 defineEmits<{ close: [] }>();
 
 const campaign = useCampaignStore();
 const auth = useAuthStore();
 
-// Battle map availability — fetches the encounter + its location to determine
-// whether the "View battle map" CTA should appear. Drives a boolean only;
-// the actual map view re-fetches when the player navigates there.
+// Battle map availability
 const battleEncounterIdRef = computed(() => liveState.value?.encounter_id ?? "");
 const { data: battleEncounter } = useEncounter(battleEncounterIdRef);
 const battleLocationIdRef = computed(() => battleEncounter.value?.location_id ?? "");
@@ -407,75 +205,9 @@ watch(isMyTurn, (now, prev) => {
   }
 });
 
-function isActive(combatant: RunCombatant): boolean {
-  if (isInLobby.value) return false;
-  const fullIdx = sortedCombatants.value.findIndex((c) => c.instance_id === combatant.instance_id);
-  return fullIdx === liveState.value?.active_combatant_index;
-}
-
-// Portrait helpers
+// Portrait / HP helpers via party map (passed to EncounterCombatantList)
 const { data: partyList } = useParty();
 const partyMap = computed(() => new Map(partyList.value?.map((m) => [m.id, m]) ?? []));
-
-function portraitSrc(c: RunCombatant): string | null {
-  if (c.type === "player") {
-    const ws = partyMap.value.get(c.party_member_id ?? "")?.wildshape_state;
-    return ws?.beast_image_url ?? c.portrait_url ?? null;
-  }
-  return c.wildshape?.beast_image_url ?? c.portrait_url ?? null;
-}
-function portraitAlt(c: RunCombatant): string {
-  if (c.type === "player") {
-    const ws = partyMap.value.get(c.party_member_id ?? "")?.wildshape_state;
-    return ws?.beast_name ?? c.name;
-  }
-  return c.wildshape?.beast_name ?? c.name;
-}
-function portraitHasBeastImage(c: RunCombatant): boolean {
-  if (c.type === "player") {
-    return !!(partyMap.value.get(c.party_member_id ?? "")?.wildshape_state?.beast_image_url);
-  }
-  return !!c.wildshape?.beast_image_url;
-}
-
-// HP display helpers
-function displayHp(c: RunCombatant): number {
-  if (c.type === "player") {
-    const m = partyMap.value.get(c.party_member_id ?? "");
-    if (m) return m.wildshape_state?.beast_hp ?? m.current_hp;
-  }
-  return c.wildshape?.beast_hp ?? c.hp;
-}
-function displayMaxHp(c: RunCombatant): number {
-  if (c.type === "player") {
-    const m = partyMap.value.get(c.party_member_id ?? "");
-    if (m) return m.wildshape_state?.beast_max_hp ?? m.max_hp;
-  }
-  return c.wildshape?.beast_max_hp ?? c.max_hp;
-}
-
-function hpColor(c: RunCombatant) {
-  const pct = displayHp(c) / displayMaxHp(c);
-  if (pct <= 0) return "text-muted-foreground";
-  if (pct <= 0.25) return "text-red-500";
-  if (pct <= 0.5) return "text-amber-500";
-  return "text-green-500";
-}
-function hpBarColor(c: RunCombatant) {
-  const pct = displayHp(c) / displayMaxHp(c);
-  if (pct <= 0) return "bg-muted-foreground/30";
-  if (pct <= 0.25) return "bg-red-500";
-  if (pct <= 0.5) return "bg-amber-500";
-  return "bg-green-500";
-}
-function hpLabel(c: RunCombatant): string {
-  const pct = displayHp(c) / displayMaxHp(c);
-  if (pct <= 0) return "Dead";
-  if (pct <= 0.25) return "Bloodied";
-  if (pct <= 0.5) return "Wounded";
-  if (pct <= 0.75) return "Hurt";
-  return "Healthy";
-}
 
 // Party member / companion lightbox
 const selectedMemberCombatant = ref<RunCombatant | null>(null);
@@ -485,162 +217,31 @@ const selectedMember = computed(() => {
   const id = c.party_member_id ?? c.companion_id;
   return partyList.value?.find((m) => m.id === id) ?? null;
 });
+
 // NPC lightbox
 const { data: allNpcs } = useNpcs();
-const { getRating, setRating } = usePlayerNpcRatings();
 const selectedNpc = ref<Npc | null>(null);
-const selectedNpcId = computed(() => selectedNpc.value?.id ?? "");
-const selectedNpcDisplay = computed(() => ({
-  name:       selectedNpc.value ? getNpcDisplayName(selectedNpc.value)       : "???",
-  portrait:   selectedNpc.value ? getNpcDisplayPortrait(selectedNpc.value)   : null,
-  focalPoint: selectedNpc.value ? getNpcDisplayFocalPoint(selectedNpc.value) : null,
-}));
-const { data: myNpcPcNote } = useMyNpcPcNote(selectedNpcId);
-
-function openNpc(npc: Npc) { selectedNpc.value = npc; }
-function closeNpc()        { selectedNpc.value = null; }
 
 // Monster lightbox
 const selectedMonsterCombatant = ref<RunCombatant | null>(null);
-function openMonster(c: RunCombatant) { selectedMonsterCombatant.value = c; }
-function closeMonster()               { selectedMonsterCombatant.value = null; }
 
 function onCombatantClick(combatant: RunCombatant) {
   if (combatant.npc_id) {
     const npc = allNpcs.value?.find((n) => n.id === combatant.npc_id);
-    if (npc) openNpc(npc);
+    if (npc) selectedNpc.value = npc;
     return;
   }
   if (combatant.type === "monster" && !combatant.npc_id && combatant.monster_id) {
-    openMonster(combatant);
+    selectedMonsterCombatant.value = combatant;
     return;
   }
   if (combatant.party_member_id || combatant.companion_id) {
     selectedMemberCombatant.value = combatant;
-    return;
   }
 }
-
-const REL_COLORS: Record<NpcRelationship, string> = {
-  ally: "#2563eb", neutral: "#6b7280", enemy: "#dc2626", unknown: "#9333ea",
-};
-const STATUS_COLORS: Record<NpcStatus, string> = {
-  alive: "#22c55e", dead: "#ef4444", missing: "#f59e0b", unknown: "#6b7280",
-};
-function relColor(rel: NpcRelationship) { return REL_COLORS[rel] ?? "#6b7280"; }
-function statusColor(s: NpcStatus)      { return STATUS_COLORS[s] ?? "#6b7280"; }
 </script>
 
 <style scoped>
-@reference "@/assets/main.css";
-
-.player-row {
-  display: flex;
-  align-items: stretch;
-  gap: 0.75rem;
-  border-bottom: 1px solid theme(colors.border / 100%);
-  transition: background-color 0.15s;
-  min-height: 3rem;
-}
-.player-row:last-child {
-  border-bottom: none;
-}
-
-.row-content {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  align-items: stretch;
-  gap: 0.75rem;
-  padding-top: 0.75rem;
-  padding-bottom: 0.75rem;
-}
-
-.portrait-cell {
-  flex-shrink: 0;
-  width: 2.5rem;
-  align-self: stretch;
-  overflow: hidden;
-  display: flex;
-}
-
-.portrait-inner {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-
-.portrait-active {
-  box-shadow: inset 0 0 0 2px #c9a84c;
-}
-
-.portrait-initials {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-cinzel, serif);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.hp-panel {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.5rem 0.75rem;
-  border-top: 1px solid theme(colors.border / 60%);
-  background: theme(colors.muted / 20%);
-}
-
-.hp-panel-input {
-  width: 4rem;
-  background: theme(colors.background);
-  border: 1px solid theme(colors.border);
-  border-radius: 0.25rem;
-  padding: 0.25rem 0.5rem;
-  font-family: var(--font-cinzel, serif);
-  font-size: 12px;
-  font-weight: 700;
-  text-align: center;
-  color: theme(colors.foreground);
-  outline: none;
-}
-.hp-panel-input:focus {
-  border-color: theme(colors.ring);
-}
-.hp-panel-input::-webkit-inner-spin-button,
-.hp-panel-input::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-}
-
-.hp-panel-btn {
-  padding: 0.25rem 0.625rem;
-  border-radius: 0.25rem;
-  font-family: var(--font-cinzel, serif);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  border: 1px solid;
-  transition: background-color 0.15s, color 0.15s;
-}
-.hp-dmg  { border-color: theme(colors.rose.500 / 40%);  color: theme(colors.rose.500);  }
-.hp-dmg:hover  { background: theme(colors.rose.500 / 15%); }
-.hp-heal { border-color: theme(colors.green.500 / 40%); color: theme(colors.green.500); }
-.hp-heal:hover { background: theme(colors.green.500 / 15%); }
-.hp-temp { border-color: theme(colors.sky.400 / 40%);   color: theme(colors.sky.400);   }
-.hp-temp:hover { background: theme(colors.sky.400 / 15%); }
-
-.hp-temp-display {
-  margin-left: auto;
-  font-family: var(--font-cinzel, serif);
-  font-size: 10px;
-  font-weight: 700;
-  color: theme(colors.sky.400);
-}
-
 .fade-enter-active,
 .fade-leave-active { transition: opacity 0.2s ease; }
 .fade-enter-from,
@@ -652,32 +253,5 @@ function statusColor(s: NpcStatus)      { return STATUS_COLORS[s] ?? "#6b7280"; 
 @container (max-width: 200px) {
   .round-header-full    { display: none; }
   .round-header-compact { display: flex; }
-
-  .portrait-cell {
-    display: none;
-  }
-
-  .player-row {
-    min-height: 2rem;
-  }
-
-  .row-content {
-    padding-top: 0.375rem;
-    padding-bottom: 0.375rem;
-    gap: 0.375rem;
-  }
-
-  .pc-npc-badge {
-    display: none;
-  }
-
-  /* Color names by type instead of showing the badge */
-  .player-row[data-combatant-type="player"] .combatant-name {
-    color: #818cf8; /* indigo / primary */
-  }
-  .player-row[data-combatant-type="monster"] .combatant-name,
-  .player-row[data-combatant-type="npc"] .combatant-name {
-    color: #b45309; /* amber */
-  }
 }
 </style>

@@ -83,218 +83,37 @@
             />
           </div>
 
-          <!-- Event type row -->
-          <div>
-            <label
-              class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1"
-            >
-              TYPE
-            </label>
-            <div class="flex items-center gap-2">
-              <div
-                class="w-3 h-3 rounded-full shrink-0"
-                :style="{ backgroundColor: form.color }"
-              />
-              <select
-                v-model="form.event_type"
-                class="flex-1 bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option value="campaign">Campaign Event</option>
-                <option value="world">World Event</option>
-                <option value="festival">Festival</option>
-                <option value="deadline">Deadline</option>
-                <option value="quest">Quest</option>
-                <option value="player_death">💀 Player Death</option>
-                <option value="boss_fight">⚔ Boss Fight</option>
-                <option value="discovery">🔍 Discovery</option>
-                <option value="npc_death">🗡 NPC Death</option>
-                <option value="travel">🗺 Travel</option>
-              </select>
-              <p class="font-fell text-xs text-muted-foreground italic mt-1">
-                Session events are created automatically from
-                <RouterLink to="/notes" class="text-primary hover:underline" @click="close">session notes</RouterLink>.
-              </p>
-            </div>
-          </div>
+          <!-- Event type picker -->
+          <EventModalTypePicker
+            :event-type="form.event_type"
+            :color="form.color"
+            @update:event-type="form.event_type = $event"
+            @close="close"
+          />
 
-          <!-- Date type toggle -->
-          <div>
-            <label
-              class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2"
-            >
-              DATE
-            </label>
-            <div
-              class="flex rounded-md border border-border overflow-hidden mb-3"
-            >
-              <button
-                type="button"
-                class="flex-1 py-1.5 font-cinzel text-xs font-semibold tracking-wider transition-colors"
-                :class="
-                  dateType === 'regular'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground hover:text-foreground'
-                "
-                @click="dateType = 'regular'"
-              >
-                Regular Day
-              </button>
-              <button
-                type="button"
-                class="flex-1 py-1.5 font-cinzel text-xs font-semibold tracking-wider transition-colors"
-                :class="
-                  dateType === 'festival'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground hover:text-foreground'
-                "
-                @click="dateType = 'festival'"
-              >
-                Festival Day
-              </button>
-            </div>
-
-            <!-- Regular date fields -->
-            <div v-if="dateType === 'regular'" class="grid grid-cols-3 gap-2">
-              <div>
-                <label
-                  class="block font-fell text-xs text-muted-foreground mb-1"
-                  >Year</label
-                >
-                <input
-                  v-model.number="form.harptos_year"
-                  type="number"
-                  min="1"
-                  class="w-full bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                />
-              </div>
-              <div>
-                <label
-                  class="block font-fell text-xs text-muted-foreground mb-1"
-                  >Month</label
-                >
-                <select
-                  v-model.number="form.harptos_month"
-                  class="w-full bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                >
-                  <option
-                    v-for="m in adapter.months"
-                    :key="m.num"
-                    :value="m.num"
-                  >
-                    {{ m.name }}
-                  </option>
-                </select>
-              </div>
-              <div>
-                <label
-                  class="block font-fell text-xs text-muted-foreground mb-1"
-                  >Day</label
-                >
-                <input
-                  v-model.number="form.harptos_day"
-                  type="number"
-                  min="1"
-                  max="30"
-                  class="w-full bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                />
-              </div>
-            </div>
-
-            <!-- Festival date fields -->
-            <div v-else class="grid grid-cols-2 gap-2">
-              <div>
-                <label
-                  class="block font-fell text-xs text-muted-foreground mb-1"
-                  >Year</label
-                >
-                <input
-                  v-model.number="form.harptos_year"
-                  type="number"
-                  min="1"
-                  class="w-full bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                />
-              </div>
-              <div>
-                <label
-                  class="block font-fell text-xs text-muted-foreground mb-1"
-                  >Festival</label
-                >
-                <select
-                  v-model="form.festival_day"
-                  class="w-full bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                >
-                  <option
-                    v-for="f in availableFestivals"
-                    :key="f.name"
-                    :value="f.name"
-                  >
-                    {{ f.name }}
-                  </option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <!-- Multi-day toggle -->
-          <div>
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input
-                v-model="form.is_multi_day"
-                type="checkbox"
-                class="w-4 h-4 rounded border-border accent-primary"
-              />
-              <span class="font-fell text-sm text-foreground"
-                >Multi-day event</span
-              >
-            </label>
-
-            <div v-if="form.is_multi_day" class="mt-3 grid grid-cols-3 gap-2">
-              <div>
-                <label
-                  class="block font-fell text-xs text-muted-foreground mb-1"
-                  >End year</label
-                >
-                <input
-                  v-model.number="form.end_year"
-                  type="number"
-                  min="1"
-                  class="w-full bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                />
-              </div>
-              <div>
-                <label
-                  class="block font-fell text-xs text-muted-foreground mb-1"
-                  >End month</label
-                >
-                <select
-                  v-model.number="form.end_month"
-                  class="w-full bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                >
-                  <option :value="null">—</option>
-                  <option
-                    v-for="m in adapter.months"
-                    :key="m.num"
-                    :value="m.num"
-                  >
-                    {{ m.name }}
-                  </option>
-                </select>
-              </div>
-              <div>
-                <label
-                  class="block font-fell text-xs text-muted-foreground mb-1"
-                  >End day</label
-                >
-                <input
-                  v-model.number="form.end_day"
-                  type="number"
-                  min="1"
-                  max="30"
-                  class="w-full bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                />
-              </div>
-            </div>
-          </div>
+          <!-- Date picker -->
+          <EventModalDatePicker
+            :date-type="dateType"
+            :harptos-year="form.harptos_year"
+            :harptos-month="form.harptos_month"
+            :harptos-day="form.harptos_day"
+            :festival-day="form.festival_day"
+            :is-multi-day="form.is_multi_day"
+            :end-year="form.end_year"
+            :end-month="form.end_month"
+            :end-day="form.end_day"
+            :months="adapter.months"
+            :available-festivals="availableFestivals"
+            @update:date-type="dateType = $event"
+            @update:harptos-year="form.harptos_year = $event"
+            @update:harptos-month="form.harptos_month = $event"
+            @update:harptos-day="form.harptos_day = $event"
+            @update:festival-day="form.festival_day = $event"
+            @update:is-multi-day="form.is_multi_day = $event"
+            @update:end-year="form.end_year = $event"
+            @update:end-month="form.end_month = $event"
+            @update:end-day="form.end_day = $event"
+          />
 
           <!-- Description -->
           <div>
@@ -311,46 +130,14 @@
 
           <!-- Travel fields: location + party members -->
           <template v-if="form.event_type === 'travel'">
-            <div>
-              <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">
-                DESTINATION
-              </label>
-              <EntityCombobox
-                v-model="linkedLocationId"
-                :options="locations ?? []"
-                placeholder="Pick a location…"
-              >
-                <template #option="{ opt }">
-                  <span class="flex-1 truncate">{{ opt.name }}</span>
-                  <span class="text-xs text-muted-foreground shrink-0 font-cinzel">{{ LOCATION_TYPE_LABELS[opt.location_type as LocationType] }}</span>
-                </template>
-              </EntityCombobox>
-            </div>
-
-            <div v-if="party?.length">
-              <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">
-                TRAVELERS
-                <span class="font-fell normal-case tracking-normal text-muted-foreground">(updates their current location)</span>
-              </label>
-              <div class="flex flex-wrap gap-2">
-                <label
-                  v-for="m in party"
-                  :key="m.id"
-                  class="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 cursor-pointer transition-colors text-xs font-cinzel font-semibold"
-                  :class="form.travel_party_member_ids.includes(m.id)
-                    ? 'border-primary bg-primary/10 text-foreground'
-                    : 'border-border bg-muted text-muted-foreground hover:border-primary/50'"
-                >
-                  <input
-                    type="checkbox"
-                    class="sr-only"
-                    :checked="form.travel_party_member_ids.includes(m.id)"
-                    @change="toggleTraveler(m.id)"
-                  />
-                  {{ m.name }}
-                </label>
-              </div>
-            </div>
+            <EventModalTravelFields
+              :linked-location-id="linkedLocationId"
+              :travel-party-member-ids="form.travel_party_member_ids"
+              :locations="locations ?? []"
+              :party="party ?? []"
+              @update:linked-location-id="linkedLocationId = $event"
+              @update:travel-party-member-ids="form.travel_party_member_ids = $event"
+            />
           </template>
 
           <!-- Entity link (read-only when editing a non-travel pinned event) -->
@@ -426,7 +213,6 @@ import { IconEncounter, IconLocation, IconQuest } from '@/lib/icons';
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useNote } from "@/composables/useNotes";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
 import { useCalendarStore } from "@/stores/calendar";
@@ -443,7 +229,9 @@ import type {
 import { useCampaignStore } from "@/stores/campaign";
 import { useAllLocations } from "@/composables/useLocations";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
-import { LOCATION_TYPE_LABELS, type LocationType } from "@/types/location.types";
+import EventModalTypePicker from "./EventModalTypePicker.vue";
+import EventModalDatePicker from "./EventModalDatePicker.vue";
+import EventModalTravelFields from "./EventModalTravelFields.vue";
 
 const open = defineModel<boolean>({ required: true });
 const props = defineProps<{
@@ -593,16 +381,6 @@ function close() {
 async function deleteAndClose() {
   await deleteEvent(props.editEvent!.id);
   close();
-}
-
-function toggleTraveler(memberId: string) {
-  const ids = form.value.travel_party_member_ids;
-  const idx = ids.indexOf(memberId);
-  if (idx === -1) {
-    form.value.travel_party_member_ids = [...ids, memberId];
-  } else {
-    form.value.travel_party_member_ids = ids.filter((id) => id !== memberId);
-  }
 }
 
 async function submit() {

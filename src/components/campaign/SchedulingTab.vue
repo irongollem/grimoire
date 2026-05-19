@@ -258,7 +258,7 @@
       <h3
         class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase"
       >
-        IconCalendar Subscription
+        Calendar Subscription
       </h3>
       <p class="font-fell text-xs text-muted-foreground">
         Subscribe once and your calendar app will automatically receive future

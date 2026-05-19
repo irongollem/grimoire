@@ -24,9 +24,9 @@
       <slot />
 
       <!--
-        Clear is an IconClose icon — on mobile it collapses to just the IconClose (via
+        Clear is an lose icon — on mobile it collapses to just the IconClose (via
         ListActionButton's default `collapseOnMobile: true`), on desktop it
-        shows "IconClose Clear". Keeps the row tight on narrow screens where the
+        shows "Close Clear". Keeps the row tight on narrow screens where the
         "Clear" label doesn't fit alongside search + filters.
       -->
       <ListActionButton
@@ -43,7 +43,7 @@
 
 <script setup lang="ts">
 import { computed, useSlots } from "vue";
-import { IconClose } from '@/lib/icons';
+import { IconClose } from "@/lib/icons";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 
 defineProps<{
@@ -56,7 +56,5 @@ const emit = defineEmits<{
 }>();
 
 const slots = useSlots();
-const outerClass = computed(() =>
-  slots.above ? "flex flex-col gap-2" : "",
-);
+const outerClass = computed(() => (slots.above ? "flex flex-col gap-2" : ""));
 </script>
