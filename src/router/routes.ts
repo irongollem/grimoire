@@ -764,6 +764,13 @@ export const routes: RouteRecordRaw[] = [
     component: () => import("@/views/cardforge/CardForgeView.vue"),
     meta: { requiresAuth: true, title: "Card Forge" },
   },
+  // Character Sheet Export
+  {
+    path: "/character-sheet/:partyMemberId",
+    name: "character-sheet",
+    component: () => import("@/views/publishing/CharacterSheetView.vue"),
+    meta: { requiresAuth: true, title: "Character Sheet" },
+  },
   // The Mint
   {
     path: "/tokens",

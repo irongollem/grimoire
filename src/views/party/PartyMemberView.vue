@@ -12,15 +12,22 @@
         to="/party"
         class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors tracking-wider"
       >← Party</RouterLink>
-      <button
-        v-if="member"
-        type="button"
-        class="ml-auto inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
-        @click="editOpen = true"
-      >
-        <IconEdit class="h-3.5 w-3.5" />
-        Edit
-      </button>
+      <template v-if="member">
+        <RouterLink
+          :to="`/character-sheet/${member.id}`"
+          class="ml-auto inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
+        >
+          Export Sheet
+        </RouterLink>
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+          @click="editOpen = true"
+        >
+          <IconEdit class="h-3.5 w-3.5" />
+          Edit
+        </button>
+      </template>
     </div>
 
     <PlayerCharacterView
@@ -39,7 +46,7 @@
 
 <script setup lang="ts">
 import { computed, ref, defineAsyncComponent } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, RouterLink } from "vue-router";
 import { IconEdit } from '@/lib/icons';
 import { useParty } from "@/composables/useParty";
 import PlayerCharacterView from "@/views/play/PlayerCharacterView.vue";
