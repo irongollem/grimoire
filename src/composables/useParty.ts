@@ -227,3 +227,49 @@ export function useClearShapeshifterAppearance() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }
+
+const OFFERED_KEY = "offered-characters";
+
+async function fetchOfferedCharacters(campaignId: string): Promise<PartyMember[]> {
+  const { data, error } = await supabase
+    .from("party_members")
+    .select("*")
+    .eq("campaign_id", campaignId)
+    .eq("is_dm_managed", true)
+    .is("owner_user_id", null)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data as PartyMember[];
+}
+
+/** Characters created by the DM and offered to any player in the campaign. */
+export function useOfferedCharacters() {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  return useQuery({
+    queryKey: computed(() => [OFFERED_KEY, campaignId.value]),
+    queryFn: () => fetchOfferedCharacters(campaignId.value!),
+    enabled: () => !!campaignId.value,
+  });
+}
+
+/** Assumes a DM-offered character: deep-copies it into the caller's ownership and sets it active. */
+export function useAssumeCharacter() {
+  const queryClient = useQueryClient();
+  const auth = useAuthStore();
+  return useMutation({
+    mutationFn: async (originalId: string): Promise<string> => {
+      const { data, error } = await supabase.rpc("assume_character", {
+        p_original_id: originalId,
+      });
+      if (error) throw error;
+      return data as string;
+    },
+    onSuccess: async () => {
+      await auth.refreshMembership();
+      void queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      void queryClient.invalidateQueries({ queryKey: [OFFERED_KEY] });
+      void queryClient.invalidateQueries({ queryKey: [MY_CHARS_KEY] });
+    },
+  });
+}
