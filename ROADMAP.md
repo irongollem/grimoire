@@ -157,6 +157,7 @@
 - [x] Card Forge — MTG (63×88mm) and Tarot (70×120mm) print-ready cards with duplex alignment
 - [x] Card Forge — 5mm gap between printed cards (3mm visible after 1mm bleed each side); padding recalculated to keep sheets perfectly centered on A4; duplex alignment unaffected
 - [x] Card Library — localStorage save/load named collections across all card types
+- [x] **Character Sheet Export — core scaffolding** (irongollem/grimoire#418) — `/character-sheet/:partyMemberId` DM route renders a full printable 5e sheet (identity header, ability scores + modifiers + saves + skills, combat stats, attacks & spellcasting with auto-computed spell attack bonus / save DC, spell slots, currency, personality, proficiencies); `useCharacterSheetPdf` composable mounts the renderer off-screen and exports a multi-page jsPDF; A4 and Letter support; `.cs-*` semantic class taxonomy forward-compatible with future user-uploaded CSS themes (#423); "Export Sheet" button on DM party member view; "Character Sheet" entry in Publish nav
 
 ### Collaboration & Multi-Player
 
