@@ -62,8 +62,11 @@ export interface TrackerTriggers {
 }
 
 export interface DmButton {
-  label: string;      // "Add Exposure", "Warm Up", "Reset Sanity"
-  delta: number;      // tracker delta when pressed
+  label: string;           // "Add Exposure", "Warm Up", "Reset Sanity"
+  mode?: "delta" | "set"; // "delta" = change by amount (default), "set" = snap to exact value
+  delta: number;           // used when mode is "delta"
+  setValue?: number;       // used when mode is "set"
+  playerVisible?: boolean; // when true, button also appears in the player portal
 }
 
 export interface TrackerDef {

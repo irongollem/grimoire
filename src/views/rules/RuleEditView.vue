@@ -293,7 +293,7 @@
           <!-- ── DM Buttons ───────────────────────────────────────────────── -->
           <div class="space-y-2">
             <div class="flex items-center justify-between">
-              <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">DM BUTTONS</label>
+              <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">TRACKER BUTTONS</label>
               <button
                 type="button"
                 class="inline-flex items-center gap-1 font-cinzel text-[10px] text-muted-foreground hover:text-foreground transition-colors"
@@ -303,7 +303,7 @@
               </button>
             </div>
             <p class="font-fell text-[11px] text-muted-foreground italic">
-              Manual controls shown in the DM's party panel (e.g. "Add Corruption +1", "Cleanse −1").
+              Controls shown in the party panel. "Δ change by" adjusts the current value; "= set to" snaps to an exact value. Toggle "Players" to also show the button in the player portal.
             </p>
 
             <div
@@ -322,17 +322,52 @@
                 v-model="btn.label"
                 type="text"
                 placeholder="Add Corruption"
-                class="flex-1 bg-background border border-border rounded px-2.5 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="flex-1 min-w-0 bg-background border border-border rounded px-2.5 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
-              <div class="flex items-center gap-1 shrink-0">
-                <span class="font-cinzel text-[10px] text-muted-foreground">Δ</span>
-                <input
-                  v-model.number="btn.delta"
-                  type="number"
-                  placeholder="+1"
-                  class="w-16 bg-background border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
-                />
+              <!-- Mode toggle: Δ change by / = set to -->
+              <div class="flex rounded border border-border overflow-hidden shrink-0">
+                <button
+                  type="button"
+                  :class="[
+                    'px-2 py-1.5 font-cinzel text-[10px] transition-colors',
+                    (!btn.mode || btn.mode === 'delta') ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground',
+                  ]"
+                  @click="btn.mode = 'delta'"
+                  title="Change by amount"
+                >Δ</button>
+                <button
+                  type="button"
+                  :class="[
+                    'px-2 py-1.5 font-cinzel text-[10px] transition-colors',
+                    btn.mode === 'set' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground',
+                  ]"
+                  @click="btn.mode = 'set'"
+                  title="Set to exact value"
+                >=</button>
               </div>
+              <!-- Value input -->
+              <input
+                v-if="!btn.mode || btn.mode === 'delta'"
+                v-model.number="btn.delta"
+                type="number"
+                placeholder="+1"
+                class="w-16 shrink-0 bg-background border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <input
+                v-else
+                v-model.number="btn.setValue"
+                type="number"
+                placeholder="0"
+                class="w-16 shrink-0 bg-background border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <!-- Player visibility toggle -->
+              <label
+                class="flex items-center gap-1 shrink-0 cursor-pointer"
+                title="Also show this button to players in their portal"
+              >
+                <input type="checkbox" v-model="btn.playerVisible" class="rounded" />
+                <span class="font-cinzel text-[9px] text-muted-foreground">Players</span>
+              </label>
               <button
                 type="button"
                 class="shrink-0 text-muted-foreground hover:text-destructive transition-colors p-1"
@@ -508,7 +543,7 @@ function removeEffect(lvl: TrackerLevel, idx: number) {
 function addButton() {
   if (!tracker.value) return;
   tracker.value.dmButtons ??= [];
-  tracker.value.dmButtons.push({ label: "", delta: 1 } satisfies DmButton);
+  tracker.value.dmButtons.push({ label: "", mode: "delta", delta: 1 } satisfies DmButton);
 }
 
 function removeButton(idx: number) {

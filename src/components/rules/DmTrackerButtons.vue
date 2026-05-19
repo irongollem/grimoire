@@ -22,7 +22,7 @@
           type="button"
           :disabled="applying"
           class="inline-flex items-center px-2 py-0.5 rounded border border-border bg-card font-cinzel text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
-          @click="apply(entry, btn.delta)"
+          @click="apply(entry, btn)"
         >
           {{ btn.label }}
         </button>
@@ -80,14 +80,15 @@ const activeRulesWithButtons = computed<ButtonEntry[]>(() => {
   return entries;
 });
 
-async function apply(entry: ButtonEntry, delta: number) {
+async function apply(entry: ButtonEntry, btn: DmButton) {
   applying.value = true;
   try {
     await applyDelta({
       partyMemberId: props.partyMemberId,
       ruleKey:       entry.ruleKey,
       ruleId:        entry.ruleId,
-      delta,
+      delta:         btn.delta,
+      setValue:      btn.mode === "set" ? btn.setValue : undefined,
       min:           entry.min,
       max:           entry.max,
     });

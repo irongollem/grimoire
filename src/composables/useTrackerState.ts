@@ -74,7 +74,7 @@ export function useSetTrackerValue() {
   });
 }
 
-/** Apply a delta to a tracker (used by DM buttons). Clamps to [min, max]. */
+/** Apply a delta or set an exact value on a tracker. Clamps to [min, max]. */
 export function useApplyTrackerDelta() {
   const { data } = useTrackerStates();
   const { mutateAsync: set } = useSetTrackerValue();
@@ -85,13 +85,18 @@ export function useApplyTrackerDelta() {
     ruleKey?: string;
     ruleId?: string;
     delta: number;
+    setValue?: number;
     min: number;
     max: number;
   }) => {
-    const rows = data.value ?? [];
-    const current = findTrackerRow(rows, opts.partyMemberId, opts.ruleKey, opts.ruleId)?.value ?? 0;
-
-    const clamped = Math.max(opts.min, Math.min(opts.max, current + opts.delta));
+    let clamped: number;
+    if (opts.setValue !== undefined) {
+      clamped = Math.max(opts.min, Math.min(opts.max, opts.setValue));
+    } else {
+      const rows = data.value ?? [];
+      const current = findTrackerRow(rows, opts.partyMemberId, opts.ruleKey, opts.ruleId)?.value ?? 0;
+      clamped = Math.max(opts.min, Math.min(opts.max, current + opts.delta));
+    }
     await set({
       party_member_id: opts.partyMemberId,
       campaign_id: campaign.activeCampaignId!,
