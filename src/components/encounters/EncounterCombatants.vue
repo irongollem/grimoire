@@ -318,8 +318,22 @@ const filteredNpcs = computed(() => {
 });
 
 function addNpcToCombatants(npc: Npc) {
-  const factionId =
-    (npc.relationship === "unknown" ? "neutral" : npc.relationship) ?? "neutral";
+  // Map the 5e reaction scale onto the encounter's faction model
+  // (which only knows players / ally / enemy / neutral).
+  const factionId = (() => {
+    switch (npc.relationship) {
+      case "hostile":
+      case "unfriendly":
+        return "enemy";
+      case "friendly":
+      case "helpful":
+        return "ally";
+      case "indifferent":
+      case "unknown":
+      default:
+        return "neutral";
+    }
+  })();
   localCombatants.value.push({
     id: crypto.randomUUID(),
     monster_id: null,

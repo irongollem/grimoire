@@ -219,7 +219,7 @@ const PLAYER_FIELDS = [
   { key: 'status',       label: 'Alive / Dead status' },
   { key: 'race',         label: 'Species' },
   { key: 'occupation',   label: 'Occupation' },
-  { key: 'relationship', label: 'Relationship (ally/enemy…)' },
+  { key: 'relationship', label: 'Party stance (friendly/hostile…)' },
   { key: 'location',     label: 'Location' },
 ]
 
@@ -391,7 +391,7 @@ const form = reactive<NpcInsert>({
   backstory: props.npc?.backstory ?? null,
   notes: props.npc?.notes ?? null,
   status: props.npc?.status ?? 'alive',
-  relationship: props.npc?.relationship ?? 'neutral',
+  relationship: props.npc?.relationship ?? 'unknown',
   portrait_url: props.npc?.portrait_url ?? null,
   disguise_name: props.npc?.disguise_name ?? null,
   disguise_portrait_url: props.npc?.disguise_portrait_url ?? null,

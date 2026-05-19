@@ -70,7 +70,7 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import EntityNewDot from "@/components/common/EntityNewDot.vue";
 import { usePlayerNpcRatings } from "@/composables/usePlayerNpcRatings";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
-import type { Npc, NpcRelationship, NpcStatus } from "@/types/npc.types";
+import { NPC_RELATIONSHIP_COLORS, type Npc, type NpcRelationship, type NpcStatus } from "@/types/npc.types";
 
 const props = defineProps<{
   npc: Npc;
@@ -92,12 +92,9 @@ const rating = computed(() => {
   return getRating(props.npc.id);
 });
 
-const REL_COLORS: Record<NpcRelationship, string> = {
-  ally: "#2563eb", neutral: "#6b7280", enemy: "#dc2626", unknown: "#9333ea",
-};
 const STATUS_COLORS: Record<NpcStatus, string> = {
   alive: "#22c55e", dead: "#ef4444", missing: "#f59e0b", unknown: "#6b7280",
 };
-function relColor(rel: NpcRelationship) { return REL_COLORS[rel] ?? "#6b7280"; }
+function relColor(rel: NpcRelationship) { return NPC_RELATIONSHIP_COLORS[rel] ?? "#6b7280"; }
 function statusColor(s: NpcStatus) { return STATUS_COLORS[s] ?? "#6b7280"; }
 </script>

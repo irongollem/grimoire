@@ -80,10 +80,12 @@
           class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @change="patchForm('relationship', ($event.target as HTMLSelectElement).value as NpcRelationship)"
         >
-          <option value="neutral">Neutral</option>
-          <option value="ally">Ally</option>
-          <option value="enemy">Enemy</option>
           <option value="unknown">Unknown</option>
+          <option value="hostile">Hostile</option>
+          <option value="unfriendly">Unfriendly</option>
+          <option value="indifferent">Indifferent</option>
+          <option value="friendly">Friendly</option>
+          <option value="helpful">Helpful</option>
         </select>
       </div>
     </div>

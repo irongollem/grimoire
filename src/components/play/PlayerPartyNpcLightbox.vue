@@ -67,7 +67,7 @@ import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import { usePlayerNpcRatings } from "@/composables/usePlayerNpcRatings";
 import { useMyNpcPcNote } from "@/composables/useNpcPcNotes";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
-import type { Npc, NpcRelationship, NpcStatus } from "@/types/npc.types";
+import { NPC_RELATIONSHIP_COLORS, type Npc, type NpcRelationship, type NpcStatus } from "@/types/npc.types";
 
 const { npc } = defineProps<{ npc: Npc | null }>();
 
@@ -82,12 +82,9 @@ const displayName = computed(() => (npc ? getNpcDisplayName(npc) : "???"));
 const displayPortrait = computed(() => (npc ? getNpcDisplayPortrait(npc) : null));
 const displayFocalPoint = computed(() => (npc ? getNpcDisplayFocalPoint(npc) : null));
 
-const REL_COLORS: Record<NpcRelationship, string> = {
-  ally: "#2563eb", neutral: "#6b7280", enemy: "#dc2626", unknown: "#9333ea",
-};
 const STATUS_COLORS: Record<NpcStatus, string> = {
   alive: "#22c55e", dead: "#ef4444", missing: "#f59e0b", unknown: "#6b7280",
 };
-function relColor(rel: NpcRelationship) { return REL_COLORS[rel] ?? "#6b7280"; }
+function relColor(rel: NpcRelationship) { return NPC_RELATIONSHIP_COLORS[rel] ?? "#6b7280"; }
 function statusColor(s: NpcStatus) { return STATUS_COLORS[s] ?? "#6b7280"; }
 </script>

@@ -94,7 +94,11 @@
 import { RouterLink } from 'vue-router';
 import { IconClose, IconEdit, IconInfo } from '@/lib/icons';
 import FocalImage from '@/components/common/FocalImage.vue';
-import type { NpcRelationshipType } from '@/types/npc.types';
+import {
+  NPC_RELATIONSHIP_COLORS,
+  type NpcRelationship,
+  type NpcRelationshipType,
+} from '@/types/npc.types';
 
 interface NpcPanelData {
   id: string;
@@ -143,15 +147,8 @@ defineEmits<{
   'update:editRelNotes': [value: string];
 }>();
 
-const NPC_RELATIONSHIP_COLORS: Record<string, string> = {
-  ally: '#2563eb',
-  neutral: '#6b7280',
-  enemy: '#dc2626',
-  unknown: '#9ca3af',
-};
-
 function relColor(rel: string): string {
-  return NPC_RELATIONSHIP_COLORS[rel] ?? '#6b7280';
+  return NPC_RELATIONSHIP_COLORS[rel as NpcRelationship] ?? '#6b7280';
 }
 </script>
 

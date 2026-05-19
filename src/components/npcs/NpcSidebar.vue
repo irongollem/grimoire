@@ -26,20 +26,13 @@
       @update:active-variant-id="emit('update:artTab', $event as ArtTab)"
     />
 
-    <!-- Party Stance -->
+    <!-- Party Stance — 5e reaction wheel -->
     <div>
       <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">PARTY STANCE</p>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-1">
-        <button
-          v-for="r in REL_OPTIONS"
-          :key="r.value"
-          type="button"
-          class="py-1.5 rounded border font-cinzel text-xs font-semibold tracking-wider transition-colors"
-          :style="relationship === r.value ? { borderColor: r.color, backgroundColor: r.color + '22', color: r.color } : {}"
-          :class="relationship !== r.value ? 'border-border text-muted-foreground hover:border-primary/40' : ''"
-          @click="emit('update:relationship', r.value)"
-        >{{ r.label }}</button>
-      </div>
+      <RelationshipWheel
+        :model-value="relationship"
+        @update:model-value="emit('update:relationship', $event)"
+      />
     </div>
 
     <!-- Status -->
@@ -68,6 +61,7 @@
 
 <script setup lang="ts">
 import EntityImageBlock from '@/components/common/EntityImageBlock.vue'
+import RelationshipWheel from '@/components/npcs/RelationshipWheel.vue'
 import TagInput from '@/components/common/TagInput.vue'
 import type { NpcStatus, NpcRelationship } from '@/types/npc.types'
 
@@ -85,13 +79,6 @@ const STATUS_OPTIONS: { value: NpcStatus; label: string; color: string }[] = [
   { value: 'dead',    label: 'Dead',    color: '#ef4444' },
   { value: 'missing', label: 'Missing', color: '#f59e0b' },
   { value: 'unknown', label: '?',       color: '#6b7280' },
-]
-
-const REL_OPTIONS: { value: NpcRelationship; label: string; color: string }[] = [
-  { value: 'ally',    label: 'Ally',    color: '#2563eb' },
-  { value: 'neutral', label: 'Neutral', color: '#6b7280' },
-  { value: 'enemy',   label: 'Enemy',   color: '#dc2626' },
-  { value: 'unknown', label: '?',       color: '#9333ea' },
 ]
 
 const {

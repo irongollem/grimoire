@@ -280,7 +280,7 @@ const quickForm = reactive<QuickForm>({
   name: "",
   race: "",
   alignment: "",
-  relationship: "neutral" as NpcRelationship,
+  relationship: "unknown" as NpcRelationship,
   templateId: "",
   location_id: null,
   faction_id: null,
