@@ -92,7 +92,12 @@
     "Toffee (Carnival child, new male)": {
       "display_name": "Toffee",
       "location": "carnival", "status": "alive", "relationship": "ally", "relevance": 2,
-      "tags": ["chapter-5","sugarspun","tuft","undissolved","carnival","child","carousel-rider","jeweled-costume","brittle-cotton-friend","age-twin"]
+      "tags": ["chapter-5","sugarspun","tuft","undissolved","carnival","child","carousel-rider","toffee-and-mint-cream","brittle-cotton-friend","age-twin","matched-pair-foundling","sherbet-matched"]
+    },
+    "Sherbet (Carnival child, new — front-row audience child)": {
+      "display_name": "Sherbet",
+      "location": "carnival", "status": "alive", "relationship": "ally", "relevance": 4,
+      "tags": ["chapter-5","sugarspun","tuft","undissolved","carnival","child","orange-and-cream","sherbet-fizz","foundling-pair","front-row-audience","row-1-g","toffee-matched","watcher","carnival-future","campaign-carry-giver"]
     },
     "Marzipan the Elder (Visiting traveler, new male)": {
       "display_name": "Marzipan the Elder",
