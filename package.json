@@ -14,7 +14,8 @@
     "test:watch": "vitest",
     "stripe:setup": "node --env-file=.env.local scripts/stripe-setup.mjs",
     "import-chapter-npcs": "tsx --env-file=.env.local scripts/import-chapter-npcs.ts",
-    "import-faiths": "tsx --env-file=.env.local scripts/import-faiths.ts"
+    "import-faiths": "tsx --env-file=.env.local scripts/import-faiths.ts",
+    "migrate-plaintext-to-tiptap": "tsx --env-file=.env.local scripts/migrate-plaintext-to-tiptap.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
