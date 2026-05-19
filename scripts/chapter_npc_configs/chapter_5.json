@@ -1,0 +1,75 @@
+{
+  "_comment": "Sidecar config for `late_in_the_kind_country_chapter_5_npcs.md`. Pass via --config; idempotent re-runs are safe.",
+  "default_location_key": "carnival",
+  "locations": [
+    {
+      "key": "carnival",
+      "name": "The Sugar Carnival",
+      "type": "town",
+      "parent_name": "Sothery",
+      "description": "A walled fairground valley south of the Smudge Flats. The Sugar Carnival has run continuously for nineteen years under Spangle's stagemistress-ship, with Trill's predecessor before that. Daily program: Bow of Welcome, the Slow Fall on the trapeze, the carousel, lemonade tents, audience bleachers. The valley sustains a no-rain bargain; Sugarspun who reach late-stage choose seats in the audience rather than walking on. The chapter's emotional spine.",
+      "tags": ["chapter-5","locus","carnival","sugarspun","sothery","antibody","valley","no-rain-bargain"]
+    },
+    {
+      "key": "sugarwell",
+      "name": "Sugarwell",
+      "type": "town",
+      "parent_name": "Sothery",
+      "description": "A Sugarspun town adjacent to the Sugar Carnival valley, home of the masters' conservatory where Sugarspun performers train. Sugarwell trades in pulled-sugar work, conservatory tuition, and traveler hospitality. The chapter's third-option exhibit: a Sugarspun life lived without the Carnival's nightly dissolution.",
+      "tags": ["chapter-5","sugarwell","sothery","sugarspun","conservatory","third-option","town"]
+    }
+  ],
+  "npcs": {
+    "Brittle": {
+      "location": "carnival", "status": "alive", "relationship": "ally", "relevance": 4,
+      "tags": ["chapter-5","sugarspun","tuft","undissolved","lemonade-girl","carnival","child","bow-keeper","outside-curious","campaign-carry"]
+    },
+    "Cotton": {
+      "location": "carnival", "status": "alive", "relationship": "ally", "relevance": 2,
+      "tags": ["chapter-5","sugarspun","tuft","undissolved","lemonade-girl","carnival","child","age-twin"]
+    },
+    "Spangle": {
+      "location": "carnival", "status": "alive", "relationship": "ally", "relevance": 5,
+      "tags": ["chapter-5","sugarspun","tuft","middle-stage","stagemistress","carnival","antibody","articulate","chief-host"]
+    },
+    "Glissade": {
+      "location": "carnival", "status": "alive", "relationship": "neutral", "relevance": 4,
+      "tags": ["chapter-5","sugarspun","tuft","late-stage","bandmaster","carousel","bell-note","carnival","fused-to-bandstand","brine-mentor"]
+    },
+    "Plume": {
+      "location": "carnival", "status": "alive", "relationship": "ally", "relevance": 4,
+      "tags": ["chapter-5","sugarspun","tuft","mid-stage-advanced","trapeze","slow-fall","carnival","senior-performer","glissade-age-twin"]
+    },
+    "Curtsy": {
+      "location": "carnival", "status": "alive", "relationship": "ally", "relevance": 3,
+      "tags": ["chapter-5","sugarspun","tuft","early-mid-stage","apprentice","juggler","carnival","spangle-successor"]
+    },
+    "Trill": {
+      "location": "carnival", "status": "alive", "relationship": "neutral", "relevance": 2,
+      "tags": ["chapter-5","sugarspun","tuft","settled","audience","seat-3-a","carnival","predecessor","spangle-predecessor"]
+    },
+    "Marzipane": {
+      "location": "carnival", "status": "alive", "relationship": "neutral", "relevance": 3,
+      "tags": ["chapter-5","sugarspun","tuft","settled","audience","seat-3-d","carnival","fifty-three-years","plume-age-twin","unextractable"]
+    },
+    "Tallow Wickwax": {
+      "location": "carnival", "status": "alive", "relationship": "neutral", "relevance": 2,
+      "tags": ["chapter-5","wick","almost-gone","candle-stub","seat-4-a","audience","carnival","cross-people","crumble-lantern-link"]
+    },
+    "Brine (Glissade Junior)": {
+      "display_name": "Brine (Glissade Junior)",
+      "location": "carnival", "status": "alive", "relationship": "enemy", "relevance": 4,
+      "tags": ["chapter-5","sugarspun","salt-bonded","saltwater-clown","wrong","glissade-apprentice","abandoned","tactical-combatant","sugarwell-born"]
+    },
+    "Madame Petrichor (Terminal Entry)": {
+      "display_name": "Madame Petrichor",
+      "location": "carnival", "status": "alive", "relationship": "ally", "relevance": 5,
+      "tags": ["chapter-5","sugarspun","tuft","late-stage-advanced","peddler","traveler","campaign-companion","considers-chair","walks-on","hospice-bound","cart","cinder","praline-source"]
+    },
+    "Floss (Sugarwell Locus NPC)": {
+      "display_name": "Floss",
+      "location": "sugarwell", "status": "alive", "relationship": "ally", "relevance": 3,
+      "tags": ["chapter-5","sugarspun","tuft","mid-stage","innkeeper","sugarwell","pulled-sugar-inn","hospitable","third-option","former-trapeze"]
+    }
+  }
+}
