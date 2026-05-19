@@ -14,6 +14,7 @@ import type { NpcRelationship, NpcStatus } from "@/types/npc.types";
 import type { LocationSpec, NpcRecord } from "./parse-chapter-npcs";
 import { normalizeName } from "./parse-chapter-npcs";
 import { type FieldSpec, type RowMergePlan } from "./merge-fields";
+import { NPC_RICHTEXT_FIELDS, tiptapifyFields } from "./tiptap";
 
 /**
  * Field merge schema for the NPC enrich-merge path. Only fields the parser
@@ -229,16 +230,20 @@ export interface NpcInsertPayload {
 
 /**
  * Apply an enrich-merge to a single existing NPC row. Issues UPDATE with only
- * the fields in `plan.updates`. Returns the updated row's name (echo for log).
+ * the fields in `plan.updates`. Rich-text fields (appearance, personality,
+ * backstory, notes) are converted from plain markdown to Tiptap JSON at this
+ * write boundary so they render correctly in the `RichTextEditor` UI.
+ * Returns the updated row's name (echo for log).
  */
 export async function enrichNpc(
   supabase: SupabaseClient,
   npcId: string,
   plan: RowMergePlan,
 ): Promise<{ id: string; name: string }> {
+  const updates = tiptapifyFields(plan.updates, NPC_RICHTEXT_FIELDS);
   const { data, error } = await supabase
     .from("npcs")
-    .update(plan.updates)
+    .update(updates)
     .eq("id", npcId)
     .select("id, name")
     .single();
@@ -256,22 +261,29 @@ export async function insertNpcs(
 ): Promise<Array<{ id: string; name: string; location_id: string | null }>> {
   if (records.length === 0) return [];
 
-  const payload: NpcInsertPayload[] = records.map((r) => ({
-    user_id: userId,
-    campaign_id: campaignId,
-    location_id: r.location_key ? (locationByKey.get(r.location_key) ?? null) : null,
-    name: r.name,
-    race: r.race || null,
-    occupation: r.occupation || null,
-    appearance: r.appearance || null,
-    personality: r.personality || null,
-    backstory: r.backstory || null,
-    notes: r.notes || null,
-    status: r.status,
-    relationship: r.relationship,
-    relevance: r.relevance,
-    tags: r.tags,
-  }));
+  const payload = records.map((r) => {
+    const base: NpcInsertPayload = {
+      user_id: userId,
+      campaign_id: campaignId,
+      location_id: r.location_key ? (locationByKey.get(r.location_key) ?? null) : null,
+      name: r.name,
+      race: r.race || null,
+      occupation: r.occupation || null,
+      appearance: r.appearance || null,
+      personality: r.personality || null,
+      backstory: r.backstory || null,
+      notes: r.notes || null,
+      status: r.status,
+      relationship: r.relationship,
+      relevance: r.relevance,
+      tags: r.tags,
+    };
+    // Convert rich-text fields from plain markdown to Tiptap JSON at the
+    // write boundary so they land in a form the editor renders correctly.
+    // Cast to widen `NpcInsertPayload` (strict interface, no index signature)
+    // to the generic Record<string, unknown> that `tiptapifyFields` expects.
+    return tiptapifyFields(base as unknown as Record<string, unknown>, NPC_RICHTEXT_FIELDS) as unknown as NpcInsertPayload;
+  });
 
   const { data, error } = await supabase
     .from("npcs")

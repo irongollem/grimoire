@@ -63,6 +63,11 @@ import {
   type FieldSpec,
   type RowMergePlan,
 } from "./lib/merge-fields";
+import {
+  DEITY_RICHTEXT_FIELDS,
+  PANTHEON_RICHTEXT_FIELDS,
+  tiptapifyFields,
+} from "./lib/tiptap";
 
 /**
  * Field merge schema for deity enrichment. Only the fields the faiths parser
@@ -307,13 +312,15 @@ export async function ensurePantheons(
   log.info(`ensurePantheons: inserting ${missing.length} new pantheon(s): ${missing.map((m) => m.name).join(", ")}`);
   const { data: inserted, error: insErr } = await supabase
     .from("pantheons")
-    .insert(missing.map((m) => ({
+    // `description` is a Tiptap-typed field — convert to Tiptap JSON at the
+    // write boundary so the editor renders it correctly.
+    .insert(missing.map((m) => tiptapifyFields({
       user_id: userId,
       campaign_id: campaignId,
       name: m.name,
       description: m.description,
       tags: m.tags,
-    })))
+    }, PANTHEON_RICHTEXT_FIELDS)))
     .select("id, name");
   if (insErr) throw insErr;
   for (const row of inserted ?? []) byName.set(row.name as string, row.id as string);
@@ -581,11 +588,14 @@ async function main(): Promise<number> {
 
   // Execute — UPDATE existing rows (enriches + force-overwrites use the same
   // UPDATE shape; only the plan-builder differed), then INSERT new rows.
+  // Rich-text fields (description, dm_notes) are converted from plain markdown
+  // to Tiptap JSON at this write boundary so they render correctly in the UI.
   let enrichedOk = 0;
   for (const entry of toEnrich) {
+    const updates = tiptapifyFields(entry.plan.updates, DEITY_RICHTEXT_FIELDS);
     const { error } = await supabase
       .from("deities")
-      .update(entry.plan.updates)
+      .update(updates)
       .eq("id", entry.existing.id);
     if (error) {
       log.warn(`  enrich failed for ${entry.existing.name}: ${error.message}`);
@@ -598,9 +608,10 @@ async function main(): Promise<number> {
 
   let forcedOk = 0;
   for (const entry of toForceOverwrite) {
+    const updates = tiptapifyFields(entry.plan.updates, DEITY_RICHTEXT_FIELDS);
     const { error } = await supabase
       .from("deities")
-      .update(entry.plan.updates)
+      .update(updates)
       .eq("id", entry.existing.id);
     if (error) {
       log.warn(`  force-overwrite failed for ${entry.existing.name}: ${error.message}`);
@@ -614,10 +625,10 @@ async function main(): Promise<number> {
   }
 
   if (toInsert.length > 0) {
-    const payload = toInsert.map((r) => ({
+    const payload = toInsert.map((r) => tiptapifyFields({
       ...recordToInsert(r, args.campaignId, pantheonByName.get(r.pantheon) ?? null),
       user_id: args.userId,
-    }));
+    }, DEITY_RICHTEXT_FIELDS));
     const { data, error } = await supabase
       .from("deities")
       .insert(payload)
