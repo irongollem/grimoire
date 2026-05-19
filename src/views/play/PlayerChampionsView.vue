@@ -22,7 +22,7 @@
     </div>
 
     <!-- Empty -->
-    <div v-else-if="!characters?.length" class="rounded-lg border border-border bg-card p-8 text-center space-y-3">
+    <div v-else-if="!characters?.length && !offeredCharacters?.length" class="rounded-lg border border-border bg-card p-8 text-center space-y-3">
       <IconDM class="h-8 w-8 text-muted-foreground/40 mx-auto" />
       <div>
         <p class="font-cinzel text-sm font-semibold text-foreground">No characters yet</p>
@@ -37,79 +37,128 @@
       </RouterLink>
     </div>
 
-    <!-- Character cards -->
-    <div v-else class="space-y-3">
-      <div
-        v-for="char in characters"
-        :key="char.id"
-        class="rounded-lg border bg-card overflow-hidden transition-colors"
-        :class="isActive(char) ? 'border-primary/50' : 'border-border'"
-      >
-        <div class="flex gap-3 p-3">
+    <template v-else>
+      <!-- Character cards -->
+      <div v-if="characters?.length" class="space-y-3">
+        <div
+          v-for="char in characters"
+          :key="char.id"
+          class="rounded-lg border bg-card overflow-hidden transition-colors"
+          :class="isActive(char) ? 'border-primary/50' : 'border-border'"
+        >
+          <div class="flex gap-3 p-3">
 
-          <!-- Portrait -->
-          <div class="w-16 h-20 rounded-md overflow-hidden bg-muted shrink-0">
-            <FocalImage
-              :src="char.portrait_url"
-              :alt="char.name"
-              format="portrait"
-              :focal-point="char.portrait_focal_point ?? null"
-              :lightbox="true"
-              placeholder="/assets/placeholders/character.webp"
-            />
-          </div>
-
-          <!-- Info -->
-          <div class="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-            <div>
-              <div class="flex items-center gap-2">
-                <h2 class="font-cinzel text-sm font-bold text-foreground truncate">{{ char.name }}</h2>
-                <span
-                  v-if="isActive(char)"
-                  class="shrink-0 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded bg-primary text-primary-foreground tracking-wider"
-                >Active</span>
-              </div>
-              <p class="font-fell text-xs text-muted-foreground italic mt-0.5 truncate">
-                {{ charSummary(char) }}
-              </p>
+            <!-- Portrait -->
+            <div class="w-16 h-20 rounded-md overflow-hidden bg-muted shrink-0">
+              <FocalImage
+                :src="char.portrait_url"
+                :alt="char.name"
+                format="portrait"
+                :focal-point="char.portrait_focal_point ?? null"
+                :lightbox="true"
+                placeholder="/assets/placeholders/character.webp"
+              />
             </div>
 
-            <!-- Actions -->
-            <div class="flex items-center gap-2 mt-2">
-              <button
-                v-if="!isActive(char)"
-                type="button"
-                :disabled="settingActive === char.id"
-                class="font-cinzel text-xs tracking-wider px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
-                @click="setActive(char.id)"
-              >
-                {{ settingActive === char.id ? 'Switching…' : 'Set Active' }}
-              </button>
-              <RouterLink
-                :to="{ name: 'play-character-edit', query: { memberId: char.id } }"
-                class="font-cinzel text-xs tracking-wider px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Edit
-              </RouterLink>
-              <RouterLink
-                v-if="isActive(char) && char.level > 0"
-                :to="{ name: 'play-character-levelup', query: { memberId: char.id } }"
-                class="font-cinzel text-xs tracking-wider px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Level Up
-              </RouterLink>
+            <!-- Info -->
+            <div class="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h2 class="font-cinzel text-sm font-bold text-foreground truncate">{{ char.name }}</h2>
+                  <span
+                    v-if="isActive(char)"
+                    class="shrink-0 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded bg-primary text-primary-foreground tracking-wider"
+                  >Active</span>
+                </div>
+                <p class="font-fell text-xs text-muted-foreground italic mt-0.5 truncate">
+                  {{ charSummary(char) }}
+                </p>
+              </div>
+
+              <!-- Actions -->
+              <div class="flex items-center gap-2 mt-2">
+                <button
+                  v-if="!isActive(char)"
+                  type="button"
+                  :disabled="settingActive === char.id"
+                  class="font-cinzel text-xs tracking-wider px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
+                  @click="setActive(char.id)"
+                >
+                  {{ settingActive === char.id ? 'Switching…' : 'Set Active' }}
+                </button>
+                <RouterLink
+                  :to="{ name: 'play-character-edit', query: { memberId: char.id } }"
+                  class="font-cinzel text-xs tracking-wider px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Edit
+                </RouterLink>
+                <RouterLink
+                  v-if="isActive(char) && char.level > 0"
+                  :to="{ name: 'play-character-levelup', query: { memberId: char.id } }"
+                  class="font-cinzel text-xs tracking-wider px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Level Up
+                </RouterLink>
+              </div>
+            </div>
+          </div>
+
+          <!-- Active indicator bar -->
+          <div v-if="isActive(char)" class="h-0.5 bg-primary/40" />
+        </div>
+      </div>
+
+      <!-- Offered by DM -->
+      <div v-if="!ui.dmPreviewMode && offeredCharacters?.length" class="space-y-3">
+        <div class="flex items-center gap-2">
+          <h2 class="font-cinzel text-sm font-semibold text-foreground">Available from your DM</h2>
+          <span class="font-cinzel text-2xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground tracking-wider">{{ offeredCharacters.length }}</span>
+        </div>
+        <div
+          v-for="char in offeredCharacters"
+          :key="char.id"
+          class="rounded-lg border border-dashed border-border bg-card overflow-hidden"
+        >
+          <div class="flex gap-3 p-3">
+            <!-- Portrait -->
+            <div class="w-16 h-20 rounded-md overflow-hidden bg-muted shrink-0">
+              <FocalImage
+                :src="char.portrait_url"
+                :alt="char.name"
+                format="portrait"
+                :focal-point="char.portrait_focal_point ?? null"
+                :lightbox="true"
+                placeholder="/assets/placeholders/character.webp"
+              />
+            </div>
+
+            <!-- Info -->
+            <div class="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+              <div>
+                <h2 class="font-cinzel text-sm font-bold text-foreground truncate">{{ char.name }}</h2>
+                <p class="font-fell text-xs text-muted-foreground italic mt-0.5 truncate">
+                  {{ charSummary(char) }}
+                </p>
+              </div>
+              <div class="flex items-center gap-2 mt-2">
+                <button
+                  type="button"
+                  :disabled="assuming === char.id"
+                  class="font-cinzel text-xs tracking-wider px-3 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+                  @click="assume(char.id)"
+                >
+                  {{ assuming === char.id ? 'Assuming…' : 'Assume this character' }}
+                </button>
+              </div>
             </div>
           </div>
         </div>
-
-        <!-- Active indicator bar -->
-        <div v-if="isActive(char)" class="h-0.5 bg-primary/40" />
       </div>
-    </div>
+    </template>
 
     <!-- Error -->
-    <p v-if="setActiveError" class="font-fell text-xs text-destructive text-center">
-      {{ setActiveError }}
+    <p v-if="setActiveError || assumeError" class="font-fell text-xs text-destructive text-center">
+      {{ setActiveError || assumeError }}
     </p>
 
   </div>
@@ -119,7 +168,7 @@
 import { ref, computed } from 'vue';
 import { RouterLink } from 'vue-router';
 import { IconAdd, IconDM } from '@/lib/icons';
-import { useMyCharacters, useSetActiveCharacter, useParty } from '@/composables/useParty';
+import { useMyCharacters, useSetActiveCharacter, useParty, useOfferedCharacters, useAssumeCharacter } from '@/composables/useParty';
 import { useSpeciesNameMap } from '@/composables/useSpecies';
 import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
@@ -129,15 +178,19 @@ import type { PartyMember } from '@/types/party.types';
 
 const auth = useAuthStore();
 const ui   = useUiStore();
-const { data: myChars,   isPending: myPending }  = useMyCharacters();
-const { data: allChars,  isPending: allPending }  = useParty();
+const { data: myChars,        isPending: myPending }  = useMyCharacters();
+const { data: allChars,       isPending: allPending }  = useParty();
+const { data: offeredCharacters } = useOfferedCharacters();
 const characters = computed(() => ui.dmPreviewMode ? allChars.value  : myChars.value);
 const isPending  = computed(() => ui.dmPreviewMode ? allPending.value : myPending.value);
 const { mutateAsync: setActiveChar } = useSetActiveCharacter();
+const { mutateAsync: assumeChar }    = useAssumeCharacter();
 const speciesNameMap = useSpeciesNameMap();
 
 const settingActive = ref<string | null>(null);
 const setActiveError = ref('');
+const assuming = ref<string | null>(null);
+const assumeError = ref('');
 
 function isActive(char: PartyMember): boolean {
   return char.id === auth.linkedPartyMemberId;
@@ -164,6 +217,18 @@ async function setActive(id: string) {
     setActiveError.value = e instanceof Error ? e.message : 'Failed to switch character.';
   } finally {
     settingActive.value = null;
+  }
+}
+
+async function assume(id: string) {
+  assuming.value = id;
+  assumeError.value = '';
+  try {
+    await assumeChar(id);
+  } catch (e) {
+    assumeError.value = e instanceof Error ? e.message : 'Failed to assume character.';
+  } finally {
+    assuming.value = null;
   }
 }
 </script>
