@@ -1,10 +1,8 @@
 {
-  "_comment": "Sidecar for ch6_wax_roads/npcs.md. NOTE: Brand, Inner Tallow, Outer Tallow are ### headings in the source and are NOT auto-imported (parser only reads ## headings). The four brief Smutters (Wickling, Tinder, Lamplight Brisket, Glow) are bullet-only entries. Create these manually in Grimoire or promote their headings to ## in the source.",
+  "_comment": "Sidecar for ch6_wax_roads/npcs.md. The four brief Smutters (Wickling, Tinder, Lamplight Brisket, Glow) are bullet-only entries with no prose to parse — create manually if needed.",
   "default_location_key": "wickhollow",
 
   "skip_headings": [
-    "Inner Tallow and Outer Tallow",
-    "The Smutters — Named Combatants",
     "Wickbrand, Brookwick, and Pip's Family — The Eighteen Surviving Wicks (Brief Roster)",
     "Cross-Chapter Returns — Recurring Cast"
   ],
@@ -76,6 +74,27 @@
       "relationship": "helpful",
       "relevance": 3,
       "tags": ["chapter-6","wickram","pip-companion","campaign-companion","moral-weather","self-sacrifice-warning","offered-at-closing","braided-cord-leash"]
+    },
+    "Inner Tallow": {
+      "location": "wickhollow",
+      "status": "alive",
+      "relationship": "friendly",
+      "relevance": 2,
+      "tags": ["chapter-6","wick","almost-gone","pips-mother","lane-end","option-one-lean","inner-outer-pair","almost-gone-pair"]
+    },
+    "Outer Tallow": {
+      "location": "wickhollow",
+      "status": "alive",
+      "relationship": "friendly",
+      "relevance": 2,
+      "tags": ["chapter-6","wick","almost-gone","pips-father","lane-end","option-two-lean","inner-outer-pair","almost-gone-pair"]
+    },
+    "Brand": {
+      "location": "wickhollow",
+      "status": "dead",
+      "relationship": "indifferent",
+      "relevance": 4,
+      "tags": ["chapter-6","wick","smutter","ember","dead","half-presence","lamphouse-keeper","honey-bees","wickline-mothers-neighbor","hearthbright-lineage","brand-named","settling-scene","lucidity","campaign-carry","crumble-link"]
     }
   }
 }
