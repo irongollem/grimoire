@@ -7,6 +7,12 @@ import CharacterSheetRenderer from "@/components/character-sheet/CharacterSheetR
 
 export type SheetPageSize = "A4" | "Letter";
 
+export interface SheetExportOptions {
+  pageSize?: SheetPageSize;
+  speciesName?: string | null;
+  backgroundName?: string | null;
+}
+
 const PAGE_DIMS_PX: Record<SheetPageSize, { w: number; h: number }> = {
   A4:     { w: 794, h: 1123 },
   Letter: { w: 816, h: 1056 },
@@ -23,7 +29,7 @@ export function useCharacterSheetPdf() {
   async function exportPdf(
     member: PartyMember,
     inventory: PartyInventoryItem[],
-    pageSize: SheetPageSize = "A4",
+    { pageSize = "A4", speciesName = null, backgroundName = null }: SheetExportOptions = {},
   ): Promise<void> {
     isGenerating.value = true;
 
@@ -32,10 +38,17 @@ export function useCharacterSheetPdf() {
 
     // Create an off-screen container at exact page dimensions
     const container = document.createElement("div");
-    container.style.cssText = `position:fixed;top:-9999px;left:-9999px;width:${pxW}px;overflow:hidden;z-index:-1;`;
+    container.style.cssText =
+      `position:fixed;top:-9999px;left:-9999px;width:${pxW}px;overflow:hidden;z-index:-1;`;
     document.body.appendChild(container);
 
-    const app = createApp(CharacterSheetRenderer, { member, inventory, pageSize });
+    const app = createApp(CharacterSheetRenderer, {
+      member,
+      inventory,
+      pageSize,
+      speciesName,
+      backgroundName,
+    });
     app.mount(container);
 
     try {

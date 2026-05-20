@@ -70,15 +70,24 @@
         :member="member"
       />
 
-      <!-- ── Tabs ───────────────────────────────────────────── -->
-      <div class="flex flex-wrap rounded-md border border-border overflow-hidden w-fit text-xs font-cinzel font-semibold tracking-wider">
-        <button
-          v-for="tab in visibleTabs"
-          :key="tab.id"
-          class="cursor-pointer px-4 py-1.5 transition-colors"
-          :class="activeTab === tab.id ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-          @click="activeTab = tab.id"
-        >{{ tab.label }}</button>
+      <!-- ── Tabs + Export Sheet ──────────────────────────── -->
+      <div class="flex items-center gap-3 flex-wrap">
+        <div class="flex flex-wrap rounded-md border border-border overflow-hidden w-fit text-xs font-cinzel font-semibold tracking-wider">
+          <button
+            v-for="tab in visibleTabs"
+            :key="tab.id"
+            class="cursor-pointer px-4 py-1.5 transition-colors"
+            :class="activeTab === tab.id ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
+            @click="activeTab = tab.id"
+          >{{ tab.label }}</button>
+        </div>
+        <RouterLink
+          v-if="!hidePlayerActions && member"
+          :to="`/character-sheet/${member.id}`"
+          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
+        >
+          Export Sheet
+        </RouterLink>
       </div>
 
       <!-- Skills -->

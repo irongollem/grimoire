@@ -214,7 +214,7 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Character Sheet",
         to: "/party",
         icon: IconBookUser,
-        description: "Export printable character sheets",
+        description: "Export printable character sheets (select a party member)",
       },
       {
         label: "Card Forge",
