@@ -40,7 +40,7 @@
           v-if="npc?.id"
           type="button"
           :disabled="npcDetail.isSendingToScriptorium"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-50"
+          class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-50"
           @click="npcDetail.sendToScriptorium()"
         >
           <IconScrollText class="h-3.5 w-3.5" />
@@ -48,13 +48,14 @@
         </button>
         <PlayerVisibilityToggle
           v-if="npc?.id"
+          class="hidden sm:flex"
           :visible-to="npcDetail.form.player_visible_to"
           @update:visible-to="npcDetail.form.player_visible_to = $event"
         />
         <button
           v-if="npc?.id && (npcDetail.form.disguise_name || npcDetail.form.disguise_portrait_url)"
           type="button"
-          class="flex items-center gap-1.5 px-2.5 py-1.5 font-cinzel text-[10px] font-semibold tracking-wider rounded border transition-colors"
+          class="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 font-cinzel text-[10px] font-semibold tracking-wider rounded border transition-colors"
           :class="npcDetail.form.is_revealed
             ? 'border-amber-500/50 text-amber-500 bg-amber-500/10 hover:bg-amber-500/20'
             : 'border-border text-muted-foreground hover:border-foreground/40'"
@@ -63,7 +64,7 @@
         <button
           v-if="npcDetail.isAiEnabled"
           type="button"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-primary/40 text-primary rounded-md hover:bg-primary/10 transition-colors"
+          class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-primary/40 text-primary rounded-md hover:bg-primary/10 transition-colors"
           @click="npcDetail.showGenerateDialog = true"
         >
           <IconGenerate class="h-3.5 w-3.5" />

@@ -14,8 +14,8 @@
   <div :class="['lg:flex lg:flex-col lg:min-h-0', $slots.default ? 'lg:flex-1' : '']">
     <!-- Header section — sticky on mobile, static on desktop -->
     <div class="sticky top-0 z-20 bg-background px-4 pt-4 md:px-6 md:pt-6">
-      <div class="flex items-start justify-between gap-4">
-        <div>
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div class="min-w-0">
           <h1 class="font-cinzel text-2xl md:text-3xl font-bold text-foreground tracking-wide">
             {{ title }}
           </h1>
@@ -23,7 +23,7 @@
             {{ description }}
           </p>
         </div>
-        <div class="flex items-center gap-2 shrink-0">
+        <div v-if="$slots.actions" class="flex flex-wrap items-center gap-2 sm:shrink-0">
           <slot name="actions" />
         </div>
       </div>
