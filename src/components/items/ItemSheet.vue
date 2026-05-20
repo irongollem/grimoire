@@ -2,7 +2,7 @@
   <div class="flex flex-col gap-6">
     <div class="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
       <!-- Left: image(s) -->
-      <div class="flex flex-col gap-3 lg:sticky lg:top-6">
+      <div class="flex flex-col gap-3">
         <!-- Tabbed art (identified / mundane) when both exist; otherwise single image -->
         <template v-if="item.image_url && item.mundane_image_url">
           <div class="flex border-b border-border mb-1">

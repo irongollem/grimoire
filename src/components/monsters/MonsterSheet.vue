@@ -3,7 +3,7 @@
     <!-- Top: portrait left + stat block right -->
     <div class="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-6">
       <!-- Left: portrait -->
-      <div class="flex flex-col gap-3 lg:sticky lg:top-6">
+      <div class="flex flex-col gap-3">
         <FocalImage
           :src="monster.image_url"
           :focal-point="monster.portrait_focal_point"

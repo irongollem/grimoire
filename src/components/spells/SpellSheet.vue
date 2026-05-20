@@ -2,7 +2,7 @@
   <div class="flex flex-col gap-6">
     <div class="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
       <!-- Left: image -->
-      <div class="flex flex-col gap-3 lg:sticky lg:top-6">
+      <div class="flex flex-col gap-3">
         <FocalImage
           :src="spell.image_url"
           :focal-point="spell.image_focal_point"

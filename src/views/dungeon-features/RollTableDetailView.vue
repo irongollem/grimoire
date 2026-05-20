@@ -254,7 +254,7 @@
       </div>
 
       <!-- ── Right: roll panel ────────────────────────────────────────────── -->
-      <div class="lg:sticky lg:top-4 self-start">
+      <div class="self-start">
         <div class="rounded-lg border border-border bg-card p-4 flex flex-col gap-3">
           <h3 class="font-cinzel text-sm font-bold tracking-wider text-foreground">Roll {{ form.dice }}</h3>
           <button

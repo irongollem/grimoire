@@ -8,9 +8,6 @@
       • a non-scrolling header section (title, actions, divider, optional sticky slot)
       • a flex-1 overflow-y-auto body — the real scroll container for page content
 
-    The NpcDetail left-column sticky trick works because sticky top-0 inside
-    the body div sticks to the top of *this* scroll container, not the page.
-
     The optional `sidebar` slot (desktop only) renders to the right of the body
     in its own overflow-y-auto column. On mobile it stacks below the body.
   -->

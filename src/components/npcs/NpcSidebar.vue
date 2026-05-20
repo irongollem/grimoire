@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-4 lg:sticky lg:top-0 lg:pb-4">
+  <div class="space-y-4">
     <!-- Portrait (tabbed: True Form / Alter Ego) -->
     <EntityImageBlock
       v-if="artTab === 'true-form'"
