@@ -12,6 +12,8 @@ import {
   buildIdMap,
   remapCharacterClassForImport,
   remapCharacterSpellForImport,
+  remapCustomClassForImport,
+  remapCustomSubclassForImport,
   remapPartyMemberForImport,
   remapSpeciesForImport,
   remapSpellForImport,
@@ -71,18 +73,69 @@ describe("buildIdMap", () => {
       party_members: [{ id: "pm-1" }, { id: "pm-2" }],
       character_classes: [{ id: "cc-1" }],
       character_spells: [{ id: "cs-1" }],
+      custom_classes: [{ id: "cclass-1" }],
+      custom_subclasses: [{ id: "csub-1" }],
       species: [{ id: "sp-1" }],
       spells: [{ id: "spell-1" }],
     });
 
     const map = buildIdMap(bundle);
 
-    for (const oldId of ["pm-1", "pm-2", "cc-1", "cs-1", "sp-1", "spell-1"]) {
+    for (const oldId of ["pm-1", "pm-2", "cc-1", "cs-1", "cclass-1", "csub-1", "sp-1", "spell-1"]) {
       const fresh = map.get(oldId);
       expect(fresh).toBeDefined();
       expect(fresh).not.toBe(oldId);
       expect(fresh).toMatch(UUID_RE);
     }
+  });
+});
+
+describe("remapCustomClassForImport", () => {
+  it("assigns fresh id, campaign_id and user_id; preserves class data", () => {
+    const idMap = new Map([["cclass-1", "cclass-fresh"]]);
+    const ctx: ImportRemapCtx = { idMap, campaignId: "camp-new", userId: "dm-importer" };
+
+    const result = remapCustomClassForImport(
+      {
+        id: "cclass-1",
+        class_name: "School of Memory",
+        hit_die: 6,
+        features: {},
+        source: null,
+      },
+      ctx,
+    );
+
+    expect(result.id).toBe("cclass-fresh");
+    expect(result.campaign_id).toBe("camp-new");
+    expect(result.user_id).toBe("dm-importer");
+    expect(result.class_name).toBe("School of Memory");
+    expect(result.hit_die).toBe(6);
+    expect(result.source).toBeNull();
+  });
+});
+
+describe("remapCustomSubclassForImport", () => {
+  it("assigns fresh id, campaign_id and user_id; preserves name data (no class_id FK)", () => {
+    const idMap = new Map([["csub-1", "csub-fresh"]]);
+    const ctx: ImportRemapCtx = { idMap, campaignId: "camp-new", userId: "dm-importer" };
+
+    const result = remapCustomSubclassForImport(
+      {
+        id: "csub-1",
+        class_name: "Wizard",
+        subclass_name: "School of Memory",
+        features: {},
+      },
+      ctx,
+    );
+
+    expect(result.id).toBe("csub-fresh");
+    expect(result.campaign_id).toBe("camp-new");
+    expect(result.user_id).toBe("dm-importer");
+    // Text names travel as-is — no UUID FK to remap
+    expect(result.class_name).toBe("Wizard");
+    expect(result.subclass_name).toBe("School of Memory");
   });
 });
 
@@ -109,12 +162,17 @@ describe("character round-trip (export → import)", () => {
       { id: "cc-1", party_member_id: "pm-1", class_name: "Wizard", subclass_name: "Evocation", levels: 5, is_primary: true },
       { id: "cc-2", party_member_id: "pm-1", class_name: "Fighter", subclass_name: null, levels: 2, is_primary: false },
     ];
+    const dbCustomClass = { id: "cclass-1", class_name: "Wizard", hit_die: 6, features: {} };
+    const dbCustomSubclass = { id: "csub-1", class_name: "Wizard", subclass_name: "Evocation", features: {} };
     const dbCustomSpell = { id: "spell-1", user_id: "dm-source", campaign_id: "camp-source", name: "Vex's Bolt" };
     const dbCharSpells = [
       // Custom spell — UUID-keyed, travels in the bundle and must be remapped.
       { id: "cs-1", party_member_id: "pm-1", spell_id: "spell-1", source_class_id: "cc-1", is_prepared: true, source_type: "class" },
       // SRD spell — global slug, must be preserved verbatim (no remap).
       { id: "cs-2", party_member_id: "pm-1", spell_id: "srd_fireball", source_class_id: "cc-1", is_prepared: false, source_type: "class" },
+      // Orphaned spell — references a spell not in the bundle (not srd_ and not in idMap).
+      // This row must be dropped during import.
+      { id: "cs-3", party_member_id: "pm-1", spell_id: "spell-orphaned", source_class_id: "cc-1", is_prepared: false, source_type: "class" },
     ];
 
     // ── Export: strip into a bundle ─────────────────────────────────────────
@@ -122,6 +180,8 @@ describe("character round-trip (export → import)", () => {
       party_members: [stripPartyMemberRow(dbMember)],
       character_classes: dbClasses,
       character_spells: dbCharSpells,
+      custom_classes: [dbCustomClass],
+      custom_subclasses: [dbCustomSubclass],
       species: [dbSpeciesTrue, dbSpeciesDisg],
       spells: [dbCustomSpell],
     });
@@ -134,7 +194,18 @@ describe("character round-trip (export → import)", () => {
     const spells = bundle.spells!.map((s) => remapSpellForImport(s, ctx));
     const member = remapPartyMemberForImport(bundle.party_members![0], ctx);
     const classes = bundle.character_classes!.map((c) => remapCharacterClassForImport(c, ctx));
-    const charSpells = bundle.character_spells!.map((c) => remapCharacterSpellForImport(c, ctx));
+    const customClasses = bundle.custom_classes!.map((c) => remapCustomClassForImport(c, ctx));
+    const customSubs = bundle.custom_subclasses!.map((c) => remapCustomSubclassForImport(c, ctx));
+
+    // Simulate the spell_id filter from executeImport: drop orphaned non-srd_ spell refs.
+    const charSpells = bundle.character_spells!
+      .filter((cs) => {
+        const sid = cs.spell_id as string | null;
+        if (!sid) return false;
+        if ((sid as string).startsWith("srd_")) return true;
+        return idMap.has(sid as string); // bundled custom spell
+      })
+      .map((cs) => remapCharacterSpellForImport(cs, ctx));
 
     // Lands unassigned (DM character), in the new campaign, owned by importer.
     expect(member.owner_user_id).toBeNull();
@@ -159,7 +230,22 @@ describe("character round-trip (export → import)", () => {
     expect(classes.map((c) => c.class_name)).toEqual(["Wizard", "Fighter"]);
     expect(classes.map((c) => c.levels)).toEqual([5, 2]);
 
+    // Custom class definitions travel with fresh ids + ownership.
+    expect(customClasses[0].id).toBe(idMap.get("cclass-1"));
+    expect(customClasses[0].campaign_id).toBe("camp-new");
+    expect(customClasses[0].user_id).toBe("dm-importer");
+    expect(customClasses[0].class_name).toBe("Wizard");
+
+    // Custom subclasses keep their text names (no UUID FK to remap).
+    expect(customSubs[0].id).toBe(idMap.get("csub-1"));
+    expect(customSubs[0].campaign_id).toBe("camp-new");
+    expect(customSubs[0].user_id).toBe("dm-importer");
+    expect(customSubs[0].class_name).toBe("Wizard");
+    expect(customSubs[0].subclass_name).toBe("Evocation");
+
     // Spells: custom remapped, SRD preserved, class link + prepared-state kept.
+    // Orphaned spell (cs-3) is dropped — only 2 rows survive.
+    expect(charSpells).toHaveLength(2);
     expect(charSpells.every((cs) => cs.party_member_id === idMap.get("pm-1"))).toBe(true);
     expect(charSpells.every((cs) => cs.source_class_id === idMap.get("cc-1"))).toBe(true);
     expect(charSpells[0].spell_id).toBe(idMap.get("spell-1"));

@@ -357,7 +357,9 @@ watch(currentPickKey, () => { search.value = ""; });
 
 // Characters import as broken without their species + spells, so selecting
 // Characters force-includes and hard-locks those categories.
-const CHARACTER_DEPENDENCIES: BundleEntityKey[] = ["species", "spells"];
+const CHARACTER_DEPENDENCIES: BundleEntityKey[] = [
+  "species", "spells", "custom_classes", "custom_subclasses",
+];
 
 function isLocked(key: BundleEntityKey): boolean {
   return CHARACTER_DEPENDENCIES.includes(key) && selectedCategories.value.has("party_members");
