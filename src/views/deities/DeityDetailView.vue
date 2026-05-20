@@ -6,24 +6,20 @@
     <template #actions>
       <!-- View / Edit toggle (existing deities only) -->
       <template v-if="!isNew">
-        <button
+        <PageHeaderAction
           v-if="!isEditing"
           type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+          label="Edit"
+          :icon="IconEdit"
           @click="startEditing"
-        >
-          <IconEdit class="h-3.5 w-3.5" />
-          Edit
-        </button>
-        <button
+        />
+        <PageHeaderAction
           v-else
           type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+          label="View"
+          :icon="IconDocument"
           @click="stopEditing"
-        >
-          <IconReveal class="h-3.5 w-3.5" />
-          View
-        </button>
+        />
       </template>
 
       <!-- View-mode: instant visibility toggle -->
@@ -35,22 +31,23 @@
 
       <!-- Edit-mode actions -->
       <template v-if="isEditing && deityEditor">
-        <button
+        <PageHeaderAction
           v-if="deity?.id"
           type="button"
-          class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 transition-colors"
+          label="Delete"
+          :icon="IconDelete"
+          variant="destructive"
           @click="deityEditor.handleDelete()"
-        >
-          Delete
-        </button>
-        <button
+        />
+        <PageHeaderAction
           type="button"
           :disabled="deityEditor.isSaving"
-          class="px-4 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+          :label="deityEditor.isSaving ? 'Saving…' : isNew ? 'Create Deity' : 'Save Changes'"
+          :mobile-label="deityEditor.isSaving ? 'Saving…' : isNew ? 'Create' : 'Save'"
+          variant="primary"
+          :hide-label-on-mobile="false"
           @click="deityEditor.handleSave()"
-        >
-          {{ deityEditor.isSaving ? 'Saving…' : isNew ? 'Create Deity' : 'Save Changes' }}
-        </button>
+        />
       </template>
     </template>
 
@@ -78,9 +75,10 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconEdit, IconReveal } from '@/lib/icons';
+import { IconDelete, IconDocument, IconEdit } from '@/lib/icons';
 import { useDeity, useUpdateDeity } from "@/composables/useDeities";
 import PageHeader from "@/components/common/PageHeader.vue";
+import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import DeityEditor from "@/components/deities/DeityEditor.vue";
 import DeitySheet from "@/components/deities/DeitySheet.vue";

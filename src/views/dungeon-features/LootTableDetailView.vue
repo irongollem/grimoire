@@ -3,20 +3,21 @@
     <template #actions>
       <!-- View mode -->
       <template v-if="!isNew && !isEditing">
-        <button
+        <PageHeaderAction
           type="button"
           :disabled="isDeleting"
-          class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 transition-colors disabled:opacity-50"
+          :label="isDeleting ? 'Deleting…' : 'Delete'"
+          :icon="IconDelete"
+          variant="destructive"
           @click="onDelete"
-        >{{ isDeleting ? "Deleting…" : "Delete" }}</button>
-        <button
+        />
+        <PageHeaderAction
           type="button"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+          label="Edit"
+          :icon="IconEdit"
+          variant="primary"
           @click="isEditing = true"
-        >
-          <IconEdit class="h-3.5 w-3.5" />
-          Edit
-        </button>
+        />
       </template>
       <!-- Edit / new mode -->
       <template v-else>
@@ -26,15 +27,16 @@
           class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors px-2"
           @click="isEditing = false"
         >Cancel</button>
-        <button
+        <PageHeaderAction
           type="button"
           :disabled="saving || !form.name.trim() || entriesError !== null"
           :title="entriesError ?? undefined"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+          :label="saving ? 'Saving…' : isNew ? 'Create' : 'Save'"
+          :mobile-label="saving ? 'Saving…' : isNew ? 'Create' : 'Save'"
+          variant="primary"
+          :hide-label-on-mobile="false"
           @click="onSave"
-        >
-          {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
-        </button>
+        />
       </template>
     </template>
 
@@ -289,7 +291,7 @@
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { RouterLink } from "vue-router";
-import { IconClose, IconDiceRoll, IconEdit, IconMonster, IconPackageOpen } from '@/lib/icons';
+import { IconClose, IconDelete, IconDiceRoll, IconEdit, IconMonster, IconPackageOpen } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import {
   useLootTable,
@@ -317,6 +319,7 @@ import type { LootChestAtom, LootChestMetadata } from "@/types/chat.types";
 import { rollLootTable, type RolledLootEntry } from "@/lib/lootTableRoll";
 import { parseExpression, rollExpression } from "@/lib/dice";
 import PageHeader from "@/components/common/PageHeader.vue";
+import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import TagInput from "@/components/common/TagInput.vue";

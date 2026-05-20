@@ -3,24 +3,24 @@
     <template #actions>
       <!-- View mode actions -->
       <template v-if="mode === 'view' && !isNew">
-        <button
+        <PageHeaderAction
           type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+          label="Edit"
+          :icon="IconEdit"
           @click="mode = 'edit'"
-        >
-          <IconEdit class="size-3.5 shrink-0" />
-          Edit
-        </button>
+        />
       </template>
 
       <!-- Edit mode actions -->
       <template v-else-if="mode === 'edit' || isNew">
-        <button
+        <PageHeaderAction
           v-if="isEdit"
           type="button"
-          class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 transition-colors disabled:opacity-50"
+          label="Delete"
+          :icon="IconDelete"
+          variant="destructive"
           @click="handleDelete"
-        >Delete</button>
+        />
         <button
           v-if="isEdit"
           type="button"
@@ -29,14 +29,15 @@
         >
           Cancel
         </button>
-        <button
+        <PageHeaderAction
           type="button"
           :disabled="saving || !form.name.trim()"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+          :label="saving ? 'Saving…' : isNew ? 'Create' : 'Save'"
+          :mobile-label="saving ? 'Saving…' : isNew ? 'Create' : 'Save'"
+          variant="primary"
+          :hide-label-on-mobile="false"
           @click="save"
-        >
-          {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
-        </button>
+        />
       </template>
     </template>
 
@@ -307,12 +308,13 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconEdit, IconHide, IconReveal } from '@/lib/icons';
+import { IconDelete, IconEdit, IconHide, IconReveal } from '@/lib/icons';
 import { usePuzzle, useCreatePuzzle, useUpdatePuzzle, useDeletePuzzle } from "@/composables/usePuzzles";
 import { useCampaignStore } from "@/stores/campaign";
 import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES } from "@/types/puzzle.types";
 import type { PuzzleHint, PuzzleSkillCheck } from "@/types/puzzle.types";
 import PageHeader from "@/components/common/PageHeader.vue";
+import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import TagInput from "@/components/common/TagInput.vue";

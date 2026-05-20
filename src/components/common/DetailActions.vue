@@ -1,27 +1,29 @@
 <template>
   <template v-if="detailRef">
-    <button
+    <PageHeaderAction
       v-if="exists"
       type="button"
-      class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 transition-colors"
+      label="Delete"
+      :icon="IconDelete"
+      variant="destructive"
       @click="detailRef.remove()"
-    >
-      Delete
-    </button>
-    <button
+    />
+    <PageHeaderAction
       type="button"
       :disabled="!detailRef.canSave"
-      class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+      :label="detailRef.saving ? 'Saving…' : exists ? 'Save' : 'Create'"
+      :mobile-label="detailRef.saving ? 'Saving…' : exists ? 'Save' : 'Create'"
+      :icon="IconSave"
+      variant="primary"
+      :hide-label-on-mobile="false"
       @click="detailRef.save()"
-    >
-      <IconSave class="h-3.5 w-3.5" />
-      {{ detailRef.saving ? "Saving…" : exists ? "Save" : "Create" }}
-    </button>
+    />
   </template>
 </template>
 
 <script setup lang="ts">
-import { IconSave } from '@/lib/icons';
+import { IconDelete, IconSave } from '@/lib/icons';
+import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 
 interface ExposedDetail {
   saving: boolean;

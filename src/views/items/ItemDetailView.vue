@@ -7,65 +7,59 @@
       <!-- View-mode controls (existing items only) -->
       <template v-if="!isNewItem && !isEditing">
         <ItemSendMenu v-if="item" :item="item" />
-        <button
+        <PageHeaderAction
           type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+          label="Edit"
+          :icon="IconEdit"
           @click="startEditing"
-        >
-          <IconEdit class="h-3.5 w-3.5" />
-          Edit
-        </button>
+        />
       </template>
 
       <!-- Edit-mode actions -->
       <template v-if="isEditing && itemDetail">
-        <button
+        <PageHeaderAction
           v-if="!isNewItem"
           type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+          label="View"
+          :icon="IconDocument"
           @click="stopEditing"
-        >
-          <IconReveal class="h-3.5 w-3.5" />
-          View
-        </button>
-        <button
+        />
+        <PageHeaderAction
           v-if="item"
           type="button"
+          :label="itemDetail.isSendingToScriptorium ? 'Sending…' : 'Scriptorium'"
+          :title="itemDetail.isSendingToScriptorium ? 'Sending…' : 'Send to Scriptorium'"
           :disabled="itemDetail.isSendingToScriptorium"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors disabled:opacity-50"
+          :icon="IconScrollText"
           @click="itemDetail.sendToScriptorium()"
-        >
-          <IconScrollText class="h-3.5 w-3.5" />
-          {{ itemDetail.isSendingToScriptorium ? "Sending…" : "Scriptorium" }}
-        </button>
-        <button
+        />
+        <PageHeaderAction
           v-if="item"
           type="button"
+          :label="itemDetail.isCloning ? 'Cloning…' : 'Clone'"
           :disabled="itemDetail.isCloning"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors disabled:opacity-50"
+          :icon="IconCopy"
           @click="itemDetail.cloneItem()"
-        >
-          <IconCopy class="h-3.5 w-3.5" />
-          {{ itemDetail.isCloning ? "Cloning…" : "Clone" }}
-        </button>
-        <button
+        />
+        <PageHeaderAction
           v-if="item"
           type="button"
+          :label="itemDetail.isDeleting ? 'Deleting…' : 'Delete'"
           :disabled="itemDetail.isDeleting"
-          class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 transition-colors disabled:opacity-50"
+          :icon="IconDelete"
+          variant="destructive"
           @click="itemDetail.confirmDelete()"
-        >
-          {{ itemDetail.isDeleting ? "Deleting…" : "Delete" }}
-        </button>
-        <button
+        />
+        <PageHeaderAction
           type="button"
           :disabled="itemDetail.isSaving || !itemDetail.canSave"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+          :label="itemDetail.isSaving ? 'Saving…' : item ? 'Save' : 'Create'"
+          :mobile-label="itemDetail.isSaving ? 'Saving…' : item ? 'Save' : 'Create'"
+          :icon="IconSave"
+          variant="primary"
+          :hide-label-on-mobile="false"
           @click="itemDetail.save()"
-        >
-          <IconSave class="h-3.5 w-3.5" />
-          {{ itemDetail.isSaving ? "Saving…" : item ? "Save" : "Create" }}
-        </button>
+        />
       </template>
     </template>
 
@@ -88,10 +82,11 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconCopy, IconEdit, IconReveal, IconSave, IconScrollText } from '@/lib/icons';
+import { IconCopy, IconDelete, IconDocument, IconEdit, IconSave, IconScrollText } from '@/lib/icons';
 import { useItem } from "@/composables/useItems";
 import { ITEM_TYPE_LABELS, ITEM_RARITY_LABELS } from "@/types/item.types";
 import PageHeader from "@/components/common/PageHeader.vue";
+import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import ItemDetail from "@/components/items/ItemDetail.vue";
 import ItemSheet from "@/components/items/ItemSheet.vue";
