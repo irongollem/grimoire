@@ -150,6 +150,17 @@
 
           <div class="border-t border-border my-1" />
 
+          <!-- Install PWA -->
+          <button
+            v-if="canInstall"
+            class="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+            :title="hasNativePrompt ? 'Add to home screen' : 'Open your browser menu → Add to Home Screen'"
+            @click="hasNativePrompt ? (install(), menuOpen = false) : undefined"
+          >
+            <IconDownload class="h-3.5 w-3.5 shrink-0" />
+            <span class="font-fell">Install app</span>
+          </button>
+
           <!-- Bug report -->
           <button
             class="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
@@ -192,7 +203,8 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { IconBilling, IconBug, IconCheck, IconClose, IconEdit, IconLoading, IconLogOut, IconShieldCheck, IconSort } from '@/lib/icons';
+import { IconBilling, IconBug, IconCheck, IconClose, IconDownload, IconEdit, IconLoading, IconLogOut, IconShieldCheck, IconSort } from '@/lib/icons';
+import { usePwaInstall } from "@/composables/usePwaInstall";
 import { onClickOutside } from "@vueuse/core";
 import { isAnyAiGenerating, getAiGeneratorRegistry } from "@/ai/aiGeneratorRegistry";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
@@ -212,6 +224,7 @@ import BugReportModal from "@/components/common/BugReportModal.vue";
 const auth = useAuthStore();
 const ui = useUiStore();
 const router = useRouter();
+const { canInstall, hasNativePrompt, install } = usePwaInstall();
 const bugReportOpen = ref(false);
 const menuOpen = ref(false);
 const userMenuRef = ref<HTMLElement | null>(null);
