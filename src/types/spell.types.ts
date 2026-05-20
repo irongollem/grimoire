@@ -152,6 +152,7 @@ export interface HigherLevelDamage {
 export interface Spell {
   id: string;
   user_id: string;
+  campaign_id: string | null; // null = universal/library; set = exclusive to that campaign
   name: string;
   level: number; // 0 = cantrip, 1-9
   school: SpellSchool;
@@ -193,7 +194,7 @@ export interface Spell {
   updated_at: string;
 }
 
-export type SpellInsert = Omit<Spell, "id" | "user_id" | "created_at" | "updated_at">;
+export type SpellInsert = Omit<Spell, "id" | "user_id" | "created_at" | "updated_at" | "campaign_id"> & { campaign_id?: string | null };
 export type SpellUpdate = Partial<SpellInsert>;
 
 // ── Max prepared spells ───────────────────────────────────────────────────────

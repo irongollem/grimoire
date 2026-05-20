@@ -63,6 +63,26 @@
             class="bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
+
+        <!-- Campaign-only flag -->
+        <div
+          v-if="!isSrd && campaignStore.activeCampaignId"
+          class="rounded-md border border-border/60 bg-muted/20 p-3 space-y-1"
+        >
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              :checked="campaignId === campaignStore.activeCampaignId"
+              class="rounded"
+              @change="toggleCampaignSpecific"
+            />
+            <span class="font-fell text-sm text-foreground">Campaign-only</span>
+          </label>
+          <p class="font-fell text-xs text-muted-foreground italic">
+            Restrict this spell to <strong>{{ campaignStore.activeCampaign?.name }}</strong>.
+            It won't appear in other campaigns.
+          </p>
+        </div>
       </div>
 
       <!-- ── Core spell fields ──────────────────────────────────────────── -->
@@ -279,6 +299,8 @@ const source = ref(props.spell?.source ?? "");
 const imageUrl = ref(props.spell?.image_url ?? "");
 const imageFocalPoint = ref(props.spell?.image_focal_point ?? null);
 const tags = ref<string[]>(props.spell?.tags ?? []);
+// Campaign-only flag: null = universal/library spell, set = exclusive to that campaign.
+const campaignId = ref<string | null>(props.spell?.campaign_id ?? null);
 
 // When SRD art loads asynchronously, sync art fields from the updated prop
 watch(
@@ -487,6 +509,7 @@ function buildPayload() {
     higher_levels: higherLevels.value || null,
     classes: classes.value,
     tags: tags.value,
+    campaign_id: campaignId.value,
     source: source.value || null,
     source_title: props.spell?.source_title ?? null,
     source_url: props.spell?.source_url ?? null,
@@ -540,6 +563,12 @@ async function confirmDelete() {
 // ── AI generation ─────────────────────────────────────────────────────────────
 const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
+
+function toggleCampaignSpecific() {
+  const id = campaignStore.activeCampaignId;
+  if (!id) return;
+  campaignId.value = campaignId.value === id ? null : id;
+}
 const showGenerateDialog = ref(false);
 
 function onAiGenerated(result: SpellAiGenerated) {

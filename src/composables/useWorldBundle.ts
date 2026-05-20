@@ -17,10 +17,12 @@ export const BUNDLE_ENTITY_TYPES = [
   { key: "quests",                label: "Quests",                nameField: "title", scope: "campaign" },
   { key: "notes",                 label: "Notes",                 nameField: "title", scope: "campaign" },
   { key: "encounters",            label: "Encounters",            nameField: "name",  scope: "campaign" },
+  { key: "party_members",         label: "Characters",            nameField: "name",  scope: "campaign" },
   { key: "calendar_events",      label: "Calendar Events",        nameField: "title", scope: "campaign" },
   { key: "monsters",              label: "Homebrew Monsters",     nameField: "name",  scope: "library"  },
   { key: "items",                 label: "Items",                 nameField: "name",  scope: "library"  },
   { key: "spells",                label: "Homebrew Spells",       nameField: "name",  scope: "library"  },
+  { key: "species",               label: "Species",               nameField: "name",  scope: "library"  },
   { key: "scriptorium_documents", label: "Scriptorium Docs",     nameField: "title", scope: "library"  },
 ] as const;
 
@@ -54,10 +56,14 @@ export interface GrimoireBundle {
   notes?: Row[];
   encounters?: Row[];
   calendar_events?: Row[];
+  party_members?: Row[];
+  character_classes?: Row[];
+  character_spells?: Row[];
   // User-library
   monsters?: Row[];
   items?: Row[];
   spells?: Row[];
+  species?: Row[];
   scriptorium_documents?: Row[];
   _meta: {
     entity_counts: Record<string, number>;
@@ -151,6 +157,14 @@ function stripLibraryRow(row: Row): Row {
   return copy;
 }
 
+/** Party members additionally drop owner_user_id — imported characters land
+ *  unassigned (DM characters), and the source owner's UUID shouldn't leak. */
+export function stripPartyMemberRow(row: Row): Row {
+  const copy = stripCampaignRow(row);
+  delete copy.owner_user_id;
+  return copy;
+}
+
 export interface BuildBundleOptions {
   campaignId: string;
   name: string;
@@ -228,6 +242,19 @@ async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBundle> {
       entityCounts.encounters = encounters.length;
     })(),
 
+    selection.has("party_members") && (async () => {
+      const ids = selection.get("party_members")!;
+      const members = await fetchByIds("party_members", ids);
+      bundle.party_members = members.map(stripPartyMemberRow);
+      entityCounts.party_members = members.length;
+      const [classes, charSpells] = await Promise.all([
+        qByIds("character_classes", "party_member_id", ids),
+        qByIds("character_spells", "party_member_id", ids),
+      ]);
+      bundle.character_classes = classes.map(stripLibraryRow);
+      bundle.character_spells = charSpells.map(stripLibraryRow);
+    })(),
+
     selection.has("calendar_events") && (async () => {
       const ids = selection.get("calendar_events")!;
       const events = await fetchByIds("calendar_events", ids);
@@ -258,6 +285,13 @@ async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBundle> {
       entityCounts.spells = spells.length;
     })(),
 
+    selection.has("species") && (async () => {
+      const ids = selection.get("species")!;
+      const species = await fetchByIds("species", ids);
+      bundle.species = species.map(stripCampaignRow);
+      entityCounts.species = species.length;
+    })(),
+
     selection.has("scriptorium_documents") && (async () => {
       const ids = selection.get("scriptorium_documents")!;
       const docs = await fetchByIds("scriptorium_documents", ids);
@@ -266,6 +300,40 @@ async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBundle> {
     })(),
 
   ].filter(Boolean));
+
+  // ── Dependency safety net ──────────────────────────────────────────────────
+  // Characters reference species + spells. Pull in any not already bundled so
+  // imported characters keep their species, disguise, class, and spell list.
+  if (bundle.party_members?.length) {
+    const speciesIds = new Set<string>();
+    for (const pm of bundle.party_members) {
+      if (pm.species_id) speciesIds.add(pm.species_id as string);
+      if (pm.disguise_species_id) speciesIds.add(pm.disguise_species_id as string);
+    }
+    const haveSpecies = new Set((bundle.species ?? []).map((s) => s.id as string));
+    const missingSpecies = [...speciesIds].filter((id) => !haveSpecies.has(id));
+    if (missingSpecies.length) {
+      const fetched = (await fetchByIds("species", missingSpecies)).map(stripCampaignRow);
+      bundle.species = [...(bundle.species ?? []), ...fetched];
+    }
+
+    // character_spells.spell_id is text: a custom-spell UUID or a global `srd_*`
+    // slug. SRD slugs resolve everywhere; only custom spells must travel.
+    const spellIds = new Set<string>();
+    for (const cs of bundle.character_spells ?? []) {
+      const sid = cs.spell_id as string | null;
+      if (sid && !sid.startsWith("srd_")) spellIds.add(sid);
+    }
+    const haveSpells = new Set((bundle.spells ?? []).map((s) => s.id as string));
+    const missingSpells = [...spellIds].filter((id) => !haveSpells.has(id));
+    if (missingSpells.length) {
+      const fetched = (await fetchByIds("spells", missingSpells)).map(stripLibraryRow);
+      bundle.spells = [...(bundle.spells ?? []), ...fetched];
+    }
+
+    entityCounts.species = bundle.species?.length ?? 0;
+    entityCounts.spells = bundle.spells?.length ?? 0;
+  }
 
   return {
     version: "1",
@@ -323,7 +391,7 @@ function sortByHierarchy(rows: Row[], parentField: string): Row[] {
   return result;
 }
 
-function buildIdMap(bundle: GrimoireBundle): IdMap {
+export function buildIdMap(bundle: GrimoireBundle): IdMap {
   const map: IdMap = new Map();
   const allArrays = [
     bundle.npcs, bundle.npc_relationships,
@@ -332,7 +400,8 @@ function buildIdMap(bundle: GrimoireBundle): IdMap {
     bundle.faction_items, bundle.faction_relations,
     bundle.quests, bundle.quest_objectives, bundle.quest_refs,
     bundle.notes, bundle.encounters, bundle.calendar_events,
-    bundle.monsters, bundle.items, bundle.spells,
+    bundle.party_members, bundle.character_classes, bundle.character_spells,
+    bundle.monsters, bundle.items, bundle.spells, bundle.species,
     bundle.scriptorium_documents,
   ];
   for (const arr of allArrays) {
@@ -354,6 +423,70 @@ function rCamp(id: unknown, map: IdMap): string | null {
 function rLib(id: unknown, map: IdMap): string | null {
   if (id === null || id === undefined || id === "") return null;
   return map.get(id as string) ?? (id as string);
+}
+
+// ── Character-import remappers ───────────────────────────────────────────────
+// Pure row transforms (no DB) so the export → import round-trip is unit-testable.
+
+export interface ImportRemapCtx {
+  idMap: IdMap;
+  campaignId: string;
+  userId: string;
+}
+
+function freshId(id: unknown, map: IdMap): string {
+  return map.get(id as string) ?? crypto.randomUUID();
+}
+
+export function remapSpeciesForImport(sp: Row, ctx: ImportRemapCtx): Row {
+  return {
+    ...sp,
+    id: freshId(sp.id, ctx.idMap),
+    campaign_id: ctx.campaignId,
+    user_id: ctx.userId,
+  };
+}
+
+export function remapSpellForImport(sp: Row, ctx: ImportRemapCtx): Row {
+  return {
+    ...sp,
+    id: freshId(sp.id, ctx.idMap),
+    campaign_id: ctx.campaignId,
+    user_id: ctx.userId,
+  };
+}
+
+/** Imported characters land unassigned (DM characters): owner_user_id null. */
+export function remapPartyMemberForImport(pm: Row, ctx: ImportRemapCtx): Row {
+  return {
+    ...pm,
+    id: freshId(pm.id, ctx.idMap),
+    campaign_id: ctx.campaignId,
+    user_id: ctx.userId,
+    owner_user_id: null,
+    species_id: rCamp(pm.species_id, ctx.idMap),
+    disguise_species_id: rCamp(pm.disguise_species_id, ctx.idMap),
+    current_location_id: rCamp(pm.current_location_id, ctx.idMap),
+  };
+}
+
+export function remapCharacterClassForImport(cc: Row, ctx: ImportRemapCtx): Row {
+  return {
+    ...cc,
+    id: freshId(cc.id, ctx.idMap),
+    party_member_id: rCamp(cc.party_member_id, ctx.idMap),
+  };
+}
+
+export function remapCharacterSpellForImport(cs: Row, ctx: ImportRemapCtx): Row {
+  return {
+    ...cs,
+    id: freshId(cs.id, ctx.idMap),
+    party_member_id: rCamp(cs.party_member_id, ctx.idMap),
+    source_class_id: rCamp(cs.source_class_id, ctx.idMap),
+    // spell_id is text — remap custom-spell UUIDs, preserve global `srd_*` slugs
+    spell_id: rLib(cs.spell_id, ctx.idMap),
+  };
 }
 
 async function batchInsert(table: string, rows: Row[]): Promise<void> {
@@ -400,6 +533,8 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
     campaignId = newCampaign.id;
   }
 
+  const ctx: ImportRemapCtx = { idMap, campaignId, userId };
+
   // ── Campaign-scoped entities ──────────────────────────────────────────────
 
   if (includeTypes.has("locations") && bundle.locations?.length) {
@@ -421,6 +556,31 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
         user_id: userId,
         location_id: rCamp(si.location_id, idMap),
       })));
+    }
+  }
+
+  // Species before party_members (species_id / disguise_species_id FKs).
+  // Imported whenever characters import, even if not explicitly toggled.
+  if (bundle.species?.length && (includeTypes.has("species") || includeTypes.has("party_members"))) {
+    await batchInsert("species", bundle.species.map((sp) => remapSpeciesForImport(sp, ctx)));
+  }
+
+  if (includeTypes.has("party_members") && bundle.party_members?.length) {
+    await batchInsert(
+      "party_members",
+      bundle.party_members.map((pm) => remapPartyMemberForImport(pm, ctx)),
+    );
+    if (bundle.character_classes?.length) {
+      await batchInsert(
+        "character_classes",
+        bundle.character_classes.map((cc) => remapCharacterClassForImport(cc, ctx)),
+      );
+    }
+    if (bundle.character_spells?.length) {
+      await batchInsert(
+        "character_spells",
+        bundle.character_spells.map((cs) => remapCharacterSpellForImport(cs, ctx)),
+      );
     }
   }
 
@@ -566,12 +726,10 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
     })));
   }
 
-  if (includeTypes.has("spells") && bundle.spells?.length) {
-    await batchInsert("spells", bundle.spells.map((sp) => ({
-      ...sp,
-      id: idMap.get(sp.id as string) ?? crypto.randomUUID(),
-      user_id: userId,
-    })));
+  // Imported whenever characters import, even if not explicitly toggled —
+  // character_spells reference them. campaign_id rescopes them to this campaign.
+  if (bundle.spells?.length && (includeTypes.has("spells") || includeTypes.has("party_members"))) {
+    await batchInsert("spells", bundle.spells.map((sp) => remapSpellForImport(sp, ctx)));
   }
 
   if (includeTypes.has("scriptorium_documents") && bundle.scriptorium_documents?.length) {
@@ -613,8 +771,8 @@ export async function parseBundleFile(file: File): Promise<GrimoireBundle> {
   }
   const hasContent = [
     json.npcs, json.locations, json.factions, json.quests,
-    json.notes, json.encounters, json.calendar_events,
-    json.monsters, json.items, json.spells, json.scriptorium_documents,
+    json.notes, json.encounters, json.calendar_events, json.party_members,
+    json.monsters, json.items, json.spells, json.species, json.scriptorium_documents,
   ].some((arr) => arr && arr.length > 0);
   if (!hasContent) {
     throw new Error("This bundle appears to be empty.");
@@ -672,9 +830,11 @@ export function useImportWorldBundle() {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
       queryClient.invalidateQueries({ queryKey: ["encounters"] });
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
+      queryClient.invalidateQueries({ queryKey: ["party"] });
       queryClient.invalidateQueries({ queryKey: ["monsters"] });
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["spells"] });
+      queryClient.invalidateQueries({ queryKey: ["species"] });
       queryClient.invalidateQueries({ queryKey: ["scriptorium"] });
     },
   });

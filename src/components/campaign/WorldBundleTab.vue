@@ -23,16 +23,27 @@
             <label
               v-for="type in group.types"
               :key="type.key"
-              class="flex items-center gap-2.5 cursor-pointer group"
+              class="flex items-center gap-2.5 group"
+              :class="isLocked(type.key) ? 'cursor-not-allowed' : 'cursor-pointer'"
             >
               <input
                 type="checkbox"
                 :checked="selectedCategories.has(type.key)"
-                class="h-3.5 w-3.5 rounded border-border text-primary focus:ring-ring"
+                :disabled="isLocked(type.key)"
+                class="h-3.5 w-3.5 rounded border-border text-primary focus:ring-ring disabled:opacity-60"
                 @change="toggleCategory(type.key)"
               />
-              <span class="font-fell text-sm text-foreground group-hover:text-primary transition-colors">
+              <span
+                class="font-fell text-sm transition-colors"
+                :class="isLocked(type.key) ? 'text-muted-foreground' : 'text-foreground group-hover:text-primary'"
+              >
                 {{ type.label }}
+              </span>
+              <span
+                v-if="isLocked(type.key)"
+                class="font-cinzel text-[10px] tracking-wider text-primary/60"
+              >
+                required by Characters
               </span>
             </label>
           </div>
@@ -344,10 +355,26 @@ watch(currentPickKey, () => { search.value = ""; });
 
 // ── Category toggle ───────────────────────────────────────────────────────────
 
+// Characters import as broken without their species + spells, so selecting
+// Characters force-includes and hard-locks those categories.
+const CHARACTER_DEPENDENCIES: BundleEntityKey[] = ["species", "spells"];
+
+function isLocked(key: BundleEntityKey): boolean {
+  return CHARACTER_DEPENDENCIES.includes(key) && selectedCategories.value.has("party_members");
+}
+
 function toggleCategory(key: BundleEntityKey) {
+  if (isLocked(key)) return; // hard-locked while Characters is selected
   const next = new Set(selectedCategories.value);
-  if (next.has(key)) next.delete(key);
-  else next.add(key);
+  if (next.has(key)) {
+    next.delete(key);
+  } else {
+    next.add(key);
+    // Selecting Characters auto-includes their required dependencies.
+    if (key === "party_members") {
+      for (const dep of CHARACTER_DEPENDENCIES) next.add(dep);
+    }
+  }
   selectedCategories.value = next;
 }
 
