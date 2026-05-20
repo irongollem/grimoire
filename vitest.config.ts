@@ -18,7 +18,7 @@ export default defineConfig({
     // happy-dom gives DOM globals when we mount components or touch canvas.
     // For pure-function tests it costs ~nothing.
     environment: "happy-dom",
-    include: ["src/**/*.{test,spec}.ts"],
+    include: ["src/**/*.{test,spec}.ts", "scripts/**/*.{test,spec}.ts"],
     exclude: ["node_modules", "dist", ".vercel"],
     // Explicit imports from "vitest" — no `globals: true` so TypeScript
     // doesn't need `"vitest/globals"` in tsconfig types.
