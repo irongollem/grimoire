@@ -35,8 +35,11 @@
  */
 
 import { readFileSync, existsSync } from "node:fs";
-import { resolve, basename } from "node:path";
+import { resolve, basename, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 import {
   applySidecar,
@@ -293,10 +296,11 @@ async function main(): Promise<number> {
   log.info(`found ${blocks.length} top-level \`## \` blocks`);
 
   const defaultLocKey = config.default_location_key ?? null;
+  const sidecarSkip = new Set<string>(config.skip_headings ?? []);
   const skippedHeadings: string[] = [];
   const records: NpcRecord[] = [];
   for (const { heading, body } of blocks) {
-    if (isSkipHeading(heading)) {
+    if (isSkipHeading(heading) || sidecarSkip.has(heading)) {
       skippedHeadings.push(heading);
       continue;
     }

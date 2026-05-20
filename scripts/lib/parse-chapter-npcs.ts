@@ -88,6 +88,13 @@ export interface SidecarConfig {
     tags?: string[];
   }>;
   npcs?: Record<string, NpcOverride>;
+  /**
+   * Extra `## HEADING` values to skip, beyond the built-in SKIP_HEADING_PREFIXES list.
+   * Useful for chapter-specific group headers that don't represent individual NPCs
+   * (e.g. "Inner Tallow and Outer Tallow", "The Smutters — Named Combatants").
+   * Exact string match against the raw heading text.
+   */
+  skip_headings?: string[];
 }
 
 /**
@@ -114,7 +121,9 @@ export interface NpcRecord {
 }
 
 const VALID_STATUS: ReadonlySet<NpcStatus> = new Set(["alive", "dead", "missing", "unknown"]);
-const VALID_RELATIONSHIP: ReadonlySet<NpcRelationship> = new Set(["ally", "enemy", "neutral", "unknown"]);
+const VALID_RELATIONSHIP: ReadonlySet<NpcRelationship> = new Set([
+  "hostile", "unfriendly", "indifferent", "friendly", "helpful", "unknown",
+]);
 
 // ────────────────────────────────────────────────────────────────────────────
 // String helpers
