@@ -298,7 +298,7 @@ describe("applySidecar", () => {
       backstory: "",
       notes: "",
       status: "alive",
-      relationship: "neutral",
+      relationship: "indifferent",
       relevance: 3,
       tags: ["chapter-5", "sugarspun", "tuft"],
       location_key: null,
@@ -311,7 +311,7 @@ describe("applySidecar", () => {
       npcs: {
         Brittle: {
           status: "alive",
-          relationship: "ally",
+          relationship: "helpful",
           relevance: 4,
           tags: ["chapter-5", "sugarspun", "child", "bow-keeper"],
           location: "carnival",

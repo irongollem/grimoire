@@ -299,7 +299,7 @@ export function parseNpc(
     backstory,
     notes,
     status: "alive",
-    relationship: "neutral",
+    relationship: "indifferent",
     relevance: 3,
     tags: deriveDefaultTags(chapter, race, stage, role, defaultLocationKey),
     location_key: defaultLocationKey,
