@@ -29,12 +29,31 @@
     />
 
     <!-- ── Class features (one card per class, grouped for multiclass) ──────── -->
-    <PlayerClassFeaturesList
-      v-for="group in classFeatureGroups"
-      :key="group.class_name"
-      :group="group"
-      @navigate-spells="router.push('/play/spells')"
-    />
+    <template v-if="featureDataPending">
+      <div
+        v-for="n in 2"
+        :key="n"
+        class="rounded-lg border border-border bg-card overflow-hidden animate-pulse"
+      >
+        <div class="px-4 py-2.5 border-b border-border">
+          <div class="h-3 w-32 rounded bg-muted" />
+        </div>
+        <div class="divide-y divide-border">
+          <div v-for="i in 4" :key="i" class="px-4 py-2.5 flex items-center gap-3">
+            <div class="h-2.5 w-8 rounded bg-muted shrink-0" />
+            <div class="h-2.5 rounded bg-muted" :style="`width: ${50 + i * 12}%`" />
+          </div>
+        </div>
+      </div>
+    </template>
+    <template v-else>
+      <PlayerClassFeaturesList
+        v-for="group in classFeatureGroups"
+        :key="group.class_name"
+        :group="group"
+        @navigate-spells="router.push('/play/spells')"
+      />
+    </template>
 
     <!-- ── Spell choices ─────────────────────────────────────────────────── -->
     <PlayerSpellChoices :member="member" :steps="spellPickSteps" />
@@ -230,7 +249,7 @@ function isChoicePlaceholder(s: string): boolean {
 const memberClassRef    = computed(() => props.member.class ?? "");
 const memberSubclassRef = computed(() => props.member.subclass ?? "");
 const classData = useClassByName(memberClassRef);
-const { data: allFeatures } = useAllFeatures();
+const { data: allFeatures, isPending: featuresPending } = useAllFeatures();
 const { data: customSubclass } = useCustomSubclassByClassAndSubclass(memberClassRef, memberSubclassRef);
 
 const { mutate: updateMember } = useUpdatePartyMember();
@@ -250,10 +269,12 @@ const featureObjectMap = computed(() => new Map((allFeatures.value ?? []).map(f 
 // ── Multiclass feature grouping ───────────────────────────────────────────────
 
 const memberIdRef = computed(() => props.member.id);
-const { data: characterClasses } = useCharacterClasses(memberIdRef);
+const { data: characterClasses, isPending: classesPending } = useCharacterClasses(memberIdRef);
 const { data: allSystemClasses } = useAllSystemClasses();
 const { data: allCustomClasses } = useAllCustomClasses();
 const { data: allCustomSubclassEntries } = useAllCustomSubclasses();
+
+const featureDataPending = computed(() => featuresPending.value || classesPending.value);
 
 /** class_name → class data (custom wins over system on name collision). */
 const classDataMap = computed(() => {
