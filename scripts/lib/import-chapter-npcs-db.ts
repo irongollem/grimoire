@@ -146,6 +146,11 @@ export interface LocationInsertPayload {
 /**
  * Create the locations that aren't already in the campaign.
  * Returns a name→id map covering both newly-inserted and pre-existing locations.
+ *
+ * Processes new locations in dependency order (parents before children) so that
+ * a parent and its children can be created in the same import run without
+ * landing with parent_id=NULL. Each round inserts all specs whose parent is
+ * already resolved (either pre-existing or created in a previous round).
  */
 export async function ensureLocations(
   supabase: SupabaseClient,
@@ -161,46 +166,71 @@ export async function ensureLocations(
   const created: ExistingLocation[] = [];
   const reused: ExistingLocation[] = [];
   const byKey = new Map<string, string>();
-  const toCreate: LocationInsertPayload[] = [];
-  const toCreateKeys: string[] = [];
 
+  // Growing name→id map: starts from DB state, accumulates newly created rows.
+  const nameToId = new Map<string, string>(state.locationByName);
+
+  // Separate pre-existing from those that need creating.
+  let pending: LocationSpec[] = [];
   for (const spec of specs) {
-    const existing = state.locationByName.get(spec.name);
-    if (existing) {
-      reused.push({ id: existing, name: spec.name });
-      byKey.set(spec.key, existing);
-      continue;
+    const existingId = nameToId.get(spec.name);
+    if (existingId) {
+      reused.push({ id: existingId, name: spec.name });
+      byKey.set(spec.key, existingId);
+    } else {
+      pending.push(spec);
     }
-    const parent_id = spec.parent_name ? (state.locationByName.get(spec.parent_name) ?? null) : null;
-    if (spec.parent_name && parent_id === null) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        `WARN: location ${spec.name} has parent_name=${spec.parent_name} but no such location in campaign; parent_id=NULL`,
-      );
+  }
+
+  // Insert in rounds. Each round takes all specs whose parent is now resolved.
+  // Terminates when pending is empty or nothing was resolved (circular / missing
+  // parent — fall through with a warning and NULL parent_id).
+  while (pending.length > 0) {
+    const ready = pending.filter(
+      (s) => !s.parent_name || nameToId.has(s.parent_name),
+    );
+    const notReady = pending.filter(
+      (s) => s.parent_name && !nameToId.has(s.parent_name),
+    );
+
+    // If nothing is ready, all remaining have unresolvable parents. Warn and
+    // insert anyway with NULL parent_id so the rest of the import can proceed.
+    const batch = ready.length > 0 ? ready : notReady;
+    pending = ready.length > 0 ? notReady : [];
+
+    for (const spec of batch) {
+      if (ready.length === 0) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `WARN: location ${spec.name} has parent_name=${spec.parent_name} but it ` +
+          `could not be resolved — inserting with parent_id=NULL`,
+        );
+      }
     }
-    toCreate.push({
+
+    const payload: LocationInsertPayload[] = batch.map((spec) => ({
       user_id: userId,
       campaign_id: campaignId,
-      parent_id,
+      parent_id: spec.parent_name ? (nameToId.get(spec.parent_name) ?? null) : null,
       name: spec.name,
       location_type: spec.type,
       description: spec.description,
       tags: spec.tags,
-    });
-    toCreateKeys.push(spec.key);
-  }
+    }));
 
-  if (toCreate.length > 0) {
     const { data, error } = await supabase
       .from("locations")
-      .insert(toCreate)
+      .insert(payload)
       .select("id, name");
     if (error) throw error;
+
     for (let i = 0; i < (data ?? []).length; i++) {
       const row = data![i]!;
-      const key = toCreateKeys[i];
-      created.push({ id: row.id as string, name: row.name as string });
-      if (key) byKey.set(key, row.id as string);
+      const spec = batch[i]!;
+      const id = row.id as string;
+      created.push({ id, name: row.name as string });
+      byKey.set(spec.key, id);
+      nameToId.set(row.name as string, id); // make available to subsequent rounds
     }
   }
 

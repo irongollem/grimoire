@@ -95,6 +95,34 @@
       "relationship": "indifferent",
       "relevance": 4,
       "tags": ["chapter-6","wick","smutter","ember","dead","half-presence","lamphouse-keeper","honey-bees","wickline-mothers-neighbor","hearthbright-lineage","brand-named","settling-scene","lucidity","campaign-carry","crumble-link"]
+    },
+    "Wickling": {
+      "location": "wickhollow",
+      "status": "dead",
+      "relationship": "indifferent",
+      "relevance": 2,
+      "tags": ["chapter-6","wick","smutter","ember","dead","cold-blue-ember","twin-lamphouse","tinder-partner","settling-scene","paired-settling"]
+    },
+    "Tinder": {
+      "location": "wickhollow",
+      "status": "dead",
+      "relationship": "indifferent",
+      "relevance": 2,
+      "tags": ["chapter-6","wick","smutter","ember","dead","blue-ember","twin-lamphouse","wickling-partner","settling-scene","paired-settling","lucidity"]
+    },
+    "Lamplight Brisket": {
+      "location": "wickhollow",
+      "status": "dead",
+      "relationship": "indifferent",
+      "relevance": 2,
+      "tags": ["chapter-6","wick","smutter","ember","dead","rose-ember","painted-door","lamphouse","gilt-door","bisque-prescience","settling-scene"]
+    },
+    "Glow": {
+      "location": "wickhollow",
+      "status": "dead",
+      "relationship": "indifferent",
+      "relevance": 2,
+      "tags": ["chapter-6","wick","smutter","ember","dead","warm-amber-ember","road-lamphouse","purposeful","easiest-settling","mother-tallow-named","lucidity"]
     }
   }
 }
