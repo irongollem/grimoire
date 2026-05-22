@@ -66,6 +66,27 @@ function getAudioCtx(): AudioContext {
 
 function promoteToAudioCtx(soundId: string, audioEl: HTMLAudioElement): EffectChain {
   if (effectChains.has(soundId)) return effectChains.get(soundId)!;
+
+  // If the element was created before crossOrigin was added to makeAudio()
+  // (e.g. warmed-up or played in a previous session without the fix), we must
+  // reload it with CORS headers before the browser will let Web Audio read it.
+  // New elements from makeAudio() already have crossOrigin set, so this branch
+  // is only hit on elements that predate this fix.
+  if (audioEl.crossOrigin !== "anonymous") {
+    const wasPlaying = !audioEl.paused;
+    const savedTime  = audioEl.currentTime;
+    audioEl.crossOrigin = "anonymous";
+    audioEl.load(); // re-fetches with CORS; brief silence while rebuffering
+    if (wasPlaying) {
+      audioEl.addEventListener("canplay", () => {
+        audioEl.currentTime = isFinite(audioEl.duration)
+          ? Math.min(savedTime, audioEl.duration)
+          : savedTime;
+        void audioEl.play();
+      }, { once: true });
+    }
+  }
+
   const ctx = getAudioCtx();
   const source = ctx.createMediaElementSource(audioEl);
   const filter = ctx.createBiquadFilter();
@@ -108,6 +129,10 @@ const retriedIds = new Set<string>();
 
 function makeAudio(fileUrl: string): HTMLAudioElement {
   const audio = new Audio();
+  // crossOrigin must be set BEFORE src so the browser fetches with CORS headers.
+  // Required for Web Audio API (MediaElementAudioSourceNode) to read audio data
+  // from cross-origin URLs (Supabase Storage, Freesound CDN, etc.).
+  audio.crossOrigin = "anonymous";
   audio.preload = "auto";
   audio.src = fileUrl;
   return audio;
