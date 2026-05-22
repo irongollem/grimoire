@@ -143,6 +143,13 @@ export const BUCKETS = {
     public: true,
     generateVariants: false,
   },
+  soundImages: {
+    id: "sound-images",
+    maxBytes: FIVE_MB,
+    mimeTypes: IMAGE_MIMES,
+    public: true,
+    generateVariants: false, // Displayed as small thumbnails; no FocalImage variants needed
+  },
   chronicle: {
     id: "chronicle",
     maxBytes: FIVE_MB,

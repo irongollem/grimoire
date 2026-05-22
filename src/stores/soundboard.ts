@@ -11,6 +11,10 @@ interface MusicPlaylistRunState {
   trackSoundIds: string[];
   /** soundId → file URL, prebuilt so play() never needs the track list again. */
   fileUrls: Record<string, string>;
+  /** soundId → display name — used by Media Session (CarPlay, lock screen). */
+  soundNames: Record<string, string>;
+  /** soundId → thumbnail URL (nullable) — used as Media Session artwork. */
+  thumbnailUrls: Record<string, string | null>;
   currentIndex: number;
   repeat: boolean;
   /** Effect carried across all tracks in this playlist session. */
@@ -309,13 +313,21 @@ export const useSoundboardStore = defineStore("soundboard", () => {
 
     const trackSoundIds = ordered.map((t) => t.sound.id);
     const fileUrls: Record<string, string> = {};
-    ordered.forEach((t) => { fileUrls[t.sound.id] = t.sound.file_url; });
+    const soundNames: Record<string, string> = {};
+    const thumbnailUrls: Record<string, string | null> = {};
+    ordered.forEach((t) => {
+      fileUrls[t.sound.id] = t.sound.file_url;
+      soundNames[t.sound.id] = t.sound.name;
+      thumbnailUrls[t.sound.id] = t.sound.thumbnail_url ?? null;
+    });
 
     activeMusicPlaylist.value = {
       playlistId: playlist.id,
       playlistName: playlist.name,
       trackSoundIds,
       fileUrls,
+      soundNames,
+      thumbnailUrls,
       currentIndex: 0,
       repeat: playlist.repeat,
       effect: "none",

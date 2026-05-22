@@ -419,6 +419,7 @@ async function handleSubmit() {
       sort_order: 0,
       attribution: null,
       attribution_url: null,
+      thumbnail_url: null,
     });
     emit("saved");
     resetForm();
@@ -437,6 +438,7 @@ async function handleSubmit() {
       sort_order: 0,
       attribution: null,
       attribution_url: null,
+      thumbnail_url: null,
     });
     emit("saved");
     resetForm();
@@ -473,6 +475,7 @@ async function handleSubmit() {
       sort_order: 0,
       attribution: null,
       attribution_url: null,
+      thumbnail_url: null,
     });
     emit("saved");
     resetForm();
@@ -500,6 +503,7 @@ async function handleSubmit() {
     sort_order: 0,
     attribution: null,
     attribution_url: null,
+    thumbnail_url: null,
   });
   emit("saved");
   resetForm();

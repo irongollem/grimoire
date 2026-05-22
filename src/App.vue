@@ -48,6 +48,7 @@ import LoadingScreen from "@/components/auth/LoadingScreen.vue";
 import { useTheme } from "@/composables/useTheme";
 import { useAuthStore } from "@/stores/auth";
 import { updateAvailable, reloadApp } from "@/composables/useAppUpdate";
+import { useMediaSession } from "@/composables/useMediaSession";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCampaignById } from "@/composables/useCampaigns";
 import { usePullToRefresh } from "@/composables/usePullToRefresh";
@@ -107,6 +108,7 @@ const router = useRouter();
 const { pullPx, readyToReload } = usePullToRefresh();
 
 if (!import.meta.env.SSR) useTheme().initTheme();
+if (!import.meta.env.SSR) useMediaSession();
 
 // When the Supabase session expires mid-session (refresh token exhausted or
 // network failure), onAuthStateChange emits SIGNED_OUT and sets user to null.
