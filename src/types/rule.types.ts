@@ -82,6 +82,7 @@ export interface TrackerDef {
 export interface Rule {
   id: string;
   user_id: string;
+  campaign_id: string | null;
   title: string;
   content: object | null;   // Tiptap JSON
   category: string | null;
@@ -92,7 +93,7 @@ export interface Rule {
   updated_at: string;
 }
 
-export type RuleInsert = Omit<Rule, "id" | "user_id" | "created_at" | "updated_at">;
+export type RuleInsert = Omit<Rule, "id" | "user_id" | "campaign_id" | "created_at" | "updated_at">;
 export type RuleUpdate = Partial<RuleInsert>;
 
 // ── Per-character tracker state ───────────────────────────────────────────────
