@@ -5,11 +5,19 @@ export const LYRIA_MODELS: { id: LyriaModel; label: string; detail: string }[] =
   { id: "lyria-3-pro-preview",  label: "Full Song (~2 min)", detail: "$0.08 · verses + chorus" },
 ];
 
+/** Maximum lyrics length in characters (keeps generated audio within ~3 min, ~400 words). */
+export const LYRICS_MAX_CHARS = 2200;
+
 export async function generateMusicWithLyria(
-  prompt: string,
+  style: string,
   model: LyriaModel,
   apiKey: string,
+  lyrics?: string,
 ): Promise<File> {
+  const prompt = lyrics?.trim()
+    ? `${lyrics.trim()}\n\nMusical style: ${style}`
+    : style;
+
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
     {

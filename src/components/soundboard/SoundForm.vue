@@ -138,15 +138,38 @@
 
       <!-- AI Generate -->
       <div v-else-if="activeSourceTab === 'generate'" class="space-y-3">
-        <!-- Prompt -->
+        <!-- Style -->
         <div class="space-y-1">
-          <label class="font-fell text-xs text-muted-foreground">Describe the music</label>
+          <label class="font-fell text-xs text-muted-foreground">Musical style</label>
           <textarea
             v-model="generatePrompt"
-            rows="3"
-            placeholder="e.g. tense dungeon combat music with drums and strings, dark and cinematic"
+            rows="2"
+            placeholder="e.g. epic fantasy ballad, orchestral strings, soaring female vocals, heroic"
             class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm font-fell text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
           />
+        </div>
+
+        <!-- Lyrics -->
+        <div class="space-y-1">
+          <div class="flex items-center justify-between">
+            <label class="font-fell text-xs text-muted-foreground">
+              Lyrics <span class="opacity-60">(optional)</span>
+            </label>
+            <span
+              class="font-fell text-[10px] tabular-nums transition-colors"
+              :class="lyricsCharsLeft < 200 ? (lyricsCharsLeft < 0 ? 'text-destructive' : 'text-amber-400') : 'text-muted-foreground'"
+            >{{ generateLyrics.length }} / {{ LYRICS_MAX_CHARS }}</span>
+          </div>
+          <textarea
+            v-model="generateLyrics"
+            rows="5"
+            :maxlength="LYRICS_MAX_CHARS"
+            placeholder="[Verse 1]&#10;In the depths of shadow and stone…&#10;&#10;[Chorus]&#10;Rise, brave adventurer, rise…"
+            class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm font-fell text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
+          />
+          <p class="font-fell text-[10px] text-muted-foreground/60">
+            Best paired with Full Song. Use [Verse], [Chorus], [Bridge] markers.
+          </p>
         </div>
 
         <!-- Model selector -->
@@ -244,7 +267,7 @@
 import { ref, computed, nextTick, onMounted, onUnmounted } from "vue";
 import { useCreateSound, useSoundUpload } from "@/composables/useSounds";
 import { useSpotifyStore } from "@/stores/spotify";
-import { generateMusicWithLyria, LYRIA_MODELS, type LyriaModel } from "@/lib/aiMusic";
+import { generateMusicWithLyria, LYRIA_MODELS, LYRICS_MAX_CHARS, type LyriaModel } from "@/lib/aiMusic";
 import { logUsage } from "@/composables/useAiCredits";
 import SoundFreesoundBrowser from "@/components/soundboard/SoundFreesoundBrowser.vue";
 import type { SoundCategory } from "@/types/sound.types";
@@ -375,9 +398,12 @@ const isValidSpotifyUrl = computed(() =>
 // ── Generate tab ──────────────────────────────────────────────────────────
 
 const generatePrompt = ref("");
+const generateLyrics = ref("");
 const generateModel = ref<LyriaModel>("lyria-3-clip-preview");
 const isGenerating = ref(false);
 const generateError = ref("");
+
+const lyricsCharsLeft = computed(() => LYRICS_MAX_CHARS - generateLyrics.value.length);
 
 // ── Submit state ──────────────────────────────────────────────────────────
 
@@ -448,7 +474,12 @@ async function handleSubmit() {
     isGenerating.value = true;
     let file: File;
     try {
-      file = await generateMusicWithLyria(generatePrompt.value.trim(), generateModel.value, geminiApiKey);
+      file = await generateMusicWithLyria(
+        generatePrompt.value.trim(),
+        generateModel.value,
+        geminiApiKey,
+        generateLyrics.value.trim() || undefined,
+      );
       logUsage({ reason: "music_generation", imageUsage: { model: generateModel.value, provider: "google", image_count: 1 } });
     } catch (err) {
       generateError.value = err instanceof Error ? err.message : "Generation failed.";
@@ -510,6 +541,7 @@ function resetForm() {
   selectedFile.value = null;
   uploadError.value = "";
   generatePrompt.value = "";
+  generateLyrics.value = "";
   generateError.value = "";
 }
 </script>
