@@ -3,6 +3,7 @@ import { createPinia } from "pinia";
 import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query";
 import App from "./App.vue";
 import { routes, setupRouterGuard } from "./router/index";
+import { updateAvailable } from "./composables/useAppUpdate";
 
 import "./assets/main.css";
 
@@ -77,8 +78,16 @@ export const createApp = ViteSSG(
         });
         navigator.serviceWorker.addEventListener("controllerchange", () => {
           const p = window.location.pathname;
-          if (p === "/login" || p === "/signup" || p.startsWith("/join/")) return;
-          window.location.reload();
+          // Auth pages reload immediately — the user isn't mid-task and the
+          // fresh SW is needed to serve up-to-date login/signup assets.
+          if (p === "/login" || p === "/signup" || p.startsWith("/join/")) {
+            window.location.reload();
+            return;
+          }
+          // For all other pages, surface a banner instead of force-reloading.
+          // The new service worker is already active and will serve fresh assets
+          // for any subsequent fetches; the user can reload at a convenient moment.
+          updateAvailable.value = true;
         });
       }
 
