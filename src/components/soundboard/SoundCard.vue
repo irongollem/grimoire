@@ -34,7 +34,7 @@
         @change="handleThumbChange"
       />
 
-      <!-- Inline label edit -->
+      <!-- Inline label + artist edit -->
       <div class="flex-1 min-w-0">
         <input
           v-if="editingName"
@@ -47,7 +47,28 @@
           @blur="saveName"
         />
         <p v-else class="font-cinzel text-sm font-semibold text-foreground truncate">{{ sound.name }}</p>
-        <p class="font-fell text-xs text-muted-foreground italic capitalize">{{ sound.category }}</p>
+
+        <!-- Artist (inline editable; shows placeholder on hover when empty) -->
+        <input
+          v-if="editingArtist"
+          ref="artistInput"
+          v-model="artistDraft"
+          type="text"
+          placeholder="Artist name…"
+          class="w-full rounded border border-gold-500/50 bg-background px-1.5 py-0.5 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-gold-500"
+          @keydown.enter="saveArtist"
+          @keydown.escape="cancelArtistEdit"
+          @blur="saveArtist"
+        />
+        <p
+          v-else
+          class="font-fell text-xs truncate cursor-pointer"
+          :class="sound.artist ? 'text-muted-foreground italic' : 'text-muted-foreground/0 group-hover:text-muted-foreground/40 italic'"
+          :title="sound.artist ? 'Edit artist' : 'Add artist'"
+          @click="startArtistEdit"
+        >{{ sound.artist || 'Add artist…' }}</p>
+
+        <p class="font-fell text-[10px] text-muted-foreground/60 italic capitalize">{{ sound.category }}</p>
       </div>
 
       <!-- Edit name button -->
@@ -515,5 +536,30 @@ function saveName() {
 
 function cancelNameEdit() {
   editingName.value = false;
+}
+
+// ── Inline artist editing ─────────────────────────────────────────────────
+
+const editingArtist = ref(false);
+const artistInput = ref<HTMLInputElement | null>(null);
+const artistDraft = ref("");
+
+function startArtistEdit() {
+  artistDraft.value = props.sound.artist ?? "";
+  editingArtist.value = true;
+  nextTick(() => artistInput.value?.select());
+}
+
+function saveArtist() {
+  const trimmed = artistDraft.value.trim();
+  const current = props.sound.artist ?? "";
+  if (trimmed !== current) {
+    updateSound({ id: props.sound.id, update: { artist: trimmed || null } });
+  }
+  editingArtist.value = false;
+}
+
+function cancelArtistEdit() {
+  editingArtist.value = false;
 }
 </script>

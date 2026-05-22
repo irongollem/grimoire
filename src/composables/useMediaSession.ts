@@ -81,12 +81,13 @@ export function useMediaSession() {
 
     const soundId = pl.trackSoundIds[pl.currentIndex];
     const title = pl.soundNames[soundId] ?? "Unknown Track";
+    const artist = pl.artists[soundId] ?? "Dungeon Grimoire";
     const thumbnailUrl = pl.thumbnailUrls[soundId] ?? null;
 
     navigator.mediaSession.metadata = new MediaMetadata({
       title,
       album: pl.playlistName,
-      artist: "Grimoire",
+      artist,
       artwork: thumbnailUrl
         ? [{ src: thumbnailUrl, type: "image/webp" }]
         : [{ src: "/icon-512.png", type: "image/png", sizes: "512x512" }],

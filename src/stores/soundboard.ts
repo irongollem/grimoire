@@ -13,6 +13,8 @@ interface MusicPlaylistRunState {
   fileUrls: Record<string, string>;
   /** soundId → display name — used by Media Session (CarPlay, lock screen). */
   soundNames: Record<string, string>;
+  /** soundId → artist (nullable) — used by Media Session; defaults to "Dungeon Grimoire". */
+  artists: Record<string, string | null>;
   /** soundId → thumbnail URL (nullable) — used as Media Session artwork. */
   thumbnailUrls: Record<string, string | null>;
   currentIndex: number;
@@ -314,10 +316,12 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     const trackSoundIds = ordered.map((t) => t.sound.id);
     const fileUrls: Record<string, string> = {};
     const soundNames: Record<string, string> = {};
+    const artists: Record<string, string | null> = {};
     const thumbnailUrls: Record<string, string | null> = {};
     ordered.forEach((t) => {
       fileUrls[t.sound.id] = t.sound.file_url;
       soundNames[t.sound.id] = t.sound.name;
+      artists[t.sound.id] = t.sound.artist ?? null;
       thumbnailUrls[t.sound.id] = t.sound.thumbnail_url ?? null;
     });
 
@@ -327,6 +331,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
       trackSoundIds,
       fileUrls,
       soundNames,
+      artists,
       thumbnailUrls,
       currentIndex: 0,
       repeat: playlist.repeat,
