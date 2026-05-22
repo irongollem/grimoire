@@ -6,6 +6,7 @@ import type { Spell, SpellInsert, SpellUpdate } from "@/types/spell.types";
 import { removeStorageImages } from "@/composables/useImageUpload";
 import { useSrdArtDefaults } from "@/composables/useSrdArtDefaults";
 import { useEnabledSources } from "@/composables/useEnabledSources";
+import { useCampaignStore } from "@/stores/campaign";
 
 const SRD_QUERY_KEY = "srd-spells";
 
@@ -196,6 +197,7 @@ async function fetchSrdSpells(enabledSlugs: string[]): Promise<Spell[]> {
 export function useAllSpells() {
   const customQuery  = useSpells();
   const enabledQuery = useEnabledSources();
+  const campaign     = useCampaignStore();
 
   const enabledSlugs = computed(() =>
     enabledQuery.data.value?.map((e) => e.source_slug) ?? null,
@@ -210,8 +212,12 @@ export function useAllSpells() {
 
   const data = computed<Spell[]>(() => {
     // Open5e imports in the spells table are legacy — those now come from srd_spells.
-    // Only surface truly custom-created spells from the user's table.
-    const custom = (customQuery.data.value ?? []).filter((s) => !s.open5e_import);
+    // Only surface truly custom-created spells from the user's table. Campaign-only
+    // spells (campaign_id set) are hidden outside their owning campaign.
+    const activeCampaignId = campaign.activeCampaignId;
+    const custom = (customQuery.data.value ?? []).filter(
+      (s) => !s.open5e_import && (!s.campaign_id || s.campaign_id === activeCampaignId),
+    );
     const srd    = srdQuery.data.value ?? [];
     const customNames = new Set(custom.map((s) => s.name));
     return [...srd.filter((s) => !customNames.has(s.name)), ...custom]
