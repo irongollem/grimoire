@@ -13,6 +13,8 @@ interface MusicPlaylistRunState {
   fileUrls: Record<string, string>;
   currentIndex: number;
   repeat: boolean;
+  /** Effect carried across all tracks in this playlist session. */
+  effect: AudioEffectPreset;
 }
 
 interface AmbientPlaylistRunState {
@@ -291,14 +293,22 @@ export const useSoundboardStore = defineStore("soundboard", () => {
       fileUrls,
       currentIndex: 0,
       repeat: playlist.repeat,
+      effect: "none",
     };
 
-    // Music tracks never loop individually — the playlist handles sequencing
-    const firstId = trackSoundIds[0];
-    getState(firstId).isLooping = false;
-    const el = audioInstances.get(firstId);
+    startCurrentPlaylistTrack(activeMusicPlaylist.value);
+  }
+
+  /** Starts the track at mpl.currentIndex, enforcing loop=false + re-applying any active effect. */
+  function startCurrentPlaylistTrack(mpl: MusicPlaylistRunState): void {
+    const soundId = mpl.trackSoundIds[mpl.currentIndex];
+    getState(soundId).isLooping = false;
+    const el = audioInstances.get(soundId);
     if (el) el.loop = false;
-    play(firstId, fileUrls[firstId]);
+    play(soundId, mpl.fileUrls[soundId]);
+    if (mpl.effect !== "none") {
+      setEffect(soundId, mpl.fileUrls[soundId], mpl.effect);
+    }
   }
 
   function musicPlaylistNext(): void {
@@ -319,11 +329,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
       mpl.currentIndex = nextIndex;
     }
 
-    const nextId = mpl.trackSoundIds[mpl.currentIndex];
-    getState(nextId).isLooping = false;
-    const el = audioInstances.get(nextId);
-    if (el) el.loop = false;
-    play(nextId, mpl.fileUrls[nextId]);
+    startCurrentPlaylistTrack(mpl);
   }
 
   function musicPlaylistPrev(): void {
@@ -344,11 +350,15 @@ export const useSoundboardStore = defineStore("soundboard", () => {
       ? (mpl.repeat ? mpl.trackSoundIds.length - 1 : 0)
       : prevIndex;
 
-    const prevId = mpl.trackSoundIds[mpl.currentIndex];
-    getState(prevId).isLooping = false;
-    const el = audioInstances.get(prevId);
-    if (el) el.loop = false;
-    play(prevId, mpl.fileUrls[prevId]);
+    startCurrentPlaylistTrack(mpl);
+  }
+
+  function setMusicPlaylistEffect(preset: AudioEffectPreset): void {
+    const mpl = activeMusicPlaylist.value;
+    if (!mpl) return;
+    mpl.effect = preset;
+    const soundId = mpl.trackSoundIds[mpl.currentIndex];
+    setEffect(soundId, mpl.fileUrls[soundId], preset);
   }
 
   function stopMusicPlaylist(): void {
@@ -470,5 +480,6 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     playAmbientPlaylist,
     stopAmbientPlaylist,
     setEffect,
+    setMusicPlaylistEffect,
   };
 });

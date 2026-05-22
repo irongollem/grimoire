@@ -268,6 +268,13 @@
           <IconStop class="h-3 w-3" />
         </button>
 
+        <!-- Effect picker (visible while playing) -->
+        <SoundEffectPicker
+          v-if="audioState.isPlaying"
+          :model-value="soundboardStore.soundEffects?.[sound.id] ?? 'none'"
+          @update:model-value="soundboardStore.setEffect(sound.id, sound.file_url, $event)"
+        />
+
         <!-- Volume -->
         <input
           type="range"
@@ -320,6 +327,7 @@
 <script setup lang="ts">
 import { computed, ref, nextTick, onMounted } from "vue";
 import { IconDelete, IconEdit, IconLayers, IconMusicNote, IconPause, IconPlay, IconRepeat, IconRepeatOne, IconShuffle, IconSkipBack, IconSkipForward, IconStop, IconWarning } from '@/lib/icons';
+import SoundEffectPicker from "./SoundEffectPicker.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useUpdateSound, useMoveSound } from "@/composables/useSounds";

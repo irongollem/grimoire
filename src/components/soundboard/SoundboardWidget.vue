@@ -163,6 +163,11 @@
                   </span>
                 </p>
               </div>
+              <!-- Effect -->
+              <SoundEffectPicker
+                :model-value="store.activeMusicPlaylist?.effect ?? 'none'"
+                @update:model-value="store.setMusicPlaylistEffect($event)"
+              />
               <!-- Prev -->
               <button
                 class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
@@ -235,7 +240,10 @@
                 @input="store.setVolume(sound.id, +($event.target as HTMLInputElement).value)"
               />
               <!-- Effect picker -->
-              <SoundEffectPicker :sound-id="sound.id" :file-url="sound.file_url" />
+              <SoundEffectPicker
+                :model-value="store.soundEffects?.[sound.id] ?? 'none'"
+                @update:model-value="store.setEffect(sound.id, sound.file_url, $event)"
+              />
               <!-- Stop -->
               <button
                 class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
