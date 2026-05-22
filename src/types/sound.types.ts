@@ -44,6 +44,10 @@ export interface SoundPlaybackState {
   loadError: boolean;  // true after a load failure persists past one retry
 }
 
+// ── Audio effects ─────────────────────────────────────────────────────────
+
+export type AudioEffectPreset = "none" | "through_door" | "through_wall" | "distant" | "underwater";
+
 // ── Playlists ─────────────────────────────────────────────────────────────
 
 export type PlaylistType = "music" | "ambient";

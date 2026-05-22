@@ -234,6 +234,8 @@
                 :value="store.getState(sound.id).volume"
                 @input="store.setVolume(sound.id, +($event.target as HTMLInputElement).value)"
               />
+              <!-- Effect picker -->
+              <SoundEffectPicker :sound-id="sound.id" :file-url="sound.file_url" />
               <!-- Stop -->
               <button
                 class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
@@ -272,6 +274,7 @@ import { IconClose, IconMusicNote, IconMute, IconPause, IconPlay, IconRepeat, Ic
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useSounds } from "@/composables/useSounds";
+import SoundEffectPicker from "./SoundEffectPicker.vue";
 
 const store = useSoundboardStore();
 const spotifyStore = useSpotifyStore();

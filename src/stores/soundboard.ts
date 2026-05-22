@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import type { SoundPlaybackState, PlaylistTrackWithSound } from "@/types/sound.types";
+import type { SoundPlaybackState, PlaylistTrackWithSound, AudioEffectPreset } from "@/types/sound.types";
 
 // ── Playlist run-state types (module-level, not exported) ─────────────────
 
@@ -19,6 +19,76 @@ interface AmbientPlaylistRunState {
   playlistId: string;
   playlistName: string;
   soundIds: string[];
+}
+
+// ── Web Audio effect engine (module-level) ────────────────────────────────
+//
+// Sounds can be "promoted" into a Web Audio graph to apply real-time filter
+// effects. Once promoted, an HTMLAudioElement's output permanently routes
+// through the AudioContext (Web Audio API constraint) — but the chain is
+// transparent (frequency=22 kHz, gain=1.0) until an effect is applied.
+//
+// Volume is still controlled via audio.volume (pre-context), so the user's
+// volume setting and the effect's gain reduction stack correctly.
+//
+
+interface EffectChain {
+  source: MediaElementAudioSourceNode;
+  filter: BiquadFilterNode;
+  gainNode: GainNode;
+}
+
+interface EffectParams {
+  frequency: number; // lowpass cutoff (Hz)
+  Q: number;         // resonance
+  gain: number;      // linear gain multiplier — < 1 = quieter
+}
+
+const EFFECT_PARAMS: Record<Exclude<AudioEffectPreset, "none">, EffectParams> = {
+  through_door: { frequency: 700,  Q: 1.2, gain: 0.50 }, // wood: muffled, slight resonance
+  through_wall: { frequency: 220,  Q: 0.8, gain: 0.25 }, // stone: very muffled, barely there
+  distant:      { frequency: 1800, Q: 0.5, gain: 0.35 }, // air: loses sparkle, much quieter
+  underwater:   { frequency: 150,  Q: 3.5, gain: 0.40 }, // water: heavy, resonant
+};
+
+const EFFECT_RAMP_S = 0.5; // smooth transition duration in seconds
+
+let sharedAudioCtx: AudioContext | null = null;
+const effectChains = new Map<string, EffectChain>();
+
+function getAudioCtx(): AudioContext {
+  if (!sharedAudioCtx) sharedAudioCtx = new AudioContext();
+  if (sharedAudioCtx.state === "suspended") void sharedAudioCtx.resume();
+  return sharedAudioCtx;
+}
+
+function promoteToAudioCtx(soundId: string, audioEl: HTMLAudioElement): EffectChain {
+  if (effectChains.has(soundId)) return effectChains.get(soundId)!;
+  const ctx = getAudioCtx();
+  const source = ctx.createMediaElementSource(audioEl);
+  const filter = ctx.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.value = 22000; // fully open — passes all frequencies
+  filter.Q.value = 0.7071;        // maximally flat (Butterworth Q)
+  const gainNode = ctx.createGain();
+  gainNode.gain.value = 1.0;
+  source.connect(filter);
+  filter.connect(gainNode);
+  gainNode.connect(ctx.destination);
+  const chain: EffectChain = { source, filter, gainNode };
+  effectChains.set(soundId, chain);
+  return chain;
+}
+
+function destroyEffectChain(soundId: string): void {
+  const chain = effectChains.get(soundId);
+  if (!chain) return;
+  try {
+    chain.source.disconnect();
+    chain.filter.disconnect();
+    chain.gainNode.disconnect();
+  } catch (_) { /* already disconnected — ignore */ }
+  effectChains.delete(soundId);
 }
 
 // ── Audio Engine (module-level, NEVER reactive) ───────────────────────────
@@ -62,6 +132,9 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   // Active playlist run states
   const activeMusicPlaylist = ref<MusicPlaylistRunState | null>(null);
   const activeAmbientPlaylist = ref<AmbientPlaylistRunState | null>(null);
+
+  // Per-sound audio effect presets (reactive — drives UI only; actual params live in effectChains)
+  const soundEffects = ref<Record<string, AudioEffectPreset>>({});
 
   // Number of currently playing sounds — used for badge
   const playingCount = computed(
@@ -314,11 +387,50 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     activeAmbientPlaylist.value = null;
   }
 
+  // ── Audio effects ─────────────────────────────────────────────────────────
+
+  /**
+   * Apply (or remove) a filter effect to a sound with a smooth 500 ms transition.
+   * Promotes the audio element into the Web Audio graph on first call — this is
+   * permanent for the element's lifetime, but the chain is transparent when
+   * preset is "none".
+   */
+  function setEffect(soundId: string, fileUrl: string, preset: AudioEffectPreset): void {
+    const audio = getOrCreate(soundId, fileUrl);
+    const chain = promoteToAudioCtx(soundId, audio);
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+
+    // Anchor current values before scheduling a ramp (prevents discontinuities
+    // if setEffect is called multiple times before a previous ramp finishes)
+    chain.filter.frequency.cancelScheduledValues(now);
+    chain.filter.frequency.setValueAtTime(chain.filter.frequency.value, now);
+    chain.filter.Q.cancelScheduledValues(now);
+    chain.filter.Q.setValueAtTime(chain.filter.Q.value, now);
+    chain.gainNode.gain.cancelScheduledValues(now);
+    chain.gainNode.gain.setValueAtTime(chain.gainNode.gain.value, now);
+
+    if (preset === "none") {
+      chain.filter.frequency.linearRampToValueAtTime(22000, now + EFFECT_RAMP_S);
+      chain.filter.Q.linearRampToValueAtTime(0.7071, now + EFFECT_RAMP_S);
+      chain.gainNode.gain.linearRampToValueAtTime(1.0, now + EFFECT_RAMP_S);
+    } else {
+      const p = EFFECT_PARAMS[preset];
+      chain.filter.frequency.linearRampToValueAtTime(p.frequency, now + EFFECT_RAMP_S);
+      chain.filter.Q.linearRampToValueAtTime(p.Q, now + EFFECT_RAMP_S);
+      chain.gainNode.gain.linearRampToValueAtTime(p.gain, now + EFFECT_RAMP_S);
+    }
+
+    soundEffects.value[soundId] = preset;
+  }
+
   /** Call when a sound is deleted from the library to clean up the engine. */
   function releaseSound(soundId: string): void {
+    destroyEffectChain(soundId); // disconnect AudioContext nodes before destroying element
     destroyAudio(soundId);
     retriedIds.delete(soundId);
     delete playbackStates.value[soundId];
+    delete soundEffects.value[soundId];
   }
 
   function toggleWidget(): void {
@@ -339,6 +451,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     playingCount,
     activeMusicPlaylist,
     activeAmbientPlaylist,
+    soundEffects,
     getState,
     play,
     pause,
@@ -356,5 +469,6 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     stopMusicPlaylist,
     playAmbientPlaylist,
     stopAmbientPlaylist,
+    setEffect,
   };
 });
