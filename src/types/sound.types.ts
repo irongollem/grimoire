@@ -28,6 +28,8 @@ export interface Sound {
   sort_order: number;
   attribution: string | null; // e.g. "Sound by FreesoundUser (CC-BY)" — only set when license requires it
   attribution_url: string | null; // link back to the source page
+  thumbnail_url: string | null;   // optional cover art — used by Media Session (CarPlay, lock screen, etc.)
+  artist: string | null;          // e.g. "Vindsvept" — shown in Media Session; defaults to "Dungeon Grimoire"
   created_at: string;
   updated_at: string;
 }

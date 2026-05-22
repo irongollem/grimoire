@@ -21,6 +21,15 @@
       <span class="ptr-label">{{ readyToReload ? 'Release to reload' : 'Pull to reload' }}</span>
     </div>
   </Transition>
+
+  <!-- App update banner — shown instead of a forced reload when a new service worker takes control -->
+  <Transition name="update-slide">
+    <div v-if="updateAvailable" class="update-banner">
+      <span class="update-label">✦ Update available</span>
+      <button class="update-btn" @click="reloadApp">Reload</button>
+      <button class="update-dismiss" aria-label="Dismiss" @click="updateAvailable = false">✕</button>
+    </div>
+  </Transition>
 </template>
 
 <script setup lang="ts">
@@ -38,6 +47,8 @@ import { pendingBundleFile } from "@/composables/usePendingBundle";
 import LoadingScreen from "@/components/auth/LoadingScreen.vue";
 import { useTheme } from "@/composables/useTheme";
 import { useAuthStore } from "@/stores/auth";
+import { updateAvailable, reloadApp } from "@/composables/useAppUpdate";
+import { useMediaSession } from "@/composables/useMediaSession";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCampaignById } from "@/composables/useCampaigns";
 import { usePullToRefresh } from "@/composables/usePullToRefresh";
@@ -97,6 +108,7 @@ const router = useRouter();
 const { pullPx, readyToReload } = usePullToRefresh();
 
 if (!import.meta.env.SSR) useTheme().initTheme();
+if (!import.meta.env.SSR) useMediaSession();
 
 // When the Supabase session expires mid-session (refresh token exhausted or
 // network failure), onAuthStateChange emits SIGNED_OUT and sets user to null.
@@ -193,5 +205,72 @@ const layout = computed(() => {
 .ptr-fade-enter-from,
 .ptr-fade-leave-to {
   opacity: 0;
+}
+
+/* ── App update banner ─────────────────────────────────────────────── */
+.update-banner {
+  position: fixed;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  white-space: nowrap;
+  box-shadow: 0 4px 16px hsl(0 0% 0% / 0.25);
+}
+
+.update-label {
+  font-family: var(--font-cinzel, sans-serif);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.update-btn {
+  font-family: var(--font-cinzel, sans-serif);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.75rem;
+  border-radius: 999px;
+  background: hsl(var(--primary-foreground));
+  color: hsl(var(--primary));
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.update-btn:hover {
+  opacity: 0.9;
+}
+
+.update-dismiss {
+  background: transparent;
+  border: none;
+  color: hsl(var(--primary-foreground) / 0.7);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  line-height: 1;
+}
+
+.update-dismiss:hover {
+  color: hsl(var(--primary-foreground));
+}
+
+.update-slide-enter-active,
+.update-slide-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.update-slide-enter-from,
+.update-slide-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(0.75rem);
 }
 </style>
