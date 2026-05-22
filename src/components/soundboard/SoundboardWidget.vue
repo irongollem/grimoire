@@ -145,6 +145,77 @@
             </button>
           </div>
 
+          <!-- Active music playlist -->
+          <div
+            v-if="store.activeMusicPlaylist"
+            class="space-y-1 pb-1.5 border-b border-border/50"
+          >
+            <div class="flex items-center gap-2 px-2 py-1.5 rounded-md bg-gold-500/5 border border-gold-500/20">
+              <IconMusicNote class="h-3.5 w-3.5 text-gold-400 shrink-0" />
+              <div class="flex-1 min-w-0">
+                <p class="font-cinzel text-xs font-medium text-foreground truncate">
+                  {{ store.activeMusicPlaylist.playlistName }}
+                </p>
+                <p v-if="activeMusicTrackName" class="font-fell text-[10px] text-muted-foreground truncate">
+                  ♪ {{ activeMusicTrackName }}
+                  <span class="ml-1 opacity-60">
+                    {{ store.activeMusicPlaylist.currentIndex + 1 }} / {{ store.activeMusicPlaylist.trackSoundIds.length }}
+                  </span>
+                </p>
+              </div>
+              <!-- Prev -->
+              <button
+                class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                title="Previous track"
+                @click="store.musicPlaylistPrev()"
+              >
+                <IconSkipBack class="h-3 w-3" />
+              </button>
+              <!-- Next -->
+              <button
+                class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                title="Next track"
+                @click="store.musicPlaylistNext()"
+              >
+                <IconSkipForward class="h-3 w-3" />
+              </button>
+              <!-- Stop -->
+              <button
+                class="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+                title="Stop playlist"
+                @click="store.stopMusicPlaylist()"
+              >
+                <IconStop class="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Active ambient playlist -->
+          <div
+            v-if="store.activeAmbientPlaylist"
+            class="pb-1.5 border-b border-border/50"
+          >
+            <div class="flex items-center gap-2 px-2 py-1.5 rounded-md bg-green-500/5 border border-green-500/20">
+              <IconWind class="h-3.5 w-3.5 text-green-400 shrink-0" />
+              <div class="flex-1 min-w-0">
+                <p class="font-cinzel text-xs font-medium text-foreground truncate">
+                  {{ store.activeAmbientPlaylist.playlistName }}
+                </p>
+                <p class="font-fell text-[10px] text-muted-foreground">
+                  {{ store.activeAmbientPlaylist.soundIds.length }} layered tracks
+                </p>
+              </div>
+              <!-- Stop scene -->
+              <button
+                class="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+                title="Stop ambient scene"
+                @click="store.stopAmbientPlaylist()"
+              >
+                <IconStop class="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+
           <!-- HTML audio sounds -->
           <template v-if="playingSounds.length > 0">
             <div
@@ -197,7 +268,7 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, nextTick } from "vue";
-import { IconClose, IconMusicNote, IconMute, IconPause, IconPlay, IconRepeat, IconRepeatOne, IconShuffle, IconSkipBack, IconSkipForward, IconStop } from '@/lib/icons';
+import { IconClose, IconMusicNote, IconMute, IconPause, IconPlay, IconRepeat, IconRepeatOne, IconShuffle, IconSkipBack, IconSkipForward, IconStop, IconWind } from '@/lib/icons';
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useSounds } from "@/composables/useSounds";
@@ -262,6 +333,13 @@ const playingSounds = computed(() =>
     (s) => s.source_type !== "spotify" && store.playbackStates[s.id]?.isPlaying,
   ),
 );
+
+const activeMusicTrackName = computed(() => {
+  const mpl = store.activeMusicPlaylist;
+  if (!mpl) return null;
+  const soundId = mpl.trackSoundIds[mpl.currentIndex];
+  return sounds.value?.find((s) => s.id === soundId)?.name ?? null;
+});
 
 const spotifyProgress = computed(() => {
   if (!spotifyStore.durationMs) return 0;

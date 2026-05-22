@@ -1,6 +1,25 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import type { SoundPlaybackState } from "@/types/sound.types";
+import type { SoundPlaybackState, PlaylistTrackWithSound } from "@/types/sound.types";
+
+// ── Playlist run-state types (module-level, not exported) ─────────────────
+
+interface MusicPlaylistRunState {
+  playlistId: string;
+  playlistName: string;
+  /** Sound IDs in play order (may be shuffled). */
+  trackSoundIds: string[];
+  /** soundId → file URL, prebuilt so play() never needs the track list again. */
+  fileUrls: Record<string, string>;
+  currentIndex: number;
+  repeat: boolean;
+}
+
+interface AmbientPlaylistRunState {
+  playlistId: string;
+  playlistName: string;
+  soundIds: string[];
+}
 
 // ── Audio Engine (module-level, NEVER reactive) ───────────────────────────
 //
@@ -39,6 +58,10 @@ export const useSoundboardStore = defineStore("soundboard", () => {
 
   // Floating widget visibility
   const widgetOpen = ref(false);
+
+  // Active playlist run states
+  const activeMusicPlaylist = ref<MusicPlaylistRunState | null>(null);
+  const activeAmbientPlaylist = ref<AmbientPlaylistRunState | null>(null);
 
   // Number of currently playing sounds — used for badge
   const playingCount = computed(
@@ -98,6 +121,11 @@ export const useSoundboardStore = defineStore("soundboard", () => {
         playbackStates.value[soundId].isPlaying = false;
         playbackStates.value[soundId].currentTime = 0;
       }
+      // Auto-advance music playlist when this track finishes
+      const mpl = activeMusicPlaylist.value;
+      if (mpl && mpl.trackSoundIds[mpl.currentIndex] === soundId) {
+        musicPlaylistNext();
+      }
     };
   }
 
@@ -153,6 +181,137 @@ export const useSoundboardStore = defineStore("soundboard", () => {
         playbackStates.value[id].isPlaying = false;
       }
     });
+    activeMusicPlaylist.value = null;
+    activeAmbientPlaylist.value = null;
+  }
+
+  // ── Music playlist playback ─────────────────────────────────────────────
+
+  function playMusicPlaylist(
+    playlist: { id: string; name: string; shuffle: boolean; repeat: boolean },
+    tracks: PlaylistTrackWithSound[],
+  ): void {
+    // Stop any currently running music playlist track
+    if (activeMusicPlaylist.value) {
+      const curId = activeMusicPlaylist.value.trackSoundIds[activeMusicPlaylist.value.currentIndex];
+      stop(curId);
+    }
+    if (tracks.length === 0) return;
+
+    // Build play order (optionally shuffled)
+    const ordered = [...tracks].sort((a, b) => a.sort_order - b.sort_order);
+    if (playlist.shuffle) {
+      for (let i = ordered.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [ordered[i], ordered[j]] = [ordered[j], ordered[i]];
+      }
+    }
+
+    const trackSoundIds = ordered.map((t) => t.sound.id);
+    const fileUrls: Record<string, string> = {};
+    ordered.forEach((t) => { fileUrls[t.sound.id] = t.sound.file_url; });
+
+    activeMusicPlaylist.value = {
+      playlistId: playlist.id,
+      playlistName: playlist.name,
+      trackSoundIds,
+      fileUrls,
+      currentIndex: 0,
+      repeat: playlist.repeat,
+    };
+
+    // Music tracks never loop individually — the playlist handles sequencing
+    const firstId = trackSoundIds[0];
+    getState(firstId).isLooping = false;
+    const el = audioInstances.get(firstId);
+    if (el) el.loop = false;
+    play(firstId, fileUrls[firstId]);
+  }
+
+  function musicPlaylistNext(): void {
+    const mpl = activeMusicPlaylist.value;
+    if (!mpl) return;
+
+    stop(mpl.trackSoundIds[mpl.currentIndex]);
+
+    const nextIndex = mpl.currentIndex + 1;
+    if (nextIndex >= mpl.trackSoundIds.length) {
+      if (mpl.repeat) {
+        mpl.currentIndex = 0;
+      } else {
+        activeMusicPlaylist.value = null;
+        return;
+      }
+    } else {
+      mpl.currentIndex = nextIndex;
+    }
+
+    const nextId = mpl.trackSoundIds[mpl.currentIndex];
+    getState(nextId).isLooping = false;
+    const el = audioInstances.get(nextId);
+    if (el) el.loop = false;
+    play(nextId, mpl.fileUrls[nextId]);
+  }
+
+  function musicPlaylistPrev(): void {
+    const mpl = activeMusicPlaylist.value;
+    if (!mpl) return;
+
+    const curId = mpl.trackSoundIds[mpl.currentIndex];
+    // If more than 3s in, restart current track instead of going back
+    if ((playbackStates.value[curId]?.currentTime ?? 0) > 3) {
+      seek(curId, 0);
+      return;
+    }
+
+    stop(curId);
+
+    const prevIndex = mpl.currentIndex - 1;
+    mpl.currentIndex = prevIndex < 0
+      ? (mpl.repeat ? mpl.trackSoundIds.length - 1 : 0)
+      : prevIndex;
+
+    const prevId = mpl.trackSoundIds[mpl.currentIndex];
+    getState(prevId).isLooping = false;
+    const el = audioInstances.get(prevId);
+    if (el) el.loop = false;
+    play(prevId, mpl.fileUrls[prevId]);
+  }
+
+  function stopMusicPlaylist(): void {
+    if (!activeMusicPlaylist.value) return;
+    stop(activeMusicPlaylist.value.trackSoundIds[activeMusicPlaylist.value.currentIndex]);
+    activeMusicPlaylist.value = null;
+  }
+
+  // ── Ambient playlist playback ───────────────────────────────────────────
+
+  function playAmbientPlaylist(
+    playlist: { id: string; name: string },
+    tracks: PlaylistTrackWithSound[],
+  ): void {
+    // Stop previous ambient scene first
+    if (activeAmbientPlaylist.value) {
+      stopAmbientPlaylist();
+    }
+    if (tracks.length === 0) return;
+
+    const soundIds = tracks.map((t) => t.sound.id);
+    activeAmbientPlaylist.value = { playlistId: playlist.id, playlistName: playlist.name, soundIds };
+
+    // All tracks loop independently so the scene runs until explicitly stopped
+    tracks.forEach((t) => {
+      getState(t.sound.id).isLooping = true;
+      const el = audioInstances.get(t.sound.id);
+      if (el) el.loop = true;
+      play(t.sound.id, t.sound.file_url);
+    });
+  }
+
+  function stopAmbientPlaylist(): void {
+    if (!activeAmbientPlaylist.value) return;
+    activeAmbientPlaylist.value.soundIds.forEach((id) => stop(id));
+    activeAmbientPlaylist.value = null;
   }
 
   /** Call when a sound is deleted from the library to clean up the engine. */
@@ -178,6 +337,8 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     playbackStates,
     widgetOpen,
     playingCount,
+    activeMusicPlaylist,
+    activeAmbientPlaylist,
     getState,
     play,
     pause,
@@ -189,5 +350,11 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     releaseSound,
     toggleWidget,
     warmup,
+    playMusicPlaylist,
+    musicPlaylistNext,
+    musicPlaylistPrev,
+    stopMusicPlaylist,
+    playAmbientPlaylist,
+    stopAmbientPlaylist,
   };
 });

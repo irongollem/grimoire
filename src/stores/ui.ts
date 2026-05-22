@@ -287,6 +287,9 @@ export const useUiStore = defineStore("ui", () => {
     soundboardSearchQuery.value = "";
   }
 
+  // 'sounds' = standard grid; 'playlists' = playlist panel
+  const soundboardViewMode = ref<"sounds" | "playlists">("sounds");
+
   // Player spell accordion — which levels are expanded (cantrips = 0, open by default)
   const playerSpellOpenLevels = ref<number[]>([0]);
 
@@ -541,6 +544,7 @@ export const useUiStore = defineStore("ui", () => {
     soundboardActivePage,
     soundboardHasActiveFilters,
     resetSoundboardFilters,
+    soundboardViewMode,
 
     // Species
     speciesSearch,

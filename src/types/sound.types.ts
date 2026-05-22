@@ -43,3 +43,36 @@ export interface SoundPlaybackState {
   duration: number;    // seconds (0 = unknown / not yet loaded)
   loadError: boolean;  // true after a load failure persists past one retry
 }
+
+// ── Playlists ─────────────────────────────────────────────────────────────
+
+export type PlaylistType = "music" | "ambient";
+
+export interface SoundboardPlaylist {
+  id: string;
+  campaign_id: string;
+  user_id: string;
+  page_id: string | null;
+  name: string;
+  playlist_type: PlaylistType;
+  shuffle: boolean;
+  repeat: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type SoundboardPlaylistInsert = Omit<SoundboardPlaylist, "id" | "user_id" | "created_at" | "updated_at">;
+export type SoundboardPlaylistUpdate = Partial<Pick<SoundboardPlaylist, "name" | "playlist_type" | "shuffle" | "repeat" | "sort_order">>;
+
+export interface PlaylistTrack {
+  id: string;
+  playlist_id: string;
+  sound_id: string;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface PlaylistTrackWithSound extends PlaylistTrack {
+  sound: Sound;
+}

@@ -95,7 +95,11 @@ Each doc covers **both DM and player perspectives**, lists exact file paths, com
 
 ### Soundboard
 
-- **Soundboard** — ambient sounds & music; Spotify integration (OAuth callback)
+- **Soundboard** — ambient sounds & music; Spotify integration (OAuth callback); multi-page organisation; playlists (music: auto-advance sequential; ambient: layered simultaneous scenes)
+  - `src/components/soundboard/` — SoundCard, SoundboardWidget, SoundboardPageTabs, PlaylistsPanel, PlaylistCard, PlaylistEditorDialog, PlaylistTrackRow
+  - `src/composables/useSoundboardPlaylists.ts` — TanStack Query for `soundboard_playlists` + `soundboard_playlist_tracks`
+  - `src/stores/soundboard.ts` — HTML Audio engine + music/ambient playlist run state (`activeMusicPlaylist`, `activeAmbientPlaylist`)
+  - DB: `soundboard_playlists` (type/shuffle/repeat/page_id), `soundboard_playlist_tracks` (junction, ordered)
 
 ---
 
