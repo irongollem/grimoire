@@ -260,10 +260,14 @@ const annualResolved = computed(() =>
 );
 
 const displayMonthlyPrice = computed(() => {
+  if (annual.value) {
+    const r = annualResolved.value;
+    if (!r) return null;
+    return formatCents(Math.round(r.amount / 12), r.currency);
+  }
   const r = monthlyResolved.value;
   if (!r) return null;
-  const amount = annual.value ? Math.round(r.amount / 12) : r.amount;
-  return formatCents(amount, r.currency);
+  return formatCents(r.amount, r.currency);
 });
 
 const displayAnnualTotal = computed(() => {
