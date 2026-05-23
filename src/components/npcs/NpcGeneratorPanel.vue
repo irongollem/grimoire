@@ -31,7 +31,8 @@
       <div class="flex-1 overflow-y-auto p-5 space-y-5">
         <NpcGeneratorForm
           v-model:concept="concept"
-          v-model:quick-form="quickForm"
+          :quick-form="quickForm"
+          @update:quick-form="onUpdateQuickForm"
           v-model:generate-alter-ego="generateAlterEgo"
           v-model:generate-image="generateImage"
           :is-ai-enabled="isAiEnabled"
@@ -288,6 +289,10 @@ const quickForm = reactive<QuickForm>({
   related_npc_id: null,
   related_npc_relationship: "contact" as NpcRelationshipType,
 });
+
+function onUpdateQuickForm(value: QuickForm) {
+  Object.assign(quickForm, value);
+}
 
 async function applyPostCreate(npcId: string) {
   if (quickForm.faction_id) {
