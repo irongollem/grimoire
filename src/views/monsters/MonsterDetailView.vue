@@ -1,14 +1,12 @@
 <template>
   <PageHeader :title="pageTitle" :description="pageDescription">
     <template v-if="!isNew" #actions>
-      <button
+      <PageHeaderAction
         type="button"
-        class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+        label="Back"
+        :icon="IconChevronLeft"
         @click="router.push('/monsters')"
-      >
-        <IconChevronLeft class="h-3.5 w-3.5" />
-        <span class="hidden md:inline">Back</span>
-      </button>
+      />
 
       <!-- Visibility toggle -->
       <button
@@ -26,15 +24,13 @@
         <IconHide v-else class="h-3.5 w-3.5" />
       </button>
 
-      <button
+      <PageHeaderAction
         v-if="!isEditing"
         type="button"
-        class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+        label="Edit"
+        :icon="IconEdit"
         @click="startEditing"
-      >
-        <IconEdit class="h-3.5 w-3.5" />
-        Edit
-      </button>
+      />
     </template>
 
     <div v-if="isLoading" class="flex justify-center py-16">
@@ -131,6 +127,7 @@ import { useMonster, useSrdMonster } from "@/composables/useMonsters";
 import { useSrdMonsterArt } from "@/composables/useSrdMonsterArt";
 import { useMonsterVisibility } from "@/composables/useMonsterVisibility";
 import PageHeader from "@/components/common/PageHeader.vue";
+import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import MonsterDetail from "@/components/monsters/MonsterDetail.vue";
 import MonsterSheet from "@/components/monsters/MonsterSheet.vue";

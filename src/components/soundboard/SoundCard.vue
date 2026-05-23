@@ -5,7 +5,36 @@
   >
     <!-- Header row -->
     <div class="flex items-start gap-2 min-w-0">
-      <!-- Inline label edit -->
+      <!-- Thumbnail (click to upload / replace) -->
+      <button
+        v-if="!isSpotify"
+        type="button"
+        class="relative shrink-0 w-8 h-8 rounded overflow-hidden border border-border bg-border/30 flex items-center justify-center group/thumb transition-colors hover:border-gold-500/40"
+        :title="sound.thumbnail_url ? 'Replace artwork' : 'Add artwork'"
+        :disabled="isUploadingThumb"
+        @click="thumbInputRef?.click()"
+      >
+        <img
+          v-if="sound.thumbnail_url"
+          :src="sound.thumbnail_url"
+          class="w-full h-full object-cover"
+          alt=""
+        />
+        <IconImage v-else class="h-3.5 w-3.5 text-muted-foreground/40 group-hover/thumb:text-muted-foreground transition-colors" />
+        <!-- Uploading spinner -->
+        <div v-if="isUploadingThumb" class="absolute inset-0 flex items-center justify-center bg-background/70">
+          <div class="w-3 h-3 rounded-full border border-gold-500/60 border-t-transparent animate-spin" />
+        </div>
+      </button>
+      <input
+        ref="thumbInputRef"
+        type="file"
+        accept="image/*"
+        class="sr-only"
+        @change="handleThumbChange"
+      />
+
+      <!-- Inline label + artist edit -->
       <div class="flex-1 min-w-0">
         <input
           v-if="editingName"
@@ -18,7 +47,28 @@
           @blur="saveName"
         />
         <p v-else class="font-cinzel text-sm font-semibold text-foreground truncate">{{ sound.name }}</p>
-        <p class="font-fell text-xs text-muted-foreground italic capitalize">{{ sound.category }}</p>
+
+        <!-- Artist (inline editable; shows placeholder on hover when empty) -->
+        <input
+          v-if="editingArtist"
+          ref="artistInput"
+          v-model="artistDraft"
+          type="text"
+          placeholder="Artist name…"
+          class="w-full rounded border border-gold-500/50 bg-background px-1.5 py-0.5 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-gold-500"
+          @keydown.enter="saveArtist"
+          @keydown.escape="cancelArtistEdit"
+          @blur="saveArtist"
+        />
+        <p
+          v-else
+          class="font-fell text-xs truncate cursor-pointer"
+          :class="sound.artist ? 'text-muted-foreground italic' : 'text-muted-foreground/0 group-hover:text-muted-foreground/40 italic'"
+          :title="sound.artist ? 'Edit artist' : 'Add artist'"
+          @click="startArtistEdit"
+        >{{ sound.artist || 'Add artist…' }}</p>
+
+        <p class="font-fell text-[10px] text-muted-foreground/60 italic capitalize">{{ sound.category }}</p>
       </div>
 
       <!-- Edit name button -->
@@ -222,9 +272,9 @@
       </p>
     </template>
 
-    <!-- ── Page picker (only when multiple pages exist) ─────────────────── -->
+    <!-- ── Page picker (audio sounds only; multiple pages exist) ────────── -->
     <div
-      v-if="pages && pages.length > 1 && !sound.page_id"
+      v-if="!isSpotify && pages && pages.length > 1 && !sound.page_id"
       class="flex items-center gap-1.5 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
     >
       <IconLayers class="h-3 w-3 text-muted-foreground/50 shrink-0" />
@@ -238,8 +288,8 @@
       </select>
     </div>
 
-    <!-- ── HTML Audio controls ─────────────────────────────────────────── -->
-    <template v-else>
+    <!-- ── HTML Audio controls (non-Spotify sounds only) ────────────────── -->
+    <template v-if="!isSpotify">
       <div class="flex items-center gap-2">
         <!-- IconPlay / IconPause -->
         <button
@@ -251,7 +301,7 @@
               ? 'bg-gold-500/20 border-gold-500/50 text-gold-300 hover:bg-gold-500/30'
               : 'border-border text-muted-foreground hover:text-foreground hover:border-border/80'
           "
-          :title="playBlocked ? 'WebM — cannot play in Safari' : audioState.isPlaying ? 'IconPause' : 'IconPlay'"
+          :title="playBlocked ? 'WebM — cannot play in Safari' : audioState.isPlaying ? 'Pause' : 'Play'"
           :disabled="playBlocked"
           @click="togglePlay"
         >
@@ -267,6 +317,13 @@
         >
           <IconStop class="h-3 w-3" />
         </button>
+
+        <!-- Effect picker (visible while playing) -->
+        <SoundEffectPicker
+          v-if="audioState.isPlaying"
+          :model-value="soundboardStore.soundEffects?.[sound.id] ?? 'none'"
+          @update:model-value="soundboardStore.setEffect(sound.id, sound.file_url, $event)"
+        />
 
         <!-- Volume -->
         <input
@@ -319,10 +376,11 @@
 
 <script setup lang="ts">
 import { computed, ref, nextTick, onMounted } from "vue";
-import { IconDelete, IconEdit, IconLayers, IconMusicNote, IconPause, IconPlay, IconRepeat, IconRepeatOne, IconShuffle, IconSkipBack, IconSkipForward, IconStop, IconWarning } from '@/lib/icons';
+import { IconDelete, IconEdit, IconImage, IconLayers, IconMusicNote, IconPause, IconPlay, IconRepeat, IconRepeatOne, IconShuffle, IconSkipBack, IconSkipForward, IconStop, IconWarning } from '@/lib/icons';
+import SoundEffectPicker from "./SoundEffectPicker.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
-import { useUpdateSound, useMoveSound } from "@/composables/useSounds";
+import { useUpdateSound, useMoveSound, useSoundThumbnailUpload } from "@/composables/useSounds";
 import type { Sound, SoundboardPage } from "@/types/sound.types";
 
 const IS_SAFARI = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
@@ -341,6 +399,25 @@ const soundboardStore = useSoundboardStore();
 const spotifyStore = useSpotifyStore();
 const { mutate: updateSound } = useUpdateSound();
 const { mutate: moveSound } = useMoveSound();
+
+// ── Thumbnail upload ───────────────────────────────────────────────────────
+
+const thumbInputRef = ref<HTMLInputElement | null>(null);
+const { isUploading: isUploadingThumb, upload: uploadThumb, remove: removeThumb } = useSoundThumbnailUpload();
+
+async function handleThumbChange(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  (e.target as HTMLInputElement).value = ""; // reset so same file can be re-selected
+  // Remove old thumbnail from storage before uploading the new one
+  if (props.sound.thumbnail_url) {
+    await removeThumb(props.sound.thumbnail_url);
+  }
+  const url = await uploadThumb(file);
+  if (url) {
+    updateSound({ id: props.sound.id, update: { thumbnail_url: url } });
+  }
+}
 
 // ── Routing to the right playback engine ──────────────────────────────────
 
@@ -377,7 +454,7 @@ const playBlocked = computed(() => (isWebM.value && IS_SAFARI) || audioState.val
 function togglePlay() {
   if (playBlocked.value) return;
   if (audioState.value.isPlaying) {
-    soundboardStore.stop(props.sound.id);
+    soundboardStore.pause(props.sound.id);
   } else {
     soundboardStore.play(props.sound.id, props.sound.file_url);
   }
@@ -459,5 +536,30 @@ function saveName() {
 
 function cancelNameEdit() {
   editingName.value = false;
+}
+
+// ── Inline artist editing ─────────────────────────────────────────────────
+
+const editingArtist = ref(false);
+const artistInput = ref<HTMLInputElement | null>(null);
+const artistDraft = ref("");
+
+function startArtistEdit() {
+  artistDraft.value = props.sound.artist ?? "";
+  editingArtist.value = true;
+  nextTick(() => artistInput.value?.select());
+}
+
+function saveArtist() {
+  const trimmed = artistDraft.value.trim();
+  const current = props.sound.artist ?? "";
+  if (trimmed !== current) {
+    updateSound({ id: props.sound.id, update: { artist: trimmed || null } });
+  }
+  editingArtist.value = false;
+}
+
+function cancelArtistEdit() {
+  editingArtist.value = false;
 }
 </script>

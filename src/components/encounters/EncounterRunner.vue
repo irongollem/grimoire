@@ -110,6 +110,8 @@
           <RunnerEntityDetail
             :selected-id="selectedId"
             :selected-trap-id="selectedTrapId"
+            :monsters="monsters ?? []"
+            :party-members="partyMembers ?? []"
             @close="selectedId = null; selectedTrapId = null"
           />
         </div>

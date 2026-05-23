@@ -175,17 +175,23 @@ export interface Item {
   mundane_image_url: string | null; // artwork shown before identification
   mundane_image_focal_point?: { x: number; y: number } | null;
   curse_description: string | null;
+  /** NULL = general (visible in all campaigns); set = only visible when that campaign is active. */
+  campaign_id: string | null;
+  /** DM-only rich-text notes never shown to players. */
+  dm_notes: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export type ItemInsert = Omit<
   Item,
-  "id" | "user_id" | "created_at" | "updated_at" | "mundane_description" | "mundane_image_url" | "mundane_image_focal_point"
+  "id" | "user_id" | "created_at" | "updated_at" | "mundane_description" | "mundane_image_url" | "mundane_image_focal_point" | "campaign_id" | "dm_notes"
 > & {
   mundane_description?: string | null;
   mundane_image_url?: string | null;
   mundane_image_focal_point?: { x: number; y: number } | null;
+  campaign_id?: string | null;
+  dm_notes?: string | null;
 };
 export type ItemUpdate = Partial<ItemInsert>;
 /** Subset used by static data files — fields managed by the DB are omitted */

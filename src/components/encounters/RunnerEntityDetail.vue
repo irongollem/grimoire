@@ -9,586 +9,58 @@
     <template v-if="selectedCombatant">
 
     <!-- Roll result banner -->
-    <Transition name="roll-fade">
-      <div v-if="lastCheck" class="roll-result-banner" :class="rollResultClass">
-        <div class="roll-result-total">
-          <DiceResult :value="lastCheck.total" :is-crit="lastCheck.isCrit" :is-fumble="lastCheck.isFumble" />
-        </div>
-        <div class="roll-result-info">
-          <span class="roll-result-label">{{ lastCheck.label }}</span>
-          <span class="roll-result-breakdown">
-            <span class="roll-die" :class="{ 'roll-die-drop': lastCheck.dropped !== undefined }">{{ lastCheck.d20 }}</span>
-            <span v-if="lastCheck.dropped !== undefined" class="roll-die roll-die-drop">{{ lastCheck.dropped }}</span>
-            <span v-if="lastCheck.modifier !== 0" class="roll-mod">{{ lastCheck.modifier >= 0 ? '+' : '' }}{{ lastCheck.modifier }}</span>
-          </span>
-        </div>
-      </div>
-    </Transition>
+    <RunnerRollBanner :last-check="lastCheck" />
 
-    <!-- Roll mode toggle -->
-    <div class="roll-mode-bar">
-      <button
-        v-for="m in ROLL_MODES"
-        :key="m.value"
-        type="button"
-        class="roll-mode-btn"
-        :class="{ 'roll-mode-active': rollMode === m.value, [m.cls]: rollMode === m.value }"
-        @click="rollMode = m.value"
-      >{{ m.label }}</button>
-    </div>
-
-    <!-- Chat mode toggle -->
-    <div class="chat-mode-bar">
-      <button
-        v-for="m in CHAT_MODES"
-        :key="m.value"
-        type="button"
-        class="chat-mode-btn"
-        :class="{ 'chat-mode-active': chatMode === m.value, [m.cls]: chatMode === m.value }"
-        :title="m.title"
-        @click="chatMode = m.value"
-      >{{ m.label }}</button>
-    </div>
+    <!-- Roll mode + chat mode toggles -->
+    <RunnerRollModeToggle
+      :roll-mode="rollMode"
+      :chat-mode="chatMode"
+      @update:roll-mode="rollMode = $event"
+      @update:chat-mode="chatMode = $event"
+    />
 
     <!-- Monster -->
-    <template v-if="selectedCombatant.type === 'monster' && selectedMonster">
-      <div class="detail-scroll">
-        <FocalImage
-          v-if="selectedCombatant.wildshape?.beast_image_url ?? selectedCombatant.portrait_url"
-          :src="(selectedCombatant.wildshape?.beast_image_url ?? selectedCombatant.portrait_url)!"
-          :alt="selectedCombatant.name"
-          :focal-point="selectedCombatant.wildshape?.beast_image_url ? null : (selectedCombatant.portrait_focal_point ?? null)"
-          format="portrait"
-          class="detail-portrait"
-        />
-        <p class="detail-meta">
-          {{ selectedMonster.size }} {{ selectedMonster.monster_type
-          }}<span v-if="selectedMonster.alignment"> · {{ selectedMonster.alignment }}</span>
-        </p>
-        <div class="detail-divider" />
-        <div class="detail-stats">
-          <div class="detail-stat"><span>AC</span><strong>{{ selectedMonster.stat_block?.armor_class }}</strong></div>
-          <div class="detail-stat"><span>HP</span><strong>{{ selectedMonster.stat_block?.hit_points }}</strong></div>
-          <div class="detail-stat"><span>Speed</span><strong>{{ selectedMonster.stat_block?.speed }}</strong></div>
-          <div class="detail-stat"><span>CR</span><strong>{{ selectedMonster.stat_block?.challenge_rating }}</strong></div>
-        </div>
-        <div class="detail-divider" />
-        <AbilityScoreTable
-          :scores="monsterScoresForBlock"
-          :saves="monsterSavesForBlock"
-          :rounded="false"
-          @roll-ability="(_, label, mod) => performCheck(mod, label + ' Check')"
-          @roll-save="(_, label, bonus) => performCheck(bonus, label + ' Save')"
-        />
-        <!-- Monster skills -->
-        <template v-if="monsterSkillEntries.length">
-          <div class="detail-divider" />
-          <p class="detail-section-label">Skills</p>
-          <div class="detail-check-grid">
-            <button
-              v-for="sk in monsterSkillEntries"
-              :key="sk.label"
-              type="button"
-              class="detail-check-btn"
-              @click="performCheck(sk.bonus, sk.label)"
-            >
-              <span>{{ sk.label }}</span>
-              <em>{{ sk.bonus >= 0 ? '+' : '' }}{{ sk.bonus }}</em>
-            </button>
-          </div>
-        </template>
-        <template v-if="selectedMonster.stat_block?.senses" >
-          <div class="detail-divider" />
-          <p class="detail-line"><span>Senses</span>{{ selectedMonster.stat_block.senses }}</p>
-        </template>
-        <p v-if="selectedMonster.stat_block?.languages" class="detail-line"><span>Languages</span>{{ selectedMonster.stat_block.languages }}</p>
-        <p v-if="selectedMonster.stat_block?.damage_resistances" class="detail-line"><span>Resistances</span>{{ selectedMonster.stat_block.damage_resistances }}</p>
-        <p v-if="selectedMonster.stat_block?.damage_immunities" class="detail-line"><span>Immunities</span>{{ selectedMonster.stat_block.damage_immunities }}</p>
-        <p v-if="selectedMonster.stat_block?.condition_immunities" class="detail-line"><span>Cond. Immune</span>{{ selectedMonster.stat_block.condition_immunities }}</p>
-        <template v-for="section in traitSections" :key="section.label">
-          <template v-if="section.traits?.length">
-            <div class="detail-divider" />
-            <p class="detail-section-label">{{ section.label }}</p>
-            <div v-for="t in section.traits" :key="t.name" class="detail-trait">
-              <div class="detail-trait-header">
-                <strong>{{ t.name }}.</strong>
-                <div class="trait-roll-bar">
-                  <button
-                    v-if="parseAttackBonus(t.description) !== null"
-                    type="button"
-                    class="trait-roll-btn trait-atk-btn"
-                    @click.stop="rollAttack(parseAttackBonus(t.description) ?? 0, t.name)"
-                  >⚔ {{ (parseAttackBonus(t.description) ?? 0) >= 0 ? '+' : '' }}{{ parseAttackBonus(t.description) ?? 0 }}</button>
-                  <button
-                    v-if="hasRollableDice(t.description)"
-                    type="button"
-                    class="trait-roll-btn trait-dmg-btn"
-                    @click.stop="rollActionDamage(t.description, t.name)"
-                  >🎲 {{ actionDiceLabel(t.description) }}</button>
-                </div>
-              </div>
-              <span class="detail-trait-desc" v-html="renderTraitDesc(t.description)"></span>
-            </div>
-          </template>
-        </template>
-        <template v-if="selectedMonster.stat_block?.spellcasting?.entries?.length">
-          <div class="detail-divider" />
-          <SpellcastingList :spellcasting="selectedMonster.stat_block.spellcasting" />
-        </template>
-        <!-- Legendary action tracker — live pip counter -->
-        <template v-if="selectedCombatant.legendary_action_cap">
-          <div class="detail-divider" />
-          <div class="la-tracker">
-            <span class="la-label">Legendary Actions</span>
-            <div class="la-pips">
-              <span
-                v-for="i in selectedCombatant.legendary_action_cap"
-                :key="i"
-                class="la-pip"
-                :class="i <= (selectedCombatant.legendary_actions_remaining ?? 0) ? 'la-pip-on' : 'la-pip-off'"
-              />
-            </div>
-            <span class="la-count">{{ selectedCombatant.legendary_actions_remaining ?? 0 }} / {{ selectedCombatant.legendary_action_cap }}</span>
-            <button
-              type="button"
-              class="la-spend-btn"
-              :disabled="!selectedCombatant.legendary_actions_remaining"
-              @click="store.spendLegendaryActions(selectedCombatant!.instance_id, 1)"
-            >Use 1</button>
-          </div>
-        </template>
-      </div>
-    </template>
+    <RunnerMonsterPanel
+      v-if="selectedCombatant.type === 'monster' && selectedMonster"
+      :combatant="selectedCombatant"
+      :monster="selectedMonster"
+      @roll-check="performCheck"
+      @roll-attack="rollAttack"
+      @roll-damage="rollActionDamage"
+      @spend-legendary="store.spendLegendaryActions(selectedCombatant!.instance_id, $event)"
+    />
 
     <!-- NPC -->
-    <template v-else-if="selectedCombatant.type === 'monster' && selectedNpc">
-      <div class="detail-scroll">
-        <FocalImage
-          v-if="selectedCombatant.wildshape?.beast_image_url ?? selectedCombatant.portrait_url"
-          :src="(selectedCombatant.wildshape?.beast_image_url ?? selectedCombatant.portrait_url)!"
-          :alt="selectedCombatant.name"
-          :focal-point="selectedCombatant.wildshape?.beast_image_url ? null : (selectedCombatant.portrait_focal_point ?? null)"
-          format="portrait"
-          class="detail-portrait"
-        />
-        <p class="detail-meta">
-          {{ [selectedNpc.race, selectedNpc.occupation].filter(Boolean).join(' · ') }}
-          <span v-if="selectedNpc.alignment"> · {{ selectedNpc.alignment }}</span>
-        </p>
-        <template v-if="selectedNpc.stat_block">
-          <div class="detail-divider" />
-          <div class="detail-stats">
-            <div class="detail-stat"><span>AC</span><strong>{{ selectedNpc.stat_block.armor_class }}</strong></div>
-            <div class="detail-stat"><span>HP</span><strong>{{ selectedNpc.stat_block.hit_points }}</strong></div>
-            <div class="detail-stat" v-if="selectedNpc.stat_block.speed"><span>Speed</span><strong>{{ selectedNpc.stat_block.speed }}</strong></div>
-            <div class="detail-stat" v-if="selectedNpc.stat_block.challenge_rating"><span>CR</span><strong>{{ selectedNpc.stat_block.challenge_rating }}</strong></div>
-          </div>
-          <div class="detail-divider" />
-          <AbilityScoreTable
-            :scores="{
-              str: selectedNpc.stat_block.str ?? 10,
-              dex: selectedNpc.stat_block.dex ?? 10,
-              con: selectedNpc.stat_block.con ?? 10,
-              int: selectedNpc.stat_block.int ?? 10,
-              wis: selectedNpc.stat_block.wis ?? 10,
-              cha: selectedNpc.stat_block.cha ?? 10,
-            }"
-            :rounded="false"
-            @roll-ability="(_, label, mod) => performCheck(mod, label + ' Check')"
-            @roll-save="(_, label, bonus) => performCheck(bonus, label + ' Save')"
-          />
-          <p v-if="selectedNpc.stat_block.senses" class="detail-line"><span>Senses</span>{{ selectedNpc.stat_block.senses }}</p>
-          <p v-if="selectedNpc.stat_block.languages" class="detail-line"><span>Languages</span>{{ selectedNpc.stat_block.languages }}</p>
-          <p v-if="selectedNpc.stat_block.damage_resistances" class="detail-line"><span>Resistances</span>{{ selectedNpc.stat_block.damage_resistances }}</p>
-          <p v-if="selectedNpc.stat_block.damage_immunities" class="detail-line"><span>Immunities</span>{{ selectedNpc.stat_block.damage_immunities }}</p>
-          <p v-if="selectedNpc.stat_block.condition_immunities" class="detail-line"><span>Cond. Immune</span>{{ selectedNpc.stat_block.condition_immunities }}</p>
-          <template v-for="section in npcTraitSections" :key="section.label">
-            <template v-if="section.traits?.length">
-              <div class="detail-divider" />
-              <p class="detail-section-label">{{ section.label }}</p>
-              <div v-for="t in section.traits" :key="t.name" class="detail-trait">
-                <div class="detail-trait-header">
-                  <strong>{{ t.name }}.</strong>
-                  <div class="trait-roll-bar">
-                    <button
-                      v-if="parseAttackBonus(t.description) !== null"
-                      type="button"
-                      class="trait-roll-btn trait-atk-btn"
-                      @click.stop="rollAttack(parseAttackBonus(t.description) ?? 0, t.name)"
-                    >⚔ {{ (parseAttackBonus(t.description) ?? 0) >= 0 ? '+' : '' }}{{ parseAttackBonus(t.description) ?? 0 }}</button>
-                    <button
-                      v-if="hasRollableDice(t.description)"
-                      type="button"
-                      class="trait-roll-btn trait-dmg-btn"
-                      @click.stop="rollActionDamage(t.description, t.name)"
-                    >🎲 {{ actionDiceLabel(t.description) }}</button>
-                  </div>
-                </div>
-                <span class="detail-trait-desc" v-html="renderTraitDesc(t.description)"></span>
-              </div>
-            </template>
-          </template>
-          <template v-if="selectedNpc.stat_block?.spellcasting?.entries?.length">
-            <div class="detail-divider" />
-            <SpellcastingList :spellcasting="selectedNpc.stat_block.spellcasting" />
-          </template>
-        </template>
-        <p v-else class="font-fell text-xs text-muted-foreground italic px-1 pt-2">No stat block defined for this NPC.</p>
-      </div>
-    </template>
+    <RunnerNpcPanel
+      v-else-if="selectedCombatant.type === 'monster' && selectedNpc"
+      :combatant="selectedCombatant"
+      :npc="selectedNpc"
+      @roll-check="performCheck"
+      @roll-attack="rollAttack"
+      @roll-damage="rollActionDamage"
+    />
 
     <!-- Companion -->
-    <template v-else-if="selectedCombatant.type === 'player' && selectedCompanion">
-      <div class="detail-scroll">
-        <FocalImage
-          v-if="selectedCombatant.wildshape?.beast_image_url ?? selectedCombatant.portrait_url"
-          :src="(selectedCombatant.wildshape?.beast_image_url ?? selectedCombatant.portrait_url)!"
-          :alt="selectedCombatant.name"
-          :focal-point="selectedCombatant.wildshape?.beast_image_url ? null : (selectedCombatant.portrait_focal_point ?? null)"
-          format="portrait"
-          class="detail-portrait"
-        />
-        <p class="detail-meta capitalize">{{ selectedCompanion.companion_type?.replace('_', ' ') }}</p>
-        <div class="detail-divider" />
-        <div class="detail-stats">
-          <div class="detail-stat"><span>AC</span><strong>{{ selectedCombatant.ac }}</strong></div>
-          <div class="detail-stat"><span>HP</span><strong>{{ selectedCombatant.hp }}/{{ selectedCombatant.max_hp }}</strong></div>
-          <div class="detail-stat" v-if="selectedCompanion.stat_block?.speed"><span>Speed</span><strong>{{ selectedCompanion.stat_block.speed }}</strong></div>
-        </div>
-        <template v-if="selectedCompanion.stat_block">
-          <div class="detail-divider" />
-          <AbilityScoreTable
-            :scores="{
-              str: selectedCompanion.stat_block.str ?? 10,
-              dex: selectedCompanion.stat_block.dex ?? 10,
-              con: selectedCompanion.stat_block.con ?? 10,
-              int: selectedCompanion.stat_block.int ?? 10,
-              wis: selectedCompanion.stat_block.wis ?? 10,
-              cha: selectedCompanion.stat_block.cha ?? 10,
-            }"
-            :rounded="false"
-            @roll-ability="(_, label, mod) => performCheck(mod, label + ' Check')"
-            @roll-save="(_, label, bonus) => performCheck(bonus, label + ' Save')"
-          />
-        </template>
-        <template v-for="section in companionTraitSections" :key="section.label">
-          <template v-if="section.traits?.length">
-            <div class="detail-divider" />
-            <p class="detail-section-label">{{ section.label }}</p>
-            <div v-for="t in section.traits" :key="t.name" class="detail-trait">
-              <div class="detail-trait-header">
-                <strong>{{ t.name }}.</strong>
-                <div class="trait-roll-bar">
-                  <button
-                    v-if="parseAttackBonus(t.description) !== null"
-                    type="button"
-                    class="trait-roll-btn trait-atk-btn"
-                    @click.stop="rollAttack(parseAttackBonus(t.description) ?? 0, t.name)"
-                  >⚔ {{ (parseAttackBonus(t.description) ?? 0) >= 0 ? '+' : '' }}{{ parseAttackBonus(t.description) ?? 0 }}</button>
-                  <button
-                    v-if="hasRollableDice(t.description)"
-                    type="button"
-                    class="trait-roll-btn trait-dmg-btn"
-                    @click.stop="rollActionDamage(t.description, t.name)"
-                  >🎲 {{ actionDiceLabel(t.description) }}</button>
-                </div>
-              </div>
-              <span class="detail-trait-desc" v-html="renderTraitDesc(t.description)"></span>
-            </div>
-          </template>
-        </template>
-      </div>
-    </template>
+    <RunnerCompanionPanel
+      v-else-if="selectedCombatant.type === 'player' && selectedCompanion"
+      :combatant="selectedCombatant"
+      :companion="selectedCompanion"
+      @roll-check="performCheck"
+      @roll-attack="rollAttack"
+      @roll-damage="rollActionDamage"
+    />
 
     <!-- Player -->
-    <template v-else-if="selectedCombatant.type === 'player' && selectedMember">
-      <div class="detail-scroll">
-        <FocalImage
-          v-if="selectedCombatant.wildshape?.beast_image_url ?? selectedCombatant.portrait_url"
-          :src="(selectedCombatant.wildshape?.beast_image_url ?? selectedCombatant.portrait_url)!"
-          :alt="selectedCombatant.name"
-          :focal-point="selectedCombatant.wildshape?.beast_image_url ? null : (selectedCombatant.portrait_focal_point ?? null)"
-          format="portrait"
-          class="detail-portrait"
-        />
-        <p class="detail-meta">
-          {{ [speciesNameMap.get(selectedMember.species_id ?? '') ?? null, selectedMember.class].filter(Boolean).join(' · ') }}
-          <span v-if="selectedMember.level"> · Level {{ selectedMember.level }}</span>
-        </p>
-        <div class="detail-divider" />
-        <div class="detail-stats">
-          <div class="detail-stat"><span>AC</span><strong>{{ selectedMember.ac }}</strong></div>
-          <div class="detail-stat"><span>HP</span><strong>{{ selectedMember.current_hp }}/{{ selectedMember.max_hp }}</strong></div>
-          <div class="detail-stat"><span>Speed</span><strong>{{ selectedMember.speed }} ft.</strong></div>
-          <div class="detail-stat"><span>Prof</span><strong>+{{ playerProfBonus }}</strong></div>
-        </div>
-        <div class="detail-divider" />
-        <AbilityScoreTable
-          :scores="playerScoresForBlock"
-          :saves="playerSavesForBlock"
-          :rounded="false"
-          @roll-ability="(_, label, mod) => performCheck(mod, label + ' Check')"
-          @roll-save="(_, label, bonus) => performCheck(bonus, label + ' Save')"
-        />
-        <!-- Skills -->
-        <div class="detail-divider" />
-        <p class="detail-section-label">Skills</p>
-        <div class="detail-check-grid">
-          <button
-            v-for="sk in SKILLS"
-            :key="sk.key"
-            type="button"
-            class="detail-check-btn"
-            :class="{ 'check-proficient': playerSkillProf(sk.key) !== 'none', 'check-expertise': playerSkillProf(sk.key) === 'expertise' }"
-            @click="performCheck(playerSkillBonus(sk.key, sk.ability), sk.label)"
-          >
-            <span>{{ sk.label }}</span>
-            <em>{{ playerSkillBonus(sk.key, sk.ability) >= 0 ? '+' : '' }}{{ playerSkillBonus(sk.key, sk.ability) }}</em>
-          </button>
-        </div>
-        <!-- Melee Attacks -->
-        <div class="detail-divider" />
-        <p class="detail-section-label">Melee Attacks</p>
-        <div v-for="atk in playerMeleeAttacks" :key="atk.name" class="detail-trait">
-          <div class="detail-trait-header">
-            <strong>{{ atk.name }}.</strong>
-            <div class="trait-roll-bar">
-              <button
-                type="button"
-                class="trait-roll-btn trait-atk-btn"
-                @click.stop="rollAttack(atk.attackBonus, atk.name)"
-              >⚔ {{ atk.attackBonus >= 0 ? '+' : '' }}{{ atk.attackBonus }}</button>
-              <button
-                v-if="atk.damageDice"
-                type="button"
-                class="trait-roll-btn trait-dmg-btn"
-                @click.stop="rollActionDamage(atk.damageDice, atk.name)"
-              >🎲 {{ actionDiceLabel(atk.damageDice) }}</button>
-              <span
-                v-else-if="atk.damageFixed"
-                class="font-cinzel text-[9px] text-muted-foreground whitespace-nowrap self-center"
-              >{{ atk.damageFixed }}</span>
-            </div>
-          </div>
-          <span class="detail-trait-desc">{{ atk.description }}</span>
-        </div>
-        <!-- Ranged Attacks -->
-        <template v-if="playerRangedAttacks.length">
-          <div class="detail-divider" />
-          <p class="detail-section-label">Ranged Attacks</p>
-          <div v-for="atk in playerRangedAttacks" :key="atk.weaponInvId" class="detail-trait">
-            <div class="detail-trait-header">
-              <strong>{{ atk.name }}.</strong>
-              <div class="trait-roll-bar">
-                <!-- Self-charged weapon (laser rifle, etc.) -->
-              <template v-if="atk.ammoTag === null">
-                <button
-                  type="button"
-                  class="trait-roll-btn trait-atk-btn"
-                  :disabled="weaponSelfChargesRemaining(atk.weaponInvId, weaponMaxCharges(atk.weaponInvId)) <= 0"
-                  :title="weaponSelfChargesRemaining(atk.weaponInvId, weaponMaxCharges(atk.weaponInvId)) <= 0 ? 'No charges remaining' : undefined"
-                  @click.stop="fireRangedAttack(atk)"
-                >🏹 {{ atk.attackBonus >= 0 ? '+' : '' }}{{ atk.attackBonus }}</button>
-                <button
-                  v-if="atk.damageDice"
-                  type="button"
-                  class="trait-roll-btn trait-dmg-btn"
-                  @click.stop="rollActionDamage(atk.damageDice, atk.name)"
-                >🎲 {{ actionDiceLabel(atk.damageDice) }}</button>
-                <span
-                  class="font-cinzel text-[9px] whitespace-nowrap self-center"
-                  :class="weaponSelfChargesRemaining(atk.weaponInvId, weaponMaxCharges(atk.weaponInvId)) > 0 ? 'text-muted-foreground' : 'text-destructive'"
-                >⚡ {{ weaponSelfChargesRemaining(atk.weaponInvId, weaponMaxCharges(atk.weaponInvId)) }}</span>
-              </template>
-              <!-- External ammo weapon (bow, crossbow, etc.) -->
-              <template v-else>
-                <button
-                  type="button"
-                  class="trait-roll-btn trait-atk-btn"
-                  :disabled="!availableAmmoFor(atk.ammoTag)"
-                  :title="!availableAmmoFor(atk.ammoTag) ? 'No ammunition available' : undefined"
-                  @click.stop="fireRangedAttack(atk)"
-                >🏹 {{ atk.attackBonus >= 0 ? '+' : '' }}{{ atk.attackBonus }}</button>
-                <button
-                  v-if="atk.damageDice"
-                  type="button"
-                  class="trait-roll-btn trait-dmg-btn"
-                  @click.stop="rollActionDamage(atk.damageDice, atk.name)"
-                >🎲 {{ actionDiceLabel(atk.damageDice) }}</button>
-                <span
-                  v-if="availableAmmoFor(atk.ammoTag)"
-                  class="font-cinzel text-[9px] text-muted-foreground whitespace-nowrap self-center"
-                >× {{ ammoRemainingCount(availableAmmoFor(atk.ammoTag)) }}</span>
-                <span
-                  v-else
-                  class="font-cinzel text-[9px] text-destructive whitespace-nowrap self-center"
-                >— no ammo</span>
-              </template>
-              </div>
-            </div>
-            <span class="detail-trait-desc">{{ atk.description }}</span>
-          </div>
-        </template>
-        <!-- Curses -->
-        <div class="detail-divider" />
-        <p class="detail-section-label">Curses</p>
-        <div class="flex flex-wrap gap-1 mb-1">
-          <span
-            v-for="curse in selectedCombatant.curses"
-            :key="curse"
-            class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-violet-500/15 border border-violet-500/30 font-cinzel text-[9px] text-violet-400 cursor-pointer hover:bg-destructive/20 hover:text-destructive transition-colors"
-            title="Click to remove"
-            @click="store.removeCurse(selectedCombatant!.instance_id, curse)"
-          >{{ curse }} ×</span>
-          <span v-if="!selectedCombatant.curses.length" class="font-fell text-xs text-muted-foreground italic">None</span>
-        </div>
-        <div class="flex items-center gap-1">
-          <input
-            v-model="curseInput"
-            placeholder="Add curse…"
-            class="flex-1 bg-transparent border-b border-border px-1 py-0.5 font-fell text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
-            @keydown.enter.prevent="store.addCurse(selectedCombatant!.instance_id, curseInput); curseInput = ''"
-          />
-          <button
-            type="button"
-            :disabled="!curseInput.trim()"
-            class="text-muted-foreground hover:text-violet-400 transition-colors disabled:opacity-40 shrink-0"
-            @click="store.addCurse(selectedCombatant!.instance_id, curseInput); curseInput = ''"
-          >+</button>
-        </div>
-
-        <!-- ── Wildshape ── -->
-        <template v-if="isSelectedDruid || selectedCombatant.wildshape">
-          <div class="detail-divider" />
-
-          <!-- Active wildshape banner -->
-          <template v-if="selectedCombatant.wildshape">
-            <div class="wildshape-banner">
-              <span class="wildshape-banner-label">🐺 {{ selectedCombatant.wildshape.beast_name }}</span>
-              <div class="flex items-center gap-1.5">
-                <button
-                  v-if="isSelectedDruid"
-                  type="button"
-                  class="wildshape-revert-btn"
-                  @click="showWildshapePicker = !showWildshapePicker"
-                >{{ showWildshapePicker ? 'Cancel' : 'Change' }}</button>
-                <button
-                  type="button"
-                  class="wildshape-revert-btn"
-                  @click="store.revertWildshape(selectedCombatant!.instance_id); showWildshapePicker = false"
-                >Revert</button>
-              </div>
-            </div>
-            <template v-if="wildshapeMonster">
-              <p class="detail-meta mt-1">{{ wildshapeMonster.size }} {{ wildshapeMonster.monster_type }}</p>
-              <div class="detail-stats mt-2">
-                <div class="detail-stat"><span>AC</span><strong>{{ selectedCombatant.wildshape!.beast_ac }}</strong></div>
-                <div class="detail-stat"><span>HP</span><strong>{{ selectedCombatant.wildshape!.beast_hp }}/{{ selectedCombatant.wildshape!.beast_max_hp }}</strong></div>
-                <div class="detail-stat"><span>Speed</span><strong>{{ wildshapeMonster.stat_block?.speed }}</strong></div>
-              </div>
-              <div class="detail-divider" />
-              <AbilityScoreTable
-                :scores="wildshapeScores"
-                :saves="wildshapeSaves"
-                :rounded="false"
-                @roll-ability="(_, label, mod) => performCheck(mod, label + ' Check')"
-                @roll-save="(_, label, bonus) => performCheck(bonus, label + ' Save')"
-              />
-              <template v-for="section in wildshapeTraitSections" :key="section.label">
-                <template v-if="section.traits?.length">
-                  <div class="detail-divider" />
-                  <p class="detail-section-label">{{ section.label }}</p>
-                  <div v-for="t in section.traits" :key="t.name" class="detail-trait">
-                    <div class="detail-trait-header">
-                      <strong>{{ t.name }}.</strong>
-                      <div class="trait-roll-bar">
-                        <button
-                          v-if="parseAttackBonus(t.description) !== null"
-                          type="button"
-                          class="trait-roll-btn trait-atk-btn"
-                          @click.stop="rollAttack(parseAttackBonus(t.description) ?? 0, t.name)"
-                        >⚔ {{ (parseAttackBonus(t.description) ?? 0) >= 0 ? '+' : '' }}{{ parseAttackBonus(t.description) ?? 0 }}</button>
-                        <button
-                          v-if="hasRollableDice(t.description)"
-                          type="button"
-                          class="trait-roll-btn trait-dmg-btn"
-                          @click.stop="rollActionDamage(t.description, t.name)"
-                        >🎲 {{ actionDiceLabel(t.description) }}</button>
-                      </div>
-                    </div>
-                    <span class="detail-trait-desc" v-html="renderTraitDesc(t.description)"></span>
-                  </div>
-                </template>
-              </template>
-            </template>
-          </template>
-
-          <!-- Wildshape picker (Druid, not wildshaped OR "Change" clicked while wildshaped) -->
-          <template v-if="isSelectedDruid && !selectedCombatant.wildshape">
-            <div class="flex items-center justify-between">
-              <p class="detail-section-label">Wildshape</p>
-              <div class="flex items-center gap-1.5">
-                <span class="font-fell text-[10px] text-muted-foreground">Max CR {{ wildshapeCrDisplay }}</span>
-                <span v-if="isSelectedCircleOfMoon" class="font-cinzel text-[9px] tracking-wider px-1 py-0.5 rounded border border-primary/40 text-primary bg-primary/10">MOON</span>
-                <button
-                  type="button"
-                  class="font-cinzel text-[10px] px-2 py-1 rounded border border-border hover:border-primary hover:text-primary transition-colors"
-                  @click="showWildshapePicker = !showWildshapePicker"
-                >{{ showWildshapePicker ? 'Cancel' : '🐺 Choose Form' }}</button>
-              </div>
-            </div>
-          </template>
-          <template v-if="showWildshapePicker && isSelectedDruid">
-            <p v-if="!wildshapeForms.length" class="font-fell text-xs text-muted-foreground italic px-1 py-2">
-              No eligible beast forms at this level.
-            </p>
-            <div v-else class="wildshape-picker-list">
-              <button
-                v-for="m in wildshapeForms"
-                :key="m.id"
-                type="button"
-                class="wildshape-pick-row"
-                @click="handleWildshape(m)"
-              >
-                <span class="pick-name">{{ m.name }}</span>
-                <span class="pick-cr">CR {{ m.stat_block?.challenge_rating }}</span>
-                <span class="pick-ac">AC {{ m.stat_block?.armor_class }}</span>
-                <span class="pick-speed">{{ m.stat_block?.speed }}</span>
-              </button>
-            </div>
-          </template>
-        </template>
-
-        <template v-if="selectedMember.notes">
-          <div class="detail-divider" />
-          <p class="detail-notes">{{ selectedMember.notes }}</p>
-        </template>
-
-        <!-- Prepared / Known Spells -->
-        <template v-if="preparedOrKnownSpells.length">
-          <div class="detail-divider" />
-          <p class="detail-section-label">{{ selectedCasterType === 'known' ? 'Known Spells' : 'Prepared Spells' }}</p>
-          <div v-for="entry in preparedOrKnownSpells" :key="entry.id" class="detail-spell">
-            <div class="spell-info">
-              <span class="spell-level-badge">{{ entry.spell.level === 0 ? 'C' : entry.spell.level }}</span>
-              <span class="spell-name">{{ entry.spell.name }}</span>
-            </div>
-            <div class="spell-rolls">
-              <button
-                v-if="entry.spell.damage_rolls?.length"
-                type="button"
-                class="trait-roll-btn trait-dmg-btn"
-                @click.stop="rollSpellDamage(entry.spell)"
-              >🎲 {{ entry.spell.damage_rolls[0].dice }}</button>
-              <span
-                v-if="entry.spell.attack_type === 'save' && playerSpellSaveDc"
-                class="spell-save-badge"
-              >DC {{ playerSpellSaveDc }} {{ entry.spell.save_attribute }}</span>
-            </div>
-          </div>
-        </template>
-      </div>
-    </template>
+    <RunnerPcPanel
+      v-else-if="selectedCombatant.type === 'player' && selectedMember"
+      :combatant="selectedCombatant"
+      :member="selectedMember"
+      :monsters="props.monsters"
+      @roll-check="performCheck"
+      @roll-attack="rollAttack"
+      @roll-damage="rollActionDamage"
+      @roll-spell="rollSpellDamage"
+    />
 
     <template v-else>
       <div class="detail-scroll">
@@ -605,19 +77,7 @@
         <span v-if="selectedTrap.trigger_type" class="detail-meta"> · {{ selectedTrap.trigger_type }}</span>
 
         <!-- Roll result banner (reused) -->
-        <Transition name="roll-fade">
-          <div v-if="lastCheck" class="roll-result-banner" :class="rollResultClass">
-            <div class="roll-result-total">{{ lastCheck.total }}</div>
-            <div class="roll-result-info">
-              <span class="roll-result-label">{{ lastCheck.label }}</span>
-              <span class="roll-result-breakdown">
-                <span class="roll-die" :class="{ 'roll-die-drop': lastCheck.dropped !== undefined }">{{ lastCheck.d20 }}</span>
-                <span v-if="lastCheck.dropped !== undefined" class="roll-die roll-die-drop">{{ lastCheck.dropped }}</span>
-                <span v-if="lastCheck.modifier !== 0" class="roll-mod">{{ lastCheck.modifier >= 0 ? '+' : '' }}{{ lastCheck.modifier }}</span>
-              </span>
-            </div>
-          </div>
-        </Transition>
+        <RunnerRollBanner :last-check="lastCheck" />
 
         <div class="detail-divider" />
 
@@ -726,41 +186,34 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { supabase } from "@/lib/supabase";
-import FocalImage from "@/components/common/FocalImage.vue";
-import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
-import SpellcastingList from "@/components/common/SpellcastingList.vue";
-import DiceResult from "@/components/common/DiceResult.vue";
-import { useEncounterRunStore } from "@/stores/encounterRun";
-import { useAllMonsters } from "@/composables/useMonsters";
+import RunnerRollBanner from "@/components/encounters/RunnerRollBanner.vue";
+import type { CheckResult } from "@/components/encounters/RunnerRollBanner.vue";
+import RunnerRollModeToggle from "@/components/encounters/RunnerRollModeToggle.vue";
+import type { CheckMode, ChatMode } from "@/components/encounters/RunnerRollModeToggle.vue";
+import RunnerMonsterPanel from "@/components/encounters/RunnerMonsterPanel.vue";
+import RunnerNpcPanel from "@/components/encounters/RunnerNpcPanel.vue";
+import RunnerCompanionPanel from "@/components/encounters/RunnerCompanionPanel.vue";
+import RunnerPcPanel from "@/components/encounters/RunnerPcPanel.vue";
 import type { Monster } from "@/types/monster.types";
-import { useParty } from "@/composables/useParty";
-import { useSpeciesNameMap } from "@/composables/useSpecies";
-import { SKILLS } from "@/types/party.types";
-import type { SaveKey } from "@/types/party.types";
+import type { PartyMember } from "@/types/party.types";
+import { useEncounterRunStore } from "@/stores/encounterRun";
+import { useCompanions } from "@/composables/useCompanions";
 import { TRAP_TYPE_COLORS } from "@/types/trap.types";
 import { useCampaignStore } from "@/stores/campaign";
-import { useDiscoveredKeys } from "@/composables/useDiscoveredMonsters";
-import { useDmPinnedForms } from "@/composables/usePinnedForms";
-import { useCompanions } from "@/composables/useCompanions";
 import { parseExpression } from "@/lib/dice";
-import { parseCr } from "@/lib/utils";
 import { rollParsed } from "@/lib/roller";
 import type { DieSize, RollResult } from "@/lib/roller";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import type { Spell as SpellType } from "@/types/spell.types";
-import { getCasterType } from "@/types/spell.types";
-import { useClassByName } from "@/composables/useCustomClasses";
-import { useCharacterSpellsWithDetails } from "@/composables/useCharacterSpells";
 import { useAuthStore } from "@/stores/auth";
 import { generateHTML } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
-import { usePartyInventory, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
-import { useItems } from "@/composables/useItems";
-import type { Item } from "@/types/item.types";
 
 const props = defineProps<{
   selectedId: string | null;
   selectedTrapId: string | null;
+  monsters: Monster[];
+  partyMembers: PartyMember[];
 }>();
 
 const emit = defineEmits<{
@@ -770,16 +223,7 @@ const emit = defineEmits<{
 const store = useEncounterRunStore();
 const campaign = useCampaignStore();
 const auth = useAuthStore();
-const { data: monsters } = useAllMonsters();
-const { data: party } = useParty();
-const speciesNameMap = useSpeciesNameMap();
 const { data: companions } = useCompanions();
-const { data: inventoryItems } = usePartyInventory();
-const { data: vaultItems } = useItems();
-const updateInventoryItem = useUpdateInventoryItem();
-const removeInventoryItem = useRemoveInventoryItem();
-
-const curseInput = ref("");
 
 // ── Trap detail ───────────────────────────────────────────────────────────────
 
@@ -789,38 +233,9 @@ const selectedTrap = computed(() =>
 
 // ── Roll check state ──────────────────────────────────────────────────────────
 
-type CheckMode = "normal" | "advantage" | "disadvantage";
-const ROLL_MODES: { value: CheckMode; label: string; cls: string }[] = [
-  { value: "disadvantage", label: "DIS", cls: "mode-dis" },
-  { value: "normal",       label: "Normal", cls: "mode-normal" },
-  { value: "advantage",    label: "ADV", cls: "mode-adv" },
-];
-
-type ChatMode = "public" | "silent";
-const CHAT_MODES: { value: ChatMode; label: string; cls: string; title: string }[] = [
-  { value: "public", label: "📢 Public", cls: "cmode-public", title: "Roll result visible to all in chat" },
-  { value: "silent", label: "🔇 Silent", cls: "cmode-silent", title: "Roll not posted to chat" },
-];
 const chatMode = ref<ChatMode>("public");
 const rollMode = ref<CheckMode>("normal");
-
-interface CheckResult {
-  total: number;
-  label: string;
-  modifier: number;
-  d20: number;
-  dropped?: number;
-  isCrit: boolean;
-  isFumble: boolean;
-}
 const lastCheck = ref<CheckResult | null>(null);
-
-const rollResultClass = computed(() => {
-  if (!lastCheck.value) return "";
-  if (lastCheck.value.isCrit) return "roll-crit";
-  if (lastCheck.value.isFumble) return "roll-fumble";
-  return "";
-});
 
 const { promptRoll } = usePromptedRoll();
 
@@ -851,15 +266,6 @@ async function performCheck(modifier: number, label: string): Promise<RollResult
 }
 
 // ── Action roll helpers ───────────────────────────────────────────────────────
-
-function parseAttackBonus(desc: string): number | null {
-  // Standard format: "+5 to hit"
-  const m = desc.match(/([+-]\d+)\s+to\s+hit/i);
-  if (m) return parseInt(m[1]);
-  // Compact format: leading "+5" or "-1" before a space (e.g. "+5 2d6+3 slashing")
-  const m2 = desc.match(/^([+-]\d+)\s/);
-  return m2 ? parseInt(m2[1]) : null;
-}
 
 function hasRollableDice(desc: string): boolean {
   const parsed = parseExpression(desc);
@@ -970,7 +376,7 @@ const selectedCombatant = computed(() =>
 
 const selectedMonster = computed(() => {
   if (!selectedCombatant.value?.monster_id) return null;
-  return monsters.value?.find((m) => m.id === selectedCombatant.value!.monster_id) ?? null;
+  return props.monsters.find((m) => m.id === selectedCombatant.value!.monster_id) ?? null;
 });
 
 const selectedNpc = computed(() => {
@@ -980,528 +386,14 @@ const selectedNpc = computed(() => {
 
 const selectedMember = computed(() => {
   if (!selectedCombatant.value?.party_member_id) return null;
-  return party.value?.find((m) => m.id === selectedCombatant.value!.party_member_id) ?? null;
+  return props.partyMembers.find((m) => m.id === selectedCombatant.value!.party_member_id) ?? null;
 });
 
-const selectedMemberId = computed(() => selectedMember.value?.id ?? null);
 const selectedCompanion = computed(() => {
   const cid = selectedCombatant.value?.companion_id;
   if (!cid) return null;
   return companions.value?.find((c) => c.id === cid) ?? null;
 });
-
-const npcTraitSections = computed(() => {
-  const sb = selectedNpc.value?.stat_block;
-  if (!sb) return [];
-  return [
-    { label: "Special Abilities", traits: sb.special_abilities },
-    { label: "Actions",           traits: sb.actions },
-    { label: "Legendary Actions", traits: sb.legendary_actions },
-  ].filter((s) => s.traits?.length);
-});
-
-const companionTraitSections = computed(() => {
-  const sb = selectedCompanion.value?.stat_block;
-  if (!sb) return [];
-  return [
-    { label: "Special Abilities", traits: sb.special_abilities },
-    { label: "Actions",           traits: sb.actions },
-    { label: "Bonus Actions",     traits: sb.bonus_actions },
-    { label: "Reactions",         traits: sb.reactions },
-    { label: "Legendary Actions", traits: sb.legendary_actions },
-  ].filter((s) => s.traits?.length);
-});
-
-const discoveredKeys = useDiscoveredKeys();
-const { data: pinnedForms } = useDmPinnedForms(selectedMemberId);
-
-// ── Proficiency bonus helpers ─────────────────────────────────────────────────
-
-const playerProfBonus = computed(() => {
-  const m = selectedMember.value;
-  if (!m) return 2;
-  if (m.proficiency_bonus) return m.proficiency_bonus;
-  const l = m.level;
-  if (l >= 17) return 6;
-  if (l >= 13) return 5;
-  if (l >= 9)  return 4;
-  if (l >= 5)  return 3;
-  return 2;
-});
-
-// ── Character spells for selected player ──────────────────────────────────────
-const selectedPlayerMemberId = computed(() => selectedMember.value?.id ?? null);
-const { data: selectedPlayerSpells } = useCharacterSpellsWithDetails(selectedPlayerMemberId);
-const selectedClassRef = computed(() => selectedMember.value?.class ?? "");
-const selectedClassData = useClassByName(selectedClassRef);
-const selectedCasterType = computed(() => selectedClassData.value?.caster_type ?? getCasterType(selectedMember.value?.class ?? null));
-const preparedOrKnownSpells = computed(() => {
-  const entries = selectedPlayerSpells.value ?? [];
-  if (selectedCasterType.value === "none") return [];
-  if (selectedCasterType.value === "known") return entries;
-  return entries.filter((e) => e.is_prepared || e.spell.level === 0);
-});
-const playerSpellSaveDc = computed(() => {
-  const m = selectedMember.value;
-  if (!m) return null;
-  const cls = m.class ?? "";
-  let spellMod: number;
-  if (["Cleric", "Druid", "Ranger"].includes(cls))                                              spellMod = abilityMod(m.wis);
-  else if (["Wizard", "Fighter (Eldritch Knight)", "Rogue (Arcane Trickster)"].includes(cls))   spellMod = abilityMod(m.int);
-  else                                                                                           spellMod = abilityMod(m.cha);
-  return 8 + playerProfBonus.value + spellMod;
-});
-
-// ── Player melee attacks (unarmed + improvised) ───────────────────────────────
-
-interface MeleeAttack {
-  name: string;
-  attackBonus: number;
-  damageDice: string | null;
-  damageFixed: string | null;
-  description: string;
-}
-
-const playerMeleeAttacks = computed<MeleeAttack[]>(() => {
-  const m = selectedMember.value;
-  if (!m) return [];
-  const strMod = abilityMod(m.str);
-  const dexMod = abilityMod(m.dex);
-  const prof = playerProfBonus.value;
-  const bestMod = Math.max(strMod, dexMod);
-  const unarmedDmg = 1 + strMod;
-  const impDice = `1d4${bestMod >= 0 ? "+" : ""}${bestMod}`;
-  return [
-    {
-      name: "Unarmed Strike",
-      attackBonus: strMod + prof,
-      damageDice: null,
-      damageFixed: `${unarmedDmg} bludgeoning`,
-      description: `Melee attack. Proficient. Hit: ${unarmedDmg} bludgeoning damage.`,
-    },
-    {
-      name: "Improvised Weapon",
-      attackBonus: bestMod,
-      damageDice: impDice,
-      damageFixed: null,
-      description: `Melee or ranged attack. No proficiency bonus. Hit: ${impDice} damage (type varies).`,
-    },
-  ];
-});
-
-// ── Ranged attacks + ammo consumption ────────────────────────────────────────
-
-interface RangedAttack {
-  name: string;
-  attackBonus: number;
-  damageDice: string | null;
-  description: string;
-  /** External ammo tag required (e.g. "arrow"). null = weapon has its own charges (laser rifle, etc.). */
-  ammoTag: string | null;
-  weaponInvId: string;
-}
-
-/** Map a vault Item's subtype/tags to the ammo tag it requires.
- *
- *  Resolution order:
- *  1. Explicit ammo tag on the weapon itself (e.g. tag "bolt" on a custom crossbow)
- *  2. firearm tag → firearm-bullet
- *  3. Subtype keyword match
- *  4. Name keyword match (fallback for missing subtypes)
- */
-function weaponAmmoTag(item: Item): string | null {
-  // 1. Explicit ammo tag wins — lets custom weapons like "Crosswing" bind to
-  //    any ammo type by simply adding the right tag to the weapon item.
-  const AMMO_TAGS = ["arrow", "bolt", "bullet", "needle", "dart", "firearm-bullet"] as const;
-  const explicitTag = AMMO_TAGS.find((t) => item.tags.includes(t));
-  if (explicitTag) return explicitTag;
-
-  // 2. Firearm tag
-  if (item.tags.includes("firearm")) return "firearm-bullet";
-
-  // 3. Subtype keyword
-  const sub = (item.subtype ?? "").toLowerCase();
-  if (sub.includes("shortbow") || sub.includes("longbow") || (sub.includes("bow") && !sub.includes("crossbow"))) return "arrow";
-  if (sub.includes("crossbow")) return "bolt";
-  if (sub === "sling") return "bullet";
-  if (sub.includes("blowgun")) return "needle";
-  if (sub.includes("dart")) return "dart";
-
-  // 4. Name keyword fallback
-  const name = item.name.toLowerCase();
-  if (name.includes("longbow") || name.includes("shortbow") || (name.includes("bow") && !name.includes("crossbow"))) return "arrow";
-  if (name.includes("crossbow")) return "bolt";
-  if (name.includes("sling")) return "bullet";
-  if (name.includes("blowgun")) return "needle";
-  return null;
-}
-
-/** Determine ammo tag from inventory item name alone (fallback when item_id is null). */
-function ammoTagFromName(name: string): string | null {
-  const lower = name.toLowerCase();
-  if (lower.includes("arrow")) return "arrow";
-  if (lower.includes("bolt")) return "bolt";
-  if ((lower.includes("bullet") || lower.includes("shot")) && (lower.includes("firearm") || lower.includes("black powder") || lower.includes("pistol") || lower.includes("musket"))) return "firearm-bullet";
-  if (lower.includes("bullet")) return "bullet";
-  if (lower.includes("needle")) return "needle";
-  if (lower.includes("dart")) return "dart";
-  return null;
-}
-
-const vaultItemMap = computed<Map<string, Item>>(() => {
-  const map = new Map<string, Item>();
-  for (const item of vaultItems.value ?? []) map.set(item.id, item);
-  return map;
-});
-
-const memberInventory = computed(() => {
-  const mid = selectedMemberId.value;
-  if (!mid) return [];
-  return (inventoryItems.value ?? []).filter((i) => i.carried_by === mid);
-});
-
-// Set of container IDs that belong to this member (is_container=true items)
-const memberContainerIds = computed<Set<string>>(() => {
-  const s = new Set<string>();
-  for (const i of memberInventory.value) {
-    if (i.is_container) s.add(i.id);
-  }
-  return s;
-});
-
-/** Find the best available ammo stack for a given tag. Prefers container items; falls back to belt/backpack. */
-function availableAmmoFor(ammoTag: string) {
-  const candidates = memberInventory.value.filter((inv) => {
-    // Resolve ammo tag from vault or name
-    const vaultItem = inv.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
-    const tag = vaultItem ? (vaultItem.tags.includes("firearm") && ammoTag === "firearm-bullet" ? "firearm-bullet" : vaultItem.tags.find((t) => ["arrow", "bolt", "bullet", "needle", "dart"].includes(t)) ?? null) : ammoTagFromName(inv.name);
-    if (tag !== ammoTag) return false;
-    // Must have remaining charges or quantity
-    const maxCharges = vaultItem?.charges ?? null;
-    const remaining = inv.current_charges !== null ? inv.current_charges : maxCharges;
-    if (remaining !== null && remaining <= 0) return false;
-    if (remaining === null && inv.quantity <= 0) return false;
-    return true;
-  });
-
-  // Prefer items in containers (quiver/pouch), then belt, then backpack
-  const inContainer = candidates.filter((i) => i.location === "container" && memberContainerIds.value.has(i.container_id ?? ""));
-  const onBelt = candidates.filter((i) => i.location === "belt");
-  const inBackpack = candidates.filter((i) => i.location === "backpack");
-  return inContainer[0] ?? onBelt[0] ?? inBackpack[0] ?? null;
-}
-
-/** Returns the display count for an ammo inventory item. */
-function ammoRemainingCount(inv: ReturnType<typeof availableAmmoFor>): number {
-  if (!inv) return 0;
-  const vaultItem = inv.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
-  const maxCharges = vaultItem?.charges ?? null;
-  if (inv.current_charges !== null) return inv.current_charges;
-  if (maxCharges !== null) return maxCharges; // current_charges null means full pack
-  return inv.quantity;
-}
-
-const playerRangedAttacks = computed<RangedAttack[]>(() => {
-  const m = selectedMember.value;
-  if (!m) return [];
-  const dexMod = abilityMod(m.dex);
-  const strMod = abilityMod(m.str);
-  const prof = playerProfBonus.value;
-
-  return memberInventory.value
-    .filter((inv) => ["main_hand", "off_hand"].includes(inv.slot ?? ""))
-    .flatMap((inv) => {
-      if (!inv.item_id) return [];
-      const item = vaultItemMap.value.get(inv.item_id);
-      if (!item) return [];
-      // Self-charged weapons (laser rifle, etc.) carry their own ammo — no external stack needed
-      const isSelfCharged = item.charges !== null;
-      const ammoTag = isSelfCharged ? null : weaponAmmoTag(item);
-      // Accept if: manual "ammunition" property, self-charged, or name/subtype recognised by weaponAmmoTag.
-      // This means a Longbow without "ammunition" ticked still works.
-      if (!item.properties.includes("ammunition") && !isSelfCharged && !ammoTag) return [];
-
-      // Finesse ranged weapons (thrown finesse) may use STR if higher
-      const usesStr = item.properties.includes("finesse") && strMod > dexMod;
-      const atkMod = (usesStr ? strMod : dexMod) + prof;
-      const dmgMod = usesStr ? strMod : dexMod;
-
-      let damageDice: string | null = null;
-      if (item.damage_rolls?.length) {
-        const base = item.damage_rolls[0];
-        damageDice = `${base.dice}${dmgMod >= 0 ? "+" : ""}${dmgMod}`;
-      }
-
-      const rangeStr = item.weapon_range ? ` (${item.weapon_range})` : "";
-      return [{
-        name: item.name,
-        attackBonus: atkMod,
-        damageDice,
-        description: `Ranged attack${rangeStr}. Hit: ${damageDice ?? "see item"} ${item.damage_rolls?.[0]?.type ?? "damage"}.`,
-        ammoTag,
-        weaponInvId: inv.id,
-      }] satisfies RangedAttack[];
-    });
-});
-
-function consumeAmmo(ammoTag: string) {
-  const inv = availableAmmoFor(ammoTag);
-  if (!inv) return;
-  const vaultItem = inv.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
-  const maxCharges = vaultItem?.charges ?? null;
-
-  if (maxCharges !== null) {
-    // Charge-tracked pack (e.g. Arrows (20))
-    const current = inv.current_charges !== null ? inv.current_charges : maxCharges;
-    updateInventoryItem.mutate({ id: inv.id, update: { current_charges: Math.max(0, current - 1) } });
-  } else {
-    // Quantity-tracked single ammo (e.g. Arrow, Silvered)
-    if (inv.quantity <= 1) {
-      removeInventoryItem.mutate(inv.id);
-    } else {
-      updateInventoryItem.mutate({ id: inv.id, update: { quantity: inv.quantity - 1 } });
-    }
-  }
-}
-
-function weaponMaxCharges(weaponInvId: string): number {
-  const inv = memberInventory.value.find((i) => i.id === weaponInvId);
-  const vaultItem = inv?.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
-  return vaultItem?.charges ?? 0;
-}
-
-/** Remaining charges on a self-charged weapon (laser rifle, etc.). */
-function weaponSelfChargesRemaining(weaponInvId: string, maxCharges: number): number {
-  const inv = memberInventory.value.find((i) => i.id === weaponInvId);
-  if (!inv) return 0;
-  return inv.current_charges !== null ? inv.current_charges : maxCharges;
-}
-
-function consumeWeaponCharge(weaponInvId: string, maxCharges: number) {
-  const remaining = weaponSelfChargesRemaining(weaponInvId, maxCharges);
-  updateInventoryItem.mutate({ id: weaponInvId, update: { current_charges: Math.max(0, remaining - 1) } });
-}
-
-function fireRangedAttack(atk: RangedAttack) {
-  rollAttack(atk.attackBonus, atk.name);
-  if (atk.ammoTag) {
-    consumeAmmo(atk.ammoTag);
-  } else {
-    // Self-charged: look up max charges from vault item
-    const inv = memberInventory.value.find((i) => i.id === atk.weaponInvId);
-    const vaultItem = inv?.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
-    if (vaultItem?.charges) consumeWeaponCharge(atk.weaponInvId, vaultItem.charges);
-  }
-}
-
-// ── Monster derived data ──────────────────────────────────────────────────────
-
-const ABILITY_KEYS = [
-  { key: "str" as const, label: "STR" },
-  { key: "dex" as const, label: "DEX" },
-  { key: "con" as const, label: "CON" },
-  { key: "int" as const, label: "INT" },
-  { key: "wis" as const, label: "WIS" },
-  { key: "cha" as const, label: "CHA" },
-];
-
-function abilityMod(score: number): number {
-  return Math.floor((score - 10) / 2);
-}
-
-function parseSaveString(s: string): Record<string, number> {
-  const result: Record<string, number> = {};
-  for (const part of s.split(",")) {
-    const m = part.trim().match(/^(\w+)\s+([+-]\d+)$/);
-    if (m) result[m[1].toLowerCase()] = Number(m[2]);
-  }
-  return result;
-}
-
-const monsterScoresForBlock = computed(() => {
-  const sb = selectedMonster.value?.stat_block;
-  return {
-    str: sb?.str ?? 10, dex: sb?.dex ?? 10, con: sb?.con ?? 10,
-    int: sb?.int ?? 10, wis: sb?.wis ?? 10, cha: sb?.cha ?? 10,
-  };
-});
-
-const monsterSavesForBlock = computed<Record<string, import("@/components/common/AbilityScoreTable.vue").SaveEntry>>(() => {
-  const sb = selectedMonster.value?.stat_block;
-  const parsed = sb?.saving_throws ? parseSaveString(sb.saving_throws) : {};
-  return Object.fromEntries(
-    ABILITY_KEYS.map((s) => {
-      const base = abilityMod(sb?.[s.key] ?? 10);
-      return [s.key, { bonus: parsed[s.key] ?? base, proficient: s.key in parsed }];
-    }),
-  );
-});
-
-const playerScoresForBlock = computed(() => {
-  const m = selectedMember.value;
-  return {
-    str: m?.str ?? 10, dex: m?.dex ?? 10, con: m?.con ?? 10,
-    int: m?.int ?? 10, wis: m?.wis ?? 10, cha: m?.cha ?? 10,
-  };
-});
-
-const playerSavesForBlock = computed<Record<string, import("@/components/common/AbilityScoreTable.vue").SaveEntry>>(() => {
-  return Object.fromEntries(
-    ABILITY_KEYS.map((s) => [
-      s.key,
-      { bonus: playerSaveBonus(s.key as SaveKey), proficient: (selectedMember.value?.saving_throw_proficiencies ?? []).includes(s.key) },
-    ]),
-  );
-});
-
-const monsterSkillEntries = computed(() => {
-  const sb = selectedMonster.value?.stat_block;
-  if (!sb?.skills) return [];
-  return Object.entries(sb.skills).map(([key, val]) => ({
-    label: key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-    bonus: Number(val),
-  }));
-});
-
-const traitSections = computed(() => {
-  const sb = selectedMonster.value?.stat_block;
-  if (!sb) return [];
-  return [
-    { label: "Special Abilities", traits: sb.special_abilities },
-    { label: "Actions", traits: sb.actions },
-    { label: "Bonus Actions", traits: sb.bonus_actions },
-    { label: "Reactions", traits: sb.reactions },
-    { label: "Legendary Actions", traits: sb.legendary_actions },
-    { label: "Lair Actions", traits: sb.lair_actions },
-  ];
-});
-
-// ── Wildshape ─────────────────────────────────────────────────────────────────
-
-const showWildshapePicker = ref(false);
-
-const isSelectedDruid = computed(() =>
-  (selectedMember.value?.['class'] as string | null)?.toLowerCase().includes("druid") ?? false,
-);
-
-const isSelectedCircleOfMoon = computed(() =>
-  selectedMember.value?.subclass?.toLowerCase().includes("moon") ?? false,
-);
-
-
-
-const wildshapeMaxCr = computed(() => {
-  const level = selectedMember.value?.level ?? 1;
-  if (isSelectedCircleOfMoon.value) return Math.max(1, Math.floor(level / 3));
-  return Math.max(0.125, Math.floor(level / 2) * 0.5);
-});
-
-const wildshapeCrDisplay = computed(() => {
-  const cr = wildshapeMaxCr.value;
-  if (cr === 0.125) return "1/8";
-  if (cr === 0.25)  return "1/4";
-  if (cr === 0.5)   return "1/2";
-  return String(cr);
-});
-
-const wildshapeForms = computed<Monster[]>(() => {
-  if (!isSelectedDruid.value) return [];
-  const level = selectedMember.value?.level ?? 1;
-  const maxCr = wildshapeMaxCr.value;
-  const dkeys = discoveredKeys.value;
-  const pinnedKeys = new Set<string>(
-    (pinnedForms.value ?? []).map((p) => p.monster_id ?? p.srd_slug ?? "").filter(Boolean),
-  );
-  return (monsters.value ?? [])
-    .filter((m) => {
-      if (!dkeys.has(m.id) && !pinnedKeys.has(m.id)) return false;
-      if ((m.monster_type ?? "").toLowerCase() !== "beast") return false;
-      if (parseCr(m.stat_block?.challenge_rating) > maxCr) return false;
-      if (level < 8) {
-        const speed = (m.stat_block?.speed ?? "").toLowerCase();
-        if (speed.includes("fly") || speed.includes("swim")) return false;
-      }
-      return true;
-    })
-    .sort((a, b) => parseCr(a.stat_block?.challenge_rating) - parseCr(b.stat_block?.challenge_rating));
-});
-
-const wildshapeMonster = computed<Monster | null>(() => {
-  const ws = selectedCombatant.value?.wildshape;
-  if (!ws) return null;
-  return monsters.value?.find((m) => m.id === ws.monster_id) ?? null;
-});
-
-const wildshapeScores = computed(() => {
-  const sb = wildshapeMonster.value?.stat_block;
-  return {
-    str: sb?.str ?? 10, dex: sb?.dex ?? 10, con: sb?.con ?? 10,
-    int: sb?.int ?? 10, wis: sb?.wis ?? 10, cha: sb?.cha ?? 10,
-  };
-});
-
-const wildshapeSaves = computed<Record<string, import("@/components/common/AbilityScoreTable.vue").SaveEntry>>(() => {
-  const sb = wildshapeMonster.value?.stat_block;
-  const parsed = sb?.saving_throws ? parseSaveString(sb.saving_throws) : {};
-  return Object.fromEntries(
-    ABILITY_KEYS.map((s) => {
-      const base = abilityMod(sb?.[s.key] ?? 10);
-      return [s.key, { bonus: parsed[s.key] ?? base, proficient: s.key in parsed }];
-    }),
-  );
-});
-
-const wildshapeTraitSections = computed(() => {
-  const sb = wildshapeMonster.value?.stat_block;
-  if (!sb) return [];
-  return [
-    { label: "Special Abilities", traits: sb.special_abilities },
-    { label: "Actions", traits: sb.actions },
-    { label: "Bonus Actions", traits: sb.bonus_actions },
-    { label: "Reactions", traits: sb.reactions },
-    { label: "Legendary Actions", traits: sb.legendary_actions },
-  ];
-});
-
-function handleWildshape(monster: Monster) {
-  if (!selectedCombatant.value) return;
-  const sb = monster.stat_block;
-  const maxHp = parseInt(String(sb?.hit_points ?? "1").split(" ")[0], 10) || 1;
-  const ac = String(sb?.armor_class ?? "10");
-  const wildshapesUsed = (selectedMember.value?.wildshapes_used ?? 0) + 1;
-  store.enterWildshape(selectedCombatant.value.instance_id, {
-    id: monster.id,
-    name: monster.name,
-    image_url: monster.image_url ?? null,
-    max_hp: maxHp,
-    ac,
-  }, wildshapesUsed);
-  showWildshapePicker.value = false;
-}
-
-// ── Player derived data ───────────────────────────────────────────────────────
-
-function playerSaveBonus(key: SaveKey): number {
-  const m = selectedMember.value;
-  if (!m) return 0;
-  const base = abilityMod(m[key]);
-  const profs: string[] = m.saving_throw_proficiencies ?? [];
-  return profs.includes(key) ? base + playerProfBonus.value : base;
-}
-
-function playerSkillProf(key: string) {
-  return selectedMember.value?.skill_proficiencies?.[key as keyof typeof selectedMember.value.skill_proficiencies] ?? "none";
-}
-
-function playerSkillBonus(key: string, ability: SaveKey): number {
-  const m = selectedMember.value;
-  if (!m) return 0;
-  const base = abilityMod(m[ability]);
-  const prof = playerSkillProf(key);
-  if (prof === "expertise")  return base + playerProfBonus.value * 2;
-  if (prof === "proficient") return base + playerProfBonus.value;
-  return base;
-}
 
 // ── Trap helper ───────────────────────────────────────────────────────────────
 
@@ -1552,65 +444,8 @@ function renderTraitDesc(desc: string): string {
   @apply text-muted-foreground hover:text-foreground transition-colors text-xl leading-none shrink-0 ml-2;
 }
 
-/* Roll result banner */
-.roll-result-banner {
-  @apply flex items-center gap-3 px-3 py-2 border-b border-border bg-muted/30 shrink-0;
-}
-.roll-result-total {
-  @apply font-cinzel text-2xl font-bold text-foreground min-w-10 text-center;
-}
-.roll-crit .roll-result-total   { @apply text-amber-500; }
-.roll-fumble .roll-result-total { @apply text-destructive; }
-.roll-result-info {
-  @apply flex flex-col;
-}
-.roll-result-label {
-  @apply font-cinzel text-[10px] font-bold tracking-wider text-muted-foreground uppercase;
-}
-.roll-result-breakdown {
-  @apply flex items-center gap-1 flex-wrap;
-}
-.roll-die {
-  @apply font-cinzel text-xs font-bold text-foreground bg-muted rounded px-1.5 py-0.5;
-}
-.roll-die-drop {
-  @apply line-through opacity-40;
-}
-.roll-mod {
-  @apply font-cinzel text-xs text-primary font-semibold;
-}
-
-/* Roll mode bar */
-.roll-mode-bar {
-  @apply flex border-b border-border shrink-0;
-}
-.roll-mode-btn {
-  @apply flex-1 py-1.5 font-cinzel text-[10px] font-bold tracking-wider text-muted-foreground hover:text-foreground transition-colors;
-}
-.roll-mode-active { @apply text-foreground; }
-.mode-dis.roll-mode-active   { @apply bg-destructive/10 text-destructive; }
-.mode-normal.roll-mode-active { @apply bg-muted/50 text-foreground; }
-.mode-adv.roll-mode-active   { @apply bg-green-500/10 text-green-600 dark:text-green-400; }
-
-/* Chat mode bar */
-.chat-mode-bar {
-  @apply flex border-b border-border shrink-0;
-}
-.chat-mode-btn {
-  @apply flex-1 py-1 font-cinzel text-[9px] font-bold tracking-wider text-muted-foreground hover:text-foreground transition-colors;
-}
-.chat-mode-active { @apply text-foreground; }
-.cmode-public.chat-mode-active { @apply bg-primary/10 text-primary; }
-.cmode-hidden.chat-mode-active { @apply bg-amber-500/10 text-amber-600 dark:text-amber-400; }
-.cmode-silent.chat-mode-active { @apply bg-muted/60 text-muted-foreground; }
-
 .detail-scroll {
   @apply flex-1 overflow-y-auto p-3 flex flex-col gap-2;
-}
-
-.detail-portrait {
-  @apply w-full rounded-md object-cover mb-1 overflow-hidden;
-  max-height: 200px;
 }
 
 .detail-meta {
@@ -1637,35 +472,6 @@ function renderTraitDesc(desc: string): string {
   @apply font-cinzel text-sm font-bold text-foreground;
 }
 
-.detail-abilities {
-  @apply grid grid-cols-3 gap-1;
-}
-
-.detail-ability {
-  @apply flex flex-col items-center bg-muted/40 rounded px-1 py-1.5;
-}
-
-.detail-ability span {
-  @apply font-cinzel text-[9px] tracking-wider text-muted-foreground uppercase;
-}
-
-.detail-ability strong {
-  @apply font-cinzel text-sm font-bold text-foreground;
-}
-
-.detail-ability em {
-  @apply font-cinzel text-[10px] not-italic text-muted-foreground;
-}
-
-/* Rollable cells */
-.rollable {
-  @apply cursor-pointer hover:bg-primary/10 hover:border-primary/30 border border-transparent transition-colors;
-}
-.rollable:active {
-  @apply scale-95;
-}
-
-/* Check grid (saves / skills) */
 .detail-check-grid {
   @apply grid grid-cols-2 gap-1;
 }
@@ -1673,43 +479,17 @@ function renderTraitDesc(desc: string): string {
 .detail-check-btn {
   @apply flex items-center justify-between bg-muted/30 rounded px-2 py-1 hover:bg-primary/10 hover:border-primary/30 border border-transparent transition-colors cursor-pointer;
 }
+
 .detail-check-btn span {
   @apply font-cinzel text-[9px] tracking-wider text-muted-foreground uppercase truncate;
 }
-.check-label-row {
-  @apply flex items-center gap-0.5;
-}
-.prof-pip {
-  @apply font-cinzel text-[8px] font-bold text-primary bg-primary/15 rounded px-0.5 leading-none py-0.5;
-}
+
 .detail-check-btn em {
   @apply font-cinzel text-xs font-bold not-italic text-foreground shrink-0 ml-1;
-}
-.check-proficient {
-  @apply border-l-2 border-l-primary/60;
-}
-.check-expertise {
-  @apply border-l-2 border-l-amber-500/80;
 }
 
 .detail-section-label {
   @apply font-cinzel text-[10px] font-bold tracking-wider text-muted-foreground uppercase mt-1;
-}
-
-.detail-trait {
-  @apply font-fell text-xs text-foreground leading-relaxed;
-}
-
-.detail-trait-header {
-  @apply flex items-start justify-between gap-2 mb-0.5;
-}
-
-.detail-trait-desc {
-  @apply block text-muted-foreground;
-}
-
-.trait-roll-bar {
-  @apply flex gap-1 flex-wrap shrink-0;
 }
 
 .trait-roll-btn {
@@ -1717,44 +497,15 @@ function renderTraitDesc(desc: string): string {
 }
 
 .trait-atk-btn {
-  @apply bg-blue-500/15 text-blue-500 border border-blue-500/30 hover:bg-blue-500/25;
+  @apply bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25;
 }
 
 .trait-dmg-btn {
   @apply bg-destructive/15 text-destructive border border-destructive/30 hover:bg-destructive/25;
 }
 
-/* Player spell list in detail panel */
-.detail-spell {
-  @apply flex items-center justify-between gap-2 py-1 border-b border-border/30 last:border-b-0;
-}
-
-.spell-info {
-  @apply flex items-center gap-1.5 min-w-0 flex-1;
-}
-
-.spell-name {
-  @apply font-fell text-xs text-foreground truncate;
-}
-
-.spell-level-badge {
-  @apply font-cinzel text-[9px] font-bold text-muted-foreground bg-muted rounded px-1 shrink-0;
-}
-
-.spell-rolls {
-  @apply flex items-center gap-1 shrink-0;
-}
-
-.spell-save-badge {
-  @apply font-cinzel text-[9px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/30;
-}
-
-.detail-line {
-  @apply font-fell text-xs text-foreground;
-}
-
-.detail-line span {
-  @apply font-cinzel text-[9px] font-bold tracking-wider text-muted-foreground uppercase mr-1;
+.detail-trait-desc {
+  @apply font-fell text-xs text-muted-foreground leading-relaxed;
 }
 
 .detail-notes {
@@ -1765,123 +516,10 @@ function renderTraitDesc(desc: string): string {
   @apply font-fell text-sm text-muted-foreground italic text-center py-8;
 }
 
-/* Transitions */
-.roll-fade-enter-active,
-.roll-fade-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-.roll-fade-enter-from,
-.roll-fade-leave-to {
-  opacity: 0;
-  transform: translateY(-4px);
-}
-
-/* Wildshape */
-.wildshape-banner {
-  @apply flex items-center justify-between gap-2 rounded-md bg-amber-500/10 border border-amber-500/30 px-3 py-2;
-}
-
-.wildshape-banner-label {
-  @apply font-cinzel text-xs font-semibold text-amber-400;
-}
-
-.wildshape-revert-btn {
-  @apply font-cinzel text-[10px] px-2 py-1 rounded border border-amber-500/40 text-amber-400 hover:bg-amber-500/10 transition-colors shrink-0;
-}
-
-.wildshape-picker-list {
-  @apply flex flex-col gap-0.5 max-h-52 overflow-y-auto rounded border border-border;
-}
-
-.wildshape-pick-row {
-  @apply flex items-center gap-2 px-2 py-1.5 text-left hover:bg-muted/60 transition-colors cursor-pointer;
-}
-
-.pick-name {
-  @apply font-fell text-xs text-foreground flex-1 truncate;
-}
-
-.pick-cr {
-  @apply font-cinzel text-[10px] text-muted-foreground shrink-0;
-}
-
-.pick-ac {
-  @apply font-cinzel text-[10px] text-muted-foreground shrink-0;
-}
-
-.pick-speed {
-  @apply font-fell text-[10px] text-muted-foreground shrink-0 truncate max-w-24 hidden sm:block;
-}
-
 /* Trap type label in detail panel */
 .trap-type {
   font-family: var(--font-fell, serif);
   font-size: 10px;
   font-weight: 500;
-}
-
-/* ── Legendary action tracker ─────────────────────────────────────────────── */
-
-.la-tracker {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  background: theme(colors.muted / 15%);
-  border-radius: 0.375rem;
-}
-.la-label {
-  font-family: var(--font-cinzel, serif);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: theme(colors.muted-foreground / 100%);
-  flex-shrink: 0;
-}
-.la-pips {
-  display: flex;
-  gap: 3px;
-  align-items: center;
-}
-.la-pip {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 1px solid;
-  flex-shrink: 0;
-}
-.la-pip-on {
-  background: theme(colors.purple.500 / 80%);
-  border-color: theme(colors.purple.400 / 100%);
-}
-.la-pip-off {
-  background: transparent;
-  border-color: theme(colors.border / 100%);
-}
-.la-count {
-  font-family: var(--font-cinzel, serif);
-  font-size: 10px;
-  color: theme(colors.muted-foreground / 100%);
-  flex-shrink: 0;
-}
-.la-spend-btn {
-  margin-left: auto;
-  font-family: var(--font-cinzel, serif);
-  font-size: 9px;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 3px;
-  border: 1px solid theme(colors.purple.500 / 50%);
-  color: theme(colors.purple.400 / 100%);
-  background: transparent;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.la-spend-btn:hover:not(:disabled) {
-  background: theme(colors.purple.500 / 15%);
-}
-.la-spend-btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
 }
 </style>

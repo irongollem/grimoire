@@ -1,4 +1,15 @@
 <template>
+  <Teleport to="body">
+    <div
+      v-if="isDraggingFile"
+      class="fixed inset-0 z-300 flex items-center justify-center bg-gold-500/10 backdrop-blur-sm pointer-events-none"
+    >
+      <div class="rounded-2xl border-2 border-dashed border-gold-500 bg-card/90 px-8 py-6 shadow-2xl">
+        <p class="font-cinzel text-base font-bold text-gold-300 tracking-wider">Drop audio to upload</p>
+      </div>
+    </div>
+  </Teleport>
+
   <form
     class="space-y-4"
     @submit.prevent="handleSubmit"
@@ -53,7 +64,7 @@
               ? 'bg-gold-500/20 border-gold-500/60 text-gold-300'
               : 'border-border text-muted-foreground hover:text-foreground'
           "
-          @click="activeSourceTab = 'upload'"
+          @click="onUploadTabClick"
         >
           Upload
         </button>
@@ -127,15 +138,38 @@
 
       <!-- AI Generate -->
       <div v-else-if="activeSourceTab === 'generate'" class="space-y-3">
-        <!-- Prompt -->
+        <!-- Style -->
         <div class="space-y-1">
-          <label class="font-fell text-xs text-muted-foreground">Describe the music</label>
+          <label class="font-fell text-xs text-muted-foreground">Musical style</label>
           <textarea
             v-model="generatePrompt"
-            rows="3"
-            placeholder="e.g. tense dungeon combat music with drums and strings, dark and cinematic"
+            rows="2"
+            placeholder="e.g. epic fantasy ballad, orchestral strings, soaring female vocals, heroic"
             class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm font-fell text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
           />
+        </div>
+
+        <!-- Lyrics -->
+        <div class="space-y-1">
+          <div class="flex items-center justify-between">
+            <label class="font-fell text-xs text-muted-foreground">
+              Lyrics <span class="opacity-60">(optional)</span>
+            </label>
+            <span
+              class="font-fell text-[10px] tabular-nums transition-colors"
+              :class="lyricsCharsLeft < 200 ? (lyricsCharsLeft < 0 ? 'text-destructive' : 'text-amber-400') : 'text-muted-foreground'"
+            >{{ generateLyrics.length }} / {{ LYRICS_MAX_CHARS }}</span>
+          </div>
+          <textarea
+            v-model="generateLyrics"
+            rows="5"
+            :maxlength="LYRICS_MAX_CHARS"
+            placeholder="[Verse 1]&#10;In the depths of shadow and stone…&#10;&#10;[Chorus]&#10;Rise, brave adventurer, rise…"
+            class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm font-fell text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
+          />
+          <p class="font-fell text-[10px] text-muted-foreground/60">
+            Best paired with Full Song. Use [Verse], [Chorus], [Bridge] markers.
+          </p>
         </div>
 
         <!-- Model selector -->
@@ -177,22 +211,27 @@
 
       <!-- File upload -->
       <div v-else class="space-y-1">
-        <label
-          class="flex flex-col items-center justify-center w-full h-20 rounded-md border border-dashed border-border bg-background cursor-pointer hover:border-gold-500/40 transition-colors"
+        <input
+          ref="fileInputRef"
+          type="file"
+          accept="audio/mpeg,audio/ogg,audio/wav,audio/flac,audio/aac,audio/webm,audio/x-m4a,.mp3,.ogg,.wav,.flac,.aac,.webm,.m4a"
+          class="sr-only"
+          @change="handleFileChange"
+        />
+        <div
+          v-if="selectedFile"
+          class="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2"
         >
-          <span v-if="!selectedFile" class="font-fell text-xs text-muted-foreground">
-            Click to choose audio file
-          </span>
-          <span v-else class="font-fell text-xs text-foreground px-2 text-center truncate w-full">
-            {{ selectedFile.name }}
-          </span>
-          <input
-            type="file"
-            accept="audio/mpeg,audio/ogg,audio/wav,audio/flac,audio/aac,audio/webm,audio/x-m4a,.mp3,.ogg,.wav,.flac,.aac,.webm,.m4a"
-            class="sr-only"
-            @change="handleFileChange"
-          />
-        </label>
+          <span class="flex-1 font-fell text-xs text-foreground truncate">{{ selectedFile.name }}</span>
+          <button
+            type="button"
+            class="shrink-0 font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            @click="fileInputRef?.click()"
+          >Change</button>
+        </div>
+        <p v-else class="font-fell text-xs text-muted-foreground italic text-center">
+          Drop a file anywhere, or <button type="button" class="underline hover:text-foreground transition-colors" @click="fileInputRef?.click()">choose one</button>.
+        </p>
         <p v-if="isBusy" class="font-fell text-xs text-muted-foreground text-center">{{ statusText }}</p>
         <p v-if="uploadError" class="font-fell text-xs text-destructive">{{ uploadError }}</p>
       </div>
@@ -225,10 +264,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, nextTick, onMounted, onUnmounted } from "vue";
 import { useCreateSound, useSoundUpload } from "@/composables/useSounds";
 import { useSpotifyStore } from "@/stores/spotify";
-import { generateMusicWithLyria, LYRIA_MODELS, type LyriaModel } from "@/lib/aiMusic";
+import { generateMusicWithLyria, LYRIA_MODELS, LYRICS_MAX_CHARS, type LyriaModel } from "@/lib/aiMusic";
 import { logUsage } from "@/composables/useAiCredits";
 import SoundFreesoundBrowser from "@/components/soundboard/SoundFreesoundBrowser.vue";
 import type { SoundCategory } from "@/types/sound.types";
@@ -262,20 +301,93 @@ const form = ref<{ name: string; category: SoundCategory; external_url: string }
 
 const selectedFile = ref<File | null>(null);
 const uploadError = ref("");
+const fileInputRef = ref<HTMLInputElement | null>(null);
 const MAX_FILE_SIZE_MB = 20;
+
+function setSelectedFile(file: File | null): boolean {
+  uploadError.value = "";
+  if (!file) {
+    selectedFile.value = null;
+    return false;
+  }
+  if (file.size === 0) {
+    uploadError.value = "That file is empty (0 bytes). If it's stored in iCloud or another cloud sync, open it locally first so the contents download.";
+    selectedFile.value = null;
+    return false;
+  }
+  if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+    uploadError.value = `File too large — maximum ${MAX_FILE_SIZE_MB} MB.`;
+    selectedFile.value = null;
+    return false;
+  }
+  selectedFile.value = file;
+  return true;
+}
 
 function handleFileChange(e: Event) {
   const input = e.target as HTMLInputElement;
   const file = input.files?.[0] ?? null;
-  uploadError.value = "";
-  if (file && file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-    uploadError.value = `File too large — maximum ${MAX_FILE_SIZE_MB} MB.`;
-    input.value = "";
-    selectedFile.value = null;
-    return;
-  }
-  selectedFile.value = file;
+  if (!setSelectedFile(file)) input.value = "";
 }
+
+async function onUploadTabClick() {
+  const wasOnUpload = activeSourceTab.value === "upload";
+  activeSourceTab.value = "upload";
+  if (wasOnUpload || selectedFile.value) return;
+  await nextTick();
+  fileInputRef.value?.click();
+}
+
+// ── Drag-and-drop onto the dialog ─────────────────────────────────────────
+// Any file dropped anywhere on the page while the form is mounted is treated
+// as an upload — the dialog hijacks the whole window because no other drop
+// target is meaningful here.
+const isDraggingFile = ref(false);
+let dragDepth = 0;
+
+function hasFiles(e: DragEvent): boolean {
+  return !!e.dataTransfer && Array.from(e.dataTransfer.types).includes("Files");
+}
+
+function onWindowDragEnter(e: DragEvent) {
+  if (!hasFiles(e)) return;
+  dragDepth++;
+  isDraggingFile.value = true;
+}
+
+function onWindowDragLeave() {
+  if (dragDepth > 0) dragDepth--;
+  if (dragDepth === 0) isDraggingFile.value = false;
+}
+
+function onWindowDragOver(e: DragEvent) {
+  if (hasFiles(e)) e.preventDefault();
+}
+
+function onWindowDrop(e: DragEvent) {
+  if (!hasFiles(e)) return;
+  e.preventDefault();
+  dragDepth = 0;
+  isDraggingFile.value = false;
+  const file = e.dataTransfer?.files?.[0] ?? null;
+  if (!file) return;
+  activeSourceTab.value = "upload";
+  setSelectedFile(file);
+}
+
+onMounted(() => {
+  window.addEventListener("dragenter", onWindowDragEnter);
+  window.addEventListener("dragleave", onWindowDragLeave);
+  window.addEventListener("dragover", onWindowDragOver);
+  window.addEventListener("drop", onWindowDrop);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("dragenter", onWindowDragEnter);
+  window.removeEventListener("dragleave", onWindowDragLeave);
+  window.removeEventListener("dragover", onWindowDragOver);
+  window.removeEventListener("drop", onWindowDrop);
+});
 
 // ── Spotify tab ───────────────────────────────────────────────────────────
 
@@ -286,9 +398,12 @@ const isValidSpotifyUrl = computed(() =>
 // ── Generate tab ──────────────────────────────────────────────────────────
 
 const generatePrompt = ref("");
+const generateLyrics = ref("");
 const generateModel = ref<LyriaModel>("lyria-3-clip-preview");
 const isGenerating = ref(false);
 const generateError = ref("");
+
+const lyricsCharsLeft = computed(() => LYRICS_MAX_CHARS - generateLyrics.value.length);
 
 // ── Submit state ──────────────────────────────────────────────────────────
 
@@ -330,6 +445,8 @@ async function handleSubmit() {
       sort_order: 0,
       attribution: null,
       attribution_url: null,
+      artist: null,
+      thumbnail_url: null,
     });
     emit("saved");
     resetForm();
@@ -348,6 +465,8 @@ async function handleSubmit() {
       sort_order: 0,
       attribution: null,
       attribution_url: null,
+      artist: null,
+      thumbnail_url: null,
     });
     emit("saved");
     resetForm();
@@ -359,7 +478,12 @@ async function handleSubmit() {
     isGenerating.value = true;
     let file: File;
     try {
-      file = await generateMusicWithLyria(generatePrompt.value.trim(), generateModel.value, geminiApiKey);
+      file = await generateMusicWithLyria(
+        generatePrompt.value.trim(),
+        generateModel.value,
+        geminiApiKey,
+        generateLyrics.value.trim() || undefined,
+      );
       logUsage({ reason: "music_generation", imageUsage: { model: generateModel.value, provider: "google", image_count: 1 } });
     } catch (err) {
       generateError.value = err instanceof Error ? err.message : "Generation failed.";
@@ -384,6 +508,8 @@ async function handleSubmit() {
       sort_order: 0,
       attribution: null,
       attribution_url: null,
+      artist: null,
+      thumbnail_url: null,
     });
     emit("saved");
     resetForm();
@@ -411,6 +537,8 @@ async function handleSubmit() {
     sort_order: 0,
     attribution: null,
     attribution_url: null,
+    artist: null,
+    thumbnail_url: null,
   });
   emit("saved");
   resetForm();
@@ -421,6 +549,7 @@ function resetForm() {
   selectedFile.value = null;
   uploadError.value = "";
   generatePrompt.value = "";
+  generateLyrics.value = "";
   generateError.value = "";
 }
 </script>

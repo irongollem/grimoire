@@ -70,15 +70,24 @@
         :member="member"
       />
 
-      <!-- ── Tabs ───────────────────────────────────────────── -->
-      <div class="flex flex-wrap rounded-md border border-border overflow-hidden w-fit text-xs font-cinzel font-semibold tracking-wider">
-        <button
-          v-for="tab in visibleTabs"
-          :key="tab.id"
-          class="cursor-pointer px-4 py-1.5 transition-colors"
-          :class="activeTab === tab.id ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-          @click="activeTab = tab.id"
-        >{{ tab.label }}</button>
+      <!-- ── Tabs + Export Sheet ──────────────────────────── -->
+      <div class="flex items-center gap-3 flex-wrap">
+        <div class="flex flex-wrap rounded-md border border-border overflow-hidden w-fit text-xs font-cinzel font-semibold tracking-wider">
+          <button
+            v-for="tab in visibleTabs"
+            :key="tab.id"
+            class="cursor-pointer px-4 py-1.5 transition-colors"
+            :class="activeTab === tab.id ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
+            @click="activeTab = tab.id"
+          >{{ tab.label }}</button>
+        </div>
+        <RouterLink
+          v-if="!hidePlayerActions && member"
+          :to="`/character-sheet/${member.id}`"
+          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
+        >
+          Export Sheet
+        </RouterLink>
       </div>
 
       <!-- Skills -->
@@ -205,123 +214,19 @@
   </div>
 
   <!-- Beast preview lightbox -->
-  <Transition name="fade">
-    <div
-      v-if="previewBeast"
-      class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
-      @click.self="previewBeast = null"
-    >
-      <div class="bg-card rounded-xl border border-border w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-
-        <!-- Portrait (if any) -->
-        <div class="relative shrink-0">
-          <div v-if="previewBeast.image_url" class="w-full h-48 overflow-hidden">
-            <FocalImage
-              :src="previewBeast.image_url"
-              :alt="previewBeast.name"
-              :focal-point="previewBeast.portrait_focal_point ?? null"
-              format="portrait"
-              :lightbox="true"
-            />
-          </div>
-          <button
-            class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors"
-            @click="previewBeast = null"
-          >
-            <IconClose class="h-4 w-4" />
-          </button>
-        </div>
-
-        <!-- Body: name + stat block -->
-        <div class="flex-1 overflow-y-auto p-4 space-y-3">
-          <div>
-            <h2 class="font-cinzel text-lg font-bold text-foreground">{{ previewBeast.name }}</h2>
-            <p class="font-fell text-xs text-muted-foreground italic">
-              {{ previewBeast.size }} {{ previewBeast.monster_type }}
-              · CR {{ previewBeast.stat_block?.challenge_rating }}
-            </p>
-          </div>
-          <StatBlockPanel v-if="previewBeast.stat_block" :sb="previewBeast.stat_block" />
-
-          <!-- Special abilities (Flyby, Keen Senses, Pack Tactics, etc.) -->
-          <div v-if="previewBeast.stat_block?.special_abilities?.length" class="space-y-2">
-            <p class="font-cinzel text-2xs md:text-sm font-semibold tracking-wider text-primary/70 uppercase border-b border-primary/20 pb-1">Special Abilities</p>
-            <div
-              v-for="trait in previewBeast.stat_block.special_abilities"
-              :key="trait.name"
-              class="font-fell text-sm leading-snug"
-            >
-              <span class="font-semibold not-italic">{{ trait.name }}.</span>
-              {{ trait.description }}
-            </div>
-          </div>
-
-          <!-- Actions -->
-          <div v-if="previewBeast.stat_block?.actions?.length" class="space-y-2">
-            <p class="font-cinzel text-2xs md:text-sm font-semibold tracking-wider text-primary/70 uppercase border-b border-primary/20 pb-1">Actions</p>
-            <div
-              v-for="action in previewBeast.stat_block.actions"
-              :key="action.name"
-              class="font-fell text-sm leading-snug"
-            >
-              <span class="font-semibold not-italic">{{ action.name }}.</span>
-              {{ action.description }}
-            </div>
-          </div>
-
-          <!-- Bonus Actions -->
-          <div v-if="previewBeast.stat_block?.bonus_actions?.length" class="space-y-2">
-            <p class="font-cinzel text-2xs md:text-sm font-semibold tracking-wider text-primary/70 uppercase border-b border-primary/20 pb-1">Bonus Actions</p>
-            <div
-              v-for="action in previewBeast.stat_block.bonus_actions"
-              :key="action.name"
-              class="font-fell text-sm leading-snug"
-            >
-              <span class="font-semibold not-italic">{{ action.name }}.</span>
-              {{ action.description }}
-            </div>
-          </div>
-
-          <!-- Reactions -->
-          <div v-if="previewBeast.stat_block?.reactions?.length" class="space-y-2">
-            <p class="font-cinzel text-2xs md:text-sm font-semibold tracking-wider text-primary/70 uppercase border-b border-primary/20 pb-1">Reactions</p>
-            <div
-              v-for="action in previewBeast.stat_block.reactions"
-              :key="action.name"
-              class="font-fell text-sm leading-snug"
-            >
-              <span class="font-semibold not-italic">{{ action.name }}.</span>
-              {{ action.description }}
-            </div>
-          </div>
-        </div>
-
-        <!-- Footer: cancel + confirm -->
-        <div class="shrink-0 border-t border-border px-4 py-3 flex items-center justify-end gap-2">
-          <button
-            type="button"
-            class="font-cinzel text-xs px-3 py-1.5 rounded border border-border hover:bg-muted/50 transition-colors"
-            @click="previewBeast = null"
-          >Cancel</button>
-          <button
-            type="button"
-            :disabled="!canWildshape && !activeWildshape"
-            class="font-cinzel text-xs px-3 py-1.5 rounded border border-primary/50 bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            @click="confirmWildshape"
-          >🐺 Wild Shape</button>
-        </div>
-
-      </div>
-    </div>
-  </Transition>
+  <WildshapePreviewLightbox
+    :beast="previewBeast"
+    :can-wildshape="canWildshape"
+    :active-wildshape="!!activeWildshape"
+    @close="previewBeast = null"
+    @confirm="confirmWildshape"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { RouterLink } from "vue-router";
-import { IconClose } from '@/lib/icons';
-import FocalImage from "@/components/common/FocalImage.vue";
-import StatBlockPanel from "@/components/common/StatBlockPanel.vue";
+import WildshapePreviewLightbox from "@/components/play/WildshapePreviewLightbox.vue";
 import type { WildshapeState } from "@/types/encounter.types";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useUpdatePartyMember } from "@/composables/useParty";
@@ -596,9 +501,3 @@ function onRollSave(_key: string, label: string, bonus: number) {
 
 </script>
 
-<style scoped>
-.fade-enter-active,
-.fade-leave-active { transition: opacity 0.2s ease; }
-.fade-enter-from,
-.fade-leave-to    { opacity: 0; }
-</style>

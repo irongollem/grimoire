@@ -1,69 +1,109 @@
 export type NpcStatus = "alive" | "dead" | "missing" | "unknown";
-export type NpcRelationship = "ally" | "neutral" | "enemy" | "unknown";
+export type NpcRelationship =
+  | "hostile"
+  | "unfriendly"
+  | "indifferent"
+  | "friendly"
+  | "helpful"
+  | "unknown";
+
+export const NPC_RELATIONSHIP_LABELS: Record<NpcRelationship, string> = {
+  hostile:      "Hostile",
+  unfriendly:   "Unfriendly",
+  indifferent:  "Indifferent",
+  friendly:     "Friendly",
+  helpful:      "Helpful",
+  unknown:      "Unknown",
+};
+
+export const NPC_RELATIONSHIP_COLORS: Record<NpcRelationship, string> = {
+  hostile:      "#dc2626", // red
+  unfriendly:   "#ea580c", // orange
+  indifferent:  "#6b7280", // gray
+  friendly:     "#0891b2", // teal
+  helpful:      "#16a34a", // green
+  unknown:      "#9333ea", // purple (matches old "?" treatment)
+};
 
 export type NpcRelationshipType =
-  | "family"
+  // ── Familial ─────────────────────────────────────────────────────────────
+  | "family"          // any blood-kinship not better described by `sibling`
+                      // (parent/child, aunt/uncle, cousin, grandparent, etc.)
+  | "sibling"         // blood sibling specifically — kept distinct from
+                      // `family` so the parent/child vs sibling-of distinction
+                      // survives in the data
+  | "chosen_family"   // non-blood deep bond carried with family-strength
+                      // (adopted, matched-pair foundlings, anchored-companion)
+  // ── Affinitive ───────────────────────────────────────────────────────────
   | "friend"
   | "ally"
   | "rival"
   | "enemy"
+  | "lover"
+  // ── Hierarchical ─────────────────────────────────────────────────────────
   | "mentor"
   | "apprentice"
-  | "lover"
   | "subordinate"
   | "superior"
+  // ── Acquaintance / former ────────────────────────────────────────────────
   | "contact"
   | "former_ally"
   | "former_enemy";
 
 export const NPC_RELATIONSHIP_TYPE_LABELS: Record<NpcRelationshipType, string> = {
-  family:       "Family",
-  friend:       "Friend",
-  ally:         "Ally",
-  rival:        "Rival",
-  enemy:        "Enemy",
-  mentor:       "Mentor",
-  apprentice:   "Apprentice",
-  lover:        "Lover",
-  subordinate:  "Subordinate",
-  superior:     "Superior",
-  contact:      "Contact",
-  former_ally:  "Former Ally",
-  former_enemy: "Former Enemy",
+  family:        "Family",
+  sibling:       "Sibling",
+  chosen_family: "Chosen family",
+  friend:        "Friend",
+  ally:          "Ally",
+  rival:         "Rival",
+  enemy:         "Enemy",
+  mentor:        "Mentor",
+  apprentice:    "Apprentice",
+  lover:         "Lover",
+  subordinate:   "Subordinate",
+  superior:      "Superior",
+  contact:       "Contact",
+  former_ally:   "Former Ally",
+  former_enemy:  "Former Enemy",
 };
 
 // When displaying a relationship from the *other* NPC's perspective, use the inverse type.
 // Symmetric types map to themselves.
 export const NPC_RELATIONSHIP_INVERSE: Record<NpcRelationshipType, NpcRelationshipType> = {
-  family:       "family",
-  friend:       "friend",
-  ally:         "ally",
-  rival:        "rival",
-  enemy:        "enemy",
-  mentor:       "apprentice",
-  apprentice:   "mentor",
-  lover:        "lover",
-  subordinate:  "superior",
-  superior:     "subordinate",
-  contact:      "contact",
-  former_ally:  "former_ally",
-  former_enemy: "former_enemy",
+  family:        "family",
+  sibling:       "sibling",          // symmetric
+  chosen_family: "chosen_family",    // symmetric
+  friend:        "friend",
+  ally:          "ally",
+  rival:         "rival",
+  enemy:         "enemy",
+  mentor:        "apprentice",
+  apprentice:    "mentor",
+  lover:         "lover",
+  subordinate:   "superior",
+  superior:      "subordinate",
+  contact:       "contact",
+  former_ally:   "former_ally",
+  former_enemy:  "former_enemy",
 };
 
 export const NPC_RELATIONSHIP_TYPE_COLORS: Record<NpcRelationshipType, string> = {
-  family:       "#7c3aed",
-  friend:       "#059669",
-  ally:         "#2563eb",
-  rival:        "#d97706",
-  enemy:        "#dc2626",
-  mentor:       "#0891b2",
-  apprentice:   "#6366f1",
-  lover:        "#db2777",
-  subordinate:  "#6b7280",
-  superior:     "#374151",
-  contact:      "#64748b",
-  former_ally:  "#92400e",
-  former_enemy: "#7f1d1d",
+  family:        "#7c3aed",  // violet
+  sibling:       "#a855f7",  // lighter violet — kin-cluster with family
+  chosen_family: "#c084fc",  // lavender — kin-cluster with family but airier
+  friend:        "#059669",
+  ally:          "#2563eb",
+  rival:         "#d97706",
+  enemy:         "#dc2626",
+  mentor:        "#0891b2",
+  apprentice:    "#6366f1",
+  lover:         "#db2777",
+  subordinate:   "#6b7280",
+  superior:      "#374151",
+  contact:       "#64748b",
+  former_ally:   "#92400e",
+  former_enemy:  "#7f1d1d",
 };
 
 export interface NpcRelation {

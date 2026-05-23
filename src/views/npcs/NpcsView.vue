@@ -166,9 +166,12 @@ const STATUS_OPTIONS = [
 
 const REL_OPTIONS = [
   { value: "all", label: "All" },
-  { value: "ally", label: "Ally" },
-  { value: "neutral", label: "Neutral" },
-  { value: "enemy", label: "Enemy" },
+  { value: "helpful", label: "Helpful" },
+  { value: "friendly", label: "Friendly" },
+  { value: "indifferent", label: "Indifferent" },
+  { value: "unfriendly", label: "Unfriendly" },
+  { value: "hostile", label: "Hostile" },
+  { value: "unknown", label: "Unknown" },
 ] as const satisfies ReadonlyArray<{ value: NpcRelationship | "all"; label: string }>;
 
 const SORT_OPTIONS = [

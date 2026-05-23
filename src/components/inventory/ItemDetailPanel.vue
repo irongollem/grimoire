@@ -66,69 +66,7 @@
         </div>
 
         <!-- Stat block: type / rarity / cost / weight -->
-        <div
-          class="rounded-lg border bg-card p-3 flex flex-col gap-1.5 font-stat text-[15px]"
-          :style="vaultItem && localIdentified ? { borderColor: rarityColor + '66' } : {}"
-        >
-          <div v-if="displayItemTypeLabel" class="flex justify-between">
-            <span class="text-muted-foreground">Type</span>
-            <span class="font-bold">{{ displayItemTypeLabel }}</span>
-          </div>
-          <div v-if="vaultItem?.subtype && localIdentified" class="flex justify-between">
-            <span class="text-muted-foreground">Subtype</span>
-            <span>{{ vaultItem.subtype }}</span>
-          </div>
-          <div v-if="vaultItem" class="flex justify-between">
-            <span class="text-muted-foreground">Rarity</span>
-            <span
-              class="font-bold"
-              :style="localIdentified ? { color: RARITY_BADGE_COLORS[vaultItem.rarity] } : { color: RARITY_BADGE_COLORS['mundane'] }"
-            >
-              {{ localIdentified ? ITEM_RARITY_LABELS[vaultItem.rarity] : ITEM_RARITY_LABELS['mundane'] }}
-            </span>
-          </div>
-          <div v-if="vaultItem?.weight" class="flex justify-between">
-            <span class="text-muted-foreground">Weight</span>
-            <span>{{ vaultItem.weight }}</span>
-          </div>
-          <div v-if="vaultItem?.cost" class="flex justify-between">
-            <span class="text-muted-foreground">Cost</span>
-            <span>{{ vaultItem.cost }}</span>
-          </div>
-          <!-- Armor class -->
-          <div v-if="vaultItem?.armor_class" class="flex justify-between">
-            <span class="text-muted-foreground">Armor Class</span>
-            <span class="font-bold">{{ vaultItem.armor_class }}</span>
-          </div>
-          <!-- Weapon damage -->
-          <template v-if="vaultItem?.damage_rolls?.length">
-            <div v-for="(roll, i) in vaultItem.damage_rolls" :key="i" class="flex justify-between">
-              <span class="text-muted-foreground">{{ i === 0 ? 'Damage' : 'Alt. Damage' }}</span>
-              <span class="font-bold capitalize">{{ roll.dice }} {{ roll.type }}</span>
-            </div>
-          </template>
-          <div v-if="vaultItem?.versatile_damage && localIdentified" class="flex justify-between">
-            <span class="text-muted-foreground">Versatile</span>
-            <span>{{ vaultItem.versatile_damage }} (two-handed)</span>
-          </div>
-          <div v-if="vaultItem?.weapon_range" class="flex justify-between">
-            <span class="text-muted-foreground">Range</span>
-            <span>{{ vaultItem.weapon_range }}</span>
-          </div>
-          <!-- Properties (physical only when unidentified) -->
-          <div v-if="vaultItem?.properties?.length" class="flex justify-between gap-3">
-            <span class="text-muted-foreground shrink-0">Properties</span>
-            <span class="text-right capitalize">{{ vaultItem.properties.join(", ") }}</span>
-          </div>
-          <div v-if="vaultItem?.is_arcane_focus && localIdentified" class="flex justify-between">
-            <span class="text-muted-foreground">Arcane Focus</span>
-            <span>Yes</span>
-          </div>
-          <div v-if="vaultItem?.requires_attunement && localIdentified" class="flex justify-between gap-4">
-            <span class="text-muted-foreground shrink-0">Attunement</span>
-            <span class="text-right">{{ vaultItem.attunement_requirements || "Required" }}</span>
-          </div>
-        </div>
+        <ItemStatBlock :item="vaultItem" :is-identified="localIdentified" />
 
         <!-- Quantity (always shown) -->
         <div class="rounded-lg border border-border bg-card/50 p-3 flex items-center justify-between gap-3">
@@ -339,6 +277,7 @@ import { useQuery } from "@tanstack/vue-query";
 import { COINS, type CoinKey, parseCoinText } from "@/lib/currency";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import ItemStatBlock from "@/components/inventory/ItemStatBlock.vue";
 import { useUpdateInventoryItem } from "@/composables/usePartyInventory";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
@@ -347,13 +286,6 @@ import { parseExpression, parsedToCounts } from "@/lib/dice";
 import { rollParsed } from "@/lib/roller";
 import { SCHOOL_COLORS } from "@/types/spell.types";
 import type { Spell } from "@/types/spell.types";
-import {
-  ITEM_TYPE_LABELS,
-  ITEM_RARITY_LABELS,
-  RARITY_COLORS,
-  RARITY_BADGE_COLORS,
-  MAGIC_ONLY_ITEM_TYPES,
-} from "@/types/item.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 
@@ -404,10 +336,6 @@ async function toggleCurseReveal() {
   }
 }
 
-const rarityColor = computed(() =>
-  props.vaultItem ? (RARITY_COLORS[props.vaultItem.rarity] ?? "#888888") : "#888888"
-);
-
 const displayImageUrl = computed(() =>
   localIdentified.value
     ? props.vaultItem?.image_url
@@ -419,14 +347,6 @@ const displayImageFocalPoint = computed(() =>
     ? props.vaultItem?.image_focal_point
     : (props.vaultItem?.mundane_image_focal_point || props.vaultItem?.image_focal_point)
 );
-
-const displayItemTypeLabel = computed(() => {
-  if (!props.vaultItem) return !localIdentified.value ? ITEM_TYPE_LABELS['art_object'] : null;
-  const shouldMask = !localIdentified.value && props.vaultItem.rarity !== 'mundane';
-  if (shouldMask && props.vaultItem.item_type === 'potion') return ITEM_TYPE_LABELS['provision'];
-  if (shouldMask && MAGIC_ONLY_ITEM_TYPES.has(props.vaultItem.item_type)) return ITEM_TYPE_LABELS['art_object'];
-  return ITEM_TYPE_LABELS[props.vaultItem.item_type];
-});
 
 const displayDescription = computed(() =>
   localIdentified.value

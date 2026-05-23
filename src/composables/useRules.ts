@@ -1,5 +1,7 @@
+import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
+import { useCampaignStore } from "@/stores/campaign";
 import type { SrdRule, Rule, RuleInsert, RuleUpdate } from "@/types/rule.types";
 
 // ── SRD Rules ─────────────────────────────────────────────────────────────────
@@ -27,10 +29,11 @@ export function useSrdRules() {
 
 const CUSTOM_KEY = "rules";
 
-async function fetchRules(): Promise<Rule[]> {
+async function fetchRules(campaignId: string): Promise<Rule[]> {
   const { data, error } = await supabase
     .from("rules")
     .select("*")
+    .eq("campaign_id", campaignId)
     .order("title", { ascending: true });
   if (error) throw error;
   return data as Rule[];
@@ -42,7 +45,7 @@ async function fetchRule(id: string): Promise<Rule> {
   return data as Rule;
 }
 
-async function createRule(rule: RuleInsert): Promise<Rule> {
+async function createRule(rule: RuleInsert & { campaign_id: string }): Promise<Rule> {
   const user = getCurrentUser();
   const { data, error } = await supabase
     .from("rules")
@@ -70,7 +73,14 @@ async function deleteRule(id: string): Promise<void> {
 }
 
 export function useRules() {
-  return useQuery({ queryKey: [CUSTOM_KEY], queryFn: fetchRules, staleTime: Infinity });
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  return useQuery({
+    queryKey: computed(() => [CUSTOM_KEY, campaignId.value]),
+    queryFn: () => fetchRules(campaignId.value!),
+    enabled: () => !!campaignId.value,
+    staleTime: Infinity,
+  });
 }
 
 /** Player-facing: returns player-visible rules from the campaign DM (via RLS). */
@@ -100,18 +110,22 @@ export function useRule(id: string) {
 
 export function useCreateRule() {
   const queryClient = useQueryClient();
+  const campaign = useCampaignStore();
   return useMutation({
-    mutationFn: createRule,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [CUSTOM_KEY] }),
+    mutationFn: (rule: RuleInsert) =>
+      createRule({ ...rule, campaign_id: campaign.activeCampaignId! }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: [CUSTOM_KEY, campaign.activeCampaignId] }),
   });
 }
 
 export function useUpdateRule() {
   const queryClient = useQueryClient();
+  const campaign = useCampaignStore();
   return useMutation({
     mutationFn: ({ id, update }: { id: string; update: RuleUpdate }) => updateRule(id, update),
     onSuccess: (_data, { id }) => {
-      queryClient.invalidateQueries({ queryKey: [CUSTOM_KEY] });
+      queryClient.invalidateQueries({ queryKey: [CUSTOM_KEY, campaign.activeCampaignId] });
       queryClient.invalidateQueries({ queryKey: [CUSTOM_KEY, id] });
     },
   });
@@ -119,8 +133,10 @@ export function useUpdateRule() {
 
 export function useDeleteRule() {
   const queryClient = useQueryClient();
+  const campaign = useCampaignStore();
   return useMutation({
     mutationFn: deleteRule,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [CUSTOM_KEY] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: [CUSTOM_KEY, campaign.activeCampaignId] }),
   });
 }

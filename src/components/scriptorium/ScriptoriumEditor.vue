@@ -40,79 +40,25 @@
 
   <div class="flex flex-col gap-3 lg:h-full">
     <!-- Metadata row -->
-    <div class="flex flex-wrap gap-2 items-end">
-      <label class="flex-1 min-w-64">
-        <span class="sr-only">Document title</span>
-        <input
-          v-model="title"
-          placeholder="Document title…"
-          class="w-full bg-card border border-border rounded-md px-3 py-2 font-cinzel text-base font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
-      </label>
-      <label>
-        <span class="sr-only">Document type</span>
-        <select
-          v-model="docType"
-          class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
-          <option v-for="t in DOC_TYPE_OPTIONS" :key="t.value" :value="t.value">
-            {{ t.label }}
-          </option>
-        </select>
-      </label>
-      <label class="flex items-center gap-2 cursor-pointer select-none">
-        <input type="checkbox" v-model="isPublished" class="rounded" />
-        <span
-          class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
-          >PUBLISHED</span
-        >
-      </label>
-      <label class="flex items-center gap-2 cursor-pointer select-none">
-        <input type="checkbox" v-model="showPageNumbers" class="rounded" />
-        <span
-          class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
-          >PAGE #S</span
-        >
-      </label>
-      <template v-if="showPageNumbers">
-        <input
-          v-model="footerText"
-          placeholder="Footer text…"
-          class="w-40 bg-card border border-border rounded-md px-2 py-1.5 font-fell text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
-        <label class="flex items-center gap-1.5">
-          <span
-            class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider whitespace-nowrap"
-            >START #</span
-          >
-          <input
-            v-model.number="pageNumberStart"
-            type="number"
-            min="1"
-            class="w-14 bg-card border border-border rounded-md px-2 py-1.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-        </label>
-      </template>
-      <button
-        type="button"
-        :disabled="isSaving || !title.trim()"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
-        @click="save"
-      >
-        <IconSave class="h-3.5 w-3.5" />
-        {{ isSaving ? "Saving…" : props.doc ? "Save" : "Create" }}
-      </button>
-      <button
-        v-if="props.doc"
-        type="button"
-        :disabled="isDeleting"
-        class="inline-flex items-center gap-1.5 rounded-md border border-destructive/50 px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
-        @click="destroy"
-      >
-        <IconDelete class="h-3.5 w-3.5" />
-        {{ isDeleting ? "Deleting…" : "Delete" }}
-      </button>
-    </div>
+    <ScriptoriumMetadataToolbar
+      :title="title"
+      :doc-type="docType"
+      :is-published="isPublished"
+      :show-page-numbers="showPageNumbers"
+      :footer-text="footerText"
+      :page-number-start="pageNumberStart"
+      :is-saving="isSaving"
+      :is-deleting="isDeleting"
+      :is-new="!props.doc"
+      @update:title="title = $event"
+      @update:doc-type="docType = $event as ScriptoriumDocType"
+      @update:is-published="isPublished = $event"
+      @update:show-page-numbers="showPageNumbers = $event"
+      @update:footer-text="footerText = $event"
+      @update:page-number-start="pageNumberStart = $event"
+      @save="save"
+      @delete="destroy"
+    />
 
     <!-- Tags row -->
     <TagInput v-model="tags" />
@@ -122,564 +68,31 @@
     </p>
 
     <!-- Editor / Preview split -->
-    <!--
-      Mobile: no min-height so the page scrolls naturally and both panes sit in
-      the document flow. Desktop: fixed 620px pane height with internal scroll.
-    -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:flex-1 lg:min-h-0">
       <!-- Editor pane -->
-      <!--
-        overflow-hidden only kicks in at lg: so the mobile layout doesn't clip the
-        toolbar's horizontal scroll or trap the editor inside a nested scroller.
-      -->
-      <div
-        class="flex flex-col rounded-lg border border-border bg-card lg:overflow-hidden"
-      >
-        <!--
-          Toolbar — on mobile: single horizontally-scrollable row so all icon
-          buttons stay reachable without wrapping into 3+ rows. Desktop: wrap.
-        -->
-        <div
-          class="flex flex-nowrap items-center gap-0.5 p-1.5 border-b border-border bg-muted/30 shrink-0 overflow-x-auto scriptorium-toolbar lg:flex-wrap lg:overflow-visible"
-        >
-          <template v-if="editor">
-            <!-- Inline -->
-            <button
-              type="button"
-              title="Bold"
-              :class="tbCls(editor.isActive('bold'))"
-              @click="editor.chain().focus().toggleBold().run()"
-            >
-              <strong class="text-[11px] leading-none">B</strong>
-            </button>
-            <button
-              type="button"
-              title="Italic"
-              :class="tbCls(editor.isActive('italic'))"
-              @click="editor.chain().focus().toggleItalic().run()"
-            >
-              <em class="text-[11px] leading-none">I</em>
-            </button>
-            <button
-              type="button"
-              title="IconStrikethrough"
-              :class="tbCls(editor.isActive('strike'))"
-              @click="editor.chain().focus().toggleStrike().run()"
-            >
-              <IconStrikethrough class="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              title="Inline code"
-              :class="tbCls(editor.isActive('code'))"
-              @click="editor.chain().focus().toggleCode().run()"
-            >
-              <IconCodeInline class="h-3.5 w-3.5" />
-            </button>
-
-            <div class="w-px h-5 bg-border mx-0.5" />
-
-            <!-- Headings -->
-            <button
-              type="button"
-              title="Heading 1"
-              :class="tbCls(editor.isActive('heading', { level: 1 }))"
-              @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
-            >
-              <span class="text-[10px] font-cinzel font-bold leading-none"
-                >H1</span
-              >
-            </button>
-            <button
-              type="button"
-              title="Heading 2"
-              :class="tbCls(editor.isActive('heading', { level: 2 }))"
-              @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
-            >
-              <span class="text-[10px] font-cinzel font-bold leading-none"
-                >H2</span
-              >
-            </button>
-            <button
-              type="button"
-              title="Heading 3"
-              :class="tbCls(editor.isActive('heading', { level: 3 }))"
-              @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
-            >
-              <span class="text-[10px] font-cinzel font-bold leading-none"
-                >H3</span
-              >
-            </button>
-
-            <div class="w-px h-5 bg-border mx-0.5" />
-
-            <!-- Blocks -->
-            <button
-              type="button"
-              title="Bullet list"
-              :class="tbCls(editor.isActive('bulletList'))"
-              @click="editor.chain().focus().toggleBulletList().run()"
-            >
-              <IconList class="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              title="Ordered list"
-              :class="tbCls(editor.isActive('orderedList'))"
-              @click="editor.chain().focus().toggleOrderedList().run()"
-            >
-              <IconListOrdered class="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              title="Blockquote / callout"
-              :class="tbCls(editor.isActive('blockquote'))"
-              @click="editor.chain().focus().toggleBlockquote().run()"
-            >
-              <IconQuote class="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              title="Inline block"
-              :class="tbCls(editor.isActive('codeBlock'))"
-              @click="editor.chain().focus().toggleCodeBlock().run()"
-            >
-              <IconCodeBlock class="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              title="Wide Block (spans both columns)"
-              :class="tbCls(editor.isActive('wideBlock'))"
-              @click="editor.chain().focus().toggleWideBlock().run()"
-            >
-              <IconRect class="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              title="Page Break (inserts new page)"
-              :class="tbCls(false)"
-              @click="editor.chain().focus().setHorizontalRule().run()"
-            >
-              <IconMinus class="h-3.5 w-3.5" />
-            </button>
-
-            <div class="w-px h-5 bg-border mx-0.5" />
-
-            <!-- Insert Asset -->
-            <button
-              type="button"
-              title="Insert asset as new page (NPC, Monster…)"
-              :class="tbCls(false)"
-              class="gap-1 px-2 font-cinzel text-[10px] font-semibold tracking-wider"
-              @click="showAssetPanel = true"
-            >
-              <IconAddItem class="h-3.5 w-3.5" />
-              Insert
-            </button>
-
-            <!-- Insert Block picker -->
-            <button
-              type="button"
-              title="Insert block…"
-              :class="tbCls(showBlockPicker)"
-              class="gap-1 px-2 font-cinzel text-[10px] font-semibold tracking-wider"
-              @click="showBlockPicker = true"
-            >
-              <IconGridView class="h-3.5 w-3.5" />
-              Block
-            </button>
-
-            <div class="w-px h-5 bg-border mx-0.5" />
-
-            <!-- Image controls (shown when an image is selected) -->
-            <template v-if="editor.isActive('image')">
-              <span
-                class="font-cinzel text-[9px] text-muted-foreground tracking-wider px-1 self-center"
-                >IMG</span
-              >
-              <button
-                v-for="size in IMAGE_SIZES"
-                :key="size.w"
-                type="button"
-                :title="`${size.label} (${size.w}px)`"
-                :class="
-                  tbCls(editor.getAttributes('image').width === String(size.w))
-                "
-                @click="
-                  editor
-                    .chain()
-                    .focus()
-                    .updateAttributes('image', { width: String(size.w) })
-                    .run()
-                "
-              >
-                <span class="font-cinzel text-[9px] font-bold leading-none">{{
-                  size.label
-                }}</span>
-              </button>
-              <div class="w-px h-5 bg-border mx-0.5" />
-              <button
-                type="button"
-                title="Float left"
-                :class="
-                  tbCls(editor.getAttributes('image').dataAlign === 'left')
-                "
-                @click="
-                  editor
-                    .chain()
-                    .focus()
-                    .updateAttributes('image', {
-                      dataAlign: 'left',
-                      layoutMode: 'inline',
-                    })
-                    .run()
-                "
-              >
-                <IconAlignLeft class="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                title="Center"
-                :class="
-                  tbCls(editor.getAttributes('image').dataAlign === 'center')
-                "
-                @click="
-                  editor
-                    .chain()
-                    .focus()
-                    .updateAttributes('image', {
-                      dataAlign: 'center',
-                      layoutMode: 'inline',
-                    })
-                    .run()
-                "
-              >
-                <IconAlignCenter class="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                title="Float right"
-                :class="
-                  tbCls(
-                    editor.getAttributes('image').dataAlign === 'right' ||
-                      !editor.getAttributes('image').dataAlign,
-                  )
-                "
-                @click="
-                  editor
-                    .chain()
-                    .focus()
-                    .updateAttributes('image', {
-                      dataAlign: 'right',
-                      layoutMode: 'inline',
-                    })
-                    .run()
-                "
-              >
-                <IconAlignRight class="h-3.5 w-3.5" />
-              </button>
-              <div class="w-px h-5 bg-border mx-0.5" />
-              <!-- Layout mode controls -->
-              <span
-                class="font-cinzel text-[9px] text-muted-foreground tracking-wider px-1 self-center"
-                >LAYOUT</span
-              >
-              <button
-                type="button"
-                title="Wrap left — text flows around right edge"
-                :class="
-                  tbCls(editor.getAttributes('image').layoutMode === 'wrapLeft')
-                "
-                @click="
-                  editor
-                    .chain()
-                    .focus()
-                    .updateAttributes('image', { layoutMode: 'wrapLeft' })
-                    .run()
-                "
-              >
-                <IconWrapText class="h-3.5 w-3.5 scale-x-[-1]" />
-              </button>
-              <button
-                type="button"
-                title="Wrap right — text flows around left edge"
-                :class="
-                  tbCls(
-                    editor.getAttributes('image').layoutMode === 'wrapRight',
-                  )
-                "
-                @click="
-                  editor
-                    .chain()
-                    .focus()
-                    .updateAttributes('image', { layoutMode: 'wrapRight' })
-                    .run()
-                "
-              >
-                <IconWrapText class="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                title="Absolute position — pin image at exact page coordinates"
-                :class="
-                  tbCls(editor.getAttributes('image').layoutMode === 'absolute')
-                "
-                @click="
-                  editor
-                    .chain()
-                    .focus()
-                    .updateAttributes('image', {
-                      layoutMode: 'absolute',
-                      posTop: '60',
-                      posLeft: '40',
-                      posRight: null,
-                      posBottom: null,
-                    })
-                    .run()
-                "
-              >
-                <IconPin class="h-3.5 w-3.5" />
-              </button>
-              <!-- Bleed-into-gutter toggle (wrap modes only) -->
-              <template
-                v-if="
-                  editor.getAttributes('image').layoutMode === 'wrapLeft' ||
-                  editor.getAttributes('image').layoutMode === 'wrapRight'
-                "
-              >
-                <button
-                  type="button"
-                  title="Bleed into column gutter"
-                  :class="
-                    tbCls(editor.getAttributes('image').gutterBleed === true)
-                  "
-                  @click="
-                    editor
-                      .chain()
-                      .focus()
-                      .updateAttributes('image', {
-                        gutterBleed: !editor.getAttributes('image').gutterBleed,
-                      })
-                      .run()
-                  "
-                >
-                  <span class="font-cinzel text-[9px] font-bold leading-none"
-                    >⇔</span
-                  >
-                </button>
-              </template>
-              <!-- Absolute position inputs (absolute mode only) -->
-              <template
-                v-if="editor.getAttributes('image').layoutMode === 'absolute'"
-              >
-                <div class="w-px h-5 bg-border mx-0.5" />
-                <label class="flex items-center gap-0.5">
-                  <span class="font-cinzel text-[9px] text-muted-foreground"
-                    >T</span
-                  >
-                  <input
-                    type="number"
-                    :value="editor.getAttributes('image').posTop ?? ''"
-                    min="0"
-                    max="1200"
-                    class="w-12 h-5.5 rounded border border-border bg-card px-1 font-mono text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                    placeholder="px"
-                    @change="setImagePos('posTop', ($event.target as HTMLInputElement).value)"
-                  />
-                </label>
-                <label class="flex items-center gap-0.5">
-                  <span class="font-cinzel text-[9px] text-muted-foreground"
-                    >L</span
-                  >
-                  <input
-                    type="number"
-                    :value="editor.getAttributes('image').posLeft ?? ''"
-                    min="0"
-                    max="800"
-                    class="w-12 h-5.5 rounded border border-border bg-card px-1 font-mono text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                    placeholder="px"
-                    @change="setImagePos('posLeft', ($event.target as HTMLInputElement).value)"
-                  />
-                </label>
-                <label class="flex items-center gap-0.5">
-                  <span class="font-cinzel text-[9px] text-muted-foreground"
-                    >R</span
-                  >
-                  <input
-                    type="number"
-                    :value="editor.getAttributes('image').posRight ?? ''"
-                    min="0"
-                    max="800"
-                    class="w-12 h-5.5 rounded border border-border bg-card px-1 font-mono text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                    placeholder="px"
-                    @change="setImagePos('posRight', ($event.target as HTMLInputElement).value)"
-                  />
-                </label>
-                <label class="flex items-center gap-0.5">
-                  <span class="font-cinzel text-[9px] text-muted-foreground"
-                    >B</span
-                  >
-                  <input
-                    type="number"
-                    :value="editor.getAttributes('image').posBottom ?? ''"
-                    min="0"
-                    max="1200"
-                    class="w-12 h-5.5 rounded border border-border bg-card px-1 font-mono text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                    placeholder="px"
-                    @change="setImagePos('posBottom', ($event.target as HTMLInputElement).value)"
-                  />
-                </label>
-              </template>
-              <!-- Edit in Illuminator — only for asset-images bucket URLs -->
-              <template v-if="selectedImageIsSupabase && props.doc">
-                <div class="w-px h-5 bg-border mx-0.5" />
-                <button
-                  type="button"
-                  title="Edit in Illuminator"
-                  :class="tbCls(false)"
-                  @click="editInIlluminator"
-                >
-                  <IconExternalLink class="h-3.5 w-3.5" />
-                </button>
-              </template>
-            </template>
-
-            <!-- Cover page controls (shown when a cover page is selected) -->
-            <template v-if="editor.isActive('coverPage')">
-              <div class="w-px h-5 bg-border mx-0.5" />
-              <span
-                class="font-cinzel text-[9px] text-muted-foreground tracking-wider px-1 self-center"
-                >COVER</span
-              >
-              <button
-                type="button"
-                title="Edit cover page text"
-                :class="tbCls(showCoverInspector)"
-                class="gap-1 px-2 font-cinzel text-[10px] font-semibold tracking-wider"
-                @click="showCoverInspector = true"
-              >
-                <IconPencilLine class="h-3.5 w-3.5" />
-                Edit
-              </button>
-            </template>
-
-            <!-- History -->
-            <button
-              type="button"
-              title="Undo"
-              :class="tbCls(false)"
-              :disabled="!editor.can().undo()"
-              @click="editor.chain().focus().undo().run()"
-            >
-              <IconUndo class="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              title="Redo"
-              :class="tbCls(false)"
-              :disabled="!editor.can().redo()"
-              @click="editor.chain().focus().redo().run()"
-            >
-              <IconRedo class="h-3.5 w-3.5" />
-            </button>
-
-            <div class="w-px h-5 bg-border mx-0.5" />
-
-            <!-- Layout -->
-            <button
-              type="button"
-              title="Toggle two-column preview"
-              :class="tbCls(isTwoColumn)"
-              @click="isTwoColumn = !isTwoColumn"
-            >
-              <IconColumns class="h-3.5 w-3.5" />
-            </button>
-
-            <!-- Theme -->
-            <div
-              role="radiogroup"
-              aria-label="Preview theme"
-              class="ml-1 inline-flex rounded border border-border overflow-hidden shrink-0"
-            >
-              <button
-                type="button"
-                role="radio"
-                :aria-checked="theme === 'onednd2024'"
-                title="OneDnD 2024 theme"
-                class="px-2 h-6.5 font-cinzel text-[9px] font-semibold tracking-wider uppercase transition-colors"
-                :class="
-                  theme === 'onednd2024'
-                    ? 'bg-primary/20 text-primary'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                "
-                @click="theme = 'onednd2024'"
-              >
-                2024
-              </button>
-              <button
-                type="button"
-                role="radio"
-                :aria-checked="theme === 'phb2014'"
-                title="Classic PHB (2014) theme"
-                class="px-2 h-6.5 font-cinzel text-[9px] font-semibold tracking-wider uppercase transition-colors border-l border-border"
-                :class="
-                  theme === 'phb2014'
-                    ? 'bg-primary/20 text-primary'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                "
-                @click="theme = 'phb2014'"
-              >
-                Classic
-              </button>
-            </div>
-
-            <div class="w-px h-5 bg-border mx-0.5" />
-
-            <!-- Page size -->
-            <div
-              role="radiogroup"
-              aria-label="Page size"
-              class="ml-1 inline-flex rounded border border-border overflow-hidden shrink-0"
-            >
-              <button
-                v-for="(sz, idx) in ['A4', 'A5', 'Letter'] as const"
-                :key="sz"
-                type="button"
-                role="radio"
-                :aria-checked="pageSize === sz"
-                :title="`Page size: ${sz}`"
-                class="px-2 h-6.5 font-cinzel text-[9px] font-semibold tracking-wider uppercase transition-colors"
-                :class="[
-                  idx > 0 ? 'border-l border-border' : '',
-                  pageSize === sz
-                    ? 'bg-primary/20 text-primary'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted',
-                ]"
-                @click="pageSize = sz"
-              >
-                {{ sz }}
-              </button>
-            </div>
-
-            <!-- Ink-friendly toggle -->
-            <button
-              type="button"
-              title="Ink-friendly export (strips backgrounds & decorations)"
-              :class="tbCls(inkFriendly)"
-              class="gap-1 px-2 font-cinzel text-[10px] font-semibold tracking-wider"
-              @click="inkFriendly = !inkFriendly"
-            >
-              <IconPrint class="h-3.5 w-3.5" />
-            </button>
-          </template>
-        </div>
+      <div class="flex flex-col rounded-lg border border-border bg-card lg:overflow-hidden">
+        <ScriptoriumEditorToolbar
+          :editor="editor"
+          :is-two-column="isTwoColumn"
+          :theme="theme"
+          :page-size="pageSize"
+          :ink-friendly="inkFriendly"
+          :show-block-picker="showBlockPicker"
+          :show-cover-inspector="showCoverInspector"
+          :selected-image-is-supabase="selectedImageIsSupabase"
+          :has-doc="!!props.doc"
+          @update:is-two-column="isTwoColumn = $event"
+          @update:theme="theme = $event"
+          @update:page-size="pageSize = $event"
+          @update:ink-friendly="inkFriendly = $event"
+          @open-asset-panel="showAssetPanel = true"
+          @open-block-picker="showBlockPicker = true"
+          @open-cover-inspector="showCoverInspector = true"
+          @edit-in-illuminator="editInIlluminator"
+          @set-image-pos="setImagePos"
+        />
 
         <!-- Tiptap content -->
-        <!--
-          Mobile: content grows with the document and the page scrolls — no
-          nested scroll trap. Desktop: flex-1 + overflow-auto so the 620px pane
-          owns its own scroll like before.
-        -->
         <div class="p-4 lg:flex-1 lg:overflow-auto lg:min-h-0 relative">
           <EditorContent :editor="editor" class="phb-editor h-full" />
 
@@ -689,19 +102,14 @@
             :editor="editor"
             :tippy-options="{ duration: 100 }"
           >
-            <div
-              class="flex items-center rounded-md border border-border bg-card shadow-lg overflow-hidden"
-            >
+            <div class="flex items-center rounded-md border border-border bg-card shadow-lg overflow-hidden">
               <button
                 type="button"
                 :disabled="isEnhancing"
                 class="flex items-center gap-1.5 px-2.5 py-1.5 font-cinzel text-[11px] font-semibold tracking-wide text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
                 @click="onEnhance"
               >
-                <IconLoadingAlt
-                  v-if="isEnhancing"
-                  class="h-3 w-3 animate-spin"
-                />
+                <IconLoadingAlt v-if="isEnhancing" class="h-3 w-3 animate-spin" />
                 <IconWand v-else class="h-3 w-3" />
                 Enhance
               </button>
@@ -720,141 +128,24 @@
         </div>
 
         <!-- Word count footer -->
-        <div
-          class="px-4 py-1.5 border-t border-border bg-muted/20 flex justify-end shrink-0"
-        >
-          <span class="font-fell text-[11px] text-muted-foreground italic"
-            >{{ wordCount }} words</span
-          >
+        <div class="px-4 py-1.5 border-t border-border bg-muted/20 flex justify-end shrink-0">
+          <span class="font-fell text-[11px] text-muted-foreground italic">{{ wordCount }} words</span>
         </div>
       </div>
 
-      <!-- Preview pane — bg matches .phb-bg so macOS rubber-band bounce shows the same gray -->
-      <div
-        class="flex flex-col rounded-lg border border-border lg:overflow-hidden"
-        style="background: #a09a90"
-      >
-        <div
-          class="flex items-center justify-between px-4 py-2 border-b border-border bg-card shrink-0"
-        >
-          <p
-            class="font-cinzel text-xs font-semibold text-muted-foreground uppercase tracking-widest"
-          >
-            Preview — {{ themeInfo.label }}
-          </p>
-          <div class="flex items-center gap-2">
-            <span
-              class="px-1.5 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider uppercase"
-              :style="{
-                backgroundColor: docTypeColor(docType) + '22',
-                color: docTypeColor(docType),
-              }"
-            >
-              {{ docTypeLabel(docType) }}
-            </span>
-
-            <!-- Zoom controls — behaves like a PDF viewer -->
-            <div
-              class="flex items-center rounded border border-border overflow-hidden"
-            >
-              <button
-                type="button"
-                title="Zoom out"
-                :disabled="effectiveZoom <= 0.25"
-                class="px-1.5 h-6.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                @click="zoomOut"
-              >
-                <IconZoomOut class="h-3 w-3" />
-              </button>
-              <!-- Centre button: shows current zoom %; click to snap back to fit-to-width -->
-              <button
-                type="button"
-                :title="
-                  zoomMode === 'fit' ? 'Fit to width' : 'Click to fit to width'
-                "
-                class="px-1.5 h-6.5 font-cinzel text-[9px] font-semibold tracking-wider border-x border-border transition-colors min-w-9.5 text-center"
-                :class="
-                  zoomMode === 'fit'
-                    ? 'text-primary bg-primary/10'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                "
-                @click="zoomFit"
-              >
-                {{ zoomMode === "fit" ? "Fit" : zoomLabel }}
-              </button>
-              <button
-                type="button"
-                title="Zoom in"
-                :disabled="effectiveZoom >= 2.0"
-                class="px-1.5 h-6.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                @click="zoomIn"
-              >
-                <IconZoomIn class="h-3 w-3" />
-              </button>
-            </div>
-
-            <button
-              type="button"
-              title="Export as PDF"
-              :disabled="isGeneratingPdf"
-              class="inline-flex items-center gap-1 px-2 py-1 rounded font-cinzel text-[10px] font-semibold border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors tracking-wider uppercase disabled:opacity-50 disabled:cursor-not-allowed"
-              @click="exportPdf"
-            >
-              <IconLoading
-                v-if="isGeneratingPdf"
-                class="h-3 w-3 animate-spin"
-              />
-              <IconExport v-else class="h-3 w-3" />
-              {{ isGeneratingPdf ? "Building…" : "PDF" }}
-            </button>
-          </div>
-        </div>
-        <div
-          ref="previewContainerRef"
-          class="phb-bg lg:flex-1 lg:overflow-auto lg:min-h-0"
-          style="touch-action: pan-x pan-y"
-        >
-          <!-- Wrapper gives the scroll container the correct zoomed dimensions.
-               The inner .phb-page uses transform:scale so layout is unaffected
-               by zoom (CSS `zoom` runs after flex layout and breaks scroll). -->
-          <div
-            v-for="(pageHtml, pageIndex) in pages"
-            :key="pageIndex"
-            :style="pageWrapperStyle"
-          >
-            <div
-              class="phb-page"
-              :class="[themeInfo.class, { 'ink-friendly': inkFriendly }]"
-              :style="pageInnerStyle"
-            >
-              <div
-                class="phb-body"
-                :class="[themeInfo.class, { 'phb-two-col': isTwoColumn }]"
-                v-html="pageHtml"
-              />
-              <!-- Odd index = recto (right-hand page): # on right. Even index = verso (left-hand page): # on left. -->
-              <div
-                v-if="pageFooters[pageIndex] !== null"
-                class="sc-footer"
-                :class="
-                  pageIndex % 2 === 0 ? 'sc-footer--recto' : 'sc-footer--verso'
-                "
-              >
-                <span class="sc-footer-num sc-footer-num--left">{{
-                  pageFooters[pageIndex]
-                }}</span>
-                <span class="sc-footer-text">{{ footerText }}</span>
-                <span class="sc-footer-num sc-footer-num--right">{{
-                  pageFooters[pageIndex]
-                }}</span>
-              </div>
-            </div>
-          </div>
-          <p class="phb-hint">
-            ── use the Page Break button (—) to start a new page ──
-          </p>
-        </div>
-      </div>
+      <!-- Preview pane -->
+      <ScriptoriumPreviewPane
+        :pages="pages"
+        :page-footers="pageFooters"
+        :footer-text="footerText"
+        :doc-type="docType"
+        :theme="theme"
+        :page-size="pageSize"
+        :ink-friendly="inkFriendly"
+        :is-two-column="isTwoColumn"
+        :is-generating-pdf="isGeneratingPdf"
+        @export-pdf="exportPdf"
+      />
     </div>
   </div>
 
@@ -869,45 +160,8 @@ import { useRouter } from "vue-router";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import { BubbleMenu } from "@tiptap/vue-3/menus";
 import { createScriptoriumExtensions } from "@/lib/scriptorium/scriptoriumExtensions";
-import {
-  IMAGE_SIZES,
-  DOC_TYPE_OPTIONS,
-  docTypeLabel,
-  docTypeColor,
-} from "@/lib/scriptorium/editorConstants";
-import { useScriptoriumZoom } from "@/composables/useScriptoriumZoom";
 import { useScriptoriumIlluminator } from "@/composables/useScriptoriumIlluminator";
-import {
-  IconAddItem,
-  IconAlignCenter,
-  IconAlignLeft,
-  IconAlignRight,
-  IconCodeBlock,
-  IconCodeInline,
-  IconColumns,
-  IconDelete,
-  IconExport,
-  IconExternalLink,
-  IconGridView,
-  IconList,
-  IconListOrdered,
-  IconLoading,
-  IconLoadingAlt,
-  IconMinus,
-  IconPencilLine,
-  IconPin,
-  IconPrint,
-  IconQuote,
-  IconRect,
-  IconRedo,
-  IconSave,
-  IconStrikethrough,
-  IconUndo,
-  IconWand,
-  IconWrapText,
-  IconZoomIn,
-  IconZoomOut,
-} from "@/lib/icons";
+import { IconLoadingAlt, IconWand } from "@/lib/icons";
 import {
   useCreateScriptoriumDocument,
   useUpdateScriptoriumDocument,
@@ -932,19 +186,12 @@ import CoverPageInspector from "@/components/scriptorium/CoverPageInspector.vue"
 import ArtPickerModal from "@/components/common/ArtPickerModal.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
+import ScriptoriumMetadataToolbar from "@/components/scriptorium/ScriptoriumMetadataToolbar.vue";
+import ScriptoriumEditorToolbar from "@/components/scriptorium/ScriptoriumEditorToolbar.vue";
+import ScriptoriumPreviewPane from "@/components/scriptorium/ScriptoriumPreviewPane.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { useTextEnhancement } from "@/ai/useTextEnhancement";
 import { parseMarkdown } from "@/lib/markdownToTiptap";
-
-
-function tbCls(active: boolean) {
-  return [
-    "p-1 rounded min-w-[26px] h-[26px] flex items-center justify-center transition-colors disabled:opacity-40",
-    active
-      ? "bg-primary/20 text-primary"
-      : "text-muted-foreground hover:text-foreground hover:bg-muted",
-  ].join(" ");
-}
 
 const props = defineProps<{ doc: ScriptoriumDocument | null }>();
 const router = useRouter();
@@ -967,24 +214,6 @@ const tags = ref<string[]>(props.doc?.tags ?? []);
 const showPageNumbers = ref(props.doc?.show_page_numbers ?? false);
 const footerText = ref(props.doc?.footer_text ?? "");
 const pageNumberStart = ref(props.doc?.page_number_start ?? 1);
-
-const themeInfo = computed(() =>
-  theme.value === "phb2014"
-    ? { class: "theme-phb2014", label: "Classic PHB (2014)" }
-    : { class: "theme-onednd2024", label: "OneDnD 2024" },
-);
-
-const previewContainerRef = ref<HTMLElement | null>(null);
-const {
-  zoomMode,
-  effectiveZoom,
-  zoomLabel,
-  zoomIn,
-  zoomOut,
-  zoomFit,
-  pageWrapperStyle,
-  pageInnerStyle,
-} = useScriptoriumZoom(pageSize, previewContainerRef);
 
 // Editor
 const previewHtml = ref("");
@@ -1024,7 +253,6 @@ function setImagePos(
     .run();
 }
 
-// IconSave
 const { mutateAsync: create } = useCreateScriptoriumDocument();
 const { mutateAsync: update } = useUpdateScriptoriumDocument();
 const { mutateAsync: deleteDoc } = useDeleteScriptoriumDocument();
@@ -1093,8 +321,6 @@ async function save() {
   }
 }
 
-// Split rendered HTML into pages at every <hr> (Page Break),
-// then run the TOC pre-pass so any sc-toc-placeholder becomes a live TOC.
 const pages = computed(() => {
   const html = previewHtml.value || "";
   const parts = html.split(/<hr\s*\/?\s*>/gi);
@@ -1104,9 +330,6 @@ const pages = computed(() => {
   return buildTocPages(rawPages);
 });
 
-// Page-number counter logic shared between preview and PDF
-// Returns the footer label for each page index, or null if that page is unnumbered.
-// Pages containing a front or back cover page suppress the footer.
 const pageFooters = computed<(string | null)[]>(() => {
   if (!showPageNumbers.value) return pages.value.map(() => null);
 
@@ -1114,7 +337,6 @@ const pageFooters = computed<(string | null)[]>(() => {
   const resetTag = 'data-type="reset-counting"';
   let counter = pageNumberStart.value;
   return pages.value.map((html, _idx) => {
-    // Front and back cover variants suppress the footer
     if (
       html.includes('data-type="coverPage"') &&
       (html.includes('data-variant="front"') ||
@@ -1125,7 +347,7 @@ const pageFooters = computed<(string | null)[]>(() => {
     const hasSkip = html.includes(skipTag);
     const hasReset = html.includes(resetTag);
     if (hasReset) counter = pageNumberStart.value;
-    if (hasSkip) return null; // omit + don't advance
+    if (hasSkip) return null;
     const label = String(counter);
     counter++;
     return label;
@@ -1232,11 +454,6 @@ onUnmounted(() => {
 <style scoped>
 @reference "@/assets/main.css";
 
-/* Keep toolbar children at natural size in the nowrap scroll row on mobile */
-.scriptorium-toolbar > * {
-  flex-shrink: 0;
-}
-
 .enhance-error-enter-active,
 .enhance-error-leave-active {
   transition: opacity 0.2s ease;
@@ -1246,9 +463,6 @@ onUnmounted(() => {
   opacity: 0;
 }
 
-/* ── Form controls (#243): bind directly to runtime theme vars ── */
-/* Scoped styles are unlayered and win over Tailwind's @layer utilities,
-   so this guarantees inputs pick up the JS-updated --card variable. */
 input:not([type="checkbox"]):not([type="radio"]),
 select {
   background-color: var(--card);
@@ -1282,7 +496,6 @@ select {
 .phb-editor :deep(.ProseMirror ol) {
   @apply pl-6 my-2;
 }
-/* #246: plain paragraphs must not inherit italic from callout containers */
 .phb-editor :deep(.ProseMirror p) {
   font-style: normal;
 }
@@ -1291,7 +504,6 @@ select {
 .phb-editor :deep(.ProseMirror .sc-quote p) {
   font-style: italic;
 }
-
 .phb-editor :deep(.ProseMirror blockquote) {
   @apply border-l-4 border-primary pl-3 text-muted-foreground italic my-2;
 }
@@ -1311,232 +523,6 @@ select {
   object-fit: cover;
 }
 
-/* ── PHB Preview (themed output) ──────────────────────────────── */
-/*
- * Palette + typography contract used by every .phb-* block below.
- * The two themes override this contract; every new scriptorium block
- * type added in future parity tickets MUST consume these vars rather
- * than hex literals so both themes stay in sync.
- *
- * Defaults = OneDnD 2024 (teal). Classic overrides are in
- * `.phb-body.theme-phb2014` below.
- *
- * TODO: swap the web-safe serif fallback for licensed Bookinsanity /
- * Mr Eaves faces once licensing is sorted.
- */
-.phb-body.theme-onednd2024,
-.phb-body.theme-phb2014,
-.phb-page.theme-onednd2024,
-.phb-page.theme-phb2014 {
-  /* Typography */
-  --sc-heading-font: "Cinzel", Georgia, serif;
-  --sc-body-font: Georgia, "Times New Roman", serif;
-
-  /* Palette */
-  --sc-ink: #1a1a1a;
-  --sc-accent: #7d1c1c; /* dark crimson — matches 2024 Monster Manual / D&D Beyond */
-  --sc-accent-contrast: #f9f6ef;
-  --sc-page-bg: #f9f6ef;
-  --sc-callout-bg: #f5ece8; /* very light warm rose, derived from red accent */
-  --sc-callout-border: var(--sc-accent);
-  --sc-code-bg: #e4ddd0;
-  --sc-col-rule: #c9b99a;
-
-  /* Per-block treatments (themes override these to swap filled-bar H1
-     for ruled H1 without rewriting every selector below) */
-  --sc-h1-bg: var(--sc-accent);
-  --sc-h1-color: var(--sc-accent-contrast);
-  --sc-h1-border-b: none;
-  --sc-h1-padding: 0.35rem 1rem;
-  --sc-title-bar-bg: var(--sc-accent);
-  --sc-title-bar-color: var(--sc-accent-contrast);
-}
-
-.phb-body.theme-phb2014,
-.phb-page.theme-phb2014 {
-  --sc-body-font: Georgia, "Palatino Linotype", "Book Antiqua", serif;
-  --sc-accent: #58180d; /* deep red-brown, classic PHB ink */
-  --sc-accent-contrast: #eeeadf;
-  --sc-page-bg: #eeeadf;
-  --sc-callout-bg: #e0e5c1; /* light olive/cream */
-
-  /* Classic H1: no filled bar — red title on parchment with double rule below */
-  --sc-h1-bg: transparent;
-  --sc-h1-color: var(--sc-accent);
-  --sc-h1-border-b: 3px double var(--sc-accent);
-  --sc-h1-padding: 0.35rem 0 0.25rem;
-}
-
-/* Parchment-gray canvas between pages */
-.phb-bg {
-  background: #a09a90;
-  padding: 1.5rem 1rem 3rem;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start; /* pages self-centre via margin: 0 auto; flex-start lets them overflow right when zoomed in */
-  gap: 1.5rem;
-  overscroll-behavior: contain; /* prevent swipe-to-back/forward navigation over the pannable area */
-}
-
-.phb-two-col {
-  column-count: 2;
-  column-gap: 1.5rem;
-  column-rule: 1px solid var(--sc-col-rule);
-}
-.phb-two-col :deep(h1),
-.phb-two-col :deep(h2) {
-  column-span: all;
-}
-/* Headings inside callout/stat blocks must NOT span columns */
-.phb-two-col :deep(.sc-note h1),
-.phb-two-col :deep(.sc-note h2),
-.phb-two-col :deep(.sc-descriptive h1),
-.phb-two-col :deep(.sc-descriptive h2),
-.phb-two-col :deep(.sc-wide h1),
-.phb-two-col :deep(.sc-wide h2) {
-  column-span: none;
-}
-
-/* Ink-friendly: strip background fills and decorative imagery in preview */
-.phb-page.ink-friendly {
-  --sc-callout-bg: transparent;
-  --sc-page-bg: #fff;
-  background: #fff;
-}
-.phb-page.ink-friendly :deep(.sc-watercolor),
-.phb-page.ink-friendly :deep(.sc-watermark),
-.phb-page.ink-friendly :deep(img.sc-decor) {
-  display: none;
-}
-.phb-page.ink-friendly :deep(*) {
-  background-image: none !important;
-}
-
-.phb-page {
-  /* width / height / transform injected via :style (pageInnerStyle) — see script */
-  position: relative;
-  /* margin and flex-shrink live on the pageWrapperStyle wrapper — not here */
-  background: url("/assets/scriptorium/page-background.webp") center / cover
-    no-repeat;
-  /* Padding matches PDF RENDER_CSS exactly — critical for WYSIWYG accuracy */
-  padding: 60px 68px 53px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
-  font-family: var(--sc-body-font);
-  color: var(--sc-ink);
-  line-height: 1.65;
-  font-size: 15px;
-  overflow: hidden;
-}
-
-.phb-title-bar {
-  font-family: var(--sc-heading-font);
-  font-size: 1.6rem;
-  font-weight: 700;
-  color: var(--sc-title-bar-color);
-  background: var(--sc-title-bar-bg);
-  padding: 0.6rem 2.5rem;
-  margin: -2.5rem -2.5rem 1.75rem;
-  letter-spacing: 0.04em;
-  line-height: 1.25;
-}
-
-.phb-hint {
-  font-family: "Cinzel", Georgia, serif;
-  font-size: 0.65rem;
-  color: rgba(255, 255, 255, 0.4);
-  text-align: center;
-  letter-spacing: 0.06em;
-  padding: 0.5rem 0;
-}
-
-.phb-body :deep(h1) {
-  font-family: var(--sc-heading-font);
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--sc-h1-color);
-  background: var(--sc-h1-bg);
-  border-bottom: var(--sc-h1-border-b);
-  padding: var(--sc-h1-padding);
-  margin: 1.5rem -1rem 1rem;
-  letter-spacing: 0.03em;
-}
-.phb-body :deep(h2) {
-  font-family: var(--sc-heading-font);
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--sc-accent);
-  border-bottom: 2px solid var(--sc-accent);
-  padding-bottom: 0.2rem;
-  margin: 1.25rem 0 0.6rem;
-  letter-spacing: 0.02em;
-}
-.phb-body :deep(h3) {
-  font-family: var(--sc-heading-font);
-  font-size: 0.9375rem;
-  font-weight: 600;
-  font-style: italic;
-  color: var(--sc-accent);
-  margin: 1rem 0 0.35rem;
-}
-.phb-body :deep(p) {
-  margin: 0 0 0.6rem;
-  font-style: normal; /* #246: resist italic inheritance from callout containers */
-}
-.phb-body :deep(ul),
-.phb-body :deep(ol) {
-  padding-left: 1.25rem;
-  margin: 0.375rem 0 0.6rem;
-}
-.phb-body :deep(li) {
-  margin: 0.2rem 0;
-}
-.phb-body :deep(blockquote) {
-  border-left: 4px solid var(--sc-callout-border);
-  background: var(--sc-callout-bg);
-  padding: 0.6rem 0.875rem;
-  margin: 0.875rem 0;
-  border-radius: 0 4px 4px 0;
-  font-style: italic;
-}
-.phb-body :deep(blockquote p) {
-  margin: 0;
-  font-style: italic; /* restore italic overridden by the general p rule */
-}
-.phb-body :deep(strong) {
-  font-weight: 700;
-}
-.phb-body :deep(em) {
-  font-style: italic;
-}
-/* <hr> = page break separator — hidden in preview, pages split on it */
-.phb-body :deep(hr) {
-  display: none;
-}
-.phb-body :deep(code) {
-  background: var(--sc-code-bg);
-  padding: 0.1em 0.35em;
-  border-radius: 2px;
-  font-family: "Courier New", monospace;
-  font-size: 0.875em;
-}
-.phb-body :deep(pre) {
-  background: var(--sc-accent);
-  color: var(--sc-accent-contrast);
-  padding: 0.875rem;
-  border-radius: 4px;
-  overflow-x: auto;
-  margin: 0.875rem 0;
-  font-size: 0.875em;
-}
-.phb-body :deep(pre code) {
-  background: transparent;
-  padding: 0;
-  color: inherit;
-}
-
-/* ── Spacers ──────────────────────────────────────────────────── */
-
-/* Editor: vertical spacer — dashed outline so authors can see it */
 .phb-editor :deep(.ProseMirror .sc-spacer-v) {
   display: block;
   border: 1px dashed color-mix(in srgb, currentColor 35%, transparent);
@@ -1557,8 +543,6 @@ select {
   pointer-events: none;
   letter-spacing: 0.04em;
 }
-
-/* Editor: horizontal spacer — inline dashed sliver */
 .phb-editor :deep(.ProseMirror .sc-spacer-h) {
   border-bottom: 1px dashed color-mix(in srgb, currentColor 35%, transparent);
   vertical-align: bottom;
@@ -1566,34 +550,10 @@ select {
   height: 1em;
 }
 
-/* Preview: spacers are invisible — just the empty space they occupy */
-.phb-body :deep(.sc-spacer-v) {
-  display: block;
-  border: none;
-}
-.phb-body :deep(.sc-spacer-v::after) {
-  display: none;
-}
-.phb-body :deep(.sc-spacer-h) {
-  display: inline-block;
-  border: none;
-}
-
-/* ── Column break ────────────────────────────────────────────── */
-
-/* Preview: forces a CSS column break — invisible, zero height */
-.phb-body :deep(.sc-column-break) {
-  break-before: column;
-  display: block;
-  height: 0;
-}
-
-/* Editor: faint dashed rule so authors can see where the break is */
 .phb-editor :deep(.ProseMirror .sc-column-break) {
   display: block;
   height: 0;
-  border-top: 1px dashed
-    color-mix(in srgb, var(--sc-col-rule, currentColor) 60%, transparent);
+  border-top: 1px dashed color-mix(in srgb, var(--sc-col-rule, currentColor) 60%, transparent);
   margin: 0.5rem 0;
   position: relative;
 }
@@ -1612,28 +572,6 @@ select {
   pointer-events: none;
 }
 
-/* ── Decoration overlay CSS variables ─────────────────────────── */
-/*
- * --sc-decoration-watermark  — diagonal watermark text colour (falls back to --sc-accent)
- * --sc-decoration-credit     — artist credit text colour (falls back to --sc-ink)
- *
- * Both themes receive the same defaults here; override in the .theme-phb2014
- * block above if a theme-specific tint is ever needed.
- */
-.phb-body.theme-onednd2024,
-.phb-body.theme-phb2014,
-.phb-page.theme-onednd2024,
-.phb-page.theme-phb2014 {
-  --sc-decoration-watermark: var(--sc-accent);
-  --sc-decoration-credit: var(--sc-ink);
-}
-
-/* ── Watercolor: editor placeholder ───────────────────────────── */
-/*
- * In the ProseMirror editor the <img data-type="watercolor"> is rendered
- * as a block atom. Add a dashed outline so authors can see / select it,
- * and apply mix-blend-mode so the editor preview matches PHB output.
- */
 .phb-editor :deep(.ProseMirror img[data-type="watercolor"]) {
   outline: 1px dashed color-mix(in srgb, currentColor 40%, transparent);
   outline-offset: 2px;
@@ -1641,12 +579,6 @@ select {
   mix-blend-mode: multiply;
 }
 
-/* ── Watermark: editor placeholder ───────────────────────────── */
-/*
- * The watermark wrapper is `position:absolute` in the rendered output, which
- * collapses to nothing in the flat ProseMirror flow. Render it as a labelled
- * inline block so authors can see and select it.
- */
 .phb-editor :deep(.ProseMirror div[data-type="watermark"]) {
   position: static !important;
   display: block;
@@ -1664,7 +596,6 @@ select {
   opacity: 0.45;
 }
 
-/* ── Artist credit: editor placeholder ───────────────────────── */
 .phb-editor :deep(.ProseMirror div[data-type="artistCredit"]) {
   position: static !important;
   display: block;
@@ -1677,33 +608,6 @@ select {
   opacity: 0.65;
 }
 
-/* ── Decoration in PHB preview ───────────────────────────────── */
-/*
- * .phb-page is position:relative — absolutely-positioned children from
- * the renderHTML inline styles will anchor there correctly.
- * No further overrides needed: all positioning is driven by inline styles
- * emitted by each node's renderHTML method.
- */
-.phb-body :deep(img[data-type="watercolor"]) {
-  mix-blend-mode: multiply;
-}
-
-/* ── Wide block ──────────────────────────────────────────────── */
-
-/*
- * Preview: column-span:all escapes the CSS multi-column flow so the
- * container spans the full page width. In single-column documents the
- * property is a no-op — identical rendering to a normal block.
- */
-.phb-body :deep(.sc-wide) {
-  column-span: all;
-  margin: 0.75rem 0;
-}
-
-/*
- * Editor: dashed outline so authors can see the wide block boundary.
- * The "wide" label appears at the top-left corner.
- */
 .phb-editor :deep(.ProseMirror .sc-wide) {
   outline: 1px dashed color-mix(in srgb, currentColor 35%, transparent);
   outline-offset: 3px;
@@ -1724,21 +628,6 @@ select {
   pointer-events: none;
 }
 
-/* ── Cover page ──────────────────────────────────────────────── */
-/*
- * A cover page node is an atom that fills its own physical page.  In the
- * PHB preview each .phb-page is an independent div, so the cover simply
- * occupies the page that holds it.  In the editor the atom is rendered
- * inline as a selectable block with a labelled dashed outline so authors
- * can see and click it.
- *
- * The cover node's renderHTML uses only inline styles + CSS variables from
- * the palette contract, so both themes render correctly without any
- * selector overrides here.  The rules below handle only the editor
- * preview representation.
- */
-
-/* Editor: show as a tall labeled block so the variant is identifiable */
 .phb-editor :deep(.ProseMirror div[data-type="coverPage"]) {
   position: relative;
   display: block;
@@ -1764,75 +653,10 @@ select {
   pointer-events: none;
   white-space: nowrap;
 }
-/* Suppress the absolutely-positioned children inside the editor atom so
-   they don't overflow the dashed box or collide with sibling content. */
 .phb-editor :deep(.ProseMirror div[data-type="coverPage"] > *) {
   display: none;
 }
 
-/* Preview: cover fills its .phb-page parent which is already
-   position:relative.  The node's renderHTML places its children with
-   position:absolute / inset:0 relative to that ancestor.  We just
-   make the cover wrapper itself position:absolute and full-bleed so
-   the absolutely-positioned children anchor correctly. */
-.phb-body :deep(div[data-type="coverPage"]) {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-}
-
-/* Back cover and front cover variants suppress the running page-number
-   footer. The pageFooters computed already returns null for these pages,
-   so .sc-footer is not rendered — this rule is a belt-and-suspenders guard
-   in case CSS :has() ever needs to do it independently. */
-.phb-page:has(div[data-type="coverPage"][data-variant="back"]) .sc-footer,
-.phb-page:has(div[data-type="coverPage"][data-variant="front"]) .sc-footer {
-  display: none;
-}
-
-/* ── Page footer bar ──────────────────────────────────────────── */
-
-.sc-footer {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 68px; /* matches PDF RENDER_CSS */
-  font-family: var(--sc-body-font);
-  font-size: 12px; /* matches PDF RENDER_CSS */
-  color: var(--sc-accent);
-  box-sizing: border-box;
-}
-
-.sc-footer-text {
-  font-style: italic;
-  font-variant: small-caps;
-}
-
-.sc-footer-num {
-  font-weight: 600;
-}
-
-/* Recto (right-hand, odd page number): # on right, no left # */
-.sc-footer--recto .sc-footer-num--left {
-  display: none;
-}
-/* Verso (left-hand, even page number): # on left, no right # */
-.sc-footer--verso .sc-footer-num--right {
-  display: none;
-}
-
-/* ── Skip / Reset counting chips (editor only) ────────────────── */
-
-/*
- * In the ProseMirror editor these atom nodes render as small labelled chips
- * so authors can see and select them. In the preview they are hidden via
- * sc-skip-counting / sc-reset-counting display:none below.
- */
 .phb-editor :deep(.ProseMirror .sc-skip-counting),
 .phb-editor :deep(.ProseMirror .sc-reset-counting) {
   display: inline-flex;
@@ -1856,17 +680,6 @@ select {
   content: "reset \2116";
 }
 
-/* Preview: marker atoms are invisible — zero height, no display */
-.phb-body :deep(.sc-skip-counting),
-.phb-body :deep(.sc-reset-counting) {
-  display: none;
-}
-
-/* ── Table of Contents ───────────────────────────────────────── */
-
-/*
- * Editor: atom placeholder — dashed outline with descriptive label.
- */
 .phb-editor :deep(.ProseMirror nav[data-type="toc"]) {
   display: block;
   border: 1px dashed color-mix(in srgb, currentColor 35%, transparent);
@@ -1883,99 +696,15 @@ select {
   content: "Table of Contents (auto-generated on preview)";
 }
 
-/*
- * Preview: rendered TOC — two-column list with dotted leaders.
- * All colours consumed from the palette contract (--sc-* vars)
- * so both themes render correctly.
- */
-.phb-body :deep(.sc-toc) {
-  font-family: var(--sc-body-font);
-  color: var(--sc-ink);
-  margin: 0.75rem 0 1rem;
-}
-.phb-body :deep(.sc-toc-heading) {
-  font-family: var(--sc-heading-font);
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--sc-accent);
-  border-bottom: 2px solid var(--sc-accent);
-  padding-bottom: 0.2rem;
-  margin: 0 0 0.75rem;
-  letter-spacing: 0.03em;
-}
-.phb-body :deep(.sc-toc-list) {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  column-count: 2;
-  column-gap: 1.5rem;
-}
-.phb-body :deep(.sc-toc-item) {
-  break-inside: avoid;
-  margin: 0.2rem 0;
-}
-.phb-body :deep(.sc-toc-h2) {
-  padding-left: 1rem;
-  font-size: 0.875em;
-}
-.phb-body :deep(.sc-toc-h3) {
-  padding-left: 2rem;
-  font-size: 0.8125em;
-  font-style: italic;
-}
-.phb-body :deep(.sc-toc-link) {
-  display: flex;
-  align-items: baseline;
-  gap: 0.25rem;
-  text-decoration: none;
-  color: var(--sc-ink);
-}
-.phb-body :deep(.sc-toc-link:hover) {
-  color: var(--sc-accent);
-}
-.phb-body :deep(.sc-toc-text) {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: clip;
-  flex-shrink: 1;
-  min-width: 0;
-}
-.phb-body :deep(.sc-toc-leader) {
-  flex: 1 1 auto;
-  border-bottom: 1px dotted color-mix(in srgb, var(--sc-ink) 40%, transparent);
-  align-self: flex-end;
-  margin-bottom: 0.2em;
-  min-width: 0.75rem;
-}
-.phb-body :deep(.sc-toc-page) {
-  flex-shrink: 0;
-  font-weight: 600;
-  color: var(--sc-accent);
-  min-width: 1.5rem;
-  text-align: right;
-}
-.phb-body :deep(.sc-toc-empty) {
-  color: color-mix(in srgb, var(--sc-ink) 50%, transparent);
-  font-style: italic;
-  font-size: 0.875em;
-}
-
-/* ── Class progression table (.sc-class-table) ───────────────── */
-/*
- * Applied to the Tiptap table node in all four class table templates.
- * Palette driven by CSS variables — both themes render correctly.
- */
-.phb-body :deep(.sc-class-table),
 .phb-editor :deep(.ProseMirror .sc-class-table) {
   width: 100%;
   border-collapse: collapse;
   font-family: var(--sc-body-font, Georgia, serif);
-  font-size: 0.6875rem; /* #241: reduced from 0.8125rem to fit 14-col table */
+  font-size: 0.6875rem;
   color: var(--sc-ink, #1a1a1a);
   line-height: 1.3;
   margin: 0.75rem 0;
 }
-.phb-body :deep(.sc-class-table th),
 .phb-editor :deep(.ProseMirror .sc-class-table th) {
   font-family: var(--sc-heading-font, "Cinzel", Georgia, serif);
   font-size: 0.75rem;
@@ -1987,106 +716,62 @@ select {
   background: var(--sc-accent, #1b3a4b);
   padding: 0.3rem 0.5rem;
   border: 1px solid var(--sc-accent, #1b3a4b);
-  white-space: normal; /* #241: allow header text to wrap */
+  white-space: normal;
   min-width: 0;
 }
-.phb-body :deep(.sc-class-table td),
 .phb-editor :deep(.ProseMirror .sc-class-table td) {
   text-align: center;
   padding: 0.2rem 0.4rem;
-  border: 1px solid
-    color-mix(in srgb, var(--sc-accent, #1b3a4b) 30%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sc-accent, #1b3a4b) 30%, transparent);
   vertical-align: middle;
 }
-.phb-body :deep(.sc-class-table td p),
 .phb-editor :deep(.ProseMirror .sc-class-table td p),
-.phb-body :deep(.sc-class-table th p),
 .phb-editor :deep(.ProseMirror .sc-class-table th p) {
   margin: 0;
 }
-.phb-body :deep(.sc-class-table tr:nth-child(odd) td),
 .phb-editor :deep(.ProseMirror .sc-class-table tr:nth-child(odd) td) {
   background: color-mix(in srgb, var(--sc-accent, #1b3a4b) 8%, transparent);
 }
-.phb-body :deep(.sc-class-table td:first-child),
 .phb-editor :deep(.ProseMirror .sc-class-table td:first-child) {
   font-weight: 700;
 }
 
-/* ── Callout block CSS variables ─────────────────────────────── */
-/*
- * Type-specific colour knobs for note / descriptive / quote blocks.
- * Defaults = OneDnD 2024 (teal family); classic overrides in .theme-phb2014.
- *
- * --sc-callout-note-bg       background fill of .sc-note
- * --sc-callout-note-border   accent border colour for .sc-note
- * --sc-callout-desc-bg       background fill of .sc-descriptive
- * --sc-callout-desc-border   accent border colour for .sc-descriptive
- * --sc-callout-quote-color   italic body text colour for .sc-quote
- * --sc-callout-attr-color    attribution line text colour
- */
-.phb-body.theme-onednd2024,
-.phb-body.theme-phb2014,
-.phb-page.theme-onednd2024,
-.phb-page.theme-phb2014 {
-  --sc-callout-note-bg: var(--sc-callout-bg);
-  --sc-callout-note-border: var(--sc-callout-border);
-  --sc-callout-desc-bg: color-mix(
-    in srgb,
-    var(--sc-accent) 12%,
-    var(--sc-page-bg)
-  );
-  --sc-callout-desc-border: var(--sc-accent);
-  --sc-callout-quote-color: var(--sc-ink);
-  --sc-callout-attr-color: color-mix(
-    in srgb,
-    var(--sc-accent) 80%,
-    var(--sc-ink)
-  );
+.phb-editor :deep(.ProseMirror .sc-ability-table th) {
+  background: color-mix(in srgb, var(--sc-accent) 8%, transparent);
 }
 
-/* Classic theme callout overrides */
-.phb-body.theme-phb2014,
-.phb-page.theme-phb2014 {
-  --sc-callout-note-bg: #e0e5c1;
-  --sc-callout-note-border: var(--sc-accent);
-  --sc-callout-desc-bg: #ddd8c4;
-  --sc-callout-desc-border: var(--sc-accent);
-  --sc-callout-attr-color: var(--sc-accent);
+.phb-editor :deep(.ProseMirror .sc-ability-table--2024 td.sc-abil-name),
+.phb-editor :deep(.ProseMirror .sc-ability-table--2024 thead th:not(.sc-abil-gap)) {
+  background: color-mix(in srgb, currentColor 30%, transparent);
+  font-weight: 700;
+  font-variant: small-caps;
+}
+.phb-editor :deep(.ProseMirror .sc-ability-table--2024 .sc-abil-gap) {
+  width: 1rem;
+  border: none;
+  background: transparent;
 }
 
-/* ── Note block ───────────────────────────────────────────────── */
-
-/* Preview */
-.phb-body :deep(.sc-note) {
-  background: var(--sc-callout-note-bg);
-  border-left: 3px solid var(--sc-callout-note-border);
-  border-radius: 0 4px 4px 0;
-  padding: 0.6rem 0.875rem;
-  margin: 0.875rem 0;
-}
-.phb-body :deep(.sc-note p) {
-  margin: 0 0 0.4rem;
-  font-size: 0.875em;
-  font-style: italic;
-}
-.phb-body :deep(.sc-note p:last-child) {
-  margin-bottom: 0;
+.phb-editor :deep(.ProseMirror .sc-img-wrap--absolute) {
+  outline: 2px dashed oklch(0.7 0.15 250 / 0.6);
+  outline-offset: 2px;
 }
 
-/* Classic: double rule top + bottom, no left border */
-.phb-body.theme-phb2014 :deep(.sc-note) {
-  border-left: none;
-  border-top: 2px double var(--sc-callout-note-border);
-  border-bottom: 2px double var(--sc-callout-note-border);
-  border-radius: 0;
-  padding: 0.5rem 0.875rem;
+.phb-editor :deep(.ProseMirror .ProseMirror-selectednode),
+.phb-editor :deep(.ProseMirror img.ProseMirror-selectednode) {
+  outline: 2px solid oklch(0.6 0.2 250);
+  outline-offset: 2px;
 }
 
-/* Editor */
+.phb-editor :deep(.ProseMirror [data-type="spacer-v"].ProseMirror-selectednode),
+.phb-editor :deep(.ProseMirror [data-type="spacer-h"].ProseMirror-selectednode) {
+  outline: 2px solid oklch(0.6 0.2 250);
+  outline-offset: 0px;
+  background: oklch(0.6 0.2 250 / 0.2);
+}
+
 .phb-editor :deep(.ProseMirror .sc-note) {
-  border-left: 3px solid
-    color-mix(in srgb, var(--primary, currentColor) 60%, transparent);
+  border-left: 3px solid color-mix(in srgb, var(--primary, currentColor) 60%, transparent);
   background: color-mix(in srgb, var(--primary, currentColor) 8%, transparent);
   border-radius: 0 4px 4px 0;
   padding: 0.5rem 0.75rem;
@@ -2096,35 +781,8 @@ select {
   font-style: italic;
 }
 
-/* ── Descriptive block ────────────────────────────────────────── */
-
-/* Preview */
-.phb-body :deep(.sc-descriptive) {
-  background: var(--sc-callout-desc-bg);
-  border: 2px solid var(--sc-callout-desc-border);
-  border-radius: 4px;
-  padding: 0.875rem 1rem;
-  margin: 0.875rem 0;
-  font-style: italic;
-}
-.phb-body :deep(.sc-descriptive p) {
-  margin: 0 0 0.5rem;
-  font-style: italic; /* restore italic overridden by the general p rule */
-}
-.phb-body :deep(.sc-descriptive p:last-child) {
-  margin-bottom: 0;
-}
-
-/* Classic: heavier border, square corners */
-.phb-body.theme-phb2014 :deep(.sc-descriptive) {
-  border-radius: 0;
-  border-width: 3px;
-}
-
-/* Editor */
 .phb-editor :deep(.ProseMirror .sc-descriptive) {
-  border: 2px solid
-    color-mix(in srgb, var(--primary, currentColor) 50%, transparent);
+  border: 2px solid color-mix(in srgb, var(--primary, currentColor) 50%, transparent);
   background: color-mix(in srgb, var(--primary, currentColor) 6%, transparent);
   border-radius: 4px;
   padding: 0.75rem;
@@ -2132,37 +790,6 @@ select {
   font-style: italic;
 }
 
-/* ── IconQuote block ──────────────────────────────────────────────── */
-
-/* Preview */
-.phb-body :deep(.sc-quote) {
-  padding: 0.375rem 1rem;
-  margin: 0.875rem 0;
-  color: var(--sc-callout-quote-color);
-  font-style: italic;
-}
-.phb-body :deep(.sc-quote p) {
-  margin: 0 0 0.35rem;
-  font-style: italic; /* restore italic overridden by the general p rule */
-}
-.phb-body :deep(.sc-quote p:last-child) {
-  margin-bottom: 0;
-}
-
-/* Attribution — em-dash via pseudo so empty attribution renders cleanly */
-.phb-body :deep(.sc-attribution) {
-  font-style: normal;
-  font-variant: small-caps;
-  font-size: 0.875em;
-  color: var(--sc-callout-attr-color);
-  margin: 0.35rem 0 0;
-  letter-spacing: 0.02em;
-}
-.phb-body :deep(.sc-attribution::before) {
-  content: "\2014\00A0";
-}
-
-/* Editor */
 .phb-editor :deep(.ProseMirror .sc-quote) {
   border-left: 2px solid color-mix(in srgb, currentColor 30%, transparent);
   padding: 0.25rem 0.75rem;
@@ -2178,163 +805,5 @@ select {
 }
 .phb-editor :deep(.ProseMirror .sc-attribution::before) {
   content: "\2014\00A0";
-}
-
-/* ── Ability score table ────────────────────────────────────────── */
-/* Two-row borderless table: header row (STR/DEX/…) + value row */
-.phb-body :deep(.sc-ability-table) {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-  margin: 6px 0 8px;
-  font-family: var(--sc-body-font);
-  font-size: 0.875em;
-}
-.phb-body :deep(.sc-ability-table th) {
-  font-family: var(--sc-heading-font);
-  font-size: 0.875em;
-  font-variant: small-caps;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-align: center;
-  color: var(--sc-accent);
-  padding: 1px 2px 3px;
-  border: none;
-  background: transparent;
-}
-.phb-body :deep(.sc-ability-table td) {
-  text-align: center;
-  padding: 1px 2px;
-  border: none;
-  color: var(--sc-ink);
-}
-/* Classic 2014: a thin rule under the header row mirrors PHB layout */
-.phb-body.theme-phb2014 :deep(.sc-ability-table th) {
-  border-bottom: 1px solid var(--sc-accent);
-}
-/* Editor placeholder styling */
-.phb-editor :deep(.ProseMirror .sc-ability-table th) {
-  background: color-mix(in srgb, var(--sc-accent) 8%, transparent);
-}
-
-/* ── 2024 ability table variant ──────────────────────────────────────────── */
-/*
- * Nine-column layout: 4 cols (name + Score + Mod + IconSave) · 1 gap col ·
- * 4 cols (name + Score + Mod + IconSave) — mirrors the D&D Beyond 2024 layout.
- *
- * .sc-abil-name  — ability name cell (STR/DEX/… label + accent background)
- * .sc-abil-gap   — invisible spacer column between the two panels
- */
-.phb-body :deep(.sc-ability-table--2024) {
-  table-layout: auto;
-}
-/* Full header row (all non-gap th) gets accent fill — matches D&D Beyond layout */
-.phb-body :deep(.sc-ability-table--2024 thead th:not(.sc-abil-gap)) {
-  background: var(--sc-accent);
-  color: var(--sc-accent-contrast);
-  font-family: var(--sc-heading-font);
-  font-size: 0.6875rem;
-  font-variant: small-caps;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-align: center;
-  padding: 4px 6px;
-  border: none;
-  white-space: nowrap;
-}
-/* Body ability-name cells (td.sc-abil-name) also get accent fill */
-.phb-body :deep(.sc-ability-table--2024 tbody td.sc-abil-name) {
-  background: var(--sc-accent);
-  color: var(--sc-accent-contrast);
-  font-family: var(--sc-heading-font);
-  font-size: 0.75rem;
-  font-weight: 700;
-  font-variant: small-caps;
-  letter-spacing: 0.05em;
-  text-align: center;
-  padding: 3px 8px;
-  border: none;
-  white-space: nowrap;
-}
-/* Data cells (body score/mod/save columns) */
-.phb-body
-  :deep(.sc-ability-table--2024 tbody td:not(.sc-abil-gap):not(.sc-abil-name)) {
-  font-size: 0.875rem;
-  text-align: center;
-  padding: 2px 4px;
-  color: var(--sc-ink);
-  border-bottom: 1px solid color-mix(in srgb, var(--sc-accent) 15%, transparent);
-}
-/* Gap column — invisible separator between the two panels */
-.phb-body :deep(.sc-ability-table--2024 .sc-abil-gap) {
-  width: 1rem;
-  border: none !important;
-  background: transparent !important;
-  padding: 0;
-}
-
-/* Editor: same color treatment in the ProseMirror view */
-.phb-editor :deep(.ProseMirror .sc-ability-table--2024 td.sc-abil-name),
-.phb-editor
-  :deep(.ProseMirror .sc-ability-table--2024 thead th:not(.sc-abil-gap)) {
-  background: color-mix(in srgb, currentColor 30%, transparent);
-  font-weight: 700;
-  font-variant: small-caps;
-}
-.phb-editor :deep(.ProseMirror .sc-ability-table--2024 .sc-abil-gap) {
-  width: 1rem;
-  border: none;
-  background: transparent;
-}
-
-/* ── Image layout modes ─────────────────────────────────────────── */
-/* Wrap-left: float image left, text flows around the right edge */
-.phb-body :deep(.sc-img-wrap--wrapLeft) {
-  float: left;
-  shape-outside: margin-box;
-  margin: 0 1em 1em 0;
-  clear: left;
-}
-/* Wrap-right: float image right, text flows around the left edge */
-.phb-body :deep(.sc-img-wrap--wrapRight) {
-  float: right;
-  shape-outside: margin-box;
-  margin: 0 0 1em 1em;
-  clear: right;
-}
-/* Bleed variants extend image into the column gutter */
-.phb-body :deep(.sc-img-wrap--wrapLeft.sc-img-wrap--gutter) {
-  margin-left: -3em;
-}
-.phb-body :deep(.sc-img-wrap--wrapRight.sc-img-wrap--gutter) {
-  margin-right: -3em;
-}
-/* Absolute: positioned relative to .phb-page (already position:relative) */
-.phb-body :deep(.sc-img-wrap--absolute) {
-  position: absolute;
-  z-index: 10;
-}
-/* Editor: show a subtle outline on absolute images so they're discoverable */
-.phb-editor :deep(.ProseMirror .sc-img-wrap--absolute) {
-  outline: 2px dashed oklch(0.7 0.15 250 / 0.6);
-  outline-offset: 2px;
-}
-
-/* Selection ring — shown on any selected atom node (image, spacer, etc).
-   ProseMirror adds .ProseMirror-selectednode to the top-level wrapper of
-   the selected atom node, so this covers .sc-img-wrap divs and bare <img>. */
-.phb-editor :deep(.ProseMirror .ProseMirror-selectednode),
-.phb-editor :deep(.ProseMirror img.ProseMirror-selectednode) {
-  outline: 2px solid oklch(0.6 0.2 250);
-  outline-offset: 2px;
-}
-
-/* #244: Spacer nodes are zero-height; use background fill so the ring is visible. */
-.phb-editor :deep(.ProseMirror [data-type="spacer-v"].ProseMirror-selectednode),
-.phb-editor
-  :deep(.ProseMirror [data-type="spacer-h"].ProseMirror-selectednode) {
-  outline: 2px solid oklch(0.6 0.2 250);
-  outline-offset: 0px;
-  background: oklch(0.6 0.2 250 / 0.2);
 }
 </style>

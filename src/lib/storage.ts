@@ -143,6 +143,13 @@ export const BUCKETS = {
     public: true,
     generateVariants: false,
   },
+  soundImages: {
+    id: "sound-images",
+    maxBytes: FIVE_MB,
+    mimeTypes: IMAGE_MIMES,
+    public: true,
+    generateVariants: false, // Displayed as small thumbnails; no FocalImage variants needed
+  },
   chronicle: {
     id: "chronicle",
     maxBytes: FIVE_MB,
@@ -217,6 +224,9 @@ export async function uploadToBucket({
   upsert = false,
 }: UploadParams): Promise<string | null> {
   const cfg = BUCKETS[bucket];
+  if (blob.size === 0) {
+    throw new Error(`${cfg.id}: file is empty (0 bytes) — nothing to upload`);
+  }
   if (blob.size > cfg.maxBytes) {
     throw new Error(
       `${cfg.id}: file is ${(blob.size / 1024 / 1024).toFixed(1)} MB, max ${(cfg.maxBytes / 1024 / 1024).toFixed(0)} MB`,

@@ -1,10 +1,12 @@
 import { computed, isRef } from "vue";
 import type { Ref, ComputedRef } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
+import { storeToRefs } from "pinia";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Item, ItemInsert, ItemUpdate } from "@/types/item.types";
 import { deleteByPublicUrl } from "@/lib/storage";
 import { useSrdArtDefaults } from "@/composables/useSrdArtDefaults";
+import { useCampaignStore } from "@/stores/campaign";
 
 interface ItemSource {
   slug: string;
@@ -96,15 +98,26 @@ export function useItemSources() {
   return useQuery({ queryKey: [SOURCES_KEY], queryFn: fetchItemSources, staleTime: Infinity });
 }
 
-export function useItems() {
+export interface UseItemsOptions {
+  /** When true, return all items regardless of campaign scope. Default false: filtered to general + active campaign. */
+  includeAllScopes?: boolean;
+}
+
+export function useItems(getOptions?: () => UseItemsOptions) {
   const itemsQuery = useQuery({ queryKey: [QUERY_KEY], queryFn: fetchItems, staleTime: Infinity });
   const artDefaults = useSrdArtDefaults();
+  const { activeCampaignId } = storeToRefs(useCampaignStore());
 
   const data = computed(() => {
     const items = itemsQuery.data.value;
     const defaults = artDefaults.data.value;
-    if (!items || !defaults) return items;
-    return items.map((item) => {
+    if (!items) return items;
+    const opts = getOptions?.() ?? {};
+    const scopeFiltered = opts.includeAllScopes
+      ? items
+      : items.filter((i) => i.campaign_id === null || i.campaign_id === activeCampaignId.value);
+    if (!defaults) return scopeFiltered;
+    return scopeFiltered.map((item) => {
       if (item.image_url || !item.source) return item;
       const d = defaults[`item:${item.name.toLowerCase()}`];
       if (!d?.image_url) return item;

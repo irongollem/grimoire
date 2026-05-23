@@ -2,10 +2,11 @@ import { computed, ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { storeToRefs } from "pinia";
 import { supabase } from "@/lib/supabase";
-import { uploadToBucket, deleteFromBucket } from "@/lib/storage";
+import { uploadToBucket, deleteFromBucket, removeByPublicUrl } from "@/lib/storage";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { toOpus } from "@/lib/mediaConvert";
+import { useImageUpload } from "@/composables/useImageUpload";
 import type { Sound, SoundInsert, SoundUpdate } from "@/types/sound.types";
 
 const QUERY_KEY = "sounds";
@@ -44,11 +45,19 @@ async function updateSound(id: string, update: SoundUpdate): Promise<Sound> {
   return data as Sound;
 }
 
-async function deleteSound(sound: Sound): Promise<void> {
+async function deleteSound(sound: Sound, currentUserId: string): Promise<void> {
   const { error } = await supabase.from("sounds").delete().eq("id", sound.id);
   if (error) throw error;
-  if (sound.storage_path) {
-    await deleteFromBucket("sounds", [sound.storage_path]);
+  // Only the file's owner removes the underlying objects. If a shared-campaign
+  // viewer ever gains a way to "remove" a sound from their view, that should
+  // drop their reference, not the uploads that everyone else still points at.
+  if (sound.user_id === currentUserId) {
+    if (sound.storage_path) {
+      await deleteFromBucket("sounds", [sound.storage_path]);
+    }
+    if (sound.thumbnail_url) {
+      await removeByPublicUrl("soundImages", sound.thumbnail_url);
+    }
   }
 }
 
@@ -98,9 +107,10 @@ export function useUpdateSound() {
 export function useDeleteSound() {
   const qc = useQueryClient();
   const { activeCampaignId } = storeToRefs(useCampaignStore());
+  const auth = useAuthStore();
 
   return useMutation({
-    mutationFn: (sound: Sound) => deleteSound(sound),
+    mutationFn: (sound: Sound) => deleteSound(sound, auth.user!.id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY, activeCampaignId.value] });
     },
@@ -202,4 +212,16 @@ export function useSoundUpload() {
   }
 
   return { isBusy, statusText, isConverting, isUploading, upload, remove };
+}
+
+// ── Thumbnail upload ──────────────────────────────────────────────────────
+//
+// Uploads a cover-art image for a sound to the sound-images bucket.
+// Images are converted to WebP by useImageUpload before upload.
+// The public URL is stored in sounds.thumbnail_url; no storage path is
+// persisted because removeByPublicUrl() can derive it from the URL.
+
+export function useSoundThumbnailUpload() {
+  const { isUploading, uploadError, upload, remove } = useImageUpload("sound-images");
+  return { isUploading, uploadError, upload, remove };
 }

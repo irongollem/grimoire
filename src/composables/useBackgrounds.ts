@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
-import { type Ref } from "vue";
+import { computed, type Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Background, BackgroundInsert, BackgroundUpdate } from "@/types/background.types";
 import { removeStorageImages } from "@/composables/useImageUpload";
@@ -53,6 +53,16 @@ async function deleteBackground(bg: Background): Promise<void> {
 
 export function useBackgrounds() {
   return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchBackgrounds, staleTime: Infinity });
+}
+
+/** Returns a Map<background_id, background_name> for fast inline lookups. */
+export function useBackgroundNameMap() {
+  const { data } = useBackgrounds();
+  return computed(() => {
+    const m = new Map<string, string>();
+    for (const bg of data.value ?? []) m.set(bg.id, bg.name);
+    return m;
+  });
 }
 
 export function useBackground(id: Ref<string>) {

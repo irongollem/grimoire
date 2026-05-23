@@ -139,7 +139,7 @@
          enter full-edit just to restock. -->
     <section v-if="isStoreType" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Store</h2>
-      <StoreInventory :location-id="location.id" :owner-npc-id="location.npc_owner_id ?? null" />
+      <StoreInventory :location-id="location.id" :owner-npc-name="ownerNpcName" />
     </section>
 
     <!-- People in the Area — NPCs whose location is this or any descendant. -->
@@ -240,7 +240,7 @@ import {
   useDeleteLocation,
   getPinnableDescendants,
 } from "@/composables/useLocations";
-import { useNpcsByLocations } from "@/composables/useNpcs";
+import { useNpcs, useNpcsByLocations } from "@/composables/useNpcs";
 import { useEncountersByLocation } from "@/composables/useEncounters";
 import { useParty } from "@/composables/useParty";
 import {
@@ -337,6 +337,11 @@ const hasDescription = computed(() => {
 });
 
 const isStoreType = computed(() => STORE_LOCATION_TYPES.has(props.location.location_type));
+
+const { data: allNpcs } = useNpcs();
+const ownerNpcName = computed(
+  () => allNpcs.value?.find((n) => n.id === props.location.npc_owner_id)?.name ?? null,
+);
 
 // ── Delete ──────────────────────────────────────────────────────────────────
 const { mutateAsync: deleteLocation } = useDeleteLocation();

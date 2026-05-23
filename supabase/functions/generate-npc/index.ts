@@ -10,6 +10,7 @@ import {
   validatePromptInput,
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
+import { buildLabelledImagePrompt, buildSimpleImagePrompt } from "../_shared/image-prompt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -362,11 +363,11 @@ serve(async (req: Request) => {
   const imgModel = imgModelConfig ?? (imageProvider === "falai" ? "fal-ai/flux-2/flex" : "gpt-image-1.5");
 
   if (generateImage && npcData.true_portrait_prompt) {
-    const imagePrompt = [
-      `Style: ${imageBasePrompt}`,
-      campaign.ai_setting_prompt ? `Setting: ${campaign.ai_setting_prompt}` : null,
-      `Subject: ${npcData.true_portrait_prompt}`,
-    ].filter(Boolean).join("\n");
+    const imagePrompt = buildLabelledImagePrompt({
+      base: imageBasePrompt,
+      setting: campaign.ai_setting_prompt ?? "",
+      subject: npcData.true_portrait_prompt,
+    });
 
     try {
       if (imageProvider === "falai" && falaiKey) {
@@ -385,9 +386,11 @@ serve(async (req: Request) => {
 
     // Alter-ego disguise uses OpenAI edit — skip if using fal.ai (no edit endpoint)
     if (imageProvider !== "falai" && generateAlterEgo && portrait_b64 && npcData.disguise_image_prompt && openaiKey) {
-      const disguisePrompt = [imageBasePrompt, campaign.ai_setting_prompt, npcData.disguise_image_prompt]
-        .filter(Boolean)
-        .join(" — ");
+      const disguisePrompt = buildSimpleImagePrompt({
+        base: imageBasePrompt,
+        setting: campaign.ai_setting_prompt ?? "",
+        subject: npcData.disguise_image_prompt,
+      });
       try {
         const { b64 } = await openaiImageEdit(openaiKey, imgModel, portrait_b64, disguisePrompt, "1024x1536");
         disguise_portrait_b64 = b64;

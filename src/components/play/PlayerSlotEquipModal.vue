@@ -1,0 +1,102 @@
+<template>
+  <Transition name="fade">
+    <div
+      v-if="slot"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      @click.self="emit('close')"
+    >
+      <div class="bg-card border border-border rounded-xl shadow-xl p-5 w-80 max-h-[80vh] overflow-y-auto space-y-3">
+        <p class="font-cinzel text-sm font-semibold text-foreground tracking-wider capitalize">
+          {{ slotLabel }} Slot
+        </p>
+
+        <!-- Currently equipped in this slot -->
+        <div
+          v-if="slotItem"
+          class="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 flex items-center justify-between gap-2"
+        >
+          <span class="font-fell text-sm text-foreground flex-1 min-w-0 truncate">{{ slotItem.name }}</span>
+          <button
+            class="shrink-0 font-cinzel text-2xs md:text-sm text-destructive hover:opacity-70"
+            @click="emit('unequip')"
+          >
+            Remove
+          </button>
+        </div>
+        <p v-else class="font-fell text-xs text-muted-foreground italic">
+          Nothing equipped here.
+        </p>
+
+        <!-- Items that can go in this slot (owned, not equipped elsewhere) -->
+        <div v-if="candidates.length">
+          <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-widest uppercase mb-1.5">
+            Equip from inventory
+          </p>
+          <button
+            v-for="item in candidates"
+            :key="item.id"
+            class="w-full text-left px-3 py-1.5 rounded-md hover:bg-muted/40 font-fell text-sm text-foreground transition-colors"
+            @click="emit('equip', item)"
+          >
+            {{ item.name }}
+          </button>
+        </div>
+        <p v-else class="font-fell text-xs text-muted-foreground italic">
+          No items available to equip here.
+        </p>
+
+        <button
+          class="w-full mt-1 font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors"
+          @click="emit('close')"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </Transition>
+</template>
+
+<script setup lang="ts">
+import { computed } from "vue";
+import type { PartyInventoryItem, InventorySlot } from "@/types/inventory.types";
+
+const { slot, slotItem, candidates } = defineProps<{
+  slot: InventorySlot | null;
+  slotItem: PartyInventoryItem | null;
+  candidates: PartyInventoryItem[];
+}>();
+
+const emit = defineEmits<{
+  equip: [item: PartyInventoryItem];
+  unequip: [];
+  close: [];
+}>();
+
+const SLOT_LABELS: Record<InventorySlot, string> = {
+  head: "Head",
+  neck: "Neck",
+  shoulders: "Shoulders",
+  body: "Body",
+  clothes: "Clothes",
+  hands: "Gloves",
+  ring: "Ring",
+  waist: "Waist",
+  feet: "Boots",
+  main_hand: "Main Hand",
+  off_hand: "Off Hand",
+  other: "Other",
+};
+
+const slotLabel = computed(() => (slot ? SLOT_LABELS[slot] : ""));
+</script>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>

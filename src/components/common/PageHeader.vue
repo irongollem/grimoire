@@ -1,52 +1,66 @@
 <template>
   <!--
-    On mobile: sits inside <main overflow-y-auto>; the sticky header sticks to
-    the top of <main> as the user scrolls.
-
-    On desktop: <main> is overflow-hidden flex-col. This component takes flex-1
+    This component takes flex-1
     (when it has body content), dividing itself into:
-      • a non-scrolling header section (title, actions, divider, optional sticky slot)
+      • a non-scrolling header section (title, actions, divider, optional header slot)
       • a flex-1 overflow-y-auto body — the real scroll container for page content
 
-    The NpcDetail left-column sticky trick works because sticky top-0 inside
-    the body div sticks to the top of *this* scroll container, not the page.
-
-    The optional `sidebar` slot (desktop only) renders to the right of the body
-    in its own overflow-y-auto column. On mobile it stacks below the body.
+    The optional `sidebar` slot renders to the right of the body on desktop.
+    On mobile it stacks below the body inside the same scroll container.
   -->
-  <div :class="['lg:flex lg:flex-col lg:min-h-0', $slots.default ? 'lg:flex-1' : '']">
-    <!-- Header section — sticky on mobile, static on desktop -->
-    <div class="sticky top-0 z-20 bg-background px-4 pt-4 md:px-6 md:pt-6">
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <h1 class="font-cinzel text-2xl md:text-3xl font-bold text-foreground tracking-wide">
+  <div
+    :class="[
+      'max-w-full min-w-0 overflow-x-hidden',
+      $slots.default ? 'flex h-full min-h-0 flex-1 flex-col' : '',
+    ]"
+  >
+    <!-- Header section -->
+    <div class="max-w-full min-w-0 bg-background px-4 pt-4 md:px-6 md:pt-6">
+      <div
+        class="flex min-w-0 max-w-full flex-col gap-2 lg:flex-row lg:items-start lg:justify-between lg:gap-4"
+      >
+        <div class="min-w-0 max-w-full">
+          <h1
+            class="wrap-break-word font-cinzel text-2xl md:text-3xl font-bold text-foreground tracking-wide"
+          >
             {{ title }}
           </h1>
-          <p v-if="description" class="font-fell text-muted-foreground mt-1 italic">
+          <p
+            v-if="description"
+            class="wrap-break-word font-fell text-muted-foreground mt-1 italic"
+          >
             {{ description }}
           </p>
         </div>
-        <div class="flex items-center gap-2 shrink-0">
+        <div
+          v-if="$slots.actions"
+          class="flex w-full min-w-0 flex-wrap items-center gap-2 lg:w-auto lg:shrink-0 lg:justify-end"
+        >
           <slot name="actions" />
         </div>
       </div>
       <div class="gold-divider mt-4" />
-      <div v-if="$slots['sticky']" class="py-3">
-        <slot name="sticky" />
+      <div v-if="$slots['header-extra']" class="py-3">
+        <slot name="header-extra" />
       </div>
       <div v-else class="pb-4" />
     </div>
 
     <!-- Body + optional sidebar (only rendered when default slot has content) -->
-    <div v-if="$slots.default" class="lg:flex lg:flex-1 lg:overflow-hidden lg:min-h-0">
+    <div
+      v-if="$slots.default"
+      class="min-h-0 max-w-full min-w-0 flex-1 overflow-x-hidden overflow-y-auto lg:flex lg:overflow-hidden"
+    >
       <!-- Scrollable body -->
-      <div class="px-4 pb-4 md:px-6 md:pb-6 lg:flex-1 lg:overflow-y-auto lg:min-h-0">
+      <div
+        class="min-w-0 max-w-full px-4 pb-4 md:px-6 md:pb-6 lg:min-h-0 lg:flex-1 lg:overflow-y-auto"
+      >
         <slot />
       </div>
       <!-- Optional sidebar — desktop only; stacks below body on mobile -->
       <aside
         v-if="$slots.sidebar"
-        class="px-4 pb-4 md:px-6 md:pb-6 lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-l lg:border-border lg:px-4 lg:py-4"
+        class="min-w-0 max-w-full px-4 pb-4 md:px-6 md:pb-6 lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-l lg:border-border lg:px-4 lg:py-4"
       >
         <slot name="sidebar" />
       </aside>

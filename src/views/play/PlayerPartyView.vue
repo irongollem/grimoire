@@ -27,120 +27,21 @@
           />
         </div>
         <template v-for="entry in sortedParty" :key="entry.data.id">
-          <!-- Party member card -->
-          <div
+          <PlayerPartyMemberCard
             v-if="entry.kind === 'member'"
-            class="flex flex-col rounded-lg border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
-            :class="entry.data.id === auth.linkedPartyMemberId ? 'border-primary/40' : 'border-border'"
+            :member="entry.data"
+            :is-own="entry.data.id === auth.linkedPartyMemberId"
+            :show-numeric-hp="showNumericHp(entry.data)"
+            :subtitle="memberSubtitle(entry.data)"
             @click="openMember(entry.data)"
-          >
-            <div class="relative aspect-3/4 bg-muted overflow-hidden shrink-0 group">
-              <FocalImage
-                :src="entry.data.portrait_url"
-                :alt="entry.data.name"
-                format="portrait"
-                :focal-point="entry.data.portrait_focal_point ?? null"
-                placeholder="/assets/placeholders/character.webp"
-                class="group-hover:scale-105 transition-transform duration-300"
-              />
-              <span
-                v-if="entry.data.id === auth.linkedPartyMemberId"
-                class="absolute top-2 left-2 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded bg-primary text-primary-foreground tracking-wider"
-              >You</span>
-            </div>
-            <div class="p-2.5 flex flex-col gap-1.5">
-              <div>
-                <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ entry.data.name }}</h3>
-                <p class="font-fell text-xs text-muted-foreground italic truncate">
-                  {{ [getDisplayRace(entry.data, speciesNameMap.get(entry.data.species_id ?? '') ?? null, viewerMemberId, viewerIsDm), entry.data.class].filter(Boolean).join(' ') }}
-                  <span v-if="entry.data.level" class="font-cinzel not-italic text-primary ml-1">Lv{{ entry.data.level }}</span>
-                </p>
-              </div>
-              <div>
-                <template v-if="showNumericHp(entry.data)">
-                  <div class="flex items-center justify-between mb-0.5">
-                    <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">HP</span>
-                    <span class="font-cinzel text-2xs md:text-sm" :class="hpColor(entry.data)">{{ entry.data.current_hp }} / {{ entry.data.max_hp }}</span>
-                  </div>
-                  <div class="h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div class="h-full rounded-full transition-all" :class="hpBarColor(entry.data)"
-                      :style="{ width: `${Math.max(0, Math.min(100, (entry.data.current_hp / entry.data.max_hp) * 100))}%` }" />
-                  </div>
-                </template>
-                <template v-else>
-                  <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">HP</span>
-                  <p class="font-fell text-xs italic" :class="hpColor(entry.data)">{{ immersiveHpLabel(entry.data) }}</p>
-                </template>
-              </div>
-              <div class="flex items-center gap-2 flex-wrap">
-                <span class="flex items-center gap-1">
-                  <IconShield class="h-3 w-3 text-muted-foreground shrink-0" />
-                  <span class="font-cinzel text-xs font-bold text-foreground">{{ entry.data.ac }}</span>
-                </span>
-                <span
-                  v-for="cond in (entry.data.conditions ?? []).slice(0, 2)" :key="cond"
-                  class="font-cinzel text-2xs md:text-sm px-1 py-0.5 rounded bg-destructive/10 text-destructive tracking-wider"
-                >{{ cond }}</span>
-                <span v-if="(entry.data.conditions?.length ?? 0) > 2" class="font-fell text-2xs md:text-sm text-muted-foreground italic">
-                  +{{ (entry.data.conditions?.length ?? 0) - 2 }}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Companion card -->
-          <div
+          />
+          <PlayerPartyCompanionCard
             v-else
-            class="flex flex-col rounded-lg border border-border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
+            :companion="entry.data"
+            :owner-name="ownerName(entry.data)"
+            :show-numeric-hp="showCompanionNumericHp(entry.data)"
             @click="openCompanion(entry.data)"
-          >
-            <div class="relative aspect-3/4 bg-muted overflow-hidden shrink-0 group">
-              <FocalImage
-                :src="entry.data.portrait_url"
-                :alt="entry.data.name"
-                format="portrait"
-                :focal-point="entry.data.portrait_focal_point ?? null"
-                placeholder="/assets/placeholders/companion.webp"
-                class="group-hover:scale-105 transition-transform duration-300"
-              />
-              <span
-                class="absolute top-2 right-2 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded tracking-wider text-white"
-                :style="{ backgroundColor: COMPANION_TYPE_COLORS[entry.data.companion_type] + 'CC' }"
-              >{{ COMPANION_TYPE_LABELS[entry.data.companion_type] }}</span>
-            </div>
-            <div class="p-2.5 flex flex-col gap-1.5">
-              <div>
-                <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ entry.data.name }}</h3>
-                <p class="font-fell text-xs text-muted-foreground italic truncate">{{ ownerName(entry.data) || 'Party companion' }}</p>
-              </div>
-              <div>
-                <template v-if="showCompanionNumericHp(entry.data)">
-                  <div class="flex items-center justify-between mb-0.5">
-                    <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">HP</span>
-                    <span class="font-cinzel text-2xs md:text-sm" :class="companionHpColor(entry.data)">{{ entry.data.current_hp }} / {{ entry.data.max_hp }}</span>
-                  </div>
-                  <div class="h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div class="h-full rounded-full transition-all" :class="companionHpBarColor(entry.data)"
-                      :style="{ width: `${Math.max(0, Math.min(100, (entry.data.current_hp / entry.data.max_hp) * 100))}%` }" />
-                  </div>
-                </template>
-                <template v-else>
-                  <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">HP</span>
-                  <p class="font-fell text-xs italic" :class="companionHpColor(entry.data)">{{ companionImmersiveHpLabel(entry.data) }}</p>
-                </template>
-              </div>
-              <div class="flex items-center gap-2 flex-wrap">
-                <span class="flex items-center gap-1">
-                  <IconShield class="h-3 w-3 text-muted-foreground shrink-0" />
-                  <span class="font-cinzel text-xs font-bold text-foreground">{{ entry.data.ac }}</span>
-                </span>
-                <span
-                  v-for="cond in (entry.data.conditions ?? []).slice(0, 2)" :key="cond"
-                  class="font-cinzel text-2xs md:text-sm px-1 py-0.5 rounded bg-destructive/10 text-destructive tracking-wider"
-                >{{ cond }}</span>
-              </div>
-            </div>
-          </div>
+          />
         </template>
       </div>
     </section>
@@ -160,7 +61,7 @@
             <input
               v-model="ui.playerPeopleSearch"
               type="text"
-              placeholder="IconSearch people…"
+              placeholder="Search people…"
               class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
@@ -221,134 +122,14 @@
     <PartyMemberLightbox :member="selectedMember" @close="closeMember" />
 
     <!-- ── NPC lightbox ────────────────────────────────────────────────────── -->
-    <Transition name="fade">
-      <div v-if="selectedNpc" class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" @click.self="closeNpc">
-        <div class="bg-card rounded-xl border border-border w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-          <div class="relative shrink-0">
-            <div v-if="selectedNpc.player_visible_fields.includes('portrait') && selectedNpcDisplay.portrait" class="w-full h-72 overflow-hidden">
-              <FocalImage
-                :src="selectedNpcDisplay.portrait!"
-                :alt="selectedNpc.player_visible_fields.includes('name') ? selectedNpcDisplay.name : '???'"
-                format="portrait"
-                :focal-point="selectedNpcDisplay.focalPoint"
-                :lightbox="true"
-              />
-            </div>
-            <button class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors" @click="closeNpc">
-              <IconClose class="h-4 w-4" />
-            </button>
-          </div>
-          <div class="p-4 overflow-y-auto space-y-4">
-            <div>
-              <div class="flex items-start justify-between gap-3">
-                <h2 class="font-cinzel text-lg font-bold text-foreground">
-                  {{ selectedNpc.player_visible_fields.includes('name') ? selectedNpcDisplay.name : '???' }}
-                </h2>
-                <div class="flex items-center gap-0.5 shrink-0 pt-1" @click.stop>
-                  <button
-                    v-for="n in [1,2,3,4,5]"
-                    :key="n"
-                    type="button"
-                    class="text-lg leading-none transition-colors"
-                    :class="n <= (ratingMap.get(selectedNpc.id) ?? 0) ? 'text-yellow-400' : 'text-muted-foreground/25 hover:text-yellow-400/60'"
-                    :title="n === 1 ? 'Not relevant' : n === 5 ? 'Very relevant' : `Relevance ${n}`"
-                    @click="setRating(selectedNpc.id, n)"
-                  >★</button>
-                </div>
-              </div>
-              <div class="flex flex-wrap gap-2 mt-1">
-                <span v-if="selectedNpc.player_visible_fields.includes('relationship')"
-                  class="px-2 py-0.5 rounded text-xs font-cinzel font-bold tracking-wider uppercase text-white"
-                  :style="{ backgroundColor: relColor(selectedNpc.relationship) + 'CC' }">
-                  {{ selectedNpc.relationship }}
-                </span>
-                <span v-if="selectedNpc.player_visible_fields.includes('status')"
-                  class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-muted font-cinzel text-xs tracking-wider">
-                  <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: statusColor(selectedNpc.status) }" />
-                  {{ selectedNpc.status }}
-                </span>
-              </div>
-              <p v-if="selectedNpc.player_visible_fields.includes('race') && selectedNpc.race"
-                class="mt-1 font-fell text-sm text-muted-foreground italic">
-                {{ selectedNpc.race }}
-              </p>
-              <p v-if="selectedNpc.player_visible_fields.includes('occupation') && selectedNpc.occupation"
-                class="font-fell text-sm text-muted-foreground">{{ selectedNpc.occupation }}</p>
-            </div>
-            <!-- DM's per-PC relation note -->
-            <div v-if="myNpcPcNote" class="rounded-lg border border-primary/20 bg-primary/5 overflow-hidden">
-              <div class="px-3 py-2 border-b border-primary/20">
-                <p class="font-cinzel text-2xs md:text-sm font-semibold tracking-widest text-primary/70">YOUR CONNECTION</p>
-              </div>
-              <div class="px-3 py-2.5">
-                <RichTextViewer :content="myNpcPcNote" />
-              </div>
-            </div>
-            <PlayerNotesWidget v-if="selectedNpc" entity-type="npc" :entity-id="selectedNpc.id" placeholder="Your observations about this character…" />
-          </div>
-        </div>
-      </div>
-    </Transition>
+    <PlayerPartyNpcLightbox :npc="selectedNpc" @close="closeNpc" />
 
     <!-- ── Companion lightbox ──────────────────────────────────────────────── -->
-    <Transition name="fade">
-      <div v-if="selectedCompanion" class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" @click.self="closeCompanion">
-        <div class="bg-card rounded-xl border border-border w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-          <div class="relative shrink-0">
-            <div v-if="selectedCompanion.portrait_url" class="w-full h-72 overflow-hidden">
-              <FocalImage
-                :src="selectedCompanion.portrait_url"
-                :alt="selectedCompanion.name"
-                format="portrait"
-                :focal-point="selectedCompanion.portrait_focal_point ?? null"
-                :lightbox="true"
-              />
-            </div>
-            <button class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors" @click="closeCompanion">
-              <IconClose class="h-4 w-4" />
-            </button>
-            <span
-              class="absolute top-2 left-2 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded tracking-wider text-white"
-              :style="{ backgroundColor: COMPANION_TYPE_COLORS[selectedCompanion.companion_type] + 'CC' }"
-            >{{ COMPANION_TYPE_LABELS[selectedCompanion.companion_type] }}</span>
-          </div>
-          <div class="p-4 overflow-y-auto space-y-4">
-            <div>
-              <h2 class="font-cinzel text-lg font-bold text-foreground">{{ selectedCompanion.name }}</h2>
-              <p v-if="ownerName(selectedCompanion)" class="font-fell text-sm text-muted-foreground italic">
-                {{ ownerName(selectedCompanion) }}'s companion
-              </p>
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-              <div class="rounded-md bg-muted p-2.5">
-                <div class="flex items-center justify-between mb-1">
-                  <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">HP</span>
-                  <span class="font-cinzel text-sm font-bold" :class="companionHpColor(selectedCompanion)">
-                    {{ selectedCompanion.current_hp }} / {{ selectedCompanion.max_hp }}
-                  </span>
-                </div>
-                <div class="h-1.5 rounded-full bg-background overflow-hidden">
-                  <div class="h-full rounded-full transition-all" :class="companionHpBarColor(selectedCompanion)"
-                    :style="{ width: `${Math.max(0, Math.min(100, (selectedCompanion.current_hp / selectedCompanion.max_hp) * 100))}%` }" />
-                </div>
-              </div>
-              <div class="rounded-md bg-muted p-2.5 flex items-center gap-2">
-                <IconShield class="h-4 w-4 text-muted-foreground shrink-0" />
-                <div>
-                  <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">AC</p>
-                  <p class="font-cinzel text-sm font-bold text-foreground">{{ selectedCompanion.ac }}</p>
-                </div>
-              </div>
-            </div>
-            <div v-if="selectedCompanion.conditions?.length" class="flex flex-wrap gap-1.5">
-              <span v-for="cond in selectedCompanion.conditions" :key="cond"
-                class="font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded bg-destructive/10 text-destructive tracking-wider">{{ cond }}</span>
-            </div>
-            <PlayerNotesWidget v-if="selectedCompanion" entity-type="companion" :entity-id="selectedCompanion.id" placeholder="Your thoughts on this companion…" />
-          </div>
-        </div>
-      </div>
-    </Transition>
+    <PlayerPartyCompanionLightbox
+      :companion="selectedCompanion"
+      :owner-name="selectedCompanion ? ownerName(selectedCompanion) : ''"
+      @close="closeCompanion"
+    />
 
   </div>
 
@@ -357,8 +138,9 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { IconClose, IconSearch, IconShield } from '@/lib/icons';
+import { IconSearch } from "@/lib/icons";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
+import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
@@ -368,20 +150,18 @@ import { useReadItems, useMarkRead } from "@/composables/useReadItems";
 import { useAllLocations } from "@/composables/useLocations";
 import { useCompanions } from "@/composables/useCompanions";
 import { usePlayerNpcRatings } from "@/composables/usePlayerNpcRatings";
-import { useMyNpcPcNote } from "@/composables/useNpcPcNotes";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
-import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import PartyMemberLightbox from "@/components/player/PartyMemberLightbox.vue";
 import PlayerNpcCard from "@/components/play/PlayerNpcCard.vue";
-import { COMPANION_TYPE_LABELS, COMPANION_TYPE_COLORS } from "@/types/companion.types";
+import PlayerPartyMemberCard from "@/components/play/PlayerPartyMemberCard.vue";
+import PlayerPartyCompanionCard from "@/components/play/PlayerPartyCompanionCard.vue";
+import PlayerPartyNpcLightbox from "@/components/play/PlayerPartyNpcLightbox.vue";
+import PlayerPartyCompanionLightbox from "@/components/play/PlayerPartyCompanionLightbox.vue";
 import type { Companion } from "@/types/companion.types";
 import type { PartyMember } from "@/types/party.types";
-import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
+import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { getDisplayRace } from "@/lib/partyMemberDisplay";
 import { useSpeciesNameMap } from "@/composables/useSpecies";
-import type { Npc, NpcRelationship, NpcStatus } from "@/types/npc.types";
+import type { Npc } from "@/types/npc.types";
 import type { HealthVisibility } from "@/types/encounter.types";
 
 const auth = useAuthStore();
@@ -467,7 +247,7 @@ const sortedParty = computed((): PartyEntry[] => {
   return result;
 });
 
-const { getRating, setRating, ratingMap, ratingTick } = usePlayerNpcRatings(() => npcs.value ?? []);
+const { getRating, ratingTick } = usePlayerNpcRatings(() => npcs.value ?? []);
 
 const sortedNpcs = computed(() => {
   void ratingTick.value;
@@ -550,13 +330,6 @@ function closeMember() {
 
 // ── NPC lightbox ─────────────────────────────────────────────────────────────
 const selectedNpc = ref<Npc | null>(null);
-const selectedNpcId = computed(() => selectedNpc.value?.id ?? "");
-const selectedNpcDisplay = computed(() => ({
-  name: selectedNpc.value ? getNpcDisplayName(selectedNpc.value) : "???",
-  portrait: selectedNpc.value ? getNpcDisplayPortrait(selectedNpc.value) : null,
-  focalPoint: selectedNpc.value ? getNpcDisplayFocalPoint(selectedNpc.value) : null,
-}));
-const { data: myNpcPcNote } = useMyNpcPcNote(selectedNpcId);
 
 function openNpc(npc: Npc) {
   markNpcRead({ entityType: "npc", entityId: npc.id });
@@ -578,61 +351,24 @@ function ownerName(c: Companion): string {
   if (!c.owner_party_member_id) return "";
   return members.value?.find((m) => m.id === c.owner_party_member_id)?.name ?? "";
 }
-function companionHpColor(c: Companion) {
-  const pct = c.current_hp / c.max_hp;
-  return pct < 0.33 ? "text-destructive" : pct < 0.66 ? "text-amber-400" : "text-elven-green";
-}
-function companionHpBarColor(c: Companion) {
-  const pct = c.current_hp / c.max_hp;
-  return pct < 0.33 ? "bg-destructive" : pct < 0.66 ? "bg-amber-400" : "bg-elven-green";
-}
+
 function showCompanionNumericHp(c: Companion) {
   return healthVis.value === "strategic" || c.owner_party_member_id === viewerMemberId.value;
 }
-function companionImmersiveHpLabel(c: Companion) {
-  const p = (c.current_hp / c.max_hp) * 100;
-  if (p <= 0) return "Dead";
-  if (p <= 25) return "Bloodied";
-  if (p <= 50) return "Wounded";
-  if (p <= 75) return "Hurt";
-  return "Healthy";
-}
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-function hpPct(m: PartyMember) {
-  return m.max_hp === 0 ? 0 : m.current_hp / m.max_hp;
-}
-function hpColor(m: PartyMember) {
-  const p = hpPct(m);
-  return p < 0.33 ? "text-destructive" : p < 0.66 ? "text-amber-400" : "text-elven-green";
-}
-function hpBarColor(m: PartyMember) {
-  const p = hpPct(m);
-  return p < 0.33 ? "bg-destructive" : p < 0.66 ? "bg-amber-400" : "bg-elven-green";
-}
-
+// ── Member helpers ────────────────────────────────────────────────────────────
 const healthVis = computed(() =>
   (campaign.activeCampaign?.health_visibility as HealthVisibility) ?? "strategic",
 );
+
 function showNumericHp(m: PartyMember) {
   return healthVis.value === "strategic" || m.id === viewerMemberId.value;
 }
-function immersiveHpLabel(m: PartyMember) {
-  const p = hpPct(m) * 100;
-  if (p <= 0) return "Dead";
-  if (p <= 25) return "Bloodied";
-  if (p <= 50) return "Wounded";
-  if (p <= 75) return "Hurt";
-  return "Healthy";
+
+function memberSubtitle(m: PartyMember): string {
+  return [
+    getDisplayRace(m, speciesNameMap.value.get(m.species_id ?? "") ?? null, viewerMemberId.value, viewerIsDm.value),
+    m.class,
+  ].filter(Boolean).join(" ");
 }
-
-const REL_COLORS: Record<NpcRelationship, string> = { ally: "#2563eb", neutral: "#6b7280", enemy: "#dc2626", unknown: "#9333ea" };
-const STATUS_COLORS: Record<NpcStatus, string> = { alive: "#22c55e", dead: "#ef4444", missing: "#f59e0b", unknown: "#6b7280" };
-function relColor(rel: NpcRelationship) { return REL_COLORS[rel] ?? "#6b7280"; }
-function statusColor(s: NpcStatus) { return STATUS_COLORS[s] ?? "#6b7280"; }
 </script>
-
-<style scoped>
-.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
-</style>

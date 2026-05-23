@@ -88,12 +88,14 @@ export const useUiStore = defineStore("ui", () => {
   const vaultFilterType = ref<ItemType | "">("");
   const vaultFilterRarity = ref<ItemRarity | "">("");
   const vaultFilterSource = ref("");
+  /** When true, show items from every campaign instead of the default (current campaign + general). */
+  const vaultShowAllScopes = ref(false);
   const itemGeneratorOpen = ref(false);
   const puzzleGeneratorOpen = ref(false);
   const spellGeneratorOpen = ref(false);
 
   const vaultHasActiveFilters = computed(() =>
-    vaultSearch.value !== "" || vaultFilterType.value !== "" || vaultFilterRarity.value !== "" || vaultFilterSource.value !== "",
+    vaultSearch.value !== "" || vaultFilterType.value !== "" || vaultFilterRarity.value !== "" || vaultFilterSource.value !== "" || vaultShowAllScopes.value,
   );
 
   function resetVaultFilters() {
@@ -101,6 +103,7 @@ export const useUiStore = defineStore("ui", () => {
     vaultFilterType.value = "";
     vaultFilterRarity.value = "";
     vaultFilterSource.value = "";
+    vaultShowAllScopes.value = false;
   }
 
   // Trap generator
@@ -284,6 +287,9 @@ export const useUiStore = defineStore("ui", () => {
     soundboardSearchQuery.value = "";
   }
 
+  // 'sounds' = standard grid; 'playlists' = playlist panel
+  const soundboardViewMode = ref<"sounds" | "playlists">("sounds");
+
   // Player spell accordion — which levels are expanded (cantrips = 0, open by default)
   const playerSpellOpenLevels = ref<number[]>([0]);
 
@@ -445,6 +451,7 @@ export const useUiStore = defineStore("ui", () => {
     vaultFilterType,
     vaultFilterRarity,
     vaultFilterSource,
+    vaultShowAllScopes,
     vaultHasActiveFilters,
     resetVaultFilters,
     itemGeneratorOpen,
@@ -537,6 +544,7 @@ export const useUiStore = defineStore("ui", () => {
     soundboardActivePage,
     soundboardHasActiveFilters,
     resetSoundboardFilters,
+    soundboardViewMode,
 
     // Species
     speciesSearch,

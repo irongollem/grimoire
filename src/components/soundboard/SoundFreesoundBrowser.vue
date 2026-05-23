@@ -191,6 +191,8 @@ async function addHit(hit: FreesoundHit) {
       sort_order: 0,
       attribution: hit.attribution,
       attribution_url: hit.attribution_url,
+      artist: null,
+      thumbnail_url: null,
     });
     emit("saved");
   } finally {

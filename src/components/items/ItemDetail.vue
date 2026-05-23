@@ -6,37 +6,17 @@
       <!-- Left: Portrait + Tags -->
       <div class="flex flex-col gap-4">
         <!-- Portrait (tabbed: Identified / Mundane) -->
-        <div class="flex flex-col gap-0">
-          <div class="flex border-b border-border">
-            <button
-              v-for="tab in (['identified', 'mundane'] as const)"
-              :key="tab"
-              class="px-3 py-1.5 font-cinzel text-[11px] font-semibold tracking-wider border-b-2 transition-colors capitalize"
-              :class="artTab === tab
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'"
-              @click="artTab = tab"
-            >{{ tab }}</button>
-          </div>
-          <ImageUpload
-            v-if="artTab === 'identified'"
-            bucket="item-images"
-            :model-value="imageUrl || null"
-            show-focal-point
-            :focal-point="imageFocalPoint"
-            @update:model-value="imageUrl = $event ?? ''"
-            @update:focal-point="imageFocalPoint = $event"
-          />
-          <ImageUpload
-            v-else
-            bucket="item-images"
-            :model-value="mundaneImageUrl || null"
-            show-focal-point
-            :focal-point="mundaneImageFocalPoint"
-            @update:model-value="mundaneImageUrl = $event ?? ''"
-            @update:focal-point="mundaneImageFocalPoint = $event"
-          />
-        </div>
+        <EntityImageBlock
+          bucket="item-images"
+          show-focal-point
+          :model-value="artTab === 'identified' ? (imageUrl || null) : (mundaneImageUrl || null)"
+          :focal-point="artTab === 'identified' ? imageFocalPoint : mundaneImageFocalPoint"
+          :variants="[{ id: 'identified', label: 'Identified' }, { id: 'mundane', label: 'Mundane' }]"
+          :active-variant-id="artTab"
+          @update:model-value="artTab === 'identified' ? (imageUrl = $event) : (mundaneImageUrl = $event)"
+          @update:focal-point="artTab === 'identified' ? (imageFocalPoint = $event) : (mundaneImageFocalPoint = $event)"
+          @update:active-variant-id="artTab = $event as 'identified' | 'mundane'"
+        />
 
         <!-- Tags -->
         <div class="rounded-lg border border-border bg-card p-4 flex flex-col gap-3">
@@ -116,67 +96,24 @@
         </div>
 
         <!-- Weapon stats (damage + properties) -->
-        <div
+        <ItemWeaponBlock
           v-if="isWeapon && !isArtObject"
-          class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3"
-        >
-          <h3 class="font-cinzel text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
-            Weapon
-          </h3>
-          <div class="flex flex-col gap-1">
-            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Damage</span>
-            <DamageRollsInput v-model="damageRolls" />
-          </div>
-          <div class="grid grid-cols-2 gap-3">
-            <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Versatile Damage</span>
-              <DiceExprInput
-                :model-value="versatileDamage || null"
-                placeholder="e.g. 1d10"
-                @update:model-value="versatileDamage = $event ?? ''"
-              />
-            </label>
-            <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Range</span>
-              <input
-                v-model="weaponRange"
-                placeholder="e.g. 80/320 ft."
-                class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-            </label>
-          </div>
-          <div class="flex flex-col gap-2">
-            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Properties</span>
-            <div class="flex flex-wrap gap-x-4 gap-y-2">
-              <label
-                v-for="p in WEAPON_PROPERTIES"
-                :key="p"
-                class="flex items-center gap-1.5 cursor-pointer"
-              >
-                <input type="checkbox" :value="p" v-model="properties" class="rounded" />
-                <span class="font-fell text-sm text-foreground capitalize">{{ p }}</span>
-              </label>
-            </div>
-          </div>
-        </div>
+          :damage-rolls="damageRolls"
+          :properties="properties"
+          :versatile-damage="versatileDamage"
+          :weapon-range="weaponRange"
+          @update:damage-rolls="damageRolls = $event"
+          @update:properties="properties = $event"
+          @update:versatile-damage="versatileDamage = $event"
+          @update:weapon-range="weaponRange = $event"
+        />
 
         <!-- Armor stats -->
-        <div
+        <ItemArmorBlock
           v-if="isArmor && !isArtObject"
-          class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3"
-        >
-          <h3 class="font-cinzel text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
-            Defense
-          </h3>
-          <label class="flex flex-col gap-1">
-            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Armor Class</span>
-            <input
-              v-model="armorClass"
-              placeholder="e.g. 13 + DEX modifier (max 2)"
-              class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-          </label>
-        </div>
+          :armor-class="armorClass"
+          @update:armor-class="armorClass = $event"
+        />
 
         <!-- Attunement (shown for non-mundane) -->
         <div
@@ -334,6 +271,19 @@
           />
         </div>
 
+        <!-- DM notes — never shown to players -->
+        <div class="rounded-lg border border-amber-700/40 bg-amber-950/10 p-4 flex flex-col gap-2">
+          <h3 class="font-cinzel text-[11px] font-bold tracking-wider text-amber-300/80 uppercase">
+            DM Notes
+            <span class="normal-case font-fell font-normal text-muted-foreground/70"> — never shown to players</span>
+          </h3>
+          <RichTextEditor
+            v-model="dmNotes"
+            placeholder="GM-side notes, foreshadowing, structural beats this item serves…"
+            min-height="100px"
+          />
+        </div>
+
         <!-- Curse -->
         <div v-if="isMagic && !isArtObject" class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3">
           <div class="flex items-center justify-between gap-2">
@@ -356,6 +306,30 @@
               Reveal the curse to players via the party inventory panel once a player attunes or triggers it.
             </p>
           </template>
+        </div>
+
+        <!-- Scope -->
+        <div class="flex flex-col gap-2">
+          <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase">Scope</span>
+          <div class="flex gap-2">
+            <button
+              type="button"
+              class="flex-1 py-2 rounded-md border text-xs font-cinzel tracking-wide transition-colors"
+              :class="campaignId === null
+                ? 'bg-primary/15 border-primary/60 text-primary'
+                : 'border-border text-muted-foreground hover:text-foreground'"
+              @click="campaignId = null"
+            >General — all campaigns</button>
+            <button
+              type="button"
+              :disabled="!activeCampaignId && !campaignId"
+              class="flex-1 py-2 rounded-md border text-xs font-cinzel tracking-wide transition-colors disabled:opacity-40"
+              :class="campaignId !== null
+                ? 'bg-primary/15 border-primary/60 text-primary'
+                : 'border-border text-muted-foreground hover:text-foreground'"
+              @click="campaignId = campaignId ?? activeCampaignId"
+            >Campaign{{ scopeCampaignName ? ` — ${scopeCampaignName}` : '' }}</button>
+          </div>
         </div>
 
         <!-- Source -->
@@ -395,13 +369,16 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm, notify } = useConfirm();
 import { ref, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import ImageUpload from "@/components/common/ImageUpload.vue";
+import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
+import ItemWeaponBlock from "@/components/items/ItemWeaponBlock.vue";
+import ItemArmorBlock from "@/components/items/ItemArmorBlock.vue";
 import { useCreateItem, useUpdateItem, useDeleteItem } from "@/composables/useItems";
 import { useSpells } from "@/composables/useSpells";
+import { useCampaigns } from "@/composables/useCampaigns";
+import { useCampaignStore } from "@/stores/campaign";
+import { storeToRefs } from "pinia";
 import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
 import { formatItemForScriptorium } from "@/lib/scriptoriumImport";
-import DamageRollsInput from "@/components/common/DamageRollsInput.vue";
-import DiceExprInput from "@/components/common/DiceExprInput.vue";
 import WeightInput from "@/components/common/WeightInput.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
@@ -410,7 +387,6 @@ import {
   ITEM_TYPE_LABELS,
   ITEM_RARITIES,
   ITEM_RARITY_LABELS,
-  WEAPON_PROPERTIES,
   RARITY_COLORS,
   RARITY_PRICE_HINTS,
   isWeaponType,
@@ -484,6 +460,18 @@ function removeBundleItem(idx: number) {
 // ── Curse fields ──────────────────────────────────────────────────────────────
 const isCursed = ref(!!(props.item?.curse_description));
 const curseDescription = ref(props.item?.curse_description ?? "");
+
+// ── Scope + DM notes ──────────────────────────────────────────────────────────
+const campaignStore = useCampaignStore();
+const { activeCampaign, activeCampaignId } = storeToRefs(campaignStore);
+const { data: allCampaigns } = useCampaigns();
+const campaignId = ref<string | null>(props.item?.campaign_id ?? activeCampaignId.value ?? null);
+const dmNotes = ref(props.item?.dm_notes ?? "");
+const scopeCampaignName = computed(() => {
+  if (!campaignId.value) return null;
+  if (campaignId.value === activeCampaignId.value) return activeCampaign.value?.name ?? null;
+  return allCampaigns.value?.find((c) => c.id === campaignId.value)?.name ?? null;
+});
 
 // ── Magic fields ──────────────────────────────────────────────────────────────
 const requiresAttunement = ref(props.item?.requires_attunement ?? false);
@@ -573,6 +561,8 @@ function buildPayload() {
     bundle_items: isPack.value && bundleItems.value.length
       ? bundleItems.value.map(e => ({ name: e.name, quantity: e.quantity }))
       : null,
+    campaign_id: campaignId.value,
+    dm_notes: dmNotes.value.trim() ? dmNotes.value : null,
   };
 }
 

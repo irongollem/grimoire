@@ -10,6 +10,7 @@
         class="w-full bg-card border border-border rounded-md px-3 py-1.5 pr-14 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         :class="selectedLabel && !query ? 'placeholder:text-foreground' : ''"
         @focus="onFocus"
+        @click="onFocus"
         @input="open = true"
         @blur="onBlur"
         @keydown.escape="close"

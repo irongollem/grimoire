@@ -30,6 +30,7 @@
 
       <SoundboardWidgetToggle />
       <ListActionButton
+        v-if="ui.soundboardViewMode === 'sounds'"
         :icon="IconAdd"
         label="Add Sound"
         variant="primary"
@@ -39,6 +40,7 @@
 
     <template #filters>
       <ListFilterBar
+        v-if="ui.soundboardViewMode === 'sounds'"
         :has-active-filters="ui.soundboardHasActiveFilters"
         @clear="ui.resetSoundboardFilters()"
       >
@@ -52,6 +54,38 @@
       v-model="ui.soundboardActivePage"
       :pages="pages ?? []"
     />
+
+    <!-- Sounds / Playlists toggle -->
+    <div class="flex gap-1 p-1 rounded-lg bg-muted/40 border border-border/50 w-fit my-3">
+      <button
+        class="flex items-center gap-1.5 px-3 py-1 rounded-md font-cinzel text-xs tracking-wide transition-colors"
+        :class="ui.soundboardViewMode === 'sounds'
+          ? 'bg-card shadow-sm text-foreground'
+          : 'text-muted-foreground hover:text-foreground'"
+        @click="ui.soundboardViewMode = 'sounds'"
+      >
+        <IconList class="h-3.5 w-3.5" />
+        Sounds
+      </button>
+      <button
+        class="flex items-center gap-1.5 px-3 py-1 rounded-md font-cinzel text-xs tracking-wide transition-colors"
+        :class="ui.soundboardViewMode === 'playlists'
+          ? 'bg-card shadow-sm text-foreground'
+          : 'text-muted-foreground hover:text-foreground'"
+        @click="ui.soundboardViewMode = 'playlists'"
+      >
+        <IconListOrdered class="h-3.5 w-3.5" />
+        Playlists
+      </button>
+    </div>
+
+    <!-- Playlists panel -->
+    <PlaylistsPanel
+      v-if="ui.soundboardViewMode === 'playlists'"
+      :page-id="ui.soundboardActivePage"
+    />
+
+    <template v-else>
 
     <AddSoundDialog
       :open="showForm"
@@ -117,12 +151,14 @@
         </div>
       </VueDraggable>
     </template>
+
+    </template> <!-- end v-else sounds view -->
   </ListPageLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from "vue";
-import { IconAdd, IconDrag, IconMusicNote } from '@/lib/icons';
+import { IconAdd, IconDrag, IconMusicNote, IconList, IconListOrdered } from '@/lib/icons';
 import { VueDraggable } from "vue-draggable-plus";
 import { useSounds, useDeleteSound, useReorderSounds, useBulkAssignToPage } from "@/composables/useSounds";
 import { useSoundboardPages, useCreateSoundboardPage } from "@/composables/useSoundboardPages";
@@ -143,6 +179,7 @@ import AddSoundDialog from "@/components/soundboard/AddSoundDialog.vue";
 import SoundCategoryFilter from "@/components/soundboard/SoundCategoryFilter.vue";
 import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
 import SoundboardPageTabs from "@/components/soundboard/SoundboardPageTabs.vue";
+import PlaylistsPanel from "@/components/soundboard/PlaylistsPanel.vue";
 
 const ui = useUiStore();
 const soundboardStore = useSoundboardStore();

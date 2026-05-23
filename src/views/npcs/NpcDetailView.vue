@@ -6,78 +6,65 @@
     <template #actions>
       <!-- View / Edit toggle (existing NPCs only) -->
       <template v-if="!isNewNpc">
-        <button
+        <PageHeaderAction
           v-if="!isEditing"
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+          label="Edit"
+          :icon="IconEdit"
           @click="startEditing"
-        >
-          <IconEdit class="h-3.5 w-3.5" />
-          Edit
-        </button>
-        <button
+        />
+        <PageHeaderAction
           v-else
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+          label="View"
+          :icon="IconDocument"
           @click="stopEditing"
-        >
-          <IconReveal class="h-3.5 w-3.5" />
-          View
-        </button>
+        />
       </template>
 
       <!-- Edit-mode actions (only when editing and NpcDetail is mounted) -->
       <template v-if="isEditing && npcDetail">
-        <button
+        <PageHeaderAction
           v-if="npc?.id"
-          type="button"
-          class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 transition-colors"
+          label="Delete"
+          :icon="IconDelete"
+          variant="destructive"
           @click="npcDetail.confirmDelete()"
-        >
-          Delete
-        </button>
-        <button
+        />
+        <PageHeaderAction
           v-if="npc?.id"
-          type="button"
+          :label="npcDetail.isSendingToScriptorium ? 'Exporting…' : 'Scriptorium'"
+          :title="npcDetail.isSendingToScriptorium ? 'Exporting…' : 'Send to Scriptorium'"
           :disabled="npcDetail.isSendingToScriptorium"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-50"
+          :icon="IconScrollText"
           @click="npcDetail.sendToScriptorium()"
-        >
-          <IconScrollText class="h-3.5 w-3.5" />
-          {{ npcDetail.isSendingToScriptorium ? 'Exporting…' : 'Scriptorium' }}
-        </button>
+        />
         <PlayerVisibilityToggle
           v-if="npc?.id"
           :visible-to="npcDetail.form.player_visible_to"
           @update:visible-to="npcDetail.form.player_visible_to = $event"
         />
-        <button
+        <PageHeaderAction
           v-if="npc?.id && (npcDetail.form.disguise_name || npcDetail.form.disguise_portrait_url)"
-          type="button"
-          class="flex items-center gap-1.5 px-2.5 py-1.5 font-cinzel text-[10px] font-semibold tracking-wider rounded border transition-colors"
-          :class="npcDetail.form.is_revealed
-            ? 'border-amber-500/50 text-amber-500 bg-amber-500/10 hover:bg-amber-500/20'
-            : 'border-border text-muted-foreground hover:border-foreground/40'"
+          :label="npcDetail.form.is_revealed ? 'Revealed' : 'Concealed'"
+          :title="npcDetail.form.is_revealed ? 'Revealed' : 'Concealed'"
+          :icon="npcDetail.form.is_revealed ? IconReveal : IconHide"
           @click="npcDetail.form.is_revealed = !npcDetail.form.is_revealed"
-        >{{ npcDetail.form.is_revealed ? '✦ Revealed' : '◈ Concealed' }}</button>
-        <button
+        />
+        <PageHeaderAction
           v-if="npcDetail.isAiEnabled"
-          type="button"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-primary/40 text-primary rounded-md hover:bg-primary/10 transition-colors"
+          label="Generate"
+          :icon="IconGenerate"
           @click="npcDetail.showGenerateDialog = true"
-        >
-          <IconGenerate class="h-3.5 w-3.5" />
-          Generate
-        </button>
+        />
         <!-- form= attribute submits the NpcDetail form from outside it -->
-        <button
+        <PageHeaderAction
           type="submit"
           form="npc-detail-form"
           :disabled="npcDetail.isSaving"
-          class="px-4 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-        >
-          {{ npcDetail.isSaving ? 'Saving…' : (npc?.id ? 'Save Changes' : 'Create NPC') }}
-        </button>
+          :label="npcDetail.isSaving ? 'Saving…' : (npc?.id ? 'Save Changes' : 'Create NPC')"
+          :mobile-label="npcDetail.isSaving ? 'Saving…' : (npc?.id ? 'Save' : 'Create')"
+          variant="primary"
+          :hide-label-on-mobile="false"
+        />
       </template>
     </template>
 
@@ -99,10 +86,11 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconEdit, IconGenerate, IconReveal, IconScrollText } from '@/lib/icons';
+import { IconDelete, IconDocument, IconEdit, IconGenerate, IconHide, IconReveal, IconScrollText } from '@/lib/icons';
 import { useNpc } from "@/composables/useNpcs";
 import { useRecentNpcs } from "@/composables/useRecentNpcs";
 import PageHeader from "@/components/common/PageHeader.vue";
+import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import NpcDetail from "@/components/npcs/NpcDetail.vue";
 import NpcSheet from "@/components/npcs/NpcSheet.vue";

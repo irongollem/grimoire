@@ -33,6 +33,7 @@ The Vault is the DM's master catalog of all equipment and magic items available 
 - Item type (weapon, armor, shield, ring, wand, staff, scroll, potion, gear, ammunition, art object, other)
 - Rarity (mundane, common, uncommon, rare, very rare, legendary)
 - Source (dynamically populated from items in the DB)
+- "Show items from all campaigns" checkbox — by default the list is filtered to general items (`campaign_id IS NULL`) plus items scoped to the active campaign; toggling it on returns the full catalog.
 
 **Import** — "Import SRD Items" button triggers a one-shot import from the Open5e API plus built-in local datasets (`data/gear.ts`, `data/provisions.ts`, `data/services.ts`, `data/ammunition.ts`). Re-importing is idempotent: new items are inserted, existing ones have source metadata and tags refreshed but user-added art and descriptions are preserved.
 
@@ -52,7 +53,9 @@ The Vault is the DM's master catalog of all equipment and magic items available 
 - **Linked Spells** (non-mundane items only) — search and multi-select spells from the Spellbook to associate with this item (e.g. a staff that can cast specific spells).
 - **Mundane Description** (non-mundane items only) — rich text field shown to players before identification.
 - **Description** — rich text full item description shown after identification.
+- **DM Notes** — rich text amber-bordered panel **never shown to players**. Use for GM-side asides, structural beats, foreshadowing. Rendered DM-side in ItemSheet when present.
 - **Curse** (non-mundane items only) — toggle + rich text curse description. The hint reminds the DM to reveal the curse via the party inventory panel once triggered.
+- **Scope** — two-button toggle: "General — all campaigns" (`campaign_id IS NULL`) vs "Campaign — *active campaign name*" (`campaign_id = active`). New items default to the active campaign; SRD imports stay general. The Vault list and every downstream `useItems()` caller (chat search, store inventory, crafting recipes, NPC inventory, encounters, loot tables, quests, party inventory) filter by this scope unless `includeAllScopes` is opted in.
 - **Source** — freeform text for custom items; read-only link for Open5e imports.
 
 **View mode** (`/vault/:id` without `?edit=true`) — renders `ItemSheet`, a clean reading layout with tabbed identified/mundane art, a stat block panel (type, rarity, weight, cost, damage, armor class, attunement, charges, properties), linked spells list, and the rich text description.
@@ -65,7 +68,7 @@ The Vault is the DM's master catalog of all equipment and magic items available 
 - "Clone" — duplicates the item.
 - "Delete" — confirmation prompt then removal (also deletes associated storage images).
 
-**Filter state** — search, type, rarity, and source filters are persisted in `useUiStore` (`vaultSearch`, `vaultFilterType`, `vaultFilterRarity`, `vaultFilterSource`) so they survive navigation within a session.
+**Filter state** — search, type, rarity, source, and the "show all scopes" toggle are persisted in `useUiStore` (`vaultSearch`, `vaultFilterType`, `vaultFilterRarity`, `vaultFilterSource`, `vaultShowAllScopes`) so they survive navigation within a session.
 
 ---
 

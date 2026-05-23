@@ -62,8 +62,11 @@ export interface TrackerTriggers {
 }
 
 export interface DmButton {
-  label: string;      // "Add Exposure", "Warm Up", "Reset Sanity"
-  delta: number;      // tracker delta when pressed
+  label: string;           // "Add Exposure", "Warm Up", "Reset Sanity"
+  mode?: "delta" | "set"; // "delta" = change by amount (default), "set" = snap to exact value
+  delta: number;           // used when mode is "delta"
+  setValue?: number;       // used when mode is "set"
+  playerVisible?: boolean; // when true, button also appears in the player portal
 }
 
 export interface TrackerDef {
@@ -79,6 +82,7 @@ export interface TrackerDef {
 export interface Rule {
   id: string;
   user_id: string;
+  campaign_id: string | null;
   title: string;
   content: object | null;   // Tiptap JSON
   category: string | null;
@@ -89,7 +93,7 @@ export interface Rule {
   updated_at: string;
 }
 
-export type RuleInsert = Omit<Rule, "id" | "user_id" | "created_at" | "updated_at">;
+export type RuleInsert = Omit<Rule, "id" | "user_id" | "campaign_id" | "created_at" | "updated_at">;
 export type RuleUpdate = Partial<RuleInsert>;
 
 // ── Per-character tracker state ───────────────────────────────────────────────

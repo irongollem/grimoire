@@ -2,7 +2,7 @@
   <div class="flex flex-col gap-6">
     <div class="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
       <!-- Left: image(s) -->
-      <div class="flex flex-col gap-3 lg:sticky lg:top-6">
+      <div class="flex flex-col gap-3">
         <!-- Tabbed art (identified / mundane) when both exist; otherwise single image -->
         <template v-if="item.image_url && item.mundane_image_url">
           <div class="flex border-b border-border mb-1">
@@ -70,6 +70,10 @@
           <div v-if="displayCost" class="flex justify-between">
             <span class="text-muted-foreground">Cost</span>
             <span>{{ displayCost }}</span>
+          </div>
+          <div v-if="!playerView" class="flex justify-between">
+            <span class="text-muted-foreground">Scope</span>
+            <span class="font-bold">{{ scopeLabel }}</span>
           </div>
         </div>
         <div v-if="item.tags?.length" class="flex flex-wrap gap-1">
@@ -190,6 +194,17 @@
           <RichTextViewer :content="item.curse_description" />
         </div>
 
+        <!-- DM notes (never shown to players) -->
+        <div
+          v-if="item.dm_notes && !playerView"
+          class="rounded-lg border border-amber-700/40 bg-amber-950/10 p-4 flex flex-col gap-2"
+        >
+          <h3 class="font-cinzel text-xs font-bold tracking-wider text-amber-300/80 uppercase">
+            DM Notes
+          </h3>
+          <RichTextViewer :content="item.dm_notes" />
+        </div>
+
         <div
           v-if="item.source"
           class="font-stat text-[13px] text-muted-foreground italic"
@@ -256,6 +271,7 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { useLootTablesByItem } from "@/composables/useLootTables";
 import { useItemHolders } from "@/composables/useItemHolders";
+import { useCampaigns } from "@/composables/useCampaigns";
 import {
   ITEM_TYPE_LABELS,
   ITEM_RARITY_LABELS,
@@ -273,8 +289,14 @@ const props = defineProps<{
 
 const containedIn = useLootTablesByItem(computed(() => props.item.id));
 const { data: holders } = useItemHolders(computed(() => props.item.id));
+const { data: allCampaigns } = useCampaigns();
 
 const sheetArtTab = ref<'identified' | 'mundane'>('identified');
+
+const scopeLabel = computed(() => {
+  if (!props.item.campaign_id) return "General";
+  return allCampaigns.value?.find((c) => c.id === props.item.campaign_id)?.name ?? "Campaign";
+});
 
 const rarityColor = computed(
   () => RARITY_COLORS[props.item.rarity] ?? "#888888",

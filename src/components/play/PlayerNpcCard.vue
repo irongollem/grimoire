@@ -22,11 +22,7 @@
       <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
         <IconUser class="h-10 w-10" />
       </div>
-      <span
-        v-if="isNew"
-        class="absolute top-1.5 left-1.5 z-10 h-2.5 w-2.5 rounded-full bg-destructive"
-        title="New"
-      />
+      <EntityNewDot :is-new="isNew ?? false" class="absolute top-1.5 left-1.5 z-10" />
       <span
         v-if="npc.player_visible_fields.includes('relationship')"
         class="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] font-cinzel font-bold tracking-wider uppercase text-white"
@@ -71,9 +67,10 @@
 import { computed } from "vue";
 import { IconUser } from '@/lib/icons';
 import FocalImage from "@/components/common/FocalImage.vue";
+import EntityNewDot from "@/components/common/EntityNewDot.vue";
 import { usePlayerNpcRatings } from "@/composables/usePlayerNpcRatings";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
-import type { Npc, NpcRelationship, NpcStatus } from "@/types/npc.types";
+import { NPC_RELATIONSHIP_COLORS, type Npc, type NpcRelationship, type NpcStatus } from "@/types/npc.types";
 
 const props = defineProps<{
   npc: Npc;
@@ -95,12 +92,9 @@ const rating = computed(() => {
   return getRating(props.npc.id);
 });
 
-const REL_COLORS: Record<NpcRelationship, string> = {
-  ally: "#2563eb", neutral: "#6b7280", enemy: "#dc2626", unknown: "#9333ea",
-};
 const STATUS_COLORS: Record<NpcStatus, string> = {
   alive: "#22c55e", dead: "#ef4444", missing: "#f59e0b", unknown: "#6b7280",
 };
-function relColor(rel: NpcRelationship) { return REL_COLORS[rel] ?? "#6b7280"; }
+function relColor(rel: NpcRelationship) { return NPC_RELATIONSHIP_COLORS[rel] ?? "#6b7280"; }
 function statusColor(s: NpcStatus) { return STATUS_COLORS[s] ?? "#6b7280"; }
 </script>

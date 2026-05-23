@@ -19,6 +19,7 @@ import {
   IconPopulate,
   IconQuest,
   IconScrollText,
+  IconBookUser,
   IconSettingsAlt,
   IconShield,
   IconSpecies,
@@ -208,6 +209,12 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/scriptorium",
         icon: IconQuest,
         description: "Craft & export documents",
+      },
+      {
+        label: "Character Sheet",
+        to: "/party",
+        icon: IconBookUser,
+        description: "Export printable character sheets (select a party member)",
       },
       {
         label: "Card Forge",

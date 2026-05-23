@@ -72,6 +72,14 @@
           </div>
           <span class="flex-1 truncate font-fell text-xs">{{ userEmail }}</span>
           <button
+            v-if="canInstall"
+            class="hover:text-foreground transition-colors"
+            :title="hasNativePrompt ? 'Install app' : 'Open your browser menu → Add to Home Screen'"
+            @click="hasNativePrompt && install()"
+          >
+            <IconDownload class="h-4 w-4" />
+          </button>
+          <button
             class="hover:text-foreground transition-colors"
             title="Sign out"
             @click="handleSignOut"
@@ -87,7 +95,8 @@
 <script setup lang="ts">
 import { computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconClose, IconLogOut, IconShieldCheck } from '@/lib/icons';
+import { IconClose, IconDownload, IconLogOut, IconShieldCheck } from '@/lib/icons';
+import { usePwaInstall } from "@/composables/usePwaInstall";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { NAV_GROUPS } from "@/lib/nav";
@@ -99,6 +108,7 @@ const auth = useAuthStore();
 const ui = useUiStore();
 const router = useRouter();
 const route = useRoute();
+const { canInstall, hasNativePrompt, install } = usePwaInstall();
 
 // Close drawer on any navigation (handles campaign switcher, settings link, etc.)
 watch(() => route.path, () => { if (ui.mobileNavOpen) ui.toggleMobileNav(); });

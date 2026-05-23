@@ -18,6 +18,7 @@ import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { logUsage } from "@/composables/useAiCredits";
 import { OPENAI_IMAGE_MODEL_KEY } from "./providers";
+import { buildLabelledImagePrompt, buildSimpleImagePrompt } from "./imagePrompt";
 
 interface GenerateNpcResponse extends NpcAiResult {
   portrait_b64: string | null;
@@ -221,13 +222,11 @@ export function useNpcGeneration() {
       startAiQuotes("image");
 
       const imageProvider = getImageProvider();
-      const imagePrompt = [
-        `Style: ${imageBasePrompt}`,
-        settingPrompt ? `Setting: ${settingPrompt}` : null,
-        `Subject: ${npcData.true_portrait_prompt}`,
-      ]
-        .filter(Boolean)
-        .join("\n");
+      const imagePrompt = buildLabelledImagePrompt({
+        base: imageBasePrompt,
+        setting: settingPrompt,
+        subject: npcData.true_portrait_prompt,
+      });
 
       let portraitB64: string | null = null;
       try {
@@ -250,9 +249,11 @@ export function useNpcGeneration() {
         imageProvider.edit &&
         auth.user
       ) {
-        const disguisePrompt = [imageBasePrompt, settingPrompt, npcData.disguise_image_prompt]
-          .filter(Boolean)
-          .join(" — ");
+        const disguisePrompt = buildSimpleImagePrompt({
+          base: imageBasePrompt,
+          setting: settingPrompt,
+          subject: npcData.disguise_image_prompt,
+        });
         try {
           const { b64: disguiseB64, usage: disguiseUsage } = await imageProvider.edit(
             b64ToBlob(portraitB64),

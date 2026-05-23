@@ -1,0 +1,699 @@
+/* ============================================================
+   Character Sheet — .cs-* taxonomy
+   Stable, semantic, prefixed API — forward-compat with
+   user-uploaded CSS themes (#423/E).
+   All rules are scoped via .cs-page ancestor.
+   ============================================================ */
+
+/* ── Design tokens (override per theme) ────────────────────── */
+
+.cs-page {
+  /* Backgrounds */
+  --cs-bg:          #ede1c8;
+  --cs-bg-card:     #faf5e9;
+  --cs-bg-section:  rgba(250, 245, 233, 0.7);
+
+  /* Ink */
+  --cs-ink:         #1c1208;
+  --cs-ink-mid:     #4a3020;
+  --cs-ink-label:   #7a5c40;
+  --cs-ink-muted:   #a08060;
+
+  /* Accent — deep burgundy */
+  --cs-accent:      #6b1e2e;
+  --cs-accent-text: #f5e6cc;
+  --cs-accent-soft: rgba(107, 30, 46, 0.08);
+
+  /* Borders */
+  --cs-border:      #8b4a2a;
+  --cs-border-gold: #b08840;
+  --cs-border-light:#d4b888;
+
+  /* Typography */
+  --cs-font-body:   'Crimson Pro', Georgia, serif;
+  --cs-font-head:   'Cinzel', 'Palatino Linotype', serif;
+}
+
+/* ── Page shell ─────────────────────────────────────────────── */
+
+.cs-page {
+  width: 794px;
+  min-height: 1123px;
+  background:
+    /* Subtle vertical texture stripes */
+    repeating-linear-gradient(
+      to right,
+      transparent 0px,
+      transparent 3px,
+      rgba(0,0,0,0.007) 3px,
+      rgba(0,0,0,0.007) 4px
+    ),
+    /* Warm gradient base */
+    linear-gradient(170deg, #f2e4c0 0%, #ede1c8 45%, #e4d4b8 100%);
+  font-family: var(--cs-font-body);
+  color: var(--cs-ink);
+  padding: 18px 22px 22px;
+  box-sizing: border-box;
+  line-height: 1.35;
+  font-size: 11px;
+  /* Outer frame: thin double border to suggest a bound tome */
+  outline: 2px solid var(--cs-border);
+  outline-offset: -4px;
+  border: 1.5px solid var(--cs-border-gold);
+}
+
+/* ── Header ──────────────────────────────────────────────────── */
+
+.cs-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--cs-border);
+  margin-bottom: 11px;
+  position: relative;
+}
+
+/* Ornamental rule inside header bottom border */
+.cs-header::after {
+  content: "";
+  position: absolute;
+  bottom: -5px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--cs-border-light);
+}
+
+.cs-header-name-block {
+  flex: 1;
+  min-width: 0;
+}
+
+.cs-character-name {
+  font-family: var(--cs-font-head);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  color: var(--cs-accent);
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cs-header-meta {
+  font-size: 9.5px;
+  color: var(--cs-ink-mid);
+  margin-top: 5px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 4px;
+  align-items: baseline;
+  line-height: 1.4;
+}
+
+.cs-meta-item {
+  white-space: nowrap;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cs-meta-label {
+  font-family: var(--cs-font-head);
+  font-size: 7px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--cs-ink-label);
+  margin-right: 2px;
+}
+
+.cs-meta-sep {
+  color: var(--cs-border-light);
+  font-size: 11px;
+}
+
+.cs-portrait-wrap {
+  width: 72px;
+  height: 90px;
+  flex-shrink: 0;
+  border: 2px solid var(--cs-border);
+  border-radius: 2px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25), inset 0 0 0 1px var(--cs-border-light);
+}
+
+.cs-portrait {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+
+/* ── Body layout ─────────────────────────────────────────────── */
+
+.cs-body {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+}
+
+.cs-left-col {
+  width: 218px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.cs-right-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+/* ── Section wrapper ─────────────────────────────────────────── */
+
+.cs-section {
+  border: 1.5px solid var(--cs-border-light);
+  border-radius: 2px;
+  background: var(--cs-bg-section);
+  overflow: hidden; /* so header spans full width */
+}
+
+/* Section header — dark band with cream text */
+.cs-section-title {
+  font-family: var(--cs-font-head);
+  font-size: 7px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--cs-accent-text);
+  background: var(--cs-accent);
+  padding: 3px 8px;
+  margin: 0; /* flush to section edge */
+}
+
+.cs-section-body {
+  padding: 6px 8px;
+}
+
+.cs-subsection-title {
+  font-family: var(--cs-font-head);
+  font-size: 6.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--cs-ink-label);
+  border-bottom: 0.5px solid var(--cs-border-light);
+  padding-bottom: 2px;
+  margin-bottom: 3px;
+}
+
+/* ── Ability scores ──────────────────────────────────────────── */
+
+.cs-ability-scores {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+}
+
+.cs-ability-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1.5px solid var(--cs-border);
+  border-radius: 3px;
+  padding: 5px 3px 4px;
+  background: var(--cs-bg-card);
+  position: relative;
+}
+
+/* Tiny burgundy top notch on each ability box */
+.cs-ability-score::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 50%; transform: translateX(-50%);
+  width: 18px; height: 3px;
+  background: var(--cs-accent);
+  border-radius: 0 0 2px 2px;
+}
+
+.cs-ability-modifier {
+  font-family: var(--cs-font-head);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--cs-accent);
+  margin-top: 4px;
+}
+
+.cs-ability-value {
+  font-size: 9px;
+  border: 0.5px solid var(--cs-border-light);
+  border-radius: 2px;
+  padding: 1px 5px;
+  margin: 2px 0;
+  min-width: 22px;
+  text-align: center;
+  background: white;
+  color: var(--cs-ink-mid);
+}
+
+.cs-ability-label {
+  font-size: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cs-ink-label);
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* ── Inspiration + proficiency ───────────────────────────────── */
+
+.cs-insp-prof-row .cs-section-body {
+  display: flex;
+  gap: 7px;
+}
+
+.cs-stat-box {
+  flex: 1;
+  border: 1.5px solid var(--cs-border-light);
+  border-radius: 2px;
+  padding: 4px;
+  background: var(--cs-bg-card);
+  text-align: center;
+}
+
+.cs-stat-box-value {
+  font-family: var(--cs-font-head);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--cs-accent);
+  line-height: 1;
+}
+
+.cs-stat-box-label {
+  font-size: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cs-ink-label);
+  margin-top: 1px;
+}
+
+/* ── Check rows (saves + skills) ─────────────────────────────── */
+
+.cs-check-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1.5px 0;
+  border-bottom: 0.5px solid rgba(212, 184, 136, 0.4);
+}
+
+.cs-check-row:last-child {
+  border-bottom: none;
+}
+
+.cs-prof-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid var(--cs-border);
+  flex-shrink: 0;
+  display: inline-block;
+  background: white;
+}
+
+.cs-prof-dot--filled {
+  background: var(--cs-accent);
+  border-color: var(--cs-accent);
+}
+
+.cs-prof-dot--expertise {
+  box-shadow: 0 0 0 2px var(--cs-accent);
+}
+
+.cs-check-bonus {
+  font-family: var(--cs-font-head);
+  font-size: 9px;
+  font-weight: 600;
+  min-width: 22px;
+  text-align: right;
+  color: var(--cs-ink);
+}
+
+.cs-check-label {
+  font-size: 9px;
+  color: var(--cs-ink-mid);
+  flex: 1;
+}
+
+.cs-check-ability {
+  font-size: 7px;
+  color: var(--cs-ink-label);
+}
+
+/* ── Passive perception ──────────────────────────────────────── */
+
+.cs-passive-row .cs-section-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cs-passive-label {
+  font-size: 8.5px;
+  color: var(--cs-ink-mid);
+  font-style: italic;
+}
+
+.cs-passive-value {
+  font-family: var(--cs-font-head);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--cs-accent);
+}
+
+/* ── Combat stats ────────────────────────────────────────────── */
+
+.cs-combat-row .cs-section-body {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.cs-combat-stat {
+  border: 1.5px solid var(--cs-border-light);
+  border-radius: 2px;
+  padding: 4px 6px;
+  background: var(--cs-bg-card);
+  text-align: center;
+  flex-shrink: 0;
+  min-width: 36px;
+}
+
+.cs-combat-stat--wide {
+  flex: 1;
+}
+
+.cs-combat-value {
+  font-family: var(--cs-font-head);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--cs-accent);
+  line-height: 1;
+}
+
+.cs-combat-label {
+  font-size: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cs-ink-label);
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+.cs-hp-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.cs-hp-block {
+  text-align: center;
+}
+
+/* ── Hit Dice + Death saves ──────────────────────────────────── */
+
+.cs-dice-saves-row .cs-section-body {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.cs-hit-dice {
+  flex-shrink: 0;
+  text-align: center;
+  min-width: 60px;
+}
+
+.cs-hit-dice-value {
+  font-family: var(--cs-font-head);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--cs-accent);
+  margin-top: 3px;
+}
+
+.cs-death-saves {
+  flex: 1;
+}
+
+.cs-death-save-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+}
+
+.cs-death-label {
+  font-size: 8px;
+  color: var(--cs-ink-mid);
+  min-width: 50px;
+}
+
+.cs-save-pip {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1.5px solid var(--cs-border);
+  display: inline-block;
+  background: white;
+}
+
+.cs-save-pip--filled { background: #2d5a1f; border-color: #2d5a1f; }
+.cs-save-pip--fail   { background: #8b1a1a; border-color: #8b1a1a; }
+
+/* ── Attacks ─────────────────────────────────────────────────── */
+
+.cs-attacks .cs-section-body {
+  padding: 5px 8px;
+}
+
+.cs-attack-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9px;
+  margin-bottom: 4px;
+}
+
+.cs-attack-th {
+  font-family: var(--cs-font-head);
+  font-size: 7px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--cs-ink-label);
+  border-bottom: 1px solid var(--cs-border-light);
+  padding: 2px 4px;
+  text-align: left;
+}
+
+.cs-attack-name-col {
+  width: 45%;
+}
+
+.cs-attack-row td {
+  padding: 3px 4px;
+  border-bottom: 0.5px solid rgba(212, 184, 136, 0.5);
+  color: var(--cs-ink-mid);
+}
+
+.cs-attack-row:last-child td {
+  border-bottom: none;
+}
+
+.cs-attack-row--blank td {
+  height: 16px;
+  border-bottom: 0.5px dashed var(--cs-border-light);
+  opacity: 0.5;
+}
+
+.cs-attack-row--blank:last-child td {
+  border-bottom: none;
+}
+
+.cs-spellcasting-stats {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 0.5px solid var(--cs-border-light);
+}
+
+.cs-spell-stat {
+  flex: 1;
+  border: 1.5px solid var(--cs-border-light);
+  border-radius: 2px;
+  padding: 4px 5px;
+  background: var(--cs-bg-card);
+  text-align: center;
+}
+
+.cs-spell-stat-value {
+  font-family: var(--cs-font-head);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cs-accent);
+}
+
+.cs-spell-stat-label {
+  font-size: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--cs-ink-label);
+  margin-top: 1px;
+}
+
+/* ── Spell slots ─────────────────────────────────────────────── */
+
+.cs-spell-slots .cs-section-body {
+  padding: 5px 8px 6px;
+}
+
+.cs-slot-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  align-items: flex-start;
+}
+
+.cs-slot-entry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.cs-slot-level {
+  font-family: var(--cs-font-head);
+  font-size: 6.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cs-ink-label);
+}
+
+.cs-slot-pips {
+  display: flex;
+  gap: 2px;
+}
+
+.cs-slot-pip {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--cs-border);
+  display: inline-block;
+  background: var(--cs-bg-card);
+}
+
+.cs-slot-pip--used {
+  background: white;
+  border-color: var(--cs-border-light);
+  opacity: 0.5;
+}
+
+/* ── Currency ────────────────────────────────────────────────── */
+
+.cs-currency .cs-section-body {
+  padding: 5px 8px 6px;
+}
+
+.cs-currency-row {
+  display: flex;
+  gap: 5px;
+}
+
+.cs-coin {
+  flex: 1;
+  border: 1.5px solid var(--cs-border-light);
+  border-radius: 2px;
+  padding: 3px 4px;
+  background: var(--cs-bg-card);
+  text-align: center;
+}
+
+.cs-coin-amount {
+  font-family: var(--cs-font-head);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--cs-accent);
+}
+
+.cs-coin-label {
+  font-size: 6.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cs-ink-label);
+}
+
+/* ── Personality ─────────────────────────────────────────────── */
+
+.cs-personality .cs-section-body {
+  padding: 5px 8px;
+}
+
+.cs-personality-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+
+.cs-trait-box {
+  border: 1.5px solid var(--cs-border-light);
+  border-radius: 2px;
+  padding: 4px 5px;
+  background: var(--cs-bg-card);
+  min-height: 46px;
+}
+
+.cs-trait-title {
+  font-family: var(--cs-font-head);
+  font-size: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--cs-ink-label);
+  border-bottom: 0.5px solid var(--cs-border-light);
+  padding-bottom: 2px;
+  margin-bottom: 2px;
+}
+
+.cs-trait-text {
+  font-size: 8.5px;
+  color: var(--cs-ink-mid);
+  line-height: 1.4;
+}
+
+/* ── Other proficiencies ─────────────────────────────────────── */
+
+.cs-proficiencies .cs-section-body {
+  padding: 5px 8px;
+}
+
+.cs-proficiencies-text {
+  font-size: 9px;
+  color: var(--cs-ink-mid);
+  line-height: 1.55;
+}
+
+.cs-proficiencies-text strong {
+  font-family: var(--cs-font-head);
+  font-size: 7px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cs-ink-label);
+}

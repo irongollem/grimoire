@@ -4,6 +4,7 @@ import {
   buildCampaignContext,
 } from "./utils";
 import { fetchSystemPrompt, fetchImageBasePrompt } from "./systemPrompts";
+import { buildSimpleImagePrompt } from "./imagePrompt";
 import type { PuzzleAiResult, PuzzleAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -89,9 +90,11 @@ export function usePuzzleGeneration() {
         startAiQuotes("image");
         try {
           const imageProvider = getImageProvider();
-          const imagePrompt = [imageBasePrompt, settingPrompt, puzzleData.image_prompt]
-            .filter(Boolean)
-            .join(" — ");
+          const imagePrompt = buildSimpleImagePrompt({
+            base: imageBasePrompt,
+            setting: settingPrompt,
+            subject: puzzleData.image_prompt,
+          });
           const { b64, usage: _imgUsage } = await imageProvider.generate(imagePrompt, "1024x1536");
           imgUsage = _imgUsage;
 
