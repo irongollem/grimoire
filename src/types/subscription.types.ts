@@ -1,4 +1,6 @@
-export type PlanId = 'free' | 'tester' | 'pro'
+export type PlanId = 'free' | 'tester' | 'pro' | 'patron'
+
+export type SubscriptionProvider = 'stripe' | 'patreon'
 
 export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'cancelled'
 
@@ -19,6 +21,7 @@ export interface Plan {
   stripe_annual_currency_options: Record<string, { unit_amount: number }> | null
   prices: Record<string, PlanPrice>
   quotas: Partial<Record<QuotaResource, number>>
+  patreon_tier_ids: string[]
 }
 
 export type QuotaResource =
@@ -42,11 +45,23 @@ export interface UserSubscription {
   user_id: string
   plan_id: PlanId
   status: SubscriptionStatus
+  subscription_provider: SubscriptionProvider
   stripe_customer_id: string | null
   stripe_subscription_id: string | null
+  patreon_member_id: string | null
   current_period_end: string | null
   cancel_at_period_end: boolean
   cancel_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface PatreonConnection {
+  user_id: string
+  patreon_user_id: string
+  patreon_email: string | null
+  full_name: string | null
+  token_expires_at: string
   created_at: string
   updated_at: string
 }

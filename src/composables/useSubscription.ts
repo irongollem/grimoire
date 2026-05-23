@@ -27,15 +27,27 @@ export function useSubscription() {
     const sub = data.value;
     return (
       !!sub &&
-      (sub.plan_id === "pro" || sub.plan_id === "tester") &&
+      (sub.plan_id === "pro" || sub.plan_id === "tester" || sub.plan_id === "patron") &&
       ["active", "trialing"].includes(sub.status)
     );
   });
+
+  const isPatron = computed(() => {
+    const sub = data.value;
+    return (
+      !!sub &&
+      sub.plan_id === "patron" &&
+      sub.subscription_provider === "patreon" &&
+      ["active", "trialing"].includes(sub.status)
+    );
+  });
+
+  const isPatronBilling = computed(() => data.value?.subscription_provider === "patreon");
 
   const isPendingCancellation = computed(() => {
     const sub = data.value;
     return !!sub?.cancel_at_period_end && !!sub.cancel_at;
   });
 
-  return { subscription: data, isPro, isPendingCancellation, isLoading };
+  return { subscription: data, isPro, isPatron, isPatronBilling, isPendingCancellation, isLoading };
 }
