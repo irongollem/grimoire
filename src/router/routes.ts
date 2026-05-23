@@ -83,6 +83,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Level Up" },
   },
   {
+    path: "/play/character/sheet",
+    name: "play-character-sheet",
+    component: () => import("@/views/play/PlayerCharacterSheetView.vue"),
+    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Character Sheet" },
+  },
+  {
     path: "/play/party",
     name: "play-party",
     component: () => import("@/views/play/PlayerPartyView.vue"),

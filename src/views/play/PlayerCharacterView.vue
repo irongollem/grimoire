@@ -83,7 +83,7 @@
         </div>
         <RouterLink
           v-if="!hidePlayerActions && member"
-          :to="`/character-sheet/${member.id}`"
+          :to="{ name: 'play-character-sheet' }"
           class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
         >
           Export Sheet
