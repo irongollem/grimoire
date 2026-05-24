@@ -697,3 +697,300 @@
   letter-spacing: 0.06em;
   color: var(--cs-ink-label);
 }
+
+/* ============================================================
+   Character Sheet — Theme Variants
+   Each theme overrides the CSS variables defined on .cs-page.
+   Only colour, typography, and ornament change — never fields.
+   ============================================================ */
+
+/* ── Horror ──────────────────────────────────────────────────
+   Palette: bone, bruise, ink — restrained gothic; no kitsch.
+   Cinzel headings retained; body stays Crimson Pro.
+   Section dividers feel heavier; corners get a subtle vignette.
+   ────────────────────────────────────────────────────────── */
+
+.cs-page.theme-horror {
+  --cs-bg:          #e4ddd4;
+  --cs-bg-card:     #f2ede8;
+  --cs-bg-section:  rgba(242, 237, 232, 0.7);
+
+  --cs-ink:         #180d12;
+  --cs-ink-mid:     #3a1f28;
+  --cs-ink-label:   #6b3a4a;
+  --cs-ink-muted:   #9a7080;
+
+  /* Deep bruise-purple accent — bone-cream contrast text */
+  --cs-accent:      #3a0e28;
+  --cs-accent-text: #e4ddd4;
+  --cs-accent-soft: rgba(58, 14, 40, 0.07);
+
+  --cs-border:      #4a1a32;
+  --cs-border-gold: #7a4a60;
+  --cs-border-light:#c0a0b0;
+}
+
+.cs-page.theme-horror {
+  background:
+    linear-gradient(170deg, #ddd4ca 0%, #e4ddd4 50%, #dad3c8 100%);
+  border-color: #4a1a32;
+  outline-color: #4a1a32;
+}
+
+/* Ability score top notch — bruise instead of burgundy */
+.cs-page.theme-horror .cs-ability-score::before {
+  background: var(--cs-accent);
+}
+
+/* Section title bar — deeper, more austere */
+.cs-page.theme-horror .cs-section-title {
+  letter-spacing: 0.15em;
+}
+
+/* Corner flourishes via outline double border */
+.cs-page.theme-horror {
+  outline: 3px double #4a1a32;
+  outline-offset: -5px;
+}
+
+
+/* ── Fairy & Whimsey ─────────────────────────────────────────
+   Palette: blush rose, soft mint, parchment cream, gold leaf.
+   Open and airy — feels like an illustrated storybook.
+   ────────────────────────────────────────────────────────── */
+
+.cs-page.theme-fairy {
+  --cs-bg:          #f8f0ee;
+  --cs-bg-card:     #fffcfb;
+  --cs-bg-section:  rgba(255, 252, 251, 0.8);
+
+  --cs-ink:         #2a1520;
+  --cs-ink-mid:     #5a3040;
+  --cs-ink-label:   #8a5060;
+  --cs-ink-muted:   #b08090;
+
+  /* Dusty rose accent — ivory contrast */
+  --cs-accent:      #8b3055;
+  --cs-accent-text: #fff8f5;
+  --cs-accent-soft: rgba(139, 48, 85, 0.07);
+
+  --cs-border:      #c07090;
+  --cs-border-gold: #c8a030;
+  --cs-border-light:#e0c0d0;
+}
+
+.cs-page.theme-fairy {
+  background:
+    /* Subtle diagonal crosshatch — linen texture */
+    repeating-linear-gradient(
+      45deg,
+      transparent 0px, transparent 8px,
+      rgba(192,112,144,0.04) 8px, rgba(192,112,144,0.04) 9px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      transparent 0px, transparent 8px,
+      rgba(192,112,144,0.04) 8px, rgba(192,112,144,0.04) 9px
+    ),
+    linear-gradient(160deg, #fff0ed 0%, #f8f0ee 50%, #f2e8e6 100%);
+  border-color: #c07090;
+  outline-color: #c8a030;
+  outline-style: solid;
+  outline-width: 2px;
+  outline-offset: -4px;
+}
+
+/* Rounded section corners feel more whimsical */
+.cs-page.theme-fairy .cs-section {
+  border-radius: 5px;
+}
+
+.cs-page.theme-fairy .cs-ability-score {
+  border-radius: 6px;
+}
+
+/* Gold-leaf divider line in section titles */
+.cs-page.theme-fairy .cs-section-title {
+  background: var(--cs-accent);
+  border-bottom: 2px solid var(--cs-border-gold);
+}
+
+
+/* ── Adventure ───────────────────────────────────────────────
+   Palette: parchment, leather brown, deep navy, gold.
+   Explorer's journal — warm, travel-worn, purposeful.
+   ────────────────────────────────────────────────────────── */
+
+.cs-page.theme-adventure {
+  --cs-bg:          #e8d8a8;
+  --cs-bg-card:     #f5eac8;
+  --cs-bg-section:  rgba(245, 234, 200, 0.75);
+
+  --cs-ink:         #1a1008;
+  --cs-ink-mid:     #3a2410;
+  --cs-ink-label:   #6a4820;
+  --cs-ink-muted:   #9a7848;
+
+  /* Deep navy accent — gold contrast */
+  --cs-accent:      #1a2a50;
+  --cs-accent-text: #f5eac8;
+  --cs-accent-soft: rgba(26, 42, 80, 0.07);
+
+  --cs-border:      #6b4a1a;
+  --cs-border-gold: #b89800;
+  --cs-border-light:#d4b860;
+}
+
+.cs-page.theme-adventure {
+  background:
+    /* Map-edge hatching at corners — crosshatch feel */
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px, transparent 18px,
+      rgba(107, 74, 26, 0.04) 18px, rgba(107, 74, 26, 0.04) 19px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px, transparent 18px,
+      rgba(107, 74, 26, 0.04) 18px, rgba(107, 74, 26, 0.04) 19px
+    ),
+    linear-gradient(170deg, #f0dda8 0%, #e8d8a8 50%, #decca0 100%);
+  border-color: #6b4a1a;
+  border-width: 2px;
+  outline: 2px solid var(--cs-border-gold);
+  outline-offset: -5px;
+}
+
+/* Leather-compass ornament on ability score boxes */
+.cs-page.theme-adventure .cs-ability-score::before {
+  width: 22px;
+  background: var(--cs-accent);
+}
+
+/* Bolder section title — exploration log */
+.cs-page.theme-adventure .cs-section-title {
+  background: var(--cs-accent);
+  letter-spacing: 0.18em;
+}
+
+
+/* ── Sumi-e ──────────────────────────────────────────────────
+   Palette: sumi ink (near black), washi paper, vermilion seal.
+   Calligraphic feel — every rule looks hand-drawn.
+   Only accent color is cinnabar / vermilion (#c8200a).
+   Spare, asymmetric, deeply subdued.
+   ────────────────────────────────────────────────────────── */
+
+.cs-page.theme-sumie {
+  --cs-bg:          #f0e8d4;
+  --cs-bg-card:     #faf5ea;
+  --cs-bg-section:  rgba(250, 245, 234, 0.65);
+
+  --cs-ink:         #12100e;
+  --cs-ink-mid:     #2a2520;
+  --cs-ink-label:   #504840;
+  --cs-ink-muted:   #807870;
+
+  /* Vermilion / cinnabar — the only accent; used sparingly */
+  --cs-accent:      #c8200a;
+  --cs-accent-text: #faf5ea;
+  --cs-accent-soft: rgba(200, 32, 10, 0.06);
+
+  --cs-border:      #18140f;
+  --cs-border-gold: #c8200a;   /* vermilion replaces gold trim */
+  --cs-border-light:#9a9080;
+}
+
+/* Aged washi paper background with subtle grain */
+.cs-page.theme-sumie {
+  background:
+    /* Noise grain — fine washi texture */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"),
+    linear-gradient(170deg, #f5edd8 0%, #f0e8d4 50%, #eae0cc 100%);
+  /* Thick ink-brush outer border */
+  border: 2.5px solid #12100e;
+  outline: 1px solid rgba(18,16,14,0.3);
+  outline-offset: -6px;
+}
+
+/* Brush-stroke section title — single confident line below */
+.cs-page.theme-sumie .cs-section-title {
+  background: #12100e;
+  position: relative;
+  padding: 3px 8px 4px;
+}
+
+/* Vermilion dot accent before section title text — seal motif */
+.cs-page.theme-sumie .cs-section-title::before {
+  content: "●";
+  color: #c8200a;
+  margin-right: 5px;
+  font-size: 6px;
+  vertical-align: middle;
+}
+
+/* Ability boxes: thin ink border, vermilion top notch */
+.cs-page.theme-sumie .cs-ability-score {
+  border-color: #2a2520;
+  border-width: 1.5px;
+}
+
+.cs-page.theme-sumie .cs-ability-score::before {
+  background: #c8200a;
+  width: 14px;
+  height: 4px;
+  border-radius: 0 0 1px 1px;
+}
+
+/* Character name in sumi ink — no color accent on name */
+.cs-page.theme-sumie .cs-character-name {
+  color: #12100e;
+  letter-spacing: 0.08em;
+}
+
+/* Header divider — thicker brush-style rule */
+.cs-page.theme-sumie .cs-header {
+  border-bottom-width: 2.5px;
+  border-color: #12100e;
+}
+
+/* Portrait frame — ink brushed border */
+.cs-page.theme-sumie .cs-portrait-wrap {
+  border-color: #12100e;
+  border-width: 2px;
+  box-shadow: 3px 3px 0 rgba(18,16,14,0.25);
+}
+
+/* Vermilion seal mark at bottom-right corner of the sheet */
+.cs-page.theme-sumie::after {
+  content: "印";
+  position: absolute;
+  bottom: 14px;
+  right: 18px;
+  font-size: 18px;
+  color: #c8200a;
+  opacity: 0.55;
+  font-family: serif;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* Check row dividers — faint ink wash */
+.cs-page.theme-sumie .cs-check-row {
+  border-bottom-color: rgba(42, 37, 32, 0.2);
+}
+
+/* Proficiency dot — sumi ink */
+.cs-page.theme-sumie .cs-prof-dot--filled {
+  background: #12100e;
+  border-color: #12100e;
+}
+
+.cs-page.theme-sumie .cs-prof-dot--expertise {
+  box-shadow: 0 0 0 2px #c8200a;
+}
+
+/* Combat stat boxes — plain ink border */
+.cs-page.theme-sumie .cs-combat-stat {
+  border-color: #2a2520;
+}

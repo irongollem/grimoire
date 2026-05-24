@@ -17,7 +17,7 @@
 
     <template v-else>
       <!-- Toolbar -->
-      <div class="flex items-center gap-3">
+      <div class="flex flex-wrap items-center gap-3">
         <RouterLink
           to="/play"
           class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors tracking-wider"
@@ -29,6 +29,13 @@
         >
           <option value="A4">A4</option>
           <option value="Letter">Letter</option>
+        </select>
+
+        <select
+          v-model="theme"
+          class="bg-card border border-border rounded px-2.5 py-1.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option v-for="t in SHEET_THEMES" :key="t.id" :value="t.id">{{ t.label }}</option>
         </select>
 
         <button
@@ -48,6 +55,9 @@
             :member="member"
             :inventory="inventory"
             :page-size="pageSize"
+            :theme="theme"
+            :species-name="speciesName"
+            :background-name="backgroundName"
           />
         </div>
       </div>
@@ -56,13 +66,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { RouterLink } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/useParty";
 import { usePartyInventory } from "@/composables/usePartyInventory";
-import { useCharacterSheetPdf, type SheetPageSize } from "@/composables/useCharacterSheetPdf";
+import {
+  useCharacterSheetPdf,
+  SHEET_THEMES,
+  type SheetPageSize,
+  type SheetTheme,
+} from "@/composables/useCharacterSheetPdf";
+import { useSpeciesNameMap } from "@/composables/useSpecies";
+import { useBackgroundNameMap } from "@/composables/useBackgrounds";
 import CharacterSheetRenderer from "@/components/character-sheet/CharacterSheetRenderer.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 
@@ -78,6 +95,8 @@ const linkedMemberId = computed(() =>
 
 const { data: partyMembers, isLoading } = useParty();
 const { data: inventoryItems } = usePartyInventory();
+const speciesMap = useSpeciesNameMap();
+const backgroundMap = useBackgroundNameMap();
 
 const member = computed(() =>
   partyMembers.value?.find((m) => m.id === linkedMemberId.value) ?? null,
@@ -87,12 +106,34 @@ const inventory = computed(() =>
   (inventoryItems.value ?? []).filter((i) => i.carried_by === linkedMemberId.value),
 );
 
+const speciesName = computed(() =>
+  member.value?.species_id ? (speciesMap.value.get(member.value.species_id) ?? null) : null,
+);
+const backgroundName = computed(() =>
+  member.value?.background_id ? (backgroundMap.value.get(member.value.background_id) ?? null) : null,
+);
+
 const pageSize = ref<SheetPageSize>("A4");
+
+// Theme preference — persisted per character in localStorage
+function themeKey(id: string) { return `cs-theme-${id}`; }
+const theme = ref<SheetTheme>(
+  (linkedMemberId.value ? (localStorage.getItem(themeKey(linkedMemberId.value)) as SheetTheme | null) : null) ?? "default",
+);
+watch(theme, (v) => {
+  if (linkedMemberId.value) localStorage.setItem(themeKey(linkedMemberId.value), v);
+});
+
 const { isGenerating, exportPdf } = useCharacterSheetPdf();
 
 async function doExport() {
   if (!member.value) return;
-  await exportPdf(member.value, inventory.value, { pageSize: pageSize.value });
+  await exportPdf(member.value, inventory.value, {
+    pageSize: pageSize.value,
+    theme: theme.value,
+    speciesName: speciesName.value,
+    backgroundName: backgroundName.value,
+  });
 }
 </script>
 
