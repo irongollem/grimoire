@@ -3,7 +3,6 @@ import {
   IconBookMarked,
   IconCalendarDays,
   IconCraft,
-  IconDM,
   IconFaction,
   IconInventory,
   IconLandmark,
@@ -31,7 +30,6 @@ export const ALL_PLAYER_NAV: PlayerNavItem[] = [
   { to: "/play/atlas", label: "Atlas", icon: IconFaction },
   { to: "/play/bestiary", label: "Bestiary", icon: IconMonster },
   { to: "/play/rules", label: "Reliquary", icon: IconLibrary },
-  { to: "/play/champions", label: "Champions", icon: IconDM },
   { to: "/play/factions", label: "Factions", icon: IconLandmark },
 ];
 

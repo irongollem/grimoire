@@ -73,6 +73,12 @@
           :prof-bonus="profBonus"
           @update:form="applyProficienciesPatch"
         />
+
+        <PartyMemberPersonaTab
+          v-if="activeTab === 'persona'"
+          :form="personaSlice"
+          @update:form="applyPersonaPatch"
+        />
       </div>
 
       <!-- Footer -->
@@ -115,6 +121,7 @@ import TabBar from "@/components/common/TabBar.vue";
 import PartyMemberIdentityTab from "./PartyMemberIdentityTab.vue";
 import PartyMemberAbilitiesTab from "./PartyMemberAbilitiesTab.vue";
 import PartyMemberProficienciesTab from "./PartyMemberProficienciesTab.vue";
+import PartyMemberPersonaTab from "./PartyMemberPersonaTab.vue";
 import { useAllSpecies } from "@/composables/useSpecies";
 import {
   useCreatePartyMember,
@@ -137,12 +144,13 @@ import type {
   SpellSlotEntry,
 } from "@/types/party.types";
 import { getDefaultSpellSlots } from "@/types/spell.types";
-import type { IdentityFormSlice, AbilitiesFormSlice, ProficienciesFormSlice } from "./partyMemberForm.types";
+import type { IdentityFormSlice, AbilitiesFormSlice, ProficienciesFormSlice, PersonaFormSlice } from "./partyMemberForm.types";
 
 const TABS = [
   { id: "identity" as const, label: "Identity" },
   { id: "stats" as const, label: "Stats" },
   { id: "profs" as const, label: "Proficiencies" },
+  { id: "persona" as const, label: "Persona" },
 ] as const;
 
 type TabId = typeof TABS[number]["id"];
@@ -262,6 +270,18 @@ const form = reactive<
   disguise_subrace: props.member?.disguise_subrace ?? null,
   background_id: props.member?.background_id ?? null,
   height: props.member?.height ?? null,
+  // Persona
+  alignment:            props.member?.alignment            ?? "",
+  deity:                props.member?.deity                ?? "",
+  deity_id:             props.member?.deity_id             ?? null as string | null,
+  age:                  props.member?.age                  ?? "",
+  gender:               props.member?.gender               ?? "",
+  pronouns:             props.member?.pronouns             ?? "",
+  physical_description: props.member?.physical_description ?? "",
+  personality_traits:   props.member?.personality_traits   ?? "",
+  ideals:               props.member?.ideals               ?? "",
+  bonds:                props.member?.bonds                ?? "",
+  flaws:                props.member?.flaws                ?? "",
 });
 
 // Keep form.level in sync with authoritative total when multiclass data exists.
@@ -317,6 +337,20 @@ const proficienciesSlice = computed<ProficienciesFormSlice>(() => ({
   cha: form.cha,
 }));
 
+const personaSlice = computed<PersonaFormSlice>(() => ({
+  alignment:            form.alignment            ?? "",
+  deity:                form.deity                ?? "",
+  deity_id:             form.deity_id             ?? null,
+  age:                  form.age                  ?? "",
+  gender:               form.gender               ?? "",
+  pronouns:             form.pronouns             ?? "",
+  physical_description: form.physical_description ?? "",
+  personality_traits:   form.personality_traits   ?? "",
+  ideals:               form.ideals               ?? "",
+  bonds:                form.bonds                ?? "",
+  flaws:                form.flaws                ?? "",
+}));
+
 // --- Patch appliers ---
 function applyIdentityPatch(patch: Partial<IdentityFormSlice>) {
   Object.assign(form, patch);
@@ -327,6 +361,10 @@ function applyAbilitiesPatch(patch: Partial<AbilitiesFormSlice>) {
 }
 
 function applyProficienciesPatch(patch: Partial<ProficienciesFormSlice>) {
+  Object.assign(form, patch);
+}
+
+function applyPersonaPatch(patch: Partial<PersonaFormSlice>) {
   Object.assign(form, patch);
 }
 
@@ -405,6 +443,18 @@ async function save() {
     portrait_url: portraitUrl.value || null,
     portrait_focal_point: focalPoint.value,
     proficiency_bonus: profBonus.value,
+    // Persona fields
+    alignment:            form.alignment            || null,
+    deity:                form.deity                || null,
+    deity_id:             form.deity_id             || null,
+    age:                  form.age                  || null,
+    gender:               form.gender               || null,
+    pronouns:             form.pronouns             || null,
+    physical_description: form.physical_description || null,
+    personality_traits:   form.personality_traits   || null,
+    ideals:               form.ideals               || null,
+    bonds:                form.bonds                || null,
+    flaws:                form.flaws                || null,
     spell_slots: spellSlotMaxes
       .map((max, i) => {
         const existing = props.member?.spell_slots?.find((s: SpellSlotEntry) => s.level === i + 1);

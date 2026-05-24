@@ -50,4 +50,19 @@ export interface ProficienciesFormSlice {
   cha: number;
 }
 
+/** Fields owned by the Persona tab */
+export interface PersonaFormSlice {
+  alignment: string;
+  deity: string;
+  deity_id: string | null;
+  age: string;
+  gender: string;
+  pronouns: string;
+  physical_description: string;
+  personality_traits: string;
+  ideals: string;
+  bonds: string;
+  flaws: string;
+}
+
 export type { SpellSlotEntry };

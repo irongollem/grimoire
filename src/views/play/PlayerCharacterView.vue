@@ -81,13 +81,21 @@
             @click="activeTab = tab.id"
           >{{ tab.label }}</button>
         </div>
-        <RouterLink
-          v-if="!hidePlayerActions && member"
-          :to="{ name: 'play-character-sheet' }"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
-        >
-          Export Sheet
-        </RouterLink>
+        <div v-if="!hidePlayerActions && member" class="flex items-center gap-2 ml-auto">
+          <RouterLink
+            v-if="!ui.dmPreviewMode"
+            to="/play/champions"
+            class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
+          >
+            My Characters
+          </RouterLink>
+          <RouterLink
+            :to="{ name: 'play-character-sheet' }"
+            class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
+          >
+            Export Sheet
+          </RouterLink>
+        </div>
       </div>
 
       <!-- Skills -->
