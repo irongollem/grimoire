@@ -32,19 +32,19 @@ This repository is **public for transparency**. See [Licensing](#licensing) for 
 
 ### For Dungeon Masters
 
-| Area                   | What's included                                                                                                                                                   |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Campaign hub**       | Dashboard, session notes (rich text, AI image gen), pinned quests, party presence                                                                                 |
-| **World-building**     | Hierarchical Atlas (17 location types), kanban Quest Log, Factions with directional relations                                                                     |
-| **NPCs**               | Full character sheets, force-directed Relationship Web, AI NPC Generator, stat block with bestiary import                                                         |
-| **Party & Characters** | Initiative + HP tracker, full D&D 5e character sheet (Wild Shape, level-up wizard), Hall of Heroes                                                                |
-| **Combat**             | Bestiary with 12 SRD presets + Open5e sync, Encounter Builder (factions, boss mechanics, pre-scripted events), live Encounter Runner                              |
-| **Items & Spells**     | Item Vault with dual-image ID system, Spellbook with Spell Level Advisor, Workshop crafting recipes                                                               |
-| **Dungeon Building**   | Features, Traps (CR Advisor), Puzzles with hint reveals, Roll Tables, Loot Tables with claimable drops                                                            |
-| **Publishing**         | Scriptorium document editor (PDF export, PHB themes), Card Forge (MTG + Tarot print sheets), The Mint (VTT tokens + coins), Illuminator (canvas image processing) |
-| **DM Screen**          | Reliquary — quick reference, SRD compendium, custom Tracker builder for homebrew mechanics                                                                        |
-| **Soundboard**         | Ambient scenes + music playlists, Spotify integration                                                                                                             |
-| **Calendar**           | Calendar of Harptos month grid + Chronicle timeline; custom calendar adapter pattern                                                                              |
+| Area | What's included |
+| --- | --- |
+| **Campaign hub** | Dashboard, session notes (rich text, AI image gen), pinned quests, party presence |
+| **World-building** | Hierarchical Atlas (17 location types), kanban Quest Log, Factions with directional relations |
+| **NPCs** | Full character sheets, force-directed Relationship Web, AI NPC Generator, stat block with bestiary import |
+| **Party & Characters** | Initiative + HP tracker, full D&D 5e character sheet (Wild Shape, level-up wizard), Hall of Heroes |
+| **Combat** | Bestiary with 12 SRD presets + Open5e sync, Encounter Builder (factions, boss mechanics, pre-scripted events), live Encounter Runner |
+| **Items & Spells** | Item Vault with dual-image ID system, Spellbook with Spell Level Advisor, Workshop crafting recipes |
+| **Dungeon Building** | Features, Traps (CR Advisor), Puzzles with hint reveals, Roll Tables, Loot Tables with claimable drops |
+| **Publishing** | Scriptorium document editor (PDF export, PHB themes), Card Forge (MTG + Tarot print sheets), The Mint (VTT tokens + coins), Illuminator (canvas image processing) |
+| **DM Screen** | Reliquary — quick reference, SRD compendium, custom Tracker builder for homebrew mechanics |
+| **Soundboard** | Ambient scenes + music playlists, Spotify integration |
+| **Calendar** | Custom world calendar — define your own months, intercalary days, and year length; month grid + Chronicle timeline view; ships with 9 built-in D&D settings (Faerûn, Eberron, Greyhawk, Dragonlance, Ravenloft, Planescape, Spelljammer, Dark Sun, Mystara) plus a fully custom option |
 
 ### For Players
 
