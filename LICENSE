@@ -1,0 +1,56 @@
+Dungeon Grimoire Source Available License
+Copyright (c) 2024–present Jeffrey Ernst / Crocode B.V.
+
+DEFINITIONS
+
+"Software" means all source code, assets, documentation, and configuration
+files contained in this repository.
+
+"Use" means to run, execute, deploy, host, operate, or otherwise benefit from
+the functionality of the Software, in whole or in part.
+
+"You" means any individual or legal entity accessing this repository.
+
+GRANT OF RIGHTS
+
+You are granted a limited, non-exclusive, non-transferable right to:
+
+  1. Read and study the source code for personal learning and transparency
+     purposes only.
+
+No other rights are granted under this license.
+
+RESTRICTIONS
+
+Without express prior written permission from the copyright holder you may not:
+
+  a. Use the Software (run, deploy, self-host, or operate it in any
+     environment, including locally on your own machine);
+  b. Modify, adapt, translate, or create derivative works based on the
+     Software;
+  c. Distribute, sublicense, sell, rent, or otherwise transfer the Software
+     or any portion of it to any third party;
+  d. Use the Software as the basis for a competing product or service.
+
+COMMERCIAL USE AND SELF-HOSTING
+
+If you wish to use or deploy the Software, you must either:
+
+  (i)  use the official hosted service at https://dungeongrimoire.com, which
+       is governed by its Terms of Service; or
+  (ii) obtain a separate written license agreement from the copyright holder.
+
+To inquire about licensing, contact: jeffrey@crocode.nl
+
+INTELLECTUAL PROPERTY
+
+All intellectual property rights in the Software remain with the copyright
+holder. Nothing in this license transfers any ownership rights to you.
+
+DISCLAIMER
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY ARISING FROM THE USE OF OR INABILITY TO USE THE SOFTWARE.
