@@ -92,7 +92,7 @@ const { isGenerating, exportPdf } = useCharacterSheetPdf();
 
 async function doExport() {
   if (!member.value) return;
-  await exportPdf(member.value, inventory.value, pageSize.value);
+  await exportPdf(member.value, inventory.value, { pageSize: pageSize.value });
 }
 </script>
 
