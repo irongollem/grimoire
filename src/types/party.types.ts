@@ -122,6 +122,7 @@ export interface PartyMember {
   bonds?: string | null;
   flaws?: string | null;
   deity?: string | null;
+  deity_id?: string | null;
   // Identity extras (optional — wizard collects these on the Identity step)
   age?: string | null;
   gender?: string | null;

@@ -121,14 +121,7 @@
       >
         <IconParty class="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
         <p class="font-fell text-muted-foreground italic text-sm">
-          No players have joined yet. Share an invite link from the
-          <button
-            class="text-gold-400 hover:text-gold-300 underline"
-            @click="$emit('switch-tab', 'invites')"
-          >
-            Invite Links
-          </button>
-          tab.
+          No players have joined yet — generate an invite link below to get started.
         </p>
       </div>
     </template>
@@ -185,7 +178,6 @@ import { useCampaignPresence } from "@/composables/useCampaignPresence";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import type { CampaignMember } from "@/types/campaign.types";
 
-defineEmits<{ (e: "switch-tab", tab: string): void }>();
 
 const membersQuery = useCampaignMembers();
 const { isOnline } = useCampaignPresence();

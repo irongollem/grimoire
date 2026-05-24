@@ -79,9 +79,32 @@
               <option v-for="a in ALIGNMENT_OPTIONS" :key="a" :value="a">{{ a }}</option>
             </select>
           </div>
-          <div>
+          <!-- Deity: free-text + optional campaign deity suggestions -->
+          <div class="relative">
             <label class="field-label">Deity</label>
-            <input v-model="form.deity" class="field-input w-full" placeholder="Tyr, Mielikki…" @input="scheduleAutoSave" />
+            <input
+              v-model="form.deity"
+              class="field-input w-full"
+              placeholder="Tyr, Mielikki…"
+              autocomplete="off"
+              @input="form.deity_id = null; scheduleAutoSave()"
+              @focus="showDeityDropdown = true"
+              @blur="hideDeityDropdown"
+            />
+            <ul
+              v-if="showDeityDropdown && deityHints.length"
+              class="absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-border rounded-md shadow-lg max-h-48 overflow-y-auto"
+            >
+              <li
+                v-for="d in deityHints"
+                :key="d.id"
+                class="flex items-baseline gap-1.5 px-3 py-2 font-fell text-sm text-foreground hover:bg-muted cursor-pointer"
+                @mousedown.prevent="selectDeity(d.id, d.name)"
+              >
+                <span>{{ d.name }}</span>
+                <span v-if="d.titles" class="text-muted-foreground text-xs truncate">— {{ d.titles }}</span>
+              </li>
+            </ul>
           </div>
         </div>
         <div>
@@ -219,10 +242,11 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, watch } from "vue";
+import { reactive, ref, computed, watch } from "vue";
 import { RouterLink } from "vue-router";
 import { useBackground } from "@/composables/useBackgrounds";
 import { useUpdatePartyMember } from "@/composables/useParty";
+import { useAllDeities } from "@/composables/useDeities";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
@@ -262,6 +286,7 @@ const form = reactive({
   physical_description: member.physical_description ?? "",
   alignment:            member.alignment            ?? "",
   deity:                member.deity                ?? "",
+  deity_id:             member.deity_id             ?? null as string | null,
   personality_traits:   member.personality_traits   ?? "",
   ideals:               member.ideals               ?? "",
   bonds:                member.bonds                ?? "",
@@ -275,6 +300,7 @@ watch(() => member.id, () => {
   form.physical_description = member.physical_description ?? "";
   form.alignment            = member.alignment            ?? "";
   form.deity                = member.deity                ?? "";
+  form.deity_id             = member.deity_id             ?? null;
   form.personality_traits   = member.personality_traits   ?? "";
   form.ideals               = member.ideals               ?? "";
   form.bonds                = member.bonds                ?? "";
@@ -294,6 +320,7 @@ function scheduleAutoSave() {
         physical_description: form.physical_description || null,
         alignment:            form.alignment || null,
         deity:                form.deity || null,
+        deity_id:             form.deity_id || null,
         personality_traits:   form.personality_traits || null,
         ideals:               form.ideals || null,
         bonds:                form.bonds || null,
@@ -301,6 +328,35 @@ function scheduleAutoSave() {
       },
     });
   }, 600);
+}
+
+// ── Deity suggestions ────────────────────────────────────────────────────────
+const { data: allDeities } = useAllDeities();
+const showDeityDropdown = ref(false);
+
+const deityHints = computed(() => {
+  const list = allDeities.value ?? [];
+  if (!list.length) return [];
+  const q = form.deity.toLowerCase().trim();
+  const filtered = q
+    ? list.filter(
+        (d) =>
+          d.name.toLowerCase().includes(q) ||
+          d.alternate_names?.some((n) => n.toLowerCase().includes(q)),
+      )
+    : list;
+  return filtered.slice(0, 8);
+});
+
+function selectDeity(id: string, name: string) {
+  form.deity    = name;
+  form.deity_id = id;
+  showDeityDropdown.value = false;
+  scheduleAutoSave();
+}
+
+function hideDeityDropdown() {
+  setTimeout(() => { showDeityDropdown.value = false; }, 150);
 }
 
 // ── Computed visibility ───────────────────────────────────────────────────────

@@ -53,10 +53,33 @@
               <option v-for="a in ALIGNMENT_OPTIONS" :key="a" :value="a">{{ a }}</option>
             </select>
           </label>
-          <label class="block">
+          <!-- Deity: free-text + optional campaign deity suggestions -->
+          <div class="block relative">
             <span class="field-label">Deity</span>
-            <input v-model="f.deity" class="field-input w-full" placeholder="Tyr, Mielikki, none…" />
-          </label>
+            <input
+              v-model="f.deity"
+              class="field-input w-full"
+              placeholder="Tyr, Mielikki, none…"
+              autocomplete="off"
+              @input="f.deity_id = null"
+              @focus="showDeityDropdown = true"
+              @blur="hideDeityDropdown"
+            />
+            <ul
+              v-if="showDeityDropdown && deityHints.length"
+              class="absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-border rounded-md shadow-lg max-h-48 overflow-y-auto"
+            >
+              <li
+                v-for="d in deityHints"
+                :key="d.id"
+                class="flex items-baseline gap-1.5 px-3 py-2 font-fell text-sm text-foreground hover:bg-muted cursor-pointer"
+                @mousedown.prevent="selectDeity(d.id, d.name)"
+              >
+                <span>{{ d.name }}</span>
+                <span v-if="d.titles" class="text-muted-foreground text-xs truncate">— {{ d.titles }}</span>
+              </li>
+            </ul>
+          </div>
         </div>
         <div class="grid grid-cols-3 gap-2">
           <label class="block">
@@ -121,8 +144,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import { useAllDeities } from "@/composables/useDeities";
 import type { CharacterCreationForm } from "@/composables/useCharacterCreationForm";
 
 const { form } = defineProps<{ form: CharacterCreationForm }>();
@@ -131,6 +155,35 @@ const { f, allBackgrounds, selectedBg, onBackgroundSelect } = form;
 
 const showIdentity    = ref(false);
 const showPersonality = ref(false);
+
+// ── Deity suggestions ────────────────────────────────────────────────────────
+const { data: allDeities } = useAllDeities();
+const showDeityDropdown = ref(false);
+
+const deityHints = computed(() => {
+  const list = allDeities.value ?? [];
+  if (!list.length) return [];
+  const q = (f.deity ?? "").toLowerCase().trim();
+  const filtered = q
+    ? list.filter(
+        (d) =>
+          d.name.toLowerCase().includes(q) ||
+          d.alternate_names?.some((n) => n.toLowerCase().includes(q)),
+      )
+    : list;
+  return filtered.slice(0, 8);
+});
+
+function selectDeity(id: string, name: string) {
+  f.deity    = name;
+  f.deity_id = id;
+  showDeityDropdown.value = false;
+}
+
+function hideDeityDropdown() {
+  // Small delay so mousedown on a list item fires before blur hides the list
+  setTimeout(() => { showDeityDropdown.value = false; }, 150);
+}
 
 const ALIGNMENT_OPTIONS = [
   "Lawful Good",    "Neutral Good",    "Chaotic Good",

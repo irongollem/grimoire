@@ -156,13 +156,16 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  async function signUp(email: string, password: string, displayName?: string) {
+  async function signUp(email: string, password: string, displayName?: string, redirectTo?: string) {
     loading.value = true;
     try {
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: displayName ? { data: { display_name: displayName } } : undefined,
+        options: {
+          ...(displayName ? { data: { display_name: displayName } } : {}),
+          ...(redirectTo ? { emailRedirectTo: redirectTo } : {}),
+        },
       });
       if (error) throw error;
     } finally {

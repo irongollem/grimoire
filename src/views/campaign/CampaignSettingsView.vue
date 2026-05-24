@@ -49,7 +49,7 @@
       <main class="flex-1 overflow-y-auto px-6 py-6">
         <DetailsTab v-if="activeTab === 'details'" />
         <div v-else-if="activeTab === 'members'" class="space-y-6 max-w-2xl">
-          <MembersTab @switch-tab="" />
+          <MembersTab />
           <div>
             <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase mb-3">Invite Links</p>
             <InvitesTab />

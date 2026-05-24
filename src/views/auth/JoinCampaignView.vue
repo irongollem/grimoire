@@ -148,8 +148,8 @@ async function handleAuth() {
   authMessage.value = "";
   try {
     if (activeTab.value === "signup") {
-      await auth.signUp(email.value, password.value, displayName.value.trim() || undefined);
-      authMessage.value = "Check your email to confirm, then sign in to join.";
+      await auth.signUp(email.value, password.value, displayName.value.trim() || undefined, window.location.href);
+      authMessage.value = "Check your email to confirm — the link will bring you straight back here to join.";
     } else {
       await auth.signIn(email.value, password.value);
       // onAuthStateChange will fire → watch(isAuthenticated) triggers join
