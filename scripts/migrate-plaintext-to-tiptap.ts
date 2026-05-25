@@ -42,6 +42,7 @@ const TABLE_FIELDS = {
   npcs:      ["appearance", "personality", "backstory", "notes"] as const,
   deities:   ["description", "dm_notes"] as const,
   pantheons: ["description"] as const,
+  locations: ["description", "notes"] as const,
 };
 
 export type TableName = keyof typeof TABLE_FIELDS;
@@ -90,7 +91,7 @@ function parseCli(): CliArgs {
 
   const table = values.table as TableName | "all";
   if (table !== "all" && !(table in TABLE_FIELDS)) {
-    console.error(`ERROR: --table must be one of: npcs, deities, pantheons, all (got: ${table})`);
+    console.error(`ERROR: --table must be one of: npcs, deities, pantheons, locations, all (got: ${table})`);
     process.exit(1);
   }
   const rowId = (values["row-id"] as string | undefined) ?? null;
@@ -113,7 +114,7 @@ function printUsage(): void {
   console.log(`Usage: tsx --env-file=.env.local scripts/migrate-plaintext-to-tiptap.ts [options]
 
 Options:
-  --table TABLE        npcs | deities | pantheons | all (default: all)
+  --table TABLE        npcs | deities | pantheons | locations | all (default: all)
   --campaign UUID      Limit to one campaign
   --user-id UUID       Limit to one user (default: Kind Country owner)
   --row-id UUID        Surgical: process exactly one row (requires --table)
@@ -264,6 +265,7 @@ function reportPlan(plans: RowPlan[], anomalies: RowAnomaly[], log: Logger): voi
     npcs: { rows: 0, fields: 0 },
     deities: { rows: 0, fields: 0 },
     pantheons: { rows: 0, fields: 0 },
+    locations: { rows: 0, fields: 0 },
   };
   for (const p of plans) {
     byTable[p.table].rows++;
