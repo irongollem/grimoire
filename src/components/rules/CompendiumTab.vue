@@ -7,7 +7,7 @@
         <input
           v-model="search"
           type="text"
-          placeholder="IconSearch rules…"
+          placeholder="Search rules…"
           class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>

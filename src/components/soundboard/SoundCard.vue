@@ -256,7 +256,7 @@
         <button
           class="shrink-0 p-0.5 rounded transition-all [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
           :class="spotifyStore.shuffleOn ? 'text-green-500' : 'text-muted-foreground hover:text-foreground'"
-          title="IconShuffle"
+          title="Shuffle"
           @click="spotifyStore.setShuffle(!spotifyStore.shuffleOn)"
         >
           <IconShuffle class="h-2.5 w-2.5" />

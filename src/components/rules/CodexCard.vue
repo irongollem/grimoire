@@ -4,7 +4,10 @@
     class="rounded-lg border border-border bg-card overflow-hidden text-left hover:border-primary/50 transition-colors w-full"
     @click="emit('click')"
   >
-    <div class="h-44 w-full shrink-0 overflow-hidden bg-muted">
+    <!-- aspect-[3/4] matches the portrait focal-point format so the smart-crop
+         centring math aligns with the actual display dimensions (previously h-44
+         produced a ~1:1 container on mobile, mismatching the 2:3 crop target). -->
+    <div class="aspect-[3/4] w-full shrink-0 overflow-hidden bg-muted">
       <FocalImage
         v-if="imageUrl"
         :src="imageUrl"
