@@ -83,6 +83,27 @@
       <span class="detail-trait-desc">{{ atk.description }}</span>
     </div>
   </template>
+
+  <!-- Class Features -->
+  <template v-if="sneakAttackDice">
+    <div class="detail-divider" />
+    <p class="detail-section-label">Class Features</p>
+    <div class="detail-trait">
+      <div class="detail-trait-header">
+        <strong>Sneak Attack.</strong>
+        <div class="trait-roll-bar">
+          <button
+            type="button"
+            class="trait-roll-btn trait-dmg-btn"
+            @click.stop="emit('roll-damage', sneakAttackDice, 'Sneak Attack')"
+          >🎲 {{ sneakAttackDice }}</button>
+        </div>
+      </div>
+      <span class="detail-trait-desc">
+        Once per turn, deal extra damage when attacking with a finesse or ranged weapon and you have advantage on the attack, or an ally is within 5 ft. of the target.
+      </span>
+    </div>
+  </template>
 </template>
 
 <script setup lang="ts">
@@ -316,6 +337,17 @@ function fireRangedAttack(atk: RangedAttack) {
     if (vaultItem?.charges) consumeWeaponCharge(atk.weaponInvId, vaultItem.charges);
   }
 }
+
+// ── Class features ────────────────────────────────────────────────────────────
+
+// Rogue Sneak Attack: ceil(level/2) d6 — covers all Rogue subclasses
+// (Arcane Trickster, Assassin, etc.) since the class string always starts with "Rogue".
+const sneakAttackDice = computed<string | null>(() => {
+  const cls = member.class?.toLowerCase() ?? "";
+  if (!cls.startsWith("rogue")) return null;
+  const dice = Math.ceil(member.level / 2);
+  return `${dice}d6`;
+});
 
 // ── Dice label helper ─────────────────────────────────────────────────────────
 
