@@ -1,6 +1,6 @@
 <template>
   <!-- Page 1: Core stats -->
-  <div class="cs-page">
+  <div :class="['cs-page', theme !== 'default' ? `theme-${theme}` : '']">
 
     <!-- ── Header ─────────────────────────────────────────────────── -->
     <header class="cs-header">
@@ -301,12 +301,13 @@ import { computed } from "vue";
 import { SKILLS, type PartyMember, type SkillProficiencies } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import { getCastingAbility } from "@/types/spell.types";
-import type { SheetPageSize } from "@/composables/useCharacterSheetPdf";
+import type { SheetPageSize, SheetTheme } from "@/composables/useCharacterSheetPdf";
 
-const { member, inventory, speciesName = null, backgroundName = null } = defineProps<{
+const { member, inventory, theme = "default", speciesName = null, backgroundName = null } = defineProps<{
   member: PartyMember;
   inventory: PartyInventoryItem[];
   pageSize?: SheetPageSize;
+  theme?: SheetTheme;
   speciesName?: string | null;
   backgroundName?: string | null;
 }>();

@@ -7,8 +7,22 @@ import CharacterSheetRenderer from "@/components/character-sheet/CharacterSheetR
 
 export type SheetPageSize = "A4" | "Letter";
 
+/** Visual theme applied to the rendered sheet. Each theme is a pure CSS class —
+ *  the renderer adds `theme-<id>` to `.cs-page` and character-sheet.css handles
+ *  variable overrides. "default" applies no extra class. */
+export type SheetTheme = "default" | "horror" | "fairy" | "adventure" | "sumie";
+
+export const SHEET_THEMES: { id: SheetTheme; label: string }[] = [
+  { id: "default",   label: "Default" },
+  { id: "horror",    label: "Horror" },
+  { id: "fairy",     label: "Fairy & Whimsey" },
+  { id: "adventure", label: "Adventure" },
+  { id: "sumie",     label: "Sumi-e" },
+];
+
 export interface SheetExportOptions {
   pageSize?: SheetPageSize;
+  theme?: SheetTheme;
   speciesName?: string | null;
   backgroundName?: string | null;
 }
@@ -29,7 +43,7 @@ export function useCharacterSheetPdf() {
   async function exportPdf(
     member: PartyMember,
     inventory: PartyInventoryItem[],
-    { pageSize = "A4", speciesName = null, backgroundName = null }: SheetExportOptions = {},
+    { pageSize = "A4", theme = "default", speciesName = null, backgroundName = null }: SheetExportOptions = {},
   ): Promise<void> {
     isGenerating.value = true;
 
@@ -46,6 +60,7 @@ export function useCharacterSheetPdf() {
       member,
       inventory,
       pageSize,
+      theme,
       speciesName,
       backgroundName,
     });
