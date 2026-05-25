@@ -84,6 +84,8 @@ function mapBackground(b: Open5eBackground): BackgroundInsert {
     equipment: b.equipment?.trim() || null,
     feature_name: b.feature?.trim() || null,
     feature_description: b.feature_desc?.trim() || null,
+    feat_grant_name: null,
+    feat_grant_description: null,
     suggested_characteristics: b.suggested_characteristics?.trim() || null,
     tags: [],
     source: b.document__slug ?? null,

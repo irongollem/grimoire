@@ -412,6 +412,15 @@ export function useCharacterCreationForm() {
     for (const lang of bg.languages ?? []) {
       if (!f.languages.includes(lang)) f.languages.push(lang);
     }
+    // 2024 PHB: record background feat grant in class_choices so it surfaces
+    // in the character's features tab.
+    if (bg.feat_grant_name) {
+      f.class_choices = { ...f.class_choices, background_feat: bg.feat_grant_name };
+    } else {
+      const { background_feat: _removed, ...rest } = f.class_choices as Record<string, unknown>;
+      void _removed;
+      f.class_choices = rest;
+    }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────────

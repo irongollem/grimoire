@@ -9,21 +9,73 @@
       </div>
       <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <button v-for="bg in allBackgrounds" :key="bg.id" type="button"
-          class="rounded-lg border overflow-hidden text-left transition-all p-3"
+          class="group rounded-lg border overflow-hidden text-left transition-all"
           :class="f.background_id === bg.id
-            ? 'border-primary ring-1 ring-primary bg-primary/5'
+            ? 'border-primary ring-1 ring-primary'
             : 'border-border bg-card hover:border-primary/40'"
           @click="onBackgroundSelect(bg.id)">
-          <p class="font-cinzel text-sm font-bold text-foreground">{{ bg.name }}</p>
-          <div v-if="bg.skill_proficiencies?.length" class="mt-1.5 flex flex-wrap gap-1">
-            <span v-for="sk in bg.skill_proficiencies" :key="sk"
-              class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-[9px] text-primary">
-              {{ sk }}
-            </span>
+
+          <!-- Portrait thumbnail -->
+          <div class="relative h-24 bg-muted overflow-hidden shrink-0">
+            <FocalImage
+              :src="bg.image_url"
+              :alt="bg.name"
+              format="landscape"
+              :focal-point="bg.focal_point ?? null"
+              placeholder="/assets/placeholders/background.webp"
+              class="group-hover:scale-105 transition-transform duration-300"
+            />
+            <!-- Selected badge -->
+            <div v-if="f.background_id === bg.id"
+              class="absolute top-1.5 right-1.5 size-5 rounded-full bg-primary flex items-center justify-center">
+              <IconCheck class="size-3 text-primary-foreground" />
+            </div>
+            <!-- Feat badge -->
+            <div v-if="bg.feat_grant_name"
+              class="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/60 font-cinzel text-[9px] text-amber-300 tracking-wider leading-none">
+              ✦ {{ bg.feat_grant_name }}
+            </div>
           </div>
-          <p v-if="bg.feature_name" class="font-fell text-xs text-muted-foreground mt-1.5 italic">{{ bg.feature_name }}</p>
-          <p v-if="bg.source_title" class="font-cinzel text-[9px] text-muted-foreground/50 mt-1">{{ bg.source_title }}</p>
+
+          <div class="p-2.5">
+            <p class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ bg.name }}</p>
+            <!-- Proficiencies summary -->
+            <div class="mt-1.5 flex flex-wrap gap-1">
+              <span v-for="sk in bg.skill_proficiencies" :key="sk"
+                class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-[9px] text-primary">
+                {{ sk }}
+              </span>
+              <span v-for="t in bg.tool_proficiencies" :key="t"
+                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[9px] text-muted-foreground">
+                {{ t }}
+              </span>
+              <span v-if="bg.languages?.length"
+                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[9px] text-muted-foreground">
+                {{ bg.languages.length === 1 ? bg.languages[0] : `${bg.languages.length} languages` }}
+              </span>
+            </div>
+            <p v-if="bg.feature_name" class="font-fell text-xs text-muted-foreground mt-1.5 italic line-clamp-1">
+              {{ bg.feature_name }}
+            </p>
+            <p v-if="bg.source_title" class="font-cinzel text-[9px] text-muted-foreground/50 mt-1">
+              {{ bg.source_title }}
+            </p>
+          </div>
         </button>
+      </div>
+
+      <!-- Feat grant preview -->
+      <div v-if="selectedBg?.feat_grant_name"
+        class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-1">
+        <div class="flex items-center gap-2">
+          <p class="font-cinzel text-xs font-semibold text-amber-600 dark:text-amber-400 tracking-wider">FEAT GRANT</p>
+          <span class="font-cinzel text-[10px] text-amber-600/60 dark:text-amber-400/60 tracking-wider">2024 PHB</span>
+        </div>
+        <p class="font-cinzel text-sm font-bold text-foreground">{{ selectedBg.feat_grant_name }}</p>
+        <p v-if="selectedBg.feat_grant_description && typeof selectedBg.feat_grant_description === 'string' && !selectedBg.feat_grant_description.startsWith('{')"
+          class="font-fell text-sm text-foreground/80">
+          {{ selectedBg.feat_grant_description }}
+        </p>
       </div>
 
       <!-- Starting equipment preview -->
@@ -146,6 +198,8 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import FocalImage from "@/components/common/FocalImage.vue";
+import { IconCheck } from "@/lib/icons";
 import { useAllDeities } from "@/composables/useDeities";
 import type { CharacterCreationForm } from "@/composables/useCharacterCreationForm";
 

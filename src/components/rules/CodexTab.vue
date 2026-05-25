@@ -195,6 +195,16 @@
                     <p v-else class="font-fell text-sm text-muted-foreground italic">No description.</p>
                   </div>
                   <div class="flex flex-col gap-4 p-5 border-t border-border md:border-t-0">
+                    <!-- Feat grant (2024 PHB) -->
+                    <div v-if="selectedBackground.feat_grant_name"
+                      class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-1">
+                      <div class="flex items-center gap-2">
+                        <p class="font-cinzel text-[10px] font-semibold text-amber-600 dark:text-amber-400 tracking-wider">FEAT GRANT</p>
+                        <span class="font-cinzel text-[9px] text-amber-600/60 dark:text-amber-400/60 tracking-wider">2024 PHB</span>
+                      </div>
+                      <p class="font-cinzel text-sm font-bold text-foreground">{{ selectedBackground.feat_grant_name }}</p>
+                      <RichTextViewer v-if="selectedBackground.feat_grant_description" :content="selectedBackground.feat_grant_description" />
+                    </div>
                     <div v-if="selectedBackground.skill_proficiencies?.length">
                       <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-1.5">SKILL PROFICIENCIES</p>
                       <div class="flex flex-wrap gap-1.5">
