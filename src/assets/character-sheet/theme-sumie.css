@@ -1,0 +1,121 @@
+/* ============================================================
+   Character Sheet — Sumi-e theme
+   Palette: sumi ink (near black), washi paper, vermilion seal.
+   Calligraphic feel — every rule looks hand-drawn.
+   Only accent color is cinnabar / vermilion (#c8200a).
+   Spare, asymmetric, deeply subdued.
+   ============================================================ */
+
+.cs-page.theme-sumie {
+  --cs-bg:          #f0e8d4;
+  --cs-bg-card:     #faf5ea;
+  --cs-bg-section:  rgba(250, 245, 234, 0.65);
+
+  --cs-ink:         #12100e;
+  --cs-ink-mid:     #2a2520;
+  --cs-ink-label:   #504840;
+  --cs-ink-muted:   #807870;
+
+  /* Vermilion / cinnabar — the only accent; used sparingly */
+  --cs-accent:      #c8200a;
+  --cs-accent-text: #faf5ea;
+  --cs-accent-soft: rgba(200, 32, 10, 0.06);
+
+  --cs-border:      #18140f;
+  --cs-border-gold: #c8200a;   /* vermilion replaces gold trim */
+  --cs-border-light:#9a9080;
+}
+
+/* Aged washi paper background with subtle grain */
+.cs-page.theme-sumie {
+  background:
+    /* Noise grain — fine washi texture */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"),
+    linear-gradient(170deg, #f5edd8 0%, #f0e8d4 50%, #eae0cc 100%);
+  /* Thick ink-brush outer border */
+  border: 2.5px solid #12100e;
+  outline: 1px solid rgba(18,16,14,0.3);
+  outline-offset: -6px;
+}
+
+/* Brush-stroke section title — single confident line below */
+.cs-page.theme-sumie .cs-section-title {
+  background: #12100e;
+  position: relative;
+  padding: 3px 8px 4px;
+}
+
+/* Vermilion dot accent before section title text — seal motif */
+.cs-page.theme-sumie .cs-section-title::before {
+  content: "●";
+  color: #c8200a;
+  margin-right: 5px;
+  font-size: 6px;
+  vertical-align: middle;
+}
+
+/* Ability boxes: thin ink border, vermilion top notch */
+.cs-page.theme-sumie .cs-ability-score {
+  border-color: #2a2520;
+  border-width: 1.5px;
+}
+
+.cs-page.theme-sumie .cs-ability-score::before {
+  background: #c8200a;
+  width: 14px;
+  height: 4px;
+  border-radius: 0 0 1px 1px;
+}
+
+/* Character name in sumi ink — no color accent on name */
+.cs-page.theme-sumie .cs-character-name {
+  color: #12100e;
+  letter-spacing: 0.08em;
+}
+
+/* Header divider — thicker brush-style rule */
+.cs-page.theme-sumie .cs-header {
+  border-bottom-width: 2.5px;
+  border-color: #12100e;
+}
+
+/* Portrait frame — ink brushed border */
+.cs-page.theme-sumie .cs-portrait-wrap {
+  border-color: #12100e;
+  border-width: 2px;
+  box-shadow: 3px 3px 0 rgba(18,16,14,0.25);
+}
+
+/* Vermilion seal mark at bottom-right corner of the sheet */
+.cs-page.theme-sumie::after {
+  content: "印";
+  position: absolute;
+  bottom: 14px;
+  right: 18px;
+  font-size: 18px;
+  color: #c8200a;
+  opacity: 0.55;
+  font-family: serif;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* Check row dividers — faint ink wash */
+.cs-page.theme-sumie .cs-check-row {
+  border-bottom-color: rgba(42, 37, 32, 0.2);
+}
+
+/* Proficiency dot — sumi ink */
+.cs-page.theme-sumie .cs-prof-dot--filled {
+  background: #12100e;
+  border-color: #12100e;
+}
+
+.cs-page.theme-sumie .cs-prof-dot--expertise {
+  box-shadow: 0 0 0 2px #c8200a;
+}
+
+/* Combat stat boxes — plain ink border */
+.cs-page.theme-sumie .cs-combat-stat {
+  border-color: #2a2520;
+}

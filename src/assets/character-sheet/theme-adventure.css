@@ -1,0 +1,57 @@
+/* ============================================================
+   Character Sheet — Adventure theme
+   Palette: parchment, leather brown, deep navy, gold.
+   Explorer's journal — warm, travel-worn, purposeful.
+   ============================================================ */
+
+.cs-page.theme-adventure {
+  --cs-bg:          #e8d8a8;
+  --cs-bg-card:     #f5eac8;
+  --cs-bg-section:  rgba(245, 234, 200, 0.75);
+
+  --cs-ink:         #1a1008;
+  --cs-ink-mid:     #3a2410;
+  --cs-ink-label:   #6a4820;
+  --cs-ink-muted:   #9a7848;
+
+  /* Deep navy accent — gold contrast */
+  --cs-accent:      #1a2a50;
+  --cs-accent-text: #f5eac8;
+  --cs-accent-soft: rgba(26, 42, 80, 0.07);
+
+  --cs-border:      #6b4a1a;
+  --cs-border-gold: #b89800;
+  --cs-border-light:#d4b860;
+}
+
+.cs-page.theme-adventure {
+  background:
+    /* Map-edge hatching at corners — crosshatch feel */
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px, transparent 18px,
+      rgba(107, 74, 26, 0.04) 18px, rgba(107, 74, 26, 0.04) 19px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px, transparent 18px,
+      rgba(107, 74, 26, 0.04) 18px, rgba(107, 74, 26, 0.04) 19px
+    ),
+    linear-gradient(170deg, #f0dda8 0%, #e8d8a8 50%, #decca0 100%);
+  border-color: #6b4a1a;
+  border-width: 2px;
+  outline: 2px solid var(--cs-border-gold);
+  outline-offset: -5px;
+}
+
+/* Leather-compass ornament on ability score boxes */
+.cs-page.theme-adventure .cs-ability-score::before {
+  width: 22px;
+  background: var(--cs-accent);
+}
+
+/* Bolder section title — exploration log */
+.cs-page.theme-adventure .cs-section-title {
+  background: var(--cs-accent);
+  letter-spacing: 0.18em;
+}
