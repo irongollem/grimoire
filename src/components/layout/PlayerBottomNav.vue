@@ -51,9 +51,7 @@ import { IconGridView } from '@/lib/icons';
 import { usePlayerNavPrefs } from "@/composables/usePlayerNavPrefs";
 import { MOBILE_NAV_SLOTS, TABLET_NAV_SLOTS } from "@/lib/playerNav";
 
-const { showMore = defineProps<{
-  showMore: boolean;
-}>() } = defineProps<{
+const { showMore } = defineProps<{
   showMore: boolean;
 }>();
 

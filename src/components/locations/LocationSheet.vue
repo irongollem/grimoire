@@ -261,19 +261,23 @@ const { confirm } = useConfirm();
 
 // ── Ancestor chain, same as editor ──────────────────────────────────────────
 const { data: allLocations } = useAllLocations();
-const ancestors = computed(() => {
-  const parent = props.location.parent_id;
-  if (!parent || !allLocations.value?.length) return [];
+// Loop extracted into a helper to keep `computed` single-return — oxlint's
+// `vue/return-in-computed-property` rule reports a false positive when a while
+// loop appears inside the getter body.
+function buildAncestorChain(parentId: string | null | undefined, all: Location[]): Location[] {
   const chain: Location[] = [];
-  let current = allLocations.value.find((l) => l.id === parent);
+  if (!parentId) return chain;
+  let current = all.find((l) => l.id === parentId);
   while (current && chain.length < 10) {
     chain.unshift(current);
-    current = current.parent_id
-      ? allLocations.value!.find((l) => l.id === current!.parent_id)
-      : undefined;
+    const nextId = current.parent_id;
+    current = nextId ? all.find((l) => l.id === nextId) : undefined;
   }
   return chain;
-});
+}
+const ancestors = computed(() =>
+  buildAncestorChain(props.location.parent_id, allLocations.value ?? []),
+);
 
 // ── Children + pinnable descendants (for the map viewer) ────────────────────
 const { data: children } = useLocations(props.location.id);

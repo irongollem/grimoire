@@ -4,6 +4,11 @@ import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query";
 import App from "./App.vue";
 import { routes, setupRouterGuard } from "./router/index";
 import { updateAvailable } from "./composables/useAppUpdate";
+// Static imports for modules also statically imported by browser-only components —
+// dynamic-importing them here produced INEFFECTIVE_DYNAMIC_IMPORT warnings without
+// actually splitting any chunk. Both modules are SSR-safe (no top-level window access).
+import { captureInstallPrompt } from "./composables/usePwaInstall";
+import { pendingBundleFile } from "./composables/usePendingBundle";
 
 import "./assets/main.css";
 
@@ -40,14 +45,13 @@ export const createApp = ViteSSG(
     setupRouterGuard(router);
 
     if (!import.meta.env.SSR) {
-      // Browser-only imports and setup
+      // Browser-only imports and setup.
       Promise.all([
-        import("./composables/usePwaInstall"),
         import("./composables/useWakeLock"),
         import("./lib/tooltip"),
         import("./directives/tooltip"),
         import("./directives/noPwm"),
-      ]).then(([{ captureInstallPrompt }, { onWakeLockVisibilityChange }, { installTooltipEngine }, { tooltip: vTooltip }, { noPwm: vNoPwm }]) => {
+      ]).then(([{ onWakeLockVisibilityChange }, { installTooltipEngine }, { tooltip: vTooltip }, { noPwm: vNoPwm }]) => {
         app.directive("tooltip", vTooltip);
         app.directive("no-pwm", vNoPwm);
         installTooltipEngine();
@@ -66,7 +70,6 @@ export const createApp = ViteSSG(
           if (!handle) return;
           const file = await handle.getFile();
           if (!file.name.endsWith(".grimoire")) return;
-          const { pendingBundleFile } = await import("./composables/usePendingBundle");
           pendingBundleFile.value = file;
         });
       }

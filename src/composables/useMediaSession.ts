@@ -120,7 +120,7 @@ export function useMediaSession() {
 
     navigator.mediaSession.setActionHandler("seekto", (details) => {
       const p = store.activeMusicPlaylist;
-      if (!p || details.seekTime == null) return;
+      if (!p || details.seekTime === undefined || details.seekTime === null) return;
       store.seek(p.trackSoundIds[p.currentIndex], details.seekTime);
     });
   }

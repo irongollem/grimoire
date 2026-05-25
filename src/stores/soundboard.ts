@@ -116,7 +116,7 @@ function destroyEffectChain(soundId: string): void {
     chain.source.disconnect();
     chain.filter.disconnect();
     chain.gainNode.disconnect();
-  } catch (_) { /* already disconnected — ignore */ }
+  } catch { /* already disconnected — ignore */ }
   effectChains.delete(soundId);
 }
 

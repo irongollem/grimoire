@@ -321,14 +321,17 @@ async function save() {
   }
 }
 
-const pages = computed(() => {
-  const html = previewHtml.value || "";
+// Body extracted to keep `computed` single-return — oxlint's
+// `vue/return-in-computed-property` rule reports a false positive when while
+// loops appear inside the getter body.
+function htmlToPages(html: string): string[] {
   const parts = html.split(/<hr\s*\/?\s*>/gi);
   while (parts.length > 1 && !parts[0].trim()) parts.shift();
   while (parts.length > 1 && !parts[parts.length - 1].trim()) parts.pop();
   const rawPages = parts.length ? parts : [""];
   return buildTocPages(rawPages);
-});
+}
+const pages = computed(() => htmlToPages(previewHtml.value || ""));
 
 const pageFooters = computed<(string | null)[]>(() => {
   if (!showPageNumbers.value) return pages.value.map(() => null);
