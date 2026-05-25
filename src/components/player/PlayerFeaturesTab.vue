@@ -101,6 +101,17 @@
     </div>
 
     <!-- ── Class choices ───────────────────────────────────────────────────── -->
+    <!-- ── Background feat (2024 PHB) ──────────────────────────────────────── -->
+    <div v-if="backgroundFeat" class="rounded-lg border border-amber-500/30 bg-amber-500/5 overflow-hidden">
+      <div class="px-4 py-2.5 border-b border-amber-500/20 bg-amber-500/10 flex items-center gap-2">
+        <p class="font-cinzel text-xs font-semibold text-amber-600 dark:text-amber-400 tracking-wider">Background Feat</p>
+        <span class="font-cinzel text-[10px] text-amber-600/60 dark:text-amber-400/60 tracking-wider">2024 PHB</span>
+      </div>
+      <div class="px-4 py-3">
+        <p class="font-cinzel text-sm font-bold text-foreground">{{ backgroundFeat }}</p>
+      </div>
+    </div>
+
     <div v-if="choiceEntries.length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-2.5 border-b border-border">
         <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Choices</p>
@@ -443,10 +454,21 @@ const CHOICE_LABELS: Record<string, string> = {
   barbarian_path:         "Primal Path",
 };
 
+/** Background feat name from class_choices (set when a 2024 PHB background is picked). */
+const backgroundFeat = computed(() => {
+  const raw = props.member.class_choices?.background_feat;
+  return raw && typeof raw === "string" ? raw : null;
+});
+
 const choiceEntries = computed(() => {
   const choices = props.member.class_choices ?? {};
   return Object.entries(choices)
-    .filter(([key, v]) => key !== "metamagic_options" && key !== "infusions_known" && key !== "eldritch_invocations" && key !== "battle_master_maneuvers" && v !== null && v !== undefined && v !== "")
+    .filter(([key, v]) =>
+      key !== "metamagic_options" && key !== "infusions_known" &&
+      key !== "eldritch_invocations" && key !== "battle_master_maneuvers" &&
+      key !== "background_feat" &&           // shown in its own dedicated card
+      v !== null && v !== undefined && v !== "",
+    )
     .map(([key, value]) => ({
       key,
       label: CHOICE_LABELS[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),

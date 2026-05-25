@@ -16,6 +16,13 @@ export interface Background {
   equipment: string | null;
   feature_name: string | null;
   feature_description: string | null;
+  /**
+   * 2024 PHB: every background grants a feat at 1st level.
+   * Stored as a free-text name so any ruleset / homebrew feat can be referenced.
+   */
+  feat_grant_name: string | null;
+  /** Optional description / summary of what the feat does, for in-app display. */
+  feat_grant_description: string | null;
   /** Block of personality traits / ideals / bonds / flaws suggestions. */
   suggested_characteristics: string | null;
   tags: string[];

@@ -92,6 +92,18 @@
       </div>
     </div>
 
+    <!-- Feat grant card (2024 PHB) -->
+    <div v-if="background.feat_grant_name" class="rounded-lg border border-primary/30 bg-primary/5 overflow-hidden">
+      <div class="px-3 py-2 border-b border-primary/20 bg-primary/10 flex items-center gap-2">
+        <span class="font-cinzel text-xs font-semibold text-primary tracking-wider">Feat Grant</span>
+        <span class="font-cinzel text-[10px] text-primary/60 tracking-wider">2024 PHB</span>
+      </div>
+      <div class="p-4 flex flex-col gap-2">
+        <p class="font-cinzel text-sm font-bold text-foreground">{{ background.feat_grant_name }}</p>
+        <RichTextViewer v-if="background.feat_grant_description" :content="background.feat_grant_description" />
+      </div>
+    </div>
+
     <!-- Tags card -->
     <div v-if="background.tags.length" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-3 py-2 border-b border-border bg-muted/20">

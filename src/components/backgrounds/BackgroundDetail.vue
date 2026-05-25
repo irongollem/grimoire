@@ -90,6 +90,21 @@
       />
     </div>
 
+    <!-- Feat grant (2024 PHB) -->
+    <div class="flex flex-col gap-2 rounded-lg border border-border bg-card/50 px-4 py-3">
+      <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Feat grant <span class="font-normal text-muted-foreground/60">(2024 PHB — optional)</span></span>
+      <input
+        v-model="form.feat_grant_name"
+        placeholder="Feat name, e.g. Magic Initiate (Wizard)"
+        class="w-full bg-background border border-border rounded-md px-3 py-2 font-cinzel text-sm font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      />
+      <RichTextEditor
+        v-model="form.feat_grant_description"
+        placeholder="Brief summary of what the feat grants — passive bonuses, spells, proficiencies…"
+        min-height="80px"
+      />
+    </div>
+
     <!-- Suggested characteristics -->
     <div class="flex flex-col gap-1">
       <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Suggested characteristics</span>
@@ -135,6 +150,8 @@ function blankForm(): BackgroundInsert {
     equipment: null,
     feature_name: null,
     feature_description: null,
+    feat_grant_name: null,
+    feat_grant_description: null,
     suggested_characteristics: null,
     tags: [],
     source: null,

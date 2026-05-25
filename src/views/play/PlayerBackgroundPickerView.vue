@@ -44,6 +44,18 @@
             </p>
           </div>
 
+          <!-- Feat grant (2024 PHB) -->
+          <div v-if="pendingBg.feat_grant_name"
+            class="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 space-y-1">
+            <div class="flex items-center gap-2">
+              <p class="font-cinzel text-2xs md:text-sm font-semibold text-amber-600 dark:text-amber-400 tracking-wider">
+                FEAT GRANT
+              </p>
+              <span class="font-cinzel text-[10px] text-amber-600/60 dark:text-amber-400/60 tracking-wider">2024 PHB</span>
+            </div>
+            <p class="font-cinzel text-sm font-bold text-foreground">{{ pendingBg.feat_grant_name }}</p>
+          </div>
+
           <!-- Proficiencies granted by the new background -->
           <div v-if="propsToApply.length > 0">
             <p class="font-cinzel text-2xs md:text-sm font-semibold text-muted-foreground tracking-wider mb-2">
@@ -225,6 +237,12 @@ async function confirm() {
     if (removeOld.value && pendingRemovals.value) {
       removeBackgroundProfs(form, pendingRemovals.value);
     }
+    // Update class_choices.background_feat to reflect the newly selected background's feat grant
+    const existingChoices = me.value.class_choices ?? {};
+    const updatedChoices = pendingBg.value.feat_grant_name
+      ? { ...existingChoices, background_feat: pendingBg.value.feat_grant_name }
+      : (({ background_feat: _r, ...rest }) => (void _r, rest))(existingChoices as Record<string, unknown>);
+
     await update({
       id: me.value.id,
       update: {
@@ -232,6 +250,7 @@ async function confirm() {
         skill_proficiencies: form.skill_proficiencies,
         tool_proficiencies: form.tool_proficiencies,
         languages: form.languages,
+        class_choices: updatedChoices,
       },
     });
     router.push("/play");
