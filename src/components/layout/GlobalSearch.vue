@@ -7,7 +7,7 @@
         ref="inputRef"
         v-model="query"
         type="text"
-        placeholder="IconSearch…"
+        placeholder="Search…"
         class="w-full pl-7 pr-7 py-1.5 rounded-md bg-background border border-border text-sm font-fell text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 transition-colors"
         @focus="open = true"
         @keydown.escape="close"

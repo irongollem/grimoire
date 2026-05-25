@@ -103,7 +103,7 @@
         <input
           v-model="search"
           type="text"
-          placeholder="IconSearch…"
+          placeholder="Search…"
           class="w-full bg-muted border border-border rounded-md pl-8 pr-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>

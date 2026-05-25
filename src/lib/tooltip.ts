@@ -231,8 +231,15 @@ export function installTooltipEngine() {
   if (installed) return;
   installed = true;
 
+  // Always promote `title` → `data-tooltip` so the browser's native tooltip
+  // stays silent, but skip registering hover/touch listeners on touch-only
+  // devices (phones, tablets) — tooltips are not useful there and a long-press
+  // tooltip showing up unexpectedly is a poor UX on touch.
   promoteAllTitles(document.body);
   startMutationObserver();
+
+  const isTouch = window.matchMedia("(hover: none)").matches;
+  if (isTouch) return;
 
   document.addEventListener("mouseover", onMouseOver, true);
   document.addEventListener("mouseout", onMouseOut, true);

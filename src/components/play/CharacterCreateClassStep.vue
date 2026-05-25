@@ -223,9 +223,12 @@ const classChosenCount = computed(() =>
   ).length,
 );
 
-/** Remaining class skill picks (negative = over budget). */
-const picksRemaining = computed(() => {
+/** Remaining class skill picks (negative = over budget).
+ *  Returns 0 when no class is selected; the surrounding v-if="classSkillData"
+ *  guard ensures this branch is never rendered, so 0 is a safe non-null default
+ *  that keeps the return type as `number` and satisfies vue-tsc. */
+const picksRemaining = computed((): number => {
   const data = classSkillData.value;
-  return data ? data.count - classChosenCount.value : null;
+  return data ? data.count - classChosenCount.value : 0;
 });
 </script>

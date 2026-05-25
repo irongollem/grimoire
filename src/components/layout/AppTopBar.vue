@@ -8,7 +8,7 @@
 
     <button
       class="text-muted-foreground hover:text-foreground transition-colors"
-      aria-label="IconSearch"
+      aria-label="Search"
       @click="searchOpen = true"
     >
       <IconSearch class="h-5 w-5" />
@@ -67,7 +67,7 @@
               ref="mobileInputRef"
               v-model="mobileQuery"
               type="text"
-              placeholder="IconSearch anything…"
+              placeholder="Search anything…"
               class="w-full pl-8 pr-8 py-2 rounded-md bg-background border border-border text-sm font-fell text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500"
               @keydown.escape="searchOpen = false"
             />

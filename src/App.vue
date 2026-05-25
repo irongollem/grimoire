@@ -210,7 +210,9 @@ const layout = computed(() => {
 /* ── App update banner ─────────────────────────────────────────────── */
 .update-banner {
   position: fixed;
-  bottom: 1.25rem;
+  /* Float above the player bottom nav when it's present (--bottom-nav-h is set
+     by PlayerLayout on mount); fall back to 1.25rem on layouts without a nav. */
+  bottom: calc(var(--bottom-nav-h, 0px) + 1.25rem);
   left: 50%;
   transform: translateX(-50%);
   z-index: 9999;

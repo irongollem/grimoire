@@ -31,7 +31,7 @@
           <input
             v-model="searchInput"
             type="text"
-            placeholder="IconSearch bestiary…"
+            placeholder="Search bestiary…"
             class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
@@ -137,7 +137,7 @@
                 v-if="ui.dmPreviewMode"
                 type="button"
                 class="absolute top-1.5 right-1.5 z-10 p-0.5 rounded bg-card/80 text-muted-foreground hover:bg-primary/20 hover:text-primary transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
-                title="IconPin form"
+                title="Pin form"
                 @click.stop="togglePin(entry.monster)"
               >
                 <IconPin class="h-3 w-3" />
