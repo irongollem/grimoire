@@ -1,0 +1,61 @@
+/* ============================================================
+   Character Sheet — Fairy & Whimsey theme
+   Palette: blush rose, soft mint, parchment cream, gold leaf.
+   Open and airy — feels like an illustrated storybook.
+   ============================================================ */
+
+.cs-page.theme-fairy {
+  --cs-bg:          #f8f0ee;
+  --cs-bg-card:     #fffcfb;
+  --cs-bg-section:  rgba(255, 252, 251, 0.8);
+
+  --cs-ink:         #2a1520;
+  --cs-ink-mid:     #5a3040;
+  --cs-ink-label:   #8a5060;
+  --cs-ink-muted:   #b08090;
+
+  /* Dusty rose accent — ivory contrast */
+  --cs-accent:      #8b3055;
+  --cs-accent-text: #fff8f5;
+  --cs-accent-soft: rgba(139, 48, 85, 0.07);
+
+  --cs-border:      #c07090;
+  --cs-border-gold: #c8a030;
+  --cs-border-light:#e0c0d0;
+}
+
+.cs-page.theme-fairy {
+  background:
+    /* Subtle diagonal crosshatch — linen texture */
+    repeating-linear-gradient(
+      45deg,
+      transparent 0px, transparent 8px,
+      rgba(192,112,144,0.04) 8px, rgba(192,112,144,0.04) 9px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      transparent 0px, transparent 8px,
+      rgba(192,112,144,0.04) 8px, rgba(192,112,144,0.04) 9px
+    ),
+    linear-gradient(160deg, #fff0ed 0%, #f8f0ee 50%, #f2e8e6 100%);
+  border-color: #c07090;
+  outline-color: #c8a030;
+  outline-style: solid;
+  outline-width: 2px;
+  outline-offset: -4px;
+}
+
+/* Rounded section corners feel more whimsical */
+.cs-page.theme-fairy .cs-section {
+  border-radius: 5px;
+}
+
+.cs-page.theme-fairy .cs-ability-score {
+  border-radius: 6px;
+}
+
+/* Gold-leaf divider line in section titles */
+.cs-page.theme-fairy .cs-section-title {
+  background: var(--cs-accent);
+  border-bottom: 2px solid var(--cs-border-gold);
+}

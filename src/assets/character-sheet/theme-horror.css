@@ -1,0 +1,46 @@
+/* ============================================================
+   Character Sheet — Horror theme
+   Palette: bone, bruise, ink — restrained gothic; no kitsch.
+   Cinzel headings retained; body stays Crimson Pro.
+   Section dividers feel heavier; corners get a subtle vignette.
+   ============================================================ */
+
+.cs-page.theme-horror {
+  --cs-bg:          #e4ddd4;
+  --cs-bg-card:     #f2ede8;
+  --cs-bg-section:  rgba(242, 237, 232, 0.7);
+
+  --cs-ink:         #180d12;
+  --cs-ink-mid:     #3a1f28;
+  --cs-ink-label:   #6b3a4a;
+  --cs-ink-muted:   #9a7080;
+
+  /* Deep bruise-purple accent — bone-cream contrast text */
+  --cs-accent:      #3a0e28;
+  --cs-accent-text: #e4ddd4;
+  --cs-accent-soft: rgba(58, 14, 40, 0.07);
+
+  --cs-border:      #4a1a32;
+  --cs-border-gold: #7a4a60;
+  --cs-border-light:#c0a0b0;
+}
+
+.cs-page.theme-horror {
+  background:
+    linear-gradient(170deg, #ddd4ca 0%, #e4ddd4 50%, #dad3c8 100%);
+  border-color: #4a1a32;
+  outline-color: #4a1a32;
+  /* Corner flourishes via outline double border */
+  outline: 3px double #4a1a32;
+  outline-offset: -5px;
+}
+
+/* Ability score top notch — bruise instead of burgundy */
+.cs-page.theme-horror .cs-ability-score::before {
+  background: var(--cs-accent);
+}
+
+/* Section title bar — deeper, more austere */
+.cs-page.theme-horror .cs-section-title {
+  letter-spacing: 0.15em;
+}
