@@ -2,7 +2,7 @@
   <div class="flex flex-col h-full">
     <PageHeader title="Campaign Settings" :subtitle="campaignStore.activeCampaign?.name ?? ''" />
 
-    <div v-if="campaignStore.activeCampaign" class="flex flex-1 min-h-0">
+    <div v-if="campaignStore.activeCampaign" class="flex flex-col md:flex-row flex-1 min-h-0">
       <!-- Sidebar tabs -->
       <aside class="hidden md:flex flex-col w-48 shrink-0 border-r border-border px-3 py-4 gap-0.5">
         <button

@@ -242,6 +242,7 @@ import { formatHitPoints } from "@/lib/utils";
 import { IconChart, IconEdit, IconHide, IconLock, IconParty, IconReveal } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
+import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useMonsterVisibility } from "@/composables/useMonsterVisibility";
 import type { Monster, DiscoveredMonster } from "@/types/monster.types";
@@ -331,7 +332,9 @@ const filtered = computed(() => {
   return list;
 });
 
-const { visibleItems, sentinelRef } = useInfiniteScroll(filtered);
+const { savedCount, linkCount } = useScrollRestore("monsters");
+const { visibleItems, sentinelRef, visibleCount } = useInfiniteScroll(filtered, 48, savedCount);
+linkCount(visibleCount);
 
 const lockedMonsterIds = computed((): Set<string> => {
   const q = monsterQuota.value;

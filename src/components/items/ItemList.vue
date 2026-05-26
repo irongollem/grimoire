@@ -159,6 +159,7 @@ function itemTypeIcon(type: ItemType): VueComponent {
   return ITEM_TYPE_ICONS[type] ?? IconComponent;
 }
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
+import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useItems } from "@/composables/useItems";
 import { ITEM_RARITY_LABELS, RARITY_BADGE_COLORS } from "@/types/item.types";
 import type { ItemRarity } from "@/types/item.types";
@@ -192,7 +193,9 @@ const filtered = computed(() => {
   });
 });
 
-const { visibleItems, sentinelRef } = useInfiniteScroll(filtered);
+const { savedCount, linkCount } = useScrollRestore("items");
+const { visibleItems, sentinelRef, visibleCount } = useInfiniteScroll(filtered, 48, savedCount);
+linkCount(visibleCount);
 
 function rarityColor(rarity: ItemRarity): string {
   return RARITY_BADGE_COLORS[rarity] ?? "#9ca3af";

@@ -177,6 +177,7 @@ import { refDebounced } from "@vueuse/core";
 import { useAllSpells } from "@/composables/useSpells";
 import { useAddCharacterSpell, useRemoveCharacterSpell } from "@/composables/useCharacterSpells";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
+import { useScrollRestore } from "@/composables/useScrollRestore";
 import { SCHOOL_COLORS, spellLevelLabel } from "@/types/spell.types";
 import type { CasterType, Spell } from "@/types/spell.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -240,5 +241,7 @@ const filtered = computed<Spell[]>(() => {
   return list;
 });
 
-const { visibleItems, sentinelRef } = useInfiniteScroll(filtered);
+const { savedCount, linkCount } = useScrollRestore("spells");
+const { visibleItems, sentinelRef, visibleCount } = useInfiniteScroll(filtered, 48, savedCount);
+linkCount(visibleCount);
 </script>

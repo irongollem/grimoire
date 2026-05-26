@@ -158,6 +158,7 @@ import { IconCheck, IconEdit } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useBackgrounds } from "@/composables/useBackgrounds";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
+import { useScrollRestore } from "@/composables/useScrollRestore";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
@@ -203,5 +204,7 @@ const filtered = computed(() => {
   return list;
 });
 
-const { visibleItems, sentinelRef } = useInfiniteScroll(filtered);
+const { savedCount, linkCount } = useScrollRestore("backgrounds");
+const { visibleItems, sentinelRef, visibleCount } = useInfiniteScroll(filtered, 48, savedCount);
+linkCount(visibleCount);
 </script>

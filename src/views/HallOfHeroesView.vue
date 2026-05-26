@@ -29,6 +29,7 @@
       </ListFilterBar>
     </template>
 
+    <div ref="listRef">
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
@@ -137,6 +138,7 @@
         </div>
       </div>
     </div>
+    </div><!-- /listRef -->
 
     <template v-if="filtered.length" #footer>
       <p class="text-center font-fell text-xs text-muted-foreground">
@@ -149,6 +151,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
+import { useScrollRestore } from "@/composables/useScrollRestore";
 import { IconAdd, IconDelete, IconEdit, IconGenerate } from '@/lib/icons';
 import { useHallOfHeroes, useDeleteHero, useImportHero, usePopulateAllSettingHeroes } from "@/composables/useHallOfHeroes";
 import { useAuthStore } from "@/stores/auth";
@@ -175,6 +178,9 @@ function settingLabel(val: string) {
 }
 
 const router = useRouter();
+const listRef = ref<HTMLElement | null>(null);
+useScrollRestore("hall-of-heroes", listRef);
+
 const auth = useAuthStore();
 const campaign = useCampaignStore();
 const ui = useUiStore();

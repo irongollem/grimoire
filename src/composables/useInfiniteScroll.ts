@@ -4,15 +4,22 @@ import { ref, computed, watch, onUnmounted, type Ref } from "vue";
  * Client-side infinite scroll over an already-fetched filtered list.
  *
  * Usage:
- *   const { visibleItems, sentinelRef } = useInfiniteScroll(filtered)
+ *   const { visibleItems, sentinelRef, visibleCount } = useInfiniteScroll(filtered)
  *
  *   // template: v-for="x in visibleItems" ... <div ref="sentinelRef" />
  *
  * Resets to the first page whenever `filtered` changes (search / filter update).
  * Uses IntersectionObserver on the sentinel element to load the next page.
+ *
+ * Pass `initialCount` (from useScrollRestore) to restore the previously loaded
+ * page depth when navigating back from a detail view.
  */
-export function useInfiniteScroll<T>(filtered: Ref<T[]>, pageSize = 48) {
-  const visibleCount = ref(pageSize);
+export function useInfiniteScroll<T>(
+  filtered: Ref<T[]>,
+  pageSize = 48,
+  initialCount?: number,
+) {
+  const visibleCount = ref(initialCount ?? pageSize);
   const sentinelRef = ref<HTMLElement | null>(null);
 
   const visibleItems = computed(() => filtered.value.slice(0, visibleCount.value));
@@ -39,5 +46,5 @@ export function useInfiniteScroll<T>(filtered: Ref<T[]>, pageSize = 48) {
 
   onUnmounted(() => observer?.disconnect());
 
-  return { visibleItems, sentinelRef, hasMore };
+  return { visibleItems, sentinelRef, hasMore, visibleCount };
 }
