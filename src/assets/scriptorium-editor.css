@@ -5,8 +5,11 @@
  * Scriptorium editor pane. This file is imported globally from main.css
  * (rather than being a scoped Vue style block) so the file size of
  * ScriptoriumEditor.vue stays within the 600-line soft limit.
+ *
+ * NOTE: No @reference needed here — this file is @import'd into main.css
+ * which already has the full Tailwind + @theme context. Adding @reference
+ * to main.css would create a circular dependency (main → editor → main).
  */
-@reference "./main.css";
 
 /* ── Transition: AI enhance error toast ───────────────────────────────────── */
 .enhance-error-enter-active,
