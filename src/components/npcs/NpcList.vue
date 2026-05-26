@@ -231,6 +231,7 @@
 import { ref, computed, reactive } from "vue";
 import { useRouter } from "vue-router";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
+import { useScrollRestore } from "@/composables/useScrollRestore";
 import { IconEdit, IconHide, IconLock, IconParty, IconReveal } from '@/lib/icons';
 import { useNpcs, useUpdateNpc } from "@/composables/useNpcs";
 import { useParty } from "@/composables/useParty";
@@ -336,7 +337,9 @@ const filtered = computed(() => {
   return list;
 });
 
-const { visibleItems, sentinelRef } = useInfiniteScroll(filtered);
+const { savedCount, linkCount } = useScrollRestore("npcs");
+const { visibleItems, sentinelRef, visibleCount } = useInfiniteScroll(filtered, 48, savedCount);
+linkCount(visibleCount);
 
 const lockedNpcIds = computed((): Set<string> => {
   const q = npcQuota.value;
