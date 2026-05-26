@@ -1,21 +1,29 @@
 import { getCurrentInstance, onMounted, onBeforeUnmount, nextTick, type Ref } from "vue";
 import { onBeforeRouteLeave } from "vue-router";
+import type { ComponentPublicInstance } from "vue";
 
 /**
  * Persists the scroll position (and infinite-scroll page count) for a list
  * view so that navigating List → Detail → Back restores exactly where the
  * user was.
  *
- * Usage — inside the list component (e.g. NpcList.vue):
+ * Usage A — inside a list component that uses useInfiniteScroll (e.g. NpcList.vue):
  *
  *   const { savedCount, linkCount } = useScrollRestore('npcs')
  *   const { visibleItems, sentinelRef, visibleCount } = useInfiniteScroll(filtered, 48, savedCount)
  *   linkCount(visibleCount)
  *
+ * Usage B — inside a view that renders its list content directly (no child list component):
+ *
+ *   const listRef = ref<HTMLElement | null>(null)
+ *   useScrollRestore('hall-of-heroes', listRef)
+ *   // In template: wrap the list body in <div ref="listRef">
+ *
  * The composable auto-detects the active scroll container at runtime by
- * walking up the DOM — this correctly resolves to the inner
+ * walking up the DOM from either the provided `startRef` element or the
+ * component's own root element. This correctly resolves to the inner
  * `lg:overflow-y-auto` div inside ListPageLayout on desktop, and to the
- * `<main>` element (DefaultLayout) on mobile, with no manual wiring needed.
+ * `<main>` element (DefaultLayout) on mobile.
  *
  * State is kept in a module-level Map (session memory only, never persisted
  * to localStorage) so it survives in-session navigation but is reset on
@@ -39,7 +47,13 @@ function findScrollParent(el: Element): Element | null {
   return null;
 }
 
-export function useScrollRestore(key: string) {
+export function useScrollRestore(
+  key: string,
+  /** Optional ref to an element inside the scroll container — use this when
+   *  calling from a view that renders list content directly rather than
+   *  delegating to a child list component. */
+  startRef?: Ref<HTMLElement | ComponentPublicInstance | null>,
+) {
   const instance = getCurrentInstance();
   let scrollEl: Element | null = null;
   let countRef: Ref<number> | null = null;
@@ -61,7 +75,14 @@ export function useScrollRestore(key: string) {
   }
 
   onMounted(async () => {
-    const root = instance?.proxy?.$el as Element | null;
+    // Prefer the explicitly provided startRef (handles views that render list
+    // content directly and need a reference point inside the scroll container).
+    // Fall back to the component's own root element.
+    const rawRef = startRef?.value;
+    const root: Element | null =
+      rawRef
+        ? ("$el" in rawRef ? (rawRef.$el as Element) : rawRef)
+        : (instance?.proxy?.$el as Element | null);
     if (root) scrollEl = findScrollParent(root);
 
     const saved = states.get(key);
