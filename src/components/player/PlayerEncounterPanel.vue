@@ -93,6 +93,28 @@
             </div>
           </template>
 
+          <!-- Player-visible narrative events — fired events with is_player_visible=true -->
+          <template v-if="playerVisibleFiredEvents.length > 0 && !isInLobby">
+            <div
+              v-for="event in playerVisibleFiredEvents"
+              :key="event.id"
+              class="flex gap-2.5 items-start rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-2.5"
+            >
+              <IconScrollText class="h-3.5 w-3.5 text-amber-500/60 shrink-0 mt-0.5" />
+              <div class="min-w-0">
+                <p v-if="getEventMessage(event)" class="font-fell text-sm text-foreground/90 italic leading-snug">
+                  {{ getEventMessage(event) }}
+                </p>
+                <p
+                  class="font-cinzel text-2xs text-amber-500/70 tracking-wider uppercase"
+                  :class="getEventMessage(event) ? 'mt-1' : 'text-sm text-foreground'"
+                >
+                  {{ event.name }}
+                </p>
+              </div>
+            </div>
+          </template>
+
           <!-- Combatant list -->
           <EncounterCombatantList
             :visible-combatants="visibleCombatants"
@@ -120,13 +142,13 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { IconClose, IconEncounter, IconMap } from '@/lib/icons';
+import { IconClose, IconEncounter, IconMap, IconScrollText } from '@/lib/icons';
 import { useEncounter } from "@/composables/useEncounters";
 import { useLocation } from "@/composables/useLocations";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { liveState } from "@/composables/useEncounterLive";
-import type { RunCombatant, HealthVisibility } from "@/types/encounter.types";
+import type { RunCombatant, HealthVisibility, EncounterEvent, EventAction } from "@/types/encounter.types";
 import type { Npc } from "@/types/npc.types";
 import { usePlayerCombatPrefs } from "@/composables/usePlayerCombatPrefs";
 import { useTurnChime } from "@/composables/useTurnChime";
@@ -155,6 +177,21 @@ const canShowBattleMap = computed(
     !!battleLocation.value?.map_url &&
     !!battleLocation.value?.grid_calibration,
 );
+// Player-visible pre-scripted events — shown as narrative beats in the combat panel
+const playerVisibleFiredEvents = computed<EncounterEvent[]>(() => {
+  const fired = new Set(liveState.value?.events_fired ?? []);
+  const encounterEvents = battleEncounter.value?.events ?? [];
+  return encounterEvents.filter((e) => e.is_player_visible && fired.has(e.id));
+});
+
+function getEventMessage(event: EncounterEvent): string | null {
+  const action = event.actions.find(
+    (a): a is Extract<EventAction, { type: "broadcast_message" }> =>
+      a.type === "broadcast_message",
+  );
+  return action?.message ?? null;
+}
+
 const { turnAudioEnabled } = usePlayerCombatPrefs();
 const { playTurnChime } = useTurnChime();
 const { isShaking, triggerShake } = useScreenShake();

@@ -21,12 +21,16 @@ interface MusicPlaylistRunState {
   repeat: boolean;
   /** Effect carried across all tracks in this playlist session. */
   effect: AudioEffectPreset;
+  /** True while the playlist is paused mid-track (audio paused, state preserved). */
+  paused: boolean;
 }
 
 interface AmbientPlaylistRunState {
   playlistId: string;
   playlistName: string;
   soundIds: string[];
+  /** True while the ambient scene is paused (all tracks paused, state preserved). */
+  paused: boolean;
 }
 
 // ── Web Audio effect engine (module-level) ────────────────────────────────
@@ -336,9 +340,10 @@ export const useSoundboardStore = defineStore("soundboard", () => {
       currentIndex: 0,
       repeat: playlist.repeat,
       effect: "none",
+      paused: false,
     };
 
-    startCurrentPlaylistTrack(activeMusicPlaylist.value);
+    startCurrentPlaylistTrack(activeMusicPlaylist.value!);
   }
 
   /** Starts the track at mpl.currentIndex, enforcing loop=false + re-applying any active effect. */
@@ -403,6 +408,21 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     setEffect(soundId, mpl.fileUrls[soundId], preset);
   }
 
+  function pauseMusicPlaylist(): void {
+    const mpl = activeMusicPlaylist.value;
+    if (!mpl || mpl.paused) return;
+    pause(mpl.trackSoundIds[mpl.currentIndex]);
+    mpl.paused = true;
+  }
+
+  function resumeMusicPlaylist(): void {
+    const mpl = activeMusicPlaylist.value;
+    if (!mpl || !mpl.paused) return;
+    const soundId = mpl.trackSoundIds[mpl.currentIndex];
+    play(soundId, mpl.fileUrls[soundId]);
+    mpl.paused = false;
+  }
+
   function stopMusicPlaylist(): void {
     if (!activeMusicPlaylist.value) return;
     stop(activeMusicPlaylist.value.trackSoundIds[activeMusicPlaylist.value.currentIndex]);
@@ -422,7 +442,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     if (tracks.length === 0) return;
 
     const soundIds = tracks.map((t) => t.sound.id);
-    activeAmbientPlaylist.value = { playlistId: playlist.id, playlistName: playlist.name, soundIds };
+    activeAmbientPlaylist.value = { playlistId: playlist.id, playlistName: playlist.name, soundIds, paused: false };
 
     // All tracks loop independently so the scene runs until explicitly stopped
     tracks.forEach((t) => {
@@ -431,6 +451,25 @@ export const useSoundboardStore = defineStore("soundboard", () => {
       if (el) el.loop = true;
       play(t.sound.id, t.sound.file_url);
     });
+  }
+
+  function pauseAmbientPlaylist(): void {
+    const apl = activeAmbientPlaylist.value;
+    if (!apl || apl.paused) return;
+    apl.soundIds.forEach((id) => pause(id));
+    apl.paused = true;
+  }
+
+  function resumeAmbientPlaylist(): void {
+    const apl = activeAmbientPlaylist.value;
+    if (!apl || !apl.paused) return;
+    // Re-fetch file URLs from the audio instances (they were warmed up at play time)
+    apl.soundIds.forEach((id) => {
+      const el = audioInstances.get(id);
+      if (el) void el.play();
+      if (playbackStates.value[id]) playbackStates.value[id].isPlaying = true;
+    });
+    apl.paused = false;
   }
 
   function stopAmbientPlaylist(): void {
@@ -518,8 +557,12 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     playMusicPlaylist,
     musicPlaylistNext,
     musicPlaylistPrev,
+    pauseMusicPlaylist,
+    resumeMusicPlaylist,
     stopMusicPlaylist,
     playAmbientPlaylist,
+    pauseAmbientPlaylist,
+    resumeAmbientPlaylist,
     stopAmbientPlaylist,
     setEffect,
     setMusicPlaylistEffect,

@@ -44,22 +44,45 @@
 
     <!-- Controls row -->
     <div class="flex items-center gap-1.5">
-      <!-- Play / Stop -->
+      <!-- Not active: Play -->
       <button
+        v-if="!isActive"
         class="flex items-center gap-1.5 flex-1 justify-center py-1.5 rounded-md border text-xs font-cinzel tracking-wide transition-colors"
-        :class="isActive
-          ? 'border-destructive/40 text-destructive hover:bg-destructive/10'
-          : playlist.playlist_type === 'music'
-            ? 'border-gold-500/30 text-gold-400 hover:bg-gold-500/10'
-            : 'border-green-500/30 text-green-400 hover:bg-green-500/10'"
+        :class="playlist.playlist_type === 'music'
+          ? 'border-gold-500/30 text-gold-400 hover:bg-gold-500/10'
+          : 'border-green-500/30 text-green-400 hover:bg-green-500/10'"
         :disabled="tracksLoading || trackCount === 0"
-        :title="isActive ? 'Stop' : 'Play'"
+        title="Play"
         @click="togglePlay"
       >
-        <IconStop v-if="isActive" class="h-3.5 w-3.5" />
-        <IconPlay v-else class="h-3.5 w-3.5" />
-        {{ isActive ? "Stop" : "Play" }}
+        <IconPlay class="h-3.5 w-3.5" />
+        Play
       </button>
+
+      <!-- Active: Pause / Resume + Stop -->
+      <template v-else>
+        <button
+          class="flex items-center gap-1.5 flex-1 justify-center py-1.5 rounded-md border text-xs font-cinzel tracking-wide transition-colors"
+          :class="isPaused
+            ? (playlist.playlist_type === 'music'
+                ? 'border-gold-500/30 text-gold-400 hover:bg-gold-500/10'
+                : 'border-green-500/30 text-green-400 hover:bg-green-500/10')
+            : 'border-amber-500/40 text-amber-400 hover:bg-amber-500/10'"
+          :title="isPaused ? 'Resume' : 'Pause'"
+          @click="togglePause"
+        >
+          <IconPlay v-if="isPaused" class="h-3.5 w-3.5" />
+          <IconPause v-else class="h-3.5 w-3.5" />
+          {{ isPaused ? "Resume" : "Pause" }}
+        </button>
+        <button
+          class="p-1.5 rounded-md border border-destructive/40 text-destructive hover:bg-destructive/10 transition-colors"
+          title="Stop"
+          @click="togglePlay"
+        >
+          <IconStop class="h-3.5 w-3.5" />
+        </button>
+      </template>
 
       <!-- Music: prev / next when active -->
       <template v-if="isActive && playlist.playlist_type === 'music'">
@@ -102,7 +125,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { IconPlay, IconStop, IconSkipBack, IconSkipForward, IconEdit, IconDelete, IconMusicNote, IconWind } from "@/lib/icons";
+import { IconPlay, IconPause, IconStop, IconSkipBack, IconSkipForward, IconEdit, IconDelete, IconMusicNote, IconWind } from "@/lib/icons";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { usePlaylistTracks } from "@/composables/useSoundboardPlaylists";
 import type { SoundboardPlaylist } from "@/types/sound.types";
@@ -120,6 +143,12 @@ const isActive = computed(() =>
   playlist.playlist_type === "music"
     ? store.activeMusicPlaylist?.playlistId === playlist.id
     : store.activeAmbientPlaylist?.playlistId === playlist.id,
+);
+
+const isPaused = computed(() =>
+  playlist.playlist_type === "music"
+    ? (store.activeMusicPlaylist?.playlistId === playlist.id && store.activeMusicPlaylist?.paused === true)
+    : (store.activeAmbientPlaylist?.playlistId === playlist.id && store.activeAmbientPlaylist?.paused === true),
 );
 
 const typeIcon = computed(() =>
@@ -149,6 +178,22 @@ function togglePlay() {
     store.playMusicPlaylist(playlist, tracks.value);
   } else {
     store.playAmbientPlaylist(playlist, tracks.value);
+  }
+}
+
+function togglePause() {
+  if (isPaused.value) {
+    if (playlist.playlist_type === "music") {
+      store.resumeMusicPlaylist();
+    } else {
+      store.resumeAmbientPlaylist();
+    }
+  } else {
+    if (playlist.playlist_type === "music") {
+      store.pauseMusicPlaylist();
+    } else {
+      store.pauseAmbientPlaylist();
+    }
   }
 }
 </script>
