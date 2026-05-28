@@ -18,6 +18,7 @@
     <div v-if="activeSourceTab !== 'browse'" class="space-y-1">
       <label class="font-fell text-xs text-muted-foreground">Name</label>
       <input
+        ref="nameInputRef"
         v-model="form.name"
         type="text"
         required
@@ -302,7 +303,17 @@ const form = ref<{ name: string; category: SoundCategory; external_url: string }
 const selectedFile = ref<File | null>(null);
 const uploadError = ref("");
 const fileInputRef = ref<HTMLInputElement | null>(null);
+const nameInputRef = ref<HTMLInputElement | null>(null);
 const MAX_FILE_SIZE_MB = 20;
+
+function applyFilenameToName(file: File) {
+  if (form.value.name.trim()) return;
+  form.value.name = file.name.replace(/\.[^.]+$/, "");
+  nextTick(() => {
+    nameInputRef.value?.focus();
+    nameInputRef.value?.select();
+  });
+}
 
 function setSelectedFile(file: File | null): boolean {
   uploadError.value = "";
@@ -327,7 +338,8 @@ function setSelectedFile(file: File | null): boolean {
 function handleFileChange(e: Event) {
   const input = e.target as HTMLInputElement;
   const file = input.files?.[0] ?? null;
-  if (!setSelectedFile(file)) input.value = "";
+  if (!setSelectedFile(file)) { input.value = ""; return; }
+  if (file) applyFilenameToName(file);
 }
 
 async function onUploadTabClick() {
@@ -372,7 +384,7 @@ function onWindowDrop(e: DragEvent) {
   const file = e.dataTransfer?.files?.[0] ?? null;
   if (!file) return;
   activeSourceTab.value = "upload";
-  setSelectedFile(file);
+  if (setSelectedFile(file)) applyFilenameToName(file);
 }
 
 onMounted(() => {

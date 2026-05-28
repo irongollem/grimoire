@@ -59,6 +59,8 @@ const OPTIONS = [
   { value: "through_wall" as AudioEffectPreset, label: "Wall"    },
   { value: "distant"      as AudioEffectPreset, label: "Distant" },
   { value: "underwater"   as AudioEffectPreset, label: "Water"   },
+  { value: "cave"         as AudioEffectPreset, label: "Cave"    },
+  { value: "sewer"        as AudioEffectPreset, label: "Sewer"   },
 ] as const;
 
 const buttonEl = ref<HTMLButtonElement | null>(null);
@@ -74,7 +76,7 @@ function updatePosition() {
   const el = buttonEl.value;
   if (!el) return;
   const rect = el.getBoundingClientRect();
-  const panelW = 220; // approximate panel width
+  const panelW = 300; // approximate panel width
   const panelH = 40;  // approximate panel height
   const spaceBelow = window.innerHeight - rect.bottom;
   openUpward.value = spaceBelow < panelH + 8 && rect.top > spaceBelow;

@@ -61,6 +61,8 @@ const EFFECT_PARAMS: Record<Exclude<AudioEffectPreset, "none">, EffectParams> = 
   through_wall: { frequency: 220,  Q: 0.8, gain: 0.25 }, // stone: very muffled, barely there
   distant:      { frequency: 1800, Q: 0.5, gain: 0.35 }, // air: loses sparkle, much quieter
   underwater:   { frequency: 150,  Q: 3.5, gain: 0.40 }, // water: heavy, resonant
+  cave:         { frequency: 900,  Q: 2.5, gain: 0.65 }, // stone: hollow, resonant, highs cut
+  sewer:        { frequency: 500,  Q: 2.2, gain: 0.55 }, // wet stone tunnel: more muffled, resonant
 };
 
 const EFFECT_RAMP_S = 0.5; // smooth transition duration in seconds
