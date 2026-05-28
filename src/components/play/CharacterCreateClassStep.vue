@@ -95,6 +95,29 @@
             </p>
           </div>
 
+          <!-- Background skill choice ("choose one of …") -->
+          <div v-for="(choice, ci) in bgSkillChoices" :key="`bgchoice-${ci}`"
+            class="mb-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-2">
+            <p class="font-cinzel text-[10px] text-amber-700 dark:text-amber-400 mb-1.5">
+              BACKGROUND CHOICE — pick {{ choice.count }}
+              <span class="text-amber-600/70">({{ bgChosenSkills.length }}/{{ bgChoiceLimit }} chosen)</span>
+            </p>
+            <div class="flex flex-wrap gap-1.5">
+              <button v-for="opt in (choice.options.length ? choice.options : SKILLS.map(s => s.key))"
+                :key="opt" type="button"
+                class="px-2 py-0.5 rounded font-cinzel text-[10px] border transition-colors"
+                :class="bgChosenSkills.includes(opt)
+                  ? 'bg-amber-500/25 border-amber-500/50 text-amber-700 dark:text-amber-400'
+                  : bgChosenSkills.length >= bgChoiceLimit
+                    ? 'border-border text-muted-foreground/50 cursor-not-allowed'
+                    : 'border-border text-muted-foreground hover:border-amber-500/40 hover:text-foreground'"
+                :disabled="!bgChosenSkills.includes(opt) && bgChosenSkills.length >= bgChoiceLimit"
+                @click="toggleBgSkillChoice(opt)">
+                {{ skillLabel(opt) }}
+              </button>
+            </div>
+          </div>
+
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
             <div v-for="skill in SKILLS" :key="skill.key"
               class="flex items-center gap-2 rounded px-1 py-0.5 transition-colors"
@@ -175,22 +198,24 @@ import type { CharacterCreationForm } from "@/composables/useCharacterCreationFo
 
 const { form } = defineProps<{ form: CharacterCreationForm }>();
 
-const { f, mergedClasses, selectedBg, onClassSelect, setSkillProf, skillBonus, toggleSave, saveBonus } = form;
+const {
+  f, mergedClasses, onClassSelect, setSkillProf, skillBonus, toggleSave, saveBonus,
+  bgSkillChoices, bgChosenSkills, bgChoiceLimit, bgFreeSkills, toggleBgSkillChoice,
+} = form;
 
 const showProfs = ref(false);
 
 // ── Skill budget ────────────────────────────────────────────────────────────
 
-/** Skill keys granted by the selected background (free — don't count against class budget). */
-const bgSkillKeys = computed((): Set<SkillKey> => {
-  const proficiencies = selectedBg.value?.skill_proficiencies;
-  if (!proficiencies?.length) return new Set();
-  const keys = proficiencies.flatMap((label) => {
-    const match = SKILLS.find((s) => s.label.toLowerCase() === label.toLowerCase());
-    return match ? [match.key as SkillKey] : [];
-  });
-  return new Set(keys);
-});
+/** Skill keys the background grants for free (fixed + chosen) — these don't
+ *  count against the class budget. Parsed from the background's prose so a
+ *  "choose one of A/B/C" clause exposes only the picked skill, not all of them. */
+const bgSkillKeys = computed((): Set<SkillKey> => new Set(bgFreeSkills.value));
+
+/** Skill label for a key, for the choice picker. */
+function skillLabel(key: SkillKey): string {
+  return SKILLS.find((s) => s.key === key)?.label ?? key;
+}
 
 /** Skill choices for the currently selected class, or null when no class chosen. */
 const classSkillData = computed(() => {
