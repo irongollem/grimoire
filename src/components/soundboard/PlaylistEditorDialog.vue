@@ -189,6 +189,7 @@ const localType = ref<PlaylistType>("music");
 const localShuffle = ref(false);
 const localRepeat = ref(true);
 const trackList = ref<TrackListItem[]>([]);
+const trackListSeeded = ref(false);
 const addSoundId = ref("");
 const saving = ref(false);
 
@@ -198,6 +199,7 @@ const dialogTitleId = computed(() => playlist ? `edit-playlist-${playlist.id}` :
 watch(
   () => playlist,
   (pl) => {
+    trackListSeeded.value = false;
     if (pl) {
       localName.value = pl.name;
       localType.value = pl.playlist_type;
@@ -214,9 +216,12 @@ watch(
   { immediate: true },
 );
 
-// Populate track list when existing tracks load (edit mode)
+// Populate track list when existing tracks first load (edit mode).
+// Guard with trackListSeeded so background re-fetches don't overwrite
+// changes the user has made since opening the dialog.
 watch(existingTracks, (tracks) => {
-  if (tracks && playlist) {
+  if (tracks && playlist && !trackListSeeded.value) {
+    trackListSeeded.value = true;
     trackList.value = tracks.map((t) => ({
       sound: t.sound,
       localId: t.id,
