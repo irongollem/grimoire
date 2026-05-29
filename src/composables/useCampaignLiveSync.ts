@@ -44,9 +44,12 @@ export function useCampaignLiveSync() {
           .on("postgres_changes", { event: "*", schema: "public", table: "deities",            filter: f }, invalidate("deities"))
           .on("postgres_changes", { event: "*", schema: "public", table: "puzzle_rooms",       filter: f }, invalidate("puzzle_rooms"))
           .on("postgres_changes", { event: "*", schema: "public", table: "calendar_events",    filter: f }, invalidate("calendar-events"))
-          .on("postgres_changes", { event: "*", schema: "public", table: "player_journal",     filter: f }, invalidate("player_journal"))
+          .on("postgres_changes", { event: "*", schema: "public", table: "player_journal_entries", filter: f }, invalidate("player_journal"))
           .on("postgres_changes", { event: "*", schema: "public", table: "session_proposals",  filter: f }, invalidate("session_proposals"))
           .on("postgres_changes", { event: "*", schema: "public", table: "session_availability", filter: f }, invalidate("session_availability"))
+          .on("postgres_changes", { event: "*", schema: "public", table: "items",              filter: f }, invalidate("items"))
+          .on("postgres_changes", { event: "*", schema: "public", table: "party_inventory",    filter: f }, invalidate("party-inventory"))
+          .on("postgres_changes", { event: "*", schema: "public", table: "npc_inventory",      filter: f }, invalidate("npc-inventory"))
           // campaigns table uses `id` as the campaign identifier (not campaign_id)
           .on("postgres_changes", { event: "UPDATE", schema: "public", table: "campaigns", filter: `id=eq.${campaignId}` }, (payload) => {
             const updated = payload.new as import("@/types/campaign.types").Campaign;

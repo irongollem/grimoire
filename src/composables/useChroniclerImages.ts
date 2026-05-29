@@ -20,6 +20,7 @@ export function useChroniclerImages() {
         .from("chronicler_images")
         .select("*")
         .eq("campaign_id", activeCampaignId.value!)
+        .eq("status", "ready")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];

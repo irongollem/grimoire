@@ -24,13 +24,14 @@
         <div v-else class="grid grid-cols-4 gap-1.5">
           <button
             v-for="img in images"
+            v-show="img.image_url"
             :key="img.id"
             type="button"
             class="relative w-14 h-14 rounded overflow-hidden border border-border hover:border-primary transition-colors group"
             :title="img.prompt"
-            @click="select(img.image_url)"
+            @click="img.image_url && select(img.image_url)"
           >
-            <img :src="img.image_url" :alt="img.prompt" class="w-full h-full object-cover" />
+            <img :src="img.image_url ?? ''" :alt="img.prompt" class="w-full h-full object-cover" />
             <div class="absolute inset-0 bg-primary/20 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity" />
           </button>
         </div>

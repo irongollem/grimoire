@@ -9,7 +9,7 @@
       @click="open = !open"
     >
       <IconSend class="h-3.5 w-3.5" />
-      IconSend to…
+      Send to…
       <IconChevronDown class="h-3 w-3" />
     </button>
 

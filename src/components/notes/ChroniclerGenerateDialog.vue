@@ -110,7 +110,6 @@ import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 const SCENE_LIMIT = AI_PROMPT_LIMIT_SHORT;
 import { IconGenerate } from '@/lib/icons';
 import { parseSceneEntities, generateChroniclerImage } from "@/ai/useChroniclerImageGeneration";
-import { useCreateChroniclerImage } from "@/composables/useChroniclerImages";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { storeToRefs } from "pinia";
@@ -159,7 +158,6 @@ const hasMentions = computed(() => /@[A-Za-z]/.test(scenePrompt.value));
 const campaignStore = useCampaignStore();
 const { activeCampaignId } = storeToRefs(campaignStore);
 const { user } = storeToRefs(useAuthStore());
-const { mutateAsync: createImage } = useCreateChroniclerImage();
 
 async function generate() {
   if (!activeCampaignId.value || !scenePrompt.value.trim() || !user.value) return;
@@ -170,13 +168,6 @@ async function generate() {
       sceneText: scenePrompt.value,
       entities:  resolvedEntities.value,
       size:      size.value,
-    });
-    await createImage({
-      campaign_id: activeCampaignId.value,
-      user_id:     user.value!.id,
-      image_url:   url,
-      prompt:      scenePrompt.value.slice(0, 500),
-      size:        size.value,
     });
     emit("generated", url);
     emit("close");

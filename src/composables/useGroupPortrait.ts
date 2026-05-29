@@ -53,6 +53,7 @@ export function useGroupPortrait() {
         sceneText: "A group portrait of the adventuring party together",
         entities,
         size:      "1536x1024",
+        kind:      "group_portrait",
       });
 
       const updated = await updateCampaign({
