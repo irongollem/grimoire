@@ -154,7 +154,8 @@
           :dark="isDark"
           :enable-time-picker="true"
           :teleport="true"
-          :min-date="new Date()"
+          :min-date="minDate"
+          :start-time="{ hours: 19, minutes: 0 }"
           placeholder="Pick a date & time…"
           class="grimoire-datepicker"
         />
@@ -400,6 +401,16 @@ function getMemberAvailability(
 }
 
 // ── Form ──────────────────────────────────────────────────────────────────────
+
+// Earliest selectable DATE — start of today. Must be date-only (00:00): using
+// `new Date()` (current time) makes VueDatePicker clamp the time-of-day to the
+// minimum on today's date, which during late-night use pins fresh picks to the
+// current hour (e.g. "02:00") and fights manual time selection.
+const minDate = computed(() => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+});
 
 const form = ref({
   proposed_datetime: null as Date | null,

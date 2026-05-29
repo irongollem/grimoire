@@ -40,6 +40,7 @@ serve(async (req: Request) => {
   let model: string | undefined;
   let provider: string | undefined;
   let input_tokens: number | undefined;
+  let input_image_tokens: number | undefined;
   let output_tokens: number | undefined;
   let image_count: number | undefined;
 
@@ -51,6 +52,7 @@ serve(async (req: Request) => {
     model = body.model ?? undefined;
     provider = body.provider ?? undefined;
     input_tokens = body.input_tokens != null ? Number(body.input_tokens) : undefined;
+    input_image_tokens = body.input_image_tokens != null ? Number(body.input_image_tokens) : undefined;
     output_tokens = body.output_tokens != null ? Number(body.output_tokens) : undefined;
     image_count = body.image_count != null ? Number(body.image_count) : undefined;
     if (!reason || (!is_byok && amount < 1)) throw new Error("invalid");
@@ -68,6 +70,7 @@ serve(async (req: Request) => {
       model,
       provider,
       input_tokens,
+      input_image_tokens,
       output_tokens,
       image_count,
     });
@@ -105,6 +108,7 @@ serve(async (req: Request) => {
     model,
     provider,
     input_tokens,
+    input_image_tokens,
     output_tokens,
     image_count,
   });

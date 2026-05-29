@@ -46,6 +46,22 @@ export function createOpenAiImageProvider(
 ): ImageProvider {
   const baseUsage: Omit<ImageUsage, "image_count"> = { model, provider: "openai" };
 
+  /** Pull token usage out of an OpenAI image-API response for token-based costing. */
+  function imageTokens(data: {
+    usage?: {
+      input_tokens?: number;
+      input_tokens_details?: { text_tokens?: number; image_tokens?: number };
+      output_tokens?: number;
+    };
+  }): Pick<ImageUsage, "input_tokens" | "input_image_tokens" | "output_tokens"> {
+    const u = data.usage;
+    return {
+      input_tokens:       u?.input_tokens_details?.text_tokens  ?? u?.input_tokens ?? 0,
+      input_image_tokens: u?.input_tokens_details?.image_tokens ?? 0,
+      output_tokens:      u?.output_tokens ?? 0,
+    };
+  }
+
   return {
     async generate(prompt: string, size: string) {
       const res = await fetch(IMAGE_URL, {
@@ -63,7 +79,7 @@ export function createOpenAiImageProvider(
       const data = await res.json();
       return {
         b64: data.data?.[0]?.b64_json as string,
-        usage: { ...baseUsage, image_count: 1 },
+        usage: { ...baseUsage, image_count: 1, ...imageTokens(data) },
       };
     },
 
@@ -87,7 +103,7 @@ export function createOpenAiImageProvider(
       const data = await res.json();
       return {
         b64: data.data?.[0]?.b64_json as string,
-        usage: { ...baseUsage, image_count: 1 },
+        usage: { ...baseUsage, image_count: 1, ...imageTokens(data) },
       };
     },
   };

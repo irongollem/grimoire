@@ -258,6 +258,23 @@ export async function generateChroniclerImage(params: {
   const prompt = buildPrompt(sceneText, textDescriptions, settingPrompt, imageBasePrompt);
 
   let b64: string;
+  // Token usage for accurate (token-based) image cost. The edit branch feeds
+  // reference portraits in, so its image-input tokens can be substantial.
+  let imgInputTokens = 0;
+  let imgInputImageTokens = 0;
+  let imgOutputTokens = 0;
+  const captureUsage = (data: {
+    usage?: {
+      input_tokens?: number;
+      input_tokens_details?: { text_tokens?: number; image_tokens?: number };
+      output_tokens?: number;
+    };
+  }) => {
+    const u = data.usage;
+    imgInputTokens      += u?.input_tokens_details?.text_tokens  ?? u?.input_tokens ?? 0;
+    imgInputImageTokens += u?.input_tokens_details?.image_tokens ?? 0;
+    imgOutputTokens     += u?.output_tokens ?? 0;
+  };
 
   if (portraitBlobs.length > 0) {
     // Multi-image edit endpoint — composes reference portraits into the scene
@@ -279,7 +296,9 @@ export async function generateChroniclerImage(params: {
       const body = await res.json().catch(() => ({}));
       throw new Error(body?.error?.message ?? `OpenAI image edit error ${res.status}`);
     }
-    b64 = (await res.json()).data[0].b64_json as string;
+    const json = await res.json();
+    b64 = json.data[0].b64_json as string;
+    captureUsage(json);
   } else {
     // Standard generation — text-only prompt
     const res = await fetch(GENERATE_URL, {
@@ -291,10 +310,20 @@ export async function generateChroniclerImage(params: {
       const body = await res.json().catch(() => ({}));
       throw new Error(body?.error?.message ?? `OpenAI image generation error ${res.status}`);
     }
-    b64 = (await res.json()).data[0].b64_json as string;
+    const json = await res.json();
+    b64 = json.data[0].b64_json as string;
+    captureUsage(json);
   }
 
-  logUsage({ reason: "chronicler_image", imageUsage: { model: imageModel, provider: "openai", image_count: 1 } });
+  logUsage({
+    reason: "chronicler_image",
+    imageUsage: {
+      model: imageModel, provider: "openai", image_count: 1,
+      input_tokens:       imgInputTokens      || undefined,
+      input_image_tokens: imgInputImageTokens || undefined,
+      output_tokens:      imgOutputTokens     || undefined,
+    },
+  });
 
   // Upload to chronicle bucket
   const blob = b64ToBlob(b64, "image/webp");

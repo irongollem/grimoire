@@ -17,11 +17,15 @@ export function logUsage(params: {
       reason,
       amount: 0,
       is_byok: true,
-      model:         textUsage?.model    ?? imageUsage?.model,
-      provider:      textUsage?.provider ?? imageUsage?.provider,
-      input_tokens:  textUsage?.input_tokens,
-      output_tokens: textUsage?.output_tokens,
-      image_count:   imageUsage?.image_count,
+      model:              textUsage?.model    ?? imageUsage?.model,
+      provider:           textUsage?.provider ?? imageUsage?.provider,
+      // Token-based image models (OpenAI gpt-image) report tokens on imageUsage;
+      // text generators report on textUsage. Forward whichever is present so the
+      // ledger can compute real cost on every path.
+      input_tokens:       textUsage?.input_tokens  ?? imageUsage?.input_tokens,
+      input_image_tokens: imageUsage?.input_image_tokens,
+      output_tokens:      textUsage?.output_tokens ?? imageUsage?.output_tokens,
+      image_count:        imageUsage?.image_count,
     },
   }).catch(() => { /* analytics logging failure is never fatal */ })
 }

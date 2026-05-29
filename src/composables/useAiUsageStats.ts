@@ -10,6 +10,7 @@ interface AiGenerationCostRow {
   model: string | null
   provider: string | null
   input_tokens: number | null
+  input_image_tokens: number | null
   output_tokens: number | null
   image_count: number | null
   is_byok: boolean
@@ -23,9 +24,12 @@ export interface ModelStat {
   count: number
   byok_count: number
   total_input_tokens: number
+  total_input_image_tokens: number
   total_output_tokens: number
   total_images: number
   estimated_cost_usd: number
+  /** Mean estimated cost per generation (estimated_cost_usd / count). */
+  avg_cost_usd: number
 }
 
 async function fetchGenerationCosts(): Promise<AiGenerationCostRow[]> {
@@ -69,20 +73,25 @@ export function useAiUsageStats() {
           count: 0,
           byok_count: 0,
           total_input_tokens: 0,
+          total_input_image_tokens: 0,
           total_output_tokens: 0,
           total_images: 0,
           estimated_cost_usd: 0,
+          avg_cost_usd: 0,
         })
       }
       const stat = map.get(key)!
       stat.count++
       if (row.is_byok) stat.byok_count++
-      stat.total_input_tokens  += row.input_tokens  ?? 0
-      stat.total_output_tokens += row.output_tokens ?? 0
-      stat.total_images        += row.image_count   ?? 0
-      stat.estimated_cost_usd  += (row.estimated_cost_usd_cents ?? 0) / 100
+      stat.total_input_tokens       += row.input_tokens       ?? 0
+      stat.total_input_image_tokens += row.input_image_tokens ?? 0
+      stat.total_output_tokens      += row.output_tokens      ?? 0
+      stat.total_images             += row.image_count        ?? 0
+      stat.estimated_cost_usd       += (row.estimated_cost_usd_cents ?? 0) / 100
     }
-    return [...map.values()].sort((a, b) => b.count - a.count)
+    const stats = [...map.values()]
+    for (const s of stats) s.avg_cost_usd = s.count ? s.estimated_cost_usd / s.count : 0
+    return stats.sort((a, b) => b.count - a.count)
   })
 
   return {
