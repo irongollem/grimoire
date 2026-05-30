@@ -240,11 +240,10 @@ export function useCampaignMessages() {
   /**
    * Narrative system event — used by the DM Prep/Play mode (#133) to announce
    * entity reveals into chat. Posts as a `system` message with no sender name
-   * so it renders as a campaign event rather than a person talking. MVP emits
-   * plain text ("You encounter Alice."); a later iteration can swap in a
-   * structured metadata shape + a renderer that resolves the entity link.
+   * so it renders as a campaign event rather than a person talking.
+   * Pass `npcId` to attach an entity link so players can navigate to the NPC.
    */
-  async function sendNarrativeEvent(text: string) {
+  async function sendNarrativeEvent(text: string, npcId?: string) {
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id || !text.trim()) return;
     const insert: CampaignMessageInsert = {
@@ -254,7 +253,7 @@ export function useCampaignMessages() {
       sender_name: null,
       message: text.trim(),
       type: "system",
-      metadata: null,
+      metadata: npcId ? { entity_type: "npc", entity_id: npcId } : null,
     };
     const { data } = await supabase.from("campaign_messages").insert(insert).select().single();
     if (data) _optimisticPush(data as CampaignMessage);

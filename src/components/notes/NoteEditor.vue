@@ -510,6 +510,7 @@ async function save() {
         void sendCampaignAnnouncement(
           activeCampaignId.value,
           `📜 Note shared: "${title.value.trim()}"`,
+          { entity_type: "note", entity_id: props.note.id },
         );
       router.push("/notes");
     } else {
@@ -519,6 +520,7 @@ async function save() {
         void sendCampaignAnnouncement(
           activeCampaignId.value,
           `📜 Note shared: "${created.title}"`,
+          { entity_type: "note", entity_id: created.id },
         );
       router.replace(`/notes/${created.id}`);
     }

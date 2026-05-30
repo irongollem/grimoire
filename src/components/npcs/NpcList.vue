@@ -440,7 +440,7 @@ function setWholeParty() {
     },
   });
   if (wasHidden && ui.dmMode === "play") {
-    void sendNarrativeEvent(`The party encounters ${npc.name}.`);
+    void sendNarrativeEvent(`The party encounters ${npc.name}.`, npc.id);
   }
 }
 
@@ -460,7 +460,7 @@ function toggleMember(memberId: string) {
   if (idx === -1 && ui.dmMode === "play") {
     const memberName = party.value?.find((m) => m.id === memberId)?.name;
     const who = memberName ?? "A party member";
-    void sendNarrativeEvent(`${who} encounters ${npc.name}.`);
+    void sendNarrativeEvent(`${who} encounters ${npc.name}.`, npc.id);
   }
 }
 

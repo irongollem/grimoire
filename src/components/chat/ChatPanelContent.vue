@@ -148,6 +148,7 @@
             :message="msg.message"
             :rendered-message="renderMessage(msg.message)"
             :time-label="timeLabel(msg.created_at)"
+            :entity-link="entityLinkFor(msg)"
           />
         </div>
       </template>
@@ -337,6 +338,7 @@ import type {
   FlavorMetadata,
   RollMetadata,
   LootChestMetadata,
+  EntityLinkMetadata,
 } from "@/types/chat.types";
 import type { CampaignMember } from "@/types/campaign.types";
 import type { PartyMember } from "@/types/party.types";
@@ -380,6 +382,12 @@ const emit = defineEmits<{
 
 function asRoll(m: CampaignMessage["metadata"]): RollMetadata {
   return m as RollMetadata;
+}
+
+function entityLinkFor(msg: CampaignMessage): EntityLinkMetadata | null {
+  if (msg.type !== "system") return null;
+  const meta = msg.metadata as EntityLinkMetadata | null;
+  return meta?.entity_type ? meta : null;
 }
 
 const npcSelectState = reactive<Record<string, string>>({});

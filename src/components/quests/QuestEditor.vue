@@ -433,6 +433,7 @@ async function save() {
         void sendCampaignAnnouncement(
           campaign.activeCampaignId,
           `📋 Quest shared: "${title.value.trim()}"`,
+          { entity_type: "quest", entity_id: props.quest.id },
         );
       // Return to view mode (strip ?edit=true), not the list
       const { edit: _edit, ...rest } = route.query;
@@ -443,6 +444,7 @@ async function save() {
         void sendCampaignAnnouncement(
           campaign.activeCampaignId,
           `📋 Quest shared: "${created.title}"`,
+          { entity_type: "quest", entity_id: created.id },
         );
       router.push(`/quests/${created.id}`);
     }

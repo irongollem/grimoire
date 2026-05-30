@@ -103,7 +103,7 @@ async function toggleReveal() {
       const msg = disguise
         ? `${disguise} is revealed to be ${props.npc.name}.`
         : `${props.npc.name} has been revealed.`;
-      void sendNarrativeEvent(msg);
+      void sendNarrativeEvent(msg, props.npc.id);
     }
   } finally {
     isToggling.value = false;

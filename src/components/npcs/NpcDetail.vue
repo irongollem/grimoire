@@ -527,6 +527,7 @@ async function save() {
     const isNowVisible = form.player_visible_to.length > 0;
     const becameVisible = wasHidden && isNowVisible;
 
+    let savedNpcId = props.npc?.id ?? null;
     if (props.npc?.id) {
       // Exclude campaign_id: it must not be overwritten on update (could be null
       // if activeCampaignId hasn't loaded yet, severing the campaign link).
@@ -534,13 +535,14 @@ async function save() {
       await updateNpc({ id: props.npc.id, update: updatePayload })
     } else {
       const created = await createNpc(payload)
+      savedNpcId = created.id;
       // Stay on the detail page after create so faction/relation links can be added immediately
       router.push(`/npcs/${created.id}`)
     }
 
     if (becameVisible && ui.dmMode === 'play' && form.name.trim()) {
       // Fire-and-forget — chat failure must not block the save navigation.
-      void sendNarrativeEvent(`You encounter ${form.name.trim()}.`)
+      void sendNarrativeEvent(`You encounter ${form.name.trim()}.`, savedNpcId ?? undefined)
     }
 
     if (props.npc?.id) router.push('/npcs')
