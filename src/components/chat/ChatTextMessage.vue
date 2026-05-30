@@ -107,6 +107,7 @@ const targetRoute = computed((): string | null => {
     switch (entity_type) {
       case "note": return "/play/journal";
       case "quest": return `/play/quests/${entity_id}`;
+      case "npc": return `/play/party?npc=${entity_id}`;
       case "location": return "/play/atlas";
       case "calendar_event": return "/play/calendar";
       default: return null;
